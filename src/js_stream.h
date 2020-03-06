@@ -3,8 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "async_wrap.h"
-# include "stream_base.h"
+#include "async_wrap.h"
+#include "stream_base.h"
 
 namespace node {
 

@@ -24,18 +24,18 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "base_object.h"
-# include "env-inl.h"
-# include "util.h"
+#include "base_object.h"
+#include "env-inl.h"
+#include "util.h"
 
-# if (__GNUC__ >= 8) && !defined(__clang__)
-#   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wcast-function-type"
-# endif
-# include "v8.h"
-# if (__GNUC__ >= 8) && !defined(__clang__)
-#   pragma GCC diagnostic pop
-# endif
+#if (__GNUC__ >= 8) && !defined(__clang__)
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+#include "v8.h"
+#if (__GNUC__ >= 8) && !defined(__clang__)
+# pragma GCC diagnostic pop
+#endif
 
 namespace node {
 

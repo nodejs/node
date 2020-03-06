@@ -25,20 +25,20 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 // ClientHelloParser
-# include "node_crypto_clienthello.h"
+#include "node_crypto_clienthello.h"
 
-# include "env.h"
-# include "base_object.h"
-# include "util.h"
+#include "env.h"
+#include "base_object.h"
+#include "util.h"
 
-# include "v8.h"
+#include "v8.h"
 
-# include <openssl/err.h>
-# include <openssl/ssl.h>
-# include <openssl/bn.h>
-# include <openssl/dh.h>
-# include <openssl/ec.h>
-# include <openssl/rsa.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <openssl/bn.h>
+#include <openssl/dh.h>
+#include <openssl/ec.h>
+#include <openssl/rsa.h>
 
 namespace node {
 namespace crypto {
@@ -100,10 +100,10 @@ class SecureContext final : public BaseObject {
   SSLCtxPointer ctx_;
   X509Pointer cert_;
   X509Pointer issuer_;
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
   bool client_cert_engine_provided_ = false;
   std::unique_ptr<ENGINE, std::function<void(ENGINE*)>> private_key_engine_;
-# endif  // !OPENSSL_NO_ENGINE
+#endif  // !OPENSSL_NO_ENGINE
 
   static const int kMaxSessionSize = 10 * 1024;
 
@@ -125,9 +125,9 @@ class SecureContext final : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
   static void SetEngineKey(const v8::FunctionCallbackInfo<v8::Value>& args);
-# endif  // !OPENSSL_NO_ENGINE
+#endif  // !OPENSSL_NO_ENGINE
   static void SetCert(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddCACert(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddCRL(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -148,10 +148,10 @@ class SecureContext final : public BaseObject {
   static void GetMaxProto(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void LoadPKCS12(const v8::FunctionCallbackInfo<v8::Value>& args);
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
   static void SetClientCertEngine(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-# endif  // !OPENSSL_NO_ENGINE
+#endif  // !OPENSSL_NO_ENGINE
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetFreeListLength(
@@ -264,10 +264,10 @@ class SSLWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProtocol(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-# ifdef SSL_set_max_send_fragment
+#ifdef SSL_set_max_send_fragment
   static void SetMaxSendFragment(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-# endif  // SSL_set_max_send_fragment
+#endif  // SSL_set_max_send_fragment
 
   static void GetALPNNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -776,9 +776,9 @@ class ECDH final : public BaseObject {
 };
 
 bool EntropySource(unsigned char* buffer, size_t length);
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
 void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
-# endif  // !OPENSSL_NO_ENGINE
+#endif  // !OPENSSL_NO_ENGINE
 void InitCrypto(v8::Local<v8::Object> target);
 
 void ThrowCryptoError(Environment* env,

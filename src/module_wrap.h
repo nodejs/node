@@ -3,10 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include <unordered_map>
-# include <string>
-# include <vector>
-# include "base_object.h"
+#include <unordered_map>
+#include <string>
+#include <vector>
+#include "base_object.h"
 
 namespace node {
 

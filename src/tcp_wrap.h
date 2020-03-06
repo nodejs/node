@@ -24,8 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "async_wrap.h"
-# include "connection_wrap.h"
+#include "async_wrap.h"
+#include "connection_wrap.h"
 
 namespace node {
 
@@ -87,10 +87,10 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
       int family,
       std::function<int(const char* ip_address, int port, T* addr)> uv_ip_addr);
 
-# ifdef _WIN32
+#ifdef _WIN32
   static void SetSimultaneousAccepts(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-# endif
+#endif
 };
 
 

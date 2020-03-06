@@ -3,13 +3,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include <memory>
-# include <string>
-# include <unordered_map>
-# include <vector>
-# include "node_constants.h"
-# include "node_mutex.h"
-# include "util.h"
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include "node_constants.h"
+#include "node_mutex.h"
+#include "util.h"
 
 namespace node {
 
@@ -125,7 +125,7 @@ class EnvironmentOptions : public Options {
   bool preserve_symlinks = false;
   bool preserve_symlinks_main = false;
   bool prof_process = false;
-# if HAVE_INSPECTOR
+#if HAVE_INSPECTOR
   std::string cpu_prof_dir;
   static const uint64_t kDefaultCpuProfInterval = 1000;
   uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
@@ -136,7 +136,7 @@ class EnvironmentOptions : public Options {
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
   uint64_t heap_prof_interval = kDefaultHeapProfInterval;
   bool heap_prof = false;
-# endif  // HAVE_INSPECTOR
+#endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   bool test_udp_no_try_send = false;
   bool throw_deprecation = false;
@@ -151,9 +151,9 @@ class EnvironmentOptions : public Options {
 
   bool syntax_check_only = false;
   bool has_eval_string = false;
-# ifdef NODE_REPORT
+#ifdef NODE_REPORT
   bool experimental_report = false;
-# endif  //  NODE_REPORT
+#endif  //  NODE_REPORT
   bool experimental_wasi = false;
   std::string eval_string;
   bool print_eval = false;
@@ -188,14 +188,14 @@ class PerIsolateOptions : public Options {
   bool track_heap_objects = false;
   bool no_node_snapshot = false;
 
-# ifdef NODE_REPORT
+#ifdef NODE_REPORT
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool report_on_fatalerror = false;
   std::string report_signal;
   std::string report_filename;
   std::string report_directory;
-# endif  //  NODE_REPORT
+#endif  //  NODE_REPORT
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors) override;
 };
@@ -217,26 +217,26 @@ class PerProcessOptions : public Options {
   bool print_v8_help = false;
   bool print_version = false;
 
-# ifdef NODE_HAVE_I18N_SUPPORT
+#ifdef NODE_HAVE_I18N_SUPPORT
   std::string icu_data_dir;
-# endif
+#endif
 
   // TODO(addaleax): Some of these could probably be per-Environment.
-# if HAVE_OPENSSL
+#if HAVE_OPENSSL
   std::string openssl_config;
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
-#   ifdef NODE_OPENSSL_CERT_STORE
+# ifdef NODE_OPENSSL_CERT_STORE
   bool ssl_openssl_cert_store = true;
-#   else
+# else
   bool ssl_openssl_cert_store = false;
-#   endif
+# endif
   bool use_openssl_ca = false;
   bool use_bundled_ca = false;
-#   if NODE_FIPS_MODE
+# if NODE_FIPS_MODE
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
-#   endif
 # endif
+#endif
   std::string use_largepages = "off";
   bool trace_sigint = false;
 

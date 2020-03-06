@@ -3,24 +3,24 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node.h"
-# include "uv.h"
-# include "v8.h"
+#include "node.h"
+#include "uv.h"
+#include "v8.h"
 
-# include <algorithm>
-# include <map>
-# include <string>
+#include <algorithm>
+#include <map>
+#include <string>
 
 namespace node {
 namespace performance {
 
-# define PERFORMANCE_NOW() uv_hrtime()
+#define PERFORMANCE_NOW() uv_hrtime()
 
 // These occur before the environment is created. Cache them
 // here and add them to the milestones when the env is init'd.
 extern uint64_t performance_v8_start;
 
-# define NODE_PERFORMANCE_MILESTONES(V)                                       \
+#define NODE_PERFORMANCE_MILESTONES(V)                                        \
   V(ENVIRONMENT, "environment")                                               \
   V(NODE_START, "nodeStart")                                                  \
   V(V8_START, "v8Start")                                                      \
@@ -29,7 +29,7 @@ extern uint64_t performance_v8_start;
   V(BOOTSTRAP_COMPLETE, "bootstrapComplete")
 
 
-# define NODE_PERFORMANCE_ENTRY_TYPES(V)                                      \
+#define NODE_PERFORMANCE_ENTRY_TYPES(V)                                       \
   V(NODE, "node")                                                             \
   V(MARK, "mark")                                                             \
   V(MEASURE, "measure")                                                       \
@@ -39,16 +39,16 @@ extern uint64_t performance_v8_start;
   V(HTTP, "http")
 
 enum PerformanceMilestone {
-# define V(name, _) NODE_PERFORMANCE_MILESTONE_##name,
+#define V(name, _) NODE_PERFORMANCE_MILESTONE_##name,
   NODE_PERFORMANCE_MILESTONES(V)
-# undef V
+#undef V
   NODE_PERFORMANCE_MILESTONE_INVALID
 };
 
 enum PerformanceEntryType {
-# define V(name, _) NODE_PERFORMANCE_ENTRY_TYPE_##name,
+#define V(name, _) NODE_PERFORMANCE_ENTRY_TYPE_##name,
   NODE_PERFORMANCE_ENTRY_TYPES(V)
-# undef V
+#undef V
   NODE_PERFORMANCE_ENTRY_TYPE_INVALID
 };
 

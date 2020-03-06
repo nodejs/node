@@ -3,13 +3,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include <map>
-# include <memory>
-# include <set>
-# include <string>
-# include "node_mutex.h"
-# include "node_union_bytes.h"
-# include "v8.h"
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include "node_mutex.h"
+#include "node_union_bytes.h"
+#include "v8.h"
 
 // Forward declare test fixture for `friend` declaration.
 class PerProcessTest;

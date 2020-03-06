@@ -24,9 +24,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "async_wrap.h"
-# include "base_object-inl.h"
-# include "node_internals.h"
+#include "async_wrap.h"
+#include "base_object-inl.h"
+#include "node_internals.h"
 
 namespace node {
 

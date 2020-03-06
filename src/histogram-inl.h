@@ -3,9 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "histogram.h"
-# include "base_object-inl.h"
-# include "node_internals.h"
+#include "histogram.h"
+#include "base_object-inl.h"
+#include "node_internals.h"
 
 namespace node {
 

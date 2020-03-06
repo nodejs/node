@@ -3,14 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "env.h"
-# include "node_crypto.h"
-# include "v8.h"
-# include <openssl/ssl.h>
-# include <openssl/x509v3.h>
+#include "env.h"
+#include "node_crypto.h"
+#include "v8.h"
+#include <openssl/ssl.h>
+#include <openssl/x509v3.h>
 
-# include <string>
-# include <unordered_map>
+#include <string>
+#include <unordered_map>
 
 namespace node {
 namespace crypto {

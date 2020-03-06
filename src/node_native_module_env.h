@@ -3,7 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_native_module.h"
+#include "node_native_module.h"
 
 namespace node {
 class Environment;

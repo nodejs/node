@@ -3,10 +3,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node.h"
-# include "aliased_buffer.h"
-# include "stream_base.h"
-# include <iostream>
+#include "node.h"
+#include "aliased_buffer.h"
+#include "stream_base.h"
+#include <iostream>
 
 namespace node {
 namespace fs {

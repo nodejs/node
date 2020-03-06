@@ -24,9 +24,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_buffer.h"
-# include "uv.h"
-# include "v8.h"
+#include "node_buffer.h"
+#include "uv.h"
+#include "v8.h"
 
 namespace node {
 

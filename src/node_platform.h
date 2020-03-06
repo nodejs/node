@@ -3,16 +3,16 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include <queue>
-# include <unordered_map>
-# include <vector>
-# include <functional>
+#include <queue>
+#include <unordered_map>
+#include <vector>
+#include <functional>
 
-# include "libplatform/libplatform.h"
-# include "node.h"
-# include "node_mutex.h"
-# include "tracing/agent.h"
-# include "uv.h"
+#include "libplatform/libplatform.h"
+#include "node.h"
+#include "node_mutex.h"
+#include "tracing/agent.h"
+#include "uv.h"
 
 namespace node {
 

@@ -24,11 +24,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "util.h"
+#include "util.h"
 
-# include <string>
+#include <string>
 
-# if defined(NODE_HAVE_I18N_SUPPORT)
+#if defined(NODE_HAVE_I18N_SUPPORT)
 
 namespace node {
 
@@ -63,7 +63,7 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
 }  // namespace i18n
 }  // namespace node
 
-# endif  // NODE_HAVE_I18N_SUPPORT
+#endif  // NODE_HAVE_I18N_SUPPORT
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

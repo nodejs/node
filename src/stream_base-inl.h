@@ -3,11 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "stream_base.h"
+#include "stream_base.h"
 
-# include "node.h"
-# include "env-inl.h"
-# include "v8.h"
+#include "node.h"
+#include "env-inl.h"
+#include "v8.h"
 
 namespace node {
 

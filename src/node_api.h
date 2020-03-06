@@ -43,13 +43,13 @@ typedef struct {
 
 #if defined(_MSC_VER)
 # pragma section(".CRT$XCU", read)
-# define NAPI_C_CTOR(fn)                                                     \
+# define NAPI_C_CTOR(fn)                                                    \
   static void __cdecl fn(void);                                             \
   __declspec(dllexport, allocate(".CRT$XCU")) void(__cdecl * fn##_)(void) = \
       fn;                                                                   \
   static void __cdecl fn(void)
 #else
-# define NAPI_C_CTOR(fn)                              \
+# define NAPI_C_CTOR(fn)                             \
   static void fn(void) __attribute__((constructor)); \
   static void fn(void)
 #endif

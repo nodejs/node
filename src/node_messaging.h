@@ -3,9 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "env.h"
-# include "node_mutex.h"
-# include <list>
+#include "env.h"
+#include "node_mutex.h"
+#include <list>
 
 namespace node {
 namespace worker {

@@ -3,9 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "debug_utils.h"
+#include "debug_utils.h"
 
-# include <type_traits>
+#include <type_traits>
 
 namespace node {
 

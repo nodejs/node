@@ -3,15 +3,15 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include <memory>
+#include <memory>
 
-# include "env-inl.h"
-# include "node.h"
-# include "node_metadata.h"
-# include "node_options.h"
-# include "tracing/node_trace_writer.h"
-# include "tracing/trace_event.h"
-# include "tracing/traced_value.h"
+#include "env-inl.h"
+#include "node.h"
+#include "node_metadata.h"
+#include "node_options.h"
+#include "tracing/node_trace_writer.h"
+#include "tracing/trace_event.h"
+#include "tracing/traced_value.h"
 
 namespace node {
 
@@ -38,11 +38,11 @@ class NodeTraceStateObserver
     auto trace_process = tracing::TracedValue::Create();
     trace_process->BeginDictionary("versions");
 
-# define V(key)                                                             \
+#define V(key)                                                             \
   trace_process->SetString(#key, per_process::metadata.versions.key.c_str());
 
     NODE_VERSIONS_KEYS(V)
-# undef V
+#undef V
 
     trace_process->EndDictionary();
 
@@ -53,9 +53,9 @@ class NodeTraceStateObserver
     trace_process->BeginDictionary("release");
     trace_process->SetString("name",
                              per_process::metadata.release.name.c_str());
-# if NODE_VERSION_IS_LTS
+#if NODE_VERSION_IS_LTS
     trace_process->SetString("lts", per_process::metadata.release.lts.c_str());
-# endif
+#endif
     trace_process->EndDictionary();
     TRACE_EVENT_METADATA1(
         "__metadata", "node", "process", std::move(trace_process));
@@ -79,7 +79,7 @@ class NodeTraceStateObserver
 };
 
 struct V8Platform {
-# if NODE_USE_V8_PLATFORM
+#if NODE_USE_V8_PLATFORM
   inline void Initialize(int thread_pool_size) {
     tracing_agent_ = std::make_unique<tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
@@ -142,7 +142,7 @@ struct V8Platform {
   std::unique_ptr<tracing::Agent> tracing_agent_;
   tracing::AgentWriterHandle tracing_file_writer_;
   NodePlatform* platform_;
-# else   // !NODE_USE_V8_PLATFORM
+#else   // !NODE_USE_V8_PLATFORM
   inline void Initialize(int thread_pool_size) {}
   inline void Dispose() {}
   inline void DrainVMTasks(v8::Isolate* isolate) {}
@@ -158,7 +158,7 @@ struct V8Platform {
   inline tracing::AgentWriterHandle* GetTracingAgentWriter() { return nullptr; }
 
   inline NodePlatform* Platform() { return nullptr; }
-# endif  // !NODE_USE_V8_PLATFORM
+#endif  // !NODE_USE_V8_PLATFORM
 };
 
 namespace per_process {

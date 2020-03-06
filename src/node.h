@@ -80,11 +80,11 @@
 # include <signal.h>
 #endif  // _WIN32
 
-#define NODE_MAKE_VERSION(major, minor, patch)                               \
+#define NODE_MAKE_VERSION(major, minor, patch)                                \
   ((major) * 0x1000 + (minor) * 0x100 + (patch))
 
 #ifdef __clang__
-# define NODE_CLANG_AT_LEAST(major, minor, patch)                            \
+# define NODE_CLANG_AT_LEAST(major, minor, patch)                             \
   (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
       NODE_MAKE_VERSION(__clang_major__, __clang_minor__, __clang_patchlevel__))
 #else
@@ -92,7 +92,7 @@
 #endif
 
 #ifdef __GNUC__
-# define NODE_GNUC_AT_LEAST(major, minor, patch)                             \
+# define NODE_GNUC_AT_LEAST(major, minor, patch)                              \
   (NODE_MAKE_VERSION(major, minor, patch) <=                                  \
       NODE_MAKE_VERSION(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__))
 #else
@@ -103,10 +103,10 @@
 # define NODE_DEPRECATED(message, declarator) declarator
 #else  // NODE_WANT_INTERNALS
 # if NODE_CLANG_AT_LEAST(2, 9, 0) || NODE_GNUC_AT_LEAST(4, 5, 0)
-#   define NODE_DEPRECATED(message, declarator)                              \
+#   define NODE_DEPRECATED(message, declarator)                               \
     __attribute__((deprecated(message))) declarator
 # elif defined(_MSC_VER)
-#   define NODE_DEPRECATED(message, declarator)                              \
+#   define NODE_DEPRECATED(message, declarator)                               \
     __declspec(deprecated) declarator
 # else
 #   define NODE_DEPRECATED(message, declarator) declarator
@@ -502,7 +502,7 @@ inline void NODE_SET_METHOD(v8::Local<v8::Object> recv,
   fn->SetName(fn_name);
   recv->Set(context, fn_name, fn).Check();
 }
-# define NODE_SET_METHOD node::NODE_SET_METHOD
+#define NODE_SET_METHOD node::NODE_SET_METHOD
 
 // Used to be a macro, hence the uppercase name.
 // Not a template because it only makes sense for FunctionTemplates.
@@ -608,13 +608,13 @@ extern "C" NODE_EXTERN void node_module_register(void* mod);
 
 #if defined(_MSC_VER)
 # pragma section(".CRT$XCU", read)
-# define NODE_C_CTOR(fn)                                               \
+# define NODE_C_CTOR(fn)                                              \
   NODE_CTOR_PREFIX void __cdecl fn(void);                             \
   __declspec(dllexport, allocate(".CRT$XCU"))                         \
       void (__cdecl*fn ## _)(void) = fn;                              \
   NODE_CTOR_PREFIX void __cdecl fn(void)
 #else
-# define NODE_C_CTOR(fn)                                               \
+# define NODE_C_CTOR(fn)                                              \
   NODE_CTOR_PREFIX void fn(void) __attribute__((constructor));        \
   NODE_CTOR_PREFIX void fn(void)
 #endif

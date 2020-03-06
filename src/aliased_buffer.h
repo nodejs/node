@@ -3,9 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include <cinttypes>
-# include "util.h"
-# include "v8.h"
+#include <cinttypes>
+#include "util.h"
+#include "v8.h"
 
 namespace node {
 

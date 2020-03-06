@@ -2,30 +2,30 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "aliased_buffer.h"
-# include "v8-profiler.h"
+#include "aliased_buffer.h"
+#include "v8-profiler.h"
 
-# include <uv.h>
+#include <uv.h>
 
-# include <limits>
-# include <queue>
-# include <stack>
-# include <string>
-# include <unordered_map>
+#include <limits>
+#include <queue>
+#include <stack>
+#include <string>
+#include <unordered_map>
 
 namespace node {
 
 // Set the node name of a MemoryRetainer to klass
-# define SET_MEMORY_INFO_NAME(Klass)                                          \
+#define SET_MEMORY_INFO_NAME(Klass)                                           \
   inline std::string MemoryInfoName() const override { return #Klass; }
 
 // Set the self size of a MemoryRetainer to the stack-allocated size of a
 // certain class
-# define SET_SELF_SIZE(Klass)                                                 \
+#define SET_SELF_SIZE(Klass)                                                  \
   inline size_t SelfSize() const override { return sizeof(Klass); }
 
 // Used when there is no additional fields to track
-# define SET_NO_MEMORY_INFO()                                                 \
+#define SET_NO_MEMORY_INFO()                                                  \
   inline void MemoryInfo(node::MemoryTracker* tracker) const override {}
 
 class MemoryTracker;

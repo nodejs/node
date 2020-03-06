@@ -9,21 +9,21 @@ namespace node {
 // another application. Performance-wise or memory-wise it doesn't matter:
 // Context::SetAlignedPointerInEmbedderData() is backed by a FixedArray,
 // worst case we pay a one-time penalty for resizing the array.
-# ifndef NODE_CONTEXT_EMBEDDER_DATA_INDEX
-#   define NODE_CONTEXT_EMBEDDER_DATA_INDEX 32
-# endif
+#ifndef NODE_CONTEXT_EMBEDDER_DATA_INDEX
+# define NODE_CONTEXT_EMBEDDER_DATA_INDEX 32
+#endif
 
-# ifndef NODE_CONTEXT_SANDBOX_OBJECT_INDEX
-#   define NODE_CONTEXT_SANDBOX_OBJECT_INDEX 33
-# endif
+#ifndef NODE_CONTEXT_SANDBOX_OBJECT_INDEX
+# define NODE_CONTEXT_SANDBOX_OBJECT_INDEX 33
+#endif
 
-# ifndef NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX
-#   define NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX 34
-# endif
+#ifndef NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX
+# define NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX 34
+#endif
 
-# ifndef NODE_CONTEXT_TAG
-#   define NODE_CONTEXT_TAG 35
-# endif
+#ifndef NODE_CONTEXT_TAG
+# define NODE_CONTEXT_TAG 35
+#endif
 
 enum ContextEmbedderIndex {
   kEnvironment = NODE_CONTEXT_EMBEDDER_DATA_INDEX,

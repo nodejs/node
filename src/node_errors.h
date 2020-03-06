@@ -3,12 +3,12 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "env.h"
-# include "v8.h"
+#include "env.h"
+#include "v8.h"
 
 // Use ostringstream to print exact-width integer types
 // because the format specifiers are not available on AIX.
-# include <sstream>
+#include <sstream>
 
 namespace node {
 
@@ -31,39 +31,39 @@ void OnFatalError(const char* location, const char* message);
 // `node::ERR_INVALID_ARG_TYPE(isolate, "message")` returning
 // a `Local<Value>` containing the TypeError with proper code and message
 
-# define ERRORS_WITH_CODE(V)                                                 \
-  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                 \
-  V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
-  V(ERR_BUFFER_TOO_LARGE, Error)                                             \
-  V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                  \
-  V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                   \
-  V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                        \
-  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                      \
-  V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
-  V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                      \
-  V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
-  V(ERR_INVALID_MODULE_SPECIFIER, TypeError)                                 \
-  V(ERR_INVALID_PACKAGE_CONFIG, Error)                                       \
-  V(ERR_INVALID_PACKAGE_TARGET, Error)                                       \
-  V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                  \
-  V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
-  V(ERR_MISSING_ARGS, TypeError)                                             \
-  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
-  V(ERR_MISSING_PASSPHRASE, TypeError)                                       \
-  V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
-  V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                   \
-  V(ERR_MODULE_NOT_FOUND, Error)                                             \
-  V(ERR_OUT_OF_RANGE, RangeError)                                            \
-  V(ERR_PACKAGE_PATH_NOT_EXPORTED, Error)                                    \
-  V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
-  V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
-  V(ERR_STRING_TOO_LONG, Error)                                              \
-  V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                              \
-  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)              \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                              \
-  V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                               \
+#define ERRORS_WITH_CODE(V)                                                   \
+  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                  \
+  V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                     \
+  V(ERR_BUFFER_TOO_LARGE, Error)                                              \
+  V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                   \
+  V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                    \
+  V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                         \
+  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                       \
+  V(ERR_INVALID_ARG_VALUE, TypeError)                                         \
+  V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                       \
+  V(ERR_INVALID_ARG_TYPE, TypeError)                                          \
+  V(ERR_INVALID_MODULE_SPECIFIER, TypeError)                                  \
+  V(ERR_INVALID_PACKAGE_CONFIG, Error)                                        \
+  V(ERR_INVALID_PACKAGE_TARGET, Error)                                        \
+  V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                   \
+  V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                      \
+  V(ERR_MISSING_ARGS, TypeError)                                              \
+  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                     \
+  V(ERR_MISSING_PASSPHRASE, TypeError)                                        \
+  V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                   \
+  V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                    \
+  V(ERR_MODULE_NOT_FOUND, Error)                                              \
+  V(ERR_OUT_OF_RANGE, RangeError)                                             \
+  V(ERR_PACKAGE_PATH_NOT_EXPORTED, Error)                                     \
+  V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                  \
+  V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                      \
+  V(ERR_STRING_TOO_LONG, Error)                                               \
+  V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                               \
+  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)               \
+  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                               \
+  V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                \
 
-# define V(code, type)                                                        \
+#define V(code, type)                                                         \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
                                    const char* message)       {               \
     v8::Local<v8::String> js_code = OneByteString(isolate, #code);            \
@@ -82,45 +82,45 @@ void OnFatalError(const char* location, const char* message);
     THROW_ ## code(env->isolate(), message);                                  \
   }
   ERRORS_WITH_CODE(V)
-# undef V
+#undef V
 
 // Errors with predefined static messages
 
-# define PREDEFINED_ERROR_MESSAGES(V)                                        \
-  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                        \
-    "Buffer is not available for the current Context")                       \
-  V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")              \
-  V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")    \
-  V(ERR_CRYPTO_UNKNOWN_CIPHER, "Unknown cipher")                             \
-  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                         \
-  V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")     \
-  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")               \
-  V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                      \
-  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                               \
-    "MessagePort was found in message but not listed in transferList")       \
-  V(ERR_MISSING_PLATFORM_FOR_WORKER,                                         \
-    "The V8 platform used by this instance of Node does not support "        \
-    "creating Workers")                                                      \
-  V(ERR_NON_CONTEXT_AWARE_DISABLED,                                          \
-    "Loading non context-aware native modules has been disabled")            \
-  V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                        \
-    "Script execution was interrupted by `SIGINT`")                          \
-  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                         \
-    "Cannot serialize externalized SharedArrayBuffer")                       \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")  \
+#define PREDEFINED_ERROR_MESSAGES(V)                                          \
+  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE,                                         \
+    "Buffer is not available for the current Context")                        \
+  V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")               \
+  V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")     \
+  V(ERR_CRYPTO_UNKNOWN_CIPHER, "Unknown cipher")                              \
+  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                          \
+  V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")      \
+  V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                \
+  V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                       \
+  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                                \
+    "MessagePort was found in message but not listed in transferList")        \
+  V(ERR_MISSING_PLATFORM_FOR_WORKER,                                          \
+    "The V8 platform used by this instance of Node does not support "         \
+    "creating Workers")                                                       \
+  V(ERR_NON_CONTEXT_AWARE_DISABLED,                                           \
+    "Loading non context-aware native modules has been disabled")             \
+  V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                         \
+    "Script execution was interrupted by `SIGINT`")                           \
+  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                          \
+    "Cannot serialize externalized SharedArrayBuffer")                        \
+  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")   \
 
-# define V(code, message)                                                    \
-  inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
-    return code(isolate, message);                                           \
-  }                                                                          \
-  inline void THROW_ ## code(v8::Isolate* isolate) {                         \
-    isolate->ThrowException(code(isolate, message));                         \
-  }                                                                          \
-  inline void THROW_ ## code(Environment* env) {                             \
-    THROW_ ## code(env->isolate());                                          \
+#define V(code, message)                                                      \
+  inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                    \
+    return code(isolate, message);                                            \
+  }                                                                           \
+  inline void THROW_ ## code(v8::Isolate* isolate) {                          \
+    isolate->ThrowException(code(isolate, message));                          \
+  }                                                                           \
+  inline void THROW_ ## code(Environment* env) {                              \
+    THROW_ ## code(env->isolate());                                           \
   }
   PREDEFINED_ERROR_MESSAGES(V)
-# undef V
+#undef V
 
 // Errors with predefined non-static messages
 inline void THROW_ERR_SCRIPT_EXECUTION_TIMEOUT(Environment* env,
@@ -147,18 +147,18 @@ inline v8::Local<v8::Value> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {
   return ERR_STRING_TOO_LONG(isolate, message);
 }
 
-# define THROW_AND_RETURN_IF_NOT_BUFFER(env, val, prefix)                    \
-  do {                                                                       \
-    if (!Buffer::HasInstance(val))                                           \
-      return node::THROW_ERR_INVALID_ARG_TYPE(env,                           \
-                                              prefix " must be a buffer");   \
+#define THROW_AND_RETURN_IF_NOT_BUFFER(env, val, prefix)                      \
+  do {                                                                        \
+    if (!Buffer::HasInstance(val))                                            \
+      return node::THROW_ERR_INVALID_ARG_TYPE(env,                            \
+                                              prefix " must be a buffer");    \
   } while (0)
 
-# define THROW_AND_RETURN_IF_NOT_STRING(env, val, prefix)                    \
-  do {                                                                       \
-    if (!val->IsString())                                                    \
-      return node::THROW_ERR_INVALID_ARG_TYPE(env,                           \
-                                              prefix " must be a string");   \
+#define THROW_AND_RETURN_IF_NOT_STRING(env, val, prefix)                      \
+  do {                                                                        \
+    if (!val->IsString())                                                     \
+      return node::THROW_ERR_INVALID_ARG_TYPE(env,                            \
+                                              prefix " must be a string");    \
   } while (0)
 
 namespace errors {

@@ -3,14 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node.h"
+#include "node.h"
 
-# include <string>
+#include <string>
 
 namespace node {
 namespace url {
 
-# define PARSESTATES(XX)                                                      \
+#define PARSESTATES(XX)                                                       \
   XX(kSchemeStart)                                                            \
   XX(kScheme)                                                                 \
   XX(kNoScheme)                                                               \
@@ -33,7 +33,7 @@ namespace url {
   XX(kQuery)                                                                  \
   XX(kFragment)
 
-# define FLAGS(XX)                                                            \
+#define FLAGS(XX)                                                             \
   XX(URL_FLAGS_NONE, 0)                                                       \
   XX(URL_FLAGS_FAILED, 0x01)                                                  \
   XX(URL_FLAGS_CANNOT_BE_BASE, 0x02)                                          \
@@ -50,15 +50,15 @@ namespace url {
 
 enum url_parse_state {
   kUnknownState = -1,
-# define XX(name) name,
+#define XX(name) name,
   PARSESTATES(XX)
-# undef XX
+#undef XX
 };
 
 enum url_flags {
-# define XX(name, val) name = val,
+#define XX(name, val) name = val,
   FLAGS(XX)
-# undef XX
+#undef XX
 };
 
 struct url_data {

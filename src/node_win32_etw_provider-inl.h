@@ -24,8 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_win32_etw_provider.h"
-# include "node_etw_provider.h"
+#include "node_win32_etw_provider.h"
+#include "node_etw_provider.h"
 
 namespace node {
 
@@ -34,53 +34,53 @@ extern REGHANDLE node_provider;
 extern EventWriteFunc event_write;
 extern int events_enabled;
 
-# define ETW_WRITE_STRING_DATA(data_descriptor, data)                         \
+#define ETW_WRITE_STRING_DATA(data_descriptor, data)                          \
   EventDataDescCreate(data_descriptor,                                        \
                       data,                                                   \
                       (strlen(data) + 1) * sizeof(*data));
 
-# define ETW_WRITE_INT32_DATA(data_descriptor, data)  \
+#define ETW_WRITE_INT32_DATA(data_descriptor, data)  \
   EventDataDescCreate(data_descriptor, data, sizeof(int32_t));
 
-# define ETW_WRITE_INT64_DATA(data_descriptor, data)  \
+#define ETW_WRITE_INT64_DATA(data_descriptor, data)  \
   EventDataDescCreate(data_descriptor, data, sizeof(int64_t));
 
-# define ETW_WRITE_ADDRESS_DATA(data_descriptor, data)  \
+#define ETW_WRITE_ADDRESS_DATA(data_descriptor, data)  \
   EventDataDescCreate(data_descriptor, data, sizeof(intptr_t));
 
-# define ETW_WRITE_INT16_DATA(data_descriptor, data)  \
+#define ETW_WRITE_INT16_DATA(data_descriptor, data)  \
   EventDataDescCreate(data_descriptor, data, sizeof(int16_t));
 
-# define ETW_WRITE_WSTRING_DATA_LENGTH(data_descriptor, data,
+#define ETW_WRITE_WSTRING_DATA_LENGTH(data_descriptor, data,
                                          data_len_bytes)                      \
   EventDataDescCreate(data_descriptor,                                        \
                       data,                                                   \
                       data_len_bytes);
 
-# define ETW_WRITE_NET_CONNECTION(descriptors, conn)                          \
+#define ETW_WRITE_NET_CONNECTION(descriptors, conn)                           \
   ETW_WRITE_INT32_DATA(descriptors, &conn->fd);                               \
   ETW_WRITE_INT32_DATA(descriptors + 1, &conn->port);                         \
   ETW_WRITE_STRING_DATA(descriptors + 2, conn->remote);                       \
   ETW_WRITE_INT32_DATA(descriptors + 3, &conn->buffered);
 
-# define ETW_WRITE_HTTP_SERVER_REQUEST(descriptors, req)                      \
+#define ETW_WRITE_HTTP_SERVER_REQUEST(descriptors, req)                       \
   ETW_WRITE_STRING_DATA(descriptors, req->url);                               \
   ETW_WRITE_STRING_DATA(descriptors + 1, req->method);                        \
   ETW_WRITE_STRING_DATA(descriptors + 2, req->forwardedFor);
 
-# define ETW_WRITE_HTTP_CLIENT_REQUEST(descriptors, req)                      \
+#define ETW_WRITE_HTTP_CLIENT_REQUEST(descriptors, req)                       \
   ETW_WRITE_STRING_DATA(descriptors, req->url);                               \
   ETW_WRITE_STRING_DATA(descriptors + 1, req->method);
 
-# define ETW_WRITE_GC(descriptors, type, flags)                               \
+#define ETW_WRITE_GC(descriptors, type, flags)                                \
   ETW_WRITE_INT32_DATA(descriptors, &type);                                   \
   ETW_WRITE_INT32_DATA(descriptors + 1, &flags);
 
-# define ETW_WRITE_V8ADDRESSCHANGE(descriptors, addr1, addr2)                 \
+#define ETW_WRITE_V8ADDRESSCHANGE(descriptors, addr1, addr2)                  \
     ETW_WRITE_ADDRESS_DATA(descriptors, &addr1);                              \
     ETW_WRITE_ADDRESS_DATA(descriptors + 1, &addr2);
 
-# define ETW_WRITE_JSMETHOD_LOADUNLOAD(descriptors,                           \
+#define ETW_WRITE_JSMETHOD_LOADUNLOAD(descriptors,                            \
                                       context,                                \
                                       startAddr,                              \
                                       size,                                   \
@@ -104,7 +104,7 @@ extern int events_enabled;
     ETW_WRITE_WSTRING_DATA_LENGTH(descriptors + 9, name, name_len_bytes);
 
 
-# define ETW_WRITE_EVENT(eventDescriptor, dataDescriptors)                    \
+#define ETW_WRITE_EVENT(eventDescriptor, dataDescriptors)                     \
   DWORD status = event_write(node_provider,                                   \
                              &eventDescriptor,                                \
                              sizeof(dataDescriptors) /                        \
@@ -112,7 +112,7 @@ extern int events_enabled;
                              dataDescriptors);                                \
   CHECK_EQ(status, ERROR_SUCCESS);
 
-# define ETW_WRITE_EMPTY_EVENT(eventDescriptor)                               \
+#define ETW_WRITE_EMPTY_EVENT(eventDescriptor)                                \
   DWORD status = event_write(node_provider,                                   \
                              &eventDescriptor,                                \
                              0,                                               \
@@ -218,7 +218,7 @@ void NODE_V8SYMBOL_RESET() {
   }
 }
 
-# define SETSYMBUF(s)  \
+#define SETSYMBUF(s)  \
   wcscpy(symbuf, s);  \
   symbol_len = arraysize(s) - 1;
 
@@ -270,7 +270,7 @@ void NODE_V8SYMBOL_ADD(LPCSTR symbol,
     ETW_WRITE_EVENT(MethodLoad, descriptors);
   }
 }
-# undef SETSYMBUF
+#undef SETSYMBUF
 
 
 bool NODE_HTTP_SERVER_REQUEST_ENABLED() { return events_enabled > 0; }

@@ -3,11 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "util.h"
-# include "uv.h"
+#include "util.h"
+#include "uv.h"
 
-# include <memory>  // std::shared_ptr<T>
-# include <utility>  // std::forward<T>
+#include <memory>  // std::shared_ptr<T>
+#include <utility>  // std::forward<T>
 
 namespace node {
 

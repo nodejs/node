@@ -3,11 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# if !HAVE_INSPECTOR
-#   error("This header can only be used when inspector is enabled")
-# endif
+#if !HAVE_INSPECTOR
+# error("This header can only be used when inspector is enabled")
+#endif
 
-# include "inspector_agent.h"
+#include "inspector_agent.h"
 
 namespace node {
 // Forward declaration to break recursive dependency chain with src/env.h.

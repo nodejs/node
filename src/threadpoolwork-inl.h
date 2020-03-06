@@ -24,8 +24,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "util-inl.h"
-# include "node_internals.h"
+#include "util-inl.h"
+#include "node_internals.h"
 
 namespace node {
 

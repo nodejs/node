@@ -24,10 +24,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node.h"
-# include "handle_wrap.h"
-# include "uv.h"
-# include "v8.h"
+#include "node.h"
+#include "handle_wrap.h"
+#include "uv.h"
+#include "v8.h"
 
 namespace node {
 

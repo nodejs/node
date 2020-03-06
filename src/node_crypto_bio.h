@@ -24,10 +24,10 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_crypto.h"
-# include "openssl/bio.h"
-# include "util.h"
-# include "v8.h"
+#include "node_crypto.h"
+#include "openssl/bio.h"
+#include "util.h"
+#include "v8.h"
 
 namespace node {
 

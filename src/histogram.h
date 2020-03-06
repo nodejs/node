@@ -3,13 +3,13 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "hdr_histogram.h"
-# include "base_object.h"
-# include "util.h"
+#include "hdr_histogram.h"
+#include "base_object.h"
+#include "util.h"
 
-# include <functional>
-# include <limits>
-# include <map>
+#include <functional>
+#include <limits>
+#include <map>
 
 namespace node {
 

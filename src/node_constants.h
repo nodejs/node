@@ -24,26 +24,26 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node.h"
-# include "v8.h"
+#include "node.h"
+#include "v8.h"
 
-# if HAVE_OPENSSL
+#if HAVE_OPENSSL
 
-#   ifndef RSA_PSS_SALTLEN_DIGEST
-#     define RSA_PSS_SALTLEN_DIGEST -1
-#   endif
+# ifndef RSA_PSS_SALTLEN_DIGEST
+#   define RSA_PSS_SALTLEN_DIGEST -1
+# endif
 
-#   ifndef RSA_PSS_SALTLEN_MAX_SIGN
-#     define RSA_PSS_SALTLEN_MAX_SIGN -2
-#   endif
+# ifndef RSA_PSS_SALTLEN_MAX_SIGN
+#   define RSA_PSS_SALTLEN_MAX_SIGN -2
+# endif
 
-#   ifndef RSA_PSS_SALTLEN_AUTO
-#     define RSA_PSS_SALTLEN_AUTO -2
-#   endif
+# ifndef RSA_PSS_SALTLEN_AUTO
+#   define RSA_PSS_SALTLEN_AUTO -2
+# endif
 
 // TLSv1.3 suites start with TLS_, and are the OpenSSL defaults, see:
 //   https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set_ciphersuites.html
-#   define DEFAULT_CIPHER_LIST_CORE \
+# define DEFAULT_CIPHER_LIST_CORE                                   \
                                  "TLS_AES_256_GCM_SHA384:"          \
                                  "TLS_CHACHA20_POLY1305_SHA256:"    \
                                  "TLS_AES_128_GCM_SHA256:"          \
@@ -68,7 +68,7 @@
                                  "!PSK:"                            \
                                  "!SRP:"                            \
                                  "!CAMELLIA"
-# endif
+#endif
 
 namespace node {
 

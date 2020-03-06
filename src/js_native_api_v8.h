@@ -199,7 +199,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     }                                                              \
   } while (0)
 
-#define RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env, condition, status)          \
+#define RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env, condition, status)           \
   do {                                                                         \
     if (!(condition)) {                                                        \
       return napi_set_last_error(                                              \
@@ -207,7 +207,7 @@ napi_status napi_set_last_error(napi_env env, napi_status error_code,
     }                                                                          \
   } while (0)
 
-#define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                   \
+#define CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe, status)                    \
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE((env), !((maybe).IsEmpty()), (status))
 
 namespace v8impl {

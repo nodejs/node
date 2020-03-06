@@ -3,15 +3,15 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node.h"
-# include "node_perf_common.h"
-# include "base_object-inl.h"
-# include "histogram-inl.h"
+#include "node.h"
+#include "node_perf_common.h"
+#include "base_object-inl.h"
+#include "histogram-inl.h"
 
-# include "v8.h"
-# include "uv.h"
+#include "v8.h"
+#include "uv.h"
 
-# include <string>
+#include <string>
 
 namespace node {
 
@@ -31,28 +31,28 @@ extern const uint64_t timeOrigin;
 static inline const char* GetPerformanceMilestoneName(
     enum PerformanceMilestone milestone) {
   switch (milestone) {
-# define V(name, label) case NODE_PERFORMANCE_MILESTONE_##name: return label;
+#define V(name, label) case NODE_PERFORMANCE_MILESTONE_##name: return label;
   NODE_PERFORMANCE_MILESTONES(V)
-# undef V
+#undef V
     default:
       UNREACHABLE();
   }
 }
 
 static inline PerformanceMilestone ToPerformanceMilestoneEnum(const char* str) {
-# define V(name, label)                                                      \
+#define V(name, label)                                                        \
   if (strcmp(str, label) == 0) return NODE_PERFORMANCE_MILESTONE_##name;
   NODE_PERFORMANCE_MILESTONES(V)
-# undef V
+#undef V
   return NODE_PERFORMANCE_MILESTONE_INVALID;
 }
 
 static inline PerformanceEntryType ToPerformanceEntryTypeEnum(
     const char* type) {
-# define V(name, label)                                                      \
+#define V(name, label)                                                        \
   if (strcmp(type, label) == 0) return NODE_PERFORMANCE_ENTRY_TYPE_##name;
   NODE_PERFORMANCE_ENTRY_TYPES(V)
-# undef V
+#undef V
   return NODE_PERFORMANCE_ENTRY_TYPE_INVALID;
 }
 

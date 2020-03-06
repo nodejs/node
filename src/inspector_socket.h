@@ -3,11 +3,11 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "util.h"
-# include "uv.h"
+#include "util.h"
+#include "uv.h"
 
-# include <string>
-# include <vector>
+#include <string>
+#include <vector>
 
 namespace node {
 namespace inspector {

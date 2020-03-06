@@ -3,7 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_file.h"
+#include "node_file.h"
 
 namespace node {
 

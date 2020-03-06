@@ -3,8 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_mem.h"
-# include "node_internals.h"
+#include "node_mem.h"
+#include "node_internals.h"
 
 namespace node {
 namespace mem {

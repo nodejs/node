@@ -3,8 +3,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_file.h"
-# include "req_wrap-inl.h"
+#include "node_file.h"
+#include "req_wrap-inl.h"
 
 namespace node {
 namespace fs {
@@ -80,11 +80,11 @@ template <typename NativeT, typename V8T>
 void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
                     const uv_stat_t* s,
                     const size_t offset) {
-# define SET_FIELD_WITH_STAT(stat_offset, stat)                            \
+#define SET_FIELD_WITH_STAT(stat_offset, stat)                               \
   fields->SetValue(offset + static_cast<size_t>(FsStatsOffset::stat_offset), \
                    static_cast<NativeT>(stat))
 
-# define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                       \
+#define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                          \
   /* NOLINTNEXTLINE(runtime/int) */                                          \
   SET_FIELD_WITH_STAT(stat_offset, static_cast<unsigned long>(stat))
 
@@ -108,8 +108,8 @@ void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
   SET_FIELD_WITH_TIME_STAT(kBirthTimeSec, s->st_birthtim.tv_sec);
   SET_FIELD_WITH_TIME_STAT(kBirthTimeNsec, s->st_birthtim.tv_nsec);
 
-# undef SET_FIELD_WITH_TIME_STAT
-# undef SET_FIELD_WITH_STAT
+#undef SET_FIELD_WITH_TIME_STAT
+#undef SET_FIELD_WITH_STAT
 }
 
 v8::Local<v8::Value> FillGlobalStatsArray(Environment* env,

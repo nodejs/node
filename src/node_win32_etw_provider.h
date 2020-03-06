@@ -24,16 +24,16 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-# include "node_dtrace.h"
-# include <evntprov.h>
+#include "node_dtrace.h"
+#include <evntprov.h>
 
 namespace node {
 
-# if defined(_MSC_VER)
-#   define INLINE __forceinline
-# else
-#   define INLINE inline
-# endif
+#if defined(_MSC_VER)
+# define INLINE __forceinline
+#else
+# define INLINE inline
+#endif
 
 typedef ULONG (NTAPI* EventRegisterFunc)(
   LPCGUID ProviderId,
