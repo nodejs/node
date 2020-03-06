@@ -379,7 +379,8 @@ etc. could be defined in other runtimes or tools. Further restrictions,
 definitions or guidance on condition names may be provided in future.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
-which are explained further in [the dual mode packages section][].
+which are explained further in
+[the dual CommonJS/ES module packages section][].
 
 Conditional exports can also be extended to exports subpaths, for example:
 
