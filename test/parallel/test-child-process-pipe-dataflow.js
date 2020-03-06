@@ -20,15 +20,14 @@ const MB = KB * KB;
 {
   tmpdir.refresh();
   const file = path.resolve(tmpdir.path, 'data.txt');
-  let buf = Buffer.alloc(MB).fill('x');
+  const buf = Buffer.alloc(MB).fill('x');
 
   // Most OS commands that deal with data, attach special
   // meanings to new line - for example, line buffering.
   // So cut the buffer into lines at some points, forcing
   // data flow to be split in the stream.
-  const eol_len = os.EOL.length;
   for (let i = 0; i < KB; i++)
-    buf = buf.fill(os.EOL, i * KB, (i * KB + eol_len));
+    buf.write(os.EOL, i * KB);
   fs.writeFileSync(file, buf.toString());
 
   cat = spawn('cat', [file]);
