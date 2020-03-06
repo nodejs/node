@@ -218,7 +218,7 @@ subpaths of the package will no longer be available to importers under
 This new encapsulation of exports provides new more reliable guarantees
 about package interfaces for tools and when handling semver upgrades for a
 package. It is not a strong encapsulation since
-`require('/path/to/pkg/subpath.js')` will still work correctly.
+a direct require of any absolute subpath of the package such as `require('/path/to/node_modules/pkg/subpath.js')` will still work correctly.
 
 #### Package Exports Subpaths
 
