@@ -24,7 +24,6 @@ const common = require('../common');
 const net = require('net');
 const assert = require('assert');
 const N = 20;
-let clientErrorCount = 0;
 let disconnectCount = 0;
 
 const c = net.createConnection(common.PORT);
@@ -32,7 +31,6 @@ const c = net.createConnection(common.PORT);
 c.on('connect', common.mustNotCall('client should not have connected'));
 
 c.on('error', common.mustCall((e) => {
-  clientErrorCount++;
   assert.strictEqual(e.code, 'ECONNREFUSED');
 }, N + 1));
 
@@ -40,8 +38,3 @@ c.on('close', common.mustCall(() => {
   if (disconnectCount++ < N)
     c.connect(common.PORT); // reconnect
 }, N + 1));
-
-process.on('exit', function() {
-  assert.strictEqual(disconnectCount, N + 1);
-  assert.strictEqual(clientErrorCount, N + 1);
-});
