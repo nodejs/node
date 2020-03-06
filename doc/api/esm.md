@@ -348,7 +348,7 @@ For example, a package that wants to provide different ES module exports for
 
 <!-- eslint-skip -->
 ```js
-// ./node_modules/pkg/package.json
+// package.json
 {
   "main": "./main-require.cjs",
   "exports": {
