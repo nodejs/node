@@ -1994,8 +1994,8 @@ added: v0.1.90
 * `string` {string} String to write to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write `string`.
   **Default:** `0`.
-* `length` {integer} Maximum number of bytes to write. **Default:**
-  `buf.length - offset`.
+* `length` {integer} Maximum number of bytes to write (written bytes will not
+  exceed `buf.length - offset`). **Default:** `buf.length - offset`.
 * `encoding` {string} The character encoding of `string`. **Default:** `'utf8'`.
 * Returns: {integer} Number of bytes written.
 
@@ -2011,6 +2011,13 @@ const len = buf.write('\u00bd + \u00bc = \u00be', 0);
 
 console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 // Prints: 12 bytes: ½ + ¼ = ¾
+
+const buffer = Buffer.alloc(10);
+
+const length = buffer.write('abcd', 8);
+
+console.log(`${length} bytes: ${buffer.toString('utf8', 8, 10)}`);
+// Prints: 2 bytes : ab
 ```
 
 ### `buf.writeBigInt64BE(value[, offset])`
