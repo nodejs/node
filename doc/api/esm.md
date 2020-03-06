@@ -173,9 +173,9 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
-## Packages
+## Packages Entry Points
 
-### Package Entry Points
+### Package Exports
 
 There are two fields that can define entry points for a package: `"main"` and
 `"exports"`. The `"main"` field is supported in all versions of Node.js, but its
