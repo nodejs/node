@@ -19,7 +19,7 @@ namespace internal {
 class Heap;
 class NativeContextStats;
 
-class V8_EXPORT_PRIVATE MemoryMeasurement {
+class MemoryMeasurement {
  public:
   explicit MemoryMeasurement(Isolate* isolate);
 
