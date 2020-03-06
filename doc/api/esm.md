@@ -192,10 +192,10 @@ environment.
 When using both `import` and `require` the `"exports"` field will be resolved
 if it is set, otherwise the `"main"` field will be resolved.
 
-When setting any package entry points to ES modules, `require()` will not work in
-both modern and legacy Node.js versions, so it is important to carefully follow
-[the dual CommonJS/ES module packages section][] to properly handle these types
-of backwards-compatible ES module support.
+When setting any package entry points to ES modules, `require()` will not work
+in both modern and legacy Node.js versions, so it is important to carefully
+follow [the dual CommonJS/ES module packages section][] to properly handle
+these types of backwards-compatible ES module support.
 
 #### Package Exports Main
 
@@ -217,8 +217,9 @@ subpaths of the package will no longer be available to importers under
 
 This new encapsulation of exports provides new more reliable guarantees
 about package interfaces for tools and when handling semver upgrades for a
-package. It is not a strong encapsulation since
-a direct require of any absolute subpath of the package such as `require('/path/to/node_modules/pkg/subpath.js')` will still work correctly.
+package. It is not a strong encapsulation since a direct require of any
+absolute subpath of the package such as
+`require('/path/to/node_modules/pkg/subpath.js')` will still work correctly.
 
 #### Package Exports Subpaths
 
