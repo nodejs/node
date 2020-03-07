@@ -219,7 +219,6 @@ constexpr size_t kFsStatsBufferLength =
   V(dns_srv_string, "SRV")                                                     \
   V(dns_txt_string, "TXT")                                                     \
   V(done_string, "done")                                                       \
-  V(dot_string, ".")                                                           \
   V(duration_string, "duration")                                               \
   V(ecdh_string, "ECDH")                                                       \
   V(emit_warning_string, "emitWarning")                                        \
@@ -274,7 +273,6 @@ constexpr size_t kFsStatsBufferLength =
   V(kind_string, "kind")                                                       \
   V(library_string, "library")                                                 \
   V(mac_string, "mac")                                                         \
-  V(main_string, "main")                                                       \
   V(max_buffer_string, "maxBuffer")                                            \
   V(message_port_constructor_string, "MessagePort")                            \
   V(message_port_string, "messagePort")                                        \
@@ -991,9 +989,6 @@ class Environment : public MemoryRetainer {
   inline uint32_t get_next_module_id();
   inline uint32_t get_next_script_id();
   inline uint32_t get_next_function_id();
-
-  std::unordered_map<std::string, const loader::PackageConfig>
-      package_json_cache;
 
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(

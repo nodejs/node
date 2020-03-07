@@ -129,8 +129,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   // The use of %2F escapes in paths fails loading
   loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
-    strictEqual(err.code, isRequire ? 'ERR_INVALID_FILE_URL_PATH' :
-      'ERR_MODULE_NOT_FOUND');
+    strictEqual(err.code, 'ERR_INVALID_FILE_URL_PATH');
   }));
 
   // Package export with numeric index properties must throw a validation error
