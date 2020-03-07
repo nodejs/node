@@ -85,3 +85,49 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
     }
   );
 });
+
+/**
+ * Testing with milicious getter
+ */
+{
+  const filename = getFileName(4);
+  const fd = fs.openSync(filename, 'w');
+
+  const arrayThrow = [];
+  const arrayFalse = [];
+
+  let t1 = 0;
+  Object.defineProperty(arrayThrow, 0, {
+    get() {
+      if (t1++ === 0) {
+        return new Uint8Array(1);
+      }
+      throw new Error('boom');
+    },
+  });
+
+  let t2 = 0;
+  Object.defineProperty(arrayFalse, 0, {
+    get() {
+      if (t2++ === 0) {
+        return new Uint8Array(1);
+      }
+      return false;
+    },
+  });
+
+  assert.throws(
+    () => fs.writevSync(fd, arrayThrow),
+    {
+      name: 'Error',
+      message: 'boom'
+    }
+  );
+  assert.throws(
+    () => fs.writevSync(fd, arrayFalse),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError'
+    }
+  );
+}
