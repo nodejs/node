@@ -99,10 +99,13 @@ The character encodings currently supported by Node.js are the following:
   encoded using a single byte. Characters that do not fit into that range are
   truncated and will be mapped to characters in that range.
 
+Converting a `Buffer` into a string using one of the above is referred to as
+decoding, and converting a string into a `Buffer` is referred to as encoding.
+
 Node.js also supports the following two binary-to-text encodings. For
-binary-to-text encodings, converting a `Buffer` into a string is typically
-referred to as encoding. In the case of character encodings, like the ones
-listed above, the naming is reversed.
+binary-to-text encodings, the naming convention is reversed: Converting a
+`Buffer` into a string is typically referred to as encoding, and converting a
+string into a `Buffer` as decoding.
 
 * `'base64'`: [Base64][] encoding. When creating a `Buffer` from a string,
   this encoding will also correctly accept "URL and Filename Safe Alphabet" as
