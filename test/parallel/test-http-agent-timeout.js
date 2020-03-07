@@ -43,10 +43,9 @@ const http = require('http');
   });
 
   server.listen(0, common.mustCall(() => {
-    let socket;
     http.get({ port: server.address().port, agent })
       .on('response', common.mustCall((res) => {
-        socket = res.socket;
+        const socket = res.socket;
         assert(socket);
         res.resume();
         socket.on('free', common.mustCall(() => {
@@ -55,7 +54,6 @@ const http = require('http');
               .on('response', common.mustCall((res) => {
                 assert.notStrictEqual(socket, res.socket);
                 assert.strictEqual(socket.destroyed, true);
-                assert(socket);
                 agent.destroy();
                 server.close();
               }));
