@@ -6,7 +6,8 @@
 
 In Node.js, `Buffer` objects are used to represent binary data in the form
 of a sequence of bytes. Many Node.js APIs, for example streams and file system
-operations, support `Buffer`s.
+operations, support `Buffer`s, as interactions with the operating system or
+other processes generally always happen in terms of binary data.
 
 The `Buffer` class is a subclass of the [`Uint8Array`][] class that is built
 into the JavaScript language. A number of additional methods are supported
@@ -25,7 +26,8 @@ would need to ever use `require('buffer').Buffer`.
 // Creates a zero-filled Buffer of length 10.
 const buf1 = Buffer.alloc(10);
 
-// Creates a Buffer of length 10, filled with bytes which all have the value 1.
+// Creates a Buffer of length 10,
+// filled with bytes which all have the value `1`.
 const buf2 = Buffer.alloc(10, 1);
 
 // Creates an uninitialized buffer of length 10.
@@ -35,14 +37,20 @@ const buf2 = Buffer.alloc(10, 1);
 // contents.
 const buf3 = Buffer.allocUnsafe(10);
 
-// Creates a Buffer containing the bytes [0x1, 0x2, 0x3].
+// Creates a Buffer containing the bytes [1, 2, 3].
 const buf4 = Buffer.from([1, 2, 3]);
 
-// Creates a Buffer containing the UTF-8 bytes [0x74, 0xc3, 0xa9, 0x73, 0x74].
-const buf5 = Buffer.from('tést');
+// Creates a Buffer containing the bytes [1, 1, 1, 1] – the entries
+// are all truncated using `(value & 255)` to fit into the range 0–255.
+const buf5 = Buffer.from([257, 257.5, -255, '1']);
+
+// Creates a Buffer containing the UTF-8-encoded bytes for the string 'tést':
+// [0x74, 0xc3, 0xa9, 0x73, 0x74] (in hexadecimal notation)
+// [116, 195, 169, 115, 116] (in decimal notation)
+const buf6 = Buffer.from('tést');
 
 // Creates a Buffer containing the Latin-1 bytes [0x74, 0xe9, 0x73, 0x74].
-const buf6 = Buffer.from('tést', 'latin1');
+const buf7 = Buffer.from('tést', 'latin1');
 ```
 
 ## Buffers and Character Encodings
@@ -77,26 +85,26 @@ console.log(Buffer.from('fhqwhgads', 'utf16le'));
 The character encodings currently supported by Node.js are the following:
 
 * `'utf8'`: Multi-byte encoded Unicode characters. Many web pages and other
-  document formats use UTF-8. This is the default character encoding.
+  document formats use [UTF-8][]. This is the default character encoding.
   When decoding a `Buffer` into a string that does not exclusively contain
   valid UTF-8 data, the Unicode replacement character `U+FFFD` � will be used
   to represent those errors.
 
 * `'utf16le'`: Multi-byte encoded Unicode characters. Unlike `'utf8'`, each
   character in the string will be encoded using either 2 or 4 bytes.
-  Node.js only supports the little-endian variant of UTF-16.
+  Node.js only supports the [little-endian][endianness] variant of [UTF-16][].
 
-* `'latin1'`: Latin-1 stands for ISO-8859-1. This character encoding only
+* `'latin1'`: Latin-1 stands for [ISO-8859-1][]. This character encoding only
   supports the Unicode characters from `U+0000` to `U+00FF`. Each character is
   encoded using a single byte. Characters that do not fit into that range are
   truncated and will be mapped to characters in that range.
 
 Node.js also supports the following two binary-to-text encodings. For
 binary-to-text encodings, converting a `Buffer` into a string is typically
-referred to as encoding, rather than decoding as is in the case of character
-encodings like the ones listed above, and vice versa.
+referred to as encoding. In the case of character encodings, like the ones
+listed above, the naming is reversed.
 
-* `'base64'`: Base64 encoding. When creating a `Buffer` from a string,
+* `'base64'`: [Base64][] encoding. When creating a `Buffer` from a string,
   this encoding will also correctly accept "URL and Filename Safe Alphabet" as
   specified in [RFC 4648, Section 5][].
 
@@ -106,10 +114,10 @@ encodings like the ones listed above, and vice versa.
 
 The following legacy character encodings are also supported:
 
-* `'ascii'`: For 7-bit ASCII data only. When encoding a string into a `Buffer`,
-  this is equivalent to using `'latin1'`. When decoding a `Buffer` into a
-  string, using encoding this will additionally unset the highest bit of each
-  byte before decoding as `'latin1'`.
+* `'ascii'`: For 7-bit [ASCII][] data only. When encoding a string into a
+  `Buffer`, this is equivalent to using `'latin1'`. When decoding a `Buffer`
+  into a string, using encoding this will additionally unset the highest bit of
+  each byte before decoding as `'latin1'`.
   Generally, there should be no reason to use this encoding, as `'utf8'`
   (or, if the data is known to always be ASCII-only, `'latin1'`) will be a
   better choice when encoding or decoding ASCII-only text. It is only provided
@@ -151,8 +159,11 @@ changes:
     description: The `Buffer`s class now inherits from `Uint8Array`.
 -->
 
-`Buffer` instances are also [`Uint8Array`][] instances. However, there are
-subtle incompatibilities with [`TypedArray`][].
+`Buffer` instances are also [`Uint8Array`][] instances, which is the language’s
+built-in class for working with binary data. [`Uint8Array`][] in turn is a
+subclass of [`TypedArray`][]. Therefore, all [`TypedArray`][] methods are also
+available on `Buffer`s. However, there are subtle incompatibilities between
+the `Buffer` API and the [`TypedArray`][] API.
 
 In particular:
 
@@ -753,8 +764,10 @@ The index operator `[index]` can be used to get and set the octet at position
 range is between `0x00` and `0xFF` (hex) or `0` and `255` (decimal).
 
 This operator is inherited from `Uint8Array`, so its behavior on out-of-bounds
-access is the same as `Uint8Array`. In other words, getting returns `undefined`
-and setting does nothing for out-of-bounds indices.
+access is the same as `Uint8Array`. In other words, `buf[index]` returns
+`undefined` when `index` is negative or `>= buf.length`, and
+`buf[index] = value` does not modify the buffer if `index` is negative or
+`>= buf.length`.
 
 ```js
 // Copy an ASCII string into a `Buffer` one byte at a time.
@@ -902,8 +915,9 @@ added: v0.1.90
 Copies data from a region of `buf` to a region in `target`, even if the `target`
 memory region overlaps with `buf`.
 
-[`TypedArray#set()`][] performs a similar operation, and is available for all
-TypedArrays, including Node.js `Buffer`s.
+[`TypedArray#set()`][] performs the same operation, and is available for all
+TypedArrays, including Node.js `Buffer`s, although it takes different
+function arguments.
 
 ```js
 // Create two `Buffer` instances.
@@ -917,6 +931,8 @@ for (let i = 0; i < 26; i++) {
 
 // Copy `buf1` bytes 16 through 19 into `buf2` starting at byte 8 of `buf2`.
 buf1.copy(buf2, 8, 16, 20);
+// This is equivalent to:
+// buf2.set(buf1.subarray(16, 20), 8);
 
 console.log(buf2.toString('ascii', 0, 25));
 // Prints: !!!!!!!!qrst!!!!!!!!!!!!!
@@ -1326,7 +1342,7 @@ added: v12.0.0
 * Returns: {bigint}
 
 Reads a signed 64-bit integer from `buf` at the specified `offset` with
-the specified endianness (`readBigInt64BE()` reads as big endian,
+the specified [endianness][] (`readBigInt64BE()` reads as big endian,
 `readBigInt64LE()` reads as little endian).
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
@@ -1342,7 +1358,7 @@ added: v12.0.0
 * Returns: {bigint}
 
 Reads an unsigned 64-bit integer from `buf` at the specified `offset` with
-the specified endianness (`readBigUInt64BE()` reads as big endian,
+the specified [endianness][] (`readBigUInt64BE()` reads as big endian,
 `readBigUInt64LE()` reads as little endian).
 
 ```js
@@ -1371,7 +1387,7 @@ changes:
 * Returns: {number}
 
 Reads a 64-bit double from `buf` at the specified `offset` with the specified
-endianness (`readDoubleBE()` reads as big endian, `readDoubleLE()` reads as
+[endianness][] (`readDoubleBE()` reads as big endian, `readDoubleLE()` reads as
 little endian).
 
 ```js
@@ -1401,7 +1417,7 @@ changes:
 * Returns: {number}
 
 Reads a 32-bit float from `buf` at the specified `offset` with the specified
-endianness (`readFloatBE()` reads as big endian, `readFloatLE()` reads as
+[endianness][] (`readFloatBE()` reads as big endian, `readFloatLE()` reads as
 little endian).
 
 ```js
@@ -1460,7 +1476,7 @@ changes:
 * Returns: {integer}
 
 Reads a signed 16-bit integer from `buf` at the specified `offset` with
-the specified endianness (`readInt16BE()` reads as big endian,
+the specified [endianness][] (`readInt16BE()` reads as big endian,
 `readInt16LE()` reads as little endian).
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
@@ -1492,7 +1508,7 @@ changes:
 * Returns: {integer}
 
 Reads a signed 32-bit integer from `buf` at the specified `offset` with
-the specified endianness (`readInt32BE()` reads as big endian,
+the specified [endianness][] (`readInt32BE()` reads as big endian,
 `readInt32LE()` reads as little endian).
 
 Integers read from a `Buffer` are interpreted as two's complement signed values.
@@ -1585,7 +1601,7 @@ changes:
 * Returns: {integer}
 
 Reads an unsigned 16-bit integer from `buf` at the specified `offset` with
-the specified endianness (`readUInt16BE()` reads as big endian, `readUInt16LE()`
+the specified [endianness][] (`readUInt16BE()` reads as big endian, `readUInt16LE()`
 reads as little endian).
 
 ```js
@@ -1619,7 +1635,7 @@ changes:
 * Returns: {integer}
 
 Reads an unsigned 32-bit integer from `buf` at the specified `offset` with
-the specified endianness (`readUInt32BE()` reads as big endian,
+the specified [endianness][] (`readUInt32BE()` reads as big endian,
 `readUInt32LE()` reads as little endian).
 
 ```js
@@ -2005,9 +2021,9 @@ added: v12.0.0
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with the specified endianness
-(`writeBigInt64BE()` writes as big endian, `writeBigInt64LE()` writes as little
-endian).
+Writes `value` to `buf` at the specified `offset` with the specified
+[endianness][] (`writeBigInt64BE()` writes as big endian, `writeBigInt64LE()`
+writes as little endian).
 
 `value` is interpreted and written as a two's complement signed integer.
 
@@ -2031,7 +2047,7 @@ added: v12.0.0
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with specified endianness
+Writes `value` to `buf` at the specified `offset` with specified [endianness][]
 (`writeBigUInt64BE()` writes as big endian, `writeBigUInt64LE()` writes as
 little endian).
 
@@ -2060,10 +2076,10 @@ changes:
   satisfy `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with the specified endianness
-(`writeDoubleBE()` writes as big endian, `writeDoubleLE()` writes as little
-endian). `value` must be a JavaScript number. Behavior is undefined when
-`value` is anything other than a JavaScript number.
+Writes `value` to `buf` at the specified `offset` with the specified
+[endianness][] (`writeDoubleBE()` writes as big endian, `writeDoubleLE()` writes
+as little endian). `value` must be a JavaScript number. Behavior is undefined
+when `value` is anything other than a JavaScript number.
 
 ```js
 const buf = Buffer.allocUnsafe(8);
@@ -2095,7 +2111,7 @@ changes:
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with specified endianness
+Writes `value` to `buf` at the specified `offset` with specified [endianness][]
 (`writeFloatBE()` writes as big endian, `writeFloatLE()` writes as little
 endian). `value` must be a JavaScript number. Behavior is undefined when
 `value` is anything other than a JavaScript number.
@@ -2161,9 +2177,9 @@ changes:
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with the specified endianness
-(`writeInt16BE()` writes as big endian, `writeInt16LE()` writes as little
-endian). `value` must be a valid signed 16-bit integer. Behavior is
+Writes `value` to `buf` at the specified `offset` with the specified
+[endianness][] (`writeInt16BE()` writes as big endian, `writeInt16LE()` writes
+as little endian). `value` must be a valid signed 16-bit integer. Behavior is
 undefined when `value` is anything other than a signed 16-bit integer.
 
 `value` is interpreted and written as a two's complement signed integer.
@@ -2194,9 +2210,9 @@ changes:
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with the specified endianness
-(`writeInt32BE()` writes aS big endian, `writeInt32LE()` writes AS little
-endian). `value` must be a valid signed 32-bit integer. Behavior is
+Writes `value` to `buf` at the specified `offset` with the specified
+[endianness][] (`writeInt32BE()` writes aS big endian, `writeInt32LE()` writes
+as little endian). `value` must be a valid signed 32-bit integer. Behavior is
 undefined when `value` is anything other than a signed 32-bit integer.
 
 `value` is interpreted and written as a two's complement signed integer.
@@ -2294,9 +2310,9 @@ changes:
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with the specified endianness
-(`writeUInt16BE()` writes as big endian, `writeUInt16LE()` writes as little
-endian). `value` must be a valid unsigned 16-bit integer. Behavior is
+Writes `value` to `buf` at the specified `offset` with the specified
+[endianness][] (`writeUInt16BE()` writes as big endian, `writeUInt16LE()` writes
+as little endian). `value` must be a valid unsigned 16-bit integer. Behavior is
 undefined when `value` is anything other than an unsigned 16-bit integer.
 
 ```js
@@ -2331,9 +2347,9 @@ changes:
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
 
-Writes `value` to `buf` at the specified `offset` with the specified endianness
-(`writeUInt32BE()` writes as big endian, `writeUInt32LE()` writes as little
-endian). `value` must be a valid unsigned 32-bit integer. Behavior is
+Writes `value` to `buf` at the specified `offset` with the specified
+[endianness][] (`writeUInt32BE()` writes as big endian, `writeUInt32LE()` writes
+as little endian). `value` must be a valid unsigned 32-bit integer. Behavior is
 undefined when `value` is anything other than an unsigned 32-bit integer.
 
 ```js
@@ -2667,11 +2683,12 @@ performed.
 
 For example, if an attacker can cause an application to receive a number where
 a string is expected, the application may call `new Buffer(100)`
-instead of `new Buffer("100")`, it will allocate a 100 byte buffer instead
+instead of `new Buffer("100")`, leading it to allocate a 100 byte buffer instead
 of allocating a 3 byte buffer with content `"100"`. This is commonly possible
 using JSON API calls. Since JSON distinguishes between numeric and string types,
-it allows injection of numbers where a naive application might expect to always
-receive a string.  Before Node.js 8.0.0, the 100 byte buffer might contain
+it allows injection of numbers where a naively written application that does not
+validate its input sufficiently might expect to always receive a string.
+Before Node.js 8.0.0, the 100 byte buffer might contain
 arbitrary pre-existing in-memory data, so may be used to expose in-memory
 secrets to a remote attacker.  Since Node.js 8.0.0, exposure of memory cannot
 occur because the data is zero-filled. However, other attacks are still
@@ -2784,5 +2801,11 @@ introducing security vulnerabilities into an application.
 [`buffer.constants.MAX_STRING_LENGTH`]: #buffer_buffer_constants_max_string_length
 [`buffer.kMaxLength`]: #buffer_buffer_kmaxlength
 [`util.inspect()`]: util.html#util_util_inspect_object_options
+[ASCII]: https://en.wikipedia.org/wiki/ASCII
+[Base64]: https://en.wikipedia.org/wiki/Base64
+[ISO-8859-1]: https://en.wikipedia.org/wiki/ISO-8859-1
+[UTF-8]: https://en.wikipedia.org/wiki/UTF-8
+[UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [binary strings]: https://developer.mozilla.org/en-US/docs/Web/API/DOMString/Binary
+[endianness]: https://en.wikipedia.org/wiki/Endianness
 [iterator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols
