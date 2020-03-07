@@ -194,3 +194,47 @@ const assert = require('assert');
 
   new MyDuplex();
 }
+
+{
+  const duplex = new Duplex({
+    writable: false,
+    autoDestroy: true,
+    write(chunk, enc, cb) { cb(); },
+    read() {},
+  });
+  duplex.push(null);
+  duplex.resume();
+  duplex.on('close', common.mustCall());
+}
+
+{
+  const duplex = new Duplex({
+    readable: false,
+    autoDestroy: true,
+    write(chunk, enc, cb) { cb(); },
+    read() {},
+  });
+  duplex.end();
+  duplex.on('close', common.mustCall());
+}
+
+{
+  const duplex = new Duplex({
+    allowHalfOpen: false,
+    autoDestroy: true,
+    write(chunk, enc, cb) { cb(); },
+    read() {},
+  });
+  duplex.push(null);
+  duplex.resume();
+  const orgEnd = duplex.end;
+  duplex.end = common.mustNotCall();
+  duplex.on('end', () => {
+    // Ensure end() is called in next tick to allow
+    // any pending writes to be invoked first.
+    process.nextTick(() => {
+      duplex.end = common.mustCall(orgEnd);
+    });
+  });
+  duplex.on('close', common.mustCall());
+}

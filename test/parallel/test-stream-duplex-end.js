@@ -22,7 +22,7 @@ const Duplex = require('stream').Duplex;
   });
   assert.strictEqual(stream.allowHalfOpen, false);
   stream.on('finish', common.mustCall());
-  assert.strictEqual(stream.listenerCount('end'), 1);
+  assert.strictEqual(stream.listenerCount('end'), 0);
   stream.resume();
   stream.push(null);
 }
@@ -35,7 +35,7 @@ const Duplex = require('stream').Duplex;
   assert.strictEqual(stream.allowHalfOpen, false);
   stream._writableState.ended = true;
   stream.on('finish', common.mustNotCall());
-  assert.strictEqual(stream.listenerCount('end'), 1);
+  assert.strictEqual(stream.listenerCount('end'), 0);
   stream.resume();
   stream.push(null);
 }
