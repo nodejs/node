@@ -505,13 +505,13 @@ class Http2Stream::Provider::Stream : public Http2Stream::Provider {
                         void* user_data);
 };
 
-typedef struct {
+struct SessionJSFields {
   uint8_t bitfield;
   uint8_t priority_listener_count;
   uint8_t frame_error_listener_count;
   uint32_t max_invalid_frames = 1000;
   uint32_t max_rejected_streams = 100;
-} SessionJSFields;
+};
 
 // Indices for js_fields_, which serves as a way to communicate data with JS
 // land fast. In particular, we store information about the number/presence
