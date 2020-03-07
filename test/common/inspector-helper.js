@@ -344,6 +344,9 @@ class NodeInstance extends EventEmitter {
 
     this._shutdownPromise = new Promise((resolve) => {
       this._process.once('exit', (exitCode, signal) => {
+        if (signal) {
+          console.error(`[err] child process crashed, signal ${signal}`);
+        }
         resolve({ exitCode, signal });
         this._running = false;
       });
