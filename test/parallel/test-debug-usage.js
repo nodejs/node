@@ -11,8 +11,7 @@ child.stderr.setEncoding('utf8');
 
 const expectedLines = [
   /^\(node:\d+\) \[DEP0068\] DeprecationWarning:/,
-  /^Usage: .*node.* debug script\.js$/,
-  /^       .*node.* debug <host>:<port>$/
+  /Usage: .*node.* debug script\.js\r?\n       .*node.* debug <host>:<port>\r?\n       .*node.* debug -p <pid>\r?\n$/,
 ];
 
 let actualUsageMessage = '';
@@ -21,11 +20,10 @@ child.stderr.on('data', function(data) {
 });
 
 child.on('exit', common.mustCall(function(code) {
-  const outputLines = actualUsageMessage.split('\n');
   assert.strictEqual(code, 1);
   for (let i = 0; i < expectedLines.length; i++)
     assert.ok(
-      expectedLines[i].test(outputLines[i]),
-      `${outputLines[i]} did not match ${expectedLines[i]}`
+      expectedLines[i].test(actualUsageMessage),
+      `${actualUsageMessage} did not match ${expectedLines[i]}`
     );
 }));
