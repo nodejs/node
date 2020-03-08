@@ -1,0 +1,51 @@
+name: run lint-js
+
+on:
+  push:
+    paths:
+      - ".eslintrc.js"
+      - "tools/.eslintrc.yaml"
+      - "tools/lint-js.js"
+      - "tools/node_modules/**"
+      - "tools/eslint-rules/**/*.m?js"
+      - "tools/eslint-rules/**/*.md"
+      - "benchmark/**/*.m?js"
+      - "benchmark/**/*.md"
+      - "doc/**/*.m?js"
+      - "doc/**/*.md"
+      - "lib/**/*.m?js"
+      - "lib/**/*.md"
+      - "test/**/*.m?js"
+      - "test/**/*.md"
+      - "tools/**/*.m?js"
+      - "tools/**/*.md"
+  pull_request:
+    paths:
+      - ".eslintrc.js"
+      - "tools/.eslintrc.yaml"
+      - "tools/lint-js.js"
+      - "tools/node_modules/**"
+      - "tools/eslint-rules/**/*.m?js"
+      - "tools/eslint-rules/**/*.md"
+      - "benchmark/**/*.m?js"
+      - "benchmark/**/*.md"
+      - "doc/**/*.m?js"
+      - "doc/**/*.md"
+      - "lib/**/*.m?js"
+      - "lib/**/*.md"
+      - "test/**/*.m?js"
+      - "test/**/*.md"
+      - "tools/**/*.m?js"
+      - "tools/**/*.md"
+
+jobs:
+  lint-js:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js 10
+      uses: actions/setup-node@v1
+      with:
+        node-version: 10.x
+    - name: Lint JavaScript files
+      run: NODE=$(which node) make lint-js
