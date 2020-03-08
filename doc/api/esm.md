@@ -256,7 +256,7 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-Folders can also be mapped with package exports:
+Entire folders can also be mapped with package exports:
 
 <!-- eslint-skip -->
 ```js
@@ -268,16 +268,23 @@ Folders can also be mapped with package exports:
 }
 ```
 
+With the above, all modules within the `./src/features/` folder
+are exposed deeply to `import` and `require`:
+
 ```js
 import feature from 'es-module-package/features/x.js';
 // Loads ./node_modules/es-module-package/src/features/x.js
 ```
 
-Any invalid exports entries will be ignored. This includes exports not
-starting with `"./"` or a missing trailing `"/"` for directory exports.
+When using folder mappings, ensure that you do want to expose every
+module inside the subfolder. Any modules which are not public
+should be moved to another folder to retain the encapsulation
+benefits of exports.
 
-Array fallback support is provided for exports, similarly to import maps
-in order to be forwards-compatible with possible fallback workflows in future:
+#### Package Exports Fallbacks
+
+For possible new specifier support in future, array fallbacks are
+supported for all invalid specifiers:
 
 <!-- eslint-skip -->
 ```js
@@ -288,7 +295,7 @@ in order to be forwards-compatible with possible fallback workflows in future:
 }
 ```
 
-Since `"not:valid"` is not a supported target, `"./submodule.js"` is used
+Since `"not:valid"` is not a valid specifier, `"./submodule.js"` is used
 instead as the fallback, as if it were the only target.
 
 #### Exports Sugar
