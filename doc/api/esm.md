@@ -173,7 +173,7 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
-## Packages Entry Points
+## Packages
 
 ### Package Exports
 
