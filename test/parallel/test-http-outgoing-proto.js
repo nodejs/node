@@ -122,3 +122,10 @@ assert.throws(() => {
   name: 'TypeError',
   message: 'Invalid character in trailer content ["404"]'
 });
+
+{
+  const outgoingMessage = new OutgoingMessage();
+  assert.strictEqual(outgoingMessage.destroyed, false);
+  outgoingMessage.destroy();
+  assert.strictEqual(outgoingMessage.destroyed, true);
+}
