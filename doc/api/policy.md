@@ -166,9 +166,9 @@ only with care after auditing a module to ensure its behavior is valid.
 
 #### Example: Patched Dependency
 
-Since a dependency can be redirected, you can provide attenuated or modified
-forms of dependencies as fits your application. For example, you could log
-data about timing of function durations by wrapping the original:
+Redirected dependencies can provide attenuated or modified functionality as fits
+the application. For example, log data about timing of function durations by
+wrapping the original:
 
 ```js
 const original = require('fn');
