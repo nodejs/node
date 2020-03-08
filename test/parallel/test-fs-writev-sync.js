@@ -87,7 +87,7 @@ const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
 });
 
 /**
- * Testing with milicious getter
+ * Testing with malicious getter
  */
 {
   const filename = getFileName(4);
