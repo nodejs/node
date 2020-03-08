@@ -265,8 +265,6 @@ For information about the governance of the Node.js project, see
 **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [cjihrig](https://github.com/cjihrig) -
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
-* [claudiorodriguez](https://github.com/claudiorodriguez) -
-**Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [codebytere](https://github.com/codebytere) -
 **Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
@@ -309,12 +307,8 @@ For information about the governance of the Node.js project, see
 **Yang Guo** &lt;yangguo@chromium.org&gt; (he/him)
 * [hiroppy](https://github.com/hiroppy) -
 **Yuta Hiroto** &lt;hello@hiroppy.me&gt; (he/him)
-* [iarna](https://github.com/iarna) -
-**Rebecca Turner** &lt;me@re-becca.org&gt;
 * [indutny](https://github.com/indutny) -
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
-* [italoacasas](https://github.com/italoacasas) -
-**Italo A. Casas** &lt;me@italoacasas.com&gt; (he/him)
 * [JacksonTian](https://github.com/JacksonTian) -
 **Jackson Tian** &lt;shyvo1987@gmail.com&gt;
 * [jasnell](https://github.com/jasnell) -
@@ -351,8 +345,6 @@ For information about the governance of the Node.js project, see
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mmarchini](https://github.com/mmarchini) -
 **Matheus Marchini** &lt;mat@mmarchini.me&gt;
-* [MoonBall](https://github.com/MoonBall) -
-**Chen Gang** &lt;gangc.cxy@foxmail.com&gt;
 * [mscdex](https://github.com/mscdex) -
 **Brian White** &lt;mscdex@mscdex.net&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
@@ -407,8 +399,6 @@ For information about the governance of the Node.js project, see
 **Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
 **Tobias Nießen** &lt;tniessen@tnie.de&gt;
-* [trevnorris](https://github.com/trevnorris) -
-**Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [trivikr](https://github.com/trivikr) -
 **Trivikram Kamat** &lt;trivikr.dev@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
@@ -444,6 +434,8 @@ For information about the governance of the Node.js project, see
 **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [chrisdickinson](https://github.com/chrisdickinson) -
 **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
+* [claudiorodriguez](https://github.com/claudiorodriguez) -
+**Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [DavidCai1993](https://github.com/DavidCai1993) -
 **David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
@@ -454,12 +446,16 @@ For information about the governance of the Node.js project, see
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [glentiki](https://github.com/glentiki) -
 **Glen Keane** &lt;glenkeane.94@gmail.com&gt; (he/him)
+* [iarna](https://github.com/iarna) -
+**Rebecca Turner** &lt;me@re-becca.org&gt;
 * [imran-iq](https://github.com/imran-iq) -
 **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [imyller](https://github.com/imyller) -
 **Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
+* [italoacasas](https://github.com/italoacasas) -
+**Italo A. Casas** &lt;me@italoacasas.com&gt; (he/him)
 * [jasongin](https://github.com/jasongin) -
 **Jason Ginchereau** &lt;jasongin@microsoft.com&gt;
 * [jbergstroem](https://github.com/jbergstroem) -
@@ -486,6 +482,8 @@ For information about the governance of the Node.js project, see
 **Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) -
 **Christopher Monsanto** &lt;chris@monsan.to&gt;
+* [MoonBall](https://github.com/MoonBall) -
+**Chen Gang** &lt;gangc.cxy@foxmail.com&gt;
 * [not-an-aardvark](https://github.com/not-an-aardvark) -
 **Teddy Katz** &lt;teddy.katz@gmail.com&gt; (he/him)
 * [Olegas](https://github.com/Olegas) -
@@ -520,6 +518,8 @@ For information about the governance of the Node.js project, see
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [thlorenz](https://github.com/thlorenz) -
 **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
+* [trevnorris](https://github.com/trevnorris) -
+**Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [tunniclm](https://github.com/tunniclm) -
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) -
