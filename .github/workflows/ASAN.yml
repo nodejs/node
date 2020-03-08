@@ -1,6 +1,18 @@
 name: node ASAN
 
-on: [push, pull_request]
+on:
+ push:
+   paths:
+     - "**/*.cpp"
+     - "**/*.c"
+     - "**/*.cc"
+     - "**/*.h"
+ pull_request:
+   paths:
+     - "**/*.cpp"
+     - "**/*.c"
+     - "**/*.cc"
+     - "**/*.h"
 
 jobs:
   ubuntu-build:
