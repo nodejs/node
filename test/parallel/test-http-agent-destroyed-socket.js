@@ -48,7 +48,7 @@ const server = http.createServer(common.mustCall((req, res) => {
     response.on('end', common.mustCall(() => {
       request1.socket.destroy();
 
-      response.socket.once('close', common.mustCall(() => {
+      request1.socket.once('close', common.mustCall(() => {
         // Assert request2 was removed from the queue
         assert(!agent.requests[key]);
         process.nextTick(() => {
