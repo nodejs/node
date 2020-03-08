@@ -1,7 +1,7 @@
 'use strict';
 
 const rulesDirs = ['tools/eslint-rules'];
-const extensions = ['.js', '.md'];
+const extensions = ['.js', '.mjs', '.md'];
 // This is the maximum number of files to be linted per worker at any given time
 const maxWorkload = 60;
 
