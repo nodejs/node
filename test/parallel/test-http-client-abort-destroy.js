@@ -49,7 +49,6 @@ const assert = require('assert');
   }));
 }
 
-
 {
   // destroy
 
@@ -61,6 +60,7 @@ const assert = require('assert');
     const req = http.get(options, common.mustNotCall());
     req.on('error', common.mustCall((err) => {
       assert.strictEqual(err.code, 'ECONNRESET');
+      server.close();
     }));
     assert.strictEqual(req.aborted, false);
     assert.strictEqual(req.destroyed, false);
