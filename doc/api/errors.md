@@ -1864,7 +1864,7 @@ added: REPLACEME
 -->
 
 The TLS socket must be connected and securily established. Ensure the 'secure'
-event is emitted, before you continue.
+event is emitted before continuing.
 
 <a id="ERR_TLS_INVALID_PROTOCOL_METHOD"></a>
 ### `ERR_TLS_INVALID_PROTOCOL_METHOD`
