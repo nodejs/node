@@ -8,8 +8,8 @@ Addons are dynamically-linked shared objects written in C++. The
 Addons provide an interface between JavaScript and C/C++ libraries.
 
 There are three options for implementing Addons: N-API, nan, or direct
-use of internal V8, libuv and Node.js libraries. Unless you need direct
-access to functionality which is not exposed by N-API, use N-API.
+use of internal V8, libuv and Node.js libraries. Unless there is a need for
+direct access to functionality which is not exposed by N-API, use N-API.
 Refer to [C/C++ Addons with N-API](n-api.html) for more information on N-API.
 
 When not using N-API, implementing Addons is complicated,
