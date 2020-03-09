@@ -32,6 +32,31 @@ template <class NativeT,
           typename = std::enable_if_t<std::is_scalar<NativeT>::value>>
 class AliasedBufferBase {
  public:
+  /**
+   * Create an AliasedBufferBase over an existing buffer
+   */
+  AliasedBufferBase(
+      v8::Isolate* isolate,
+      const size_t count,
+      NativeT* buffer) :
+      isolate_(isolate),
+      count_(count),
+      byte_offset_(0),
+      buffer_(buffer) {
+    CHECK_GT(count, 0);
+    const v8::HandleScope handle_scope(isolate_);
+    const size_t size_in_bytes =
+        MultiplyWithOverflowCheck(sizeof(NativeT), count);
+    v8::Local<v8::ArrayBuffer> ab =
+        v8::ArrayBuffer::New(
+            isolate_,
+            buffer,
+            size_in_bytes);
+
+    v8::Local<V8T> js_array = V8T::New(ab, byte_offset_, count);
+    js_array_ = v8::Global<V8T>(isolate, js_array);
+  }
+
   AliasedBufferBase(v8::Isolate* isolate, const size_t count)
       : isolate_(isolate), count_(count), byte_offset_(0) {
     CHECK_GT(count, 0);

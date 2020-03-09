@@ -21,6 +21,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Report module](#report-module)
 * [tick module](#tick-module)
 * [tmpdir module](#tmpdir-module)
+* [UDP pair helper](#udp-pair-helper)
 * [WPT module](#wpt-module)
 
 ## Benchmark Module
@@ -934,6 +935,19 @@ be closed before the test completes. A good way to do this is to add a
 listener to process `'beforeExit'`. If a file needs to be left open until
 Node.js completes, use a child process and call `refresh()` only in the
 parent.
+
+## UDP pair helper
+
+The `common/udppair` module exports a function `makeUDPPair` and a class
+`FakeUDPWrap`.
+
+`FakeUDPWrap` emits `'send'` events when data is to be sent on it, and provides
+an `emitReceived()` API for acting as if data has been received on it.
+
+`makeUDPPair` returns an object `{ clientSide, serverSide }` where each side
+is an `FakeUDPWrap` connected to the other side.
+
+There is no difference between client or server side beyond their names.
 
 ## WPT Module
 

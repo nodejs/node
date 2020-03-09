@@ -609,6 +609,17 @@ inline void Environment::set_http2_state(
   http2_state_ = std::move(buffer);
 }
 
+#if HAVE_OPENSSL && defined(NODE_EXPERIMENTAL_QUIC)
+inline QuicState* Environment::quic_state() const {
+  return quic_state_.get();
+}
+
+inline void Environment::set_quic_state(std::unique_ptr<QuicState> buffer) {
+  CHECK(!quic_state_);  // Should be set only once.
+  quic_state_ = std::move(buffer);
+}
+#endif
+
 inline AliasedFloat64Array* Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
 }
@@ -999,6 +1010,10 @@ inline void AllocatedBuffer::Resize(size_t len) {
                                     len > 0 ? len : 1);
   CHECK_NOT_NULL(new_data);
   buffer_ = uv_buf_init(new_data, len);
+}
+
+inline bool AllocatedBuffer::empty() {
+  return env_ == nullptr;
 }
 
 inline uv_buf_t AllocatedBuffer::release() {

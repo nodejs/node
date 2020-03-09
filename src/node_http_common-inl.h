@@ -76,6 +76,14 @@ size_t GetServerMaxHeaderPairs(size_t max_header_pairs) {
   return std::max(max_header_pairs, min_header_pairs);
 }
 
+template <typename allocator_t>
+std::string NgHeaderImpl<allocator_t>::ToString() const {
+  std::string ret = name();
+  ret += " = ";
+  ret += value();
+  return ret;
+}
+
 template <typename T>
 bool NgHeader<T>::IsZeroLength(
     NgHeader<T>::rcbuf_t* name,
@@ -119,6 +127,12 @@ NgHeader<T>::NgHeader(
   CHECK_NOT_NULL(value);
   name_.reset(name, true);  // Internalizable
   value_.reset(value);
+}
+
+template <typename T>
+void NgHeader<T>::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("name", name_);
+  tracker->TrackField("value", value_);
 }
 
 template <typename T>

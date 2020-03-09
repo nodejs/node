@@ -215,6 +215,11 @@ class UDPWrap final : public HandleWrap,
   v8::Local<v8::Object> current_send_req_wrap_;
 };
 
+int sockaddr_for_family(int address_family,
+                        const char* address,
+                        const unsigned short port,
+                        sockaddr_storage* addr);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

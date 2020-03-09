@@ -3,11 +3,14 @@
 
 require('../common');
 const assert = require('assert');
+const { Buffer } = require('buffer');
 const {
   validateArray,
   validateBoolean,
+  validateBuffer,
   validateInteger,
   validateObject,
+  validateString,
 } = require('internal/validators');
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 const outOfRangeError = {
@@ -24,6 +27,31 @@ const invalidArgValueError = {
 };
 
 {
+  // validateString tests
+  validateString('hi', 'foo');
+
+  [1, false, [], {}, NaN, 1n, null, undefined].forEach((i) => {
+    assert.throws(() => validateString(i, 'foo'), invalidArgTypeError);
+  });
+
+  validateString(undefined, 'foo', { allowUndefined: true });
+}
+
+{
+  // validateBuffer tests
+  validateBuffer(Buffer.from('hi'), 'foo');
+  validateBuffer(Buffer.alloc(10), 'foo');
+  validateBuffer(new Uint8Array(10), 'foo');
+  validateBuffer(new DataView((new Uint8Array(10)).buffer));
+
+  [1, false, '', {}, [], 1n, null, undefined].forEach((i) => {
+    assert.throws(() => validateBuffer(i, 'foo'), invalidArgTypeError);
+  });
+
+  validateBuffer(undefined, 'foo', { allowUndefined: true });
+}
+
+{
   // validateInteger tests.
 
   // validateInteger() defaults to validating safe integers.
@@ -37,8 +65,15 @@ const invalidArgValueError = {
   }, outOfRangeError);
 
   // validateInteger() works with unsafe integers.
-  validateInteger(MAX_SAFE_INTEGER + 1, 'foo', 0, MAX_SAFE_INTEGER + 1);
-  validateInteger(MIN_SAFE_INTEGER - 1, 'foo', MIN_SAFE_INTEGER - 1);
+  validateInteger(
+    MAX_SAFE_INTEGER + 1,
+    'foo',
+    { min: 0, max: MAX_SAFE_INTEGER + 1 });
+  validateInteger(
+    MIN_SAFE_INTEGER - 1,
+    'foo',
+    { min: MIN_SAFE_INTEGER - 1 });
+  validateInteger(undefined, 'foo', { allowUndefined: true });
 }
 
 {
@@ -69,6 +104,8 @@ const invalidArgValueError = {
       validateBoolean(val, 'foo');
     }, invalidArgTypeError);
   });
+
+  validateBoolean(undefined, 'foo', { allowUndefined: true });
 }
 
 {
