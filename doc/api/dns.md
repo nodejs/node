@@ -210,6 +210,8 @@ configured. Loopback addresses are not considered.
 * `dns.V4MAPPED`: If the IPv6 family was specified, but no IPv6 addresses were
 found, then return IPv4 mapped IPv6 addresses. It is not supported
 on some operating systems (e.g FreeBSD 10.1).
+* `dns.ALL`: If `dns.V4MAPPED` is specified, return resolved IPv6 addresses as
+well as IPv4 mapped IPv6 addresses.
 
 ## `dns.lookupService(address, port, callback)`
 <!-- YAML

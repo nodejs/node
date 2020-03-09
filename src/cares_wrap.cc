@@ -2189,6 +2189,9 @@ void Initialize(Local<Object> target,
                                                     "AI_ADDRCONFIG"),
               Integer::New(env->isolate(), AI_ADDRCONFIG)).Check();
   target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
+                                                    "AI_ALL"),
+              Integer::New(env->isolate(), AI_ALL)).Check();
+  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
                                                     "AI_V4MAPPED"),
               Integer::New(env->isolate(), AI_V4MAPPED)).Check();
 
