@@ -173,9 +173,7 @@ doing this the otherwise infinite recursion is broken.
 ### Class: `AsyncHook`
 
 The class `AsyncHook` exposes an interface for tracking lifetime events
-of asynchronous operations. Using a unique ID per asynchronous call,
-it helps with associating method calls that otherwise do not appear together
-in a typical call stack.
+of asynchronous operations.
 
 #### `asyncHook.enable()`
 
