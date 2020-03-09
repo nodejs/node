@@ -63,6 +63,6 @@ const MB = KB * KB;
 
   wc.stdout.on('data', common.mustCall((data) => {
     // Grep always adds one extra byte at the end.
-    assert.strictEqual(data.toString().trim(), (MB+1).toString());
+    assert.strictEqual(data.toString().trim(), (MB + 1).toString());
   }));
 }
