@@ -209,14 +209,14 @@ assert.deepStrictEqual(dns.getServers(), []);
 {
   /*
   * Make sure that dns.lookup throws if hints does not represent a valid flag.
-  * (dns.V4MAPPED | dns.ADDRCONFIG) + 1 is invalid because:
-  * - it's different from dns.V4MAPPED and dns.ADDRCONFIG.
-  * - it's different from them bitwise ored.
+  * (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1 is invalid because:
+  * - it's different from dns.V4MAPPED and dns.ADDRCONFIG and dns.ALL.
+  * - it's different from any subset of them bitwise ored.
   * - it's different from 0.
   * - it's an odd number different than 1, and thus is invalid, because
   * flags are either === 1 or even.
   */
-  const hints = (dns.V4MAPPED | dns.ADDRCONFIG) + 1;
+  const hints = (dns.V4MAPPED | dns.ADDRCONFIG | dns.ALL) + 1;
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',
     name: 'TypeError',
@@ -254,11 +254,28 @@ dns.lookup('', {
   hints: dns.ADDRCONFIG | dns.V4MAPPED
 }, common.mustCall());
 
+dns.lookup('', {
+  hints: dns.ALL
+}, common.mustCall());
+
+dns.lookup('', {
+  hints: dns.V4MAPPED | dns.ALL
+}, common.mustCall());
+
+dns.lookup('', {
+  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+}, common.mustCall());
+
 (async function() {
   await dnsPromises.lookup('', { family: 4, hints: 0 });
   await dnsPromises.lookup('', { family: 6, hints: dns.ADDRCONFIG });
   await dnsPromises.lookup('', { hints: dns.V4MAPPED });
   await dnsPromises.lookup('', { hints: dns.ADDRCONFIG | dns.V4MAPPED });
+  await dnsPromises.lookup('', { hints: dns.ALL });
+  await dnsPromises.lookup('', { hints: dns.V4MAPPED | dns.ALL });
+  await dnsPromises.lookup('', {
+    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+  });
 })();
 
 {

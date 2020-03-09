@@ -59,7 +59,7 @@ const net = require('net');
 // Test invalid hints
 {
   // connect({hint}, cb) and connect({hint})
-  const hints = (dns.ADDRCONFIG | dns.V4MAPPED) + 42;
+  const hints = (dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL) + 42;
   const hintOptBlocks = doConnect([{ hints }],
                                   () => common.mustNotCall());
   for (const fn of hintOptBlocks) {

@@ -15,7 +15,11 @@ const hints = 512;
 
 assert.notStrictEqual(hints, dns.ADDRCONFIG);
 assert.notStrictEqual(hints, dns.V4MAPPED);
+assert.notStrictEqual(hints, dns.ALL);
 assert.notStrictEqual(hints, dns.ADDRCONFIG | dns.V4MAPPED);
+assert.notStrictEqual(hints, dns.ADDRCONFIG | dns.ALL);
+assert.notStrictEqual(hints, dns.V4MAPPED | dns.ALL);
+assert.notStrictEqual(hints, dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL);
 
 tls.connect({
   lookup: common.mustCall((host, options) => {
