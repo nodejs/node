@@ -722,6 +722,7 @@ goto exit
 :create-msvs-files-failed
 echo Failed to create vc project files.
 del .used_configure_flags
+set exit_code=1
 goto exit
 
 :help
