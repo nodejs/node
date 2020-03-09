@@ -117,6 +117,7 @@ function child(section) {
   Object.defineProperty(process.stderr, 'hasColors', {
     value: tty.WriteStream.prototype.hasColors
   });
+  // eslint-disable-next-line no-restricted-syntax
   const debug = util.debuglog(section);
   debug('this', { is: 'a' }, /debugging/);
   debug('num=%d str=%s obj=%j', 1, 'a', { foo: 'bar' });
