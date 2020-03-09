@@ -190,34 +190,6 @@ module.exports = {
     'no-restricted-syntax': [
       'error',
       {
-        selector: "CallExpression[callee.property.name='deepStrictEqual'][arguments.2.type='Literal']",
-        message: 'Do not use a literal for the third argument of assert.deepStrictEqual()',
-      },
-      {
-        selector: "CallExpression[callee.property.name='doesNotThrow']",
-        message: 'Do not use `assert.doesNotThrow()`. Write the code without the wrapper and add a comment instead.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='doesNotReject']",
-        message: 'Do not use `assert.doesNotReject()`. Write the code without the wrapper and add a comment instead.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='rejects'][arguments.length<2]",
-        message: '`assert.rejects()` must be invoked with at least two arguments.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='strictEqual'][arguments.2.type='Literal']",
-        message: 'Do not use a literal for the third argument of assert.strictEqual()',
-      },
-      {
-        selector: "CallExpression[callee.property.name='throws'][arguments.1.type='Literal']:not([arguments.1.regex])",
-        message: 'Use an object as second argument of `assert.throws()`.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='throws'][arguments.length<2]",
-        message: '`assert.throws()` must be invoked with at least two arguments.',
-      },
-      {
         selector: "CallExpression[callee.name='setTimeout'][arguments.length<2]",
         message: '`setTimeout()` must be invoked with at least two arguments.',
       },
@@ -228,22 +200,6 @@ module.exports = {
       {
         selector: 'ThrowStatement > CallExpression[callee.name=/Error$/]',
         message: 'Use `new` keyword when throwing an `Error`.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='notDeepStrictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])",
-        message: 'The first argument should be the `actual`, not the `expected` value.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='notStrictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])",
-        message: 'The first argument should be the `actual`, not the `expected` value.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='deepStrictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])",
-        message: 'The first argument should be the `actual`, not the `expected` value.',
-      },
-      {
-        selector: "CallExpression[callee.property.name='strictEqual'][arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])",
-        message: 'The first argument should be the `actual`, not the `expected` value.',
       },
       {
         selector: "CallExpression[callee.name='isNaN']",
