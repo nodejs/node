@@ -19,9 +19,9 @@ runBenchmark('tls',
                'concurrency=1',
                'dur=0.1',
                'n=1',
-               'size=2',
+               'size=1024',
                'securing=SecurePair',
-               'type=asc'
+               'type=buf'
              ],
              {
                NODEJS_BENCHMARK_ZERO_ALLOWED: 1,

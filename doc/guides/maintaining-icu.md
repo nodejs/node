@@ -218,7 +218,7 @@ following the steps above in the prior section of this document ought to be
 repeatable without concern for overriding a patch.
 
 2. **Verifiability.** Given the number of files modified in an ICU PR,
-a floating patch could easily be missed — or dropped altogether next time
+a floating patch could easily be missed or dropped altogether next time
 something is landed.
 
 3. **Compatibility.** There are a number of ways that ICU can be loaded into

@@ -533,14 +533,14 @@ program. For a comprehensive list, see the [`errno`(3) man page][].
   `ulimit -n 2048` in the same shell that will run the Node.js process.
 
 * `ENOENT` (No such file or directory): Commonly raised by [`fs`][] operations
-  to indicate that a component of the specified pathname does not exist — no
+  to indicate that a component of the specified pathname does not exist. No
   entity (file or directory) could be found by the given path.
 
 * `ENOTDIR` (Not a directory): A component of the given pathname existed, but
   was not a directory as expected. Commonly raised by [`fs.readdir`][].
 
 * `ENOTEMPTY` (Directory not empty): A directory with entries was the target
-  of an operation that requires an empty directory — usually [`fs.unlink`][].
+  of an operation that requires an empty directory, usually [`fs.unlink`][].
 
 * `ENOTFOUND` (DNS lookup failed): Indicates a DNS failure of either
   `EAI_NODATA` or `EAI_NONAME`. This is not a standard POSIX error.
@@ -555,7 +555,7 @@ program. For a comprehensive list, see the [`errno`(3) man page][].
 
 * `ETIMEDOUT` (Operation timed out): A connect or send request failed because
   the connected party did not properly respond after a period of time. Usually
-  encountered by [`http`][] or [`net`][] — often a sign that a `socket.end()`
+  encountered by [`http`][] or [`net`][]. Often a sign that a `socket.end()`
   was not properly called.
 
 ## Class: `TypeError`
@@ -888,6 +888,13 @@ provided.
 
 Encoding provided to `TextDecoder()` API was not one of the
 [WHATWG Supported Encodings][].
+
+<a id="ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE"></a>
+### `ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE`
+
+The JS execution context is not associated with a Node.js environment.
+This may occur when Node.js is used as an embedded library and some hooks
+for the JS engine are not set up properly.
 
 <a id="ERR_FALSY_VALUE_REJECTION"></a>
 ### `ERR_FALSY_VALUE_REJECTION`
@@ -1864,7 +1871,7 @@ The context must be a `SecureContext`.
 <a id="ERR_TLS_INVALID_STATE"></a>
 ### `ERR_TLS_INVALID_STATE`
 <!-- YAML
-added: REPLACEME
+added: v13.10.0
 -->
 
 The TLS socket must be connected and securily established. Ensure the 'secure'

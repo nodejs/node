@@ -23,8 +23,8 @@
              Compressed="yes"
              InstallScope="perMachine"/>
 
-    <Condition Message="This application is only supported on Windows 7, Windows Server 2008 R2, or higher.">
-      <![CDATA[Installed OR (VersionNT >= 601)]]>
+    <Condition Message="This application is only supported on Windows 8.1, Windows Server 2012 R2, or higher.">
+      <![CDATA[Installed OR (VersionNT >= 603) OR (VersionNT >= 602 AND MsiNTProductType <> 1)]]>
     </Condition>
 
     <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>

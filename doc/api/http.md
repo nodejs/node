@@ -9,7 +9,7 @@ To use the HTTP server and client one must `require('http')`.
 The HTTP interfaces in Node.js are designed to support many features
 of the protocol which have been traditionally difficult to use.
 In particular, large, possibly chunk-encoded, messages. The interface is
-careful to never buffer entire requests or responses — the
+careful to never buffer entire requests or responses, so the
 user is able to stream data.
 
 HTTP message headers are represented by an object like this:
@@ -238,6 +238,9 @@ added: v0.11.4
 
 An object which contains arrays of sockets currently awaiting use by
 the agent when `keepAlive` is enabled. Do not modify.
+
+Sockets in the `freeSockets` list will be automatically destroyed and
+removed from the array on `'timeout'`.
 
 ### `agent.getName(options)`
 <!-- YAML
@@ -882,7 +885,7 @@ added: v0.1.29
 
 Sends a chunk of the body. By calling this method
 many times, a request body can be sent to a
-server — in that case it is suggested to use the
+server. In that case, it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
 creating the request.
 
@@ -1214,7 +1217,7 @@ added: v0.1.17
 
 * Extends: {Stream}
 
-This object is created internally by an HTTP server — not by the user. It is
+This object is created internally by an HTTP server, not by the user. It is
 passed as the second parameter to the [`'request'`][] event.
 
 ### Event: `'close'`

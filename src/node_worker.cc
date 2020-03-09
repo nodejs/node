@@ -31,6 +31,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Null;
 using v8::Number;
@@ -496,14 +497,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsObject() || args[2]->IsArray()) {
     per_isolate_opts.reset(new PerIsolateOptions());
 
-    HandleEnvOptions(
-        per_isolate_opts->per_env, [isolate, &env_vars](const char* name) {
-          MaybeLocal<String> value =
-              env_vars->Get(isolate, OneByteString(isolate, name));
-          return value.IsEmpty() ? std::string{}
-                                 : std::string(*String::Utf8Value(
-                                       isolate, value.ToLocalChecked()));
-        });
+    HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
+      return env_vars->Get(name).FromMaybe("");
+    });
 
 #ifndef NODE_WITHOUT_NODE_OPTIONS
     MaybeLocal<String> maybe_node_opts =

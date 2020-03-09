@@ -5,6 +5,7 @@
 #include "node_buffer.h"
 #include "node_http2.h"
 #include "node_http2_state.h"
+#include "node_http_common-inl.h"
 #include "node_mem-inl.h"
 #include "node_perf.h"
 #include "node_revert.h"
@@ -356,66 +357,6 @@ const char* Http2Session::TypeName() const {
   }
 }
 
-// The Headers class initializes a proper array of nghttp2_nv structs
-// containing the header name value pairs.
-Headers::Headers(Isolate* isolate,
-                 Local<Context> context,
-                 Local<Array> headers) {
-  Local<Value> header_string = headers->Get(context, 0).ToLocalChecked();
-  Local<Value> header_count = headers->Get(context, 1).ToLocalChecked();
-  count_ = header_count.As<Uint32>()->Value();
-  int header_string_len = header_string.As<String>()->Length();
-
-  if (count_ == 0) {
-    CHECK_EQ(header_string_len, 0);
-    return;
-  }
-
-  // Allocate a single buffer with count_ nghttp2_nv structs, followed
-  // by the raw header data as passed from JS. This looks like:
-  // | possible padding | nghttp2_nv | nghttp2_nv | ... | header contents |
-  buf_.AllocateSufficientStorage((alignof(nghttp2_nv) - 1) +
-                                 count_ * sizeof(nghttp2_nv) +
-                                 header_string_len);
-  // Make sure the start address is aligned appropriately for an nghttp2_nv*.
-  char* start = reinterpret_cast<char*>(
-      RoundUp(reinterpret_cast<uintptr_t>(*buf_), alignof(nghttp2_nv)));
-  char* header_contents = start + (count_ * sizeof(nghttp2_nv));
-  nghttp2_nv* const nva = reinterpret_cast<nghttp2_nv*>(start);
-
-  CHECK_LE(header_contents + header_string_len, *buf_ + buf_.length());
-  CHECK_EQ(header_string.As<String>()->WriteOneByte(
-               isolate,
-               reinterpret_cast<uint8_t*>(header_contents),
-               0,
-               header_string_len,
-               String::NO_NULL_TERMINATION),
-           header_string_len);
-
-  size_t n = 0;
-  char* p;
-  for (p = header_contents; p < header_contents + header_string_len; n++) {
-    if (n >= count_) {
-      // This can happen if a passed header contained a null byte. In that
-      // case, just provide nghttp2 with an invalid header to make it reject
-      // the headers list.
-      static uint8_t zero = '\0';
-      nva[0].name = nva[0].value = &zero;
-      nva[0].namelen = nva[0].valuelen = 1;
-      count_ = 1;
-      return;
-    }
-
-    nva[n].flags = NGHTTP2_NV_FLAG_NONE;
-    nva[n].name = reinterpret_cast<uint8_t*>(p);
-    nva[n].namelen = strlen(p);
-    p += nva[n].namelen + 1;
-    nva[n].value = reinterpret_cast<uint8_t*>(p);
-    nva[n].valuelen = strlen(p);
-    p += nva[n].valuelen + 1;
-  }
-}
-
 Origins::Origins(Isolate* isolate,
                  Local<Context> context,
                  Local<String> origin_string,
@@ -538,8 +479,8 @@ Http2Session::Http2Session(Environment* env,
   uint32_t maxHeaderPairs = opts.GetMaxHeaderPairs();
   max_header_pairs_ =
       type == NGHTTP2_SESSION_SERVER
-          ? std::max(maxHeaderPairs, 4U)     // minimum # of request headers
-          : std::max(maxHeaderPairs, 1U);    // minimum # of response headers
+          ? GetServerMaxHeaderPairs(maxHeaderPairs)
+          : GetClientMaxHeaderPairs(maxHeaderPairs);
 
   max_outstanding_pings_ = opts.GetMaxOutstandingPings();
   max_outstanding_settings_ = opts.GetMaxOutstandingSettings();
@@ -1249,34 +1190,30 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
   if (stream->IsDestroyed())
     return;
 
-  std::vector<nghttp2_header> headers(stream->move_headers());
-  DecrementCurrentSessionMemory(stream->current_headers_length_);
-  stream->current_headers_length_ = 0;
-
-  // The headers are passed in above as a queue of nghttp2_header structs.
+  // The headers are stored as a vector of Http2Header instances.
   // The following converts that into a JS array with the structure:
   // [name1, value1, name2, value2, name3, value3, name3, value4] and so on.
   // That array is passed up to the JS layer and converted into an Object form
   // like {name1: value1, name2: value2, name3: [value3, value4]}. We do it
   // this way for performance reasons (it's faster to generate and pass an
   // array than it is to generate and pass the object).
-  size_t headers_size = headers.size();
-  std::vector<Local<Value>> headers_v(headers_size * 2);
-  for (size_t i = 0; i < headers_size; ++i) {
-    const nghttp2_header& item = headers[i];
-    // The header name and value are passed as external one-byte strings
-    headers_v[i * 2] =
-        ExternalHeader::New<true>(this, item.name).ToLocalChecked();
-    headers_v[i * 2 + 1] =
-        ExternalHeader::New<false>(this, item.value).ToLocalChecked();
-  }
+
+  std::vector<Local<Value>> headers_v(stream->headers_count() * 2);
+  stream->TransferHeaders([&](const Http2Header& header, size_t i) {
+    headers_v[i * 2] = header.GetName(this).ToLocalChecked();
+    headers_v[i * 2 + 1] = header.GetValue(this).ToLocalChecked();
+  });
+  CHECK_EQ(stream->headers_count(), 0);
+
+  DecrementCurrentSessionMemory(stream->current_headers_length_);
+  stream->current_headers_length_ = 0;
 
   Local<Value> args[5] = {
       stream->object(),
       Integer::New(isolate, id),
       Integer::New(isolate, stream->headers_category()),
       Integer::New(isolate, frame->hd.flags),
-      Array::New(isolate, headers_v.data(), headers_size * 2)};
+      Array::New(isolate, headers_v.data(), headers_v.size())};
   MakeCallback(env()->http2session_on_headers_function(),
                arraysize(args), args);
 }
@@ -1761,15 +1698,20 @@ int Http2Session::OnSendData(
 // Creates a new Http2Stream and submits a new http2 request.
 Http2Stream* Http2Session::SubmitRequest(
     nghttp2_priority_spec* prispec,
-    nghttp2_nv* nva,
-    size_t len,
+    const Http2Headers& headers,
     int32_t* ret,
     int options) {
   Debug(this, "submitting request");
   Http2Scope h2scope(this);
   Http2Stream* stream = nullptr;
   Http2Stream::Provider::Stream prov(options);
-  *ret = nghttp2_submit_request(session_, prispec, nva, len, *prov, nullptr);
+  *ret = nghttp2_submit_request(
+      session_,
+      prispec,
+      headers.data(),
+      headers.length(),
+      *prov,
+      nullptr);
   CHECK_NE(*ret, NGHTTP2_ERR_NOMEM);
   if (LIKELY(*ret > 0))
     stream = Http2Stream::New(this, *ret, NGHTTP2_HCAT_HEADERS, options);
@@ -1918,13 +1860,7 @@ Http2Stream::Http2Stream(Http2Session* session,
   session->AddStream(this);
 }
 
-
 Http2Stream::~Http2Stream() {
-  for (nghttp2_header& header : current_headers_) {
-    nghttp2_rcbuf_decref(header.name);
-    nghttp2_rcbuf_decref(header.value);
-  }
-
   if (!session_)
     return;
   Debug(this, "tearing down stream");
@@ -2026,7 +1962,7 @@ void Http2Stream::Destroy() {
 
 // Initiates a response on the Http2Stream using data provided via the
 // StreamBase Streams API.
-int Http2Stream::SubmitResponse(nghttp2_nv* nva, size_t len, int options) {
+int Http2Stream::SubmitResponse(const Http2Headers& headers, int options) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
   Debug(this, "submitting response");
@@ -2037,21 +1973,30 @@ int Http2Stream::SubmitResponse(nghttp2_nv* nva, size_t len, int options) {
     options |= STREAM_OPTION_EMPTY_PAYLOAD;
 
   Http2Stream::Provider::Stream prov(this, options);
-  int ret = nghttp2_submit_response(**session_, id_, nva, len, *prov);
+  int ret = nghttp2_submit_response(
+      **session_,
+      id_,
+      headers.data(),
+      headers.length(),
+      *prov);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
 
 
 // Submit informational headers for a stream.
-int Http2Stream::SubmitInfo(nghttp2_nv* nva, size_t len) {
+int Http2Stream::SubmitInfo(const Http2Headers& headers) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
-  Debug(this, "sending %d informational headers", len);
-  int ret = nghttp2_submit_headers(**session_,
-                                   NGHTTP2_FLAG_NONE,
-                                   id_, nullptr,
-                                   nva, len, nullptr);
+  Debug(this, "sending %d informational headers", headers.length());
+  int ret = nghttp2_submit_headers(
+      **session_,
+      NGHTTP2_FLAG_NONE,
+      id_,
+      nullptr,
+      headers.data(),
+      headers.length(),
+      nullptr);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -2068,19 +2013,23 @@ void Http2Stream::OnTrailers() {
 }
 
 // Submit informational headers for a stream.
-int Http2Stream::SubmitTrailers(nghttp2_nv* nva, size_t len) {
+int Http2Stream::SubmitTrailers(const Http2Headers& headers) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
-  Debug(this, "sending %d trailers", len);
+  Debug(this, "sending %d trailers", headers.length());
   int ret;
   // Sending an empty trailers frame poses problems in Safari, Edge & IE.
   // Instead we can just send an empty data frame with NGHTTP2_FLAG_END_STREAM
   // to indicate that the stream is ready to be closed.
-  if (len == 0) {
+  if (headers.length() == 0) {
     Http2Stream::Provider::Stream prov(this, 0);
     ret = nghttp2_submit_data(**session_, NGHTTP2_FLAG_END_STREAM, id_, *prov);
   } else {
-    ret = nghttp2_submit_trailer(**session_, id_, nva, len);
+    ret = nghttp2_submit_trailer(
+        **session_,
+        id_,
+        headers.data(),
+        headers.length());
   }
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
@@ -2129,15 +2078,19 @@ void Http2Stream::FlushRstStream() {
 
 
 // Submit a push promise and create the associated Http2Stream if successful.
-Http2Stream* Http2Stream::SubmitPushPromise(nghttp2_nv* nva,
-                                            size_t len,
+Http2Stream* Http2Stream::SubmitPushPromise(const Http2Headers& headers,
                                             int32_t* ret,
                                             int options) {
   CHECK(!this->IsDestroyed());
   Http2Scope h2scope(this);
   Debug(this, "sending push promise");
-  *ret = nghttp2_submit_push_promise(**session_, NGHTTP2_FLAG_NONE,
-                                     id_, nva, len, nullptr);
+  *ret = nghttp2_submit_push_promise(
+      **session_,
+      NGHTTP2_FLAG_NONE,
+      id_,
+      headers.data(),
+      headers.length(),
+      nullptr);
   CHECK_NE(*ret, NGHTTP2_ERR_NOMEM);
   Http2Stream* stream = nullptr;
   if (*ret > 0) {
@@ -2221,12 +2174,12 @@ bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
                             nghttp2_rcbuf* value,
                             uint8_t flags) {
   CHECK(!this->IsDestroyed());
-  if (this->statistics_.first_header == 0)
-    this->statistics_.first_header = uv_hrtime();
-  size_t name_len = nghttp2_rcbuf_get_buf(name).len;
-  if (name_len == 0) return true;  // Ignore headers with empty names.
-  size_t value_len = nghttp2_rcbuf_get_buf(value).len;
-  size_t length = name_len + value_len + 32;
+
+  if (Http2RcBufferPointer::IsZeroLength(name))
+    return true;  // Ignore empty headers.
+
+  Http2Header header(env(), name, value, flags);
+  size_t length = header.length() + 32;
   // A header can only be added if we have not exceeded the maximum number
   // of headers and the session has memory available for it.
   if (!session_->IsAvailableSessionMemory(length) ||
@@ -2234,13 +2187,12 @@ bool Http2Stream::AddHeader(nghttp2_rcbuf* name,
       current_headers_length_ + length > max_header_length_) {
     return false;
   }
-  nghttp2_header header;
-  header.name = name;
-  header.value = value;
-  header.flags = flags;
-  current_headers_.push_back(header);
-  nghttp2_rcbuf_incref(name);
-  nghttp2_rcbuf_incref(value);
+
+  if (statistics_.first_header == 0)
+    statistics_.first_header = uv_hrtime();
+
+  current_headers_.push_back(std::move(header));
+
   current_headers_length_ += length;
   session_->IncrementCurrentSessionMemory(length);
   return true;
@@ -2487,21 +2439,20 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Environment* env = session->env();
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
 
   Local<Array> headers = args[0].As<Array>();
-  int options = args[1]->IntegerValue(context).ToChecked();
+  int options = args[1]->IntegerValue(env->context()).ToChecked();
   Http2Priority priority(env, args[2], args[3], args[4]);
-
-  Headers list(isolate, context, headers);
 
   Debug(session, "request submitted");
 
   int32_t ret = 0;
   Http2Stream* stream =
-      session->Http2Session::SubmitRequest(*priority, *list, list.length(),
-                                           &ret, options);
+      session->Http2Session::SubmitRequest(
+          *priority,
+          Http2Headers(env, headers),
+          &ret,
+          options);
 
   if (ret <= 0 || stream == nullptr) {
     Debug(session, "could not submit request: %s", nghttp2_strerror(ret));
@@ -2586,18 +2537,14 @@ void Http2Stream::RstStream(const FunctionCallbackInfo<Value>& args) {
 // outbound DATA frames.
 void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
   Http2Stream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int options = args[1]->IntegerValue(context).ToChecked();
-
-  Headers list(isolate, context, headers);
+  int options = args[1]->IntegerValue(env->context()).ToChecked();
 
   args.GetReturnValue().Set(
-      stream->SubmitResponse(*list, list.length(), options));
+      stream->SubmitResponse(Http2Headers(env, headers), options));
   Debug(stream, "response submitted");
 }
 
@@ -2605,31 +2552,24 @@ void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
 // Submits informational headers on the Http2Stream
 void Http2Stream::Info(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
   Http2Stream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
 
-  Headers list(isolate, context, headers);
-  args.GetReturnValue().Set(stream->SubmitInfo(*list, list.length()));
-  Debug(stream, "%d informational headers sent", list.length());
+  args.GetReturnValue().Set(stream->SubmitInfo(Http2Headers(env, headers)));
 }
 
 // Submits trailing headers on the Http2Stream
 void Http2Stream::Trailers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
   Http2Stream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
 
-  Headers list(isolate, context, headers);
-  args.GetReturnValue().Set(stream->SubmitTrailers(*list, list.length()));
-  Debug(stream, "%d trailing headers sent", list.length());
+  args.GetReturnValue().Set(
+      stream->SubmitTrailers(Http2Headers(env, headers)));
 }
 
 // Grab the numeric id of the Http2Stream
@@ -2650,21 +2590,18 @@ void Http2Stream::Destroy(const FunctionCallbackInfo<Value>& args) {
 // Initiate a Push Promise and create the associated Http2Stream
 void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
   Http2Stream* parent;
   ASSIGN_OR_RETURN_UNWRAP(&parent, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int options = args[1]->IntegerValue(context).ToChecked();
-
-  Headers list(isolate, context, headers);
+  int options = args[1]->IntegerValue(env->context()).ToChecked();
 
   Debug(parent, "creating push promise");
 
   int32_t ret = 0;
-  Http2Stream* stream = parent->SubmitPushPromise(*list, list.length(),
-                                                  &ret, options);
+  Http2Stream* stream =
+      parent->SubmitPushPromise(Http2Headers(env, headers), &ret, options);
+
   if (ret <= 0 || stream == nullptr) {
     Debug(parent, "failed to create push stream: %d", ret);
     return args.GetReturnValue().Set(ret);
@@ -2938,12 +2875,6 @@ void nghttp2_stream_write::MemoryInfo(MemoryTracker* tracker) const {
   if (req_wrap != nullptr)
     tracker->TrackField("req_wrap", req_wrap->GetAsyncWrap());
   tracker->TrackField("buf", buf);
-}
-
-
-void nghttp2_header::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackFieldWithSize("name", nghttp2_rcbuf_get_buf(name).len);
-  tracker->TrackFieldWithSize("value", nghttp2_rcbuf_get_buf(value).len);
 }
 
 void SetCallbackFunctions(const FunctionCallbackInfo<Value>& args) {
