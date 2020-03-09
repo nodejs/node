@@ -2,6 +2,7 @@
 
 BUILD_ARCH_TYPE=$1
 V8_BUILD_OPTIONS=$2
+export GCLIENT_PY3=1
 
 cd deps/v8
 tools/node/fetch_deps.py .
