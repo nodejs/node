@@ -26,7 +26,7 @@ const MB = KB * KB;
   // meanings to new line - for example, line buffering.
   // So cut the buffer into lines at some points, forcing
   // data flow to be split in the stream.
-  for (let i = 0; i < KB; i++)
+  for (let i = 1; i < KB; i++)
     buf.write(os.EOL, i * KB);
   fs.writeFileSync(file, buf.toString());
 
@@ -62,6 +62,7 @@ const MB = KB * KB;
   });
 
   wc.stdout.on('data', common.mustCall((data) => {
-    assert.strictEqual(data.toString().trim(), MB.toString());
+    // Grep always adds one extra byte at the end.
+    assert.strictEqual(data.toString().trim(), (MB+1).toString());
   }));
 }
