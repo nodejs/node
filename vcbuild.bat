@@ -719,6 +719,7 @@ if %VCBUILD_PYTHON_VERSION%==3 (
   echo Python 3 is not yet fully supported, to avoid issues Python 2 should be installed.
 )
 del .used_configure_flags
+set exit_code=1
 goto exit
 
 :help
