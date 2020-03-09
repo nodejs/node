@@ -7,7 +7,8 @@ const {
   Readable,
   Transform,
   pipeline,
-  PassThrough
+  PassThrough,
+  Duplex
 } = require('stream');
 const assert = require('assert');
 const http = require('http');
@@ -1075,5 +1076,45 @@ const { promisify } = require('util');
     }
   }, common.mustCall((err) => {
     assert.ifError(err);
+  }));
+}
+
+{
+  let closed = false;
+  const src = new Readable({
+    read() {},
+    destroy(err, cb) {
+      process.nextTick(cb);
+    }
+  });
+  const dst = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  });
+  src.on('close', () => {
+    closed = true;
+  });
+  src.push(null);
+  pipeline(src, dst, common.mustCall((err) => {
+    assert.strictEqual(closed, true);
+  }));
+}
+
+{
+  let closed = false;
+  const src = new Readable({
+    read() {},
+    destroy(err, cb) {
+      process.nextTick(cb);
+    }
+  });
+  const dst = new Duplex({});
+  src.on('close', common.mustCall(() => {
+    closed = true;
+  }));
+  src.push(null);
+  pipeline(src, dst, common.mustCall((err) => {
+    assert.strictEqual(closed, true);
   }));
 }
