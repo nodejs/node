@@ -1,0 +1,5 @@
+*%(basename)s:10: SyntaxError: Invalid or unexpected token
+'incomplete string
+^^^^^^^^^^^^^^^^^^
+
+SyntaxError: Invalid or unexpected token
