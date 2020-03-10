@@ -3773,6 +3773,9 @@ The recursive option is only supported on macOS and Windows.
 An `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` exception will be thrown
 when the option is used on a platform that does not support it.
 
+On Windows no events will be emitted if the watched directory is moved or
+renamed. If the watched directory is deleted `EPERM` error will be reported.
+
 #### Availability
 
 <!--type=misc-->
