@@ -20,7 +20,8 @@ const {
   HTTP2_HEADER_CONTENT_TYPE
 } = http2.constants;
 
-const fname = fixtures.path('elipses.txt');
+// Use large fixture to get several file operations.
+const fname = fixtures.path('person-large.jpg');
 const fd = fs.openSync(fname, 'r');
 
 const server = http2.createServer();
