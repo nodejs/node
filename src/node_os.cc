@@ -76,7 +76,7 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static void GetOSType(const FunctionCallbackInfo<Value>& args) {
+static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_utsname_t info;
   int err = uv_os_uname(&info);
@@ -87,26 +87,19 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(), info.sysname, NewStringType::kNormal)
-          .ToLocalChecked());
-}
+  // [sysname, version, release]
+  Local<Value> osInformation[] = {
+    String::NewFromUtf8(
+        env->isolate(), info.sysname, NewStringType::kNormal).ToLocalChecked(),
+    String::NewFromUtf8(
+        env->isolate(), info.version, NewStringType::kNormal).ToLocalChecked(),
+    String::NewFromUtf8(
+        env->isolate(), info.release, NewStringType::kNormal).ToLocalChecked()
+  };
 
-
-static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  uv_utsname_t info;
-  int err = uv_os_uname(&info);
-
-  if (err != 0) {
-    CHECK_GE(args.Length(), 1);
-    env->CollectUVExceptionInfo(args[args.Length() - 1], err, "uv_os_uname");
-    return args.GetReturnValue().SetUndefined();
-  }
-
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(), info.release, NewStringType::kNormal)
-          .ToLocalChecked());
+  args.GetReturnValue().Set(Array::New(env->isolate(),
+                                       osInformation,
+                                       arraysize(osInformation)));
 }
 
 
@@ -398,8 +391,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getTotalMem", GetTotalMemory);
   env->SetMethod(target, "getFreeMem", GetFreeMemory);
   env->SetMethod(target, "getCPUs", GetCPUInfo);
-  env->SetMethod(target, "getOSType", GetOSType);
-  env->SetMethod(target, "getOSRelease", GetOSRelease);
+  env->SetMethod(target, "getOSInformation", GetOSInformation);
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
   env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
   env->SetMethod(target, "getUserInfo", GetUserInfo);
