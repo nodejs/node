@@ -1897,7 +1897,7 @@ util.types.isWeakSet(new WeakSet());  // Returns true
 ### `util.types.isWebAssemblyCompiledModule(value)`
 <!-- YAML
 added: v10.0.0
-deprecated: REPLACEME
+deprecated: v14.0.0
 -->
 
 > Stability: 0 - Deprecated: Use `value instanceof WebAssembly.Module` instead.

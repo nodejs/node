@@ -161,7 +161,7 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
                  NaN.
@@ -597,7 +597,7 @@ assert.doesNotThrow(
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
                  NaN.
@@ -818,7 +818,7 @@ instance of an [`Error`][] then it will be thrown instead of the
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
                  NaN.
@@ -944,7 +944,7 @@ instead of the [`AssertionError`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30766
     description: NaN is now treated as being identical in case both sides are
                  NaN.

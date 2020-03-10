@@ -665,7 +665,7 @@ $ bash -c 'exec -a customArgv0 ./node'
 <!-- YAML
 added: v7.1.0
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30165
     description: The object no longer accidentally exposes native C++ bindings.
 -->
@@ -1499,7 +1499,7 @@ debugger. See [Signal Events][].
 ## `process.mainModule`
 <!-- YAML
 added: v0.1.17
-deprecated: REPLACEME
+deprecated: v14.0.0
 -->
 
 > Stability: 0 - Deprecated: Use [`require.main`][] instead.
@@ -2427,7 +2427,7 @@ flag's behavior.
 <!-- YAML
 added: v0.1.19
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32499
     description: Calling `process.umask()` with no arguments is deprecated.
 
