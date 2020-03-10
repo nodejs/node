@@ -957,7 +957,7 @@ return `undefined`.
 
 ### `asyncLocalStorage.enterWith(store)`
 <!-- YAML
-added: REPLACEME
+added: v13.11.0
 -->
 
 * `store` {any}
