@@ -3758,6 +3758,9 @@ unavailable in some situations.
 
 The recursive option is only supported on macOS and Windows.
 
+On Windows, no events will be emitted if the watched directory is moved or
+renamed. An `EPERM` error is reported when the watched directory is deleted.
+
 #### Availability
 
 <!--type=misc-->
