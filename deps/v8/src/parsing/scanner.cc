@@ -314,13 +314,6 @@ Token::Value Scanner::SkipMultiLineComment() {
   return Token::ILLEGAL;
 }
 
-void Scanner::SkipHashBang() {
-  if (c0_ == '#' && Peek() == '!' && source_pos() == 0) {
-    SkipSingleLineComment();
-    Scan();
-  }
-}
-
 Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
   DCHECK_EQ(c0_, '!');
