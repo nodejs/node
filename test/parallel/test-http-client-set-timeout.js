@@ -36,4 +36,9 @@ server.listen(0, mustCall(() => {
   req.on('close', mustCall(() => {
     server.close();
   }));
+
+  req.on('timeout', mustCall(() => {
+    strictEqual(req.socket.listenerCount('timeout'), 1);
+    req.destroy();
+  }));
 }));

@@ -58,8 +58,7 @@ const assert = require('assert');
   server.listen(0, common.mustCall(() => {
     const options = { port: server.address().port };
     const req = http.get(options, common.mustNotCall());
-    req.on('error', common.mustCall((err) => {
-      assert.strictEqual(err.code, 'ECONNRESET');
+    req.on('close', common.mustCall((err) => {
       server.close();
     }));
     assert.strictEqual(req.aborted, false);
