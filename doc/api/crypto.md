@@ -2329,7 +2329,7 @@ console.log(hashes); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 <!-- YAML
 added: v0.5.5
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30578
     description: The `iterations` parameter is now restricted to positive
                  values. Earlier releases treated other values as one.
@@ -2408,7 +2408,7 @@ negative performance implications for some applications; see the
 <!-- YAML
 added: v0.9.3
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/30578
     description: The `iterations` parameter is now restricted to positive
                  values. Earlier releases treated other values as one.

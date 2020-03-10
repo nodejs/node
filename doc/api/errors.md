@@ -2307,7 +2307,7 @@ The `repl` module was unable to parse data from the REPL history file.
 ### `ERR_SOCKET_CANNOT_SEND`
 <!-- YAML
 added: v9.0.0
-removed: REPLACEME
+removed: v14.0.0
 -->
 
 Data could be sent on a socket.

@@ -398,7 +398,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32392
     description: The `maxStringLength` option is supported now.
   - version: v13.5.0
@@ -1897,7 +1897,7 @@ util.types.isWeakSet(new WeakSet());  // Returns true
 ### `util.types.isWebAssemblyCompiledModule(value)`
 <!-- YAML
 added: v10.0.0
-deprecated: REPLACEME
+deprecated: v14.0.0
 -->
 
 > Stability: 0 - Deprecated: Use `value instanceof WebAssembly.Module` instead.

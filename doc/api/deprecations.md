@@ -44,7 +44,7 @@ However, the deprecation identifier will not be modified.
 ### DEP0001: `http.OutgoingMessage.prototype.flush`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31164
     description: End-of-Life.
   - version:
@@ -85,7 +85,7 @@ The `_linklist` module is deprecated. Please use a userland alternative.
 ### DEP0003: `_writableState.buffer`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31165
     description: End-of-Life
   - version:
@@ -239,7 +239,7 @@ to the `constants` property exposed by the relevant module. For instance,
 ### DEP0009: `crypto.pbkdf2` without digest
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31166
     description: End-of-Life (for `digest === null`)
   - version: v11.0.0
@@ -407,7 +407,7 @@ The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
 ### DEP0016: `GLOBAL`/`root`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31167
     description: End-of-Life
   - version: v6.12.0
@@ -522,7 +522,7 @@ The `Server.listenFD()` method was deprecated and removed. Please use
 ### DEP0022: `os.tmpDir()`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31169
     description: End-of-Life.
   - version: v7.0.0
@@ -2590,7 +2590,7 @@ To maintain existing behaviour `response.finished` should be replaced with
 ### DEP0137: Closing fs.FileHandle on garbage collection
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/28396
     description: Runtime deprecation.
 -->
@@ -2621,7 +2621,7 @@ async function openAndClose() {
 ### DEP0138: `process.mainModule`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32232
     description: Documentation-only deprecation.
 -->
@@ -2635,11 +2635,11 @@ modules is unsupported.
 It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: `process.umask()` with no arguments
+<a id="DEP0139"></a>
+### DEP0139: `process.umask()` with no arguments
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32499
     description: Documentation-only deprecation.
 -->
