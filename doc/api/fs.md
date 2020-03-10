@@ -2766,9 +2766,9 @@ a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
 ## `fs.read(fd, [options,] callback)`
 <!-- YAML
-added: REPLACEME
+added: v13.11.0
 changes:
-  - version: REPLACEME
+  - version: v13.11.0
     pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
                  to make Buffer, offset, length and position optional
@@ -4402,7 +4402,7 @@ property that is a reference to the passed in `buffer` argument.
 
 #### `filehandle.read(options)`
 <!-- YAML
-added: REPLACEME
+added: v13.11.0
 -->
 * `options` {Object}
   * `buffer` {Buffer|Uint8Array} **Default:** `Buffer.alloc(16384)`

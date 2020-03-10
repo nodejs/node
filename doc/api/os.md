@@ -391,7 +391,7 @@ Throws a [`SystemError`][] if a user has no `username` or `homedir`.
 
 ## `os.version()`
 <!-- YAML
-added: REPLACEME
+added: v13.11.0
 -->
 
 * Returns {string}
