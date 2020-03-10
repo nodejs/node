@@ -505,6 +505,10 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
           return ScanTemplateSpan();
 
         case Token::PRIVATE_NAME:
+          if (source_pos() == 0 && Peek() == '!') {
+            token = SkipSingleLineComment();
+            continue;
+          }
           return ScanPrivateName();
 
         case Token::WHITESPACE:
