@@ -3,7 +3,7 @@
 // Test that the `'timeout'` event is emitted exactly once if the `timeout`
 // option and `request.setTimeout()` are used together.
 
-const { expectsError, mustCall } = require('../common');
+const { mustNotCall, mustCall } = require('../common');
 const { strictEqual } = require('assert');
 const { createServer, get } = require('http');
 
@@ -31,18 +31,9 @@ server.listen(0, mustCall(() => {
     }));
   }));
 
-  req.on('error', expectsError({
-    name: 'Error',
-    code: 'ECONNRESET',
-    message: 'socket hang up'
-  }));
+  req.on('error', mustNotCall());
 
   req.on('close', mustCall(() => {
     server.close();
-  }));
-
-  req.on('timeout', mustCall(() => {
-    strictEqual(req.socket.listenerCount('timeout'), 1);
-    req.destroy();
   }));
 }));

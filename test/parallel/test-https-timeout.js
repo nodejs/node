@@ -51,11 +51,7 @@ const server = https.createServer(options, function() {
     console.log('got response');
   });
 
-  req.on('error', common.expectsError({
-    message: 'socket hang up',
-    code: 'ECONNRESET',
-    name: 'Error'
-  }));
+  req.on('error', common.mustNotCall());
 
   req.on('timeout', common.mustCall(function() {
     console.log('timeout occurred outside');
