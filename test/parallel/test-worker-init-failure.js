@@ -43,16 +43,17 @@ if (process.argv[2] === 'child') {
 } else {
   // Limit the number of open files, to force workers to fail.
   let testCmd = `ulimit -n ${OPENFILES} && `;
-
   testCmd += `${process.execPath} ${__filename} child`;
   const cp = child_process.exec(testCmd);
 
   // Turn on the child streams for debugging purposes.
   let stdout = '';
+  cp.stdout.setEncoding('utf8');
   cp.stdout.on('data', (chunk) => {
     stdout += chunk;
   });
   let stderr = '';
+  cp.stdout.setEncoding('utf8');
   cp.stderr.on('data', (chunk) => {
     stderr += chunk;
   });
