@@ -2185,6 +2185,36 @@ throw an error.
 Using this function is mutually exclusive with using the deprecated
 [`domain`][] built-in module.
 
+### Warning: Using `process.setUncaughtExceptionCaptureCallback()` correctly
+
+As with the [`'uncaughtException'`][] event, the
+`process.setUncaughtExceptionCaptureCallback()` function is a crude
+mechanism for exception handling intended to be used only as a last
+resort. The event *should not* be used as an equivalent to `On Error
+Resume Next`. Unhandled exceptions inherently mean that an application
+is in an undefined state. Attempting to resume application code without
+properly recovering from the exception can cause additional unforeseen
+and unpredictable issues.
+
+Exceptions thrown from within the event handler will not be caught. Instead the
+process will exit with a non-zero exit code and the stack trace will be printed.
+This is to avoid infinite recursion.
+
+Attempting to resume normally after an uncaught exception can be similar to
+pulling out the power cord when upgrading a computer. Nine out of ten
+times, nothing happens. But the tenth time, the system becomes corrupted.
+
+The correct use of `process.setUncaughtExceptionCaptureCallback()` is to
+perform synchronous cleanup of allocated resources (e.g. file
+descriptors, handles, etc) before shutting down the process. **It is not
+safe to resume normal operation after
+`process.setUncaughtExceptionCaptureCallback()`.**
+
+To restart a crashed application in a more reliable way, whether the
+provided callback to `process.setUncaughtExceptionCaptureCallback()` is
+called or not, an external monitor should be employed in a separate
+process to detect application failures and recover or restart as needed.
+
 ## `process.stderr`
 
 * {Stream}
