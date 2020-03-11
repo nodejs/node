@@ -249,7 +249,7 @@ import submodule from 'es-module-package/submodule';
 // Loads ./node_modules/es-module-package/src/submodule.js
 ```
 
-While other subpaths will still error:
+While other subpaths will error:
 
 ```js
 import submodule from 'es-module-package/private-module.js';
