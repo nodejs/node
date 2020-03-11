@@ -202,8 +202,8 @@ see [the dual CommonJS/ES module packages section][].
 
 #### Package Exports Main
 
-To set the main entry point for a package, it is advisable to use both
-`"exports"` and the `"main"`:
+To set the main entry point for a package, it is advisable to define both
+`"exports"` and `"main"` in the package’s `package.json` file:
 
 <!-- eslint-skip -->
 ```js
