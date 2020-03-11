@@ -4,7 +4,7 @@ const assert = require('assert');
 
 const http = require('http');
 const { AsyncLocalStorage } = require('async_hooks');
-const als = new AsyncLocalStorage();
+const asyncLocalStorage = new AsyncLocalStorage();
 
 const maxSize = 1024;
 
@@ -19,10 +19,10 @@ const server = http.createServer(common.mustCall((req, res) => {
 }));
 
 server.listen(0, () => {
-  als.run(new Map(), common.mustCall(() => {
+  asyncLocalStorage.run(new Map(), common.mustCall(() => {
     const options = { port: server.address().port };
     const req = http.get(options, common.mustCall((res) => {
-      const store = als.getStore();
+      const store = asyncLocalStorage.getStore();
       store.set('req', req);
       store.set('size', 0);
       res.on('data', ondata);
@@ -33,7 +33,7 @@ server.listen(0, () => {
 });
 
 function ondata(d) {
-  const store = als.getStore();
+  const store = asyncLocalStorage.getStore();
   const req = store.get('req');
   let size = store.get('size');
   size += d.length;
@@ -47,7 +47,7 @@ function ondata(d) {
 }
 
 function onabort() {
-  const store = als.getStore();
+  const store = asyncLocalStorage.getStore();
   const size = store.get('size');
   assert.strictEqual(size, maxSize);
 }
