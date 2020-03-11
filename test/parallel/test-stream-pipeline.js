@@ -1032,3 +1032,19 @@ const { promisify } = require('util');
     req.on('error', common.mustNotCall());
   });
 }
+
+{
+  // Might still want to be able to use the writable side
+  // of src. This is in the case where e.g. the Duplex input
+  // is not directly connected to its output. Such a case could
+  // happen when the Duplex is reading from a socket and then echos
+  // the data back on the same socket.
+  const src = new PassThrough();
+  assert.strictEqual(src.writable, true);
+  const dst = new PassThrough();
+  pipeline(src, dst, common.mustCall((err) => {
+    assert.strictEqual(src.writable, true);
+    assert.strictEqual(src.destroyed, false);
+  }));
+  src.push(null);
+}
