@@ -112,72 +112,64 @@ static void uv__chld(uv_signal_t* handle, int signum) {
 }
 
 
-int uv__make_socketpair(int fds[2], int flags) {
-#if defined(__linux__)
-  static int no_cloexec;
-
-  if (no_cloexec)
-    goto skip;
-
-  if (socketpair(AF_UNIX, SOCK_STREAM | UV__SOCK_CLOEXEC | flags, 0, fds) == 0)
-    return 0;
-
-  /* Retry on EINVAL, it means SOCK_CLOEXEC is not supported.
-   * Anything else is a genuine error.
-   */
-  if (errno != EINVAL)
+static int uv__make_socketpair(int fds[2]) {
+#if defined(__FreeBSD__) || defined(__linux__)
+  if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, fds))
     return UV__ERR(errno);
 
-  no_cloexec = 1;
-
-skip:
-#endif
+  return 0;
+#else
+  int err;
 
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
     return UV__ERR(errno);
 
-  uv__cloexec(fds[0], 1);
-  uv__cloexec(fds[1], 1);
+  err = uv__cloexec(fds[0], 1);
+  if (err == 0)
+    err = uv__cloexec(fds[1], 1);
 
-  if (flags & UV__F_NONBLOCK) {
-    uv__nonblock(fds[0], 1);
-    uv__nonblock(fds[1], 1);
+  if (err != 0) {
+    uv__close(fds[0]);
+    uv__close(fds[1]);
+    return UV__ERR(errno);
   }
 
   return 0;
+#endif
 }
 
 
 int uv__make_pipe(int fds[2], int flags) {
-#if defined(__linux__)
-  static int no_pipe2;
-
-  if (no_pipe2)
-    goto skip;
-
-  if (uv__pipe2(fds, flags | UV__O_CLOEXEC) == 0)
-    return 0;
-
-  if (errno != ENOSYS)
+#if defined(__FreeBSD__) || defined(__linux__)
+  if (pipe2(fds, flags | O_CLOEXEC))
     return UV__ERR(errno);
 
-  no_pipe2 = 1;
-
-skip:
-#endif
-
+  return 0;
+#else
   if (pipe(fds))
     return UV__ERR(errno);
 
-  uv__cloexec(fds[0], 1);
-  uv__cloexec(fds[1], 1);
+  if (uv__cloexec(fds[0], 1))
+    goto fail;
+
+  if (uv__cloexec(fds[1], 1))
+    goto fail;
 
   if (flags & UV__F_NONBLOCK) {
-    uv__nonblock(fds[0], 1);
-    uv__nonblock(fds[1], 1);
+    if (uv__nonblock(fds[0], 1))
+      goto fail;
+
+    if (uv__nonblock(fds[1], 1))
+      goto fail;
   }
 
   return 0;
+
+fail:
+  uv__close(fds[0]);
+  uv__close(fds[1]);
+  return UV__ERR(errno);
+#endif
 }
 
 
@@ -200,7 +192,7 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
     if (container->data.stream->type != UV_NAMED_PIPE)
       return UV_EINVAL;
     else
-      return uv__make_socketpair(fds, 0);
+      return uv__make_socketpair(fds);
 
   case UV_INHERIT_FD:
   case UV_INHERIT_STREAM:

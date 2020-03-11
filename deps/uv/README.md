@@ -347,6 +347,13 @@ $ make -C out
 $ ./out/Debug/run-tests
 ```
 
+Some tests are timing sensitive. Relaxing test timeouts may be necessary
+on slow or overloaded machines:
+
+```bash
+$ env UV_TEST_TIMEOUT_MULTIPLIER=2 ./out/Debug/run-tests  # 10s instead of 5s
+```
+
 #### Run one test
 
 The list of all tests is in `test/test-list.h`.
