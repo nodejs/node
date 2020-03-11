@@ -175,7 +175,7 @@ unspecified.
 
 ## Packages
 
-### Package Exports
+### Package Entry Points
 
 In a package’s `package.json` file, two fields can define entry points for a
 package: `"main"` and `"exports"`. The `"main"` field is supported in all
