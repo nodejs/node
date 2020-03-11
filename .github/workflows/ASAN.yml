@@ -9,6 +9,11 @@ jobs:
       steps:
         - uses: actions/checkout@v2
         - name: Build
+          # TODO(mmarchini): With V8 8.1, GitHub Actions doesn't have enough
+          # memory to build with debug and ASAN. Allow this build to fail until
+          # we figure out a workaround, or until we update to 8.2 (where build
+          # is passing).
+          continue-on-error: true
           run: |
               npx envinfo
               ./configure --debug --enable-asan --ninja && ninja -C out/Debug
