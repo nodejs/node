@@ -393,8 +393,7 @@ given third-party tool support for a `"browser"` condition.
 
 #### Nested conditions
 
-In addition to direct mappings, conditional exports also supports nested
-conditions with nested condition objects.
+In addition to direct mappings, Node.js also supports nested condition objects.
 
 For example, to define a package that only has dual mode entry points for
 use in Node.js but not the browser:
