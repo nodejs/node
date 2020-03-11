@@ -1196,16 +1196,27 @@ export async function resolve(specifier, context, defaultResolve) {
 > signature may change. Do not rely on the API described below.
 
 The `getFormat` hook provides a way to define a custom method of determining how
-a URL should be interpreted. This can be one of the following:
+a URL should be interpreted. The `format` returned also affects what the
+acceptable forms of source values are for a module when parsing. This can be one
+of the following:
 
-| `format` | Description |
-| --- | --- |
-| `'builtin'` | Load a Node.js builtin module |
-| `'commonjs'` | Load a Node.js CommonJS module |
-| `'dynamic'` | Use a [dynamic instantiate hook][] |
-| `'json'` | Load a JSON file |
-| `'module'` | Load a standard JavaScript module (ES module) |
-| `'wasm'` | Load a WebAssembly module |
+| `format` | Description | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
+| --- | --- | --- |
+| `'builtin'` | Load a Node.js builtin module | Not applicable |
+| `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
+| `'dynamic'` | Use a [dynamic instantiate hook][] | Not applicable |
+| `'json'` | Load a JSON file | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'module'` | Load an ES module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'wasm'` | Load a WebAssembly module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+
+Note: These types all correspond to classes defined in ECMAScript.
+
+* The specific [ArrayBuffer][] object is a [SharedArrayBuffer][].
+* The specific [string][] object is not the class constructor, but an instance.
+* The specific [TypedArray][] object is a [Uint8Array][].
+
+Note: If the source value of a text-based format (i.e., `'json'`, `'module'`) is
+not a string, it will be converted to a string using [`util.TextDecoder`][].
 
 ```js
 /**
@@ -1842,6 +1853,12 @@ success!
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_code_transformsource_code_hook
+[ArrayBuffer]: http://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer-constructor
+[SharedArrayBuffer]: https://tc39.es/ecma262/#sec-sharedarraybuffer-constructor
+[string]: http://www.ecma-international.org/ecma-262/6.0/#sec-string-constructor
+[TypedArray]: http://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
+[Uint8Array]: http://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
+[`util.TextDecoder`]: util.html#util_class_util_textdecoder
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
