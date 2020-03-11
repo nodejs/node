@@ -1196,16 +1196,23 @@ export async function resolve(specifier, context, defaultResolve) {
 > signature may change. Do not rely on the API described below.
 
 The `getFormat` hook provides a way to define a custom method of determining how
-a URL should be interpreted. This can be one of the following:
+a URL should be interpreted. The `format` returned also affects what the
+acceptable forms of source values are for a module when parsing. This can be one
+of the following:
 
-| `format` | Description |
+| `format` | Description | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
 | --- | --- |
-| `'builtin'` | Load a Node.js builtin module |
-| `'commonjs'` | Load a Node.js CommonJS module |
-| `'dynamic'` | Use a [dynamic instantiate hook][] |
-| `'json'` | Load a JSON file |
-| `'module'` | Load a standard JavaScript module (ES module) |
-| `'wasm'` | Load a WebAssembly module |
+| `'builtin'` | Load a Node.js builtin module | Not applicable |
+| `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
+| `'dynamic'` | Use a [dynamic instantiate hook][] | Not applicable |
+| `'json'` | Load a JSON file | array buffer, string, or typed array |
+| `'module'` | Load a standard JavaScript module (ES module) | array buffer, string, or typed array |
+| `'wasm'` | Load a WebAssembly module | array buffer, or typed array |
+
+For text based formats like `'json'` or `'module'` if the source value is not a
+string it will be converted to a string using [`util.TextDecoder`][].
+
+Note: `Buffer` is a form of typed array.
 
 ```js
 /**
@@ -1841,6 +1848,7 @@ success!
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_code_transformsource_code_hook
+[`util.TextDecoder`]: util.html#util_class_util_textdecoder
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
