@@ -11,12 +11,13 @@ See [test/wpt](../../wpt/README.md) for information on how these tests are run.
 Last update:
 
 - console: https://github.com/web-platform-tests/wpt/tree/9786a4b131/console
-- encoding: https://github.com/web-platform-tests/wpt/tree/5059d2c777/encoding
+- encoding: https://github.com/web-platform-tests/wpt/tree/39b27a7875/encoding
 - url: https://github.com/web-platform-tests/wpt/tree/418f7fabeb/url
-- resources: https://github.com/web-platform-tests/wpt/tree/e1fddfbf80/resources
+- resources: https://github.com/web-platform-tests/wpt/tree/5d33b4da92/resources
 - interfaces: https://github.com/web-platform-tests/wpt/tree/712c9f275e/interfaces
 - html/webappapis/microtask-queuing: https://github.com/web-platform-tests/wpt/tree/0c3bed38df/html/webappapis/microtask-queuing
 - html/webappapis/timers: https://github.com/web-platform-tests/wpt/tree/ddfe9c089b/html/webappapis/timers
+- common: https://github.com/web-platform-tests/wpt/tree/6d7f862e4a/common
 
 [Web Platform Tests]: https://github.com/web-platform-tests/wpt
 [`git node wpt`]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-wpt

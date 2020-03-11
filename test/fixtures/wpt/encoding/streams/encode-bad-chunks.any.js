@@ -16,10 +16,10 @@ promise_test(t => {
   });
   const readPromise = reader.read();
   return Promise.all([
-    promise_rejects(t, error1, readPromise, 'read should reject with error1'),
-    promise_rejects(t, error1, writePromise, 'write should reject with error1'),
-    promise_rejects(t, error1, reader.closed, 'readable should be errored with error1'),
-    promise_rejects(t, error1, writer.closed, 'writable should be errored with error1'),
+    promise_rejects_exactly(t, error1, readPromise, 'read should reject with error1'),
+    promise_rejects_exactly(t, error1, writePromise, 'write should reject with error1'),
+    promise_rejects_exactly(t, error1, reader.closed, 'readable should be errored with error1'),
+    promise_rejects_exactly(t, error1, writer.closed, 'writable should be errored with error1'),
   ]);
 }, 'a chunk that cannot be converted to a string should error the streams');
 

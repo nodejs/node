@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+%(generated_disclaimer)s
+<html>
+  <head>
+    <title>%(test_page_title)s</title>
+    <meta charset='utf-8'>
+    <meta name="description" content="%(spec_description)s">
+    <link rel="author" title="Kristijan Burnik" href="burnik@chromium.org">
+    <link rel="help" href="%(spec_specification_url)s">
+    <meta name="assert" content="%(test_description)s">%(meta_delivery_method)s
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="/common/security-features/resources/common.sub.js"></script>
+%(helper_js)s  </head>
+  <body>
+    <script>
+      TestCase(
+        %(scenario)s,
+        document.querySelector("meta[name=assert]").content,
+        new SanityChecker()
+      ).start();
+      </script>
+    <div id="log"></div>
+  </body>
+</html>

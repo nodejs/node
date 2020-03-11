@@ -19,6 +19,6 @@ promise_test(async t => {
   const output = input.pipeThrough(new TextDecoderStream(
       'utf-8', {fatal: true}));
   const reader = output.getReader();
-  await promise_rejects(t, new TypeError(), reader.read(),
+  await promise_rejects_js(t, TypeError, reader.read(),
                         'read should reject');
 }, 'incomplete input with error mode "fatal" should error the stream');

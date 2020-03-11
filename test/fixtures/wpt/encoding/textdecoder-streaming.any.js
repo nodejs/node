@@ -16,21 +16,25 @@ var octets = {
                  0xDF,0xFF]
 };
 
-Object.keys(octets).forEach(function(encoding) {
-    for (var len = 1; len <= 5; ++len) {
-        test(function() {
-            var encoded = octets[encoding];
+["ArrayBuffer", "SharedArrayBuffer"].forEach((arrayBufferOrSharedArrayBuffer) => {
+    Object.keys(octets).forEach(function(encoding) {
+        for (var len = 1; len <= 5; ++len) {
+            test(function() {
+                var encoded = octets[encoding];
 
-            var out = '';
-            var decoder = new TextDecoder(encoding);
-            for (var i = 0; i < encoded.length; i += len) {
-                var sub = [];
-                for (var j = i; j < encoded.length && j < i + len; ++j)
-                    sub.push(encoded[j]);
-                out += decoder.decode(new Uint8Array(sub), {stream: true});
-            }
-            out += decoder.decode();
-            assert_equals(out, string);
-        }, 'Streaming decode: ' + encoding + ', ' + len + ' byte window');
-    }
-});
+                var out = '';
+                var decoder = new TextDecoder(encoding);
+                for (var i = 0; i < encoded.length; i += len) {
+                    var sub = [];
+                    for (var j = i; j < encoded.length && j < i + len; ++j)
+                        sub.push(encoded[j]);
+                        var uintArray = new Uint8Array(new self[arrayBufferOrSharedArrayBuffer](sub.length));
+                        uintArray.set(sub);
+                    out += decoder.decode(uintArray, {stream: true});
+                }
+                out += decoder.decode();
+                assert_equals(out, string);
+            }, 'Streaming decode: ' + encoding + ', ' + len + ' byte window (' + arrayBufferOrSharedArrayBuffer + ')');
+        }
+    });
+})

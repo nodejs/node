@@ -67,9 +67,9 @@ for (const encoding of encodings) {
     const writer = stream.writable.getWriter();
     const writePromise = writer.write(new Uint8Array(encoding.invalid));
     const closePromise = writer.close();
-    await promise_rejects(t, new TypeError(), reader.read(),
+    await promise_rejects_js(t, TypeError, reader.read(),
                           'readable should be errored');
-    await promise_rejects(t, new TypeError(),
+    await promise_rejects_js(t, TypeError,
                           Promise.all([writePromise, closePromise]),
                           'writable should be errored');
   }, `TextDecoderStream should be able to reject invalid sequences in ` +
