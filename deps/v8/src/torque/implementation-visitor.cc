@@ -3964,6 +3964,26 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
     h_contents
         << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+    cc_contents << "#include \"src/objects/free-space.h\"\n";
+    cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
+    cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";
+    cc_contents << "#include \"src/objects/property-descriptor-object.h\"\n";
+    cc_contents << "#include \"src/objects/synthetic-module.h\"\n";
+    cc_contents << "#include \"src/objects/template-objects.h\"\n";
+    {
+      IfDefScope intl_scope(cc_contents, "V8_INTL_SUPPORT");
+      cc_contents << "#include \"src/objects/js-break-iterator.h\"\n";
+      cc_contents << "#include \"src/objects/js-collator.h\"\n";
+      cc_contents << "#include \"src/objects/js-date-time-format.h\"\n";
+      cc_contents << "#include \"src/objects/js-display-names.h\"\n";
+      cc_contents << "#include \"src/objects/js-list-format.h\"\n";
+      cc_contents << "#include \"src/objects/js-locale.h\"\n";
+      cc_contents << "#include \"src/objects/js-number-format.h\"\n";
+      cc_contents << "#include \"src/objects/js-plural-rules.h\"\n";
+      cc_contents << "#include \"src/objects/js-relative-time-format.h\"\n";
+      cc_contents << "#include \"src/objects/js-segment-iterator.h\"\n";
+      cc_contents << "#include \"src/objects/js-segmenter.h\"\n";
+    }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
 
     for (SourceId file : SourceFileMap::AllSources()) {
