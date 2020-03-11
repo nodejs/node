@@ -226,7 +226,7 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-#### Package Exports Subpaths
+#### Subpath Exports
 
 When using the `"exports"` field, custom subpaths can be defined along
 with the main entry point by treating the main entry point as the
