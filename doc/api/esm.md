@@ -194,8 +194,8 @@ environment, including whether the package is referenced via `require` or via
 If both `"exports"` and `"main"` are defined, the `"exports"` field takes
 precedence over `"main"`.
 
-All package entry points apply to both `import` and `require`; `"exports"` and
-`"main"` are **not** specific to ES modules or CommonJS.
+Both `"main"` and `"exports"` entry points are not specific to ES modules or CommonJS;
+`"main"` will be overridden by `"exports"` in a `require` so it is not a CommonJS fallback.
 
 This is important with regard to `require`, since `require` of ES module files
 throws an error in all versions of Node.js. To create a package that works both
