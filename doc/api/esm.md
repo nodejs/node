@@ -218,7 +218,7 @@ subpaths of the package will no longer be available to importers under
 `require('pkg/subpath.js')`, and instead they will get a new error,
 `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
-This new encapsulation of exports provides new more reliable guarantees
+This encapsulation of exports provides more reliable guarantees
 about package interfaces for tools and when handling semver upgrades for a
 package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
