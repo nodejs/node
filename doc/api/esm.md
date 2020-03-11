@@ -222,7 +222,7 @@ This encapsulation of exports provides more reliable guarantees
 about package interfaces for tools and when handling semver upgrades for a
 package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
-`require('/path/to/node_modules/pkg/subpath.js')` will still work correctly.
+`require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
 #### Package Exports Subpaths
 
