@@ -177,7 +177,7 @@ unspecified.
 
 ### Package Exports
 
-There are two fields that can define entry points for a package: `"main"` and
+In a package’s `package.json` file, two fields can define entry points for a package: `"main"` and
 `"exports"`. The `"main"` field is supported in all versions of Node.js, but its
 capabilities are limited: it only defines the main entry point of the package.
 
