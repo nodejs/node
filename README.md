@@ -177,6 +177,8 @@ For information about the governance of the Node.js project, see
 **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; (he/him)
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
+* [BridgeAR](https://github.com/BridgeAR) -
+**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt; (he/him)
 * [sam-github](https://github.com/sam-github) -
 **Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [targos](https://github.com/targos) -
