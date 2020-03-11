@@ -1011,3 +1011,24 @@ const { promisify } = require('util');
     assert.strictEqual(res, '');
   }));
 }
+
+{
+  const server = http.createServer((req, res) => {
+    req.socket.on('error', common.mustNotCall());
+    pipeline(req, new PassThrough(), (err) => {
+      assert.ifError(err);
+      res.end();
+      server.close();
+    });
+  });
+
+  server.listen(0, () => {
+    const req = http.request({
+      method: 'PUT',
+      port: server.address().port
+    });
+    req.end('asd123');
+    req.on('response', common.mustCall());
+    req.on('error', common.mustNotCall());
+  });
+}
