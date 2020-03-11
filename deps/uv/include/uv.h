@@ -605,7 +605,13 @@ enum uv_udp_flags {
    * (provided they all set the flag) but only the last one to bind will receive
    * any traffic, in effect "stealing" the port from the previous listener.
    */
-  UV_UDP_REUSEADDR = 4
+  UV_UDP_REUSEADDR = 4,
+  /*
+   * Indicates that the message was received by recvmmsg and that it's not at
+   * the beginning of the buffer allocated by alloc_cb - so the buffer provided
+   * must not be freed by the recv_cb callback.
+   */
+  UV_UDP_MMSG_CHUNK = 8
 };
 
 typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);

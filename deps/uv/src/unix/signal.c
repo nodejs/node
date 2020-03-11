@@ -331,16 +331,7 @@ int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
 
 
 void uv__signal_close(uv_signal_t* handle) {
-
   uv__signal_stop(handle);
-
-  /* If there are any caught signals "trapped" in the signal pipe, we can't
-   * call the close callback yet. Otherwise, add the handle to the finish_close
-   * queue.
-   */
-  if (handle->caught_signals == handle->dispatched_signals) {
-    uv__make_close_pending((uv_handle_t*) handle);
-  }
 }
 
 
@@ -472,17 +463,6 @@ static void uv__signal_event(uv_loop_t* loop,
 
       if (handle->flags & UV_SIGNAL_ONE_SHOT)
         uv__signal_stop(handle);
-
-      /* If uv_close was called while there were caught signals that were not
-       * yet dispatched, the uv__finish_close was deferred. Make close pending
-       * now if this has happened.
-       */
-      if (handle->caught_signals == handle->dispatched_signals) {
-        if (handle->signum == 0)
-          uv__handle_stop(handle);
-        if (handle->flags & UV_HANDLE_CLOSING)
-          uv__make_close_pending((uv_handle_t*) handle);
-      }
     }
 
     bytes -= end;
@@ -572,6 +552,5 @@ static void uv__signal_stop(uv_signal_t* handle) {
   uv__signal_unlock_and_unblock(&saved_sigmask);
 
   handle->signum = 0;
-  if (handle->caught_signals == handle->dispatched_signals)
-    uv__handle_stop(handle);
+  uv__handle_stop(handle);
 }

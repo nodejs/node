@@ -185,7 +185,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   char model[512];
   int numcpus = 1;
   int which[] = {CTL_HW,HW_MODEL};
-  int percpu[] = {CTL_HW,HW_CPUSPEED,0};
+  int percpu[] = {CTL_KERN,KERN_CPTIME2,0};
   size_t size;
   int i, j;
   uv_cpu_info_t* cpu_info;
@@ -206,17 +206,15 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   i = 0;
   *count = numcpus;
 
+  which[1] = HW_CPUSPEED;
   size = sizeof(cpuspeed);
-  if (sysctl(which, ARRAY_SIZE(percpu), &cpuspeed, &size, NULL, 0))
+  if (sysctl(which, ARRAY_SIZE(which), &cpuspeed, &size, NULL, 0))
     goto error;
 
   size = sizeof(info);
-  percpu[0] = CTL_KERN;
-  percpu[1] = KERN_CPTIME2;
   for (i = 0; i < numcpus; i++) {
     percpu[2] = i;
-    size = sizeof(info);
-    if (sysctl(which, ARRAY_SIZE(percpu), &info, &size, NULL, 0))
+    if (sysctl(percpu, ARRAY_SIZE(percpu), &info, &size, NULL, 0))
       goto error;
 
     cpu_info = &(*cpu_infos)[i];

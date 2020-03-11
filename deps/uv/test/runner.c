@@ -20,6 +20,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "runner.h"
@@ -167,6 +168,7 @@ int run_test(const char* test,
   process_info_t processes[1024];
   process_info_t *main_proc;
   task_entry_t* task;
+  int timeout_multiplier;
   int process_count;
   int result;
   int status;
@@ -249,7 +251,22 @@ int run_test(const char* test,
     goto out;
   }
 
-  result = process_wait(main_proc, 1, task->timeout);
+  timeout_multiplier = 1;
+#ifndef _WIN32
+  do {
+    const char* var;
+
+    var = getenv("UV_TEST_TIMEOUT_MULTIPLIER");
+    if (var == NULL)
+      break;
+
+    timeout_multiplier = atoi(var);
+    if (timeout_multiplier <= 0)
+      timeout_multiplier = 1;
+  } while (0);
+#endif
+
+  result = process_wait(main_proc, 1, task->timeout * timeout_multiplier);
   if (result == -1) {
     FATAL("process_wait failed");
   } else if (result == -2) {

@@ -28,9 +28,10 @@
 #include <limits.h> /* _POSIX_PATH_MAX, PATH_MAX */
 #include <stdlib.h> /* abort */
 #include <string.h> /* strrchr */
-#include <fcntl.h>  /* O_CLOEXEC, may be */
+#include <fcntl.h>  /* O_CLOEXEC and O_NONBLOCK, if supported. */
 #include <stdio.h>
 #include <errno.h>
+#include <sys/socket.h>
 
 #if defined(__STRICT_ANSI__)
 # define inline __inline
@@ -284,13 +285,12 @@ int uv___stream_fd(const uv_stream_t* handle);
 #define uv__stream_fd(handle) ((handle)->io_watcher.fd)
 #endif /* defined(__APPLE__) */
 
-#ifdef UV__O_NONBLOCK
-# define UV__F_NONBLOCK UV__O_NONBLOCK
+#ifdef O_NONBLOCK
+# define UV__F_NONBLOCK O_NONBLOCK
 #else
 # define UV__F_NONBLOCK 1
 #endif
 
-int uv__make_socketpair(int fds[2], int flags);
 int uv__make_pipe(int fds[2], int flags);
 
 #if defined(__APPLE__)
@@ -327,5 +327,28 @@ int uv__getsockpeername(const uv_handle_t* handle,
                         uv__peersockfunc func,
                         struct sockaddr* name,
                         int* namelen);
+
+#if defined(__linux__)            ||                                      \
+    defined(__FreeBSD__)          ||                                      \
+    defined(__FreeBSD_kernel__)
+#define HAVE_MMSG 1
+struct uv__mmsghdr {
+  struct msghdr msg_hdr;
+  unsigned int msg_len;
+};
+
+int uv__recvmmsg(int fd,
+                 struct uv__mmsghdr* mmsg,
+                 unsigned int vlen,
+                 unsigned int flags,
+                 struct timespec* timeout);
+int uv__sendmmsg(int fd,
+                 struct uv__mmsghdr* mmsg,
+                 unsigned int vlen,
+                 unsigned int flags);
+#else
+#define HAVE_MMSG 0
+#endif
+
 
 #endif /* UV_UNIX_INTERNAL_H_ */
