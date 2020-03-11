@@ -415,7 +415,7 @@ use in Node.js but not the browser:
 Conditions continue to be matched in order as with flat conditions. If
 a nested conditional does not have any mapping it will continue checking
 the remaining conditions of the parent condition. In this way nested
-conditions behave fully analogously to nested `if` statements in JS.
+conditions behave analogously to nested JavaScript `if` statements.
 
 ### Dual CommonJS/ES Module Packages
 
