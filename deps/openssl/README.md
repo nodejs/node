@@ -76,4 +76,4 @@ Please refer [config/opensslconf_asm.h](config/opensslconf_asm.h) for details.
 
 ### Upgrading OpenSSL
 
-Please refer [config/README.md](config/README.md).
+Please refer to [maintaining-openssl](../../doc/guides/maintaining-openssl.md).
