@@ -42,6 +42,12 @@ Data types
             * any traffic, in effect "stealing" the port from the previous listener.
             */
             UV_UDP_REUSEADDR = 4
+            /*
+             * Indicates that the message was received by recvmmsg and that it's not at
+             * the beginning of the buffer allocated by alloc_cb - so the buffer provided
+             * must not be freed by the recv_cb callback.
+             */
+            UV_UDP_MMSG_CHUNK = 8
         };
 
 .. c:type:: void (*uv_udp_send_cb)(uv_udp_send_t* req, int status)
@@ -62,12 +68,13 @@ Data types
     * `buf`: :c:type:`uv_buf_t` with the received data.
     * `addr`: ``struct sockaddr*`` containing the address of the sender.
       Can be NULL. Valid for the duration of the callback only.
-    * `flags`: One or more or'ed UV_UDP_* constants. Right now only
-      ``UV_UDP_PARTIAL`` is used.
+    * `flags`: One or more or'ed UV_UDP_* constants.
 
     The callee is responsible for freeing the buffer, libuv does not reuse it.
     The buffer may be a null buffer (where `buf->base` == NULL and `buf->len` == 0)
-    on error.
+    on error. Don't free the buffer when the UV_UDP_MMSG_CHUNK flag is set.
+    The final callback receives the whole buffer (containing the first chunk)
+    with the UV_UDP_MMSG_CHUNK flag cleared.
 
     .. note::
         The receive callback will be called with `nread` == 0 and `addr` == NULL when there is

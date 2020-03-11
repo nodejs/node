@@ -26,19 +26,6 @@
 #include <sys/types.h>
 #include <errno.h>
 
-#if defined(__has_feature)
-# if __has_feature(memory_sanitizer)
-#  define MSAN_ACTIVE 1
-#  include <sanitizer/msan_interface.h>
-# endif
-#endif
-
-#if defined(__i386__)
-# ifndef __NR_socketcall
-#  define __NR_socketcall 102
-# endif
-#endif
-
 #if defined(__arm__)
 # if defined(__thumb__) || defined(__ARM_EABI__)
 #  define UV_SYSCALL_BASE 0
@@ -46,86 +33,6 @@
 #  define UV_SYSCALL_BASE 0x900000
 # endif
 #endif /* __arm__ */
-
-#ifndef __NR_accept4
-# if defined(__x86_64__)
-#  define __NR_accept4 288
-# elif defined(__i386__)
-   /* Nothing. Handled through socketcall(). */
-# elif defined(__arm__)
-#  define __NR_accept4 (UV_SYSCALL_BASE + 366)
-# endif
-#endif /* __NR_accept4 */
-
-#ifndef __NR_eventfd
-# if defined(__x86_64__)
-#  define __NR_eventfd 284
-# elif defined(__i386__)
-#  define __NR_eventfd 323
-# elif defined(__arm__)
-#  define __NR_eventfd (UV_SYSCALL_BASE + 351)
-# endif
-#endif /* __NR_eventfd */
-
-#ifndef __NR_eventfd2
-# if defined(__x86_64__)
-#  define __NR_eventfd2 290
-# elif defined(__i386__)
-#  define __NR_eventfd2 328
-# elif defined(__arm__)
-#  define __NR_eventfd2 (UV_SYSCALL_BASE + 356)
-# endif
-#endif /* __NR_eventfd2 */
-
-#ifndef __NR_inotify_init
-# if defined(__x86_64__)
-#  define __NR_inotify_init 253
-# elif defined(__i386__)
-#  define __NR_inotify_init 291
-# elif defined(__arm__)
-#  define __NR_inotify_init (UV_SYSCALL_BASE + 316)
-# endif
-#endif /* __NR_inotify_init */
-
-#ifndef __NR_inotify_init1
-# if defined(__x86_64__)
-#  define __NR_inotify_init1 294
-# elif defined(__i386__)
-#  define __NR_inotify_init1 332
-# elif defined(__arm__)
-#  define __NR_inotify_init1 (UV_SYSCALL_BASE + 360)
-# endif
-#endif /* __NR_inotify_init1 */
-
-#ifndef __NR_inotify_add_watch
-# if defined(__x86_64__)
-#  define __NR_inotify_add_watch 254
-# elif defined(__i386__)
-#  define __NR_inotify_add_watch 292
-# elif defined(__arm__)
-#  define __NR_inotify_add_watch (UV_SYSCALL_BASE + 317)
-# endif
-#endif /* __NR_inotify_add_watch */
-
-#ifndef __NR_inotify_rm_watch
-# if defined(__x86_64__)
-#  define __NR_inotify_rm_watch 255
-# elif defined(__i386__)
-#  define __NR_inotify_rm_watch 293
-# elif defined(__arm__)
-#  define __NR_inotify_rm_watch (UV_SYSCALL_BASE + 318)
-# endif
-#endif /* __NR_inotify_rm_watch */
-
-#ifndef __NR_pipe2
-# if defined(__x86_64__)
-#  define __NR_pipe2 293
-# elif defined(__i386__)
-#  define __NR_pipe2 331
-# elif defined(__arm__)
-#  define __NR_pipe2 (UV_SYSCALL_BASE + 359)
-# endif
-#endif /* __NR_pipe2 */
 
 #ifndef __NR_recvmmsg
 # if defined(__x86_64__)
@@ -219,103 +126,7 @@
 # endif
 #endif /* __NR_getrandom */
 
-int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
-#if defined(__i386__)
-  unsigned long args[4];
-  int r;
-
-  args[0] = (unsigned long) fd;
-  args[1] = (unsigned long) addr;
-  args[2] = (unsigned long) addrlen;
-  args[3] = (unsigned long) flags;
-
-  r = syscall(__NR_socketcall, 18 /* SYS_ACCEPT4 */, args);
-
-  /* socketcall() raises EINVAL when SYS_ACCEPT4 is not supported but so does
-   * a bad flags argument. Try to distinguish between the two cases.
-   */
-  if (r == -1)
-    if (errno == EINVAL)
-      if ((flags & ~(UV__SOCK_CLOEXEC|UV__SOCK_NONBLOCK)) == 0)
-        errno = ENOSYS;
-
-  return r;
-#elif defined(__NR_accept4)
-  return syscall(__NR_accept4, fd, addr, addrlen, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__eventfd(unsigned int count) {
-#if defined(__NR_eventfd)
-  return syscall(__NR_eventfd, count);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__eventfd2(unsigned int count, int flags) {
-#if defined(__NR_eventfd2)
-  return syscall(__NR_eventfd2, count, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__inotify_init(void) {
-#if defined(__NR_inotify_init)
-  return syscall(__NR_inotify_init);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__inotify_init1(int flags) {
-#if defined(__NR_inotify_init1)
-  return syscall(__NR_inotify_init1, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__inotify_add_watch(int fd, const char* path, uint32_t mask) {
-#if defined(__NR_inotify_add_watch)
-  return syscall(__NR_inotify_add_watch, fd, path, mask);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__inotify_rm_watch(int fd, int32_t wd) {
-#if defined(__NR_inotify_rm_watch)
-  return syscall(__NR_inotify_rm_watch, fd, wd);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__pipe2(int pipefd[2], int flags) {
-#if defined(__NR_pipe2)
-  int result;
-  result = syscall(__NR_pipe2, pipefd, flags);
-#if MSAN_ACTIVE
-  if (!result)
-    __msan_unpoison(pipefd, sizeof(int[2]));
-#endif
-  return result;
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
+struct uv__mmsghdr;
 
 int uv__sendmmsg(int fd,
                  struct uv__mmsghdr* mmsg,

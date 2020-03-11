@@ -41,11 +41,13 @@
 static uv_udp_t client;
 static uv_udp_t server;
 static uv_udp_send_t req_;
+static char data[10];
 static uv_timer_t timeout;
 
 static int send_cb_called;
 static int recv_cb_called;
 static int close_cb_called;
+static uint16_t client_port;
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
 static int can_ipv6_ipv4_dual(void) {
@@ -83,12 +85,35 @@ static void send_cb(uv_udp_send_t* req, int status) {
   send_cb_called++;
 }
 
+static int is_from_client(const struct sockaddr* addr) {
+  const struct sockaddr_in6* addr6;
+  char dst[256];
+  int r;
+
+  /* Debugging output, and filter out unwanted network traffic */
+  if (addr != NULL) {
+    ASSERT(addr->sa_family == AF_INET6);
+    addr6 = (struct sockaddr_in6*) addr;
+    r = uv_inet_ntop(addr->sa_family, &addr6->sin6_addr, dst, sizeof(dst));
+    if (r == 0)
+      printf("from [%.*s]:%d\n", (int) sizeof(dst), dst, addr6->sin6_port);
+    if (addr6->sin6_port != client_port)
+      return 0;
+    if (r != 0 || strcmp(dst, "::ffff:127.0.0.1"))
+      return 0;
+  }
+  return 1;
+}
+
 
 static void ipv6_recv_fail(uv_udp_t* handle,
                            ssize_t nread,
                            const uv_buf_t* buf,
                            const struct sockaddr* addr,
                            unsigned flags) {
+  printf("got %d %.*s\n", (int) nread, nread > 0 ? (int) nread : 0, buf->base);
+  if (!is_from_client(addr) || (nread == 0 && addr == NULL))
+    return;
   ASSERT(0 && "this function should not have been called");
 }
 
@@ -99,10 +124,14 @@ static void ipv6_recv_ok(uv_udp_t* handle,
                          const struct sockaddr* addr,
                          unsigned flags) {
   CHECK_HANDLE(handle);
-  ASSERT(nread >= 0);
 
-  if (nread)
-    recv_cb_called++;
+  printf("got %d %.*s\n", (int) nread, nread > 0 ? (int) nread : 0, buf->base);
+  if (!is_from_client(addr) || (nread == 0 && addr == NULL))
+    return;
+
+  ASSERT(nread == 9);
+  ASSERT(!memcmp(buf->base, data, 9));
+  recv_cb_called++;
 }
 
 
@@ -116,7 +145,10 @@ static void timeout_cb(uv_timer_t* timer) {
 static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   struct sockaddr_in6 addr6;
   struct sockaddr_in addr;
+  int addr6_len;
+  int addr_len;
   uv_buf_t buf;
+  char dst[256];
   int r;
 
   ASSERT(0 == uv_ip6_addr("::0", TEST_PORT, &addr6));
@@ -127,14 +159,25 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   r = uv_udp_bind(&server, (const struct sockaddr*) &addr6, bind_flags);
   ASSERT(r == 0);
 
+  addr6_len = sizeof(addr6);
+  ASSERT(uv_udp_getsockname(&server, (struct sockaddr*) &addr6, &addr6_len) == 0);
+  ASSERT(uv_inet_ntop(addr6.sin6_family, &addr6.sin6_addr, dst, sizeof(dst)) == 0);
+  printf("on [%.*s]:%d\n", (int) sizeof(dst), dst, addr6.sin6_port);
+
   r = uv_udp_recv_start(&server, alloc_cb, recv_cb);
   ASSERT(r == 0);
 
   r = uv_udp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
 
-  buf = uv_buf_init("PING", 4);
   ASSERT(0 == uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT(uv_inet_ntop(addr.sin_family, &addr.sin_addr, dst, sizeof(dst)) == 0);
+  printf("to [%.*s]:%d\n", (int) sizeof(dst), dst, addr.sin_port);
+
+  /* Create some unique data to send */
+  ASSERT(9 == snprintf(data, sizeof(data), "PING%5u", uv_os_getpid() & 0xFFFF));
+  buf = uv_buf_init(data, 9);
+  printf("sending %s\n", data);
 
   r = uv_udp_send(&req_,
                   &client,
@@ -143,6 +186,12 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
                   (const struct sockaddr*) &addr,
                   send_cb);
   ASSERT(r == 0);
+
+  addr_len = sizeof(addr);
+  ASSERT(uv_udp_getsockname(&client, (struct sockaddr*) &addr, &addr_len) == 0);
+  ASSERT(uv_inet_ntop(addr.sin_family, &addr.sin_addr, dst, sizeof(dst)) == 0);
+  printf("from [%.*s]:%d\n", (int) sizeof(dst), dst, addr.sin_port);
+  client_port = addr.sin_port;
 
   r = uv_timer_init(uv_default_loop(), &timeout);
   ASSERT(r == 0);
@@ -180,6 +229,8 @@ TEST_IMPL(udp_dual_stack) {
 
   do_test(ipv6_recv_ok, 0);
 
+  printf("recv_cb_called %d\n", recv_cb_called);
+  printf("send_cb_called %d\n", send_cb_called);
   ASSERT(recv_cb_called == 1);
   ASSERT(send_cb_called == 1);
 

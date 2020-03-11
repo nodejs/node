@@ -38,7 +38,9 @@ TEST_IMPL(get_passwd) {
   ASSERT(pwd.shell == NULL);
 #else
   len = strlen(pwd.shell);
+# ifndef __PASE__
   ASSERT(len > 0);
+# endif
 #endif
 
   len = strlen(pwd.homedir);

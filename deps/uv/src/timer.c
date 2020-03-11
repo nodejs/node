@@ -87,7 +87,7 @@ int uv_timer_start(uv_timer_t* handle,
   handle->timer_cb = cb;
   handle->timeout = clamped_timeout;
   handle->repeat = repeat;
-  /* start_id is the second index to be compared in uv__timer_cmp() */
+  /* start_id is the second index to be compared in timer_less_than() */
   handle->start_id = handle->loop->timer_counter++;
 
   heap_insert(timer_heap(handle->loop),

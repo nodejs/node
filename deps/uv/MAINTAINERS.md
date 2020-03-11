@@ -17,6 +17,8 @@ libuv is currently managed by the following individuals:
   - GPG key: 9DFE AA5F 481B BF77 2D90  03CE D592 4925 2F8E C41A (pubkey-iwuzhere)
 * **Jameson Nash** ([@vtjnash](https://github.com/vtjnash))
 * **John Barboza** ([@jbarz](https://github.com/jbarz))
+* **Kaoru Takanashi** ([@erw7](https://github.com/erw7))
+  - GPG Key: 5804 F999 8A92 2AFB A398  47A0 7183 5090 6134 887F (pubkey-erw7)
 * **Richard Lau** ([@richardlau](https://github.com/richardlau))
   - GPG key: C82F A3AE 1CBE DC6B E46B  9360 C43C EC45 C17A B93C (pubkey-richardlau)
 * **Santiago Gimeno** ([@santigimeno](https://github.com/santigimeno))

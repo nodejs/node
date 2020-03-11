@@ -60,6 +60,11 @@ API
     Enable / disable TCP keep-alive. `delay` is the initial delay in seconds,
     ignored when `enable` is zero.
 
+    After `delay` has been reached, 10 successive probes, each spaced 1 second
+    from the previous one, will still happen. If the connection is still lost
+    at the end of this procedure, then the handle is destroyed with a
+    ``UV_ETIMEDOUT`` error passed to the corresponding callback.
+
 .. c:function:: int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable)
 
     Enable / disable simultaneous asynchronous accept requests that are

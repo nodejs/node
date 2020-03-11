@@ -285,6 +285,12 @@ static void fs_event_cb_dir_multi_file_in_subdir(uv_fs_event_t* handle,
   if (filename && strcmp(filename, file_prefix_in_subdir) == 0)
     return;
 #endif
+  /* It may happen that the "subdir" creation event is captured even though
+   * we started watching after its actual creation.
+   */
+  if (strcmp(filename, "subdir") == 0)
+    return;
+
   fs_multievent_cb_called++;
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
@@ -300,11 +306,13 @@ static void fs_event_cb_dir_multi_file_in_subdir(uv_fs_event_t* handle,
                  sizeof(file_prefix_in_subdir) - 1) == 0);
   #endif
 
-  if (fs_event_created + fs_event_removed == fs_event_file_count) {
+  if (fs_event_created == fs_event_file_count &&
+      fs_multievent_cb_called == fs_event_created) {
     /* Once we've processed all create events, delete all files */
     ASSERT(0 == uv_timer_start(&timer, fs_event_unlink_files_in_subdir, 1, 0));
   } else if (fs_multievent_cb_called == 2 * fs_event_file_count) {
     /* Once we've processed all create and delete events, stop watching */
+    ASSERT(fs_event_removed == fs_event_file_count);
     uv_close((uv_handle_t*) &timer, close_cb);
     uv_close((uv_handle_t*) handle, close_cb);
   }

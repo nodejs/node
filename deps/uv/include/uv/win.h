@@ -517,7 +517,7 @@ typedef struct {
       /* eol conversion state */                                              \
       unsigned char previous_eol;                                             \
       /* ansi parser state */                                                 \
-      unsigned char ansi_parser_state;                                        \
+      unsigned short ansi_parser_state;                                       \
       unsigned char ansi_csi_argc;                                            \
       unsigned short ansi_csi_argv[4];                                        \
       COORD saved_position;                                                   \

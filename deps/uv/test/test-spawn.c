@@ -1420,6 +1420,8 @@ TEST_IMPL(spawn_setuid_fails) {
   int r;
 
   /* if root, become nobody. */
+  /* On IBMi PASE, there is no nobody user. */
+#ifndef __PASE__
   uv_uid_t uid = getuid();
   if (uid == 0) {
     struct passwd* pw;
@@ -1428,11 +1430,19 @@ TEST_IMPL(spawn_setuid_fails) {
     ASSERT(0 == setgid(pw->pw_gid));
     ASSERT(0 == setuid(pw->pw_uid));
   }
+#endif  /* !__PASE__ */
 
   init_process_options("spawn_helper1", fail_cb);
 
   options.flags |= UV_PROCESS_SETUID;
+  /* On IBMi PASE, there is no root user. User may grant 
+   * root-like privileges, including setting uid to 0.
+   */
+#if defined(__PASE__)
+  options.uid = -1;
+#else
   options.uid = 0;
+#endif
 
   /* These flags should be ignored on Unices. */
   options.flags |= UV_PROCESS_WINDOWS_HIDE;
@@ -1441,7 +1451,7 @@ TEST_IMPL(spawn_setuid_fails) {
   options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
-#if defined(__CYGWIN__)
+#if defined(__CYGWIN__) || defined(__PASE__)
   ASSERT(r == UV_EINVAL);
 #else
   ASSERT(r == UV_EPERM);
@@ -1461,6 +1471,8 @@ TEST_IMPL(spawn_setgid_fails) {
   int r;
 
   /* if root, become nobody. */
+  /* On IBMi PASE, there is no nobody user. */
+#ifndef __PASE__
   uv_uid_t uid = getuid();
   if (uid == 0) {
     struct passwd* pw;
@@ -1469,18 +1481,22 @@ TEST_IMPL(spawn_setgid_fails) {
     ASSERT(0 == setgid(pw->pw_gid));
     ASSERT(0 == setuid(pw->pw_uid));
   }
+#endif  /* !__PASE__ */
 
   init_process_options("spawn_helper1", fail_cb);
 
   options.flags |= UV_PROCESS_SETGID;
-#if defined(__MVS__)
+  /* On IBMi PASE, there is no root user. User may grant 
+   * root-like privileges, including setting gid to 0.
+   */
+#if defined(__MVS__) || defined(__PASE__)
   options.gid = -1;
 #else
   options.gid = 0;
 #endif
 
   r = uv_spawn(uv_default_loop(), &process, &options);
-#if defined(__CYGWIN__) || defined(__MVS__)
+#if defined(__CYGWIN__) || defined(__MVS__) || defined(__PASE__)
   ASSERT(r == UV_EINVAL);
 #else
   ASSERT(r == UV_EPERM);

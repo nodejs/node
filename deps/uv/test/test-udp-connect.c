@@ -98,6 +98,10 @@ static void sv_recv_cb(uv_udp_t* handle,
 
 
 TEST_IMPL(udp_connect) {
+#if defined(__PASE__)
+  RETURN_SKIP(
+      "IBMi PASE's UDP connection can not be disconnected with AF_UNSPEC.");
+#endif
   uv_udp_send_t req;
   struct sockaddr_in ext_addr;
   struct sockaddr_in tmp_addr;

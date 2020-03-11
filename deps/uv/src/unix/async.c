@@ -33,9 +33,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __linux__
+#include <sys/eventfd.h>
+#endif
+
 static void uv__async_send(uv_loop_t* loop);
 static int uv__async_start(uv_loop_t* loop);
-static int uv__async_eventfd(void);
 
 
 int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
@@ -190,36 +193,18 @@ static int uv__async_start(uv_loop_t* loop) {
   if (loop->async_io_watcher.fd != -1)
     return 0;
 
-  err = uv__async_eventfd();
-  if (err >= 0) {
-    pipefd[0] = err;
-    pipefd[1] = -1;
-  }
-  else if (err == UV_ENOSYS) {
-    err = uv__make_pipe(pipefd, UV__F_NONBLOCK);
-#if defined(__linux__)
-    /* Save a file descriptor by opening one of the pipe descriptors as
-     * read/write through the procfs.  That file descriptor can then
-     * function as both ends of the pipe.
-     */
-    if (err == 0) {
-      char buf[32];
-      int fd;
+#ifdef __linux__
+  err = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+  if (err < 0)
+    return UV__ERR(errno);
 
-      snprintf(buf, sizeof(buf), "/proc/self/fd/%d", pipefd[0]);
-      fd = uv__open_cloexec(buf, O_RDWR);
-      if (fd >= 0) {
-        uv__close(pipefd[0]);
-        uv__close(pipefd[1]);
-        pipefd[0] = fd;
-        pipefd[1] = fd;
-      }
-    }
-#endif
-  }
-
+  pipefd[0] = err;
+  pipefd[1] = -1;
+#else
+  err = uv__make_pipe(pipefd, UV__F_NONBLOCK);
   if (err < 0)
     return err;
+#endif
 
   uv__io_init(&loop->async_io_watcher, uv__async_io, pipefd[0]);
   uv__io_start(loop, &loop->async_io_watcher, POLLIN);
@@ -252,47 +237,4 @@ void uv__async_stop(uv_loop_t* loop) {
   uv__io_stop(loop, &loop->async_io_watcher, POLLIN);
   uv__close(loop->async_io_watcher.fd);
   loop->async_io_watcher.fd = -1;
-}
-
-
-static int uv__async_eventfd(void) {
-#if defined(__linux__)
-  static int no_eventfd2;
-  static int no_eventfd;
-  int fd;
-
-  if (no_eventfd2)
-    goto skip_eventfd2;
-
-  fd = uv__eventfd2(0, UV__EFD_CLOEXEC | UV__EFD_NONBLOCK);
-  if (fd != -1)
-    return fd;
-
-  if (errno != ENOSYS)
-    return UV__ERR(errno);
-
-  no_eventfd2 = 1;
-
-skip_eventfd2:
-
-  if (no_eventfd)
-    goto skip_eventfd;
-
-  fd = uv__eventfd(0);
-  if (fd != -1) {
-    uv__cloexec(fd, 1);
-    uv__nonblock(fd, 1);
-    return fd;
-  }
-
-  if (errno != ENOSYS)
-    return UV__ERR(errno);
-
-  no_eventfd = 1;
-
-skip_eventfd:
-
-#endif
-
-  return UV_ENOSYS;
 }

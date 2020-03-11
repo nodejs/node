@@ -32,14 +32,13 @@ TEST_IMPL(get_memory) {
          (unsigned long long) total_mem,
          (unsigned long long) constrained_mem);
 
-  /* On IBMi PASE, the amount of memory in use includes storage used for
-   * memory and disks so it is possible to exceed the amount of main storage.
-   */
-#ifndef __PASE__
   ASSERT(free_mem > 0);
-#endif
   ASSERT(total_mem > 0);
+  /* On IBMi PASE, the amount of memory in use is always zero. */
+#ifdef __PASE__
+  ASSERT(total_mem == free_mem);
+#else
   ASSERT(total_mem > free_mem);
-
+#endif
   return 0;
 }

@@ -309,6 +309,12 @@ static void chown_root_cb(uv_fs_t* req) {
 #   if defined(__CYGWIN__)
     /* On Cygwin, uid 0 is invalid (no root). */
     ASSERT(req->result == UV_EINVAL);
+#   elif defined(__PASE__)
+    /* On IBMi PASE, there is no root user. uid 0 is user qsecofr.
+     * User may grant qsecofr's privileges, including changing 
+     * the file's ownership to uid 0.
+     */
+    ASSERT(req->result == 0);
 #   else
     ASSERT(req->result == UV_EPERM);
 #   endif
@@ -2223,7 +2229,12 @@ int test_symlink_dir_impl(int type) {
 #ifdef _WIN32
   ASSERT(((uv_stat_t*)req.ptr)->st_size == strlen(test_dir + 4));
 #else
+# ifdef __PASE__
+  /* On IBMi PASE, st_size returns the length of the symlink itself. */
+  ASSERT(((uv_stat_t*)req.ptr)->st_size == strlen("test_dir_symlink"));
+# else
   ASSERT(((uv_stat_t*)req.ptr)->st_size == strlen(test_dir));
+# endif
 #endif
   uv_fs_req_cleanup(&req);
 
