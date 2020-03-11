@@ -1,3 +1,104 @@
+2020.03.12, Version 1.35.0 (Stable), e45f1ec38db882f8dc17b51f51a6684027034609
+
+Changes since version 1.34.2:
+
+* src: android build fix (David Carlier)
+
+* build: make code compilable for iOS on Xcode (ssrlive)
+
+* ibmi: skip unsupported fs test cases (Xu Meng)
+
+* ibmi: ensure that pipe backlog is not zero (Xu Meng)
+
+* test,udp6: fix udp_ipv6 test flakiness (Jameson Nash)
+
+* test: fix fs_event_watch_dir_recursive flakiness (Santiago Gimeno)
+
+* pipe: disallow listening on an IPC pipe (Witold Kręcicki)
+
+* build,cmake: improve buil experience (Isabella Muerte)
+
+* unix: remove support for FreeBSD < 10 (Saúl Ibarra Corretgé)
+
+* linux: simplify uv__accept() (Ben Noordhuis)
+
+* linux: assume presence of SOCK_CLOEXEC flag (Ben Noordhuis)
+
+* linux: simplify uv__dup2_cloexec() (Ben Noordhuis)
+
+* freebsd,linux: simplify uv__make_socketpair() (Ben Noordhuis)
+
+* unix: fix error handling in uv__make_socketpair() (Ben Noordhuis)
+
+* freebsd,linux: simplify uv__make_pipe() (Ben Noordhuis)
+
+* unix: fix error handling in uv__make_pipe() (Ben Noordhuis)
+
+* linux: simplify uv__async_eventfd() (Ben Noordhuis)
+
+* linux: assume the presence of inotify system calls (Ben Noordhuis)
+
+* doc: strip ICC profile from 2 jpg files (Dominique Dumont)
+
+* unix: make uv_tcp_keepalive predictable (Manuel BACHMANN)
+
+* docs: uv_setup_args() may take ownership of argv (Ben Noordhuis)
+
+* unix: fix error path in uv_setup_args() (Ben Noordhuis)
+
+* unix: fix size check in uv_get_process_title() (Ben Noordhuis)
+
+* doc: add erw7 to maintainers (erw7)
+
+* test: fixed udp4_echo_server implementation (Marek Vavrusa)
+
+* test: added udp ping benchmark (1,10,100 pingers) (Marek Vavrusa)
+
+* freebsd,linux: add recvmmsg() + sendmmsg() udp implementation (Marek Vavrusa)
+
+* win,pipe: DRY/simplify some code paths (Jameson Nash)
+
+* win: address some style nits (Jameson Nash)
+
+* win,pipe: ensure `req->event_handle` is defined (Elliot Saba)
+
+* win,pipe: consolidate overlapped initialization (Elliot Saba)
+
+* win,pipe: erase event_handle after deleting pointer (Jameson Nash)
+
+* build: fix android cmake build, build missing file (Ben Noordhuis)
+
+* test: skip some UDP tests on IBMi (Xu Meng)
+
+* test: skip some spawn test cases on IBMi (Xu Meng)
+
+* src: fix wrong method name in comment (TK-one)
+
+* test: add UV_TIMEOUT_MULTIPLIER environment var (Ben Noordhuis)
+
+* unix: fix uv_cpu_info always returning UV_ENOTDIR on OpenBSD (Ben Davies)
+
+* test: skip the pwd_shell test on IBMi (Xu Meng)
+
+* win,tty: Change to restore cursor shape with uv_tty_reset() (erw7)
+
+* win,tty: Added set cursor style to CSI sequences (erw7)
+
+* test: handle EINTR, fix EOF check in poll test (Ben Noordhuis)
+
+* unix: use socklen_t instead of size_t (Ben Noordhuis)
+
+* doc: fix header file location (TK-one)
+
+* unix: fix signal handle closing deferral (Ben Noordhuis)
+
+* ibmi: set the amount of memory in use to zero (Xu Meng)
+
+* zos: return on realloc failure in scandir() (Milad Farazmand)
+
+* zos: fix scandir() error path NULL pointer deref (Ben Noordhuis)
+
+
 2020.01.24, Version 1.34.2 (Stable), f868c9ab0c307525a16fff99fd21e32a6ebc3837
 
 Changes since version 1.34.1:

@@ -244,6 +244,15 @@ API
 .. c:function:: char** uv_setup_args(int argc, char** argv)
 
     Store the program arguments. Required for getting / setting the process title.
+    Libuv may take ownership of the memory that `argv` points to. This function
+    should be called exactly once, at program start-up.
+
+    Example:
+
+    ::
+
+        argv = uv_setup_args(argc, argv);  /* May return a copy of argv. */
+
 
 .. c:function:: int uv_get_process_title(char* buffer, size_t size)
 

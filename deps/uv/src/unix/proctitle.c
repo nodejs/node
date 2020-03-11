@@ -24,16 +24,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct uv__process_title {
+  char* str;
+  size_t len;  /* Length of the current process title. */
+  size_t cap;  /* Maximum capacity. Computed once in uv_setup_args(). */
+};
+
 extern void uv__set_process_title(const char* title);
 
 static uv_mutex_t process_title_mutex;
 static uv_once_t process_title_mutex_once = UV_ONCE_INIT;
+static struct uv__process_title process_title;
 static void* args_mem;
-
-static struct {
-  char* str;
-  size_t len;
-} process_title;
 
 
 static void init_process_title_mutex_once(void) {
@@ -42,6 +44,7 @@ static void init_process_title_mutex_once(void) {
 
 
 char** uv_setup_args(int argc, char** argv) {
+  struct uv__process_title pt;
   char** new_argv;
   size_t size;
   char* s;
@@ -50,20 +53,14 @@ char** uv_setup_args(int argc, char** argv) {
   if (argc <= 0)
     return argv;
 
-  /* Calculate how much memory we need for the argv strings. */
-  size = 0;
-  for (i = 0; i < argc; i++)
-    size += strlen(argv[i]) + 1;
+  pt.str = argv[0];
+  pt.len = strlen(argv[0]);
+  pt.cap = pt.len + 1;
 
-#if defined(__MVS__)
-  /* argv is not adjacent. So just use argv[0] */
-  process_title.str = argv[0];
-  process_title.len = strlen(argv[0]);
-#else
-  process_title.str = argv[0];
-  process_title.len = argv[argc - 1] + strlen(argv[argc - 1]) - argv[0];
-  assert(process_title.len + 1 == size);  /* argv memory should be adjacent. */
-#endif
+  /* Calculate how much memory we need for the argv strings. */
+  size = pt.cap;
+  for (i = 1; i < argc; i++)
+    size += strlen(argv[i]) + 1;
 
   /* Add space for the argv pointers. */
   size += (argc + 1) * sizeof(char*);
@@ -71,31 +68,53 @@ char** uv_setup_args(int argc, char** argv) {
   new_argv = uv__malloc(size);
   if (new_argv == NULL)
     return argv;
-  args_mem = new_argv;
 
   /* Copy over the strings and set up the pointer table. */
+  i = 0;
   s = (char*) &new_argv[argc + 1];
-  for (i = 0; i < argc; i++) {
+  size = pt.cap;
+  goto loop;
+
+  for (/* empty */; i < argc; i++) {
     size = strlen(argv[i]) + 1;
+  loop:
     memcpy(s, argv[i], size);
     new_argv[i] = s;
     s += size;
   }
   new_argv[i] = NULL;
 
+  /* argv is not adjacent on z/os, we use just argv[0] on that platform. */
+#ifndef __MVS__
+  pt.cap = argv[i - 1] + size - argv[0];
+#endif
+
+  args_mem = new_argv;
+  process_title = pt;
+
   return new_argv;
 }
 
 
 int uv_set_process_title(const char* title) {
+  struct uv__process_title* pt;
+  size_t len;
+
+  pt = &process_title;
+  len = strlen(title);
+
   uv_once(&process_title_mutex_once, init_process_title_mutex_once);
   uv_mutex_lock(&process_title_mutex);
 
-  if (process_title.len != 0) {
-    /* No need to terminate, byte after is always '\0'. */
-    strncpy(process_title.str, title, process_title.len);
-    uv__set_process_title(title);
+  if (len >= pt->cap) {
+    len = 0;
+    if (pt->cap > 0)
+      len = pt->cap - 1;
   }
+
+  memcpy(pt->str, title, len);
+  memset(pt->str + len, '\0', pt->cap - len);
+  pt->len = len;
 
   uv_mutex_unlock(&process_title_mutex);
 

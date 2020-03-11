@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <sys/inotify.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -64,45 +65,17 @@ static void uv__inotify_read(uv_loop_t* loop,
 static void maybe_free_watcher_list(struct watcher_list* w,
                                     uv_loop_t* loop);
 
-static int new_inotify_fd(void) {
-  int err;
-  int fd;
-
-  fd = uv__inotify_init1(UV__IN_NONBLOCK | UV__IN_CLOEXEC);
-  if (fd != -1)
-    return fd;
-
-  if (errno != ENOSYS)
-    return UV__ERR(errno);
-
-  fd = uv__inotify_init();
-  if (fd == -1)
-    return UV__ERR(errno);
-
-  err = uv__cloexec(fd, 1);
-  if (err == 0)
-    err = uv__nonblock(fd, 1);
-
-  if (err) {
-    uv__close(fd);
-    return err;
-  }
-
-  return fd;
-}
-
-
 static int init_inotify(uv_loop_t* loop) {
-  int err;
+  int fd;
 
   if (loop->inotify_fd != -1)
     return 0;
 
-  err = new_inotify_fd();
-  if (err < 0)
-    return err;
+  fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+  if (fd < 0)
+    return UV__ERR(errno);
 
-  loop->inotify_fd = err;
+  loop->inotify_fd = fd;
   uv__io_init(&loop->inotify_read_watcher, uv__inotify_read, loop->inotify_fd);
   uv__io_start(loop, &loop->inotify_read_watcher, POLLIN);
 
@@ -186,7 +159,7 @@ static void maybe_free_watcher_list(struct watcher_list* w, uv_loop_t* loop) {
   if ((!w->iterating) && QUEUE_EMPTY(&w->watchers)) {
     /* No watchers left for this path. Clean up. */
     RB_REMOVE(watcher_root, CAST(&loop->inotify_watchers), w);
-    uv__inotify_rm_watch(loop->inotify_fd, w->wd);
+    inotify_rm_watch(loop->inotify_fd, w->wd);
     uv__free(w);
   }
 }
@@ -194,7 +167,7 @@ static void maybe_free_watcher_list(struct watcher_list* w, uv_loop_t* loop) {
 static void uv__inotify_read(uv_loop_t* loop,
                              uv__io_t* dummy,
                              unsigned int events) {
-  const struct uv__inotify_event* e;
+  const struct inotify_event* e;
   struct watcher_list* w;
   uv_fs_event_t* h;
   QUEUE queue;
@@ -219,12 +192,12 @@ static void uv__inotify_read(uv_loop_t* loop,
 
     /* Now we have one or more inotify_event structs. */
     for (p = buf; p < buf + size; p += sizeof(*e) + e->len) {
-      e = (const struct uv__inotify_event*)p;
+      e = (const struct inotify_event*) p;
 
       events = 0;
-      if (e->mask & (UV__IN_ATTRIB|UV__IN_MODIFY))
+      if (e->mask & (IN_ATTRIB|IN_MODIFY))
         events |= UV_CHANGE;
-      if (e->mask & ~(UV__IN_ATTRIB|UV__IN_MODIFY))
+      if (e->mask & ~(IN_ATTRIB|IN_MODIFY))
         events |= UV_RENAME;
 
       w = find_watcher(loop, e->wd);
@@ -290,16 +263,16 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   if (err)
     return err;
 
-  events = UV__IN_ATTRIB
-         | UV__IN_CREATE
-         | UV__IN_MODIFY
-         | UV__IN_DELETE
-         | UV__IN_DELETE_SELF
-         | UV__IN_MOVE_SELF
-         | UV__IN_MOVED_FROM
-         | UV__IN_MOVED_TO;
+  events = IN_ATTRIB
+         | IN_CREATE
+         | IN_MODIFY
+         | IN_DELETE
+         | IN_DELETE_SELF
+         | IN_MOVE_SELF
+         | IN_MOVED_FROM
+         | IN_MOVED_TO;
 
-  wd = uv__inotify_add_watch(handle->loop->inotify_fd, path, events);
+  wd = inotify_add_watch(handle->loop->inotify_fd, path, events);
   if (wd == -1)
     return UV__ERR(errno);
 
