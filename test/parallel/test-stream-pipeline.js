@@ -1016,7 +1016,7 @@ const { promisify } = require('util');
   const server = http.createServer((req, res) => {
     req.socket.on('error', common.mustNotCall());
     pipeline(req, new PassThrough(), (err) => {
-      assert(!err);
+      assert.ifError(err);
       res.end();
       server.close();
     });
