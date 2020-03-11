@@ -11,6 +11,7 @@ const { spawnSync } = require('child_process');
 // Refs: https://github.com/nodejs/node/issues/24016
 
 if (process.argv[2] === 'child') {
+  const fs = require('fs');
   let files = fs.readdirSync(tmpdir.path);
   const plog = files.filter((name) => /\.log$/.test(name))[0];
   if (plog === undefined) {
@@ -19,20 +20,20 @@ if (process.argv[2] === 'child') {
   }
   const pingpong = `
   let counter = 0;
+  const fs = require('fs');
   const { Worker, parentPort  } = require('worker_threads');
   parentPort.on('message', (m) => {
-    if (counter++ === 1024)
+    if (counter++ === 10)
       process.exit(0);
      parentPort.postMessage(
-       m.toString().split('').reverse().toString().replace(/,/g, ''));
+       fs.readFileSync(m.toString()).slice(0, 1024 * 1024));
   });
   `;
 
   const { Worker } = require('worker_threads');
-  const data = 'x'.repeat(1024);
   const w = new Worker(pingpong, { eval: true });
   w.on('message', (m) => {
-    w.postMessage(m.toString().split('').reverse().toString().replace(/,/g, ''));
+    w.postMessage(process.execPath);
   });
 
   w.on('exit', common.mustCall(() => {
@@ -45,7 +46,7 @@ if (process.argv[2] === 'child') {
     }
     process.exit(0);
   }));
-  w.postMessage(data);
+  w.postMessage(process.execPath);
 } else {
   tmpdir.refresh();
   const spawnResult = spawnSync(
