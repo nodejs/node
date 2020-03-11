@@ -389,7 +389,7 @@ Conditional exports can also be extended to exports subpaths, for example:
 
 Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
 could provide different implementations between the browser and Node.js,
-given third-part tool support for a `"browser"` condition.
+given third-party tool support for a `"browser"` condition.
 
 #### Nested conditions
 
