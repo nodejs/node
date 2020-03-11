@@ -53,7 +53,7 @@ if (process.argv[2] === 'child') {
     stdout += chunk;
   });
   let stderr = '';
-  cp.stdout.setEncoding('utf8');
+  cp.stderr.setEncoding('utf8');
   cp.stderr.on('data', (chunk) => {
     stderr += chunk;
   });
