@@ -187,7 +187,7 @@ any other entry points besides those defined in `"exports"`. If package entry
 points are defined in both `"main"` and `"exports"`, the latter takes precedence
 in versions of Node.js that support `"exports"`. [Conditional Exports][] can
 also be used within `"exports"` to define different package entry points per
-environment.
+environment, including whether the package is referenced via `require` or via `import`.
 
 If both `"exports"` and `"main"` are defined, the `"exports"` field takes
 precedence over `"main"`.
