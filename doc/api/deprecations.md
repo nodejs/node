@@ -2697,6 +2697,46 @@ The `repl` module exports a `_builtinLibs` property that contains an array with
 native modules. It was incomplete so far and instead it's better to rely upon
 `require('module').builtinModules`.
 
+<a id="DEP0143"></a>
+### DEP0143: `module.parent`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32217
+    description: Runtime deprecation.
+-->
+A CJS module can access the first module that required it using `module.parent`.
+This feature does not work when a module is imported using ECMAScript modules
+specification, therefore it is deprecated.
+
+Some modules use it to check if they are the entry point of the current process.
+Instead, it is recommended to compare `require.main` and `module`:
+
+```js
+if (require.main === module) {
+  // CLI code runs here
+}
+```
+
+When looking for the CJS modules that have required the current one,
+`module.children` can be used:
+
+```js
+const moduleParents = [];
+function findCurrentModuleParents(moduleParent = require.main) {
+  if (moduleParent === undefined) {
+    // If the entry point is not CJS (E.G.: REPL or ESM), this function is no op
+    return;
+  }
+  const { children } = moduleParent;
+  if (children.includes(module)) {
+    moduleParents.push(moduleParent);
+  }
+  children.forEach(findCurrentModuleParents);
+}
+findCurrentModuleParents();
+```
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
