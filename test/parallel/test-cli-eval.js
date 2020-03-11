@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-if (module.parent) {
+if (module !== require.main) {
   // Signal we've been loaded as a module.
   // The following console.log() is part of the test.
   console.log('Loaded as a module, exiting with status code 42.');

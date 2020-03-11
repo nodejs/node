@@ -1,7 +1,7 @@
 /* eslint-disable node-core/require-common-first, node-core/required-modules */
 'use strict';
 
-if (module.parent) {
+if (require.main !== module) {
   const { spawnSync } = require('child_process');
 
   function runModuleAs(filename, flags, spawnOptions, role) {
