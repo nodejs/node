@@ -157,6 +157,8 @@ For information about the governance of the Node.js project, see
 **Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [BethGriggs](https://github.com/BethGriggs) -
 **Beth Griggs** &lt;Bethany.Griggs@uk.ibm.com&gt; (she/her)
+* [BridgeAR](https://github.com/BridgeAR) -
+**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt; (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
 **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [cjihrig](https://github.com/cjihrig) -
