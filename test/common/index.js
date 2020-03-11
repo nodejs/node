@@ -59,12 +59,12 @@ if (process.argv.length === 2 &&
     !process.env.NODE_SKIP_FLAG_CHECK &&
     isMainThread &&
     hasCrypto &&
-    module.parent &&
+    require.main &&
     require('cluster').isMaster) {
   // The copyright notice is relatively big and the flags could come afterwards.
   const bytesToRead = 1500;
   const buffer = Buffer.allocUnsafe(bytesToRead);
-  const fd = fs.openSync(module.parent.filename, 'r');
+  const fd = fs.openSync(require.main.filename, 'r');
   const bytesRead = fs.readSync(fd, buffer, 0, bytesToRead);
   fs.closeSync(fd);
   const source = buffer.toString('utf8', 0, bytesRead);

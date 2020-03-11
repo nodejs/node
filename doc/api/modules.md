@@ -690,7 +690,6 @@ Module {
   id: '.',
   path: '/absolute/path/to',
   exports: {},
-  parent: null,
   filename: '/absolute/path/to/entry.js',
   loaded: false,
   children: [],
@@ -894,11 +893,17 @@ loading.
 ### `module.parent`
 <!-- YAML
 added: v0.1.16
+deprecated: REPLACEME
 -->
 
-* {module}
+> Stability: 0 - Deprecated: Please use [`require.main`][] and
+> [`module.children`][] instead.
 
-The module that first required this one.
+* {module | null | undefined}
+
+The module that first required this one, or `null` if the current module is the
+entry point of the current process, or `undefined` if the module was loaded by
+something that is not a CommonJS module (E.G.: REPL or `import`). Read only.
 
 ### `module.path`
 <!-- YAML
@@ -1122,6 +1127,7 @@ consists of the following keys:
 [`createRequire()`]: #modules_module_createrequire_filename
 [`module` object]: #modules_the_module_object
 [`module.id`]: #modules_module_id
+[`module.children`]: #modules_module_children
 [`path.dirname()`]: path.html#path_path_dirname_path
 [ECMAScript Modules]: esm.html
 [an error]: errors.html#errors_err_require_esm
@@ -1129,6 +1135,7 @@ consists of the following keys:
 [module resolution]: #modules_all_together
 [module wrapper]: #modules_the_module_wrapper
 [native addons]: addons.html
+[`require.main`]: #modules_require_main
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [`--enable-source-maps`]: cli.html#cli_enable_source_maps
 [`NODE_V8_COVERAGE=dir`]: cli.html#cli_node_v8_coverage_dir
