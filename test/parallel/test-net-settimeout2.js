@@ -25,9 +25,11 @@ const { performance } = require('perf_hooks');
       socket.setTimeout(1000);
     }, 500);
 
-    socket.on('timeout', () => {
+    socket.on('timeout', common.mustCall(() => {
       const elapsed = performance.now() - start;
       assert(elapsed < 1100);
-    });
+      server.close();
+      socket.destroy();
+    }));
   });
 }
