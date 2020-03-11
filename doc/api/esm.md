@@ -202,7 +202,7 @@ throws an error in all versions of Node.js. To create a package that works both
 in modern Node.js via `import` and `require` and also legacy Node.js versions,
 see [the dual CommonJS/ES module packages section][].
 
-#### Package Exports Main
+#### Main Entry Point Export
 
 To set the main entry point for a package, it is advisable to define both
 `"exports"` and `"main"` in the package’s `package.json` file:
