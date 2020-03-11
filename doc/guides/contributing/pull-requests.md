@@ -121,7 +121,7 @@ included in the API docs will also be checked when running `make lint` (or
 use `REPLACEME` for the version number in the documentation YAML.
 
 For contributing C++ code, you may want to look at the
-[C++ Style Guide](../../cpp-style-guide.md), as well as the
+[C++ Style Guide](../cpp-style-guide.md), as well as the
 [README of `src/`](../../../src/README.md) for an overview over Node.js
 C++ internals.
 
@@ -582,14 +582,14 @@ If you want to know more about the code review and the landing process, see the
 [Collaborator Guide][].
 
 [approved]: #getting-approvals-for-your-pull-request
-[benchmark results]: ../../../benchmark/writing-and-running-benchmarks.md
+[benchmark results]: ../writing-and-running-benchmarks.md
 [Building guide]: ../../../BUILDING.md
 [CI (Continuous Integration) test run]: #ci-testing
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
-[Collaborator Guide]: ../../../COLLABORATOR_GUIDE.md
+[Collaborator Guide]: ../collaborator-guide.md
 [guide for writing tests in Node.js]: ../writing-tests.md
 [hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 [https://ci.nodejs.org/]: https://ci.nodejs.org/
 [IRC in the #node-dev channel]: https://webchat.freenode.net?channels=node-dev&uio=d4
-[Onboarding guide]: ../../onboarding.md
+[Onboarding guide]: ../../../onboarding.md
 [running tests]: ../../../BUILDING.md#running-tests
