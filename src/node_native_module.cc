@@ -87,23 +87,20 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "crypto",
       "https",
       "http2",
-#if !defined(NODE_EXPERIMENTAL_QUIC)
-      "quic",
-#endif
       "tls",
       "_tls_common",
       "_tls_wrap",
       "internal/http2/core",
       "internal/http2/compat",
-#if !defined(NODE_EXPERIMENTAL_QUIC)
-      "internal/quic/core",
-      "internal/quic/util",
-#endif
       "internal/policy/manifest",
       "internal/process/policy",
       "internal/streams/lazy_transform",
 #endif  // !HAVE_OPENSSL
-
+#if !defined(NODE_EXPERIMENTAL_QUIC)
+      "quic",
+      "internal/quic/core",
+      "internal/quic/util",
+#endif
       "sys",  // Deprecated.
       "wasi",  // Experimental.
       "internal/test/binding",

@@ -1695,6 +1695,13 @@ TBD
 
 TBD
 
+<a id="ERR_QUIC_UNAVAILABLE"></a>
+### `ERR_QUIC_UNAVAILABLE`
+
+> Stabililty: 1 - Experimental
+
+TBD
+
 <a id="ERR_QUICCLIENTSESSION_FAILED"></a>
 ### `ERR_QUICCLIENTSESSION_FAILED`
 
