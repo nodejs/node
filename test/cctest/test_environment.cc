@@ -306,3 +306,144 @@ TEST_F(EnvironmentTest, BufferWithFreeCallbackIsDetached) {
   CHECK_EQ(callback_calls, 1);
   CHECK_EQ(ab->ByteLength(), 0);
 }
+
+#if HAVE_INSPECTOR
+TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
+  // Tests that child Environments can be created through the public API
+  // that are accessible by the inspector.
+  // This test sets a global variable in the child Environment, and reads it
+  // back both through the inspector and inside the child Environment, and
+  // makes sure that those correspond to the value that was originally set.
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env {handle_scope, argv};
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  node::LoadEnvironment(*env,
+      "'use strict';\n"
+      "const { Worker } = require('worker_threads');\n"
+      "const { Session } = require('inspector');\n"
+
+      "const session = new Session();\n"
+      "session.connect();\n"
+      "session.on('NodeWorker.attachedToWorker', (\n"
+      "  ({ params: { workerInfo, sessionId } }) => {\n"
+      "    session.post('NodeWorker.sendMessageToWorker', {\n"
+      "      sessionId,\n"
+      "      message: JSON.stringify({\n"
+      "        id: 1,\n"
+      "        method: 'Runtime.evaluate',\n"
+      "        params: {\n"
+      "          expression: 'global.variableFromParent = 42;'\n"
+      "        }\n"
+      "      })\n"
+      "    });\n"
+      "    session.on('NodeWorker.receivedMessageFromWorker',\n"
+      "      ({ params: { message } }) => {\n"
+      "        global.messageFromWorker = \n"
+      "          JSON.parse(message).result.result.value;\n"
+      "      });\n"
+      "  }));\n"
+      "session.post('NodeWorker.enable', { waitForDebuggerOnStart: false });\n")
+          .ToLocalChecked();
+
+  struct ChildEnvironmentData {
+    node::ThreadId thread_id;
+    std::unique_ptr<node::InspectorParentHandle> inspector_parent_handle;
+    node::MultiIsolatePlatform* platform;
+    int32_t extracted_value = -1;
+    uv_async_t thread_stopped_async;
+  };
+
+  ChildEnvironmentData data;
+  data.thread_id = node::AllocateEnvironmentThreadId();
+  data.inspector_parent_handle =
+      GetInspectorParentHandle(*env, data.thread_id, "file:///embedded.js");
+  CHECK(data.inspector_parent_handle);
+  data.platform = GetMultiIsolatePlatform(*env);
+  CHECK_NOT_NULL(data.platform);
+
+  bool thread_stopped = false;
+  int err = uv_async_init(
+      &current_loop, &data.thread_stopped_async, [](uv_async_t* async) {
+        *static_cast<bool*>(async->data) = true;
+        uv_close(reinterpret_cast<uv_handle_t*>(async), nullptr);
+      });
+  CHECK_EQ(err, 0);
+  data.thread_stopped_async.data = &thread_stopped;
+
+  uv_thread_t thread;
+  err = uv_thread_create(&thread, [](void* arg) {
+    ChildEnvironmentData* data = static_cast<ChildEnvironmentData*>(arg);
+    std::shared_ptr<node::ArrayBufferAllocator> aba =
+        node::ArrayBufferAllocator::Create();
+    uv_loop_t loop;
+    uv_loop_init(&loop);
+    v8::Isolate* isolate = NewIsolate(aba, &loop, data->platform);
+    CHECK_NOT_NULL(isolate);
+
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+
+      v8::Local<v8::Context> context = node::NewContext(isolate);
+      CHECK(!context.IsEmpty());
+      v8::Context::Scope context_scope(context);
+
+      node::IsolateData* isolate_data = node::CreateIsolateData(
+          isolate,
+          &loop,
+          data->platform);
+      CHECK_NOT_NULL(isolate_data);
+      node::Environment* environment = node::CreateEnvironment(
+          isolate_data,
+          context,
+          { "dummy" },
+          {},
+          node::EnvironmentFlags::kNoFlags,
+          data->thread_id);
+      CHECK_NOT_NULL(environment);
+
+      v8::Local<v8::Value> extracted_value = LoadEnvironment(
+          environment,
+          "return global.variableFromParent;",
+          std::move(data->inspector_parent_handle)).ToLocalChecked();
+
+      uv_run(&loop, UV_RUN_DEFAULT);
+      CHECK(extracted_value->IsInt32());
+      data->extracted_value = extracted_value.As<v8::Int32>()->Value();
+
+      node::FreeEnvironment(environment);
+      node::FreeIsolateData(isolate_data);
+    }
+
+    data->platform->UnregisterIsolate(isolate);
+    isolate->Dispose();
+    uv_run(&loop, UV_RUN_DEFAULT);
+    CHECK_EQ(uv_loop_close(&loop), 0);
+
+    uv_async_send(&data->thread_stopped_async);
+  }, &data);
+  CHECK_EQ(err, 0);
+
+  bool more;
+  do {
+    uv_run(&current_loop, UV_RUN_DEFAULT);
+    data.platform->DrainTasks(isolate_);
+    more = uv_loop_alive(&current_loop);
+  } while (!thread_stopped || more);
+
+  uv_thread_join(&thread);
+
+  v8::Local<v8::Value> from_inspector =
+      context->Global()->Get(
+          context,
+          v8::String::NewFromOneByte(
+              isolate_,
+              reinterpret_cast<const uint8_t*>("messageFromWorker"),
+              v8::NewStringType::kNormal).ToLocalChecked())
+              .ToLocalChecked();
+  CHECK_EQ(data.extracted_value, 42);
+  CHECK_EQ(from_inspector->IntegerValue(context).FromJust(), 42);
+}
+#endif  // HAVE_INSPECTOR
