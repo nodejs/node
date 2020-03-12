@@ -801,6 +801,18 @@ property:
 
 ## Differences Between ES Modules and CommonJS
 
+### Absolute file paths don't work on Windows
+
+Note that `import` accepts _absolute specifiers_. These are similar to _absolute paths_ on linux and MacOS, and therefore they are also accepted. But on Windows, importing an _absolute path_ to a file will not work. Therefore, to ensure cross platform compatibility, be sure to turn your file paths into urls, like so:
+
+```
+import { pathToFileURL } from 'url';
+
+const fileUrl = pathToFileURL(...your path here...).href;
+
+await import(fileUrl)
+```
+
 ### Mandatory file extensions
 
 A file extension must be provided when using the `import` keyword. Directory
