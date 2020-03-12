@@ -2622,7 +2622,7 @@ async function openAndClose() {
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32232
     description: Documentation-only deprecation.
 -->
 
