@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const Countdown = require('../common/countdown');
 
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -40,10 +41,13 @@ const server = https.Server(options, function(req, res) {
   res.end('hello world\n');
 });
 
-
 let responses = 0;
 const N = 4;
 const M = 4;
+
+const cd = new Countdown(N * M, () => {
+  server.close();
+});
 
 
 server.listen(0, function() {
@@ -57,7 +61,8 @@ server.listen(0, function() {
         }, function(res) {
           res.resume();
           assert.strictEqual(res.statusCode, 200);
-          if (++responses === N * M) server.close();
+          ++responses;
+          cd.dec();
         }).on('error', function(e) {
           throw e;
         });
