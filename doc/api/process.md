@@ -1499,7 +1499,10 @@ debugger. See [Signal Events][].
 ## `process.mainModule`
 <!-- YAML
 added: v0.1.17
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`require.main`][] instead.
 
 * {Object}
 

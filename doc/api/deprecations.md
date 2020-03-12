@@ -2617,6 +2617,24 @@ async function openAndClose() {
 }
 ```
 
+<a id="DEP0138"></a>
+### DEP0138: `process.mainModule`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32232
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+[`process.mainModule`][] is a CommonJS-only feature while `process` global
+object is shared with non-CommonJS environment. Its use within ECMAScript
+modules is unsupported.
+
+It is deprecated in favor of [`require.main`][], because it serves the same
+purpose and is only available on CommonJS environment.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2674,8 +2692,10 @@ async function openAndClose() {
 [`os.networkInterfaces()`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
+[`process.mainModule`]: process.html#process_process_mainmodule
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
+[`require.main`]: modules.html#modules_accessing_the_main_module
 [`request.socket`]: http.html#http_request_socket
 [`request.connection`]: http.html#http_request_connection
 [`response.socket`]: http.html#http_response_socket
