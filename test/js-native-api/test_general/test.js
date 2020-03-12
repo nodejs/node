@@ -32,7 +32,7 @@ assert.strictEqual(test_general.testGetPrototype(extendedObject),
 assert.notStrictEqual(test_general.testGetPrototype(baseObject),
                       test_general.testGetPrototype(extendedObject));
 
-// Test version management functions. The expected version is currently 4.
+// Test version management functions
 assert.strictEqual(test_general.testGetVersion(), 6);
 
 [
