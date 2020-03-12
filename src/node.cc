@@ -201,8 +201,8 @@ MaybeLocal<Value> ExecuteBootstrapper(Environment* env,
 int Environment::InitializeInspector(
     std::unique_ptr<inspector::ParentInspectorHandle> parent_handle) {
   std::string inspector_path;
+  bool is_main = !parent_handle;
   if (parent_handle) {
-    DCHECK(!is_main_thread());
     inspector_path = parent_handle->url();
     inspector_agent_->SetParentHandle(std::move(parent_handle));
   } else {
@@ -216,7 +216,7 @@ int Environment::InitializeInspector(
   inspector_agent_->Start(inspector_path,
                           options_->debug_options(),
                           inspector_host_port(),
-                          is_main_thread());
+                          is_main);
   if (options_->debug_options().inspector_enabled &&
       !inspector_agent_->IsListening()) {
     return 12;  // Signal internal error
