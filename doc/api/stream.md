@@ -426,7 +426,7 @@ Calling the `writable.end()` method signals that no more data will be written
 to the [`Writable`][]. The optional `chunk` and `encoding` arguments allow one
 final additional chunk of data to be written immediately before closing the
 stream. If provided, the optional `callback` function is attached as a listener
-for the [`'finish'`][] and the [`'error'`][] event. In the latter case, an error
+for the [`'finish'`][] and the `'error'` event. In the latter case, an error
 object will be passed to the `callback` function.
 
 Calling the [`stream.write()`][stream-write] method after calling
