@@ -13,7 +13,7 @@ const { Worker } = require('worker_threads');
   assert.throws(() => { new Worker('/b'); }, expectedErr);
   assert.throws(() => { new Worker('/c.wasm'); }, expectedErr);
   assert.throws(() => { new Worker('/d.txt'); }, expectedErr);
-  assert.throws(() => { new Worker(new URL('file:///e.wasm')); }, expectedErr);
+  assert.throws(() => { new Worker(new URL('file:///C:/e.wasm')); }, expectedErr);
 }
 
 {
