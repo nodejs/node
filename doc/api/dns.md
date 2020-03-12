@@ -7,11 +7,12 @@
 The `dns` module enables name resolution. For example, use it to look up IP
 addresses of host names.
 
-Although named for the Domain Name System (DNS), it does not always use the DNS
-protocol for lookups. [`dns.lookup()`][] uses the operating system facilities to
-perform name resolution. It may not need to perform any network communication.
-Developers looking to perform name resolution in the same way that other
-applications on the same operating system behave should use [`dns.lookup()`][].
+Although named for the [Domain Name System (DNS)][], it does not always use the
+DNS protocol for lookups. [`dns.lookup()`][] uses the operating system
+facilities to perform name resolution. It may not need to perform any network
+communication. Developers looking to perform name resolution in the same way
+that other applications on the same operating system behave should use
+[`dns.lookup()`][].
 
 ```js
 const dns = require('dns');
@@ -1172,6 +1173,7 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [`socket.connect()`]: net.html#net_socket_connect_options_connectlistener
 [`util.promisify()`]: util.html#util_util_promisify_original
 [DNS error codes]: #dns_error_codes
+[Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
 [Implementation considerations section]: #dns_implementation_considerations
 [RFC 8482]: https://tools.ietf.org/html/rfc8482
 [RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
