@@ -458,13 +458,14 @@ MaybeLocal<Value> LoadEnvironment(
             String::NewFromUtf8(env->isolate(),
                                 main_script_source_utf8,
                                 v8::NewStringType::kNormal).ToLocalChecked();
-        String::Value main_utf16(env->isolate(), str);
+        auto main_utf16 = std::make_unique<String::Value>(env->isolate(), str);
 
         // TODO(addaleax): Avoid having a global table for all scripts.
         std::string name = "embedder_main_" + std::to_string(env->thread_id());
         native_module::NativeModuleEnv::Add(
             name.c_str(),
-            UnionBytes(*main_utf16, main_utf16.length()));
+            UnionBytes(**main_utf16, main_utf16->length()));
+        env->set_main_utf16(std::move(main_utf16));
         std::vector<Local<String>> params = {
             env->process_string(),
             env->require_string()};
