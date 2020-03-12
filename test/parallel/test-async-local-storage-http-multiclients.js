@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const Countdown = require('../common/countdown');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 const http = require('http');
@@ -20,6 +21,10 @@ const server = http.createServer((q, r) => {
   // may be sent in a single chunk, and the callback in the
   // client may be called only once, defeating the purpose of test
   r.end((index++ % 10).toString().repeat(1024 * 1024));
+});
+
+const countdown = new Countdown(NUM_CLIENTS, () => {
+  server.close();
 });
 
 server.listen(0, common.mustCall(() => {
@@ -51,13 +56,10 @@ function ondata(d) {
 }
 
 // Retrieve the store data, and test for homogeneity
-let endCount = 0;
 function onend() {
   const store = cls.getStore();
   assert.notStrictEqual(store, undefined);
   const data = store.get('data');
   assert.strictEqual(data, data[0].repeat(data.length));
-  if (++endCount === NUM_CLIENTS) {
-    server.close();
-  }
+  countdown.dec();
 }
