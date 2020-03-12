@@ -194,8 +194,9 @@ environment, including whether the package is referenced via `require` or via
 If both `"exports"` and `"main"` are defined, the `"exports"` field takes
 precedence over `"main"`.
 
-Both `"main"` and `"exports"` entry points are not specific to ES modules or CommonJS;
-`"main"` will be overridden by `"exports"` in a `require` so it is not a CommonJS fallback.
+Both `"main"` and `"exports"` entry points are not specific to ES modules or
+CommonJS; `"main"` will be overridden by `"exports"` in a `require` so it is
+not a CommonJS fallback.
 
 This is important with regard to `require`, since `require` of ES module files
 throws an error in all versions of Node.js. To create a package that works both
@@ -849,8 +850,8 @@ can either be an URL-style relative path like `'./file.mjs'` or a package name
 like `'fs'`.
 
 Like in CommonJS, files within packages can be accessed by appending a path to
-the package name; unless the package’s `package.json` contains an [`"exports"`
-field][], in which case files within packages need to be accessed via the path
+the package name; unless the package’s `package.json` contains an `"exports"`
+field, in which case files within packages need to be accessed via the path
 defined in `"exports"`.
 
 ```js
