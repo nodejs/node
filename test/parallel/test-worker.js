@@ -8,7 +8,7 @@ if (isMainThread) {
   w.on('message', common.mustCall((message) => {
     assert.strictEqual(message, 'Hello, world!');
   }));
-  w.on('error', (errr) => {
+  w.on('error', (err) => {
     assert.fail(`worker failed unexpectedly: ${err}`);
   });
 } else {
