@@ -3,7 +3,6 @@
 
 // Test producing a report via API call, using the no-hooks/no-signal interface.
 const common = require('../common');
-common.skipIfReportDisabled();
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fs = require('fs');
