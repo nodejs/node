@@ -29,7 +29,9 @@
 #include "util.h"
 #include "uv.h"
 
-#include <fcntl.h>  // _O_RDWR
+#if defined(__linux__)
+#include <link.h>
+#endif
 #include <sys/types.h>
 #include <sys/mman.h>
 #if defined(__FreeBSD__)
@@ -38,12 +40,11 @@
 #elif defined(__APPLE__)
 #include <mach/vm_map.h>
 #endif
-#include <unistd.h>  // readlink
+#include <unistd.h>  // getpid
 
 #include <climits>  // PATH_MAX
 #include <clocale>
 #include <csignal>
-#include <cstdio>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
@@ -110,72 +111,56 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
   return ((addr) & ~((hps) - 1));
 }
 
-// The format of the maps file is the following
-// address           perms offset  dev   inode       pathname
-// 00400000-00452000 r-xp 00000000 08:02 173521      /usr/bin/dbus-daemon
-// This is also handling the case where the first line is not the binary.
+struct dl_iterate_params {
+  uintptr_t start;
+  uintptr_t end;
+  uintptr_t reference_sym;
+};
 
 struct text_region FindNodeTextRegion() {
   struct text_region nregion;
   nregion.found_text_region = false;
 #if defined(__linux__)
-  std::ifstream ifs;
-  std::string map_line;
-  std::string permission;
-  std::string dev;
-  char dash;
-  uintptr_t start, end, offset, inode;
-  uintptr_t node_text_start = reinterpret_cast<uintptr_t>(&__node_text_start);
+  dl_iterate_params dl_params = {
+    0, 0, reinterpret_cast<uintptr_t>(&__node_text_start)
+  };
   uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
 
-  ifs.open("/proc/self/maps");
-  if (!ifs) {
-    PrintWarning("could not open /proc/self/maps");
-    return nregion;
+  if (dl_iterate_phdr([](struct dl_phdr_info* info, size_t, void* data) -> int {
+    if (info->dlpi_name[0] == 0) {
+      for (int idx = 0; idx < info->dlpi_phnum; idx++) {
+        const ElfW(Phdr)* phdr = &info->dlpi_phdr[idx];
+        if (phdr->p_type == PT_LOAD && phdr->p_flags & PF_X) {
+          auto dl_params = reinterpret_cast<dl_iterate_params*>(data);
+          uintptr_t start = info->dlpi_addr + phdr->p_vaddr;
+          uintptr_t end = start + phdr->p_memsz;
+
+          if (dl_params->reference_sym >= start &&
+              dl_params->reference_sym <= end) {
+            dl_params->start = start;
+            dl_params->end = end;
+            return 1;
+          }
+        }
+      }
+    }
+    return 0;
+  }, &dl_params) == 1) {
+    dl_params.start = dl_params.reference_sym;
+    if (lpstub_start > dl_params.start && lpstub_start <= dl_params.end)
+      dl_params.end = lpstub_start;
+
+    if (dl_params.start < dl_params.end) {
+      char* from = reinterpret_cast<char*>(hugepage_align_up(dl_params.start));
+      char* to = reinterpret_cast<char*>(hugepage_align_down(dl_params.end));
+
+      size_t size = to - from;
+      nregion.found_text_region = true;
+      nregion.from = from;
+      nregion.to = to;
+      nregion.total_hugepages = size / hps;
+    }
   }
-
-  while (std::getline(ifs, map_line)) {
-    std::istringstream iss(map_line);
-    iss >> std::hex >> start;
-    iss >> dash;
-    iss >> std::hex >> end;
-    iss >> permission;
-    iss >> offset;
-    iss >> dev;
-    iss >> inode;
-
-    if (inode == 0)
-      continue;
-
-    std::string pathname;
-    iss >> pathname;
-
-    if (permission != "r-xp")
-      continue;
-
-    if (node_text_start < start || node_text_start >= end)
-      continue;
-
-    start = node_text_start;
-    if (lpstub_start > start && lpstub_start <= end)
-      end = lpstub_start;
-
-    char* from = reinterpret_cast<char*>(hugepage_align_up(start));
-    char* to = reinterpret_cast<char*>(hugepage_align_down(end));
-
-    if (from >= to)
-      break;
-
-    size_t size = to - from;
-    nregion.found_text_region = true;
-    nregion.from = from;
-    nregion.to = to;
-    nregion.total_hugepages = size / hps;
-
-    break;
-  }
-
-  ifs.close();
 #elif defined(__FreeBSD__)
   std::string exename;
   {
