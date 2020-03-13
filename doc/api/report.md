@@ -419,6 +419,10 @@ that leads to termination of the application. Useful to inspect various
 diagnostic data elements such as heap, stack, event loop state, resource
 consumption etc. to reason about the fatal error.
 
+* `--report-compact` Write reports in a compact format, single-line JSON, more
+easily consumable by log processing systems than the default multi-line format
+designed for human consumption.
+
 * `--report-directory` Location at which the report will be
 generated.
 
