@@ -21,8 +21,7 @@ if (process.argv[2] === 'child') {
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const spawn = require('child_process').spawn;
-  const args = ['--experimental-report',
-                '--report-on-fatalerror',
+  const args = ['--report-on-fatalerror',
                 '--max-old-space-size=20',
                 __filename,
                 'child'];
