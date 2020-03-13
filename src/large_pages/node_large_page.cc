@@ -130,7 +130,7 @@ struct text_region FindNodeTextRegion() {
     if (info->dlpi_name[0] == 0) {
       for (int idx = 0; idx < info->dlpi_phnum; idx++) {
         const ElfW(Phdr)* phdr = &info->dlpi_phdr[idx];
-        if (phdr->p_type == PT_LOAD && phdr->p_flags & PF_X) {
+        if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X)) {
           auto dl_params = reinterpret_cast<dl_iterate_params*>(data);
           uintptr_t start = info->dlpi_addr + phdr->p_vaddr;
           uintptr_t end = start + phdr->p_memsz;
