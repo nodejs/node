@@ -1,43 +1,85 @@
-c-ares version 1.15.0
+c-ares version 1.16.0
 
 Changes:
- o Add ares_init_options() configurability for path to resolv.conf file [1]
- o Ability to exclude building of tools (adig, ahost, acountry) in CMake [3]
- o Android: Support for domain search suffix [4]
- o Report ARES_ENOTFOUND for .onion domain names as per RFC7686. [13]
+ o Introduction of ares_getaddrinfo() API which provides similar output
+   (including proper sorting as per RFC 6724) to the system native API, but
+   utilizes different data structures in order to provide additional information
+   such as TTLs and all aliases.  Please reference the respective man pages for
+   usage details. [3] [4] [5] [7] [8] [13] [14] [15] [16] [17] [22]
+ o Parse SOA records from ns_t_any response [29] [30]
+ o CMake: Provide c-ares version in package export file [24]
+ o CMake: Add CPACK functionality for DEB and RPM [28]
+ o CMake: Generate PDB files during build [33] [34]
+ o CMake: Support manpage installation [37] [38]
 
 Bug fixes:
- o AIX build fix for trying to include both nameser_compat.h and
-   onameser_compat.h [2]
- o Windows: Improve DNS suffixes extracting from WinNT registry [5]
- o Fix modern GCC warnings [6]
- o Apply the IPv6 server blacklist to all nameserver sources, not just Windows
-   [7]
- o Fix warnings emitted by MSVC when using -W4 [8]
- o Prevent changing name servers while queries are outstanding [9]
- o Harden and rationalize c-ares timeout computation [10]
- o Distribute ares_android.h [11]
- o ares_set_servers_csv() on failure should not leave channel in a bad state
-   [12]
- o Add missing docs to distribution
+ o Fix bad expectation in IPv6 localhost test. [1] [2]
+ o AutoTools: use XC_CHECK_BUILD_FLAGS instead of XC_CHECK_USER_FLAGS to prevent
+   complaints about CPPFLAGS in CFLAGS. [6]
+ o Fix .onion handling
+ o Command line usage was out of date for adig and ahost. [18]
+ o Typos in manpages [19] [20]
+ o If ares_getenv is defined, it must return a value on all platforms [21]
+ o If /etc/resolv.conf has invalid lookup values, use the defaults. [23]
+ o Tests: Separate live tests from SetServers* tests as only live tests should
+   require internet access. [25]
+ o ares_gethostbyname() should return ENODATA if no valid A or AAAA record is
+   found, but a CNAME was found. [26] [27]
+ o CMake: Rework library function checking to prevent unintended linking with
+   system libraries that aren't needed. [31] [32]
+ o Due to use of inet_addr() it was not possible to return 255.255.255.255 from
+   ares_gethostbyname(). [35] [36]
+ o CMake: Fix building of tests on Windows
 
 Thanks go to these friendly people for their efforts and contributions:
-  @afalin, Andi Schnebinger, Ben Noordhuis, Brad House, Brad Spencer,
-  David Hotham, @flyingdutchman23, John Schember, Ruslan Baratov,
-  Sarat Addepalli, Tobias Nießen (11 contributors)
+ Abhishek Arya (@inferno-chromium), Adam Majer (@AdamMajer),
+ Andrew Selivanov (@ki11roy), Ben Noordhuis (@bnoordhuis),
+ Brad House (@bradh352), Christian Ammer (@ChristianAmmer), Dan Noé (@dnoe),
+ Daniel Stenberg (@bagder), Darrin Cullop (@dwcullop),
+ Dron Rathore (@DronRathore), Fabrice Fontaine (@ffontaine),
+ Gregor Jasny (@gjasny), @kedixa, Khaidi Chu (@XadillaX),
+ Kyle Edwards (@KyleFromKitware), @lifenjoiner, Michal Rostecki (@mrostecki),
+ Peter Eisentraut (@petere), Piotr Pietraszkiewicz (@ppietrasa),
+ Stephen Bryant (@bf-bryants), @tjwalton, Vy Nguyen (@oontvoo)
+ (22 contributors)
 
 References to bug reports and discussions on issues:
- [1] = https://github.com/c-ares/c-ares/issues/220
- [2] = https://github.com/c-ares/c-ares/issues/224
- [3] = https://github.com/c-ares/c-ares/issues/200
- [4] = https://github.com/c-ares/c-ares/issues/207
- [5] = https://github.com/c-ares/c-ares/pull/202
- [6] = https://github.com/c-ares/c-ares/pull/201
- [7] = https://github.com/c-ares/c-ares/pull/193
- [8] = https://github.com/c-ares/c-ares/pull/192
- [9] = https://github.com/c-ares/c-ares/pull/191
+ [1] = https://github.com/c-ares/c-ares/pull/227
+ [2] = https://github.com/c-ares/c-ares/issues/85
+ [3] = https://github.com/c-ares/c-ares/pull/112
+ [4] = https://github.com/c-ares/c-ares/pull/233
+ [5] = https://github.com/c-ares/c-ares/pull/234
+ [6] = https://github.com/c-ares/c-ares/pull/236
+ [7] = https://github.com/c-ares/c-ares/pull/235
+ [8] = https://github.com/c-ares/c-ares/pull/239
+ [9] = https://github.com/c-ares/c-ares/pull/241
  [10] = https://github.com/c-ares/c-ares/pull/187
- [11] = https://c-ares.haxx.se/mail/c-ares-archive-2018-04/0000.shtml
- [12] = https://c-ares.haxx.se/mail/c-ares-archive-2018-03/0000.shtml
- [13] = https://github.com/c-ares/c-ares/issues/196
+ [11] = https://github.com/c-ares/c-ares/pull/252
+ [12] = https://github.com/c-ares/c-ares/issues/251
+ [13] = https://github.com/c-ares/c-ares/pull/258
+ [14] = https://github.com/c-ares/c-ares/pull/257
+ [15] = https://github.com/c-ares/c-ares/pull/262
+ [16] = https://github.com/c-ares/c-ares/pull/264
+ [17] = https://github.com/c-ares/c-ares/pull/265
+ [18] = https://github.com/c-ares/c-ares/pull/256
+ [19] = https://github.com/c-ares/c-ares/pull/269
+ [20] = https://github.com/c-ares/c-ares/pull/275
+ [21] = https://github.com/c-ares/c-ares/pull/279
+ [22] = https://github.com/c-ares/c-ares/pull/290
+ [23] = https://github.com/c-ares/c-ares/pull/274
+ [24] = https://github.com/c-ares/c-ares/pull/296
+ [25] = https://github.com/c-ares/c-ares/pull/299
+ [26] = https://github.com/c-ares/c-ares/pull/304
+ [27] = https://github.com/c-ares/c-ares/issues/303
+ [28] = https://github.com/c-ares/c-ares/pull/283
+ [29] = https://github.com/c-ares/c-ares/pull/103
+ [30] = https://github.com/c-ares/c-ares/issues/102
+ [31] = https://github.com/c-ares/c-ares/pull/310
+ [32] = https://github.com/c-ares/c-ares/issues/307
+ [33] = https://github.com/c-ares/c-ares/pull/311
+ [34] = https://github.com/c-ares/c-ares/issues/245
+ [35] = https://github.com/c-ares/c-ares/issues/309
+ [36] = https://github.com/c-ares/c-ares/pull/312
+ [37] = https://github.com/c-ares/c-ares/issues/297
+ [38] = https://github.com/c-ares/c-ares/pull/314
 

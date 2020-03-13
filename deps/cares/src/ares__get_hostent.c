@@ -138,8 +138,7 @@ int ares__get_hostent(FILE *fp, int family, struct hostent **host)
       addr.addrV4.s_addr = INADDR_NONE;
       if ((family == AF_INET) || (family == AF_UNSPEC))
         {
-          addr.addrV4.s_addr = inet_addr(txtaddr);
-          if (addr.addrV4.s_addr != INADDR_NONE)
+          if (ares_inet_pton(AF_INET, txtaddr, &addr.addrV4) > 0)
             {
               /* Actual network address family and length. */
               addr.family = AF_INET;

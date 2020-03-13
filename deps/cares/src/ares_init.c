@@ -1543,8 +1543,6 @@ static int init_by_resolv_conf(ares_channel channel)
 
 #elif defined(ANDROID) || defined(__ANDROID__)
   unsigned int i;
-  char propname[PROP_NAME_MAX];
-  char propvalue[PROP_VALUE_MAX]="";
   char **dns_servers;
   char *domains;
   size_t num_servers;
@@ -1587,6 +1585,8 @@ static int init_by_resolv_conf(ares_channel channel)
    * We'll only run this if we don't have any dns servers
    * because this will get the same ones (if it works). */
   if (status != ARES_EOF) {
+    char propname[PROP_NAME_MAX];
+    char propvalue[PROP_VALUE_MAX]="";
     for (i = 1; i <= MAX_DNS_PROPERTIES; i++) {
       snprintf(propname, sizeof(propname), "%s%u", DNS_PROP_NAME_PREFIX, i);
       if (__system_property_get(propname, propvalue) < 1) {
@@ -2024,6 +2024,7 @@ static int config_lookup(ares_channel channel, const char *str,
 {
   char lookups[3], *l;
   const char *vqualifier p;
+  int found;
 
   if (altbindch == NULL)
     altbindch = bindch;
@@ -2034,17 +2035,21 @@ static int config_lookup(ares_channel channel, const char *str,
    */
   l = lookups;
   p = str;
+  found = 0;
   while (*p)
     {
       if ((*p == *bindch || *p == *altbindch || *p == *filech) && l < lookups + 2) {
         if (*p == *bindch || *p == *altbindch) *l++ = 'b';
         else *l++ = 'f';
+        found = 1;
       }
       while (*p && !ISSPACE(*p) && (*p != ','))
         p++;
       while (*p && (ISSPACE(*p) || (*p == ',')))
         p++;
     }
+  if (!found)
+    return ARES_ENOTINITIALIZED;
   *l = '\0';
   channel->lookups = ares_strdup(lookups);
   return (channel->lookups) ? ARES_SUCCESS : ARES_ENOMEM;
@@ -2418,9 +2423,9 @@ static int ip_addr(const char *ipbuf, ares_ssize_t len, struct in_addr *addr)
   if (len > 15)
     return -1;
 
-  addr->s_addr = inet_addr(ipbuf);
-  if (addr->s_addr == INADDR_NONE && strcmp(ipbuf, "255.255.255.255") != 0)
+  if (ares_inet_pton(AF_INET, ipbuf, addr) < 1)
     return -1;
+
   return 0;
 }
 

@@ -1,6 +1,7 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  * Copyright 2005 Dominick Meglio
+ * Copyright (C) 2019 by Andrew Selivanov
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -52,213 +53,165 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
                           struct hostent **host, struct ares_addr6ttl *addrttls,
                           int *naddrttls)
 {
-  unsigned int qdcount, ancount;
-  int status, i, rr_type, rr_class, rr_len, rr_ttl, naddrs;
-  int cname_ttl = INT_MAX;  /* the TTL imposed by the CNAME chain */
-  int naliases;
-  long len;
-  const unsigned char *aptr;
-  char *hostname, *rr_name, *rr_data, **aliases;
-  struct ares_in6_addr *addrs;
-  struct hostent *hostent;
-  const int max_addr_ttls = (addrttls && naddrttls) ? *naddrttls : 0;
+  struct ares_addrinfo ai;
+  struct ares_addrinfo_node *next;
+  struct ares_addrinfo_cname *next_cname;
+  char **aliases = NULL;
+  char *question_hostname = NULL;
+  struct hostent *hostent = NULL;
+  struct ares_in6_addr *addrs = NULL;
+  int naliases = 0, naddrs = 0, alias = 0, i;
+  int cname_ttl = INT_MAX;
+  int status;
 
-  /* Set *host to NULL for all failure cases. */
-  if (host)
-    *host = NULL;
-  /* Same with *naddrttls. */
-  if (naddrttls)
-    *naddrttls = 0;
+  memset(&ai, 0, sizeof(ai));
 
-  /* Give up if abuf doesn't have room for a header. */
-  if (alen < HFIXEDSZ)
-    return ARES_EBADRESP;
-
-  /* Fetch the question and answer count from the header. */
-  qdcount = DNS_HEADER_QDCOUNT(abuf);
-  ancount = DNS_HEADER_ANCOUNT(abuf);
-  if (qdcount != 1)
-    return ARES_EBADRESP;
-
-  /* Expand the name from the question, and skip past the question. */
-  aptr = abuf + HFIXEDSZ;
-  status = ares__expand_name_for_response(aptr, abuf, alen, &hostname, &len);
+  status = ares__parse_into_addrinfo2(abuf, alen, &question_hostname, &ai);
   if (status != ARES_SUCCESS)
-    return status;
-  if (aptr + len + QFIXEDSZ > abuf + alen)
     {
-      ares_free(hostname);
-      return ARES_EBADRESP;
-    }
-  aptr += len + QFIXEDSZ;
+      ares_free(question_hostname);
 
-  /* Allocate addresses and aliases; ancount gives an upper bound for both. */
-  if (host)
+      if (naddrttls)
+        {
+          *naddrttls = 0;
+        }
+
+      return status;
+    }
+
+  hostent = ares_malloc(sizeof(struct hostent));
+  if (!hostent)
     {
-      addrs = ares_malloc(ancount * sizeof(struct ares_in6_addr));
-      if (!addrs)
+      goto enomem;
+    }
+
+  next = ai.nodes;
+  while (next)
+    {
+      if(next->ai_family == AF_INET6)
         {
-          ares_free(hostname);
-          return ARES_ENOMEM;
+          ++naddrs;
         }
-      aliases = ares_malloc((ancount + 1) * sizeof(char *));
-      if (!aliases)
+      next = next->ai_next;
+    }
+
+  next_cname = ai.cnames;
+  while (next_cname)
+    {
+      if(next_cname->alias)
+        ++naliases;
+      next_cname = next_cname->next;
+    }
+
+  aliases = ares_malloc((naliases + 1) * sizeof(char *));
+  if (!aliases)
+    {
+      goto enomem;
+    }
+
+  if (naliases)
+    {
+      next_cname = ai.cnames;
+      while (next_cname)
         {
-          ares_free(hostname);
-          ares_free(addrs);
-          return ARES_ENOMEM;
+          if(next_cname->alias)
+            aliases[alias++] = strdup(next_cname->alias);
+          if(next_cname->ttl < cname_ttl)
+            cname_ttl = next_cname->ttl;
+          next_cname = next_cname->next;
         }
+    }
+
+  aliases[alias] = NULL;
+
+  hostent->h_addr_list = ares_malloc((naddrs + 1) * sizeof(char *));
+  if (!hostent->h_addr_list)
+    {
+      goto enomem;
+    }
+
+  for (i = 0; i < naddrs + 1; ++i)
+    {
+      hostent->h_addr_list[i] = NULL;
+    }
+
+  if (ai.cnames)
+    {
+      hostent->h_name = strdup(ai.cnames->name);
+      ares_free(question_hostname);
     }
   else
     {
-      addrs = NULL;
-      aliases = NULL;
-    }
-  naddrs = 0;
-  naliases = 0;
-
-  /* Examine each answer resource record (RR) in turn. */
-  for (i = 0; i < (int)ancount; i++)
-    {
-      /* Decode the RR up to the data field. */
-      status = ares__expand_name_for_response(aptr, abuf, alen, &rr_name, &len);
-      if (status != ARES_SUCCESS)
-        break;
-      aptr += len;
-      if (aptr + RRFIXEDSZ > abuf + alen)
-        {
-          ares_free(rr_name);
-          status = ARES_EBADRESP;
-          break;
-        }
-      rr_type = DNS_RR_TYPE(aptr);
-      rr_class = DNS_RR_CLASS(aptr);
-      rr_len = DNS_RR_LEN(aptr);
-      rr_ttl = DNS_RR_TTL(aptr);
-      aptr += RRFIXEDSZ;
-      if (aptr + rr_len > abuf + alen)
-        {
-          ares_free(rr_name);
-          status = ARES_EBADRESP;
-          break;
-        }
-
-      if (rr_class == C_IN && rr_type == T_AAAA
-          && rr_len == sizeof(struct ares_in6_addr)
-          && strcasecmp(rr_name, hostname) == 0)
-        {
-          if (addrs)
-            {
-              if (aptr + sizeof(struct ares_in6_addr) > abuf + alen)
-              {  /* LCOV_EXCL_START: already checked above */
-                ares_free(rr_name);
-                status = ARES_EBADRESP;
-                break;
-              }  /* LCOV_EXCL_STOP */
-              memcpy(&addrs[naddrs], aptr, sizeof(struct ares_in6_addr));
-            }
-          if (naddrs < max_addr_ttls)
-            {
-              struct ares_addr6ttl * const at = &addrttls[naddrs];
-              if (aptr + sizeof(struct ares_in6_addr) > abuf + alen)
-              {  /* LCOV_EXCL_START: already checked above */
-                ares_free(rr_name);
-                status = ARES_EBADRESP;
-                break;
-              }  /* LCOV_EXCL_STOP */
-              memcpy(&at->ip6addr, aptr,  sizeof(struct ares_in6_addr));
-              at->ttl = rr_ttl;
-            }
-          naddrs++;
-          status = ARES_SUCCESS;
-        }
-
-      if (rr_class == C_IN && rr_type == T_CNAME)
-        {
-          /* Record the RR name as an alias. */
-          if (aliases)
-            aliases[naliases] = rr_name;
-          else
-            ares_free(rr_name);
-          naliases++;
-
-          /* Decode the RR data and replace the hostname with it. */
-          status = ares__expand_name_for_response(aptr, abuf, alen, &rr_data,
-                                                  &len);
-          if (status != ARES_SUCCESS)
-            break;
-          ares_free(hostname);
-          hostname = rr_data;
-
-          /* Take the min of the TTLs we see in the CNAME chain. */
-          if (cname_ttl > rr_ttl)
-            cname_ttl = rr_ttl;
-        }
-      else
-        ares_free(rr_name);
-
-      aptr += rr_len;
-      if (aptr > abuf + alen)
-        {  /* LCOV_EXCL_START: already checked above */
-          status = ARES_EBADRESP;
-          break;
-        }  /* LCOV_EXCL_STOP */
+      hostent->h_name = question_hostname;
     }
 
-  /* the check for naliases to be zero is to make sure CNAME responses
-     don't get caught here */
-  if (status == ARES_SUCCESS && naddrs == 0 && naliases == 0)
-    status = ARES_ENODATA;
-  if (status == ARES_SUCCESS)
+  hostent->h_aliases = aliases;
+  hostent->h_addrtype = AF_INET6;
+  hostent->h_length = sizeof(struct ares_in6_addr);
+
+  if (naddrs)
     {
-      /* We got our answer. */
-      if (naddrttls)
+      addrs = ares_malloc(naddrs * sizeof(struct ares_in6_addr));
+      if (!addrs)
         {
-          const int n = naddrs < max_addr_ttls ? naddrs : max_addr_ttls;
-          for (i = 0; i < n; i++)
-            {
-              /* Ensure that each A TTL is no larger than the CNAME TTL. */
-              if (addrttls[i].ttl > cname_ttl)
-                addrttls[i].ttl = cname_ttl;
-            }
-          *naddrttls = n;
+          goto enomem;
         }
-      if (aliases)
-        aliases[naliases] = NULL;
-      if (host)
+
+      i = 0;
+      next = ai.nodes;
+      while (next)
         {
-          /* Allocate memory to build the host entry. */
-          hostent = ares_malloc(sizeof(struct hostent));
-          if (hostent)
+          if(next->ai_family == AF_INET6)
             {
-              hostent->h_addr_list = ares_malloc((naddrs + 1) * sizeof(char *));
-              if (hostent->h_addr_list)
+              hostent->h_addr_list[i] = (char*)&addrs[i];
+              memcpy(hostent->h_addr_list[i],
+                     &(((struct sockaddr_in6 *)next->ai_addr)->sin6_addr),
+                     sizeof(struct ares_in6_addr));
+              if (naddrttls && i < *naddrttls)
                 {
-                  /* Fill in the hostent and return successfully. */
-                  hostent->h_name = hostname;
-                  hostent->h_aliases = aliases;
-                  hostent->h_addrtype = AF_INET6;
-                  hostent->h_length = sizeof(struct ares_in6_addr);
-                  for (i = 0; i < naddrs; i++)
-                    hostent->h_addr_list[i] = (char *) &addrs[i];
-                  hostent->h_addr_list[naddrs] = NULL;
-                  if (!naddrs && addrs)
-                    ares_free(addrs);
-                  *host = hostent;
-                  return ARES_SUCCESS;
+                    if(next->ai_ttl > cname_ttl)
+                      addrttls[i].ttl = cname_ttl;
+                    else
+                      addrttls[i].ttl = next->ai_ttl;
+
+                    memcpy(&addrttls[i].ip6addr,
+                           &(((struct sockaddr_in6 *)next->ai_addr)->sin6_addr),
+                           sizeof(struct ares_in6_addr));
                 }
-              ares_free(hostent);
+              ++i;
             }
-          status = ARES_ENOMEM;
+          next = next->ai_next;
+        }
+
+      if (i == 0)
+        {
+          ares_free(addrs);
         }
     }
-  if (aliases)
+
+  if (host)
     {
-      for (i = 0; i < naliases; i++)
-        ares_free(aliases[i]);
-      ares_free(aliases);
+      *host = hostent;
     }
-  ares_free(addrs);
-  ares_free(hostname);
-  return status;
+  else
+    {
+      ares_free_hostent(hostent);
+    }
+
+  if (naddrttls)
+    {
+      *naddrttls = naddrs;
+    }
+
+  ares__freeaddrinfo_cnames(ai.cnames);
+  ares__freeaddrinfo_nodes(ai.nodes);
+  return ARES_SUCCESS;
+
+enomem:
+  ares_free(aliases);
+  ares_free(hostent);
+  ares__freeaddrinfo_cnames(ai.cnames);
+  ares__freeaddrinfo_nodes(ai.nodes);
+  ares_free(question_hostname);
+  return ARES_ENOMEM;
 }

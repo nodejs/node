@@ -1039,30 +1039,6 @@ static int configure_socket(ares_socket_t s, int family, ares_channel channel)
   return 0;
 }
 
-static ares_socket_t open_socket(ares_channel channel, int af, int type, int protocol)
-{
-  if (channel->sock_funcs != 0)
-    return channel->sock_funcs->asocket(af,
-                                        type,
-                                        protocol,
-                                        channel->sock_func_cb_data);
-
-  return socket(af, type, protocol);
-}
-
-static int connect_socket(ares_channel channel, ares_socket_t sockfd,
-			  const struct sockaddr * addr,
-	                  ares_socklen_t addrlen)
-{
-   if (channel->sock_funcs != 0)
-      return channel->sock_funcs->aconnect(sockfd,
-	                                   addr,
-	                                   addrlen,
-	                                   channel->sock_func_cb_data);
-
-   return connect(sockfd, addr, addrlen);
-}
-
 static int open_tcp_socket(ares_channel channel, struct server_state *server)
 {
   ares_socket_t s;
@@ -1107,14 +1083,14 @@ static int open_tcp_socket(ares_channel channel, struct server_state *server)
     }
 
   /* Acquire a socket. */
-  s = open_socket(channel, server->addr.family, SOCK_STREAM, 0);
+  s = ares__open_socket(channel, server->addr.family, SOCK_STREAM, 0);
   if (s == ARES_SOCKET_BAD)
     return -1;
 
   /* Configure it. */
   if (configure_socket(s, server->addr.family, channel) < 0)
     {
-       ares__socket_close(channel, s);
+       ares__close_socket(channel, s);
        return -1;
     }
 
@@ -1131,7 +1107,7 @@ static int open_tcp_socket(ares_channel channel, struct server_state *server)
      setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
                 (void *)&opt, sizeof(opt)) == -1)
     {
-       ares__socket_close(channel, s);
+       ares__close_socket(channel, s);
        return -1;
     }
 #endif
@@ -1142,19 +1118,19 @@ static int open_tcp_socket(ares_channel channel, struct server_state *server)
                                         channel->sock_config_cb_data);
       if (err < 0)
         {
-          ares__socket_close(channel, s);
+          ares__close_socket(channel, s);
           return err;
         }
     }
 
   /* Connect to the server. */
-  if (connect_socket(channel, s, sa, salen) == -1)
+  if (ares__connect_socket(channel, s, sa, salen) == -1)
     {
       int err = SOCKERRNO;
 
       if (err != EINPROGRESS && err != EWOULDBLOCK)
         {
-          ares__socket_close(channel, s);
+          ares__close_socket(channel, s);
           return -1;
         }
     }
@@ -1165,7 +1141,7 @@ static int open_tcp_socket(ares_channel channel, struct server_state *server)
                                         channel->sock_create_cb_data);
       if (err < 0)
         {
-          ares__socket_close(channel, s);
+          ares__close_socket(channel, s);
           return err;
         }
     }
@@ -1220,14 +1196,14 @@ static int open_udp_socket(ares_channel channel, struct server_state *server)
     }
 
   /* Acquire a socket. */
-  s = open_socket(channel, server->addr.family, SOCK_DGRAM, 0);
+  s = ares__open_socket(channel, server->addr.family, SOCK_DGRAM, 0);
   if (s == ARES_SOCKET_BAD)
     return -1;
 
   /* Set the socket non-blocking. */
   if (configure_socket(s, server->addr.family, channel) < 0)
     {
-       ares__socket_close(channel, s);
+       ares__close_socket(channel, s);
        return -1;
     }
 
@@ -1237,19 +1213,19 @@ static int open_udp_socket(ares_channel channel, struct server_state *server)
                                         channel->sock_config_cb_data);
       if (err < 0)
         {
-          ares__socket_close(channel, s);
+          ares__close_socket(channel, s);
           return err;
         }
     }
 
   /* Connect to the server. */
-  if (connect_socket(channel, s, sa, salen) == -1)
+  if (ares__connect_socket(channel, s, sa, salen) == -1)
     {
       int err = SOCKERRNO;
 
       if (err != EINPROGRESS && err != EWOULDBLOCK)
         {
-          ares__socket_close(channel, s);
+          ares__close_socket(channel, s);
           return -1;
         }
     }
@@ -1260,7 +1236,7 @@ static int open_udp_socket(ares_channel channel, struct server_state *server)
                                         channel->sock_create_cb_data);
       if (err < 0)
         {
-          ares__socket_close(channel, s);
+          ares__close_socket(channel, s);
           return err;
         }
     }
@@ -1464,7 +1440,33 @@ void ares__free_query(struct query *query)
   ares_free(query);
 }
 
-void ares__socket_close(ares_channel channel, ares_socket_t s)
+ares_socket_t ares__open_socket(ares_channel channel,
+                                int af, int type, int protocol)
+{
+  if (channel->sock_funcs)
+    return channel->sock_funcs->asocket(af,
+                                        type,
+                                        protocol,
+                                        channel->sock_func_cb_data);
+  else
+    return socket(af, type, protocol);
+}
+
+int ares__connect_socket(ares_channel channel,
+                         ares_socket_t sockfd,
+                         const struct sockaddr *addr,
+                         ares_socklen_t addrlen)
+{
+  if (channel->sock_funcs)
+    return channel->sock_funcs->aconnect(sockfd,
+                                         addr,
+                                         addrlen,
+                                         channel->sock_func_cb_data);
+  else
+    return connect(sockfd, addr, addrlen);
+}
+
+void ares__close_socket(ares_channel channel, ares_socket_t s)
 {
   if (channel->sock_funcs)
     channel->sock_funcs->aclose(s, channel->sock_func_cb_data);
