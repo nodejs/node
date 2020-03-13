@@ -30,7 +30,9 @@
 #include "uv.h"
 
 #if defined(__linux__)
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <link.h>
 #endif
 #include <sys/types.h>
