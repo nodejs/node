@@ -2719,22 +2719,11 @@ if (require.main === module) {
 ```
 
 When looking for the CJS modules that have required the current one,
-`module.children` can be used:
+`require.cache` and `module.children` can be used:
 
 ```js
-const moduleParents = [];
-function findCurrentModuleParents(moduleParent = require.main) {
-  if (moduleParent === undefined) {
-    // If the entry point is not CJS (E.G.: REPL or ESM), this function is no op
-    return;
-  }
-  const { children } = moduleParent;
-  if (children.includes(module)) {
-    moduleParents.push(moduleParent);
-  }
-  children.forEach(findCurrentModuleParents);
-}
-findCurrentModuleParents();
+const moduleParents = Object.values(require.cache)
+  .filter((m) => m.children.includes(module));
 ```
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation

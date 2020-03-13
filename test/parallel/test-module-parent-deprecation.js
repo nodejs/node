@@ -4,8 +4,8 @@ const assert = require('assert');
 
 common.expectWarning(
   'DeprecationWarning',
-  'module.parent is deprecated and may be removed in a later ' +
-  'version of Node.js.',
+  'module.parent is deprecated due to accuracy issues. Please use ' +
+          'require.main === module to check for CLI usage instead.',
   'DEP0143'
 );
 
