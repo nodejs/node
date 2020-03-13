@@ -76,47 +76,6 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
 
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   per_env->CheckOptions(errors);
-
-  if (per_env->experimental_report) {
-    // Assign the report_signal default value here. Once the
-    // --experimental-report flag is dropped, move this initialization to
-    // node_options.h, where report_signal is declared.
-    if (report_signal.empty())
-      report_signal = "SIGUSR2";
-    return;
-  }
-
-  if (!report_directory.empty()) {
-    errors->push_back("--report-directory option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (!report_filename.empty()) {
-    errors->push_back("--report-filename option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (!report_signal.empty()) {
-    errors->push_back("--report-signal option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (report_on_fatalerror) {
-    errors->push_back(
-        "--report-on-fatalerror option is valid only when "
-        "--experimental-report is set");
-  }
-
-  if (report_on_signal) {
-    errors->push_back("--report-on-signal option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (report_uncaught_exception) {
-    errors->push_back(
-        "--report-uncaught-exception option is valid only when "
-        "--experimental-report is set");
-  }
 }
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
@@ -395,10 +354,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_vm_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvironment);
-  AddOption("--experimental-report",
-            "enable report generation",
-            &EnvironmentOptions::experimental_report,
-            kAllowedInEnvironment);
+  AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--experimental-wasi-unstable-preview1",
             "experimental WASI support",
             &EnvironmentOptions::experimental_wasi,

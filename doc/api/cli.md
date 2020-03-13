@@ -199,13 +199,6 @@ added: v10.0.0
 
 Enable experimental top-level `await` keyword support in REPL.
 
-### `--experimental-report`
-<!-- YAML
-added: v11.8.0
--->
-
-Enable experimental diagnostic report feature.
-
 ### `--experimental-specifier-resolution=mode`
 <!-- YAML
 added: v12.16.0
@@ -658,9 +651,9 @@ changes:
 
 Enables the report to be triggered on fatal errors (internal errors within
 the Node.js runtime such as out of memory) that lead to termination of the
-application, if `--experimental-report` is enabled. Useful to inspect various
-diagnostic data elements such as heap, stack, event loop state, resource
-consumption etc. to reason about the fatal error.
+application. Useful to inspect various diagnostic data elements such as heap,
+stack, event loop state, resource consumption etc. to reason about the fatal
+error.
 
 ### `--report-on-signal`
 <!-- YAML
@@ -673,8 +666,8 @@ changes:
 -->
 
 Enables report to be generated upon receiving the specified (or predefined)
-signal to the running Node.js process, if `--experimental-report` is enabled.
-The signal to trigger the report is specified through `--report-signal`.
+signal to the running Node.js process. The signal to trigger the report is
+specified through `--report-signal`.
 
 ### `--report-signal=signal`
 <!-- YAML
@@ -699,9 +692,9 @@ changes:
                  `--report-uncaught-exception`
 -->
 
-Enables report to be generated on un-caught exceptions, if
-`--experimental-report` is enabled. Useful when inspecting JavaScript stack in
-conjunction with native stack and other runtime environment data.
+Enables report to be generated on uncaught exceptions. Useful when inspecting
+the JavaScript stack in conjunction with native stack and other runtime
+environment data.
 
 ### `--throw-deprecation`
 <!-- YAML
@@ -1121,7 +1114,6 @@ Node.js options that are allowed are:
 * `--experimental-modules`
 * `--experimental-policy`
 * `--experimental-repl-await`
-* `--experimental-report`
 * `--experimental-specifier-resolution`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`

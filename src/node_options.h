@@ -152,7 +152,6 @@ class EnvironmentOptions : public Options {
 
   bool syntax_check_only = false;
   bool has_eval_string = false;
-  bool experimental_report = false;
   bool experimental_wasi = false;
   std::string eval_string;
   bool print_eval = false;
@@ -189,7 +188,7 @@ class PerIsolateOptions : public Options {
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool report_on_fatalerror = false;
-  std::string report_signal;
+  std::string report_signal = "SIGUSR2";
   std::string report_filename;
   std::string report_directory;
   inline EnvironmentOptions* get_per_env_options();
