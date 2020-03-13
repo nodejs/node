@@ -157,12 +157,15 @@ struct text_region FindNodeTextRegion() {
     if (dl_params.start < dl_params.end) {
       char* from = reinterpret_cast<char*>(hugepage_align_up(dl_params.start));
       char* to = reinterpret_cast<char*>(hugepage_align_down(dl_params.end));
-
-      size_t size = to - from;
-      nregion.found_text_region = true;
-      nregion.from = from;
-      nregion.to = to;
-      nregion.total_hugepages = size / hps;
+      if (from < to) {
+        size_t pagecount = (to - from) / hps;
+        if (pagecount > 0) {
+          nregion.found_text_region = true;
+          nregion.from = from;
+          nregion.to = to;
+          nregion.total_hugepages = pagecount;
+        }
+      }
     }
   }
 #elif defined(__FreeBSD__)
