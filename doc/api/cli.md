@@ -615,6 +615,15 @@ file will be created if it does not exist, and will be appended to if it does.
 If an error occurs while attempting to write the warning to the file, the
 warning will be written to stderr instead.
 
+### `--report-compact`
+<!-- YAML
+added: REPLACEME
+-->
+
+Write reports in a compact format, single-line JSON, more easily consumable
+by log processing systems than the default multi-line format designed for
+human consumption.
+
 ### `--report-directory=directory`
 <!-- YAML
 added: v11.8.0
@@ -1160,6 +1169,7 @@ Node.js options that are allowed are:
 * `--preserve-symlinks`
 * `--prof-process`
 * `--redirect-warnings`
+* `--report-compact`
 * `--report-directory`
 * `--report-filename`
 * `--report-on-fatalerror`

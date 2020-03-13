@@ -617,6 +617,10 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "generate diagnostic report on uncaught exceptions",
             &PerIsolateOptions::report_uncaught_exception,
             kAllowedInEnvironment);
+  AddOption("--report-compact",
+            "output compact single-line JSON",
+            &PerIsolateOptions::report_compact,
+            kAllowedInEnvironment);
   AddOption("--report-on-signal",
             "generate diagnostic report upon receiving signals",
             &PerIsolateOptions::report_on_signal,

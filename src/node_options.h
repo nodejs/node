@@ -188,6 +188,7 @@ class PerIsolateOptions : public Options {
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool report_on_fatalerror = false;
+  bool report_compact = false;
   std::string report_signal = "SIGUSR2";
   std::string report_filename;
   std::string report_directory;

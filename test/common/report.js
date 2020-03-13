@@ -25,7 +25,12 @@ function findReports(pid, dir) {
 }
 
 function validate(filepath) {
-  validateContent(JSON.parse(fs.readFileSync(filepath, 'utf8')));
+  const report = fs.readFileSync(filepath, 'utf8');
+  if (process.report.compact) {
+    const end = report.indexOf('\n');
+    assert.strictEqual(end, report.length - 1);
+  }
+  validateContent(JSON.parse(report));
 }
 
 function validateContent(report) {

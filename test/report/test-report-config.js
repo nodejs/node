@@ -1,4 +1,4 @@
-// Flags: --report-on-fatalerror --report-on-signal --report-uncaught-exception
+// Flags: --report-on-fatalerror --report-on-signal --report-uncaught-exception --report-compact
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -54,6 +54,17 @@ assert.throws(() => {
   process.report.reportOnSignal = {};
 }, { code: 'ERR_INVALID_ARG_TYPE' });
 assert.strictEqual(process.report.reportOnSignal, true);
+
+// Verify that process.report.reportCompact behaves properly.
+assert.strictEqual(process.report.compact, true);
+process.report.compact = false;
+assert.strictEqual(process.report.compact, false);
+process.report.compact = true;
+assert.strictEqual(process.report.compact, true);
+assert.throws(() => {
+  process.report.compact = {};
+}, { code: 'ERR_INVALID_ARG_TYPE' });
+assert.strictEqual(process.report.compact, true);
 
 if (!common.isWindows) {
   // Verify that process.report.signal behaves properly.

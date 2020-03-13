@@ -52,7 +52,8 @@ static void WriteNodeReport(Isolate* isolate,
                             const char* trigger,
                             const std::string& filename,
                             std::ostream& out,
-                            Local<String> stackstr);
+                            Local<String> stackstr,
+                            bool compact);
 static void PrintVersionInformation(JSONWriter* writer);
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
@@ -126,8 +127,9 @@ std::string TriggerNodeReport(Isolate* isolate,
     std::cerr << "\nWriting Node.js report to file: " << filename;
   }
 
+  bool compact = env != nullptr ? options->report_compact : true;
   WriteNodeReport(isolate, env, message, trigger, filename, *outstream,
-                  stackstr);
+                  stackstr, compact);
 
   // Do not close stdout/stderr, only close files we opened.
   if (outfile.is_open()) {
@@ -145,7 +147,7 @@ void GetNodeReport(Isolate* isolate,
                    const char* trigger,
                    Local<String> stackstr,
                    std::ostream& out) {
-  WriteNodeReport(isolate, env, message, trigger, "", out, stackstr);
+  WriteNodeReport(isolate, env, message, trigger, "", out, stackstr, false);
 }
 
 // Internal function to coordinate and write the various
@@ -156,7 +158,8 @@ static void WriteNodeReport(Isolate* isolate,
                             const char* trigger,
                             const std::string& filename,
                             std::ostream& out,
-                            Local<String> stackstr) {
+                            Local<String> stackstr,
+                            bool compact) {
   // Obtain the current time and the pid.
   TIME_TYPE tm_struct;
   DiagnosticFilename::LocalTime(&tm_struct);
@@ -169,7 +172,7 @@ static void WriteNodeReport(Isolate* isolate,
   // File stream opened OK, now start printing the report content:
   // the title and header information (event, filename, timestamp and pid)
 
-  JSONWriter writer(out);
+  JSONWriter writer(out, compact);
   writer.json_start();
   writer.json_objectstart("header");
   writer.json_keyvalue("reportVersion", NODE_REPORT_VERSION);

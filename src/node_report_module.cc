@@ -68,6 +68,18 @@ void GetReport(const FunctionCallbackInfo<Value>& info) {
                                 .ToLocalChecked());
 }
 
+static void GetCompact(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  info.GetReturnValue().Set(env->isolate_data()->options()->report_compact);
+}
+
+static void SetCompact(const FunctionCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Isolate* isolate = env->isolate();
+  bool compact = info[0]->ToBoolean(isolate)->Value();
+  env->isolate_data()->options()->report_compact = compact;
+}
+
 static void GetDirectory(const FunctionCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   std::string directory = env->isolate_data()->options()->report_directory;
@@ -161,6 +173,8 @@ static void Initialize(Local<Object> exports,
 
   env->SetMethod(exports, "writeReport", WriteReport);
   env->SetMethod(exports, "getReport", GetReport);
+  env->SetMethod(exports, "getCompact", GetCompact);
+  env->SetMethod(exports, "setCompact", SetCompact);
   env->SetMethod(exports, "getDirectory", GetDirectory);
   env->SetMethod(exports, "setDirectory", SetDirectory);
   env->SetMethod(exports, "getFilename", GetFilename);
