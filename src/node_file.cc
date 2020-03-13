@@ -832,7 +832,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  std::shared_ptr<void> defer_close(nullptr, [fd, loop] (...) {
+  auto defer_close = OnScopeLeave([fd, loop]() {
     uv_fs_t close_req;
     CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
     uv_fs_req_cleanup(&close_req);

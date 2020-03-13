@@ -202,7 +202,7 @@ MaybeLocal<String> NativeModuleLoader::LoadBuiltinModuleSource(Isolate* isolate,
   CHECK_GE(req.result, 0);
   uv_fs_req_cleanup(&req);
 
-  std::shared_ptr<void> defer_close(nullptr, [file](...) {
+  auto defer_close = OnScopeLeave([file]() {
     uv_fs_t close_req;
     CHECK_EQ(0, uv_fs_close(nullptr, &close_req, file, nullptr));
     uv_fs_req_cleanup(&close_req);
