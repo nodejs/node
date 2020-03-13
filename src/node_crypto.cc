@@ -5026,6 +5026,7 @@ template <PublicKeyCipher::Operation operation,
           PublicKeyCipher::EVP_PKEY_cipher_init_t EVP_PKEY_cipher_init,
           PublicKeyCipher::EVP_PKEY_cipher_t EVP_PKEY_cipher>
 void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
   Environment* env = Environment::GetCurrent(args);
 
   unsigned int offset = 0;
@@ -5055,8 +5056,6 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   }
 
   AllocatedBuffer out;
-
-  ClearErrorOnReturn clear_error_on_return;
 
   bool r = Cipher<operation, EVP_PKEY_cipher_init, EVP_PKEY_cipher>(
       env,
