@@ -103,6 +103,8 @@ void Initialize(Local<Object> target,
                   ->GetFunction(env->context())
                   .ToLocalChecked()).Check();
 
+  // TODO(joyeecheung): This should be deprecated in user land in favor of
+  // `util.getSystemErrorName(err)`.
   PropertyAttribute attributes =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
   size_t errors_len = arraysize(per_process::uv_errors_map);
