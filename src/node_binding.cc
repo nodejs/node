@@ -17,12 +17,6 @@
 #define NODE_BUILTIN_ICU_MODULES(V)
 #endif
 
-#if NODE_REPORT
-#define NODE_BUILTIN_REPORT_MODULES(V) V(report)
-#else
-#define NODE_BUILTIN_REPORT_MODULES(V)
-#endif
-
 #if HAVE_INSPECTOR
 #define NODE_BUILTIN_PROFILER_MODULES(V) V(profiler)
 #else
@@ -68,6 +62,7 @@
   V(pipe_wrap)                                                                 \
   V(process_wrap)                                                              \
   V(process_methods)                                                           \
+  V(report)                                                                    \
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
@@ -95,7 +90,6 @@
   NODE_BUILTIN_STANDARD_MODULES(V)                                             \
   NODE_BUILTIN_OPENSSL_MODULES(V)                                              \
   NODE_BUILTIN_ICU_MODULES(V)                                                  \
-  NODE_BUILTIN_REPORT_MODULES(V)                                               \
   NODE_BUILTIN_PROFILER_MODULES(V)                                             \
   NODE_BUILTIN_DTRACE_MODULES(V)
 

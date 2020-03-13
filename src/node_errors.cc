@@ -4,9 +4,7 @@
 #include "debug_utils-inl.h"
 #include "node_errors.h"
 #include "node_internals.h"
-#ifdef NODE_REPORT
 #include "node_report.h"
-#endif
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
@@ -405,14 +403,14 @@ void OnFatalError(const char* location, const char* message) {
   } else {
     FPrintF(stderr, "FATAL ERROR: %s\n", message);
   }
-#ifdef NODE_REPORT
+
   Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr || env->isolate_data()->options()->report_on_fatalerror) {
     report::TriggerNodeReport(
         isolate, env, message, "FatalError", "", Local<String>());
   }
-#endif  // NODE_REPORT
+
   fflush(stderr);
   ABORT();
 }
