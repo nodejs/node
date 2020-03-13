@@ -30,6 +30,7 @@
 #include "uv.h"
 
 #if defined(__linux__)
+#define _GNU_SOURCE
 #include <link.h>
 #endif
 #include <sys/types.h>
@@ -51,7 +52,6 @@
 #include <string>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <vector>
 
 // The functions in this file map the text segment of node into 2M pages.
@@ -117,6 +117,29 @@ struct dl_iterate_params {
   uintptr_t reference_sym;
 };
 
+#if defined(__linux__)
+int FindMapping(struct dl_phdr_info* info, size_t, void* data) {
+  if (info->dlpi_name[0] == 0) {
+    for (int idx = 0; idx < info->dlpi_phnum; idx++) {
+      const ElfW(Phdr)* phdr = &info->dlpi_phdr[idx];
+      if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X)) {
+        auto dl_params = static_cast<dl_iterate_params*>(data);
+        uintptr_t start = info->dlpi_addr + phdr->p_vaddr;
+        uintptr_t end = start + phdr->p_memsz;
+
+        if (dl_params->reference_sym >= start &&
+            dl_params->reference_sym <= end) {
+          dl_params->start = start;
+          dl_params->end = end;
+          return 1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+#endif  // defined(__linux__)
+
 struct text_region FindNodeTextRegion() {
   struct text_region nregion;
   nregion.found_text_region = false;
@@ -126,26 +149,7 @@ struct text_region FindNodeTextRegion() {
   };
   uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
 
-  if (dl_iterate_phdr([](struct dl_phdr_info* info, size_t, void* data) -> int {
-    if (info->dlpi_name[0] == 0) {
-      for (int idx = 0; idx < info->dlpi_phnum; idx++) {
-        const ElfW(Phdr)* phdr = &info->dlpi_phdr[idx];
-        if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X)) {
-          auto dl_params = static_cast<dl_iterate_params*>(data);
-          uintptr_t start = info->dlpi_addr + phdr->p_vaddr;
-          uintptr_t end = start + phdr->p_memsz;
-
-          if (dl_params->reference_sym >= start &&
-              dl_params->reference_sym <= end) {
-            dl_params->start = start;
-            dl_params->end = end;
-            return 1;
-          }
-        }
-      }
-    }
-    return 0;
-  }, &dl_params) == 1) {
+  if (dl_iterate_phdr(FindMapping, &dl_params) == 1) {
     dl_params.start = dl_params.reference_sym;
     if (lpstub_start > dl_params.start && lpstub_start <= dl_params.end)
       dl_params.end = lpstub_start;
@@ -274,7 +278,7 @@ bool IsTransparentHugePagesEnabled() {
   return always == "[always]" || madvise == "[madvise]";
 }
 #elif defined(__FreeBSD__)
-static bool IsSuperPagesEnabled() {
+bool IsSuperPagesEnabled() {
   // It is enabled by default on amd64.
   unsigned int super_pages = 0;
   size_t super_pages_length = sizeof(super_pages);
