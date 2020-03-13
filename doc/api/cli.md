@@ -1196,6 +1196,7 @@ V8 options that are allowed are:
 <!-- node-options-v8 start -->
 * `--abort-on-uncaught-exception`
 * `--disallow-code-generation-from-strings`
+* `--huge-max-old-generation-size`
 * `--interpreted-frames-native-stack`
 * `--jitless`
 * `--max-old-space-size`
