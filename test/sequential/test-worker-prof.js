@@ -36,11 +36,6 @@ if (process.argv[2] === 'child') {
     w.postMessage(process.execPath);
   });
 
-  w.on('error', (e) => {
-    console.error(`worker exited with error: ${e}`);
-    process.exit(1);
-  });
-
   w.on('exit', common.mustCall(() => {
     files = fs.readdirSync(tmpdir.path);
     const wlog = files.filter((name) => /\.log$/.test(name) && name !== plog)[0];
