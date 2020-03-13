@@ -619,6 +619,9 @@ warning will be written to stderr instead.
 <!-- YAML
 added: v11.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32242
+    description: This option is no longer considered experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: Changed from `--diagnostic-report-directory` to
@@ -631,6 +634,9 @@ Location at which the report will be generated.
 <!-- YAML
 added: v11.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32242
+    description: This option is no longer considered experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-filename` to
@@ -649,6 +655,8 @@ changes:
                  `--report-on-fatalerror`
 -->
 
+> Stability: 1 - Experimental
+
 Enables the report to be triggered on fatal errors (internal errors within
 the Node.js runtime such as out of memory) that lead to termination of the
 application. Useful to inspect various diagnostic data elements such as heap,
@@ -659,6 +667,9 @@ error.
 <!-- YAML
 added: v11.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32242
+    description: This option is no longer considered experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-on-signal` to
@@ -673,6 +684,9 @@ specified through `--report-signal`.
 <!-- YAML
 added: v11.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32242
+    description: This option is no longer considered experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-signal` to
@@ -686,6 +700,9 @@ Default signal is `SIGUSR2`.
 <!-- YAML
 added: v11.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32242
+    description: This option is no longer considered experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-uncaught-exception` to
