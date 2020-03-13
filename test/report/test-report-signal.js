@@ -2,7 +2,7 @@
 'use strict';
 // Test producing a report via signal.
 const common = require('../common');
-common.skipIfReportDisabled();
+
 if (common.isWindows)
   return common.skip('Unsupported on Windows.');
 

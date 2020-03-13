@@ -1,7 +1,6 @@
 // Flags: --experimental-report
 'use strict';
 const common = require('../common');
-common.skipIfReportDisabled();
 const assert = require('assert');
 const helper = require('../common/report');
 

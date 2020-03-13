@@ -566,12 +566,6 @@ function skipIfInspectorDisabled() {
   }
 }
 
-function skipIfReportDisabled() {
-  if (!process.config.variables.node_report) {
-    skip('Diagnostic reporting is disabled');
-  }
-}
-
 function skipIf32Bits() {
   if (bits < 64) {
     skip('The tested feature is not available in 32bit builds');
@@ -714,7 +708,6 @@ const common = {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
-  skipIfReportDisabled,
   skipIfWorker,
 
   get enoughTestCpu() {
