@@ -372,8 +372,8 @@ int FileHandle::ReadStart() {
       // Use a fresh async resource.
       // Lifetime is ensured via AsyncWrap::resource_.
       Local<Object> resource = Object::New(env()->isolate());
-      resource->Set(
-          env()->context(), env()->handle_string(), read_wrap->object());
+      USE(resource->Set(
+          env()->context(), env()->handle_string(), read_wrap->object()));
       read_wrap->AsyncReset(resource);
       read_wrap->file_handle_ = this;
     } else {
