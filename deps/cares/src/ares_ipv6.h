@@ -32,6 +32,13 @@ struct sockaddr_in6
 };
 #endif
 
+typedef union
+{
+  struct sockaddr     sa;
+  struct sockaddr_in  sa4;
+  struct sockaddr_in6 sa6;
+} ares_sockaddr;
+
 #ifndef HAVE_STRUCT_ADDRINFO
 struct addrinfo
 {
