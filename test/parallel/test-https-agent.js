@@ -41,7 +41,6 @@ const server = https.Server(options, function(req, res) {
   res.end('hello world\n');
 });
 
-let responses = 0;
 const N = 4;
 const M = 4;
 
@@ -61,7 +60,6 @@ server.listen(0, function() {
         }, function(res) {
           res.resume();
           assert.strictEqual(res.statusCode, 200);
-          ++responses;
           cd.dec();
         }).on('error', function(e) {
           throw e;
@@ -69,9 +67,4 @@ server.listen(0, function() {
       }
     }, i);
   }
-});
-
-
-process.on('exit', function() {
-  assert.strictEqual(responses, N * M);
 });
