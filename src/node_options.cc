@@ -609,6 +609,11 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "disallow eval and friends",
             V8Option{},
             kAllowedInEnvironment);
+  AddOption("--huge-max-old-generation-size",
+             "increase default maximum heap size on machines with 16GB memory "
+             "or more",
+             V8Option{},
+             kAllowedInEnvironment);
   AddOption("--jitless",
              "disable runtime allocation of executable memory",
              V8Option{},
