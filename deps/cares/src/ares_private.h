@@ -355,11 +355,51 @@ int ares__expand_name_for_response(const unsigned char *encoded,
                                    char **s, long *enclen);
 void ares__init_servers_state(ares_channel channel);
 void ares__destroy_servers_state(ares_channel channel);
+int ares__parse_qtype_reply(const unsigned char* abuf, int alen, int* qtype);
+int ares__single_domain(ares_channel channel, const char *name, char **s);
+int ares__cat_domain(const char *name, const char *domain, char **s);
+int ares__sortaddrinfo(ares_channel channel, struct ares_addrinfo_node *ai_node);
+int ares__readaddrinfo(FILE *fp, const char *name, unsigned short port,
+                       const struct ares_addrinfo_hints *hints,
+                       struct ares_addrinfo *ai);
+
+struct ares_addrinfo *ares__malloc_addrinfo(void);
+
+struct ares_addrinfo_node *ares__malloc_addrinfo_node(void);
+void ares__freeaddrinfo_nodes(struct ares_addrinfo_node *ai_node);
+
+struct ares_addrinfo_node *ares__append_addrinfo_node(struct ares_addrinfo_node **ai_node);
+void ares__addrinfo_cat_nodes(struct ares_addrinfo_node **head,
+                              struct ares_addrinfo_node *tail);
+
+struct ares_addrinfo_cname *ares__malloc_addrinfo_cname(void);
+void ares__freeaddrinfo_cnames(struct ares_addrinfo_cname *ai_cname);
+
+struct ares_addrinfo_cname *ares__append_addrinfo_cname(struct ares_addrinfo_cname **ai_cname);
+
+void ares__addrinfo_cat_cnames(struct ares_addrinfo_cname **head,
+                               struct ares_addrinfo_cname *tail);
+
+int ares__parse_into_addrinfo(const unsigned char *abuf,
+                              int alen,
+                              struct ares_addrinfo *ai);
+
+int ares__parse_into_addrinfo2(const unsigned char *abuf,
+                               int alen,
+                               char **question_hostname,
+                               struct ares_addrinfo *ai);
+
 #if 0 /* Not used */
 long ares__tvdiff(struct timeval t1, struct timeval t2);
 #endif
 
-void ares__socket_close(ares_channel, ares_socket_t);
+ares_socket_t ares__open_socket(ares_channel channel,
+                                int af, int type, int protocol);
+void ares__close_socket(ares_channel, ares_socket_t);
+int ares__connect_socket(ares_channel channel,
+                         ares_socket_t sockfd,
+                         const struct sockaddr *addr,
+                         ares_socklen_t addrlen);
 
 #define ARES_SWAP_BYTE(a,b) \
   { unsigned char swapByte = *(a);  *(a) = *(b);  *(b) = swapByte; }
