@@ -360,8 +360,6 @@ char *ares_get_android_search_domains_list(void)
   jstring domains = NULL;
   const char *domain;
   int res;
-  size_t i;
-  size_t cnt = 0;
   char *domain_list = NULL;
   int need_detatch = 0;
 

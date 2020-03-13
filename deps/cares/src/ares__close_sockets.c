@@ -48,14 +48,14 @@ void ares__close_sockets(ares_channel channel, struct server_state *server)
   if (server->tcp_socket != ARES_SOCKET_BAD)
     {
       SOCK_STATE_CALLBACK(channel, server->tcp_socket, 0, 0);
-      ares__socket_close(channel, server->tcp_socket);
+      ares__close_socket(channel, server->tcp_socket);
       server->tcp_socket = ARES_SOCKET_BAD;
       server->tcp_connection_generation = ++channel->tcp_connection_generation;
     }
   if (server->udp_socket != ARES_SOCKET_BAD)
     {
       SOCK_STATE_CALLBACK(channel, server->udp_socket, 0, 0);
-      ares__socket_close(channel, server->udp_socket);
+      ares__close_socket(channel, server->udp_socket);
       server->udp_socket = ARES_SOCKET_BAD;
     }
 }
