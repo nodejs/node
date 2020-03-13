@@ -2703,18 +2703,22 @@ native modules. It was incomplete so far and instead it's better to rely upon
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/32217
-    description: Runtime deprecation.
+    description: Documentation-only deprecation.
 -->
-A CJS module can access the first module that required it using `module.parent`.
-This feature does not work when a module is imported using ECMAScript modules
-specification, therefore it is deprecated.
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+A CommonJS module can access the first module that required it using
+`module.parent`. This feature is deprecated because it does not work
+consistently in the presence of ECMAScript modules and because it gives an
+inaccurate representation of the CommonJS module graph.
 
 Some modules use it to check if they are the entry point of the current process.
 Instead, it is recommended to compare `require.main` and `module`:
 
 ```js
 if (require.main === module) {
-  // CLI code runs here
+  // Code section that will run only if current file is the entry point.
 }
 ```
 
