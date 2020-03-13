@@ -8,6 +8,9 @@ if (isMainThread) {
   w.on('message', common.mustCall((message) => {
     assert.strictEqual(message, 'Hello, world!');
   }));
+  w.on('error', (errr) => {
+    assert.fail(`worker failed unexpectedly: ${err}`);
+  });
 } else {
   setImmediate(() => {
     process.nextTick(() => {
