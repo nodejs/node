@@ -77,13 +77,12 @@ if (process.argv[2] === 'child') {
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const options = { encoding: 'utf8', silent: true, cwd: tmpdir.path };
-  const child = fork('--experimental-report', [__filename, 'child'], options);
+  const child = fork(__filename, ['child'], options);
   let child_data;
   child.on('message', (data) => { child_data = data; });
   let stderr = '';
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   let stdout = '';
-  const std_msg = 'Found messages in stderr unexpectedly: ';
   const report_msg = 'Report files were written: unexpectedly';
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.on('exit', common.mustCall((code, signal) => {
@@ -91,10 +90,7 @@ if (process.argv[2] === 'child') {
                            `${code}`);
     assert.deepStrictEqual(signal, null, 'Process should have exited cleanly,' +
                             ` but did not: ${signal}`);
-    assert.ok(stderr.match(
-      '(node:.*) ExperimentalWarning: report is an experimental' +
-      ' feature. This feature could change at any time'),
-              std_msg);
+    assert.strictEqual(stderr.trim(), '');
 
     const reports = helper.findReports(child.pid, tmpdir.path);
     assert.deepStrictEqual(reports, [], report_msg, reports);

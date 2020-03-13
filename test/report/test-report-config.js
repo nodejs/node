@@ -1,11 +1,7 @@
-// Flags: --experimental-report --report-on-fatalerror --report-on-signal --report-uncaught-exception
+// Flags: --report-on-fatalerror --report-on-signal --report-uncaught-exception
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-
-common.expectWarning('ExperimentalWarning',
-                     'report is an experimental feature. This feature could ' +
-                     'change at any time');
 
 // Verify that process.report.directory behaves properly.
 assert.strictEqual(process.report.directory, '');
