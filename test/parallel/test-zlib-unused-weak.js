@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --expose-gc --no-concurrent-array-buffer-sweeping
 require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
