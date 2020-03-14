@@ -514,6 +514,9 @@ if (isMainThread) {
 added: v10.5.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32278
+    description: The `transferList` option was introduced.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/31664
     description: The `filename` parameter can be a WHATWG `URL` object using
                  `file:` protocol.
