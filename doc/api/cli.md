@@ -1180,8 +1180,6 @@ V8 options that are allowed are:
 `--perf-basic-prof-only-functions`, `--perf-basic-prof`,
 `--perf-prof-unwinding-info`, and `--perf-prof` are only available on Linux.
 
-### Useful v8 Options
-## 
 ### `NODE_PATH=path[:…]`
 <!-- YAML
 added: v0.1.32
@@ -1387,7 +1385,7 @@ threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
 greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
 
-## Useful v8 Options
+## Useful v8 options
 
 These are v8 options and fall outside Node.js' responsibility.
 
