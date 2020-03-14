@@ -27,12 +27,12 @@ function test(sock, readable, writable) {
 }
 
 if (cluster.isMaster) {
-  test(undefined, false, false);
+  test(undefined, true, true);
 
   const server = net.createServer(common.mustCall((socket) => {
     socket.unref();
     test(socket, true, true);
-    test({ handle: socket._handle }, false, false);
+    test({ handle: socket._handle }, true, true);
     test({ handle: socket._handle, readable: true, writable: true },
          true, true);
     server.close();
@@ -45,7 +45,7 @@ if (cluster.isMaster) {
       socket.end();
     }));
 
-    test(socket, false, true);
+    test(socket, true, true);
   }));
 
   cluster.setupMaster({
@@ -58,8 +58,8 @@ if (cluster.isMaster) {
     assert.strictEqual(signal, null);
   }));
 } else {
-  test(4, false, false);
-  test({ fd: 5 }, false, false);
+  test(4, true, true);
+  test({ fd: 5 }, true, true);
   test({ fd: 6, readable: true, writable: true }, true, true);
   process.disconnect();
 }
