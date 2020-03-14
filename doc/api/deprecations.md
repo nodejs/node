@@ -2628,9 +2628,9 @@ changes:
 
 Type: Documentation-only
 
-[`process.mainModule`][] is a CommonJS-only feature while `process` global object is
-shared with non-CommonJS environment. Its use within ECMAScript modules is
-unsupported.
+[`process.mainModule`][] is a CommonJS-only feature while `process` global
+object is shared with non-CommonJS environment. Its use within ECMAScript
+modules is unsupported.
 
 It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
