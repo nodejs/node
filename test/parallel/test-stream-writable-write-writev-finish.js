@@ -132,6 +132,7 @@ const stream = require('stream');
     process.nextTick(cb);
   };
   w.on('error', common.mustCall());
+  w.on('finish', common.mustNotCall());
   w.on('prefinish', () => {
     w.write("shouldn't write in prefinish listener");
   });
