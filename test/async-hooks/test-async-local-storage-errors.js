@@ -14,7 +14,7 @@ process.setUncaughtExceptionCaptureCallback((err) => {
 });
 
 try {
-  asyncLocalStorage.runSyncAndReturn(new Map(), () => {
+  asyncLocalStorage.run(new Map(), () => {
     const store = asyncLocalStorage.getStore();
     store.set('hello', 'node');
     setTimeout(() => {

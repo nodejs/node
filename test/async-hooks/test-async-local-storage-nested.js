@@ -19,20 +19,7 @@ function testInner() {
     assert.strictEqual(asyncLocalStorage.getStore(), undefined);
   });
   assert.strictEqual(asyncLocalStorage.getStore(), outer);
-
-  asyncLocalStorage.runSyncAndReturn(inner, () => {
-    assert.strictEqual(asyncLocalStorage.getStore(), inner);
-  });
-  assert.strictEqual(asyncLocalStorage.getStore(), outer);
-
-  asyncLocalStorage.exitSyncAndReturn(() => {
-    assert.strictEqual(asyncLocalStorage.getStore(), undefined);
-  });
-  assert.strictEqual(asyncLocalStorage.getStore(), outer);
 }
 
 asyncLocalStorage.run(outer, testInner);
-assert.strictEqual(asyncLocalStorage.getStore(), undefined);
-
-asyncLocalStorage.runSyncAndReturn(outer, testInner);
 assert.strictEqual(asyncLocalStorage.getStore(), undefined);

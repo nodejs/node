@@ -101,7 +101,7 @@ function buildDestroy(getServe) {
 function buildAsyncLocalStorage(getServe) {
   const asyncLocalStorage = new AsyncLocalStorage();
   const server = createServer((req, res) => {
-    asyncLocalStorage.runSyncAndReturn({}, () => {
+    asyncLocalStorage.run({}, () => {
       getServe(getCLS, setCLS)(req, res);
     });
   });
