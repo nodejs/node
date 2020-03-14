@@ -86,7 +86,7 @@ class PerIsolatePlatformData :
   void DecreaseHandleCount();
 
   static void FlushTasks(uv_async_t* handle);
-  static void RunForegroundTask(std::unique_ptr<v8::Task> task);
+  void RunForegroundTask(std::unique_ptr<v8::Task> task);
   static void RunForegroundTask(uv_timer_t* timer);
 
   struct ShutdownCallback {
@@ -99,6 +99,7 @@ class PerIsolatePlatformData :
   std::shared_ptr<PerIsolatePlatformData> self_reference_;
   uint32_t uv_handle_count_ = 1;  // 1 = flush_tasks_
 
+  v8::Isolate* const isolate_;
   uv_loop_t* const loop_;
   uv_async_t* flush_tasks_ = nullptr;
   TaskQueue<v8::Task> foreground_tasks_;
