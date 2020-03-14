@@ -4,6 +4,8 @@ const assert = require('assert');
 
 const http = require('http');
 const { AsyncLocalStorage } = require('async_hooks');
+
+// This is an asynclocalstorage variant of test-http-abort-stream-end.js
 const asyncLocalStorage = new AsyncLocalStorage();
 
 const maxSize = 1024;
