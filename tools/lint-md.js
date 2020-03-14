@@ -5962,12 +5962,21 @@ var minimist = function (args, opts) {
 
     function setKey (obj, keys, value) {
         var o = obj;
-        keys.slice(0,-1).forEach(function (key) {
+        for (var i = 0; i < keys.length-1; i++) {
+            var key = keys[i];
+            if (key === '__proto__') return;
             if (o[key] === undefined) o[key] = {};
+            if (o[key] === Object.prototype || o[key] === Number.prototype
+                || o[key] === String.prototype) o[key] = {};
+            if (o[key] === Array.prototype) o[key] = [];
             o = o[key];
-        });
+        }
 
         var key = keys[keys.length - 1];
+        if (key === '__proto__') return;
+        if (o === Object.prototype || o === Number.prototype
+            || o === String.prototype) o = {};
+        if (o === Array.prototype) o = [];
         if (o[key] === undefined || flags.bools[key] || typeof o[key] === 'boolean') {
             o[key] = value;
         }
@@ -6065,7 +6074,7 @@ var minimist = function (args, opts) {
                     setArg(key, args[i+1], arg);
                     i++;
                 }
-                else if (args[i+1] && /true|false/.test(args[i+1])) {
+                else if (args[i+1] && /^(true|false)$/.test(args[i+1])) {
                     setArg(key, args[i+1] === 'true', arg);
                     i++;
                 }
@@ -11282,6 +11291,7 @@ function writeSync(description, options) {
     file.contents || '',
     options
   );
+  return file
 }
 
 var sync$1 = {
@@ -11368,7 +11378,7 @@ function write$1(description, options, callback) {
       if (error) {
         reject(error);
       } else {
-        resolve();
+        resolve(file);
       }
     }
   }
@@ -13910,7 +13920,7 @@ var chars = windows$1 ? {error: '×', warning: '‼'} : {error: '✖', warning: 
 var trailing = /\s*$/;
 
 // Default filename.
-var DEFAULT = '<stdin>';
+var defaultName = '<stdin>';
 
 var noop = {open: '', close: ''};
 
@@ -14014,7 +14024,7 @@ function parse$4(files, options) {
       type: 'header',
       origin: origin,
       destination: destination,
-      name: origin || options.defaultName || DEFAULT,
+      name: origin || options.defaultName || defaultName,
       stored: Boolean(file.stored),
       moved: Boolean(file.stored && destination !== origin),
       stats: vfileStatistics(messages)
