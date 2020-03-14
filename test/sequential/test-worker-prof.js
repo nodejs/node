@@ -26,7 +26,7 @@ if (process.argv[2] === 'child') {
     if (counter++ === 10)
       process.exit(0);
      parentPort.postMessage(
-       fs.readFileSync(m.toString()).toString());
+       fs.readFileSync(m.toString()).slice(0, 1024 * 1024));
   });
   `;
 
