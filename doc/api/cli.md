@@ -1180,6 +1180,8 @@ V8 options that are allowed are:
 `--perf-basic-prof-only-functions`, `--perf-basic-prof`,
 `--perf-prof-unwinding-info`, and `--perf-prof` are only available on Linux.
 
+### Useful v8 Options
+## 
 ### `NODE_PATH=path[:…]`
 <!-- YAML
 added: v0.1.32
@@ -1384,6 +1386,20 @@ mitigate this issue, one potential solution is to increase the size of libuv's
 threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
 greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
+
+## Useful v8 Options
+
+These are v8 options and fall outside Node.js' responsibility.
+
+V8 options that are allowed are:
+
+### `--max-old-space-size`
+
+Sets the max memory size of V8 old memory section. As memory consumption approaches the limit, V8 will spend more time on garbage collection in an effort to free unused memory.
+
+On a machine with 2GB of memory it suggested to set 1.5GB to leave some memory for other uses and avoid swapping.
+
+E.g. `node --max-old-space-size=1536 index.js`
 
 [`--openssl-config`]: #cli_openssl_config_file
 [`Buffer`]: buffer.html#buffer_class_buffer
