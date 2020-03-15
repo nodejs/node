@@ -286,7 +286,7 @@ Maybe<bool> KVStore::AssignFromObject(Local<Context> context,
 
     Local<Value> value;
     Local<String> value_string;
-    if (!entries->Get(context, key.As<String>()).ToLocal(&value) ||
+    if (!entries->Get(context, key).ToLocal(&value) ||
         !value->ToString(context).ToLocal(&value_string)) {
       return Nothing<bool>();
     }
