@@ -31,33 +31,34 @@ void OnFatalError(const char* location, const char* message);
 // `node::ERR_INVALID_ARG_TYPE(isolate, "message")` returning
 // a `Local<Value>` containing the TypeError with proper code and message
 
-#define ERRORS_WITH_CODE(V)                                                  \
-  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                 \
-  V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                    \
-  V(ERR_BUFFER_TOO_LARGE, Error)                                             \
-  V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                  \
-  V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                   \
-  V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                        \
-  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                      \
-  V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                          \
-  V(ERR_INVALID_ARG_VALUE, TypeError)                                        \
-  V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                      \
-  V(ERR_INVALID_ARG_TYPE, TypeError)                                         \
-  V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                  \
-  V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                     \
-  V(ERR_MISSING_ARGS, TypeError)                                             \
-  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                    \
-  V(ERR_MISSING_PASSPHRASE, TypeError)                                       \
-  V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                  \
-  V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                   \
-  V(ERR_OUT_OF_RANGE, RangeError)                                            \
-  V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                 \
-  V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                     \
-  V(ERR_STRING_TOO_LONG, Error)                                              \
-  V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                              \
-  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)              \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                              \
-  V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                               \
+#define ERRORS_WITH_CODE(V)                                                    \
+  V(ERR_BUFFER_CONTEXT_NOT_AVAILABLE, Error)                                   \
+  V(ERR_BUFFER_OUT_OF_BOUNDS, RangeError)                                      \
+  V(ERR_BUFFER_TOO_LARGE, Error)                                               \
+  V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
+  V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
+  V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                          \
+  V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
+  V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
+  V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
+  V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
+  V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
+  V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
+  V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
+  V(ERR_MISSING_ARGS, TypeError)                                               \
+  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                      \
+  V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
+  V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
+  V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
+  V(ERR_OUT_OF_RANGE, RangeError)                                              \
+  V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
+  V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
+  V(ERR_STRING_TOO_LONG, Error)                                                \
+  V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                                \
+  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)                \
+  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                                \
+  V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
+  V(ERR_PROTO_ACCESS, Error)
 
 #define V(code, type)                                                         \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate,                      \
@@ -105,7 +106,10 @@ void OnFatalError(const char* location, const char* message);
     "Script execution was interrupted by `SIGINT`")                            \
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                           \
     "Cannot serialize externalized SharedArrayBuffer")                         \
-  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")
+  V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
+  V(ERR_PROTO_ACCESS,                                                          \
+    "Accessing Object.prototype.__proto__ has been "                           \
+    "disallowed with --disable-proto=throw")
 
 #define V(code, message)                                                     \
   inline v8::Local<v8::Value> code(v8::Isolate* isolate) {                   \
