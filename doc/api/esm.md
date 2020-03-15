@@ -803,14 +803,18 @@ property:
 
 ### Absolute file paths don't work on Windows
 
-Note that `import` accepts _absolute specifiers_. These are similar to _absolute paths_ on linux and MacOS, and therefore they are also accepted. But on Windows, importing an _absolute path_ to a file will not work. Therefore, to ensure cross platform compatibility, be sure to turn your file paths into urls, like so:
+`import` accepts _absolute specifiers_. These are similar to _absolute paths_
+on linux and MacOS, and therefore they are also accepted.
+But on Windows, importing an _absolute path_ to a file will not work.
+To ensure cross platform compatibility, file paths should be converted into
+URLs.
 
-```
+```js
 import { pathToFileURL } from 'url';
 
-const fileUrl = pathToFileURL(...your path here...).href;
+const fileUrl = pathToFileURL('c:\\path\\to\\file.js').href;
 
-await import(fileUrl)
+await import(fileUrl);
 ```
 
 ### Mandatory file extensions
