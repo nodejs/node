@@ -100,6 +100,14 @@ The default is
 File name of the V8 CPU profile generated with
 .Fl -cpu-prof
 .
+.It Fl -disable-proto Ns = Ns Ar mode
+Disable the `Object.prototype.__proto__` property. If
+.Ar mode
+is `delete`, the property will be removed entirely. If
+.Ar mode
+is `throw`, accesses to the property will throw an exception with the code
+`ERR_PROTO_ACCESS`.
+.
 .It Fl -disallow-code-generation-from-strings
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js

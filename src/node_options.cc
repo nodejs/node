@@ -683,7 +683,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "", /* undocumented, only for debugging */
             &PerProcessOptions::debug_arraybuffer_allocations,
             kAllowedInEnvironment);
-
+  AddOption("--disable-proto",
+            "disable Object.prototype.__proto__",
+            &PerProcessOptions::disable_proto,
+            kAllowedInEnvironment);
 
   // 12.x renamed this inadvertently, so alias it for consistency within the
   // release line, while using the original name for consistency with older
