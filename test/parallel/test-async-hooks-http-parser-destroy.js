@@ -45,6 +45,13 @@ async_hooks.createHook({
 }).enable();
 
 const server = http.createServer((req, res) => {
+  let closed = false;
+  req.on('close', () => {
+    closed = true;
+  });
+  req.on('readable', () => {
+    assert.strictEqual(closed, false);
+  });
   res.end('Hello');
 });
 
