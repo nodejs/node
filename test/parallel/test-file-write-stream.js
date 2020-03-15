@@ -62,12 +62,12 @@ file
     assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
     callbacks.close++;
-    console.error('write after end should not be allowed');
     file.write('should not work anymore', common.expectsError({
       code: 'ERR_STREAM_WRITE_AFTER_END',
       name: 'Error',
       message: 'write after end'
     }));
+    file.on('error', common.mustNotCall());
 
     fs.unlinkSync(fn);
   });
