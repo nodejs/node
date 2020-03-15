@@ -34,6 +34,11 @@
 # define PATH_MAX_BYTES (PATH_MAX)
 #endif
 
+/* IBMi PASE does not support posix_fadvise() */
+#ifdef __PASE__
+# undef POSIX_FADV_NORMAL
+#endif
+
 static void* default_malloc(size_t size, void* mem_user_data) {
   return malloc(size);
 }
@@ -569,7 +574,7 @@ uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options) {
     }
   }
 
-  err = uvwasi_fd_table_init(uvwasi, &uvwasi->fds, options->fd_table_size);
+  err = uvwasi_fd_table_init(uvwasi, options);
   if (err != UVWASI_ESUCCESS)
     goto exit;
 

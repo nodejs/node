@@ -6,6 +6,7 @@
 #endif /* _WIN32 */
 
 #include "uv.h"
+#include "clocks.h"
 #include "wasi_types.h"
 #include "uv_mapping.h"
 
