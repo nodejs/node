@@ -31,12 +31,12 @@ const { Worker } = require('worker_threads');
 {
   assert.throws(
     () => { new Worker('file:///file_url'); },
-    /If you want to pass a file:\/\/ URL, you must wrap it around `new URL`/
+    /Wrap file:\/\/ URLs with `new URL`/
   );
   assert.throws(
     () => { new Worker('relative_no_dot'); },
     // eslint-disable-next-line node-core/no-unescaped-regexp-dot
-    /^((?!If you want to pass a file:\/\/ URL, you must wrap it around `new URL`).)*$/s
+    /^((?!Wrap file:\/\/ URLs with `new URL`).)*$/s
   );
 }
 
