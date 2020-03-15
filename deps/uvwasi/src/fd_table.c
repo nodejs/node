@@ -14,6 +14,46 @@
 #include "uvwasi_alloc.h"
 
 
+static uvwasi_errno_t uvwasi__insert_stdio(uvwasi_t* uvwasi,
+                                           struct uvwasi_fd_table_t* table,
+                                           const uvwasi_fd_t fd,
+                                           const uvwasi_fd_t expected,
+                                           const char* name) {
+  struct uvwasi_fd_wrap_t* wrap;
+  uvwasi_filetype_t type;
+  uvwasi_rights_t base;
+  uvwasi_rights_t inheriting;
+  uvwasi_errno_t err;
+
+  err = uvwasi__get_filetype_by_fd(fd, &type);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  err = uvwasi__get_rights(fd, UV_FS_O_RDWR, type, &base, &inheriting);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  err = uvwasi_fd_table_insert(uvwasi,
+                               table,
+                               fd,
+                               name,
+                               name,
+                               type,
+                               base,
+                               inheriting,
+                               0,
+                               &wrap);
+  if (err != UVWASI_ESUCCESS)
+    return err;
+
+  if (wrap->id != expected)
+    err = UVWASI_EBADF;
+
+  uv_mutex_unlock(&wrap->mutex);
+  return err;
+}
+
+
 uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
                                       struct uvwasi_fd_table_t* table,
                                       uv_file fd,
@@ -28,7 +68,7 @@ uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
   struct uvwasi_fd_wrap_t** new_fds;
   uvwasi_errno_t err;
   uint32_t new_size;
-  int index;
+  uint32_t index;
   uint32_t i;
   int r;
   size_t mp_len;
@@ -69,16 +109,17 @@ uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
     table->size = new_size;
   } else {
     /* The table is big enough, so find an empty slot for the new data. */
-    index = -1;
+    int valid_slot = 0;
     for (i = 0; i < table->size; ++i) {
       if (table->fds[i] == NULL) {
+        valid_slot = 1;
         index = i;
         break;
       }
     }
 
-    /* index should never be -1. */
-    if (index == -1) {
+    /* This should never happen. */
+    if (valid_slot == 0) {
       uvwasi__free(uvwasi, entry);
       err = UVWASI_ENOSPC;
       goto exit;
@@ -116,25 +157,21 @@ exit:
 
 
 uvwasi_errno_t uvwasi_fd_table_init(uvwasi_t* uvwasi,
-                                    struct uvwasi_fd_table_t* table,
-                                    uint32_t init_size) {
-  struct uvwasi_fd_wrap_t* wrap;
-  uvwasi_filetype_t type;
-  uvwasi_rights_t base;
-  uvwasi_rights_t inheriting;
+                                    uvwasi_options_t* options) {
+  struct uvwasi_fd_table_t* table;
   uvwasi_errno_t err;
-  uvwasi_fd_t i;
   int r;
 
   /* Require an initial size of at least three to store the stdio FDs. */
-  if (table == NULL || init_size < 3)
+  if (uvwasi == NULL || options == NULL || options->fd_table_size < 3)
     return UVWASI_EINVAL;
 
+  table = &uvwasi->fds;
   table->fds = NULL;
   table->used = 0;
-  table->size = init_size;
+  table->size = options->fd_table_size;
   table->fds = uvwasi__calloc(uvwasi,
-                              init_size,
+                              options->fd_table_size,
                               sizeof(struct uvwasi_fd_wrap_t*));
 
   if (table->fds == NULL)
@@ -153,35 +190,17 @@ uvwasi_errno_t uvwasi_fd_table_init(uvwasi_t* uvwasi,
   }
 
   /* Create the stdio FDs. */
-  for (i = 0; i < 3; ++i) {
-    err = uvwasi__get_filetype_by_fd(i, &type);
-    if (err != UVWASI_ESUCCESS)
-      goto error_exit;
+  err = uvwasi__insert_stdio(uvwasi, table, options->in, 0, "<stdin>");
+  if (err != UVWASI_ESUCCESS)
+    goto error_exit;
 
-    err = uvwasi__get_rights(i, UV_FS_O_RDWR, type, &base, &inheriting);
-    if (err != UVWASI_ESUCCESS)
-      goto error_exit;
+  err = uvwasi__insert_stdio(uvwasi, table, options->out, 1, "<stdout>");
+  if (err != UVWASI_ESUCCESS)
+    goto error_exit;
 
-    err = uvwasi_fd_table_insert(uvwasi,
-                                 table,
-                                 i,
-                                 "",
-                                 "",
-                                 type,
-                                 base,
-                                 inheriting,
-                                 0,
-                                 &wrap);
-    if (err != UVWASI_ESUCCESS)
-      goto error_exit;
-
-    r = wrap->id != i || wrap->id != (uvwasi_fd_t) wrap->fd;
-    uv_mutex_unlock(&wrap->mutex);
-    if (r) {
-      err = UVWASI_EBADF;
-      goto error_exit;
-    }
-  }
+  err = uvwasi__insert_stdio(uvwasi, table, options->err, 2, "<stderr>");
+  if (err != UVWASI_ESUCCESS)
+    goto error_exit;
 
   return UVWASI_ESUCCESS;
 error_exit:

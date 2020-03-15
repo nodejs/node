@@ -170,6 +170,9 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   const uint32_t argc = argv->Length();
   uvwasi_options_t options;
 
+  options.in = 0;
+  options.out = 1;
+  options.err = 2;
   options.fd_table_size = 3;
   options.argc = argc;
   options.argv = argc == 0 ? nullptr : new char*[argc];
