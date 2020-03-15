@@ -11,6 +11,10 @@ const server = http.createServer((req, res) => {
   res.writeHead(200);
   res.flushHeaders();
 
+  req.on('close', common.mustCall(() => {
+    req.on('end', common.mustNotCall());
+  }));
+
   req.connection.on('pause', () => {
     res.end();
     onPause();
