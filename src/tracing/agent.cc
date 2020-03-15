@@ -217,6 +217,7 @@ void Agent::Flush(bool blocking) {
     Mutex::ScopedLock lock(metadata_events_mutex_);
     for (const auto& event : metadata_events_)
       AppendTraceEvent(event.get());
+    metadata_events_.clear();
   }
 
   for (const auto& id_writer : writers_)

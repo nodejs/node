@@ -24,17 +24,17 @@ proc.once('exit', common.mustCall(() => {
     const traces = JSON.parse(data.toString()).traceEvents
       .filter((trace) => trace.cat === '__metadata');
     assert(traces.length > 0);
-    assert(traces.some((trace) =>
+    assert.strictEqual(traces.filter((trace) =>
       trace.name === 'thread_name' &&
-        trace.args.name === 'JavaScriptMainThread'));
+        trace.args.name === 'JavaScriptMainThread').length, 1);
     assert(traces.some((trace) =>
       trace.name === 'thread_name' &&
         trace.args.name === 'PlatformWorkerThread'));
-    assert(traces.some((trace) =>
+    assert.strictEqual(traces.filter((trace) =>
       trace.name === 'version' &&
-        trace.args.node === process.versions.node));
+        trace.args.node === process.versions.node).length, 1);
 
-    assert(traces.some((trace) =>
+    assert.strictEqual(traces.filter((trace) =>
       trace.name === 'node' &&
         trace.args.process.versions.http_parser ===
           process.versions.http_parser &&
@@ -62,7 +62,7 @@ proc.once('exit', common.mustCall(() => {
         trace.args.process.platform === process.platform &&
         trace.args.process.release.name === process.release.name &&
         (!process.release.lts ||
-          trace.args.process.release.lts === process.release.lts)));
+          trace.args.process.release.lts === process.release.lts)).length, 1);
 
     if (!common.isSunOS && !common.isIBMi) {
       // Changing process.title is currently unsupported on SunOS/SmartOS
