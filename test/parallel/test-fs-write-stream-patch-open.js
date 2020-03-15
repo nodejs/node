@@ -29,6 +29,8 @@ common.expectWarning(
 const s = fs.createWriteStream(`${tmpdir.path}/out`);
 s.open();
 
-// Allow overriding open().
-fs.WriteStream.prototype.open = common.mustCall();
-fs.createWriteStream('asd');
+process.nextTick(() => {
+  // Allow overriding open().
+  fs.WriteStream.prototype.open = common.mustCall();
+  fs.createWriteStream('asd');
+});

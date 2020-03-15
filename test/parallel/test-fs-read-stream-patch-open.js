@@ -10,6 +10,8 @@ const s = fs.createReadStream('asd')
   .on('error', () => {});
 s.open();
 
-// Allow overriding open().
-fs.ReadStream.prototype.open = common.mustCall();
-fs.createReadStream('asd');
+process.nextTick(() => {
+  // Allow overriding open().
+  fs.ReadStream.prototype.open = common.mustCall();
+  fs.createReadStream('asd');
+});

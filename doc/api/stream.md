@@ -2242,10 +2242,10 @@ The `_construct()` method MUST NOT be called directly. It may be implemented
 by child classes, and if so, will be called by the internal `Readable`
 class methods only.
 
-This optional function will be called by the stream constructor,
-delaying any `_read` and `_destroy` calls until `callback` is called. This is
-useful to initialize state or asynchronously initialize resources before the
-stream can be used.
+This optional function will be scheduled in the next tick by the stream
+constructor, delaying any `_read` and `_destroy` calls until `callback` is
+called. This is useful to initialize state or asynchronously initialize
+resources before the stream can be used.
 
 ```js
 const { Readable } = require('stream');
