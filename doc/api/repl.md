@@ -66,8 +66,7 @@ The following key combinations in the REPL have these special effects:
   variables. When pressed while entering other input, displays relevant
   autocompletion options.
 
-For key bindings related to the reverse-i-search, see [`reverse-i-search`][].
-For all other key bindings, see [TTY keybindings][].
+For all key bindings, see [TTY keybindings][].
 
 ### Default Evaluation
 
@@ -712,7 +711,6 @@ For an example of running a REPL instance over [curl(1)][], see:
 [`repl.ReplServer`]: #repl_class_replserver
 [`repl.start()`]: #repl_repl_start_options
 [`util.inspect()`]: util.html#util_util_inspect_object_options
-[`reverse-i-search`]: #repl_reverse_i_search
 [TTY keybindings]: readline.html#readline_tty_keybindings
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
 [stream]: stream.html
