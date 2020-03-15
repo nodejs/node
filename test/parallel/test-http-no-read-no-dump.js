@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
+const assert = require('assert');
 
 let onPause = null;
 
@@ -10,6 +11,14 @@ const server = http.createServer((req, res) => {
 
   res.writeHead(200);
   res.flushHeaders();
+
+  let closed = false;
+  req.on('close', common.mustCall(() => {
+    closed = true;
+  }));
+  req.on('end', common.mustCall(() => {
+    assert.strictEqual(closed, false);
+  }));
 
   req.connection.on('pause', () => {
     res.end();
