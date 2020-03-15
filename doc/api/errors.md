@@ -1674,6 +1674,14 @@ The `package.json` [exports][] field does not export the requested subpath.
 Because exports are encapsulated, private internal modules that are not exported
 cannot be imported through the package resolution, unless using an absolute URL.
 
+<a id="ERR_PROTO_ACCESS"></a>
+### `ERR_PROTO_ACCESS`
+
+Accessing `Object.prototype.__proto__` has been forbidden using
+[`--disable-proto=throw`][]. [`Object.getPrototypeOf`][] and
+[`Object.setPrototypeOf`][] should be used to get and set the prototype of an
+object.
+
 <a id="ERR_REQUIRE_ESM"></a>
 ### `ERR_REQUIRE_ESM`
 
@@ -2500,10 +2508,13 @@ This `Error` is thrown when a read is attempted on a TTY `WriteStream`,
 such as `process.stdout.on('data')`.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
+[`--disable-proto=throw`]: cli.html#cli_disable_proto_mode
 [`--force-fips`]: cli.html#cli_force_fips
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
+[`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
 [`REPL`]: repl.html
 [`Writable`]: stream.html#stream_class_stream_writable
 [`child_process`]: child_process.html

@@ -14,6 +14,7 @@ using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FinalizationGroup;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -23,6 +24,7 @@ using v8::Null;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Private;
+using v8::PropertyDescriptor;
 using v8::String;
 using v8::Value;
 
@@ -411,6 +413,10 @@ Local<Context> NewContext(Isolate* isolate,
   return context;
 }
 
+void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
+  THROW_ERR_PROTO_ACCESS(info.GetIsolate());
+}
+
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
 void InitializeContextRuntime(Local<Context> context) {
@@ -438,6 +444,32 @@ void InitializeContextRuntime(Local<Context> context) {
       atomics_v->IsObject()) {
     Local<Object> atomics = atomics_v.As<Object>();
     atomics->Delete(context, wake_string).FromJust();
+  }
+
+  // Remove __proto__
+  // https://github.com/nodejs/node/issues/31951
+  Local<String> object_string = FIXED_ONE_BYTE_STRING(isolate, "Object");
+  Local<String> prototype_string = FIXED_ONE_BYTE_STRING(isolate, "prototype");
+  Local<Object> prototype = context->Global()
+                                ->Get(context, object_string)
+                                .ToLocalChecked()
+                                .As<Object>()
+                                ->Get(context, prototype_string)
+                                .ToLocalChecked()
+                                .As<Object>();
+  Local<String> proto_string = FIXED_ONE_BYTE_STRING(isolate, "__proto__");
+  if (per_process::cli_options->disable_proto == "delete") {
+    prototype->Delete(context, proto_string).ToChecked();
+  } else if (per_process::cli_options->disable_proto == "throw") {
+    Local<Value> thrower =
+        Function::New(context, ProtoThrower).ToLocalChecked();
+    PropertyDescriptor descriptor(thrower, thrower);
+    descriptor.set_enumerable(false);
+    descriptor.set_configurable(true);
+    prototype->DefineProperty(context, proto_string, descriptor).ToChecked();
+  } else if (per_process::cli_options->disable_proto != "") {
+    // Validated in ProcessGlobalArgs
+    FatalError("InitializeContextRuntime()", "invalid --disable-proto mode");
   }
 }
 
