@@ -180,7 +180,8 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
         more = uv_loop_alive(&loop);
         if (more) continue;
 
-        // node::EmitBeforeExit() is used to emit the 'beforeExit' event.
+        // node::EmitBeforeExit() is used to emit the 'beforeExit' event on
+        // the `process` object.
         node::EmitBeforeExit(env.get());
 
         // 'beforeExit' can also schedule new work that keeps the event loop
