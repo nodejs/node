@@ -149,15 +149,16 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     // There is also a variant that takes a callback and provides it with
     // the `require` and `process` objects, so that it can manually compile
     // and run scripts as needed.
-    // The `require` function inside this script does *not* have access to the
-    // file system, and can only load built-in Node.js modules.
+    // The `require` function inside this script does *not* access the file
+    // system, and can only load built-in Node.js modules.
     // `module.createRequire()` is being used to create one that is able to
-    // load files from the disk.
+    // load files from the disk, and uses the standard CommonJS file loader
+    // instead of the internal-only `require` function.
     MaybeLocal<Value> loadenv_ret = node::LoadEnvironment(
         env.get(),
         "const publicRequire ="
         "  require('module').createRequire(process.cwd() + '/');"
-        "global.require = publicRequire;"
+        "globalThis.require = publicRequire;"
         "require('vm').runInThisContext(process.argv[1]);");
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
