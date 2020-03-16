@@ -1,6 +1,8 @@
 'use strict';
 const common = require('../common');
 const { AsyncLocalStorage } = require('async_hooks');
+
+// This is an asynclocalstorage variant of test-timers-clearImmediate.js
 const asyncLocalStorage = new AsyncLocalStorage();
 const N = 3;
 
