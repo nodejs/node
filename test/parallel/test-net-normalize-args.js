@@ -6,11 +6,18 @@ const net = require('net');
 const { normalizedArgsSymbol } = require('internal/net');
 const { getSystemErrorName } = require('util');
 
-function validateNormalizedArgs(input, output) {
+function validateNormalizedArgs(input, [output, expectedCb]) {
   const args = net._normalizeArgs(input);
-
-  assert.deepStrictEqual(args, output);
   assert.strictEqual(args[normalizedArgsSymbol], true);
+
+  const cb = args[1];
+  if (!cb[normalizedArgsSymbol] && typeof expectedCb === 'function') {
+    assert.strictEqual(cb, expectedCb,
+                       'Expect function on the ' +
+                       'last parameter of \'validateNormalizedArgs\'');
+  }
+
+  assert.deepStrictEqual(args[0], output);
 }
 
 // Test creation of normalized arguments.
