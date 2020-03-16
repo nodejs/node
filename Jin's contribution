@@ -1,0 +1,3 @@
+print ("how are you doing?")
+
+commit -m "message"
