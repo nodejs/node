@@ -3,7 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "node_crypto.h"
 #include "v8.h"
 #include <openssl/ssl.h>
