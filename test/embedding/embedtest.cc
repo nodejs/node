@@ -92,7 +92,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
         env.get(),
         "const publicRequire ="
         "  require('module').createRequire(process.cwd() + '/');"
-        "global.require = publicRequire;"
+        "globalThis.require = publicRequire;"
         "require('vm').runInThisContext(process.argv[1]);");
 
     if (loadenv_ret.IsEmpty())  // There has been a JS exception.
