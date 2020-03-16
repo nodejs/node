@@ -33,7 +33,6 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(reports.length, 1);
   const report = reports[0];
   helper.validate(report);
- 
   // Verify that reports are not created on fatal error by default.
   args = ['--max-old-space-size=20',
           __filename,
