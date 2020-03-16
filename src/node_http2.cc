@@ -9,12 +9,14 @@
 #include "node_mem-inl.h"
 #include "node_perf.h"
 #include "node_revert.h"
+#include "stream_base-inl.h"
 #include "util-inl.h"
 
 #include <algorithm>
 
 namespace node {
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
@@ -22,15 +24,23 @@ using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
 using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
+using v8::Local;
+using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
+using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
 using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Undefined;
+using v8::Value;
 
 using node::performance::PerformanceEntry;
 namespace http2 {

@@ -11,7 +11,7 @@
 #include "node_http_common.h"
 #include "node_mem.h"
 #include "node_perf.h"
-#include "stream_base-inl.h"
+#include "stream_base.h"
 #include "string_bytes.h"
 
 #include <algorithm>
@@ -19,13 +19,6 @@
 
 namespace node {
 namespace http2 {
-
-using v8::Array;
-using v8::Context;
-using v8::Isolate;
-using v8::MaybeLocal;
-
-using performance::PerformanceEntry;
 
 // We strictly limit the number of outstanding unacknowledged PINGS a user
 // may send in order to prevent abuse. The current default cap is 10. The
@@ -169,7 +162,7 @@ class Http2Scope {
 
  private:
   Http2Session* session_ = nullptr;
-  Local<Object> session_handle_;
+  v8::Local<v8::Object> session_handle_;
 };
 
 // The Http2Options class is used to parse the options object passed in to
@@ -240,9 +233,9 @@ class Http2Options {
 class Http2Priority {
  public:
   Http2Priority(Environment* env,
-                Local<Value> parent,
-                Local<Value> weight,
-                Local<Value> exclusive);
+                v8::Local<v8::Value> parent,
+                v8::Local<v8::Value> weight,
+                v8::Local<v8::Value> exclusive);
 
   nghttp2_priority_spec* operator*() {
     return &spec;
@@ -410,15 +403,15 @@ class Http2Stream : public AsyncWrap,
   std::string diagnostic_name() const override;
 
   // JavaScript API
-  static void GetID(const FunctionCallbackInfo<Value>& args);
-  static void Destroy(const FunctionCallbackInfo<Value>& args);
-  static void Priority(const FunctionCallbackInfo<Value>& args);
-  static void PushPromise(const FunctionCallbackInfo<Value>& args);
-  static void RefreshState(const FunctionCallbackInfo<Value>& args);
-  static void Info(const FunctionCallbackInfo<Value>& args);
-  static void Trailers(const FunctionCallbackInfo<Value>& args);
-  static void Respond(const FunctionCallbackInfo<Value>& args);
-  static void RstStream(const FunctionCallbackInfo<Value>& args);
+  static void GetID(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Destroy(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Priority(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PushPromise(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RefreshState(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Info(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Trailers(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Respond(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RstStream(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   class Provider;
 
@@ -540,7 +533,7 @@ class Http2Session : public AsyncWrap,
                      public mem::NgLibMemoryManager<Http2Session, nghttp2_mem> {
  public:
   Http2Session(Environment* env,
-               Local<Object> wrap,
+               v8::Local<v8::Object> wrap,
                nghttp2_session_type type = NGHTTP2_SESSION_SERVER);
   ~Http2Session() override;
 
@@ -555,7 +548,7 @@ class Http2Session : public AsyncWrap,
 
   void Close(uint32_t code = NGHTTP2_NO_ERROR,
              bool socket_closed = false);
-  void Consume(Local<Object> stream);
+  void Consume(v8::Local<v8::Object> stream);
   void Goaway(uint32_t code, int32_t lastStreamID,
               const uint8_t* data, size_t len);
   void AltSvc(int32_t id,
@@ -652,21 +645,21 @@ class Http2Session : public AsyncWrap,
   void DecreaseAllocatedSize(size_t size);
 
   // The JavaScript API
-  static void New(const FunctionCallbackInfo<Value>& args);
-  static void Consume(const FunctionCallbackInfo<Value>& args);
-  static void Destroy(const FunctionCallbackInfo<Value>& args);
-  static void Settings(const FunctionCallbackInfo<Value>& args);
-  static void Request(const FunctionCallbackInfo<Value>& args);
-  static void SetNextStreamID(const FunctionCallbackInfo<Value>& args);
-  static void Goaway(const FunctionCallbackInfo<Value>& args);
-  static void UpdateChunksSent(const FunctionCallbackInfo<Value>& args);
-  static void RefreshState(const FunctionCallbackInfo<Value>& args);
-  static void Ping(const FunctionCallbackInfo<Value>& args);
-  static void AltSvc(const FunctionCallbackInfo<Value>& args);
-  static void Origin(const FunctionCallbackInfo<Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Consume(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Destroy(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Settings(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Request(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetNextStreamID(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Goaway(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void UpdateChunksSent(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RefreshState(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Ping(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AltSvc(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Origin(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <get_setting fn>
-  static void RefreshSettings(const FunctionCallbackInfo<Value>& args);
+  static void RefreshSettings(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   uv_loop_t* event_loop() const {
     return env()->event_loop();
@@ -877,15 +870,16 @@ class Http2Session : public AsyncWrap,
   friend class Http2StreamListener;
 };
 
-class Http2SessionPerformanceEntry : public PerformanceEntry {
+class Http2SessionPerformanceEntry : public performance::PerformanceEntry {
  public:
   Http2SessionPerformanceEntry(
       Environment* env,
       const Http2Session::Statistics& stats,
       nghttp2_session_type type) :
-          PerformanceEntry(env, "Http2Session", "http2",
-                           stats.start_time,
-                           stats.end_time),
+          performance::PerformanceEntry(
+              env, "Http2Session", "http2",
+              stats.start_time,
+              stats.end_time),
           ping_rtt_(stats.ping_rtt),
           data_sent_(stats.data_sent),
           data_received_(stats.data_received),
@@ -906,8 +900,8 @@ class Http2SessionPerformanceEntry : public PerformanceEntry {
   double stream_average_duration() const { return stream_average_duration_; }
   nghttp2_session_type type() const { return session_type_; }
 
-  void Notify(Local<Value> obj) {
-    PerformanceEntry::Notify(env(), kind(), obj);
+  void Notify(v8::Local<v8::Value> obj) {
+    performance::PerformanceEntry::Notify(env(), kind(), obj);
   }
 
  private:
@@ -922,15 +916,17 @@ class Http2SessionPerformanceEntry : public PerformanceEntry {
   nghttp2_session_type session_type_;
 };
 
-class Http2StreamPerformanceEntry : public PerformanceEntry {
+class Http2StreamPerformanceEntry
+    : public performance::PerformanceEntry {
  public:
   Http2StreamPerformanceEntry(
       Environment* env,
       int32_t id,
       const Http2Stream::Statistics& stats) :
-          PerformanceEntry(env, "Http2Stream", "http2",
-                           stats.start_time,
-                           stats.end_time),
+          performance::PerformanceEntry(
+              env, "Http2Stream", "http2",
+              stats.start_time,
+              stats.end_time),
           id_(id),
           first_header_(stats.first_header),
           first_byte_(stats.first_byte),
@@ -945,8 +941,8 @@ class Http2StreamPerformanceEntry : public PerformanceEntry {
   uint64_t sent_bytes() const { return sent_bytes_; }
   uint64_t received_bytes() const { return received_bytes_; }
 
-  void Notify(Local<Value> obj) {
-    PerformanceEntry::Notify(env(), kind(), obj);
+  void Notify(v8::Local<v8::Value> obj) {
+    performance::PerformanceEntry::Notify(env(), kind(), obj);
   }
 
  private:
@@ -999,7 +995,7 @@ class Http2Session::Http2Settings : public AsyncWrap {
   void Done(bool ack);
 
   // Returns a Buffer instance with the serialized SETTINGS payload
-  Local<Value> Pack();
+  v8::Local<v8::Value> Pack();
 
   // Resets the default values in the settings buffer
   static void RefreshDefaults(Environment* env);
@@ -1019,9 +1015,9 @@ class Http2Session::Http2Settings : public AsyncWrap {
 
 class Origins {
  public:
-  Origins(Isolate* isolate,
-          Local<Context> context,
-          Local<v8::String> origin_string,
+  Origins(v8::Isolate* isolate,
+          v8::Local<v8::Context> context,
+          v8::Local<v8::String> origin_string,
           size_t origin_count);
   ~Origins() = default;
 
