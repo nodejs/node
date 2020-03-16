@@ -1172,7 +1172,8 @@ class Environment : public MemoryRetainer {
   }
 
   // cb will be called as cb(env) on the next event loop iteration.
-  // keep_alive will be kept alive between now and after the callback has run.
+  // Unlike the JS setImmediate() function, nested SetImmediate() calls will
+  // be run without returning control to the event loop, similar to nextTick().
   template <typename Fn>
   inline void SetImmediate(Fn&& cb);
   template <typename Fn>
