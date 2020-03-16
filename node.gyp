@@ -337,6 +337,8 @@
       'type': 'executable',
 
       'defines': [
+        'NODE_ARCH="<(target_arch)"',
+        'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
       ],
 
@@ -423,13 +425,6 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
-        }],
-        [ 'node_report=="true"', {
-          'defines': [
-            'NODE_REPORT',
-            'NODE_ARCH="<(target_arch)"',
-            'NODE_PLATFORM="<(OS)"',
-          ],
         }],
         ['OS=="win"', {
           'libraries': [
@@ -596,6 +591,9 @@
         'src/node_process_events.cc',
         'src/node_process_methods.cc',
         'src/node_process_object.cc',
+        'src/node_report.cc',
+        'src/node_report_module.cc',
+        'src/node_report_utils.cc',
         'src/node_serdes.cc',
         'src/node_sockaddr.cc',
         'src/node_stat_watcher.cc',
@@ -685,6 +683,7 @@
         'src/node_perf_common.h',
         'src/node_platform.h',
         'src/node_process.h',
+        'src/node_report.h',
         'src/node_revert.h',
         'src/node_root_certs.h',
         'src/node_sockaddr.h',
@@ -781,6 +780,7 @@
           'libraries': [
             'Dbghelp',
             'Psapi',
+            'Ws2_32',
           ],
         }],
         [ 'node_use_etw=="true"', {
@@ -863,23 +863,6 @@
             'src/node_crypto_groups.h',
             'src/tls_wrap.cc',
             'src/tls_wrap.h'
-          ],
-        }],
-        [ 'node_report=="true"', {
-          'sources': [
-            'src/node_report.cc',
-            'src/node_report_module.cc',
-            'src/node_report_utils.cc',
-          ],
-          'defines': [
-            'NODE_REPORT',
-            'NODE_ARCH="<(target_arch)"',
-            'NODE_PLATFORM="<(OS)"',
-          ],
-          'conditions': [
-            ['OS=="win"', {
-              'libraries': [ 'Ws2_32' ],
-            }],
           ],
         }],
         [ 'OS in "linux freebsd mac" and '
@@ -1138,7 +1121,11 @@
         'test/cctest',
       ],
 
-      'defines': [ 'NODE_WANT_INTERNALS=1' ],
+      'defines': [
+        'NODE_ARCH="<(target_arch)"',
+        'NODE_PLATFORM="<(OS)"',
+        'NODE_WANT_INTERNALS=1',
+      ],
 
       'sources': [
         'src/node_snapshot_stub.cc',
@@ -1155,6 +1142,7 @@
         'test/cctest/test_linked_binding.cc',
         'test/cctest/test_per_process.cc',
         'test/cctest/test_platform.cc',
+        'test/cctest/test_report_util.cc',
         'test/cctest/test_sockaddr.cc',
         'test/cctest/test_traced_value.cc',
         'test/cctest/test_util.cc',
@@ -1191,21 +1179,6 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
-        }],
-        [ 'node_report=="true"', {
-          'sources': [
-            'test/cctest/test_report_util.cc',
-          ],
-          'defines': [
-            'NODE_REPORT',
-            'NODE_ARCH="<(target_arch)"',
-            'NODE_PLATFORM="<(OS)"',
-          ],
-          'conditions': [
-            ['OS=="win"', {
-              'libraries': [ 'Ws2_32' ],
-            }],
-          ],
         }],
         ['OS=="win"', {
           'libraries': [

@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-common.skipIfReportDisabled();
 const assert = require('assert');
 // Testcase to produce report on fatal error (javascript heap OOM)
 if (process.argv[2] === 'child') {
@@ -22,8 +21,7 @@ if (process.argv[2] === 'child') {
   const tmpdir = require('../common/tmpdir');
   tmpdir.refresh();
   const spawn = require('child_process').spawn;
-  const args = ['--experimental-report',
-                '--report-on-fatalerror',
+  const args = ['--report-on-fatalerror',
                 '--max-old-space-size=20',
                 __filename,
                 'child'];

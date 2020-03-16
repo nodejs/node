@@ -76,48 +76,6 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
 
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors) {
   per_env->CheckOptions(errors);
-#ifdef NODE_REPORT
-  if (per_env->experimental_report) {
-    // Assign the report_signal default value here. Once the
-    // --experimental-report flag is dropped, move this initialization to
-    // node_options.h, where report_signal is declared.
-    if (report_signal.empty())
-      report_signal = "SIGUSR2";
-    return;
-  }
-
-  if (!report_directory.empty()) {
-    errors->push_back("--report-directory option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (!report_filename.empty()) {
-    errors->push_back("--report-filename option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (!report_signal.empty()) {
-    errors->push_back("--report-signal option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (report_on_fatalerror) {
-    errors->push_back(
-        "--report-on-fatalerror option is valid only when "
-        "--experimental-report is set");
-  }
-
-  if (report_on_signal) {
-    errors->push_back("--report-on-signal option is valid only when "
-                      "--experimental-report is set");
-  }
-
-  if (report_uncaught_exception) {
-    errors->push_back(
-        "--report-uncaught-exception option is valid only when "
-        "--experimental-report is set");
-  }
-#endif  // NODE_REPORT
 }
 
 void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
@@ -361,12 +319,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_vm_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-worker", "", NoOp{}, kAllowedInEnvironment);
-#ifdef NODE_REPORT
-  AddOption("--experimental-report",
-            "enable report generation",
-            &EnvironmentOptions::experimental_report,
-            kAllowedInEnvironment);
-#endif  // NODE_REPORT
+  AddOption("--experimental-report", "", NoOp{}, kAllowedInEnvironment);
   AddOption("--experimental-wasi-unstable-preview1",
             "experimental WASI support",
             &EnvironmentOptions::experimental_wasi,
@@ -620,8 +573,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
              "disable runtime allocation of executable memory",
              V8Option{},
              kAllowedInEnvironment);
-
-#ifdef NODE_REPORT
   AddOption("--report-uncaught-exception",
             "generate diagnostic report on uncaught exceptions",
             &PerIsolateOptions::report_uncaught_exception,
@@ -650,7 +601,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             " (default: current working directory of Node.js process)",
             &PerIsolateOptions::report_directory,
             kAllowedInEnvironment);
-#endif  // NODE_REPORT
 
   Insert(eop, &PerIsolateOptions::get_per_env_options);
 }

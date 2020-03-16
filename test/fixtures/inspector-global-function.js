@@ -10,4 +10,8 @@ global.sum = function() {
   console.log(invocations++, c);
 };
 
+// NOTE(mmarchini): Calls console.log two times to ensure we loaded every
+// internal module before pausing. See
+// https://bugs.chromium.org/p/v8/issues/detail?id=10287.
+console.log('Loading');
 console.log('Ready!');

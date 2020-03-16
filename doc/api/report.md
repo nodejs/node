@@ -3,7 +3,7 @@
 <!--introduced_in=v11.8.0-->
 <!-- type=misc -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 <!-- name=report -->
 
@@ -32,7 +32,6 @@ is provided below for reference.
     "cwd": "/home/nodeuser/project/node",
     "commandLine": [
       "/home/nodeuser/project/node/out/Release/node",
-      "--experimental-report",
       "--report-uncaught-exception",
       "/home/nodeuser/project/node/test/report/test-exception.js",
       "child"
@@ -392,13 +391,9 @@ is provided below for reference.
 ## Usage
 
 ```bash
-node --experimental-report --report-uncaught-exception \
-  --report-on-signal --report-on-fatalerror app.js
+node --report-uncaught-exception --report-on-signal \
+--report-on-fatalerror app.js
 ```
-
-* `--experimental-report` Enables the diagnostic report feature.
- In the absence of this flag, use of all other related options will result in
- an error.
 
 * `--report-uncaught-exception` Enables report to be generated on
 un-caught exceptions. Useful when inspecting JavaScript stack in conjunction
@@ -569,7 +564,7 @@ Configuration on module initialization is also available via
 environment variables:
 
 ```bash
-NODE_OPTIONS="--experimental-report --report-uncaught-exception \
+NODE_OPTIONS="--report-uncaught-exception \
   --report-on-fatalerror --report-on-signal \
   --report-signal=SIGUSR2  --report-filename=./report.json \
   --report-directory=/home/nodeuser"

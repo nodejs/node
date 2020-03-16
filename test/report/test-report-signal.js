@@ -1,8 +1,8 @@
-// Flags: --experimental-report --report-on-signal
+// Flags: --report-on-signal
 'use strict';
 // Test producing a report via signal.
 const common = require('../common');
-common.skipIfReportDisabled();
+
 if (common.isWindows)
   return common.skip('Unsupported on Windows.');
 
@@ -13,9 +13,6 @@ const assert = require('assert');
 const helper = require('../common/report');
 const tmpdir = require('../common/tmpdir');
 
-common.expectWarning('ExperimentalWarning',
-                     'report is an experimental feature. This feature could ' +
-                     'change at any time');
 tmpdir.refresh();
 process.report.directory = tmpdir.path;
 
