@@ -293,7 +293,6 @@ class ProcessWrap : public HandleWrap {
                      int64_t exit_status,
                      int term_signal) {
     ProcessWrap* wrap = ContainerOf(&ProcessWrap::process_, handle);
-    CHECK_NOT_NULL(wrap);
     CHECK_EQ(&wrap->process_, handle);
 
     Environment* env = wrap->env();
