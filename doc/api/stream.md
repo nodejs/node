@@ -407,7 +407,7 @@ added: v0.9.4
 changes:
   - version: v13.11.0
     pr-url: https://github.com/nodejs/node/pull/32238
-    description: `callback` is invoked if 'finish' or 'error' is emitted.
+    description: The `callback` is invoked if 'finish' or 'error' is emitted.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `writable`.
