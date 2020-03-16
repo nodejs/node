@@ -1976,6 +1976,52 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+// Wrapper for readv(2).
+//
+// bytesRead = fs.readv(fd, buffers[, position], callback)
+// 0 fd        integer. file descriptor
+// 1 buffers   array of buffers to read
+// 2 position  if integer, position to read at in the file.
+//             if null, read from the current position
+static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  CHECK(args[0]->IsInt32());
+  const int fd = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsArray());
+  Local<Array> buffers = args[1].As<Array>();
+
+  int64_t pos = GetOffset(args[2]);  // -1 if not a valid JS int
+
+  MaybeStackBuffer<uv_buf_t> iovs(buffers->Length());
+
+  // Init uv buffers from ArrayBufferViews
+  for (uint32_t i = 0; i < iovs.length(); i++) {
+    Local<Value> buffer = buffers->Get(env->context(), i).ToLocalChecked();
+    CHECK(Buffer::HasInstance(buffer));
+    iovs[i] = uv_buf_init(Buffer::Data(buffer), Buffer::Length(buffer));
+  }
+
+  FSReqBase* req_wrap_async = GetReqWrap(env, args[3]);
+  if (req_wrap_async != nullptr) {  // readBuffers(fd, buffers, pos, req)
+    AsyncCall(env, req_wrap_async, args, "read", UTF8, AfterInteger,
+              uv_fs_read, fd, *iovs, iovs.length(), pos);
+  } else {  // readBuffers(fd, buffers, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(read);
+    int bytesRead = SyncCall(env, /* ctx */ args[4], &req_wrap_sync, "read",
+                             uv_fs_read, fd, *iovs, iovs.length(), pos);
+    FS_SYNC_TRACE_END(read, "bytesRead", bytesRead);
+    args.GetReturnValue().Set(bytesRead);
+  }
+}
+
+
 /* fs.chmod(path, mode);
  * Wrapper for chmod(1) / EIO_CHMOD
  */
@@ -2239,6 +2285,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "open", Open);
   env->SetMethod(target, "openFileHandle", OpenFileHandle);
   env->SetMethod(target, "read", Read);
+  env->SetMethod(target, "readBuffers", ReadBuffers);
   env->SetMethod(target, "fdatasync", Fdatasync);
   env->SetMethod(target, "fsync", Fsync);
   env->SetMethod(target, "rename", Rename);
