@@ -4,7 +4,6 @@
 #include "node_http_common.h"
 #include "node.h"
 #include "node_mem-inl.h"
-#include "env-inl.h"
 #include "v8.h"
 
 #include <algorithm>

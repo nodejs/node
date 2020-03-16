@@ -3,7 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "node_crypto.h"
 #include "v8.h"
 #include <openssl/ssl.h>
@@ -13,6 +12,9 @@
 #include <unordered_map>
 
 namespace node {
+
+class Environment;
+
 namespace crypto {
 
 // OPENSSL_free is a macro, so we need a wrapper function.

@@ -6,7 +6,6 @@
 #include "stream_base.h"
 
 #include "node.h"
-#include "env-inl.h"
 #include "v8.h"
 
 namespace node {
