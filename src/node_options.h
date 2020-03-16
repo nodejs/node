@@ -151,9 +151,6 @@ class EnvironmentOptions : public Options {
 
   bool syntax_check_only = false;
   bool has_eval_string = false;
-#ifdef NODE_REPORT
-  bool experimental_report = false;
-#endif  //  NODE_REPORT
   bool experimental_wasi = false;
   std::string eval_string;
   bool print_eval = false;
@@ -187,15 +184,12 @@ class PerIsolateOptions : public Options {
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
   bool no_node_snapshot = false;
-
-#ifdef NODE_REPORT
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool report_on_fatalerror = false;
-  std::string report_signal;
+  std::string report_signal = "SIGUSR2";
   std::string report_filename;
   std::string report_directory;
-#endif  //  NODE_REPORT
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors) override;
 };
@@ -239,10 +233,7 @@ class PerProcessOptions : public Options {
 #endif
   std::string use_largepages = "off";
   bool trace_sigint = false;
-
-#ifdef NODE_REPORT
   std::vector<std::string> cmdline;
-#endif  //  NODE_REPORT
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors) override;

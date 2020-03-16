@@ -1,9 +1,7 @@
-// Flags: --experimental-report
 'use strict';
 
 // Test producing a report via API call, using the no-hooks/no-signal interface.
-const common = require('../common');
-common.skipIfReportDisabled();
+require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const fs = require('fs');
@@ -11,9 +9,6 @@ const path = require('path');
 const helper = require('../common/report');
 const tmpdir = require('../common/tmpdir');
 
-common.expectWarning('ExperimentalWarning',
-                     'report is an experimental feature. This feature could ' +
-                     'change at any time');
 tmpdir.refresh();
 process.report.directory = tmpdir.path;
 
@@ -93,8 +88,7 @@ function validate() {
 
 {
   // Test the special "stdout" filename.
-  const args = ['--experimental-report', '-e',
-                'process.report.writeReport("stdout")'];
+  const args = ['-e', 'process.report.writeReport("stdout")'];
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
@@ -104,8 +98,7 @@ function validate() {
 
 {
   // Test the special "stderr" filename.
-  const args = ['--experimental-report', '-e',
-                'process.report.writeReport("stderr")'];
+  const args = ['-e', 'process.report.writeReport("stderr")'];
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
@@ -118,8 +111,7 @@ function validate() {
 {
   // Test the case where the report file cannot be opened.
   const reportDir = path.join(tmpdir.path, 'does', 'not', 'exist');
-  const args = ['--experimental-report',
-                `--report-directory=${reportDir}`,
+  const args = [`--report-directory=${reportDir}`,
                 '-e',
                 'process.report.writeReport()'];
   const child = spawnSync(process.execPath, args, { cwd: tmpdir.path });

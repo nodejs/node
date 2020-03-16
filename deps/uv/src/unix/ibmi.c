@@ -225,22 +225,7 @@ uint64_t uv_get_free_memory(void) {
   if (get_ibmi_system_status(&rcvr))
     return 0;
 
-  /* The amount of main storage, in kilobytes, in the system. */
-  uint64_t main_storage_size = rcvr.main_storage_size;
-
-  /* The current amount of storage in use for temporary objects.
-   * in millions (M) of bytes.
-   */
-  uint64_t current_unprotected_storage_used =
-    rcvr.current_unprotected_storage_used * 1024ULL;
-
-  /* Current unprotected storage includes the storage used for memory
-   * and disks so it is possible to exceed the amount of main storage.
-   */
-  if (main_storage_size <= current_unprotected_storage_used)
-    return 0ULL;
-
-  return (main_storage_size - current_unprotected_storage_used) * 1024ULL;
+  return (uint64_t)rcvr.main_storage_size * 1024ULL;
 }
 
 

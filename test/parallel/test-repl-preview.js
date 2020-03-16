@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const { REPLServer } = require('repl');
 const { Stream } = require('stream');
+const { inspect } = require('util');
 
 common.skipIfInspectorDisabled();
 
@@ -76,78 +77,111 @@ async function tests(options) {
     'function koo() { console.log("abc"); }',
     'a = undefined;'
   ]);
-  const testCases = [
-    ['foo', [2, 4], '[Function: foo]',
-     'foo',
-     '\x1B[90m[Function: foo]\x1B[39m\x1B[11G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
-     '\x1B[36m[Function: foo]\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
-    ['koo', [2, 4], '[Function: koo]',
-     'k\x1B[90moo\x1B[39m\x1B[9G\x1B[0Ko\x1B[90mo\x1B[39m\x1B[10G\x1B[0Ko',
-     '\x1B[90m[Function: koo]\x1B[39m\x1B[11G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
-     '\x1B[36m[Function: koo]\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
-    ['a', [1, 2], undefined],
-    [" { b: 1 }['b'] === 1", [2, 6], '\x1B[33mtrue\x1B[39m',
-     " { b: 1 }['b']",
-     '\x1B[90m1\x1B[39m\x1B[22G\x1B[1A\x1B[1B\x1B[2K\x1B[1A ',
-     '\x1B[90m1\x1B[39m\x1B[23G\x1B[1A\x1B[1B\x1B[2K\x1B[1A=== 1',
-     '\x1B[90mtrue\x1B[39m\x1B[28G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
-     '\x1B[33mtrue\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G'
-    ],
-    ["{ b: 1 }['b'] === 1;", [2, 7], '\x1B[33mfalse\x1B[39m',
-     "{ b: 1 }['b']",
-     '\x1B[90m1\x1B[39m\x1B[21G\x1B[1A\x1B[1B\x1B[2K\x1B[1A ',
-     '\x1B[90m1\x1B[39m\x1B[22G\x1B[1A\x1B[1B\x1B[2K\x1B[1A=== 1',
-     '\x1B[90mtrue\x1B[39m\x1B[27G\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
-     '\x1B[90mfalse\x1B[39m\x1B[28G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
-     '\x1B[33mfalse\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G'
-    ],
-    ['{ a: true }', [2, 3], '{ a: \x1B[33mtrue\x1B[39m }',
-     '{ a: tru\x1B[90me\x1B[39m\x1B[16G\x1B[0Ke }\r',
-     '{ a: \x1B[33mtrue\x1B[39m }',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
-    ['1n + 2n', [2, 5], '\x1B[33m3n\x1B[39m',
-     '1n + 2',
-     '\x1B[90mType[39m\x1B[14G\x1B[1A\x1B[1B\x1B[2K\x1B[1An',
-     '\x1B[90m3n\x1B[39m\x1B[15G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
-     '\x1B[33m3n\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
-    ['{ a: true };', [2, 4], '\x1B[33mtrue\x1B[39m',
-     '{ a: tru\x1B[90me\x1B[39m\x1B[16G\x1B[0Ke };',
-     '\x1B[90mtrue\x1B[39m\x1B[20G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
-     '\x1B[33mtrue\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G'],
-    [' \t { a: true};', [2, 5], '\x1B[33mtrue\x1B[39m',
-     '  { a: tru\x1B[90me\x1B[39m\x1B[18G\x1B[0Ke}',
-     '\x1B[90m{ a: true }\x1B[39m\x1B[20G\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
-     '\x1B[90mtrue\x1B[39m\x1B[21G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
-     '\x1B[33mtrue\x1B[39m',
-     '\x1B[1G\x1B[0Jrepl > \x1B[8G']
-  ];
+
+  const testCases = [{
+    input: 'foo',
+    noPreview: '[Function: foo]',
+    preview: [
+      'foo',
+      '\x1B[90m[Function: foo]\x1B[39m\x1B[11G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[36m[Function: foo]\x1B[39m'
+    ]
+  }, {
+    input: 'koo',
+    noPreview: '[Function: koo]',
+    preview: [
+      'k\x1B[90moo\x1B[39m\x1B[9G\x1B[0Ko\x1B[90mo\x1B[39m\x1B[10G\x1B[0Ko',
+      '\x1B[90m[Function: koo]\x1B[39m\x1B[11G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[36m[Function: koo]\x1B[39m'
+    ]
+  }, {
+    input: 'a',
+    noPreview: 'repl > ', // No "undefined" output.
+    preview: ['a\r'] // No "undefined" preview.
+  }, {
+    input: " { b: 1 }['b'] === 1",
+    noPreview: '\x1B[33mtrue\x1B[39m',
+    preview: [
+      " { b: 1 }['b']",
+      '\x1B[90m1\x1B[39m\x1B[22G\x1B[1A\x1B[1B\x1B[2K\x1B[1A ',
+      '\x1B[90m1\x1B[39m\x1B[23G\x1B[1A\x1B[1B\x1B[2K\x1B[1A=== 1',
+      '\x1B[90mtrue\x1B[39m\x1B[28G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[33mtrue\x1B[39m'
+    ]
+  }, {
+    input: "{ b: 1 }['b'] === 1;",
+    noPreview: '\x1B[33mfalse\x1B[39m',
+    preview: [
+      "{ b: 1 }['b']",
+      '\x1B[90m1\x1B[39m\x1B[21G\x1B[1A\x1B[1B\x1B[2K\x1B[1A ',
+      '\x1B[90m1\x1B[39m\x1B[22G\x1B[1A\x1B[1B\x1B[2K\x1B[1A=== 1',
+      '\x1B[90mtrue\x1B[39m\x1B[27G\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
+      '\x1B[90mfalse\x1B[39m\x1B[28G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[33mfalse\x1B[39m'
+    ]
+  }, {
+    input: '{ a: true }',
+    noPreview: '{ a: \x1B[33mtrue\x1B[39m }',
+    preview: [
+      '{ a: tru\x1B[90me\x1B[39m\x1B[16G\x1B[0Ke }\r',
+      '{ a: \x1B[33mtrue\x1B[39m }'
+    ]
+  }, {
+    input: '{ a: true };',
+    noPreview: '\x1B[33mtrue\x1B[39m',
+    preview: [
+      '{ a: tru\x1B[90me\x1B[39m\x1B[16G\x1B[0Ke };',
+      '\x1B[90mtrue\x1B[39m\x1B[20G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[33mtrue\x1B[39m'
+    ]
+  }, {
+    input: ' \t { a: true};',
+    noPreview: '\x1B[33mtrue\x1B[39m',
+    preview: [
+      '  { a: tru\x1B[90me\x1B[39m\x1B[18G\x1B[0Ke}',
+      '\x1B[90m{ a: true }\x1B[39m\x1B[20G\x1B[1A\x1B[1B\x1B[2K\x1B[1A;',
+      '\x1B[90mtrue\x1B[39m\x1B[21G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[33mtrue\x1B[39m'
+    ]
+  }, {
+    input: '1n + 2n',
+    noPreview: '\x1B[33m3n\x1B[39m',
+    preview: [
+      '1n + 2',
+      '\x1B[90mType[39m\x1B[14G\x1B[1A\x1B[1B\x1B[2K\x1B[1An',
+      '\x1B[90m3n\x1B[39m\x1B[15G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[33m3n\x1B[39m'
+    ]
+  }, {
+    input: '{};1',
+    noPreview: '\x1B[33m1\x1B[39m',
+    preview: [
+      '{};1',
+      '\x1B[90m1\x1B[39m\x1B[12G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
+      '\x1B[33m1\x1B[39m'
+    ]
+  }];
 
   const hasPreview = repl.terminal &&
     (options.preview !== undefined ? !!options.preview : true);
 
-  for (const [input, length, expected, ...preview] of testCases) {
+  for (const { input, noPreview, preview } of testCases) {
     console.log(`Testing ${input}`);
 
     const toBeRun = input.split('\n');
     let lines = await runAndWait(toBeRun, repl);
 
-    assert.strictEqual(lines.length, length[+hasPreview]);
-    if (expected === undefined) {
-      assert(!lines.some((e) => e.includes('undefined')));
-    } else if (hasPreview) {
+    if (hasPreview) {
       // Remove error messages. That allows the code to run in different
       // engines.
       // eslint-disable-next-line no-control-regex
       lines = lines.map((line) => line.replace(/Error: .+?\x1B/, ''));
+      assert.strictEqual(lines.pop(), '\x1B[1G\x1B[0Jrepl > \x1B[8G');
       assert.deepStrictEqual(lines, preview);
     } else {
-      assert.ok(lines[0].includes(expected), lines);
+      assert.ok(lines[0].includes(noPreview), lines.map(inspect));
+      if (preview.length !== 1 || preview[0] !== `${input}\r`)
+        assert.strictEqual(lines.length, 2);
     }
   }
 }

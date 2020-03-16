@@ -177,87 +177,89 @@ unspecified.
 
 ### Package Entry Points
 
-There are two fields that can define entry points for a package: `"main"` and
-`"exports"`. The `"main"` field is supported in all versions of Node.js, but its
-capabilities are limited: it only defines the main entry point of the package.
-The `"exports"` field, part of [Package Exports][], provides an alternative to
-`"main"` where the package main entry point can be defined while also
-encapsulating the package, preventing any other entry points besides those
-defined in `"exports"`. If package entry points are defined in both `"main"` and
-`"exports"`, the latter takes precedence in versions of Node.js that support
-`"exports"`. [Conditional Exports][] can also be used within `"exports"` to
-define different package entry points per environment.
+In a package’s `package.json` file, two fields can define entry points for a
+package: `"main"` and `"exports"`. The `"main"` field is supported in all
+versions of Node.js, but its capabilities are limited: it only defines the main
+entry point of the package.
 
-#### `package.json` `"main"`
+The `"exports"` field provides an alternative to `"main"` where the package
+main entry point can be defined while also encapsulating the package, preventing
+any other entry points besides those defined in `"exports"`. If package entry
+points are defined in both `"main"` and `"exports"`, the latter takes precedence
+in versions of Node.js that support `"exports"`. [Conditional Exports][] can
+also be used within `"exports"` to define different package entry points per
+environment, including whether the package is referenced via `require` or via
+`import`.
 
-The `package.json` `"main"` field defines the entry point for a package,
-whether the package is included into CommonJS via `require` or into an ES
-module via `import`.
+If both `"exports"` and `"main"` are defined, the `"exports"` field takes
+precedence over `"main"`.
+
+Both `"main"` and `"exports"` entry points are not specific to ES modules or
+CommonJS; `"main"` will be overridden by `"exports"` in a `require` so it is
+not a CommonJS fallback.
+
+This is important with regard to `require`, since `require` of ES module files
+throws an error in all versions of Node.js. To create a package that works both
+in modern Node.js via `import` and `require` and also legacy Node.js versions,
+see [the dual CommonJS/ES module packages section][].
+
+#### Main Entry Point Export
+
+To set the main entry point for a package, it is advisable to define both
+`"exports"` and `"main"` in the package’s `package.json` file:
 
 <!-- eslint-skip -->
 ```js
-// ./node_modules/es-module-package/package.json
 {
-  "type": "module",
-  "main": "./src/index.js"
+  "main": "./main.js",
+  "exports": "./main.js"
 }
 ```
 
-```js
-// ./my-app.mjs
+The benefit of doing this is that when using the `"exports"` field all
+subpaths of the package will no longer be available to importers under
+`require('pkg/subpath.js')`, and instead they will get a new error,
+`ERR_PACKAGE_PATH_NOT_EXPORTED`.
 
-import { something } from 'es-module-package';
-// Loads from ./node_modules/es-module-package/src/index.js
-```
+This encapsulation of exports provides more reliable guarantees
+about package interfaces for tools and when handling semver upgrades for a
+package. It is not a strong encapsulation since a direct require of any
+absolute subpath of the package such as
+`require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-An attempt to `require` the above `es-module-package` would attempt to load
-`./node_modules/es-module-package/src/index.js` as CommonJS, which would throw
-an error as Node.js would not be able to parse the `export` statement in
-CommonJS.
+#### Subpath Exports
 
-As with `import` statements, for ES module usage the value of `"main"` must be
-a full path including extension: `"./index.mjs"`, not `"./index"`.
-
-If the `package.json` `"type"` field is omitted, a `.js` file in `"main"` will
-be interpreted as CommonJS.
-
-The `"main"` field can point to exactly one file, regardless of whether the
-package is referenced via `require` (in a CommonJS context) or `import` (in an
-ES module context).
-
-#### Package Exports
-
-By default, all subpaths from a package can be imported (`import 'pkg/x.js'`).
-Custom subpath aliasing and encapsulation can be provided through the
-`"exports"` field.
+When using the `"exports"` field, custom subpaths can be defined along
+with the main entry point by treating the main entry point as the
+`"."` subpath:
 
 <!-- eslint-skip -->
 ```js
-// ./node_modules/es-module-package/package.json
 {
+  "main": "./main.js",
   "exports": {
+    ".": "./main.js",
     "./submodule": "./src/submodule.js"
   }
 }
 ```
+
+Now only the defined subpath in `"exports"` can be imported by a
+consumer:
 
 ```js
 import submodule from 'es-module-package/submodule';
 // Loads ./node_modules/es-module-package/src/submodule.js
 ```
 
-In addition to defining an alias, subpaths not defined by `"exports"` will
-throw when an attempt is made to import them:
+While other subpaths will error:
 
 ```js
 import submodule from 'es-module-package/private-module.js';
-// Throws ERR_MODULE_NOT_FOUND
+// Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-> Note: this is not a strong encapsulation as any private modules can still be
-> loaded by absolute paths.
-
-Folders can also be mapped with package exports:
+Entire folders can also be mapped with package exports:
 
 <!-- eslint-skip -->
 ```js
@@ -269,20 +271,23 @@ Folders can also be mapped with package exports:
 }
 ```
 
+With the above, all modules within the `./src/features/` folder
+are exposed deeply to `import` and `require`:
+
 ```js
 import feature from 'es-module-package/features/x.js';
 // Loads ./node_modules/es-module-package/src/features/x.js
 ```
 
-If a package has no exports, setting `"exports": false` can be used instead of
-`"exports": {}` to indicate the package does not intend for submodules to be
-exposed.
+When using folder mappings, ensure that you do want to expose every
+module inside the subfolder. Any modules which are not public
+should be moved to another folder to retain the encapsulation
+benefits of exports.
 
-Any invalid exports entries will be ignored. This includes exports not
-starting with `"./"` or a missing trailing `"/"` for directory exports.
+#### Package Exports Fallbacks
 
-Array fallback support is provided for exports, similarly to import maps
-in order to be forwards-compatible with possible fallback workflows in future:
+For possible new specifier support in future, array fallbacks are
+supported for all invalid specifiers:
 
 <!-- eslint-skip -->
 ```js
@@ -293,74 +298,8 @@ in order to be forwards-compatible with possible fallback workflows in future:
 }
 ```
 
-Since `"not:valid"` is not a supported target, `"./submodule.js"` is used
+Since `"not:valid"` is not a valid specifier, `"./submodule.js"` is used
 instead as the fallback, as if it were the only target.
-
-Defining a `"."` export will define the main entry point for the package,
-and will always take precedence over the `"main"` field in the `package.json`.
-
-This allows defining a different entry point for Node.js versions that support
-ECMAScript modules and versions that don't, for example:
-
-<!-- eslint-skip -->
-```js
-{
-  "main": "./main-legacy.cjs",
-  "exports": {
-    ".": "./main-modern.cjs"
-  }
-}
-```
-
-#### Conditional Exports
-
-Conditional exports provide a way to map to different paths depending on
-certain conditions. They are supported for both CommonJS and ES module imports.
-
-For example, a package that wants to provide different ES module exports for
-Node.js and the browser can be written:
-
-<!-- eslint-skip -->
-```js
-// ./node_modules/pkg/package.json
-{
-  "type": "module",
-  "main": "./index.js",
-  "exports": {
-    "./feature": {
-      "import": "./feature-default.js",
-      "browser": "./feature-browser.js"
-    }
-  }
-}
-```
-
-When resolving the `"."` export, if no matching target is found, the `"main"`
-will be used as the final fallback.
-
-The conditions supported in Node.js condition matching:
-
-* `"default"` - the generic fallback that will always match. Can be a CommonJS
-   or ES module file.
-* `"import"` - matched when the package is loaded via `import` or
-   `import()`. Can be any module format, this field does not set the type
-   interpretation.
-* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
-   module file.
-* `"require"` - matched when the package is loaded via `require()`.
-
-Condition matching is applied in object order from first to last within the
-`"exports"` object.
-
-Using the `"require"` condition it is possible to define a package that will
-have a different exported value for CommonJS and ES modules, which can be a
-hazard in that it can result in having two separate instances of the same
-package in use in an application, which can cause a number of bugs.
-
-Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc. could be defined in other runtimes or tools. Condition names must not start
-with `"."` or be numbers. Further restrictions, definitions or guidance on
-condition names may be provided in future.
 
 #### Exports Sugar
 
@@ -388,48 +327,98 @@ can be written:
 }
 ```
 
-When using [Conditional Exports][], the rule is that all keys in the object
-mapping must not start with a `"."` otherwise they would be indistinguishable
-from exports subpaths.
+#### Conditional Exports
+
+Conditional exports provide a way to map to different paths depending on
+certain conditions. They are supported for both CommonJS and ES module imports.
+
+For example, a package that wants to provide different ES module exports for
+`require()` and `import` can be written:
+
+<!-- eslint-skip -->
+```js
+// package.json
+{
+  "main": "./main-require.cjs",
+  "exports": {
+    "import": "./main-module.js",
+    "require": "./main-require.cjs"
+  },
+  "type": "module"
+}
+```
+
+Node.js supports the following conditions:
+
+* `"import"` - matched when the package is loaded via `import` or
+   `import()`. Can reference either an ES module or CommonJS file, as both
+   `import` and `import()` can load either ES module or CommonJS sources.
+* `"require"` - matched when the package is loaded via `require()`.
+   As `require()` only supports CommonJS, the referenced file must be CommonJS.
+* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
+   module file. _This condition should always come after `"import"` or
+   `"require"`._
+* `"default"` - the generic fallback that will always match. Can be a CommonJS
+   or ES module file. _This condition should always come last._
+
+Condition matching is applied in object order from first to last within the
+`"exports"` object. _The general rule is that conditions should be used
+from most specific to least specific in object order._
+
+Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
+etc. are ignored by Node.js but may be used by other runtimes or tools.
+Further restrictions, definitions or guidance on condition names may be
+provided in the future.
+
+Using the `"import"` and `"require"` conditions can lead to some hazards,
+which are explained further in
+[the dual CommonJS/ES module packages section][].
+
+Conditional exports can also be extended to exports subpaths, for example:
 
 <!-- eslint-skip -->
 ```js
 {
+  "main": "./main.js",
   "exports": {
-    ".": {
-      "import": "./main.js",
-      "require": "./main.cjs"
+    ".": "./main.js",
+    "./feature": {
+      "browser": "./feature-browser.js",
+      "default": "./feature.js"
     }
   }
 }
 ```
 
-can be written:
+Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
+could provide different implementations between the browser and Node.js,
+given third-party tool support for a `"browser"` condition.
+
+#### Nested conditions
+
+In addition to direct mappings, Node.js also supports nested condition objects.
+
+For example, to define a package that only has dual mode entry points for
+use in Node.js but not the browser:
 
 <!-- eslint-skip -->
 ```js
 {
+  "main": "./main.js",
   "exports": {
-    "import": "./main.js",
-    "require": "./main.cjs"
+    "browser": "./feature-browser.mjs",
+    "node": {
+      "import": "./feature-node.mjs",
+      "require": "./feature-node.cjs"
+    }
   }
 }
 ```
 
-If writing any exports value that mixes up these two forms, an error will be
-thrown:
-
-<!-- eslint-skip -->
-```js
-{
-  // Throws on resolution!
-  "exports": {
-    "./feature": "./lib/feature.js",
-    "import": "./main.js",
-    "require": "./main.cjs"
-  }
-}
-```
+Conditions continue to be matched in order as with flat conditions. If
+a nested conditional does not have any mapping it will continue checking
+the remaining conditions of the parent condition. In this way nested
+conditions behave analogously to nested JavaScript `if` statements.
 
 #### Self-referencing a package using its name
 
@@ -561,8 +550,8 @@ CommonJS entry point for `require`.
   "type": "module",
   "main": "./index.cjs",
   "exports": {
-    "require": "./index.cjs",
-    "import": "./wrapper.mjs"
+    "import": "./wrapper.mjs",
+    "require": "./index.cjs"
   }
 }
 ```
@@ -906,8 +895,8 @@ can either be an URL-style relative path like `'./file.mjs'` or a package name
 like `'fs'`.
 
 Like in CommonJS, files within packages can be accessed by appending a path to
-the package name; unless the package’s `package.json` contains an [`"exports"`
-field][], in which case files within packages need to be accessed via the path
+the package name; unless the package’s `package.json` contains an `"exports"`
+field, in which case files within packages need to be accessed via the path
 defined in `"exports"`.
 
 ```js
@@ -1597,7 +1586,7 @@ The resolver can throw the following errors:
 
 **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _env_)
 
-> 1.If _target_ is a String, then
+> 1. If _target_ is a String, then
 >    1. If _target_ does not start with _"./"_ or contains any _"node_modules"_
 >       segments including _"node_modules"_ percent-encoding, throw an
 >       _Invalid Package Target_ error.
@@ -1697,10 +1686,8 @@ success!
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
-[Package Exports]: #esm_package_exports
 [Terminology]: #esm_terminology
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
-[`"exports"` field]: #esm_package_exports
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`esm`]: https://github.com/standard-things/esm#readme
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
@@ -1714,6 +1701,7 @@ success!
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
+[the dual CommonJS/ES module packages section]: #esm_dual_commonjs_es_module_packages
 [transpiler loader example]: #esm_transpiler_loader
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Top-Level Await]: https://github.com/tc39/proposal-top-level-await

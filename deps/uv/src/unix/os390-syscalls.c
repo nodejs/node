@@ -43,6 +43,7 @@ int scandir(const char* maindir, struct dirent*** namelist,
             int (*compar)(const struct dirent**,
             const struct dirent **)) {
   struct dirent** nl;
+  struct dirent** nl_copy;
   struct dirent* dirent;
   unsigned count;
   size_t allocated;
@@ -62,19 +63,17 @@ int scandir(const char* maindir, struct dirent*** namelist,
     if (!filter || filter(dirent)) {
       struct dirent* copy;
       copy = uv__malloc(sizeof(*copy));
-      if (!copy) {
-        while (count) {
-          dirent = nl[--count];
-          uv__free(dirent);
-        }
-        uv__free(nl);
-        closedir(mdir);
-        errno = ENOMEM;
-        return -1;
-      }
+      if (!copy)
+        goto error;
       memcpy(copy, dirent, sizeof(*copy));
 
-      nl = uv__realloc(nl, sizeof(*copy) * (count + 1));
+      nl_copy = uv__realloc(nl, sizeof(*copy) * (count + 1));
+      if (nl_copy == NULL) {
+        uv__free(copy);
+        goto error;
+      }
+
+      nl = nl_copy;
       nl[count++] = copy;
     }
   }
@@ -86,6 +85,16 @@ int scandir(const char* maindir, struct dirent*** namelist,
 
   *namelist = nl;
   return count;
+
+error:
+  while (count > 0) {
+    dirent = nl[--count];
+    uv__free(dirent);
+  }
+  uv__free(nl);
+  closedir(mdir);
+  errno = ENOMEM;
+  return -1;
 }
 
 
