@@ -17,18 +17,23 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
 using v8::DontEnum;
 using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::PropertyAttribute;
 using v8::ReadOnly;
+using v8::SideEffectType;
+using v8::Signature;
 using v8::String;
 using v8::Value;
 
@@ -370,8 +375,8 @@ void StreamBase::AddMethod(Environment* env,
   Local<FunctionTemplate> templ =
       env->NewFunctionTemplate(stream_method,
                                signature,
-                               v8::ConstructorBehavior::kThrow,
-                               v8::SideEffectType::kHasNoSideEffect);
+                               ConstructorBehavior::kThrow,
+                               SideEffectType::kHasNoSideEffect);
   t->PrototypeTemplate()->SetAccessorProperty(
       string, templ, Local<FunctionTemplate>(), attributes);
 }
@@ -567,5 +572,52 @@ void ReportWritesToJSStreamListener::OnStreamAfterShutdown(
   OnStreamAfterReqFinished(req_wrap, status);
 }
 
+void ShutdownWrap::OnDone(int status) {
+  stream()->EmitAfterShutdown(this, status);
+  Dispose();
+}
+
+void WriteWrap::OnDone(int status) {
+  stream()->EmitAfterWrite(this, status);
+  Dispose();
+}
+
+StreamListener::~StreamListener() {
+  if (stream_ != nullptr)
+    stream_->RemoveStreamListener(this);
+}
+
+void StreamListener::OnStreamAfterShutdown(ShutdownWrap* w, int status) {
+  CHECK_NOT_NULL(previous_listener_);
+  previous_listener_->OnStreamAfterShutdown(w, status);
+}
+
+void StreamListener::OnStreamAfterWrite(WriteWrap* w, int status) {
+  CHECK_NOT_NULL(previous_listener_);
+  previous_listener_->OnStreamAfterWrite(w, status);
+}
+
+StreamResource::~StreamResource() {
+  while (listener_ != nullptr) {
+    StreamListener* listener = listener_;
+    listener->OnStreamDestroy();
+    // Remove the listener if it didn’t remove itself. This makes the logic
+    // in `OnStreamDestroy()` implementations easier, because they
+    // may call generic cleanup functions which can just remove the
+    // listener unconditionally.
+    if (listener == listener_)
+      RemoveStreamListener(listener_);
+  }
+}
+
+ShutdownWrap* StreamBase::CreateShutdownWrap(
+    Local<Object> object) {
+  return new SimpleShutdownWrap<AsyncWrap>(this, object);
+}
+
+WriteWrap* StreamBase::CreateWriteWrap(
+    Local<Object> object) {
+  return new SimpleWriteWrap<AsyncWrap>(this, object);
+}
 
 }  // namespace node
