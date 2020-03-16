@@ -16,9 +16,9 @@
 choco install git -params /GitAndUnixToolsOnPath -y
 choco install python python2 -y
 
-# Installs VS 2017 Build Tools
-choco install visualstudio2017buildtools -y
-choco install visualstudio2017-workload-vctools -y --params="--add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.VC.ATL.ARM64"
+# Installs VS 2019 Build Tools
+choco install visualstudio2019buildtools -y
+choco install visualstudio2019-workload-vctools -y --params="--add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.VC.ATL.ARM64"
 
 # NASM
 choco install nasm -y
