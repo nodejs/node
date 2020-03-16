@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 // Testcase to produce report on fatal error (javascript heap OOM)
 if (process.argv[2] === 'child') {
