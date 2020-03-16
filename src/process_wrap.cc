@@ -292,7 +292,7 @@ class ProcessWrap : public HandleWrap {
   static void OnExit(uv_process_t* handle,
                      int64_t exit_status,
                      int term_signal) {
-    ProcessWrap* wrap = static_cast<ProcessWrap*>(handle->data);
+    ProcessWrap* wrap = ContainerOf(&ProcessWrap::process_, handle);
     CHECK_NOT_NULL(wrap);
     CHECK_EQ(&wrap->process_, handle);
 
