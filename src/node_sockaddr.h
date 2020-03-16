@@ -3,7 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include "env.h"
 #include "memory_tracker.h"
 #include "node.h"
 #include "uv.h"
@@ -13,6 +12,8 @@
 #include <unordered_map>
 
 namespace node {
+
+class Environment;
 
 class SocketAddress : public MemoryRetainer {
  public:
