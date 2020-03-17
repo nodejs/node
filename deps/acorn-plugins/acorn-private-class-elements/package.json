@@ -1,63 +1,30 @@
 {
-  "_from": "acorn-private-class-elements@^0.1.1",
-  "_id": "acorn-private-class-elements@0.1.1",
-  "_inBundle": false,
-  "_integrity": "sha512-bZpmSnaOsK3jkF7J8xaLJ05f008vapPX+XliIv8+jjkclvDR+M4OnTHLhFnCCSeJ0fMwRKjbY+BXsglSNpVZtw==",
-  "_location": "/acorn-private-class-elements",
-  "_phantomChildren": {},
-  "_requested": {
-    "type": "range",
-    "registry": true,
-    "raw": "acorn-private-class-elements@^0.1.1",
-    "name": "acorn-private-class-elements",
-    "escapedName": "acorn-private-class-elements",
-    "rawSpec": "^0.1.1",
-    "saveSpec": null,
-    "fetchSpec": "^0.1.1"
-  },
-  "_requiredBy": [
-    "/acorn-class-fields"
-  ],
-  "_resolved": "https://registry.npmjs.org/acorn-private-class-elements/-/acorn-private-class-elements-0.1.1.tgz",
-  "_shasum": "85209cb5791ab84fde2362cb208fa51e7679bcdc",
-  "_spec": "acorn-private-class-elements@^0.1.1",
-  "_where": "/home/ruben/repos/node/node/node_modules/acorn-class-fields",
-  "bugs": {
-    "url": "https://github.com/acornjs/acorn-private-class-elements/issues"
-  },
-  "bundleDependencies": false,
-  "contributors": [
-    {
-      "name": "Adrian Heine",
-      "email": "mail@adrianheine.de"
-    }
-  ],
-  "dependencies": {
-    "mocha": "^5.2.0"
-  },
-  "deprecated": false,
+  "name": "acorn-private-class-elements",
   "description": "Helpers for supporting private class methods and fields in acorn",
-  "devDependencies": {
-    "acorn": "^6.1.0",
-    "eslint": "^5.13.0",
-    "eslint-plugin-node": "^8.0.1"
-  },
+  "homepage": "https://github.com/acornjs/acorn-private-class-elements",
+  "contributors": [
+    "Adrian Heine <mail@adrianheine.de>"
+  ],
   "engines": {
     "node": ">=4.8.2"
   },
-  "homepage": "https://github.com/acornjs/acorn-private-class-elements",
-  "license": "MIT",
-  "name": "acorn-private-class-elements",
-  "peerDependencies": {
-    "acorn": "^6.1.0"
-  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/acornjs/acorn-private-class-elements.git"
+    "url": "https://github.com/acornjs/acorn-private-class-elements"
   },
+  "license": "MIT",
   "scripts": {
-    "lint": "eslint -c .eslintrc.json .",
-    "test": "mocha"
+    "test": "mocha",
+    "lint": "eslint -c .eslintrc.json ."
   },
-  "version": "0.1.1"
+  "peerDependencies": {
+    "acorn": "^6.1.0 || ^7.0.0"
+  },
+  "version": "0.2.0",
+  "devDependencies": {
+    "acorn": "^7.0.0",
+    "eslint": "^6.8.0",
+    "eslint-plugin-node": "^11.0.0",
+    "mocha": "^7.1.0"
+  }
 }
