@@ -58,7 +58,7 @@ with the X509 certificate B<cert>.
 
 OCSP_basic_sign() signs OCSP response B<brsp> using certificate B<signer>, private key
 B<key>, digest B<dgst> and additional certificates B<certs>. If the B<flags> option
-B<OCSP_NOCERTS> is set then no certificates will be included in the request. If the
+B<OCSP_NOCERTS> is set then no certificates will be included in the response. If the
 B<flags> option B<OCSP_RESPID_KEY> is set then the responder is identified by key ID
 rather than by name. OCSP_basic_sign_ctx() also signs OCSP response B<brsp> but
 uses the parameters contained in digest context B<ctx>.
@@ -107,7 +107,7 @@ The OCSP_basic_sign_ctx() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

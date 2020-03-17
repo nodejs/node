@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "../ssl_locl.h"
-#include "record_locl.h"
+#include "../ssl_local.h"
+#include "record_local.h"
 #include "internal/cryptlib.h"
 
 /*-
@@ -16,7 +16,7 @@
  * internal errors, but not otherwise.
  *
  * Returns:
- *    0: (in non-constant time) if the record is publically invalid (i.e. too
+ *    0: (in non-constant time) if the record is publicly invalid (i.e. too
  *        short etc).
  *    1: if the record encryption was successful.
  *   -1: if the record's AEAD-authenticator is invalid or, if sending,

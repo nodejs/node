@@ -8,7 +8,7 @@
  */
 
 #include <openssl/idea.h>
-#include "idea_lcl.h"
+#include "idea_local.h"
 
 void IDEA_cbc_encrypt(const unsigned char *in, unsigned char *out,
                       long length, IDEA_KEY_SCHEDULE *ks, unsigned char *iv,

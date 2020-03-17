@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "ssl_locl.h"
+#include "ssl_local.h"
 #include <openssl/bn.h>
 
 struct pqueue_st {

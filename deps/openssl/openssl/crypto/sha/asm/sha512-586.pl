@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -922,4 +922,4 @@ sub BODY_00_15_ssse3 {		# "phase-less" copy of BODY_00_15_sse2
 
 &asm_finish();
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

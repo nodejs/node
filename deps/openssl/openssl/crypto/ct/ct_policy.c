@@ -15,7 +15,7 @@
 #include <openssl/err.h>
 #include <time.h>
 
-#include "ct_locl.h"
+#include "ct_local.h"
 
 /*
  * Number of seconds in the future that an SCT timestamp can be, by default,

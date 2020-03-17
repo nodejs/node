@@ -10,10 +10,10 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/evp.h>
-#include "internal/asn1_int.h"
-#include "internal/siphash.h"
+#include "crypto/asn1.h"
+#include "crypto/siphash.h"
 #include "siphash_local.h"
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 /*
  * SIPHASH "ASN1" method. This is just here to indicate the maximum

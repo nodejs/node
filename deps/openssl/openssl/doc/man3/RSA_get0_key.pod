@@ -5,7 +5,7 @@
 RSA_set0_key, RSA_set0_factors, RSA_set0_crt_params, RSA_get0_key,
 RSA_get0_factors, RSA_get0_crt_params,
 RSA_get0_n, RSA_get0_e, RSA_get0_d, RSA_get0_p, RSA_get0_q,
-RSA_get0_dmp1, RSA_get0_dmq1, RSA_get0_iqmp,
+RSA_get0_dmp1, RSA_get0_dmq1, RSA_get0_iqmp, RSA_get0_pss_params,
 RSA_clear_flags,
 RSA_test_flags, RSA_set_flags, RSA_get0_engine, RSA_get_multi_prime_extra_count,
 RSA_get0_multi_prime_factors, RSA_get0_multi_prime_crt_params,
@@ -33,6 +33,7 @@ RSA_set0_multi_prime_params, RSA_get_version
  const BIGNUM *RSA_get0_dmp1(const RSA *r);
  const BIGNUM *RSA_get0_dmq1(const RSA *r);
  const BIGNUM *RSA_get0_iqmp(const RSA *r);
+ const RSA_PSS_PARAMS *RSA_get0_pss_params(const RSA *r);
  void RSA_clear_flags(RSA *r, int flags);
  int RSA_test_flags(const RSA *r, int flags);
  void RSA_set_flags(RSA *r, int flags);
@@ -98,6 +99,8 @@ retrieved separately by the corresponding function
 RSA_get0_n(), RSA_get0_e(), RSA_get0_d(), RSA_get0_p(), RSA_get0_q(),
 RSA_get0_dmp1(), RSA_get0_dmq1(), and RSA_get0_iqmp(), respectively.
 
+RSA_get0_pss_params() is used to retrieve the RSA-PSS parameters.
+
 RSA_set_flags() sets the flags in the B<flags> parameter on the RSA
 object. Multiple flags can be passed in one go (bitwise ORed together).
 Any flags that are already set are left set. RSA_test_flags() tests to
@@ -156,6 +159,8 @@ ENGINE has been set.
 L<RSA_new(3)>, L<RSA_size(3)>
 
 =head1 HISTORY
+
+The RSA_get0_pss_params() function was added in OpenSSL 1.1.1e.
 
 The
 RSA_get_multi_prime_extra_count(), RSA_get0_multi_prime_factors(),

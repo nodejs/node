@@ -10,9 +10,9 @@
 #include "internal/cryptlib.h"
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 
-#include "pcy_int.h"
+#include "pcy_local.h"
 
 static int policy_data_cmp(const X509_POLICY_DATA *const *a,
                            const X509_POLICY_DATA *const *b);

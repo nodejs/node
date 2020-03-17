@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "ec_lcl.h"
+#include "ec_local.h"
 #include <openssl/err.h>
 
 int EC_GROUP_check(const EC_GROUP *group, BN_CTX *ctx)

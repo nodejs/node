@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <openssl/bn.h>
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
+#include "bn_local.h"
 
 /* The old slow way */
 #if 0

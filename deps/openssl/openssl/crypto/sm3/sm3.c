@@ -10,7 +10,7 @@
  */
 
 #include <openssl/e_os2.h>
-#include "sm3_locl.h"
+#include "sm3_local.h"
 
 int sm3_init(SM3_CTX *c)
 {

@@ -8,7 +8,7 @@
  */
 
 #include <openssl/cast.h>
-#include "cast_lcl.h"
+#include "cast_local.h"
 
 /*
  * The input and output encrypted as though 64bit ofb mode is being used.

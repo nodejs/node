@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "ssl_locl.h"
+#include "ssl_local.h"
 
 #ifndef OPENSSL_NO_SSL_TRACE
 
@@ -1246,8 +1246,9 @@ static int ssl_print_certificates(BIO *bio, const SSL *ssl, int server,
     while (clen > 0) {
         if (!ssl_print_certificate(bio, indent + 2, &msg, &clen))
             return 0;
-        if (!ssl_print_extensions(bio, indent + 2, server, SSL3_MT_CERTIFICATE,
-                                  &msg, &clen))
+        if (SSL_IS_TLS13(ssl)
+            && !ssl_print_extensions(bio, indent + 2, server,
+                                     SSL3_MT_CERTIFICATE, &msg, &clen))
             return 0;
 
     }

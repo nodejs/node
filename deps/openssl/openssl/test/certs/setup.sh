@@ -375,3 +375,8 @@ openssl req -new -nodes -subj "/CN=localhost" \
     -pkeyopt rsa_pss_keygen_md:sha256 -pkeyopt rsa_pss_keygen_saltlen:32 | \
     ./mkcert.sh geneenocsr "Server RSA-PSS restricted cert" \
     server-pss-restrict-cert rootkey rootcert
+
+OPENSSL_SIGALG=ED448 OPENSSL_KEYALG=ed448 ./mkcert.sh genroot "Root Ed448" \
+    root-ed448-key root-ed448-cert
+OPENSSL_SIGALG=ED448 OPENSSL_KEYALG=ed448 ./mkcert.sh genee ed448 \
+    server-ed448-key server-ed448-cert root-ed448-key root-ed448-cert

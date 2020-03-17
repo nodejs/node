@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef OPENSSL_HEADER_BASE_H
-#define OPENSSL_HEADER_BASE_H
+#ifndef OSSL_TEST_SHIM_INCLUDE_OPENSSL_BASE_H
+#define OSSL_TEST_SHIM_INCLUDE_OPENSSL_BASE_H
 
 /* Needed for BORINGSSL_MAKE_DELETER */
 # include <openssl/bio.h>
@@ -108,4 +108,4 @@ BORINGSSL_MAKE_DELETER(SSL_SESSION, SSL_SESSION_free)
 }  /* extern C++ */
 
 
-#endif  /* OPENSSL_HEADER_BASE_H */
+#endif  /* OSSL_TEST_SHIM_INCLUDE_OPENSSL_BASE_H */

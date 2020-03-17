@@ -8,7 +8,7 @@
  */
 
 #include <openssl/rc5.h>
-#include "rc5_locl.h"
+#include "rc5_local.h"
 
 /*
  * The input and output encrypted as though 64bit ofb mode is being used.

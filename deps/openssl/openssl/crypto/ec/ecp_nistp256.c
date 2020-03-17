@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,7 +39,7 @@ NON_EMPTY_TRANSLATION_UNIT
 # include <stdint.h>
 # include <string.h>
 # include <openssl/err.h>
-# include "ec_lcl.h"
+# include "ec_local.h"
 
 # if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16
   /* even with gcc, the typedef won't work for 32-bit platforms */
@@ -74,8 +74,8 @@ static const felem_bytearray nistp256_curve_params[5] = {
     {0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x01, /* a = -3 */
      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
      0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc}, /* b */
-    {0x5a, 0xc6, 0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7,
+     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc},
+    {0x5a, 0xc6, 0x35, 0xd8, 0xaa, 0x3a, 0x93, 0xe7, /* b */
      0xb3, 0xeb, 0xbd, 0x55, 0x76, 0x98, 0x86, 0xbc,
      0x65, 0x1d, 0x06, 0xb0, 0xcc, 0x53, 0xb0, 0xf6,
      0x3b, 0xce, 0x3c, 0x3e, 0x27, 0xd2, 0x60, 0x4b},
@@ -1241,6 +1241,7 @@ static void point_add(felem x3, felem y3, felem z3,
     longfelem tmp, tmp2;
     smallfelem small1, small2, small3, small4, small5;
     limb x_equal, y_equal, z1_is_zero, z2_is_zero;
+    limb points_equal;
 
     felem_shrink(small3, z1);
 
@@ -1340,7 +1341,26 @@ static void point_add(felem x3, felem y3, felem z3,
     felem_shrink(small1, ftmp5);
     y_equal = smallfelem_is_zero(small1);
 
-    if (x_equal && y_equal && !z1_is_zero && !z2_is_zero) {
+    /*
+     * The formulae are incorrect if the points are equal, in affine coordinates
+     * (X_1, Y_1) == (X_2, Y_2), so we check for this and do doubling if this
+     * happens.
+     *
+     * We use bitwise operations to avoid potential side-channels introduced by
+     * the short-circuiting behaviour of boolean operators.
+     *
+     * The special case of either point being the point at infinity (z1 and/or
+     * z2 are zero), is handled separately later on in this function, so we
+     * avoid jumping to point_double here in those special cases.
+     */
+    points_equal = (x_equal & y_equal & (~z1_is_zero) & (~z2_is_zero));
+
+    if (points_equal) {
+        /*
+         * This is obviously not constant-time but, as mentioned before, this
+         * case never happens during single point multiplication, so there is no
+         * timing leak for ECDH or ECDSA signing.
+         */
         point_double(x3, y3, z3, x1, y1, z1);
         return;
     }

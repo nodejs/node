@@ -17,7 +17,7 @@
 #include <time.h>
 #include "internal/cryptlib.h"
 #include <openssl/bn.h>
-#include "rsa_locl.h"
+#include "rsa_local.h"
 
 static int rsa_builtin_keygen(RSA *rsa, int bits, int primes, BIGNUM *e_value,
                               BN_GENCB *cb);

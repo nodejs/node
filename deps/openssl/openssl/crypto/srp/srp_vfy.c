@@ -13,7 +13,7 @@
 
 #ifndef OPENSSL_NO_SRP
 # include "internal/cryptlib.h"
-# include "internal/evp_int.h"
+# include "crypto/evp.h"
 # include <openssl/sha.h>
 # include <openssl/srp.h>
 # include <openssl/evp.h>

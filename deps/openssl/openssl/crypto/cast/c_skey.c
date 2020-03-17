@@ -8,7 +8,7 @@
  */
 
 #include <openssl/cast.h>
-#include "cast_lcl.h"
+#include "cast_local.h"
 #include "cast_s.h"
 
 #define CAST_exp(l,A,a,n) \

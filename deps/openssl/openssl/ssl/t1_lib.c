@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,10 +18,11 @@
 #include <openssl/dh.h>
 #include <openssl/bn.h>
 #include "internal/nelem.h"
-#include "ssl_locl.h"
+#include "ssl_local.h"
 #include <openssl/ct.h>
 
 static const SIGALG_LOOKUP *find_sig_alg(SSL *s, X509 *x, EVP_PKEY *pkey);
+static int tls12_sigalg_allowed(const SSL *s, int op, const SIGALG_LOOKUP *lu);
 
 SSL3_ENC_METHOD const TLSv1_enc_data = {
     tls1_enc,
@@ -849,8 +850,11 @@ static int rsa_pss_check_min_key_size(const RSA *rsa, const SIGALG_LOOKUP *lu)
 }
 
 /*
- * Return a signature algorithm for TLS < 1.2 where the signature type
- * is fixed by the certificate type.
+ * Returns a signature algorithm when the peer did not send a list of supported
+ * signature algorithms. The signature algorithm is fixed for the certificate
+ * type. |idx| is a certificate type index (SSL_PKEY_*). When |idx| is -1 the
+ * certificate type from |s| will be used.
+ * Returns the signature algorithm to use, or NULL on error.
  */
 static const SIGALG_LOOKUP *tls1_get_legacy_sigalg(const SSL *s, int idx)
 {
@@ -893,8 +897,12 @@ static const SIGALG_LOOKUP *tls1_get_legacy_sigalg(const SSL *s, int idx)
 
         if (!tls1_lookup_md(lu, NULL))
             return NULL;
+        if (!tls12_sigalg_allowed(s, SSL_SECOP_SIGALG_SUPPORTED, lu))
+            return NULL;
         return lu;
     }
+    if (!tls12_sigalg_allowed(s, SSL_SECOP_SIGALG_SUPPORTED, &legacy_rsa_sigalg))
+        return NULL;
     return &legacy_rsa_sigalg;
 }
 /* Set peer sigalg based key type */
@@ -984,6 +992,31 @@ int tls_check_sigalg_curve(const SSL *s, int curve)
 #endif
 
 /*
+ * Return the number of security bits for the signature algorithm, or 0 on
+ * error.
+ */
+static int sigalg_security_bits(const SIGALG_LOOKUP *lu)
+{
+    const EVP_MD *md = NULL;
+    int secbits = 0;
+
+    if (!tls1_lookup_md(lu, &md))
+        return 0;
+    if (md != NULL)
+    {
+        /* Security bits: half digest bits */
+        secbits = EVP_MD_size(md) * 4;
+    } else {
+        /* Values from https://tools.ietf.org/html/rfc8032#section-8.5 */
+        if (lu->sigalg == TLSEXT_SIGALG_ed25519)
+            secbits = 128;
+        else if (lu->sigalg == TLSEXT_SIGALG_ed448)
+            secbits = 224;
+    }
+    return secbits;
+}
+
+/*
  * Check signature algorithm is consistent with sent supported signature
  * algorithms and if so set relevant digest and signature scheme in
  * s.
@@ -996,6 +1029,7 @@ int tls12_check_peer_sigalg(SSL *s, uint16_t sig, EVP_PKEY *pkey)
     size_t sent_sigslen, i, cidx;
     int pkeyid = EVP_PKEY_id(pkey);
     const SIGALG_LOOKUP *lu;
+    int secbits = 0;
 
     /* Should never happen */
     if (pkeyid == -1)
@@ -1097,20 +1131,20 @@ int tls12_check_peer_sigalg(SSL *s, uint16_t sig, EVP_PKEY *pkey)
                  SSL_R_UNKNOWN_DIGEST);
         return 0;
     }
-    if (md != NULL) {
-        /*
-         * Make sure security callback allows algorithm. For historical
-         * reasons we have to pass the sigalg as a two byte char array.
-         */
-        sigalgstr[0] = (sig >> 8) & 0xff;
-        sigalgstr[1] = sig & 0xff;
-        if (!ssl_security(s, SSL_SECOP_SIGALG_CHECK,
-                    EVP_MD_size(md) * 4, EVP_MD_type(md),
-                    (void *)sigalgstr)) {
-            SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_F_TLS12_CHECK_PEER_SIGALG,
-                     SSL_R_WRONG_SIGNATURE_TYPE);
-            return 0;
-        }
+    /*
+     * Make sure security callback allows algorithm. For historical
+     * reasons we have to pass the sigalg as a two byte char array.
+     */
+    sigalgstr[0] = (sig >> 8) & 0xff;
+    sigalgstr[1] = sig & 0xff;
+    secbits = sigalg_security_bits(lu);
+    if (secbits == 0 ||
+        !ssl_security(s, SSL_SECOP_SIGALG_CHECK, secbits,
+                      md != NULL ? EVP_MD_type(md) : NID_undef,
+                      (void *)sigalgstr)) {
+        SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_F_TLS12_CHECK_PEER_SIGALG,
+                 SSL_R_WRONG_SIGNATURE_TYPE);
+        return 0;
     }
     /* Store the sigalg the peer uses */
     s->s3->tmp.peer_sigalg = lu;
@@ -1176,7 +1210,7 @@ int ssl_set_client_disabled(SSL *s)
  *
  * Returns 1 when it's disabled, 0 when enabled.
  */
-int ssl_cipher_disabled(SSL *s, const SSL_CIPHER *c, int op, int ecdhe)
+int ssl_cipher_disabled(const SSL *s, const SSL_CIPHER *c, int op, int ecdhe)
 {
     if (c->algorithm_mkey & s->s3->tmp.mask_k
         || c->algorithm_auth & s->s3->tmp.mask_a)
@@ -1556,7 +1590,7 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL *s, const unsigned char *etick,
 }
 
 /* Check to see if a signature algorithm is allowed */
-static int tls12_sigalg_allowed(SSL *s, int op, const SIGALG_LOOKUP *lu)
+static int tls12_sigalg_allowed(const SSL *s, int op, const SIGALG_LOOKUP *lu)
 {
     unsigned char sigalgstr[2];
     int secbits;
@@ -1617,11 +1651,8 @@ static int tls12_sigalg_allowed(SSL *s, int op, const SIGALG_LOOKUP *lu)
         }
     }
 
-    if (lu->hash == NID_undef)
-        return 1;
-    /* Security bits: half digest bits */
-    secbits = EVP_MD_size(ssl_md(lu->hash_idx)) * 4;
     /* Finally see if security callback allows it */
+    secbits = sigalg_security_bits(lu);
     sigalgstr[0] = (lu->sigalg >> 8) & 0xff;
     sigalgstr[1] = lu->sigalg & 0xff;
     return ssl_security(s, op, secbits, lu->hash, (void *)sigalgstr);
@@ -2774,6 +2805,26 @@ int tls_choose_sigalg(SSL *s, int fatalerrs)
 #endif
                         break;
                 }
+#ifndef OPENSSL_NO_GOST
+                /*
+                 * Some Windows-based implementations do not send GOST algorithms indication
+                 * in supported_algorithms extension, so when we have GOST-based ciphersuite,
+                 * we have to assume GOST support.
+                 */
+                if (i == s->shared_sigalgslen && s->s3->tmp.new_cipher->algorithm_auth & (SSL_aGOST01 | SSL_aGOST12)) {
+                  if ((lu = tls1_get_legacy_sigalg(s, -1)) == NULL) {
+                    if (!fatalerrs)
+                      return 1;
+                    SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE,
+                             SSL_F_TLS_CHOOSE_SIGALG,
+                             SSL_R_NO_SUITABLE_SIGNATURE_ALGORITHM);
+                    return 0;
+                  } else {
+                    i = 0;
+                    sig_idx = lu->sig_idx;
+                  }
+                }
+#endif
                 if (i == s->shared_sigalgslen) {
                     if (!fatalerrs)
                         return 1;

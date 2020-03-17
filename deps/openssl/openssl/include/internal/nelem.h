@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_NELEM_H
-# define HEADER_NELEM_H
+#ifndef OSSL_INTERNAL_NELEM_H
+# define OSSL_INTERNAL_NELEM_H
 
 # define OSSL_NELEM(x)    (sizeof(x)/sizeof((x)[0]))
 #endif

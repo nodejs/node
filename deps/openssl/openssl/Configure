@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # -*- mode: perl; -*-
-# Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -69,7 +69,15 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [-Dxxx] [-lx
 # no-sse2       disables IA-32 SSE2 code in assembly modules, the above
 #               mentioned '386' option implies this one
 # no-<cipher>   build without specified algorithm (rsa, idea, rc5, ...)
-# -<xxx> +<xxx> compiler options are passed through
+# -<xxx> +<xxx> All options which are unknown to the 'Configure' script are
+# /<xxx>        passed through to the compiler. Unix-style options beginning
+#               with a '-' or '+' are recognized, as well as Windows-style
+#               options beginning with a '/'. If the option contains arguments
+#               separated by spaces, then the URL-style notation %20 can be
+#               used for the space character in order to avoid having to quote
+#               the option. For example, -opt%20arg gets expanded to -opt arg.
+#               In fact, any ASCII character can be encoded as %xx using its
+#               hexadecimal encoding.
 # -static       while -static is also a pass-through compiler option (and
 #               as such is limited to environments where it's actually
 #               meaningful), it triggers a number configuration options,
@@ -150,6 +158,10 @@ my @clang_devteam_warn = qw(
     -Wconditional-uninitialized
     -Wincompatible-pointer-types-discards-qualifiers
     -Wmissing-variable-declarations
+);
+
+my @cl_devteam_warn = qw(
+    /WX
 );
 
 # This adds backtrace information to the memory leak info.  Is only used
@@ -346,6 +358,7 @@ my @disablables = (
     "dgram",
     "dh",
     "dsa",
+    "dso",
     "dtls",
     "dynamic-engine",
     "ec",
@@ -423,7 +436,6 @@ my %deprecated_disablables = (
     "buf-freelists" => undef,
     "ripemd" => "rmd160",
     "ui" => "ui-console",
-    "dso" => "",                # Empty string means we're silent about it
     );
 
 # All of the following are disabled by default:
@@ -480,6 +492,7 @@ my @disable_cascades = (
     # Without position independent code, there can be no shared libraries or DSOs
     "pic"               => [ "shared" ],
     "shared"            => [ "dynamic-engine" ],
+    "dso"               => [ "dynamic-engine" ],
     "engine"            => [ "afalgeng", "devcryptoeng" ],
 
     # no-autoalginit is only useful when building non-shared
@@ -520,7 +533,7 @@ while ((my $first, my $second) = (shift @list, shift @list)) {
 
 &usage if ($#ARGV < 0);
 
-# For the "make variables" CINCLUDES and CDEFINES, we support lists with
+# For the "make variables" CPPINCLUDES and CPPDEFINES, we support lists with
 # platform specific list separators.  Users from those platforms should
 # recognise those separators from how you set up the PATH to find executables.
 # The default is the Unix like separator, :, but as an exception, we also
@@ -776,7 +789,7 @@ while (@argvcopy)
                 {
                 die "FIPS mode not supported\n";
                 }
-        elsif (/^[-+]/)
+        elsif (m|^[-+/]|)
                 {
                 if (/^--prefix=(.*)$/)
                         {
@@ -853,11 +866,11 @@ while (@argvcopy)
                         {
                         push @{$useradd{LDFLAGS}}, $_;
                         }
-                elsif (/^-D(.*)$/)
+                elsif (m|^[-/]D(.*)$|)
                         {
                         push @{$useradd{CPPDEFINES}}, $1;
                         }
-                elsif (/^-I(.*)$/)
+                elsif (m|^[-/]I(.*)$|)
                         {
                         push @{$useradd{CPPINCLUDES}}, $1;
                         }
@@ -867,10 +880,22 @@ while (@argvcopy)
                         }
                 else    # common if (/^[-+]/), just pass down...
                         {
+                        # Treat %xx as an ASCII code (e.g. replace %20 by a space character).
+                        # This provides a simple way to pass options with arguments separated
+                        # by spaces without quoting (e.g. -opt%20arg translates to -opt arg).
                         $_ =~ s/%([0-9a-f]{1,2})/chr(hex($1))/gei;
                         push @{$useradd{CFLAGS}}, $_;
                         push @{$useradd{CXXFLAGS}}, $_;
                         }
+                }
+        elsif (m|^/|)
+                {
+                # Treat %xx as an ASCII code (e.g. replace %20 by a space character).
+                # This provides a simple way to pass options with arguments separated
+                # by spaces without quoting (e.g. /opt%20arg translates to /opt arg).
+                $_ =~ s/%([0-9a-f]{1,2})/chr(hex($1))/gei;
+                push @{$useradd{CFLAGS}}, $_;
+                push @{$useradd{CXXFLAGS}}, $_;
                 }
         else
                 {
@@ -949,7 +974,11 @@ foreach (keys %user) {
 
     if (defined $value) {
         if (ref $user{$_} eq 'ARRAY') {
-            $user{$_} = [ split /$list_separator_re/, $value ];
+            if ($_ eq 'CPPDEFINES' || $_ eq 'CPPINCLUDES') {
+                $user{$_} = [ split /$list_separator_re/, $value ];
+            } else {
+                $user{$_} = [ $value ];
+            }
         } elsif (!defined $user{$_}) {
             $user{$_} = $value;
         }
@@ -1162,43 +1191,6 @@ foreach (keys %useradd) {
 # Allow overriding the build file name
 $config{build_file} = env('BUILDFILE') || $target{build_file} || "Makefile";
 
-my %disabled_info = ();         # For configdata.pm
-foreach my $what (sort keys %disabled) {
-    $config{options} .= " no-$what";
-
-    if (!grep { $what eq $_ } ( 'buildtest-c++', 'threads', 'shared', 'pic',
-                                'dynamic-engine', 'makedepend',
-                                'zlib-dynamic', 'zlib', 'sse2' )) {
-        (my $WHAT = uc $what) =~ s|-|_|g;
-
-        # Fix up C macro end names
-        $WHAT = "RMD160" if $what eq "ripemd";
-
-        # fix-up crypto/directory name(s)
-        $what = "ripemd" if $what eq "rmd160";
-        $what = "whrlpool" if $what eq "whirlpool";
-
-        my $macro = $disabled_info{$what}->{macro} = "OPENSSL_NO_$WHAT";
-
-        if ((grep { $what eq $_ } @{$config{sdirs}})
-                && $what ne 'async' && $what ne 'err') {
-            @{$config{sdirs}} = grep { $what ne $_} @{$config{sdirs}};
-            $disabled_info{$what}->{skipped} = [ catdir('crypto', $what) ];
-
-            if ($what ne 'engine') {
-                push @{$config{openssl_algorithm_defines}}, $macro;
-            } else {
-                @{$config{dirs}} = grep !/^engines$/, @{$config{dirs}};
-                push @{$disabled_info{engine}->{skipped}}, catdir('engines');
-                push @{$config{openssl_other_defines}}, $macro;
-            }
-        } else {
-            push @{$config{openssl_other_defines}}, $macro;
-        }
-
-    }
-}
-
 # Make sure build_scheme is consistent.
 $target{build_scheme} = [ $target{build_scheme} ]
     if ref($target{build_scheme}) ne "ARRAY";
@@ -1288,10 +1280,8 @@ if ($target{shared_target} eq "")
         }
 
 if ($disabled{"dynamic-engine"}) {
-        push @{$config{openssl_other_defines}}, "OPENSSL_NO_DYNAMIC_ENGINE";
         $config{dynamic_engines} = 0;
 } else {
-        push @{$config{openssl_other_defines}}, "OPENSSL_NO_STATIC_ENGINE";
         $config{dynamic_engines} = 1;
 }
 
@@ -1375,6 +1365,7 @@ unless ($disabled{asm}) {
     }
     if ($target{aes_asm_src}) {
         push @{$config{lib_defines}}, "AES_ASM" if ($target{aes_asm_src} =~ m/\baes-/);;
+        push @{$config{lib_defines}}, "AESNI_ASM" if ($target{aes_asm_src} =~ m/\baesni-/);;
         # aes-ctr.fake is not a real file, only indication that assembler
         # module implements AES_ctr32_encrypt...
         push @{$config{lib_defines}}, "AES_CTR_ASM" if ($target{aes_asm_src} =~ s/\s*aes-ctr\.fake//);
@@ -1501,11 +1492,20 @@ if ($strict_warnings)
         my $wopt;
         my $gccver = $predefined_C{__GNUC__} // -1;
 
-        warn "WARNING --strict-warnings requires gcc[>=4] or gcc-alike"
-            unless $gccver >= 4;
-        push @strict_warnings_collection, @gcc_devteam_warn;
-        push @strict_warnings_collection, @clang_devteam_warn
-            if (defined($predefined_C{__clang__}));
+        if ($gccver >= 4)
+                {
+                push @strict_warnings_collection, @gcc_devteam_warn;
+                push @strict_warnings_collection, @clang_devteam_warn
+                    if (defined($predefined_C{__clang__}));
+                }
+        elsif ($config{target} =~ /^VC-/)
+                {
+                push @strict_warnings_collection, @cl_devteam_warn;
+                }
+        else
+                {
+                warn "WARNING --strict-warnings requires gcc[>=4] or gcc-alike, or MSVC"
+                }
         }
 
 if (grep { $_ eq '-static' } @{$config{LDFLAGS}}) {
@@ -1552,7 +1552,20 @@ unless ($disabled{afalgeng}) {
     }
 }
 
-push @{$config{openssl_other_defines}}, "OPENSSL_NO_AFALGENG" if ($disabled{afalgeng});
+unless ($disabled{devcryptoeng}) {
+    if ($target =~ m/^BSD/) {
+        my $maxver = 5*100 + 7;
+        my $sysstr = `uname -s`;
+        my $verstr = `uname -r`;
+        $sysstr =~ s|\R$||;
+        $verstr =~ s|\R$||;
+        my ($ma, $mi, @rest) = split m|\.|, $verstr;
+        my $ver = $ma*100 + $mi;
+        if ($sysstr eq 'OpenBSD' && $ver >= $maxver) {
+            disable('too-new-kernel', 'devcryptoeng');
+        }
+    }
+}
 
 # Get the extra flags used when building shared libraries and modules.  We
 # do this late because some of them depend on %disabled.
@@ -1596,6 +1609,49 @@ $target{module_ldflags} = $target{shared_ldflag} unless defined $target{module_l
 }
 
 # ALL MODIFICATIONS TO %disabled, %config and %target MUST BE DONE FROM HERE ON
+
+my %disabled_info = ();         # For configdata.pm
+foreach my $what (sort keys %disabled) {
+    $config{options} .= " no-$what";
+
+    if (!grep { $what eq $_ } ( 'buildtest-c++', 'threads', 'shared', 'pic',
+                                'dynamic-engine', 'makedepend',
+                                'zlib-dynamic', 'zlib', 'sse2' )) {
+        (my $WHAT = uc $what) =~ s|-|_|g;
+
+        # Fix up C macro end names
+        $WHAT = "RMD160" if $what eq "ripemd";
+
+        # fix-up crypto/directory name(s)
+        $what = "ripemd" if $what eq "rmd160";
+        $what = "whrlpool" if $what eq "whirlpool";
+
+        my $macro = $disabled_info{$what}->{macro} = "OPENSSL_NO_$WHAT";
+
+        if ((grep { $what eq $_ } @{$config{sdirs}})
+                && $what ne 'async' && $what ne 'err' && $what ne 'dso') {
+            @{$config{sdirs}} = grep { $what ne $_} @{$config{sdirs}};
+            $disabled_info{$what}->{skipped} = [ catdir('crypto', $what) ];
+
+            if ($what ne 'engine') {
+                push @{$config{openssl_algorithm_defines}}, $macro;
+            } else {
+                @{$config{dirs}} = grep !/^engines$/, @{$config{dirs}};
+                push @{$disabled_info{engine}->{skipped}}, catdir('engines');
+                push @{$config{openssl_other_defines}}, $macro;
+            }
+        } else {
+            push @{$config{openssl_other_defines}}, $macro;
+        }
+
+    }
+}
+
+if ($disabled{"dynamic-engine"}) {
+    push @{$config{openssl_other_defines}}, "OPENSSL_NO_DYNAMIC_ENGINE";
+} else {
+    push @{$config{openssl_other_defines}}, "OPENSSL_NO_STATIC_ENGINE";
+}
 
 # If we use the unified build, collect information from build.info files
 my %unified_info = ();

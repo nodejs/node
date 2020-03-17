@@ -39,9 +39,9 @@ SSL_set_psk_find_session_callback
 
 =head1 DESCRIPTION
 
-A client application wishing to use TLSv1.3 PSKs should set a callback
-using either SSL_CTX_set_psk_use_session_callback() or
-SSL_set_psk_use_session_callback() as appropriate.
+A server application wishing to use TLSv1.3 PSKs should set a callback
+using either SSL_CTX_set_psk_find_session_callback() or
+SSL_set_psk_find_session_callback() as appropriate.
 
 The callback function is given a pointer to the SSL connection in B<ssl> and
 an identity in B<identity> of length B<identity_len>. The callback function

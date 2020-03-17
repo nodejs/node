@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include "bio_lcl.h"
+#include "bio_local.h"
 
 #ifndef OPENSSL_NO_SOCK
 
@@ -527,7 +527,12 @@ static long acpt_ctrl(BIO *b, int cmd, long num, void *ptr)
         break;
     case BIO_CTRL_DUP:
         break;
-
+    case BIO_CTRL_EOF:
+        if (b->next_bio == NULL)
+            ret = 0;
+        else
+            ret = BIO_ctrl(b->next_bio, cmd, num, ptr);
+        break;
     default:
         ret = 0;
         break;

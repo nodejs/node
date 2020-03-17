@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef ECDSATEST_CAVS_H
-# define ECDSATEST_CAVS_H
+#ifndef OSSL_TEST_ECDSATEST_H
+# define OSSL_TEST_ECDSATEST_H
 
 /*-
  * NIST CAVP ECDSA KATs:
@@ -10211,4 +10211,4 @@ static const ecdsa_cavs_kat_t ecdsa_cavs_kats[] = {
      "1c8c4343a8ecbf7c4d4e48f7d76d5658bc027c77086ec8b10097deb307d6"}
 # endif                         /* OPENSSL_NO_EC2M */
 };
-#endif                          /* ECDSATEST_CAVS_H */
+#endif                          /* OSSL_TEST_ECDSATEST_H */

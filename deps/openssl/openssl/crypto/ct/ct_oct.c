@@ -19,7 +19,7 @@
 #include <openssl/ct.h>
 #include <openssl/err.h>
 
-#include "ct_locl.h"
+#include "ct_local.h"
 
 int o2i_SCT_signature(SCT *sct, const unsigned char **in, size_t len)
 {

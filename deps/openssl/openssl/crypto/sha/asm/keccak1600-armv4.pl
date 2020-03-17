@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1603,4 +1603,4 @@ foreach (split($/,$code)) {
 	print $_,"\n";
 }
 
-close STDOUT; # enforce flush
+close STDOUT or die "error closing STDOUT: $!"; # enforce flush

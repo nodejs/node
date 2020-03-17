@@ -8,7 +8,7 @@
  */
 
 #include <string.h>
-#include "rsa_locl.h"
+#include "rsa_local.h"
 #include <openssl/err.h>
 
 RSA_METHOD *RSA_meth_new(const char *name, int flags)

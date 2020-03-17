@@ -11,9 +11,9 @@
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
 #include <openssl/x509.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 #include <openssl/x509v3.h>
-#include "x509_lcl.h"
+#include "x509_local.h"
 
 X509_LOOKUP *X509_LOOKUP_new(X509_LOOKUP_METHOD *method)
 {

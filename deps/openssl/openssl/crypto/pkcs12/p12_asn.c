@@ -11,7 +11,7 @@
 #include "internal/cryptlib.h"
 #include <openssl/asn1t.h>
 #include <openssl/pkcs12.h>
-#include "p12_lcl.h"
+#include "p12_local.h"
 
 /* PKCS#12 ASN1 module */
 

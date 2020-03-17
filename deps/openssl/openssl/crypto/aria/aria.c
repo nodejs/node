@@ -19,7 +19,7 @@
  */
 
 #include <openssl/e_os2.h>
-#include "internal/aria.h"
+#include "crypto/aria.h"
 
 #include <assert.h>
 #include <string.h>

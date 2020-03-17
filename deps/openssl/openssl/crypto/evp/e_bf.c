@@ -11,7 +11,7 @@
 #include "internal/cryptlib.h"
 #ifndef OPENSSL_NO_BF
 # include <openssl/evp.h>
-# include "internal/evp_int.h"
+# include "crypto/evp.h"
 # include <openssl/objects.h>
 # include <openssl/blowfish.h>
 

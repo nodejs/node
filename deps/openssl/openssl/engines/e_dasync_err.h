@@ -8,8 +8,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_DASYNCERR_H
-# define HEADER_DASYNCERR_H
+#ifndef OSSL_ENGINES_E_DASYNC_ERR_H
+# define OSSL_ENGINES_E_DASYNC_ERR_H
 
 # define DASYNCerr(f, r) ERR_DASYNC_error((f), (r), OPENSSL_FILE, OPENSSL_LINE)
 

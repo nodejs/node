@@ -8,7 +8,7 @@
  */
 
 #include <openssl/rc5.h>
-#include "rc5_locl.h"
+#include "rc5_local.h"
 #include <openssl/opensslv.h>
 
 void RC5_32_ecb_encrypt(const unsigned char *in, unsigned char *out,

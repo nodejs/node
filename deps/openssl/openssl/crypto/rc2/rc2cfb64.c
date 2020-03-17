@@ -8,7 +8,7 @@
  */
 
 #include <openssl/rc2.h>
-#include "rc2_locl.h"
+#include "rc2_local.h"
 
 /*
  * The input and output encrypted as though 64bit cfb mode is being used.

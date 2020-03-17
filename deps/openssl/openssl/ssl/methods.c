@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 #include <openssl/objects.h>
-#include "ssl_locl.h"
+#include "ssl_local.h"
 
 /*-
  * TLS/SSLv3 methods

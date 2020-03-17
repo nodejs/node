@@ -39,7 +39,7 @@ L<CRYPTO_get_ex_new_index(3)>.
 These functions handle application-specific data for OpenSSL data
 structures.
 
-TYPE_get_new_ex_index() is a macro that calls CRYPTO_get_ex_new_index()
+TYPE_get_ex_new_index() is a macro that calls CRYPTO_get_ex_new_index()
 with the correct B<index> value.
 
 TYPE_set_ex_data() is a function that calls CRYPTO_set_ex_data() with
@@ -50,7 +50,7 @@ an offset into the opaque exdata part of the TYPE object.
 
 =head1 RETURN VALUES
 
-TYPE_get_new_ex_index() returns a new index on success or -1 on error.
+TYPE_get_ex_new_index() returns a new index on success or -1 on error.
 
 TYPE_set_ex_data() returns 1 on success or 0 on error.
 
@@ -62,7 +62,7 @@ L<CRYPTO_get_ex_new_index(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

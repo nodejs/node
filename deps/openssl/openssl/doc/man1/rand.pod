@@ -18,12 +18,14 @@ I<num>
 
 =head1 DESCRIPTION
 
-The B<rand> command outputs I<num> pseudo-random bytes after seeding
-the random number generator once.  As in other B<openssl> command
-line tools, PRNG seeding uses the file I<$HOME/>B<.rnd> or B<.rnd>
-in addition to the files given in the B<-rand> option.  A new
-I<$HOME>/B<.rnd> or B<.rnd> file will be written back if enough
-seeding was obtained from these sources.
+This command generates I<num> random bytes using a cryptographically
+secure pseudo random number generator (CSPRNG).
+
+The random bytes are generated using the L<RAND_bytes(3)> function,
+which provides a security level of 256 bits, provided it managed to
+seed itself successfully from a trusted operating system entropy source.
+Otherwise, the command will fail with a nonzero error code.
+For more details, see L<RAND_bytes(3)>, L<RAND(7)>, and L<RAND_DRBG(7)>.
 
 =head1 OPTIONS
 
@@ -44,6 +46,8 @@ generator.
 Multiple files can be specified separated by an OS-dependent character.
 The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
 all others.
+Explicitly specifying a seed file is in general not necessary, see the
+L</NOTES> section for more information.
 
 =item [B<-writerand file>]
 
@@ -60,13 +64,28 @@ Show the output as a hex string.
 
 =back
 
+=head1 NOTES
+
+Prior to OpenSSL 1.1.1, it was common for applications to store information
+about the state of the random-number generator in a file that was loaded
+at startup and rewritten upon exit. On modern operating systems, this is
+generally no longer necessary as OpenSSL will seed itself from a trusted
+entropy source provided by the operating system. The B<-rand>  and
+B<-writerand>  flags are still supported for special platforms or
+circumstances that might require them.
+
+It is generally an error to use the same seed file more than once and
+every use of B<-rand> should be paired with B<-writerand>.
+
 =head1 SEE ALSO
 
-L<RAND_bytes(3)>
+L<RAND_bytes(3)>,
+L<RAND(7)>,
+L<RAND_DRBG(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

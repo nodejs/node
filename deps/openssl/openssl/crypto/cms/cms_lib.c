@@ -14,7 +14,7 @@
 #include <openssl/bio.h>
 #include <openssl/asn1.h>
 #include <openssl/cms.h>
-#include "cms_lcl.h"
+#include "cms_local.h"
 
 IMPLEMENT_ASN1_FUNCTIONS(CMS_ContentInfo)
 IMPLEMENT_ASN1_PRINT_FUNCTION(CMS_ContentInfo)

@@ -9,7 +9,7 @@
  */
 
 #include <stdio.h>
-#include "ssl_locl.h"
+#include "ssl_local.h"
 #include <openssl/comp.h>
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
@@ -466,7 +466,7 @@ int tls1_generate_master_secret(SSL *s, unsigned char *out, unsigned char *p,
         unsigned char hash[EVP_MAX_MD_SIZE * 2];
         size_t hashlen;
         /*
-         * Digest cached records keeping record buffer (if present): this wont
+         * Digest cached records keeping record buffer (if present): this won't
          * affect client auth because we're freezing the buffer at the same
          * point (after client key exchange and before certificate verify)
          */

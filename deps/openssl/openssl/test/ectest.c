@@ -1999,7 +1999,107 @@ static int cardinality_test(int n)
     BN_CTX_free(ctx);
     return ret;
 }
-#endif
+
+/*
+ * Helper for ec_point_hex2point_test
+ *
+ * Self-tests EC_POINT_point2hex() against EC_POINT_hex2point() for the given
+ * (group,P) pair.
+ *
+ * If P is NULL use point at infinity.
+ */
+static ossl_inline
+int ec_point_hex2point_test_helper(const EC_GROUP *group, const EC_POINT *P,
+                                   point_conversion_form_t form,
+                                   BN_CTX *bnctx)
+{
+    int ret = 0;
+    EC_POINT *Q = NULL, *Pinf = NULL;
+    char *hex = NULL;
+
+    if (P == NULL) {
+        /* If P is NULL use point at infinity. */
+        if (!TEST_ptr(Pinf = EC_POINT_new(group))
+                || !TEST_true(EC_POINT_set_to_infinity(group, Pinf)))
+            goto err;
+        P = Pinf;
+    }
+
+    if (!TEST_ptr(hex = EC_POINT_point2hex(group, P, form, bnctx))
+            || !TEST_ptr(Q = EC_POINT_hex2point(group, hex, NULL, bnctx))
+            || !TEST_int_eq(0, EC_POINT_cmp(group, Q, P, bnctx)))
+        goto err;
+
+    /*
+     * The next check is most likely superfluous, as EC_POINT_cmp should already
+     * cover this.
+     * Nonetheless it increases the test coverage for EC_POINT_is_at_infinity,
+     * so we include it anyway!
+     */
+    if (Pinf != NULL
+            && !TEST_true(EC_POINT_is_at_infinity(group, Q)))
+        goto err;
+
+    ret = 1;
+
+ err:
+    EC_POINT_free(Pinf);
+    OPENSSL_free(hex);
+    EC_POINT_free(Q);
+
+    return ret;
+}
+
+/*
+ * This test self-validates EC_POINT_hex2point() and EC_POINT_point2hex()
+ */
+static int ec_point_hex2point_test(int id)
+{
+    int ret = 0, nid;
+    EC_GROUP *group = NULL;
+    const EC_POINT *G = NULL;
+    EC_POINT *P = NULL;
+    BN_CTX * bnctx = NULL;
+
+    /* Do some setup */
+    nid = curves[id].nid;
+    if (!TEST_ptr(bnctx = BN_CTX_new())
+            || !TEST_ptr(group = EC_GROUP_new_by_curve_name(nid))
+            || !TEST_ptr(G = EC_GROUP_get0_generator(group))
+            || !TEST_ptr(P = EC_POINT_dup(G, group)))
+        goto err;
+
+    if (!TEST_true(ec_point_hex2point_test_helper(group, P,
+                                                  POINT_CONVERSION_COMPRESSED,
+                                                  bnctx))
+            || !TEST_true(ec_point_hex2point_test_helper(group, NULL,
+                                                         POINT_CONVERSION_COMPRESSED,
+                                                         bnctx))
+            || !TEST_true(ec_point_hex2point_test_helper(group, P,
+                                                         POINT_CONVERSION_UNCOMPRESSED,
+                                                         bnctx))
+            || !TEST_true(ec_point_hex2point_test_helper(group, NULL,
+                                                         POINT_CONVERSION_UNCOMPRESSED,
+                                                         bnctx))
+            || !TEST_true(ec_point_hex2point_test_helper(group, P,
+                                                         POINT_CONVERSION_HYBRID,
+                                                         bnctx))
+            || !TEST_true(ec_point_hex2point_test_helper(group, NULL,
+                                                         POINT_CONVERSION_HYBRID,
+                                                         bnctx)))
+        goto err;
+
+    ret = 1;
+
+ err:
+    EC_POINT_free(P);
+    EC_GROUP_free(group);
+    BN_CTX_free(bnctx);
+
+    return ret;
+}
+
+#endif /* OPENSSL_NO_EC */
 
 int setup_tests(void)
 {
@@ -2025,6 +2125,7 @@ int setup_tests(void)
     ADD_ALL_TESTS(internal_curve_test_method, crv_len);
 
     ADD_ALL_TESTS(check_named_curve_from_ecparameters, crv_len);
+    ADD_ALL_TESTS(ec_point_hex2point_test, crv_len);
 #endif /* OPENSSL_NO_EC */
     return 1;
 }

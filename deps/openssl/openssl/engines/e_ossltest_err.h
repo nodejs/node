@@ -8,8 +8,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_OSSLTESTERR_H
-# define HEADER_OSSLTESTERR_H
+#ifndef OSSL_ENGINES_E_OSSLTEST_ERR_H
+# define OSSL_ENGINES_E_OSSLTEST_ERR_H
 
 # define OSSLTESTerr(f, r) ERR_OSSLTEST_error((f), (r), OPENSSL_FILE, OPENSSL_LINE)
 

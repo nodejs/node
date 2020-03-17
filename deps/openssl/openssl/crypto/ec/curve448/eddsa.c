@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -12,7 +12,7 @@
 #include <string.h>
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
-#include "curve448_lcl.h"
+#include "curve448_local.h"
 #include "word.h"
 #include "ed448.h"
 #include "internal/numbers.h"
@@ -50,7 +50,12 @@ static c448_error_t hash_init_with_dom(EVP_MD_CTX *hashctx, uint8_t prehashed,
                                        const uint8_t *context,
                                        size_t context_len)
 {
-    const char *dom_s = "SigEd448";
+#ifdef CHARSET_EBCDIC
+    const char dom_s[] = {0x53, 0x69, 0x67, 0x45,
+                          0x64, 0x34, 0x34, 0x38, 0x00};
+#else
+    const char dom_s[] = "SigEd448";
+#endif
     uint8_t dom[2];
 
     if (context_len > UINT8_MAX)

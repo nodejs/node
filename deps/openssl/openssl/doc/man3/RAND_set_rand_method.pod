@@ -48,7 +48,7 @@ Each pointer may be NULL if the function is not implemented.
 
 =head1 RETURN VALUES
 
-RAND_set_rand_method() returns 1 on success and 0 on failue.
+RAND_set_rand_method() returns 1 on success and 0 on failure.
 RAND_get_rand_method() and RAND_OpenSSL() return pointers to the respective
 methods.
 
