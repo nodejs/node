@@ -34,7 +34,7 @@
   // An ancestor walk keeps an array of ancestor nodes (including the
   // current node) and passes them to the callback as third parameter
   // (and also as state parameter when no other state is present).
-  function ancestor(node, visitors, baseVisitor, state) {
+  function ancestor(node, visitors, baseVisitor, state, override) {
     var ancestors = [];
     if (!baseVisitor) { baseVisitor = base
     ; }(function c(node, st, override) {
@@ -44,7 +44,7 @@
       baseVisitor[type](node, st, c);
       if (found) { found(node, st || ancestors, ancestors); }
       if (isNew) { ancestors.pop(); }
-    })(node, state);
+    })(node, state, override);
   }
 
   // A recursive walk is one where your functions override the default
@@ -416,7 +416,10 @@
     }
     c(node.source, st, "Expression");
   };
-  base.ImportSpecifier = base.ImportDefaultSpecifier = base.ImportNamespaceSpecifier = base.Identifier = base.Literal = base.Import = ignore;
+  base.ImportExpression = function (node, st, c) {
+    c(node.source, st, "Expression");
+  };
+  base.ImportSpecifier = base.ImportDefaultSpecifier = base.ImportNamespaceSpecifier = base.Identifier = base.Literal = ignore;
 
   base.TaggedTemplateExpression = function (node, st, c) {
     c(node.tag, st, "Expression");

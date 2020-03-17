@@ -52,9 +52,10 @@ Options can be provided by passing a second argument, which should be
 an object containing any of these fields:
 
 - **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6 (2015), 7 (2016), 8 (2017), 9 (2018) or 10 (2019, partial
-  support). This influences support for strict mode, the set of
-  reserved words, and support for new syntax features. Default is 9.
+  either 3, 5, 6 (2015), 7 (2016), 8 (2017), 9 (2018), 10 (2019) or 11
+  (2020, partial support). This influences support for strict mode,
+  the set of reserved words, and support for new syntax features.
+  Default is 10.
 
   **NOTE**: Only 'stage 4' (finalized) ECMAScript features are being
   implemented by Acorn. Other proposed new features can be implemented
@@ -63,6 +64,9 @@ an object containing any of these fields:
 - **sourceType**: Indicate the mode the code should be parsed in. Can be
   either `"script"` or `"module"`. This influences global strict mode
   and parsing of `import` and `export` declarations.
+
+  **NOTE**: If set to `"module"`, then static `import` / `export` syntax
+  will be valid, even if `ecmaVersion` is less than 6.
 
 - **onInsertedSemicolon**: If given a callback, that callback will be
   called whenever a missing semicolon is inserted by the parser. The

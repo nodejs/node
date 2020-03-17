@@ -1,8 +1,8 @@
 "use strict"
 
 const acorn = require('internal/deps/acorn/acorn/dist/acorn')
-if (acorn.version.indexOf("6.") != 0 || acorn.version.indexOf("6.0.") == 0) {
-  throw new Error(`acorn-private-class-elements requires acorn@^6.1.0, not ${acorn.version}`)
+if (acorn.version.indexOf("6.") != 0 && acorn.version.indexOf("6.0.") == 0 && acorn.version.indexOf("7.") != 0) {
+  throw new Error(`acorn-private-class-elements requires acorn@^6.1.0 or acorn@7.0.0, not ${acorn.version}`)
 }
 const tt = acorn.tokTypes
 const TokenType = acorn.TokenType
