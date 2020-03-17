@@ -112,6 +112,8 @@ static const char* const root_certs[] = {
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
 static X509_STORE* root_cert_store;
+static std::vector<X509*> root_certs_vector;
+static Mutex root_certs_vector_mutex;
 
 static bool extra_root_certs_loaded = false;
 
@@ -968,9 +970,7 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static X509_STORE* NewRootCertStore() {
-  static std::vector<X509*> root_certs_vector;
-  static Mutex root_certs_vector_mutex;
+static void EnsureRootCerts() {
   Mutex::ScopedLock lock(root_certs_vector_mutex);
 
   if (root_certs_vector.empty()) {
@@ -988,6 +988,11 @@ static X509_STORE* NewRootCertStore() {
       root_certs_vector.push_back(x509);
     }
   }
+}
+
+
+static X509_STORE* NewRootCertStore() {
+  EnsureRootCerts();
 
   X509_STORE* store = X509_STORE_new();
   if (*system_cert_path != '\0') {
@@ -996,8 +1001,8 @@ static X509_STORE* NewRootCertStore() {
   if (per_process::cli_options->ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
   } else {
+    Mutex::ScopedLock lock(root_certs_vector_mutex);
     for (X509* cert : root_certs_vector) {
-      X509_up_ref(cert);
       X509_STORE_add_cert(store, cert);
     }
   }
@@ -1069,8 +1074,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
-    X509_STORE* store,
+static unsigned long AddRootCertsFromFile(  // NOLINT(runtime/int)
     const char* file) {
   ERR_clear_error();
   MarkPopErrorOnReturn mark_pop_error_on_return;
@@ -1079,10 +1083,14 @@ static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
   if (!bio)
     return ERR_get_error();
 
-  while (X509* x509 =
-      PEM_read_bio_X509(bio.get(), nullptr, NoPasswordCallback, nullptr)) {
-    X509_STORE_add_cert(store, x509);
-    X509_free(x509);
+  // Scope for root_certs_vector lock
+  {
+    Mutex::ScopedLock lock(root_certs_vector_mutex);
+    while (X509* x509 =
+        PEM_read_bio_X509(bio.get(), nullptr, NoPasswordCallback, nullptr)) {
+      X509_STORE_add_cert(root_cert_store, x509);
+      root_certs_vector.push_back(x509);
+    }
   }
 
   unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
@@ -1103,8 +1111,7 @@ void UseExtraCaCerts(const std::string& file) {
     root_cert_store = NewRootCertStore();
 
     if (!file.empty()) {
-      unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
-                                           root_cert_store,
+      unsigned long err = AddRootCertsFromFile(  // NOLINT(runtime/int)
                                            file.c_str());
       if (err) {
         fprintf(stderr,
@@ -6629,20 +6636,19 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  if (root_cert_store == nullptr)
-    root_cert_store = NewRootCertStore();
+  ClearErrorOnReturn clear_error_on_return;
 
-  stack_st_X509_OBJECT* objs = X509_STORE_get0_objects(root_cert_store);
-  int num_objs = sk_X509_OBJECT_num(objs);
+  EnsureRootCerts();
 
   std::vector<Local<Value>> result;
-  result.reserve(num_objs);
 
-  for (int i = 0; i < num_objs; i++) {
-    X509_OBJECT* obj = sk_X509_OBJECT_value(objs, i);
-    if (X509_OBJECT_get_type(obj) == X509_LU_X509) {
-      X509* cert = X509_OBJECT_get0_X509(obj);
+  // Scope for root_certs_vector lock
+  {
+    Mutex::ScopedLock lock(root_certs_vector_mutex);
 
+    result.reserve(root_certs_vector.size());
+
+    for (X509* cert : root_certs_vector) {
       Local<Value> value;
       if (!X509ToPEM(env, cert).ToLocal(&value))
         return;
