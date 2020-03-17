@@ -519,8 +519,10 @@ class Parser : public AsyncWrap, public StreamListener {
       max_http_header_size = env->options()->max_http_header_size;
     }
 
-    CHECK(args[4]->IsInt32());
-    headers_timeout = args[4].As<Number>()->Value();
+    if (args.Length() > 4) {
+      CHECK(args[4]->IsInt32());
+      headers_timeout = args[4].As<Number>()->Value();
+    }
 
     llhttp_type_t type =
         static_cast<llhttp_type_t>(args[0].As<Int32>()->Value());
@@ -803,7 +805,8 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
 
-  void Init(llhttp_type_t type, uint64_t max_http_header_size, bool lenient, uint64_t headers_timeout) {
+  void Init(llhttp_type_t type, uint64_t max_http_header_size,
+            bool lenient, uint64_t headers_timeout) {
     llhttp_init(&parser_, type, &settings);
     llhttp_set_lenient(&parser_, lenient);
     header_nread_ = 0;
@@ -857,7 +860,7 @@ class Parser : public AsyncWrap, public StreamListener {
   bool pending_pause_ = false;
   uint64_t header_nread_ = 0;
   uint64_t max_http_header_size_;
-  uint64_t headers_timeout_; 
+  uint64_t headers_timeout_;
   uint64_t header_parsing_start_time_ = 0;
 
   // These are helper functions for filling `http_parser_settings`, which turn
