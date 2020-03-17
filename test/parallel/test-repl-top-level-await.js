@@ -116,7 +116,7 @@ async function ordinaryTests() {
     ['await 0; function foo() {}'],
     ['foo', '[Function: foo]'],
     ['class Foo {}; await 1;', '1'],
-    ['Foo', '[Function: Foo]'],
+    ['Foo', '[class Foo]'],
     ['if (await true) { function bar() {}; }'],
     ['bar', '[Function: bar]'],
     ['if (await true) { class Bar {}; }'],
