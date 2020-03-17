@@ -11,7 +11,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
-#include "pcy_int.h"
+#include "pcy_local.h"
 
 /* Policy Node routines */
 

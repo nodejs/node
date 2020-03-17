@@ -351,6 +351,9 @@
                    Don't build support for datagram based BIOs. Selecting this
                    option will also force the disabling of DTLS.
 
+  no-dso
+                   Don't build support for loading Dynamic Shared Objects.
+
   enable-devcryptoeng
                    Build the /dev/crypto engine.  It is automatically selected
                    on BSD implementations, in which case it can be disabled with
@@ -605,10 +608,19 @@
                    Take note of the VAR=value documentation below and how
                    these flags interact with those variables.
 
-  -xxx, +xxx
+  -xxx, +xxx, /xxx
                    Additional options that are not otherwise recognised are
-                   passed through as they are to the compiler as well.  Again,
-                   consult your compiler documentation.
+                   passed through as they are to the compiler as well.
+                   Unix-style options beginning with a '-' or '+' and
+                   Windows-style options beginning with a '/' are recognized.
+                   Again, consult your compiler documentation.
+
+                   If the option contains arguments separated by spaces,
+                   then the URL-style notation %20 can be used for the space
+                   character in order to avoid having to quote the option.
+                   For example, -opt%20arg gets expanded to -opt arg.
+                   In fact, any ASCII character can be encoded as %xx using its
+                   hexadecimal encoding.
 
                    Take note of the VAR=value documentation below and how
                    these flags interact with those variables.
@@ -1071,7 +1083,7 @@
 
  HASHBANGPERL
                 The command string for the Perl executable to insert in the
-                #! line of perl scripts that will be publically installed.
+                #! line of perl scripts that will be publicly installed.
                 Default: /usr/bin/env perl
                 Note: the value of this variable is added to the same scripts
                 on all platforms, but it's only relevant on Unix-like platforms.

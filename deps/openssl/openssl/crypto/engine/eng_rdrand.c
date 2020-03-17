@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "internal/engine.h"
+#include "crypto/engine.h"
 #include <openssl/rand.h>
 #include <openssl/err.h>
 #include <openssl/crypto.h>

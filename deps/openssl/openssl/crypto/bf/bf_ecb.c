@@ -8,7 +8,7 @@
  */
 
 #include <openssl/blowfish.h>
-#include "bf_locl.h"
+#include "bf_local.h"
 #include <openssl/opensslv.h>
 
 /*

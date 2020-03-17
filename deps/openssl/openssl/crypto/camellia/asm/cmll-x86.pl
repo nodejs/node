@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1147,4 +1147,4 @@ my ($s0,$s1,$s2,$s3) = @T;
 
 &asm_finish();
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

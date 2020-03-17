@@ -51,6 +51,7 @@ B<openssl> B<ca>
 [B<-engine id>]
 [B<-subj arg>]
 [B<-utf8>]
+[B<-sigopt nm:v>]
 [B<-create_serial>]
 [B<-rand_serial>]
 [B<-multivalue-rdn>]
@@ -133,6 +134,11 @@ The private key to sign requests with.
 
 The format of the data in the private key file.
 The default is PEM.
+
+=item B<-sigopt nm:v>
+
+Pass options to the signature algorithm during sign or verify operations.
+Names and values of these options are algorithm-specific.
 
 =item B<-key password>
 

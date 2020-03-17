@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -326,4 +326,4 @@ $code.=<<___;
 ___
 $output=pop and open STDOUT,">$output";
 print $code;
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

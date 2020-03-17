@@ -14,10 +14,10 @@
 # include <openssl/modes.h>
 # include <openssl/rand.h>
 # include <openssl/rand_drbg.h>
-# include "internal/aria.h"
-# include "internal/evp_int.h"
-# include "modes_lcl.h"
-# include "evp_locl.h"
+# include "crypto/aria.h"
+# include "crypto/evp.h"
+# include "modes_local.h"
+# include "evp_local.h"
 
 /* ARIA subkey Structure */
 typedef struct {
@@ -695,8 +695,6 @@ static int aria_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     if (!cctx->iv_set)
         return -1;
 
-    if (!EVP_CIPHER_CTX_encrypting(ctx) && !cctx->tag_set)
-        return -1;
     if (!out) {
         if (!in) {
             if (CRYPTO_ccm128_setiv(ccm, EVP_CIPHER_CTX_iv_noconst(ctx),
@@ -711,6 +709,11 @@ static int aria_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         CRYPTO_ccm128_aad(ccm, in, len);
         return len;
     }
+
+    /* The tag must be set before actually decrypting data */
+    if (!EVP_CIPHER_CTX_encrypting(ctx) && !cctx->tag_set)
+        return -1;
+
     /* If not set length yet do it */
     if (!cctx->len_set) {
         if (CRYPTO_ccm128_setiv(ccm, EVP_CIPHER_CTX_iv_noconst(ctx),

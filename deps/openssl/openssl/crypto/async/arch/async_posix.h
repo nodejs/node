@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef OPENSSL_ASYNC_ARCH_ASYNC_POSIX_H
-#define OPENSSL_ASYNC_ARCH_ASYNC_POSIX_H
+#ifndef OSSL_CRYPTO_ASYNC_POSIX_H
+#define OSSL_CRYPTO_ASYNC_POSIX_H
 #include <openssl/e_os2.h>
 
 #if defined(OPENSSL_SYS_UNIX) \
@@ -55,4 +55,4 @@ void async_fibre_free(async_fibre *fibre);
 
 # endif
 #endif
-#endif /* OPENSSL_ASYNC_ARCH_ASYNC_POSIX_H */
+#endif /* OSSL_CRYPTO_ASYNC_POSIX_H */

@@ -7,6 +7,73 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1d and 1.1.1e [17 Mar 2020]
+  *) Properly detect EOF while reading in libssl. Previously if we hit an EOF
+     while reading in libssl then we would report an error back to the
+     application (SSL_ERROR_SYSCALL) but errno would be 0. We now add
+     an error to the stack (which means we instead return SSL_ERROR_SSL) and
+     therefore give a hint as to what went wrong.
+     [Matt Caswell]
+
+  *) Check that ed25519 and ed448 are allowed by the security level. Previously
+     signature algorithms not using an MD were not being checked that they were
+     allowed by the security level.
+     [Kurt Roeckx]
+
+  *) Fixed SSL_get_servername() behaviour. The behaviour of SSL_get_servername()
+     was not quite right. The behaviour was not consistent between resumption
+     and normal handshakes, and also not quite consistent with historical
+     behaviour. The behaviour in various scenarios has been clarified and
+     it has been updated to make it match historical behaviour as closely as
+     possible.
+     [Matt Caswell]
+
+  *) [VMS only] The header files that the VMS compilers include automatically,
+     __DECC_INCLUDE_PROLOGUE.H and __DECC_INCLUDE_EPILOGUE.H, use pragmas that
+     the C++ compiler doesn't understand.  This is a shortcoming in the
+     compiler, but can be worked around with __cplusplus guards.
+
+     C++ applications that use OpenSSL libraries must be compiled using the
+     qualifier '/NAMES=(AS_IS,SHORTENED)' to be able to use all the OpenSSL
+     functions.  Otherwise, only functions with symbols of less than 31
+     characters can be used, as the linker will not be able to successfully
+     resolve symbols with longer names.
+     [Richard Levitte]
+
+  *) Corrected the documentation of the return values from the EVP_DigestSign*
+     set of functions.  The documentation mentioned negative values for some
+     errors, but this was never the case, so the mention of negative values
+     was removed.
+
+     Code that followed the documentation and thereby check with something
+     like 'EVP_DigestSignInit(...) <= 0' will continue to work undisturbed.
+     [Richard Levitte]
+
+  *) Fixed an an overflow bug in the x64_64 Montgomery squaring procedure
+     used in exponentiation with 512-bit moduli. No EC algorithms are
+     affected. Analysis suggests that attacks against 2-prime RSA1024,
+     3-prime RSA1536, and DSA1024 as a result of this defect would be very
+     difficult to perform and are not believed likely. Attacks against DH512
+     are considered just feasible. However, for an attack the target would
+     have to re-use the DH512 private key, which is not recommended anyway.
+     Also applications directly using the low level API BN_mod_exp may be
+     affected if they use BN_FLG_CONSTTIME.
+     (CVE-2019-1551)
+     [Andy Polyakov]
+
+  *) Added a new method to gather entropy on VMS, based on SYS$GET_ENTROPY.
+     The presence of this system service is determined at run-time.
+     [Richard Levitte]
+
+  *) Added newline escaping functionality to a filename when using openssl dgst.
+     This output format is to replicate the output format found in the '*sum'
+     checksum programs. This aims to preserve backward compatibility.
+     [Matt Eaton, Richard Levitte, and Paul Dale]
+
+  *) Print all values for a PKCS#12 attribute with 'openssl pkcs12', not just
+     the first value.
+     [Jon Spillett]
+
  Changes between 1.1.1c and 1.1.1d [10 Sep 2019]
 
   *) Fixed a fork protection issue. OpenSSL 1.1.1 introduced a rewritten random
@@ -633,9 +700,9 @@
      bytes long. In theory it is permissible in SSLv3 - TLSv1.2 to fragment such
      alerts across multiple records (some of which could be empty). In practice
      it make no sense to send an empty alert record, or to fragment one. TLSv1.3
-     prohibts this altogether and other libraries (BoringSSL, NSS) do not
+     prohibits this altogether and other libraries (BoringSSL, NSS) do not
      support this at all. Supporting it adds significant complexity to the
-     record layer, and its removal is unlikely to cause inter-operability
+     record layer, and its removal is unlikely to cause interoperability
      issues.
      [Matt Caswell]
 
@@ -3652,7 +3719,7 @@
      implementations).
      [Emilia Käsper, Adam Langley, Bodo Moeller (Google)]
 
-  *) Use type ossl_ssize_t instad of ssize_t which isn't available on
+  *) Use type ossl_ssize_t instead of ssize_t which isn't available on
      all platforms. Move ssize_t definition from e_os.h to the public
      header file e_os2.h as it now appears in public header file cms.h
      [Steve Henson]
@@ -8373,7 +8440,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
 
   *) New OCSP utility. Allows OCSP requests to be generated or
      read. The request can be sent to a responder and the output
-     parsed, outputed or printed in text form. Not complete yet:
+     parsed, outputted or printed in text form. Not complete yet:
      still needs to check the OCSP response validity.
      [Steve Henson]
 
@@ -9368,7 +9435,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
      [Andy Polyakov]
 
   *) Modified SSL library such that the verify_callback that has been set
-     specificly for an SSL object with SSL_set_verify() is actually being
+     specifically for an SSL object with SSL_set_verify() is actually being
      used. Before the change, a verify_callback set with this function was
      ignored and the verify_callback() set in the SSL_CTX at the time of
      the call was used. New function X509_STORE_CTX_set_verify_cb() introduced
@@ -10485,10 +10552,10 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
      as other interfaces in OpenSSL, like the BIO interface.
      NCONF_dump_* dump the internal storage of the configuration file,
      which is useful for debugging.  All other functions take the same
-     arguments as the old CONF_* functions wth the exception of the
+     arguments as the old CONF_* functions with the exception of the
      first that must be a `CONF *' instead of a `LHASH *'.
 
-     To make it easer to use the new classes with the old CONF_* functions,
+     To make it easier to use the new classes with the old CONF_* functions,
      the function CONF_set_default_method is provided.
      [Richard Levitte]
 
@@ -12331,7 +12398,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
      than the old method: it now uses a modified version of Ulf's parser to
      read the ANSI prototypes in all header files (thus the old K&R definitions
      aren't needed for error creation any more) and do a better job of
-     translating function codes into names. The old 'ASN1 error code imbedded
+     translating function codes into names. The old 'ASN1 error code embedded
      in a comment' is no longer necessary and it doesn't use .err files which
      have now been deleted. Also the error code call doesn't have to appear all
      on one line (which resulted in some large lines...).
@@ -12632,7 +12699,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
 
   *) Add a useful kludge to allow package maintainers to specify compiler and
      other platforms details on the command line without having to patch the
-     Configure script everytime: One now can use ``perl Configure
+     Configure script every time: One now can use ``perl Configure
      <id>:<details>'', i.e. platform ids are allowed to have details appended
      to them (separated by colons). This is treated as there would be a static
      pre-configured entry in Configure's %table under key <id> with value

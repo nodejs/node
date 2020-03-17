@@ -20,7 +20,7 @@
  * one-wayness.  For the RSA function, this is an equivalent notion.
  */
 
-#include "internal/constant_time_locl.h"
+#include "internal/constant_time.h"
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
@@ -28,7 +28,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-#include "rsa_locl.h"
+#include "rsa_local.h"
 
 int RSA_padding_add_PKCS1_OAEP(unsigned char *to, int tlen,
                                const unsigned char *from, int flen,

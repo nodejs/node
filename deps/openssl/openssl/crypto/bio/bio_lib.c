@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <openssl/crypto.h>
-#include "bio_lcl.h"
+#include "bio_local.h"
 #include "internal/cryptlib.h"
 
 

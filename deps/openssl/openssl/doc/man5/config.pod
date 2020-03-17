@@ -355,6 +355,22 @@ Simple OpenSSL library configuration example to enter FIPS mode:
 Note: in the above example you will get an error in non FIPS capable versions
 of OpenSSL.
 
+Simple OpenSSL library configuration to make TLS 1.3 the system-default
+minimum TLS version:
+
+ # Toplevel section for openssl (including libssl)
+ openssl_conf = default_conf_section
+
+ [default_conf_section]
+ # We only specify configuration for the "ssl module"
+ ssl_conf = ssl_section
+
+ [ssl_section]
+ system_default = system_default_section
+
+ [system_default_section]
+ MinProtocol = TLSv1.3
+
 More complex OpenSSL library configuration. Add OID and don't enter FIPS mode:
 
  # Default appname: should match "appname" parameter (if any)
@@ -426,7 +442,7 @@ L<x509(1)>, L<req(1)>, L<ca(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

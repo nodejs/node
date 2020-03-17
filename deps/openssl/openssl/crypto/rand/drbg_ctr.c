@@ -14,7 +14,7 @@
 #include <openssl/rand.h>
 #include "internal/thread_once.h"
 #include "internal/thread_once.h"
-#include "rand_lcl.h"
+#include "rand_local.h"
 /*
  * Implementation of NIST SP 800-90A CTR DRBG.
  */

@@ -14,7 +14,7 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 
-#include "ct_locl.h"
+#include "ct_local.h"
 
 typedef enum sct_signature_type_t {
     SIGNATURE_TYPE_NOT_SET = -1,

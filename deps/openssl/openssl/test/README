@@ -114,7 +114,7 @@ Generic form of C test executables
         int observed;
 
         observed = function();              /* Call the code under test     */
-        if (!TEST_int_equal(observed, 2))   /* Check the result is correct  */
+        if (!TEST_int_eq(observed, 2))      /* Check the result is correct  */
             goto end;                       /* Exit on failure - optional   */
 
         testresult = 1;                     /* Mark the test case a success */

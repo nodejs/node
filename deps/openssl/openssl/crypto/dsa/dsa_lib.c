@@ -11,7 +11,7 @@
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
 #include <openssl/bn.h>
-#include "dsa_locl.h"
+#include "dsa_local.h"
 #include <openssl/asn1.h>
 #include <openssl/engine.h>
 #include <openssl/dh.h>

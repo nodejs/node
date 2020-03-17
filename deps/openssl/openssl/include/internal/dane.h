@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_INTERNAL_DANE_H
-#define HEADER_INTERNAL_DANE_H
+#ifndef OSSL_INTERNAL_DANE_H
+#define OSSL_INTERNAL_DANE_H
 
 #include <openssl/safestack.h>
 
@@ -100,4 +100,4 @@ struct ssl_dane_st {
 #define DANETLS_HAS_DANE_TA(dane) ((dane)&&((dane)->umask & DANETLS_DANE_TA_MASK))
 #define DANETLS_HAS_DANE_EE(dane) ((dane)&&((dane)->umask & DANETLS_DANE_EE_MASK))
 
-#endif /* HEADER_INTERNAL_DANE_H */
+#endif /* OSSL_INTERNAL_DANE_H */

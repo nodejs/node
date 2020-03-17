@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -30,7 +30,7 @@
 # produce worse code. On the other hand one can wonder why not 128-bit
 # SSE2? Well, SSE2 won't provide double improvement, rather far from
 # that, if any at all on some processors, because it will take extra
-# permutations and inter-bank data trasfers. Besides, contemporary
+# permutations and inter-bank data transfers. Besides, contemporary
 # CPUs are better off executing 64-bit code, and it makes lesser sense
 # to invest into fancy 32-bit code. And the decision doesn't seem to
 # be inadequate, if one compares below results to "64-bit platforms in
@@ -437,4 +437,4 @@ sub Rho() {				######### regular Rho step
 
 &asm_finish();
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

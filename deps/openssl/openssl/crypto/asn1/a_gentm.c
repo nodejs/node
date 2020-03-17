@@ -15,7 +15,7 @@
 #include <time.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
-#include "asn1_locl.h"
+#include "asn1_local.h"
 
 /* This is the primary function used to parse ASN1_GENERALIZEDTIME */
 int asn1_generalizedtime_to_tm(struct tm *tm, const ASN1_GENERALIZEDTIME *d)

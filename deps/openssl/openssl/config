@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright 1998-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -509,10 +509,7 @@ case "$GUESSOS" in
 	OUT="ios64-cross" ;;
   alpha-*-linux2)
         ISA=`awk '/cpu model/{print$4;exit(0);}' /proc/cpuinfo`
-	case ${ISA:-generic} in
-	*[678])	OUT="linux-alpha+bwx-$CC" ;;
-	*)	OUT="linux-alpha-$CC" ;;
-	esac
+	OUT="linux-alpha-$CC"
 	if [ "$CC" = "gcc" ]; then
 	    case ${ISA:-generic} in
 	    EV5|EV45)		__CNF_CFLAGS="$__CNF_CFLAGS -mcpu=ev5"
@@ -908,8 +905,12 @@ fi
 
 OUT="$OUT"
 
-$PERL $THERE/Configure LIST | grep "$OUT" > /dev/null
-if [ $? = "0" ]; then
+if [ "$OUT" = "darwin64-x86_64-cc" ]; then
+    echo "WARNING! If you wish to build 32-bit libraries, then you have to"
+    echo "         invoke 'KERNEL_BITS=32 $THERE/config $options'."
+fi
+
+if $PERL $THERE/Configure LIST | grep "$OUT" > /dev/null; then
   if [ "$VERBOSE" = "true" ]; then
     echo /usr/bin/env \
 	 __CNF_CPPDEFINES="'$__CNF_CPPDEFINES'" \
@@ -939,8 +940,5 @@ else
   exit 1
 fi
 
-if [ "$OUT" = "darwin64-x86_64-cc" ]; then
-    echo "WARNING! If you wish to build 32-bit libraries, then you have to"
-    echo "         invoke 'KERNEL_BITS=32 $THERE/config $options'."
-fi
+# Do not add anothing from here on, so we don't lose the Configure exit code
 )

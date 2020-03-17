@@ -12,7 +12,7 @@
 #include <openssl/evp.h>
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 
 /*
  * X509_CERT_AUX routines. These are used to encode additional user

@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include "bio_lcl.h"
+#include "bio_local.h"
 #ifndef OPENSSL_NO_SOCK
 # define SOCKET_PROTOCOL IPPROTO_TCP
 # ifdef SO_MAXCONN

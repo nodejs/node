@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1216,7 +1216,7 @@ while(defined(my $line=<>)) {
 print "\n$current_segment\tENDS\n"	if ($current_segment && $masm);
 print "END\n"				if ($masm);
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";
 
 #################################################
 # Cross-reference x86_64 ABI "card"

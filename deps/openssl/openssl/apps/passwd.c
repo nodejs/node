@@ -807,7 +807,7 @@ static int do_passwd(int passed_salt, char **salt_p, char **salt_malloc_p,
             (*salt_p)[i] = cov_2char[(*salt_p)[i] & 0x3f]; /* 6 bits */
         (*salt_p)[i] = 0;
 # ifdef CHARSET_EBCDIC
-        /* The password encryption funtion will convert back to ASCII */
+        /* The password encryption function will convert back to ASCII */
         ascii2ebcdic(*salt_p, *salt_p, saltlen);
 # endif
     }

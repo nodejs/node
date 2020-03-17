@@ -12,6 +12,7 @@ B<openssl dgst>
 [B<-help>]
 [B<-c>]
 [B<-d>]
+[B<-list>]
 [B<-hex>]
 [B<-binary>]
 [B<-r>]
@@ -22,6 +23,7 @@ B<openssl dgst>
 [B<-verify filename>]
 [B<-prverify filename>]
 [B<-signature filename>]
+[B<-sigopt nm:v>]
 [B<-hmac key>]
 [B<-fips-fingerprint>]
 [B<-rand file...>]
@@ -66,6 +68,10 @@ B<hex> format output is used.
 
 Print out BIO debugging information.
 
+=item B<-list>
+
+Prints out a list of supported message digests.
+
 =item B<-hex>
 
 Digest is to be output as a hex dump. This is the default case for a "normal"
@@ -78,7 +84,8 @@ Output the digest or signature in binary form.
 
 =item B<-r>
 
-Output the digest in the "coreutils" format used by programs like B<sha1sum>.
+Output the digest in the "coreutils" format, including newlines.
+Used by programs like B<sha1sum>.
 
 =item B<-out filename>
 

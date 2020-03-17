@@ -12,7 +12,7 @@
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, EVP_PKEY *pkey)

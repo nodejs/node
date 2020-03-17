@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -135,7 +135,7 @@ if (!$avx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$avx = ($1>=10) + ($1>=11);
 }
 
-if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9]\.[0-9]+)/) {
+if (!$avx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([0-9]+\.[0-9]+)/) {
 	$avx = ($2>=3.0) + ($2>3.0);
 }
 
@@ -569,6 +569,7 @@ $code.=<<___;
 .align	64
 sha256_block_data_order_shaext:
 _shaext_shortcut:
+.cfi_startproc
 ___
 $code.=<<___ if ($win64);
 	lea	`-8-5*16`(%rsp),%rsp
@@ -712,6 +713,7 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	ret
+.cfi_endproc
 .size	sha256_block_data_order_shaext,.-sha256_block_data_order_shaext
 ___
 }}}
@@ -1992,7 +1994,23 @@ $code.=<<___;
 	vmovdqa	$t0,0x00(%rsp)
 	xor	$a1,$a1
 	vmovdqa	$t1,0x20(%rsp)
+___
+$code.=<<___ if (!$win64);
+# temporarily use %rdi as frame pointer
+	mov	$_rsp,%rdi
+.cfi_def_cfa	%rdi,8
+___
+$code.=<<___;
 	lea	-$PUSH8(%rsp),%rsp
+___
+$code.=<<___ if (!$win64);
+# the frame info is at $_rsp, but the stack is moving...
+# so a second frame pointer is saved at -8(%rsp)
+# that is in the red zone
+	mov	%rdi,-8(%rsp)
+.cfi_cfa_expression	%rsp-8,deref,+8
+___
+$code.=<<___;
 	mov	$B,$a3
 	vmovdqa	$t2,0x00(%rsp)
 	xor	$C,$a3			# magic
@@ -2012,7 +2030,18 @@ my @X = @_;
 my @insns = (&$body,&$body,&$body,&$body);	# 96 instructions
 my $base = "+2*$PUSH8(%rsp)";
 
-	&lea	("%rsp","-$PUSH8(%rsp)")	if (($j%2)==0);
+	if (($j%2)==0) {
+	&lea	("%rsp","-$PUSH8(%rsp)");
+$code.=<<___ if (!$win64);
+.cfi_cfa_expression	%rsp+`$PUSH8-8`,deref,+8
+# copy secondary frame pointer to new location again at -8(%rsp)
+	pushq	$PUSH8-8(%rsp)
+.cfi_cfa_expression	%rsp,deref,+8
+	lea	8(%rsp),%rsp
+.cfi_cfa_expression	%rsp-8,deref,+8
+___
+	}
+
 	foreach (Xupdate_256_AVX()) {		# 29 instructions
 	    eval;
 	    eval(shift(@insns));
@@ -2083,7 +2112,23 @@ $code.=<<___;
 	vmovdqa	$t2,0x40(%rsp)
 	vpaddq	0x40($Tbl),@X[6],$t2
 	vmovdqa	$t3,0x60(%rsp)
+___
+$code.=<<___ if (!$win64);
+# temporarily use %rdi as frame pointer
+	mov	$_rsp,%rdi
+.cfi_def_cfa	%rdi,8
+___
+$code.=<<___;
 	lea	-$PUSH8(%rsp),%rsp
+___
+$code.=<<___ if (!$win64);
+# the frame info is at $_rsp, but the stack is moving...
+# so a second frame pointer is saved at -8(%rsp)
+# that is in the red zone
+	mov	%rdi,-8(%rsp)
+.cfi_cfa_expression	%rsp-8,deref,+8
+___
+$code.=<<___;
 	vpaddq	0x60($Tbl),@X[7],$t3
 	vmovdqa	$t0,0x00(%rsp)
 	xor	$a1,$a1
@@ -2107,7 +2152,18 @@ my @X = @_;
 my @insns = (&$body,&$body);			# 48 instructions
 my $base = "+2*$PUSH8(%rsp)";
 
-	&lea	("%rsp","-$PUSH8(%rsp)")	if (($j%4)==0);
+	if (($j%4)==0) {
+	&lea	("%rsp","-$PUSH8(%rsp)");
+$code.=<<___ if (!$win64);
+.cfi_cfa_expression	%rsp+`$PUSH8-8`,deref,+8
+# copy secondary frame pointer to new location again at -8(%rsp)
+	pushq	$PUSH8-8(%rsp)
+.cfi_cfa_expression	%rsp,deref,+8
+	lea	8(%rsp),%rsp
+.cfi_cfa_expression	%rsp-8,deref,+8
+___
+	}
+
 	foreach (Xupdate_512_AVX()) {		# 23 instructions
 	    eval;
 	    if ($_ !~ /\;$/) {
@@ -2182,6 +2238,8 @@ $code.=<<___;
 	add	$a1,$A
 	#mov	`2*$SZ*$rounds+8`(%rsp),$inp	# $_inp
 	lea	`2*$SZ*($rounds-8)`(%rsp),%rsp
+# restore frame pointer to original location at $_rsp
+.cfi_cfa_expression	$_rsp,deref,+8
 
 	add	$SZ*0($ctx),$A
 	add	$SZ*1($ctx),$B
@@ -2207,22 +2265,24 @@ $code.=<<___;
 
 	jbe	.Loop_avx2
 	lea	(%rsp),$Tbl
+# temporarily use $Tbl as index to $_rsp
+# this avoids the need to save a secondary frame pointer at -8(%rsp)
+.cfi_cfa_expression	$Tbl+`16*$SZ+3*8`,deref,+8
 
 .Ldone_avx2:
-	lea	($Tbl),%rsp
-	mov	$_rsp,%rsi
+	mov	`16*$SZ+3*8`($Tbl),%rsi
 .cfi_def_cfa	%rsi,8
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
-	movaps	16*$SZ+32(%rsp),%xmm6
-	movaps	16*$SZ+48(%rsp),%xmm7
-	movaps	16*$SZ+64(%rsp),%xmm8
-	movaps	16*$SZ+80(%rsp),%xmm9
+	movaps	16*$SZ+32($Tbl),%xmm6
+	movaps	16*$SZ+48($Tbl),%xmm7
+	movaps	16*$SZ+64($Tbl),%xmm8
+	movaps	16*$SZ+80($Tbl),%xmm9
 ___
 $code.=<<___ if ($win64 && $SZ>4);
-	movaps	16*$SZ+96(%rsp),%xmm10
-	movaps	16*$SZ+112(%rsp),%xmm11
+	movaps	16*$SZ+96($Tbl),%xmm10
+	movaps	16*$SZ+112($Tbl),%xmm11
 ___
 $code.=<<___;
 	mov	-48(%rsi),%r15
@@ -2495,4 +2555,4 @@ foreach (split("\n",$code)) {
 
 	print $_,"\n";
 }
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

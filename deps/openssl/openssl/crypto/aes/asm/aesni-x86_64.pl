@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -59,7 +59,7 @@
 # nothing one can do and the result appears optimal. CCM result is
 # identical to CBC, because CBC-MAC is essentially CBC encrypt without
 # saving output. CCM CTR "stays invisible," because it's neatly
-# interleaved wih CBC-MAC. This provides ~30% improvement over
+# interleaved with CBC-MAC. This provides ~30% improvement over
 # "straightforward" CCM implementation with CTR and CBC-MAC performed
 # disjointly. Parallelizable modes practically achieve the theoretical
 # limit.
@@ -984,6 +984,7 @@ $code.=<<___;
 .type	aesni_ccm64_encrypt_blocks,\@function,6
 .align	16
 aesni_ccm64_encrypt_blocks:
+.cfi_startproc
 ___
 $code.=<<___ if ($win64);
 	lea	-0x58(%rsp),%rsp
@@ -1066,6 +1067,7 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	ret
+.cfi_endproc
 .size	aesni_ccm64_encrypt_blocks,.-aesni_ccm64_encrypt_blocks
 ___
 ######################################################################
@@ -1074,6 +1076,7 @@ $code.=<<___;
 .type	aesni_ccm64_decrypt_blocks,\@function,6
 .align	16
 aesni_ccm64_decrypt_blocks:
+.cfi_startproc
 ___
 $code.=<<___ if ($win64);
 	lea	-0x58(%rsp),%rsp
@@ -1173,6 +1176,7 @@ $code.=<<___ if ($win64);
 ___
 $code.=<<___;
 	ret
+.cfi_endproc
 .size	aesni_ccm64_decrypt_blocks,.-aesni_ccm64_decrypt_blocks
 ___
 }
@@ -2339,7 +2343,7 @@ $code.=<<___;
 	movdqu	`16*0`($inp),$inout0		# load input
 	movdqa	$rndkey0,$twmask
 	movdqu	`16*1`($inp),$inout1
-	pxor	@tweak[0],$inout0		# intput^=tweak^round[0]
+	pxor	@tweak[0],$inout0		# input^=tweak^round[0]
 	movdqu	`16*2`($inp),$inout2
 	pxor	@tweak[1],$inout1
 	 aesdec		$rndkey1,$inout0
@@ -3031,6 +3035,7 @@ $code.=<<___;
 .type	__ocb_encrypt6,\@abi-omnipotent
 .align	32
 __ocb_encrypt6:
+.cfi_startproc
 	 pxor		$rndkey0l,@offset[5]	# offset_i ^ round[0]
 	 movdqu		($L_p,$i1),@offset[1]
 	 movdqa		@offset[0],@offset[2]
@@ -3128,11 +3133,13 @@ __ocb_encrypt6:
 	aesenclast	@offset[4],$inout4
 	aesenclast	@offset[5],$inout5
 	ret
+.cfi_endproc
 .size	__ocb_encrypt6,.-__ocb_encrypt6
 
 .type	__ocb_encrypt4,\@abi-omnipotent
 .align	32
 __ocb_encrypt4:
+.cfi_startproc
 	 pxor		$rndkey0l,@offset[5]	# offset_i ^ round[0]
 	 movdqu		($L_p,$i1),@offset[1]
 	 movdqa		@offset[0],@offset[2]
@@ -3197,11 +3204,13 @@ __ocb_encrypt4:
 	aesenclast	@offset[2],$inout2
 	aesenclast	@offset[3],$inout3
 	ret
+.cfi_endproc
 .size	__ocb_encrypt4,.-__ocb_encrypt4
 
 .type	__ocb_encrypt1,\@abi-omnipotent
 .align	32
 __ocb_encrypt1:
+.cfi_startproc
 	 pxor		@offset[5],$inout5	# offset_i
 	 pxor		$rndkey0l,$inout5	# offset_i ^ round[0]
 	pxor		$inout0,$checksum	# accumulate checksum
@@ -3232,6 +3241,7 @@ __ocb_encrypt1:
 
 	aesenclast	$inout5,$inout0
 	ret
+.cfi_endproc
 .size	__ocb_encrypt1,.-__ocb_encrypt1
 
 .globl	aesni_ocb_decrypt
@@ -3513,6 +3523,7 @@ $code.=<<___;
 .type	__ocb_decrypt6,\@abi-omnipotent
 .align	32
 __ocb_decrypt6:
+.cfi_startproc
 	 pxor		$rndkey0l,@offset[5]	# offset_i ^ round[0]
 	 movdqu		($L_p,$i1),@offset[1]
 	 movdqa		@offset[0],@offset[2]
@@ -3604,11 +3615,13 @@ __ocb_decrypt6:
 	aesdeclast	@offset[4],$inout4
 	aesdeclast	@offset[5],$inout5
 	ret
+.cfi_endproc
 .size	__ocb_decrypt6,.-__ocb_decrypt6
 
 .type	__ocb_decrypt4,\@abi-omnipotent
 .align	32
 __ocb_decrypt4:
+.cfi_startproc
 	 pxor		$rndkey0l,@offset[5]	# offset_i ^ round[0]
 	 movdqu		($L_p,$i1),@offset[1]
 	 movdqa		@offset[0],@offset[2]
@@ -3669,11 +3682,13 @@ __ocb_decrypt4:
 	aesdeclast	@offset[2],$inout2
 	aesdeclast	@offset[3],$inout3
 	ret
+.cfi_endproc
 .size	__ocb_decrypt4,.-__ocb_decrypt4
 
 .type	__ocb_decrypt1,\@abi-omnipotent
 .align	32
 __ocb_decrypt1:
+.cfi_startproc
 	 pxor		@offset[5],$inout5	# offset_i
 	 pxor		$rndkey0l,$inout5	# offset_i ^ round[0]
 	pxor		$inout5,$inout0		# input ^ round[0] ^ offset_i
@@ -3703,6 +3718,7 @@ __ocb_decrypt1:
 
 	aesdeclast	$inout5,$inout0
 	ret
+.cfi_endproc
 .size	__ocb_decrypt1,.-__ocb_decrypt1
 ___
 } }}
@@ -4637,7 +4653,6 @@ __aesni_set_encrypt_key:
 	add	\$8,%rsp
 .cfi_adjust_cfa_offset	-8
 	ret
-.cfi_endproc
 .LSEH_end_set_encrypt_key:
 
 .align	16
@@ -4708,6 +4723,7 @@ __aesni_set_encrypt_key:
 	shufps	\$0b10101010,%xmm1,%xmm1	# critical path
 	xorps	%xmm1,%xmm2
 	ret
+.cfi_endproc
 .size	${PREFIX}_set_encrypt_key,.-${PREFIX}_set_encrypt_key
 .size	__aesni_set_encrypt_key,.-__aesni_set_encrypt_key
 ___
@@ -4812,7 +4828,7 @@ ctr_xts_se_handler:
 	mov	56($disp),%r11		# disp->HandlerData
 
 	mov	0(%r11),%r10d		# HandlerData[0]
-	lea	(%rsi,%r10),%r10	# prologue lable
+	lea	(%rsi,%r10),%r10	# prologue label
 	cmp	%r10,%rbx		# context->Rip<prologue label
 	jb	.Lcommon_seh_tail
 
@@ -4856,7 +4872,7 @@ ocb_se_handler:
 	mov	56($disp),%r11		# disp->HandlerData
 
 	mov	0(%r11),%r10d		# HandlerData[0]
-	lea	(%rsi,%r10),%r10	# prologue lable
+	lea	(%rsi,%r10),%r10	# prologue label
 	cmp	%r10,%rbx		# context->Rip<prologue label
 	jb	.Lcommon_seh_tail
 
@@ -5138,4 +5154,4 @@ $code =~ s/\bmovbe\s+%eax,\s*([0-9]+)\(%rsp\)/movbe($1)/gem;
 
 print $code;
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

@@ -13,9 +13,9 @@
 #include <openssl/objects.h>
 #include "internal/comp.h"
 #include <openssl/err.h>
-#include "internal/cryptlib_int.h"
+#include "crypto/cryptlib.h"
 #include "internal/bio.h"
-#include "comp_lcl.h"
+#include "comp_local.h"
 
 COMP_METHOD *COMP_zlib(void);
 
@@ -596,6 +596,28 @@ static long bio_zlib_ctrl(BIO *b, int cmd, long num, void *ptr)
         BIO_clear_retry_flags(b);
         ret = BIO_ctrl(next, cmd, num, ptr);
         BIO_copy_next_retry(b);
+        break;
+
+    case BIO_CTRL_WPENDING:
+        if (ctx->obuf == NULL)
+            return 0;
+
+        if (ctx->odone) {
+            ret = ctx->ocount;
+        } else {
+            ret = ctx->ocount;
+            if (ret == 0)
+                /* Unknown amount pending but we are not finished */
+                ret = 1;
+        }
+        if (ret == 0)
+            ret = BIO_ctrl(next, cmd, num, ptr);
+        break;
+
+    case BIO_CTRL_PENDING:
+        ret = ctx->zin.avail_in;
+        if (ret == 0)
+            ret = BIO_ctrl(next, cmd, num, ptr);
         break;
 
     default:

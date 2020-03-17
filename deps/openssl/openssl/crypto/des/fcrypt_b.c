@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 #define DES_FCRYPT
-#include "des_locl.h"
+#include "des_local.h"
 #undef DES_FCRYPT
 
 #undef PERM_OP

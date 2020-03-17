@@ -36,7 +36,7 @@ EVP_MD_CTX is freed).
 The digest B<type> may be NULL if the signing algorithm supports it.
 
 No B<EVP_PKEY_CTX> will be created by EVP_DigestSignInit() if the passed B<ctx>
-has already been assigned one via L<EVP_MD_CTX_set_ctx(3)>. See also L<SM2(7)>.
+has already been assigned one via L<EVP_MD_CTX_set_pkey_ctx(3)>. See also L<SM2(7)>.
 
 Only EVP_PKEY types that support signing can be used with these functions. This
 includes MAC algorithms where the MAC generation is considered as a form of
@@ -102,10 +102,8 @@ EVP_DigestSignFinal().
 
 =head1 RETURN VALUES
 
-EVP_DigestSignInit(), EVP_DigestSignUpdate(), EVP_DigestSignaFinal() and
-EVP_DigestSign() return 1 for success and 0 or a negative value for failure. In
-particular, a return value of -2 indicates the operation is not supported by the
-public key algorithm.
+EVP_DigestSignInit(), EVP_DigestSignUpdate(), EVP_DigestSignFinal() and
+EVP_DigestSign() return 1 for success and 0 for failure.
 
 The error codes can be obtained from L<ERR_get_error(3)>.
 
@@ -158,7 +156,7 @@ were added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

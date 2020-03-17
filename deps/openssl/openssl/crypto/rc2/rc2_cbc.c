@@ -8,7 +8,7 @@
  */
 
 #include <openssl/rc2.h>
-#include "rc2_locl.h"
+#include "rc2_local.h"
 
 void RC2_cbc_encrypt(const unsigned char *in, unsigned char *out, long length,
                      RC2_KEY *ks, unsigned char *iv, int encrypt)

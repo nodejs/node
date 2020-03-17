@@ -13,7 +13,7 @@
 #include <openssl/asn1.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 #include <openssl/ocsp.h>
 #include <openssl/rsa.h>
 #include <openssl/dsa.h>

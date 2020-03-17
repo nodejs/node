@@ -307,7 +307,6 @@ i2d_POLICYQUALINFO,
 i2d_PROFESSION_INFO,
 i2d_PROXY_CERT_INFO_EXTENSION,
 i2d_PROXY_POLICY,
-i2d_PublicKey,
 i2d_RSAPrivateKey,
 i2d_RSAPrivateKey_bio,
 i2d_RSAPrivateKey_fp,
@@ -461,7 +460,7 @@ Represents an ASN1 OBJECT IDENTIFIER.
 
 Represents a PKCS#3 DH parameters structure.
 
-=item B<DHparamx>
+=item B<DHxparams>
 
 Represents an ANSI X9.42 DH parameters structure.
 
@@ -611,7 +610,7 @@ efficiency reasons.
 
 =head1 COPYRIGHT
 
-Copyright 1998-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 1998-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

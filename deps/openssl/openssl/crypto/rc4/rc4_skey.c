@@ -8,7 +8,7 @@
  */
 
 #include <openssl/rc4.h>
-#include "rc4_locl.h"
+#include "rc4_local.h"
 #include <openssl/opensslv.h>
 
 const char *RC4_options(void)

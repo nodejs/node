@@ -13,8 +13,8 @@
 
 #include <stddef.h>
 
-#ifndef DRBG_CAVS_DATA_H
-# define DRBG_CAVS_DATA_H
+#ifndef OSSL_TEST_DRBG_CAVS_DATA_H
+# define OSSL_TEST_DRBG_CAVS_DATA_H
 
 enum drbg_kat_type {
     NO_RESEED,

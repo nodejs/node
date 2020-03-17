@@ -463,8 +463,6 @@ __owur int CTLOG_STORE_load_file(CTLOG_STORE *store, const char *file);
 
 /*
  * Loads the default CT log list into a |store|.
- * See internal/cryptlib.h for the environment variable and file path that are
- * consulted to find the default file.
  * Returns 1 if loading is successful, or 0 otherwise.
  */
 __owur int CTLOG_STORE_load_default_file(CTLOG_STORE *store);

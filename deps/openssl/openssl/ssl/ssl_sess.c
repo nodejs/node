@@ -13,8 +13,8 @@
 #include <openssl/engine.h>
 #include "internal/refcount.h"
 #include "internal/cryptlib.h"
-#include "ssl_locl.h"
-#include "statem/statem_locl.h"
+#include "ssl_local.h"
+#include "statem/statem_local.h"
 
 static void SSL_SESSION_list_remove(SSL_CTX *ctx, SSL_SESSION *s);
 static void SSL_SESSION_list_add(SSL_CTX *ctx, SSL_SESSION *s);
