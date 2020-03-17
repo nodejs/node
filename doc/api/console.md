@@ -91,6 +91,10 @@ changes:
   - version: v11.7.0
     pr-url: https://github.com/nodejs/node/pull/24978
     description: The `inspectOptions` option is introduced.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32308
+    description: The `colorMode` default adheres to the environment variables
+                 enforcing or disabling colors.
 -->
 
 * `options` {Object}
@@ -99,12 +103,12 @@ changes:
   * `ignoreErrors` {boolean} Ignore errors when writing to the underlying
     streams. **Default:** `true`.
   * `colorMode` {boolean|string} Set color support for this `Console` instance.
-    Setting to `true` enables coloring while inspecting values. Setting to
-    `false` disables coloring while inspecting values. Setting to
-    `'auto'` makes color support depend on the value of the `isTTY` property
-    and the value returned by `getColorDepth()` on the respective stream. This
-    option can not be used, if `inspectOptions.colors` is set as well.
-    **Default:** `'auto'`.
+    Set to `true` to enable coloring while inspecting values and set to `false`
+    to disable coloring. Set to `'auto'` checks the `FORCE_COLOR`, `NO_COLOR`
+    and `NODE_DISABLE_COLORS` environment variables. If none is set, makes color
+    support depend on the value of the `isTTY` property and the value returned
+    by `hasColors()` on the respective stream. This option can not be used, if
+    `inspectOptions.colors` is set as well. **Default:** `'auto'`.
   * `inspectOptions` {Object} Specifies options that are passed along to
     [`util.inspect()`][].
 
