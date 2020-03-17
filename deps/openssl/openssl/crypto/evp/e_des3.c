@@ -12,10 +12,10 @@
 #ifndef OPENSSL_NO_DES
 # include <openssl/evp.h>
 # include <openssl/objects.h>
-# include "internal/evp_int.h"
+# include "crypto/evp.h"
 # include <openssl/des.h>
 # include <openssl/rand.h>
-# include "evp_locl.h"
+# include "evp_local.h"
 
 typedef struct {
     union {

@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bio_lcl.h"
+#include "bio_local.h"
 #include <openssl/err.h>
 #include <openssl/crypto.h>
 

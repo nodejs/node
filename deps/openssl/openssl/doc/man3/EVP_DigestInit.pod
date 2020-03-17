@@ -2,17 +2,17 @@
 
 =head1 NAME
 
-EVP_MD_CTX_new, EVP_MD_CTX_reset, EVP_MD_CTX_free, EVP_MD_CTX_copy_ex,
-EVP_MD_CTX_ctrl, EVP_MD_CTX_set_flags, EVP_MD_CTX_clear_flags,
-EVP_MD_CTX_test_flags, EVP_DigestInit_ex, EVP_DigestInit, EVP_DigestUpdate,
+EVP_MD_CTX_new, EVP_MD_CTX_reset, EVP_MD_CTX_free, EVP_MD_CTX_copy,
+EVP_MD_CTX_copy_ex, EVP_MD_CTX_ctrl, EVP_MD_CTX_set_flags,
+EVP_MD_CTX_clear_flags, EVP_MD_CTX_test_flags,
+EVP_Digest, EVP_DigestInit_ex, EVP_DigestInit, EVP_DigestUpdate,
 EVP_DigestFinal_ex, EVP_DigestFinalXOF, EVP_DigestFinal,
-EVP_MD_CTX_copy, EVP_MD_type, EVP_MD_pkey_type, EVP_MD_size,
-EVP_MD_block_size, EVP_MD_CTX_md, EVP_MD_CTX_size,
-EVP_MD_CTX_block_size, EVP_MD_CTX_type, EVP_MD_CTX_md_data,
+EVP_MD_type, EVP_MD_pkey_type, EVP_MD_size, EVP_MD_block_size, EVP_MD_flags,
+EVP_MD_CTX_md, EVP_MD_CTX_type, EVP_MD_CTX_size, EVP_MD_CTX_block_size,
+EVP_MD_CTX_md_data, EVP_MD_CTX_update_fn, EVP_MD_CTX_set_update_fn,
 EVP_md_null,
-EVP_get_digestbyname, EVP_get_digestbynid,
-EVP_get_digestbyobj,
-EVP_MD_CTX_set_pkey_ctx - EVP digest routines
+EVP_get_digestbyname, EVP_get_digestbynid, EVP_get_digestbyobj,
+EVP_MD_CTX_pkey_ctx, EVP_MD_CTX_set_pkey_ctx - EVP digest routines
 
 =head1 SYNOPSIS
 
@@ -26,6 +26,8 @@ EVP_MD_CTX_set_pkey_ctx - EVP digest routines
  void EVP_MD_CTX_clear_flags(EVP_MD_CTX *ctx, int flags);
  int EVP_MD_CTX_test_flags(const EVP_MD_CTX *ctx, int flags);
 
+ int EVP_Digest(const void *data, size_t count, unsigned char *md,
+                unsigned int *size, const EVP_MD *type, ENGINE *impl);
  int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, ENGINE *impl);
  int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
  int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *s);
@@ -42,12 +44,18 @@ EVP_MD_CTX_set_pkey_ctx - EVP digest routines
  int EVP_MD_pkey_type(const EVP_MD *md);
  int EVP_MD_size(const EVP_MD *md);
  int EVP_MD_block_size(const EVP_MD *md);
+ unsigned long EVP_MD_flags(const EVP_MD *md);
 
  const EVP_MD *EVP_MD_CTX_md(const EVP_MD_CTX *ctx);
- int EVP_MD_CTX_size(const EVP_MD *ctx);
- int EVP_MD_CTX_block_size(const EVP_MD *ctx);
- int EVP_MD_CTX_type(const EVP_MD *ctx);
+ int EVP_MD_CTX_size(const EVP_MD_CTX *ctx);
+ int EVP_MD_CTX_block_size(const EVP_MD_CTX *ctx);
+ int EVP_MD_CTX_type(const EVP_MD_CTX *ctx);
  void *EVP_MD_CTX_md_data(const EVP_MD_CTX *ctx);
+ int (*EVP_MD_CTX_update_fn(EVP_MD_CTX *ctx))(EVP_MD_CTX *ctx,
+                                              const void *data, size_t count);
+ void EVP_MD_CTX_set_update_fn(EVP_MD_CTX *ctx,
+                               int (*update)(EVP_MD_CTX *ctx,
+                                             const void *data, size_t count));
 
  const EVP_MD *EVP_md_null(void);
 
@@ -55,6 +63,7 @@ EVP_MD_CTX_set_pkey_ctx - EVP digest routines
  const EVP_MD *EVP_get_digestbynid(int type);
  const EVP_MD *EVP_get_digestbyobj(const ASN1_OBJECT *o);
 
+ EVP_PKEY_CTX *EVP_MD_CTX_pkey_ctx(const EVP_MD_CTX *ctx);
  void EVP_MD_CTX_set_pkey_ctx(EVP_MD_CTX *ctx, EVP_PKEY_CTX *pctx);
 
 =head1 DESCRIPTION
@@ -79,11 +88,23 @@ Cleans up digest context B<ctx> and frees up the space allocated to it.
 
 =item EVP_MD_CTX_ctrl()
 
-Performs digest-specific control actions on context B<ctx>.
+Performs digest-specific control actions on context B<ctx>. The control command
+is indicated in B<cmd> and any additional arguments in B<p1> and B<p2>.
+EVP_MD_CTX_ctrl() must be called after EVP_DigestInit_ex(). Other restrictions
+may apply depending on the control type and digest implementation.
+See L</CONTROLS> below for more information.
 
 =item EVP_MD_CTX_set_flags(), EVP_MD_CTX_clear_flags(), EVP_MD_CTX_test_flags()
 
 Sets, clears and tests B<ctx> flags.  See L</FLAGS> below for more information.
+
+=item EVP_Digest()
+
+A wrapper around the Digest Init_ex, Update and Final_ex functions.
+Hashes B<count> bytes of data at B<data> using a digest B<type> from ENGINE
+B<impl>. The digest value is placed in B<md> and its length is written at B<size>
+if the pointer is not NULL. At most B<EVP_MAX_MD_SIZE> bytes will be written.
+If B<impl> is NULL the default implementation of digest B<type> is used.
 
 =item EVP_DigestInit_ex()
 
@@ -122,7 +143,7 @@ few bytes.
 =item EVP_DigestInit()
 
 Behaves in the same way as EVP_DigestInit_ex() except it always uses the
-default digest implementation.
+default digest implementation and calls EVP_MD_CTX_reset().
 
 =item EVP_DigestFinal()
 
@@ -163,6 +184,21 @@ EVP_MD_meth_set_app_datasize().
 
 Returns the B<EVP_MD> structure corresponding to the passed B<EVP_MD_CTX>.
 
+=item EVP_MD_CTX_set_update_fn()
+
+Sets the update function for B<ctx> to B<update>.
+This is the function that is called by EVP_DigestUpdate. If not set, the
+update function from the B<EVP_MD> type specified at initialization is used.
+
+=item EVP_MD_CTX_update_fn()
+
+Returns the update function for B<ctx>.
+
+=item EVP_MD_flags()
+
+Returns the B<md> flags. Note that these are different from the B<EVP_MD_CTX>
+ones. See L<EVP_MD_meth_set_flags(3)> for more information.
+
 =item EVP_MD_pkey_type()
 
 Returns the NID of the public key signing algorithm associated with this
@@ -182,14 +218,40 @@ EVP_get_digestbyobj()
 Returns an B<EVP_MD> structure when passed a digest name, a digest B<NID> or an
 B<ASN1_OBJECT> structure respectively.
 
+=item EVP_MD_CTX_pkey_ctx()
+
+Returns the B<EVP_PKEY_CTX> assigned to B<ctx>. The returned pointer should not
+be freed by the caller.
+
 =item EVP_MD_CTX_set_pkey_ctx()
 
 Assigns an B<EVP_PKEY_CTX> to B<EVP_MD_CTX>. This is usually used to provide
-a customzied B<EVP_PKEY_CTX> to L<EVP_DigestSignInit(3)> or
+a customized B<EVP_PKEY_CTX> to L<EVP_DigestSignInit(3)> or
 L<EVP_DigestVerifyInit(3)>. The B<pctx> passed to this function should be freed
 by the caller. A NULL B<pctx> pointer is also allowed to clear the B<EVP_PKEY_CTX>
 assigned to B<ctx>. In such case, freeing the cleared B<EVP_PKEY_CTX> or not
 depends on how the B<EVP_PKEY_CTX> is created.
+
+=back
+
+=head1 CONTROLS
+
+EVP_MD_CTX_ctrl() can be used to send the following standard controls:
+
+=over 4
+
+=item EVP_MD_CTRL_MICALG
+
+Gets the digest Message Integrity Check algorithm string. This is used when
+creating S/MIME multipart/signed messages, as specified in RFC 3851.
+The string value is written to B<p2>.
+
+=item EVP_MD_CTRL_XOF_LEN
+
+This control sets the digest length for extendable output functions to B<p1>.
+Sending this control directly should not be necessary, the use of
+C<EVP_DigestFinalXOF()> is preferred.
+Currently used by SHAKE.
 
 =back
 
@@ -245,8 +307,7 @@ Returns 1 if successful or 0 for failure.
 Returns 1 if successful or 0 for failure.
 
 =item EVP_MD_type(),
-EVP_MD_pkey_type(),
-EVP_MD_type()
+EVP_MD_pkey_type()
 
 Returns the NID of the corresponding OBJECT IDENTIFIER or NID_undef if none
 exists.
@@ -350,6 +411,7 @@ digest name passed on the command line.
 
 =head1 SEE ALSO
 
+L<EVP_MD_meth_new(3)>,
 L<dgst(1)>,
 L<evp(7)>
 

@@ -84,7 +84,12 @@ together.  The available flags are:
 
 =item EVP_MD_FLAG_ONESHOT
 
-This digest method can only handles one block of input.
+This digest method can only handle one block of input.
+
+=item EVP_MD_FLAG_XOF
+
+This digest method is an extensible-output function (XOF) and supports
+the B<EVP_MD_CTRL_XOF_LEN> control.
 
 =item EVP_MD_FLAG_DIGALGID_NULL
 
@@ -105,19 +110,24 @@ B<EVP_MD_FLAG_DIGALGID_ABSENT> as default.  I<Note: if combined with
 EVP_MD_FLAG_DIGALGID_NULL, the latter will be overridden.>
 Currently unused.
 
+=item EVP_MD_FLAG_FIPS
+
+This digest method is suitable for use in FIPS mode.
+Currently unused.
+
 =back
 
 EVP_MD_meth_set_init() sets the digest init function for B<md>.
-The digest init function is called by EVP_DigestInit(),
+The digest init function is called by EVP_Digest(), EVP_DigestInit(),
 EVP_DigestInit_ex(), EVP_SignInit, EVP_SignInit_ex(), EVP_VerifyInit()
 and EVP_VerifyInit_ex().
 
 EVP_MD_meth_set_update() sets the digest update function for B<md>.
-The digest update function is called by EVP_DigestUpdate(),
+The digest update function is called by EVP_Digest(), EVP_DigestUpdate() and
 EVP_SignUpdate().
 
 EVP_MD_meth_set_final() sets the digest final function for B<md>.
-The digest final function is called by EVP_DigestFinal(),
+The digest final function is called by EVP_Digest(), EVP_DigestFinal(),
 EVP_DigestFinal_ex(), EVP_SignFinal() and EVP_VerifyFinal().
 
 EVP_MD_meth_set_copy() sets the function for B<md> to do extra
@@ -138,6 +148,7 @@ This cleanup function is called by EVP_MD_CTX_reset() and
 EVP_MD_CTX_free().
 
 EVP_MD_meth_set_ctrl() sets the control function for B<md>.
+See L<EVP_MD_CTX_ctrl(3)> for the available controls.
 
 EVP_MD_meth_get_input_blocksize(), EVP_MD_meth_get_result_size(),
 EVP_MD_meth_get_app_datasize(), EVP_MD_meth_get_flags(),
@@ -169,7 +180,7 @@ The B<EVP_MD> structure was openly available in OpenSSL before version
 
 =head1 COPYRIGHT
 
-Copyright 2015-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

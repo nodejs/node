@@ -23,6 +23,8 @@ EVP_PKEY_CTX_get_rsa_oaep_md,
 EVP_PKEY_CTX_set0_rsa_oaep_label,
 EVP_PKEY_CTX_get0_rsa_oaep_label,
 EVP_PKEY_CTX_set_dsa_paramgen_bits,
+EVP_PKEY_CTX_set_dsa_paramgen_q_bits,
+EVP_PKEY_CTX_set_dsa_paramgen_md,
 EVP_PKEY_CTX_set_dh_paramgen_prime_len,
 EVP_PKEY_CTX_set_dh_paramgen_subprime_len,
 EVP_PKEY_CTX_set_dh_paramgen_generator,
@@ -93,6 +95,8 @@ EVP_PKEY_CTX_set1_id, EVP_PKEY_CTX_get1_id, EVP_PKEY_CTX_get1_id_len
  #include <openssl/dsa.h>
 
  int EVP_PKEY_CTX_set_dsa_paramgen_bits(EVP_PKEY_CTX *ctx, int nbits);
+ int EVP_PKEY_CTX_set_dsa_paramgen_q_bits(EVP_PKEY_CTX *ctx, int qbits);
+ int EVP_PKEY_CTX_set_dsa_paramgen_md(EVP_PKEY_CTX *ctx, const EVP_MD *md);
 
  #include <openssl/dh.h>
 
@@ -255,7 +259,17 @@ by the library and should not be freed by the caller.
 =head2 DSA parameters
 
 The EVP_PKEY_CTX_set_dsa_paramgen_bits() macro sets the number of bits used
-for DSA parameter generation to B<bits>. If not specified 1024 is used.
+for DSA parameter generation to B<nbits>. If not specified, 1024 is used.
+
+The EVP_PKEY_CTX_set_dsa_paramgen_q_bits() macro sets the number of bits in the
+subprime parameter B<q> for DSA parameter generation to B<qbits>. If not
+specified, 160 is used. If a digest function is specified below, this parameter
+is ignored and instead, the number of bits in B<q> matches the size of the
+digest.
+
+The EVP_PKEY_CTX_set_dsa_paramgen_md() macro sets the digest function used for
+DSA parameter generation to B<md>. If not specified, one of SHA-1, SHA-224, or
+SHA-256 is selected to match the bit length of B<q> above.
 
 =head2 DH parameters
 

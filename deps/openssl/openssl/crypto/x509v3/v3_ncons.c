@@ -10,12 +10,12 @@
 #include "internal/cryptlib.h"
 #include "internal/numbers.h"
 #include <stdio.h>
-#include "internal/asn1_int.h"
+#include "crypto/asn1.h"
 #include <openssl/asn1t.h>
 #include <openssl/conf.h>
 #include <openssl/x509v3.h>
 
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 #include "ext_dat.h"
 
 static void *v2i_NAME_CONSTRAINTS(const X509V3_EXT_METHOD *method,

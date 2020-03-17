@@ -8,8 +8,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef TERM_SOCK_H
-# define TERM_SOCK_H
+#ifndef OSSL_APPS_VMS_TERM_SOCK_H
+# define OSSL_APPS_VMS_TERM_SOCK_H
 
 /*
 ** Terminal Socket Function Codes

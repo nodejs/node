@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "des_locl.h"
+#include "des_local.h"
 
 /*
  * The input and output encrypted as though 64bit ofb mode is being used.

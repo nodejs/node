@@ -16,7 +16,7 @@
  * 1.0 First working version
  */
 #include <openssl/crypto.h>
-#include "des_locl.h"
+#include "des_local.h"
 
 /* defaults to false */
 OPENSSL_IMPLEMENT_GLOBAL(int, DES_check_key, 0)

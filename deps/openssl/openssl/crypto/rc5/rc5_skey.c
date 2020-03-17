@@ -8,7 +8,7 @@
  */
 
 #include <openssl/rc5.h>
-#include "rc5_locl.h"
+#include "rc5_local.h"
 
 void RC5_32_set_key(RC5_32_KEY *key, int len, const unsigned char *data,
                     int rounds)

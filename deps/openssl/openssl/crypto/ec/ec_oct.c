@@ -13,7 +13,7 @@
 #include <openssl/err.h>
 #include <openssl/opensslv.h>
 
-#include "ec_lcl.h"
+#include "ec_local.h"
 
 int EC_POINT_set_compressed_coordinates(const EC_GROUP *group, EC_POINT *point,
                                         const BIGNUM *x, int y_bit, BN_CTX *ctx)

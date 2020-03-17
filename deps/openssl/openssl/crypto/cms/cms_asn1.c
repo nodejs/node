@@ -11,7 +11,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 #include <openssl/cms.h>
-#include "cms_lcl.h"
+#include "cms_local.h"
 
 
 ASN1_SEQUENCE(CMS_IssuerAndSerialNumber) = {

@@ -52,7 +52,7 @@ PEM_read_bio_ex() returns 1 for success or 0 for failure.
 
 =head1 SEE ALSO
 
-L<PEM(3)>
+L<PEM_bytes_read_bio(3)>
 
 =head1 HISTORY
 

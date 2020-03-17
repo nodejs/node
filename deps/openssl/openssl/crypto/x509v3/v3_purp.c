@@ -12,7 +12,7 @@
 #include "internal/numbers.h"
 #include <openssl/x509v3.h>
 #include <openssl/x509_vfy.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 #include "internal/tsan_assist.h"
 
 static void x509v3_cache_extensions(X509 *x);

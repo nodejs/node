@@ -40,7 +40,7 @@ Conceptually the state machine component is designed as follows:
                    |                            |
                    |    Core state machine code |
                    |____________________________|
-        statem_locl.h     ^          ^
+        statem_local.h     ^          ^
                  _________|          |_______
                 |                            |
    _____________|____________   _____________|____________

@@ -1,5 +1,5 @@
 /*
- * Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -268,7 +268,7 @@ void OPENSSL_cpuid_setup(void)
 
     /*
      * In wait for better solution _sparcv9_rdcfr is masked by
-     * VIS3 flag, because it goes to uninterruptable endless
+     * VIS3 flag, because it goes to uninterruptible endless
      * loop on UltraSPARC II running Solaris. Things might be
      * different on Linux...
      */

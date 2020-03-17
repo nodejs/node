@@ -2,8 +2,10 @@
 
 =head1 NAME
 
+X509_STORE,
 X509_STORE_add_cert, X509_STORE_add_crl, X509_STORE_set_depth,
 X509_STORE_set_flags, X509_STORE_set_purpose, X509_STORE_set_trust,
+X509_STORE_add_lookup,
 X509_STORE_load_locations,
 X509_STORE_set_default_paths
 - X509_STORE manipulation
@@ -12,12 +14,17 @@ X509_STORE_set_default_paths
 
  #include <openssl/x509_vfy.h>
 
+ typedef x509_store_st X509_STORE;
+
  int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
  int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x);
  int X509_STORE_set_depth(X509_STORE *store, int depth);
  int X509_STORE_set_flags(X509_STORE *ctx, unsigned long flags);
  int X509_STORE_set_purpose(X509_STORE *ctx, int purpose);
  int X509_STORE_set_trust(X509_STORE *ctx, int trust);
+
+ X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *store,
+                                    X509_LOOKUP_METHOD *meth);
 
  int X509_STORE_load_locations(X509_STORE *ctx,
                                const char *file, const char *dir);
@@ -65,6 +72,11 @@ for the corresponding values used in certificate chain validation.  Their
 behavior is documented in the corresponding B<X509_VERIFY_PARAM> manual
 pages, e.g., L<X509_VERIFY_PARAM_set_depth(3)>.
 
+X509_STORE_add_lookup() finds or creates a L<X509_LOOKUP(3)> with the
+L<X509_LOOKUP_METHOD(3)> I<meth> and adds it to the B<X509_STORE>
+I<store>.  This also associates the B<X509_STORE> with the lookup, so
+B<X509_LOOKUP> functions can look up objects in that store.
+
 X509_STORE_load_locations() loads trusted certificate(s) into an
 B<X509_STORE> from a given file and/or directory path.  It is permitted
 to specify just a file, just a directory, or both paths.  The certificates
@@ -83,6 +95,9 @@ X509_STORE_set_flags(), X509_STORE_set_purpose(),
 X509_STORE_set_trust(), X509_STORE_load_locations(), and
 X509_STORE_set_default_paths() return 1 on success or 0 on failure.
 
+X509_STORE_add_lookup() returns the found or created
+L<X509_LOOKUP(3)>, or NULL on error.
+
 =head1 SEE ALSO
 
 L<X509_LOOKUP_hash_dir(3)>.
@@ -92,7 +107,7 @@ L<X509_STORE_get0_param(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

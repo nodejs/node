@@ -8,7 +8,7 @@
  */
 
 #include "internal/cryptlib.h"
-#include "eng_int.h"
+#include "eng_local.h"
 
 void ENGINE_load_builtin_engines(void)
 {

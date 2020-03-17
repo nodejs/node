@@ -8,7 +8,7 @@
  */
 
 /* This must be the first #include file */
-#include "../async_locl.h"
+#include "../async_local.h"
 
 #ifdef ASYNC_NULL
 int ASYNC_is_capable(void)

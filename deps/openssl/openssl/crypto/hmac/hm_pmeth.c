@@ -14,7 +14,7 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/err.h>
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 /* HMAC pkey context structure */
 

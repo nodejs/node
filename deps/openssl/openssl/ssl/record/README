@@ -12,7 +12,7 @@ of these components is defined by:
 3) A set of accessor macros
 
 All struct definitions are in record.h. The functions and macros are either
-defined in record.h or record_locl.h dependent on whether they are intended to
+defined in record.h or record_local.h dependent on whether they are intended to
 be private to the record layer, or whether they form part of the API to the rest
 of libssl.
 
@@ -55,7 +55,7 @@ Conceptually it looks like this:
                    || rec_layer_d1.c     ||
                    ||____________________||
                    |______________________|
-        record_locl.h     ^   ^   ^
+        record_local.h     ^   ^   ^
          _________________|   |   |_________________
         |                     |                     |
    _____V_________      ______V________      _______V________

@@ -14,4 +14,4 @@
 
 /* The implementation is in ../md32_common.h */
 
-# include "sha_locl.h"
+# include "sha_local.h"

@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_ASYNC_BIO
-#define HEADER_ASYNC_BIO
+#ifndef OSSL_TEST_SHIM_ASYNC_BIO_H
+#define OSSL_TEST_SHIM_ASYNC_BIO_H
 
 #include <openssl/base.h>
 #include <openssl/bio.h>
@@ -36,4 +36,4 @@ void AsyncBioAllowWrite(BIO *bio, size_t count);
 void AsyncBioEnforceWriteQuota(BIO *bio, bool enforce);
 
 
-#endif  // HEADER_ASYNC_BIO
+#endif  // OSSL_TEST_SHIM_ASYNC_BIO_H

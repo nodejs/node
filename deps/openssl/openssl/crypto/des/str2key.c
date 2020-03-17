@@ -8,7 +8,7 @@
  */
 
 #include <openssl/crypto.h>
-#include "des_locl.h"
+#include "des_local.h"
 
 void DES_string_to_key(const char *str, DES_cblock *key)
 {

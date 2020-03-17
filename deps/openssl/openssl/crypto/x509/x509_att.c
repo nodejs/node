@@ -15,7 +15,7 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "x509_lcl.h"
+#include "x509_local.h"
 
 int X509at_get_attr_count(const STACK_OF(X509_ATTRIBUTE) *x)
 {

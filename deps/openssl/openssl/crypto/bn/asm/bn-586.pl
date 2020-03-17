@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -31,7 +31,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 
 &asm_finish();
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";
 
 sub bn_mul_add_words
 	{

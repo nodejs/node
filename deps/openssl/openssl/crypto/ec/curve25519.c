@@ -8,7 +8,7 @@
  */
 
 #include <string.h>
-#include "ec_lcl.h"
+#include "ec_local.h"
 #include <openssl/sha.h>
 
 #if defined(X25519_ASM) && (defined(__x86_64) || defined(__x86_64__) || \

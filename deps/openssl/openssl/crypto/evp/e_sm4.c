@@ -13,8 +13,8 @@
 #ifndef OPENSSL_NO_SM4
 # include <openssl/evp.h>
 # include <openssl/modes.h>
-# include "internal/sm4.h"
-# include "internal/evp_int.h"
+# include "crypto/sm4.h"
+# include "crypto/evp.h"
 
 typedef struct {
     SM4_KEY ks;

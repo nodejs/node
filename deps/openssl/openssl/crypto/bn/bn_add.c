@@ -8,7 +8,7 @@
  */
 
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
+#include "bn_local.h"
 
 /* signed add of b to a. */
 int BN_add(BIGNUM *r, const BIGNUM *a, const BIGNUM *b)

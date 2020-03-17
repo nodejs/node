@@ -1,4 +1,4 @@
-# Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1002,6 +1002,7 @@ PKCS7_F_PKCS7_SIGNER_INFO_SIGN:139:PKCS7_SIGNER_INFO_sign
 PKCS7_F_PKCS7_SIGN_ADD_SIGNER:137:PKCS7_sign_add_signer
 PKCS7_F_PKCS7_SIMPLE_SMIMECAP:119:PKCS7_simple_smimecap
 PKCS7_F_PKCS7_VERIFY:117:PKCS7_verify
+RAND_F_DATA_COLLECT_METHOD:127:data_collect_method
 RAND_F_DRBG_BYTES:101:drbg_bytes
 RAND_F_DRBG_GET_ENTROPY:105:drbg_get_entropy
 RAND_F_DRBG_SETUP:117:drbg_setup
@@ -1027,6 +1028,7 @@ RAND_F_RAND_POOL_ATTACH:124:rand_pool_attach
 RAND_F_RAND_POOL_BYTES_NEEDED:115:rand_pool_bytes_needed
 RAND_F_RAND_POOL_GROW:125:rand_pool_grow
 RAND_F_RAND_POOL_NEW:116:rand_pool_new
+RAND_F_RAND_PSEUDO_BYTES:126:RAND_pseudo_bytes
 RAND_F_RAND_WRITE_FILE:112:RAND_write_file
 RSA_F_CHECK_PADDING_MD:140:check_padding_md
 RSA_F_ENCODE_PKCS1:146:encode_pkcs1
@@ -1178,6 +1180,7 @@ SSL_F_OSSL_STATEM_SERVER_CONSTRUCT_MESSAGE:431:*
 SSL_F_OSSL_STATEM_SERVER_POST_PROCESS_MESSAGE:601:\
 	ossl_statem_server_post_process_message
 SSL_F_OSSL_STATEM_SERVER_POST_WORK:602:ossl_statem_server_post_work
+SSL_F_OSSL_STATEM_SERVER_PRE_WORK:640:
 SSL_F_OSSL_STATEM_SERVER_PROCESS_MESSAGE:603:ossl_statem_server_process_message
 SSL_F_OSSL_STATEM_SERVER_READ_TRANSITION:418:ossl_statem_server_read_transition
 SSL_F_OSSL_STATEM_SERVER_WRITE_TRANSITION:604:\
@@ -2254,6 +2257,7 @@ EVP_R_INITIALIZATION_ERROR:134:initialization error
 EVP_R_INPUT_NOT_INITIALIZED:111:input not initialized
 EVP_R_INVALID_DIGEST:152:invalid digest
 EVP_R_INVALID_FIPS_MODE:168:invalid fips mode
+EVP_R_INVALID_IV_LENGTH:194:invalid iv length
 EVP_R_INVALID_KEY:163:invalid key
 EVP_R_INVALID_KEY_LENGTH:130:invalid key length
 EVP_R_INVALID_OPERATION:148:invalid operation
@@ -2848,6 +2852,7 @@ SSL_R_UNABLE_TO_LOAD_SSL3_MD5_ROUTINES:242:unable to load ssl3 md5 routines
 SSL_R_UNABLE_TO_LOAD_SSL3_SHA1_ROUTINES:243:unable to load ssl3 sha1 routines
 SSL_R_UNEXPECTED_CCS_MESSAGE:262:unexpected ccs message
 SSL_R_UNEXPECTED_END_OF_EARLY_DATA:178:unexpected end of early data
+SSL_R_UNEXPECTED_EOF_WHILE_READING:294:unexpected eof while reading
 SSL_R_UNEXPECTED_MESSAGE:244:unexpected message
 SSL_R_UNEXPECTED_RECORD:245:unexpected record
 SSL_R_UNINITIALIZED:276:uninitialized

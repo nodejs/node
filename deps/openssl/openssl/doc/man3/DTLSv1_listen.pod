@@ -66,9 +66,9 @@ the peer and continue the handshake in a connected state.
 
 Prior to calling DTLSv1_listen() user code must ensure that cookie generation
 and verification callbacks have been set up using
-SSL_CTX_set_cookie_generate_cb() and SSL_CTX_set_cookie_verify_cb()
-respectively. For SSL_stateless(), SSL_CTX_set_stateless_cookie_generate_cb()
-and SSL_CTX_set_stateless_cookie_verify_cb() must be used instead.
+L<SSL_CTX_set_cookie_generate_cb(3)> and L<SSL_CTX_set_cookie_verify_cb(3)>
+respectively. For SSL_stateless(), L<SSL_CTX_set_stateless_cookie_generate_cb(3)>
+and L<SSL_CTX_set_stateless_cookie_verify_cb(3)> must be used instead.
 
 Since DTLSv1_listen() operates entirely statelessly whilst processing incoming
 ClientHellos it is unable to process fragmented messages (since this would
@@ -112,8 +112,10 @@ errors as non-fatal), whilst return codes >0 indicate success.
 
 =head1 SEE ALSO
 
-L<SSL_get_error(3)>, L<SSL_accept(3)>,
-L<ssl(7)>, L<bio(7)>
+L<SSL_CTX_set_cookie_generate_cb(3)>, L<SSL_CTX_set_cookie_verify_cb(3)>,
+L<SSL_CTX_set_stateless_cookie_generate_cb(3)>,
+L<SSL_CTX_set_stateless_cookie_verify_cb(3)>, L<SSL_get_error(3)>,
+L<SSL_accept(3)>, L<ssl(7)>, L<bio(7)>
 
 =head1 HISTORY
 

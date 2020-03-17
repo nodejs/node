@@ -8,113 +8,7 @@
  */
 
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
-
-static BIGNUM *euclid(BIGNUM *a, BIGNUM *b);
-
-int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
-{
-    BIGNUM *a, *b, *t;
-    int ret = 0;
-
-    bn_check_top(in_a);
-    bn_check_top(in_b);
-
-    BN_CTX_start(ctx);
-    a = BN_CTX_get(ctx);
-    b = BN_CTX_get(ctx);
-    if (b == NULL)
-        goto err;
-
-    if (BN_copy(a, in_a) == NULL)
-        goto err;
-    if (BN_copy(b, in_b) == NULL)
-        goto err;
-    a->neg = 0;
-    b->neg = 0;
-
-    if (BN_cmp(a, b) < 0) {
-        t = a;
-        a = b;
-        b = t;
-    }
-    t = euclid(a, b);
-    if (t == NULL)
-        goto err;
-
-    if (BN_copy(r, t) == NULL)
-        goto err;
-    ret = 1;
- err:
-    BN_CTX_end(ctx);
-    bn_check_top(r);
-    return ret;
-}
-
-static BIGNUM *euclid(BIGNUM *a, BIGNUM *b)
-{
-    BIGNUM *t;
-    int shifts = 0;
-
-    bn_check_top(a);
-    bn_check_top(b);
-
-    /* 0 <= b <= a */
-    while (!BN_is_zero(b)) {
-        /* 0 < b <= a */
-
-        if (BN_is_odd(a)) {
-            if (BN_is_odd(b)) {
-                if (!BN_sub(a, a, b))
-                    goto err;
-                if (!BN_rshift1(a, a))
-                    goto err;
-                if (BN_cmp(a, b) < 0) {
-                    t = a;
-                    a = b;
-                    b = t;
-                }
-            } else {            /* a odd - b even */
-
-                if (!BN_rshift1(b, b))
-                    goto err;
-                if (BN_cmp(a, b) < 0) {
-                    t = a;
-                    a = b;
-                    b = t;
-                }
-            }
-        } else {                /* a is even */
-
-            if (BN_is_odd(b)) {
-                if (!BN_rshift1(a, a))
-                    goto err;
-                if (BN_cmp(a, b) < 0) {
-                    t = a;
-                    a = b;
-                    b = t;
-                }
-            } else {            /* a even - b even */
-
-                if (!BN_rshift1(a, a))
-                    goto err;
-                if (!BN_rshift1(b, b))
-                    goto err;
-                shifts++;
-            }
-        }
-        /* 0 <= b <= a */
-    }
-
-    if (shifts) {
-        if (!BN_lshift(a, a, shifts))
-            goto err;
-    }
-    bn_check_top(a);
-    return a;
- err:
-    return NULL;
-}
+#include "bn_local.h"
 
 /* solves ax == 1 (mod n) */
 static BIGNUM *BN_mod_inverse_no_branch(BIGNUM *in,
@@ -619,5 +513,117 @@ static BIGNUM *BN_mod_inverse_no_branch(BIGNUM *in,
         BN_free(R);
     BN_CTX_end(ctx);
     bn_check_top(ret);
+    return ret;
+}
+
+/*-
+ * This function is based on the constant-time GCD work by Bernstein and Yang:
+ * https://eprint.iacr.org/2019/266
+ * Generalized fast GCD function to allow even inputs.
+ * The algorithm first finds the shared powers of 2 between
+ * the inputs, and removes them, reducing at least one of the
+ * inputs to an odd value. Then it proceeds to calculate the GCD.
+ * Before returning the resulting GCD, we take care of adding
+ * back the powers of two removed at the beginning.
+ * Note 1: we assume the bit length of both inputs is public information,
+ * since access to top potentially leaks this information.
+ */
+int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
+{
+    BIGNUM *g, *temp = NULL;
+    BN_ULONG mask = 0;
+    int i, j, top, rlen, glen, m, bit = 1, delta = 1, cond = 0, shifts = 0, ret = 0;
+
+    /* Note 2: zero input corner cases are not constant-time since they are
+     * handled immediately. An attacker can run an attack under this
+     * assumption without the need of side-channel information. */
+    if (BN_is_zero(in_b)) {
+        ret = BN_copy(r, in_a) != NULL;
+        r->neg = 0;
+        return ret;
+    }
+    if (BN_is_zero(in_a)) {
+        ret = BN_copy(r, in_b) != NULL;
+        r->neg = 0;
+        return ret;
+    }
+
+    bn_check_top(in_a);
+    bn_check_top(in_b);
+
+    BN_CTX_start(ctx);
+    temp = BN_CTX_get(ctx);
+    g = BN_CTX_get(ctx);
+
+    /* make r != 0, g != 0 even, so BN_rshift is not a potential nop */
+    if (g == NULL
+        || !BN_lshift1(g, in_b)
+        || !BN_lshift1(r, in_a))
+        goto err;
+
+    /* find shared powers of two, i.e. "shifts" >= 1 */
+    for (i = 0; i < r->dmax && i < g->dmax; i++) {
+        mask = ~(r->d[i] | g->d[i]);
+        for (j = 0; j < BN_BITS2; j++) {
+            bit &= mask;
+            shifts += bit;
+            mask >>= 1;
+        }
+    }
+
+    /* subtract shared powers of two; shifts >= 1 */
+    if (!BN_rshift(r, r, shifts)
+        || !BN_rshift(g, g, shifts))
+        goto err;
+
+    /* expand to biggest nword, with room for a possible extra word */
+    top = 1 + ((r->top >= g->top) ? r->top : g->top);
+    if (bn_wexpand(r, top) == NULL
+        || bn_wexpand(g, top) == NULL
+        || bn_wexpand(temp, top) == NULL)
+        goto err;
+
+    /* re arrange inputs s.t. r is odd */
+    BN_consttime_swap((~r->d[0]) & 1, r, g, top);
+
+    /* compute the number of iterations */
+    rlen = BN_num_bits(r);
+    glen = BN_num_bits(g);
+    m = 4 + 3 * ((rlen >= glen) ? rlen : glen);
+
+    for (i = 0; i < m; i++) {
+        /* conditionally flip signs if delta is positive and g is odd */
+        cond = (-delta >> (8 * sizeof(delta) - 1)) & g->d[0] & 1
+            /* make sure g->top > 0 (i.e. if top == 0 then g == 0 always) */
+            & (~((g->top - 1) >> (sizeof(g->top) * 8 - 1)));
+        delta = (-cond & -delta) | ((cond - 1) & delta);
+        r->neg ^= cond;
+        /* swap */
+        BN_consttime_swap(cond, r, g, top);
+
+        /* elimination step */
+        delta++;
+        if (!BN_add(temp, g, r))
+            goto err;
+        BN_consttime_swap(g->d[0] & 1 /* g is odd */
+                /* make sure g->top > 0 (i.e. if top == 0 then g == 0 always) */
+                & (~((g->top - 1) >> (sizeof(g->top) * 8 - 1))),
+                g, temp, top);
+        if (!BN_rshift1(g, g))
+            goto err;
+    }
+
+    /* remove possible negative sign */
+    r->neg = 0;
+    /* add powers of 2 removed, then correct the artificial shift */
+    if (!BN_lshift(r, r, shifts)
+        || !BN_rshift1(r, r))
+        goto err;
+
+    ret = 1;
+
+ err:
+    BN_CTX_end(ctx);
+    bn_check_top(r);
     return ret;
 }

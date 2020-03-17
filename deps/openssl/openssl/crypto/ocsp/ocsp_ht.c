@@ -10,7 +10,7 @@
 #include "e_os.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "internal/ctype.h"
+#include "crypto/ctype.h"
 #include <string.h>
 #include <openssl/asn1.h>
 #include <openssl/ocsp.h>

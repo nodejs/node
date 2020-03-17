@@ -15,7 +15,7 @@
 #include <openssl/asn1.h>
 #include <openssl/x509.h>
 #include <openssl/ossl_typ.h>
-#include "x509_lcl.h"
+#include "x509_local.h"
 
 X509_LOOKUP_METHOD *X509_LOOKUP_meth_new(const char *name)
 {

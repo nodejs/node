@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "bio_lcl.h"
+#include "bio_local.h"
 
 #ifndef OPENSSL_NO_SOCK
 
@@ -54,6 +54,7 @@ void BIO_CONNECT_free(BIO_CONNECT *a);
 #define BIO_CONN_S_CONNECT               4
 #define BIO_CONN_S_OK                    5
 #define BIO_CONN_S_BLOCKED_CONNECT       6
+#define BIO_CONN_S_CONNECT_ERROR         7
 
 static const BIO_METHOD methods_connectp = {
     BIO_TYPE_CONNECT,
@@ -174,7 +175,8 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
                     ERR_add_error_data(4,
                                        "hostname=", c->param_hostname,
                                        " service=", c->param_service);
-                    BIOerr(BIO_F_CONN_STATE, BIO_R_CONNECT_ERROR);
+                    c->state = BIO_CONN_S_CONNECT_ERROR;
+                    break;
                 }
                 goto exit_loop;
             } else {
@@ -196,6 +198,11 @@ static int conn_state(BIO *b, BIO_CONNECT *c)
             } else
                 c->state = BIO_CONN_S_OK;
             break;
+
+        case BIO_CONN_S_CONNECT_ERROR:
+            BIOerr(BIO_F_CONN_STATE, BIO_R_CONNECT_ERROR);
+            ret = 0;
+            goto exit_loop;
 
         case BIO_CONN_S_OK:
             ret = 1;
@@ -309,6 +316,8 @@ static int conn_read(BIO *b, char *out, int outl)
         if (ret <= 0) {
             if (BIO_sock_should_retry(ret))
                 BIO_set_retry_read(b);
+            else if (ret == 0)
+                b->flags |= BIO_FLAGS_IN_EOF;
         }
     }
     return ret;
@@ -487,6 +496,9 @@ static long conn_ctrl(BIO *b, int cmd, long num, void *ptr)
             fptr = (BIO_info_cb **)ptr;
             *fptr = data->info_callback;
         }
+        break;
+    case BIO_CTRL_EOF:
+        ret = (b->flags & BIO_FLAGS_IN_EOF) != 0 ? 1 : 0;
         break;
     default:
         ret = 0;

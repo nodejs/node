@@ -17,7 +17,8 @@ PEM_bytes_read_bio, PEM_bytes_read_bio_secmem - read a PEM-encoded data structur
 
 =head1 DESCRIPTION
 
-PEM_bytes_read_bio() reads PEM-formatted (RFC 1421) data from the BIO
+PEM_bytes_read_bio() reads PEM-formatted (IETF RFC 1421 and IETF RFC 7468)
+data from the BIO
 I<bp> for the data type given in I<name> (RSA PRIVATE KEY, CERTIFICATE,
 etc.).  If multiple PEM-encoded data structures are present in the same
 stream, PEM_bytes_read_bio() will skip non-matching data types and
@@ -66,7 +67,6 @@ PEM_bytes_read_bio() and PEM_bytes_read_bio_secmem() return 1 for success or
 
 =head1 SEE ALSO
 
-L<PEM(3)>,
 L<PEM_read_bio_ex(3)>,
 L<passphrase-encoding(7)>
 

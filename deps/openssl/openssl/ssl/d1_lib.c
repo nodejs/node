@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <openssl/objects.h>
 #include <openssl/rand.h>
-#include "ssl_locl.h"
+#include "ssl_local.h"
 
 static void get_current_time(struct timeval *t);
 static int dtls1_handshake_write(SSL *s);

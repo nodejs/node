@@ -33,7 +33,7 @@ NON_EMPTY_TRANSLATION_UNIT
  */
 
 # include <stddef.h>
-# include "ec_lcl.h"
+# include "ec_local.h"
 
 /*
  * Convert an array of points into affine coordinates. (If the point at

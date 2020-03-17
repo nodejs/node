@@ -9,7 +9,7 @@
 
 #include <openssl/bn.h>
 #include <openssl/err.h>
-#include "rsa_locl.h"
+#include "rsa_local.h"
 
 int RSA_check_key(const RSA *key)
 {

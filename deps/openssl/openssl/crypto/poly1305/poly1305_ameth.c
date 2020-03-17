@@ -10,10 +10,10 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/evp.h>
-#include "internal/asn1_int.h"
-#include "internal/poly1305.h"
+#include "crypto/asn1.h"
+#include "crypto/poly1305.h"
 #include "poly1305_local.h"
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 /*
  * POLY1305 "ASN1" method. This is just here to indicate the maximum

@@ -180,7 +180,7 @@ int (*EVP_MD_meth_get_ctrl(const EVP_MD *md))(EVP_MD_CTX *ctx, int cmd,
  * if the following flag is set.
  */
 # define EVP_MD_CTX_FLAG_FINALISE        0x0200
-/* NOTE: 0x0400 is reserved for internal usage in evp_int.h */
+/* NOTE: 0x0400 is reserved for internal usage */
 
 EVP_CIPHER *EVP_CIPHER_meth_new(int cipher_type, int block_size, int key_len);
 EVP_CIPHER *EVP_CIPHER_meth_dup(const EVP_CIPHER *cipher);
@@ -1512,6 +1512,20 @@ void EVP_PKEY_meth_set_ctrl(EVP_PKEY_METHOD *pmeth,
                                              const char *type,
                                              const char *value));
 
+void EVP_PKEY_meth_set_digestsign(EVP_PKEY_METHOD *pmeth,
+                                  int (*digestsign) (EVP_MD_CTX *ctx,
+                                                     unsigned char *sig,
+                                                     size_t *siglen,
+                                                     const unsigned char *tbs,
+                                                     size_t tbslen));
+
+void EVP_PKEY_meth_set_digestverify(EVP_PKEY_METHOD *pmeth,
+                                    int (*digestverify) (EVP_MD_CTX *ctx,
+                                                         const unsigned char *sig,
+                                                         size_t siglen,
+                                                         const unsigned char *tbs,
+                                                         size_t tbslen));
+
 void EVP_PKEY_meth_set_check(EVP_PKEY_METHOD *pmeth,
                              int (*check) (EVP_PKEY *pkey));
 
@@ -1616,6 +1630,20 @@ void EVP_PKEY_meth_get_ctrl(const EVP_PKEY_METHOD *pmeth,
                             int (**pctrl_str) (EVP_PKEY_CTX *ctx,
                                                const char *type,
                                                const char *value));
+
+void EVP_PKEY_meth_get_digestsign(EVP_PKEY_METHOD *pmeth,
+                                  int (**digestsign) (EVP_MD_CTX *ctx,
+                                                      unsigned char *sig,
+                                                      size_t *siglen,
+                                                      const unsigned char *tbs,
+                                                      size_t tbslen));
+
+void EVP_PKEY_meth_get_digestverify(EVP_PKEY_METHOD *pmeth,
+                                    int (**digestverify) (EVP_MD_CTX *ctx,
+                                                          const unsigned char *sig,
+                                                          size_t siglen,
+                                                          const unsigned char *tbs,
+                                                          size_t tbslen));
 
 void EVP_PKEY_meth_get_check(const EVP_PKEY_METHOD *pmeth,
                              int (**pcheck) (EVP_PKEY *pkey));

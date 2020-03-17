@@ -10,7 +10,7 @@
 
 #include <openssl/bn.h>
 #include <openssl/err.h>
-#include "rsa_locl.h"
+#include "rsa_local.h"
 
 void rsa_multip_info_free_ex(RSA_PRIME_INFO *pinfo)
 {

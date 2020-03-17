@@ -13,7 +13,7 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 
 int X509_issuer_and_serial_cmp(const X509 *a, const X509 *b)
 {

@@ -33,7 +33,7 @@ inside EVP_DigestVerifyInit() and it will be freed automatically when the
 EVP_MD_CTX is freed).
 
 No B<EVP_PKEY_CTX> will be created by EVP_DigestSignInit() if the passed B<ctx>
-has already been assigned one via L<EVP_MD_CTX_set_ctx(3)>. See also L<SM2(7)>.
+has already been assigned one via L<EVP_MD_CTX_set_pkey_ctx(3)>. See also L<SM2(7)>.
 
 EVP_DigestVerifyUpdate() hashes B<cnt> bytes of data at B<d> into the
 verification context B<ctx>. This function can be called several times on the

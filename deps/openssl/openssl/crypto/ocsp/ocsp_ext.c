@@ -12,7 +12,7 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/ocsp.h>
-#include "ocsp_lcl.h"
+#include "ocsp_local.h"
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
 

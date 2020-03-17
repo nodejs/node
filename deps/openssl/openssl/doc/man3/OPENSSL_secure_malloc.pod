@@ -7,6 +7,7 @@ CRYPTO_secure_malloc_done, OPENSSL_secure_malloc, CRYPTO_secure_malloc,
 OPENSSL_secure_zalloc, CRYPTO_secure_zalloc, OPENSSL_secure_free,
 CRYPTO_secure_free, OPENSSL_secure_clear_free,
 CRYPTO_secure_clear_free, OPENSSL_secure_actual_size,
+CRYPTO_secure_allocated,
 CRYPTO_secure_used - secure heap storage
 
 =head1 SYNOPSIS
@@ -33,6 +34,7 @@ CRYPTO_secure_used - secure heap storage
 
  size_t OPENSSL_secure_actual_size(const void *ptr);
 
+ int CRYPTO_secure_allocated(const void *ptr);
  size_t CRYPTO_secure_used();
 
 =head1 DESCRIPTION
@@ -89,6 +91,8 @@ calling OPENSSL_clear_free().
 OPENSSL_secure_actual_size() tells the actual size allocated to the
 pointer; implementations may allocate more space than initially
 requested, in order to "round up" and reduce secure heap fragmentation.
+
+OPENSSL_secure_allocated() tells if a pointer is allocated in the secure heap.
 
 CRYPTO_secure_used() returns the number of bytes allocated in the
 secure heap.
