@@ -63,7 +63,7 @@ using v8::Value;
 template <typename T>
 static void MakeUtf8String(Isolate* isolate,
                            Local<Value> value,
-                           T* target) {
+                           MaybeStackBuffer<T>* target) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
 
