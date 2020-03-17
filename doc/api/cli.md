@@ -1385,7 +1385,7 @@ threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
 greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
 
-## Useful v8 options
+## Useful V8 options
 
 These are v8 options and fall outside Node.js' responsibility.
 
