@@ -579,7 +579,7 @@ parser.add_option('--ninja',
 parser.add_option('--enable-asan',
     action='store_true',
     dest='enable_asan',
-    help='build with asan')
+    help='compile for Address Sanitizer to find memory bugs')
 
 parser.add_option('--enable-static',
     action='store_true',
