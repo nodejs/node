@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_AFALG_H
-# define HEADER_AFALG_H
+#ifndef OSSL_ENGINES_E_AFALG_H
+# define OSSL_ENGINES_E_AFALG_H
 
 # if defined(__GNUC__) && __GNUC__ >= 4 && \
      (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901L)

@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "bio_lcl.h"
+#include "bio_local.h"
 #include "internal/thread_once.h"
 
 CRYPTO_RWLOCK *bio_type_lock = NULL;

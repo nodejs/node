@@ -9,6 +9,7 @@ enc - symmetric cipher routines
 
 B<openssl enc -I<cipher>>
 [B<-help>]
+[B<-list>]
 [B<-ciphers>]
 [B<-in filename>]
 [B<-out filename>]
@@ -56,9 +57,13 @@ either by itself or in addition to the encryption or decryption.
 
 Print out a usage message.
 
-=item B<-ciphers>
+=item B<-list>
 
 List all supported ciphers.
+
+=item B<-ciphers>
+
+Alias of -list to display all supported ciphers.
 
 =item B<-in filename>
 
@@ -418,6 +423,8 @@ certain parameters. So if, for example, you want to use RC2 with a
 =head1 HISTORY
 
 The default digest was changed from MD5 to SHA256 in OpenSSL 1.1.0.
+
+The B<-list> option was added in OpenSSL 1.1.1e.
 
 =head1 COPYRIGHT
 

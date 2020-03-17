@@ -20,7 +20,7 @@ NON_EMPTY_TRANSLATION_UNIT
 # include <stdio.h>
 # include <time.h>
 # include "internal/cryptlib.h"
-# include "bn_lcl.h"
+# include "bn_local.h"
 
 BIGNUM *BN_generate_prime(BIGNUM *ret, int bits, int safe,
                           const BIGNUM *add, const BIGNUM *rem,

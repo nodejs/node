@@ -6,8 +6,8 @@
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
-#ifndef HEADER_INTERNAL_REFCOUNT_H
-# define HEADER_INTERNAL_REFCOUNT_H
+#ifndef OSSL_INTERNAL_REFCOUNT_H
+# define OSSL_INTERNAL_REFCOUNT_H
 
 /* Used to checking reference counts, most while doing perl5 stuff :-) */
 # if defined(OPENSSL_NO_STDIO)

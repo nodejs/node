@@ -36,8 +36,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef O_DIR_H
-# define O_DIR_H
+#ifndef OSSL_INTERNAL_O_DIR_H
+# define OSSL_INTERNAL_O_DIR_H
 
 typedef struct OPENSSL_dir_context_st OPENSSL_DIR_CTX;
 

@@ -12,7 +12,7 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/buffer.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 
 /*
  * Limit to ensure we don't overflow: much greater than

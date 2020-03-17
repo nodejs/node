@@ -13,7 +13,7 @@
 #include <openssl/buffer.h>
 #include <openssl/ui.h>
 #include <openssl/err.h>
-#include "ui_locl.h"
+#include "ui_local.h"
 
 UI *UI_new(void)
 {

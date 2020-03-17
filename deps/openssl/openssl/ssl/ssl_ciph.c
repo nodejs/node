@@ -17,7 +17,7 @@
 #include <openssl/crypto.h>
 #include <openssl/conf.h>
 #include "internal/nelem.h"
-#include "ssl_locl.h"
+#include "ssl_local.h"
 #include "internal/thread_once.h"
 #include "internal/cryptlib.h"
 
@@ -92,7 +92,7 @@ static CRYPTO_ONCE ssl_load_builtin_comp_once = CRYPTO_ONCE_STATIC_INIT;
 
 /*
  * Constant SSL_MAX_DIGEST equal to size of digests array should be defined
- * in the ssl_locl.h
+ * in the ssl_local.h
  */
 
 #define SSL_MD_NUM_IDX  SSL_MAX_DIGEST

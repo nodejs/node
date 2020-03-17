@@ -18,9 +18,9 @@
 #include <openssl/aes.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
-#include "modes_lcl.h"
-#include "internal/constant_time_locl.h"
-#include "internal/evp_int.h"
+#include "modes_local.h"
+#include "internal/constant_time.h"
+#include "crypto/evp.h"
 
 typedef struct {
     AES_KEY ks;
@@ -34,7 +34,7 @@ typedef struct {
 
 # define NO_PAYLOAD_LENGTH       ((size_t)-1)
 
-#if     defined(AES_ASM) &&     ( \
+#if     defined(AESNI_ASM) &&   ( \
         defined(__x86_64)       || defined(__x86_64__)  || \
         defined(_M_AMD64)       || defined(_M_X64)      )
 
@@ -947,4 +947,4 @@ const EVP_CIPHER *EVP_aes_256_cbc_hmac_sha256(void)
 {
     return NULL;
 }
-#endif
+#endif  /* AESNI_ASM */

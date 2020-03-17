@@ -511,7 +511,7 @@ bn_mul_comba4:
 	lghi	zero,0
 
 	mul_add_c(0,0,c1,c2,c3);
-	stg	c1,0*8(%r3)
+	stg	c1,0*8(%r2)
 	lghi	c1,0
 
 	mul_add_c(0,1,c2,c3,c1);

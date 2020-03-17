@@ -8,7 +8,7 @@
  */
 
 #include <stdio.h>
-#include "internal/err_int.h"
+#include "crypto/err.h"
 #include <openssl/asn1err.h>
 #include <openssl/bnerr.h>
 #include <openssl/ecerr.h>

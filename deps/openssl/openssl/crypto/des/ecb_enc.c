@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "des_locl.h"
+#include "des_local.h"
 #include <openssl/opensslv.h>
 #include <openssl/bio.h>
 

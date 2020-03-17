@@ -1,3 +1,6 @@
+image:
+  - Visual Studio 2017
+
 platform:
     - x64
     - x86
@@ -5,17 +8,24 @@ platform:
 environment:
     fast_finish: true
     matrix:
-        - VSVER: 14
+        - VSVER: 15
 
 configuration:
     - shared
     - plain
+    - minimal
 
 before_build:
     - ps: >-
+        Install-Module VSSetup -Scope CurrentUser
+    - ps: >-
+        Get-VSSetupInstance -All
+    - ps: >-
+        gci env:* | sort-object name
+    - ps: >-
         If ($env:Platform -Match "x86") {
             $env:VCVARS_PLATFORM="x86"
-            $env:TARGET="VC-WIN32 no-asm"
+            $env:TARGET="VC-WIN32 no-asm --strict-warnings"
         } Else {
             $env:VCVARS_PLATFORM="amd64"
             $env:TARGET="VC-WIN64A-masm"
@@ -23,11 +33,12 @@ before_build:
     - ps: >-
         If ($env:Configuration -Match "shared") {
             $env:SHARED="no-makedepend"
+        } ElseIf ($env:Configuration -Match "minimal") {
+            $env:SHARED="no-shared no-dso no-makedepend no-aria no-async no-autoload-config no-blake2 no-bf no-camellia no-cast no-chacha no-cmac no-cms no-comp no-ct no-des no-dgram no-dh no-dsa no-dtls no-ec2m no-engine no-filenames no-gost no-idea no-mdc2 no-md4 no-multiblock no-nextprotoneg no-ocsp no-ocb no-poly1305 no-psk no-rc2 no-rc4 no-rmd160 no-seed no-siphash no-sm2 no-sm3 no-sm4 no-srp no-srtp no-ssl3 no-ssl3-method no-ts no-ui-console no-whirlpool no-asm -DOPENSSL_SMALL_FOOTPRINT"
         } Else {
             $env:SHARED="no-shared no-makedepend"
         }
-    - ps: $env:VSCOMNTOOLS=(Get-Content ("env:VS" + "$env:VSVER" + "0COMNTOOLS"))
-    - call "%VSCOMNTOOLS%\..\..\VC\vcvarsall.bat" %VCVARS_PLATFORM%
+    - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" %VCVARS_PLATFORM%
     - mkdir _build
     - cd _build
     - perl ..\Configure %TARGET% %SHARED%

@@ -15,8 +15,8 @@
 #include <openssl/engine.h>
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
+#include "crypto/asn1.h"
+#include "crypto/evp.h"
 
 EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
                          long length)

@@ -8,7 +8,7 @@
  */
 
 #include <openssl/cast.h>
-#include "cast_lcl.h"
+#include "cast_local.h"
 #include <openssl/opensslv.h>
 
 void CAST_ecb_encrypt(const unsigned char *in, unsigned char *out,

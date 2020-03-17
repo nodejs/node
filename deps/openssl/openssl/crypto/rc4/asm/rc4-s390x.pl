@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -184,7 +184,7 @@ $code.=<<___;
 RC4_set_key:
 	stm${g}	%r6,%r8,6*$SIZE_T($sp)
 	lhi	$cnt,256
-	la	$idx,0(%r0)
+	la	$idx,0
 	sth	$idx,0($key)
 .align	4
 .L1stloop:
@@ -194,8 +194,8 @@ RC4_set_key:
 
 	lghi	$ikey,-256
 	lr	$cnt,$len
-	la	$iinp,0(%r0)
-	la	$idx,0(%r0)
+	la	$iinp,0
+	la	$idx,0
 .align	16
 .L2ndloop:
 	llgc	$acc,2+256($ikey,$key)
@@ -212,7 +212,7 @@ RC4_set_key:
 	jz	.Ldone
 	brct	$cnt,.L2ndloop
 	lr	$cnt,$len
-	la	$iinp,0(%r0)
+	la	$iinp,0
 	j	.L2ndloop
 .Ldone:
 	lm${g}	%r6,%r8,6*$SIZE_T($sp)
@@ -238,4 +238,4 @@ RC4_options:
 ___
 
 print $code;
-close STDOUT;	# force flush
+close STDOUT or die "error closing STDOUT: $!";	# force flush

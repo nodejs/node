@@ -49,10 +49,20 @@ is expanded.
 
 These functions, other than BIO_f_buffer(), are implemented as macros.
 
-Buffering BIOs implement BIO_gets() by using BIO_read_ex() operations on the
-next BIO in the chain. By prepending a buffering BIO to a chain it is therefore
-possible to provide BIO_gets() functionality if the following BIOs do not
-support it (for example SSL BIOs).
+Buffering BIOs implement BIO_read_ex() and BIO_gets() by using
+BIO_read_ex() operations on the next BIO in the chain and storing the
+result in an internal buffer, from which bytes are given back to the
+caller as appropriate for the call; a BIO_gets() is guaranteed to give
+the caller a whole line, and BIO_read_ex() is guaranteed to give the
+caller the number of bytes it asks for, unless there's an error or end
+of communication is reached in the next BIO.  By prepending a
+buffering BIO to a chain it is therefore possible to provide
+BIO_gets() or exact size BIO_read_ex() functionality if the following
+BIOs do not support it.
+
+Do not add more than one BIO_f_buffer() to a BIO chain.  The result of
+doing so will force a full read of the size of the internal buffer of
+the top BIO_f_buffer(), which is 4 KiB at a minimum.
 
 Data is only written to the next BIO in the chain when the write buffer fills
 or when BIO_flush() is called. It is therefore important to call BIO_flush()
@@ -82,7 +92,7 @@ L<BIO_ctrl(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -90,7 +90,7 @@ my $ret = $harness->runtests(map { abs2rel($_, rel2abs(curdir())); }
 # $ret->has_errors may be any number, not just 0 or 1.  On VMS, numbers
 # from 2 and on are used as is as VMS statuses, which has severity encoded
 # in the lower 3 bits.  0 and 1, on the other hand, generate SUCCESS and
-# FAILURE, so for currect reporting on all platforms, we make sure the only
+# FAILURE, so for correct reporting on all platforms, we make sure the only
 # exit codes are 0 and 1.  Double-bang is the trick to do so.
 exit !!$ret->has_errors if (ref($ret) eq "TAP::Parser::Aggregator");
 

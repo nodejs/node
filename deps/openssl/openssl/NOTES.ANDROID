@@ -15,22 +15,33 @@
  Configuration
  -------------
 
- Android is naturally cross-compiled target and you can't use ./config.
+ Android is a naturally cross-compiled target and you can't use ./config.
  You have to use ./Configure and name your target explicitly; there are
  android-arm, android-arm64, android-mips, android-mip64, android-x86
- and android-x86_64. Do not pass --cross-compile-prefix (as you might
- be tempted), as it will be "calculated" automatically based on chosen
- platform. Though you still need to know the prefix to extend your PATH,
- in order to invoke $(CROSS_COMPILE)gcc and company. (Configure will fail
- and give you a hint if you get it wrong.) Apart from PATH adjustment
- you need to set ANDROID_NDK_HOME environment to point at NDK directory
- as /some/where/android-ndk-<ver>. Both variables are significant at both
- configuration and compilation times. NDK customarily supports multiple
- Android API levels, e.g. android-14, android-21, etc. By default latest
- one available is chosen. If you need to target older platform, pass
- additional -D__ANDROID_API__=N to Configure. N is numeric value of the
- target platform version. For example, to compile for ICS on ARM with
- NDK 10d:
+ and android-x86_64 (*MIPS targets are no longer supported with NDK R20+).
+ Do not pass --cross-compile-prefix (as you might be tempted), as it will
+ be "calculated" automatically based on chosen platform. Though you still
+ need to know the prefix to extend your PATH, in order to invoke
+ $(CROSS_COMPILE)clang [*gcc on NDK 19 and lower] and company. (Configure
+ will fail and give you a hint if you get it wrong.) Apart from PATH
+ adjustment you need to set ANDROID_NDK_HOME environment to point at the
+ NDK directory. If you're using a side-by-side NDK the path will look
+ something like /some/where/android-sdk/ndk/<ver>, and for a standalone
+ NDK the path will be something like /some/where/android-ndk-<ver>.
+ Both variables are significant at both configuration and compilation times.
+ The NDK customarily supports multiple Android API levels, e.g. android-14,
+ android-21, etc. By default latest API level is chosen. If you need to
+ target an older platform pass the argument -D__ANDROID_API__=N to Configure,
+ with N being the numerical value of the target platform version. For example,
+ to compile for Android 10 arm64 with a side-by-side NDK r20.0.5594570
+
+	export ANDROID_NDK_HOME=/home/whoever/Android/android-sdk/ndk/20.0.5594570
+	PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$ANDROID_NDK_HOME/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin:$PATH
+	./Configure android-arm64 -D__ANDROID_API__=29
+	make
+
+ Older versions of the NDK have GCC under their common prebuilt tools directory, so the bin path
+ will be slightly different. EG: to compile for ICS on ARM with NDK 10d:
 
     export ANDROID_NDK_HOME=/some/where/android-ndk-10d
     PATH=$ANDROID_NDK_HOME/toolchains/arm-linux-androideabi-4.8/prebuilt/linux-x86_64/bin:$PATH

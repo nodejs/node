@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -166,6 +166,27 @@ static int test_hmac_run(void)
         goto err;
 
     if (!TEST_true(HMAC_Init_ex(ctx, test[6].key, test[6].key_len, NULL, NULL))
+        || !TEST_true(HMAC_Update(ctx, test[6].data, test[6].data_len))
+        || !TEST_true(HMAC_Final(ctx, buf, &len)))
+        goto err;
+    p = pt(buf, len);
+    if (!TEST_str_eq(p, (char *)test[6].digest))
+        goto err;
+
+    /* Test reusing a key */
+    if (!TEST_true(HMAC_Init_ex(ctx, NULL, 0, NULL, NULL))
+        || !TEST_true(HMAC_Update(ctx, test[6].data, test[6].data_len))
+        || !TEST_true(HMAC_Final(ctx, buf, &len)))
+        goto err;
+    p = pt(buf, len);
+    if (!TEST_str_eq(p, (char *)test[6].digest))
+        goto err;
+
+    /*
+     * Test reusing a key where the digest is provided again but is the same as
+     * last time
+     */
+    if (!TEST_true(HMAC_Init_ex(ctx, NULL, 0, EVP_sha256(), NULL))
         || !TEST_true(HMAC_Update(ctx, test[6].data, test[6].data_len))
         || !TEST_true(HMAC_Final(ctx, buf, &len)))
         goto err;

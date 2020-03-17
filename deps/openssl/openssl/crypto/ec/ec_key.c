@@ -10,7 +10,7 @@
 
 #include "internal/cryptlib.h"
 #include <string.h>
-#include "ec_lcl.h"
+#include "ec_local.h"
 #include "internal/refcount.h"
 #include <openssl/err.h>
 #include <openssl/engine.h>

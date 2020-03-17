@@ -12,10 +12,10 @@
 #include <openssl/x509.h>
 #include <openssl/ec.h>
 #include <openssl/rand.h>
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
-#include "ec_lcl.h"
-#include "curve448/curve448_lcl.h"
+#include "crypto/asn1.h"
+#include "crypto/evp.h"
+#include "ec_local.h"
+#include "curve448/curve448_local.h"
 
 #define X25519_BITS          253
 #define X25519_SECURITY_BITS 128
@@ -191,7 +191,7 @@ static int ecx_priv_decode(EVP_PKEY *pkey, const PKCS8_PRIV_KEY_INFO *p8)
     }
 
     rv = ecx_key_op(pkey, pkey->ameth->pkey_id, palg, p, plen, KEY_OP_PRIVATE);
-    ASN1_OCTET_STRING_free(oct);
+    ASN1_STRING_clear_free(oct);
     return rv;
 }
 

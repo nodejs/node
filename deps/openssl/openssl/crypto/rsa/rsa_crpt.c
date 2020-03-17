@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include <openssl/crypto.h>
 #include "internal/cryptlib.h"
-#include "internal/bn_int.h"
+#include "crypto/bn.h"
 #include <openssl/rand.h>
-#include "rsa_locl.h"
+#include "rsa_local.h"
 
 int RSA_bits(const RSA *r)
 {

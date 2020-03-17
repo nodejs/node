@@ -10,8 +10,8 @@
  * Originally written by Mike Hamburg
  */
 
-#ifndef HEADER_ED448_H
-# define HEADER_ED448_H
+#ifndef OSSL_CRYPTO_EC_CURVE448_ED448_H
+# define OSSL_CRYPTO_EC_CURVE448_ED448_H
 
 # include "point_448.h"
 
@@ -192,4 +192,4 @@ c448_error_t c448_ed448_convert_private_key_to_x448(
                             uint8_t x[X448_PRIVATE_BYTES],
                             const uint8_t ed[EDDSA_448_PRIVATE_BYTES]);
 
-#endif                          /* HEADER_ED448_H */
+#endif                          /* OSSL_CRYPTO_EC_CURVE448_ED448_H */

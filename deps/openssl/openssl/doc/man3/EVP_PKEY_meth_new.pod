@@ -8,14 +8,18 @@ EVP_PKEY_meth_set_init, EVP_PKEY_meth_set_copy, EVP_PKEY_meth_set_cleanup,
 EVP_PKEY_meth_set_paramgen, EVP_PKEY_meth_set_keygen, EVP_PKEY_meth_set_sign,
 EVP_PKEY_meth_set_verify, EVP_PKEY_meth_set_verify_recover, EVP_PKEY_meth_set_signctx,
 EVP_PKEY_meth_set_verifyctx, EVP_PKEY_meth_set_encrypt, EVP_PKEY_meth_set_decrypt,
-EVP_PKEY_meth_set_derive, EVP_PKEY_meth_set_ctrl, EVP_PKEY_meth_set_check,
+EVP_PKEY_meth_set_derive, EVP_PKEY_meth_set_ctrl,
+EVP_PKEY_meth_set_digestsign, EVP_PKEY_meth_set_digestverify,
+EVP_PKEY_meth_set_check,
 EVP_PKEY_meth_set_public_check, EVP_PKEY_meth_set_param_check,
 EVP_PKEY_meth_set_digest_custom,
 EVP_PKEY_meth_get_init, EVP_PKEY_meth_get_copy, EVP_PKEY_meth_get_cleanup,
 EVP_PKEY_meth_get_paramgen, EVP_PKEY_meth_get_keygen, EVP_PKEY_meth_get_sign,
 EVP_PKEY_meth_get_verify, EVP_PKEY_meth_get_verify_recover, EVP_PKEY_meth_get_signctx,
 EVP_PKEY_meth_get_verifyctx, EVP_PKEY_meth_get_encrypt, EVP_PKEY_meth_get_decrypt,
-EVP_PKEY_meth_get_derive, EVP_PKEY_meth_get_ctrl, EVP_PKEY_meth_get_check,
+EVP_PKEY_meth_get_derive, EVP_PKEY_meth_get_ctrl,
+EVP_PKEY_meth_get_digestsign, EVP_PKEY_meth_get_digestverify,
+EVP_PKEY_meth_get_check,
 EVP_PKEY_meth_get_public_check, EVP_PKEY_meth_get_param_check,
 EVP_PKEY_meth_get_digest_custom,
 EVP_PKEY_meth_remove
@@ -112,6 +116,18 @@ EVP_PKEY_meth_remove
                              int (*ctrl_str) (EVP_PKEY_CTX *ctx,
                                               const char *type,
                                               const char *value));
+ void EVP_PKEY_meth_set_digestsign(EVP_PKEY_METHOD *pmeth,
+                                   int (*digestsign) (EVP_MD_CTX *ctx,
+                                                      unsigned char *sig,
+                                                      size_t *siglen,
+                                                      const unsigned char *tbs,
+                                                      size_t tbslen));
+ void EVP_PKEY_meth_set_digestverify(EVP_PKEY_METHOD *pmeth,
+                                     int (*digestverify) (EVP_MD_CTX *ctx,
+                                                          const unsigned char *sig,
+                                                          size_t siglen,
+                                                          const unsigned char *tbs,
+                                                          size_t tbslen));
  void EVP_PKEY_meth_set_check(EVP_PKEY_METHOD *pmeth,
                               int (*check) (EVP_PKEY *pkey));
  void EVP_PKEY_meth_set_public_check(EVP_PKEY_METHOD *pmeth,
@@ -200,6 +216,18 @@ EVP_PKEY_meth_remove
                              int (**pctrl_str) (EVP_PKEY_CTX *ctx,
                                                 const char *type,
                                                 const char *value));
+ void EVP_PKEY_meth_get_digestsign(EVP_PKEY_METHOD *pmeth,
+                                   int (**digestsign) (EVP_MD_CTX *ctx,
+                                                       unsigned char *sig,
+                                                       size_t *siglen,
+                                                       const unsigned char *tbs,
+                                                       size_t tbslen));
+ void EVP_PKEY_meth_get_digestverify(EVP_PKEY_METHOD *pmeth,
+                                     int (**digestverify) (EVP_MD_CTX *ctx,
+                                                           const unsigned char *sig,
+                                                           size_t siglen,
+                                                           const unsigned char *tbs,
+                                                           size_t tbslen));
  void EVP_PKEY_meth_get_check(const EVP_PKEY_METHOD *pmeth,
                               int (**pcheck) (EVP_PKEY *pkey));
  void EVP_PKEY_meth_get_public_check(const EVP_PKEY_METHOD *pmeth,

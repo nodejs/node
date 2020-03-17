@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1388,7 +1388,7 @@ for ($i=0;$i<7;$i++) {
 
 	# above map() describes stack layout with 18 temporary
 	# 256-bit vectors on top, then we take extra words for
-	# !in1infty, !in2infty, result of check for zero and
+	# ~in1infty, ~in2infty, result of check for zero and
 	# OPENSSL_ia32cap_P copy. [one unused word for padding]
 	&stack_push(8*18+5);
 						if ($sse2) {
@@ -1419,7 +1419,7 @@ for ($i=0;$i<7;$i++) {
 	&sub	("eax","ebp");
 	&or	("ebp","eax");
 	&sar	("ebp",31);
-	&mov	(&DWP(32*18+4,"esp"),"ebp");	# !in2infty
+	&mov	(&DWP(32*18+4,"esp"),"ebp");	# ~in2infty
 
 	&lea	("edi",&DWP($in1_x,"esp"));
     for($i=0;$i<96;$i+=16) {
@@ -1441,7 +1441,7 @@ for ($i=0;$i<7;$i++) {
 	&sub	("eax","ebp");
 	&or	("ebp","eax");
 	&sar	("ebp",31);
-	&mov	(&DWP(32*18+0,"esp"),"ebp");	# !in1infty
+	&mov	(&DWP(32*18+0,"esp"),"ebp");	# ~in1infty
 
 	&mov	("eax",&DWP(32*18+12,"esp"));	# OPENSSL_ia32cap_P copy
 	&lea	("esi",&DWP($in2_z,"esp"));
@@ -1516,23 +1516,19 @@ for ($i=0;$i<7;$i++) {
 	&or	("eax",&DWP(0,"edi"));
 	&or	("eax",&DWP(4,"edi"));
 	&or	("eax",&DWP(8,"edi"));
-	&or	("eax",&DWP(12,"edi"));
+	&or	("eax",&DWP(12,"edi"));		# ~is_equal(U1,U2)
 
+	&mov	("ebx",&DWP(32*18+0,"esp"));	# ~in1infty
+	&not	("ebx");			# -1/0 -> 0/-1
+	&or	("eax","ebx");
+	&mov	("ebx",&DWP(32*18+4,"esp"));	# ~in2infty
+	&not	("ebx");			# -1/0 -> 0/-1
+	&or	("eax","ebx");
+	&or	("eax",&DWP(32*18+8,"esp"));	# ~is_equal(S1,S2)
+
+	# if (~is_equal(U1,U2) | in1infty | in2infty | ~is_equal(S1,S2))
 	&data_byte(0x3e);			# predict taken
-	&jnz	(&label("add_proceed"));	# is_equal(U1,U2)?
-
-	&mov	("eax",&DWP(32*18+0,"esp"));
-	&and	("eax",&DWP(32*18+4,"esp"));
-	&mov	("ebx",&DWP(32*18+8,"esp"));
-	&jz	(&label("add_proceed"));	# (in1infty || in2infty)?
-	&test	("ebx","ebx");
-	&jz	(&label("add_double"));		# is_equal(S1,S2)?
-
-	&mov	("edi",&wparam(0));
-	&xor	("eax","eax");
-	&mov	("ecx",96/4);
-	&data_byte(0xfc,0xf3,0xab);		# cld; stosd
-	&jmp	(&label("add_done"));
+	&jnz	(&label("add_proceed"));
 
 &set_label("add_double",16);
 	&mov	("esi",&wparam(1));
@@ -1614,34 +1610,34 @@ for ($i=0;$i<7;$i++) {
 	&lea	("edi",&DWP($res_y,"esp"));
 	&call	("_ecp_nistz256_sub");		# p256_sub(res_y, res_y, S2);
 
-	&mov	("ebp",&DWP(32*18+0,"esp"));	# !in1infty
-	&mov	("esi",&DWP(32*18+4,"esp"));	# !in2infty
+	&mov	("ebp",&DWP(32*18+0,"esp"));	# ~in1infty
+	&mov	("esi",&DWP(32*18+4,"esp"));	# ~in2infty
 	&mov	("edi",&wparam(0));
 	&mov	("edx","ebp");
 	&not	("ebp");
-	&and	("edx","esi");
-	&and	("ebp","esi");
-	&not	("esi");
+	&and	("edx","esi");			# ~in1infty & ~in2infty
+	&and	("ebp","esi");			# in1infty & ~in2infty
+	&not	("esi");			# in2infty
 
 	########################################
 	# conditional moves
     for($i=64;$i<96;$i+=4) {
-	&mov	("eax","edx");
+	&mov	("eax","edx");			# ~in1infty & ~in2infty
 	&and	("eax",&DWP($res_x+$i,"esp"));
-	&mov	("ebx","ebp");
+	&mov	("ebx","ebp");			# in1infty & ~in2infty
 	&and	("ebx",&DWP($in2_x+$i,"esp"));
-	&mov	("ecx","esi");
+	&mov	("ecx","esi");			# in2infty
 	&and	("ecx",&DWP($in1_x+$i,"esp"));
 	&or	("eax","ebx");
 	&or	("eax","ecx");
 	&mov	(&DWP($i,"edi"),"eax");
     }
     for($i=0;$i<64;$i+=4) {
-	&mov	("eax","edx");
+	&mov	("eax","edx");			# ~in1infty & ~in2infty
 	&and	("eax",&DWP($res_x+$i,"esp"));
-	&mov	("ebx","ebp");
+	&mov	("ebx","ebp");			# in1infty & ~in2infty
 	&and	("ebx",&DWP($in2_x+$i,"esp"));
-	&mov	("ecx","esi");
+	&mov	("ecx","esi");			# in2infty
 	&and	("ecx",&DWP($in1_x+$i,"esp"));
 	&or	("eax","ebx");
 	&or	("eax","ecx");
@@ -1668,7 +1664,7 @@ for ($i=0;$i<7;$i++) {
 
 	# above map() describes stack layout with 15 temporary
 	# 256-bit vectors on top, then we take extra words for
-	# !in1infty, !in2infty, and OPENSSL_ia32cap_P copy.
+	# ~in1infty, ~in2infty, and OPENSSL_ia32cap_P copy.
 	&stack_push(8*15+3);
 						if ($sse2) {
 	&call	("_picup_eax");
@@ -1698,7 +1694,7 @@ for ($i=0;$i<7;$i++) {
 	&sub	("eax","ebp");
 	&or	("ebp","eax");
 	&sar	("ebp",31);
-	&mov	(&DWP(32*15+0,"esp"),"ebp");	# !in1infty
+	&mov	(&DWP(32*15+0,"esp"),"ebp");	# ~in1infty
 
 	&lea	("edi",&DWP($in2_x,"esp"));
     for($i=0;$i<64;$i+=16) {
@@ -1724,7 +1720,7 @@ for ($i=0;$i<7;$i++) {
 	 &lea	("ebp",&DWP($in1_z,"esp"));
 	&sar	("ebx",31);
 	 &lea	("edi",&DWP($Z1sqr,"esp"));
-	&mov	(&DWP(32*15+4,"esp"),"ebx");	# !in2infty
+	&mov	(&DWP(32*15+4,"esp"),"ebx");	# ~in2infty
 
 	&call	("_ecp_nistz256_mul_mont");	# p256_sqr_mont(Z1sqr, in1_z);
 
@@ -1823,14 +1819,14 @@ for ($i=0;$i<7;$i++) {
 	&lea	("edi",&DWP($res_y,"esp"));
 	&call	("_ecp_nistz256_sub");		# p256_sub(res_y, res_y, S2);
 
-	&mov	("ebp",&DWP(32*15+0,"esp"));	# !in1infty
-	&mov	("esi",&DWP(32*15+4,"esp"));	# !in2infty
+	&mov	("ebp",&DWP(32*15+0,"esp"));	# ~in1infty
+	&mov	("esi",&DWP(32*15+4,"esp"));	# ~in2infty
 	&mov	("edi",&wparam(0));
 	&mov	("edx","ebp");
 	&not	("ebp");
-	&and	("edx","esi");
-	&and	("ebp","esi");
-	&not	("esi");
+	&and	("edx","esi");			# ~in1infty & ~in2infty
+	&and	("ebp","esi");			# in1infty & ~in2infty
+	&not	("esi");			# in2infty
 
 	########################################
 	# conditional moves
@@ -1848,11 +1844,11 @@ for ($i=0;$i<7;$i++) {
 	&mov	(&DWP($i,"edi"),"eax");
     }
     for($i=0;$i<64;$i+=4) {
-	&mov	("eax","edx");
+	&mov	("eax","edx");			# ~in1infty & ~in2infty
 	&and	("eax",&DWP($res_x+$i,"esp"));
-	&mov	("ebx","ebp");
+	&mov	("ebx","ebp");			# in1infty & ~in2infty
 	&and	("ebx",&DWP($in2_x+$i,"esp"));
-	&mov	("ecx","esi");
+	&mov	("ecx","esi");			# in2infty
 	&and	("ecx",&DWP($in1_x+$i,"esp"));
 	&or	("eax","ebx");
 	&or	("eax","ecx");
@@ -1863,4 +1859,4 @@ for ($i=0;$i<7;$i++) {
 
 &asm_finish();
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

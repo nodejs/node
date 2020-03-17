@@ -10,10 +10,10 @@
  * Originally written by Mike Hamburg
  */
 
-#ifndef HEADER_FIELD_H
-# define HEADER_FIELD_H
+#ifndef OSSL_CRYPTO_EC_CURVE448_FIELD_H
+# define OSSL_CRYPTO_EC_CURVE448_FIELD_H
 
-# include "internal/constant_time_locl.h"
+# include "internal/constant_time.h"
 # include <string.h>
 # include <assert.h>
 # include "word.h"
@@ -165,4 +165,4 @@ static ossl_inline void gf_cond_swap(gf x, gf_s * RESTRICT y, mask_t swap)
     }
 }
 
-#endif                          /* HEADER_FIELD_H */
+#endif                          /* OSSL_CRYPTO_EC_CURVE448_FIELD_H */

@@ -9,7 +9,7 @@
 
 #include <assert.h>
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
+#include "bn_local.h"
 
 int BN_lshift1(BIGNUM *r, const BIGNUM *a)
 {
@@ -34,12 +34,10 @@ int BN_lshift1(BIGNUM *r, const BIGNUM *a)
     for (i = 0; i < a->top; i++) {
         t = *(ap++);
         *(rp++) = ((t << 1) | c) & BN_MASK2;
-        c = (t & BN_TBIT) ? 1 : 0;
+        c = t >> (BN_BITS2 - 1);
     }
-    if (c) {
-        *rp = 1;
-        r->top++;
-    }
+    *rp = c;
+    r->top += c;
     bn_check_top(r);
     return 1;
 }
@@ -47,7 +45,7 @@ int BN_lshift1(BIGNUM *r, const BIGNUM *a)
 int BN_rshift1(BIGNUM *r, const BIGNUM *a)
 {
     BN_ULONG *ap, *rp, t, c;
-    int i, j;
+    int i;
 
     bn_check_top(r);
     bn_check_top(a);
@@ -58,23 +56,22 @@ int BN_rshift1(BIGNUM *r, const BIGNUM *a)
     }
     i = a->top;
     ap = a->d;
-    j = i - (ap[i - 1] == 1);
     if (a != r) {
-        if (bn_wexpand(r, j) == NULL)
+        if (bn_wexpand(r, i) == NULL)
             return 0;
         r->neg = a->neg;
     }
     rp = r->d;
+    r->top = i;
     t = ap[--i];
-    c = (t & 1) ? BN_TBIT : 0;
-    if (t >>= 1)
-        rp[i] = t;
+    rp[i] = t >> 1;
+    c = t << (BN_BITS2 - 1);
+    r->top -= (t == 1);
     while (i > 0) {
         t = ap[--i];
         rp[i] = ((t >> 1) & BN_MASK2) | c;
-        c = (t & 1) ? BN_TBIT : 0;
+        c = t << (BN_BITS2 - 1);
     }
-    r->top = j;
     if (!r->top)
         r->neg = 0; /* don't allow negative zero */
     bn_check_top(r);
@@ -152,57 +149,19 @@ int bn_lshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n)
 
 int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 {
-    int i, j, nw, lb, rb;
-    BN_ULONG *t, *f;
-    BN_ULONG l, tmp;
-
-    bn_check_top(r);
-    bn_check_top(a);
+    int ret = 0;
 
     if (n < 0) {
         BNerr(BN_F_BN_RSHIFT, BN_R_INVALID_SHIFT);
         return 0;
     }
 
-    nw = n / BN_BITS2;
-    rb = n % BN_BITS2;
-    lb = BN_BITS2 - rb;
-    if (nw >= a->top || a->top == 0) {
-        BN_zero(r);
-        return 1;
-    }
-    i = (BN_num_bits(a) - n + (BN_BITS2 - 1)) / BN_BITS2;
-    if (r != a) {
-        if (bn_wexpand(r, i) == NULL)
-            return 0;
-        r->neg = a->neg;
-    } else {
-        if (n == 0)
-            return 1;           /* or the copying loop will go berserk */
-    }
+    ret = bn_rshift_fixed_top(r, a, n);
 
-    f = &(a->d[nw]);
-    t = r->d;
-    j = a->top - nw;
-    r->top = i;
-
-    if (rb == 0) {
-        for (i = j; i != 0; i--)
-            *(t++) = *(f++);
-    } else {
-        l = *(f++);
-        for (i = j - 1; i != 0; i--) {
-            tmp = (l >> rb) & BN_MASK2;
-            l = *(f++);
-            *(t++) = (tmp | (l << lb)) & BN_MASK2;
-        }
-        if ((l = (l >> rb) & BN_MASK2))
-            *(t) = l;
-    }
-    if (!r->top)
-        r->neg = 0; /* don't allow negative zero */
+    bn_correct_top(r);
     bn_check_top(r);
-    return 1;
+
+    return ret;
 }
 
 /*

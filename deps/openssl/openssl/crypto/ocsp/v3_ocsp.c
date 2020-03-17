@@ -12,7 +12,7 @@
 # include <openssl/conf.h>
 # include <openssl/asn1.h>
 # include <openssl/ocsp.h>
-# include "ocsp_lcl.h"
+# include "ocsp_local.h"
 # include <openssl/x509v3.h>
 # include "../x509v3/ext_dat.h"
 

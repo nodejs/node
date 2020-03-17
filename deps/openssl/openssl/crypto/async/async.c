@@ -16,10 +16,10 @@
 #undef _FORTIFY_SOURCE
 
 /* This must be the first #include file */
-#include "async_locl.h"
+#include "async_local.h"
 
 #include <openssl/err.h>
-#include "internal/cryptlib_int.h"
+#include "crypto/cryptlib.h"
 #include <string.h>
 
 #define ASYNC_JOB_RUNNING   0

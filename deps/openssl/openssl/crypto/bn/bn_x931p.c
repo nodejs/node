@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 #include <openssl/bn.h>
-#include "bn_lcl.h"
+#include "bn_local.h"
 
 /* X9.31 routines for prime derivation */
 

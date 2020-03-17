@@ -19,8 +19,8 @@ Deprecated:
 
 =head1 DESCRIPTION
 
-RAND_bytes() puts B<num> cryptographically strong pseudo-random bytes
-into B<buf>.
+RAND_bytes() generates B<num> random bytes using a cryptographically
+secure pseudo random generator (CSPRNG) and stores them in B<buf>.
 
 RAND_priv_bytes() has the same semantics as RAND_bytes().  It is intended to
 be used for generating values that should remain private. If using the
@@ -31,10 +31,22 @@ and L<RAND_DRBG(7)>.
 
 =head1 NOTES
 
-Always check the error return value of RAND_bytes() and
-RAND_priv_bytes() and do not take randomness for granted: an error occurs
-if the CSPRNG has not been seeded with enough randomness to ensure an
-unpredictable byte sequence.
+By default, the OpenSSL CSPRNG supports a security level of 256 bits, provided it
+was able to seed itself from a trusted entropy source.
+On all major platforms supported by OpenSSL (including the Unix-like platforms
+and Windows), OpenSSL is configured to automatically seed the CSPRNG on first use
+using the operating systems's random generator.
+
+If the entropy source fails or is not available, the CSPRNG will enter an
+error state and refuse to generate random bytes. For that reason, it is important
+to always check the error return value of RAND_bytes() and RAND_priv_bytes() and
+not take randomness for granted.
+
+On other platforms, there might not be a trusted entropy source available
+or OpenSSL might have been explicitly configured to use different entropy sources.
+If you are in doubt about the quality of the entropy source, don't hesitate to ask
+your operating system vendor or post a question on GitHub or the openssl-users
+mailing list.
 
 =head1 RETURN VALUES
 
@@ -68,7 +80,7 @@ The RAND_priv_bytes() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

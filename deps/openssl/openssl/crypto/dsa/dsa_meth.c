@@ -15,7 +15,7 @@
  * or in the file LICENSE in the source distribution.
  */
 
-#include "dsa_locl.h"
+#include "dsa_local.h"
 #include <string.h>
 #include <openssl/err.h>
 

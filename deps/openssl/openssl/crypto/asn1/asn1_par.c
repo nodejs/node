@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -75,6 +75,8 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
     int nl, hl, j, r;
     ASN1_OBJECT *o = NULL;
     ASN1_OCTET_STRING *os = NULL;
+    ASN1_INTEGER *ai = NULL;
+    ASN1_ENUMERATED *ae = NULL;
     /* ASN1_BMPSTRING *bmp=NULL; */
     int dump_indent, dump_cont = 0;
 
@@ -250,22 +252,21 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
                 ASN1_OCTET_STRING_free(os);
                 os = NULL;
             } else if (tag == V_ASN1_INTEGER) {
-                ASN1_INTEGER *bs;
                 int i;
 
                 opp = op;
-                bs = d2i_ASN1_INTEGER(NULL, &opp, len + hl);
-                if (bs != NULL) {
+                ai = d2i_ASN1_INTEGER(NULL, &opp, len + hl);
+                if (ai != NULL) {
                     if (BIO_write(bp, ":", 1) <= 0)
                         goto end;
-                    if (bs->type == V_ASN1_NEG_INTEGER)
+                    if (ai->type == V_ASN1_NEG_INTEGER)
                         if (BIO_write(bp, "-", 1) <= 0)
                             goto end;
-                    for (i = 0; i < bs->length; i++) {
-                        if (BIO_printf(bp, "%02X", bs->data[i]) <= 0)
+                    for (i = 0; i < ai->length; i++) {
+                        if (BIO_printf(bp, "%02X", ai->data[i]) <= 0)
                             goto end;
                     }
-                    if (bs->length == 0) {
+                    if (ai->length == 0) {
                         if (BIO_write(bp, "00", 2) <= 0)
                             goto end;
                     }
@@ -274,24 +275,24 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
                         goto end;
                     dump_cont = 1;
                 }
-                ASN1_INTEGER_free(bs);
+                ASN1_INTEGER_free(ai);
+                ai = NULL;
             } else if (tag == V_ASN1_ENUMERATED) {
-                ASN1_ENUMERATED *bs;
                 int i;
 
                 opp = op;
-                bs = d2i_ASN1_ENUMERATED(NULL, &opp, len + hl);
-                if (bs != NULL) {
+                ae = d2i_ASN1_ENUMERATED(NULL, &opp, len + hl);
+                if (ae != NULL) {
                     if (BIO_write(bp, ":", 1) <= 0)
                         goto end;
-                    if (bs->type == V_ASN1_NEG_ENUMERATED)
+                    if (ae->type == V_ASN1_NEG_ENUMERATED)
                         if (BIO_write(bp, "-", 1) <= 0)
                             goto end;
-                    for (i = 0; i < bs->length; i++) {
-                        if (BIO_printf(bp, "%02X", bs->data[i]) <= 0)
+                    for (i = 0; i < ae->length; i++) {
+                        if (BIO_printf(bp, "%02X", ae->data[i]) <= 0)
                             goto end;
                     }
-                    if (bs->length == 0) {
+                    if (ae->length == 0) {
                         if (BIO_write(bp, "00", 2) <= 0)
                             goto end;
                     }
@@ -300,7 +301,8 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
                         goto end;
                     dump_cont = 1;
                 }
-                ASN1_ENUMERATED_free(bs);
+                ASN1_ENUMERATED_free(ae);
+                ae = NULL;
             } else if (len > 0 && dump) {
                 if (!nl) {
                     if (BIO_write(bp, "\n", 1) <= 0)
@@ -341,6 +343,8 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length,
  end:
     ASN1_OBJECT_free(o);
     ASN1_OCTET_STRING_free(os);
+    ASN1_INTEGER_free(ai);
+    ASN1_ENUMERATED_free(ae);
     *pp = p;
     return ret;
 }
