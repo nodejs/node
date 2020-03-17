@@ -1,3 +1,21 @@
+## 7.1.1 (2020-02-13)
+
+### Bug fixes
+
+Clean up the type definitions to actually work well with the main parser.
+
+## 7.1.0 (2020-02-11)
+
+### New features
+
+Add a TypeScript definition file for the library.
+
+## 7.0.0 (2017-08-12)
+
+### New features
+
+Support walking `ImportExpression` nodes.
+
 ## 6.2.0 (2017-07-04)
 
 ### New features
