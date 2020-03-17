@@ -1387,7 +1387,7 @@ greater than `4` (its current default value). For more information, see the
 
 ## Useful V8 options
 
-These are v8 options and fall outside Node.js' responsibility.
+These are V8 options and fall outside Node.js' responsibility.
 
 V8 options that are allowed are:
 
