@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
 // This is an asynclocalstorage variant of test-timers-clearImmediate.js
@@ -18,6 +19,7 @@ function next() {
 function onImmediate() {
   const store = asyncLocalStorage.getStore();
   const immediate = store.get('immediate');
+  assert.strictEqual(immediate.constructor.name, 'Immediate');
   clearImmediate(immediate);
 }
 
