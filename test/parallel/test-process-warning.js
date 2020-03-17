@@ -38,9 +38,14 @@ function test4() {
   // process.emitWarning will throw when process.throwDeprecation is true
   // and type is `DeprecationWarning`.
   process.throwDeprecation = true;
-  assert.throws(
-    () => process.emitWarning('test', 'DeprecationWarning'),
-    /^DeprecationWarning: test$/);
+  process.once('uncaughtException', (err) => {
+    assert.match(err.toString(), /^DeprecationWarning: test$/);
+  });
+  try {
+    process.emitWarning('test', 'DeprecationWarning');
+  } catch {
+    assert.fail('Unreachable');
+  }
   process.throwDeprecation = false;
   setImmediate(test5);
 }
