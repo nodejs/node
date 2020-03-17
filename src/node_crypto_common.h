@@ -12,9 +12,6 @@
 #include <unordered_map>
 
 namespace node {
-
-class Environment;
-
 namespace crypto {
 
 // OPENSSL_free is a macro, so we need a wrapper function.
