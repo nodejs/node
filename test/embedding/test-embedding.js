@@ -6,7 +6,8 @@ const child_process = require('child_process');
 const path = require('path');
 
 common.allowGlobals(global.require);
-let binary = process.features.debug ? `out/Debug/embedtest` : `out/Release/embedtest`;
+let binary = process.features.debug ?
+  'out/Debug/embedtest' : 'out/Release/embedtest';
 if (common.isWindows) {
   binary += '.exe';
 }
