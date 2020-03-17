@@ -1950,6 +1950,81 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   );
 });
 
+// Verify that classes are properly inspected.
+[
+  // The whitespace is intentional.
+  // eslint-disable-next-line no-multi-spaces
+  [class   { }, 'class (anonymous) {}'],
+  [class extends Error { log() {} }, 'class (anonymous) extends Error {}'],
+  [class A { constructor(a) { this.a = a; } log() { return this.a; } }],
+  [class
+  // Random comments are part of the stringified result
+  äß extends TypeError {}, 'class äß extends TypeError {}'],
+  // The whitespace and new line is intended!
+  // eslint-disable-next-line no-multi-spaces
+  [class X   extends Error
+  // eslint-disable-next-line brace-style
+  {}, 'class X extends Error {}']
+].forEach(([clazz, string]) => {
+  if (string === undefined)
+    string = Function.prototype.toString.call(clazz).split(/\s+/).join(' ');
+  const open = string.indexOf('{');
+  const inspected = util.inspect(clazz);
+  assert.strictEqual(inspected, `${string.slice(0, open + 1)}}`);
+  Object.defineProperty(clazz, Symbol.toStringTag, {
+    value: 'Woohoo'
+  });
+  const parts = inspected.split(' ');
+  parts.pop();
+  const [, name, ...rest] = parts;
+  assert.strictEqual(
+    util.inspect(clazz),
+    ['class', name, '[Woohoo]', ...rest, '{}'].join(' ')
+  );
+  Object.setPrototypeOf(clazz, null);
+  assert.strictEqual(
+    util.inspect(clazz),
+    ['class', name, '[null prototype] [Woohoo]', ...rest, '{}'].join(' ')
+  );
+  Object.defineProperty(clazz, 'name', { value: 'Foo' });
+  const newName = name === '(anonymous)' ? 'Foo' : `${name} [Foo]`;
+  assert.strictEqual(
+    util.inspect(clazz),
+    ['class', newName, '[null prototype] [Woohoo]', ...rest, '{}'].join(' ')
+  );
+  Object.setPrototypeOf(clazz, Number.prototype);
+  assert.strictEqual(
+    util.inspect(clazz),
+    ['class', newName, '[Number] [Woohoo]', ...rest, '{}'].join(' ')
+  );
+});
+
+// "class" properties should not be detected as "class".
+{
+  // eslint-disable-next-line space-before-function-paren
+  let obj = { class () {} };
+  assert.strictEqual(
+    util.inspect(obj),
+    '{ class: [Function: class] }'
+  );
+  obj = { class: () => {} };
+  assert.strictEqual(
+    util.inspect(obj),
+    '{ class: [Function: class] }'
+  );
+  obj = { ['class Foo {}']() {} };
+  assert.strictEqual(
+    util.inspect(obj),
+    "{ 'class Foo {}': [Function: class Foo {}] }"
+  );
+  function Foo() {}
+  Object.defineProperty(Foo, 'toString', { value: () => 'class Foo {}' });
+  assert.strictEqual(
+    util.inspect(Foo),
+    '[Function: Foo]'
+  );
+}
+
 // Verify that throwing in valueOf and toString still produces nice results.
 [
   [new String(55), "[String: '55']"],
