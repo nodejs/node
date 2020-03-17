@@ -11,7 +11,7 @@ invariants.
 <!-- YAML
 added: v9.9.0
 changes:
-  - version: REPLACEME
+  - version: v12.16.2
     description: Changed "strict mode" to "strict assertion mode" and "legacy
                  mode" to "legacy assertion mode" to avoid confusion with the
                  more usual meaining of "strict mode".

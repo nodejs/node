@@ -582,7 +582,7 @@ Specific API documentation can be found under
 ## Interaction with Workers
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.16.2
     pr-url: https://github.com/nodejs/node/pull/31386
     description: Workers are now included in the report.
 -->

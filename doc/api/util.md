@@ -993,7 +993,7 @@ throw an error.
 <!-- YAML
 added: v8.0.0
 changes:
-  - version: REPLACEME
+  - version: v12.16.2
     pr-url: https://github.com/nodejs/node/pull/31672
     description: This is now defined as a shared symbol.
 -->

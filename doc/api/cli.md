@@ -158,7 +158,7 @@ Currently, overriding `Error.prepareStackTrace` is ignored when the
 
 ### `--experimental-import-meta-resolve`
 <!-- YAML
-added: REPLACEME
+added: v12.16.2
 -->
 
 Enable experimental `import.meta.resolve()` support.
