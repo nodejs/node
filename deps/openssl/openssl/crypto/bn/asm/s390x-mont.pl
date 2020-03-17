@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2007-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -145,7 +145,7 @@ $code.=<<___;
 	lghi	$NHI,0
 	alcgr	$NHI,$nhi
 
-	la	$j,8(%r0)	# j=1
+	la	$j,8		# j=1
 	lr	$count,$num
 
 .align	16
@@ -197,7 +197,7 @@ $code.=<<___;
 	lghi	$NHI,0
 	alcgr	$NHI,$nhi
 
-	la	$j,8(%r0)	# j=1
+	la	$j,8		# j=1
 	lr	$count,$num
 
 .align	16
@@ -241,7 +241,7 @@ $code.=<<___;
 	la	$ap,$stdframe($sp)
 	ahi	$num,1		# restore $num, incidentally clears "borrow"
 
-	la	$j,0(%r0)
+	la	$j,0
 	lr	$count,$num
 .Lsub:	lg	$alo,0($j,$ap)
 	lg	$nlo,0($j,$np)
@@ -255,7 +255,7 @@ $code.=<<___;
 	lghi	$NHI,-1
 	xgr	$NHI,$AHI
 
-	la	$j,0(%r0)
+	la	$j,0
 	lgr	$count,$num
 .Lcopy:	lg	$ahi,$stdframe($j,$sp)	# conditional copy
 	lg	$alo,0($j,$rp)
@@ -281,4 +281,4 @@ foreach (split("\n",$code)) {
 	s/_dswap\s+(%r[0-9]+)/sprintf("rllg\t%s,%s,32",$1,$1) if($SIZE_T==4)/e;
 	print $_,"\n";
 }
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

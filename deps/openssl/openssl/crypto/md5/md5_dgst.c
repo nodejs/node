@@ -8,7 +8,7 @@
  */
 
 #include <stdio.h>
-#include "md5_locl.h"
+#include "md5_local.h"
 #include <openssl/opensslv.h>
 
 /*
@@ -39,7 +39,7 @@ void md5_block_data_order(MD5_CTX *c, const void *data_, size_t num)
     const unsigned char *data = data_;
     register unsigned MD32_REG_T A, B, C, D, l;
 # ifndef MD32_XARRAY
-    /* See comment in crypto/sha/sha_locl.h for details. */
+    /* See comment in crypto/sha/sha_local.h for details. */
     unsigned MD32_REG_T XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
         XX8, XX9, XX10, XX11, XX12, XX13, XX14, XX15;
 #  define X(i)   XX##i

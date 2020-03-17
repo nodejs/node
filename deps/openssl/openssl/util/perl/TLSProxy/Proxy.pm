@@ -452,7 +452,7 @@ sub clientstart
     } else {
         # It's a bit counter-intuitive spot to make next connection to
         # the s_server. Rationale is that established connection works
-        # as syncronization point, in sense that this way we know that
+        # as synchronization point, in sense that this way we know that
         # s_server is actually done with current session...
         $self->connect_to_server();
     }

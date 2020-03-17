@@ -8,7 +8,7 @@
  */
 
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
+#include "bn_local.h"
 
 BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w)
 {

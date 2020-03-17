@@ -20,7 +20,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/buffer.h>
 #include <openssl/x509v3.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 #include "ext_dat.h"
 
 #ifndef OPENSSL_NO_RFC3779

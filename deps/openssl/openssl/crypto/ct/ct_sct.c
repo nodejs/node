@@ -17,7 +17,7 @@
 #include <openssl/tls1.h>
 #include <openssl/x509.h>
 
-#include "ct_locl.h"
+#include "ct_local.h"
 
 SCT *SCT_new(void)
 {

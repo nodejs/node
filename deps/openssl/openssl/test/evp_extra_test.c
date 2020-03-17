@@ -18,9 +18,10 @@
 #include <openssl/x509.h>
 #include <openssl/pem.h>
 #include <openssl/kdf.h>
+#include <openssl/dh.h>
 #include "testutil.h"
 #include "internal/nelem.h"
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 /*
  * kExampleRSAKeyDER is an RSA private key in ASN.1, DER format. Of course, you
@@ -1069,6 +1070,109 @@ done:
 }
 #endif
 
+#if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
+static int test_decrypt_null_chunks(void)
+{
+    EVP_CIPHER_CTX* ctx = NULL;
+    const unsigned char key[32] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1
+    };
+    unsigned char iv[12] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b
+    };
+    unsigned char msg[] = "It was the best of times, it was the worst of times";
+    unsigned char ciphertext[80];
+    unsigned char plaintext[80];
+    /* We initialise tmp to a non zero value on purpose */
+    int ctlen, ptlen, tmp = 99;
+    int ret = 0;
+    const int enc_offset = 10, dec_offset = 20;
+
+    if (!TEST_ptr(ctx = EVP_CIPHER_CTX_new())
+            || !TEST_true(EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL,
+                                             key, iv))
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext, &ctlen, msg,
+                                            enc_offset))
+            /* Deliberate add a zero length update */
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext + ctlen, &tmp, NULL,
+                                            0))
+            || !TEST_int_eq(tmp, 0)
+            || !TEST_true(EVP_EncryptUpdate(ctx, ciphertext + ctlen, &tmp,
+                                            msg + enc_offset,
+                                            sizeof(msg) - enc_offset))
+            || !TEST_int_eq(ctlen += tmp, sizeof(msg))
+            || !TEST_true(EVP_EncryptFinal(ctx, ciphertext + ctlen, &tmp))
+            || !TEST_int_eq(tmp, 0))
+        goto err;
+
+    /* Deliberately initialise tmp to a non zero value */
+    tmp = 99;
+    if (!TEST_true(EVP_DecryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, key,
+                                      iv))
+            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext, &ptlen, ciphertext,
+                                            dec_offset))
+            /*
+             * Deliberately add a zero length update. We also deliberately do
+             * this at a different offset than for encryption.
+             */
+            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext + ptlen, &tmp, NULL,
+                                            0))
+            || !TEST_int_eq(tmp, 0)
+            || !TEST_true(EVP_DecryptUpdate(ctx, plaintext + ptlen, &tmp,
+                                            ciphertext + dec_offset,
+                                            ctlen - dec_offset))
+            || !TEST_int_eq(ptlen += tmp, sizeof(msg))
+            || !TEST_true(EVP_DecryptFinal(ctx, plaintext + ptlen, &tmp))
+            || !TEST_int_eq(tmp, 0)
+            || !TEST_mem_eq(msg, sizeof(msg), plaintext, ptlen))
+        goto err;
+
+    ret = 1;
+ err:
+    EVP_CIPHER_CTX_free(ctx);
+    return ret;
+}
+#endif /* !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305) */
+
+#ifndef OPENSSL_NO_DH
+static int test_EVP_PKEY_set1_DH(void)
+{
+    DH *x942dh, *pkcs3dh;
+    EVP_PKEY *pkey1, *pkey2;
+    int ret = 0;
+
+    x942dh = DH_get_2048_256();
+    pkcs3dh = DH_new_by_nid(NID_ffdhe2048);
+    pkey1 = EVP_PKEY_new();
+    pkey2 = EVP_PKEY_new();
+    if (!TEST_ptr(x942dh)
+            || !TEST_ptr(pkcs3dh)
+            || !TEST_ptr(pkey1)
+            || !TEST_ptr(pkey2))
+        goto err;
+
+    if(!TEST_true(EVP_PKEY_set1_DH(pkey1, x942dh))
+            || !TEST_int_eq(EVP_PKEY_id(pkey1), EVP_PKEY_DHX))
+        goto err;
+
+
+    if(!TEST_true(EVP_PKEY_set1_DH(pkey2, pkcs3dh))
+            || !TEST_int_eq(EVP_PKEY_id(pkey2), EVP_PKEY_DH))
+        goto err;
+
+    ret = 1;
+ err:
+    EVP_PKEY_free(pkey1);
+    EVP_PKEY_free(pkey2);
+    DH_free(x942dh);
+    DH_free(pkcs3dh);
+
+    return ret;
+}
+#endif
+
 int setup_tests(void)
 {
     ADD_TEST(test_EVP_DigestSignInit);
@@ -1098,5 +1202,12 @@ int setup_tests(void)
     ADD_ALL_TESTS(test_invalide_ec_char2_pub_range_decode,
                   OSSL_NELEM(ec_der_pub_keys));
 #endif
+#if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
+    ADD_TEST(test_decrypt_null_chunks);
+#endif
+#ifndef OPENSSL_NO_DH
+    ADD_TEST(test_EVP_PKEY_set1_DH);
+#endif
+
     return 1;
 }

@@ -93,7 +93,7 @@ Typical output:
      Timeout   : 300 (sec)
      Verify return code 0 (ok)
 
-Theses are described below in more detail.
+These are described below in more detail.
 
 =over 4
 
@@ -156,7 +156,7 @@ L<ciphers(1)>, L<s_server(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

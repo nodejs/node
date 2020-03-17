@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_O_STR_H
-# define HEADER_O_STR_H
+#ifndef OSSL_INTERNAL_O_STR_H
+# define OSSL_INTERNAL_O_STR_H
 
 # include <stddef.h>            /* to get size_t */
 

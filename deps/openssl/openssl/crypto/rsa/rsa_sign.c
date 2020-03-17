@@ -13,8 +13,8 @@
 #include <openssl/rsa.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
-#include "internal/x509_int.h"
-#include "rsa_locl.h"
+#include "crypto/x509.h"
+#include "rsa_local.h"
 
 /* Size of an SSL signature: MD5+SHA1 */
 #define SSL_SIG_LENGTH  36

@@ -72,21 +72,24 @@ EVP_PKEY_new_mac_key() works in the same way as EVP_PKEY_new_raw_private_key().
 New applications should use EVP_PKEY_new_raw_private_key() instead.
 
 EVP_PKEY_get_raw_private_key() fills the buffer provided by B<priv> with raw
-private key data. The number of bytes written is populated in B<*len>. If the
-buffer B<priv> is NULL then B<*len> is populated with the number of bytes
-required to hold the key. The calling application is responsible for ensuring
-that the buffer is large enough to receive the private key data. This function
-only works for algorithms that support raw private keys. Currently this is:
-B<EVP_PKEY_HMAC>, B<EVP_PKEY_POLY1305>, B<EVP_PKEY_SIPHASH>, B<EVP_PKEY_X25519>,
-B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or B<EVP_PKEY_ED448>.
+private key data. The size of the B<priv> buffer should be in B<*len> on entry
+to the function, and on exit B<*len> is updated with the number of bytes
+actually written. If the buffer B<priv> is NULL then B<*len> is populated with
+the number of bytes required to hold the key. The calling application is
+responsible for ensuring that the buffer is large enough to receive the private
+key data. This function only works for algorithms that support raw private keys.
+Currently this is: B<EVP_PKEY_HMAC>, B<EVP_PKEY_POLY1305>, B<EVP_PKEY_SIPHASH>,
+B<EVP_PKEY_X25519>, B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or B<EVP_PKEY_ED448>.
 
 EVP_PKEY_get_raw_public_key() fills the buffer provided by B<pub> with raw
-public key data. The number of bytes written is populated in B<*len>. If the
-buffer B<pub> is NULL then B<*len> is populated with the number of bytes
-required to hold the key. The calling application is responsible for ensuring
-that the buffer is large enough to receive the public key data. This function
-only works for algorithms that support raw public  keys. Currently this is:
-B<EVP_PKEY_X25519>, B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or B<EVP_PKEY_ED448>.
+public key data. The size of the B<pub> buffer should be in B<*len> on entry
+to the function, and on exit B<*len> is updated with the number of bytes
+actually written. If the buffer B<pub> is NULL then B<*len> is populated with
+the number of bytes required to hold the key. The calling application is
+responsible for ensuring that the buffer is large enough to receive the public
+key data. This function only works for algorithms that support raw public  keys.
+Currently this is: B<EVP_PKEY_X25519>, B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or
+B<EVP_PKEY_ED448>.
 
 =head1 NOTES
 
@@ -126,7 +129,7 @@ EVP_PKEY_get_raw_public_key() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -21,7 +21,7 @@
 #include <openssl/bn.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-#include "dsa_locl.h"
+#include "dsa_local.h"
 
 int DSA_generate_parameters_ex(DSA *ret, int bits,
                                const unsigned char *seed_in, int seed_len,

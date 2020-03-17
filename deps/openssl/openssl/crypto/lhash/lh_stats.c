@@ -18,7 +18,7 @@
 
 #include <openssl/bio.h>
 #include <openssl/lhash.h>
-#include "lhash_lcl.h"
+#include "lhash_local.h"
 
 # ifndef OPENSSL_NO_STDIO
 void OPENSSL_LH_stats(const OPENSSL_LHASH *lh, FILE *fp)

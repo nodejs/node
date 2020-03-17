@@ -224,6 +224,7 @@ const BIGNUM *RSA_get0_q(const RSA *d);
 const BIGNUM *RSA_get0_dmp1(const RSA *r);
 const BIGNUM *RSA_get0_dmq1(const RSA *r);
 const BIGNUM *RSA_get0_iqmp(const RSA *r);
+const RSA_PSS_PARAMS *RSA_get0_pss_params(const RSA *r);
 void RSA_clear_flags(RSA *r, int flags);
 int RSA_test_flags(const RSA *r, int flags);
 void RSA_set_flags(RSA *r, int flags);
@@ -279,14 +280,14 @@ int RSA_pkey_ctx_ctrl(EVP_PKEY_CTX *ctx, int optype, int cmd, int p1, void *p2);
 DECLARE_ASN1_ENCODE_FUNCTIONS_const(RSA, RSAPublicKey)
 DECLARE_ASN1_ENCODE_FUNCTIONS_const(RSA, RSAPrivateKey)
 
-typedef struct rsa_pss_params_st {
+struct rsa_pss_params_st {
     X509_ALGOR *hashAlgorithm;
     X509_ALGOR *maskGenAlgorithm;
     ASN1_INTEGER *saltLength;
     ASN1_INTEGER *trailerField;
     /* Decoded hash algorithm from maskGenAlgorithm */
     X509_ALGOR *maskHash;
-} RSA_PSS_PARAMS;
+};
 
 DECLARE_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
 

@@ -13,7 +13,7 @@
 #include <openssl/err.h>
 #include <openssl/asn1t.h>
 #include <string.h>
-#include "asn1_locl.h"
+#include "asn1_local.h"
 
 static int asn1_item_embed_new(ASN1_VALUE **pval, const ASN1_ITEM *it,
                                int embed);

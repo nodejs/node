@@ -13,7 +13,7 @@
 #include <openssl/opensslv.h>
 #include <openssl/ssl.h>
 #include <openssl/ossl_typ.h>
-#include "internal/dso_conf.h"
+#include "crypto/dso_conf.h"
 
 typedef void DSO;
 

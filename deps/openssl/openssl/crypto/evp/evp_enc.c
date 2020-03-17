@@ -15,8 +15,8 @@
 #include <openssl/rand.h>
 #include <openssl/rand_drbg.h>
 #include <openssl/engine.h>
-#include "internal/evp_int.h"
-#include "evp_locl.h"
+#include "crypto/evp.h"
+#include "evp_local.h"
 
 int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *c)
 {
@@ -305,6 +305,17 @@ static int evp_EncryptDecryptUpdate(EVP_CIPHER_CTX *ctx,
 
     bl = ctx->cipher->block_size;
 
+    /*
+     * CCM mode needs to know about the case where inl == 0 && in == NULL - it
+     * means the plaintext/ciphertext length is 0
+     */
+    if (inl < 0
+            || (inl == 0
+                && EVP_CIPHER_mode(ctx->cipher) != EVP_CIPH_CCM_MODE)) {
+        *outl = 0;
+        return inl == 0;
+    }
+
     if (ctx->cipher->flags & EVP_CIPH_FLAG_CUSTOM_CIPHER) {
         /* If block size > 1 then the cipher will have to do this check */
         if (bl == 1 && is_partially_overlapping(out, in, cmpl)) {
@@ -320,10 +331,6 @@ static int evp_EncryptDecryptUpdate(EVP_CIPHER_CTX *ctx,
         return 1;
     }
 
-    if (inl <= 0) {
-        *outl = 0;
-        return inl == 0;
-    }
     if (is_partially_overlapping(out + ctx->buf_len, in, cmpl)) {
         EVPerr(EVP_F_EVP_ENCRYPTDECRYPTUPDATE, EVP_R_PARTIALLY_OVERLAPPING);
         return 0;
@@ -457,6 +464,17 @@ int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
     if (EVP_CIPHER_CTX_test_flags(ctx, EVP_CIPH_FLAG_LENGTH_BITS))
         cmpl = (cmpl + 7) / 8;
 
+    /*
+     * CCM mode needs to know about the case where inl == 0 - it means the
+     * plaintext/ciphertext length is 0
+     */
+    if (inl < 0
+            || (inl == 0
+                && EVP_CIPHER_mode(ctx->cipher) != EVP_CIPH_CCM_MODE)) {
+        *outl = 0;
+        return inl == 0;
+    }
+
     if (ctx->cipher->flags & EVP_CIPH_FLAG_CUSTOM_CIPHER) {
         if (b == 1 && is_partially_overlapping(out, in, cmpl)) {
             EVPerr(EVP_F_EVP_DECRYPTUPDATE, EVP_R_PARTIALLY_OVERLAPPING);
@@ -470,11 +488,6 @@ int EVP_DecryptUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl,
         } else
             *outl = fix_len;
         return 1;
-    }
-
-    if (inl <= 0) {
-        *outl = 0;
-        return inl == 0;
     }
 
     if (ctx->flags & EVP_CIPH_NO_PADDING)

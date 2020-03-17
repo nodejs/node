@@ -9,7 +9,7 @@
 
 #include <stdio.h>
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
+#include "bn_local.h"
 
 int BN_bn2mpi(const BIGNUM *a, unsigned char *d)
 {

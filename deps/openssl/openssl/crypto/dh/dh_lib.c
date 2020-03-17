@@ -11,7 +11,7 @@
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
 #include <openssl/bn.h>
-#include "dh_locl.h"
+#include "dh_local.h"
 #include <openssl/engine.h>
 
 int DH_set_method(DH *dh, const DH_METHOD *meth)

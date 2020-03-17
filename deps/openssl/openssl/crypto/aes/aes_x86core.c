@@ -46,7 +46,7 @@
 
 #include <stdlib.h>
 #include <openssl/aes.h>
-#include "aes_locl.h"
+#include "aes_local.h"
 
 /*
  * These two parameters control which table, 256-byte or 2KB, is

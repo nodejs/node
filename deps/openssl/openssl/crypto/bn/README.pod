@@ -188,7 +188,7 @@ B<a> and the 2*B<n> word arrays B<tmp> and B<r>.
 
 The implementations use the following macros which, depending on the
 architecture, may use "long long" C operations or inline assembler.
-They are defined in C<bn_lcl.h>.
+They are defined in C<bn_local.h>.
 
 mul(B<r>, B<a>, B<w>, B<c>) computes B<w>*B<a>+B<c> and places the
 low word of the result in B<r> and the high word in B<c>.

@@ -9,20 +9,20 @@
      "";
 -}
 LIBS=libcrypto libssl
-INCLUDE[libcrypto]=. crypto/include include
+INCLUDE[libcrypto]=. include
 INCLUDE[libssl]=. include
 DEPEND[libssl]=libcrypto
 
 # Empty DEPEND "indices" means the dependencies are expected to be built
 # unconditionally before anything else.
-DEPEND[]=include/openssl/opensslconf.h crypto/include/internal/bn_conf.h \
-         crypto/include/internal/dso_conf.h
+DEPEND[]=include/openssl/opensslconf.h include/crypto/bn_conf.h \
+         include/crypto/dso_conf.h
 DEPEND[include/openssl/opensslconf.h]=configdata.pm
 GENERATE[include/openssl/opensslconf.h]=include/openssl/opensslconf.h.in
-DEPEND[crypto/include/internal/bn_conf.h]=configdata.pm
-GENERATE[crypto/include/internal/bn_conf.h]=crypto/include/internal/bn_conf.h.in
-DEPEND[crypto/include/internal/dso_conf.h]=configdata.pm
-GENERATE[crypto/include/internal/dso_conf.h]=crypto/include/internal/dso_conf.h.in
+DEPEND[include/crypto/bn_conf.h]=configdata.pm
+GENERATE[include/crypto/bn_conf.h]=include/crypto/bn_conf.h.in
+DEPEND[include/crypto/dso_conf.h]=configdata.pm
+GENERATE[include/crypto/dso_conf.h]=include/crypto/dso_conf.h.in
 
 IF[{- defined $target{shared_defflag} -}]
   IF[{- $config{target} =~ /^mingw/ -}]

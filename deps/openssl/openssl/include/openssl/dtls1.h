@@ -43,7 +43,7 @@ extern "C" {
 
 # define DTLS1_AL_HEADER_LENGTH                   2
 
-/* Timeout multipliers (timeout slice is defined in apps/timeouts.h */
+/* Timeout multipliers */
 # define DTLS1_TMO_READ_COUNT                      2
 # define DTLS1_TMO_WRITE_COUNT                     2
 

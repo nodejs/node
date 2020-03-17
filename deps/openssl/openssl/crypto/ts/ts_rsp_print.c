@@ -13,7 +13,7 @@
 #include <openssl/bn.h>
 #include <openssl/x509v3.h>
 #include <openssl/ts.h>
-#include "ts_lcl.h"
+#include "ts_local.h"
 
 struct status_map_st {
     int bit;

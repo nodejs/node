@@ -343,6 +343,7 @@ CPPFLAGS_Q={- (my $c = $lib_cppflags.$cppflags2.$cppflags1) =~ s|"|""|g;
 #
 #    #include <openssl/foo.h>
 #    #include "internal/bar.h"
+#    #include "crypto/something.h"
 #
 # will use the logical names to find the files.  Expecting
 # DECompHP C to find files in subdirectories of whatever was
@@ -351,11 +352,13 @@ NODEBUG=@
 .FIRST :
         $(NODEBUG) openssl_inc1 = F$PARSE("[.include.openssl]","A.;",,,"syntax_only") - "A.;"
         $(NODEBUG) openssl_inc2 = F$PARSE("{- catdir($config{sourcedir},"[.include.openssl]") -}","A.;",,,"SYNTAX_ONLY") - "A.;"
-        $(NODEBUG) internal_inc1 = F$PARSE("[.crypto.include.internal]","A.;",,,"SYNTAX_ONLY") - "A.;"
+        $(NODEBUG) internal_inc1 = F$PARSE("[.include.internal]","A.;",,,"SYNTAX_ONLY") - "A.;"
         $(NODEBUG) internal_inc2 = F$PARSE("{- catdir($config{sourcedir},"[.include.internal]") -}","A.;",,,"SYNTAX_ONLY") - "A.;"
-        $(NODEBUG) internal_inc3 = F$PARSE("{- catdir($config{sourcedir},"[.crypto.include.internal]") -}","A.;",,,"SYNTAX_ONLY") - "A.;"
+        $(NODEBUG) crypto_inc1 = F$PARSE("[.include.crypto]","A.;",,,"SYNTAX_ONLY") - "A.;"
+        $(NODEBUG) crypto_inc2 = F$PARSE("{- catdir($config{sourcedir},"[.include.crypto]") -}","A.;",,,"SYNTAX_ONLY") - "A.;"
         $(NODEBUG) DEFINE openssl 'openssl_inc1','openssl_inc2'
-        $(NODEBUG) DEFINE internal 'internal_inc1','internal_inc2','internal_inc3'
+        $(NODEBUG) DEFINE internal 'internal_inc1','internal_inc2'
+        $(NODEBUG) DEFINE crypto 'crypto_inc1','crypto_inc2'
         $(NODEBUG) staging_dir = "$(DESTDIR)"
         $(NODEBUG) staging_instdir = ""
         $(NODEBUG) staging_datadir = ""
@@ -392,6 +395,7 @@ NODEBUG=@
         $(NODEBUG) {- join("\n\t\$(NODEBUG) ", map { "DEASSIGN ".uc($_) } @shlibs) || "!" -}
         $(NODEBUG) DEASSIGN ossl_dataroot
         $(NODEBUG) DEASSIGN ossl_installroot
+        $(NODEBUG) DEASSIGN crypto
         $(NODEBUG) DEASSIGN internal
         $(NODEBUG) DEASSIGN openssl
 .DEFAULT :

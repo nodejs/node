@@ -12,7 +12,7 @@
 #include <openssl/conf.h>
 #include <openssl/err.h>
 #include "internal/sslconf.h"
-#include "conf_lcl.h"
+#include "conf_local.h"
 
 /*
  * SSL library configuration module placeholder. We load it here but defer

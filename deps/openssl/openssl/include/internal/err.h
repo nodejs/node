@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef INTERNAL_ERR_H
-# define INTERNAL_ERR_H
+#ifndef OSSL_INTERNAL_ERR_H
+# define OSSL_INTERNAL_ERR_H
 
 void err_free_strings_int(void);
 

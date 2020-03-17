@@ -134,7 +134,8 @@ our @tests = (
             "CipherString" => "aECDSA",
             "MaxProtocol" => "TLSv1.2",
             "SignatureAlgorithms" => "ed448:ECDSA+SHA256",
-            "RequestCAFile" => test_pem("root-cert.pem"),
+            "RequestCAFile" => test_pem("root-ed448-cert.pem"),
+            "VerifyCAFile" => test_pem("root-ed448-cert.pem"),
         },
         test   => {
             "ExpectedServerCertType" =>, "Ed448",
@@ -231,6 +232,7 @@ our @tests = (
             "CipherString" => "aECDSA",
             "MaxProtocol" => "TLSv1.2",
             "SignatureAlgorithms" => "ECDSA+SHA256:ed448",
+            "VerifyCAFile" => test_pem("root-ed448-cert.pem"),
             # Excluding P-256 from the supported curves list means server
             # certificate should be Ed25519 and not P-256
             "Curves" => "X448"
@@ -727,6 +729,7 @@ my @tests_tls_1_3 = (
         server => $server_tls_1_3,
         client => {
             "SignatureAlgorithms" => "ed448",
+            "VerifyCAFile" => test_pem("root-ed448-cert.pem"),
         },
         test   => {
             "ExpectedServerCertType" => "Ed448",

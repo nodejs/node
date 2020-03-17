@@ -15,7 +15,8 @@ PEM_write_RSAPublicKey, PEM_read_bio_RSA_PUBKEY, PEM_read_RSA_PUBKEY,
 PEM_write_bio_RSA_PUBKEY, PEM_write_RSA_PUBKEY, PEM_read_bio_DSAPrivateKey,
 PEM_read_DSAPrivateKey, PEM_write_bio_DSAPrivateKey, PEM_write_DSAPrivateKey,
 PEM_read_bio_DSA_PUBKEY, PEM_read_DSA_PUBKEY, PEM_write_bio_DSA_PUBKEY,
-PEM_write_DSA_PUBKEY, PEM_read_bio_DSAparams, PEM_read_DSAparams,
+PEM_write_DSA_PUBKEY, PEM_read_bio_Parameters, PEM_write_bio_Parameters,
+PEM_read_bio_DSAparams, PEM_read_DSAparams,
 PEM_write_bio_DSAparams, PEM_write_DSAparams, PEM_read_bio_DHparams,
 PEM_read_DHparams, PEM_write_bio_DHparams, PEM_write_DHparams,
 PEM_read_bio_X509, PEM_read_X509, PEM_write_bio_X509, PEM_write_X509,
@@ -109,6 +110,9 @@ PEM_write_bio_PKCS7, PEM_write_PKCS7 - PEM routines
                           pem_password_cb *cb, void *u);
  int PEM_write_bio_DSA_PUBKEY(BIO *bp, DSA *x);
  int PEM_write_DSA_PUBKEY(FILE *fp, DSA *x);
+
+ EVP_PKEY *PEM_read_bio_Parameters(BIO *bp, EVP_PKEY **x);
+ int PEM_write_bio_Parameters(BIO *bp, const EVP_PKEY *x);
 
  DSA *PEM_read_bio_DSAparams(BIO *bp, DSA **x, pem_password_cb *cb, void *u);
  DSA *PEM_read_DSAparams(FILE *fp, DSA **x, pem_password_cb *cb, void *u);
@@ -215,6 +219,12 @@ The B<DSA_PUBKEY> functions process a DSA public key using
 a DSA structure. The public key is encoded using a
 SubjectPublicKeyInfo structure and an error occurs if the public
 key is not DSA.
+
+The B<Parameters> functions read or write key parameters in PEM format using
+an EVP_PKEY structure.  The encoding depends on the type of key; for DSA key
+parameters, it will be a Dss-Parms structure as defined in RFC2459, and for DH
+key parameters, it will be a PKCS#3 DHparameter structure.  I<These functions
+only exist for the B<BIO> type>.
 
 The B<DSAparams> functions process DSA parameters using a DSA
 structure. The parameters are encoded using a Dss-Parms structure

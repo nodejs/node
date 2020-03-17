@@ -11,7 +11,7 @@
 #include <limits.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
-#include "asn1_locl.h"
+#include "asn1_local.h"
 
 static int asn1_get_length(const unsigned char **pp, int *inf, long *rl,
                            long max);

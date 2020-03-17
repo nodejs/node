@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_V3_ADMISSION_H
-# define HEADER_V3_ADMISSION_H
+#ifndef OSSL_CRYPTO_X509V3_V3_ADMIS_H
+# define OSSL_CRYPTO_X509V3_V3_ADMIS_H
 
 struct NamingAuthority_st {
     ASN1_OBJECT* namingAuthorityId;

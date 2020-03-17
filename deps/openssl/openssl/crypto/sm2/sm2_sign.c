@@ -9,9 +9,9 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "internal/sm2.h"
-#include "internal/sm2err.h"
-#include "internal/ec_int.h" /* ec_group_do_inverse_ord() */
+#include "crypto/sm2.h"
+#include "crypto/sm2err.h"
+#include "crypto/ec.h" /* ec_group_do_inverse_ord() */
 #include "internal/numbers.h"
 #include <openssl/err.h>
 #include <openssl/evp.h>

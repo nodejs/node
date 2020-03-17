@@ -52,11 +52,24 @@ STACK_OF(CONF_VALUE) *i2v_GENERAL_NAMES(X509V3_EXT_METHOD *method,
 {
     int i;
     GENERAL_NAME *gen;
+    STACK_OF(CONF_VALUE) *tmpret = NULL, *origret = ret;
+
     for (i = 0; i < sk_GENERAL_NAME_num(gens); i++) {
         gen = sk_GENERAL_NAME_value(gens, i);
-        ret = i2v_GENERAL_NAME(method, gen, ret);
+        /*
+         * i2v_GENERAL_NAME allocates ret if it is NULL. If something goes
+         * wrong we need to free the stack - but only if it was empty when we
+         * originally entered this function.
+         */
+        tmpret = i2v_GENERAL_NAME(method, gen, ret);
+        if (tmpret == NULL) {
+            if (origret == NULL)
+                sk_CONF_VALUE_pop_free(ret, X509V3_conf_free);
+            return NULL;
+        }
+        ret = tmpret;
     }
-    if (!ret)
+    if (ret == NULL)
         return sk_CONF_VALUE_new_null();
     return ret;
 }

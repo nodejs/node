@@ -516,8 +516,8 @@ libclean:
 clean: libclean
 	$(RM) $(PROGRAMS) $(TESTPROGS) $(ENGINES) $(SCRIPTS)
 	$(RM) $(GENERATED_MANDATORY) $(GENERATED)
-	-$(RM) `find . -name '*{- $depext -}' \! -name '.*' -print`
-	-$(RM) `find . -name '*{- $objext -}' \! -name '.*' -print`
+	-$(RM) `find . -name '*{- $depext -}' \! -name '.*' \! -type d -print`
+	-$(RM) `find . -name '*{- $objext -}' \! -name '.*' \! -type d -print`
 	$(RM) core
 	$(RM) tags TAGS doc-nits
 	$(RM) -r test/test-runs

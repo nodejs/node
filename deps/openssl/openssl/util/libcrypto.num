@@ -4582,3 +4582,8 @@ OPENSSL_INIT_set_config_file_flags      4535	1_1_1b	EXIST::FUNCTION:STDIO
 EVP_PKEY_get0_engine                    4536	1_1_1c	EXIST::FUNCTION:ENGINE
 X509_get0_authority_serial              4537	1_1_1d	EXIST::FUNCTION:
 X509_get0_authority_issuer              4538	1_1_1d	EXIST::FUNCTION:
+EVP_PKEY_meth_set_digestsign            4539	1_1_1e	EXIST::FUNCTION:
+EVP_PKEY_meth_set_digestverify          4540	1_1_1e	EXIST::FUNCTION:
+EVP_PKEY_meth_get_digestverify          4541	1_1_1e	EXIST::FUNCTION:
+EVP_PKEY_meth_get_digestsign            4542	1_1_1e	EXIST::FUNCTION:
+RSA_get0_pss_params                     4543	1_1_1e	EXIST::FUNCTION:RSA

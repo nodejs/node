@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -122,7 +122,7 @@ static int test_dtls_unprocessed(int testidx)
 #define CLI_TO_SRV_EPOCH_0_RECS 3
 #define CLI_TO_SRV_EPOCH_1_RECS 1
 #if !defined(OPENSSL_NO_EC) || !defined(OPENSSL_NO_DH)
-# define SRV_TO_CLI_EPOCH_0_RECS 12
+# define SRV_TO_CLI_EPOCH_0_RECS 10
 #else
 /*
  * In this case we have no ServerKeyExchange message, because we don't have

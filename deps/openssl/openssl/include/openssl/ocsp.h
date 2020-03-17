@@ -123,7 +123,7 @@ typedef struct ocsp_service_locator_st OCSP_SERVICELOC;
      (char *(*)())d2i_OCSP_REQUEST,PEM_STRING_OCSP_REQUEST, \
      bp,(char **)(x),cb,NULL)
 
-#  define PEM_read_bio_OCSP_RESPONSE(bp,x,cb)(OCSP_RESPONSE *)PEM_ASN1_read_bio(\
+#  define PEM_read_bio_OCSP_RESPONSE(bp,x,cb) (OCSP_RESPONSE *)PEM_ASN1_read_bio(\
      (char *(*)())d2i_OCSP_RESPONSE,PEM_STRING_OCSP_RESPONSE, \
      bp,(char **)(x),cb,NULL)
 

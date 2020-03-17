@@ -46,6 +46,7 @@ B<openssl> B<req>
 [B<-reqopt>]
 [B<-subject>]
 [B<-subj arg>]
+[B<-sigopt nm:v>]
 [B<-batch>]
 [B<-verbose>]
 [B<-engine id>]
@@ -81,6 +82,11 @@ as the B<-inform> option.
 This specifies the input filename to read a request from or standard input
 if this option is not specified. A request is only read if the creation
 options (B<-new> and B<-newkey>) are not specified.
+
+=item B<-sigopt nm:v>
+
+Pass options to the signature algorithm during sign or verify operations.
+Names and values of these options are algorithm-specific.
 
 =item B<-passin arg>
 
@@ -689,7 +695,7 @@ L<x509v3_config(5)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

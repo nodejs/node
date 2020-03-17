@@ -8,7 +8,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "eng_int.h"
+#include "eng_local.h"
 #include <openssl/conf.h>
 
 int ENGINE_set_default(ENGINE *e, unsigned int flags)

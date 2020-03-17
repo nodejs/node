@@ -35,7 +35,7 @@ Functions of interest are:
 &function_begin_B(name,extra)	Same as normal function_begin but no pushing.
 &function_end(name)		Call at end of function.
 &function_end_A(name)		Standard pop and ret, for use inside functions
-&function_end_B(name)		Call at end but with poping or 'ret'.
+&function_end_B(name)		Call at end but with pop or ret.
 &swtmp(num)			Address on stack temp word.
 &wparam(num)			Parameter number num, that was push
 				in C convention.  This all works over pushes
