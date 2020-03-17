@@ -26,6 +26,7 @@
 
 // Besides returning ENOTSUP at runtime we do nothing if this define is missing.
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
+#include "debug_utils-inl.h"
 #include "util.h"
 #include "uv.h"
 
@@ -97,11 +98,18 @@ struct text_region {
 
 static const size_t hps = 2L * 1024 * 1024;
 
-static void PrintWarning(const char* warn) {
+template <typename... Args>
+inline void Debug(Args&&... args) {
+  node::Debug(&per_process::enabled_debug_list,
+              DebugCategory::HUGEPAGES,
+              std::forward<Args>(args)...);
+}
+
+inline void PrintWarning(const char* warn) {
   fprintf(stderr, "Hugepages WARNING: %s\n", warn);
 }
 
-static void PrintSystemError(int error) {
+inline void PrintSystemError(int error) {
   PrintWarning(strerror(error));
 }
 
@@ -152,13 +160,22 @@ struct text_region FindNodeTextRegion() {
   uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
 
   if (dl_iterate_phdr(FindMapping, &dl_params) == 1) {
+    Debug("Hugepages info: start: %p - sym: %p - end: %p\n",
+          reinterpret_cast<void*>(dl_params.start),
+          reinterpret_cast<void*>(dl_params.reference_sym),
+          reinterpret_cast<void*>(dl_params.end));
+
     dl_params.start = dl_params.reference_sym;
-    if (lpstub_start > dl_params.start && lpstub_start <= dl_params.end)
+    if (lpstub_start > dl_params.start && lpstub_start <= dl_params.end) {
+      Debug("Hugepages info: Trimming end for lpstub: %p\n",
+            reinterpret_cast<void*>(lpstub_start));
       dl_params.end = lpstub_start;
+    }
 
     if (dl_params.start < dl_params.end) {
       char* from = reinterpret_cast<char*>(hugepage_align_up(dl_params.start));
       char* to = reinterpret_cast<char*>(hugepage_align_down(dl_params.end));
+      Debug("Hugepages info: Aligned range is %p - %p\n", from, to);
       if (from < to) {
         size_t pagecount = (to - from) / hps;
         if (pagecount > 0) {
@@ -261,6 +278,7 @@ struct text_region FindNodeTextRegion() {
     }
   }
 #endif
+  Debug("Hugepages info: Found %d huge pages\n", nregion.total_hugepages);
   return nregion;
 }
 
