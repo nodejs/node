@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,7 @@
  */
 
 #include <stdlib.h>
-#include "ssl_locl.h"
+#include "ssl_local.h"
 #include "internal/cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
@@ -44,7 +44,7 @@ int tls13_hkdf_expand(SSL *s, const EVP_MD *md, const unsigned char *secret,
      * prefix and label + bytes for the label itself + 1 byte length of hash
      * + bytes for the hash itself
      */
-    unsigned char hkdflabel[sizeof(uint16_t) + sizeof(uint8_t) +
+    unsigned char hkdflabel[sizeof(uint16_t) + sizeof(uint8_t)
                             + (sizeof(label_prefix) - 1) + TLS13_MAX_LABEL_LEN
                             + 1 + EVP_MAX_MD_SIZE];
     WPACKET pkt;

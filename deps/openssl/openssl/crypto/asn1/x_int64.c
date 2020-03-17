@@ -12,7 +12,7 @@
 #include "internal/numbers.h"
 #include <openssl/asn1t.h>
 #include <openssl/bn.h>
-#include "asn1_locl.h"
+#include "asn1_local.h"
 
 /*
  * Custom primitive types for handling int32_t, int64_t, uint32_t, uint64_t.

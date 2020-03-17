@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2013-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2013-2020 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2012, Intel Corporation. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
@@ -81,7 +81,7 @@ if (!$addx && $win64 && ($flavour =~ /masm/ || $ENV{ASM} =~ /ml64/) &&
 	$addx = ($1>=12);
 }
 
-if (!$addx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([3-9])\.([0-9]+)/) {
+if (!$addx && `$ENV{CC} -v 2>&1` =~ /((?:^clang|LLVM) version|.*based on LLVM) ([0-9]+)\.([0-9]+)/) {
 	my $ver = $2 + $3/100.0;	# 3.1->3.01, 3.10->3.10
 	$addx = ($ver>=3.03);
 }
@@ -116,7 +116,7 @@ rsaz_512_sqr:				# 25-29% faster than rsaz_512_mul
 	subq	\$128+24, %rsp
 .cfi_adjust_cfa_offset	128+24
 .Lsqr_body:
-	movq	$mod, %rbp		# common argument
+	movq	$mod, %xmm1		# common off-load
 	movq	($inp), %rdx
 	movq	8($inp), %rax
 	movq	$n0, 128(%rsp)
@@ -134,7 +134,8 @@ $code.=<<___;
 .Loop_sqr:
 	movl	$times,128+8(%rsp)
 #first iteration
-	movq	%rdx, %rbx
+	movq	%rdx, %rbx		# 0($inp)
+	mov	%rax, %rbp		# 8($inp)
 	mulq	%rdx
 	movq	%rax, %r8
 	movq	16($inp), %rax
@@ -173,31 +174,29 @@ $code.=<<___;
 	mulq	%rbx
 	addq	%rax, %r14
 	movq	%rbx, %rax
-	movq	%rdx, %r15
-	adcq	\$0, %r15
+	adcq	\$0, %rdx
 
-	addq	%r8, %r8		#shlq	\$1, %r8
-	movq	%r9, %rcx
-	adcq	%r9, %r9		#shld	\$1, %r8, %r9
+	xorq	%rcx,%rcx		# rcx:r8 = r8 << 1
+	addq	%r8, %r8
+	 movq	%rdx, %r15
+	adcq	\$0, %rcx
 
 	mulq	%rax
-	movq	%rax, (%rsp)
-	addq	%rdx, %r8
-	adcq	\$0, %r9
+	addq	%r8, %rdx
+	adcq	\$0, %rcx
 
-	movq	%r8, 8(%rsp)
-	shrq	\$63, %rcx
+	movq	%rax, (%rsp)
+	movq	%rdx, 8(%rsp)
 
 #second iteration
-	movq	8($inp), %r8
 	movq	16($inp), %rax
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax, %r10
 	movq	24($inp), %rax
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax, %r11
 	movq	32($inp), %rax
 	adcq	\$0, %rdx
@@ -205,7 +204,7 @@ $code.=<<___;
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax, %r12
 	movq	40($inp), %rax
 	adcq	\$0, %rdx
@@ -213,7 +212,7 @@ $code.=<<___;
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax, %r13
 	movq	48($inp), %rax
 	adcq	\$0, %rdx
@@ -221,7 +220,7 @@ $code.=<<___;
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax, %r14
 	movq	56($inp), %rax
 	adcq	\$0, %rdx
@@ -229,39 +228,39 @@ $code.=<<___;
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax, %r15
-	movq	%r8, %rax
+	movq	%rbp, %rax
 	adcq	\$0, %rdx
 	addq	%rbx, %r15
-	movq	%rdx, %r8
-	movq	%r10, %rdx
-	adcq	\$0, %r8
+	adcq	\$0, %rdx
 
-	add	%rdx, %rdx
-	lea	(%rcx,%r10,2), %r10	#shld	\$1, %rcx, %r10
-	movq	%r11, %rbx
-	adcq	%r11, %r11		#shld	\$1, %r10, %r11
+	xorq	%rbx, %rbx		# rbx:r10:r9 = r10:r9 << 1
+	addq	%r9, %r9
+	 movq	%rdx, %r8
+	adcq	%r10, %r10
+	adcq	\$0, %rbx
 
 	mulq	%rax
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	addq	%rcx, %rax
+	 movq	16($inp), %rbp
 	addq	%rax, %r9
+	 movq	24($inp), %rax
 	adcq	%rdx, %r10
-	adcq	\$0, %r11
+	adcq	\$0, %rbx
 
 	movq	%r9, 16(%rsp)
 	movq	%r10, 24(%rsp)
-	shrq	\$63, %rbx
 
 #third iteration
-	movq	16($inp), %r9
-	movq	24($inp), %rax
-	mulq	%r9
+	mulq	%rbp
 	addq	%rax, %r12
 	movq	32($inp), %rax
 	movq	%rdx, %rcx
 	adcq	\$0, %rcx
 
-	mulq	%r9
+	mulq	%rbp
 	addq	%rax, %r13
 	movq	40($inp), %rax
 	adcq	\$0, %rdx
@@ -269,7 +268,7 @@ $code.=<<___;
 	movq	%rdx, %rcx
 	adcq	\$0, %rcx
 
-	mulq	%r9
+	mulq	%rbp
 	addq	%rax, %r14
 	movq	48($inp), %rax
 	adcq	\$0, %rdx
@@ -277,9 +276,7 @@ $code.=<<___;
 	movq	%rdx, %rcx
 	adcq	\$0, %rcx
 
-	mulq	%r9
-	 movq	%r12, %r10
-	 lea	(%rbx,%r12,2), %r12	#shld	\$1, %rbx, %r12
+	mulq	%rbp
 	addq	%rax, %r15
 	movq	56($inp), %rax
 	adcq	\$0, %rdx
@@ -287,36 +284,40 @@ $code.=<<___;
 	movq	%rdx, %rcx
 	adcq	\$0, %rcx
 
-	mulq	%r9
-	 shrq	\$63, %r10
+	mulq	%rbp
 	addq	%rax, %r8
-	movq	%r9, %rax
+	movq	%rbp, %rax
 	adcq	\$0, %rdx
 	addq	%rcx, %r8
-	movq	%rdx, %r9
-	adcq	\$0, %r9
+	adcq	\$0, %rdx
 
-	movq	%r13, %rcx
-	leaq	(%r10,%r13,2), %r13	#shld	\$1, %r12, %r13
+	xorq	%rcx, %rcx		# rcx:r12:r11 = r12:r11 << 1
+	addq	%r11, %r11
+	 movq	%rdx, %r9
+	adcq	%r12, %r12
+	adcq	\$0, %rcx
 
 	mulq	%rax
+	# rbx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	addq	%rbx, %rax
+	 movq	24($inp), %r10
 	addq	%rax, %r11
+	 movq	32($inp), %rax
 	adcq	%rdx, %r12
-	adcq	\$0, %r13
+	adcq	\$0, %rcx
 
 	movq	%r11, 32(%rsp)
 	movq	%r12, 40(%rsp)
-	shrq	\$63, %rcx
 
 #fourth iteration
-	movq	24($inp), %r10
-	movq	32($inp), %rax
+	mov	%rax, %r11		# 32($inp)
 	mulq	%r10
 	addq	%rax, %r14
 	movq	40($inp), %rax
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
+	mov	%rax, %r12		# 40($inp)
 	mulq	%r10
 	addq	%rax, %r15
 	movq	48($inp), %rax
@@ -325,9 +326,8 @@ $code.=<<___;
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
+	mov	%rax, %rbp		# 48($inp)
 	mulq	%r10
-	 movq	%r14, %r12
-	 leaq	(%rcx,%r14,2), %r14	#shld	\$1, %rcx, %r14
 	addq	%rax, %r8
 	movq	56($inp), %rax
 	adcq	\$0, %rdx
@@ -336,32 +336,33 @@ $code.=<<___;
 	adcq	\$0, %rbx
 
 	mulq	%r10
-	 shrq	\$63, %r12
 	addq	%rax, %r9
 	movq	%r10, %rax
 	adcq	\$0, %rdx
 	addq	%rbx, %r9
-	movq	%rdx, %r10
-	adcq	\$0, %r10
+	adcq	\$0, %rdx
 
-	movq	%r15, %rbx
-	leaq	(%r12,%r15,2),%r15	#shld	\$1, %r14, %r15
+	xorq	%rbx, %rbx		# rbx:r13:r14 = r13:r14 << 1
+	addq	%r13, %r13
+	 movq	%rdx, %r10
+	adcq	%r14, %r14
+	adcq	\$0, %rbx
 
 	mulq	%rax
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	addq	%rcx, %rax
 	addq	%rax, %r13
+	 movq	%r12, %rax		# 40($inp)
 	adcq	%rdx, %r14
-	adcq	\$0, %r15
+	adcq	\$0, %rbx
 
 	movq	%r13, 48(%rsp)
 	movq	%r14, 56(%rsp)
-	shrq	\$63, %rbx
 
 #fifth iteration
-	movq	32($inp), %r11
-	movq	40($inp), %rax
 	mulq	%r11
 	addq	%rax, %r8
-	movq	48($inp), %rax
+	movq	%rbp, %rax		# 48($inp)
 	movq	%rdx, %rcx
 	adcq	\$0, %rcx
 
@@ -369,97 +370,99 @@ $code.=<<___;
 	addq	%rax, %r9
 	movq	56($inp), %rax
 	adcq	\$0, %rdx
-	 movq	%r8, %r12
-	 leaq	(%rbx,%r8,2), %r8	#shld	\$1, %rbx, %r8
 	addq	%rcx, %r9
 	movq	%rdx, %rcx
 	adcq	\$0, %rcx
 
+	mov	%rax, %r14		# 56($inp)
 	mulq	%r11
-	 shrq	\$63, %r12
 	addq	%rax, %r10
 	movq	%r11, %rax
 	adcq	\$0, %rdx
 	addq	%rcx, %r10
-	movq	%rdx, %r11
-	adcq	\$0, %r11
+	adcq	\$0, %rdx
 
-	movq	%r9, %rcx
-	leaq	(%r12,%r9,2), %r9	#shld	\$1, %r8, %r9
+	xorq	%rcx, %rcx		# rcx:r8:r15 = r8:r15 << 1
+	addq	%r15, %r15
+	 movq	%rdx, %r11
+	adcq	%r8, %r8
+	adcq	\$0, %rcx
 
 	mulq	%rax
+	# rbx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	addq	%rbx, %rax
 	addq	%rax, %r15
+	 movq	%rbp, %rax		# 48($inp)
 	adcq	%rdx, %r8
-	adcq	\$0, %r9
+	adcq	\$0, %rcx
 
 	movq	%r15, 64(%rsp)
 	movq	%r8, 72(%rsp)
-	shrq	\$63, %rcx
 
 #sixth iteration
-	movq	40($inp), %r12
-	movq	48($inp), %rax
 	mulq	%r12
 	addq	%rax, %r10
-	movq	56($inp), %rax
+	movq	%r14, %rax		# 56($inp)
 	movq	%rdx, %rbx
 	adcq	\$0, %rbx
 
 	mulq	%r12
 	addq	%rax, %r11
 	movq	%r12, %rax
-	 movq	%r10, %r15
-	 leaq	(%rcx,%r10,2), %r10	#shld	\$1, %rcx, %r10
 	adcq	\$0, %rdx
-	 shrq	\$63, %r15
 	addq	%rbx, %r11
-	movq	%rdx, %r12
-	adcq	\$0, %r12
+	adcq	\$0, %rdx
 
-	movq	%r11, %rbx
-	leaq	(%r15,%r11,2), %r11	#shld	\$1, %r10, %r11
+	xorq	%rbx, %rbx		# rbx:r10:r9 = r10:r9 << 1
+	addq	%r9, %r9
+	 movq	%rdx, %r12
+	adcq	%r10, %r10
+	adcq	\$0, %rbx
 
 	mulq	%rax
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	addq	%rcx, %rax
 	addq	%rax, %r9
+	 movq	%r14, %rax		# 56($inp)
 	adcq	%rdx, %r10
-	adcq	\$0, %r11
+	adcq	\$0, %rbx
 
 	movq	%r9, 80(%rsp)
 	movq	%r10, 88(%rsp)
 
 #seventh iteration
-	movq	48($inp), %r13
-	movq	56($inp), %rax
-	mulq	%r13
+	mulq	%rbp
 	addq	%rax, %r12
-	movq	%r13, %rax
-	movq	%rdx, %r13
-	adcq	\$0, %r13
+	movq	%rbp, %rax
+	adcq	\$0, %rdx
 
-	xorq	%r14, %r14
-	shlq	\$1, %rbx
-	adcq	%r12, %r12		#shld	\$1, %rbx, %r12
-	adcq	%r13, %r13		#shld	\$1, %r12, %r13
-	adcq	%r14, %r14		#shld	\$1, %r13, %r14
+	xorq	%rcx, %rcx		# rcx:r12:r11 = r12:r11 << 1
+	addq	%r11, %r11
+	 movq	%rdx, %r13
+	adcq	%r12, %r12
+	adcq	\$0, %rcx
 
 	mulq	%rax
+	# rbx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	addq	%rbx, %rax
 	addq	%rax, %r11
+	 movq	%r14, %rax		# 56($inp)
 	adcq	%rdx, %r12
-	adcq	\$0, %r13
+	adcq	\$0, %rcx
 
 	movq	%r11, 96(%rsp)
 	movq	%r12, 104(%rsp)
 
 #eighth iteration
-	movq	56($inp), %rax
+	xorq	%rbx, %rbx		# rbx:r13 = r13 << 1
+	addq	%r13, %r13
+	adcq	\$0, %rbx
+
 	mulq	%rax
-	addq	%rax, %r13
-	adcq	\$0, %rdx
-
-	addq	%rdx, %r14
-
-	movq	%r13, 112(%rsp)
-	movq	%r14, 120(%rsp)
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	addq	%rcx, %rax
+	addq	%r13, %rax
+	adcq	%rbx, %rdx
 
 	movq	(%rsp), %r8
 	movq	8(%rsp), %r9
@@ -469,6 +472,10 @@ $code.=<<___;
 	movq	40(%rsp), %r13
 	movq	48(%rsp), %r14
 	movq	56(%rsp), %r15
+	movq	%xmm1, %rbp
+
+	movq	%rax, 112(%rsp)
+	movq	%rdx, 120(%rsp)
 
 	call	__rsaz_512_reduce
 
@@ -500,9 +507,9 @@ $code.=<<___;
 .Loop_sqrx:
 	movl	$times,128+8(%rsp)
 	movq	$out, %xmm0		# off-load
-	movq	%rbp, %xmm1		# off-load
 #first iteration
 	mulx	%rax, %r8, %r9
+	mov	%rax, %rbx
 
 	mulx	16($inp), %rcx, %r10
 	xor	%rbp, %rbp		# cf=0, of=0
@@ -510,40 +517,39 @@ $code.=<<___;
 	mulx	24($inp), %rax, %r11
 	adcx	%rcx, %r9
 
-	mulx	32($inp), %rcx, %r12
+	.byte	0xc4,0x62,0xf3,0xf6,0xa6,0x20,0x00,0x00,0x00	# mulx	32($inp), %rcx, %r12
 	adcx	%rax, %r10
 
-	mulx	40($inp), %rax, %r13
+	.byte	0xc4,0x62,0xfb,0xf6,0xae,0x28,0x00,0x00,0x00	# mulx	40($inp), %rax, %r13
 	adcx	%rcx, %r11
 
-	.byte	0xc4,0x62,0xf3,0xf6,0xb6,0x30,0x00,0x00,0x00	# mulx	48($inp), %rcx, %r14
+	mulx	48($inp), %rcx, %r14
 	adcx	%rax, %r12
 	adcx	%rcx, %r13
 
-	.byte	0xc4,0x62,0xfb,0xf6,0xbe,0x38,0x00,0x00,0x00	# mulx	56($inp), %rax, %r15
+	mulx	56($inp), %rax, %r15
 	adcx	%rax, %r14
 	adcx	%rbp, %r15		# %rbp is 0
 
-	mov	%r9, %rcx
-	shld	\$1, %r8, %r9
-	shl	\$1, %r8
-
-	xor	%ebp, %ebp
-	mulx	%rdx, %rax, %rdx
-	adcx	%rdx, %r8
-	 mov	8($inp), %rdx
-	adcx	%rbp, %r9
+	mulx	%rdx, %rax, $out
+	 mov	%rbx, %rdx		# 8($inp)
+	xor	%rcx, %rcx
+	adox	%r8, %r8
+	adcx	$out, %r8
+	adox	%rbp, %rcx
+	adcx	%rbp, %rcx
 
 	mov	%rax, (%rsp)
 	mov	%r8, 8(%rsp)
 
 #second iteration
-	mulx	16($inp), %rax, %rbx
+	.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x10,0x00,0x00,0x00	# mulx	16($inp), %rax, %rbx
 	adox	%rax, %r10
 	adcx	%rbx, %r11
 
-	.byte	0xc4,0x62,0xc3,0xf6,0x86,0x18,0x00,0x00,0x00	# mulx	24($inp), $out, %r8
+	mulx	24($inp), $out, %r8
 	adox	$out, %r11
+	.byte	0x66
 	adcx	%r8, %r12
 
 	mulx	32($inp), %rax, %rbx
@@ -561,24 +567,25 @@ $code.=<<___;
 	.byte	0xc4,0x62,0xc3,0xf6,0x86,0x38,0x00,0x00,0x00	# mulx	56($inp), $out, %r8
 	adox	$out, %r15
 	adcx	%rbp, %r8
+	 mulx	%rdx, %rax, $out
 	adox	%rbp, %r8
+	 .byte	0x48,0x8b,0x96,0x10,0x00,0x00,0x00		# mov	16($inp), %rdx
 
-	mov	%r11, %rbx
-	shld	\$1, %r10, %r11
-	shld	\$1, %rcx, %r10
-
-	xor	%ebp,%ebp
-	mulx	%rdx, %rax, %rcx
-	 mov	16($inp), %rdx
+	xor	%rbx, %rbx
+	 adox	%r9, %r9
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	adcx	%rcx, %rax
+	adox	%r10, %r10
 	adcx	%rax, %r9
-	adcx	%rcx, %r10
-	adcx	%rbp, %r11
+	adox	%rbp, %rbx
+	adcx	$out, %r10
+	adcx	%rbp, %rbx
 
 	mov	%r9, 16(%rsp)
 	.byte	0x4c,0x89,0x94,0x24,0x18,0x00,0x00,0x00		# mov	%r10, 24(%rsp)
 
 #third iteration
-	.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x18,0x00,0x00,0x00	# mulx	24($inp), $out, %r9
+	mulx	24($inp), $out, %r9
 	adox	$out, %r12
 	adcx	%r9, %r13
 
@@ -586,7 +593,7 @@ $code.=<<___;
 	adox	%rax, %r13
 	adcx	%rcx, %r14
 
-	mulx	40($inp), $out, %r9
+	.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x28,0x00,0x00,0x00	# mulx	40($inp), $out, %r9
 	adox	$out, %r14
 	adcx	%r9, %r15
 
@@ -594,27 +601,28 @@ $code.=<<___;
 	adox	%rax, %r15
 	adcx	%rcx, %r8
 
-	.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x38,0x00,0x00,0x00	# mulx	56($inp), $out, %r9
+	mulx	56($inp), $out, %r9
 	adox	$out, %r8
 	adcx	%rbp, %r9
+	 mulx	%rdx, %rax, $out
 	adox	%rbp, %r9
-
-	mov	%r13, %rcx
-	shld	\$1, %r12, %r13
-	shld	\$1, %rbx, %r12
-
-	xor	%ebp, %ebp
-	mulx	%rdx, %rax, %rdx
-	adcx	%rax, %r11
-	adcx	%rdx, %r12
 	 mov	24($inp), %rdx
-	adcx	%rbp, %r13
+
+	xor	%rcx, %rcx
+	 adox	%r11, %r11
+	# rbx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	adcx	%rbx, %rax
+	adox	%r12, %r12
+	adcx	%rax, %r11
+	adox	%rbp, %rcx
+	adcx	$out, %r12
+	adcx	%rbp, %rcx
 
 	mov	%r11, 32(%rsp)
-	.byte	0x4c,0x89,0xa4,0x24,0x28,0x00,0x00,0x00		# mov	%r12, 40(%rsp)
+	mov	%r12, 40(%rsp)
 
 #fourth iteration
-	.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x20,0x00,0x00,0x00	# mulx	32($inp), %rax, %rbx
+	mulx	32($inp), %rax, %rbx
 	adox	%rax, %r14
 	adcx	%rbx, %r15
 
@@ -629,25 +637,25 @@ $code.=<<___;
 	mulx	56($inp), $out, %r10
 	adox	$out, %r9
 	adcx	%rbp, %r10
+	 mulx	%rdx, %rax, $out
 	adox	%rbp, %r10
-
-	.byte	0x66
-	mov	%r15, %rbx
-	shld	\$1, %r14, %r15
-	shld	\$1, %rcx, %r14
-
-	xor	%ebp, %ebp
-	mulx	%rdx, %rax, %rdx
-	adcx	%rax, %r13
-	adcx	%rdx, %r14
 	 mov	32($inp), %rdx
-	adcx	%rbp, %r15
+
+	xor	%rbx, %rbx
+	 adox	%r13, %r13
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	adcx	%rcx, %rax
+	adox	%r14, %r14
+	adcx	%rax, %r13
+	adox	%rbp, %rbx
+	adcx	$out, %r14
+	adcx	%rbp, %rbx
 
 	mov	%r13, 48(%rsp)
 	mov	%r14, 56(%rsp)
 
 #fifth iteration
-	.byte	0xc4,0x62,0xc3,0xf6,0x9e,0x28,0x00,0x00,0x00	# mulx	40($inp), $out, %r11
+	mulx	40($inp), $out, %r11
 	adox	$out, %r8
 	adcx	%r11, %r9
 
@@ -658,18 +666,19 @@ $code.=<<___;
 	mulx	56($inp), $out, %r11
 	adox	$out, %r10
 	adcx	%rbp, %r11
+	 mulx	%rdx, %rax, $out
+	 mov	40($inp), %rdx
 	adox	%rbp, %r11
 
-	mov	%r9, %rcx
-	shld	\$1, %r8, %r9
-	shld	\$1, %rbx, %r8
-
-	xor	%ebp, %ebp
-	mulx	%rdx, %rax, %rdx
+	xor	%rcx, %rcx
+	 adox	%r15, %r15
+	# rbx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	adcx	%rbx, %rax
+	adox	%r8, %r8
 	adcx	%rax, %r15
-	adcx	%rdx, %r8
-	 mov	40($inp), %rdx
-	adcx	%rbp, %r9
+	adox	%rbp, %rcx
+	adcx	$out, %r8
+	adcx	%rbp, %rcx
 
 	mov	%r15, 64(%rsp)
 	mov	%r8, 72(%rsp)
@@ -682,18 +691,19 @@ $code.=<<___;
 	.byte	0xc4,0x62,0xc3,0xf6,0xa6,0x38,0x00,0x00,0x00	# mulx	56($inp), $out, %r12
 	adox	$out, %r11
 	adcx	%rbp, %r12
+	 mulx	%rdx, %rax, $out
 	adox	%rbp, %r12
-
-	mov	%r11, %rbx
-	shld	\$1, %r10, %r11
-	shld	\$1, %rcx, %r10
-
-	xor	%ebp, %ebp
-	mulx	%rdx, %rax, %rdx
-	adcx	%rax, %r9
-	adcx	%rdx, %r10
 	 mov	48($inp), %rdx
-	adcx	%rbp, %r11
+
+	xor	%rbx, %rbx
+	 adox	%r9, %r9
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	adcx	%rcx, %rax
+	adox	%r10, %r10
+	adcx	%rax, %r9
+	adcx	$out, %r10
+	adox	%rbp, %rbx
+	adcx	%rbp, %rbx
 
 	mov	%r9, 80(%rsp)
 	mov	%r10, 88(%rsp)
@@ -703,31 +713,31 @@ $code.=<<___;
 	adox	%rax, %r12
 	adox	%rbp, %r13
 
-	xor	%r14, %r14
-	shld	\$1, %r13, %r14
-	shld	\$1, %r12, %r13
-	shld	\$1, %rbx, %r12
-
-	xor	%ebp, %ebp
-	mulx	%rdx, %rax, %rdx
-	adcx	%rax, %r11
-	adcx	%rdx, %r12
+	mulx	%rdx, %rax, $out
+	xor	%rcx, %rcx
 	 mov	56($inp), %rdx
-	adcx	%rbp, %r13
+	 adox	%r11, %r11
+	# rbx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	adcx	%rbx, %rax
+	adox	%r12, %r12
+	adcx	%rax, %r11
+	adox	%rbp, %rcx
+	adcx	$out, %r12
+	adcx	%rbp, %rcx
 
 	.byte	0x4c,0x89,0x9c,0x24,0x60,0x00,0x00,0x00		# mov	%r11, 96(%rsp)
 	.byte	0x4c,0x89,0xa4,0x24,0x68,0x00,0x00,0x00		# mov	%r12, 104(%rsp)
 
 #eighth iteration
 	mulx	%rdx, %rax, %rdx
-	adox	%rax, %r13
-	adox	%rbp, %rdx
+	xor	%rbx, %rbx
+	 adox	%r13, %r13
+	# rcx <= 2 and rax <= 0xFFFF..F9, so carry must be zero here
+	adcx	%rcx, %rax
+	adox	%rbp, %rbx
+	adcx	%r13, %rax
+	adcx	%rdx, %rbx
 
-	.byte	0x66
-	add	%rdx, %r14
-
-	movq	%r13, 112(%rsp)
-	movq	%r14, 120(%rsp)
 	movq	%xmm0, $out
 	movq	%xmm1, %rbp
 
@@ -740,6 +750,9 @@ $code.=<<___;
 	movq	40(%rsp), %r13
 	movq	48(%rsp), %r14
 	movq	56(%rsp), %r15
+
+	movq	%rax, 112(%rsp)
+	movq	%rbx, 120(%rsp)
 
 	call	__rsaz_512_reducex
 
@@ -1606,6 +1619,7 @@ $code.=<<___;
 .type	__rsaz_512_reduce,\@abi-omnipotent
 .align	32
 __rsaz_512_reduce:
+.cfi_startproc
 	movq	%r8, %rbx
 	imulq	128+8(%rsp), %rbx
 	movq	0(%rbp), %rax
@@ -1685,6 +1699,7 @@ __rsaz_512_reduce:
 	jne	.Lreduction_loop
 
 	ret
+.cfi_endproc
 .size	__rsaz_512_reduce,.-__rsaz_512_reduce
 ___
 }
@@ -1698,6 +1713,7 @@ $code.=<<___;
 .type	__rsaz_512_reducex,\@abi-omnipotent
 .align	32
 __rsaz_512_reducex:
+.cfi_startproc
 	#movq	128+8(%rsp), %rdx		# pull $n0
 	imulq	%r8, %rdx
 	xorq	%rsi, %rsi			# cf=0,of=0
@@ -1750,6 +1766,7 @@ __rsaz_512_reducex:
 	jne	.Lreduction_loopx
 
 	ret
+.cfi_endproc
 .size	__rsaz_512_reducex,.-__rsaz_512_reducex
 ___
 }
@@ -1761,6 +1778,7 @@ $code.=<<___;
 .type	__rsaz_512_subtract,\@abi-omnipotent
 .align	32
 __rsaz_512_subtract:
+.cfi_startproc
 	movq	%r8, ($out)
 	movq	%r9, 8($out)
 	movq	%r10, 16($out)
@@ -1814,6 +1832,7 @@ __rsaz_512_subtract:
 	movq	%r15, 56($out)
 
 	ret
+.cfi_endproc
 .size	__rsaz_512_subtract,.-__rsaz_512_subtract
 ___
 }
@@ -1827,6 +1846,7 @@ $code.=<<___;
 .type	__rsaz_512_mul,\@abi-omnipotent
 .align	32
 __rsaz_512_mul:
+.cfi_startproc
 	leaq	8(%rsp), %rdi
 
 	movq	($ap), %rax
@@ -1965,6 +1985,7 @@ __rsaz_512_mul:
 	movq	%r15, 56(%rdi)
 
 	ret
+.cfi_endproc
 .size	__rsaz_512_mul,.-__rsaz_512_mul
 ___
 }
@@ -1979,6 +2000,7 @@ $code.=<<___;
 .type	__rsaz_512_mulx,\@abi-omnipotent
 .align	32
 __rsaz_512_mulx:
+.cfi_startproc
 	mulx	($ap), %rbx, %r8	# initial %rdx preloaded by caller
 	mov	\$-6, %rcx
 
@@ -2095,6 +2117,7 @@ __rsaz_512_mulx:
 	mov	%r15, 8+64+56(%rsp)
 
 	ret
+.cfi_endproc
 .size	__rsaz_512_mulx,.-__rsaz_512_mulx
 ___
 }
@@ -2105,6 +2128,7 @@ $code.=<<___;
 .type	rsaz_512_scatter4,\@abi-omnipotent
 .align	16
 rsaz_512_scatter4:
+.cfi_startproc
 	leaq	($out,$power,8), $out
 	movl	\$8, %r9d
 	jmp	.Loop_scatter
@@ -2117,12 +2141,14 @@ rsaz_512_scatter4:
 	decl	%r9d
 	jnz	.Loop_scatter
 	ret
+.cfi_endproc
 .size	rsaz_512_scatter4,.-rsaz_512_scatter4
 
 .globl	rsaz_512_gather4
 .type	rsaz_512_gather4,\@abi-omnipotent
 .align	16
 rsaz_512_gather4:
+.cfi_startproc
 ___
 $code.=<<___	if ($win64);
 .LSEH_begin_rsaz_512_gather4:
@@ -2217,6 +2243,7 @@ ___
 $code.=<<___;
 	ret
 .LSEH_end_rsaz_512_gather4:
+.cfi_endproc
 .size	rsaz_512_gather4,.-rsaz_512_gather4
 
 .align	64
@@ -2401,4 +2428,4 @@ ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;
 print $code;
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

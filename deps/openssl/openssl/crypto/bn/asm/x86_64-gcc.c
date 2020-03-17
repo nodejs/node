@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "../bn_lcl.h"
+#include "../bn_local.h"
 #if !(defined(__GNUC__) && __GNUC__>=2)
 # include "../bn_asm.c"         /* kind of dirty hack for Sun Studio */
 #else

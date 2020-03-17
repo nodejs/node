@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -138,11 +138,12 @@ $code=<<___;
 .globl	RC4
 .type	RC4,\@function,4
 .align	16
-RC4:	or	$len,$len
+RC4:
+.cfi_startproc
+	or	$len,$len
 	jne	.Lentry
 	ret
 .Lentry:
-.cfi_startproc
 	push	%rbx
 .cfi_push	%rbx
 	push	%r12
@@ -453,6 +454,7 @@ $code.=<<___;
 .type	RC4_set_key,\@function,3
 .align	16
 RC4_set_key:
+.cfi_startproc
 	lea	8($dat),$dat
 	lea	($inp,$len),$inp
 	neg	$len
@@ -519,12 +521,14 @@ RC4_set_key:
 	mov	%eax,-8($dat)
 	mov	%eax,-4($dat)
 	ret
+.cfi_endproc
 .size	RC4_set_key,.-RC4_set_key
 
 .globl	RC4_options
 .type	RC4_options,\@abi-omnipotent
 .align	16
 RC4_options:
+.cfi_startproc
 	lea	.Lopts(%rip),%rax
 	mov	OPENSSL_ia32cap_P(%rip),%edx
 	bt	\$20,%edx
@@ -537,6 +541,7 @@ RC4_options:
 	add	\$12,%rax
 .Ldone:
 	ret
+.cfi_endproc
 .align	64
 .Lopts:
 .asciz	"rc4(8x,int)"
@@ -693,4 +698,4 @@ $code =~ s/\`([^\`]*)\`/eval $1/gem;
 
 print $code;
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

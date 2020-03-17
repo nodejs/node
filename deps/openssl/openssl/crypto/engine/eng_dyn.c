@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "eng_int.h"
+#include "eng_local.h"
 #include "internal/dso.h"
 #include <openssl/crypto.h>
 

@@ -12,7 +12,7 @@
  */
 
 #include <stdio.h>
-#include "bio_lcl.h"
+#include "bio_local.h"
 
 #define DUMP_WIDTH      16
 #define DUMP_WIDTH_LESS_INDENT(i) (DUMP_WIDTH - ((i - (i > 6 ? 6 : i) + 3) / 4))
@@ -36,8 +36,8 @@ int BIO_dump_indent_cb(int (*cb) (const void *data, size_t len, void *u),
 
     if (indent < 0)
         indent = 0;
-    else if (indent > 128)
-        indent = 128;
+    else if (indent > 64)
+        indent = 64;
 
     dump_width = DUMP_WIDTH_LESS_INDENT(indent);
     rows = len / dump_width;

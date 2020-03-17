@@ -13,7 +13,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/evp.h>
 #include <openssl/cmac.h>
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 /* The context structure and "key" is simply a CMAC_CTX */
 

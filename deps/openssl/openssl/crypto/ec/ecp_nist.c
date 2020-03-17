@@ -12,7 +12,7 @@
 
 #include <openssl/err.h>
 #include <openssl/obj_mac.h>
-#include "ec_lcl.h"
+#include "ec_local.h"
 
 const EC_METHOD *EC_GFp_nist_method(void)
 {

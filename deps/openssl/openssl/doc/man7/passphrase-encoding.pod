@@ -65,7 +65,7 @@ A pass phrase encoded in ISO-8859-2 could very well have a sequence such as
 0xC3 0xAF (which is the two characters "LATIN CAPITAL LETTER A WITH BREVE"
 and "LATIN CAPITAL LETTER Z WITH DOT ABOVE" in ISO-8859-2 encoding), but would
 be misinterpreted as the perfectly valid UTF-8 encoded code point U+00EF (LATIN
-SMALL LETTER I WITH DIARESIS) I<if the pass phrase doesn't contain anything that
+SMALL LETTER I WITH DIAERESIS) I<if the pass phrase doesn't contain anything that
 would be invalid UTF-8>.
 A pass phrase that contains this kind of byte sequence will give a different
 outcome in OpenSSL 1.1.0 and newer than in OpenSSL older than 1.1.0.
@@ -170,7 +170,7 @@ L<d2i_PKCS8PrivateKey_bio(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -14,7 +14,7 @@
 #include <openssl/asn1.h>
 #include <openssl/bio.h>
 
-#include "ct_locl.h"
+#include "ct_local.h"
 
 static void SCT_signature_algorithms_print(const SCT *sct, BIO *out)
 {

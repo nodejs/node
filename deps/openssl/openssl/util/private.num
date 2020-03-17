@@ -75,11 +75,15 @@ X509_STORE_CTX_lookup_crls_fn           datatype
 X509_STORE_CTX_verify_cb                datatype
 X509_STORE_CTX_verify_fn                datatype
 X509_STORE_set_verify_cb_func           datatype
+X509_LOOKUP                             datatype
+X509_LOOKUP_METHOD                      datatype
+X509_LOOKUP_TYPE                        datatype
 X509_LOOKUP_get_by_alias_fn             datatype
 X509_LOOKUP_get_by_subject_fn           datatype
 X509_LOOKUP_get_by_fingerprint_fn       datatype
 X509_LOOKUP_ctrl_fn                     datatype
 X509_LOOKUP_get_by_issuer_serial_fn     datatype
+X509_STORE                              datatype
 bio_info_cb                             datatype
 BIO_info_cb                             datatype
 custom_ext_add_cb                       datatype
@@ -228,6 +232,8 @@ EVP_PKEY_CTX_set_dh_pad                 define
 EVP_PKEY_CTX_set_dh_rfc5114             define
 EVP_PKEY_CTX_set_dhx_rfc5114            define
 EVP_PKEY_CTX_set_dsa_paramgen_bits      define
+EVP_PKEY_CTX_set_dsa_paramgen_q_bits    define
+EVP_PKEY_CTX_set_dsa_paramgen_md        define
 EVP_PKEY_CTX_set_ec_param_enc           define
 EVP_PKEY_CTX_set_ec_paramgen_curve_nid  define
 EVP_PKEY_CTX_set_ecdh_cofactor_mode     define
@@ -450,6 +456,8 @@ SSL_want_x509_lookup                    define
 SSLv23_client_method                    define
 SSLv23_method                           define
 SSLv23_server_method                    define
+X509_LOOKUP_add_dir                     define
+X509_LOOKUP_load_file                   define
 X509_STORE_set_lookup_crls_cb           define
 X509_STORE_set_verify_func              define
 EVP_PKEY_CTX_set1_id                    define

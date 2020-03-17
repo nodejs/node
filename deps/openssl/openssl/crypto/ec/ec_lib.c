@@ -13,7 +13,7 @@
 #include <openssl/err.h>
 #include <openssl/opensslv.h>
 
-#include "ec_lcl.h"
+#include "ec_local.h"
 
 /* functions for EC_GROUP objects */
 

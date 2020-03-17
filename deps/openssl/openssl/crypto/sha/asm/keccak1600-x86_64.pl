@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the OpenSSL license (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -44,7 +44,7 @@
 # Ryzen			8.8
 #
 # (*)	Corresponds to SHA3-256. Improvement over compiler-generate
-#	varies a lot, most commont coefficient is 15% in comparison to
+#	varies a lot, most common coefficient is 15% in comparison to
 #	gcc-5.x, 50% for gcc-4.x, 90% for gcc-3.x.
 # (**)	Sandy Bridge has broken rotate instruction. Performance can be
 #	improved by 14% by replacing rotates with double-precision
@@ -84,6 +84,7 @@ $code.=<<___;
 .type	__KeccakF1600,\@abi-omnipotent
 .align	32
 __KeccakF1600:
+.cfi_startproc
 	mov	$A[4][0](%rdi),@C[0]
 	mov	$A[4][1](%rdi),@C[1]
 	mov	$A[4][2](%rdi),@C[2]
@@ -342,6 +343,7 @@ $code.=<<___;
 
 	lea	-192($iotas),$iotas	# rewind iotas
 	ret
+.cfi_endproc
 .size	__KeccakF1600,.-__KeccakF1600
 
 .type	KeccakF1600,\@abi-omnipotent
@@ -604,4 +606,4 @@ foreach (split("\n",$code)) {
 	print $_, "\n";
 }
 
-close STDOUT;
+close STDOUT or die "error closing STDOUT: $!";

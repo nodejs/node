@@ -37,7 +37,7 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/kdf.h>
-#include "../ssl/packet_locl.h"
+#include "../ssl/packet_local.h"
 #include "internal/nelem.h"
 #include "testutil.h"
 

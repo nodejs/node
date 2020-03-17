@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,10 +11,10 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#include "rand_lcl.h"
+#include "rand_local.h"
 #include "internal/thread_once.h"
-#include "internal/rand_int.h"
-#include "internal/cryptlib_int.h"
+#include "crypto/rand.h"
+#include "crypto/cryptlib.h"
 
 /*
  * Support framework for NIST SP 800-90A DRBG
@@ -1044,7 +1044,7 @@ static int drbg_add(const void *buf, int num, double randomness)
         return ret;
 #else
         /*
-         * If an os entropy source is avaible then we declare the buffer content
+         * If an os entropy source is available then we declare the buffer content
          * as additional data by setting randomness to zero and trigger a regular
          * reseeding.
          */

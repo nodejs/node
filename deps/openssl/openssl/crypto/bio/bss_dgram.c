@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "bio_lcl.h"
+#include "bio_local.h"
 #ifndef OPENSSL_NO_DGRAM
 
 # ifndef OPENSSL_NO_SCTP

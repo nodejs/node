@@ -12,7 +12,7 @@
 #include <openssl/objects.h>
 #include <openssl/ts.h>
 #include <openssl/pkcs7.h>
-#include "ts_lcl.h"
+#include "ts_local.h"
 
 static int ts_verify_cert(X509_STORE *store, STACK_OF(X509) *untrusted,
                           X509 *signer, STACK_OF(X509) **chain);

@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#ifndef HEADER_HANDSHAKE_HELPER_H
-#define HEADER_HANDSHAKE_HELPER_H
+#ifndef OSSL_TEST_HANDSHAKE_HELPER_H
+#define OSSL_TEST_HANDSHAKE_HELPER_H
 
 #include "ssl_test_ctx.h"
 
@@ -78,4 +78,4 @@ HANDSHAKE_RESULT *do_handshake(SSL_CTX *server_ctx, SSL_CTX *server2_ctx,
                                SSL_CTX *resume_client_ctx,
                                const SSL_TEST_CTX *test_ctx);
 
-#endif  /* HEADER_HANDSHAKE_HELPER_H */
+#endif  /* OSSL_TEST_HANDSHAKE_HELPER_H */

@@ -15,7 +15,7 @@
 
 #include "point_448.h"
 #include "ed448.h"
-#include "curve448_lcl.h"
+#include "curve448_local.h"
 
 #define COFACTOR 4
 

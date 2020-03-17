@@ -2,7 +2,10 @@
 
 =head1 NAME
 
-SSL_load_client_CA_file - load certificate names from file
+SSL_load_client_CA_file,
+SSL_add_file_cert_subjects_to_stack,
+SSL_add_dir_cert_subjects_to_stack
+- load certificate names
 
 =head1 SYNOPSIS
 
@@ -10,10 +13,22 @@ SSL_load_client_CA_file - load certificate names from file
 
  STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file);
 
+ int SSL_add_file_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
+                                         const char *file)
+ int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
+                                        const char *dir)
+
 =head1 DESCRIPTION
 
-SSL_load_client_CA_file() reads certificates from B<file> and returns
+SSL_load_client_CA_file() reads certificates from I<file> and returns
 a STACK_OF(X509_NAME) with the subject names found.
+
+SSL_add_file_cert_subjects_to_stack() reads certificates from I<file>,
+and adds their subject name to the already existing I<stack>.
+
+SSL_add_dir_cert_subjects_to_stack() reads certificates from every
+file in the directory I<dir>, and adds their subject name to the
+already existing I<stack>.
 
 =head1 NOTES
 

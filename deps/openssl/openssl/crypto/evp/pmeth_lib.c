@@ -13,8 +13,8 @@
 #include <openssl/engine.h>
 #include <openssl/evp.h>
 #include <openssl/x509v3.h>
-#include "internal/asn1_int.h"
-#include "internal/evp_int.h"
+#include "crypto/asn1.h"
+#include "crypto/evp.h"
 #include "internal/numbers.h"
 
 typedef int sk_cmp_fn_type(const char *const *a, const char *const *b);
@@ -642,6 +642,21 @@ void EVP_PKEY_meth_set_ctrl(EVP_PKEY_METHOD *pmeth,
     pmeth->ctrl_str = ctrl_str;
 }
 
+void EVP_PKEY_meth_set_digestsign(EVP_PKEY_METHOD *pmeth,
+    int (*digestsign) (EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen,
+                       const unsigned char *tbs, size_t tbslen))
+{
+    pmeth->digestsign = digestsign;
+}
+
+void EVP_PKEY_meth_set_digestverify(EVP_PKEY_METHOD *pmeth,
+    int (*digestverify) (EVP_MD_CTX *ctx, const unsigned char *sig,
+                         size_t siglen, const unsigned char *tbs,
+                         size_t tbslen))
+{
+    pmeth->digestverify = digestverify;
+}
+
 void EVP_PKEY_meth_set_check(EVP_PKEY_METHOD *pmeth,
                              int (*check) (EVP_PKEY *pkey))
 {
@@ -832,6 +847,23 @@ void EVP_PKEY_meth_get_ctrl(const EVP_PKEY_METHOD *pmeth,
         *pctrl = pmeth->ctrl;
     if (pctrl_str)
         *pctrl_str = pmeth->ctrl_str;
+}
+
+void EVP_PKEY_meth_get_digestsign(EVP_PKEY_METHOD *pmeth,
+    int (**digestsign) (EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen,
+                        const unsigned char *tbs, size_t tbslen))
+{
+    if (digestsign)
+        *digestsign = pmeth->digestsign;
+}
+
+void EVP_PKEY_meth_get_digestverify(EVP_PKEY_METHOD *pmeth,
+    int (**digestverify) (EVP_MD_CTX *ctx, const unsigned char *sig,
+                          size_t siglen, const unsigned char *tbs,
+                          size_t tbslen))
+{
+    if (digestverify)
+        *digestverify = pmeth->digestverify;
 }
 
 void EVP_PKEY_meth_get_check(const EVP_PKEY_METHOD *pmeth,

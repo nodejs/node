@@ -171,6 +171,26 @@ The functions EC_POINT_point2oct(), EC_POINT_oct2point(), EC_POINT_point2bn(),
 EC_POINT_bn2point(), EC_POINT_point2hex() and EC_POINT_hex2point() convert from
 and to EC_POINTs for the formats: octet, BIGNUM and hexadecimal respectively.
 
+The function EC_POINT_point2oct() encodes the given curve point B<p> as an
+octet string into the buffer B<buf> of size B<len>, using the specified
+conversion form B<form>.
+The encoding conforms with Sec. 2.3.3 of the SECG SEC 1 ("Elliptic Curve
+Cryptography") standard.
+Similarly the function EC_POINT_oct2point() decodes a curve point into B<p> from
+the octet string contained in the given buffer B<buf> of size B<len>, conforming
+to Sec. 2.3.4 of the SECG SEC 1 ("Elliptic Curve Cryptography") standard.
+
+The functions EC_POINT_point2hex() and EC_POINT_point2bn() convert a point B<p>,
+respectively, to the hexadecimal or BIGNUM representation of the same
+encoding of the function EC_POINT_point2oct().
+Vice versa, similarly to the function EC_POINT_oct2point(), the functions
+EC_POINT_hex2point() and EC_POINT_point2bn() decode the hexadecimal or
+BIGNUM representation into the EC_POINT B<p>.
+
+Notice that, according to the standard, the octet string encoding of the point
+at infinity for a given curve is fixed to a single octet of value zero and that,
+vice versa, a single octet of size zero is decoded as the point at infinity.
+
 The function EC_POINT_point2oct() must be supplied with a buffer long enough to
 store the octet form. The return value provides the number of octets stored.
 Calling the function with a NULL buffer will not perform the conversion but

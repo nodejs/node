@@ -9,7 +9,7 @@ for masochists" document *and* a rather extensive commit log message. (I'd get
 lynched for sticking all this in CHANGES or the commit mails :-).
 
 ENGINE_TABLE underlies this restructuring, as described in the internal header
-"eng_int.h", implemented in eng_table.c, and used in each of the "class" files;
+"eng_local.h", implemented in eng_table.c, and used in each of the "class" files;
 tb_rsa.c, tb_dsa.c, etc.
 
 However, "EVP_CIPHER" underlies the motivation and design of ENGINE_TABLE so

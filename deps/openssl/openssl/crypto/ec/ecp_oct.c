@@ -11,7 +11,7 @@
 #include <openssl/err.h>
 #include <openssl/symhacks.h>
 
-#include "ec_lcl.h"
+#include "ec_local.h"
 
 int ec_GFp_simple_set_compressed_coordinates(const EC_GROUP *group,
                                              EC_POINT *point,

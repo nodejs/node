@@ -162,6 +162,12 @@ DH *DSA_dup_DH(const DSA *r);
 # define EVP_PKEY_CTX_set_dsa_paramgen_bits(ctx, nbits) \
         EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DSA, EVP_PKEY_OP_PARAMGEN, \
                                 EVP_PKEY_CTRL_DSA_PARAMGEN_BITS, nbits, NULL)
+# define EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, qbits) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DSA, EVP_PKEY_OP_PARAMGEN, \
+                                EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS, qbits, NULL)
+# define EVP_PKEY_CTX_set_dsa_paramgen_md(ctx, md) \
+        EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_DSA, EVP_PKEY_OP_PARAMGEN, \
+                                EVP_PKEY_CTRL_DSA_PARAMGEN_MD, 0, (void *)(md))
 
 # define EVP_PKEY_CTRL_DSA_PARAMGEN_BITS         (EVP_PKEY_ALG_CTRL + 1)
 # define EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS       (EVP_PKEY_ALG_CTRL + 2)

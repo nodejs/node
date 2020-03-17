@@ -14,7 +14,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 #include <openssl/ocsp.h>
-#include "ocsp_lcl.h"
+#include "ocsp_local.h"
 
 /*
  * Utility functions related to sending OCSP responses and extracting

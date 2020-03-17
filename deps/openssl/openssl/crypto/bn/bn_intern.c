@@ -8,7 +8,7 @@
  */
 
 #include "internal/cryptlib.h"
-#include "bn_lcl.h"
+#include "bn_local.h"
 
 /*
  * Determine the modified width-(w+1) Non-Adjacent Form (wNAF) of 'scalar'.

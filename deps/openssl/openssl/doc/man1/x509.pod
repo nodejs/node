@@ -11,7 +11,7 @@ B<openssl> B<x509>
 [B<-help>]
 [B<-inform DER|PEM>]
 [B<-outform DER|PEM>]
-[B<-keyform DER|PEM>]
+[B<-keyform DER|PEM|ENGINE>]
 [B<-CAform DER|PEM>]
 [B<-CAkeyform DER|PEM>]
 [B<-in filename>]
@@ -44,7 +44,7 @@ B<openssl> B<x509>
 [B<-setalias arg>]
 [B<-days arg>]
 [B<-set_serial n>]
-[B<-signkey filename>]
+[B<-signkey arg>]
 [B<-passin arg>]
 [B<-x509toreq>]
 [B<-req>]
@@ -61,6 +61,7 @@ B<openssl> B<x509>
 [B<-clrext>]
 [B<-extfile filename>]
 [B<-extensions section>]
+[B<-sigopt nm:v>]
 [B<-rand file...>]
 [B<-writerand file>]
 [B<-engine id>]
@@ -349,10 +350,11 @@ can thus behave like a "mini CA".
 
 =over 4
 
-=item B<-signkey filename>
+=item B<-signkey arg>
 
 This option causes the input file to be self signed using the supplied
-private key.
+private key or engine. The private key's format is specified with the
+B<-keyform> option.
 
 If the input file is a certificate it sets the issuer name to the
 subject name (i.e.  makes it self signed) changes the public key to the
@@ -366,6 +368,11 @@ If the input is a certificate request then a self signed certificate
 is created using the supplied private key using the subject name in
 the request.
 
+=item B<-sigopt nm:v>
+
+Pass options to the signature algorithm during sign or verify operations.
+Names and values of these options are algorithm-specific.
+
 =item B<-passin arg>
 
 The key password source. For more information about the format of B<arg>
@@ -378,7 +385,7 @@ certificate is being created from another certificate (for example with
 the B<-signkey> or the B<-CA> options). Normally all extensions are
 retained.
 
-=item B<-keyform PEM|DER>
+=item B<-keyform PEM|DER|ENGINE>
 
 Specifies the format (DER or PEM) of the private key file used in the
 B<-signkey> option.
@@ -925,7 +932,7 @@ the old form must have their links rebuilt using B<c_rehash> or similar.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

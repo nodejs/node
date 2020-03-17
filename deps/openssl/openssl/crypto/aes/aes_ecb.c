@@ -10,7 +10,7 @@
 #include <assert.h>
 
 #include <openssl/aes.h>
-#include "aes_locl.h"
+#include "aes_local.h"
 
 void AES_ecb_encrypt(const unsigned char *in, unsigned char *out,
                      const AES_KEY *key, const int enc)

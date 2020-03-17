@@ -12,11 +12,11 @@
 #include "e_os.h"
 #include "internal/cryptlib.h"
 #include <stdio.h>
-#include "internal/ctype.h"
+#include "crypto/ctype.h"
 #include <openssl/conf.h>
 #include <openssl/crypto.h>
 #include <openssl/x509v3.h>
-#include "internal/x509_int.h"
+#include "crypto/x509.h"
 #include <openssl/bn.h>
 #include "ext_dat.h"
 

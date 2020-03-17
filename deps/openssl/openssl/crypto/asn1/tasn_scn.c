@@ -15,7 +15,7 @@
 #include <openssl/buffer.h>
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
-#include "asn1_locl.h"
+#include "asn1_local.h"
 
 /*
  * General ASN1 structure recursive scanner: iterate through all fields

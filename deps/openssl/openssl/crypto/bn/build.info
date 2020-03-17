@@ -6,7 +6,6 @@ SOURCE[../../libcrypto]=\
         {- $target{bn_asm_src} -} \
         bn_recp.c bn_mont.c bn_mpi.c bn_exp2.c bn_gf2m.c bn_nist.c \
         bn_depr.c bn_const.c bn_x931p.c bn_intern.c bn_dh.c bn_srp.c
-INCLUDE[../../libcrypto]=../../crypto/include
 
 INCLUDE[bn_exp.o]=..
 

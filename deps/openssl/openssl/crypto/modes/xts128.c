@@ -8,7 +8,7 @@
  */
 
 #include <openssl/crypto.h>
-#include "modes_lcl.h"
+#include "modes_local.h"
 #include <string.h>
 
 int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,

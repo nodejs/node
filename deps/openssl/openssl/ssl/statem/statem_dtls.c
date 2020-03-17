@@ -10,8 +10,8 @@
 #include <limits.h>
 #include <string.h>
 #include <stdio.h>
-#include "../ssl_locl.h"
-#include "statem_locl.h"
+#include "../ssl_local.h"
+#include "statem_local.h"
 #include "internal/cryptlib.h"
 #include <openssl/buffer.h>
 #include <openssl/objects.h>

@@ -12,8 +12,8 @@
 #include "internal/cryptlib.h"
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
-#include "internal/evp_int.h"
-#include "evp_locl.h"
+#include "crypto/evp.h"
+#include "evp_local.h"
 #include "internal/bio.h"
 
 /*

@@ -11,7 +11,7 @@
 #include <time.h>
 #include "internal/cryptlib.h"
 #include <openssl/asn1.h>
-#include "asn1_locl.h"
+#include "asn1_local.h"
 
 /* This is the primary function used to parse ASN1_UTCTIME */
 int asn1_utctime_to_tm(struct tm *tm, const ASN1_UTCTIME *d)

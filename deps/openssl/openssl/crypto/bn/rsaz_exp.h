@@ -12,8 +12,8 @@
  * (2) University of Haifa, Israel
  */
 
-#ifndef RSAZ_EXP_H
-# define RSAZ_EXP_H
+#ifndef OSSL_CRYPTO_BN_RSAZ_EXP_H
+# define OSSL_CRYPTO_BN_RSAZ_EXP_H
 
 # undef RSAZ_ENABLED
 # if defined(OPENSSL_BN_ASM_MONT) && \

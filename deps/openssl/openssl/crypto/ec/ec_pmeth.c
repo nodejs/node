@@ -12,9 +12,9 @@
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/ec.h>
-#include "ec_lcl.h"
+#include "ec_local.h"
 #include <openssl/evp.h>
-#include "internal/evp_int.h"
+#include "crypto/evp.h"
 
 /* EC pkey context structure */
 

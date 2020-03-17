@@ -164,6 +164,13 @@ int main(int argc, char *argv[])
     }
 
     prog = prog_init();
+    if (prog == NULL) {
+        BIO_printf(bio_err,
+                   "FATAL: Startup failure (dev note: prog_init() failed)\n");
+        ERR_print_errors(bio_err);
+        ret = 1;
+        goto end;
+    }
     pname = opt_progname(argv[0]);
 
     /* first check the program name */

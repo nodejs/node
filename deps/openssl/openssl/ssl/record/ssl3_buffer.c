@@ -7,8 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "../ssl_locl.h"
-#include "record_locl.h"
+#include "../ssl_local.h"
+#include "record_local.h"
 
 void SSL3_BUFFER_set_data(SSL3_BUFFER *b, const unsigned char *d, size_t n)
 {

@@ -13,7 +13,7 @@
  *    des_enc.c  (DES_ncbc_encrypt)
  */
 
-#include "des_locl.h"
+#include "des_local.h"
 
 #ifdef CBC_ENC_C__DONT_UPDATE_IV
 void DES_cbc_encrypt(const unsigned char *in, unsigned char *out, long length,

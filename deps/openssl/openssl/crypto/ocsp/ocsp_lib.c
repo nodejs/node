@@ -14,7 +14,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 #include <openssl/ocsp.h>
-#include "ocsp_lcl.h"
+#include "ocsp_local.h"
 #include <openssl/asn1t.h>
 
 /* Convert a certificate and its issuer to an OCSP_CERTID */

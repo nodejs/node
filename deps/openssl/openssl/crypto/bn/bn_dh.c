@@ -7,12 +7,12 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "bn_lcl.h"
+#include "bn_local.h"
 #include "internal/nelem.h"
 
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
-#include "internal/bn_dh.h"
+#include "crypto/bn_dh.h"
 /* DH parameters from RFC5114 */
 
 # if BN_BITS2 == 64
