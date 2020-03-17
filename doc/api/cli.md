@@ -1393,17 +1393,17 @@ The V8 team themselves don't consider them to be part of their formal API,
 and reserve the right to change them at any time. The Node.js team does not
 consider them covered by the Node.js stability guarantees. Many of the V8
 options are of interest only to V8 developers. Despite this, there is a small
-set of V8 options that are widely applicable to the Node.js, and they are
-documented here. V8 options that are allowed are:
+set of V8 options that are widely applicable to Node.js, and they are
+documented here:
 
 ### `--max-old-space-size=SIZE` (in Mbytes)
 
-Sets the max memory size of V8 old memory section. As memory
+Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
 garbage collection in an effort to free unused memory.
 
-On a machine with 2GB of memory it suggested to set 1.5GB
-to leave some memory for other uses and avoid swapping.
+On a machine with 2GB of memory it is suggested to set this to
+1536 (1.5GB) to leave some memory for other uses and avoid swapping.
 
 E.g. `node --max-old-space-size=1536 index.js`
 
