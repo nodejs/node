@@ -717,6 +717,7 @@
       'RC4_ASM',
       'MD5_ASM',
       'RMD160_ASM',
+      'AESNI_ASM',
       'VPAES_ASM',
       'WHIRLPOOL_ASM',
       'GHASH_ASM',
@@ -725,9 +726,9 @@
     ],
     'openssl_cflags_VC-WIN32': [
       '-Wa,--noexecstack',
-      '/W3 /wd4090 /nologo /O2 /WX',
+      '/W3 /wd4090 /nologo /O2',
       '/Gs0 /GF /Gy',
-      '/W3 /wd4090 /nologo /O2 /WX',
+      '/W3 /wd4090 /nologo /O2',
     ],
     'openssl_ex_libs_VC-WIN32': [
       'ws2_32.lib gdi32.lib advapi32.lib crypt32.lib user32.lib',

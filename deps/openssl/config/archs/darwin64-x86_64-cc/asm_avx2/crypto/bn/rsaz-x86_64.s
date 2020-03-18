@@ -23,7 +23,7 @@ _rsaz_512_sqr:
 	subq	$128+24,%rsp
 
 L$sqr_body:
-	movq	%rdx,%rbp
+.byte	102,72,15,110,202
 	movq	(%rsi),%rdx
 	movq	8(%rsi),%rax
 	movq	%rcx,128(%rsp)
@@ -38,6 +38,7 @@ L$oop_sqr:
 	movl	%r8d,128+8(%rsp)
 
 	movq	%rdx,%rbx
+	movq	%rax,%rbp
 	mulq	%rdx
 	movq	%rax,%r8
 	movq	16(%rsi),%rax
@@ -76,31 +77,29 @@ L$oop_sqr:
 	mulq	%rbx
 	addq	%rax,%r14
 	movq	%rbx,%rax
-	movq	%rdx,%r15
-	adcq	$0,%r15
+	adcq	$0,%rdx
 
+	xorq	%rcx,%rcx
 	addq	%r8,%r8
-	movq	%r9,%rcx
-	adcq	%r9,%r9
+	movq	%rdx,%r15
+	adcq	$0,%rcx
 
 	mulq	%rax
+	addq	%r8,%rdx
+	adcq	$0,%rcx
+
 	movq	%rax,(%rsp)
-	addq	%rdx,%r8
-	adcq	$0,%r9
-
-	movq	%r8,8(%rsp)
-	shrq	$63,%rcx
+	movq	%rdx,8(%rsp)
 
 
-	movq	8(%rsi),%r8
 	movq	16(%rsi),%rax
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax,%r10
 	movq	24(%rsi),%rax
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax,%r11
 	movq	32(%rsi),%rax
 	adcq	$0,%rdx
@@ -108,7 +107,7 @@ L$oop_sqr:
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax,%r12
 	movq	40(%rsi),%rax
 	adcq	$0,%rdx
@@ -116,7 +115,7 @@ L$oop_sqr:
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax,%r13
 	movq	48(%rsi),%rax
 	adcq	$0,%rdx
@@ -124,7 +123,7 @@ L$oop_sqr:
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax,%r14
 	movq	56(%rsi),%rax
 	adcq	$0,%rdx
@@ -132,39 +131,39 @@ L$oop_sqr:
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
-	mulq	%r8
+	mulq	%rbp
 	addq	%rax,%r15
-	movq	%r8,%rax
+	movq	%rbp,%rax
 	adcq	$0,%rdx
 	addq	%rbx,%r15
-	movq	%rdx,%r8
-	movq	%r10,%rdx
-	adcq	$0,%r8
+	adcq	$0,%rdx
 
-	addq	%rdx,%rdx
-	leaq	(%rcx,%r10,2),%r10
-	movq	%r11,%rbx
-	adcq	%r11,%r11
+	xorq	%rbx,%rbx
+	addq	%r9,%r9
+	movq	%rdx,%r8
+	adcq	%r10,%r10
+	adcq	$0,%rbx
 
 	mulq	%rax
+
+	addq	%rcx,%rax
+	movq	16(%rsi),%rbp
 	addq	%rax,%r9
+	movq	24(%rsi),%rax
 	adcq	%rdx,%r10
-	adcq	$0,%r11
+	adcq	$0,%rbx
 
 	movq	%r9,16(%rsp)
 	movq	%r10,24(%rsp)
-	shrq	$63,%rbx
 
 
-	movq	16(%rsi),%r9
-	movq	24(%rsi),%rax
-	mulq	%r9
+	mulq	%rbp
 	addq	%rax,%r12
 	movq	32(%rsi),%rax
 	movq	%rdx,%rcx
 	adcq	$0,%rcx
 
-	mulq	%r9
+	mulq	%rbp
 	addq	%rax,%r13
 	movq	40(%rsi),%rax
 	adcq	$0,%rdx
@@ -172,7 +171,7 @@ L$oop_sqr:
 	movq	%rdx,%rcx
 	adcq	$0,%rcx
 
-	mulq	%r9
+	mulq	%rbp
 	addq	%rax,%r14
 	movq	48(%rsi),%rax
 	adcq	$0,%rdx
@@ -180,9 +179,7 @@ L$oop_sqr:
 	movq	%rdx,%rcx
 	adcq	$0,%rcx
 
-	mulq	%r9
-	movq	%r12,%r10
-	leaq	(%rbx,%r12,2),%r12
+	mulq	%rbp
 	addq	%rax,%r15
 	movq	56(%rsi),%rax
 	adcq	$0,%rdx
@@ -190,36 +187,40 @@ L$oop_sqr:
 	movq	%rdx,%rcx
 	adcq	$0,%rcx
 
-	mulq	%r9
-	shrq	$63,%r10
+	mulq	%rbp
 	addq	%rax,%r8
-	movq	%r9,%rax
+	movq	%rbp,%rax
 	adcq	$0,%rdx
 	addq	%rcx,%r8
-	movq	%rdx,%r9
-	adcq	$0,%r9
+	adcq	$0,%rdx
 
-	movq	%r13,%rcx
-	leaq	(%r10,%r13,2),%r13
+	xorq	%rcx,%rcx
+	addq	%r11,%r11
+	movq	%rdx,%r9
+	adcq	%r12,%r12
+	adcq	$0,%rcx
 
 	mulq	%rax
+
+	addq	%rbx,%rax
+	movq	24(%rsi),%r10
 	addq	%rax,%r11
+	movq	32(%rsi),%rax
 	adcq	%rdx,%r12
-	adcq	$0,%r13
+	adcq	$0,%rcx
 
 	movq	%r11,32(%rsp)
 	movq	%r12,40(%rsp)
-	shrq	$63,%rcx
 
 
-	movq	24(%rsi),%r10
-	movq	32(%rsi),%rax
+	movq	%rax,%r11
 	mulq	%r10
 	addq	%rax,%r14
 	movq	40(%rsi),%rax
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
+	movq	%rax,%r12
 	mulq	%r10
 	addq	%rax,%r15
 	movq	48(%rsi),%rax
@@ -228,9 +229,8 @@ L$oop_sqr:
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
+	movq	%rax,%rbp
 	mulq	%r10
-	movq	%r14,%r12
-	leaq	(%rcx,%r14,2),%r14
 	addq	%rax,%r8
 	movq	56(%rsi),%rax
 	adcq	$0,%rdx
@@ -239,32 +239,33 @@ L$oop_sqr:
 	adcq	$0,%rbx
 
 	mulq	%r10
-	shrq	$63,%r12
 	addq	%rax,%r9
 	movq	%r10,%rax
 	adcq	$0,%rdx
 	addq	%rbx,%r9
-	movq	%rdx,%r10
-	adcq	$0,%r10
+	adcq	$0,%rdx
 
-	movq	%r15,%rbx
-	leaq	(%r12,%r15,2),%r15
+	xorq	%rbx,%rbx
+	addq	%r13,%r13
+	movq	%rdx,%r10
+	adcq	%r14,%r14
+	adcq	$0,%rbx
 
 	mulq	%rax
+
+	addq	%rcx,%rax
 	addq	%rax,%r13
+	movq	%r12,%rax
 	adcq	%rdx,%r14
-	adcq	$0,%r15
+	adcq	$0,%rbx
 
 	movq	%r13,48(%rsp)
 	movq	%r14,56(%rsp)
-	shrq	$63,%rbx
 
 
-	movq	32(%rsi),%r11
-	movq	40(%rsi),%rax
 	mulq	%r11
 	addq	%rax,%r8
-	movq	48(%rsi),%rax
+	movq	%rbp,%rax
 	movq	%rdx,%rcx
 	adcq	$0,%rcx
 
@@ -272,97 +273,99 @@ L$oop_sqr:
 	addq	%rax,%r9
 	movq	56(%rsi),%rax
 	adcq	$0,%rdx
-	movq	%r8,%r12
-	leaq	(%rbx,%r8,2),%r8
 	addq	%rcx,%r9
 	movq	%rdx,%rcx
 	adcq	$0,%rcx
 
+	movq	%rax,%r14
 	mulq	%r11
-	shrq	$63,%r12
 	addq	%rax,%r10
 	movq	%r11,%rax
 	adcq	$0,%rdx
 	addq	%rcx,%r10
-	movq	%rdx,%r11
-	adcq	$0,%r11
+	adcq	$0,%rdx
 
-	movq	%r9,%rcx
-	leaq	(%r12,%r9,2),%r9
+	xorq	%rcx,%rcx
+	addq	%r15,%r15
+	movq	%rdx,%r11
+	adcq	%r8,%r8
+	adcq	$0,%rcx
 
 	mulq	%rax
+
+	addq	%rbx,%rax
 	addq	%rax,%r15
+	movq	%rbp,%rax
 	adcq	%rdx,%r8
-	adcq	$0,%r9
+	adcq	$0,%rcx
 
 	movq	%r15,64(%rsp)
 	movq	%r8,72(%rsp)
-	shrq	$63,%rcx
 
 
-	movq	40(%rsi),%r12
-	movq	48(%rsi),%rax
 	mulq	%r12
 	addq	%rax,%r10
-	movq	56(%rsi),%rax
+	movq	%r14,%rax
 	movq	%rdx,%rbx
 	adcq	$0,%rbx
 
 	mulq	%r12
 	addq	%rax,%r11
 	movq	%r12,%rax
-	movq	%r10,%r15
-	leaq	(%rcx,%r10,2),%r10
 	adcq	$0,%rdx
-	shrq	$63,%r15
 	addq	%rbx,%r11
-	movq	%rdx,%r12
-	adcq	$0,%r12
+	adcq	$0,%rdx
 
-	movq	%r11,%rbx
-	leaq	(%r15,%r11,2),%r11
+	xorq	%rbx,%rbx
+	addq	%r9,%r9
+	movq	%rdx,%r12
+	adcq	%r10,%r10
+	adcq	$0,%rbx
 
 	mulq	%rax
+
+	addq	%rcx,%rax
 	addq	%rax,%r9
+	movq	%r14,%rax
 	adcq	%rdx,%r10
-	adcq	$0,%r11
+	adcq	$0,%rbx
 
 	movq	%r9,80(%rsp)
 	movq	%r10,88(%rsp)
 
 
-	movq	48(%rsi),%r13
-	movq	56(%rsi),%rax
-	mulq	%r13
+	mulq	%rbp
 	addq	%rax,%r12
-	movq	%r13,%rax
-	movq	%rdx,%r13
-	adcq	$0,%r13
+	movq	%rbp,%rax
+	adcq	$0,%rdx
 
-	xorq	%r14,%r14
-	shlq	$1,%rbx
+	xorq	%rcx,%rcx
+	addq	%r11,%r11
+	movq	%rdx,%r13
 	adcq	%r12,%r12
-	adcq	%r13,%r13
-	adcq	%r14,%r14
+	adcq	$0,%rcx
 
 	mulq	%rax
+
+	addq	%rbx,%rax
 	addq	%rax,%r11
+	movq	%r14,%rax
 	adcq	%rdx,%r12
-	adcq	$0,%r13
+	adcq	$0,%rcx
 
 	movq	%r11,96(%rsp)
 	movq	%r12,104(%rsp)
 
 
-	movq	56(%rsi),%rax
+	xorq	%rbx,%rbx
+	addq	%r13,%r13
+	adcq	$0,%rbx
+
 	mulq	%rax
-	addq	%rax,%r13
-	adcq	$0,%rdx
 
-	addq	%rdx,%r14
-
-	movq	%r13,112(%rsp)
-	movq	%r14,120(%rsp)
+	addq	%rcx,%rax
+	addq	%r13,%rax
+	adcq	%rbx,%rdx
 
 	movq	(%rsp),%r8
 	movq	8(%rsp),%r9
@@ -372,6 +375,10 @@ L$oop_sqr:
 	movq	40(%rsp),%r13
 	movq	48(%rsp),%r14
 	movq	56(%rsp),%r15
+.byte	102,72,15,126,205
+
+	movq	%rax,112(%rsp)
+	movq	%rdx,120(%rsp)
 
 	call	__rsaz_512_reduce
 
@@ -400,9 +407,9 @@ L$oop_sqr:
 L$oop_sqrx:
 	movl	%r8d,128+8(%rsp)
 .byte	102,72,15,110,199
-.byte	102,72,15,110,205
 
 	mulxq	%rax,%r8,%r9
+	movq	%rax,%rbx
 
 	mulxq	16(%rsi),%rcx,%r10
 	xorq	%rbp,%rbp
@@ -410,40 +417,39 @@ L$oop_sqrx:
 	mulxq	24(%rsi),%rax,%r11
 	adcxq	%rcx,%r9
 
-	mulxq	32(%rsi),%rcx,%r12
+.byte	0xc4,0x62,0xf3,0xf6,0xa6,0x20,0x00,0x00,0x00
 	adcxq	%rax,%r10
 
-	mulxq	40(%rsi),%rax,%r13
+.byte	0xc4,0x62,0xfb,0xf6,0xae,0x28,0x00,0x00,0x00
 	adcxq	%rcx,%r11
 
-.byte	0xc4,0x62,0xf3,0xf6,0xb6,0x30,0x00,0x00,0x00
+	mulxq	48(%rsi),%rcx,%r14
 	adcxq	%rax,%r12
 	adcxq	%rcx,%r13
 
-.byte	0xc4,0x62,0xfb,0xf6,0xbe,0x38,0x00,0x00,0x00
+	mulxq	56(%rsi),%rax,%r15
 	adcxq	%rax,%r14
 	adcxq	%rbp,%r15
 
-	movq	%r9,%rcx
-	shldq	$1,%r8,%r9
-	shlq	$1,%r8
-
-	xorl	%ebp,%ebp
-	mulxq	%rdx,%rax,%rdx
-	adcxq	%rdx,%r8
-	movq	8(%rsi),%rdx
-	adcxq	%rbp,%r9
+	mulxq	%rdx,%rax,%rdi
+	movq	%rbx,%rdx
+	xorq	%rcx,%rcx
+	adoxq	%r8,%r8
+	adcxq	%rdi,%r8
+	adoxq	%rbp,%rcx
+	adcxq	%rbp,%rcx
 
 	movq	%rax,(%rsp)
 	movq	%r8,8(%rsp)
 
 
-	mulxq	16(%rsi),%rax,%rbx
+.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x10,0x00,0x00,0x00
 	adoxq	%rax,%r10
 	adcxq	%rbx,%r11
 
-.byte	0xc4,0x62,0xc3,0xf6,0x86,0x18,0x00,0x00,0x00
+	mulxq	24(%rsi),%rdi,%r8
 	adoxq	%rdi,%r11
+.byte	0x66
 	adcxq	%r8,%r12
 
 	mulxq	32(%rsi),%rax,%rbx
@@ -461,24 +467,25 @@ L$oop_sqrx:
 .byte	0xc4,0x62,0xc3,0xf6,0x86,0x38,0x00,0x00,0x00
 	adoxq	%rdi,%r15
 	adcxq	%rbp,%r8
+	mulxq	%rdx,%rax,%rdi
 	adoxq	%rbp,%r8
+.byte	0x48,0x8b,0x96,0x10,0x00,0x00,0x00
 
-	movq	%r11,%rbx
-	shldq	$1,%r10,%r11
-	shldq	$1,%rcx,%r10
+	xorq	%rbx,%rbx
+	adoxq	%r9,%r9
 
-	xorl	%ebp,%ebp
-	mulxq	%rdx,%rax,%rcx
-	movq	16(%rsi),%rdx
+	adcxq	%rcx,%rax
+	adoxq	%r10,%r10
 	adcxq	%rax,%r9
-	adcxq	%rcx,%r10
-	adcxq	%rbp,%r11
+	adoxq	%rbp,%rbx
+	adcxq	%rdi,%r10
+	adcxq	%rbp,%rbx
 
 	movq	%r9,16(%rsp)
 .byte	0x4c,0x89,0x94,0x24,0x18,0x00,0x00,0x00
 
 
-.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x18,0x00,0x00,0x00
+	mulxq	24(%rsi),%rdi,%r9
 	adoxq	%rdi,%r12
 	adcxq	%r9,%r13
 
@@ -486,7 +493,7 @@ L$oop_sqrx:
 	adoxq	%rax,%r13
 	adcxq	%rcx,%r14
 
-	mulxq	40(%rsi),%rdi,%r9
+.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x28,0x00,0x00,0x00
 	adoxq	%rdi,%r14
 	adcxq	%r9,%r15
 
@@ -494,27 +501,28 @@ L$oop_sqrx:
 	adoxq	%rax,%r15
 	adcxq	%rcx,%r8
 
-.byte	0xc4,0x62,0xc3,0xf6,0x8e,0x38,0x00,0x00,0x00
+	mulxq	56(%rsi),%rdi,%r9
 	adoxq	%rdi,%r8
 	adcxq	%rbp,%r9
+	mulxq	%rdx,%rax,%rdi
 	adoxq	%rbp,%r9
-
-	movq	%r13,%rcx
-	shldq	$1,%r12,%r13
-	shldq	$1,%rbx,%r12
-
-	xorl	%ebp,%ebp
-	mulxq	%rdx,%rax,%rdx
-	adcxq	%rax,%r11
-	adcxq	%rdx,%r12
 	movq	24(%rsi),%rdx
-	adcxq	%rbp,%r13
+
+	xorq	%rcx,%rcx
+	adoxq	%r11,%r11
+
+	adcxq	%rbx,%rax
+	adoxq	%r12,%r12
+	adcxq	%rax,%r11
+	adoxq	%rbp,%rcx
+	adcxq	%rdi,%r12
+	adcxq	%rbp,%rcx
 
 	movq	%r11,32(%rsp)
-.byte	0x4c,0x89,0xa4,0x24,0x28,0x00,0x00,0x00
+	movq	%r12,40(%rsp)
 
 
-.byte	0xc4,0xe2,0xfb,0xf6,0x9e,0x20,0x00,0x00,0x00
+	mulxq	32(%rsi),%rax,%rbx
 	adoxq	%rax,%r14
 	adcxq	%rbx,%r15
 
@@ -529,25 +537,25 @@ L$oop_sqrx:
 	mulxq	56(%rsi),%rdi,%r10
 	adoxq	%rdi,%r9
 	adcxq	%rbp,%r10
+	mulxq	%rdx,%rax,%rdi
 	adoxq	%rbp,%r10
-
-.byte	0x66
-	movq	%r15,%rbx
-	shldq	$1,%r14,%r15
-	shldq	$1,%rcx,%r14
-
-	xorl	%ebp,%ebp
-	mulxq	%rdx,%rax,%rdx
-	adcxq	%rax,%r13
-	adcxq	%rdx,%r14
 	movq	32(%rsi),%rdx
-	adcxq	%rbp,%r15
+
+	xorq	%rbx,%rbx
+	adoxq	%r13,%r13
+
+	adcxq	%rcx,%rax
+	adoxq	%r14,%r14
+	adcxq	%rax,%r13
+	adoxq	%rbp,%rbx
+	adcxq	%rdi,%r14
+	adcxq	%rbp,%rbx
 
 	movq	%r13,48(%rsp)
 	movq	%r14,56(%rsp)
 
 
-.byte	0xc4,0x62,0xc3,0xf6,0x9e,0x28,0x00,0x00,0x00
+	mulxq	40(%rsi),%rdi,%r11
 	adoxq	%rdi,%r8
 	adcxq	%r11,%r9
 
@@ -558,18 +566,19 @@ L$oop_sqrx:
 	mulxq	56(%rsi),%rdi,%r11
 	adoxq	%rdi,%r10
 	adcxq	%rbp,%r11
+	mulxq	%rdx,%rax,%rdi
+	movq	40(%rsi),%rdx
 	adoxq	%rbp,%r11
 
-	movq	%r9,%rcx
-	shldq	$1,%r8,%r9
-	shldq	$1,%rbx,%r8
+	xorq	%rcx,%rcx
+	adoxq	%r15,%r15
 
-	xorl	%ebp,%ebp
-	mulxq	%rdx,%rax,%rdx
+	adcxq	%rbx,%rax
+	adoxq	%r8,%r8
 	adcxq	%rax,%r15
-	adcxq	%rdx,%r8
-	movq	40(%rsi),%rdx
-	adcxq	%rbp,%r9
+	adoxq	%rbp,%rcx
+	adcxq	%rdi,%r8
+	adcxq	%rbp,%rcx
 
 	movq	%r15,64(%rsp)
 	movq	%r8,72(%rsp)
@@ -582,18 +591,19 @@ L$oop_sqrx:
 .byte	0xc4,0x62,0xc3,0xf6,0xa6,0x38,0x00,0x00,0x00
 	adoxq	%rdi,%r11
 	adcxq	%rbp,%r12
+	mulxq	%rdx,%rax,%rdi
 	adoxq	%rbp,%r12
-
-	movq	%r11,%rbx
-	shldq	$1,%r10,%r11
-	shldq	$1,%rcx,%r10
-
-	xorl	%ebp,%ebp
-	mulxq	%rdx,%rax,%rdx
-	adcxq	%rax,%r9
-	adcxq	%rdx,%r10
 	movq	48(%rsi),%rdx
-	adcxq	%rbp,%r11
+
+	xorq	%rbx,%rbx
+	adoxq	%r9,%r9
+
+	adcxq	%rcx,%rax
+	adoxq	%r10,%r10
+	adcxq	%rax,%r9
+	adcxq	%rdi,%r10
+	adoxq	%rbp,%rbx
+	adcxq	%rbp,%rbx
 
 	movq	%r9,80(%rsp)
 	movq	%r10,88(%rsp)
@@ -603,31 +613,31 @@ L$oop_sqrx:
 	adoxq	%rax,%r12
 	adoxq	%rbp,%r13
 
-	xorq	%r14,%r14
-	shldq	$1,%r13,%r14
-	shldq	$1,%r12,%r13
-	shldq	$1,%rbx,%r12
-
-	xorl	%ebp,%ebp
-	mulxq	%rdx,%rax,%rdx
-	adcxq	%rax,%r11
-	adcxq	%rdx,%r12
+	mulxq	%rdx,%rax,%rdi
+	xorq	%rcx,%rcx
 	movq	56(%rsi),%rdx
-	adcxq	%rbp,%r13
+	adoxq	%r11,%r11
+
+	adcxq	%rbx,%rax
+	adoxq	%r12,%r12
+	adcxq	%rax,%r11
+	adoxq	%rbp,%rcx
+	adcxq	%rdi,%r12
+	adcxq	%rbp,%rcx
 
 .byte	0x4c,0x89,0x9c,0x24,0x60,0x00,0x00,0x00
 .byte	0x4c,0x89,0xa4,0x24,0x68,0x00,0x00,0x00
 
 
 	mulxq	%rdx,%rax,%rdx
-	adoxq	%rax,%r13
-	adoxq	%rbp,%rdx
+	xorq	%rbx,%rbx
+	adoxq	%r13,%r13
 
-.byte	0x66
-	addq	%rdx,%r14
+	adcxq	%rcx,%rax
+	adoxq	%rbp,%rbx
+	adcxq	%r13,%rax
+	adcxq	%rdx,%rbx
 
-	movq	%r13,112(%rsp)
-	movq	%r14,120(%rsp)
 .byte	102,72,15,126,199
 .byte	102,72,15,126,205
 
@@ -640,6 +650,9 @@ L$oop_sqrx:
 	movq	40(%rsp),%r13
 	movq	48(%rsp),%r14
 	movq	56(%rsp),%r15
+
+	movq	%rax,112(%rsp)
+	movq	%rbx,120(%rsp)
 
 	call	__rsaz_512_reducex
 
@@ -1410,6 +1423,7 @@ L$mul_by_one_epilogue:
 
 .p2align	5
 __rsaz_512_reduce:
+
 	movq	%r8,%rbx
 	imulq	128+8(%rsp),%rbx
 	movq	0(%rbp),%rax
@@ -1491,8 +1505,10 @@ L$reduction_loop:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 __rsaz_512_reducex:
+
 
 	imulq	%r8,%rdx
 	xorq	%rsi,%rsi
@@ -1547,8 +1563,10 @@ L$reduction_loopx:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 __rsaz_512_subtract:
+
 	movq	%r8,(%rdi)
 	movq	%r9,8(%rdi)
 	movq	%r10,16(%rdi)
@@ -1604,8 +1622,10 @@ __rsaz_512_subtract:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 __rsaz_512_mul:
+
 	leaq	8(%rsp),%rdi
 
 	movq	(%rsi),%rax
@@ -1746,8 +1766,10 @@ L$oop_mul:
 	.byte	0xf3,0xc3
 
 
+
 .p2align	5
 __rsaz_512_mulx:
+
 	mulxq	(%rsi),%rbx,%r8
 	movq	$-6,%rcx
 
@@ -1865,10 +1887,12 @@ L$oop_mulx:
 
 	.byte	0xf3,0xc3
 
+
 .globl	_rsaz_512_scatter4
 
 .p2align	4
 _rsaz_512_scatter4:
+
 	leaq	(%rdi,%rdx,8),%rdi
 	movl	$8,%r9d
 	jmp	L$oop_scatter
@@ -1883,10 +1907,12 @@ L$oop_scatter:
 	.byte	0xf3,0xc3
 
 
+
 .globl	_rsaz_512_gather4
 
 .p2align	4
 _rsaz_512_gather4:
+
 	movd	%edx,%xmm8
 	movdqa	L$inc+16(%rip),%xmm1
 	movdqa	L$inc(%rip),%xmm0
@@ -1950,6 +1976,7 @@ L$oop_gather:
 	jnz	L$oop_gather
 	.byte	0xf3,0xc3
 L$SEH_end_rsaz_512_gather4:
+
 
 
 .p2align	6

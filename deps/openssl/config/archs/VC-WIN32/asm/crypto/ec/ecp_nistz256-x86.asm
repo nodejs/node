@@ -4386,19 +4386,15 @@ L$009pic:
 	or	eax,DWORD [4+edi]
 	or	eax,DWORD [8+edi]
 	or	eax,DWORD [12+edi]
+	mov	ebx,DWORD [576+esp]
+	not	ebx
+	or	eax,ebx
+	mov	ebx,DWORD [580+esp]
+	not	ebx
+	or	eax,ebx
+	or	eax,DWORD [584+esp]
 db	62
 	jnz	NEAR L$010add_proceed
-	mov	eax,DWORD [576+esp]
-	and	eax,DWORD [580+esp]
-	mov	ebx,DWORD [584+esp]
-	jz	NEAR L$010add_proceed
-	test	ebx,ebx
-	jz	NEAR L$011add_double
-	mov	edi,DWORD [616+esp]
-	xor	eax,eax
-	mov	ecx,24
-db	252,243,171
-	jmp	NEAR L$012add_done
 align	16
 L$011add_double:
 	mov	esi,DWORD [620+esp]
