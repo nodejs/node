@@ -4,11 +4,12 @@
 .globl	RC4
 .type	RC4,@function
 .align	16
-RC4:	orq	%rsi,%rsi
+RC4:
+.cfi_startproc	
+	orq	%rsi,%rsi
 	jne	.Lentry
 	.byte	0xf3,0xc3
 .Lentry:
-.cfi_startproc	
 	pushq	%rbx
 .cfi_adjust_cfa_offset	8
 .cfi_offset	%rbx,-16
@@ -533,6 +534,7 @@ RC4:	orq	%rsi,%rsi
 .type	RC4_set_key,@function
 .align	16
 RC4_set_key:
+.cfi_startproc	
 	leaq	8(%rdi),%rdi
 	leaq	(%rdx,%rsi,1),%rdx
 	negq	%rsi
@@ -599,12 +601,14 @@ RC4_set_key:
 	movl	%eax,-8(%rdi)
 	movl	%eax,-4(%rdi)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	RC4_set_key,.-RC4_set_key
 
 .globl	RC4_options
 .type	RC4_options,@function
 .align	16
 RC4_options:
+.cfi_startproc	
 	leaq	.Lopts(%rip),%rax
 	movl	OPENSSL_ia32cap_P(%rip),%edx
 	btl	$20,%edx
@@ -617,6 +621,7 @@ RC4_options:
 	addq	$12,%rax
 .Ldone:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .align	64
 .Lopts:
 .byte	114,99,52,40,56,120,44,105,110,116,41,0

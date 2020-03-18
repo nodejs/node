@@ -192,7 +192,7 @@ RC4:
 RC4_set_key:
 	stmg	%r6,%r8,6*8(%r15)
 	lhi	%r0,256
-	la	%r1,0(%r0)
+	la	%r1,0
 	sth	%r1,0(%r2)
 .align	4
 .L1stloop:
@@ -202,8 +202,8 @@ RC4_set_key:
 
 	lghi	%r7,-256
 	lr	%r0,%r3
-	la	%r8,0(%r0)
-	la	%r1,0(%r0)
+	la	%r8,0
+	la	%r1,0
 .align	16
 .L2ndloop:
 	llgc	%r5,2+256(%r7,%r2)
@@ -220,7 +220,7 @@ RC4_set_key:
 	jz	.Ldone
 	brct	%r0,.L2ndloop
 	lr	%r0,%r3
-	la	%r8,0(%r0)
+	la	%r8,0
 	j	.L2ndloop
 .Ldone:
 	lmg	%r6,%r8,6*8(%r15)
