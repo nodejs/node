@@ -602,7 +602,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   uv_thread_options_t thread_options;
   thread_options.flags = UV_THREAD_HAS_STACK_SIZE;
   thread_options.stack_size = kStackSize;
-  CHECK_EQ(uv_thread_create_ex(&w->tid_, &thread_options, [](void* arg) {
+  int ret = uv_thread_create_ex(&w->tid_, &thread_options, [](void* arg) {
     // XXX: This could become a std::unique_ptr, but that makes at least
     // gcc 6.3 detect undefined behaviour when there shouldn't be any.
     // gcc 7+ handles this well.
@@ -623,7 +623,23 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
           w->JoinThread();
           // implicitly delete w
         });
-  }, static_cast<void*>(w)), 0);
+  }, static_cast<void*>(w));
+  if (ret != 0) {
+    char err_buf[128];
+    uv_err_name_r(ret, err_buf, sizeof(err_buf));
+    w->custom_error_ = "ERR_WORKER_INIT_FAILED";
+    w->custom_error_str_ = err_buf;
+    w->loop_init_failed_ = true;
+    w->thread_joined_ = true;
+    w->stopped_ = true;
+    w->env()->remove_sub_worker_context(w);
+    {
+      Isolate* isolate = w->env()->isolate();
+      HandleScope handle_scope(isolate);
+      THROW_ERR_WORKER_INIT_FAILED(isolate, err_buf);
+    }
+    w->MakeWeak();
+  }
 }
 
 void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
