@@ -516,9 +516,8 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
 
   // construct uv_buf_t array
   for (size_t i = 0; i < count; i++) {
-    MaybeLocal<Value> maybe_chunk = chunks->Get(env->context(), i);
-    if (maybe_chunk.IsEmpty()) return;
-    Local<Value> chunk = maybe_chunk.ToLocalChecked();
+    Local<Value> chunk;
+    if (!chunks->Get(env->context(), i).ToLocal(&chunk)) return;
 
     size_t length = Buffer::Length(chunk);
 
