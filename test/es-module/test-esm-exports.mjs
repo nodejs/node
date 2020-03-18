@@ -35,6 +35,14 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports-sugar', { default: 'main' }],
   ]);
 
+  if (isRequire) {
+    validSpecifiers.set('pkgexports/subpath/file', { default: 'file' });
+    validSpecifiers.set('pkgexports/subpath/dir1', { default: 'main' });
+    validSpecifiers.set('pkgexports/subpath/dir1/', { default: 'main' });
+    validSpecifiers.set('pkgexports/subpath/dir2', { default: 'index' });
+    validSpecifiers.set('pkgexports/subpath/dir2/', { default: 'index' });
+  }
+
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;
 
@@ -118,14 +126,28 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     }));
   }
 
-  // Covering out bases - not a file is still not a file after dir mapping.
-  loadFixture('pkgexports/sub/not-a-file.js').catch(mustCall((err) => {
-    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
-    // ESM returns a full file path
-    assertStartsWith(err.message, isRequire ?
-      'Cannot find module \'pkgexports/sub/not-a-file.js\'' :
-      'Cannot find module');
-  }));
+  const notFoundExports = new Map([
+    // Non-existing file
+    ['pkgexports/sub/not-a-file.js', 'pkgexports/sub/not-a-file.js'],
+    // No extension lookups
+    ['pkgexports/no-ext', 'pkgexports/no-ext'],
+  ]);
+
+  if (!isRequire) {
+    notFoundExports.set('pkgexports/subpath/file', 'pkgexports/subpath/file');
+    notFoundExports.set('pkgexports/subpath/dir1', 'pkgexports/subpath/dir1');
+    notFoundExports.set('pkgexports/subpath/dir2', 'pkgexports/subpath/dir2');
+  }
+
+  for (const [specifier, request] of notFoundExports) {
+    loadFixture(specifier).catch(mustCall((err) => {
+      strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
+      // ESM returns a full file path
+      assertStartsWith(err.message, isRequire ?
+        `Cannot find module '${request}'` :
+        'Cannot find module');
+    }));
+  }
 
   // The use of %2F escapes in paths fails loading
   loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
