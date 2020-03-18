@@ -55,7 +55,7 @@
 namespace node {
 
 #ifdef __POSIX__
-# if HAVE_EXECINFO_H
+#if HAVE_EXECINFO_H
 class PosixSymbolDebuggingContext final : public NativeSymbolDebuggingContext {
  public:
   PosixSymbolDebuggingContext() : pagesize_(getpagesize()) { }
