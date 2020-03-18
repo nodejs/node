@@ -1952,50 +1952,58 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
 
 // Verify that classes are properly inspected.
 [
+  /* eslint-disable spaced-comment, no-multi-spaces, brace-style */
   // The whitespace is intentional.
-  // eslint-disable-next-line no-multi-spaces
-  [class   { }, 'class (anonymous) {}'],
-  [class extends Error { log() {} }, 'class (anonymous) extends Error {}'],
-  [class A { constructor(a) { this.a = a; } log() { return this.a; } }],
+  [class   { }, '[class (anonymous)]'],
+  [class extends Error { log() {} }, '[class (anonymous) extends Error]'],
+  [class A { constructor(a) { this.a = a; } log() { return this.a; } },
+   '[class A]'],
   [class
-  // Random comments are part of the stringified result
-  äß extends TypeError {}, 'class äß extends TypeError {}'],
-  // The whitespace and new line is intended!
-  // eslint-disable-next-line no-multi-spaces
-  [class X   extends Error
-  // eslint-disable-next-line brace-style
-  {}, 'class X extends Error {}']
+  // Random { // comments /* */ are part of the toString() result
+  /* eslint-disable-next-line space-before-blocks */
+  äß/**/extends/*{*/TypeError{}, '[class äß extends TypeError]'],
+  /* The whitespace and new line is intended! */
+  // Foobar !!!
+  [class X   extends /****/ Error
+  // More comments
+  {}, '[class X extends Error]']
+  /* eslint-enable spaced-comment, no-multi-spaces, brace-style */
 ].forEach(([clazz, string]) => {
-  if (string === undefined)
-    string = Function.prototype.toString.call(clazz).split(/\s+/).join(' ');
-  const open = string.indexOf('{');
   const inspected = util.inspect(clazz);
-  assert.strictEqual(inspected, `${string.slice(0, open + 1)}}`);
+  assert.strictEqual(inspected, string);
   Object.defineProperty(clazz, Symbol.toStringTag, {
     value: 'Woohoo'
   });
-  const parts = inspected.split(' ');
-  parts.pop();
+  const parts = inspected.slice(0, -1).split(' ');
   const [, name, ...rest] = parts;
+  rest.unshift('[Woohoo]');
+  if (rest.length) {
+    rest[rest.length - 1] += ']';
+  }
   assert.strictEqual(
     util.inspect(clazz),
-    ['class', name, '[Woohoo]', ...rest, '{}'].join(' ')
+    ['[class', name, ...rest].join(' ')
   );
   Object.setPrototypeOf(clazz, null);
   assert.strictEqual(
     util.inspect(clazz),
-    ['class', name, '[null prototype] [Woohoo]', ...rest, '{}'].join(' ')
+    ['[class', name, '[null prototype]', ...rest].join(' ')
   );
   Object.defineProperty(clazz, 'name', { value: 'Foo' });
   const newName = name === '(anonymous)' ? 'Foo' : `${name} [Foo]`;
   assert.strictEqual(
     util.inspect(clazz),
-    ['class', newName, '[null prototype] [Woohoo]', ...rest, '{}'].join(' ')
+    ['[class', newName, '[null prototype]', ...rest].join(' ')
   );
   Object.setPrototypeOf(clazz, Number.prototype);
   assert.strictEqual(
     util.inspect(clazz),
-    ['class', newName, '[Number] [Woohoo]', ...rest, '{}'].join(' ')
+    ['[class', newName, '[Number]', ...rest].join(' ')
+  );
+  clazz.foo = true;
+  assert.strictEqual(
+    util.inspect(clazz),
+    ['[class', newName, '[Number]', ...rest, '{ foo: true }'].join(' ')
   );
 });
 
