@@ -912,16 +912,13 @@ import packageMain from 'commonjs-package'; // Works
 import { method } from 'commonjs-package'; // Errors
 ```
 
+It is also possible to
+[import an ES or CommonJS module for its side effects only][].
+
 ### `import()` expressions
 
-Dynamic `import()` is supported in both CommonJS and ES modules. It can be used
+[Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be used
 to include ES module files from CommonJS code.
-
-```js
-(async () => {
-  await import('./my-app.mjs');
-})();
-```
 
 ## CommonJS, JSON, and Native Modules
 
@@ -1716,6 +1713,7 @@ success!
 [Babel]: https://babeljs.io/
 [CommonJS]: modules.html
 [Conditional Exports]: #esm_conditional_exports
+[Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
@@ -1725,13 +1723,14 @@ success!
 [`esm`]: https://github.com/standard-things/esm#readme
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`getFormat` hook]: #esm_code_getformat_code_hook
-[`import()`]: #esm_import-expressions
+[`import()`]: #esm_import_expressions
 [`import.meta.url`]: #esm_import_meta
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_code_transformsource_code_hook
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
+[import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [the dual CommonJS/ES module packages section]: #esm_dual_commonjs_es_module_packages
