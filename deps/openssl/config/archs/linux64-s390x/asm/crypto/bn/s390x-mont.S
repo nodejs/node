@@ -45,7 +45,7 @@ bn_mul_mont:
 	lghi	%r13,0
 	alcgr	%r13,%r10
 
-	la	%r7,8(%r0)	# j=1
+	la	%r7,8		# j=1
 	lr	%r14,%r1
 
 .align	16
@@ -97,7 +97,7 @@ bn_mul_mont:
 	lghi	%r13,0
 	alcgr	%r13,%r10
 
-	la	%r7,8(%r0)	# j=1
+	la	%r7,8		# j=1
 	lr	%r14,%r1
 
 .align	16
@@ -141,7 +141,7 @@ bn_mul_mont:
 	la	%r3,160(%r15)
 	ahi	%r1,1		# restore %r1, incidentally clears "borrow"
 
-	la	%r7,0(%r0)
+	la	%r7,0
 	lr	%r14,%r1
 .Lsub:	lg	%r9,0(%r7,%r3)
 	lg	%r11,0(%r7,%r5)
@@ -155,7 +155,7 @@ bn_mul_mont:
 	lghi	%r13,-1
 	xgr	%r13,%r12
 
-	la	%r7,0(%r0)
+	la	%r7,0
 	lgr	%r14,%r1
 .Lcopy:	lg	%r8,160(%r7,%r15)	# conditional copy
 	lg	%r9,0(%r7,%r2)

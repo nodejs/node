@@ -1421,8 +1421,8 @@ L$oop_shaext:
 	pshufd	$27,%xmm1,%xmm1
 	movdqu	%xmm0,(%rdi)
 	movd	%xmm1,16(%rdi)
-
 	.byte	0xf3,0xc3
+
 
 
 .p2align	4

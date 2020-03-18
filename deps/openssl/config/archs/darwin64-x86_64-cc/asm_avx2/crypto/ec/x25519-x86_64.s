@@ -382,12 +382,14 @@ L$fe51_mul121666_epilogue:
 
 .p2align	5
 _x25519_fe64_eligible:
+
 	movl	_OPENSSL_ia32cap_P+8(%rip),%ecx
 	xorl	%eax,%eax
 	andl	$0x80100,%ecx
 	cmpl	$0x80100,%ecx
 	cmovel	%ecx,%eax
 	.byte	0xf3,0xc3
+
 
 
 .globl	_x25519_fe64_mul
@@ -616,6 +618,7 @@ L$fe64_sqr_epilogue:
 .p2align	5
 _x25519_fe64_mul121666:
 L$fe64_mul121666_body:
+
 	movl	$121666,%edx
 	mulxq	0(%rsi),%r8,%rcx
 	mulxq	8(%rsi),%r9,%rax
@@ -646,11 +649,13 @@ L$fe64_mul121666_epilogue:
 	.byte	0xf3,0xc3
 
 
+
 .globl	_x25519_fe64_add
 
 .p2align	5
 _x25519_fe64_add:
 L$fe64_add_body:
+
 	movq	0(%rsi),%r8
 	movq	8(%rsi),%r9
 	movq	16(%rsi),%r10
@@ -681,11 +686,13 @@ L$fe64_add_epilogue:
 	.byte	0xf3,0xc3
 
 
+
 .globl	_x25519_fe64_sub
 
 .p2align	5
 _x25519_fe64_sub:
 L$fe64_sub_body:
+
 	movq	0(%rsi),%r8
 	movq	8(%rsi),%r9
 	movq	16(%rsi),%r10
@@ -716,11 +723,13 @@ L$fe64_sub_epilogue:
 	.byte	0xf3,0xc3
 
 
+
 .globl	_x25519_fe64_tobytes
 
 .p2align	5
 _x25519_fe64_tobytes:
 L$fe64_to_body:
+
 	movq	0(%rsi),%r8
 	movq	8(%rsi),%r9
 	movq	16(%rsi),%r10
@@ -756,5 +765,6 @@ L$fe64_to_body:
 
 L$fe64_to_epilogue:
 	.byte	0xf3,0xc3
+
 
 .byte	88,50,53,53,49,57,32,112,114,105,109,105,116,105,118,101,115,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0

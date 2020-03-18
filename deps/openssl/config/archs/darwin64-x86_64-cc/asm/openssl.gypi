@@ -722,6 +722,7 @@
       'KECCAK1600_ASM',
       'RC4_ASM',
       'MD5_ASM',
+      'AESNI_ASM',
       'VPAES_ASM',
       'GHASH_ASM',
       'ECP_NISTZ256_ASM',
