@@ -490,6 +490,12 @@ UBool RegexCompile::doParseActions(int32_t action)
 
             // If this is a named capture group, add the name->group number mapping.
             if (fCaptureName != NULL) {
+                if (!fRXPat->initNamedCaptureMap()) {
+                    if (U_SUCCESS(*fStatus)) {
+                        error(fRXPat->fDeferredStatus);
+                    }
+                    break;
+                }
                 int32_t groupNumber = fRXPat->fGroupMap->size();
                 int32_t previousMapping = uhash_puti(fRXPat->fNamedCaptureMap, fCaptureName, groupNumber, fStatus);
                 fCaptureName = NULL;    // hash table takes ownership of the name (key) string.
@@ -1345,7 +1351,8 @@ UBool RegexCompile::doParseActions(int32_t action)
 
     case doCompleteNamedBackRef:
         {
-        int32_t groupNumber = uhash_geti(fRXPat->fNamedCaptureMap, fCaptureName);
+        int32_t groupNumber =
+            fRXPat->fNamedCaptureMap ? uhash_geti(fRXPat->fNamedCaptureMap, fCaptureName) : 0;
         if (groupNumber == 0) {
             // Group name has not been defined.
             //   Could be a forward reference. If we choose to support them at some

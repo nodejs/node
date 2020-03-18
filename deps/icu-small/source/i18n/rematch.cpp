@@ -429,7 +429,7 @@ RegexMatcher &RegexMatcher::appendReplacement(UText *dest,
                                (nextChar >= 0x31 && nextChar <= 0x39)) {       // 0..9
                         groupName.append(nextChar);
                     } else if (nextChar == RIGHTBRACKET) {
-                        groupNum = uhash_geti(fPattern->fNamedCaptureMap, &groupName);
+                        groupNum = fPattern->fNamedCaptureMap ? uhash_geti(fPattern->fNamedCaptureMap, &groupName) : 0;
                         if (groupNum == 0) {
                             status = U_REGEX_INVALID_CAPTURE_GROUP_NAME;
                         }

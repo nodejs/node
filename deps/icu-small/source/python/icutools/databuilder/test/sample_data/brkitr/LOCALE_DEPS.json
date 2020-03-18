@@ -1,0 +1,10 @@
+// © 2019 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html#License
+
+//////////////////////////////////////////////////////////////
+// This is a sample LOCALE_DEPS.json file for testing only. //
+//////////////////////////////////////////////////////////////
+
+{
+    "cldrVersion": "36.1"
+}

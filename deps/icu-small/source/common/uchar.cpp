@@ -556,7 +556,6 @@ u_charAge(UChar32 c, UVersionInfo versionArray) {
 
 U_CAPI UScriptCode U_EXPORT2
 uscript_getScript(UChar32 c, UErrorCode *pErrorCode) {
-    uint32_t scriptX;
     if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
         return USCRIPT_INVALID_CODE;
     }
@@ -564,48 +563,46 @@ uscript_getScript(UChar32 c, UErrorCode *pErrorCode) {
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return USCRIPT_INVALID_CODE;
     }
-    scriptX=u_getUnicodeProperties(c, 0)&UPROPS_SCRIPT_X_MASK;
+    uint32_t scriptX=u_getUnicodeProperties(c, 0)&UPROPS_SCRIPT_X_MASK;
+    uint32_t codeOrIndex=uprops_mergeScriptCodeOrIndex(scriptX);
     if(scriptX<UPROPS_SCRIPT_X_WITH_COMMON) {
-        return (UScriptCode)scriptX;
+        return (UScriptCode)codeOrIndex;
     } else if(scriptX<UPROPS_SCRIPT_X_WITH_INHERITED) {
         return USCRIPT_COMMON;
     } else if(scriptX<UPROPS_SCRIPT_X_WITH_OTHER) {
         return USCRIPT_INHERITED;
     } else {
-        return (UScriptCode)scriptExtensions[scriptX&UPROPS_SCRIPT_MASK];
+        return (UScriptCode)scriptExtensions[codeOrIndex];
     }
 }
 
 U_CAPI UBool U_EXPORT2
 uscript_hasScript(UChar32 c, UScriptCode sc) {
-    const uint16_t *scx;
     uint32_t scriptX=u_getUnicodeProperties(c, 0)&UPROPS_SCRIPT_X_MASK;
+    uint32_t codeOrIndex=uprops_mergeScriptCodeOrIndex(scriptX);
     if(scriptX<UPROPS_SCRIPT_X_WITH_COMMON) {
-        return sc==(UScriptCode)scriptX;
+        return sc==(UScriptCode)codeOrIndex;
     }
 
-    scx=scriptExtensions+(scriptX&UPROPS_SCRIPT_MASK);
+    const uint16_t *scx=scriptExtensions+codeOrIndex;
     if(scriptX>=UPROPS_SCRIPT_X_WITH_OTHER) {
         scx=scriptExtensions+scx[1];
     }
-    if(sc>=USCRIPT_CODE_LIMIT) {
+    uint32_t sc32=sc;
+    if(sc32>0x7fff) {
         /* Guard against bogus input that would make us go past the Script_Extensions terminator. */
         return FALSE;
     }
-    while(sc>*scx) {
+    while(sc32>*scx) {
         ++scx;
     }
-    return sc==(*scx&0x7fff);
+    return sc32==(*scx&0x7fff);
 }
 
 U_CAPI int32_t U_EXPORT2
 uscript_getScriptExtensions(UChar32 c,
                             UScriptCode *scripts, int32_t capacity,
                             UErrorCode *pErrorCode) {
-    uint32_t scriptX;
-    int32_t length;
-    const uint16_t *scx;
-    uint16_t sx;
     if(pErrorCode==NULL || U_FAILURE(*pErrorCode)) {
         return 0;
     }
@@ -613,21 +610,23 @@ uscript_getScriptExtensions(UChar32 c,
         *pErrorCode=U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
-    scriptX=u_getUnicodeProperties(c, 0)&UPROPS_SCRIPT_X_MASK;
+    uint32_t scriptX=u_getUnicodeProperties(c, 0)&UPROPS_SCRIPT_X_MASK;
+    uint32_t codeOrIndex=uprops_mergeScriptCodeOrIndex(scriptX);
     if(scriptX<UPROPS_SCRIPT_X_WITH_COMMON) {
         if(capacity==0) {
             *pErrorCode=U_BUFFER_OVERFLOW_ERROR;
         } else {
-            scripts[0]=(UScriptCode)scriptX;
+            scripts[0]=(UScriptCode)codeOrIndex;
         }
         return 1;
     }
 
-    scx=scriptExtensions+(scriptX&UPROPS_SCRIPT_MASK);
+    const uint16_t *scx=scriptExtensions+codeOrIndex;
     if(scriptX>=UPROPS_SCRIPT_X_WITH_OTHER) {
         scx=scriptExtensions+scx[1];
     }
-    length=0;
+    int32_t length=0;
+    uint16_t sx;
     do {
         sx=*scx++;
         if(length<capacity) {
