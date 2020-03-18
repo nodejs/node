@@ -34,9 +34,9 @@ const char* signo_string(int signo) {
 #endif
 
 #ifdef SIGIOT
-# if SIGABRT != SIGIOT
+#if SIGABRT != SIGIOT
     SIGNO_CASE(SIGIOT);
-# endif
+#endif
 #endif
 
 #ifdef SIGBUS
