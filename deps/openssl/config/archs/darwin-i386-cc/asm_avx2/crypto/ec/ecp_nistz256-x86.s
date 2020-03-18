@@ -4378,19 +4378,15 @@ L009pic:
 	orl	4(%edi),%eax
 	orl	8(%edi),%eax
 	orl	12(%edi),%eax
+	movl	576(%esp),%ebx
+	notl	%ebx
+	orl	%ebx,%eax
+	movl	580(%esp),%ebx
+	notl	%ebx
+	orl	%ebx,%eax
+	orl	584(%esp),%eax
 .byte	62
 	jnz	L010add_proceed
-	movl	576(%esp),%eax
-	andl	580(%esp),%eax
-	movl	584(%esp),%ebx
-	jz	L010add_proceed
-	testl	%ebx,%ebx
-	jz	L011add_double
-	movl	616(%esp),%edi
-	xorl	%eax,%eax
-	movl	$24,%ecx
-.byte	252,243,171
-	jmp	L012add_done
 .align	4,0x90
 L011add_double:
 	movl	620(%esp),%esi

@@ -3874,10 +3874,12 @@ ecp_nistz256_ord_sqr_montx:
 .type	ecp_nistz256_to_mont,@function
 .align	32
 ecp_nistz256_to_mont:
+.cfi_startproc	
 	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
 	leaq	.LRR(%rip),%rdx
 	jmp	.Lmul_mont
+.cfi_endproc	
 .size	ecp_nistz256_to_mont,.-ecp_nistz256_to_mont
 
 
@@ -4821,6 +4823,7 @@ ecp_nistz256_from_mont:
 .type	ecp_nistz256_scatter_w5,@function
 .align	32
 ecp_nistz256_scatter_w5:
+.cfi_startproc	
 	leal	-3(%rdx,%rdx,2),%edx
 	movdqa	0(%rsi),%xmm0
 	shll	$5,%edx
@@ -4837,6 +4840,7 @@ ecp_nistz256_scatter_w5:
 	movdqa	%xmm5,80(%rdi,%rdx,1)
 
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	ecp_nistz256_scatter_w5,.-ecp_nistz256_scatter_w5
 
 
@@ -4910,6 +4914,7 @@ ecp_nistz256_gather_w5:
 .type	ecp_nistz256_scatter_w7,@function
 .align	32
 ecp_nistz256_scatter_w7:
+.cfi_startproc	
 	movdqu	0(%rsi),%xmm0
 	shll	$6,%edx
 	movdqu	16(%rsi),%xmm1
@@ -4921,6 +4926,7 @@ ecp_nistz256_scatter_w7:
 	movdqa	%xmm3,48(%rdi,%rdx,1)
 
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	ecp_nistz256_scatter_w7,.-ecp_nistz256_scatter_w7
 
 
@@ -5655,26 +5661,16 @@ ecp_nistz256_point_add:
 	orq	%r8,%r12
 	orq	%r9,%r12
 
-.byte	0x3e
-	jnz	.Ladd_proceedq
 .byte	102,73,15,126,208
 .byte	102,73,15,126,217
-	testq	%r8,%r8
+
+	orq	%r8,%r12
+	orq	%r9,%r12
+
+
+.byte	0x3e
 	jnz	.Ladd_proceedq
-	testq	%r9,%r9
-	jz	.Ladd_doubleq
 
-.byte	102,72,15,126,199
-	pxor	%xmm0,%xmm0
-	movdqu	%xmm0,0(%rdi)
-	movdqu	%xmm0,16(%rdi)
-	movdqu	%xmm0,32(%rdi)
-	movdqu	%xmm0,48(%rdi)
-	movdqu	%xmm0,64(%rdi)
-	movdqu	%xmm0,80(%rdi)
-	jmp	.Ladd_doneq
-
-.align	32
 .Ladd_doubleq:
 .byte	102,72,15,126,206
 .byte	102,72,15,126,199
@@ -6774,26 +6770,16 @@ ecp_nistz256_point_addx:
 	orq	%r8,%r12
 	orq	%r9,%r12
 
-.byte	0x3e
-	jnz	.Ladd_proceedx
 .byte	102,73,15,126,208
 .byte	102,73,15,126,217
-	testq	%r8,%r8
+
+	orq	%r8,%r12
+	orq	%r9,%r12
+
+
+.byte	0x3e
 	jnz	.Ladd_proceedx
-	testq	%r9,%r9
-	jz	.Ladd_doublex
 
-.byte	102,72,15,126,199
-	pxor	%xmm0,%xmm0
-	movdqu	%xmm0,0(%rdi)
-	movdqu	%xmm0,16(%rdi)
-	movdqu	%xmm0,32(%rdi)
-	movdqu	%xmm0,48(%rdi)
-	movdqu	%xmm0,64(%rdi)
-	movdqu	%xmm0,80(%rdi)
-	jmp	.Ladd_donex
-
-.align	32
 .Ladd_doublex:
 .byte	102,72,15,126,206
 .byte	102,72,15,126,199

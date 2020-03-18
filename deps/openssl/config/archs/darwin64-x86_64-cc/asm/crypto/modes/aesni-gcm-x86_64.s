@@ -3,6 +3,7 @@
 
 .p2align	5
 _aesni_ctr32_ghash_6x:
+
 	vmovdqu	32(%r11),%xmm2
 	subq	$6,%rdx
 	vpxor	%xmm4,%xmm4,%xmm4
@@ -311,6 +312,7 @@ L$6x_done:
 
 	.byte	0xf3,0xc3
 
+
 .globl	_aesni_gcm_decrypt
 
 .p2align	5
@@ -416,6 +418,7 @@ L$gcm_dec_abort:
 
 .p2align	5
 _aesni_ctr32_6x:
+
 	vmovdqu	0-128(%rcx),%xmm4
 	vmovdqu	32(%r11),%xmm2
 	leaq	-1(%rbp),%r13
@@ -502,6 +505,7 @@ L$handle_ctr32_2:
 	vpshufb	%xmm0,%xmm1,%xmm1
 	vpxor	%xmm4,%xmm14,%xmm14
 	jmp	L$oop_ctr32
+
 
 
 .globl	_aesni_gcm_encrypt

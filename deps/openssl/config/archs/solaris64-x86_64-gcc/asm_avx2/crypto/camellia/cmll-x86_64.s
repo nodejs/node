@@ -5,11 +5,13 @@
 .type	Camellia_EncryptBlock,@function
 .align	16
 Camellia_EncryptBlock:
+.cfi_startproc	
 	movl	$128,%eax
 	subl	%edi,%eax
 	movl	$3,%edi
 	adcl	$0,%edi
 	jmp	.Lenc_rounds
+.cfi_endproc	
 .size	Camellia_EncryptBlock,.-Camellia_EncryptBlock
 
 .globl	Camellia_EncryptBlock_Rounds
@@ -83,6 +85,7 @@ Camellia_EncryptBlock_Rounds:
 .type	_x86_64_Camellia_encrypt,@function
 .align	16
 _x86_64_Camellia_encrypt:
+.cfi_startproc	
 	xorl	0(%r14),%r9d
 	xorl	4(%r14),%r8d
 	xorl	8(%r14),%r11d
@@ -285,6 +288,7 @@ _x86_64_Camellia_encrypt:
 	movl	%edx,%r11d
 
 .byte	0xf3,0xc3
+.cfi_endproc	
 .size	_x86_64_Camellia_encrypt,.-_x86_64_Camellia_encrypt
 
 
@@ -292,11 +296,13 @@ _x86_64_Camellia_encrypt:
 .type	Camellia_DecryptBlock,@function
 .align	16
 Camellia_DecryptBlock:
+.cfi_startproc	
 	movl	$128,%eax
 	subl	%edi,%eax
 	movl	$3,%edi
 	adcl	$0,%edi
 	jmp	.Ldec_rounds
+.cfi_endproc	
 .size	Camellia_DecryptBlock,.-Camellia_DecryptBlock
 
 .globl	Camellia_DecryptBlock_Rounds
@@ -370,6 +376,7 @@ Camellia_DecryptBlock_Rounds:
 .type	_x86_64_Camellia_decrypt,@function
 .align	16
 _x86_64_Camellia_decrypt:
+.cfi_startproc	
 	xorl	0(%r14),%r9d
 	xorl	4(%r14),%r8d
 	xorl	8(%r14),%r11d
@@ -573,6 +580,7 @@ _x86_64_Camellia_decrypt:
 	movl	%ebx,%r11d
 
 .byte	0xf3,0xc3
+.cfi_endproc	
 .size	_x86_64_Camellia_decrypt,.-_x86_64_Camellia_decrypt
 .globl	Camellia_Ekeygen
 .type	Camellia_Ekeygen,@function

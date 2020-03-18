@@ -1775,6 +1775,7 @@ K256:
 .align	64
 sha256_block_data_order_shaext:
 _shaext_shortcut:
+.cfi_startproc	
 	leaq	K256+128(%rip),%rcx
 	movdqu	(%rdi),%xmm1
 	movdqu	16(%rdi),%xmm2
@@ -1977,6 +1978,7 @@ _shaext_shortcut:
 	movdqu	%xmm1,(%rdi)
 	movdqu	%xmm2,16(%rdi)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	sha256_block_data_order_shaext,.-sha256_block_data_order_shaext
 .type	sha256_block_data_order_ssse3,@function
 .align	64
@@ -4238,7 +4240,15 @@ sha256_block_data_order_avx2:
 	vmovdqa	%ymm4,0(%rsp)
 	xorl	%r14d,%r14d
 	vmovdqa	%ymm5,32(%rsp)
+
+	movq	88(%rsp),%rdi
+.cfi_def_cfa	%rdi,8
 	leaq	-64(%rsp),%rsp
+
+
+
+	movq	%rdi,-8(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x78,0x06,0x23,0x08
 	movl	%ebx,%edi
 	vmovdqa	%ymm6,0(%rsp)
 	xorl	%ecx,%edi
@@ -4250,6 +4260,12 @@ sha256_block_data_order_avx2:
 .align	16
 .Lavx2_00_47:
 	leaq	-64(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x38,0x06,0x23,0x08
+
+	pushq	64-8(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x00,0x06,0x23,0x08
+	leaq	8(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x78,0x06,0x23,0x08
 	vpalignr	$4,%ymm0,%ymm1,%ymm4
 	addl	0+128(%rsp),%r11d
 	andl	%r8d,%r12d
@@ -4505,6 +4521,12 @@ sha256_block_data_order_avx2:
 	movl	%r9d,%r12d
 	vmovdqa	%ymm6,32(%rsp)
 	leaq	-64(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x38,0x06,0x23,0x08
+
+	pushq	64-8(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x00,0x06,0x23,0x08
+	leaq	8(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x78,0x06,0x23,0x08
 	vpalignr	$4,%ymm2,%ymm3,%ymm4
 	addl	0+128(%rsp),%r11d
 	andl	%r8d,%r12d
@@ -5380,6 +5402,8 @@ sha256_block_data_order_avx2:
 
 	leaq	448(%rsp),%rsp
 
+.cfi_escape	0x0f,0x06,0x77,0xd8,0x00,0x06,0x23,0x08
+
 	addl	0(%rdi),%eax
 	addl	4(%rdi),%ebx
 	addl	8(%rdi),%ecx
@@ -5405,9 +5429,11 @@ sha256_block_data_order_avx2:
 	jbe	.Loop_avx2
 	leaq	(%rsp),%rbp
 
+
+.cfi_escape	0x0f,0x06,0x76,0xd8,0x00,0x06,0x23,0x08
+
 .Ldone_avx2:
-	leaq	(%rbp),%rsp
-	movq	88(%rsp),%rsi
+	movq	88(%rbp),%rsi
 .cfi_def_cfa	%rsi,8
 	vzeroupper
 	movq	-48(%rsi),%r15

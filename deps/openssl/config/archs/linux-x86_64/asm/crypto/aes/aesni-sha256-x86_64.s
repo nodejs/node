@@ -5,6 +5,7 @@
 .type	aesni_cbc_sha256_enc,@function
 .align	16
 aesni_cbc_sha256_enc:
+.cfi_startproc	
 	leaq	OPENSSL_ia32cap_P(%rip),%r11
 	movl	$1,%eax
 	cmpq	$0,%rdi
@@ -30,6 +31,7 @@ aesni_cbc_sha256_enc:
 	ud2
 .Lprobe:
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc,.-aesni_cbc_sha256_enc
 
 .align	64
@@ -2528,7 +2530,15 @@ aesni_cbc_sha256_enc_avx2:
 	vmovdqa	%ymm4,0(%rsp)
 	xorl	%r14d,%r14d
 	vmovdqa	%ymm5,32(%rsp)
+
+	movq	120(%rsp),%rsi
+.cfi_def_cfa	%rsi,8
 	leaq	-64(%rsp),%rsp
+
+
+
+	movq	%rsi,-8(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x78,0x06,0x23,0x08
 	movl	%ebx,%esi
 	vmovdqa	%ymm6,0(%rsp)
 	xorl	%ecx,%esi
@@ -2542,6 +2552,12 @@ aesni_cbc_sha256_enc_avx2:
 	vmovdqu	(%r13),%xmm9
 	vpinsrq	$0,%r13,%xmm15,%xmm15
 	leaq	-64(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x38,0x06,0x23,0x08
+
+	pushq	64-8(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x00,0x06,0x23,0x08
+	leaq	8(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x78,0x06,0x23,0x08
 	vpalignr	$4,%ymm0,%ymm1,%ymm4
 	addl	0+128(%rsp),%r11d
 	andl	%r8d,%r12d
@@ -2816,6 +2832,12 @@ aesni_cbc_sha256_enc_avx2:
 	movl	%r9d,%r12d
 	vmovdqa	%ymm6,32(%rsp)
 	leaq	-64(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x38,0x06,0x23,0x08
+
+	pushq	64-8(%rsp)
+.cfi_escape	0x0f,0x05,0x77,0x00,0x06,0x23,0x08
+	leaq	8(%rsp),%rsp
+.cfi_escape	0x0f,0x05,0x77,0x78,0x06,0x23,0x08
 	vpalignr	$4,%ymm2,%ymm3,%ymm4
 	addl	0+128(%rsp),%r11d
 	andl	%r8d,%r12d
@@ -4029,10 +4051,12 @@ aesni_cbc_sha256_enc_avx2:
 	jbe	.Loop_avx2
 	leaq	(%rsp),%rbp
 
+
+.cfi_escape	0x0f,0x06,0x76,0xf8,0x00,0x06,0x23,0x08
+
 .Ldone_avx2:
-	leaq	(%rbp),%rsp
-	movq	64+32(%rsp),%r8
-	movq	120(%rsp),%rsi
+	movq	64+32(%rbp),%r8
+	movq	64+56(%rbp),%rsi
 .cfi_def_cfa	%rsi,8
 	vmovdqu	%xmm8,(%r8)
 	vzeroall
@@ -4057,6 +4081,7 @@ aesni_cbc_sha256_enc_avx2:
 .type	aesni_cbc_sha256_enc_shaext,@function
 .align	32
 aesni_cbc_sha256_enc_shaext:
+.cfi_startproc	
 	movq	8(%rsp),%r10
 	leaq	K256+128(%rip),%rax
 	movdqu	(%r9),%xmm1
@@ -4406,4 +4431,5 @@ aesni_cbc_sha256_enc_shaext:
 	movdqu	%xmm1,(%r9)
 	movdqu	%xmm2,16(%r9)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_shaext,.-aesni_cbc_sha256_enc_shaext

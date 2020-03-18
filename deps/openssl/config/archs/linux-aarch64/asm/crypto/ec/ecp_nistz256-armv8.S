@@ -3015,7 +3015,7 @@ __ecp_nistz256_div_by_2:
 .align	5
 ecp_nistz256_point_double:
 .inst	0xd503233f		// paciasp
-	stp	x29,x30,[sp,#-80]!
+	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
@@ -3148,7 +3148,7 @@ ecp_nistz256_point_double:
 	add	sp,x29,#0		// destroy frame
 	ldp	x19,x20,[x29,#16]
 	ldp	x21,x22,[x29,#32]
-	ldp	x29,x30,[sp],#80
+	ldp	x29,x30,[sp],#96
 .inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_point_double,.-ecp_nistz256_point_double
@@ -3157,12 +3157,13 @@ ecp_nistz256_point_double:
 .align	5
 ecp_nistz256_point_add:
 .inst	0xd503233f		// paciasp
-	stp	x29,x30,[sp,#-80]!
+	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
 	stp	x25,x26,[sp,#64]
+	stp	x27,x28,[sp,#80]
 	sub	sp,sp,#32*12
 
 	ldp	x4,x5,[x2,#64]	// in2_z
@@ -3176,7 +3177,7 @@ ecp_nistz256_point_add:
 	orr	x10,x6,x7
 	orr	x25,x8,x10
 	cmp	x25,#0
-	csetm	x25,ne		// !in2infty
+	csetm	x25,ne		// ~in2infty
 	add	x0,sp,#192
 	bl	__ecp_nistz256_sqr_mont	// p256_sqr_mont(Z2sqr, in2_z);
 
@@ -3186,7 +3187,7 @@ ecp_nistz256_point_add:
 	orr	x10,x6,x7
 	orr	x24,x8,x10
 	cmp	x24,#0
-	csetm	x24,ne		// !in1infty
+	csetm	x24,ne		// ~in1infty
 	add	x0,sp,#128
 	bl	__ecp_nistz256_sqr_mont	// p256_sqr_mont(Z1sqr, in1_z);
 
@@ -3227,7 +3228,7 @@ ecp_nistz256_point_add:
 
 	orr	x14,x14,x15	// see if result is zero
 	orr	x16,x16,x17
-	orr	x26,x14,x16
+	orr	x26,x14,x16	// ~is_equal(S1,S2)
 
 	add	x2,sp,#192
 	add	x0,sp,#256
@@ -3248,32 +3249,21 @@ ecp_nistz256_point_add:
 
 	orr	x14,x14,x15	// see if result is zero
 	orr	x16,x16,x17
-	orr	x14,x14,x16
-	tst	x14,x14
-	b.ne	.Ladd_proceed		// is_equal(U1,U2)?
+	orr	x14,x14,x16	// ~is_equal(U1,U2)
 
-	tst	x24,x25
-	b.eq	.Ladd_proceed		// (in1infty || in2infty)?
+	mvn	x27,x24	// -1/0 -> 0/-1
+	mvn	x28,x25	// -1/0 -> 0/-1
+	orr	x14,x14,x27
+	orr	x14,x14,x28
+	orr	x14,x14,x26
+	cbnz	x14,.Ladd_proceed	// if(~is_equal(U1,U2) | in1infty | in2infty | ~is_equal(S1,S2))
 
-	tst	x26,x26
-	b.eq	.Ladd_double		// is_equal(S1,S2)?
-
-	eor	x4,x4,x4
-	eor	x5,x5,x5
-	stp	x4,x5,[x21]
-	stp	x4,x5,[x21,#16]
-	stp	x4,x5,[x21,#32]
-	stp	x4,x5,[x21,#48]
-	stp	x4,x5,[x21,#64]
-	stp	x4,x5,[x21,#80]
-	b	.Ladd_done
-
-.align	4
 .Ladd_double:
 	mov	x1,x22
 	mov	x0,x21
 	ldp	x23,x24,[x29,#48]
 	ldp	x25,x26,[x29,#64]
+	ldp	x27,x28,[x29,#80]
 	add	sp,sp,#32*(12-4)	// difference in stack frames
 	b	.Ldouble_shortcut
 
@@ -3355,14 +3345,14 @@ ecp_nistz256_point_add:
 	ldp	x8,x9,[x23]		// in2
 	ldp	x10,x11,[x23,#16]
 	ldp	x14,x15,[x22,#0]	// in1
-	cmp	x24,#0			// !, remember?
+	cmp	x24,#0			// ~, remember?
 	ldp	x16,x17,[x22,#0+16]
 	csel	x8,x4,x8,ne
 	csel	x9,x5,x9,ne
 	ldp	x4,x5,[sp,#0+0+32]	// res
 	csel	x10,x6,x10,ne
 	csel	x11,x7,x11,ne
-	cmp	x25,#0			// !, remember?
+	cmp	x25,#0			// ~, remember?
 	ldp	x6,x7,[sp,#0+0+48]
 	csel	x14,x8,x14,ne
 	csel	x15,x9,x15,ne
@@ -3373,14 +3363,14 @@ ecp_nistz256_point_add:
 	stp	x14,x15,[x21,#0]
 	stp	x16,x17,[x21,#0+16]
 	ldp	x14,x15,[x22,#32]	// in1
-	cmp	x24,#0			// !, remember?
+	cmp	x24,#0			// ~, remember?
 	ldp	x16,x17,[x22,#32+16]
 	csel	x8,x4,x8,ne
 	csel	x9,x5,x9,ne
 	ldp	x4,x5,[sp,#0+32+32]	// res
 	csel	x10,x6,x10,ne
 	csel	x11,x7,x11,ne
-	cmp	x25,#0			// !, remember?
+	cmp	x25,#0			// ~, remember?
 	ldp	x6,x7,[sp,#0+32+48]
 	csel	x14,x8,x14,ne
 	csel	x15,x9,x15,ne
@@ -3391,13 +3381,13 @@ ecp_nistz256_point_add:
 	stp	x14,x15,[x21,#32]
 	stp	x16,x17,[x21,#32+16]
 	ldp	x14,x15,[x22,#64]	// in1
-	cmp	x24,#0			// !, remember?
+	cmp	x24,#0			// ~, remember?
 	ldp	x16,x17,[x22,#64+16]
 	csel	x8,x4,x8,ne
 	csel	x9,x5,x9,ne
 	csel	x10,x6,x10,ne
 	csel	x11,x7,x11,ne
-	cmp	x25,#0			// !, remember?
+	cmp	x25,#0			// ~, remember?
 	csel	x14,x8,x14,ne
 	csel	x15,x9,x15,ne
 	csel	x16,x10,x16,ne
@@ -3411,7 +3401,8 @@ ecp_nistz256_point_add:
 	ldp	x21,x22,[x29,#32]
 	ldp	x23,x24,[x29,#48]
 	ldp	x25,x26,[x29,#64]
-	ldp	x29,x30,[sp],#80
+	ldp	x27,x28,[x29,#80]
+	ldp	x29,x30,[sp],#96
 .inst	0xd50323bf		// autiasp
 	ret
 .size	ecp_nistz256_point_add,.-ecp_nistz256_point_add
@@ -3440,7 +3431,7 @@ ecp_nistz256_point_add_affine:
 	orr	x10,x6,x7
 	orr	x24,x8,x10
 	cmp	x24,#0
-	csetm	x24,ne		// !in1infty
+	csetm	x24,ne		// ~in1infty
 
 	ldp	x14,x15,[x2]	// in2_x
 	ldp	x16,x17,[x2,#16]
@@ -3454,7 +3445,7 @@ ecp_nistz256_point_add_affine:
 	orr	x8,x8,x10
 	orr	x25,x14,x8
 	cmp	x25,#0
-	csetm	x25,ne		// !in2infty
+	csetm	x25,ne		// ~in2infty
 
 	add	x0,sp,#128
 	bl	__ecp_nistz256_sqr_mont	// p256_sqr_mont(Z1sqr, in1_z);
@@ -3561,14 +3552,14 @@ ecp_nistz256_point_add_affine:
 	ldp	x8,x9,[x23]		// in2
 	ldp	x10,x11,[x23,#16]
 	ldp	x14,x15,[x22,#0]	// in1
-	cmp	x24,#0			// !, remember?
+	cmp	x24,#0			// ~, remember?
 	ldp	x16,x17,[x22,#0+16]
 	csel	x8,x4,x8,ne
 	csel	x9,x5,x9,ne
 	ldp	x4,x5,[sp,#0+0+32]	// res
 	csel	x10,x6,x10,ne
 	csel	x11,x7,x11,ne
-	cmp	x25,#0			// !, remember?
+	cmp	x25,#0			// ~, remember?
 	ldp	x6,x7,[sp,#0+0+48]
 	csel	x14,x8,x14,ne
 	csel	x15,x9,x15,ne
@@ -3580,14 +3571,14 @@ ecp_nistz256_point_add_affine:
 	stp	x16,x17,[x21,#0+16]
 	adr	x23,.Lone_mont-64
 	ldp	x14,x15,[x22,#32]	// in1
-	cmp	x24,#0			// !, remember?
+	cmp	x24,#0			// ~, remember?
 	ldp	x16,x17,[x22,#32+16]
 	csel	x8,x4,x8,ne
 	csel	x9,x5,x9,ne
 	ldp	x4,x5,[sp,#0+32+32]	// res
 	csel	x10,x6,x10,ne
 	csel	x11,x7,x11,ne
-	cmp	x25,#0			// !, remember?
+	cmp	x25,#0			// ~, remember?
 	ldp	x6,x7,[sp,#0+32+48]
 	csel	x14,x8,x14,ne
 	csel	x15,x9,x15,ne
@@ -3598,13 +3589,13 @@ ecp_nistz256_point_add_affine:
 	stp	x14,x15,[x21,#32]
 	stp	x16,x17,[x21,#32+16]
 	ldp	x14,x15,[x22,#64]	// in1
-	cmp	x24,#0			// !, remember?
+	cmp	x24,#0			// ~, remember?
 	ldp	x16,x17,[x22,#64+16]
 	csel	x8,x4,x8,ne
 	csel	x9,x5,x9,ne
 	csel	x10,x6,x10,ne
 	csel	x11,x7,x11,ne
-	cmp	x25,#0			// !, remember?
+	cmp	x25,#0			// ~, remember?
 	csel	x14,x8,x14,ne
 	csel	x15,x9,x15,ne
 	csel	x16,x10,x16,ne

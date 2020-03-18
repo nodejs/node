@@ -11,6 +11,7 @@ global	aesni_cbc_sha1_enc
 ALIGN	32
 aesni_cbc_sha1_enc:
 
+
 	mov	r10d,DWORD[((OPENSSL_ia32cap_P+0))]
 	mov	r11,QWORD[((OPENSSL_ia32cap_P+4))]
 	bt	r11,61
@@ -22,6 +23,7 @@ aesni_cbc_sha1_enc:
 	je	NEAR aesni_cbc_sha1_enc_avx
 	jmp	NEAR aesni_cbc_sha1_enc_ssse3
 	DB	0F3h,0C3h		;repret
+
 
 
 ALIGN	32
@@ -2809,6 +2811,7 @@ $L$SEH_begin_aesni_cbc_sha1_enc_shaext:
 	mov	r9,QWORD[48+rsp]
 
 
+
 	mov	r10,QWORD[56+rsp]
 	lea	rsp,[((-168))+rsp]
 	movaps	XMMWORD[(-8-160)+rax],xmm6
@@ -3133,6 +3136,7 @@ $L$epilogue_shaext:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_aesni_cbc_sha1_enc_shaext:
 EXTERN	__imp_RtlVirtualUnwind
 
