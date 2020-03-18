@@ -63,7 +63,7 @@ def checkHash(targetfile, hashAlgo):
     digest = hashlib.new(hashAlgo)
     with open(targetfile, 'rb') as f:
       chunk = f.read(1024)
-      while chunk !=  "":
+      while len(chunk) > 0:
         digest.update(chunk)
         chunk = f.read(1024)
     return digest.hexdigest()

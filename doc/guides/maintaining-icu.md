@@ -97,7 +97,7 @@ new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 
 …Should return `enero` not `January`.
 
-* Now, copy `deps/icu` over to `deps/icu-small`
+* Now, run the shrink tool to update `deps/icu-small` from `deps/icu`
 
 > :warning: Do not modify any source code in `deps/icu-small` !
 > See section below about floating patches to ICU.
