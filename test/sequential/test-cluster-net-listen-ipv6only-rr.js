@@ -16,7 +16,7 @@ const host = '::';
 const WORKER_ACCOUNT = 3;
 
 if (cluster.isMaster) {
-  const workers = new Map();
+  const workers = [];
   let address;
 
   const countdown = new Countdown(WORKER_ACCOUNT, () => {
@@ -45,7 +45,7 @@ if (cluster.isMaster) {
       countdown.dec();
     }));
 
-    workers.set(i, worker);
+    workers[i] = worker;
   }
 } else {
   // As the cluster member has the potential to grab any port

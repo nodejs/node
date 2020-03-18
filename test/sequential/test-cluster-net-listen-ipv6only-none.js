@@ -16,7 +16,7 @@ const host = '::';
 const WORKER_ACCOUNT = 3;
 
 if (cluster.isMaster) {
-  const workers = new Map();
+  const workers = [];
 
   const countdown = new Countdown(WORKER_ACCOUNT, () => {
     // Make sure the `ipv6Only` option works. This is the part of the test that
@@ -46,7 +46,7 @@ if (cluster.isMaster) {
       countdown.dec();
     }));
 
-    workers.set(i, worker);
+    workers[i] = worker;
   }
 } else {
   net.createServer().listen({
