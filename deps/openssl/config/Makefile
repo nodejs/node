@@ -38,7 +38,7 @@ OPSSL_SRC = ../openssl
 CFG = opensslconf.h
 SRC_CFG = $(OPSSL_SRC)/include/openssl/$(CFG)
 INT_CFGS = bn_conf.h dso_conf.h
-INT_CFG_DIR = $(OPSSL_SRC)/crypto/include/internal
+INT_CFG_DIR = $(OPSSL_SRC)/include/crypto
 
 PHONY = all clean replace
 .PHONY: $(PHONY)

@@ -1,7 +1,7 @@
 BLDDIR=.
 PERL=perl
 RM= rm -f
-GENERATED_MANDATORY=crypto/include/internal/bn_conf.h crypto/include/internal/dso_conf.h include/openssl/opensslconf.h
+GENERATED_MANDATORY=include/crypto/bn_conf.h include/crypto/dso_conf.h include/openssl/opensslconf.h
 GENERATED=apps/CA.pl apps/openssl.rc apps/progs.h apps/tsget.pl crypto/aes/aes-586.asm crypto/aes/aesni-x86.asm crypto/aes/vpaes-x86.asm crypto/bf/bf-586.asm crypto/bn/bn-586.asm crypto/bn/co-586.asm crypto/bn/x86-gf2m.asm crypto/bn/x86-mont.asm crypto/buildinf.h crypto/camellia/cmll-x86.asm crypto/chacha/chacha-x86.asm crypto/des/crypt586.asm crypto/des/des-586.asm crypto/ec/ecp_nistz256-x86.asm crypto/md5/md5-586.asm crypto/modes/ghash-x86.asm crypto/poly1305/poly1305-x86.asm crypto/rc4/rc4-586.asm crypto/ripemd/rmd-586.asm crypto/sha/sha1-586.asm crypto/sha/sha256-586.asm crypto/sha/sha512-586.asm crypto/whrlpool/wp-mmx.asm crypto/x86cpuid.asm engines/capi.def engines/dasync.def engines/e_padlock-x86.asm engines/ossltest.def engines/padlock.def libcrypto.def libcrypto.rc libssl.def libssl.rc test/buildtest_aes.c test/buildtest_asn1.c test/buildtest_asn1t.c test/buildtest_async.c test/buildtest_bio.c test/buildtest_blowfish.c test/buildtest_bn.c test/buildtest_buffer.c test/buildtest_camellia.c test/buildtest_cast.c test/buildtest_cmac.c test/buildtest_cms.c test/buildtest_comp.c test/buildtest_conf.c test/buildtest_conf_api.c test/buildtest_crypto.c test/buildtest_ct.c test/buildtest_des.c test/buildtest_dh.c test/buildtest_dsa.c test/buildtest_dtls1.c test/buildtest_e_os2.c test/buildtest_ebcdic.c test/buildtest_ec.c test/buildtest_ecdh.c test/buildtest_ecdsa.c test/buildtest_engine.c test/buildtest_evp.c test/buildtest_hmac.c test/buildtest_idea.c test/buildtest_kdf.c test/buildtest_lhash.c test/buildtest_md4.c test/buildtest_md5.c test/buildtest_mdc2.c test/buildtest_modes.c test/buildtest_obj_mac.c test/buildtest_objects.c test/buildtest_ocsp.c test/buildtest_opensslv.c test/buildtest_ossl_typ.c test/buildtest_pem.c test/buildtest_pem2.c test/buildtest_pkcs12.c test/buildtest_pkcs7.c test/buildtest_rand.c test/buildtest_rand_drbg.c test/buildtest_rc2.c test/buildtest_rc4.c test/buildtest_ripemd.c test/buildtest_rsa.c test/buildtest_safestack.c test/buildtest_seed.c test/buildtest_sha.c test/buildtest_srp.c test/buildtest_srtp.c test/buildtest_ssl.c test/buildtest_ssl2.c test/buildtest_stack.c test/buildtest_store.c test/buildtest_symhacks.c test/buildtest_tls1.c test/buildtest_ts.c test/buildtest_txt_db.c test/buildtest_ui.c test/buildtest_whrlpool.c test/buildtest_x509.c test/buildtest_x509_vfy.c test/buildtest_x509v3.c tools/c_rehash.pl
 
 # Variables starting with LIB_ are used to build library object files
@@ -35,12 +35,12 @@ APPS_OPENSSL=apps/openssl
 # see https://github.com/openssl/openssl/blob/master/crypto/sha/asm/sha256-586.pl#L82
 CFLAGS    += -DOPENSSL_IA32_SSE2
 
-crypto/include/internal/bn_conf.h: crypto/include/internal/bn_conf.h.in configdata.pm
+include/crypto/bn_conf.h: include/crypto/bn_conf.h.in configdata.pm
 	$(PERL) -I$(BLDDIR) -Mconfigdata util/dofile.pl \
-	    -omakefile crypto/include/internal/bn_conf.h.in > $@
-crypto/include/internal/dso_conf.h: crypto/include/internal/dso_conf.h.in configdata.pm
+	    -omakefile include/crypto/bn_conf.h.in > $@
+include/crypto/dso_conf.h: include/crypto/dso_conf.h.in configdata.pm
 	$(PERL) -I$(BLDDIR) -Mconfigdata util/dofile.pl \
-	    -omakefile crypto/include/internal/dso_conf.h.in > $@
+	    -omakefile include/crypto/dso_conf.h.in > $@
 include/openssl/opensslconf.h: include/openssl/opensslconf.h.in configdata.pm
 	$(PERL) -I$(BLDDIR) -Mconfigdata util/dofile.pl \
 	    -omakefile include/openssl/opensslconf.h.in > $@
