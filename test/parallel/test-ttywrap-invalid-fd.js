@@ -21,13 +21,14 @@ assert.throws(
 
 {
   const info = {
-    code: common.isWindows ? 'EBADF' : 'EINVAL',
-    message: common.isWindows ? 'bad file descriptor' : 'invalid argument',
-    errno: common.isWindows ? UV_EBADF : UV_EINVAL,
+    code: common.isWindows || common.isIBMi ? 'EBADF' : 'EINVAL',
+    message: common.isWindows ||
+      common.isIBMi ? 'bad file descriptor' : 'invalid argument',
+    errno: common.isWindows || common.isIBMi ? UV_EBADF : UV_EINVAL,
     syscall: 'uv_tty_init'
   };
 
-  const suffix = common.isWindows ?
+  const suffix = common.isWindows || common.isIBMi ?
     'EBADF (bad file descriptor)' : 'EINVAL (invalid argument)';
   const message = `TTY initialization failed: uv_tty_init returned ${suffix}`;
 
