@@ -58,6 +58,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)                \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                                \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
+  V(ERR_WORKER_INIT_FAILED, Error)                                             \
   V(ERR_PROTO_ACCESS, Error)
 
 #define V(code, type)                                                         \
@@ -107,6 +108,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                           \
     "Cannot serialize externalized SharedArrayBuffer")                         \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
+  V(ERR_WORKER_INIT_FAILED, "Worker initialization failure")                   \
   V(ERR_PROTO_ACCESS,                                                          \
     "Accessing Object.prototype.__proto__ has been "                           \
     "disallowed with --disable-proto=throw")
