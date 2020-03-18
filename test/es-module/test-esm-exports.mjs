@@ -118,12 +118,21 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     }));
   }
 
-  // Covering out bases - not a file is still not a file after dir mapping.
+  // Non-existing file
   loadFixture('pkgexports/sub/not-a-file.js').catch(mustCall((err) => {
     strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
     // ESM returns a full file path
     assertStartsWith(err.message, isRequire ?
       'Cannot find module \'pkgexports/sub/not-a-file.js\'' :
+      'Cannot find module');
+  }));
+
+  // No extension lookups
+  loadFixture('pkgexports/no-ext').catch(mustCall((err) => {
+    strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
+    // ESM returns a full file path
+    assertStartsWith(err.message, isRequire ?
+      'Cannot find module \'pkgexports/no-ext\'' :
       'Cannot find module');
   }));
 

@@ -1635,7 +1635,7 @@ The resolver can throw the following errors:
 >    1. If _exports_ contains any index property keys, as defined in ECMA-262
 >       [6.1.7 Array Index][], throw an _Invalid Package Configuration_ error.
 >    1. For each property _p_ of _target_, in object insertion order as,
->       1. If _env_ contains an entry for _p_, then
+>       1. If _p_ equals _"default"_ or _env_ contains an entry for _p_, then
 >          1. Let _targetValue_ be the value of the _p_ property in _target_.
 >          1. Return the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**(
 >             _packageURL_, _targetValue_, _subpath_, _env_), continuing the
