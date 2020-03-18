@@ -2439,7 +2439,7 @@ changes:
 -->
 
 * `privateKey` {Object | string | Buffer | KeyObject}
-  * `oaepHash` {string} The hash function to use for OAEP padding.
+  * `oaepHash` {string} The hash function to use for OAEP padding and MGF1.
     **Default:** `'sha1'`
   * `oaepLabel` {Buffer | TypedArray | DataView} The label to use for OAEP
      padding. If not specified, no label is used.
@@ -2529,7 +2529,7 @@ changes:
 
 * `key` {Object | string | Buffer | KeyObject}
   * `key` {string | Buffer | KeyObject} A PEM encoded public or private key.
-  * `oaepHash` {string} The hash function to use for OAEP padding.
+  * `oaepHash` {string} The hash function to use for OAEP padding and MGF1.
     **Default:** `'sha1'`
   * `oaepLabel` {Buffer | TypedArray | DataView} The label to use for OAEP
      padding. If not specified, no label is used.
