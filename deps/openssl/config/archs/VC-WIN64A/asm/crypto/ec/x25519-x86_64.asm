@@ -414,12 +414,14 @@ global	x25519_fe64_eligible
 
 ALIGN	32
 x25519_fe64_eligible:
+
 	mov	ecx,DWORD[((OPENSSL_ia32cap_P+8))]
 	xor	eax,eax
 	and	ecx,0x80100
 	cmp	ecx,0x80100
 	cmove	eax,ecx
 	DB	0F3h,0C3h		;repret
+
 
 
 global	x25519_fe64_mul
@@ -675,6 +677,7 @@ $L$SEH_begin_x25519_fe64_mul121666:
 
 
 $L$fe64_mul121666_body:
+
 	mov	edx,121666
 	mulx	rcx,r8,QWORD[rsi]
 	mulx	rax,r9,QWORD[8+rsi]
@@ -705,6 +708,7 @@ $L$fe64_mul121666_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_x25519_fe64_mul121666:
 
 global	x25519_fe64_add
@@ -721,6 +725,7 @@ $L$SEH_begin_x25519_fe64_add:
 
 
 $L$fe64_add_body:
+
 	mov	r8,QWORD[rsi]
 	mov	r9,QWORD[8+rsi]
 	mov	r10,QWORD[16+rsi]
@@ -751,6 +756,7 @@ $L$fe64_add_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_x25519_fe64_add:
 
 global	x25519_fe64_sub
@@ -767,6 +773,7 @@ $L$SEH_begin_x25519_fe64_sub:
 
 
 $L$fe64_sub_body:
+
 	mov	r8,QWORD[rsi]
 	mov	r9,QWORD[8+rsi]
 	mov	r10,QWORD[16+rsi]
@@ -797,6 +804,7 @@ $L$fe64_sub_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_x25519_fe64_sub:
 
 global	x25519_fe64_tobytes
@@ -812,6 +820,7 @@ $L$SEH_begin_x25519_fe64_tobytes:
 
 
 $L$fe64_to_body:
+
 	mov	r8,QWORD[rsi]
 	mov	r9,QWORD[8+rsi]
 	mov	r10,QWORD[16+rsi]
@@ -849,6 +858,7 @@ $L$fe64_to_epilogue:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_x25519_fe64_tobytes:
 DB	88,50,53,53,49,57,32,112,114,105,109,105,116,105,118,101
 DB	115,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82

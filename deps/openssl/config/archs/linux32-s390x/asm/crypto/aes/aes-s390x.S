@@ -2094,7 +2094,7 @@ AES_xts_encrypt:
 
 .Lxts_enc_done:
 	stg	%r15,80+0(%r15)	# wipe tweak
-	stg	%r15,+8(%r15)
+	stg	%r15,80+8(%r15)
 	lm	%r6,%r14,6*4(%r15)
 	br	%r14
 .size	AES_xts_encrypt,.-AES_xts_encrypt
@@ -2360,7 +2360,7 @@ AES_xts_decrypt:
 	stg	%r15,80-16+8(%r15)
 .Lxts_dec_done:
 	stg	%r15,80+0(%r15)	# wipe tweak
-	stg	%r15,+8(%r15)
+	stg	%r15,80+8(%r15)
 	lm	%r6,%r14,6*4(%r15)
 	br	%r14
 .size	AES_xts_decrypt,.-AES_xts_decrypt

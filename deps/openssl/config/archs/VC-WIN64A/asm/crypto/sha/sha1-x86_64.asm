@@ -1458,10 +1458,10 @@ DB	102,15,56,0,251
 	movaps	xmm9,XMMWORD[((-8-16))+rax]
 	mov	rsp,rax
 $L$epilogue_shaext:
-
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_sha1_block_data_order_shaext:
 
 ALIGN	16
