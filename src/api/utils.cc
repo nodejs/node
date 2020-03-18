@@ -134,27 +134,27 @@ const char* signo_string(int signo) {
 #endif
 
 #ifdef SIGPOLL
-# if SIGPOLL != SIGIO
+#if SIGPOLL != SIGIO
     SIGNO_CASE(SIGPOLL);
-# endif
+#endif
 #endif
 
 #ifdef SIGLOST
-# if SIGLOST != SIGABRT
+#if SIGLOST != SIGABRT
     SIGNO_CASE(SIGLOST);
-# endif
+#endif
 #endif
 
 #ifdef SIGPWR
-# if SIGPWR != SIGLOST
+#if SIGPWR != SIGLOST
     SIGNO_CASE(SIGPWR);
-# endif
+#endif
 #endif
 
 #ifdef SIGINFO
-# if !defined(SIGPWR) || SIGINFO != SIGPWR
+#if !defined(SIGPWR) || SIGINFO != SIGPWR
     SIGNO_CASE(SIGINFO);
-# endif
+#endif
 #endif
 
 #ifdef SIGSYS
