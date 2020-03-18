@@ -4165,7 +4165,15 @@ L$oop_avx2:
 	vmovdqa	%ymm10,64(%rsp)
 	vpaddq	64(%rbp),%ymm6,%ymm10
 	vmovdqa	%ymm11,96(%rsp)
+
+	movq	152(%rsp),%rdi
+
 	leaq	-128(%rsp),%rsp
+
+
+
+	movq	%rdi,-8(%rsp)
+
 	vpaddq	96(%rbp),%ymm7,%ymm11
 	vmovdqa	%ymm8,0(%rsp)
 	xorq	%r14,%r14
@@ -4181,6 +4189,12 @@ L$oop_avx2:
 .p2align	4
 L$avx2_00_47:
 	leaq	-128(%rsp),%rsp
+
+
+	pushq	128-8(%rsp)
+
+	leaq	8(%rsp),%rsp
+
 	vpalignr	$8,%ymm0,%ymm1,%ymm8
 	addq	0+256(%rsp),%r11
 	andq	%r8,%r12
@@ -4474,6 +4488,12 @@ L$avx2_00_47:
 	movq	%r9,%r12
 	vmovdqa	%ymm10,96(%rsp)
 	leaq	-128(%rsp),%rsp
+
+
+	pushq	128-8(%rsp)
+
+	leaq	8(%rsp),%rsp
+
 	vpalignr	$8,%ymm4,%ymm5,%ymm8
 	addq	0+256(%rsp),%r11
 	andq	%r8,%r12
@@ -5387,6 +5407,8 @@ L$ower_avx2:
 
 	leaq	1152(%rsp),%rsp
 
+
+
 	addq	0(%rdi),%rax
 	addq	8(%rdi),%rbx
 	addq	16(%rdi),%rcx
@@ -5412,9 +5434,11 @@ L$ower_avx2:
 	jbe	L$oop_avx2
 	leaq	(%rsp),%rbp
 
+
+
+
 L$done_avx2:
-	leaq	(%rbp),%rsp
-	movq	152(%rsp),%rsi
+	movq	152(%rbp),%rsi
 
 	vzeroupper
 	movq	-48(%rsi),%r15

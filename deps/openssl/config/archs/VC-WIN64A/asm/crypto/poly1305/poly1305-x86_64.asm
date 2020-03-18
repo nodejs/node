@@ -26,6 +26,7 @@ $L$SEH_begin_poly1305_init:
 	mov	rdx,r8
 
 
+
 	xor	rax,rax
 	mov	QWORD[rdi],rax
 	mov	QWORD[8+rdi],rax
@@ -63,6 +64,7 @@ $L$no_key:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_init:
 
 
@@ -198,6 +200,7 @@ $L$SEH_begin_poly1305_emit:
 	mov	rdx,r8
 
 
+
 $L$emit:
 	mov	r8,QWORD[rdi]
 	mov	r9,QWORD[8+rdi]
@@ -220,10 +223,12 @@ $L$emit:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_emit:
 
 ALIGN	32
 __poly1305_block:
+
 	mul	r14
 	mov	r9,rax
 	mov	rax,r11
@@ -266,8 +271,10 @@ __poly1305_block:
 
 
 
+
 ALIGN	32
 __poly1305_init_avx:
+
 	mov	r14,r11
 	mov	rbx,r12
 	xor	rbp,rbp
@@ -425,6 +432,7 @@ __poly1305_init_avx:
 
 	lea	rdi,[((-48-64))+rdi]
 	DB	0F3h,0C3h		;repret
+
 
 
 
@@ -1296,6 +1304,7 @@ $L$SEH_begin_poly1305_emit_avx:
 	mov	rdx,r8
 
 
+
 	cmp	DWORD[20+rdi],0
 	je	NEAR $L$emit
 
@@ -1348,6 +1357,7 @@ $L$SEH_begin_poly1305_emit_avx:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_emit_avx:
 
 ALIGN	32
@@ -2607,6 +2617,7 @@ $L$SEH_begin_poly1305_init_base2_44:
 	mov	rdx,r8
 
 
+
 	xor	rax,rax
 	mov	QWORD[rdi],rax
 	mov	QWORD[8+rdi],rax
@@ -2642,6 +2653,7 @@ $L$init_base2_44:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_init_base2_44:
 
 ALIGN	32
@@ -2654,6 +2666,7 @@ $L$SEH_begin_poly1305_blocks_vpmadd52:
 	mov	rsi,rdx
 	mov	rdx,r8
 	mov	rcx,r9
+
 
 
 	shr	rdx,4
@@ -2764,6 +2777,7 @@ $L$no_data_vpmadd52:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_blocks_vpmadd52:
 
 ALIGN	32
@@ -2776,6 +2790,7 @@ $L$SEH_begin_poly1305_blocks_vpmadd52_4x:
 	mov	rsi,rdx
 	mov	rdx,r8
 	mov	rcx,r9
+
 
 
 	shr	rdx,4
@@ -3204,6 +3219,7 @@ $L$no_data_vpmadd52_4x:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_blocks_vpmadd52_4x:
 
 ALIGN	32
@@ -3216,6 +3232,7 @@ $L$SEH_begin_poly1305_blocks_vpmadd52_8x:
 	mov	rsi,rdx
 	mov	rdx,r8
 	mov	rcx,r9
+
 
 
 	shr	rdx,4
@@ -3560,6 +3577,7 @@ $L$no_data_vpmadd52_8x:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_blocks_vpmadd52_8x:
 
 ALIGN	32
@@ -3571,6 +3589,7 @@ $L$SEH_begin_poly1305_emit_base2_44:
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
+
 
 
 	mov	r8,QWORD[rdi]
@@ -3605,6 +3624,7 @@ $L$SEH_begin_poly1305_emit_base2_44:
 	mov	rdi,QWORD[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD[16+rsp]
 	DB	0F3h,0C3h		;repret
+
 $L$SEH_end_poly1305_emit_base2_44:
 ALIGN	64
 $L$const:
@@ -3646,6 +3666,7 @@ global	xor128_encrypt_n_pad
 
 ALIGN	16
 xor128_encrypt_n_pad:
+
 	sub	rdx,r8
 	sub	rcx,r8
 	mov	r10,r9
@@ -3689,10 +3710,12 @@ $L$done_enc:
 	DB	0F3h,0C3h		;repret
 
 
+
 global	xor128_decrypt_n_pad
 
 ALIGN	16
 xor128_decrypt_n_pad:
+
 	sub	rdx,r8
 	sub	rcx,r8
 	mov	r10,r9
@@ -3738,6 +3761,7 @@ $L$oop_dec_pad:
 $L$done_dec:
 	mov	rax,r8
 	DB	0F3h,0C3h		;repret
+
 
 EXTERN	__imp_RtlVirtualUnwind
 

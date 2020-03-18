@@ -6,6 +6,7 @@
 .p2align	5
 _aesni_cbc_sha1_enc:
 
+
 	movl	_OPENSSL_ia32cap_P+0(%rip),%r10d
 	movq	_OPENSSL_ia32cap_P+4(%rip),%r11
 	btq	$61,%r11
@@ -17,6 +18,7 @@ _aesni_cbc_sha1_enc:
 	je	aesni_cbc_sha1_enc_avx
 	jmp	aesni_cbc_sha1_enc_ssse3
 	.byte	0xf3,0xc3
+
 
 
 .p2align	5
@@ -2718,6 +2720,7 @@ K_XX_XX:
 
 .p2align	5
 aesni_cbc_sha1_enc_shaext:
+
 	movq	8(%rsp),%r10
 	movdqu	(%r9),%xmm8
 	movd	16(%r9),%xmm9
