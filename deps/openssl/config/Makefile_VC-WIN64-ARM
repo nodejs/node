@@ -16,7 +16,7 @@ MINOR=1.1
 
 SHLIB_VERSION_NUMBER=1.1
 
-GENERATED_MANDATORY=crypto/include/internal/bn_conf.h crypto/include/internal/dso_conf.h include/openssl/opensslconf.h
+GENERATED_MANDATORY=include/crypto/bn_conf.h include/crypto/dso_conf.h include/openssl/opensslconf.h
 GENERATED=crypto/buildinf.h apps/progs.h
 
 INSTALL_LIBS="libcrypto.lib" "libssl.lib"
@@ -132,12 +132,12 @@ crypto/buildinf.h:
 apps/progs.h:
 	"$(PERL)" "apps/progs.pl" $(APPS_OPENSSL) > $@
 
-crypto/include/internal/bn_conf.h:
+include/crypto/bn_conf.h:
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
-	    "-omakefile" "crypto/include/internal/bn_conf.h.in" > $@
-crypto/include/internal/dso_conf.h:
+	    "-omakefile" "include/crypto/bn_conf.h.in" > $@
+include/crypto/dso_conf.h:
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
-	    "-omakefile" "crypto/include/internal/dso_conf.h.in" > $@
+	    "-omakefile" "include/crypto/dso_conf.h.in" > $@
 include/openssl/opensslconf.h:
 	"$(PERL)" "-I$(BLDDIR)" -Mconfigdata "util/dofile.pl" \
 	    "-omakefile" "include/openssl/opensslconf.h.in" > $@
