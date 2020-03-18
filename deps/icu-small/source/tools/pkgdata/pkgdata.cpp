@@ -66,6 +66,8 @@ U_DEFINE_LOCAL_OPEN_POINTER(LocalPipeFilePointer, FILE, pclose);
 
 #endif
 
+using icu::LocalMemory;
+
 static void loadLists(UPKGOptions *o, UErrorCode *status);
 
 static int32_t pkg_executeOptions(UPKGOptions *o);
@@ -1527,9 +1529,7 @@ static int32_t pkg_generateLibraryFile(const char *targetDir, const char mode, c
 
 static int32_t pkg_createWithAssemblyCode(const char *targetDir, const char mode, const char *gencFilePath) {
     char tempObjectFile[SMALL_BUFFER_MAX_SIZE] = "";
-    char *cmd;
     int32_t result = 0;
-
     int32_t length = 0;
 
     /* Remove the ending .s and replace it with .o for the new object file. */
@@ -1539,22 +1539,22 @@ static int32_t pkg_createWithAssemblyCode(const char *targetDir, const char mode
     length = static_cast<int32_t>(uprv_strlen(pkgDataFlags[COMPILER]) + uprv_strlen(pkgDataFlags[LIBFLAGS])
              + uprv_strlen(tempObjectFile) + uprv_strlen(gencFilePath) + BUFFER_PADDING_SIZE);
 
-    cmd = (char *)uprv_malloc(sizeof(char) * length);
-    if (cmd == NULL) {
+    LocalMemory<char> cmd((char *)uprv_malloc(sizeof(char) * length));
+    if (cmd.isNull()) {
         return -1;
     }
 
     /* Generate the object file. */
-    sprintf(cmd, "%s %s -o %s %s",
+    sprintf(cmd.getAlias(), "%s %s -o %s %s",
             pkgDataFlags[COMPILER],
             pkgDataFlags[LIBFLAGS],
             tempObjectFile,
             gencFilePath);
 
-    result = runCommand(cmd);
-    uprv_free(cmd);
+    result = runCommand(cmd.getAlias());
+
     if (result != 0) {
-        fprintf(stderr, "Error creating with assembly code. Failed command: %s\n", cmd);
+        fprintf(stderr, "Error creating with assembly code. Failed command: %s\n", cmd.getAlias());
         return result;
     }
 

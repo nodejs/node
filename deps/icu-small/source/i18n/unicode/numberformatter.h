@@ -2600,7 +2600,7 @@ StringClass FormattedNumber::toDecimalNumber(UErrorCode& status) const {
     StringByteSink<StringClass> sink(&result);
     toDecimalNumber(sink, status);
     return result;
-};
+}
 #endif // U_HIDE_DRAFT_API
 
 /**

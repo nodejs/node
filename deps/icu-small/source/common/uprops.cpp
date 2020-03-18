@@ -480,6 +480,11 @@ static int32_t getScript(const IntProperty &/*prop*/, UChar32 c, UProperty /*whi
     return (int32_t)uscript_getScript(c, &errorCode);
 }
 
+static int32_t scriptGetMaxValue(const IntProperty &/*prop*/, UProperty /*which*/) {
+    uint32_t scriptX=uprv_getMaxValues(0)&UPROPS_SCRIPT_X_MASK;
+    return uprops_mergeScriptCodeOrIndex(scriptX);
+}
+
 /*
  * Map some of the Grapheme Cluster Break values to Hangul Syllable Types.
  * Hangul_Syllable_Type is fully redundant with a subset of Grapheme_Cluster_Break.
@@ -586,7 +591,7 @@ static const IntProperty intProps[UCHAR_INT_LIMIT-UCHAR_INT_START]={
     { UPROPS_SRC_BIDI,  0, 0,                               getJoiningType, biDiGetMaxValue },
     { 2,                UPROPS_LB_MASK, UPROPS_LB_SHIFT,    defaultGetValue, defaultGetMaxValue },
     { UPROPS_SRC_CHAR,  0, (int32_t)U_NT_COUNT-1,           getNumericType, getMaxValueFromShift },
-    { 0,                UPROPS_SCRIPT_MASK, 0,              getScript, defaultGetMaxValue },
+    { UPROPS_SRC_PROPSVEC, 0, 0,                            getScript, scriptGetMaxValue },
     { UPROPS_SRC_PROPSVEC, 0, (int32_t)U_HST_COUNT-1,       getHangulSyllableType, getMaxValueFromShift },
     // UCHAR_NFD_QUICK_CHECK: max=1=YES -- never "maybe", only "no" or "yes"
     { UPROPS_SRC_NFC,   0, (int32_t)UNORM_YES,              getNormQuickCheck, getMaxValueFromShift },

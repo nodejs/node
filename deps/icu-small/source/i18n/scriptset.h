@@ -35,6 +35,8 @@ U_NAMESPACE_BEGIN
 //-------------------------------------------------------------------------------
 class U_I18N_API ScriptSet: public UMemory {
   public:
+    static constexpr int32_t SCRIPT_LIMIT = 224;  // multiple of 32!
+
     ScriptSet();
     ScriptSet(const ScriptSet &other);
     ~ScriptSet();
@@ -67,7 +69,7 @@ class U_I18N_API ScriptSet: public UMemory {
     void setScriptExtensions(UChar32 codePoint, UErrorCode& status);
 
   private:
-    uint32_t  bits[6];
+    uint32_t  bits[SCRIPT_LIMIT / 32];
 };
 
 U_NAMESPACE_END
