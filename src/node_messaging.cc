@@ -389,9 +389,6 @@ Maybe<bool> Message::Serialize(Environment* env,
   for (Local<ArrayBuffer> ab : array_buffers) {
     // If serialization succeeded, we render it inaccessible in this Isolate.
     std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
-    // TODO(addaleax): This can/should be dropped once we have V8 8.0.
-    if (!ab->IsExternal())
-      ab->Externalize(backing_store);
     ab->Detach();
 
     array_buffers_.emplace_back(std::move(backing_store));

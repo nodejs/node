@@ -78,9 +78,7 @@ nonByteArrayTypes.forEach((currentType) => {
 // Test detaching
 arrayTypes.forEach((currentType) => {
   const buffer = Reflect.construct(currentType, [8]);
-  assert.throws(
-    () => test_typedarray.Detach(buffer),
-    /A detachable arraybuffer was expected/);
+  assert.doesNotThrow(() => test_typedarray.Detach(buffer));
 });
 {
   const buffer = test_typedarray.External();
