@@ -21,7 +21,8 @@ if (process.argv[2] === 'child') {
     `"${process.execPath}"`,
     `"${__filename}"`,
     'child'
-  ].join(' '), common.mustCall((err) => {
+  ].join(' '), common.mustCall((err, stdout) => {
     assert.ifError(err);
+    assert.strictEqual(stdout, 'hello');
   }));
 }
