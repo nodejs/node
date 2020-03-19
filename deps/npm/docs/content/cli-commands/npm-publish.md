@@ -60,13 +60,13 @@ the specified registry.
 
 Once a package is published with a given name and version, that
 specific name and version combination can never be used again, even if
-it is removed with [`npm unpublish`](/cli-commands/npm-unpublish).
+it is removed with [`npm unpublish`](/cli-commands/unpublish).
 
 As of `npm@5`, both a sha1sum and an integrity field with a sha512sum of the
 tarball will be submitted to the registry during publication. Subsequent
 installs will use the strongest supported algorithm to verify downloads.
 
-Similar to `--dry-run` see [`npm pack`](/cli-commands/npm-pack), which figures out the files to be
+Similar to `--dry-run` see [`npm pack`](/cli-commands/pack), which figures out the files to be
 included and packs them into a tarball to be uploaded to the registry.
 
 ### See Also

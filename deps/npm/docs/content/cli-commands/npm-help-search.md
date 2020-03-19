@@ -40,4 +40,4 @@ If false, then help-search will just list out the help topics found.
 ### See Also
 
 * [npm](/cli-commands/npm)
-* [npm help](/cli-commands/npm-help)
+* [npm help](/cli-commands/help)

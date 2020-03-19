@@ -21,12 +21,12 @@ to contain a `package.json` file or `node_modules` directory, unless `-g` is
 also specified.
 
 If `-g` is specified, this will be the value of the global prefix. See
-[`npm config`](/cli-commands/npm-config) for more detail.
+[`npm config`](/cli-commands/config) for more detail.
 
 ### See Also
 
-* [npm root](/cli-commands/npm-root)
-* [npm bin](/cli-commands/npm-bin)
+* [npm root](/cli-commands/root)
+* [npm bin](/cli-commands/bin)
 * [npm folders](/configuring-npm/folders)
-* [npm config](/cli-commands/npm-config)
+* [npm config](/cli-commands/config)
 * [npmrc](/configuring-npm/npmrc)

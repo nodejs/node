@@ -11,6 +11,7 @@ const request = require('request')
 const mkdir = require('mkdirp')
 const processRelease = require('./process-release')
 const win = process.platform === 'win32'
+const getProxyFromURI = require('./proxy')
 
 function install (fs, gyp, argv, callback) {
   var release = processRelease(argv, gyp, process.version, process.release)
@@ -410,10 +411,7 @@ function download (gyp, env, url) {
   }
 
   // basic support for a proxy server
-  var proxyUrl = gyp.opts.proxy ||
-              env.http_proxy ||
-              env.HTTP_PROXY ||
-              env.npm_config_proxy
+  var proxyUrl = getProxyFromURI(gyp, env, url)
   if (proxyUrl) {
     if (/^https?:\/\//i.test(proxyUrl)) {
       log.verbose('download', 'using proxy url: "%s"', proxyUrl)

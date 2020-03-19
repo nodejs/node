@@ -20,7 +20,11 @@ const readJson = BB.promisify(require('read-package-json'))
 const usage = require('./utils/usage.js')
 const whoami = BB.promisify(require('./whoami.js'))
 
-unpublish.usage = usage('npm unpublish [<@scope>/]<pkg>[@<version>]')
+unpublish.usage = usage(
+  'unpublish',
+  '\nnpm unpublish [<@scope>/]<pkg>@<version>' +
+    '\nnpm unpublish [<@scope>/]<pkg> --force'
+)
 
 function UsageError () {
   throw Object.assign(new Error(`Usage: ${unpublish.usage}`), {
@@ -75,7 +79,7 @@ function unpublish (args, cb) {
         'Refusing to delete entire project.\n' +
         'Run with --force to do this.\n' +
         unpublish.usage
-      ), {code: 'EUSAGE'})
+      ), { code: 'EUSAGE' })
     }
     if (!spec || path.resolve(spec.name) === npm.localPrefix) {
       // if there's a package.json in the current folder, then

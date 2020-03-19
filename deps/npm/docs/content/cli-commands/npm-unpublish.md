@@ -10,19 +10,21 @@ description: Remove a package from the registry
 
 ### Synopsis
 
+#### Unpublishing a single version of a package
+
 ```bash
-npm unpublish [<@scope>/]<pkg>[@<version>]
+npm unpublish [<@scope>/]<pkg>@<version>
+```
+
+#### Unpublishing an entire package
+
+```bash
+npm unpublish [<@scope>/]<pkg> --force
 ```
 
 ### Warning
 
-**It is generally considered bad behavior to remove versions of a library
-that others are depending on!**
-
-Consider using the `deprecate` command
-instead, if your intent is to encourage users to upgrade.
-
-There is plenty of room on the registry.
+Consider using the `deprecate` command instead, if your intent is to encourage users to upgrade, or if you no longer want to maintain a package.
 
 ### Description
 
@@ -34,21 +36,15 @@ the root package entry is removed from the registry entirely.
 
 Even if a package version is unpublished, that specific name and
 version combination can never be reused. In order to publish the
-package again, a new version number must be used. Additionally,
-new versions of packages with every version unpublished may not
-be republished until 24 hours have passed.
+package again, a new version number must be used. If you unpublish the entire package, you may not publish any new versions of that package until 24 hours have passed.
 
-With the default registry (`registry.npmjs.org`), unpublish is
-only allowed with versions published in the last 72 hours. If you
-are trying to unpublish a version published longer ago than that,
-contact support@npmjs.com.
+To learn more about how unpublish is treated on the npm registry, see our <a href="https://www.npmjs.com/policies/unpublish" target="_blank" rel="noopener noreferrer"> unpublish policies</a>.
 
-The scope is optional and follows the usual rules for [`scope`](/using-npm/scope).
 
 ### See Also
 
-* [npm deprecate](/cli-commands/npm-deprecate)
-* [npm publish](/cli-commands/npm-publish)
+* [npm deprecate](/cli-commands/deprecate)
+* [npm publish](/cli-commands/publish)
 * [npm registry](/using-npm/registry)
-* [npm adduser](/cli-commands/npm-adduser)
-* [npm owner](/cli-commands/npm-owner)
+* [npm adduser](/cli-commands/adduser)
+* [npm owner](/cli-commands/owner)

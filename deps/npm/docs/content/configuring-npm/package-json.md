@@ -533,7 +533,7 @@ See [semver](/using-npm/semver) for more details about specifying version ranges
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
-* `tag` A specific version tagged and published as `tag`  See [`npm dist-tag`](/cli-commands/npm-dist-tag)
+* `tag` A specific version tagged and published as `tag`  See [`npm dist-tag`](/cli-commands/dist-tag)
 * `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
@@ -910,10 +910,10 @@ npm will default some values based on package contents.
 ### SEE ALSO
 
 * [semver](/using-npm/semver)
-* [npm init](/cli-commands/npm-init)
-* [npm version](/cli-commands/npm-version)
-* [npm config](/cli-commands/npm-config)
-* [npm help](/cli-commands/npm-help)
-* [npm install](/cli-commands/npm-install)
-* [npm publish](/cli-commands/npm-publish)
-* [npm uninstall](/cli-commands/npm-uninstall)
+* [npm init](/cli-commands/init)
+* [npm version](/cli-commands/version)
+* [npm config](/cli-commands/config)
+* [npm help](/cli-commands/help)
+* [npm install](/cli-commands/install)
+* [npm publish](/cli-commands/publish)
+* [npm uninstall](/cli-commands/uninstall)
