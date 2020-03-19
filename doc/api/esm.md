@@ -917,8 +917,8 @@ It is also possible to
 
 ### `import()` expressions
 
-[Dynamic import][] is supported in both CommonJS and ES modules. It is the
-_only_  way to import from an ES module in CommonJS code.
+[Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be used
+to include ES module files from CommonJS code.
 
 ## CommonJS, JSON, and Native Modules
 
@@ -1680,7 +1680,7 @@ success!
 [Babel]: https://babeljs.io/
 [CommonJS]: modules.html
 [Conditional Exports]: #esm_conditional_exports
-[Dynamic import]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
+[Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
