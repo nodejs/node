@@ -23,6 +23,6 @@ if (process.argv[2] === 'child') {
     'child'
   ].join(' '), common.mustCall((err, stdout) => {
     assert.ifError(err);
-    assert.strictEqual(stdout, 'hello');
+    assert.strictEqual(stdout, 'hello\n');
   }));
 }
