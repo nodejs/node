@@ -28,7 +28,6 @@ namespace node {
 
 using v8::Array;
 using v8::ArrayBuffer;
-using v8::BackingStore;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HeapCodeStatistics;
