@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const http = require('http');
@@ -45,13 +45,9 @@ async_hooks.createHook({
 }).enable();
 
 const server = http.createServer((req, res) => {
-  let closed = false;
-  req.on('close', () => {
-    closed = true;
-  });
-  req.on('readable', () => {
-    assert.strictEqual(closed, false);
-  });
+  req.on('close', common.mustCall(() => {
+    req.on('readable', common.mustNotCall());
+  }));
   res.end('Hello');
 });
 
