@@ -13,9 +13,7 @@ const zlib = require('zlib');
   ts.destroy();
   assert.strictEqual(ts._handle, null);
 
-  ts.on('close', common.mustCall(() => {
-    ts.close(common.mustCall());
-  }));
+  ts.on('close', common.mustCall());
 }
 
 {

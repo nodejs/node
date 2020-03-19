@@ -5,7 +5,9 @@ const assert = require('assert');
 const { Gunzip } = require('zlib');
 
 const gunzip = new Gunzip({ objectMode: true });
-assert.throws(
-  () => gunzip.write({}),
-  TypeError
-);
+gunzip.write({}, (err) => {
+  assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+});
+gunzip.on('error', (err) => {
+  assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
+});
