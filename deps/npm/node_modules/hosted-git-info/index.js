@@ -120,7 +120,7 @@ function parseGitUrl (giturl) {
       // Pull off just the auth and host, so we dont' get the confusing
       // scp-style URL, then pass that to the WhatWG parser to get the
       // auth properly escaped.
-      const authmatch = giturl.match(/[^@]+@[^:/]+/)
+      var authmatch = giturl.match(/[^@]+@[^:/]+/)
       /* istanbul ignore else - this should be impossible */
       if (authmatch) {
         var whatwg = new url.URL(authmatch[0])

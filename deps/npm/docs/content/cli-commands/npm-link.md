@@ -86,7 +86,7 @@ npm link @myorg/privatepackage
 
 * [npm developers](/using-npm/developers)
 * [package.json](/configuring-npm/package-json)
-* [npm- nstall](/cli-commands/npm-install)
+* [npm- nstall](/cli-commands/install)
 * [npm folders](/configuring-npm/folders)
-* [npm config](/cli-commands/npm-config)
+* [npm config](/cli-commands/config)
 * [npmrc](/configuring-npm/npmrc)

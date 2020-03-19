@@ -38,7 +38,7 @@ Set to `"browser"` to view html help content in the default web browser.
 
 * [npm](/cli-commands/npm)
 * [npm folders](/configuring-npm/folders)
-* [npm config](/cli-commands/npm-config)
+* [npm config](/cli-commands/config)
 * [npmrc](/configuring-npm/npmrc)
 * [package.json](/configuring-npm/package-json)
-* [npm help-search](/cli-commands/npm-help-search)
+* [npm help-search](/cli-commands/help-search)

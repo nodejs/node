@@ -205,7 +205,14 @@ namespace VisualStudioConfiguration
                     return;
                 }
 
-                instances.Add(InstanceJson(rgelt[0]));
+                try
+                {
+                    instances.Add(InstanceJson(rgelt[0]));
+                }
+                catch (COMException)
+                {
+                    // Ignore instances that can't be queried.
+                }
             }
         }
 

@@ -45,7 +45,7 @@ cache:
 
 ### Description
 
-This command is similar to [`npm install`](/cli-commands/npm-install), except it's meant to be used in
+This command is similar to [`npm install`](/cli-commands/install), except it's meant to be used in
 automated environments such as test platforms, continuous integration, and
 deployment -- or any situation where you want to make sure you're doing a clean
 install of your dependencies. It can be significantly faster than a regular npm
@@ -63,5 +63,5 @@ In short, the main differences between using `npm install` and `npm ci` are:
 
 ### See Also
 
-* [npm install](/cli-commands/npm-install)
+* [npm install](/cli-commands/install)
 * [package-locks](/configuring-npm/package-locks)
