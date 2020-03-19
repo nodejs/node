@@ -7,7 +7,6 @@ if (!common.hasIPv6)
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
-const Countdown = require('../common/countdown');
 
 // This test ensures that the `ipv6Only` option in `net.Server.listen()`
 // works as expected when we use cluster with `SCHED_RR` schedulingPolicy.
@@ -19,34 +18,37 @@ if (cluster.isMaster) {
   const workers = [];
   let address;
 
-  const countdown = new Countdown(WORKER_ACCOUNT, () => {
-    // Make sure the `ipv6Only` option works.
+  for (let i = 0; i < WORKER_ACCOUNT; i += 1) {
+    const myWorker = new Promise((resolve) => {
+      const worker = cluster.fork().on('exit', common.mustCall((statusCode) => {
+        assert.strictEqual(statusCode, 0);
+      })).on('listening', common.mustCall((workerAddress) => {
+        if (!address) {
+          address = workerAddress;
+        } else {
+          assert.deepStrictEqual(workerAddress, address);
+        }
+        resolve(worker);
+      }));
+    });
+
+    workers.push(myWorker);
+  }
+
+  Promise.all(workers).then(common.mustCall((resolvedWorkers) => {
+    // Make sure the `ipv6Only` option works. Should be able to use the port on
+    // IPv4.
     const server = net.createServer().listen({
       host: '0.0.0.0',
       port: address.port,
     }, common.mustCall(() => {
       // Exit.
       server.close();
-      workers.forEach((worker) => {
-        worker.disconnect();
+      resolvedWorkers.forEach((resolvedWorker) => {
+        resolvedWorker.disconnect();
       });
     }));
-  });
-
-  for (let i = 0; i < WORKER_ACCOUNT; i += 1) {
-    const worker = cluster.fork().on('exit', common.mustCall((statusCode) => {
-      assert.strictEqual(statusCode, 0);
-    })).on('listening', common.mustCall((workerAddress) => {
-      if (!address) {
-        address = workerAddress;
-      } else {
-        assert.deepStrictEqual(workerAddress, address);
-      }
-      countdown.dec();
-    }));
-
-    workers[i] = worker;
-  }
+  }));
 } else {
   // As the cluster member has the potential to grab any port
   // from the environment, this can cause collision when master
