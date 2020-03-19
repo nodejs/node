@@ -61,8 +61,8 @@ If there are multiple funding sources, which 1-indexed source URL to open.
 
 ## See Also
 
-* [npm docs](/cli-commands/npm-docs)
-* [npm config](/cli-commands/npm-config)
-* [npm install](/cli-commands/npm-install)
-* [npm ls](/cli-commands/npm-ls)
+* [npm docs](/cli-commands/docs)
+* [npm config](/cli-commands/config)
+* [npm install](/cli-commands/install)
+* [npm ls](/cli-commands/ls)
 

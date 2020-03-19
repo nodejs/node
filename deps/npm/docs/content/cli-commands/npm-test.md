@@ -22,8 +22,8 @@ This runs a package's "test" script, if one was provided.
 
 ### See Also
 
-* [npm run-script](/cli-commands/npm-run-script)
+* [npm run-script](/cli-commands/run-script)
 * [npm scripts](/using-npm/scripts)
-* [npm start](/cli-commands/npm-start)
-* [npm restart](/cli-commands/npm-restart)
-* [npm stop](/cli-commands/npm-stop)
+* [npm start](/cli-commands/start)
+* [npm restart](/cli-commands/restart)
+* [npm stop](/cli-commands/stop)

@@ -1,3 +1,34 @@
+## 6.14.3 (2020-03-19)
+
+### DOCUMENTATION
+
+* [`4ad221487`](https://github.com/npm/cli/commit4ad2214873cddfd4a0eff1bd188516b08fae9f9e) [#1020](https://github.com/npm/cli/pull/1020) docs(teams): updated team docs to reflect MFA workflow ([@blkdm0n](https://github.com/blkdm0n))
+* [`4a31a4ba2`](https://github.com/npm/cli/commit/4a31a4ba2db0a5db2d1d0890ee934ba1babb73a6) [#1034](https://github.com/npm/cli/pull/1034) docs: cleanup ([@ruyadorno](https://github.com/ruyadorno))
+* [`0eac801cd`](https://github.com/npm/cli/commit/0eac801cdef344e9fbda6270145e062211255b0e) [#1013](https://github.com/npm/cli/pull/1013) docs: fix links to cli commands ([@alenros](https://github.com/alenros))
+* [`7d8e5b99c`](https://github.com/npm/cli/commit/7d8e5b99c4ef8c394cffa7fc845f54a25ff37e3a) [#755](https://github.com/npm/cli/pull/755) docs: correction to `npm update -g` behaviour ([@johnkennedy9147](https://github.com/johnkennedy9147))
+
+### DEPENDENCIES
+
+* [`e11167646`](https://github.com/npm/cli/commit/e111676467f090f73802b97e8da7ece481b18f99) `mkdirp@0.5.3`
+  * [`c5b97d17d`](https://github.com/isaacs/node-mkdirp/commit/c5b97d17d45a22bcf4c815645cbb989dab57ddd8) fix: bump `minimist` dep to resolve security issue ([@isaacs](https://github.com/isaacs))
+* [`c50d679c6`](https://github.com/npm/cli/commit/c50d679c68b39dd03ad127d34f540ddcb1b1e804) `rimraf@2.7.1`
+* [`a2de99ff9`](https://github.com/npm/cli/commit/a2de99ff9e02425a3ccc25280f390178be755a36) `npm-registry-mock@1.3.1`
+* [`217debeb9`](https://github.com/npm/cli/commit/217debeb9812e037a6686cbf6ec67a0cd47fa68a) `npm-registry-couchapp@2.7.4`
+
+## 6.14.2 (2020-03-03)
+
+### DOCUMENTATION
+* [`f9248c0be`](https://github.com/npm/cli/commit/f9248c0be63fba37a30098dc9215c752474380e3) [#730](https://github.com/npm/cli/pull/730) chore(docs): update unpublish docs & policy reference ([@nomadtechie](https://github.com/nomadtechie), [@mikemimik](https://github.com/mikemimik))
+
+### DEPENDENCIES
+
+* [`909cc3918`](https://github.com/npm/cli/commit/909cc39180a352f206898481add5772206c8b65f) `hosted-git-info@2.8.8` ([@darcyclarke](https://github.com/darcyclarke))
+  * [`5038b1891`](https://github.com/npm/hosted-git-info/commit/5038b1891a61ca3cd7453acbf85d7011fe0086bb) fix: regression in old node versions w/ respect to url.URL implmentation
+* [`9204ffa58`](https://github.com/npm/cli/commit/9204ffa584c140c5e22b1ee37f6df2c98f5dc70b) `npm-profile@4.0.4` ([@isaacs](https://github.com/isaacs))
+  * [`6bcf0860a`](https://github.com/npm/npm-profile/commit/6bcf0860a3841865099d0115dbcbde8b78109bd9) fix: treat non-http/https login urls as invalid
+* [`0365d39bd`](https://github.com/npm/cli/commit/0365d39bdc74960a18caac674f51d0e2a98b31e6) `glob@7.1.6` ([@isaacs](https://github.com/isaacs))
+* [`dab030536`](https://github.com/nodejs/node-gyp/commit/dab030536b6a70ecae37debc74c581db9e5280fd) `node-gyp@5.1.0` ([@rvagg](https://github.com/rvagg))
+
 ## 6.14.1 (2020-02-26)
 
 * [`303e5c11e`](https://github.com/npm/cli/commit/303e5c11e7db34cf014107aecd2e81c821bfde8d)

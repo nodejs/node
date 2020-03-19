@@ -1,22 +1,24 @@
-.TH "NPM\-UNPUBLISH" "1" "February 2020" "" ""
+.TH "NPM\-UNPUBLISH" "1" "March 2020" "" ""
 .SH "NAME"
 \fBnpm-unpublish\fR \- Remove a package from the registry
 .SS Synopsis
+.SS Unpublishing a single version of a package
 .P
 .RS 2
 .nf
-npm unpublish [<@scope>/]<pkg>[@<version>]
+npm unpublish [<@scope>/]<pkg>@<version>
+.fi
+.RE
+.SS Unpublishing an entire package
+.P
+.RS 2
+.nf
+npm unpublish [<@scope>/]<pkg> \-\-force
 .fi
 .RE
 .SS Warning
 .P
-\fBIt is generally considered bad behavior to remove versions of a library
-that others are depending on!\fR
-.P
-Consider using the \fBdeprecate\fP command
-instead, if your intent is to encourage users to upgrade\.
-.P
-There is plenty of room on the registry\.
+Consider using the \fBdeprecate\fP command instead, if your intent is to encourage users to upgrade, or if you no longer want to maintain a package\.
 .SS Description
 .P
 This removes a package version from the registry, deleting its
@@ -27,16 +29,9 @@ the root package entry is removed from the registry entirely\.
 .P
 Even if a package version is unpublished, that specific name and
 version combination can never be reused\. In order to publish the
-package again, a new version number must be used\. Additionally,
-new versions of packages with every version unpublished may not
-be republished until 24 hours have passed\.
+package again, a new version number must be used\. If you unpublish the entire package, you may not publish any new versions of that package until 24 hours have passed\.
 .P
-With the default registry (\fBregistry\.npmjs\.org\fP), unpublish is
-only allowed with versions published in the last 72 hours\. If you
-are trying to unpublish a version published longer ago than that,
-contact support@npmjs\.com\|\.
-.P
-The scope is optional and follows the usual rules for npm help \fBscope\fP\|\.
+To learn more about how unpublish is treated on the npm registry, see our <a href="https://www\.npmjs\.com/policies/unpublish" target="_blank" rel="noopener noreferrer"> unpublish policies</a>\|\.
 .SS See Also
 .RS 0
 .IP \(bu 2
