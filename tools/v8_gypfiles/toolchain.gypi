@@ -300,7 +300,7 @@
         ],
         'conditions': [
           ['v8_control_flow_integrity==1', {
-            'cflags': [ '-mbranch-protection=pac-ret' ],
+            'cflags': [ '-mbranch-protection=standard' ],
           }],
         ],
       }],
