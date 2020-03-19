@@ -226,7 +226,7 @@ PythonFinder.prototype = {
       }
       this.addLog(`- version is "${version}"`)
 
-      const range = semver.Range(this.semverRange)
+      const range = new semver.Range(this.semverRange)
       var valid = false
       try {
         valid = range.test(version)

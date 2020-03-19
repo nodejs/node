@@ -41,6 +41,6 @@ and it's up to you to run `npm prune` from time-to-time to remove them.
 
 ### See Also
 
-* [npm uninstall](/cli-commands/npm-uninstall)
+* [npm uninstall](/cli-commands/uninstall)
 * [npm folders](/configuring-npm/folders)
-* [npm ls](/cli-commands/npm-ls)
+* [npm ls](/cli-commands/ls)

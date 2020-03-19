@@ -14,10 +14,10 @@ team.subcommands = ['create', 'destroy', 'add', 'rm', 'ls', 'edit']
 
 team.usage = usage(
   'team',
-  'npm team create <scope:team>\n' +
-  'npm team destroy <scope:team>\n' +
-  'npm team add <scope:team> <user>\n' +
-  'npm team rm <scope:team> <user>\n' +
+  'npm team create <scope:team> [--otp <otpcode>]\n' +
+  'npm team destroy <scope:team> [--otp <otpcode>]\n' +
+  'npm team add <scope:team> <user> [--otp <otpcode>]\n' +
+  'npm team rm <scope:team> <user> [--otp <otpcode>]\n' +
   'npm team ls <scope>|<scope:team>\n' +
   'npm team edit <scope:team>'
 )
