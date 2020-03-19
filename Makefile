@@ -633,6 +633,7 @@ test-doc: doc-only lint ## Builds, lints, and verifies the docs.
 	else \
 		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
 	fi
+	$(NODE) tools/doc/checkLinks.js .
 
 test-known-issues: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) known_issues

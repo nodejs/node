@@ -83,7 +83,7 @@ onboarding session.
   * Be nice about closing issues! Let people know why, and that issues and PRs
     can be reopened if necessary
 
-* [**See "Labels"**](./onboarding-extras.md#labels)
+* [**See "Labels"**](./doc/guides/onboarding-extras.md#labels)
   * There is [a bot](https://github.com/nodejs-github-bot/github-bot) that
     applies subsystem labels (for example, `doc`, `test`, `assert`, or `buffer`)
     so that we know what parts of the code base the pull request modifies. It is
