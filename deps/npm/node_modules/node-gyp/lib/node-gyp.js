@@ -67,6 +67,7 @@ proto.configDefs = {
   ensure: Boolean, // 'install'
   solution: String, // 'build' (windows only)
   proxy: String, // 'install'
+  noproxy: String, // 'install'
   devdir: String, // everywhere
   nodedir: String, // 'configure'
   loglevel: String, // everywhere

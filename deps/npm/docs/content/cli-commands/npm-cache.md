@@ -82,10 +82,10 @@ The root cache folder.
 ### See Also
 
 * [npm folders](/configuring-npm/folders)
-* [npm config](/cli-commands/npm-config)
+* [npm config](/cli-commands/config)
 * [npmrc](/configuring-npm/npmrc)
-* [npm install](/cli-commands/npm-install)
-* [npm publish](/cli-commands/npm-publish)
-* [npm pack](/cli-commands/npm-pack)
+* [npm install](/cli-commands/install)
+* [npm publish](/cli-commands/publish)
+* [npm pack](/cli-commands/pack)
 * https://npm.im/cacache
 * https://npm.im/pacote

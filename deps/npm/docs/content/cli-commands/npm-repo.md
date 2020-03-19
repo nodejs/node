@@ -32,5 +32,5 @@ The browser that is called by the `npm repo` command to open websites.
 
 ### See Also
 
-* [npm docs](/cli-commands/npm-docs)
-* [npm config](/cli-commands/npm-config)
+* [npm docs](/cli-commands/docs)
+* [npm config](/cli-commands/config)

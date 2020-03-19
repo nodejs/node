@@ -1,4 +1,4 @@
-.TH "NPM\-TEAM" "1" "February 2020" "" ""
+.TH "NPM\-TEAM" "1" "March 2020" "" ""
 .SH "NAME"
 \fBnpm-team\fR \- Manage organization teams and team memberships
 .SS Synopsis
@@ -23,6 +23,8 @@ handle permissions for packages\.
 .P
 Teams must always be fully qualified with the organization/scope they belong to
 when operating on them, separated by a colon (\fB:\fP)\. That is, if you have a \fBwombats\fP team in a \fBwisdom\fP organization, you must always refer to that team as \fBwisdom:wombats\fP in these commands\.
+.P
+If you have two\-factor authentication enabled in \fBauth\-and\-writes\fP mode, then you can provide a code from your authenticator with \fB[\-\-otp <otpcode>]\fP\|\. If you don't include this then you will be prompted\.
 .RS 0
 .IP \(bu 2
 create / destroy:

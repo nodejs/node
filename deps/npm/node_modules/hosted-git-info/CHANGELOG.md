@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="2.8.8"></a>
+## [2.8.8](https://github.com/npm/hosted-git-info/compare/v2.8.7...v2.8.8) (2020-02-29)
+
+
+### Bug Fixes
+
+* [#61](https://github.com/npm/hosted-git-info/issues/61) & [#65](https://github.com/npm/hosted-git-info/issues/65) addressing issues w/ url.URL implmentation which regressed node 6 support ([5038b18](https://github.com/npm/hosted-git-info/commit/5038b18)), closes [#66](https://github.com/npm/hosted-git-info/issues/66)
+
+
+
 <a name="2.8.7"></a>
 ## [2.8.7](https://github.com/npm/hosted-git-info/compare/v2.8.6...v2.8.7) (2020-02-26)
 
