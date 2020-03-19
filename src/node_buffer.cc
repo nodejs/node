@@ -417,9 +417,6 @@ MaybeLocal<Object> New(Environment* env,
                                    nullptr);
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(),
                                            std::move(backing));
-  // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
-  if (!ab->IsExternal())
-    ab->Externalize(ab->GetBackingStore());
   if (ab->SetPrivate(env->context(),
                      env->arraybuffer_untransferable_private_symbol(),
                      True(env->isolate())).IsNothing()) {
@@ -1212,9 +1209,6 @@ void Initialize(Local<Object> target,
                                    nullptr);
     Local<ArrayBuffer> array_buffer =
         ArrayBuffer::New(env->isolate(), std::move(backing));
-    // TODO(thangktran): drop this check when V8 is pumped to 8.0 .
-    if (!array_buffer->IsExternal())
-      array_buffer->Externalize(array_buffer->GetBackingStore());
     array_buffer->SetPrivate(
         env->context(),
         env->arraybuffer_untransferable_private_symbol(),
