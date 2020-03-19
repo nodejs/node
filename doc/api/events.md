@@ -912,6 +912,7 @@ const { on, EventEmitter } = require('events');
     // if concurrent execution is required.
     console.log(event); // prints ['bar'] [42]
   }
+  // Unreachable here
 })();
 ```
 
