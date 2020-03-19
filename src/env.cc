@@ -64,9 +64,9 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
   // but that's not part of the V8 API contract so we use an array
   // just to be safe.
 
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define VP(PropertyName, StringValue) V(Private, PropertyName)
+#define VY(PropertyName, StringValue) V(Symbol, PropertyName)
+#define VS(PropertyName, StringValue) V(String, PropertyName)
 #define V(TypeName, PropertyName)                                              \
   indexes.push_back(creator->AddData(PropertyName##_.Get(isolate)));
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
@@ -84,9 +84,9 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
   size_t i = 0;
   HandleScope handle_scope(isolate_);
 
-#define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
-#define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
-#define VS(PropertyName, StringValue) V(v8::String, PropertyName)
+#define VP(PropertyName, StringValue) V(Private, PropertyName)
+#define VY(PropertyName, StringValue) V(Symbol, PropertyName)
+#define VS(PropertyName, StringValue) V(String, PropertyName)
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
     MaybeLocal<TypeName> field =                                               \
@@ -1011,7 +1011,7 @@ Environment* Environment::worker_parent_env() const {
 void MemoryTracker::TrackField(const char* edge_name,
                                const CleanupHookCallback& value,
                                const char* node_name) {
-  v8::HandleScope handle_scope(isolate_);
+  HandleScope handle_scope(isolate_);
   // Here, we utilize the fact that CleanupHookCallback instances
   // are all unique and won't be tracked twice in one BuildEmbedderGraph
   // callback.
