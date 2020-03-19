@@ -27,7 +27,7 @@ const allocateEmptyBuffers = (combinedLength) => {
 // fs.readvSync with array of buffers with all parameters
 {
   const fd = fs.openSync(filename, 'r');
-  
+
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
 
   let read = fs.readvSync(fd, [Buffer.from('')], 0);
@@ -35,7 +35,7 @@ const allocateEmptyBuffers = (combinedLength) => {
 
   read = fs.readvSync(fd, bufferArr, 0);
   assert.deepStrictEqual(read, expectedLength);
-  
+
   fs.closeSync(fd);
 
   assert(Buffer.concat(bufferArr).equals(fs.readFileSync(filename)));
@@ -46,7 +46,7 @@ const allocateEmptyBuffers = (combinedLength) => {
   const fd = fs.openSync(filename, 'r');
 
   const bufferArr = allocateEmptyBuffers(exptectedBuff.length);
-  
+
   let read = fs.readvSync(fd, [Buffer.from('')]);
   assert.deepStrictEqual(read, 0);
 
