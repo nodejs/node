@@ -322,8 +322,8 @@ accordingly by removing the bold styling from the previous release.
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
 `REPLACEME` tags as per the example in the
-[docs README](../tools/doc/README.md). Check for these tags with `grep REPLACEME
-doc/api/*.md`, and substitute this node version with `sed -i
+[docs README](../../tools/doc/README.md). Check for these tags with `grep
+REPLACEME doc/api/*.md`, and substitute this node version with `sed -i
 "s/REPLACEME/$VERSION/g" doc/api/*.md` or `perl -pi -e "s/REPLACEME/$VERSION/g"
 doc/api/*.md`.
 
