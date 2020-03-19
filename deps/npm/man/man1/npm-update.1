@@ -1,4 +1,4 @@
-.TH "NPM\-UPDATE" "1" "February 2020" "" ""
+.TH "NPM\-UPDATE" "1" "March 2020" "" ""
 .SH "NAME"
 \fBnpm-update\fR \- Update a package
 .SS Synopsis
@@ -120,7 +120,9 @@ version that satisfies \fB^0\.4\.0\fP (\fB>= 0\.4\.0 <0\.5\.0\fP)
 .P
 \fBnpm update \-g\fP will apply the \fBupdate\fP action to each globally installed
 package that is \fBoutdated\fP \-\- that is, has a version that is different from
-\fBlatest\fP\|\.
+\fBwanted\fP\|\.
+.P
+Note: Globally installed packages are treated as if they are installed with a caret semver range specified\. So if you require to update to \fBlatest\fP you may need to run \fBnpm install \-g [<pkg>\.\.\.]\fP
 .P
 NOTE: If a package has been upgraded to a version newer than \fBlatest\fP, it will
 be \fIdowngraded\fR\|\.

@@ -30,6 +30,8 @@ handle permissions for packages.
 Teams must always be fully qualified with the organization/scope they belong to
 when operating on them, separated by a colon (`:`). That is, if you have a `wombats` team in a `wisdom` organization, you must always refer to that team as `wisdom:wombats` in these commands.
 
+If you have two-factor authentication enabled in `auth-and-writes` mode, then you can provide a code from your authenticator with `[--otp <otpcode>]`. If you don't include this then you will be prompted.
+
 * create / destroy:
   Create a new team, or destroy an existing one. Note: You cannot remove the `developers` team, <a href="https://docs.npmjs.com/about-developers-team" target="_blank">learn more.</a>
 * add / rm:
@@ -60,5 +62,5 @@ use the `npm access` command to grant or revoke the appropriate permissions.
 
 ### See Also
 
-* [npm access](/cli-commands/npm-access)
+* [npm access](/cli-commands/access)
 * [npm registry](/using-npm/registry)

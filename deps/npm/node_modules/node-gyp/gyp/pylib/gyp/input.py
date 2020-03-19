@@ -2286,7 +2286,7 @@ def SetUpConfigurations(target, target_dict):
         merged_configurations[configuration])
 
   # Now drop all the abstract ones.
-  for configuration in target_dict['configurations'].keys():
+  for configuration in list(target_dict['configurations']):
     old_configuration_dict = target_dict['configurations'][configuration]
     if old_configuration_dict.get('abstract'):
       del target_dict['configurations'][configuration]
