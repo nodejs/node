@@ -11,9 +11,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 14
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(ToObject), R(0),
                 B(CreateWithContext), R(0), U8(1),

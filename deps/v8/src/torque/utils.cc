@@ -222,7 +222,7 @@ bool IsUpperCamelCase(const std::string& s) {
   if (s.empty()) return false;
   size_t start = 0;
   if (s[0] == '_') start = 1;
-  return isupper(s[start]) && !ContainsUnderscore(s.substr(1));
+  return isupper(s[start]);
 }
 
 bool IsSnakeCase(const std::string& s) {

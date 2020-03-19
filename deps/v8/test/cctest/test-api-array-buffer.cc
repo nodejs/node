@@ -761,3 +761,74 @@ TEST(BackingStore_HoldAllocatorAlive_AfterIsolateShutdown) {
   backing_store.reset();
   CHECK(allocator_weak.expired());
 }
+
+TEST(BackingStore_ReallocateExpand) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 10);
+  {
+    uint8_t* data = reinterpret_cast<uint8_t*>(
+        reinterpret_cast<uintptr_t>(backing_store->Data()));
+    for (uint8_t i = 0; i < 10; i++) {
+      data[i] = i;
+    }
+  }
+  std::unique_ptr<v8::BackingStore> new_backing_store =
+      v8::BackingStore::Reallocate(isolate, std::move(backing_store), 20);
+  CHECK_EQ(new_backing_store->ByteLength(), 20);
+  CHECK(!new_backing_store->IsShared());
+  {
+    uint8_t* data = reinterpret_cast<uint8_t*>(
+        reinterpret_cast<uintptr_t>(new_backing_store->Data()));
+    for (uint8_t i = 0; i < 10; i++) {
+      CHECK_EQ(data[i], i);
+    }
+    for (uint8_t i = 10; i < 20; i++) {
+      CHECK_EQ(data[i], 0);
+    }
+  }
+}
+
+TEST(BackingStore_ReallocateShrink) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 20);
+  {
+    uint8_t* data = reinterpret_cast<uint8_t*>(backing_store->Data());
+    for (uint8_t i = 0; i < 20; i++) {
+      data[i] = i;
+    }
+  }
+  std::unique_ptr<v8::BackingStore> new_backing_store =
+      v8::BackingStore::Reallocate(isolate, std::move(backing_store), 10);
+  CHECK_EQ(new_backing_store->ByteLength(), 10);
+  CHECK(!new_backing_store->IsShared());
+  {
+    uint8_t* data = reinterpret_cast<uint8_t*>(new_backing_store->Data());
+    for (uint8_t i = 0; i < 10; i++) {
+      CHECK_EQ(data[i], i);
+    }
+  }
+}
+
+TEST(BackingStore_ReallocateNotShared) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(isolate, 20);
+  std::unique_ptr<v8::BackingStore> new_backing_store =
+      v8::BackingStore::Reallocate(isolate, std::move(backing_store), 10);
+  CHECK(!new_backing_store->IsShared());
+}
+
+TEST(BackingStore_ReallocateShared) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::SharedArrayBuffer::NewBackingStore(isolate, 20);
+  std::unique_ptr<v8::BackingStore> new_backing_store =
+      v8::BackingStore::Reallocate(isolate, std::move(backing_store), 10);
+  CHECK(new_backing_store->IsShared());
+}

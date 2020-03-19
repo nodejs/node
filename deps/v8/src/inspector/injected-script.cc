@@ -521,8 +521,12 @@ Response InjectedScript::getInternalAndPrivateProperties(
 }
 
 void InjectedScript::releaseObject(const String16& objectId) {
+  std::vector<uint8_t> cbor;
+  v8_crdtp::json::ConvertJSONToCBOR(
+      v8_crdtp::span<uint16_t>(objectId.characters16(), objectId.length()),
+      &cbor);
   std::unique_ptr<protocol::Value> parsedObjectId =
-      protocol::StringUtil::parseJSON(objectId);
+      protocol::Value::parseBinary(cbor.data(), cbor.size());
   if (!parsedObjectId) return;
   protocol::DictionaryValue* object =
       protocol::DictionaryValue::cast(parsedObjectId.get());
@@ -729,10 +733,10 @@ Response InjectedScript::resolveCallArgument(
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
     String16 value;
     if (callArgument->hasValue()) {
-      std::vector<uint8_t> cbor =
-          std::move(*callArgument->getValue(nullptr)).TakeSerialized();
       std::vector<uint8_t> json;
-      v8_crdtp::json::ConvertCBORToJSON(v8_crdtp::SpanFrom(cbor), &json);
+      v8_crdtp::json::ConvertCBORToJSON(
+          v8_crdtp::SpanFrom(callArgument->getValue(nullptr)->Serialize()),
+          &json);
       value =
           "(" +
           String16(reinterpret_cast<const char*>(json.data()), json.size()) +

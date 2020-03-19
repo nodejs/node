@@ -29,13 +29,13 @@ ACCESSORS(JSDateTimeFormat, icu_date_interval_format,
 ACCESSORS(JSDateTimeFormat, bound_format, Object, kBoundFormatOffset)
 SMI_ACCESSORS(JSDateTimeFormat, flags, kFlagsOffset)
 
-inline void JSDateTimeFormat::set_hour_cycle(Intl::HourCycle hour_cycle) {
+inline void JSDateTimeFormat::set_hour_cycle(HourCycle hour_cycle) {
   int hints = flags();
   hints = HourCycleBits::update(hints, hour_cycle);
   set_flags(hints);
 }
 
-inline Intl::HourCycle JSDateTimeFormat::hour_cycle() const {
+inline JSDateTimeFormat::HourCycle JSDateTimeFormat::hour_cycle() const {
   return HourCycleBits::decode(flags());
 }
 

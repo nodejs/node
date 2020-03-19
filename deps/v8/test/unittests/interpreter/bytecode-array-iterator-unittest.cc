@@ -73,7 +73,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   BytecodeArrayIterator iterator(builder.ToBytecodeArray(isolate()));
   const int kPrefixByteSize = 1;
   int offset = 0;

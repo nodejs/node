@@ -2290,7 +2290,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   Mips64OperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 10 + 2 * sw.value_range();
@@ -2757,12 +2757,15 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4SConvertI16x8High, kMips64I32x4SConvertI16x8High) \
   V(I32x4UConvertI16x8Low, kMips64I32x4UConvertI16x8Low)   \
   V(I32x4UConvertI16x8High, kMips64I32x4UConvertI16x8High) \
+  V(I32x4Abs, kMips64I32x4Abs)                             \
   V(I16x8Neg, kMips64I16x8Neg)                             \
   V(I16x8SConvertI8x16Low, kMips64I16x8SConvertI8x16Low)   \
   V(I16x8SConvertI8x16High, kMips64I16x8SConvertI8x16High) \
   V(I16x8UConvertI8x16Low, kMips64I16x8UConvertI8x16Low)   \
   V(I16x8UConvertI8x16High, kMips64I16x8UConvertI8x16High) \
+  V(I16x8Abs, kMips64I16x8Abs)                             \
   V(I8x16Neg, kMips64I8x16Neg)                             \
+  V(I8x16Abs, kMips64I8x16Abs)                             \
   V(S128Not, kMips64S128Not)                               \
   V(S1x4AnyTrue, kMips64S1x4AnyTrue)                       \
   V(S1x4AllTrue, kMips64S1x4AllTrue)                       \

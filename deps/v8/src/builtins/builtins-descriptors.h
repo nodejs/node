@@ -13,8 +13,20 @@
 namespace v8 {
 namespace internal {
 
+#define REVERSE_0(a) a
+#define REVERSE_1(a, b) b, a
+#define REVERSE_2(a, b, c) c, b, a
+#define REVERSE_3(a, b, c, d) d, c, b, a
+#define REVERSE_4(a, b, c, d, e) e, d, c, b, a
+#define REVERSE_5(a, b, c, d, e, f) f, e, d, c, b, a
+#define REVERSE_6(a, b, c, d, e, f, g) g, f, e, d, c, b, a
+#define REVERSE_7(a, b, c, d, e, f, g, h) h, g, f, e, d, c, b, a
+#define REVERSE_8(a, b, c, d, e, f, g, h, i) i, h, g, f, e, d, c, b, a
+#define REVERSE_kDontAdaptArgumentsSentinel(...)
+#define REVERSE(N, ...) REVERSE_##N(__VA_ARGS__)
+
 // Define interface descriptors for builtins with JS linkage.
-#define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...)                \
+#define DEFINE_TFJ_INTERFACE_DESCRIPTOR_HELPER(Name, Argc, ...)         \
   struct Builtin_##Name##_InterfaceDescriptor {                         \
     enum ParameterIndices {                                             \
       kJSTarget = compiler::CodeAssembler::kTargetParameterIndex,       \
@@ -28,6 +40,14 @@ namespace internal {
                   "Inconsistent set of arguments");                     \
     static_assert(kJSTarget == -1, "Unexpected kJSTarget index value"); \
   };
+
+#ifdef V8_REVERSE_JSARGS
+#define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...) \
+  DEFINE_TFJ_INTERFACE_DESCRIPTOR_HELPER(Name, Argc, REVERSE(Argc, __VA_ARGS__))
+#else
+#define DEFINE_TFJ_INTERFACE_DESCRIPTOR(Name, Argc, ...) \
+  DEFINE_TFJ_INTERFACE_DESCRIPTOR_HELPER(Name, Argc, ##__VA_ARGS__)
+#endif
 
 // Define interface descriptors for builtins with StubCall linkage.
 #define DEFINE_TFC_INTERFACE_DESCRIPTOR(Name, InterfaceDescriptor) \

@@ -108,6 +108,20 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     out.num_functions = value_input_count;
     return out;
   }
+  if (m.IsCheckClosure()) {
+    DCHECK(!out.functions[0].has_value());
+    FeedbackCellRef feedback_cell(broker(), FeedbackCellOf(m.op()));
+    SharedFunctionInfoRef shared_info =
+        feedback_cell.shared_function_info().value();
+    out.shared_info = shared_info;
+    if (feedback_cell.value().IsFeedbackVector() &&
+        CanConsiderForInlining(broker(), shared_info,
+                               feedback_cell.value().AsFeedbackVector())) {
+      out.bytecode[0] = shared_info.GetBytecodeArray();
+    }
+    out.num_functions = 1;
+    return out;
+  }
   if (m.IsJSCreateClosure()) {
     DCHECK(!out.functions[0].has_value());
     CreateClosureParameters const& p = CreateClosureParametersOf(m.op());

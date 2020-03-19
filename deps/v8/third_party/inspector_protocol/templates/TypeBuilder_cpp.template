@@ -54,27 +54,27 @@ const char* {{type.id}}::{{property.name | to_title_case}}Enum::{{literal | dash
 std::unique_ptr<{{type.id}}> {{type.id}}::fromValue(protocol::Value* value, ErrorSupport* errors)
 {
     if (!value || value->type() != protocol::Value::TypeObject) {
-        errors->addError("object expected");
+        errors->AddError("object expected");
         return nullptr;
     }
 
     std::unique_ptr<{{type.id}}> result(new {{type.id}}());
     protocol::DictionaryValue* object = DictionaryValue::cast(value);
-    errors->push();
+    errors->Push();
     {% for property in type.properties %}
     protocol::Value* {{property.name}}Value = object->get("{{property.name}}");
       {% if property.optional %}
     if ({{property.name}}Value) {
-        errors->setName("{{property.name}}");
+        errors->SetName("{{property.name}}");
         result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
     }
       {% else %}
-    errors->setName("{{property.name}}");
+    errors->SetName("{{property.name}}");
     result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
       {% endif %}
     {% endfor %}
-    errors->pop();
-    if (errors->hasErrors())
+    errors->Pop();
+    if (!errors->Errors().empty())
         return nullptr;
     return result;
 }
@@ -197,9 +197,9 @@ void Frontend::flush()
     m_frontendChannel->flushProtocolNotifications();
 }
 
-void Frontend::sendRawCBORNotification(std::vector<uint8_t> notification)
+void Frontend::sendRawNotification(std::unique_ptr<Serializable> notification)
 {
-    m_frontendChannel->sendProtocolNotification(InternalRawNotification::fromBinary(std::move(notification)));
+    m_frontendChannel->sendProtocolNotification(std::move(notification));
 }
 
 // --------------------- Dispatcher.
@@ -301,23 +301,23 @@ void DispatcherImpl::{{command.name}}(int callId, const String& method, {{config
     {% if "parameters" in command %}
     // Prepare input parameters.
     protocol::DictionaryValue* object = DictionaryValue::cast(requestMessageObject->get("params"));
-    errors->push();
+    errors->Push();
       {% for parameter in command.parameters %}
         {% set parameter_type = protocol.resolve_type(parameter) %}
     protocol::Value* {{parameter.name}}Value = object ? object->get("{{parameter.name}}") : nullptr;
         {% if parameter.optional %}
     Maybe<{{parameter_type.raw_type}}> in_{{parameter.name}};
     if ({{parameter.name}}Value) {
-        errors->setName("{{parameter.name}}");
+        errors->SetName("{{parameter.name}}");
         in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
     }
         {% else %}
-    errors->setName("{{parameter.name}}");
+    errors->SetName("{{parameter.name}}");
     {{parameter_type.type}} in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
         {% endif %}
       {% endfor %}
-    errors->pop();
-    if (errors->hasErrors()) {
+    errors->Pop();
+    if (!errors->Errors().empty()) {
         reportProtocolError(callId, DispatchResponse::kInvalidParams, kInvalidParamsString, errors);
         return;
     }

@@ -686,7 +686,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
   for (int i = 0; i < test_cases; i++) {
     printf("%d\n", i);
     HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
     // Build flat version of cons string.
     Handle<String> flat_string = build(i, &data);
     ConsStringStats flat_string_stats;
@@ -1347,10 +1347,9 @@ TEST(CachedHashOverflow) {
     const char* line = lines[i];
     printf("%s\n", line);
     v8::Local<v8::Value> result =
-        v8::Script::Compile(context,
-                            v8::String::NewFromUtf8(CcTest::isolate(), line,
-                                                    v8::NewStringType::kNormal)
-                                .ToLocalChecked())
+        v8::Script::Compile(
+            context,
+            v8::String::NewFromUtf8(CcTest::isolate(), line).ToLocalChecked())
             .ToLocalChecked()
             ->Run(context)
             .ToLocalChecked();
@@ -1873,11 +1872,6 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     uint32_t index;
     CHECK(s->AsArrayIndex(&index));
     CHECK_EQ(data.array_index, index);
-    // AsArrayIndex only forces hash computation for cacheable indices;
-    // so trigger hash computation for longer strings manually.
-    if (s->length() > String::kMaxCachedArrayIndexLength) s->Hash();
-    CHECK_EQ(0, s->hash_field() & String::kIsNotArrayIndexMask);
-    CHECK(s->HasHashCode());
   }
   if (data.is_integer_index) {
     size_t index;
@@ -1889,9 +1883,6 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
   }
   if (!s->HasHashCode()) s->Hash();
   CHECK(s->HasHashCode());
-  if (!data.is_array_index) {
-    CHECK_NE(0, s->hash_field() & String::kIsNotArrayIndexMask);
-  }
   if (!data.is_integer_index) {
     CHECK_NE(0, s->hash_field() & String::kIsNotIntegerIndexMask);
   }
@@ -1942,21 +1933,13 @@ TEST(StringEquals) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
 
-  auto foo_str =
-      v8::String::NewFromUtf8(isolate, "foo", v8::NewStringType::kNormal)
-          .ToLocalChecked();
-  auto bar_str =
-      v8::String::NewFromUtf8(isolate, "bar", v8::NewStringType::kNormal)
-          .ToLocalChecked();
-  auto foo_str2 =
-      v8::String::NewFromUtf8(isolate, "foo", v8::NewStringType::kNormal)
-          .ToLocalChecked();
+  auto foo_str = v8::String::NewFromUtf8Literal(isolate, "foo");
+  auto bar_str = v8::String::NewFromUtf8Literal(isolate, "bar");
+  auto foo_str2 = v8::String::NewFromUtf8Literal(isolate, "foo");
 
   uint16_t* two_byte_source = AsciiToTwoByteString("foo");
   auto foo_two_byte_str =
-      v8::String::NewFromTwoByte(isolate, two_byte_source,
-                                 v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromTwoByte(isolate, two_byte_source).ToLocalChecked();
   i::DeleteArray(two_byte_source);
 
   CHECK(foo_str->StringEquals(foo_str));

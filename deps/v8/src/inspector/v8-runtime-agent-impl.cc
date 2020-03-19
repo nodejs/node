@@ -32,6 +32,7 @@
 
 #include <inttypes.h>
 
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -823,9 +824,14 @@ void V8RuntimeAgentImpl::reportExecutionContextCreated(
           .setName(context->humanReadableName())
           .setOrigin(context->origin())
           .build();
-  if (!context->auxData().isEmpty())
+  const String16& aux = context->auxData();
+  if (!aux.isEmpty()) {
+    std::vector<uint8_t> cbor;
+    v8_crdtp::json::ConvertJSONToCBOR(
+        v8_crdtp::span<uint16_t>(aux.characters16(), aux.length()), &cbor);
     description->setAuxData(protocol::DictionaryValue::cast(
-        protocol::StringUtil::parseJSON(context->auxData())));
+        protocol::Value::parseBinary(cbor.data(), cbor.size())));
+  }
   m_frontend.executionContextCreated(std::move(description));
 }
 

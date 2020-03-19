@@ -24,12 +24,11 @@ Page* HeapTester::AllocateByteArraysOnPage(
   const int kLength = 256 - ByteArray::kHeaderSize;
   const int kSize = ByteArray::SizeFor(kLength);
   CHECK_EQ(kSize, 256);
-  Isolate* isolate = heap->isolate();
   PagedSpace* old_space = heap->old_space();
   Page* page;
   // Fill a page with byte arrays.
   {
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     heap::SimulateFullSpace(old_space);
     ByteArray byte_array;
     CHECK(AllocateByteArrayForTest(heap, kLength, AllocationType::kOld)
@@ -181,7 +180,7 @@ HEAP_TEST(InvalidatedSlotsResetObjectRegression) {
 
 Handle<FixedArray> AllocateArrayOnFreshPage(Isolate* isolate,
                                             PagedSpace* old_space, int length) {
-  AlwaysAllocateScope always_allocate(isolate);
+  AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
   heap::SimulateFullSpace(old_space);
   return isolate->factory()->NewFixedArray(length, AllocationType::kOld);
 }
@@ -242,7 +241,7 @@ HEAP_TEST(InvalidatedSlotsRightTrimLargeFixedArray) {
       AllocateArrayOnEvacuationCandidate(isolate, old_space, 1);
   Handle<FixedArray> trimmed;
   {
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     trimmed = factory->NewFixedArray(
         kMaxRegularHeapObjectSize / kTaggedSize + 100, AllocationType::kOld);
     DCHECK(MemoryChunk::FromHeapObject(*trimmed)->InLargeObjectSpace());
@@ -319,7 +318,7 @@ HEAP_TEST(InvalidatedSlotsFastToSlow) {
   AllocateArrayOnFreshPage(isolate, old_space, 1);
   Handle<JSObject> obj;
   {
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     Handle<JSFunction> function = factory->NewFunctionForTest(name);
     function->shared().set_expected_nof_properties(3);
     obj = factory->NewJSObject(function, AllocationType::kOld);

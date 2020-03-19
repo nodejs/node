@@ -14,7 +14,6 @@ import sys
 import time
 
 from . import base
-from ..local import junit_output
 
 
 # Base dir of the build products for Release and Debug.
@@ -317,47 +316,8 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     print(("\r" + (" " * last_length) + "\r"), end='')
 
 
-class JUnitTestProgressIndicator(ProgressIndicator):
-  def __init__(self, junitout, junittestsuite):
-    super(JUnitTestProgressIndicator, self).__init__()
-    self._requirement = base.DROP_PASS_STDOUT
-
-    self.outputter = junit_output.JUnitTestOutput(junittestsuite)
-    if junitout:
-      self.outfile = open(junitout, "w")
-    else:
-      self.outfile = sys.stdout
-
-  def _on_result_for(self, test, result):
-    # TODO(majeski): Support for dummy/grouped results
-    fail_text = ""
-    output = result.output
-    if result.has_unexpected_output:
-      stdout = output.stdout.strip()
-      if len(stdout):
-        fail_text += "stdout:\n%s\n" % stdout
-      stderr = output.stderr.strip()
-      if len(stderr):
-        fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % result.cmd.to_string()
-      if output.HasCrashed():
-        fail_text += "exit code: %d\n--- CRASHED ---" % output.exit_code
-      if output.HasTimedOut():
-        fail_text += "--- TIMEOUT ---"
-    self.outputter.HasRunTest(
-        test_name=str(test),
-        test_cmd=result.cmd.to_string(relative=True),
-        test_duration=output.duration,
-        test_failure=fail_text)
-
-  def finished(self):
-    self.outputter.FinishAndWrite(self.outfile)
-    if self.outfile != sys.stdout:
-      self.outfile.close()
-
-
 class JsonTestProgressIndicator(ProgressIndicator):
-  def __init__(self, framework_name, json_test_results, arch, mode):
+  def __init__(self, framework_name, arch, mode):
     super(JsonTestProgressIndicator, self).__init__()
     # We want to drop stdout/err for all passed tests on the first try, but we
     # need to get outputs for all runs after the first one. To accommodate that,
@@ -366,7 +326,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self._requirement = base.DROP_PASS_STDOUT
 
     self.framework_name = framework_name
-    self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
     self.results = []
@@ -412,8 +371,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
   def finished(self):
     complete_results = []
-    if os.path.exists(self.json_test_results):
-      with open(self.json_test_results, "r") as f:
+    if os.path.exists(self.options.json_test_results):
+      with open(self.options.json_test_results, "r") as f:
         # On bots we might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
@@ -426,15 +385,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
     # Sort tests by duration.
     self.tests.sort(key=lambda __duration_cmd: __duration_cmd[1], reverse=True)
-    slowest_tests = [
-      {
-        "name": str(test),
-        "flags": cmd.args,
-        "command": cmd.to_string(relative=True),
-        "duration": duration,
-        "marked_slow": test.is_slow,
-      } for (test, duration, cmd) in self.tests[:20]
-    ]
+    cutoff = self.options.slow_tests_cutoff
+    slowest_tests = self._test_records(self.tests[:cutoff])
 
     complete_results.append({
       "arch": self.arch,
@@ -445,5 +397,16 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "test_total": len(self.tests),
     })
 
-    with open(self.json_test_results, "w") as f:
+    with open(self.options.json_test_results, "w") as f:
       f.write(json.dumps(complete_results))
+
+  def _test_records(self, tests):
+    return [
+      {
+        "name": str(test),
+        "flags": cmd.args,
+        "command": cmd.to_string(relative=True),
+        "duration": duration,
+        "marked_slow": test.is_slow,
+      } for (test, duration, cmd) in tests
+    ]

@@ -261,7 +261,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
 
   if (parsing::ParseAny(info_, shared_info, isolate_) &&
       Rewriter::Rewrite(info_)) {
-    info_->ast_value_factory()->Internalize(isolate_->factory());
+    info_->ast_value_factory()->Internalize(isolate_);
     DeclarationScope* literal_scope = info_->literal()->scope();
 
     ScopeChainRetriever scope_chain_retriever(literal_scope, function_,

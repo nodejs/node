@@ -77,7 +77,7 @@ using compiler::Node;
 
 // For tests that must manually import a JSFunction with source code.
 struct ManuallyImportedJSFunction {
-  FunctionSig* sig;
+  const FunctionSig* sig;
   Handle<JSFunction> js_function;
 };
 
@@ -89,6 +89,7 @@ class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
+  ~TestingModuleBuilder();
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
@@ -109,7 +110,7 @@ class TestingModuleBuilder {
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
-  byte AddSignature(FunctionSig* sig) {
+  byte AddSignature(const FunctionSig* sig) {
     DCHECK_EQ(test_module_->signatures.size(),
               test_module_->signature_ids.size());
     test_module_->signatures.push_back(sig);
@@ -180,7 +181,8 @@ class TestingModuleBuilder {
   void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
 
   enum FunctionType { kImport, kWasm };
-  uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
+  uint32_t AddFunction(const FunctionSig* sig, const char* name,
+                       FunctionType type);
 
   // Freezes the signature map of the module and allocates the storage for
   // export wrappers.
@@ -196,7 +198,7 @@ class TestingModuleBuilder {
 
   uint32_t AddBytes(Vector<const byte> bytes);
 
-  uint32_t AddException(FunctionSig* sig);
+  uint32_t AddException(const FunctionSig* sig);
 
   uint32_t AddPassiveDataSegment(Vector<const byte> bytes);
   uint32_t AddPassiveElementSegment(const std::vector<uint32_t>& entries);
@@ -221,7 +223,8 @@ class TestingModuleBuilder {
 
   void SetExecutable() { native_module_->SetExecutable(true); }
 
-  CompilationEnv CreateCompilationEnv();
+  enum AssumeDebugging : bool { kDebug = true, kNoDebug = false };
+  CompilationEnv CreateCompilationEnv(AssumeDebugging = kNoDebug);
 
   ExecutionTier execution_tier() const { return execution_tier_; }
 
@@ -257,7 +260,7 @@ class TestingModuleBuilder {
 };
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end);
 
@@ -336,11 +339,11 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
  private:
   friend class WasmRunnerBase;
 
-  WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
+  WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
                        TestingModuleBuilder* builder, const char* name);
 
   compiler::JSGraph jsgraph;
-  FunctionSig* sig;
+  const FunctionSig* sig;
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
   TestingModuleBuilder* builder_;
@@ -382,7 +385,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   // Resets the state for building the next function.
   // The main function called will be the last generated function.
   // Returns the index of the previously built function.
-  WasmFunctionCompiler& NewFunction(FunctionSig* sig,
+  WasmFunctionCompiler& NewFunction(const FunctionSig* sig,
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
@@ -407,7 +410,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   bool interpret() { return builder_.interpret(); }
 
   template <typename ReturnType, typename... ParamTypes>
-  FunctionSig* CreateSig() {
+  const FunctionSig* CreateSig() {
     std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
         {MachineTypeForC<ParamTypes>()...}};
     Vector<MachineType> param_vec(param_machine_types.data(),
@@ -416,8 +419,8 @@ class WasmRunnerBase : public HandleAndZoneScope {
   }
 
  private:
-  FunctionSig* CreateSig(MachineType return_type,
-                         Vector<MachineType> param_types);
+  const FunctionSig* CreateSig(MachineType return_type,
+                               Vector<MachineType> param_types);
 
  protected:
   v8::internal::AccountingAllocator allocator_;

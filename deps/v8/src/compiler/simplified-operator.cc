@@ -4,11 +4,13 @@
 
 #include "src/compiler/simplified-operator.h"
 
+#include "include/v8-fast-api-calls.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
 #include "src/handles/handles-inl.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
 #include "src/objects/objects-inl.h"
@@ -820,7 +822,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedUint32Mod, 2, 1)
 
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V)    \
-  V(CheckBounds, 2, 1)                      \
   V(CheckNumber, 1, 1)                      \
   V(CheckSmi, 1, 1)                         \
   V(CheckString, 1, 1)                      \
@@ -838,7 +839,9 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedUint64ToInt32, 1, 1)             \
   V(CheckedUint64ToTaggedSigned, 1, 1)
 
-#define CHECKED_BOUNDS_OP_LIST(V) V(CheckedUint32Bounds)
+#define CHECKED_BOUNDS_OP_LIST(V) \
+  V(CheckBounds)                  \
+  V(CheckedUint32Bounds)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \
@@ -1256,6 +1259,16 @@ const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
                                       "AssertType", 1, 0, 0, 1, 0, 0, type);
 }
 
+const Operator* SimplifiedOperatorBuilder::FastApiCall(
+    const CFunctionInfo* signature, FeedbackSource const& feedback) {
+  // function, c args
+  int value_input_count = signature->ArgumentCount() + 1;
+  return new (zone()) Operator1<FastApiCallParameters>(
+      IrOpcode::kFastApiCall, Operator::kNoThrow, "FastApiCall",
+      value_input_count, 1, 1, 1, 1, 0,
+      FastApiCallParameters(signature, feedback));
+}
+
 const Operator* SimplifiedOperatorBuilder::CheckIf(
     DeoptimizeReason reason, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
@@ -1476,6 +1489,21 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(
       1, 1, 1, 0, hint);
 }
 
+const Operator* SimplifiedOperatorBuilder::CheckClosure(
+    const Handle<FeedbackCell>& feedback_cell) {
+  return new (zone()) Operator1<Handle<FeedbackCell>>(  // --
+      IrOpcode::kCheckClosure,                          // opcode
+      Operator::kNoThrow | Operator::kNoWrite,          // flags
+      "CheckClosure",                                   // name
+      1, 1, 1, 1, 1, 0,                                 // counts
+      feedback_cell);                                   // parameter
+}
+
+Handle<FeedbackCell> FeedbackCellOf(const Operator* op) {
+  DCHECK(IrOpcode::kCheckClosure == op->opcode());
+  return OpParameter<Handle<FeedbackCell>>(op);
+}
+
 const Operator* SimplifiedOperatorBuilder::SpeculativeToNumber(
     NumberOperationHint hint, const FeedbackSource& feedback) {
   if (!feedback.IsValid()) {
@@ -1589,7 +1617,8 @@ std::ostream& operator<<(std::ostream& os, CheckParameters const& p) {
 }
 
 CheckParameters const& CheckParametersOf(Operator const* op) {
-  if (op->opcode() == IrOpcode::kCheckedUint32Bounds) {
+  if (op->opcode() == IrOpcode::kCheckBounds ||
+      op->opcode() == IrOpcode::kCheckedUint32Bounds) {
     return OpParameter<CheckBoundsParameters>(op).check_parameters();
   }
 #define MAKE_OR(name, arg2, arg3) op->opcode() == IrOpcode::k##name ||
@@ -1677,6 +1706,25 @@ const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
 int NewArgumentsElementsMappedCountOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kNewArgumentsElements, op->opcode());
   return OpParameter<int>(op);
+}
+
+FastApiCallParameters const& FastApiCallParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kFastApiCall, op->opcode());
+  return OpParameter<FastApiCallParameters>(op);
+}
+
+std::ostream& operator<<(std::ostream& os, FastApiCallParameters const& p) {
+  return os << p.signature() << ", " << p.feedback();
+}
+
+size_t hash_value(FastApiCallParameters const& p) {
+  return base::hash_combine(p.signature(),
+                            FeedbackSource::Hash()(p.feedback()));
+}
+
+bool operator==(FastApiCallParameters const& lhs,
+                FastApiCallParameters const& rhs) {
+  return lhs.signature() == rhs.signature() && lhs.feedback() == rhs.feedback();
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(Type type,

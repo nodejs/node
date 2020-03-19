@@ -14,7 +14,7 @@
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
 namespace array {
-  class SortState extends Struct {
+  class SortState extends HeapObject {
     macro Compare(implicit context: Context)(x: JSAny, y: JSAny): Number {
       const sortCompare: CompareBuiltinFn = this.sortComparePtr;
       return sortCompare(context, this.userCmpFn, x, y);

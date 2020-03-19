@@ -30,7 +30,6 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
 
   static const size_t kSizeOfObjects = 100 * MB;
   static const size_t kMarkCompactSpeed = 200 * KB;
-  static const size_t kMarkingSpeed = 200 * KB;
 
  private:
   GCIdleTimeHandler handler_;
@@ -71,20 +70,6 @@ TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow2) {
       std::numeric_limits<size_t>::max(), 10);
   EXPECT_EQ(static_cast<size_t>(GCIdleTimeHandler::kMaximumMarkingStepSize),
             step_size);
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, ShouldDoFinalIncrementalMarkCompact) {
-  size_t idle_time_ms = 16;
-  EXPECT_TRUE(GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
-      idle_time_ms, 0, 0));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DontDoFinalIncrementalMarkCompact) {
-  size_t idle_time_ms = 1;
-  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(
-      idle_time_ms, kSizeOfObjects, kMarkingSpeed));
 }
 
 

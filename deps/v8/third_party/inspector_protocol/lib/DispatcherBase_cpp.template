@@ -132,8 +132,10 @@ public:
         std::unique_ptr<ProtocolError> protocolError(new ProtocolError(code, errorMessage));
         protocolError->m_callId = callId;
         protocolError->m_hasCallId = true;
-        if (errors && errors->hasErrors())
-            protocolError->m_data = errors->errors();
+        if (errors && !errors->Errors().empty()) {
+            protocolError->m_data =
+                StringUtil::fromUTF8(errors->Errors().data(), errors->Errors().size());
+        }
         return protocolError;
     }
 

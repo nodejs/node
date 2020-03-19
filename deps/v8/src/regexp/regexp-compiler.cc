@@ -9,6 +9,9 @@
 #include "src/objects/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"
 #include "src/regexp/regexp-macro-assembler-tracer.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/regexp/special-case.h"
+#endif  // V8_INTL_SUPPORT
 #include "src/strings/unicode-inl.h"
 #include "src/zone/zone-list-inl.h"
 
@@ -725,32 +728,34 @@ static int GetCaseIndependentLetters(Isolate* isolate, uc16 character,
                                      unibrow::uchar* letters,
                                      int letter_length) {
 #ifdef V8_INTL_SUPPORT
-  // Special case for U+017F which has upper case in ASCII range.
-  if (character == 0x017f) {
+  if (RegExpCaseFolding::IgnoreSet().contains(character)) {
     letters[0] = character;
     return 1;
   }
+  bool in_special_add_set =
+      RegExpCaseFolding::SpecialAddSet().contains(character);
+
   icu::UnicodeSet set;
   set.add(character);
   set = set.closeOver(USET_CASE_INSENSITIVE);
+
+  UChar32 canon = 0;
+  if (in_special_add_set) {
+    canon = RegExpCaseFolding::Canonicalize(character);
+  }
+
   int32_t range_count = set.getRangeCount();
   int items = 0;
   for (int32_t i = 0; i < range_count; i++) {
     UChar32 start = set.getRangeStart(i);
     UChar32 end = set.getRangeEnd(i);
     CHECK(end - start + items <= letter_length);
-    // Only add to the output if character is not in ASCII range
-    // or the case equivalent character is in ASCII range.
-    // #sec-runtime-semantics-canonicalize-ch
-    // 3.g If the numeric value of ch ≥ 128 and the numeric value of cu < 128,
-    //     return ch.
-    if (!((start >= 128) && (character < 128))) {
-      // No range have start and end span across code point 128.
-      DCHECK((start >= 128) == (end >= 128));
-      for (UChar32 cu = start; cu <= end; cu++) {
-        if (one_byte_subject && cu > String::kMaxOneByteCharCode) break;
-        letters[items++] = (unibrow::uchar)(cu);
+    for (UChar32 cu = start; cu <= end; cu++) {
+      if (one_byte_subject && cu > String::kMaxOneByteCharCode) break;
+      if (in_special_add_set && RegExpCaseFolding::Canonicalize(cu) != canon) {
+        continue;
       }
+      letters[items++] = (unibrow::uchar)(cu);
     }
   }
   return items;
@@ -3429,8 +3434,8 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
   if (IgnoreCase(flags_)) {
-    assembler->CheckNotBackReferenceIgnoreCase(
-        start_reg_, read_backward(), IsUnicode(flags_), trace->backtrack());
+    assembler->CheckNotBackReferenceIgnoreCase(start_reg_, read_backward(),
+                                               trace->backtrack());
   } else {
     assembler->CheckNotBackReference(start_reg_, read_backward(),
                                      trace->backtrack());
@@ -3607,6 +3612,9 @@ class Analysis : public NodeVisitor {
   void EnsureAnalyzed(RegExpNode* that) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
+      if (FLAG_correctness_fuzzer_suppressions) {
+        FATAL("Analysis: Aborting on stack overflow");
+      }
       fail("Stack overflow");
       return;
     }

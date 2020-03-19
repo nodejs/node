@@ -37,7 +37,7 @@ function genMemoryGrowBuilder() {
 }
 
 // V8 internal memory size limit.
-var kV8MaxPages = 32767;
+var kV8MaxPages = 65536;
 
 
 // TODO(gdeepti): Generate tests programatically for all the sizes instead of
@@ -477,23 +477,18 @@ function testMemoryGrowDeclaredMaxTraps() {
 
 testMemoryGrowDeclaredMaxTraps();
 
-function testMemoryGrowDeclaredSpecMaxTraps() {
-  // The spec maximum is higher than the internal V8 maximum. This test only
-  // checks that grow_memory does not grow past the internally defined maximum
-  // to reflect the current implementation.
+(function testMemoryGrowInternalMaxTraps() {
+  // This test checks that grow_memory does not grow past the internally
+  // defined maximum memory size.
   var builder = genMemoryGrowBuilder();
   builder.addMemory(1, kSpecMaxPages, false);
   var module = builder.instantiate();
-  function poke(value) { return module.exports.store(offset, value); }
   function growMem(pages) { return module.exports.grow_memory(pages); }
   assertEquals(1, growMem(20));
   assertEquals(-1, growMem(kV8MaxPages - 20));
-}
+})();
 
-testMemoryGrowDeclaredSpecMaxTraps();
-
-function testMemoryGrow2Gb() {
-  print("testMemoryGrow2Gb");
+(function testMemoryGrow4Gb() {
   var builder = genMemoryGrowBuilder();
   builder.addMemory(1, undefined, false);
   var module = builder.instantiate();
@@ -502,36 +497,27 @@ function testMemoryGrow2Gb() {
   function poke(value) { return module.exports.store(offset, value); }
   function growMem(pages) { return module.exports.grow_memory(pages); }
 
-  for(offset = 0; offset <= (kPageSize - 4); offset+=4) {
+  for (offset = 0; offset <= (kPageSize - 4); offset += 4) {
     poke(100000 - offset);
     assertEquals(100000 - offset, peek());
   }
 
   let result = growMem(kV8MaxPages - 1);
-  if (result == 1 ){
-    for(offset = 0; offset <= (kPageSize - 4); offset+=4) {
+  if (result == 1) {
+    for (offset = 0; offset <= (kPageSize - 4); offset += 4) {
       assertEquals(100000 - offset, peek());
     }
 
-    // Bounds check for large mem size
-    for(offset = (kV8MaxPages - 1) * kPageSize;
-        offset <= (kV8MaxPages * kPageSize - 4); offset+=4) {
+    // Bounds check for large mem size.
+    let kMemSize = (kV8MaxPages * kPageSize);
+    let kLastValidOffset = kMemSize - 4;  // Accommodate a 4-byte read/write.
+    for (offset = kMemSize - kPageSize; offset <= kLastValidOffset;
+         offset += 4) {
       poke(0xaced);
       assertEquals(0xaced, peek());
     }
 
-    for (offset = kV8MaxPages * kPageSize - 3;
-        offset <= kV8MaxPages * kPageSize + 4; offset++) {
-      assertTraps(kTrapMemOutOfBounds, poke);
-    }
-
-    // Check traps around 3GB/4GB boundaries
-    let offset_3gb = 49152 * kPageSize;
-    let offset_4gb = 2 * kV8MaxPages * kPageSize;
-    for (offset = offset_3gb - 5; offset < offset_3gb + 4; offset++) {
-      assertTraps(kTrapMemOutOfBounds, poke);
-    }
-    for (offset = offset_4gb - 5; offset < offset_4gb; offset++) {
+    for (offset = kLastValidOffset + 1; offset < kMemSize; offset++) {
       assertTraps(kTrapMemOutOfBounds, poke);
     }
   } else {
@@ -539,6 +525,4 @@ function testMemoryGrow2Gb() {
     // bit platforms. When grow_memory fails, expected result is -1.
     assertEquals(-1, result);
   }
-}
-
-testMemoryGrow2Gb();
+})();

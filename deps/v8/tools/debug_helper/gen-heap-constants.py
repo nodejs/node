@@ -19,7 +19,9 @@ out = """
 #include "src/common/ptr-compr-inl.h"
 #include "tools/debug_helper/debug-helper-internal.h"
 
-namespace v8_debug_helper_internal {
+namespace v8 {
+namespace internal {
+namespace debug_helper_internal {
 """
 
 def iterate_objects(target_space, camel_space_name):
@@ -70,7 +72,7 @@ if (hasattr(v8heapconst, 'HEAP_FIRST_PAGES')):  # Only exists in ptr-compr build
       out = out + '  }\n'
 out = out + '}\n'
 
-out = out + '\n}\n'
+out = out + '\n}\n}\n}\n'
 
 try:
   with open(sys.argv[2], "r") as out_file:

@@ -20,9 +20,8 @@ namespace wasm {
 // other purposes:
 // - the far stub table contains one entry per wasm runtime stub (see
 //   {WasmCode::RuntimeStubId}, which jumps to the corresponding embedded
-//   builtin, plus (if {FLAG_wasm_far_jump_table} is enabled and not the full
-//   address space can be reached via the jump table) one entry per wasm
-//   function.
+//   builtin, plus (if not the full address space can be reached via the jump
+//   table) one entry per wasm function.
 // - the lazy compile table contains one entry per wasm function which jumps to
 //   the common {WasmCompileLazy} builtin and passes the function index that was
 //   invoked.

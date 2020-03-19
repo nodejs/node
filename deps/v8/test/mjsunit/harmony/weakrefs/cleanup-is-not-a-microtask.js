@@ -24,7 +24,7 @@ let cleanup = (iter) => {
   for (holdings of iter) { }
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 let o = null;
 
 (function() {

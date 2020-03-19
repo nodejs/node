@@ -58,16 +58,13 @@ class JSPluralRules : public JSObject {
   DECL_PRINTER(JSPluralRules)
   DECL_VERIFIER(JSPluralRules)
 
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _) V(TypeBits, Type, 1, _)
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_JS_PLURAL_RULES_FLAGS()
 
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
+  STATIC_ASSERT(Type::CARDINAL <= TypeBit::kMax);
+  STATIC_ASSERT(Type::ORDINAL <= TypeBit::kMax);
 
-  STATIC_ASSERT(Type::CARDINAL <= TypeBits::kMax);
-  STATIC_ASSERT(Type::ORDINAL <= TypeBits::kMax);
-
-// Layout description.
+  // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JS_PLURAL_RULES_FIELDS)
 

@@ -400,6 +400,13 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorError) {
   return isolate->Throw(*ErrorUtils::NewIteratorError(isolate, object));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowSpreadArgIsNullOrUndefined) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  return ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(isolate, object);
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

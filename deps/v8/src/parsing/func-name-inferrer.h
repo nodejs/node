@@ -110,7 +110,7 @@ class FuncNameInferrer {
   };
 
   // Constructs a full name in dotted notation from gathered names.
-  const AstConsString* MakeNameFromStack();
+  AstConsString* MakeNameFromStack();
 
   // Performs name inferring for added functions.
   void InferFunctionsNames();

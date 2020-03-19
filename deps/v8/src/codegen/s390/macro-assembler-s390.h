@@ -417,7 +417,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadDouble(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
-  void LoadSimd128(Simd128Register dst, const MemOperand& mem);
+  void LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                   Register scratch);
 
   void AddFloat32(DoubleRegister dst, const MemOperand& opnd,
                   DoubleRegister scratch);
@@ -449,7 +450,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreFloat32(DoubleRegister dst, const MemOperand& opnd);
   void StoreDoubleAsFloat32(DoubleRegister src, const MemOperand& mem,
                             DoubleRegister scratch);
-  void StoreSimd128(Simd128Register src, const MemOperand& mem);
+  void StoreSimd128(Simd128Register src, const MemOperand& mem,
+                    Register scratch);
 
   void Branch(Condition c, const Operand& opnd);
   void BranchOnCount(Register r1, Label* l);
@@ -782,19 +784,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SwapFloat32(DoubleRegister src, DoubleRegister dst,
                    DoubleRegister scratch);
   void SwapFloat32(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
-  void SwapFloat32(MemOperand src, MemOperand dst, DoubleRegister scratch_0,
-                   DoubleRegister scratch_1);
+  void SwapFloat32(MemOperand src, MemOperand dst, DoubleRegister scratch);
   void SwapDouble(DoubleRegister src, DoubleRegister dst,
                   DoubleRegister scratch);
   void SwapDouble(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
-  void SwapDouble(MemOperand src, MemOperand dst, DoubleRegister scratch_0,
-                  DoubleRegister scratch_1);
+  void SwapDouble(MemOperand src, MemOperand dst, DoubleRegister scratch);
   void SwapSimd128(Simd128Register src, Simd128Register dst,
                    Simd128Register scratch);
   void SwapSimd128(Simd128Register src, MemOperand dst,
                    Simd128Register scratch);
-  void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch_0,
-                   Simd128Register scratch_1);
+  void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch);
 
   // Cleanse pointer address on 31bit by zero out top  bit.
   // This is a NOP on 64-bit.
@@ -849,6 +848,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatResult(DoubleRegister dst);
 
   void Trap() override;
+  void DebugBreak() override;
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
@@ -1277,13 +1277,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
                       InvokeFlag flag);
-
-  // Compute memory operands for safepoint stack slots.
-  static int SafepointRegisterStackIndex(int reg_code);
-
-  // Needs access to SafepointRegisterStackIndex for compiled frame
-  // traversal.
-  friend class StandardFrame;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

@@ -70,6 +70,7 @@
 ##############################################################################
 ['arch == ppc or arch == ppc64', {
   # Liftoff needs to be enabled before running these tests.
+  'debugger/wasm-scope-info': [SKIP],
   'debugger/wasm-scope-info-liftoff': [SKIP],
   'debugger/wasm-set-breakpoint-liftoff': [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
@@ -79,6 +80,7 @@
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debugger/set-script-source-stack-padding': [SKIP],
   # Liftoff needs to be enabled before running these tests.
+  'debugger/wasm-scope-info': [SKIP],
   'debugger/wasm-scope-info-liftoff': [SKIP],
   'debugger/wasm-set-breakpoint-liftoff': [SKIP],
 }],  # 'arch == s390 or arch == s390x'

@@ -412,6 +412,13 @@ class V8_EXPORT_PRIVATE Type {
   }
   bool IsTuple() const { return IsKind(TypeBase::kTuple); }
 
+  bool IsSingleton() const {
+    if (IsNone()) return false;
+    return Is(Type::Null()) || Is(Type::Undefined()) || Is(Type::MinusZero()) ||
+           Is(Type::NaN()) || Is(Type::Hole()) || IsHeapConstant() ||
+           (Is(Type::PlainNumber()) && Min() == Max());
+  }
+
   const HeapConstantType* AsHeapConstant() const;
   const OtherNumberConstantType* AsOtherNumberConstant() const;
   const RangeType* AsRange() const;

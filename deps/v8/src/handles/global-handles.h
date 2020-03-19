@@ -121,6 +121,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
       GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
 
   void IterateStrongRoots(RootVisitor* v);
+  void IterateStrongStackRoots(RootVisitor* v);
   void IterateWeakRoots(RootVisitor* v);
   void IterateAllRoots(RootVisitor* v);
   void IterateAllYoungRoots(RootVisitor* v);
@@ -175,8 +176,11 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   Isolate* isolate() const { return isolate_; }
 
+  size_t TotalSize() const;
+  size_t UsedSize() const;
+
   // Number of global handles.
-  size_t handles_count() const { return handles_count_; }
+  size_t handles_count() const;
 
   size_t GetAndResetGlobalHandleResetCount() {
     size_t old = number_of_phantom_handle_resets_;
@@ -236,8 +240,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   std::vector<TracedNode*> traced_young_nodes_;
   std::unique_ptr<OnStackTracedNodeSpace> on_stack_nodes_;
 
-  // Field always containing the number of handles to global objects.
-  size_t handles_count_ = 0;
   size_t number_of_phantom_handle_resets_ = 0;
 
   std::vector<std::pair<Node*, PendingPhantomCallback>>

@@ -30,6 +30,7 @@ namespace internal {
 // Note that length_ (whose value is in the integer range) is defined
 // as intptr_t to provide endian-neutrality on 64-bit archs.
 
+template <ArgumentsType arguments_type>
 class Arguments {
  public:
   Arguments(int length, Address* arguments)
@@ -46,6 +47,8 @@ class Arguments {
 
   inline int smi_at(int index) const;
 
+  inline int tagged_index_at(int index) const;
+
   inline double number_at(int index) const;
 
   inline void set_at(int index, Object value) {
@@ -58,25 +61,46 @@ class Arguments {
 
   inline Address* address_of_arg_at(int index) const {
     DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    int offset = index * kSystemPointerSize;
+#ifdef V8_REVERSE_JSARGS
+    if (arguments_type == ArgumentsType::kJS) {
+      offset = (length_ - index - 1) * kSystemPointerSize;
+    }
+#endif
     return reinterpret_cast<Address*>(reinterpret_cast<Address>(arguments_) -
-                                      index * kSystemPointerSize);
+                                      offset);
   }
 
   // Get the total number of arguments including the receiver.
   int length() const { return static_cast<int>(length_); }
 
   // Arguments on the stack are in reverse order (compared to an array).
-  FullObjectSlot first_slot() const { return slot_at(length() - 1); }
-  FullObjectSlot last_slot() const { return slot_at(0); }
+  FullObjectSlot first_slot() const {
+    int index = length() - 1;
+#ifdef V8_REVERSE_JSARGS
+    if (arguments_type == ArgumentsType::kJS) index = 0;
+#endif
+    return slot_at(index);
+  }
+
+  FullObjectSlot last_slot() const {
+    int index = 0;
+#ifdef V8_REVERSE_JSARGS
+    if (arguments_type == ArgumentsType::kJS) index = length() - 1;
+#endif
+    return slot_at(index);
+  }
 
  private:
   intptr_t length_;
   Address* arguments_;
 };
 
-template <>
-inline Handle<Object> Arguments::at(int index) const {
-  return Handle<Object>(address_of_arg_at(index));
+template <ArgumentsType T>
+template <class S>
+Handle<S> Arguments<T>::at(int index) const {
+  Handle<Object> obj = Handle<Object>(address_of_arg_at(index));
+  return Handle<S>::cast(obj);
 }
 
 double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
@@ -90,7 +114,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)      \
-  static V8_INLINE InternalType __RT_impl_##Name(Arguments args,              \
+  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,       \
                                                  Isolate* isolate);           \
                                                                               \
   V8_NOINLINE static Type Stats_##Name(int args_length, Address* args_object, \
@@ -98,7 +122,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::k##Name);      \
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                     \
                  "V8.Runtime_" #Name);                                        \
-    Arguments args(args_length, args_object);                                 \
+    RuntimeArguments args(args_length, args_object);                          \
     return Convert(__RT_impl_##Name(args, isolate));                          \
   }                                                                           \
                                                                               \
@@ -108,11 +132,11 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
     if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {              \
       return Stats_##Name(args_length, args_object, isolate);                 \
     }                                                                         \
-    Arguments args(args_length, args_object);                                 \
+    RuntimeArguments args(args_length, args_object);                          \
     return Convert(__RT_impl_##Name(args, isolate));                          \
   }                                                                           \
                                                                               \
-  static InternalType __RT_impl_##Name(Arguments args, Isolate* isolate)
+  static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)
 
 #define CONVERT_OBJECT(x) (x).ptr()
 #define CONVERT_OBJECTPAIR(x) (x)

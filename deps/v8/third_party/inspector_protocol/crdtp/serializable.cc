@@ -9,7 +9,7 @@ namespace v8_crdtp {
 // Serializable - An object to be emitted as a sequence of bytes.
 // =============================================================================
 
-std::vector<uint8_t> Serializable::TakeSerialized() && {
+std::vector<uint8_t> Serializable::Serialize() const {
   std::vector<uint8_t> out;
   AppendSerialized(&out);
   return out;

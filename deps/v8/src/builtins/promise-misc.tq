@@ -59,6 +59,7 @@ namespace promise {
       handler: Callable|Undefined,
       promiseOrCapability: JSPromise|PromiseCapability|
       Undefined): PromiseReactionJobTask {
+    const nativeContext = LoadNativeContext(handlerContext);
     const taskHeapObject =
         promise_internal::AllocatePromiseReactionJobTask(context);
     taskHeapObject.map = map;
@@ -67,6 +68,9 @@ namespace promise {
     jobTask.context = handlerContext;
     jobTask.handler = handler;
     jobTask.promise_or_capability = promiseOrCapability;
+    jobTask.continuation_preserved_embedder_data =
+        nativeContext[NativeContextSlot::
+                          CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX];
     return jobTask;
   }
 
@@ -113,16 +117,19 @@ namespace promise {
   }
 
   macro NewPromiseReaction(implicit context: Context)(
-      next: Zero|PromiseReaction,
+      handlerContext: Context, next: Zero|PromiseReaction,
       promiseOrCapability: JSPromise|PromiseCapability|Undefined,
       fulfillHandler: Callable|Undefined,
       rejectHandler: Callable|Undefined): PromiseReaction {
+    const nativeContext = LoadNativeContext(handlerContext);
     return new PromiseReaction{
       map: PromiseReactionMapConstant(),
       next: next,
       reject_handler: rejectHandler,
       fulfill_handler: fulfillHandler,
-      promise_or_capability: promiseOrCapability
+      promise_or_capability: promiseOrCapability,
+      continuation_preserved_embedder_data: nativeContext
+          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
     };
   }
 
@@ -130,10 +137,10 @@ namespace promise {
 
   macro NewPromiseResolveThenableJobTask(implicit context: Context)(
       promiseToResolve: JSPromise, then: JSReceiver, thenable: JSReceiver,
-      thenableContext: Context): PromiseResolveThenableJobTask {
+      thenContext: Context): PromiseResolveThenableJobTask {
     return new PromiseResolveThenableJobTask{
       map: PromiseResolveThenableJobTaskMapConstant(),
-      context: thenableContext,
+      context: thenContext,
       promise_to_resolve: promiseToResolve,
       then: then,
       thenable: thenable

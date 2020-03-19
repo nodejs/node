@@ -77,7 +77,8 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
     return false;
   }
   int function_index = function->function_index();
-  FunctionSig* signature = instance->module()->functions[function_index].sig;
+  const FunctionSig* signature =
+      instance->module()->functions[function_index].sig;
   size_t param_count = signature->parameter_count();
   std::unique_ptr<WasmValue[]> arguments(new WasmValue[param_count]);
 

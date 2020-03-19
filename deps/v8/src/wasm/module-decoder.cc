@@ -149,6 +149,42 @@ WireBytesRef consume_string(Decoder* decoder, bool validate_utf8,
   return {offset, decoder->failed() ? 0 : length};
 }
 
+namespace {
+SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
+  WireBytesRef string = consume_string(decoder, true, "section name");
+  if (decoder->failed()) {
+    return kUnknownSectionCode;
+  }
+  const byte* section_name_start =
+      decoder->start() + decoder->GetBufferRelativeOffset(string.offset());
+
+  TRACE("  +%d  section name        : \"%.*s\"\n",
+        static_cast<int>(section_name_start - decoder->start()),
+        string.length() < 20 ? string.length() : 20, section_name_start);
+
+  if (string.length() == num_chars(kNameString) &&
+      strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
+              num_chars(kNameString)) == 0) {
+    return kNameSectionCode;
+  } else if (string.length() == num_chars(kSourceMappingURLString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kSourceMappingURLString,
+                     num_chars(kSourceMappingURLString)) == 0) {
+    return kSourceMappingURLSectionCode;
+  } else if (string.length() == num_chars(kCompilationHintsString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kCompilationHintsString,
+                     num_chars(kCompilationHintsString)) == 0) {
+    return kCompilationHintsSectionCode;
+  } else if (string.length() == num_chars(kDebugInfoString) &&
+             strncmp(reinterpret_cast<const char*>(section_name_start),
+                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
+    return kDebugInfoSectionCode;
+  }
+  return kUnknownSectionCode;
+}
+}  // namespace
+
 // An iterator over the sections in a wasm binary module.
 // Automatically skips all unknown sections.
 class WasmSectionIterator {
@@ -232,8 +268,13 @@ class WasmSectionIterator {
     if (section_code == kUnknownSectionCode) {
       // Check for the known "name", "sourceMappingURL", or "compilationHints"
       // section.
-      section_code =
-          ModuleDecoder::IdentifyUnknownSection(decoder_, section_end_);
+      // To identify the unknown section we set the end of the decoder bytes to
+      // the end of the custom section, so that we do not read the section name
+      // beyond the end of the section.
+      const byte* module_end = decoder_->end();
+      decoder_->set_end(section_end_);
+      section_code = IdentifyUnknownSectionInternal(decoder_);
+      if (decoder_->ok()) decoder_->set_end(module_end);
       // As a side effect, the above function will forward the decoder to after
       // the identifier string.
       payload_start_ = decoder_->pc();
@@ -367,6 +408,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
                      uint32_t offset, bool verify_functions = true) {
+    VerifyFunctionDeclarations(section_code);
     if (failed()) return;
     Reset(bytes, offset);
     TRACE("Section: %s\n", SectionName(section_code));
@@ -510,7 +552,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < signatures_count; ++i) {
       TRACE("DecodeSignature[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      FunctionSig* s = consume_sig(module_->signature_zone.get());
+      const FunctionSig* s = consume_sig(module_->signature_zone.get());
       module_->signatures.push_back(s);
       uint32_t id = s ? module_->signature_map.FindOrInsert(*s) : 0;
       module_->signature_ids.push_back(id);
@@ -548,7 +590,8 @@ class ModuleDecoderImpl : public Decoder {
                                         0,              // sig_index
                                         {0, 0},         // code
                                         true,           // imported
-                                        false});        // exported
+                                        false,          // exported
+                                        false});        // declared
           WasmFunction* function = &module_->functions.back();
           function->sig_index =
               consume_sig_index(module_.get(), &function->sig);
@@ -582,9 +625,9 @@ class ModuleDecoderImpl : public Decoder {
           if (!AddMemory(module_.get())) break;
           uint8_t flags = validate_memory_flags(&module_->has_shared_memory);
           consume_resizable_limits(
-              "memory", "pages", kSpecMaxWasmMemoryPages,
+              "memory", "pages", max_initial_mem_pages(),
               &module_->initial_pages, &module_->has_maximum_pages,
-              kSpecMaxWasmMemoryPages, &module_->maximum_pages, flags);
+              max_maximum_mem_pages(), &module_->maximum_pages, flags);
           break;
         }
         case kExternalGlobal: {
@@ -607,7 +650,7 @@ class ModuleDecoderImpl : public Decoder {
             break;
           }
           import->index = static_cast<uint32_t>(module_->exceptions.size());
-          WasmExceptionSig* exception_sig = nullptr;
+          const WasmExceptionSig* exception_sig = nullptr;
           consume_exception_attribute();  // Attribute ignored for now.
           consume_exception_sig_index(module_.get(), &exception_sig);
           module_->exceptions.emplace_back(exception_sig);
@@ -638,7 +681,8 @@ class ModuleDecoderImpl : public Decoder {
                                     0,           // sig_index
                                     {0, 0},      // code
                                     false,       // imported
-                                    false});     // exported
+                                    false,       // exported
+                                    false});     // declared
       WasmFunction* function = &module_->functions.back();
       function->sig_index = consume_sig_index(module_.get(), &function->sig);
       if (!ok()) return;
@@ -673,8 +717,8 @@ class ModuleDecoderImpl : public Decoder {
       if (!AddMemory(module_.get())) break;
       uint8_t flags = validate_memory_flags(&module_->has_shared_memory);
       consume_resizable_limits(
-          "memory", "pages", kSpecMaxWasmMemoryPages, &module_->initial_pages,
-          &module_->has_maximum_pages, kSpecMaxWasmMemoryPages,
+          "memory", "pages", max_initial_mem_pages(), &module_->initial_pages,
+          &module_->has_maximum_pages, max_maximum_mem_pages(),
           &module_->maximum_pages, flags);
     }
   }
@@ -806,43 +850,43 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t element_count =
         consume_count("element count", FLAG_wasm_max_table_size);
 
-    if (element_count > 0 && module_->tables.size() == 0) {
-      error(pc_, "The element section requires a table");
-    }
     for (uint32_t i = 0; ok() && i < element_count; ++i) {
       const byte* pos = pc();
 
-      bool is_active;
+      WasmElemSegment::Status status;
       bool functions_as_elements;
       uint32_t table_index;
       WasmInitExpr offset;
-      consume_element_segment_header(&is_active, &functions_as_elements,
+      ValueType type = kWasmBottom;
+      consume_element_segment_header(&status, &functions_as_elements, &type,
                                      &table_index, &offset);
       if (failed()) return;
+      DCHECK_NE(type, kWasmBottom);
 
-      if (is_active) {
+      if (status == WasmElemSegment::kStatusActive) {
         if (table_index >= module_->tables.size()) {
           errorf(pos, "out of bounds table index %u", table_index);
           break;
         }
-        if (!ValueTypes::IsSubType(kWasmFuncRef,
-                                   module_->tables[table_index].type)) {
+        if (!ValueTypes::IsSubType(type, module_->tables[table_index].type)) {
           errorf(pos,
-                 "Invalid element segment. Table %u is not of type FuncRef",
-                 table_index);
+                 "Invalid element segment. Table %u is not a super-type of %s",
+                 table_index, ValueTypes::TypeName(type));
           break;
         }
       }
 
       uint32_t num_elem =
           consume_count("number of elements", max_table_init_entries());
-      if (is_active) {
+      if (status == WasmElemSegment::kStatusActive) {
         module_->elem_segments.emplace_back(table_index, offset);
       } else {
-        module_->elem_segments.emplace_back();
+        module_->elem_segments.emplace_back(
+            status == WasmElemSegment::kStatusDeclarative);
       }
 
       WasmElemSegment* init = &module_->elem_segments.back();
+      init->type = type;
       for (uint32_t j = 0; j < num_elem; j++) {
         uint32_t index = functions_as_elements ? consume_element_expr()
                                                : consume_element_func_index();
@@ -1084,7 +1128,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < exception_count; ++i) {
       TRACE("DecodeException[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      WasmExceptionSig* exception_sig = nullptr;
+      const WasmExceptionSig* exception_sig = nullptr;
       consume_exception_attribute();  // Attribute ignored for now.
       consume_exception_sig_index(module_.get(), &exception_sig);
       module_->exceptions.emplace_back(exception_sig);
@@ -1114,7 +1158,41 @@ class ModuleDecoderImpl : public Decoder {
     return true;
   }
 
+  void VerifyFunctionDeclarations(SectionCode section_code) {
+    // Since we will only know if a function was properly declared after all the
+    // element sections have been parsed, but we need to verify the proper use
+    // within global initialization, we are deferring those checks.
+    if (deferred_funcref_error_offsets_.empty()) {
+      // No verifications to do be done.
+      return;
+    }
+    if (!ok()) {
+      // Previous errors exist.
+      return;
+    }
+    // TODO(ecmziegler): Adjust logic if module order changes (e.g. event
+    // section).
+    if (section_code <= kElementSectionCode &&
+        section_code != kUnknownSectionCode) {
+      // Before the element section and not at end of decoding.
+      return;
+    }
+    for (auto& func_offset : deferred_funcref_error_offsets_) {
+      DCHECK_LT(func_offset.first, module_->functions.size());
+      if (!module_->functions[func_offset.first].declared) {
+        errorf(func_offset.second, "undeclared reference to function #%u",
+               func_offset.first);
+        break;
+      }
+    }
+    deferred_funcref_error_offsets_.clear();
+  }
+
   ModuleResult FinishDecoding(bool verify_functions = true) {
+    // Ensure that function verifications were done even if no section followed
+    // the global section.
+    VerifyFunctionDeclarations(kUnknownSectionCode);
+
     if (ok() && CheckMismatchedCounts()) {
       CalculateGlobalOffsets(module_.get());
     }
@@ -1184,9 +1262,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   // Decodes a single function signature at {start}.
-  FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
+  const FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
     pc_ = start;
-    FunctionSig* result = consume_sig(zone);
+    const FunctionSig* result = consume_sig(zone);
     return ok() ? result : nullptr;
   }
 
@@ -1225,6 +1303,10 @@ class ModuleDecoderImpl : public Decoder {
                     kLastKnownModuleSection,
                 "not enough bits");
   WasmError intermediate_error_;
+  // Map from function index to wire byte offset of first funcref initialization
+  // in global section. Used for deferred checking and proper error reporting if
+  // these were not properly declared in the element section.
+  std::unordered_map<uint32_t, int> deferred_funcref_error_offsets_;
   ModuleOrigin origin_;
 
   bool has_seen_unordered_section(SectionCode section_code) {
@@ -1327,16 +1409,9 @@ class ModuleDecoderImpl : public Decoder {
         start_ + GetBufferRelativeOffset(function->code.offset()),
         start_ + GetBufferRelativeOffset(function->code.end_offset())};
 
-    DecodeResult result;
-    {
-      auto time_counter = SELECT_WASM_COUNTER(GetCounters(), origin_,
-                                              wasm_decode, function_time);
-
-      TimedHistogramScope wasm_decode_function_time_scope(time_counter);
-      WasmFeatures unused_detected_features = WasmFeatures::None();
-      result = VerifyWasmCode(allocator, enabled_features_, module,
-                              &unused_detected_features, body);
-    }
+    WasmFeatures unused_detected_features = WasmFeatures::None();
+    DecodeResult result = VerifyWasmCode(allocator, enabled_features_, module,
+                                         &unused_detected_features, body);
 
     // If the decode failed and this is the first error, set error code and
     // location.
@@ -1349,7 +1424,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  uint32_t consume_sig_index(WasmModule* module, FunctionSig** sig) {
+  uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {
     const byte* pos = pc_;
     uint32_t sig_index = consume_u32v("signature index");
     if (sig_index >= module->signatures.size()) {
@@ -1362,7 +1437,8 @@ class ModuleDecoderImpl : public Decoder {
     return sig_index;
   }
 
-  uint32_t consume_exception_sig_index(WasmModule* module, FunctionSig** sig) {
+  uint32_t consume_exception_sig_index(WasmModule* module,
+                                       const FunctionSig** sig) {
     const byte* pos = pc_;
     uint32_t sig_index = consume_sig_index(module, sig);
     if (*sig && (*sig)->return_count() != 0) {
@@ -1560,6 +1636,8 @@ class ModuleDecoderImpl : public Decoder {
             errorf(pc() - 1, "invalid function index: %u", imm.index);
             break;
           }
+          // Defer check for declaration of function reference.
+          deferred_funcref_error_offsets_.emplace(imm.index, pc_offset());
           expr.kind = WasmInitExpr::kRefFuncConst;
           expr.val.function_index = imm.index;
           len = imm.length;
@@ -1665,7 +1743,7 @@ class ModuleDecoderImpl : public Decoder {
     return kWasmStmt;
   }
 
-  FunctionSig* consume_sig(Zone* zone) {
+  const FunctionSig* consume_sig(Zone* zone) {
     if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
     // parse parameter types
     uint32_t param_count =
@@ -1710,9 +1788,9 @@ class ModuleDecoderImpl : public Decoder {
     return attribute;
   }
 
-  void consume_element_segment_header(bool* is_active,
+  void consume_element_segment_header(WasmElemSegment::Status* status,
                                       bool* functions_as_elements,
-                                      uint32_t* table_index,
+                                      ValueType* type, uint32_t* table_index,
                                       WasmInitExpr* offset) {
     const byte* pos = pc();
     uint8_t flag;
@@ -1743,11 +1821,31 @@ class ModuleDecoderImpl : public Decoder {
         kIsPassiveMask | kHasTableIndexMask | kFunctionsAsElementsMask;
 
     bool is_passive = flag & kIsPassiveMask;
-    *is_active = !is_passive;
+    if (!is_passive) {
+      *status = WasmElemSegment::kStatusActive;
+      if (module_->tables.size() == 0) {
+        error(pc_, "Active element sections require a table");
+      }
+    } else if ((flag & kHasTableIndexMask)) {  // Special bit combination for
+                                               // declarative segments.
+      *status = WasmElemSegment::kStatusDeclarative;
+    } else {
+      *status = WasmElemSegment::kStatusPassive;
+      if (module_->tables.size() == 0) {
+        error(pc_, "Passive element sections require a table");
+      }
+    }
     *functions_as_elements = flag & kFunctionsAsElementsMask;
-    bool has_table_index = flag & kHasTableIndexMask;
+    bool has_table_index = (flag & kHasTableIndexMask) &&
+                           *status == WasmElemSegment::kStatusActive;
 
-    if (is_passive && !enabled_features_.has_bulk_memory()) {
+    if (*status == WasmElemSegment::kStatusDeclarative &&
+        !enabled_features_.has_anyref()) {
+      error("Declarative element segments require --experimental-wasm-anyref");
+      return;
+    }
+    if (*status == WasmElemSegment::kStatusPassive &&
+        !enabled_features_.has_bulk_memory()) {
       error("Passive element segments require --experimental-wasm-bulk-memory");
       return;
     }
@@ -1764,8 +1862,8 @@ class ModuleDecoderImpl : public Decoder {
           "--experimental-wasm-bulk-memory or --experimental-wasm-anyref?");
       return;
     }
-    if ((flag & kFullMask) != flag || (!(*is_active) && has_table_index)) {
-      errorf(pos, "illegal flag value %u. Must be 0, 1, 2, 4, 5 or 6", flag);
+    if ((flag & kFullMask) != flag) {
+      errorf(pos, "illegal flag value %u. Must be between 0 and 7", flag);
     }
 
     if (has_table_index) {
@@ -1774,25 +1872,20 @@ class ModuleDecoderImpl : public Decoder {
       *table_index = 0;
     }
 
-    if (*is_active) {
+    if (*status == WasmElemSegment::kStatusActive) {
       *offset = consume_init_expr(module_.get(), kWasmI32);
     }
 
-    if (*is_active && !has_table_index) {
+    if (*status == WasmElemSegment::kStatusActive && !has_table_index) {
       // Active segments without table indices are a special case for backwards
       // compatibility. These cases have an implicit element kind or element
       // type, so we are done already with the segment header.
+      *type = kWasmFuncRef;
       return;
     }
 
     if (*functions_as_elements) {
-      // We have to check that there is an element type of type FuncRef. All
-      // other element types are not valid yet.
-      ValueType type = consume_reference_type();
-      if (!ValueTypes::IsSubType(kWasmFuncRef, type)) {
-        error(pc_ - 1, "invalid element segment type");
-        return;
-      }
+      *type = consume_reference_type();
     } else {
       // We have to check that there is an element kind of type Function. All
       // other element kinds are not valid yet.
@@ -1802,6 +1895,7 @@ class ModuleDecoderImpl : public Decoder {
         errorf(pos, "illegal element kind %x. Must be 0x00", val);
         return;
       }
+      *type = kWasmFuncRef;
     }
   }
 
@@ -1853,6 +1947,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t index =
         consume_func_index(module_.get(), &func, "element function index");
     if (failed()) return index;
+    func->declared = true;
     DCHECK_NE(func, nullptr);
     DCHECK_EQ(index, func->func_index);
     DCHECK_NE(index, WasmElemSegment::kNullIndex);
@@ -1885,9 +1980,6 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
                               bool verify_functions, ModuleOrigin origin,
                               Counters* counters,
                               AccountingAllocator* allocator) {
-  auto counter =
-      SELECT_WASM_COUNTER(counters, origin, wasm_decode, module_time);
-  TimedHistogramScope wasm_decode_module_time_scope(counter);
   size_t size = module_end - module_start;
   CHECK_LE(module_start, module_end);
   if (size >= kV8MaxWasmModuleSize) {
@@ -1901,19 +1993,7 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
   // Signatures are stored in zone memory, which have the same lifetime
   // as the {module}.
   ModuleDecoderImpl decoder(enabled, module_start, module_end, origin);
-  ModuleResult result =
-      decoder.DecodeModule(counters, allocator, verify_functions);
-  // TODO(bradnelson): Improve histogram handling of size_t.
-  // TODO(titzer): this isn't accurate, since it doesn't count the data
-  // allocated on the C++ heap.
-  // https://bugs.chromium.org/p/chromium/issues/detail?id=657320
-  if (result.ok()) {
-    auto peak_counter = SELECT_WASM_COUNTER(counters, origin, wasm_decode,
-                                            module_peak_memory_bytes);
-    peak_counter->AddSample(
-        static_cast<int>(result.value()->signature_zone->allocation_size()));
-  }
-  return result;
+  return decoder.DecodeModule(counters, allocator, verify_functions);
 }
 
 ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
@@ -1958,46 +2038,21 @@ ModuleResult ModuleDecoder::FinishDecoding(bool verify_functions) {
   return impl_->FinishDecoding(verify_functions);
 }
 
-SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder* decoder,
-                                                  const byte* end) {
-  WireBytesRef string = consume_string(decoder, true, "section name");
-  if (decoder->failed() || decoder->pc() > end) {
-    return kUnknownSectionCode;
-  }
-  const byte* section_name_start =
-      decoder->start() + decoder->GetBufferRelativeOffset(string.offset());
-
-  TRACE("  +%d  section name        : \"%.*s\"\n",
-        static_cast<int>(section_name_start - decoder->start()),
-        string.length() < 20 ? string.length() : 20, section_name_start);
-
-  if (string.length() == num_chars(kNameString) &&
-      strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
-              num_chars(kNameString)) == 0) {
-    return kNameSectionCode;
-  } else if (string.length() == num_chars(kSourceMappingURLString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kSourceMappingURLString,
-                     num_chars(kSourceMappingURLString)) == 0) {
-    return kSourceMappingURLSectionCode;
-  } else if (string.length() == num_chars(kCompilationHintsString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kCompilationHintsString,
-                     num_chars(kCompilationHintsString)) == 0) {
-    return kCompilationHintsSectionCode;
-  } else if (string.length() == num_chars(kDebugInfoString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
-    return kDebugInfoSectionCode;
-  }
-  return kUnknownSectionCode;
+size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
+                                             Vector<const uint8_t> bytes,
+                                             uint32_t offset,
+                                             SectionCode* result) {
+  if (!decoder->ok()) return 0;
+  decoder->impl_->Reset(bytes, offset);
+  *result = IdentifyUnknownSectionInternal(decoder->impl_.get());
+  return decoder->impl_->pc() - bytes.begin();
 }
 
 bool ModuleDecoder::ok() { return impl_->ok(); }
 
-FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
-                                           Zone* zone, const byte* start,
-                                           const byte* end) {
+const FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
+                                                 Zone* zone, const byte* start,
+                                                 const byte* end) {
   ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
   return decoder.DecodeFunctionSignature(zone, start);
 }

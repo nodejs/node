@@ -140,8 +140,6 @@
 
 ##############################################################################
 ['arch == arm64', {
-  'test-api/Bug618': [PASS],
-
   # BUG(v8:3385).
   'test-serialize/StartupSerializerOnceRunScript': [PASS, FAIL],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, FAIL],
@@ -178,6 +176,12 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
+['variant == no_lfa', {
+  # https://crbug.com/v8/10219
+  'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
+}],  # variant == no_lfa
+
+##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],
@@ -190,6 +194,10 @@
 ['msan == True', {
   # ICU upstream issues.
   'test-strings/CountBreakIterator': [SKIP],
+
+  # BUG(v8:10244): MSAN finding uninitialized bytes during memcmp
+  'test-code-stub-assembler/SmallOrderedHashSetAllocate': [SKIP],
+  'test-code-stub-assembler/SmallOrderedHashMapAllocate': [SKIP],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -455,7 +463,7 @@
   'test-api-wasm/WasmStreaming*': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
-  'test-compilation-cache/TestAsyncCache': [SKIP],
+  'test-compilation-cache/*': [SKIP],
   'test-jump-table-assembler/*': [SKIP],
   'test-grow-memory/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
@@ -484,6 +492,7 @@
 
   # Tests that generate code at runtime.
   'codegen-tester/*': [SKIP],
+  'serializer-tester/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
   'test-assembler-*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
@@ -492,7 +501,10 @@
   'test-code-generator/*': [SKIP],
   'test-code-pages/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
+  'test-debug-helper/GetObjectProperties': [SKIP],
+  'test-disasm-x64/DisasmX64': [SKIP],
   'test-js-context-specialization/*': [SKIP],
+  'test-macro-assembler-x64/EmbeddedObj': [SKIP],
   'test-multiple-return/*': [SKIP],
   'test-regexp/MacroAssemblernativeAtStart': [SKIP],
   'test-regexp/MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
@@ -523,8 +535,11 @@
   'test-run-tail-calls/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],
   'test-run-variables/*': [SKIP],
+  'test-serialize/*': [SKIP],
   'test-torque/*': [SKIP],
-  'test-macro-assembler-x64/EmbeddedObj': [SKIP],
+  'test-unwinder/PCIsInV8_InCodeOrEmbeddedRange': [SKIP],
+  'test-unwinder/PCIsInV8_LargeCodeObject': [SKIP],
+  'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],

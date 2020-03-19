@@ -109,6 +109,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);
   Reduction ReduceFloat64RoundDown(Node* node);
+  Reduction ReduceConditional(Node* node);
 
   Graph* graph() const;
   MachineGraph* mcgraph() const { return mcgraph_; }

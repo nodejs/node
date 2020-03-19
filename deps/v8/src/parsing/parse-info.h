@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "include/v8.h"
+#include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/objects/function-kind.h"
@@ -40,9 +41,7 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  explicit ParseInfo(AccountingAllocator* zone_allocator);
   explicit ParseInfo(Isolate*);
-  ParseInfo(Isolate*, AccountingAllocator* zone_allocator);
   ParseInfo(Isolate* isolate, Script script);
   ParseInfo(Isolate* isolate, SharedFunctionInfo shared);
 
@@ -54,9 +53,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ~ParseInfo();
 
-  Handle<Script> CreateScript(Isolate* isolate, Handle<String> source,
+  template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<Script> CreateScript(LocalIsolate* isolate, Handle<String> source,
                               ScriptOriginOptions origin_options,
-                              REPLMode repl_mode = REPLMode::kNo,
                               NativesFlag natives = NOT_NATIVES_CODE);
 
   // Either returns the ast-value-factory associcated with this ParseInfo, or
@@ -90,6 +90,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
                 requires_instance_members_initializer,
                 set_requires_instance_members_initializer)
+  FLAG_ACCESSOR(kClassScopeHasPrivateBrand, class_scope_has_private_brand,
+                set_class_scope_has_private_brand)
+  FLAG_ACCESSOR(kHasStaticPrivateMethodsOrAccessors,
+                has_static_private_methods_or_accessors,
+                set_has_static_private_methods_or_accessors)
   FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
                 set_allow_natives_syntax)
@@ -256,7 +261,12 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ParallelTasks* parallel_tasks() { return parallel_tasks_.get(); }
 
-  void SetFlagsFromScript(Isolate* isolate, Script script);
+  void SetFlagsForToplevelCompile(bool is_collecting_type_profile,
+                                  bool is_user_javascript,
+                                  LanguageMode language_mode,
+                                  REPLMode repl_mode);
+
+  void CheckFlagsForFunctionFromScript(Script script);
 
   //--------------------------------------------------------------------------
   // TODO(titzer): these should not be part of ParseInfo.
@@ -285,7 +295,17 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
  private:
-  void SetFlagsForToplevelCompileFromScript(Isolate* isolate, Script script);
+  ParseInfo(AccountingAllocator* zone_allocator, int script_id);
+  ParseInfo(Isolate*, AccountingAllocator* zone_allocator, int script_id);
+
+  void SetFlagsForFunctionFromScript(Script script);
+
+  template <typename LocalIsolate>
+  void SetFlagsForToplevelCompileFromScript(LocalIsolate* isolate,
+                                            Script script,
+                                            bool is_collecting_type_profile);
+  void CheckFlagsForToplevelCompileFromScript(Script script,
+                                              bool is_collecting_type_profile);
 
   // Set function info flags based on those in either FunctionLiteral or
   // SharedFunctionInfo |function|
@@ -319,13 +339,14 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kAllowHarmonyDynamicImport = 1u << 21,
     kAllowHarmonyImportMeta = 1u << 22,
     kAllowHarmonyOptionalChaining = 1u << 23,
-    kAllowHarmonyPrivateFields = 1u << 24,
+    kHasStaticPrivateMethodsOrAccessors = 1u << 24,
     kAllowHarmonyPrivateMethods = 1u << 25,
     kIsOneshotIIFE = 1u << 26,
     kCollectSourcePositions = 1u << 27,
     kAllowHarmonyNullish = 1u << 28,
     kAllowHarmonyTopLevelAwait = 1u << 29,
     kREPLMode = 1u << 30,
+    kClassScopeHasPrivateBrand = 1u << 31,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

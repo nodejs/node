@@ -148,7 +148,7 @@ namespace torque_internal {
   type UninitializedHeapObject extends HeapObject;
 
   extern macro AllocateAllowLOS(intptr): UninitializedHeapObject;
-  extern macro GetStructMap(constexpr InstanceType): Map;
+  extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
 
   macro Allocate(sizeInBytes: intptr, map: Map): UninitializedHeapObject {
     assert(ValidAllocationSize(sizeInBytes, map));

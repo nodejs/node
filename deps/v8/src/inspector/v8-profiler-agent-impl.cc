@@ -27,8 +27,10 @@ static const char profilerEnabled[] = "profilerEnabled";
 static const char preciseCoverageStarted[] = "preciseCoverageStarted";
 static const char preciseCoverageCallCount[] = "preciseCoverageCallCount";
 static const char preciseCoverageDetailed[] = "preciseCoverageDetailed";
+static const char preciseCoverageAllowTriggeredUpdates[] =
+    "preciseCoverageAllowTriggeredUpdates";
 static const char typeProfileStarted[] = "typeProfileStarted";
-}
+}  // namespace ProfilerAgentState
 
 namespace {
 
@@ -261,9 +263,11 @@ void V8ProfilerAgentImpl::restore() {
         ProfilerAgentState::preciseCoverageCallCount, false);
     bool detailed = m_state->booleanProperty(
         ProfilerAgentState::preciseCoverageDetailed, false);
+    bool updatesAllowed = m_state->booleanProperty(
+        ProfilerAgentState::preciseCoverageAllowTriggeredUpdates, false);
     double timestamp;
     startPreciseCoverage(Maybe<bool>(callCount), Maybe<bool>(detailed),
-                         &timestamp);
+                         Maybe<bool>(updatesAllowed), &timestamp);
   }
 }
 
@@ -294,19 +298,22 @@ Response V8ProfilerAgentImpl::stop(
   return Response::OK();
 }
 
-Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
-                                                   Maybe<bool> detailed,
-                                                   double* out_timestamp) {
+Response V8ProfilerAgentImpl::startPreciseCoverage(
+    Maybe<bool> callCount, Maybe<bool> detailed,
+    Maybe<bool> allowTriggeredUpdates, double* out_timestamp) {
   if (!m_enabled) return Response::Error("Profiler is not enabled");
   *out_timestamp =
       v8::base::TimeTicks::HighResolutionNow().since_origin().InSecondsF();
   bool callCountValue = callCount.fromMaybe(false);
   bool detailedValue = detailed.fromMaybe(false);
+  bool allowTriggeredUpdatesValue = allowTriggeredUpdates.fromMaybe(false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount,
                       callCountValue);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageDetailed,
                       detailedValue);
+  m_state->setBoolean(ProfilerAgentState::preciseCoverageAllowTriggeredUpdates,
+                      allowTriggeredUpdatesValue);
   // BlockCount is a superset of PreciseCount. It includes block-granularity
   // coverage data if it exists (at the time of writing, that's the case for
   // each function recompiled after the BlockCount mode has been set); and
@@ -418,6 +425,10 @@ void V8ProfilerAgentImpl::triggerPreciseCoverageDeltaUpdate(
     const String16& occassion) {
   if (!m_state->booleanProperty(ProfilerAgentState::preciseCoverageStarted,
                                 false)) {
+    return;
+  }
+  if (!m_state->booleanProperty(
+          ProfilerAgentState::preciseCoverageAllowTriggeredUpdates, false)) {
     return;
   }
   v8::HandleScope handle_scope(m_isolate);

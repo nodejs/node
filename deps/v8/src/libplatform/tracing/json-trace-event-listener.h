@@ -7,6 +7,7 @@
 
 #include <ostream>
 
+#include "libplatform/libplatform-export.h"
 #include "src/libplatform/tracing/trace-event-listener.h"
 
 namespace perfetto {
@@ -21,7 +22,8 @@ namespace tracing {
 
 // A listener that converts the proto trace data to JSON and writes it to a
 // file.
-class JSONTraceEventListener final : public TraceEventListener {
+class V8_PLATFORM_EXPORT JSONTraceEventListener final
+    : public TraceEventListener {
  public:
   explicit JSONTraceEventListener(std::ostream* stream);
   ~JSONTraceEventListener() override;

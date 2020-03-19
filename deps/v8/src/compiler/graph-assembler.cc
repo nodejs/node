@@ -648,9 +648,18 @@ Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                                   effect(), control()));
 }
 
+Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, int offset,
+                            Node* value) {
+  return Store(rep, object, Int32Constant(offset), value);
+}
+
 Node* GraphAssembler::Load(MachineType type, Node* object, Node* offset) {
   return AddNode(graph()->NewNode(machine()->Load(type), object, offset,
                                   effect(), control()));
+}
+
+Node* GraphAssembler::Load(MachineType type, Node* object, int offset) {
+  return Load(type, object, Int32Constant(offset));
 }
 
 Node* GraphAssembler::StoreUnaligned(MachineRepresentation rep, Node* object,

@@ -308,8 +308,7 @@ std::unique_ptr<v8::Platform> g_platform;
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
-      String::NewFromUtf8(isolate, message, NewStringType::kNormal)
-          .ToLocalChecked());
+      String::NewFromUtf8(isolate, message).ToLocalChecked());
 }
 
 static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
@@ -317,8 +316,7 @@ static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
                                      Local<v8::Object> object,
                                      const char* property) {
   Local<String> v8_str =
-      String::NewFromUtf8(isolate, property, NewStringType::kNormal)
-          .FromMaybe(Local<String>());
+      String::NewFromUtf8(isolate, property).FromMaybe(Local<String>());
   if (v8_str.IsEmpty()) return Local<Value>();
   return object->Get(context, v8_str);
 }
@@ -370,8 +368,7 @@ class TraceConfigParser {
     HandleScope inner_scope(isolate);
 
     Local<String> source =
-        String::NewFromUtf8(isolate, json_str, NewStringType::kNormal)
-            .ToLocalChecked();
+        String::NewFromUtf8(isolate, json_str).ToLocalChecked();
     Local<Value> result = JSON::Parse(context, source).ToLocalChecked();
     Local<v8::Object> trace_config_object = Local<v8::Object>::Cast(result);
 
@@ -640,7 +637,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     DCHECK(try_catch.HasCaught());
     return false;
   }
-  // It's possible that a FinalizationGroup cleanup task threw an error.
+  // It's possible that a FinalizationRegistry cleanup task threw an error.
   if (try_catch.HasCaught()) success = false;
   if (print_result) {
     if (options.test_shell) {
@@ -791,8 +788,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
     return MaybeLocal<Module>();
   }
   ScriptOrigin origin(
-      String::NewFromUtf8(isolate, file_name.c_str(), NewStringType::kNormal)
-          .ToLocalChecked(),
+      String::NewFromUtf8(isolate, file_name.c_str()).ToLocalChecked(),
       Local<Integer>(), Local<Integer>(), Local<Boolean>(), Local<Integer>(),
       Local<Value>(), Local<Boolean>(), Local<Boolean>(), True(isolate));
   ScriptCompiler::Source source(source_text, origin);
@@ -916,16 +912,6 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   return MaybeLocal<Promise>();
 }
 
-void Shell::HostCleanupFinalizationGroup(Local<Context> context,
-                                         Local<FinalizationGroup> fg) {
-  Isolate* isolate = context->GetIsolate();
-  PerIsolateData::Get(isolate)->HostCleanupFinalizationGroup(fg);
-}
-
-void PerIsolateData::HostCleanupFinalizationGroup(Local<FinalizationGroup> fg) {
-  cleanup_finalization_groups_.emplace(isolate_, fg);
-}
-
 void Shell::HostInitializeImportMetaObject(Local<Context> context,
                                            Local<Module> module,
                                            Local<Object> meta) {
@@ -938,10 +924,8 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
   CHECK(specifier_it != d->module_to_specifier_map.end());
 
   Local<String> url_key =
-      String::NewFromUtf8(isolate, "url", NewStringType::kNormal)
-          .ToLocalChecked();
-  Local<String> url = String::NewFromUtf8(isolate, specifier_it->second.c_str(),
-                                          NewStringType::kNormal)
+      String::NewFromUtf8Literal(isolate, "url", NewStringType::kInternalized);
+  Local<String> url = String::NewFromUtf8(isolate, specifier_it->second.c_str())
                           .ToLocalChecked();
   meta->CreateDataProperty(context, url_key, url).ToChecked();
 }
@@ -1017,7 +1001,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
     result_promise->Then(realm, callback_success, callback_failure)
         .ToLocalChecked();
   } else {
-    // TODO(joshualitt): Clean up exception handling after introucing new
+    // TODO(cbruni): Clean up exception handling after introducing new
     // API for evaluating async modules.
     DCHECK(!try_catch.HasCaught());
     resolver->Resolve(realm, module_namespace).ToChecked();
@@ -1062,17 +1046,17 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   }
   if (i::FLAG_harmony_top_level_await) {
     // Loop until module execution finishes
-    // TODO(joshualitt): This is a bit wonky. "Real" engines would not be
+    // TODO(cbruni): This is a bit wonky. "Real" engines would not be
     // able to just busy loop waiting for execution to finish.
     Local<Promise> result_promise(Local<Promise>::Cast(result));
     while (result_promise->State() == Promise::kPending) {
-      isolate->RunMicrotasks();
+      isolate->PerformMicrotaskCheckpoint();
     }
 
     if (result_promise->State() == Promise::kRejected) {
       // If the exception has been caught by the promise pipeline, we rethrow
       // here in order to ReportException.
-      // TODO(joshualitt): Clean this up after we create a new API for the case
+      // TODO(cbruni): Clean this up after we create a new API for the case
       // where TLA is enabled.
       if (!try_catch.HasCaught()) {
         isolate->ThrowException(result_promise->Result());
@@ -1120,15 +1104,6 @@ MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
   if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
   Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
   set_timeout_contexts_.pop();
-  return result;
-}
-
-MaybeLocal<FinalizationGroup> PerIsolateData::GetCleanupFinalizationGroup() {
-  if (cleanup_finalization_groups_.empty())
-    return MaybeLocal<FinalizationGroup>();
-  Local<FinalizationGroup> result =
-      cleanup_finalization_groups_.front().Get(isolate_);
-  cleanup_finalization_groups_.pop();
   return result;
 }
 
@@ -1281,8 +1256,11 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
                          int index) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
+  Local<Context> context = data->realms_[index].Get(isolate);
+  DisposeModuleEmbedderData(context);
   data->realms_[index].Reset();
+  // ContextDisposedNotification expects the disposed context to be entered.
+  v8::Context::Scope scope(context);
   isolate->ContextDisposedNotification();
   isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
 }
@@ -1524,8 +1502,7 @@ void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
 Local<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
-  Local<String> accumulator =
-      String::NewFromUtf8(isolate, "", NewStringType::kNormal).ToLocalChecked();
+  Local<String> accumulator = String::NewFromUtf8Literal(isolate, "");
   int length;
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
@@ -1574,9 +1551,7 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
     if (!ExecuteString(
             args.GetIsolate(), source,
-            String::NewFromUtf8(args.GetIsolate(), *file,
-                                NewStringType::kNormal)
-                .ToLocalChecked(),
+            String::NewFromUtf8(args.GetIsolate(), *file).ToLocalChecked(),
             kNoPrintResult,
             options.quiet_load ? kNoReportExceptions : kReportExceptions,
             kNoProcessMessageQueue)) {
@@ -1750,10 +1725,9 @@ void Shell::NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  args.GetReturnValue().Set(String::NewFromUtf8(args.GetIsolate(),
-                                                V8::GetVersion(),
-                                                NewStringType::kNormal)
-                                .ToLocalChecked());
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(args.GetIsolate(), V8::GetVersion())
+          .ToLocalChecked());
 }
 
 void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
@@ -1907,11 +1881,8 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   if (stringify_function_.IsEmpty()) {
     Local<String> source =
-        String::NewFromUtf8(isolate, stringify_source_, NewStringType::kNormal)
-            .ToLocalChecked();
-    Local<String> name =
-        String::NewFromUtf8(isolate, "d8-stringify", NewStringType::kNormal)
-            .ToLocalChecked();
+        String::NewFromUtf8(isolate, stringify_source_).ToLocalChecked();
+    Local<String> name = String::NewFromUtf8Literal(isolate, "d8-stringify");
     ScriptOrigin origin(name);
     Local<Script> script =
         Script::Compile(context, source, &origin).ToLocalChecked();
@@ -1928,197 +1899,113 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
 
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "print", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Print));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "printErr", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, PrintErr));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "write", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Write));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "read", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Read));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "readbuffer", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, ReadBuffer));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "readline", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, ReadLine));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "load", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Load));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "setTimeout", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, SetTimeout));
+  global_template->Set(isolate, "print", FunctionTemplate::New(isolate, Print));
+  global_template->Set(isolate, "printErr",
+                       FunctionTemplate::New(isolate, PrintErr));
+  global_template->Set(isolate, "write", FunctionTemplate::New(isolate, Write));
+  global_template->Set(isolate, "read", FunctionTemplate::New(isolate, Read));
+  global_template->Set(isolate, "readbuffer",
+                       FunctionTemplate::New(isolate, ReadBuffer));
+  global_template->Set(isolate, "readline",
+                       FunctionTemplate::New(isolate, ReadLine));
+  global_template->Set(isolate, "load", FunctionTemplate::New(isolate, Load));
+  global_template->Set(isolate, "setTimeout",
+                       FunctionTemplate::New(isolate, SetTimeout));
   // Some Emscripten-generated code tries to call 'quit', which in turn would
   // call C's exit(). This would lead to memory leaks, because there is no way
   // we can terminate cleanly then, so we need a way to hide 'quit'.
   if (!options.omit_quit) {
-    global_template->Set(
-        String::NewFromUtf8(isolate, "quit", NewStringType::kNormal)
-            .ToLocalChecked(),
-        FunctionTemplate::New(isolate, Quit));
+    global_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
   }
   Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "testRunner", NewStringType::kNormal)
-          .ToLocalChecked(),
-      test_template);
-  test_template->Set(
-      String::NewFromUtf8(isolate, "notifyDone", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, NotifyDone));
-  test_template->Set(
-      String::NewFromUtf8(isolate, "waitUntilDone", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, WaitUntilDone));
+  global_template->Set(isolate, "testRunner", test_template);
+  test_template->Set(isolate, "notifyDone",
+                     FunctionTemplate::New(isolate, NotifyDone));
+  test_template->Set(isolate, "waitUntilDone",
+                     FunctionTemplate::New(isolate, WaitUntilDone));
   // Reliable access to quit functionality. The "quit" method function
   // installed on the global object can be hidden with the --omit-quit flag
   // (e.g. on asan bots).
-  test_template->Set(
-      String::NewFromUtf8(isolate, "quit", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Quit));
+  test_template->Set(isolate, "quit", FunctionTemplate::New(isolate, Quit));
 
-  global_template->Set(
-      String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Version));
-  global_template->Set(
-      Symbol::GetToStringTag(isolate),
-      String::NewFromUtf8(isolate, "global", NewStringType::kNormal)
-          .ToLocalChecked());
+  global_template->Set(isolate, "version",
+                       FunctionTemplate::New(isolate, Version));
+  global_template->Set(Symbol::GetToStringTag(isolate),
+                       String::NewFromUtf8Literal(isolate, "global"));
 
   // Bind the Realm object.
   Local<ObjectTemplate> realm_template = ObjectTemplate::New(isolate);
+  realm_template->Set(isolate, "current",
+                      FunctionTemplate::New(isolate, RealmCurrent));
+  realm_template->Set(isolate, "owner",
+                      FunctionTemplate::New(isolate, RealmOwner));
+  realm_template->Set(isolate, "global",
+                      FunctionTemplate::New(isolate, RealmGlobal));
+  realm_template->Set(isolate, "create",
+                      FunctionTemplate::New(isolate, RealmCreate));
   realm_template->Set(
-      String::NewFromUtf8(isolate, "current", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmCurrent));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "owner", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmOwner));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "global", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmGlobal));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "create", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmCreate));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "createAllowCrossRealmAccess",
-                          NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "createAllowCrossRealmAccess",
       FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "navigate", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmNavigate));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "detachGlobal", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmDetachGlobal));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "dispose", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmDispose));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "switch", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmSwitch));
-  realm_template->Set(
-      String::NewFromUtf8(isolate, "eval", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, RealmEval));
-  realm_template->SetAccessor(
-      String::NewFromUtf8(isolate, "shared", NewStringType::kNormal)
-          .ToLocalChecked(),
-      RealmSharedGet, RealmSharedSet);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "Realm", NewStringType::kNormal)
-          .ToLocalChecked(),
-      realm_template);
+  realm_template->Set(isolate, "navigate",
+                      FunctionTemplate::New(isolate, RealmNavigate));
+  realm_template->Set(isolate, "detachGlobal",
+                      FunctionTemplate::New(isolate, RealmDetachGlobal));
+  realm_template->Set(isolate, "dispose",
+                      FunctionTemplate::New(isolate, RealmDispose));
+  realm_template->Set(isolate, "switch",
+                      FunctionTemplate::New(isolate, RealmSwitch));
+  realm_template->Set(isolate, "eval",
+                      FunctionTemplate::New(isolate, RealmEval));
+  realm_template->SetAccessor(String::NewFromUtf8Literal(isolate, "shared"),
+                              RealmSharedGet, RealmSharedSet);
+  global_template->Set(isolate, "Realm", realm_template);
 
   Local<ObjectTemplate> performance_template = ObjectTemplate::New(isolate);
+  performance_template->Set(isolate, "now",
+                            FunctionTemplate::New(isolate, PerformanceNow));
   performance_template->Set(
-      String::NewFromUtf8(isolate, "now", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, PerformanceNow));
-  performance_template->Set(
-      String::NewFromUtf8(isolate, "measureMemory", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "measureMemory",
       FunctionTemplate::New(isolate, PerformanceMeasureMemory));
-  global_template->Set(
-      String::NewFromUtf8(isolate, "performance", NewStringType::kNormal)
-          .ToLocalChecked(),
-      performance_template);
+  global_template->Set(isolate, "performance", performance_template);
 
   Local<FunctionTemplate> worker_fun_template =
       FunctionTemplate::New(isolate, WorkerNew);
   Local<Signature> worker_signature =
       Signature::New(isolate, worker_fun_template);
   worker_fun_template->SetClassName(
-      String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
-          .ToLocalChecked());
+      String::NewFromUtf8Literal(isolate, "Worker"));
   worker_fun_template->ReadOnlyPrototype();
   worker_fun_template->PrototypeTemplate()->Set(
-      String::NewFromUtf8(isolate, "terminate", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "terminate",
       FunctionTemplate::New(isolate, WorkerTerminate, Local<Value>(),
                             worker_signature));
   worker_fun_template->PrototypeTemplate()->Set(
-      String::NewFromUtf8(isolate, "postMessage", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "postMessage",
       FunctionTemplate::New(isolate, WorkerPostMessage, Local<Value>(),
                             worker_signature));
   worker_fun_template->PrototypeTemplate()->Set(
-      String::NewFromUtf8(isolate, "getMessage", NewStringType::kNormal)
-          .ToLocalChecked(),
+      isolate, "getMessage",
       FunctionTemplate::New(isolate, WorkerGetMessage, Local<Value>(),
                             worker_signature));
   worker_fun_template->InstanceTemplate()->SetInternalFieldCount(1);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "Worker", NewStringType::kNormal)
-          .ToLocalChecked(),
-      worker_fun_template);
+  global_template->Set(isolate, "Worker", worker_fun_template);
 
   Local<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_templ);
-  global_template->Set(
-      String::NewFromUtf8(isolate, "os", NewStringType::kNormal)
-          .ToLocalChecked(),
-      os_templ);
+  global_template->Set(isolate, "os", os_templ);
 
   if (i::FLAG_expose_async_hooks) {
     Local<ObjectTemplate> async_hooks_templ = ObjectTemplate::New(isolate);
     async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "createHook", NewStringType::kNormal)
-            .ToLocalChecked(),
+        isolate, "createHook",
         FunctionTemplate::New(isolate, AsyncHooksCreateHook));
     async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "executionAsyncId", NewStringType::kNormal)
-            .ToLocalChecked(),
+        isolate, "executionAsyncId",
         FunctionTemplate::New(isolate, AsyncHooksExecutionAsyncId));
     async_hooks_templ->Set(
-        String::NewFromUtf8(isolate, "triggerAsyncId", NewStringType::kNormal)
-            .ToLocalChecked(),
+        isolate, "triggerAsyncId",
         FunctionTemplate::New(isolate, AsyncHooksTriggerAsyncId));
-    global_template->Set(
-        String::NewFromUtf8(isolate, "async_hooks", NewStringType::kNormal)
-            .ToLocalChecked(),
-        async_hooks_templ);
+    global_template->Set(isolate, "async_hooks", async_hooks_templ);
   }
 
   return global_template;
@@ -2158,17 +2045,27 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
   printf("%s:%i: %s\n", filename_string, linenum, msg_string);
 }
 
-void Shell::Initialize(Isolate* isolate) {
-  // Set up counters
-  if (i::FLAG_map_counters[0] != '\0') {
-    MapCounters(isolate, i::FLAG_map_counters);
+void Shell::Initialize(Isolate* isolate, D8Console* console,
+                       bool isOnMainThread) {
+  if (isOnMainThread) {
+    // Set up counters
+    if (i::FLAG_map_counters[0] != '\0') {
+      MapCounters(isolate, i::FLAG_map_counters);
+    }
+    // Disable default message reporting.
+    isolate->AddMessageListenerWithErrorLevel(
+        PrintMessageCallback,
+        v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
+            v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
+            v8::Isolate::kMessageLog);
   }
-  // Disable default message reporting.
-  isolate->AddMessageListenerWithErrorLevel(
-      PrintMessageCallback,
-      v8::Isolate::kMessageError | v8::Isolate::kMessageWarning |
-          v8::Isolate::kMessageInfo | v8::Isolate::kMessageDebug |
-          v8::Isolate::kMessageLog);
+
+  isolate->SetHostImportModuleDynamicallyCallback(
+      Shell::HostImportModuleDynamically);
+  isolate->SetHostInitializeImportMetaObjectCallback(
+      Shell::HostInitializeImportMetaObject);
+
+  debug::SetConsoleDelegate(isolate, console);
 }
 
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
@@ -2190,14 +2087,12 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
     Local<Array> array = Array::New(isolate, size);
     for (int i = 0; i < size; i++) {
       Local<String> arg =
-          v8::String::NewFromUtf8(isolate, args[i], v8::NewStringType::kNormal)
-              .ToLocalChecked();
+          v8::String::NewFromUtf8(isolate, args[i]).ToLocalChecked();
       Local<Number> index = v8::Number::New(isolate, i);
       array->Set(context, index, arg).FromJust();
     }
-    Local<String> name =
-        String::NewFromUtf8(isolate, "arguments", NewStringType::kInternalized)
-            .ToLocalChecked();
+    Local<String> name = String::NewFromUtf8Literal(
+        isolate, "arguments", NewStringType::kInternalized);
     context->Global()->Set(context, name, array).FromJust();
   }
   return handle_scope.Escape(context);
@@ -2471,9 +2366,7 @@ void Shell::RunShell(Isolate* isolate) {
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   v8::Context::Scope context_scope(context);
   PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-  Local<String> name =
-      String::NewFromUtf8(isolate, "(d8)", NewStringType::kNormal)
-          .ToLocalChecked();
+  Local<String> name = String::NewFromUtf8Literal(isolate, "(d8)");
   printf("V8 version %s\n", V8::GetVersion());
   while (true) {
     HandleScope inner_scope(isolate);
@@ -2525,9 +2418,8 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
                    reinterpret_cast<const uint16_t*>(string.characters16()),
                    v8::NewStringType::kNormal, length))
             .ToLocalChecked();
-    Local<String> callback_name =
-        v8::String::NewFromUtf8(isolate_, "receive", v8::NewStringType::kNormal)
-            .ToLocalChecked();
+    Local<String> callback_name = v8::String::NewFromUtf8Literal(
+        isolate_, "receive", NewStringType::kInternalized);
     Local<Context> context = context_.Get(isolate_);
     Local<Value> callback =
         context->Global()->Get(context, callback_name).ToLocalChecked();
@@ -2539,14 +2431,10 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
 #ifdef DEBUG
       if (try_catch.HasCaught()) {
         Local<Object> exception = Local<Object>::Cast(try_catch.Exception());
-        Local<String> key = v8::String::NewFromUtf8(isolate_, "message",
-                                                    v8::NewStringType::kNormal)
-                                .ToLocalChecked();
-        Local<String> expected =
-            v8::String::NewFromUtf8(isolate_,
-                                    "Maximum call stack size exceeded",
-                                    v8::NewStringType::kNormal)
-                .ToLocalChecked();
+        Local<String> key = v8::String::NewFromUtf8Literal(
+            isolate_, "message", NewStringType::kInternalized);
+        Local<String> expected = v8::String::NewFromUtf8Literal(
+            isolate_, "Maximum call stack size exceeded");
         Local<Value> value = exception->Get(context, key).ToLocalChecked();
         DCHECK(value->StrictEquals(expected));
       }
@@ -2575,9 +2463,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
         FunctionTemplate::New(isolate_, SendInspectorMessage)
             ->GetFunction(context)
             .ToLocalChecked();
-    Local<String> function_name =
-        String::NewFromUtf8(isolate_, "send", NewStringType::kNormal)
-            .ToLocalChecked();
+    Local<String> function_name = String::NewFromUtf8Literal(
+        isolate_, "send", NewStringType::kInternalized);
     CHECK(context->Global()->Set(context, function_name, function).FromJust());
 
     context_.Reset(isolate_, context);
@@ -2586,10 +2473,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
   void runMessageLoopOnPause(int contextGroupId) override {
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
     v8::HandleScope handle_scope(isolate_);
-    Local<String> callback_name =
-        v8::String::NewFromUtf8(isolate_, "handleInspectorMessage",
-                                v8::NewStringType::kNormal)
-            .ToLocalChecked();
+    Local<String> callback_name = v8::String::NewFromUtf8Literal(
+        isolate_, "handleInspectorMessage", NewStringType::kInternalized);
     Local<Context> context = context_.Get(isolate_);
     Local<Value> callback =
         context->Global()->Get(context, callback_name).ToLocalChecked();
@@ -2674,12 +2559,9 @@ bool SourceGroup::Execute(Isolate* isolate) {
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
       // Execute argument given to -e option directly.
       HandleScope handle_scope(isolate);
-      Local<String> file_name =
-          String::NewFromUtf8(isolate, "unnamed", NewStringType::kNormal)
-              .ToLocalChecked();
+      Local<String> file_name = String::NewFromUtf8Literal(isolate, "unnamed");
       Local<String> source =
-          String::NewFromUtf8(isolate, argv_[i + 1], NewStringType::kNormal)
-              .ToLocalChecked();
+          String::NewFromUtf8(isolate, argv_[i + 1]).ToLocalChecked();
       Shell::set_script_executed();
       if (!Shell::ExecuteString(isolate, source, file_name,
                                 Shell::kNoPrintResult, Shell::kReportExceptions,
@@ -2713,8 +2595,7 @@ bool SourceGroup::Execute(Isolate* isolate) {
     // Use all other arguments as names of files to load and run.
     HandleScope handle_scope(isolate);
     Local<String> file_name =
-        String::NewFromUtf8(isolate, arg, NewStringType::kNormal)
-            .ToLocalChecked();
+        String::NewFromUtf8(isolate, arg).ToLocalChecked();
     Local<String> source = ReadFile(isolate, arg);
     if (source.IsEmpty()) {
       printf("Error reading '%s'\n", arg);
@@ -2742,15 +2623,10 @@ void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostCleanupFinalizationGroupCallback(
-      Shell::HostCleanupFinalizationGroup);
-  isolate->SetHostImportModuleDynamicallyCallback(
-      Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
   Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
-  debug::SetConsoleDelegate(isolate, &console);
+  Shell::Initialize(isolate, &console, false);
+
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
     next_semaphore_.Wait();
     {
@@ -2889,14 +2765,8 @@ void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostCleanupFinalizationGroupCallback(
-      Shell::HostCleanupFinalizationGroup);
-  isolate->SetHostImportModuleDynamicallyCallback(
-      Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
   D8Console console(isolate);
-  debug::SetConsoleDelegate(isolate, &console);
+  Shell::Initialize(isolate, &console, false);
   {
     Isolate::Scope iscope(isolate);
     {
@@ -2917,29 +2787,26 @@ void Worker::ExecuteInThread() {
                 &postmessage_fun)) {
           global
               ->Set(context,
-                    String::NewFromUtf8(isolate, "postMessage",
-                                        NewStringType::kNormal)
-                        .ToLocalChecked(),
+                    v8::String::NewFromUtf8Literal(
+                        isolate, "postMessage", NewStringType::kInternalized),
                     postmessage_fun)
               .FromJust();
         }
 
         // First run the script
         Local<String> file_name =
-            String::NewFromUtf8(isolate, "unnamed", NewStringType::kNormal)
-                .ToLocalChecked();
+            String::NewFromUtf8Literal(isolate, "unnamed");
         Local<String> source =
-            String::NewFromUtf8(isolate, script_, NewStringType::kNormal)
-                .ToLocalChecked();
+            String::NewFromUtf8(isolate, script_).ToLocalChecked();
         if (Shell::ExecuteString(
                 isolate, source, file_name, Shell::kNoPrintResult,
                 Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
           // Get the message handler
           Local<Value> onmessage =
               global
-                  ->Get(context, String::NewFromUtf8(isolate, "onmessage",
-                                                     NewStringType::kNormal)
-                                     .ToLocalChecked())
+                  ->Get(context,
+                        String::NewFromUtf8Literal(
+                            isolate, "onmessage", NewStringType::kInternalized))
                   .ToLocalChecked();
           if (onmessage->IsFunction()) {
             Local<Function> onmessage_fun = Local<Function>::Cast(onmessage);
@@ -3272,21 +3139,6 @@ bool RunSetTimeoutCallback(Isolate* isolate, bool* did_run) {
   return true;
 }
 
-bool RunCleanupFinalizationGroupCallback(Isolate* isolate, bool* did_run) {
-  PerIsolateData* data = PerIsolateData::Get(isolate);
-  HandleScope handle_scope(isolate);
-  while (true) {
-    Local<FinalizationGroup> fg;
-    if (!data->GetCleanupFinalizationGroup().ToLocal(&fg)) return true;
-    *did_run = true;
-    TryCatch try_catch(isolate);
-    try_catch.SetVerbose(true);
-    if (FinalizationGroup::Cleanup(fg).IsNothing()) {
-      return false;
-    }
-  }
-}
-
 bool ProcessMessages(
     Isolate* isolate,
     const std::function<platform::MessageLoopBehavior()>& behavior) {
@@ -3297,23 +3149,17 @@ bool ProcessMessages(
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
       MicrotasksScope::PerformCheckpoint(isolate);
-      isolate->ClearKeptObjects();
     }
     if (g_default_platform->IdleTasksEnabled(isolate)) {
       v8::platform::RunIdleTasks(g_default_platform, isolate,
                                  50.0 / base::Time::kMillisecondsPerSecond);
-    }
-    bool ran_finalization_callback = false;
-    if (!RunCleanupFinalizationGroupCallback(isolate,
-                                             &ran_finalization_callback)) {
-      return false;
     }
     bool ran_set_timeout = false;
     if (!RunSetTimeoutCallback(isolate, &ran_set_timeout)) {
       return false;
     }
 
-    if (!ran_set_timeout && !ran_finalization_callback) return true;
+    if (!ran_set_timeout) return true;
   }
   return true;
 }
@@ -3768,19 +3614,12 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostCleanupFinalizationGroupCallback(
-      Shell::HostCleanupFinalizationGroup);
-  isolate->SetHostImportModuleDynamicallyCallback(
-      Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
 
-  D8Console console(isolate);
   {
+    D8Console console(isolate);
     Isolate::Scope scope(isolate);
-    Initialize(isolate);
+    Initialize(isolate, &console);
     PerIsolateData data(isolate);
-    debug::SetConsoleDelegate(isolate, &console);
 
     if (options.trace_enabled) {
       platform::tracing::TraceConfig* trace_config;
@@ -3832,16 +3671,9 @@ int Shell::Main(int argc, char* argv[]) {
       i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
       Isolate* isolate2 = Isolate::New(create_params);
       i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
-      isolate2->SetHostCleanupFinalizationGroupCallback(
-          Shell::HostCleanupFinalizationGroup);
-      isolate2->SetHostImportModuleDynamicallyCallback(
-          Shell::HostImportModuleDynamically);
-      isolate2->SetHostInitializeImportMetaObjectCallback(
-          Shell::HostInitializeImportMetaObject);
       {
         D8Console console(isolate2);
-        Initialize(isolate2);
-        debug::SetConsoleDelegate(isolate2, &console);
+        Initialize(isolate2, &console);
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
 

@@ -4053,10 +4053,9 @@ TEST(WeakReference) {
 
   // Create a FeedbackVector.
   v8::Local<v8::Script> script =
-      v8::Script::Compile(isolate->GetCurrentContext(),
-                          v8::String::NewFromUtf8(isolate, "function foo() {}",
-                                                  v8::NewStringType::kNormal)
-                              .ToLocalChecked())
+      v8::Script::Compile(
+          isolate->GetCurrentContext(),
+          v8::String::NewFromUtf8Literal(isolate, "function foo() {}"))
           .ToLocalChecked();
   v8::MaybeLocal<v8::Value> value = script->Run(isolate->GetCurrentContext());
   CHECK(!value.IsEmpty());

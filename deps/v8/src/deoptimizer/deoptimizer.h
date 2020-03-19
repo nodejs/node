@@ -712,7 +712,7 @@ class FrameDescription {
   void SetTop(intptr_t top) { top_ = top; }
 
   intptr_t GetPc() const { return pc_; }
-  void SetPc(intptr_t pc) { pc_ = pc; }
+  void SetPc(intptr_t pc);
 
   intptr_t GetFp() const { return fp_; }
   void SetFp(intptr_t fp) { fp_ = fp; }

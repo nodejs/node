@@ -23,6 +23,8 @@ extern class FunctionTemplateRareData extends Struct {
   instance_template: Object;
   instance_call_handler: Object;
   access_check_info: Object;
+  c_function: Foreign|Smi;
+  c_signature: Foreign|Smi;
 }
 
 @generateCppClass

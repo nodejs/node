@@ -39,12 +39,9 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
   {
     // Invoke the {exotic_to_prim} method on the {input} with a string
     // representation of the {hint}.
-    Callable callable =
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined);
     TNode<String> hint_string =
         HeapConstant(factory()->ToPrimitiveHintString(hint));
-    TNode<Object> result =
-        CallJS(callable, context, exotic_to_prim, input, hint_string);
+    TNode<Object> result = Call(context, exotic_to_prim, input, hint_string);
 
     // Verify that the {result} is actually a primitive.
     Label if_resultisprimitive(this),
@@ -248,9 +245,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
     BIND(&if_methodiscallable);
     {
       // Call the {method} on the {input}.
-      Callable callable = CodeFactory::Call(
-          isolate(), ConvertReceiverMode::kNotNullOrUndefined);
-      TNode<Object> result = CallJS(callable, context, method, input);
+      TNode<Object> result = Call(context, method, input);
       var_result = result;
 
       // Return the {result} if it is a primitive.
@@ -379,20 +374,6 @@ TF_BUILTIN(ToLength, CodeStubAssembler) {
     BIND(&return_zero);
     Return(SmiConstant(0));
   }
-}
-
-TF_BUILTIN(ToInteger, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> input = CAST(Parameter(Descriptor::kArgument));
-
-  Return(ToInteger(context, input, kNoTruncation));
-}
-
-TF_BUILTIN(ToInteger_TruncateMinusZero, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> input = CAST(Parameter(Descriptor::kArgument));
-
-  Return(ToInteger(context, input, kTruncateMinusZero));
 }
 
 // ES6 section 7.1.13 ToObject (argument)

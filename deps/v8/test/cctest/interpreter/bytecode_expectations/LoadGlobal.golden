@@ -14,9 +14,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
-  /*   21 E> */ B(StackCheck),
   /*   26 S> */ B(LdaGlobal), U8(0), U8(0),
   /*   35 S> */ B(Return),
 ]
@@ -34,9 +33,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
-  /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdaGlobal), U8(0), U8(0),
   /*   41 S> */ B(Return),
 ]
@@ -54,9 +52,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 4
 bytecodes: [
-  /*   17 E> */ B(StackCheck),
   /*   22 S> */ B(LdaGlobal), U8(0), U8(0),
   /*   31 S> */ B(Return),
 ]
@@ -205,9 +202,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 523
+bytecode array length: 522
 bytecodes: [
-  /*   17 E> */ B(StackCheck),
   /*   33 S> */ B(CreateEmptyObjectLiteral),
                 B(Star), R(0),
   /*   41 S> */ B(LdaNamedProperty), R(0), U8(0), U8(0),

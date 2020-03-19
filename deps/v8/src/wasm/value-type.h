@@ -29,18 +29,27 @@ class Simd128;
 // I32  I64  F32  F64    NullRef
 //   \    \    \    \    /
 //   ------------   Bottom
+#define FOREACH_VALUE_TYPE(V)                                                  \
+  V(Stmt, -1, -1, Void, None, 'v', "<stmt>")                                   \
+  V(I32, 4, 2, I32, Int32, 'i', "i32")                                         \
+  V(I64, 8, 3, I64, Int64, 'l', "i64")                                         \
+  V(F32, 4, 2, F32, Float32, 'f', "f32")                                       \
+  V(F64, 8, 3, F64, Float64, 'd', "f64")                                       \
+  V(S128, 16, 4, S128, Simd128, 's', "s128")                                   \
+  V(AnyRef, kSystemPointerSize, kSystemPointerSizeLog2, AnyRef, TaggedPointer, \
+    'r', "anyref")                                                             \
+  V(FuncRef, kSystemPointerSize, kSystemPointerSizeLog2, FuncRef,              \
+    TaggedPointer, 'a', "funcref")                                             \
+  V(NullRef, kSystemPointerSize, kSystemPointerSizeLog2, NullRef,              \
+    TaggedPointer, 'n', "nullref")                                             \
+  V(ExnRef, kSystemPointerSize, kSystemPointerSizeLog2, ExnRef, TaggedPointer, \
+    'e', "exn")                                                                \
+  V(Bottom, -1, -1, Void, None, '*', "<bot>")
+
 enum ValueType : uint8_t {
-  kWasmStmt,
-  kWasmI32,
-  kWasmI64,
-  kWasmF32,
-  kWasmF64,
-  kWasmS128,
-  kWasmAnyRef,
-  kWasmFuncRef,
-  kWasmNullRef,
-  kWasmExnRef,
-  kWasmBottom,
+#define DEF_ENUM(type, ...) kWasm##type,
+  FOREACH_VALUE_TYPE(DEF_ENUM)
+#undef DEF_ENUM
 };
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
@@ -235,122 +244,60 @@ class V8_EXPORT_PRIVATE ValueTypes {
   }
 
   static int ElementSizeInBytes(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-      case kWasmF32:
-        return 4;
-      case kWasmI64:
-      case kWasmF64:
-        return 8;
-      case kWasmS128:
-        return 16;
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return kSystemPointerSize;
-      case kWasmStmt:
-      case kWasmBottom:
-        UNREACHABLE();
-    }
+    DCHECK_NE(kWasmStmt, type);
+    DCHECK_NE(kWasmBottom, type);
+
+    constexpr int kElementSizeInBytes[] = {
+#define ELEM_SIZE(type, size, ...) size,
+        FOREACH_VALUE_TYPE(ELEM_SIZE)
+#undef ELEM_SIZE
+    };
+
+    return kElementSizeInBytes[type];
   }
 
   static int ElementSizeLog2Of(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-      case kWasmF32:
-        return 2;
-      case kWasmI64:
-      case kWasmF64:
-        return 3;
-      case kWasmS128:
-        return 4;
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return kSystemPointerSizeLog2;
-      case kWasmStmt:
-      case kWasmBottom:
-        UNREACHABLE();
-    }
+    DCHECK_NE(kWasmStmt, type);
+    DCHECK_NE(kWasmBottom, type);
+
+    constexpr int kElementSizeLog2[] = {
+#define ELEM_SIZE_LOG2(type, size, log2Size, ...) log2Size,
+        FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
+#undef ELEM_SIZE_LOG2
+    };
+
+    return kElementSizeLog2[type];
   }
 
   static byte MemSize(ValueType type) { return 1 << ElementSizeLog2Of(type); }
 
   static ValueTypeCode ValueTypeCodeFor(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return kLocalI32;
-      case kWasmI64:
-        return kLocalI64;
-      case kWasmF32:
-        return kLocalF32;
-      case kWasmF64:
-        return kLocalF64;
-      case kWasmS128:
-        return kLocalS128;
-      case kWasmAnyRef:
-        return kLocalAnyRef;
-      case kWasmFuncRef:
-        return kLocalFuncRef;
-      case kWasmNullRef:
-        return kLocalNullRef;
-      case kWasmExnRef:
-        return kLocalExnRef;
-      case kWasmStmt:
-        return kLocalVoid;
-      case kWasmBottom:
-        UNREACHABLE();
-    }
+    DCHECK_NE(kWasmBottom, type);
+
+    constexpr ValueTypeCode kValueTypeCode[] = {
+#define TYPE_CODE(type, size, log2Size, code, ...) kLocal##code,
+        FOREACH_VALUE_TYPE(TYPE_CODE)
+#undef TYPE_CODE
+    };
+
+    return kValueTypeCode[type];
   }
 
   static MachineType MachineTypeFor(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return MachineType::Int32();
-      case kWasmI64:
-        return MachineType::Int64();
-      case kWasmF32:
-        return MachineType::Float32();
-      case kWasmF64:
-        return MachineType::Float64();
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return MachineType::TaggedPointer();
-      case kWasmS128:
-        return MachineType::Simd128();
-      case kWasmStmt:
-        return MachineType::None();
-      case kWasmBottom:
-        UNREACHABLE();
-    }
+    DCHECK_NE(kWasmBottom, type);
+
+    constexpr MachineType kMachineType[] = {
+#define MACH_TYPE(type, size, log2Size, code, machineType, ...) \
+  MachineType::machineType(),
+        FOREACH_VALUE_TYPE(MACH_TYPE)
+#undef MACH_TYPE
+    };
+
+    return kMachineType[type];
   }
 
   static MachineRepresentation MachineRepresentationFor(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return MachineRepresentation::kWord32;
-      case kWasmI64:
-        return MachineRepresentation::kWord64;
-      case kWasmF32:
-        return MachineRepresentation::kFloat32;
-      case kWasmF64:
-        return MachineRepresentation::kFloat64;
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return MachineRepresentation::kTaggedPointer;
-      case kWasmS128:
-        return MachineRepresentation::kSimd128;
-      case kWasmStmt:
-        return MachineRepresentation::kNone;
-      case kWasmBottom:
-        UNREACHABLE();
-    }
+    return MachineTypeFor(type).representation();
   }
 
   static ValueType ValueTypeFor(MachineType type) {
@@ -374,57 +321,27 @@ class V8_EXPORT_PRIVATE ValueTypes {
     }
   }
 
-  static char ShortNameOf(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return 'i';
-      case kWasmI64:
-        return 'l';
-      case kWasmF32:
-        return 'f';
-      case kWasmF64:
-        return 'd';
-      case kWasmAnyRef:
-        return 'r';
-      case kWasmFuncRef:
-        return 'a';
-      case kWasmS128:
-        return 's';
-      case kWasmStmt:
-        return 'v';
-      case kWasmNullRef:
-        return 'n';
-      case kWasmExnRef:
-      case kWasmBottom:
-        return '*';
-    }
+  static constexpr char ShortNameOf(ValueType type) {
+    constexpr char kShortName[] = {
+#define SHORT_NAME(type, size, log2Size, code, machineType, shortName, ...) \
+  shortName,
+        FOREACH_VALUE_TYPE(SHORT_NAME)
+#undef SHORT_NAME
+    };
+
+    return kShortName[type];
   }
 
-  static const char* TypeName(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return "i32";
-      case kWasmI64:
-        return "i64";
-      case kWasmF32:
-        return "f32";
-      case kWasmF64:
-        return "f64";
-      case kWasmAnyRef:
-        return "anyref";
-      case kWasmFuncRef:
-        return "funcref";
-      case kWasmNullRef:
-        return "nullref";
-      case kWasmExnRef:
-        return "exn";
-      case kWasmS128:
-        return "s128";
-      case kWasmStmt:
-        return "<stmt>";
-      case kWasmBottom:
-        return "<bot>";
-    }
+  static constexpr const char* TypeName(ValueType type) {
+    constexpr const char* kTypeName[] = {
+#define TYPE_NAME(type, size, log2Size, code, machineType, shortName, \
+                  typeName, ...)                                      \
+  typeName,
+        FOREACH_VALUE_TYPE(TYPE_NAME)
+#undef TYPE_NAME
+    };
+
+    return kTypeName[type];
   }
 
  private:

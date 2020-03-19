@@ -105,9 +105,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
     Object data_obj = call_data.data();
 
-    FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
-                                     *new_target, args.address_of_arg_at(1),
-                                     args.length() - 1);
+    FunctionCallbackArguments custom(
+        isolate, data_obj, *function, raw_holder, *new_target,
+        args.address_of_first_argument(), args.length() - 1);
     Handle<Object> result = custom.Call(call_data);
 
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
@@ -269,9 +269,9 @@ V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
   {
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));
-    FunctionCallbackArguments custom(isolate, call_data.data(), constructor,
-                                     obj, new_target, args.address_of_arg_at(1),
-                                     args.length() - 1);
+    FunctionCallbackArguments custom(
+        isolate, call_data.data(), constructor, obj, new_target,
+        args.address_of_first_argument(), args.length() - 1);
     Handle<Object> result_handle = custom.Call(call_data);
     if (result_handle.is_null()) {
       result = ReadOnlyRoots(isolate).undefined_value();

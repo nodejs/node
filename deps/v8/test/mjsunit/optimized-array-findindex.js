@@ -3,7 +3,11 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-inline-array-builtins --opt
-// Flags: --no-always-opt
+// Flags: --no-always-opt --no-lazy-feedback-allocation
+
+// TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
+// expected (e.g. in a %DeoptimizeNow call), then remove
+// --no-lazy-feedback-allocation.
 
 // Unknown field access leads to soft-deopt unrelated to findIndex, should still
 // lead to correct result.

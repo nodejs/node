@@ -15,9 +15,8 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 25
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   30 S> */ B(LdaZero),
                 B(Star), R(0),
   /*   35 S> */ B(LdaSmi), I8(10),
@@ -46,10 +45,9 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 165
+bytecode array length: 164
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
-                B(CreateFunctionContext), U8(0), U8(4),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(4),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(3),
@@ -148,9 +146,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 106
+bytecode array length: 105
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   30 S> */ B(LdaZero),
                 B(Star), R(3),
                 B(Star), R(0),
@@ -220,9 +217,8 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 43
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   37 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(3),
   /*   28 S> */ B(LdaNamedProperty), R(3), U8(1), U8(1),
@@ -260,13 +256,12 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 67
+bytecode array length: 66
 bytecodes: [
-  /*   11 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(3),
                 B(Mov), R(this), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(3), U8(2),
+  /*   11 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(3), U8(2),
                 B(Star), R(0),
   /*   11 E> */ B(SuspendGenerator), R(0), R(0), U8(3), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(3),
@@ -308,13 +303,12 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 99
+bytecode array length: 98
 bytecodes: [
-  /*   11 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
+  /*   11 E> */ B(InvokeIntrinsic), U8(Runtime::k_CreateJSGeneratorObject), R(2), U8(2),
                 B(Star), R(0),
   /*   11 E> */ B(SuspendGenerator), R(0), R(0), U8(2), U8(0),
                 B(ResumeGenerator), R(0), R(0), U8(2),
@@ -371,12 +365,11 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 81
+bytecode array length: 80
 bytecodes: [
-  /*   16 E> */ B(StackCheck),
                 B(Mov), R(closure), R(3),
                 B(Mov), R(this), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(3), U8(2),
+  /*   16 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(3), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(3),
   /*   36 S> */ B(LdaZero),
@@ -416,7 +409,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 53, 53],
+  [15, 52, 52],
 ]
 
 ---
@@ -428,13 +421,12 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 117
+bytecode array length: 116
 bytecodes: [
-  /*   16 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(2), U8(2),
+  /*   16 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(2), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(2),
   /*   36 S> */ B(LdaZero),
@@ -487,6 +479,6 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 89, 89],
+  [19, 88, 88],
 ]
 

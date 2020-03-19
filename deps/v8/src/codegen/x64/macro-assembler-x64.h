@@ -33,36 +33,22 @@ struct SmiIndex {
   ScaleFactor scale;
 };
 
-enum StackArgumentsAccessorReceiverMode {
-  ARGUMENTS_CONTAIN_RECEIVER,
-  ARGUMENTS_DONT_CONTAIN_RECEIVER
-};
-
+// Convenient class to access arguments below the stack pointer.
 class StackArgumentsAccessor {
  public:
-  StackArgumentsAccessor(Register base_reg, Register argument_count_reg,
-                         StackArgumentsAccessorReceiverMode receiver_mode =
-                             ARGUMENTS_CONTAIN_RECEIVER,
-                         int extra_displacement_to_last_argument = 0)
-      : base_reg_(base_reg),
-        argument_count_reg_(argument_count_reg),
-        argument_count_immediate_(0),
-        receiver_mode_(receiver_mode),
-        extra_displacement_to_last_argument_(
-            extra_displacement_to_last_argument) {}
-
-  Operand GetArgumentOperand(int index);
-  Operand GetReceiverOperand() {
-    DCHECK(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
-    return GetArgumentOperand(0);
+  // argc = the number of arguments not including the receiver.
+  explicit StackArgumentsAccessor(Register argc) : argc_(argc) {
+    DCHECK_NE(argc_, no_reg);
   }
 
+  // Argument 0 is the receiver (despite argc not including the receiver).
+  Operand operator[](int index) const { return GetArgumentOperand(index); }
+
+  Operand GetArgumentOperand(int index) const;
+  Operand GetReceiverOperand() const { return GetArgumentOperand(0); }
+
  private:
-  const Register base_reg_;
-  const Register argument_count_reg_;
-  const int argument_count_immediate_;
-  const StackArgumentsAccessorReceiverMode receiver_mode_;
-  const int extra_displacement_to_last_argument_;
+  const Register argc_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
 };
@@ -158,7 +144,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
   AVX_OP(Movdqu, movdqu)
+  AVX_OP(Pcmpeqb, pcmpeqb)
+  AVX_OP(Pcmpeqw, pcmpeqw)
   AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP(Pcmpgtb, pcmpgtb)
+  AVX_OP(Pmaxub, pmaxub)
+  AVX_OP(Pminub, pminub)
   AVX_OP(Addss, addss)
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
@@ -185,6 +176,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Sqrtsd, sqrtsd)
   AVX_OP(Sqrtps, sqrtps)
   AVX_OP(Sqrtpd, sqrtpd)
+  AVX_OP(Cvttps2dq, cvttps2dq)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)
   AVX_OP(Paddusb, paddusb)
@@ -197,7 +189,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Pavgb, pavgb)
   AVX_OP(Pavgw, pavgw)
   AVX_OP(Psrad, psrad)
+  AVX_OP(Psllq, psllq)
   AVX_OP(Psrld, psrld)
+  AVX_OP(Psrlq, psrlq)
   AVX_OP(Paddd, paddd)
   AVX_OP(Paddq, paddq)
   AVX_OP(Pcmpgtd, pcmpgtd)
@@ -220,25 +214,36 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Mulps, mulps)
   AVX_OP(Divps, divps)
   AVX_OP(Pshuflw, pshuflw)
+  AVX_OP(Packsswb, packsswb)
+  AVX_OP(Packuswb, packuswb)
+  AVX_OP(Packssdw, packssdw)
   AVX_OP(Punpcklqdq, punpcklqdq)
   AVX_OP(Pshufd, pshufd)
   AVX_OP(Cmpps, cmpps)
   AVX_OP(Cmppd, cmppd)
   AVX_OP(Movlhps, movlhps)
   AVX_OP_SSE3(Movddup, movddup)
+  AVX_OP_SSSE3(Phaddd, phaddd)
   AVX_OP_SSSE3(Pshufb, pshufb)
   AVX_OP_SSSE3(Psignd, psignd)
   AVX_OP_SSSE3(Palignr, palignr)
+  AVX_OP_SSSE3(Pabsb, pabsb)
+  AVX_OP_SSSE3(Pabsw, pabsw)
+  AVX_OP_SSSE3(Pabsd, pabsd)
   AVX_OP_SSE4_1(Pcmpeqq, pcmpeqq)
-  AVX_OP_SSE4_1(Pmulld, pmulld)
+  AVX_OP_SSE4_1(Packusdw, packusdw)
+  AVX_OP_SSE4_1(Pminsb, pminsb)
   AVX_OP_SSE4_1(Pminsd, pminsd)
   AVX_OP_SSE4_1(Pminud, pminud)
+  AVX_OP_SSE4_1(Pmaxsb, pmaxsb)
   AVX_OP_SSE4_1(Pmaxsd, pmaxsd)
   AVX_OP_SSE4_1(Pmaxud, pmaxud)
+  AVX_OP_SSE4_1(Pmulld, pmulld)
   AVX_OP_SSE4_1(Extractps, extractps)
   AVX_OP_SSE4_1(Insertps, insertps)
   AVX_OP_SSE4_1(Pinsrq, pinsrq)
   AVX_OP_SSE4_1(Pblendw, pblendw)
+  AVX_OP_SSE4_1(Ptest, ptest)
   AVX_OP_SSE4_1(Pmovsxbw, pmovsxbw)
   AVX_OP_SSE4_1(Pmovsxwd, pmovsxwd)
   AVX_OP_SSE4_1(Pmovsxdq, pmovsxdq)
@@ -275,6 +280,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Push(Immediate value);
   void Push(Smi smi);
   void Push(Handle<HeapObject> source);
+
+  enum class PushArrayOrder { kNormal, kReverse };
+  // `array` points to the first element (the lowest address).
+  // `array` and `size` are not modified.
+  void PushArray(Register array, Register size, Register scratch,
+                 PushArrayOrder order = PushArrayOrder::kNormal);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
@@ -463,6 +474,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CallForDeoptimization(Address target, int deopt_id);
 
   void Trap() override;
+  void DebugBreak() override;
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
@@ -475,7 +487,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Pinsrb(XMMRegister dst, Register src, int8_t imm8);
   void Pinsrb(XMMRegister dst, Operand src, int8_t imm8);
 
+  void Psllq(XMMRegister dst, int imm8) { Psllq(dst, static_cast<byte>(imm8)); }
   void Psllq(XMMRegister dst, byte imm8);
+  void Psrlq(XMMRegister dst, int imm8) { Psrlq(dst, static_cast<byte>(imm8)); }
   void Psrlq(XMMRegister dst, byte imm8);
   void Pslld(XMMRegister dst, byte imm8);
   void Psrld(XMMRegister dst, byte imm8);

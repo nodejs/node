@@ -122,6 +122,7 @@ class StringResource : public v8::String::ExternalStringResource {
 TEST(GetObjectProperties) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   LocalContext context;
   // Claim we don't know anything about the heap layout.
@@ -180,11 +181,8 @@ TEST(GetObjectProperties) {
               : Contains(props->brief, "maybe EmptyFixedArray"));
 
     // Provide a heap first page so the API can be more sure.
-    heap_addresses.read_only_space_first_page =
-        reinterpret_cast<uintptr_t>(reinterpret_cast<i::Isolate*>(isolate)
-                                        ->heap()
-                                        ->read_only_space()
-                                        ->first_page());
+    heap_addresses.read_only_space_first_page = reinterpret_cast<uintptr_t>(
+        i_isolate->heap()->read_only_space()->first_page());
     props =
         d::GetObjectProperties(properties_or_hash, &ReadMemory, heap_addresses);
     CHECK(props->type_check_result ==
@@ -373,10 +371,25 @@ TEST(GetObjectProperties) {
       ReadProp<i::Tagged_t>(*props, "shared_function_info"), &ReadMemory,
       heap_addresses);
   const d::ObjectProperty& flags = FindProp(*props, "flags");
-  CheckStructProp(*flags.struct_fields[0], "v8::internal::FunctionKind",
-                  "function_kind", 0, 5, 0);
+  CHECK_GE(flags.num_struct_fields, 3);
+  CheckStructProp(*flags.struct_fields[0], "FunctionKind", "function_kind", 0,
+                  5, 0);
   CheckStructProp(*flags.struct_fields[1], "bool", "is_native", 0, 1, 5);
   CheckStructProp(*flags.struct_fields[2], "bool", "is_strict", 0, 1, 6);
+
+  // Get data about a different bitfield struct which is contained within a smi.
+  Handle<i::JSFunction> function = Handle<i::JSFunction>::cast(o);
+  Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
+  Handle<i::DebugInfo> debug_info =
+      i_isolate->debug()->GetOrCreateDebugInfo(shared);
+  props =
+      d::GetObjectProperties(debug_info->ptr(), &ReadMemory, heap_addresses);
+  const d::ObjectProperty& debug_flags = FindProp(*props, "flags");
+  CHECK_GE(debug_flags.num_struct_fields, 5);
+  CheckStructProp(*debug_flags.struct_fields[0], "bool", "has_break_info", 0, 1,
+                  i::kSmiTagSize + i::kSmiShiftSize);
+  CheckStructProp(*debug_flags.struct_fields[4], "bool", "can_break_at_entry",
+                  0, 1, i::kSmiTagSize + i::kSmiShiftSize + 4);
 }
 
 TEST(ListObjectClasses) {

@@ -147,8 +147,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
 
     // Allocate normal string in the new gen.
     v8::Local<v8::String> str =
-        v8::String::NewFromUtf8(isolate, TEST_STR, v8::NewStringType::kNormal)
-            .ToLocalChecked();
+        v8::String::NewFromUtf8Literal(isolate, TEST_STR);
 
     CHECK_EQ(0, heap->new_space()->ExternalBackingStoreBytes(type) -
                     new_backing_store_before);
@@ -199,8 +198,7 @@ TEST(ExternalString_PromotedThinString) {
     // New external string in the young space. This string has the same content
     // as the previous one (that was already internalized).
     v8::Local<v8::String> string2 =
-        v8::String::NewFromUtf8(isolate, TEST_STR, v8::NewStringType::kNormal)
-            .ToLocalChecked();
+        v8::String::NewFromUtf8Literal(isolate, TEST_STR);
     bool success =
         string2->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));
     CHECK(success);

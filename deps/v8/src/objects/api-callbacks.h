@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_API_CALLBACKS_H_
 #define V8_OBJECTS_API_CALLBACKS_H_
 
-#include "src/base/bit-field.h"
 #include "src/objects/struct.h"
+#include "torque-generated/bit-fields-tq.h"
 #include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -85,20 +85,8 @@ class AccessorInfo : public Struct {
  private:
   inline bool HasExpectedReceiverType();
 
-// Bit positions in |flags|.
-#define ACCESSOR_INFO_FLAGS_BIT_FIELDS(V, _)                           \
-  V(AllCanReadBit, bool, 1, _)                                         \
-  V(AllCanWriteBit, bool, 1, _)                                        \
-  V(IsSpecialDataPropertyBit, bool, 1, _)                              \
-  V(IsSloppyBit, bool, 1, _)                                           \
-  V(ReplaceOnAccessBit, bool, 1, _)                                    \
-  V(GetterSideEffectTypeBits, SideEffectType, 2, _)                    \
-  /* We could save a bit from setter side-effect type, if necessary */ \
-  V(SetterSideEffectTypeBits, SideEffectType, 2, _)                    \
-  V(InitialAttributesBits, PropertyAttributes, 3, _)
-
-  DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)
-#undef ACCESSOR_INFO_FLAGS_BIT_FIELDS
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
 
   OBJECT_CONSTRUCTORS(AccessorInfo, Struct);
 };

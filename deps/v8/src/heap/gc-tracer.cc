@@ -518,11 +518,12 @@ void GCTracer::Print() const {
   Output(
       "[%d:%p] "
       "%8.0f ms: "
-      "%s %.1f (%.1f) -> %.1f (%.1f) MB, "
+      "%s%s %.1f (%.1f) -> %.1f (%.1f) MB, "
       "%.1f / %.1f ms %s (average mu = %.3f, current mu = %.3f) %s %s\n",
       base::OS::GetCurrentProcessId(),
       reinterpret_cast<void*>(heap_->isolate()),
       heap_->isolate()->time_millis_since_init(), current_.TypeName(false),
+      current_.reduce_memory ? " (reduce)" : "",
       static_cast<double>(current_.start_object_size) / MB,
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
@@ -929,6 +930,19 @@ void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes, double duration) {
     recorded_incremental_marking_speed_ =
         (recorded_incremental_marking_speed_ + current_speed) / 2;
   }
+}
+
+void GCTracer::RecordTimeToIncrementalMarkingTask(double time_to_task) {
+  if (average_time_to_incremental_marking_task_ == 0.0) {
+    average_time_to_incremental_marking_task_ = time_to_task;
+  } else {
+    average_time_to_incremental_marking_task_ =
+        (average_time_to_incremental_marking_task_ + time_to_task) / 2;
+  }
+}
+
+double GCTracer::AverageTimeToIncrementalMarkingTask() const {
+  return average_time_to_incremental_marking_task_;
 }
 
 void GCTracer::RecordEmbedderSpeed(size_t bytes, double duration) {

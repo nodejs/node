@@ -1023,14 +1023,12 @@ bool Int64Lowering::DefaultLowering(Node* node, bool low_word_only) {
   return something_changed;
 }
 
-CallDescriptor* Int64Lowering::LowerCallDescriptor(
+const CallDescriptor* Int64Lowering::LowerCallDescriptor(
     const CallDescriptor* call_descriptor) {
   if (special_case_) {
-    if (call_descriptor == special_case_->bigint_to_i64_call_descriptor) {
-      return special_case_->bigint_to_i32_pair_call_descriptor;
-    }
-    if (call_descriptor == special_case_->i64_to_bigint_call_descriptor) {
-      return special_case_->i32_pair_to_bigint_call_descriptor;
+    auto replacement = special_case_->replacements.find(call_descriptor);
+    if (replacement != special_case_->replacements.end()) {
+      return replacement->second;
     }
   }
   return GetI32WasmCallDescriptor(zone(), call_descriptor);

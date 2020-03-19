@@ -1322,7 +1322,7 @@ auto Func::param_arity() const -> size_t {
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
-  i::wasm::FunctionSig* sig =
+  const i::wasm::FunctionSig* sig =
       function->instance().module()->functions[function->function_index()].sig;
   return sig->parameter_count();
 }
@@ -1335,7 +1335,7 @@ auto Func::result_arity() const -> size_t {
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
-  i::wasm::FunctionSig* sig =
+  const i::wasm::FunctionSig* sig =
       function->instance().module()->functions[function->function_index()].sig;
   return sig->return_count();
 }
@@ -1375,7 +1375,7 @@ i::Address CallTargetFromCache(i::Object cached_call_target) {
 
 void PrepareFunctionData(i::Isolate* isolate,
                          i::Handle<i::WasmExportedFunctionData> function_data,
-                         i::wasm::FunctionSig* sig) {
+                         const i::wasm::FunctionSig* sig) {
   // If the data is already populated, return immediately.
   if (!function_data->c_wrapper_code().IsSmi()) return;
   // Compile wrapper code.
@@ -1393,7 +1393,7 @@ void PrepareFunctionData(i::Isolate* isolate,
   function_data->set_wasm_call_target(*call_target);
 }
 
-void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
+void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
               i::wasm::CWasmArgumentsPacker* packer, StoreImpl* store) {
   for (size_t i = 0; i < sig->parameter_count(); i++) {
     i::wasm::ValueType type = sig->GetParam(i);
@@ -1425,7 +1425,7 @@ void PushArgs(i::wasm::FunctionSig* sig, const Val args[],
   }
 }
 
-void PopArgs(i::wasm::FunctionSig* sig, Val results[],
+void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
              i::wasm::CWasmArgumentsPacker* packer, StoreImpl* store) {
   packer->Reset();
   for (size_t i = 0; i < sig->return_count(); i++) {
@@ -1512,7 +1512,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   i::Handle<i::WasmInstanceObject> instance(function_data->instance(), isolate);
   int function_index = function_data->function_index();
   // Caching {sig} would give a ~10% reduction in overhead.
-  i::wasm::FunctionSig* sig = instance->module()->functions[function_index].sig;
+  const i::wasm::FunctionSig* sig =
+      instance->module()->functions[function_index].sig;
   PrepareFunctionData(isolate, function_data, sig);
   i::Handle<i::Code> wrapper_code = i::Handle<i::Code>(
       i::Code::cast(function_data->c_wrapper_code()), isolate);
@@ -1879,11 +1880,13 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
 
   const Limits& limits = type->limits();
   uint32_t minimum = limits.min;
-  if (minimum > i::wasm::max_mem_pages()) return nullptr;
+  // The max_initial_mem_pages limit is only spec'ed for JS embeddings,
+  // so we'll directly use the maximum pages limit here.
+  if (minimum > i::wasm::kSpecMaxWasmMaximumMemoryPages) return nullptr;
   uint32_t maximum = limits.max;
   if (maximum != Limits(0).max) {
     if (maximum < minimum) return nullptr;
-    if (maximum > i::wasm::kSpecMaxWasmMemoryPages) return nullptr;
+    if (maximum > i::wasm::kSpecMaxWasmMaximumMemoryPages) return nullptr;
   }
   // TODO(wasm+): Support shared memory.
   i::SharedFlag shared = i::SharedFlag::kNotShared;

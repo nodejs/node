@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --liftoff --wasm-tier-up --no-stress-opt
+// Flags: --allow-natives-syntax
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-const num_functions = 2;
+const num_functions = 200;
 
 function create_builder(delta = 0) {
   const builder = new WasmModuleBuilder();
@@ -18,21 +18,37 @@ function create_builder(delta = 0) {
   return builder;
 }
 
-function check(instance) {
-  %WasmTierDownModule(instance);
+function checkTieredDown(instance) {
   for (let i = 0; i < num_functions; ++i) {
     assertTrue(%IsLiftoffFunction(instance.exports['f' + i]));
   }
+}
+
+function checkTieredUp(instance) {
+  // Busy waiting until all functions are tiered up.
+  let num_liftoff_functions;
+  while (true) {
+    num_liftoff_functions = 0;
+    for (let i = 0; i < num_functions; ++i) {
+      if (%IsLiftoffFunction(instance.exports['f' + i])) {
+        num_liftoff_functions++;
+      }
+    }
+    if (num_liftoff_functions == 0) return;
+  }
+}
+
+function check(instance) {
+  %WasmTierDownModule(instance);
+  checkTieredDown(instance);
 
   for (let i = 0; i < num_functions; ++i) {
     %WasmTierUpFunction(instance, i);
-    assertTrue(%IsLiftoffFunction(instance.exports['f' + i]));
   }
+  checkTieredDown(instance);
 
   %WasmTierUpModule(instance);
-  for (let i = 0; i < num_functions; ++i) {
-    assertFalse(%IsLiftoffFunction(instance.exports['f' + i]));
-  }
+  checkTieredUp(instance);
 }
 
 (function testTierDownToLiftoff() {

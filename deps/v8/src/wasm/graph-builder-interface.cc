@@ -397,8 +397,9 @@ class WasmGraphBuildingInterface {
                      LoadTransformationKind transform,
                      const MemoryAccessImmediate<validate>& imm,
                      const Value& index, Value* result) {
-    result->node = BUILD(LoadTransform, type.mem_type(), transform, index.node,
-                         imm.offset, imm.alignment, decoder->position());
+    result->node =
+        BUILD(LoadTransform, type.value_type(), type.mem_type(), transform,
+              index.node, imm.offset, imm.alignment, decoder->position());
   }
 
   void StoreMem(FullDecoder* decoder, StoreType type,
@@ -910,7 +911,7 @@ class WasmGraphBuildingInterface {
   }
 
   void DoCall(FullDecoder* decoder, uint32_t table_index, TFNode* index_node,
-              FunctionSig* sig, uint32_t sig_index, const Value args[],
+              const FunctionSig* sig, uint32_t sig_index, const Value args[],
               Value returns[]) {
     size_t param_count = sig->parameter_count();
     size_t return_count = sig->return_count();
@@ -936,8 +937,8 @@ class WasmGraphBuildingInterface {
   }
 
   void DoReturnCall(FullDecoder* decoder, uint32_t table_index,
-                    TFNode* index_node, FunctionSig* sig, uint32_t sig_index,
-                    const Value args[]) {
+                    TFNode* index_node, const FunctionSig* sig,
+                    uint32_t sig_index, const Value args[]) {
     size_t arg_count = sig->parameter_count();
     base::SmallVector<TFNode*, 16> arg_nodes(arg_count + 1);
     arg_nodes[0] = index_node;

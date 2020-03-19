@@ -54,6 +54,9 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
     case kWasmF64:
       assm->movsd(dst.fp(), src);
       break;
+    case kWasmS128:
+      assm->movdqu(dst.fp(), src);
+      break;
     default:
       UNREACHABLE();
   }
@@ -97,6 +100,10 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
     case kWasmF64:
       assm->AllocateStackSpace(sizeof(double));
       assm->movsd(Operand(esp, 0), reg.fp());
+      break;
+    case kWasmS128:
+      assm->AllocateStackSpace(sizeof(double) * 2);
+      assm->movdqu(Operand(esp, 0), reg.fp());
       break;
     default:
       UNREACHABLE();
@@ -427,65 +434,56 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   Operand dst_op = Operand(dst_addr, offset_reg, times_1, offset_imm);
 
+  // i64 store uses a totally different approach, hence implement it separately.
+  if (type.value() == StoreType::kI64Store) {
+    auto scratch2 = GetUnusedRegister(kFpReg, pinned).fp();
+    movd(liftoff::kScratchDoubleReg, src.low().gp());
+    movd(scratch2, src.high().gp());
+    Punpckldq(liftoff::kScratchDoubleReg, scratch2);
+    movsd(dst_op, liftoff::kScratchDoubleReg);
+    // This lock+or is needed to achieve sequential consistency.
+    lock();
+    or_(Operand(esp, 0), Immediate(0));
+    return;
+  }
+
+  // Other i64 stores actually only use the low word.
+  if (src.is_pair()) src = src.low();
+  Register src_gp = src.gp();
+
+  bool is_byte_store = type.size() == 1;
+  LiftoffRegList src_candidates =
+      is_byte_store ? liftoff::kByteRegs : kGpCacheRegList;
   pinned = pinned | LiftoffRegList::ForRegs(dst_addr, src, offset_reg);
-  Register src_reg = src.is_gp_pair() ? src.low().gp() : src.gp();
-  // If {src} is used after this operation, we are not allowed to overwrite it.
-  // {kI64Store} and {kI(32|64)Store8} need special treatment below, so we don't
-  // handle them here.
-  if (type.value() != StoreType::kI64Store &&
-      type.value() != StoreType::kI64Store8 &&
-      type.value() != StoreType::kI32Store8 && cache_state()->is_used(src)) {
-    Register old_src = src_reg;
-    src_reg = GetUnusedRegister(kGpReg, pinned).gp();
-    mov(src_reg, old_src);
+
+  // Ensure that {src} is a valid and otherwise unused register.
+  if (!src_candidates.has(src) || cache_state_.is_used(src)) {
+    // If there are no unused candidate registers, but {src} is a candidate,
+    // then spill other uses of {src}. Otherwise spill any candidate register
+    // and use that.
+    if (!cache_state_.has_unused_register(src_candidates, pinned) &&
+        src_candidates.has(src)) {
+      SpillRegister(src);
+    } else {
+      Register safe_src = GetUnusedRegister(src_candidates, pinned).gp();
+      mov(safe_src, src_gp);
+      src_gp = safe_src;
+    }
   }
 
   switch (type.value()) {
     case StoreType::kI64Store8:
     case StoreType::kI32Store8:
-      if (cache_state()->is_used(src)) {
-        // Only the lower 4 registers can be addressed as 8-bit registers.
-        if (cache_state()->has_unused_register(liftoff::kByteRegs, pinned)) {
-          Register byte_src =
-              GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-          mov(byte_src, src_reg);
-          xchg_b(byte_src, dst_op);
-        } else {  // (if !cache_state()->has_unused_register(...))
-          // No byte register is available, we have to spill {src}.
-          push(src_reg);
-          xchg_b(src_reg, dst_op);
-          pop(src_reg);
-        }
-      } else {  // if (!cache_state()->is_used(src)) {
-        if (src_reg.is_byte_register()) {
-          xchg_b(src_reg, dst_op);
-        } else {  // if (!src.gp().is_byte_register())
-          Register byte_src =
-              GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-          mov(byte_src, src_reg);
-          xchg_b(byte_src, dst_op);
-        }
-      }
+      xchg_b(src_gp, dst_op);
       return;
     case StoreType::kI64Store16:
     case StoreType::kI32Store16:
-      xchg_w(src_reg, dst_op);
+      xchg_w(src_gp, dst_op);
       return;
     case StoreType::kI64Store32:
     case StoreType::kI32Store:
-      xchg(src_reg, dst_op);
+      xchg(src_gp, dst_op);
       return;
-    case StoreType::kI64Store: {
-      auto scratch2 = GetUnusedRegister(kFpReg, pinned).fp();
-      movd(liftoff::kScratchDoubleReg, src.low().gp());
-      movd(scratch2, src.high().gp());
-      Punpckldq(liftoff::kScratchDoubleReg, scratch2);
-      movsd(dst_op, liftoff::kScratchDoubleReg);
-      // This lock+or is needed to achieve sequential consistency.
-      lock();
-      or_(Operand(esp, 0), Immediate(0));
-      return;
-    }
     default:
       UNREACHABLE();
   }
@@ -520,6 +518,21 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
                                  StoreType type) {
   bailout(kAtomics, "AtomicXor");
 }
+
+void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
+                                      uint32_t offset_imm,
+                                      LiftoffRegister value, StoreType type) {
+  bailout(kAtomics, "AtomicExchange");
+}
+
+void LiftoffAssembler::AtomicCompareExchange(
+    Register dst_addr, Register offset_reg, uint32_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    StoreType type) {
+  bailout(kAtomics, "AtomicCompareExchange");
+}
+
+void LiftoffAssembler::AtomicFence() { mfence(); }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
@@ -1912,6 +1925,24 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   liftoff::EmitFloatSetCond<&Assembler::ucomisd>(this, cond, dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movddup(dst.fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vaddpd(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    addpd(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
+    addpd(dst.fp(), rhs.fp());
+  }
+}
+
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -1922,6 +1953,98 @@ void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
       movss(dst.fp(), src.fp());
     }
     shufps(dst.fp(), src.fp(), 0);
+  }
+}
+
+void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vaddps(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    addps(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    addps(dst.fp(), rhs.fp());
+  }
+}
+
+void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Pinsrd(dst.fp(), src.low_gp(), 0);
+  Pinsrd(dst.fp(), src.high_gp(), 1);
+  Pshufd(dst.fp(), dst.fp(), 0x44);
+}
+
+void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddq(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddq(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    paddq(dst.fp(), rhs.fp());
+  }
+}
+
+void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movd(dst.fp(), src.gp());
+  Pshufd(dst.fp(), dst.fp(), 0);
+}
+
+void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddd(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddd(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
+    paddd(dst.fp(), rhs.fp());
+  }
+}
+
+void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movd(dst.fp(), src.gp());
+  Pshuflw(dst.fp(), dst.fp(), 0);
+  Pshufd(dst.fp(), dst.fp(), 0);
+}
+
+void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddw(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddw(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movapd(dst.fp(), lhs.fp());
+    paddw(dst.fp(), rhs.fp());
+  }
+}
+
+void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Movd(dst.fp(), src.gp());
+  Pxor(liftoff::kScratchDoubleReg, liftoff::kScratchDoubleReg);
+  Pshufb(dst.fp(), liftoff::kScratchDoubleReg);
+}
+
+void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vpaddb(dst.fp(), lhs.fp(), rhs.fp());
+  } else if (dst.fp() == rhs.fp()) {
+    paddb(dst.fp(), lhs.fp());
+  } else {
+    if (dst.fp() != lhs.fp()) movaps(dst.fp(), lhs.fp());
+    paddb(dst.fp(), rhs.fp());
   }
 }
 
@@ -1985,7 +2108,7 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
-void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
+void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
                              const LiftoffRegister* args,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
@@ -2035,7 +2158,7 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   wasm_call(addr, RelocInfo::WASM_CALL);
 }
 
-void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
+void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   // Since we have more cache registers than parameter registers, the
@@ -2063,13 +2186,20 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(esp, Immediate(size));
 }
 
-void LiftoffAssembler::DebugBreak() { int3(); }
-
 void LiftoffStackSlots::Construct() {
   for (auto& slot : slots_) {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack:
+        // The combination of AllocateStackSpace and 2 movdqu is usually smaller
+        // in code size than doing 4 pushes.
+        if (src.type() == kWasmS128) {
+          asm_->AllocateStackSpace(sizeof(double) * 2);
+          asm_->movdqu(liftoff::kScratchDoubleReg,
+                       liftoff::GetStackSlot(slot.src_offset_));
+          asm_->movdqu(Operand(esp, 0), liftoff::kScratchDoubleReg);
+          break;
+        }
         if (src.type() == kWasmF64) {
           DCHECK_EQ(kLowWord, slot.half_);
           asm_->push(liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));

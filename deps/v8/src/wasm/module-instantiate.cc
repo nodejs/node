@@ -482,7 +482,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // Check that indirect function table segments are within bounds.
     //--------------------------------------------------------------------------
     for (const WasmElemSegment& elem_segment : module_->elem_segments) {
-      if (!elem_segment.active) continue;
+      if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
       DCHECK_LT(elem_segment.table_index, table_count);
       uint32_t base = EvalUint32InitExpr(instance, elem_segment.offset);
       // Because of imported tables, {table_size} has to come from the table
@@ -673,7 +673,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
           reinterpret_cast<Address>(instance->memory_start()) + dest_offset;
       Address src_addr = reinterpret_cast<Address>(wire_bytes.begin()) +
                          segment.source.offset();
-      memory_copy_wrapper(dest_addr, src_addr, size);
+      memory_copy(dest_addr, src_addr, size);
     } else {
       DCHECK(segment.active);
       // Segments of size == 0 are just nops.
@@ -835,7 +835,7 @@ bool InstanceBuilder::ProcessImportedFunction(
         Handle<WasmExternalFunction>::cast(value));
   }
   auto js_receiver = Handle<JSReceiver>::cast(value);
-  FunctionSig* expected_sig = module_->functions[func_index].sig;
+  const FunctionSig* expected_sig = module_->functions[func_index].sig;
   auto resolved =
       compiler::ResolveWasmImportCall(js_receiver, expected_sig, enabled_);
   compiler::WasmImportCallKind kind = resolved.first;
@@ -929,10 +929,10 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
 
     Handle<WasmInstanceObject> target_instance =
         maybe_target_instance.ToHandleChecked();
-    FunctionSig* sig = target_instance->module_object()
-                           .module()
-                           ->functions[function_index]
-                           .sig;
+    const FunctionSig* sig = target_instance->module_object()
+                                 .module()
+                                 ->functions[function_index]
+                                 .sig;
 
     // Look up the signature's canonical id. If there is no canonical
     // id, then the signature does not appear at all in this module,
@@ -1212,7 +1212,7 @@ void InstanceBuilder::CompileImportWrappers(
     }
     auto js_receiver = Handle<JSReceiver>::cast(value);
     uint32_t func_index = module_->import_table[index].index;
-    FunctionSig* sig = module_->functions[func_index].sig;
+    const FunctionSig* sig = module_->functions[func_index].sig;
     auto resolved = compiler::ResolveWasmImportCall(js_receiver, sig, enabled_);
     compiler::WasmImportCallKind kind = resolved.first;
     if (kind == compiler::WasmImportCallKind::kWasmToWasm ||
@@ -1402,10 +1402,11 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
 bool InstanceBuilder::AllocateMemory() {
-  auto initial_pages = module_->initial_pages;
-  auto maximum_pages = module_->has_maximum_pages ? module_->maximum_pages
-                                                  : wasm::max_mem_pages();
-  if (initial_pages > max_mem_pages()) {
+  uint32_t initial_pages = module_->initial_pages;
+  uint32_t maximum_pages = module_->has_maximum_pages
+                               ? module_->maximum_pages
+                               : wasm::max_maximum_mem_pages();
+  if (initial_pages > max_initial_mem_pages()) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return false;
   }
@@ -1685,7 +1686,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
        segment_index < module_->elem_segments.size(); ++segment_index) {
     auto& elem_segment = instance->module()->elem_segments[segment_index];
     // Passive segments are not copied during instantiation.
-    if (!elem_segment.active) continue;
+    if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     uint32_t table_index = elem_segment.table_index;
     uint32_t dst = EvalUint32InitExpr(instance, elem_segment.offset);

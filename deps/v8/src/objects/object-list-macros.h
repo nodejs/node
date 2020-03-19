@@ -5,6 +5,10 @@
 #ifndef V8_OBJECTS_OBJECT_LIST_MACROS_H_
 #define V8_OBJECTS_OBJECT_LIST_MACROS_H_
 
+#include "torque-generated/instance-types-tq.h"
+
+#define TORQUE_INTERNAL_CLASS_NAMES_ADAPTER(V, NAME, Name, name) V(Name)
+
 namespace v8 {
 namespace internal {
 
@@ -140,8 +144,8 @@ class ZoneForwardList;
   V(JSDataView)                                \
   V(JSDate)                                    \
   V(JSError)                                   \
-  V(JSFinalizationGroup)                       \
-  V(JSFinalizationGroupCleanupIterator)        \
+  V(JSFinalizationRegistry)                    \
+  V(JSFinalizationRegistryCleanupIterator)     \
   V(JSFunction)                                \
   V(JSFunctionOrBoundFunction)                 \
   V(JSGeneratorObject)                         \
@@ -233,7 +237,8 @@ class ZoneForwardList;
   V(WasmTableObject)                           \
   V(WeakFixedArray)                            \
   V(WeakArrayList)                             \
-  V(WeakCell)
+  V(WeakCell)                                  \
+  TORQUE_INTERNAL_CLASS_LIST_GENERATOR(TORQUE_INTERNAL_CLASS_NAMES_ADAPTER, V)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

@@ -46,8 +46,8 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   // we wrap the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
   CcTest::CollectAllAvailableGarbage();
-  AlwaysAllocateScope scope(CcTest::i_isolate());
   Heap* heap = CcTest::heap();
+  AlwaysAllocateScopeForTesting scope(heap);
   int size = FixedArray::SizeFor(100);
   // Young generation.
   HeapObject obj =
@@ -159,17 +159,13 @@ TEST(StressJS) {
 
   // Add the Foo constructor the global object.
   CHECK(env->Global()
-            ->Set(env, v8::String::NewFromUtf8(CcTest::isolate(), "Foo",
-                                               v8::NewStringType::kNormal)
-                           .ToLocalChecked(),
+            ->Set(env, v8::String::NewFromUtf8Literal(CcTest::isolate(), "Foo"),
                   v8::Utils::CallableToLocal(function))
             .FromJust());
   // Call the accessor through JavaScript.
   v8::Local<v8::Value> result =
-      v8::Script::Compile(
-          env, v8::String::NewFromUtf8(CcTest::isolate(), "(new Foo).get",
-                                       v8::NewStringType::kNormal)
-                   .ToLocalChecked())
+      v8::Script::Compile(env, v8::String::NewFromUtf8Literal(CcTest::isolate(),
+                                                              "(new Foo).get"))
           .ToLocalChecked()
           ->Run(env)
           .ToLocalChecked();

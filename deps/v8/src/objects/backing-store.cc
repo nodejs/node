@@ -9,6 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -126,12 +127,12 @@ inline void DebugCheckZero(void* start, size_t byte_length) {
 
 bool BackingStore::ReserveAddressSpace(uint64_t num_bytes) {
   uint64_t reservation_limit = kAddressSpaceLimit;
+  uint64_t old_count = reserved_address_space_.load(std::memory_order_relaxed);
   while (true) {
-    uint64_t old_count = reserved_address_space_.load();
     if (old_count > reservation_limit) return false;
     if (reservation_limit - old_count < num_bytes) return false;
-    if (reserved_address_space_.compare_exchange_weak(old_count,
-                                                      old_count + num_bytes)) {
+    if (reserved_address_space_.compare_exchange_weak(
+            old_count, old_count + num_bytes, std::memory_order_acq_rel)) {
       return true;
     }
   }
@@ -313,9 +314,11 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
 
   // Compute size of reserved memory.
 
-  size_t engine_max_pages = wasm::max_mem_pages();
-  size_t byte_capacity =
-      std::min(engine_max_pages, maximum_pages) * wasm::kWasmPageSize;
+  size_t engine_max_pages = wasm::max_maximum_mem_pages();
+  maximum_pages = std::min(engine_max_pages, maximum_pages);
+  CHECK_LE(maximum_pages,
+           std::numeric_limits<size_t>::max() / wasm::kWasmPageSize);
+  size_t byte_capacity = maximum_pages * wasm::kWasmPageSize;
   size_t reservation_size = GetReservationSize(guards, byte_capacity);
 
   //--------------------------------------------------------------------------
@@ -408,7 +411,15 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
   DCHECK_EQ(0, wasm::kWasmPageSize % AllocatePageSize());
 
   // Enforce engine limitation on the maximum number of pages.
-  if (initial_pages > wasm::max_mem_pages()) return nullptr;
+  if (initial_pages > wasm::kV8MaxWasmMemoryPages) return nullptr;
+
+  // Trying to allocate 4 GiB on a 32-bit platform is guaranteed to fail.
+  // We don't lower the official max_maximum_mem_pages() limit because that
+  // would be observable upon instantiation; this way the effective limit
+  // on 32-bit platforms is defined by the allocator.
+  constexpr size_t kPlatformMax =
+      std::numeric_limits<size_t>::max() / wasm::kWasmPageSize;
+  if (initial_pages > kPlatformMax) return nullptr;
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
@@ -422,7 +433,6 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
 
 std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
                                                            size_t new_pages) {
-  DCHECK_GE(new_pages * wasm::kWasmPageSize, byte_length_);
   // Note that we could allocate uninitialized to save initialization cost here,
   // but since Wasm memories are allocated by the page allocator, the zeroing
   // cost is already built-in.
@@ -437,6 +447,9 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(Isolate* isolate,
   }
 
   if (byte_length_ > 0) {
+    // If the allocation was successful, then the new buffer must be at least
+    // as big as the old one.
+    DCHECK_GE(new_pages * wasm::kWasmPageSize, byte_length_);
     memcpy(new_backing_store->buffer_start(), buffer_start_, byte_length_);
   }
 
@@ -457,10 +470,9 @@ bool BackingStore::GrowWasmMemoryInPlace(Isolate* isolate, size_t delta_pages,
   // permissions for the entire range (to be RW), so the operating system
   // should deal with that raciness. We know we succeeded when we can
   // compare/swap the old length with the new length.
-  size_t old_length = 0;
+  size_t old_length = byte_length_.load(std::memory_order_relaxed);
   size_t new_length = 0;
   while (true) {
-    old_length = byte_length_.load(std::memory_order_acquire);
     size_t current_pages = old_length / wasm::kWasmPageSize;
 
     // Check if we have exceed the supplied maximum.
@@ -559,6 +571,21 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
                                  false);   // custom_deleter
 
   return std::unique_ptr<BackingStore>(result);
+}
+
+bool BackingStore::Reallocate(Isolate* isolate, size_t new_byte_length) {
+  CHECK(!is_wasm_memory_ && !custom_deleter_ && !globally_registered_ &&
+        free_on_destruct_);
+  auto allocator = get_v8_api_array_buffer_allocator();
+  CHECK_EQ(isolate->array_buffer_allocator(), allocator);
+  CHECK_EQ(byte_length_, byte_capacity_);
+  void* new_start =
+      allocator->Reallocate(buffer_start_, byte_length_, new_byte_length);
+  if (!new_start) return false;
+  buffer_start_ = new_start;
+  byte_capacity_ = new_byte_length;
+  byte_length_ = new_byte_length;
+  return true;
 }
 
 v8::ArrayBuffer::Allocator* BackingStore::get_v8_api_array_buffer_allocator() {

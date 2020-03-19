@@ -1,32 +1,14 @@
 getPossibleBreakpoints should not crash during lazy compilation (crbug.com/715334)
 {
-    method : Debugger.scriptParsed
-    params : {
-        endColumn : 21
-        endLine : 2
-        executionContextId : <executionContextId>
-        hasSourceURL : true
-        hash : 124cb0278e3aa9f250651d433cdefeb5618c7202
-        isLiveEdit : false
-        isModule : false
-        length : 52
-        scriptId : <scriptId>
-        sourceMapURL : 
-        startColumn : 0
-        startLine : 0
-        url : test.js
-    }
-}
-{
     method : Debugger.scriptFailedToParse
     params : {
-        endColumn : 21
+        endColumn : 23
         endLine : 2
         executionContextId : <executionContextId>
         hasSourceURL : true
-        hash : 124cb0278e3aa9f250651d433cdefeb5618c7202
+        hash : 1bce5d0c4da4d13a3ea6e6f35ea0f34705c26ba4
         isModule : false
-        length : 52
+        length : 56
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -34,7 +16,6 @@ getPossibleBreakpoints should not crash during lazy compilation (crbug.com/71533
         url : test.js
     }
 }
-One script is reported twice
 {
     id : <messageId>
     result : {

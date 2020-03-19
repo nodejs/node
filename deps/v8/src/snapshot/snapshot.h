@@ -16,6 +16,7 @@ namespace internal {
 // Forward declarations.
 class Isolate;
 class PartialSerializer;
+class SnapshotCompression;
 class StartupSerializer;
 
 // Wrapper around reservation sizes and the serialization payload.
@@ -37,6 +38,15 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
   }
 
  protected:
+  // Empty constructor used by SnapshotCompression so it can manually allocate
+  // memory.
+  SnapshotData() : SerializedData() {}
+  friend class SnapshotCompression;
+
+  // Resize used by SnapshotCompression so it can shrink the compressed
+  // SnapshotData.
+  void Resize(uint32_t size) { size_ = size; }
+
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and (internal) external reference count
   // [1] number of reservation size entries
@@ -77,9 +87,9 @@ class Snapshot : public AllStatic {
   // ---------------- Serialization ----------------
 
   static v8::StartupData CreateSnapshotBlob(
-      const SnapshotData* startup_snapshot,
-      const SnapshotData* read_only_snapshot,
-      const std::vector<SnapshotData*>& context_snapshots,
+      const SnapshotData* startup_snapshot_in,
+      const SnapshotData* read_only_snapshot_in,
+      const std::vector<SnapshotData*>& context_snapshots_in,
       bool can_be_rehashed);
 
 #ifdef DEBUG

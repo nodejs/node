@@ -277,7 +277,7 @@ struct BlockTypeImmediate {
   uint32_t length = 1;
   ValueType type = kWasmStmt;
   uint32_t sig_index = 0;
-  FunctionSig* sig = nullptr;
+  const FunctionSig* sig = nullptr;
 
   inline BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
                             const byte* pc) {
@@ -377,7 +377,7 @@ template <Decoder::ValidateFlag validate>
 struct CallIndirectImmediate {
   uint32_t table_index;
   uint32_t sig_index;
-  FunctionSig* sig = nullptr;
+  const FunctionSig* sig = nullptr;
   uint32_t length = 0;
   inline CallIndirectImmediate(const WasmFeatures enabled, Decoder* decoder,
                                const byte* pc) {
@@ -397,7 +397,7 @@ struct CallIndirectImmediate {
 template <Decoder::ValidateFlag validate>
 struct CallFunctionImmediate {
   uint32_t index;
-  FunctionSig* sig = nullptr;
+  const FunctionSig* sig = nullptr;
   uint32_t length;
   inline CallFunctionImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u32v<validate>(pc + 1, &length, "function index");
@@ -782,7 +782,7 @@ template <Decoder::ValidateFlag validate>
 class WasmDecoder : public Decoder {
  public:
   WasmDecoder(const WasmModule* module, const WasmFeatures& enabled,
-              WasmFeatures* detected, FunctionSig* sig, const byte* start,
+              WasmFeatures* detected, const FunctionSig* sig, const byte* start,
               const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),
         module_(module),
@@ -793,7 +793,7 @@ class WasmDecoder : public Decoder {
   const WasmModule* module_;
   const WasmFeatures enabled_;
   WasmFeatures* detected_;
-  FunctionSig* sig_;
+  const FunctionSig* sig_;
 
   ZoneVector<ValueType>* local_types_;
 
@@ -989,7 +989,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool CanReturnCall(FunctionSig* target_sig) {
+  inline bool CanReturnCall(const FunctionSig* target_sig) {
     if (target_sig == nullptr) return false;
     size_t num_returns = sig_->return_count();
     if (num_returns != target_sig->return_count()) return false;
@@ -1133,9 +1133,13 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, FunctionIndexImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.index < module_->functions.size())) {
+    if (!module_) return true;
+    if (!VALIDATE(imm.index < module_->functions.size())) {
       errorf(pc, "invalid function index: %u", imm.index);
+      return false;
+    }
+    if (!VALIDATE(module_->functions[imm.index].declared)) {
+      this->errorf(pc, "undeclared reference to function #%u", imm.index);
       return false;
     }
     return true;
@@ -1193,6 +1197,14 @@ class WasmDecoder : public Decoder {
     }
     if (!Validate(pc_ + imm.length - imm.table.length - 1, imm.table))
       return false;
+    if (!VALIDATE(ValueTypes::IsSubType(
+            module_->elem_segments[imm.elem_segment_index].type,
+            module_->tables[imm.table.index].type))) {
+      errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table.index,
+             ValueTypes::TypeName(
+                 module_->elem_segments[imm.elem_segment_index].type));
+      return false;
+    }
     return true;
   }
 
@@ -1208,6 +1220,13 @@ class WasmDecoder : public Decoder {
   inline bool Validate(TableCopyImmediate<validate>& imm) {
     if (!Validate(pc_ + 1, imm.table_src)) return false;
     if (!Validate(pc_ + 2, imm.table_dst)) return false;
+    if (!VALIDATE(
+            ValueTypes::IsSubType(module_->tables[imm.table_src.index].type,
+                                  module_->tables[imm.table_dst.index].type))) {
+      errorf(pc_ + 2, "table %u is not a super-type of %s", imm.table_dst.index,
+             ValueTypes::TypeName(module_->tables[imm.table_src.index].type));
+      return false;
+    }
     return true;
   }
 
@@ -1418,7 +1437,7 @@ class WasmDecoder : public Decoder {
   std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
     // Handle "simple" opcodes with a fixed signature first.
-    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (!sig) sig = WasmOpcodes::AsmjsSignature(opcode);
     if (sig) return {sig->parameter_count(), sig->return_count()};
 
@@ -2367,7 +2386,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         default: {
           // Deal with special asmjs opcodes.
           if (this->module_ != nullptr && is_asmjs_module(this->module_)) {
-            FunctionSig* sig = WasmOpcodes::AsmjsSignature(opcode);
+            const FunctionSig* sig = WasmOpcodes::AsmjsSignature(opcode);
             if (sig) {
               BuildSimpleOperator(opcode, sig);
             }
@@ -2479,7 +2498,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   // Pops arguments as required by signature.
-  V8_INLINE ArgVector PopArgs(FunctionSig* sig) {
+  V8_INLINE ArgVector PopArgs(const FunctionSig* sig) {
     int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
     ArgVector args(count);
     for (int i = count - 1; i >= 0; --i) {
@@ -2488,7 +2507,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return args;
   }
 
-  ValueType GetReturnType(FunctionSig* sig) {
+  ValueType GetReturnType(const FunctionSig* sig) {
     DCHECK_GE(1, sig->return_count());
     return sig->return_count() == 0 ? kWasmStmt : sig->GetReturn();
   }
@@ -2601,7 +2620,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   bool TypeCheckBrTable(const std::vector<ValueType>& result_types) {
     int br_arity = static_cast<int>(result_types.size());
-    if (V8_LIKELY(control_.back().reachable())) {
+    if (V8_LIKELY(!control_.back().unreachable())) {
       int available =
           static_cast<int>(stack_.size()) - control_.back().stack_depth;
       // There have to be enough values on the stack.
@@ -2760,7 +2779,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                      LoadTransformationKind::kExtend);
         break;
       default: {
-        FunctionSig* sig = WasmOpcodes::Signature(opcode);
+        if (!FLAG_wasm_simd_post_mvp &&
+            WasmOpcodes::IsSimdPostMvpOpcode(opcode)) {
+          this->error(
+              "simd opcode not available, enable with --wasm-simd-post-mvp");
+          break;
+        }
+        const FunctionSig* sig = WasmOpcodes::Signature(opcode);
         if (!VALIDATE(sig != nullptr)) {
           this->error("invalid simd opcode");
           break;
@@ -2777,7 +2802,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   uint32_t DecodeAtomicOpcode(WasmOpcode opcode) {
     uint32_t len = 0;
     ValueType ret_type;
-    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (!VALIDATE(sig != nullptr)) {
       this->error("invalid atomic opcode");
       return 0;
@@ -2825,7 +2850,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   unsigned DecodeNumericOpcode(WasmOpcode opcode) {
     unsigned len = 0;
-    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (sig != nullptr) {
       switch (opcode) {
         case kExprI32SConvertSatF32:
@@ -2967,7 +2992,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DCHECK_EQ(c->stack_depth + merge->arity, stack_.size());
   }
 
-  Value* PushReturns(FunctionSig* sig) {
+  Value* PushReturns(const FunctionSig* sig) {
     size_t return_count = sig->return_count();
     if (return_count == 0) return nullptr;
     size_t old_size = stack_.size();
@@ -3188,11 +3213,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(anyref);
     }
-    FunctionSig* sig = WasmOpcodes::Signature(opcode);
+    const FunctionSig* sig = WasmOpcodes::Signature(opcode);
     BuildSimpleOperator(opcode, sig);
   }
 
-  void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
+  void BuildSimpleOperator(WasmOpcode opcode, const FunctionSig* sig) {
     switch (sig->parameter_count()) {
       case 1: {
         auto val = Pop(0, sig->GetParam(0));

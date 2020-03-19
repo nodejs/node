@@ -470,7 +470,7 @@ TBR=reviewer@chromium.org"""
           cb=CheckVersionCommit),
       Cmd("git cl upload --send-mail "
           "-f --bypass-hooks --no-autocc --message-file "
-          "\"%s\" --gerrit" % TEST_CONFIG["COMMITMSG_FILE"], ""),
+          "\"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       Cmd("git cl land --bypass-hooks -f", ""),
       Cmd("git fetch", ""),
       Cmd("git log -1 --format=%H --grep="
@@ -621,7 +621,7 @@ deps = {
            self.ROLL_COMMIT_MSG),
           "", cwd=chrome_dir),
       Cmd("git cl upload --send-mail -f "
-          "--cq-dry-run --bypass-hooks --gerrit", "",
+          "--cq-dry-run --bypass-hooks", "",
           cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch -D work-branch", "", cwd=chrome_dir),
@@ -773,7 +773,7 @@ BUG=123,234,345,456,567,v8:123
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\" --gerrit", ""),
+          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
@@ -909,7 +909,7 @@ NOTREECHECKS=true
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks --cc \"ulan@chromium.org\" --gerrit", ""),
+          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),

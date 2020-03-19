@@ -4,6 +4,7 @@
 
 #include "src/torque/type-oracle.h"
 #include "src/torque/type-visitor.h"
+#include "src/torque/types.h"
 
 namespace v8 {
 namespace internal {
@@ -66,6 +67,17 @@ Namespace* TypeOracle::CreateGenericTypeInstantiationNamespace() {
   Get().generic_type_instantiation_namespaces_.push_back(
       std::make_unique<Namespace>(GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING));
   return Get().generic_type_instantiation_namespaces_.back().get();
+}
+
+// static
+std::vector<const ClassType*> TypeOracle::GetClasses() {
+  std::vector<const ClassType*> result;
+  for (const std::unique_ptr<AggregateType>& t : Get().aggregate_types_) {
+    if (auto* class_type = ClassType::DynamicCast(t.get())) {
+      result.push_back(class_type);
+    }
+  }
+  return result;
 }
 
 }  // namespace torque

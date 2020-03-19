@@ -2009,7 +2009,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::Graph graph(&zone);
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
-  FunctionSig* sig = WasmOpcodes::Signature(opcode);
+  const FunctionSig* sig = WasmOpcodes::Signature(opcode);
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, kExprLocalGet, 0, static_cast<byte>(opcode),
@@ -3753,9 +3753,9 @@ TEST(Liftoff_tier_up) {
     memcpy(buffer.get(), sub_code->instructions().begin(), sub_size);
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
-    std::unique_ptr<WasmCode> new_code = native_module->AddCode(
-        add.function_index(), desc, 0, 0, {}, OwnedVector<byte>(),
-        WasmCode::kFunction, ExecutionTier::kTurbofan);
+    std::unique_ptr<WasmCode> new_code =
+        native_module->AddCode(add.function_index(), desc, 0, 0, {}, {},
+                               WasmCode::kFunction, ExecutionTier::kTurbofan);
     native_module->PublishCode(std::move(new_code));
 
     // Second run should now execute {sub}.

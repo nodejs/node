@@ -23,3 +23,6 @@ e50b49a0e38b34e2b28e026f4d1c7e0da0c7bb1a
 
 # Rewrite code base to use "." instead of "->" to access Object members.
 878ccb33bd3cf0e6dc018ff8d15843f585ac07be
+
+# Move test/mjsunit/regress-*.js => test/mjsunit/regress/
+cb67be1a3842fcf6a0da18aee444e3b7ea789e04

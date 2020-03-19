@@ -95,35 +95,6 @@ bool stringViewStartsWith(const StringView& string, const char* prefix) {
   return true;
 }
 
-namespace protocol {
-
-// static
-double StringUtil::toDouble(const char* s, size_t len, bool* isOk) {
-  int flags = v8::internal::ALLOW_HEX | v8::internal::ALLOW_OCTAL |
-              v8::internal::ALLOW_BINARY;
-  double result = v8::internal::StringToDouble(s, flags);
-  *isOk = !std::isnan(result);
-  return result;
-}
-
-std::unique_ptr<protocol::Value> StringUtil::parseJSON(
-    const StringView& string) {
-  if (!string.length()) return nullptr;
-  if (string.is8Bit()) {
-    return parseJSONCharacters(string.characters8(),
-                               static_cast<int>(string.length()));
-  }
-  return parseJSONCharacters(string.characters16(),
-                             static_cast<int>(string.length()));
-}
-
-std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
-  if (!string.length()) return nullptr;
-  return parseJSONCharacters(string.characters16(),
-                             static_cast<int>(string.length()));
-}
-}  // namespace protocol
-
 namespace {
 // An empty string buffer doesn't own any string data; its ::string() returns a
 // default-constructed StringView instance.

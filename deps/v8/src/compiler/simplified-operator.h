@@ -300,6 +300,9 @@ bool operator==(CheckFloat64HoleParameters const&,
 bool operator!=(CheckFloat64HoleParameters const&,
                 CheckFloat64HoleParameters const&);
 
+// Parameter for CheckClosure node.
+Handle<FeedbackCell> FeedbackCellOf(const Operator* op);
+
 enum class CheckTaggedInputMode : uint8_t {
   kNumber,
   kNumberOrOddball,
@@ -580,6 +583,30 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 int NewArgumentsElementsMappedCountOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
+class FastApiCallParameters {
+ public:
+  explicit FastApiCallParameters(const CFunctionInfo* signature,
+                                 FeedbackSource const& feedback)
+      : signature_(signature), feedback_(feedback) {}
+
+  const CFunctionInfo* signature() const { return signature_; }
+  FeedbackSource const& feedback() const { return feedback_; }
+
+ private:
+  const CFunctionInfo* signature_;
+  const FeedbackSource feedback_;
+};
+
+FastApiCallParameters const& FastApiCallParametersOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           FastApiCallParameters const&);
+
+size_t hash_value(FastApiCallParameters const&);
+
+bool operator==(FastApiCallParameters const&, FastApiCallParameters const&);
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
@@ -754,7 +781,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CompareMaps(ZoneHandleSet<Map>);
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
 
-  const Operator* CheckBounds(const FeedbackSource& feedback);
+  const Operator* CheckBounds(const FeedbackSource& feedback,
+                              CheckBoundsParameters::Mode mode =
+                                  CheckBoundsParameters::kDeoptOnOutOfBounds);
+  const Operator* CheckClosure(const Handle<FeedbackCell>& feedback_cell);
   const Operator* CheckEqualsInternalizedString();
   const Operator* CheckEqualsSymbol();
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode, FeedbackSource const&);
@@ -919,6 +949,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* AssertType(Type type);
 
   const Operator* DateNow();
+
+  // Stores the signature and feedback of a fast C call
+  const Operator* FastApiCall(const CFunctionInfo* signature,
+                              FeedbackSource const& feedback);
 
  private:
   Zone* zone() const { return zone_; }

@@ -515,8 +515,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                               uint32_t length,
                                               EnsureElementsMode mode);
   static void EnsureCanContainElements(Handle<JSObject> object,
-                                       Arguments* arguments, uint32_t first_arg,
-                                       uint32_t arg_count,
+                                       JavaScriptArguments* arguments,
+                                       uint32_t first_arg, uint32_t arg_count,
                                        EnsureElementsMode mode);
 
   // Would we convert a fast elements array to dictionary mode given

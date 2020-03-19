@@ -907,7 +907,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
       HashSeed(CcTest::i_isolate()));
   const i::AstRawString* current_symbol =
       scanner.CurrentSymbol(&ast_value_factory);
-  ast_value_factory.Internalize(CcTest::i_isolate()->factory());
+  ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val = current_symbol->string();
   i::DisallowHeapAllocation no_alloc;
   i::String::FlatContent content = val->GetFlatContent(no_alloc);
@@ -1061,7 +1061,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info, script, isolate));
       CHECK(i::Rewriter::Rewrite(&info));
-      info.ast_value_factory()->Internalize(isolate->factory());
+      info.ast_value_factory()->Internalize(isolate);
       CHECK(i::DeclarationScope::Analyze(&info));
       i::DeclarationScope::AllocateScopeInfos(&info, isolate);
       CHECK_NOT_NULL(info.literal());
@@ -3214,15 +3214,11 @@ TEST(FuncNameInferrerTwoByte) {
   // Make it really non-Latin1 (replace the Xs with a non-Latin1 character).
   two_byte_source[14] = two_byte_source[78] = two_byte_name[6] = 0x010D;
   v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, two_byte_source,
-                                 v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromTwoByte(isolate, two_byte_source).ToLocalChecked();
   v8::Local<v8::Value> result = CompileRun(source);
   CHECK(result->IsString());
   v8::Local<v8::String> expected_name =
-      v8::String::NewFromTwoByte(isolate, two_byte_name,
-                                 v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromTwoByte(isolate, two_byte_name).ToLocalChecked();
   CHECK(result->Equals(isolate->GetCurrentContext(), expected_name).FromJust());
   i::DeleteArray(two_byte_source);
   i::DeleteArray(two_byte_name);
@@ -3243,37 +3239,14 @@ TEST(FuncNameInferrerEscaped) {
   // Fix to correspond to the non-ASCII name in two_byte_source.
   two_byte_name[6] = 0x010D;
   v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, two_byte_source,
-                                 v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromTwoByte(isolate, two_byte_source).ToLocalChecked();
   v8::Local<v8::Value> result = CompileRun(source);
   CHECK(result->IsString());
   v8::Local<v8::String> expected_name =
-      v8::String::NewFromTwoByte(isolate, two_byte_name,
-                                 v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromTwoByte(isolate, two_byte_name).ToLocalChecked();
   CHECK(result->Equals(isolate->GetCurrentContext(), expected_name).FromJust());
   i::DeleteArray(two_byte_source);
   i::DeleteArray(two_byte_name);
-}
-
-
-TEST(RegressionLazyFunctionWithErrorWithArg) {
-  // Test only applies when lazy parsing.
-  if (!i::FLAG_lazy) return;
-
-  // The bug occurred when a lazy function had an error which requires a
-  // parameter (such as "unknown label" here). The error message was processed
-  // before the AstValueFactory containing the error message string was
-  // internalized.
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  i::FLAG_lazy = true;
-  CompileRun("function this_is_lazy() {\n"
-             "  break p;\n"
-             "}\n"
-             "this_is_lazy();\n");
 }
 
 
@@ -3312,7 +3285,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name = avf.GetOneByteString("result");
-  avf.Internalize(isolate->factory());
+  avf.Internalize(isolate);
   i::Handle<i::String> str = name->string();
   CHECK(str->IsInternalizedString());
   i::DeclarationScope* script_scope =
@@ -3362,7 +3335,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
                          HashSeed(isolate));
   const i::AstRawString* name_x = avf.GetOneByteString("x");
-  avf.Internalize(isolate->factory());
+  avf.Internalize(isolate);
 
   i::DeclarationScope* script_scope =
       new (&zone) i::DeclarationScope(&zone, &avf);

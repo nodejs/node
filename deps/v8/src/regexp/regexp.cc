@@ -839,7 +839,7 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
 #elif V8_TARGET_ARCH_S390
     macro_assembler.reset(new RegExpMacroAssemblerS390(
         isolate, zone, mode, (data->capture_count + 1) * 2));
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
     macro_assembler.reset(new RegExpMacroAssemblerPPC(
         isolate, zone, mode, (data->capture_count + 1) * 2));
 #elif V8_TARGET_ARCH_MIPS

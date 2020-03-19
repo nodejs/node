@@ -4984,6 +4984,7 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
 // Debugging.
 
 void TurboAssembler::Trap() { stop(); }
+void TurboAssembler::DebugBreak() { stop(); }
 
 void TurboAssembler::Assert(Condition cc, AbortReason reason, Register rs,
                             Operand rt) {

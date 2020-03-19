@@ -108,7 +108,7 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 
 constexpr uint32_t kExceptionAttribute = 0;
 
-constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
+constexpr int kAnonymousFuncIndex = -1;
 
 }  // namespace wasm
 }  // namespace internal

@@ -70,6 +70,7 @@ type Code extends HeapObject generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context;
+type SmiTagged<T : type extends uint31> extends Smi;
 
 struct float64_or_hole {
   is_hole: bool;

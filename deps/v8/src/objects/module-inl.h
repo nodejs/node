@@ -121,10 +121,13 @@ class UnorderedModuleSet
 };
 
 void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
-                                            Handle<SourceTextModule> module) {
+                                            Handle<SourceTextModule> module,
+                                            Handle<SourceTextModule> parent) {
+  Handle<ArrayList> async_parent_modules(module->async_parent_modules(),
+                                         isolate);
   Handle<ArrayList> new_array_list =
-      ArrayList::Add(isolate, handle(async_parent_modules(), isolate), module);
-  set_async_parent_modules(*new_array_list);
+      ArrayList::Add(isolate, async_parent_modules, parent);
+  module->set_async_parent_modules(*new_array_list);
 }
 
 Handle<SourceTextModule> SourceTextModule::GetAsyncParentModule(

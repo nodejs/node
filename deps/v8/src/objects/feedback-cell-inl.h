@@ -30,7 +30,7 @@ void FeedbackCell::reset_feedback_vector(
     base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                       HeapObject target)>>
         gc_notify_updated_slot) {
-  set_interrupt_budget(FeedbackCell::GetInitialInterruptBudget());
+  SetInitialInterruptBudget();
   if (value().IsUndefined() || value().IsClosureFeedbackCellArray()) return;
 
   CHECK(value().IsFeedbackVector());
@@ -41,6 +41,18 @@ void FeedbackCell::reset_feedback_vector(
     (*gc_notify_updated_slot)(*this, RawField(FeedbackCell::kValueOffset),
                               closure_feedback_cell_array);
   }
+}
+
+void FeedbackCell::SetInitialInterruptBudget() {
+  if (FLAG_lazy_feedback_allocation) {
+    set_interrupt_budget(FLAG_budget_for_feedback_vector_allocation);
+  } else {
+    set_interrupt_budget(FLAG_interrupt_budget);
+  }
+}
+
+void FeedbackCell::SetInterruptBudget() {
+  set_interrupt_budget(FLAG_interrupt_budget);
 }
 
 }  // namespace internal

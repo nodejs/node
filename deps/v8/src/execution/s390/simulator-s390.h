@@ -230,6 +230,7 @@ class Simulator : public SimulatorBase {
   void HandleRList(Instruction* instr, bool load);
   void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
+  void DebugAtNextPC();
 
   // Stop helper functions.
   inline bool isStopInstruction(Instruction* instr);

@@ -56,6 +56,14 @@ RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
   return isolate->heap()->ToBoolean(!x.StrictEquals(y));
 }
 
+RUNTIME_FUNCTION(Runtime_ReferenceEqual) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  return isolate->heap()->ToBoolean(x == y);
+}
+
 RUNTIME_FUNCTION(Runtime_LessThan) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

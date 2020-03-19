@@ -121,6 +121,7 @@ class SimulatorBase {
 //  - V8_TARGET_ARCH_MIPS: swi (software-interrupt)
 //  - V8_TARGET_ARCH_MIPS64: swi (software-interrupt)
 //  - V8_TARGET_ARCH_PPC: svc (Supervisor Call)
+//  - V8_TARGET_ARCH_PPC64: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_S390: svc (Supervisor Call)
 class Redirection {
  public:

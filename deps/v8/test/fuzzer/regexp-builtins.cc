@@ -62,8 +62,7 @@ REGEXP_BUILTINS(CASE)
 #undef CASE
 
 v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* s) {
-  return v8::String::NewFromUtf8(isolate, s, v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return v8::String::NewFromUtf8(isolate, s).ToLocalChecked();
 }
 
 v8::MaybeLocal<v8::Value> CompileRun(v8::Local<v8::Context> context,

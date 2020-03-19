@@ -144,9 +144,7 @@ bool ReadOnlyHeap::Contains(Address address) {
 // static
 bool ReadOnlyHeap::Contains(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    // read only includes both TPH and the snapshot, so need both checks
-    return third_party_heap::Heap::InReadOnlySpace(object.address()) ||
-           MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+    return third_party_heap::Heap::InReadOnlySpace(object.address());
   } else {
     return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
   }

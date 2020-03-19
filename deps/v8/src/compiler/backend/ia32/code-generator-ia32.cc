@@ -493,6 +493,22 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ cmov(zero, dst, tmp);                         \
   } while (false)
 
+#define ASSEMBLE_SIMD_SHIFT(opcode, width)                          \
+  do {                                                              \
+    XMMRegister dst = i.OutputSimd128Register();                    \
+    DCHECK_EQ(dst, i.InputSimd128Register(0));                      \
+    if (HasImmediateInput(instr, 1)) {                              \
+      __ opcode(dst, dst, static_cast<byte>(i.InputInt##width(1))); \
+    } else {                                                        \
+      XMMRegister tmp = i.TempSimd128Register(0);                   \
+      Register shift = i.InputRegister(1);                          \
+      constexpr int mask = (1 << width) - 1;                        \
+      __ and_(shift, Immediate(mask));                              \
+      __ Movd(tmp, shift);                                          \
+      __ opcode(dst, dst, tmp);                                     \
+    }                                                               \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   __ mov(esp, ebp);
   __ pop(ebp);
@@ -883,9 +899,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchLookupSwitch:
-      AssembleArchLookupSwitch(instr);
-      break;
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
       break;
@@ -905,7 +918,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ int3();
       break;
     case kArchDebugBreak:
-      __ int3();
+      __ DebugBreak();
       break;
     case kArchNop:
     case kArchThrowTerminator:
@@ -2021,12 +2034,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I64x2Shl: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 64.
-      __ and_(shift, Immediate(63));
-      __ Movd(tmp, shift);
-      __ Psllq(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+      ASSEMBLE_SIMD_SHIFT(Psllq, 6);
       break;
     }
     case kIA32I64x2ShrS: {
@@ -2086,12 +2094,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32I64x2ShrU: {
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 64.
-      __ and_(shift, Immediate(63));
-      __ Movd(tmp, shift);
-      __ Psrlq(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+      ASSEMBLE_SIMD_SHIFT(Psrlq, 6);
       break;
     }
     case kSSEF32x4Splat: {
@@ -2487,44 +2490,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEI32x4Shl: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ pslld(i.OutputSimd128Register(), tmp);
+    case kIA32I32x4Shl: {
+      ASSEMBLE_SIMD_SHIFT(Pslld, 5);
       break;
     }
-    case kAVXI32x4Shl: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ vpslld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
-      break;
-    }
-    case kSSEI32x4ShrS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ psrad(i.OutputSimd128Register(), tmp);
-      break;
-    }
-    case kAVXI32x4ShrS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ vpsrad(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+    case kIA32I32x4ShrS: {
+      ASSEMBLE_SIMD_SHIFT(Psrad, 5);
       break;
     }
     case kSSEI32x4Add: {
@@ -2717,24 +2688,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovzxwd(dst, dst);
       break;
     }
-    case kSSEI32x4ShrU: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ psrld(i.OutputSimd128Register(), tmp);
-      break;
-    }
-    case kAVXI32x4ShrU: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 32.
-      __ and_(shift, 31);
-      __ movd(tmp, shift);
-      __ vpsrld(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+    case kIA32I32x4ShrU: {
+      ASSEMBLE_SIMD_SHIFT(Psrld, 5);
       break;
     }
     case kSSEI32x4MinU: {
@@ -2800,6 +2755,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpcmpeqd(i.OutputSimd128Register(), kScratchDoubleReg, src2);
       break;
     }
+    case kIA32I32x4Abs: {
+      __ Pabsd(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kIA32I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
@@ -2851,44 +2810,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kSSEI16x8Shl: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, 15);
-      __ movd(tmp, shift);
-      __ psllw(i.OutputSimd128Register(), tmp);
+    case kIA32I16x8Shl: {
+      ASSEMBLE_SIMD_SHIFT(Psllw, 4);
       break;
     }
-    case kAVXI16x8Shl: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, 15);
-      __ movd(tmp, shift);
-      __ vpsllw(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
-      break;
-    }
-    case kSSEI16x8ShrS: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, 15);
-      __ movd(tmp, shift);
-      __ psraw(i.OutputSimd128Register(), tmp);
-      break;
-    }
-    case kAVXI16x8ShrS: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, 15);
-      __ movd(tmp, shift);
-      __ vpsraw(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+    case kIA32I16x8ShrS: {
+      ASSEMBLE_SIMD_SHIFT(Psraw, 4);
       break;
     }
     case kSSEI16x8SConvertI32x4: {
@@ -3055,24 +2982,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pmovzxbw(dst, dst);
       break;
     }
-    case kSSEI16x8ShrU: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, 15);
-      __ movd(tmp, shift);
-      __ psrlw(i.OutputSimd128Register(), tmp);
-      break;
-    }
-    case kAVXI16x8ShrU: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      XMMRegister tmp = i.TempSimd128Register(0);
-      Register shift = i.InputRegister(1);
-      // Take shift value modulo 16.
-      __ and_(shift, 15);
-      __ movd(tmp, shift);
-      __ vpsrlw(i.OutputSimd128Register(), i.InputSimd128Register(0), tmp);
+    case kIA32I16x8ShrU: {
+      ASSEMBLE_SIMD_SHIFT(Psrlw, 4);
       break;
     }
     case kSSEI16x8UConvertI32x4: {
@@ -3176,6 +3087,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I16x8RoundingAverageU: {
       __ Pavgw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputOperand(1));
+      break;
+    }
+    case kIA32I16x8Abs: {
+      __ Pabsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kIA32I8x16Splat: {
@@ -3609,6 +3524,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I8x16RoundingAverageU: {
       __ Pavgb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                i.InputOperand(1));
+      break;
+    }
+    case kIA32I8x16Abs: {
+      __ Pabsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
     case kIA32S128Zero: {
@@ -4503,16 +4422,6 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
                                       cases.data() + cases.size());
 }
 
-void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
-  IA32OperandConverter i(this, instr);
-  Register input = i.InputRegister(0);
-  for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ cmp(input, Immediate(i.InputInt32(index + 0)));
-    __ j(equal, GetLabel(i.InputRpo(index + 1)));
-  }
-  AssembleArchJump(i.InputRpo(1));
-}
-
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   IA32OperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -5086,6 +4995,7 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 #undef ASSEMBLE_SIMD_PUNPCK_SHUFFLE
 #undef ASSEMBLE_SIMD_IMM_SHUFFLE
 #undef ASSEMBLE_SIMD_ALL_TRUE
+#undef ASSEMBLE_SIMD_SHIFT
 
 }  // namespace compiler
 }  // namespace internal

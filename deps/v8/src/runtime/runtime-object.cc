@@ -885,7 +885,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(flag, 3);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 4);
-  CONVERT_SMI_ARG_CHECKED(index, 5);
+  CONVERT_TAGGED_INDEX_ARG_CHECKED(index, 5);
 
   if (!maybe_vector->IsUndefined()) {
     DCHECK(maybe_vector->IsFeedbackVector());

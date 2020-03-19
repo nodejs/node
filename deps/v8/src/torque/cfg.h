@@ -53,10 +53,42 @@ class Block {
   size_t id() const { return id_; }
   bool IsDeferred() const { return is_deferred_; }
 
+  void MergeInputDefinitions(const Stack<DefinitionLocation>& input_definitions,
+                             Worklist<Block*>* worklist) {
+    if (!input_definitions_) {
+      input_definitions_ = input_definitions;
+      if (worklist) worklist->Enqueue(this);
+      return;
+    }
+
+    DCHECK_EQ(input_definitions_->Size(), input_definitions.Size());
+    bool changed = false;
+    for (BottomOffset i = 0; i < input_definitions.AboveTop(); ++i) {
+      auto& current = input_definitions_->Peek(i);
+      auto& input = input_definitions.Peek(i);
+      if (current == input) continue;
+      if (current == DefinitionLocation::Phi(this, i.offset)) continue;
+      input_definitions_->Poke(i, DefinitionLocation::Phi(this, i.offset));
+      changed = true;
+    }
+
+    if (changed && worklist) worklist->Enqueue(this);
+  }
+  bool HasInputDefinitions() const {
+    return input_definitions_ != base::nullopt;
+  }
+  const Stack<DefinitionLocation>& InputDefinitions() const {
+    DCHECK(HasInputDefinitions());
+    return *input_definitions_;
+  }
+
+  bool IsDead() const { return !HasInputDefinitions(); }
+
  private:
   ControlFlowGraph* cfg_;
   std::vector<Instruction> instructions_;
   base::Optional<Stack<const Type*>> input_types_;
+  base::Optional<Stack<DefinitionLocation>> input_definitions_;
   const size_t id_;
   bool is_deferred_;
 };
@@ -95,6 +127,9 @@ class ControlFlowGraph {
   }
   const std::vector<Block*>& blocks() const { return placed_blocks_; }
   size_t NumberOfBlockIds() const { return next_block_id_; }
+  std::size_t ParameterCount() const {
+    return start_ ? start_->InputTypes().Size() : 0;
+  }
 
  private:
   std::list<Block> blocks_;
@@ -116,6 +151,7 @@ class CfgAssembler {
     }
     OptimizeCfg();
     DCHECK(CfgIsComplete());
+    ComputeInputDefinitions();
     return cfg_;
   }
 
@@ -167,6 +203,7 @@ class CfgAssembler {
 
   void PrintCurrentStack(std::ostream& s) { s << "stack: " << current_stack_; }
   void OptimizeCfg();
+  void ComputeInputDefinitions();
 
  private:
   friend class CfgAssemblerScopedTemporaryBlock;

@@ -42,7 +42,7 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
 
 TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
   TNode<JSObject> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Number> key = CAST(Parameter(Descriptor::kKey));
+  TNode<Smi> key = CAST(Parameter(Descriptor::kKey));
 
   Label runtime(this, Label::kDeferred);
   TNode<FixedArrayBase> elements = LoadElements(object);
@@ -57,7 +57,7 @@ TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
 
 TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
   TNode<JSObject> object = CAST(Parameter(Descriptor::kObject));
-  TNode<Number> key = CAST(Parameter(Descriptor::kKey));
+  TNode<Smi> key = CAST(Parameter(Descriptor::kKey));
 
   Label runtime(this, Label::kDeferred);
   TNode<FixedArrayBase> elements = LoadElements(object);
@@ -266,11 +266,11 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  TNode<BoolT> ShouldSkipFPRegs(SloppyTNode<Smi> mode) {
+  TNode<BoolT> ShouldSkipFPRegs(TNode<Smi> mode) {
     return TaggedEqual(mode, SmiConstant(kDontSaveFPRegs));
   }
 
-  TNode<BoolT> ShouldEmitRememberSet(SloppyTNode<Smi> remembered_set) {
+  TNode<BoolT> ShouldEmitRememberSet(TNode<Smi> remembered_set) {
     return TaggedEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
   }
 
@@ -766,7 +766,7 @@ TF_BUILTIN(SetDataProperties, SetOrCopyDataPropertiesAssembler) {
 }
 
 TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
-  TNode<HeapObject> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<JSReceiver> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label if_empty(this), if_runtime(this, Label::kDeferred);

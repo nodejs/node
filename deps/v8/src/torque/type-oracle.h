@@ -95,6 +95,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Declarations::LookupGlobalUniqueGenericType(WEAK_TYPE_STRING);
   }
 
+  static GenericType* GetSmiTaggedGeneric() {
+    return Declarations::LookupGlobalUniqueGenericType(SMI_TAGGED_TYPE_STRING);
+  }
+
   static const Type* GetReferenceType(const Type* referenced_type) {
     return GetGenericTypeInstance(GetReferenceGeneric(), {referenced_type});
   }
@@ -229,6 +233,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UINT32_TYPE_STRING);
   }
 
+  static const Type* GetUint31Type() {
+    return Get().GetBuiltinType(UINT31_TYPE_STRING);
+  }
+
   static const Type* GetInt16Type() {
     return Get().GetBuiltinType(INT16_TYPE_STRING);
   }
@@ -285,6 +293,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UNINITIALIZED_ITERATOR_TYPE_STRING);
   }
 
+  static const Type* GetFixedArrayBaseType() {
+    return Get().GetBuiltinType(FIXED_ARRAY_BASE_TYPE_STRING);
+  }
+
   static base::Optional<const Type*> ImplicitlyConvertableFrom(
       const Type* to, const Type* from) {
     while (from != nullptr) {
@@ -306,6 +318,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();
   static const std::vector<std::unique_ptr<BitFieldStructType>>&
   GetBitFieldStructTypes();
+
+  // By construction, this list of all classes is topologically sorted w.r.t.
+  // inheritance.
+  static std::vector<const ClassType*> GetClasses();
 
   static void FinalizeAggregateTypes();
 

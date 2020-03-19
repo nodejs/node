@@ -167,7 +167,7 @@ protocol::DictionaryValue* V8InspectorSessionImpl::agentState(
 
 std::unique_ptr<StringBuffer> V8InspectorSessionImpl::serializeForFrontend(
     std::unique_ptr<protocol::Serializable> message) {
-  std::vector<uint8_t> cbor = std::move(*message).TakeSerialized();
+  std::vector<uint8_t> cbor = message->Serialize();
   DCHECK(CheckCBORMessage(SpanFrom(cbor)).ok());
   if (use_binary_protocol_) return StringBufferFrom(std::move(cbor));
   std::vector<uint8_t> json;
@@ -347,16 +347,9 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
     m_state->setBoolean("use_binary_protocol", true);
     cbor = span<uint8_t>(message.characters8(), message.length());
   } else {
-    if (message.is8Bit()) {
-      // We're ignoring the return value of these conversion functions
-      // intentionally. It means the |parsed_message| below will be nullptr.
-      ConvertJSONToCBOR(span<uint8_t>(message.characters8(), message.length()),
-                        &converted_cbor);
-    } else {
-      ConvertJSONToCBOR(
-          span<uint16_t>(message.characters16(), message.length()),
-          &converted_cbor);
-    }
+    // We're ignoring the return value of the conversion function
+    // intentionally. It means the |parsed_message| below will be nullptr.
+    ConvertToCBOR(message, &converted_cbor);
     cbor = SpanFrom(converted_cbor);
   }
   int callId;
@@ -372,7 +365,7 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
 }
 
 std::vector<uint8_t> V8InspectorSessionImpl::state() {
-  return std::move(*m_state).TakeSerialized();
+  return m_state->Serialize();
 }
 
 std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
@@ -426,10 +419,12 @@ V8InspectorSession::Inspectable* V8InspectorSessionImpl::inspectedObject(
 
 void V8InspectorSessionImpl::schedulePauseOnNextStatement(
     const StringView& breakReason, const StringView& breakDetails) {
+  std::vector<uint8_t> cbor;
+  ConvertToCBOR(breakDetails, &cbor);
   m_debuggerAgent->schedulePauseOnNextStatement(
       toString16(breakReason),
       protocol::DictionaryValue::cast(
-          protocol::StringUtil::parseJSON(breakDetails)));
+          protocol::Value::parseBinary(cbor.data(), cbor.size())));
 }
 
 void V8InspectorSessionImpl::cancelPauseOnNextStatement() {
@@ -438,17 +433,21 @@ void V8InspectorSessionImpl::cancelPauseOnNextStatement() {
 
 void V8InspectorSessionImpl::breakProgram(const StringView& breakReason,
                                           const StringView& breakDetails) {
+  std::vector<uint8_t> cbor;
+  ConvertToCBOR(breakDetails, &cbor);
   m_debuggerAgent->breakProgram(
       toString16(breakReason),
       protocol::DictionaryValue::cast(
-          protocol::StringUtil::parseJSON(breakDetails)));
+          protocol::Value::parseBinary(cbor.data(), cbor.size())));
 }
 
 void V8InspectorSessionImpl::setSkipAllPauses(bool skip) {
   m_debuggerAgent->setSkipAllPauses(skip);
 }
 
-void V8InspectorSessionImpl::resume() { m_debuggerAgent->resume(); }
+void V8InspectorSessionImpl::resume(bool terminateOnResume) {
+  m_debuggerAgent->resume(terminateOnResume);
+}
 
 void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver(); }
 

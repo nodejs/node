@@ -582,6 +582,21 @@ void LiftoffAssembler::AtomicXor(Register dst_addr, Register offset_reg,
   bailout(kAtomics, "AtomicXor");
 }
 
+void LiftoffAssembler::AtomicExchange(Register dst_addr, Register offset_reg,
+                                      uint32_t offset_imm,
+                                      LiftoffRegister value, StoreType type) {
+  bailout(kAtomics, "AtomicExchange");
+}
+
+void LiftoffAssembler::AtomicCompareExchange(
+    Register dst_addr, Register offset_reg, uint32_t offset_imm,
+    LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
+    StoreType type) {
+  bailout(kAtomics, "AtomicCompareExchange");
+}
+
+void LiftoffAssembler::AtomicFence() { dmb(ISH); }
+
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
@@ -601,6 +616,13 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
     case kWasmF64:
       vldr(dst.fp(), src);
       break;
+    case kWasmS128: {
+      UseScratchRegisterScope temps(this);
+      Register addr = liftoff::CalculateActualAddress(this, &temps, src.rn(),
+                                                      no_reg, src.offset());
+      vld1(Neon8, NeonListOperand(dst.low_fp(), 2), NeonMemOperand(addr));
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -1531,9 +1553,74 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   }
 }
 
+void LiftoffAssembler::emit_f64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  TurboAssembler::Move(dst.low_fp(), src.fp());
+  TurboAssembler::Move(dst.high_fp(), src.fp());
+}
+
+void LiftoffAssembler::emit_f64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "f64x2add");
+}
+
 void LiftoffAssembler::emit_f32x4_splat(LiftoffRegister dst,
                                         LiftoffRegister src) {
   vdup(Neon32, liftoff::GetSimd128Register(dst.low_fp()), src.fp(), 0);
+}
+
+void LiftoffAssembler::emit_f32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  vadd(liftoff::GetSimd128Register(dst.low_fp()),
+       liftoff::GetSimd128Register(lhs.low_fp()),
+       liftoff::GetSimd128Register(rhs.low_fp()));
+}
+
+void LiftoffAssembler::emit_i64x2_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  Simd128Register dst_simd = liftoff::GetSimd128Register(dst.low_fp());
+  vdup(Neon32, dst_simd, src.low_gp());
+  ReplaceLane(dst_simd, dst_simd, src.high_gp(), NeonS32, 1);
+  ReplaceLane(dst_simd, dst_simd, src.high_gp(), NeonS32, 3);
+}
+
+void LiftoffAssembler::emit_i64x2_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "i64x2add");
+}
+
+void LiftoffAssembler::emit_i32x4_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  vdup(Neon32, liftoff::GetSimd128Register(dst.low_fp()), src.gp());
+}
+
+void LiftoffAssembler::emit_i32x4_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  vadd(Neon32, liftoff::GetSimd128Register(dst.low_fp()),
+       liftoff::GetSimd128Register(lhs.low_fp()),
+       liftoff::GetSimd128Register(rhs.low_fp()));
+}
+
+void LiftoffAssembler::emit_i16x8_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  vdup(Neon16, liftoff::GetSimd128Register(dst.low_fp()), src.gp());
+}
+
+void LiftoffAssembler::emit_i16x8_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  vadd(Neon16, liftoff::GetSimd128Register(dst.low_fp()),
+       liftoff::GetSimd128Register(lhs.low_fp()),
+       liftoff::GetSimd128Register(rhs.low_fp()));
+}
+
+void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
+                                        LiftoffRegister src) {
+  vdup(Neon8, liftoff::GetSimd128Register(dst.low_fp()), src.gp());
+}
+
+void LiftoffAssembler::emit_i8x16_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                      LiftoffRegister rhs) {
+  bailout(kSimd, "i8x16add");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
@@ -1603,7 +1690,7 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
+void LiftoffAssembler::CallC(const wasm::FunctionSig* sig,
                              const LiftoffRegister* args,
                              const LiftoffRegister* rets,
                              ValueType out_argument_type, int stack_bytes,
@@ -1684,7 +1771,7 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   Call(addr, RelocInfo::WASM_CALL);
 }
 
-void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
+void LiftoffAssembler::CallIndirect(const wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
   DCHECK(target != no_reg);
@@ -1705,8 +1792,6 @@ void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
   add(sp, sp, Operand(size));
 }
-
-void LiftoffAssembler::DebugBreak() { stop(); }
 
 void LiftoffStackSlots::Construct() {
   for (auto& slot : slots_) {
@@ -1731,6 +1816,16 @@ void LiftoffStackSlots::Construct() {
             asm_->vldr(scratch, liftoff::GetStackSlot(slot.src_offset_));
             asm_->vpush(scratch);
           } break;
+          case kWasmS128: {
+            MemOperand mem_op = liftoff::GetStackSlot(slot.src_offset_);
+            UseScratchRegisterScope temps(asm_);
+            Register addr = liftoff::CalculateActualAddress(
+                asm_, &temps, mem_op.rn(), no_reg, mem_op.offset());
+            QwNeonRegister scratch = temps.AcquireQ();
+            asm_->vld1(Neon8, NeonListOperand(scratch), NeonMemOperand(addr));
+            asm_->vpush(scratch);
+            break;
+          }
           default:
             UNREACHABLE();
         }
@@ -1751,6 +1846,9 @@ void LiftoffStackSlots::Construct() {
             break;
           case kWasmF64:
             asm_->vpush(src.reg().fp());
+            break;
+          case kWasmS128:
+            asm_->vpush(liftoff::GetSimd128Register(src.reg().low_fp()));
             break;
           default:
             UNREACHABLE();

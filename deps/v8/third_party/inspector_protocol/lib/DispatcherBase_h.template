@@ -146,31 +146,6 @@ private:
     std::unique_ptr<Serializable> m_params;
 };
 
-class InternalRawNotification : public Serializable {
-public:
-    static std::unique_ptr<InternalRawNotification> fromBinary(std::vector<uint8_t> notification)
-    {
-        return std::unique_ptr<InternalRawNotification>(new InternalRawNotification(std::move(notification)));
-    }
-
-    ~InternalRawNotification() override {}
-
-    std::vector<uint8_t> TakeSerialized() && override {
-        return std::move(m_binaryNotification);
-    }
-
-    void AppendSerialized(std::vector<uint8_t>* out) const override
-    {
-        out->insert(out->end(), m_binaryNotification.begin(), m_binaryNotification.end());
-    }
-
-private:
-  explicit InternalRawNotification(std::vector<uint8_t> notification)
-    : m_binaryNotification(std::move(notification)) { }
-
-  std::vector<uint8_t> m_binaryNotification;
-};
-
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}

@@ -207,6 +207,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.
       TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
+      TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
     case ALLOCATION_SITE_TYPE:
@@ -1150,7 +1151,7 @@ void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
 
 void WeakCell::WeakCellPrint(std::ostream& os) {
   PrintHeader(os, "WeakCell");
-  os << "\n - finalization_group: " << Brief(finalization_group());
+  os << "\n - finalization_registry: " << Brief(finalization_registry());
   os << "\n - target: " << Brief(target());
   os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
@@ -1166,8 +1167,8 @@ void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationGroup");
+void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationRegistry");
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
@@ -1186,10 +1187,10 @@ void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSFinalizationGroupCleanupIterator::
-    JSFinalizationGroupCleanupIteratorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationGroupCleanupIterator");
-  os << "\n - finalization_group: " << Brief(finalization_group());
+void JSFinalizationRegistryCleanupIterator::
+    JSFinalizationRegistryCleanupIteratorPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationRegistryCleanupIterator");
+  os << "\n - finalization_registry: " << Brief(finalization_registry());
   JSObjectPrintBody(os, *this);
 }
 
@@ -1363,6 +1364,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   if (HasInferredName()) {
     os << "\n - inferred name: " << Brief(inferred_name());
+  }
+  if (class_scope_has_private_brand()) {
+    os << "\n - class_scope_has_private_brand";
+  }
+  if (has_static_private_methods_or_accessors()) {
+    os << "\n - has_static_private_methods_or_accessors";
   }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
@@ -1986,15 +1993,18 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - context data: " << Brief(context_data());
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
-  if (has_eval_from_shared()) {
-    os << "\n - eval from shared: " << Brief(eval_from_shared());
-  }
-  if (is_wrapped()) {
-    os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
-  }
-  os << "\n - eval from position: " << eval_from_position();
-  if (has_wasm_breakpoint_infos()) {
-    os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
+  if (type() == TYPE_WASM) {
+    if (has_wasm_breakpoint_infos()) {
+      os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
+    }
+  } else {
+    if (has_eval_from_shared()) {
+      os << "\n - eval from shared: " << Brief(eval_from_shared());
+    }
+    if (is_wrapped()) {
+      os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
+    }
+    os << "\n - eval from position: " << eval_from_position();
   }
   os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
@@ -2004,7 +2014,6 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - type: " << TypeAsString();
   os << "\n - break iterator: " << Brief(break_iterator());
   os << "\n - unicode string: " << Brief(unicode_string());
   os << "\n - bound adopt text: " << Brief(bound_adopt_text());
@@ -2059,7 +2068,6 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
 void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSNumberFormat");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - numberingSystem: " << Brief(numberingSystem());
   os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
   os << "\n - bound_format: " << Brief(bound_format());
   JSObjectPrintBody(os, *this);
@@ -2079,7 +2087,6 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
   JSObjectPrintHeader(os, *this, "JSRelativeTimeFormat");
   os << "\n - locale: " << Brief(locale());
   os << "\n - numberingSystem: " << Brief(numberingSystem());
-  os << "\n - style: " << StyleAsString();
   os << "\n - numeric: " << NumericAsString();
   os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";

@@ -13,10 +13,10 @@ let cleanup = function(iter) {
   ++cleanup_call_count;
 }
 
-let fg1 = new FinalizationGroup(cleanup);
-let fg2 = new FinalizationGroup(cleanup);
+let fg1 = new FinalizationRegistry(cleanup);
+let fg2 = new FinalizationRegistry(cleanup);
 
-// Create two objects and register them in FinalizationGroups. The objects need
+// Create two objects and register them in FinalizationRegistries. The objects need
 // to be inside a closure so that we can reliably kill them!
 
 (function() {

@@ -13,7 +13,7 @@ let cleanup = function(iter) {
   ++cleanup_count;
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 (function() {
   let o = {};
   fg.register(o, "holdings");

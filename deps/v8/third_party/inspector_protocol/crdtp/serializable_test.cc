@@ -14,8 +14,7 @@ namespace v8_crdtp {
 // =============================================================================
 
 namespace {
-// Tests the default behavior for ::TakeSerialized (to invoke
-// ::AppendSerialized).
+// Tests ::Serialize (which invokes ::AppendSerialized).
 class SimpleExample : public Serializable {
  public:
   explicit SimpleExample(const std::vector<uint8_t>& contents)
@@ -36,6 +35,6 @@ TEST(SerializableTest, YieldsContents) {
   foo.AppendSerialized(&contents);  // Yields contents by appending.
   EXPECT_THAT(contents, testing::ElementsAre(1, 2, 3, 1, 2, 3));
   // Yields contents by returning.
-  EXPECT_THAT(std::move(foo).TakeSerialized(), testing::ElementsAre(1, 2, 3));
+  EXPECT_THAT(foo.Serialize(), testing::ElementsAre(1, 2, 3));
 }
 }  // namespace v8_crdtp

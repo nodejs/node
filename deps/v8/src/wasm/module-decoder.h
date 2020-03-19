@@ -133,7 +133,7 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
-V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(
+V8_EXPORT_PRIVATE const FunctionSig* DecodeWasmSignatureForTesting(
     const WasmFeatures& enabled, Zone* zone, const byte* start,
     const byte* end);
 
@@ -203,10 +203,10 @@ class ModuleDecoder {
   // SectionCode if the unknown section is known to decoder.
   // The decoder is expected to point after the section length and just before
   // the identifier string of the unknown section.
-  // If a SectionCode other than kUnknownSectionCode is returned, the decoder
-  // will point right after the identifier string. Otherwise, the position is
-  // undefined.
-  static SectionCode IdentifyUnknownSection(Decoder* decoder, const byte* end);
+  // The return value is the number of bytes that were consumed.
+  static size_t IdentifyUnknownSection(ModuleDecoder* decoder,
+                                       Vector<const uint8_t> bytes,
+                                       uint32_t offset, SectionCode* result);
 
  private:
   const WasmFeatures enabled_features_;

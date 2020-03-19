@@ -36,6 +36,16 @@ Handle<ScriptContextTable> ScriptContextTable::Extend(
   return result;
 }
 
+void Context::Initialize(Isolate* isolate) {
+  ScopeInfo scope_info = this->scope_info();
+  int header = scope_info.ContextHeaderLength();
+  for (int var = 0; var < scope_info.ContextLocalCount(); var++) {
+    if (scope_info.ContextLocalInitFlag(var) == kNeedsInitialization) {
+      set(header + var, ReadOnlyRoots(isolate).the_hole_value());
+    }
+  }
+}
+
 bool ScriptContextTable::Lookup(Isolate* isolate, ScriptContextTable table,
                                 String name, LookupResult* result) {
   DisallowHeapAllocation no_gc;

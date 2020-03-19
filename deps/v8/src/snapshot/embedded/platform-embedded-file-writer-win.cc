@@ -35,15 +35,6 @@ namespace internal {
 // http://infocenter.arm.com/help/topic/com.arm.doc.dui0802b/index.html
 // Microsoft ARM assembler and assembly language docs:
 // https://docs.microsoft.com/en-us/cpp/assembler/arm/arm-assembler-reference
-#if defined(V8_COMPILER_IS_MSVC)
-#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
-#define V8_ASSEMBLER_IS_MARMASM
-#elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
-#define V8_ASSEMBLER_IS_MASM
-#else
-#error Unknown Windows assembler target architecture.
-#endif
-#endif
 
 // Name mangling.
 // Symbols are prefixed with an underscore on 32-bit architectures.
@@ -63,44 +54,6 @@ namespace internal {
 // defines.
 
 namespace {
-
-const char* DirectiveAsString(DataDirective directive) {
-#if defined(V8_ASSEMBLER_IS_MASM)
-  switch (directive) {
-    case kByte:
-      return "BYTE";
-    case kLong:
-      return "DWORD";
-    case kQuad:
-      return "QWORD";
-    default:
-      UNREACHABLE();
-  }
-#elif defined(V8_ASSEMBLER_IS_MARMASM)
-  switch (directive) {
-    case kByte:
-      return "DCB";
-    case kLong:
-      return "DCDU";
-    case kQuad:
-      return "DCQU";
-    default:
-      UNREACHABLE();
-  }
-#else
-  switch (directive) {
-    case kByte:
-      return ".byte";
-    case kLong:
-      return ".long";
-    case kQuad:
-      return ".quad";
-    case kOcta:
-      return ".octa";
-  }
-  UNREACHABLE();
-#endif
-}
 
 #if defined(V8_OS_WIN_X64)
 
@@ -308,6 +261,47 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
 
 }  // namespace
 
+const char* PlatformEmbeddedFileWriterWin::DirectiveAsString(
+    DataDirective directive) {
+#if defined(V8_COMPILER_IS_MSVC)
+  if (target_arch_ != EmbeddedTargetArch::kArm64) {
+    switch (directive) {
+      case kByte:
+        return "BYTE";
+      case kLong:
+        return "DWORD";
+      case kQuad:
+        return "QWORD";
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    switch (directive) {
+      case kByte:
+        return "DCB";
+      case kLong:
+        return "DCDU";
+      case kQuad:
+        return "DCQU";
+      default:
+        UNREACHABLE();
+    }
+  }
+#else
+  switch (directive) {
+    case kByte:
+      return ".byte";
+    case kLong:
+      return ".long";
+    case kQuad:
+      return ".quad";
+    case kOcta:
+      return ".octa";
+  }
+  UNREACHABLE();
+#endif
+}
+
 void PlatformEmbeddedFileWriterWin::MaybeEmitUnwindData(
     const char* unwind_info_symbol, const char* embedded_blob_data_symbol,
     const EmbeddedData* blob, const void* unwind_infos) {
@@ -328,130 +322,15 @@ void PlatformEmbeddedFileWriterWin::MaybeEmitUnwindData(
 #endif  // V8_OS_WIN64
 }
 
-// Windows, MSVC, not arm/arm64.
+// Windows, MSVC
 // -----------------------------------------------------------------------------
 
-#if defined(V8_ASSEMBLER_IS_MASM)
+#if defined(V8_COMPILER_IS_MSVC)
 
-// For MSVC builds we emit assembly in MASM syntax.
+// For x64 MSVC builds we emit assembly in MASM syntax.
 // See https://docs.microsoft.com/en-us/cpp/assembler/masm/directives-reference.
-
-void PlatformEmbeddedFileWriterWin::SectionText() { fprintf(fp_, ".CODE\n"); }
-
-void PlatformEmbeddedFileWriterWin::SectionData() { fprintf(fp_, ".DATA\n"); }
-
-void PlatformEmbeddedFileWriterWin::SectionRoData() {
-  fprintf(fp_, ".CONST\n");
-}
-
-void PlatformEmbeddedFileWriterWin::DeclareUint32(const char* name,
-                                                  uint32_t value) {
-  DeclareSymbolGlobal(name);
-  fprintf(fp_, "%s%s %s %d\n", SYMBOL_PREFIX, name, DirectiveAsString(kLong),
-          value);
-}
-
-void PlatformEmbeddedFileWriterWin::DeclarePointerToSymbol(const char* name,
-                                                           const char* target) {
-  DeclareSymbolGlobal(name);
-  fprintf(fp_, "%s%s %s %s%s\n", SYMBOL_PREFIX, name,
-          DirectiveAsString(PointerSizeDirective()), SYMBOL_PREFIX, target);
-}
-
-void PlatformEmbeddedFileWriterWin::StartPdataSection() {
-  fprintf(fp_, "OPTION DOTNAME\n");
-  fprintf(fp_, ".pdata SEGMENT DWORD READ ''\n");
-}
-
-void PlatformEmbeddedFileWriterWin::EndPdataSection() {
-  fprintf(fp_, ".pdata ENDS\n");
-}
-
-void PlatformEmbeddedFileWriterWin::StartXdataSection() {
-  fprintf(fp_, "OPTION DOTNAME\n");
-  fprintf(fp_, ".xdata SEGMENT DWORD READ ''\n");
-}
-
-void PlatformEmbeddedFileWriterWin::EndXdataSection() {
-  fprintf(fp_, ".xdata ENDS\n");
-}
-
-void PlatformEmbeddedFileWriterWin::DeclareExternalFunction(const char* name) {
-  fprintf(fp_, "EXTERN %s : PROC\n", name);
-}
-
-void PlatformEmbeddedFileWriterWin::DeclareRvaToSymbol(const char* name,
-                                                       uint64_t offset) {
-  if (offset > 0) {
-    fprintf(fp_, "DD IMAGEREL %s+%llu\n", name, offset);
-  } else {
-    fprintf(fp_, "DD IMAGEREL %s\n", name);
-  }
-}
-
-void PlatformEmbeddedFileWriterWin::DeclareSymbolGlobal(const char* name) {
-  fprintf(fp_, "PUBLIC %s%s\n", SYMBOL_PREFIX, name);
-}
-
-void PlatformEmbeddedFileWriterWin::AlignToCodeAlignment() {
-  // Diverges from other platforms due to compile error
-  // 'invalid combination with segment alignment'.
-  fprintf(fp_, "ALIGN 4\n");
-}
-
-void PlatformEmbeddedFileWriterWin::AlignToDataAlignment() {
-  fprintf(fp_, "ALIGN 4\n");
-}
-
-void PlatformEmbeddedFileWriterWin::Comment(const char* string) {
-  fprintf(fp_, "; %s\n", string);
-}
-
-void PlatformEmbeddedFileWriterWin::DeclareLabel(const char* name) {
-  fprintf(fp_, "%s%s LABEL %s\n", SYMBOL_PREFIX, name,
-          DirectiveAsString(kByte));
-}
-
-void PlatformEmbeddedFileWriterWin::SourceInfo(int fileid, const char* filename,
-                                               int line) {
-  // TODO(mvstanton): output source information for MSVC.
-  // Its syntax is #line <line> "<filename>"
-}
-
-// TODO(mmarchini): investigate emitting size annotations for Windows
-void PlatformEmbeddedFileWriterWin::DeclareFunctionBegin(const char* name,
-                                                         uint32_t size) {
-  fprintf(fp_, "%s%s PROC\n", SYMBOL_PREFIX, name);
-}
-
-void PlatformEmbeddedFileWriterWin::DeclareFunctionEnd(const char* name) {
-  fprintf(fp_, "%s%s ENDP\n", SYMBOL_PREFIX, name);
-}
-
-int PlatformEmbeddedFileWriterWin::HexLiteral(uint64_t value) {
-  return fprintf(fp_, "0%" PRIx64 "h", value);
-}
-
-void PlatformEmbeddedFileWriterWin::FilePrologue() {
-  if (target_arch_ != EmbeddedTargetArch::kX64) {
-    fprintf(fp_, ".MODEL FLAT\n");
-  }
-}
-
-void PlatformEmbeddedFileWriterWin::DeclareExternalFilename(
-    int fileid, const char* filename) {}
-
-void PlatformEmbeddedFileWriterWin::FileEpilogue() { fprintf(fp_, "END\n"); }
-
-int PlatformEmbeddedFileWriterWin::IndentedDataDirective(
-    DataDirective directive) {
-  return fprintf(fp_, "  %s ", DirectiveAsString(directive));
-}
-
-// Windows, MSVC, arm/arm64.
-// -----------------------------------------------------------------------------
-
-#elif defined(V8_ASSEMBLER_IS_MARMASM)
+// For Arm build, we emit assembly in MARMASM syntax.
+// Note that the same mksnapshot has to be used to compile the host and target.
 
 // The AARCH64 ABI requires instructions be 4-byte-aligned and Windows does
 // not have a stricter alignment requirement (see the TEXTAREA macro of
@@ -470,18 +349,30 @@ int PlatformEmbeddedFileWriterWin::IndentedDataDirective(
 #define ARM64_CODE_ALIGNMENT (1 << ARM64_CODE_ALIGNMENT_POWER)
 
 void PlatformEmbeddedFileWriterWin::SectionText() {
-  fprintf(fp_, "  AREA |.text|, CODE, ALIGN=%d, READONLY\n",
-          ARM64_CODE_ALIGNMENT_POWER);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  AREA |.text|, CODE, ALIGN=%d, READONLY\n",
+            ARM64_CODE_ALIGNMENT_POWER);
+  } else {
+    fprintf(fp_, ".CODE\n");
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::SectionData() {
-  fprintf(fp_, "  AREA |.data|, DATA, ALIGN=%d, READWRITE\n",
-          ARM64_DATA_ALIGNMENT_POWER);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  AREA |.data|, DATA, ALIGN=%d, READWRITE\n",
+            ARM64_DATA_ALIGNMENT_POWER);
+  } else {
+    fprintf(fp_, ".DATA\n");
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::SectionRoData() {
-  fprintf(fp_, "  AREA |.rodata|, DATA, ALIGN=%d, READONLY\n",
-          ARM64_DATA_ALIGNMENT_POWER);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  AREA |.rodata|, DATA, ALIGN=%d, READONLY\n",
+            ARM64_DATA_ALIGNMENT_POWER);
+  } else {
+    fprintf(fp_, ".CONST\n");
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::DeclareUint32(const char* name,
@@ -498,16 +389,94 @@ void PlatformEmbeddedFileWriterWin::DeclarePointerToSymbol(const char* name,
           DirectiveAsString(PointerSizeDirective()), SYMBOL_PREFIX, target);
 }
 
+void PlatformEmbeddedFileWriterWin::StartPdataSection() {
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  AREA |.pdata|, DATA, ALIGN=%d, READONLY\n",
+            ARM64_DATA_ALIGNMENT_POWER);
+  } else {
+    fprintf(fp_, "OPTION DOTNAME\n");
+    fprintf(fp_, ".pdata SEGMENT DWORD READ ''\n");
+  }
+}
+
+void PlatformEmbeddedFileWriterWin::EndPdataSection() {
+  if (target_arch_ != EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, ".pdata ENDS\n");
+  }
+}
+
+void PlatformEmbeddedFileWriterWin::StartXdataSection() {
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  AREA |.xdata|, DATA, ALIGN=%d, READONLY\n",
+            ARM64_DATA_ALIGNMENT_POWER);
+  } else {
+    fprintf(fp_, "OPTION DOTNAME\n");
+    fprintf(fp_, ".xdata SEGMENT DWORD READ ''\n");
+  }
+}
+
+void PlatformEmbeddedFileWriterWin::EndXdataSection() {
+  if (target_arch_ != EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, ".xdata ENDS\n");
+  }
+}
+
+void PlatformEmbeddedFileWriterWin::DeclareExternalFunction(const char* name) {
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  EXTERN %s \n", name);
+  } else {
+    fprintf(fp_, "EXTERN %s : PROC\n", name);
+  }
+}
+
+void PlatformEmbeddedFileWriterWin::DeclareRvaToSymbol(const char* name,
+                                                       uint64_t offset) {
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    if (offset > 0) {
+      fprintf(fp_, "  DCD  %s + %llu\n", name, offset);
+    } else {
+      fprintf(fp_, "  DCD  %s\n", name);
+    }
+    // The default relocation entry generated by MSVC armasm64.exe for DCD
+    // directive is IMAGE_REL_ARM64_ADDR64 which represents relocation for
+    // 64-bit pointer instead of 32-bit RVA. Append RELOC with
+    // IMAGE_REL_ARM64_ADDR32NB(2) to generate correct relocation entry for
+    // 32-bit RVA.
+    fprintf(fp_, "  RELOC 2\n");
+  } else {
+    if (offset > 0) {
+      fprintf(fp_, "DD IMAGEREL %s+%llu\n", name, offset);
+    } else {
+      fprintf(fp_, "DD IMAGEREL %s\n", name);
+    }
+  }
+}
+
 void PlatformEmbeddedFileWriterWin::DeclareSymbolGlobal(const char* name) {
-  fprintf(fp_, "  EXPORT %s%s\n", SYMBOL_PREFIX, name);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  EXPORT %s%s\n", SYMBOL_PREFIX, name);
+  } else {
+    fprintf(fp_, "PUBLIC %s%s\n", SYMBOL_PREFIX, name);
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::AlignToCodeAlignment() {
-  fprintf(fp_, "  ALIGN %d\n", ARM64_CODE_ALIGNMENT);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  ALIGN %d\n", ARM64_CODE_ALIGNMENT);
+  } else {
+    // Diverges from other platforms due to compile error
+    // 'invalid combination with segment alignment'.
+    fprintf(fp_, "ALIGN 4\n");
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::AlignToDataAlignment() {
-  fprintf(fp_, "  ALIGN %d\n", ARM64_DATA_ALIGNMENT);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  ALIGN %d\n", ARM64_DATA_ALIGNMENT);
+
+  } else {
+    fprintf(fp_, "ALIGN 4\n");
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::Comment(const char* string) {
@@ -515,7 +484,13 @@ void PlatformEmbeddedFileWriterWin::Comment(const char* string) {
 }
 
 void PlatformEmbeddedFileWriterWin::DeclareLabel(const char* name) {
-  fprintf(fp_, "%s%s\n", SYMBOL_PREFIX, name);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "%s%s\t", SYMBOL_PREFIX, name);
+
+  } else {
+    fprintf(fp_, "%s%s LABEL %s\n", SYMBOL_PREFIX, name,
+            DirectiveAsString(kByte));
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::SourceInfo(int fileid, const char* filename,
@@ -527,23 +502,50 @@ void PlatformEmbeddedFileWriterWin::SourceInfo(int fileid, const char* filename,
 // TODO(mmarchini): investigate emitting size annotations for Windows
 void PlatformEmbeddedFileWriterWin::DeclareFunctionBegin(const char* name,
                                                          uint32_t size) {
-  fprintf(fp_, "%s%s FUNCTION\n", SYMBOL_PREFIX, name);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "%s%s FUNCTION\n", SYMBOL_PREFIX, name);
+
+  } else {
+    fprintf(fp_, "%s%s PROC\n", SYMBOL_PREFIX, name);
+  }
 }
 
 void PlatformEmbeddedFileWriterWin::DeclareFunctionEnd(const char* name) {
-  fprintf(fp_, "  ENDFUNC\n");
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  ENDFUNC\n");
+
+  } else {
+    fprintf(fp_, "%s%s ENDP\n", SYMBOL_PREFIX, name);
+  }
 }
 
 int PlatformEmbeddedFileWriterWin::HexLiteral(uint64_t value) {
-  return fprintf(fp_, "0x%" PRIx64, value);
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    return fprintf(fp_, "0x%" PRIx64, value);
+
+  } else {
+    return fprintf(fp_, "0%" PRIx64 "h", value);
+  }
 }
 
-void PlatformEmbeddedFileWriterWin::FilePrologue() {}
+void PlatformEmbeddedFileWriterWin::FilePrologue() {
+  if (target_arch_ != EmbeddedTargetArch::kArm64 &&
+      target_arch_ != EmbeddedTargetArch::kX64) {
+    // x86 falls into this case
+    fprintf(fp_, ".MODEL FLAT\n");
+  }
+}
 
 void PlatformEmbeddedFileWriterWin::DeclareExternalFilename(
     int fileid, const char* filename) {}
 
-void PlatformEmbeddedFileWriterWin::FileEpilogue() { fprintf(fp_, "  END\n"); }
+void PlatformEmbeddedFileWriterWin::FileEpilogue() {
+  if (target_arch_ == EmbeddedTargetArch::kArm64) {
+    fprintf(fp_, "  END\n");
+  } else {
+    fprintf(fp_, "END\n");
+  }
+}
 
 int PlatformEmbeddedFileWriterWin::IndentedDataDirective(
     DataDirective directive) {

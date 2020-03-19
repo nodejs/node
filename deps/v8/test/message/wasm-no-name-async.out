@@ -1,4 +1,4 @@
 RuntimeError: unreachable
-    at wasm-function[0]:0x22
+    at <anonymous>:wasm-function[0]:0x22
     at *%(basename)s:{NUMBER}:27
     at test/mjsunit/mjsunit.js:*

@@ -16,13 +16,12 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 321
+bytecode array length: 320
 bytecodes: [
-  /*   16 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
                 B(Mov), R(this), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
+  /*   16 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
@@ -167,9 +166,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 293, 293],
-  [75, 155, 163],
-  [187, 256, 258],
+  [19, 292, 292],
+  [74, 154, 162],
+  [186, 255, 257],
 ]
 
 ---
@@ -181,13 +180,12 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 342
+bytecode array length: 341
 bytecodes: [
-  /*   16 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
                 B(Mov), R(this), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
+  /*   16 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
@@ -342,9 +340,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 314, 314],
-  [75, 159, 167],
-  [191, 260, 262],
+  [19, 313, 313],
+  [74, 158, 166],
+  [190, 259, 261],
 ]
 
 ---
@@ -359,13 +357,12 @@ snippet: "
 "
 frame size: 19
 parameter count: 1
-bytecode array length: 337
+bytecode array length: 336
 bytecodes: [
-  /*   16 E> */ B(StackCheck),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
                 B(Mov), R(this), R(5),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
+  /*   16 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(4), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(4),
   /*   43 S> */ B(CreateArrayLiteral), U8(2), U8(0), U8(37),
@@ -517,9 +514,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 309, 309],
-  [75, 171, 179],
-  [203, 272, 274],
+  [19, 308, 308],
+  [74, 170, 178],
+  [202, 271, 273],
 ]
 
 ---
@@ -532,12 +529,11 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 253
+bytecode array length: 252
 bytecodes: [
-  /*   16 E> */ B(StackCheck),
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(2), U8(2),
+  /*   16 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionEnter), R(2), U8(2),
                 B(Star), R(0),
                 B(Mov), R(context), R(2),
   /*   31 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
@@ -658,8 +654,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 225, 225],
-  [53, 106, 114],
-  [138, 171, 173],
+  [15, 224, 224],
+  [52, 105, 113],
+  [137, 170, 172],
 ]
 

@@ -273,6 +273,13 @@ domain Debugger
 
   # Resumes JavaScript execution.
   command resume
+    parameters
+      # Set to true to terminate execution upon resuming execution. In contrast
+      # to Runtime.terminateExecution, this will allows to execute further
+      # JavaScript (i.e. via evaluation) until execution of the paused code
+      # is actually resumed, at which point termination is triggered.
+      # If execution is currently not paused, this parameter has no effect.
+      optional boolean terminateOnResume
 
   # Searches for given string in script content.
   command searchInContent
@@ -824,6 +831,8 @@ domain Profiler
       optional boolean callCount
       # Collect block-based coverage.
       optional boolean detailed
+      # Allow the backend to send updates on its own initiative
+      optional boolean allowTriggeredUpdates
     returns
       # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
@@ -1306,7 +1315,9 @@ domain Runtime
       experimental optional TimeDelta timeout
       # Disable breakpoints during execution.
       experimental optional boolean disableBreaks
-      # Reserved flag for future REPL mode support. Setting this flag has currently no effect.
+      # Setting this flag to true enables `let` re-declaration and top-level `await`.
+      # Note that `let` variables can only be re-declared if they originate from
+      # `replMode` themselves.
       experimental optional boolean replMode
     returns
       # Evaluation result.

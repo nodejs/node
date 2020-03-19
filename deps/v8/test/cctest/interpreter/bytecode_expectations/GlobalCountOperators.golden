@@ -14,9 +14,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
-  /*   26 E> */ B(StackCheck),
   /*   31 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Inc), U8(2),
   /*   40 E> */ B(StaGlobal), U8(0), U8(3),
@@ -36,9 +35,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 15
 bytecodes: [
-  /*   26 E> */ B(StackCheck),
   /*   31 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(ToNumeric), U8(2),
                 B(Star), R(0),
@@ -61,9 +59,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 10
+bytecode array length: 9
 bytecodes: [
-  /*   27 E> */ B(StackCheck),
   /*   46 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Dec), U8(2),
   /*   55 E> */ B(StaGlobal), U8(0), U8(3),
@@ -83,9 +80,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 15
 bytecodes: [
-  /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(ToNumeric), U8(2),
                 B(Star), R(0),

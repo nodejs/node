@@ -659,9 +659,9 @@ class DependentCode : public WeakFixedArray {
                                                   Handle<HeapObject> object,
                                                   DependencyGroup group);
 
-  void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
+  void DeoptimizeDependentCodeGroup(DependencyGroup group);
 
-  bool MarkCodeForDeoptimization(Isolate* isolate, DependencyGroup group);
+  bool MarkCodeForDeoptimization(DependencyGroup group);
 
   // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();

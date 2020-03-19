@@ -27,8 +27,10 @@
 #define ACTIVE_NO_INDEX 0
 #define PASSIVE 1
 #define ACTIVE_WITH_INDEX 2
+#define DECLARATIVE 3
 #define PASSIVE_WITH_ELEMENTS 5
 #define ACTIVE_WITH_ELEMENTS 6
+#define DECLARATIVE_WITH_ELEMENTS 7
 
 // The table index field in an element segment was repurposed as a flags field.
 // To specify a table index, we have to set the flag value to 2, followed by

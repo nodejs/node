@@ -37,6 +37,17 @@ enum class Sensitivity {
   kUndefined,
 };
 
+// enum for "caseFirst" option.
+enum class CaseFirst { kUndefined, kUpper, kLower, kFalse };
+
+Maybe<CaseFirst> GetCaseFirst(Isolate* isolate, Handle<JSReceiver> options,
+                              const char* method) {
+  return Intl::GetStringOption<CaseFirst>(
+      isolate, options, "caseFirst", method, {"upper", "lower", "false"},
+      {CaseFirst::kUpper, CaseFirst::kLower, CaseFirst::kFalse},
+      CaseFirst::kUndefined);
+}
+
 // TODO(gsathya): Consider internalizing the value strings.
 void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
                                   Handle<String> key, const char* value) {
@@ -202,21 +213,21 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
 
 namespace {
 
-Intl::CaseFirst ToCaseFirst(const char* str) {
-  if (strcmp(str, "upper") == 0) return Intl::CaseFirst::kUpper;
-  if (strcmp(str, "lower") == 0) return Intl::CaseFirst::kLower;
-  if (strcmp(str, "false") == 0) return Intl::CaseFirst::kFalse;
-  return Intl::CaseFirst::kUndefined;
+CaseFirst ToCaseFirst(const char* str) {
+  if (strcmp(str, "upper") == 0) return CaseFirst::kUpper;
+  if (strcmp(str, "lower") == 0) return CaseFirst::kLower;
+  if (strcmp(str, "false") == 0) return CaseFirst::kFalse;
+  return CaseFirst::kUndefined;
 }
 
-UColAttributeValue ToUColAttributeValue(Intl::CaseFirst case_first) {
+UColAttributeValue ToUColAttributeValue(CaseFirst case_first) {
   switch (case_first) {
-    case Intl::CaseFirst::kUpper:
+    case CaseFirst::kUpper:
       return UCOL_UPPER_FIRST;
-    case Intl::CaseFirst::kLower:
+    case CaseFirst::kLower:
       return UCOL_LOWER_FIRST;
-    case Intl::CaseFirst::kFalse:
-    case Intl::CaseFirst::kUndefined:
+    case CaseFirst::kFalse:
+    case CaseFirst::kUndefined:
       return UCOL_OFF;
   }
 }
@@ -229,8 +240,7 @@ void SetNumericOption(icu::Collator* icu_collator, bool numeric) {
   CHECK(U_SUCCESS(status));
 }
 
-void SetCaseFirstOption(icu::Collator* icu_collator,
-                        Intl::CaseFirst case_first) {
+void SetCaseFirstOption(icu::Collator* icu_collator, CaseFirst case_first) {
   CHECK_NOT_NULL(icu_collator);
   UErrorCode status = U_ZERO_ERROR;
   icu_collator->setAttribute(UCOL_CASE_FIRST, ToUColAttributeValue(case_first),
@@ -300,10 +310,9 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
 
   // 14. Let caseFirst be ? GetOption(options, "caseFirst", "string",
   //     « "upper", "lower", "false" », undefined).
-  Maybe<Intl::CaseFirst> maybe_case_first =
-      Intl::GetCaseFirst(isolate, options, service);
+  Maybe<CaseFirst> maybe_case_first = GetCaseFirst(isolate, options, service);
   MAYBE_RETURN(maybe_case_first, MaybeHandle<JSCollator>());
-  Intl::CaseFirst case_first = maybe_case_first.FromJust();
+  CaseFirst case_first = maybe_case_first.FromJust();
 
   // The relevant unicode extensions accepted by Collator as specified here:
   // https://tc39.github.io/ecma402/#sec-intl-collator-internal-slots
@@ -314,9 +323,14 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // 17. Let r be ResolveLocale(%Collator%.[[AvailableLocales]],
   // requestedLocales, opt, %Collator%.[[RelevantExtensionKeys]],
   // localeData).
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSCollator::GetAvailableLocales(),
                           requested_locales, matcher, relevant_extension_keys);
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSCollator);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   // 18. Set collator.[[Locale]] to r.[[locale]].
   icu::Locale icu_locale = r.icu_locale;
@@ -364,11 +378,11 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
         icu::Collator::createInstance(no_extension_locale, status));
 
     if (U_FAILURE(status) || icu_collator.get() == nullptr) {
-      FATAL("Failed to create ICU collator, are ICU data files missing?");
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                      JSCollator);
     }
   }
   DCHECK(U_SUCCESS(status));
-  CHECK_NOT_NULL(icu_collator.get());
 
   // 22. If relevantExtensionKeys contains "kn", then
   //     a. Set collator.[[Numeric]] to ! SameValue(r.[[kn]], "true").
@@ -392,7 +406,7 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
   // If the caseFirst value is passed in through the options object,
   // then we use it. Otherwise, we check if the caseFirst value is
   // passed in through the unicode extensions.
-  if (case_first != Intl::CaseFirst::kUndefined) {
+  if (case_first != CaseFirst::kUndefined) {
     SetCaseFirstOption(icu_collator.get(), case_first);
   } else {
     auto kf_extension_it = r.extensions.find("kf");

@@ -232,8 +232,6 @@ class ParserBase {
   using FuncNameInferrerState = typename Types::FuncNameInferrer::State;
   using SourceRange = typename Types::SourceRange;
   using SourceRangeScope = typename Types::SourceRangeScope;
-  using TargetT = typename Types::Target;
-  using TargetScopeT = typename Types::TargetScope;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }
@@ -320,7 +318,6 @@ class ParserBase {
   int loop_nesting_depth() const {
     return function_state_->loop_nesting_depth();
   }
-
   int GetNextFunctionLiteralId() { return ++function_literal_id_; }
   int GetLastFunctionLiteralId() const { return function_literal_id_; }
 
@@ -369,6 +366,93 @@ class ParserBase {
     Scope** const scope_stack_;
     Scope* const outer_scope_;
   };
+
+  // ---------------------------------------------------------------------------
+  // Target is a support class to facilitate manipulation of the
+  // Parser's target_stack_ (the stack of potential 'break' and
+  // 'continue' statement targets). Upon construction, a new target is
+  // added; it is removed upon destruction.
+
+  // |labels| is a list of all labels that can be used as a target for break.
+  // |own_labels| is a list of all labels that an iteration statement is
+  // directly prefixed with, i.e. all the labels that a continue statement in
+  // the body can use to continue this iteration statement. This is always a
+  // subset of |labels|.
+  //
+  // Example: "l1: { l2: if (b) l3: l4: for (;;) s }"
+  // labels() of the Block will be l1.
+  // labels() of the ForStatement will be l2, l3, l4.
+  // own_labels() of the ForStatement will be l3, l4.
+  class Target {
+   public:
+    enum TargetType { TARGET_FOR_ANONYMOUS, TARGET_FOR_NAMED_ONLY };
+
+    Target(ParserBase* parser, BreakableStatementT statement,
+           ZonePtrList<const AstRawString>* labels,
+           ZonePtrList<const AstRawString>* own_labels, TargetType target_type)
+        : stack_(parser->function_state_->target_stack_address()),
+          statement_(statement),
+          labels_(labels),
+          own_labels_(own_labels),
+          target_type_(target_type),
+          previous_(*stack_) {
+      DCHECK_IMPLIES(Impl::IsIterationStatement(statement_),
+                     target_type == Target::TARGET_FOR_ANONYMOUS);
+      DCHECK_IMPLIES(!Impl::IsIterationStatement(statement_),
+                     own_labels == nullptr);
+      *stack_ = this;
+    }
+
+    ~Target() { *stack_ = previous_; }
+
+    const Target* previous() const { return previous_; }
+    const BreakableStatementT statement() const { return statement_; }
+    const ZonePtrList<const AstRawString>* labels() const { return labels_; }
+    const ZonePtrList<const AstRawString>* own_labels() const {
+      return own_labels_;
+    }
+    bool is_iteration() const { return Impl::IsIterationStatement(statement_); }
+    bool is_target_for_anonymous() const {
+      return target_type_ == TARGET_FOR_ANONYMOUS;
+    }
+
+   private:
+    Target** const stack_;
+    const BreakableStatementT statement_;
+    const ZonePtrList<const AstRawString>* const labels_;
+    const ZonePtrList<const AstRawString>* const own_labels_;
+    const TargetType target_type_;
+    Target* const previous_;
+  };
+
+  Target* target_stack() { return *function_state_->target_stack_address(); }
+
+  BreakableStatementT LookupBreakTarget(IdentifierT label) {
+    bool anonymous = impl()->IsNull(label);
+    for (const Target* t = target_stack(); t != nullptr; t = t->previous()) {
+      if ((anonymous && t->is_target_for_anonymous()) ||
+          (!anonymous &&
+           ContainsLabel(t->labels(),
+                         impl()->GetRawNameFromIdentifier(label)))) {
+        return t->statement();
+      }
+    }
+    return impl()->NullStatement();
+  }
+
+  IterationStatementT LookupContinueTarget(IdentifierT label) {
+    bool anonymous = impl()->IsNull(label);
+    for (const Target* t = target_stack(); t != nullptr; t = t->previous()) {
+      if (!t->is_iteration()) continue;
+
+      DCHECK(t->is_target_for_anonymous());
+      if (anonymous || ContainsLabel(t->own_labels(),
+                                     impl()->GetRawNameFromIdentifier(label))) {
+        return impl()->AsIterationStatement(t->statement());
+      }
+    }
+    return impl()->NullStatement();
+  }
 
   class FunctionState final : public BlockState {
    public:
@@ -427,7 +511,7 @@ class ParserBase {
       PointerWithPayload<FunctionState, bool, 1> state_and_prev_value_;
     };
 
-    class LoopScope {
+    class LoopScope final {
      public:
       explicit LoopScope(FunctionState* function_state)
           : function_state_(function_state) {
@@ -442,6 +526,8 @@ class ParserBase {
 
     int loop_nesting_depth() const { return loop_nesting_depth_; }
 
+    Target** target_stack_address() { return &target_stack_; }
+
    private:
     // Properties count estimation.
     int expected_property_count_;
@@ -455,6 +541,7 @@ class ParserBase {
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
     DeclarationScope* scope_;
+    Target* target_stack_ = nullptr;  // for break, continue statements
 
     // A reason, if any, why this function should not be optimized.
     BailoutReason dont_optimize_reason_;
@@ -539,6 +626,7 @@ class ParserBase {
           has_name_static_property(false),
           has_static_computed_names(false),
           has_static_class_fields(false),
+          has_static_private_methods(false),
           has_instance_members(false),
           requires_brand(false),
           is_anonymous(false),
@@ -557,6 +645,7 @@ class ParserBase {
     bool has_name_static_property;
     bool has_static_computed_names;
     bool has_static_class_fields;
+    bool has_static_private_methods;
     bool has_instance_members;
     bool requires_brand;
     bool is_anonymous;
@@ -622,6 +711,46 @@ class ParserBase {
     bool is_static;
     bool is_rest;
   };
+
+  void DeclareLabel(ZonePtrList<const AstRawString>** labels,
+                    ZonePtrList<const AstRawString>** own_labels,
+                    const AstRawString* label) {
+    if (ContainsLabel(*labels, label) || TargetStackContainsLabel(label)) {
+      ReportMessage(MessageTemplate::kLabelRedeclaration, label);
+      return;
+    }
+
+    // Add {label} to both {labels} and {own_labels}.
+    if (*labels == nullptr) {
+      DCHECK_NULL(*own_labels);
+      *labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+      *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+    } else {
+      if (*own_labels == nullptr) {
+        *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
+      }
+    }
+    (*labels)->Add(label, zone());
+    (*own_labels)->Add(label, zone());
+  }
+
+  bool ContainsLabel(const ZonePtrList<const AstRawString>* labels,
+                     const AstRawString* label) {
+    DCHECK_NOT_NULL(label);
+    if (labels != nullptr) {
+      for (int i = labels->length(); i-- > 0;) {
+        if (labels->at(i) == label) return true;
+      }
+    }
+    return false;
+  }
+
+  bool TargetStackContainsLabel(const AstRawString* label) {
+    for (const Target* t = target_stack(); t != nullptr; t = t->previous()) {
+      if (ContainsLabel(t->labels(), label)) return true;
+    }
+    return false;
+  }
 
   ClassLiteralProperty::Kind ClassPropertyKindFor(ParsePropertyKind kind) {
     switch (kind) {
@@ -4436,8 +4565,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
       class_info.requires_brand |= (!is_field && !prop_info.is_static);
-      class_info.has_private_methods |=
-          property_kind == ClassLiteralProperty::METHOD;
+      bool is_method = property_kind == ClassLiteralProperty::METHOD;
+      class_info.has_private_methods |= is_method;
+      class_info.has_static_private_methods |= is_method && prop_info.is_static;
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,
                                         &class_info);
@@ -4809,10 +4939,6 @@ void ParserBase<Impl>::ParseStatementList(StatementListT* body,
     }
   }
 
-  // Allocate a target stack to use for this set of source elements. This way,
-  // all scripts and functions get their own target stack thus avoiding illegal
-  // breaks and continues across functions.
-  TargetScopeT target_scope(this);
   while (peek() != end_token) {
     StatementT stat = ParseStatementListItem();
     if (impl()->IsNull(stat)) return;
@@ -4932,8 +5058,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       // put the labels there.
       if (labels == nullptr) return ParseTryStatement();
       StatementListT statements(pointer_buffer());
-      BlockT result = factory()->NewBlock(false, labels);
-      TargetT target(this, result);
+      BlockT result = factory()->NewBlock(false, true);
+      Target target(this, result, labels, nullptr,
+                    Target::TARGET_FOR_NAMED_ONLY);
       StatementT statement = ParseTryStatement();
       statements.Add(statement);
       result->InitializeStatements(statements, zone());
@@ -4981,7 +5108,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   //   '{' StatementList '}'
 
   // Parse the statements and collect escaping labels.
-  BlockT body = factory()->NewBlock(false, labels);
+  BlockT body = factory()->NewBlock(false, labels != nullptr);
   StatementListT statements(pointer_buffer());
 
   CheckStackOverflow();
@@ -4989,7 +5116,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   {
     BlockState block_state(zone(), &scope_);
     scope()->set_start_position(peek_position());
-    TargetT target(this, body);
+    Target target(this, body, labels, nullptr, Target::TARGET_FOR_NAMED_ONLY);
 
     Expect(Token::LBRACE);
 
@@ -5214,11 +5341,11 @@ ParserBase<Impl>::ParseContinueStatement() {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
     label = ParseIdentifier();
   }
-  IterationStatementT target = impl()->LookupContinueTarget(label);
+  IterationStatementT target = LookupContinueTarget(label);
   if (impl()->IsNull(target)) {
     // Illegal continue statement.
     MessageTemplate message = MessageTemplate::kIllegalContinue;
-    BreakableStatementT breakable_target = impl()->LookupBreakTarget(label);
+    BreakableStatementT breakable_target = LookupBreakTarget(label);
     if (impl()->IsNull(label)) {
       message = MessageTemplate::kNoIterationStatement;
     } else if (impl()->IsNull(breakable_target)) {
@@ -5250,11 +5377,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   }
   // Parse labeled break statements that target themselves into
   // empty statements, e.g. 'l1: l2: l3: break l2;'
-  if (!impl()->IsNull(label) && impl()->ContainsLabel(labels, label)) {
+  if (!impl()->IsNull(label) &&
+      impl()->ContainsLabel(labels, impl()->GetRawNameFromIdentifier(label))) {
     ExpectSemicolon();
     return factory()->EmptyStatement();
   }
-  BreakableStatementT target = impl()->LookupBreakTarget(label);
+  BreakableStatementT target = LookupBreakTarget(label);
   if (impl()->IsNull(target)) {
     // Illegal break statement.
     MessageTemplate message = MessageTemplate::kIllegalBreak;
@@ -5349,9 +5477,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   //   'do' Statement 'while' '(' Expression ')' ';'
   typename FunctionState::LoopScope loop_scope(function_state_);
 
-  auto loop =
-      factory()->NewDoWhileStatement(labels, own_labels, peek_position());
-  TargetT target(this, loop);
+  auto loop = factory()->NewDoWhileStatement(peek_position());
+  Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
 
   SourceRange body_range;
   StatementT body = impl()->NullStatement();
@@ -5389,8 +5516,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
   //   'while' '(' Expression ')' Statement
   typename FunctionState::LoopScope loop_scope(function_state_);
 
-  auto loop = factory()->NewWhileStatement(labels, own_labels, peek_position());
-  TargetT target(this, loop);
+  auto loop = factory()->NewWhileStatement(peek_position());
+  Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
 
   SourceRange body_range;
   StatementT body = impl()->NullStatement();
@@ -5438,7 +5565,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
   // CaseClause ::
   //   'case' Expression ':' StatementList
   //   'default' ':' StatementList
-
   int switch_pos = peek_position();
 
   Consume(Token::SWITCH);
@@ -5446,14 +5572,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
   ExpressionT tag = ParseExpression();
   Expect(Token::RPAREN);
 
-  auto switch_statement =
-      factory()->NewSwitchStatement(labels, tag, switch_pos);
+  auto switch_statement = factory()->NewSwitchStatement(tag, switch_pos);
 
   {
     BlockState cases_block_state(zone(), &scope_);
     scope()->set_start_position(switch_pos);
     scope()->SetNonlinear();
-    TargetT target(this, switch_statement);
+    Target target(this, switch_statement, labels, nullptr,
+                  Target::TARGET_FOR_ANONYMOUS);
 
     bool default_seen = false;
     Expect(Token::LBRACE);
@@ -5788,9 +5914,8 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
 
   BlockT init_block = impl()->RewriteForVarInLegacy(*for_info);
 
-  auto loop = factory()->NewForEachStatement(for_info->mode, labels, own_labels,
-                                             stmt_pos);
-  TargetT target(this, loop);
+  auto loop = factory()->NewForEachStatement(for_info->mode, stmt_pos);
+  Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
 
   ExpressionT enumerable = impl()->NullExpression();
   if (for_info->mode == ForEachStatement::ITERATE) {
@@ -5852,9 +5977,8 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     int stmt_pos, ExpressionT expression, int lhs_beg_pos, int lhs_end_pos,
     ForInfo* for_info, ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels) {
-  auto loop = factory()->NewForEachStatement(for_info->mode, labels, own_labels,
-                                             stmt_pos);
-  TargetT target(this, loop);
+  auto loop = factory()->NewForEachStatement(for_info->mode, stmt_pos);
+  Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
 
   ExpressionT enumerable = impl()->NullExpression();
   if (for_info->mode == ForEachStatement::ITERATE) {
@@ -5943,8 +6067,8 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
     ZonePtrList<const AstRawString>* own_labels, ExpressionT* cond,
     StatementT* next, StatementT* body) {
   CheckStackOverflow();
-  ForStatementT loop = factory()->NewForStatement(labels, own_labels, stmt_pos);
-  TargetT target(this, loop);
+  ForStatementT loop = factory()->NewForStatement(stmt_pos);
+  Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
 
   if (peek() != Token::SEMICOLON) {
     *cond = ParseExpression();
@@ -5988,13 +6112,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   scope()->set_start_position(scanner()->location().beg_pos);
   scope()->set_is_hidden();
 
-  auto loop = factory()->NewForOfStatement(labels, own_labels, stmt_pos,
-                                           IteratorType::kAsync);
+  auto loop = factory()->NewForOfStatement(stmt_pos, IteratorType::kAsync);
   // Two suspends: one for next() and one for return()
   function_state_->AddSuspend();
   function_state_->AddSuspend();
 
-  TargetT target(this, loop);
+  Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
 
   ExpressionT each_variable = impl()->NullExpression();
 

@@ -214,6 +214,10 @@ class StackTransferRecipe {
           RegisterLoad::HalfStack(stack_offset, kHighWord);
     } else if (dst.is_fp_pair()) {
       DCHECK_EQ(kWasmS128, type);
+      // load_dst_regs_.set above will set both low and high fp regs.
+      // But unlike gp_pair, we load a kWasm128 in one go in ExecuteLoads.
+      // So unset the top fp register to skip loading it.
+      load_dst_regs_.clear(dst.high());
       *register_load(dst.low()) = RegisterLoad::Stack(stack_offset, type);
     } else {
       *register_load(dst) = RegisterLoad::Stack(stack_offset, type);
@@ -353,7 +357,9 @@ class RegisterReuseMap {
 
   base::Optional<LiftoffRegister> Lookup(LiftoffRegister src) {
     for (auto it = map_.begin(), end = map_.end(); it != end; it += 2) {
-      if (it->is_gp_pair() == src.is_gp_pair() && *it == src) return *(it + 1);
+      if (it->is_gp_pair() == src.is_gp_pair() &&
+          it->is_fp_pair() == src.is_fp_pair() && *it == src)
+        return *(it + 1);
     }
     return {};
   }
@@ -590,7 +596,7 @@ void LiftoffAssembler::SpillAllRegisters() {
   cache_state_.reset_used_registers();
 }
 
-void LiftoffAssembler::PrepareCall(FunctionSig* sig,
+void LiftoffAssembler::PrepareCall(const FunctionSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
                                    Register* target,
                                    Register* target_instance) {
@@ -721,7 +727,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
   }
 }
 
-void LiftoffAssembler::FinishCall(FunctionSig* sig,
+void LiftoffAssembler::FinishCall(const FunctionSig* sig,
                                   compiler::CallDescriptor* call_descriptor) {
   const size_t return_count = sig->return_count();
   if (return_count != 0) {
@@ -779,7 +785,7 @@ void LiftoffAssembler::ParallelRegisterMove(
   }
 }
 
-void LiftoffAssembler::MoveToReturnRegisters(FunctionSig* sig) {
+void LiftoffAssembler::MoveToReturnRegisters(const FunctionSig* sig) {
   // We do not support multi-value yet.
   DCHECK_EQ(1, sig->return_count());
   ValueType return_type = sig->GetReturn(0);

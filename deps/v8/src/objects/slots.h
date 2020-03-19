@@ -116,6 +116,7 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   inline Object Relaxed_Load() const;
   inline void Relaxed_Store(Object value) const;
   inline void Release_Store(Object value) const;
+  inline Object Relaxed_CompareAndSwap(Object old, Object target) const;
   inline Object Release_CompareAndSwap(Object old, Object target) const;
 };
 

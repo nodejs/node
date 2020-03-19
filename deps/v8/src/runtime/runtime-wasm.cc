@@ -28,15 +28,33 @@ namespace internal {
 
 namespace {
 
+template <typename FrameType, StackFrame::Type... skipped_frame_types>
+class FrameFinder {
+  static_assert(sizeof...(skipped_frame_types) > 0,
+                "Specify at least one frame to skip");
+
+ public:
+  explicit FrameFinder(Isolate* isolate)
+      : frame_iterator_(isolate, isolate->thread_local_top()) {
+    for (auto type : {skipped_frame_types...}) {
+      DCHECK_EQ(type, frame_iterator_.frame()->type());
+      USE(type);
+      frame_iterator_.Advance();
+    }
+    // Type check the frame where the iterator stopped now.
+    DCHECK_NOT_NULL(frame());
+  }
+
+  FrameType* frame() { return FrameType::cast(frame_iterator_.frame()); }
+
+ private:
+  StackFrameIterator frame_iterator_;
+};
+
 WasmInstanceObject GetWasmInstanceOnStackTop(Isolate* isolate) {
-  StackFrameIterator it(isolate, isolate->thread_local_top());
-  // On top: C entry stub.
-  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
-  it.Advance();
-  // Next: the wasm compiled frame.
-  DCHECK(it.frame()->is_wasm_compiled());
-  WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
-  return frame->wasm_instance();
+  return FrameFinder<WasmCompiledFrame, StackFrame::EXIT>(isolate)
+      .frame()
+      ->wasm_instance();
 }
 
 Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
@@ -194,20 +212,15 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   Handle<WasmInstanceObject> instance;
   Address frame_pointer = 0;
   {
-    StackFrameIterator it(isolate, isolate->thread_local_top());
-    // On top: C entry stub.
-    DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
-    it.Advance();
-    // Next: the wasm interpreter entry.
-    DCHECK_EQ(StackFrame::WASM_INTERPRETER_ENTRY, it.frame()->type());
-    instance = handle(
-        WasmInterpreterEntryFrame::cast(it.frame())->wasm_instance(), isolate);
-    frame_pointer = it.frame()->fp();
+    FrameFinder<WasmInterpreterEntryFrame, StackFrame::EXIT> frame_finder(
+        isolate);
+    instance = handle(frame_finder.frame()->wasm_instance(), isolate);
+    frame_pointer = frame_finder.frame()->fp();
   }
 
   // Reserve buffers for argument and return values.
   DCHECK_GE(instance->module()->functions.size(), func_index);
-  wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
+  const wasm::FunctionSig* sig = instance->module()->functions[func_index].sig;
   DCHECK_GE(kMaxInt, sig->parameter_count());
   int num_params = static_cast<int>(sig->parameter_count());
   ScopedVector<wasm::WasmValue> wasm_args(num_params);
@@ -333,13 +346,8 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   ClearThreadInWasmScope flag_scope;
 
 #ifdef DEBUG
-  StackFrameIterator it(isolate, isolate->thread_local_top());
-  // On top: C entry stub.
-  DCHECK_EQ(StackFrame::EXIT, it.frame()->type());
-  it.Advance();
-  // Next: the wasm lazy compile frame.
-  DCHECK_EQ(StackFrame::WASM_COMPILE_LAZY, it.frame()->type());
-  DCHECK_EQ(*instance, WasmCompileLazyFrame::cast(it.frame())->wasm_instance());
+  FrameFinder<WasmCompileLazyFrame, StackFrame::EXIT> frame_finder(isolate);
+  DCHECK_EQ(*instance, frame_finder.frame()->wasm_instance());
 #endif
 
   DCHECK(isolate->context().is_null());
@@ -372,6 +380,7 @@ Handle<JSArrayBuffer> getSharedArrayBuffer(Handle<WasmInstanceObject> instance,
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
+  ClearThreadInWasmScope clear_wasm_flag;
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
@@ -382,42 +391,35 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   return FutexEmulation::Wake(array_buffer, address, count);
 }
 
-double WaitTimeoutInMs(double timeout_ns) {
-  return timeout_ns < 0
-             ? V8_INFINITY
-             : timeout_ns / (base::Time::kNanosecondsPerMicrosecond *
-                             base::Time::kMicrosecondsPerMillisecond);
-}
-
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
+  ClearThreadInWasmScope clear_wasm_flag;
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
   CONVERT_NUMBER_CHECKED(int32_t, expected_value, Int32, args[2]);
-  CONVERT_DOUBLE_ARG_CHECKED(timeout_ns, 3);
-  double timeout_ms = WaitTimeoutInMs(timeout_ns);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
+
   Handle<JSArrayBuffer> array_buffer =
       getSharedArrayBuffer(instance, isolate, address);
-  return FutexEmulation::Wait32(isolate, array_buffer, address, expected_value,
-                                timeout_ms);
+  return FutexEmulation::WaitWasm32(isolate, array_buffer, address,
+                                    expected_value, timeout_ns->AsInt64());
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
+  ClearThreadInWasmScope clear_wasm_flag;
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, address, Uint32, args[1]);
-  CONVERT_NUMBER_CHECKED(uint32_t, expected_value_high, Uint32, args[2]);
-  CONVERT_NUMBER_CHECKED(uint32_t, expected_value_low, Uint32, args[3]);
-  CONVERT_DOUBLE_ARG_CHECKED(timeout_ns, 4);
-  int64_t expected_value = (static_cast<uint64_t>(expected_value_high) << 32) |
-                           static_cast<uint64_t>(expected_value_low);
-  double timeout_ms = WaitTimeoutInMs(timeout_ns);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, expected_value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, timeout_ns, 3);
+
   Handle<JSArrayBuffer> array_buffer =
       getSharedArrayBuffer(instance, isolate, address);
-  return FutexEmulation::Wait64(isolate, array_buffer, address, expected_value,
-                                timeout_ms);
+  return FutexEmulation::WaitWasm64(isolate, array_buffer, address,
+                                    expected_value->AsInt64(),
+                                    timeout_ns->AsInt64());
 }
 
 namespace {
@@ -576,11 +578,11 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   // Even when table.fill goes out-of-bounds, as many entries as possible are
   // put into the table. Only afterwards we trap.
   uint32_t fill_count = std::min(count, table_size - start);
-  WasmTableObject::Fill(isolate, table, start, value, fill_count);
-
   if (fill_count < count) {
     return ThrowTableOutOfBounds(isolate, instance);
   }
+  WasmTableObject::Fill(isolate, table, start, value, fill_count);
+
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
@@ -602,5 +604,32 @@ RUNTIME_FUNCTION(Runtime_WasmNewMultiReturnJSArray) {
       fixed_array_handle, PACKED_ELEMENTS);
   return *array;
 }
+
+RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  FrameFinder<WasmCompiledFrame, StackFrame::EXIT, StackFrame::WASM_DEBUG_BREAK>
+      frame_finder(isolate);
+  auto instance = handle(frame_finder.frame()->wasm_instance(), isolate);
+  int position = frame_finder.frame()->position();
+  isolate->set_context(instance->native_context());
+
+  // Enter the debugger.
+  DebugScope debug_scope(isolate->debug());
+
+  // Check whether we hit a breakpoint.
+  if (isolate->debug()->break_points_active()) {
+    Handle<Script> script(instance->module_object().script(), isolate);
+    Handle<FixedArray> breakpoints;
+    if (WasmScript::CheckBreakPoints(isolate, script, position)
+            .ToHandle(&breakpoints)) {
+      // We hit one or several breakpoints. Notify the debug listeners.
+      isolate->debug()->OnDebugBreak(breakpoints);
+    }
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

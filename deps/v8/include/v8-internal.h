@@ -160,10 +160,10 @@ class Internals {
       kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kExternalMemoryLimitOffset =
       kExternalMemoryOffset + kApiInt64Size;
-  static const int kExternalMemoryAtLastMarkCompactOffset =
+  static const int kExternalMemoryLowSinceMarkCompactOffset =
       kExternalMemoryLimitOffset + kApiInt64Size;
   static const int kIsolateFastCCallCallerFpOffset =
-      kExternalMemoryAtLastMarkCompactOffset + kApiInt64Size;
+      kExternalMemoryLowSinceMarkCompactOffset + kApiInt64Size;
   static const int kIsolateFastCCallCallerPcOffset =
       kIsolateFastCCallCallerFpOffset + kApiSystemPointerSize;
   static const int kIsolateStackGuardOffset =

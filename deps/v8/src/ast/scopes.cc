@@ -11,6 +11,7 @@
 #include "src/base/optional.h"
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/module-inl.h"
@@ -835,7 +836,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowHeapAllocation no_gc;
 
-  String name_handle = *name->string().get<Factory>();
+  String name_handle = *name->string();
+  ScopeInfo scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.
@@ -850,21 +852,21 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
-                                        &init_flag, &maybe_assigned_flag,
-                                        &is_static_flag);
+    index =
+        ScopeInfo::ContextSlotIndex(scope_info, name_handle, &mode, &init_flag,
+                                    &maybe_assigned_flag, &is_static_flag);
     found = index >= 0;
   }
 
   if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
-    index = scope_info_->ModuleIndex(name_handle, &mode, &init_flag,
-                                     &maybe_assigned_flag);
+    index = scope_info.ModuleIndex(name_handle, &mode, &init_flag,
+                                   &maybe_assigned_flag);
     found = index != 0;
   }
 
   if (!found) {
-    index = scope_info_->FunctionContextSlotIndex(name_handle);
+    index = scope_info.FunctionContextSlotIndex(name_handle);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
@@ -873,7 +875,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   }
 
   if (!is_module_scope()) {
-    DCHECK_NE(index, scope_info_->ReceiverContextSlotIndex());
+    DCHECK_NE(index, scope_info.ReceiverContextSlotIndex());
   }
 
   bool was_added;
@@ -2449,7 +2451,8 @@ void Scope::AllocateVariablesRecursively() {
   });
 }
 
-void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
+template <typename LocalIsolate>
+void Scope::AllocateScopeInfosRecursively(LocalIsolate* isolate,
                                           MaybeHandle<ScopeInfo> outer_scope) {
   DCHECK(scope_info_.is_null());
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
@@ -2469,6 +2472,13 @@ void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
     }
   }
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
+    AllocateScopeInfosRecursively<Isolate>(Isolate* isolate,
+                                           MaybeHandle<ScopeInfo> outer_scope);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Scope::
+    AllocateScopeInfosRecursively<OffThreadIsolate>(
+        OffThreadIsolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
 
 void DeclarationScope::RecalcPrivateNameContextChain() {
   // The outermost scope in a class heritage expression is marked to skip the
@@ -2512,7 +2522,9 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 }
 
 // static
-void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
+template <typename LocalIsolate>
+void DeclarationScope::AllocateScopeInfos(ParseInfo* info,
+                                          LocalIsolate* isolate) {
   DeclarationScope* scope = info->literal()->scope();
 
   // No one else should have allocated a scope info for this scope yet.
@@ -2520,6 +2532,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
 
   MaybeHandle<ScopeInfo> outer_scope;
   if (scope->outer_scope_ != nullptr) {
+    DCHECK((std::is_same<Isolate, v8::internal::Isolate>::value));
     outer_scope = scope->outer_scope_->scope_info_;
   }
 
@@ -2540,10 +2553,14 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   // Ensuring that the outer script scope has a scope info avoids having
   // special case for native contexts vs other contexts.
   if (info->script_scope() && info->script_scope()->scope_info_.is_null()) {
-    info->script_scope()->scope_info_ =
-        handle(ScopeInfo::Empty(isolate), isolate);
+    info->script_scope()->scope_info_ = isolate->factory()->empty_scope_info();
   }
 }
+
+template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos<Isolate>(
+    ParseInfo* info, Isolate* isolate);
+template V8_EXPORT_PRIVATE void DeclarationScope::AllocateScopeInfos<
+    OffThreadIsolate>(ParseInfo* info, OffThreadIsolate* isolate);
 
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;
@@ -2655,7 +2672,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK_NULL(LookupLocalPrivateName(name));
   DisallowHeapAllocation no_gc;
 
-  String name_handle = *name->string().get<Factory>();
+  String name_handle = *name->string();
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;

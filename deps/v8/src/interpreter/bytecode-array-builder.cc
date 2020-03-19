@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-jump-table.h"
@@ -81,7 +82,9 @@ Register BytecodeArrayBuilder::Local(int index) const {
   return Register(index);
 }
 
-Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
+template <typename LocalIsolate>
+Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+    LocalIsolate* isolate) {
   DCHECK(RemainderOfBlockIsDead());
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
@@ -99,18 +102,34 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
       isolate, register_count, parameter_count(), handler_table);
 }
 
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(
+        OffThreadIsolate* isolate);
+
 #ifdef DEBUG
-int BytecodeArrayBuilder::CheckBytecodeMatches(Handle<BytecodeArray> bytecode) {
+int BytecodeArrayBuilder::CheckBytecodeMatches(BytecodeArray bytecode) {
+  DisallowHeapAllocation no_gc;
   return bytecode_array_writer_.CheckBytecodeMatches(bytecode);
 }
 #endif
 
+template <typename LocalIsolate>
 Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
-    Isolate* isolate) {
+    LocalIsolate* isolate) {
   DCHECK(RemainderOfBlockIsDead());
 
   return bytecode_array_writer_.ToSourcePositionTable(isolate);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+        Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ByteArray> BytecodeArrayBuilder::ToSourcePositionTable(
+        OffThreadIsolate* isolate);
 
 BytecodeSourceInfo BytecodeArrayBuilder::CurrentSourcePosition(
     Bytecode bytecode) {
@@ -1617,6 +1636,14 @@ uint32_t BytecodeArrayBuilder::GetOutputRegisterListOperand(
   if (register_optimizer_)
     register_optimizer_->PrepareOutputRegisterList(reg_list);
   return static_cast<uint32_t>(reg_list.first_register().ToOperand());
+}
+
+void BytecodeArrayBuilder::EmitFunctionStartSourcePosition(int position) {
+  bytecode_array_writer_.SetFunctionEntrySourcePosition(position);
+  // Force an expression position to make sure we have one. If the next bytecode
+  // overwrites it, it’s fine since it would mean we have a source position
+  // anyway.
+  latest_source_info_.ForceExpressionPosition(position);
 }
 
 std::ostream& operator<<(std::ostream& os,

@@ -5,8 +5,8 @@
 #ifndef V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 #define V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_H_
 
-#include "src/base/bit-field.h"
 #include "src/objects/struct.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,19 +18,7 @@ class PropertyDescriptorObject
     : public TorqueGeneratedPropertyDescriptorObject<PropertyDescriptorObject,
                                                      Struct> {
  public:
-#define FLAGS_BIT_FIELDS(V, _)      \
-  V(IsEnumerableBit, bool, 1, _)    \
-  V(HasEnumerableBit, bool, 1, _)   \
-  V(IsConfigurableBit, bool, 1, _)  \
-  V(HasConfigurableBit, bool, 1, _) \
-  V(IsWritableBit, bool, 1, _)      \
-  V(HasWritableBit, bool, 1, _)     \
-  V(HasValueBit, bool, 1, _)        \
-  V(HasGetBit, bool, 1, _)          \
-  V(HasSetBit, bool, 1, _)
-
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
+  DEFINE_TORQUE_GENERATED_PROPERTY_DESCRIPTOR_OBJECT_FLAGS()
 
   static const int kRegularAccessorPropertyBits =
       HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |

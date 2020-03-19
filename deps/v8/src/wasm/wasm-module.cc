@@ -113,7 +113,7 @@ void DecodedFunctionNames::AddForTesting(int function_index,
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
     Vector<const byte> encoded_offsets)
-    : encoded_offsets_(OwnedVector<uint8_t>::Of(encoded_offsets)) {}
+    : encoded_offsets_(OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 
@@ -261,7 +261,7 @@ Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
 
 }  // namespace
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, FunctionSig* sig) {
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig) {
   Factory* factory = isolate->factory();
 
   // Extract values for the {ValueType[]} arrays.
@@ -641,7 +641,7 @@ size_t EstimateStoredSize(const WasmModule* module) {
          VectorSize(module->elem_segments);
 }
 
-size_t PrintSignature(Vector<char> buffer, wasm::FunctionSig* sig) {
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig) {
   if (buffer.empty()) return 0;
   size_t old_size = buffer.size();
   auto append_char = [&buffer](char c) {

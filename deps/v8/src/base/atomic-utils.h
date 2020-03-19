@@ -105,6 +105,16 @@ class AsAtomicImpl {
   }
 
   template <typename T>
+  static T Relaxed_CompareAndSwap(
+      T* addr, typename std::remove_reference<T>::type old_value,
+      typename std::remove_reference<T>::type new_value) {
+    STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::Relaxed_CompareAndSwap(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
+        cast_helper<T>::to_storage_type(new_value)));
+  }
+
+  template <typename T>
   static T AcquireRelease_CompareAndSwap(
       T* addr, typename std::remove_reference<T>::type old_value,
       typename std::remove_reference<T>::type new_value) {
@@ -120,13 +130,14 @@ class AsAtomicImpl {
   static bool SetBits(T* addr, T bits, T mask) {
     STATIC_ASSERT(sizeof(T) <= sizeof(AtomicStorageType));
     DCHECK_EQ(bits & ~mask, static_cast<T>(0));
-    T old_value;
-    T new_value;
+    T old_value = Relaxed_Load(addr);
+    T new_value, old_value_before_cas;
     do {
-      old_value = Relaxed_Load(addr);
       if ((old_value & mask) == bits) return false;
       new_value = (old_value & ~mask) | bits;
-    } while (Release_CompareAndSwap(addr, old_value, new_value) != old_value);
+      old_value_before_cas = old_value;
+      old_value = Release_CompareAndSwap(addr, old_value, new_value);
+    } while (old_value != old_value_before_cas);
     return true;
   }
 

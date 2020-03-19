@@ -20,13 +20,6 @@ namespace internal {
 // a native context.
 class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
  public:
-  static int GetInitialInterruptBudget() {
-    if (FLAG_lazy_feedback_allocation) {
-      return FLAG_budget_for_feedback_vector_allocation;
-    }
-    return FLAG_interrupt_budget;
-  }
-
   // Dispatched behavior.
   DECL_PRINTER(FeedbackCell)
 
@@ -38,6 +31,8 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
       base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                         HeapObject target)>>
           gc_notify_updated_slot = base::nullopt);
+  inline void SetInitialInterruptBudget();
+  inline void SetInterruptBudget();
 
   using BodyDescriptor =
       FixedBodyDescriptor<kValueOffset, kInterruptBudgetOffset, kAlignedSize>;

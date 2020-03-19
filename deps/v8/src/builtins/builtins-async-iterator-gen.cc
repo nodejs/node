@@ -13,8 +13,6 @@
 namespace v8 {
 namespace internal {
 
-using compiler::Node;
-
 namespace {
 class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
  public:
@@ -130,9 +128,11 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     BIND(&if_isnotundefined);
   }
 
-  const TNode<Object> iter_result = CallJS(
-      CodeFactory::Call(isolate()), context, method, sync_iterator, sent_value);
-  GotoIfException(iter_result, &reject_promise, &var_exception);
+  TNode<Object> iter_result;
+  {
+    ScopedExceptionHandler handler(this, &reject_promise, &var_exception);
+    iter_result = Call(context, method, sync_iterator, sent_value);
+  }
 
   TNode<Object> value;
   TNode<Oddball> done;
@@ -144,10 +144,13 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   CSA_ASSERT(this, IsConstructor(promise_fun));
 
   // Let valueWrapper be PromiseResolve(%Promise%, « value »).
-  const TNode<Object> value_wrapper = CallBuiltin(
-      Builtins::kPromiseResolve, native_context, promise_fun, value);
   // IfAbruptRejectPromise(valueWrapper, promiseCapability).
-  GotoIfException(value_wrapper, &reject_promise, &var_exception);
+  TNode<Object> value_wrapper;
+  {
+    ScopedExceptionHandler handler(this, &reject_promise, &var_exception);
+    value_wrapper = CallBuiltin(Builtins::kPromiseResolve, native_context,
+                                promise_fun, value);
+  }
 
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
@@ -200,17 +203,17 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
 
   BIND(&if_slowpath);
   {
+    ScopedExceptionHandler handler(this, if_exception, var_exception);
+
     // Let nextDone be IteratorComplete(nextResult).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
     const TNode<Object> done =
         GetProperty(context, iter_result, factory()->done_string());
-    GotoIfException(done, if_exception, var_exception);
 
     // Let nextValue be IteratorValue(nextResult).
     // IfAbruptRejectPromise(nextValue, promiseCapability).
     const TNode<Object> value =
         GetProperty(context, iter_result, factory()->value_string());
-    GotoIfException(value, if_exception, var_exception);
 
     var_value = value;
     var_done = done;

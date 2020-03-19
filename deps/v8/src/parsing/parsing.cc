@@ -83,7 +83,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   result = parser.ParseFunction(isolate, info, shared_info);
   info->set_literal(result);
   if (result) {
-    info->ast_value_factory()->Internalize(isolate->factory());
+    info->ast_value_factory()->Internalize(isolate);
     if (info->is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }

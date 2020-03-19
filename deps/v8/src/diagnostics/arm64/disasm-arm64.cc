@@ -1436,7 +1436,7 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
 #define PAUTH_CASE(NAME, MN) \
   case NAME:                 \
     mnemonic = MN;           \
-    form = NULL;             \
+    form = nullptr;          \
     break;
 
       PAUTH_SYSTEM_MNEMONICS(PAUTH_CASE)
@@ -1478,17 +1478,30 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
     }
   } else if (instr->Mask(SystemHintFMask) == SystemHintFixed) {
     DCHECK(instr->Mask(SystemHintMask) == HINT);
+    form = nullptr;
     switch (instr->ImmHint()) {
-      case NOP: {
+      case NOP:
         mnemonic = "nop";
-        form = nullptr;
         break;
-      }
-      case CSDB: {
+      case CSDB:
         mnemonic = "csdb";
-        form = nullptr;
         break;
-      }
+      case BTI:
+        mnemonic = "bti";
+        break;
+      case BTI_c:
+        mnemonic = "bti c";
+        break;
+      case BTI_j:
+        mnemonic = "bti j";
+        break;
+      case BTI_jc:
+        mnemonic = "bti jc";
+        break;
+      default:
+        // Fall back to 'hint #<imm7>'.
+        form = "'IH";
+        mnemonic = "hint";
     }
   } else if (instr->Mask(MemBarrierFMask) == MemBarrierFixed) {
     switch (instr->Mask(MemBarrierMask)) {

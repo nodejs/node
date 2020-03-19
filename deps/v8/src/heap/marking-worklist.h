@@ -81,6 +81,10 @@ class V8_EXPORT_PRIVATE MarkingWorklistsHolder {
     on_hold_.Update(callback);
     embedder_.Update(callback);
     for (auto cw : context_worklists_) {
+      if (cw.context == kSharedContext) {
+        // The shared context was updated above.
+        continue;
+      }
       cw.worklist->Update(callback);
     }
   }

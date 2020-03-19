@@ -69,8 +69,9 @@ class SourceTextModule
 
   // Appends a tuple of module and generator to the async parent modules
   // ArrayList.
-  inline void AddAsyncParentModule(Isolate* isolate,
-                                   Handle<SourceTextModule> module);
+  inline static void AddAsyncParentModule(Isolate* isolate,
+                                          Handle<SourceTextModule> module,
+                                          Handle<SourceTextModule> parent);
 
   // Returns a SourceTextModule, the
   // ith parent in depth first traversal order of a given async child.
@@ -196,7 +197,8 @@ class SourceTextModuleInfo : public FixedArray {
  public:
   DECL_CAST(SourceTextModuleInfo)
 
-  static Handle<SourceTextModuleInfo> New(Isolate* isolate, Zone* zone,
+  template <typename LocalIsolate>
+  static Handle<SourceTextModuleInfo> New(LocalIsolate* isolate, Zone* zone,
                                           SourceTextModuleDescriptor* descr);
 
   inline FixedArray module_requests() const;
@@ -217,7 +219,8 @@ class SourceTextModuleInfo : public FixedArray {
 #endif
 
  private:
-  friend class Factory;
+  template <typename Impl>
+  friend class FactoryBase;
   friend class SourceTextModuleDescriptor;
   enum {
     kModuleRequestsIndex,
@@ -250,8 +253,9 @@ class SourceTextModuleInfoEntry
   DECL_INT_ACCESSORS(beg_pos)
   DECL_INT_ACCESSORS(end_pos)
 
+  template <typename LocalIsolate>
   static Handle<SourceTextModuleInfoEntry> New(
-      Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
+      LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
       Handle<PrimitiveHeapObject> local_name,
       Handle<PrimitiveHeapObject> import_name, int module_request,
       int cell_index, int beg_pos, int end_pos);

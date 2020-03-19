@@ -89,8 +89,8 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<JSFunction> target = CAST(Parameter(Descriptor::kJSTarget));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   TNode<Object> arg1 = args.GetOptionalArgumentValue(0);
   TNode<Object> arg2 = args.GetOptionalArgumentValue(1);
@@ -376,13 +376,6 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   Unreachable();
 
   BIND(&next);
-}
-
-TNode<BoolT> TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(
-    TNode<JSArrayBuffer> buffer) {
-  TNode<Uint32T> bitfield =
-      LoadObjectField<Uint32T>(buffer, JSArrayBuffer::kBitFieldOffset);
-  return IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield);
 }
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(

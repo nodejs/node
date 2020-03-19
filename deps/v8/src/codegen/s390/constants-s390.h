@@ -613,7 +613,9 @@ using SixByteInstr = uint64_t;
   V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                  \
   V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                   \
   V(vfms, VFMS, 0xE78E)   /* type = VRR_E VECTOR FP MULTIPLY AND SUBTRACT  */ \
-  V(vfma, VFMA, 0xE78F)   /* type = VRR_E VECTOR FP MULTIPLY AND ADD  */
+  V(vfnms, VFNMS,                                                             \
+    0xE79E) /* type = VRR_E VECTOR FP NEGATIVE MULTIPLY AND SUBTRACT  */      \
+  V(vfma, VFMA, 0xE78F) /* type = VRR_E VECTOR FP MULTIPLY AND ADD  */
 
 #define S390_VRI_C_OPCODE_LIST(V) \
   V(vrep, VREP, 0xE74D) /* type = VRI_C VECTOR REPLICATE  */

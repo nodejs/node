@@ -1,0 +1,17 @@
+Test static private class methods
+
+Running test: testScopesPaused
+privateProperties on class A
+[
+    [0] : {
+        name : #method
+        value : {
+            className : Function
+            description : #method() {       debugger;     }
+            objectId : {"injectedScriptId":1,"id":39}
+            type : function
+        }
+    }
+]
+privateProperties on class B
+undefined

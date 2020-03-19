@@ -203,6 +203,9 @@ class String : public TorqueGeneratedString<String, Name> {
   static inline Handle<String> Flatten(
       Isolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
+  static inline Handle<String> Flatten(
+      OffThreadIsolate* isolate, Handle<String> string,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Tries to return the content of a flat string as a structure holding either
   // a flat vector of char or of uc16.
@@ -454,7 +457,8 @@ class String : public TorqueGeneratedString<String, Name> {
   static inline ConsString VisitFlat(Visitor* visitor, String string,
                                      int offset = 0);
 
-  static Handle<FixedArray> CalculateLineEnds(Isolate* isolate,
+  template <typename LocalIsolate>
+  static Handle<FixedArray> CalculateLineEnds(LocalIsolate* isolate,
                                               Handle<String> string,
                                               bool include_ending_line);
 

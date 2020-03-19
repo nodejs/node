@@ -6,6 +6,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/pointer-authentication.h"
 #include "src/execution/simulator.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/strings/unicode-inl.h"
@@ -149,9 +150,10 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     Address* return_address, Code re_code, Address* subject,
     const byte** input_start, const byte** input_end) {
   DisallowHeapAllocation no_gc;
+  Address old_pc = PointerAuthentication::AuthenticatePC(return_address, 0);
+  DCHECK_LE(re_code.raw_instruction_start(), old_pc);
+  DCHECK_LE(old_pc, re_code.raw_instruction_end());
 
-  DCHECK(re_code.raw_instruction_start() <= *return_address);
-  DCHECK(*return_address <= re_code.raw_instruction_end());
   StackLimitCheck check(isolate);
   bool js_has_overflowed = check.JsHasOverflowed();
 
@@ -193,9 +195,11 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   }
 
   if (*code_handle != re_code) {  // Return address no longer valid
-    intptr_t delta = code_handle->address() - re_code.address();
     // Overwrite the return address on the stack.
-    *return_address += delta;
+    intptr_t delta = code_handle->address() - re_code.address();
+    Address new_pc = old_pc + delta;
+    // TODO(v8:10026): avoid replacing a signed pointer.
+    PointerAuthentication::ReplacePC(return_address, new_pc, 0);
   }
 
   // If we continue, we need to update the subject string addresses.

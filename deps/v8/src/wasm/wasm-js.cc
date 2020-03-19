@@ -1148,14 +1148,15 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
-                                   &initial, 0, i::wasm::max_mem_pages())) {
+                                   &initial, 0,
+                                   i::wasm::max_initial_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
-                                  initial, i::wasm::kSpecMaxWasmMemoryPages)) {
+                                  initial, i::wasm::max_maximum_mem_pages())) {
     return;
   }
 
@@ -1514,10 +1515,34 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 1 must be a function");
     return;
   }
+  const i::wasm::FunctionSig* sig = builder.Build();
 
-  i::wasm::FunctionSig* sig = builder.Build();
   i::Handle<i::JSReceiver> callable =
       Utils::OpenHandle(*args[1].As<Function>());
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*callable)) {
+    if (*i::Handle<i::WasmExportedFunction>::cast(callable)->sig() == *sig) {
+      args.GetReturnValue().Set(Utils::ToLocal(callable));
+      return;
+    }
+
+    thrower.TypeError(
+        "The signature of Argument 1 (a WebAssembly function) does "
+        "not match the signature specified in Argument 0");
+    return;
+  }
+
+  if (i::WasmJSFunction::IsWasmJSFunction(*callable)) {
+    if (i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(sig)) {
+      args.GetReturnValue().Set(Utils::ToLocal(callable));
+      return;
+    }
+
+    thrower.TypeError(
+        "The signature of Argument 1 (a WebAssembly function) does "
+        "not match the signature specified in Argument 0");
+    return;
+  }
+
   i::Handle<i::JSFunction> result =
       i::WasmJSFunction::New(i_isolate, sig, callable);
   args.GetReturnValue().Set(Utils::ToLocal(result));
@@ -1530,7 +1555,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Function.type()");
 
-  i::wasm::FunctionSig* sig;
+  const i::wasm::FunctionSig* sig;
   i::Zone zone(i_isolate->allocator(), ZONE_NAME);
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
   if (i::WasmExportedFunction::IsWasmExportedFunction(*arg0)) {
@@ -1697,8 +1722,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   uint64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 > uint64_t{i::wasm::max_mem_pages()}) {
-    max_size64 = i::wasm::max_mem_pages();
+  if (max_size64 > uint64_t{i::wasm::max_maximum_mem_pages()}) {
+    max_size64 = i::wasm::max_maximum_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
 

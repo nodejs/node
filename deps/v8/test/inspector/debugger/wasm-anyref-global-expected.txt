@@ -3,5 +3,5 @@ Waiting for wasm script to be parsed.
 Setting breakpoint in wasm.
 Running main.
 Paused in debugger.
-   globals: {"global#0": hello, world}
+   globals: {"$global0": hello, world}
 Finished.

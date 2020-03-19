@@ -670,7 +670,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   V8_INLINE void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  void AllocateScopeInfosRecursively(Isolate* isolate,
+  template <typename LocalIsolate>
+  void AllocateScopeInfosRecursively(LocalIsolate* isolate,
                                      MaybeHandle<ScopeInfo> outer_scope);
 
   void AllocateDebuggerScopeInfos(Isolate* isolate,
@@ -690,6 +691,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   void SetDefaults();
+
+  void set_scope_info(Handle<ScopeInfo> scope_info);
 
   friend class DeclarationScope;
   friend class ClassScope;
@@ -1098,7 +1101,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // Allocate ScopeInfos for top scope and any inner scopes that need them.
   // Does nothing if ScopeInfo is already allocated.
-  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate);
+  template <typename LocalIsolate>
+  V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
+                                                   LocalIsolate* isolate);
 
   Handle<StringSet> CollectNonLocals(Isolate* isolate, ParseInfo* info,
                                      Handle<StringSet> non_locals);

@@ -16,10 +16,8 @@ namespace v8_crdtp {
 
 class Serializable {
  public:
-  // The default implementation invokes AppendSerialized with an empty vector
-  // and returns it; some subclasses may override and move out internal state
-  // instead to avoid copying.
-  virtual std::vector<uint8_t> TakeSerialized() &&;
+  // Convenience: Invokes |AppendSerialized| on an empty vector.
+  std::vector<uint8_t> Serialize() const;
 
   virtual void AppendSerialized(std::vector<uint8_t>* out) const = 0;
 

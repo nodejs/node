@@ -81,7 +81,9 @@ inline float DoubleToFloat32(double x) {
 
 inline double DoubleToInteger(double x) {
   if (std::isnan(x)) return 0;
-  if (!std::isfinite(x) || x == 0) return x;
+  if (!std::isfinite(x)) return x;
+  // ToInteger normalizes -0 to +0.
+  if (x == 0.0) return 0;
   return (x >= 0) ? std::floor(x) : std::ceil(x);
 }
 

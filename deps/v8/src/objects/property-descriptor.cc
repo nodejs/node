@@ -60,7 +60,6 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
       Handle<DescriptorArray>(map.instance_descriptors(), isolate);
   for (InternalIndex i : map.IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
-    Name key = descs->GetKey(i);
     Handle<Object> value;
     if (details.location() == kField) {
       if (details.kind() == kData) {
@@ -83,6 +82,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
         return false;
       }
     }
+    Name key = descs->GetKey(i);
     ReadOnlyRoots roots(isolate);
     if (key == roots.enumerable_string()) {
       desc->set_enumerable(value->BooleanValue(isolate));

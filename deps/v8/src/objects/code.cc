@@ -4,6 +4,7 @@
 
 #include <iomanip>
 
+#include "src/execution/isolate-utils.h"
 #include "src/objects/code.h"
 
 #include "src/codegen/assembler-inl.h"
@@ -159,10 +160,12 @@ int AbstractCode::SourcePosition(int offset) {
   if (maybe_table.IsException()) return kNoSourcePosition;
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
-  int position = 0;
   // Subtract one because the current PC is one instruction after the call site.
   if (IsCode()) offset--;
-  for (SourcePositionTableIterator iterator(source_position_table);
+  int position = 0;
+  for (SourcePositionTableIterator iterator(
+           source_position_table, SourcePositionTableIterator::kJavaScriptOnly,
+           SourcePositionTableIterator::kDontSkipFunctionEntry);
        !iterator.done() && iterator.code_offset() <= offset;
        iterator.Advance()) {
     position = iterator.source_position().ScriptOffset();
@@ -961,14 +964,14 @@ bool DependentCode::Compact() {
 }
 
 bool DependentCode::MarkCodeForDeoptimization(
-    Isolate* isolate, DependentCode::DependencyGroup group) {
+    DependentCode::DependencyGroup group) {
   if (this->length() == 0 || this->group() > group) {
     // There is no such group.
     return false;
   }
   if (this->group() < group) {
     // The group comes later in the list.
-    return next_link().MarkCodeForDeoptimization(isolate, group);
+    return next_link().MarkCodeForDeoptimization(group);
   }
   DCHECK_EQ(group, this->group());
   DisallowHeapAllocation no_allocation_scope;
@@ -992,12 +995,12 @@ bool DependentCode::MarkCodeForDeoptimization(
 }
 
 void DependentCode::DeoptimizeDependentCodeGroup(
-    Isolate* isolate, DependentCode::DependencyGroup group) {
+    DependentCode::DependencyGroup group) {
   DisallowHeapAllocation no_allocation_scope;
-  bool marked = MarkCodeForDeoptimization(isolate, group);
+  bool marked = MarkCodeForDeoptimization(group);
   if (marked) {
     DCHECK(AllowCodeDependencyChange::IsAllowed());
-    Deoptimizer::DeoptimizeMarkedCode(isolate);
+    Deoptimizer::DeoptimizeMarkedCode(GetIsolateFromWritableObject(*this));
   }
 }
 

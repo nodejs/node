@@ -73,28 +73,28 @@ OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashMap,
 OBJECT_CONSTRUCTORS_IMPL(SmallOrderedNameDictionary,
                          SmallOrderedHashTable<SmallOrderedNameDictionary>)
 
-RootIndex OrderedHashSet::GetMapRootIndex() {
-  return RootIndex::kOrderedHashSetMap;
+Handle<Map> OrderedHashSet::GetMap(ReadOnlyRoots roots) {
+  return roots.ordered_hash_set_map_handle();
 }
 
-RootIndex OrderedHashMap::GetMapRootIndex() {
-  return RootIndex::kOrderedHashMapMap;
+Handle<Map> OrderedHashMap::GetMap(ReadOnlyRoots roots) {
+  return roots.ordered_hash_map_map_handle();
 }
 
-RootIndex OrderedNameDictionary::GetMapRootIndex() {
-  return RootIndex::kOrderedNameDictionaryMap;
+Handle<Map> OrderedNameDictionary::GetMap(ReadOnlyRoots roots) {
+  return roots.ordered_name_dictionary_map_handle();
 }
 
-RootIndex SmallOrderedNameDictionary::GetMapRootIndex() {
-  return RootIndex::kSmallOrderedNameDictionaryMap;
+Handle<Map> SmallOrderedNameDictionary::GetMap(ReadOnlyRoots roots) {
+  return roots.small_ordered_name_dictionary_map_handle();
 }
 
-RootIndex SmallOrderedHashMap::GetMapRootIndex() {
-  return RootIndex::kSmallOrderedHashMapMap;
+Handle<Map> SmallOrderedHashMap::GetMap(ReadOnlyRoots roots) {
+  return roots.small_ordered_hash_map_map_handle();
 }
 
-RootIndex SmallOrderedHashSet::GetMapRootIndex() {
-  return RootIndex::kSmallOrderedHashSetMap;
+Handle<Map> SmallOrderedHashSet::GetMap(ReadOnlyRoots roots) {
+  return roots.small_ordered_hash_set_map_handle();
 }
 
 inline Object OrderedHashMap::ValueAt(int entry) {

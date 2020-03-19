@@ -66,7 +66,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
       .Debugger()
       .Return();
 
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -120,7 +120,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
       .Debugger()
       .Return();
 
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -174,7 +174,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
       .Debugger()
       .Return();
 
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -233,7 +233,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
       .Debugger()
       .Return();
 
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
 
@@ -294,7 +294,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   BytecodeArrayRandomIterator iterator(builder.ToBytecodeArray(isolate()),
                                        zone());
   const int kPrefixByteSize = 1;
@@ -480,7 +480,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   BytecodeArrayRandomIterator iterator(builder.ToBytecodeArray(isolate()),
                                        zone());
   const int kPrefixByteSize = 1;
@@ -761,7 +761,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> bytecodeArray = builder.ToBytecodeArray(isolate());
   BytecodeArrayRandomIterator iterator(bytecodeArray, zone());
   const int kPrefixByteSize = 1;

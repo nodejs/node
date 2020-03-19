@@ -70,6 +70,7 @@ class StackHandler {
   V(WASM_TO_JS, WasmToJsFrame)                                            \
   V(JS_TO_WASM, JsToWasmFrame)                                            \
   V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)                    \
+  V(WASM_DEBUG_BREAK, WasmDebugBreakFrame)                                \
   V(C_WASM_ENTRY, CWasmEntryFrame)                                        \
   V(WASM_EXIT, WasmExitFrame)                                             \
   V(WASM_COMPILE_LAZY, WasmCompileLazyFrame)                              \
@@ -181,6 +182,7 @@ class StackFrame {
   bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
   bool is_wasm_compile_lazy() const { return type() == WASM_COMPILE_LAZY; }
+  bool is_wasm_debug_break() const { return type() == WASM_DEBUG_BREAK; }
   bool is_wasm_interpreter_entry() const {
     return type() == WASM_INTERPRETER_ENTRY;
   }
@@ -215,9 +217,7 @@ class StackFrame {
   // Accessors.
   Address sp() const { return state_.sp; }
   Address fp() const { return state_.fp; }
-  Address callee_pc() const {
-    return state_.callee_pc_address ? *state_.callee_pc_address : kNullAddress;
-  }
+  inline Address callee_pc() const;
   Address caller_sp() const { return GetCallerStackPointer(); }
 
   // If this frame is optimized and was dynamically aligned return its old
@@ -225,8 +225,7 @@ class StackFrame {
   // up one word and become unaligned.
   Address UnpaddedFP() const;
 
-  Address pc() const { return *pc_address(); }
-  void set_pc(Address pc) { *pc_address() = pc; }
+  inline Address pc() const;
 
   Address constant_pool() const { return *constant_pool_address(); }
   void set_constant_pool(Address constant_pool) {
@@ -264,6 +263,8 @@ class StackFrame {
   // profiler's stashed return address.
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver);
+
+  static inline Address ReadPC(Address* pc_address);
 
   // Resolves pc_address through the resolution address function if one is set.
   static inline Address* ResolveReturnAddressLocation(Address* pc_address);
@@ -820,7 +821,11 @@ class OptimizedFrame : public JavaScriptFrame {
 
   DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
+#ifndef V8_REVERSE_JSARGS
+  // When the arguments are reversed in the stack, receiver() is
+  // inherited from JavaScriptFrame.
   Object receiver() const override;
+#endif
   int ComputeParametersCount() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
@@ -1025,6 +1030,32 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
  private:
   friend class StackFrameIteratorBase;
   WasmModuleObject module_object() const;
+};
+
+class WasmDebugBreakFrame final : public StandardFrame {
+ public:
+  Type type() const override { return WASM_DEBUG_BREAK; }
+
+  // GC support.
+  void Iterate(RootVisitor* v) const override;
+
+  Code unchecked_code() const override;
+
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  static WasmDebugBreakFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_debug_break());
+    return static_cast<WasmDebugBreakFrame*>(frame);
+  }
+
+ protected:
+  inline explicit WasmDebugBreakFrame(StackFrameIteratorBase*);
+
+  Address GetCallerStackPointer() const override;
+
+ private:
+  friend class StackFrameIteratorBase;
 };
 
 class WasmToJsFrame : public StubFrame {

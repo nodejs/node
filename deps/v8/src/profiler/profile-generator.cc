@@ -229,8 +229,6 @@ void CodeEntry::print() const {
   base::OS::Print(" - column_number: %d\n", column_number_);
   base::OS::Print(" - script_id: %d\n", script_id_);
   base::OS::Print(" - position: %d\n", position_);
-  base::OS::Print(" - instruction_start: %p\n",
-                  reinterpret_cast<void*>(instruction_start_));
 
   if (line_info_) {
     line_info_->print();
@@ -664,8 +662,6 @@ void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
   ClearCodesInRange(addr, addr + size);
   unsigned index = AddCodeEntry(addr, entry);
   code_map_.emplace(addr, CodeEntryMapInfo{index, size});
-  DCHECK(entry->instruction_start() == kNullAddress ||
-         addr == entry->instruction_start());
 }
 
 void CodeMap::ClearCodesInRange(Address start, Address end) {
@@ -683,17 +679,15 @@ void CodeMap::ClearCodesInRange(Address start, Address end) {
   code_map_.erase(left, right);
 }
 
-CodeEntry* CodeMap::FindEntry(Address addr) {
+CodeEntry* CodeMap::FindEntry(Address addr, Address* out_instruction_start) {
   auto it = code_map_.upper_bound(addr);
   if (it == code_map_.begin()) return nullptr;
   --it;
   Address start_address = it->first;
   Address end_address = start_address + it->second.size;
   CodeEntry* ret = addr < end_address ? entry(it->second.index) : nullptr;
-  if (ret && ret->instruction_start() != kNullAddress) {
-    DCHECK_EQ(start_address, ret->instruction_start());
-    DCHECK(addr >= start_address && addr < end_address);
-  }
+  DCHECK(!ret || (addr >= start_address && addr < end_address));
+  if (ret && out_instruction_start) *out_instruction_start = start_address;
   return ret;
 }
 
@@ -706,9 +700,6 @@ void CodeMap::MoveCode(Address from, Address to) {
   DCHECK(from + info.size <= to || to + info.size <= from);
   ClearCodesInRange(to, to + info.size);
   code_map_.emplace(to, info);
-
-  CodeEntry* entry = code_entries_[info.index].entry;
-  entry->set_instruction_start(to);
 }
 
 unsigned CodeMap::AddCodeEntry(Address start, CodeEntry* entry) {
@@ -886,13 +877,15 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
                              true});
     } else {
       Address attributed_pc = reinterpret_cast<Address>(sample.pc);
-      CodeEntry* pc_entry = FindEntry(attributed_pc);
+      Address pc_entry_instruction_start = kNullAddress;
+      CodeEntry* pc_entry =
+          FindEntry(attributed_pc, &pc_entry_instruction_start);
       // If there is no pc_entry, we're likely in native code. Find out if the
       // top of the stack (the return address) was pointing inside a JS
       // function, meaning that we have encountered a frameless invocation.
       if (!pc_entry && !sample.has_external_callback) {
         attributed_pc = reinterpret_cast<Address>(sample.tos);
-        pc_entry = FindEntry(attributed_pc);
+        pc_entry = FindEntry(attributed_pc, &pc_entry_instruction_start);
       }
       // If pc is in the function code before it set up stack frame or after the
       // frame was destroyed, SafeStackFrameIterator incorrectly thinks that
@@ -900,7 +893,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // caller's frame. Check for this case and just skip such samples.
       if (pc_entry) {
         int pc_offset =
-            static_cast<int>(attributed_pc - pc_entry->instruction_start());
+            static_cast<int>(attributed_pc - pc_entry_instruction_start);
         // TODO(petermarshall): pc_offset can still be negative in some cases.
         src_line = pc_entry->GetSourceLine(pc_offset);
         if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
@@ -932,12 +925,12 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     for (unsigned i = 0; i < sample.frames_count; ++i) {
       Address stack_pos = reinterpret_cast<Address>(sample.stack[i]);
       Address native_context = reinterpret_cast<Address>(sample.contexts[i]);
-      CodeEntry* entry = FindEntry(stack_pos);
+      Address instruction_start = kNullAddress;
+      CodeEntry* entry = FindEntry(stack_pos, &instruction_start);
       int line_number = no_line_info;
       if (entry) {
         // Find out if the entry has an inlining stack associated.
-        int pc_offset =
-            static_cast<int>(stack_pos - entry->instruction_start());
+        int pc_offset = static_cast<int>(stack_pos - instruction_start);
         // TODO(petermarshall): pc_offset can still be negative in some cases.
         const std::vector<CodeEntryAndLineNumber>* inline_stack =
             entry->GetInlineStack(pc_offset);
@@ -1014,6 +1007,7 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
     case PARSER:
     case COMPILER:
     case BYTECODE_COMPILER:
+    case ATOMICS_WAIT:
     // DOM events handlers are reported as OTHER / EXTERNAL entries.
     // To avoid confusing people, let's put all these entries into
     // one bucket.

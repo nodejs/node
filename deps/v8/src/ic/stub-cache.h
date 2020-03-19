@@ -78,15 +78,12 @@ class V8_EXPORT_PRIVATE StubCache {
 
   Isolate* isolate() { return isolate_; }
 
-  // Ideally we would set kCacheIndexShift to Name::kHashShift, such that
-  // the bit field inside the hash field gets shifted out implicitly. However,
-  // sizeof(Entry) needs to be a multiple of 1 << kCacheIndexShift, and it
-  // isn't clear whether letting one bit of the bit field leak into the index
-  // computation is bad enough to warrant an additional shift to get rid of it.
-  static const int kCacheIndexShift = 2;
-  // The purpose of the static assert is to make us reconsider this choice
-  // if the bit field ever grows even more.
-  STATIC_ASSERT(kCacheIndexShift == Name::kHashShift - 1);
+  // Setting kCacheIndexShift to Name::kHashShift is convenient because it
+  // causes the bit field inside the hash field to get shifted out implicitly.
+  // Note that kCacheIndexShift must not get too large, because
+  // sizeof(Entry) needs to be a multiple of 1 << kCacheIndexShift (see
+  // the STATIC_ASSERT below, in {entry(...)}).
+  static const int kCacheIndexShift = Name::kHashShift;
 
   static const int kPrimaryTableBits = 11;
   static const int kPrimaryTableSize = (1 << kPrimaryTableBits);

@@ -32,8 +32,6 @@ import operator
 from callstats_groups import RUNTIME_CALL_STATS_GROUPS
 
 import numpy
-import scipy
-import scipy.stats
 from math import sqrt
 
 
@@ -328,6 +326,10 @@ def do_run_replay_server(args):
 # Calculate statistics.
 
 def statistics(data):
+  # NOTE(V8:10269): imports moved here to mitigate the outage.
+  import scipy
+  import scipy.stats
+
   N = len(data)
   average = numpy.average(data)
   median = numpy.median(data)

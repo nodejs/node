@@ -59,8 +59,8 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
 }
 
 std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
-                                          FunctionSig* sig, const byte* pc,
-                                          const byte* end) {
+                                          const FunctionSig* sig,
+                                          const byte* pc, const byte* end) {
   WasmFeatures unused_detected_features = WasmFeatures::None();
   WasmDecoder<Decoder::kNoValidate> decoder(
       module, WasmFeatures::All(), &unused_detected_features, sig, pc, end);
@@ -210,10 +210,12 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       }
     }
 
+    os << "  // " << WasmOpcodes::OpcodeName(opcode);
+
     switch (opcode) {
       case kExprElse:
       case kExprCatch:
-        os << "   // @" << i.pc_offset();
+        os << " @" << i.pc_offset();
         control_depth++;
         break;
       case kExprLoop:
@@ -222,7 +224,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprTry: {
         BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                      i.pc());
-        os << "   // @" << i.pc_offset();
+        os << " @" << i.pc_offset();
         if (decoder.Complete(imm)) {
           for (uint32_t i = 0; i < imm.out_arity(); i++) {
             os << " " << ValueTypes::TypeName(imm.out_type(i));
@@ -232,28 +234,28 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprEnd:
-        os << "   // @" << i.pc_offset();
+        os << " @" << i.pc_offset();
         control_depth--;
         break;
       case kExprBr: {
         BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
-        os << "   // depth=" << imm.depth;
+        os << " depth=" << imm.depth;
         break;
       }
       case kExprBrIf: {
         BranchDepthImmediate<Decoder::kNoValidate> imm(&i, i.pc());
-        os << "   // depth=" << imm.depth;
+        os << " depth=" << imm.depth;
         break;
       }
       case kExprBrTable: {
         BranchTableImmediate<Decoder::kNoValidate> imm(&i, i.pc());
-        os << " // entries=" << imm.table_count;
+        os << " entries=" << imm.table_count;
         break;
       }
       case kExprCallIndirect: {
         CallIndirectImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                         i.pc());
-        os << "   // sig #" << imm.sig_index;
+        os << " sig #" << imm.sig_index;
         if (decoder.Complete(i.pc(), imm)) {
           os << ": " << *imm.sig;
         }
@@ -261,7 +263,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       }
       case kExprCallFunction: {
         CallFunctionImmediate<Decoder::kNoValidate> imm(&i, i.pc());
-        os << " // function #" << imm.index;
+        os << " function #" << imm.index;
         if (decoder.Complete(i.pc(), imm)) {
           os << ": " << *imm.sig;
         }

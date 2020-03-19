@@ -65,7 +65,6 @@ class CodeEntry {
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
                    std::unique_ptr<SourcePositionTable> line_info = nullptr,
-                   Address instruction_start = kNullAddress,
                    bool is_shared_cross_origin = false);
 
   const char* name() const { return name_; }
@@ -135,9 +134,6 @@ class CodeEntry {
           inline_stacks);
   const std::vector<CodeEntryAndLineNumber>* GetInlineStack(
       int pc_offset) const;
-
-  void set_instruction_start(Address start) { instruction_start_ = start; }
-  Address instruction_start() const { return instruction_start_; }
 
   CodeEventListener::LogEventsAndTags tag() const {
     return TagField::decode(bit_field_);
@@ -223,7 +219,6 @@ class CodeEntry {
   int script_id_;
   int position_;
   std::unique_ptr<SourcePositionTable> line_info_;
-  Address instruction_start_;
   std::unique_ptr<RareData> rare_data_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
@@ -449,7 +444,7 @@ class V8_EXPORT_PRIVATE CodeMap {
 
   void AddCode(Address addr, CodeEntry* entry, unsigned size);
   void MoveCode(Address from, Address to);
-  CodeEntry* FindEntry(Address addr);
+  CodeEntry* FindEntry(Address addr, Address* out_instruction_start = nullptr);
   void Print();
 
  private:
@@ -533,7 +528,8 @@ class V8_EXPORT_PRIVATE ProfileGenerator {
   CodeMap* code_map() { return code_map_; }
 
  private:
-  CodeEntry* FindEntry(Address address);
+  CodeEntry* FindEntry(Address address,
+                       Address* out_instruction_start = nullptr);
   CodeEntry* EntryForVMState(StateTag tag);
 
   CpuProfilesCollection* profiles_;

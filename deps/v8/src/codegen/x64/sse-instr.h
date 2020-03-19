@@ -36,11 +36,12 @@
   V(maxss, F3, 0F, 5F)
 
 #define SSE2_INSTRUCTION_LIST(V) \
-  V(sqrtpd, 66, 0F, 51)          \
+  V(andpd, 66, 0F, 54)           \
   V(andnpd, 66, 0F, 55)          \
+  V(orpd, 66, 0F, 56)            \
+  V(xorpd, 66, 0F, 57)           \
   V(addpd, 66, 0F, 58)           \
   V(mulpd, 66, 0F, 59)           \
-  V(cvtps2dq, 66, 0F, 5B)        \
   V(subpd, 66, 0F, 5C)           \
   V(minpd, 66, 0F, 5D)           \
   V(maxpd, 66, 0F, 5F)           \
@@ -98,6 +99,11 @@
   V(por, 66, 0F, EB)             \
   V(pxor, 66, 0F, EF)
 
+// SSE2 instructions whose AVX version has two operands.
+#define SSE2_UNOP_INSTRUCTION_LIST(V) \
+  V(sqrtpd, 66, 0F, 51)               \
+  V(cvtps2dq, 66, 0F, 5B)
+
 // SSE2 shift instructions with an immediate operand. The last element is the
 // extension to the opcode.
 #define SSE2_INSTRUCTION_LIST_SHIFT_IMM(V) \
@@ -115,15 +121,13 @@
   V(sqrtsd, F2, 0F, 51)             \
   V(addsd, F2, 0F, 58)              \
   V(mulsd, F2, 0F, 59)              \
+  V(cvtsd2ss, F2, 0F, 5A)           \
   V(subsd, F2, 0F, 5C)              \
   V(minsd, F2, 0F, 5D)              \
   V(divsd, F2, 0F, 5E)              \
   V(maxsd, F2, 0F, 5F)
 
 #define SSSE3_INSTRUCTION_LIST(V) \
-  V(pabsb, 66, 0F, 38, 1C)        \
-  V(pabsw, 66, 0F, 38, 1D)        \
-  V(pabsd, 66, 0F, 38, 1E)        \
   V(phaddd, 66, 0F, 38, 02)       \
   V(phaddw, 66, 0F, 38, 01)       \
   V(pshufb, 66, 0F, 38, 00)       \
@@ -131,9 +135,14 @@
   V(psignw, 66, 0F, 38, 09)       \
   V(psignd, 66, 0F, 38, 0A)
 
+// SSSE3 instructions whose AVX version has two operands.
+#define SSSE3_UNOP_INSTRUCTION_LIST(V) \
+  V(pabsb, 66, 0F, 38, 1C)             \
+  V(pabsw, 66, 0F, 38, 1D)             \
+  V(pabsd, 66, 0F, 38, 1E)
+
 #define SSE4_INSTRUCTION_LIST(V) \
   V(pcmpeqq, 66, 0F, 38, 29)     \
-  V(ptest, 66, 0F, 38, 17)       \
   V(packusdw, 66, 0F, 38, 2B)    \
   V(pminsb, 66, 0F, 38, 38)      \
   V(pminsd, 66, 0F, 38, 39)      \
@@ -146,7 +155,8 @@
   V(pmulld, 66, 0F, 38, 40)
 
 // SSE instructions whose AVX version has two operands.
-#define SSE4_PMOV_INSTRUCTION_LIST(V) \
+#define SSE4_UNOP_INSTRUCTION_LIST(V) \
+  V(ptest, 66, 0F, 38, 17)            \
   V(pmovsxbw, 66, 0F, 38, 20)         \
   V(pmovsxwd, 66, 0F, 38, 23)         \
   V(pmovsxdq, 66, 0F, 38, 25)         \

@@ -13,9 +13,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(Ldar), R(this),
   /*   27 S> */ B(Return),
 ]
@@ -31,9 +30,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(arg0),
   /*   31 S> */ B(Return),
 ]
@@ -49,9 +47,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Ldar), R(this),
   /*   31 S> */ B(Return),
 ]
@@ -67,9 +64,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 8
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   55 S> */ B(Ldar), R(arg3),
   /*   67 S> */ B(Return),
 ]
@@ -85,9 +81,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 8
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   55 S> */ B(Ldar), R(this),
   /*   67 S> */ B(Return),
 ]
@@ -103,9 +98,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 2
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(LdaSmi), I8(1),
                 B(Star), R(arg0),
                 B(LdaUndefined),
@@ -123,9 +117,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 5
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   37 S> */ B(LdaSmi), I8(1),
                 B(Star), R(arg1),
                 B(LdaUndefined),

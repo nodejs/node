@@ -12,6 +12,7 @@
 #include "src/base/functional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
+#include "src/objects/feedback-cell.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -230,20 +231,10 @@ struct OpEqualTo<double> : public base::bit_equal_to<double> {};
 template <>
 struct OpHash<double> : public base::bit_hash<double> {};
 
-template <>
-struct OpEqualTo<Handle<HeapObject>> : public Handle<HeapObject>::equal_to {};
-template <>
-struct OpHash<Handle<HeapObject>> : public Handle<HeapObject>::hash {};
-
-template <>
-struct OpEqualTo<Handle<String>> : public Handle<String>::equal_to {};
-template <>
-struct OpHash<Handle<String>> : public Handle<String>::hash {};
-
-template <>
-struct OpEqualTo<Handle<ScopeInfo>> : public Handle<ScopeInfo>::equal_to {};
-template <>
-struct OpHash<Handle<ScopeInfo>> : public Handle<ScopeInfo>::hash {};
+template <class T>
+struct OpEqualTo<Handle<T>> : public Handle<T>::equal_to {};
+template <class T>
+struct OpHash<Handle<T>> : public Handle<T>::hash {};
 
 }  // namespace compiler
 }  // namespace internal

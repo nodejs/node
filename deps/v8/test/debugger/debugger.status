@@ -143,9 +143,17 @@
 ['arch in (s390, s390x, ppc, ppc64)', {
   'regress/regress-crbug-1032042': [SKIP],
   'regress/regress-crbug-840288': [SKIP],
-  'debug/wasm/debug-step-into-wasm': [SKIP],
   'debug/wasm/asm-debug': [SKIP],
+  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
+  'debug/wasm/debug-step-into-wasm': [SKIP],
   'debug/wasm/frame-inspection': [SKIP],
 }],
+
+##############################################################################
+['isolates', {
+  # Tier down/up Wasm NativeModule in debugging is non-deterministic with
+  # multiple isolates (https://crbug.com/v8/10099).
+  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
+}],  # 'isolates'
 
 ]

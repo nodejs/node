@@ -20,12 +20,10 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPoint)
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo)
-OBJECT_CONSTRUCTORS_IMPL(CoverageInfo, FixedArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(CoverageInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(DebugInfo)
 
 NEVER_READ_ONLY_SPACE_IMPL(DebugInfo)
-
-CAST_ACCESSOR(CoverageInfo)
 
 TQ_SMI_ACCESSORS(DebugInfo, flags)
 TQ_SMI_ACCESSORS(DebugInfo, debugger_hints)

@@ -10,6 +10,8 @@
 //#include "Allocator.h"
 //#include "Forward.h"
 
+#include {{format_include(config.protocol.package, "Forward")}}
+
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}

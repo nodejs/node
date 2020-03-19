@@ -63,6 +63,8 @@ enum ContextLookupFlags {
   /* it's already UBSan-fiendly and doesn't require a star... So declare */    \
   /* it as a HeapObject for now. */                                            \
   V(EMBEDDER_DATA_INDEX, HeapObject, embedder_data)                            \
+  V(CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX, HeapObject,                    \
+    continuation_preserved_embedder_data)                                      \
   /* Below is alpha-sorted */                                                  \
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
@@ -188,13 +190,13 @@ enum ContextLookupFlags {
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
   V(WEAK_CELL_MAP_INDEX, Map, weak_cell_map)                                   \
-  V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_MAP_INDEX, Map,                     \
-    js_finalization_group_cleanup_iterator_map)                                \
+  V(JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_MAP_INDEX, Map,                  \
+    js_finalization_registry_cleanup_iterator_map)                             \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
-  V(JS_FINALIZATION_GROUP_FUNCTION_INDEX, JSFunction,                          \
-    js_finalization_group_fun)                                                 \
+  V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
+    js_finalization_registry_fun)                                              \
   /* Context maps */                                                           \
   V(NATIVE_CONTEXT_MAP_INDEX, Map, native_context_map)                         \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
@@ -507,6 +509,10 @@ class Context : public HeapObject {
     return SizeFor(index) - kHeapObjectTag;
   }
 
+  // Initializes the variable slots of the context. Lexical variables that need
+  // initialization are filled with the hole.
+  void Initialize(Isolate* isolate);
+
   // TODO(ishell): eventually migrate to the offset based access instead of
   // index-based.
   // The default context slot layout; indices are FixedArray slot indices.
@@ -679,8 +685,6 @@ class Context : public HeapObject {
 #endif
 
   OBJECT_CONSTRUCTORS(Context, HeapObject);
-  DECL_INT_ACCESSORS(length_and_extension_flag)
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_extension_flag)
 };
 
 class NativeContext : public Context {

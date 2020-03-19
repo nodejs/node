@@ -4,6 +4,7 @@
 
 #include "src/inspector/remote-object-id.h"
 
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 
@@ -13,8 +14,12 @@ RemoteObjectIdBase::RemoteObjectIdBase() : m_injectedScriptId(0) {}
 
 std::unique_ptr<protocol::DictionaryValue>
 RemoteObjectIdBase::parseInjectedScriptId(const String16& objectId) {
+  std::vector<uint8_t> cbor;
+  v8_crdtp::json::ConvertJSONToCBOR(
+      v8_crdtp::span<uint16_t>(objectId.characters16(), objectId.length()),
+      &cbor);
   std::unique_ptr<protocol::Value> parsedValue =
-      protocol::StringUtil::parseJSON(objectId);
+      protocol::Value::parseBinary(cbor.data(), cbor.size());
   if (!parsedValue || parsedValue->type() != protocol::Value::TypeObject)
     return nullptr;
 

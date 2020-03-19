@@ -17,13 +17,13 @@ namespace node_cache_unittest {
 using NodeCacheTest = GraphTest;
 
 TEST_F(NodeCacheTest, Int32Constant_back_to_back) {
-  Int32NodeCache cache;
+  Int32NodeCache cache(zone());
 
   for (int i = -2000000000; i < 2000000000; i += 3315177) {
-    Node** pos = cache.Find(zone(), i);
+    Node** pos = cache.Find(i);
     ASSERT_TRUE(pos != nullptr);
     for (int j = 0; j < 3; j++) {
-      Node** npos = cache.Find(zone(), i);
+      Node** npos = cache.Find(i);
       EXPECT_EQ(pos, npos);
     }
   }
@@ -31,38 +31,38 @@ TEST_F(NodeCacheTest, Int32Constant_back_to_back) {
 
 
 TEST_F(NodeCacheTest, Int32Constant_five) {
-  Int32NodeCache cache;
+  Int32NodeCache cache(zone());
   int32_t constants[] = {static_cast<int32_t>(0x80000000), -77, 0, 1, -1};
   Node* nodes[arraysize(constants)];
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     int32_t k = constants[i];
     Node* node = graph()->NewNode(common()->Int32Constant(k));
-    *cache.Find(zone(), k) = nodes[i] = node;
+    *cache.Find(k) = nodes[i] = node;
   }
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     int32_t k = constants[i];
-    EXPECT_EQ(nodes[i], *cache.Find(zone(), k));
+    EXPECT_EQ(nodes[i], *cache.Find(k));
   }
 }
 
 
 TEST_F(NodeCacheTest, Int32Constant_hits) {
-  Int32NodeCache cache;
+  Int32NodeCache cache(zone());
   const int32_t kSize = 1500;
   Node** nodes = zone()->NewArray<Node*>(kSize);
 
   for (int i = 0; i < kSize; i++) {
     int32_t v = i * -55;
     nodes[i] = graph()->NewNode(common()->Int32Constant(v));
-    *cache.Find(zone(), v) = nodes[i];
+    *cache.Find(v) = nodes[i];
   }
 
   int hits = 0;
   for (int i = 0; i < kSize; i++) {
     int32_t v = i * -55;
-    Node** pos = cache.Find(zone(), v);
+    Node** pos = cache.Find(v);
     if (*pos != nullptr) {
       EXPECT_EQ(nodes[i], *pos);
       hits++;
@@ -73,13 +73,13 @@ TEST_F(NodeCacheTest, Int32Constant_hits) {
 
 
 TEST_F(NodeCacheTest, Int64Constant_back_to_back) {
-  Int64NodeCache cache;
+  Int64NodeCache cache(zone());
 
   for (int64_t i = -2000000000; i < 2000000000; i += 3315177) {
-    Node** pos = cache.Find(zone(), i);
+    Node** pos = cache.Find(i);
     ASSERT_TRUE(pos != nullptr);
     for (int j = 0; j < 3; j++) {
-      Node** npos = cache.Find(zone(), i);
+      Node** npos = cache.Find(i);
       EXPECT_EQ(pos, npos);
     }
   }
@@ -87,20 +87,20 @@ TEST_F(NodeCacheTest, Int64Constant_back_to_back) {
 
 
 TEST_F(NodeCacheTest, Int64Constant_hits) {
-  Int64NodeCache cache;
+  Int64NodeCache cache(zone());
   const int32_t kSize = 1500;
   Node** nodes = zone()->NewArray<Node*>(kSize);
 
   for (int i = 0; i < kSize; i++) {
     int64_t v = static_cast<int64_t>(i) * static_cast<int64_t>(5003001);
     nodes[i] = graph()->NewNode(common()->Int32Constant(i));
-    *cache.Find(zone(), v) = nodes[i];
+    *cache.Find(v) = nodes[i];
   }
 
   int hits = 0;
   for (int i = 0; i < kSize; i++) {
     int64_t v = static_cast<int64_t>(i) * static_cast<int64_t>(5003001);
-    Node** pos = cache.Find(zone(), v);
+    Node** pos = cache.Find(v);
     if (*pos != nullptr) {
       EXPECT_EQ(nodes[i], *pos);
       hits++;
@@ -111,13 +111,13 @@ TEST_F(NodeCacheTest, Int64Constant_hits) {
 
 
 TEST_F(NodeCacheTest, GetCachedNodes_int32) {
-  Int32NodeCache cache;
+  Int32NodeCache cache(zone());
   int32_t constants[] = {0, 311, 12,  13,  14,  555, -555, -44, -33, -22, -11,
                          0, 311, 311, 412, 412, 11,  11,   -33, -33, -22, -11};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     int32_t k = constants[i];
-    Node** pos = cache.Find(zone(), k);
+    Node** pos = cache.Find(k);
     if (*pos != nullptr) {
       ZoneVector<Node*> nodes(zone());
       cache.GetCachedNodes(&nodes);
@@ -134,13 +134,13 @@ TEST_F(NodeCacheTest, GetCachedNodes_int32) {
 
 
 TEST_F(NodeCacheTest, GetCachedNodes_int64) {
-  Int64NodeCache cache;
+  Int64NodeCache cache(zone());
   int64_t constants[] = {0, 311, 12,  13,  14,  555, -555, -44, -33, -22, -11,
                          0, 311, 311, 412, 412, 11,  11,   -33, -33, -22, -11};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     int64_t k = constants[i];
-    Node** pos = cache.Find(zone(), k);
+    Node** pos = cache.Find(k);
     if (*pos != nullptr) {
       ZoneVector<Node*> nodes(zone());
       cache.GetCachedNodes(&nodes);

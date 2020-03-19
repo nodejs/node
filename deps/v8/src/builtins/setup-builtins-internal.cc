@@ -42,8 +42,7 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
     return options;
   }
 
-  const base::AddressRegion& code_range =
-      isolate->heap()->memory_allocator()->code_range();
+  const base::AddressRegion& code_range = isolate->heap()->code_range();
   bool pc_relative_calls_fit_in_code_range =
       !code_range.is_empty() &&
       std::ceil(static_cast<float>(code_range.size() / MB)) <=
@@ -159,7 +158,7 @@ Code BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
 
   Zone zone(isolate->allocator(), ZONE_NAME);
   const int argc_with_recv =
-      (argc == SharedFunctionInfo::kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
+      (argc == kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
   compiler::CodeAssemblerState state(
       isolate, &zone, argc_with_recv, Code::BUILTIN, name,
       PoisoningMitigationLevel::kDontPoison, builtin_index);

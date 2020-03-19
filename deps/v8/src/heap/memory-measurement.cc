@@ -13,6 +13,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/marking-worklist.h"
+#include "src/logging/counters.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-promise.h"
 #include "src/tasks/task-utils.h"
@@ -178,8 +179,12 @@ bool MemoryMeasurement::EnqueueRequest(
   }
   Handle<WeakFixedArray> global_weak_contexts =
       isolate_->global_handles()->Create(*weak_contexts);
-  Request request = {std::move(delegate), global_weak_contexts,
-                     std::vector<size_t>(length), 0u};
+  Request request = {std::move(delegate),
+                     global_weak_contexts,
+                     std::vector<size_t>(length),
+                     0u,
+                     {}};
+  request.timer.Start();
   received_.push_back(std::move(request));
   ScheduleGCTask(execution);
   return true;
@@ -303,6 +308,8 @@ void MemoryMeasurement::ReportResults() {
       sizes.push_back(std::make_pair(context, request.sizes[i]));
     }
     request.delegate->MeasurementComplete(sizes, request.shared);
+    isolate_->counters()->measure_memory_delay_ms()->AddSample(
+        static_cast<int>(request.timer.Elapsed().InMilliseconds()));
   }
 }
 

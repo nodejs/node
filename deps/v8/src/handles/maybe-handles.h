@@ -50,7 +50,7 @@ class MaybeHandle final {
 
   // Convert to a Handle with a type that can be upcasted to.
   template <typename S>
-  V8_INLINE bool ToHandle(Handle<S>* out) const {
+  V8_WARN_UNUSED_RESULT V8_INLINE bool ToHandle(Handle<S>* out) const {
     if (location_ == nullptr) {
       *out = Handle<T>::null();
       return false;

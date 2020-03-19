@@ -8,6 +8,7 @@
 #include "src/base/export-template.h"
 #include "src/base/functional.h"
 #include "src/base/macros.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -30,33 +31,25 @@ template <typename Key, typename Hash = base::hash<Key>,
           typename Pred = std::equal_to<Key> >
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) NodeCache final {
  public:
-  explicit NodeCache(unsigned max = 256)
-      : entries_(nullptr), size_(0), max_(max) {}
+  explicit NodeCache(Zone* zone) : map_(zone) {}
   ~NodeCache() = default;
 
   // Search for node associated with {key} and return a pointer to a memory
   // location in this cache that stores an entry for the key. If the location
   // returned by this method contains a non-nullptr node, the caller can use
-  // that
-  // node. Otherwise it is the responsibility of the caller to fill the entry
-  // with a new node.
-  // Note that a previous cache entry may be overwritten if the cache becomes
-  // too full or encounters too many hash collisions.
-  Node** Find(Zone* zone, Key key);
+  // that node. Otherwise it is the responsibility of the caller to fill the
+  // entry with a new node.
+  Node** Find(Key key) { return &(map_[key]); }
 
   // Appends all nodes from this cache to {nodes}.
-  void GetCachedNodes(ZoneVector<Node*>* nodes);
+  void GetCachedNodes(ZoneVector<Node*>* nodes) {
+    for (const auto& entry : map_) {
+      if (entry.second) nodes->push_back(entry.second);
+    }
+  }
 
  private:
-  struct Entry;
-
-  Entry* entries_;  // lazily-allocated hash entries.
-  size_t size_;
-  size_t max_;
-  Hash hash_;
-  Pred pred_;
-
-  bool Resize(Zone* zone);
+  ZoneUnorderedMap<Key, Node*, Hash, Pred> map_;
 
   DISALLOW_COPY_AND_ASSIGN(NodeCache);
 };
@@ -77,17 +70,6 @@ using IntPtrNodeCache = Int32NodeCache;
 #else
 using IntPtrNodeCache = Int64NodeCache;
 #endif
-
-// Explicit instantiation declarations.
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) NodeCache<int32_t>;
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) NodeCache<int64_t>;
-
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) NodeCache<RelocInt32Key>;
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) NodeCache<RelocInt64Key>;
 
 }  // namespace compiler
 }  // namespace internal

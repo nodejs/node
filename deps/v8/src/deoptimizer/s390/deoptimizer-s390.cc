@@ -254,6 +254,8 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
   UNREACHABLE();
 }
 
+void FrameDescription::SetPc(intptr_t pc) { pc_ = pc; }
+
 #undef __
 
 }  // namespace internal

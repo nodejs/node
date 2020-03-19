@@ -184,6 +184,32 @@ TEST(JsonStdStringWriterTest, HelloWorld) {
       out);
 }
 
+TEST(JsonStdStringWriterTest, ScalarsAreRenderedAsInt) {
+  // Test that Number.MIN_SAFE_INTEGER / Number.MAX_SAFE_INTEGER from Javascript
+  // are rendered as integers (no decimal point / rounding), even when we
+  // encode them from double. Javascript's Number is an IEE754 double, so
+  // it has 53 bits to represent integers.
+  std::string out;
+  Status status;
+  std::unique_ptr<ParserHandler> writer = NewJSONEncoder(&out, &status);
+  writer->HandleMapBegin();
+
+  writer->HandleString8(SpanFrom("Number.MIN_SAFE_INTEGER"));
+  EXPECT_EQ(-0x1fffffffffffff, -9007199254740991);  // 53 bits for integers.
+  writer->HandleDouble(-9007199254740991);          // Note HandleDouble here.
+
+  writer->HandleString8(SpanFrom("Number.MAX_SAFE_INTEGER"));
+  EXPECT_EQ(0x1fffffffffffff, 9007199254740991);  // 53 bits for integers.
+  writer->HandleDouble(9007199254740991);         // Note HandleDouble here.
+
+  writer->HandleMapEnd();
+  EXPECT_TRUE(status.ok());
+  EXPECT_EQ(
+      "{\"Number.MIN_SAFE_INTEGER\":-9007199254740991,"
+      "\"Number.MAX_SAFE_INTEGER\":9007199254740991}",
+      out);
+}
+
 TEST(JsonStdStringWriterTest, RepresentingNonFiniteValuesAsNull) {
   // JSON can't represent +Infinity, -Infinity, or NaN.
   // So in practice it's mapped to null.

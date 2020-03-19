@@ -40,6 +40,7 @@
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-field-inl.h"
 #include "src/objects/tagged-impl-inl.h"
+#include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
 #include "src/sanitizer/tsan.h"
 #include "torque-generated/class-definitions-tq-inl.h"
@@ -74,6 +75,10 @@ DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
   return IsFixedArrayExact(isolate);
 }
 
+bool Object::IsTaggedIndex() const {
+  return IsSmi() && TaggedIndex::IsValid(TaggedIndex(ptr()).value());
+}
+
 #define IS_TYPE_FUNCTION_DEF(type_)                                      \
   bool Object::Is##type_() const {                                       \
     return IsHeapObject() && HeapObject::cast(*this).Is##type_();        \
@@ -90,6 +95,9 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
   bool Object::Is##Type(Isolate* isolate) const {                \
     return Is##Type(ReadOnlyRoots(isolate));                     \
   }                                                              \
+  bool Object::Is##Type(OffThreadIsolate* isolate) const {       \
+    return Is##Type(ReadOnlyRoots(isolate));                     \
+  }                                                              \
   bool Object::Is##Type(ReadOnlyRoots roots) const {             \
     return *this == roots.Value();                               \
   }                                                              \
@@ -97,6 +105,9 @@ IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
     return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
   }                                                              \
   bool HeapObject::Is##Type(Isolate* isolate) const {            \
+    return Object::Is##Type(isolate);                            \
+  }                                                              \
+  bool HeapObject::Is##Type(OffThreadIsolate* isolate) const {   \
     return Object::Is##Type(isolate);                            \
   }                                                              \
   bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \

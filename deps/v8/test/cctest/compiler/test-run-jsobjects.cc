@@ -14,8 +14,8 @@ namespace compiler {
 TEST(ArgumentsMapped) {
   FunctionTester T("(function(a) { return arguments; })");
 
-  Handle<Object> arguments;
-  T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandle(&arguments);
+  Handle<Object> arguments =
+      T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandleChecked();
   CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
   CHECK(JSObject::cast(*arguments).HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
@@ -28,8 +28,8 @@ TEST(ArgumentsMapped) {
 TEST(ArgumentsUnmapped) {
   FunctionTester T("(function(a) { 'use strict'; return arguments; })");
 
-  Handle<Object> arguments;
-  T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandle(&arguments);
+  Handle<Object> arguments =
+      T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandleChecked();
   CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
   CHECK(!JSObject::cast(*arguments).HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
@@ -42,8 +42,8 @@ TEST(ArgumentsUnmapped) {
 TEST(ArgumentsRest) {
   FunctionTester T("(function(a, ...args) { return args; })");
 
-  Handle<Object> arguments;
-  T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandle(&arguments);
+  Handle<Object> arguments =
+      T.Call(T.Val(19), T.Val(23), T.Val(42), T.Val(65)).ToHandleChecked();
   CHECK(arguments->IsJSObject() && arguments->IsJSArray());
   CHECK(!JSObject::cast(*arguments).HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();

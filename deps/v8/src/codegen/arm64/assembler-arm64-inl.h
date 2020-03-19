@@ -463,19 +463,6 @@ bool MemOperand::IsPreIndex() const { return addrmode_ == PreIndex; }
 
 bool MemOperand::IsPostIndex() const { return addrmode_ == PostIndex; }
 
-Operand MemOperand::OffsetAsOperand() const {
-  if (IsImmediateOffset()) {
-    return offset();
-  } else {
-    DCHECK(IsRegisterOffset());
-    if (extend() == NO_EXTEND) {
-      return Operand(regoffset(), shift(), shift_amount());
-    } else {
-      return Operand(regoffset(), extend(), shift_amount());
-    }
-  }
-}
-
 void Assembler::Unreachable() { debug("UNREACHABLE", __LINE__, BREAK); }
 
 Address Assembler::target_pointer_address_at(Address pc) {

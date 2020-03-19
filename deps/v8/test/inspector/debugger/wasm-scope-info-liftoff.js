@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(clemensb): In the long term this test should also work without any
-// flags, once we tier down to Liftoff when the debugger is enabled.
-// Flags: --liftoff --no-wasm-tier-up
-
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information from compiled Liftoff frames');
 session.setupScriptMap();

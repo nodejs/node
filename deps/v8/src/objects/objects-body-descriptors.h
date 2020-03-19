@@ -180,6 +180,10 @@ class SubclassBodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+#define TORQUE_BODY_DESCRIPTOR_LIST_ADAPTER(V, TYPE, TypeName) V(TYPE, TypeName)
+#define TORQUE_BODY_DESCRIPTOR_LIST(V) \
+  TORQUE_BODY_DESCRIPTOR_LIST_GENERATOR(TORQUE_BODY_DESCRIPTOR_LIST_ADAPTER, V)
+
 }  // namespace internal
 }  // namespace v8
 

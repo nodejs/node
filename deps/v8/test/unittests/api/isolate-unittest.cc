@@ -75,8 +75,7 @@ using IncumbentContextTest = TestWithIsolate;
 // scenarios.
 TEST_F(IncumbentContextTest, Basic) {
   auto Str = [&](const char* s) {
-    return String::NewFromUtf8(isolate(), s, NewStringType::kNormal)
-        .ToLocalChecked();
+    return String::NewFromUtf8(isolate(), s).ToLocalChecked();
   };
   auto Run = [&](Local<Context> context, const char* script) {
     Context::Scope scope(context);

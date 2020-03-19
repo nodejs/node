@@ -432,10 +432,9 @@ OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
-OwnedVector<trap_handler::ProtectedInstructionData>
-CodeGenerator::GetProtectedInstructions() {
-  return OwnedVector<trap_handler::ProtectedInstructionData>::Of(
-      protected_instructions_);
+OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
+  return OwnedVector<byte>::Of(
+      Vector<byte>::cast(VectorOf(protected_instructions_)));
 }
 
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {

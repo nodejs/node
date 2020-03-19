@@ -1752,15 +1752,11 @@ class ThreadImpl {
   bool ExtractAtomicWaitNotifyParams(Decoder* decoder, InterpreterCode* code,
                                      pc_t pc, int* const len,
                                      uint32_t* buffer_offset, type* val,
-                                     double* timeout = nullptr) {
+                                     int64_t* timeout = nullptr) {
     MemoryAccessImmediate<Decoder::kValidate> imm(decoder, code->at(pc + 1),
                                                   sizeof(type));
     if (timeout) {
-      double timeout_ns = Pop().to<int64_t>();
-      *timeout = (timeout_ns < 0)
-                     ? V8_INFINITY
-                     : timeout_ns / (base::Time::kNanosecondsPerMicrosecond *
-                                     base::Time::kMicrosecondsPerMillisecond);
+      *timeout = Pop().to<int64_t>();
     }
     *val = Pop().to<type>();
     auto index = Pop().to<uint32_t>();
@@ -1828,7 +1824,7 @@ class ThreadImpl {
         Address src_addr =
             instance_object_->data_segment_starts()[imm.data_segment_index] +
             src;
-        memory_copy_wrapper(dst_addr, src_addr, size);
+        memory_copy(dst_addr, src_addr, size);
         return true;
       }
       case kExprDataDrop: {
@@ -1854,7 +1850,7 @@ class ThreadImpl {
           return false;
         }
 
-        memory_copy_wrapper(dst_addr, src_addr, size);
+        memory_copy(dst_addr, src_addr, size);
         return true;
       }
       case kExprMemoryFill: {
@@ -1951,12 +1947,12 @@ class ThreadImpl {
         // Even when table.fill goes out-of-bounds, as many entries as possible
         // are put into the table. Only afterwards we trap.
         uint32_t fill_count = std::min(count, table_size - start);
-        WasmTableObject::Fill(isolate_, table, start, value, fill_count);
-
         if (fill_count < count) {
           DoTrap(kTrapTableOutOfBounds, pc);
           return false;
         }
+        WasmTableObject::Fill(isolate_, table, start, value, fill_count);
+
         *len += imm.length;
         return true;
       }
@@ -2169,7 +2165,7 @@ class ThreadImpl {
         break;
       case kExprI32AtomicWait: {
         int32_t val;
-        double timeout;
+        int64_t timeout;
         uint32_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int32_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
@@ -2178,14 +2174,14 @@ class ThreadImpl {
         HandleScope handle_scope(isolate_);
         Handle<JSArrayBuffer> array_buffer(
             instance_object_->memory_object().array_buffer(), isolate_);
-        auto result = FutexEmulation::Wait32(isolate_, array_buffer,
-                                             buffer_offset, val, timeout);
+        auto result = FutexEmulation::WaitWasm32(isolate_, array_buffer,
+                                                 buffer_offset, val, timeout);
         Push(WasmValue(result.ToSmi().value()));
         break;
       }
       case kExprI64AtomicWait: {
         int64_t val;
-        double timeout;
+        int64_t timeout;
         uint32_t buffer_offset;
         if (!ExtractAtomicWaitNotifyParams<int64_t>(
                 decoder, code, pc, len, &buffer_offset, &val, &timeout)) {
@@ -2194,8 +2190,8 @@ class ThreadImpl {
         HandleScope handle_scope(isolate_);
         Handle<JSArrayBuffer> array_buffer(
             instance_object_->memory_object().array_buffer(), isolate_);
-        auto result = FutexEmulation::Wait64(isolate_, array_buffer,
-                                             buffer_offset, val, timeout);
+        auto result = FutexEmulation::WaitWasm64(isolate_, array_buffer,
+                                                 buffer_offset, val, timeout);
         Push(WasmValue(result.ToSmi().value()));
         break;
       }
@@ -2373,9 +2369,12 @@ class ThreadImpl {
       UNOP_CASE(F32x4RecipSqrtApprox, f32x4, float4, 4, base::RecipSqrt(a))
       UNOP_CASE(I64x2Neg, i64x2, int2, 2, base::NegateWithWraparound(a))
       UNOP_CASE(I32x4Neg, i32x4, int4, 4, base::NegateWithWraparound(a))
+      UNOP_CASE(I32x4Abs, i32x4, int4, 4, std::abs(a))
       UNOP_CASE(S128Not, i32x4, int4, 4, ~a)
       UNOP_CASE(I16x8Neg, i16x8, int8, 8, base::NegateWithWraparound(a))
+      UNOP_CASE(I16x8Abs, i16x8, int8, 8, std::abs(a))
       UNOP_CASE(I8x16Neg, i8x16, int16, 16, base::NegateWithWraparound(a))
+      UNOP_CASE(I8x16Abs, i8x16, int16, 16, std::abs(a))
 #undef UNOP_CASE
 #define CMPOP_CASE(op, name, stype, out_stype, count, expr) \
   case kExpr##op: {                                         \
@@ -3850,7 +3849,7 @@ class ThreadImpl {
   ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
                                               Handle<Object> object_ref,
                                               const WasmCode* code,
-                                              FunctionSig* sig) {
+                                              const FunctionSig* sig) {
     int num_args = static_cast<int>(sig->parameter_count());
     WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
 
@@ -3977,7 +3976,7 @@ class ThreadImpl {
     // and compiled we may get an exception.
     if (code == nullptr) return TryHandleException(isolate_);
 
-    FunctionSig* sig = module()->functions[function_index].sig;
+    const FunctionSig* sig = module()->functions[function_index].sig;
     return CallExternalWasmFunction(isolate_, object_ref, code, sig);
   }
 
@@ -4002,7 +4001,7 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    FunctionSig* signature = module()->signatures[sig_index];
+    const FunctionSig* signature = module()->signatures[sig_index];
     Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
     WasmCode* code = GetTargetCode(isolate_, entry.target());
 
@@ -4319,7 +4318,13 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   // Create some dummy structures, to avoid special-casing the implementation
   // just for testing.
   FunctionSig sig(0, 0, nullptr);
-  WasmFunction function{&sig, 0, 0, {0, 0}, false, false};
+  WasmFunction function{&sig,    // sig
+                        0,       // func_index
+                        0,       // sig_index
+                        {0, 0},  // code
+                        false,   // imported
+                        false,   // exported
+                        false};  // declared
   InterpreterCode code{
       &function, BodyLocalDecls(zone), start, end, nullptr, nullptr, nullptr};
 

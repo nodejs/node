@@ -81,7 +81,7 @@ class CWasmEntryArgTester {
   WasmRunner<ReturnType, Args...> runner_;
   Isolate* isolate_;
   std::function<ReturnType(Args...)> expected_fn_;
-  FunctionSig* sig_;
+  const FunctionSig* sig_;
   Handle<Code> c_wasm_entry_;
   WasmCode* wasm_code_;
 };

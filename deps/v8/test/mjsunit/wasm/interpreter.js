@@ -37,10 +37,10 @@ function checkStack(stack, expected_lines) {
     instance.exports.main();
     assertEquals(interpreted_before + 1, %WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
-      'Error: test imported stack',                           // -
-      /^    at func \(interpreter.js:\d+:28\)$/,              // -
-      '    at main (wasm-function[1]:0x32)',                  // -
-      /^    at testCallImported \(interpreter.js:\d+:22\)$/,  // -
+      'Error: test imported stack',                          // -
+      /^    at func \(interpreter.js:\d+:28\)$/,             // -
+      '    at main (<anonymous>:wasm-function[1]:0x32)',     // -
+      /^    at testCallImported \(interpreter.js:\d+:22\)$/, // -
       /^    at interpreter.js:\d+:3$/
     ]);
   }
@@ -102,10 +102,10 @@ function checkStack(stack, expected_lines) {
     }
     assertEquals(interpreted_before + 2, %WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
-      'RuntimeError: unreachable',                    // -
-      '    at foo (wasm-function[0]:0x27)',           // -
-      '    at main (wasm-function[1]:0x2c)',          // -
-      /^    at testTrap \(interpreter.js:\d+:24\)$/,  // -
+      'RuntimeError: unreachable',                       // -
+      '    at foo (<anonymous>:wasm-function[0]:0x27)',  // -
+      '    at main (<anonymous>:wasm-function[1]:0x2c)', // -
+      /^    at testTrap \(interpreter.js:\d+:24\)$/,     // -
       /^    at interpreter.js:\d+:3$/
     ]);
   }
@@ -134,10 +134,10 @@ function checkStack(stack, expected_lines) {
     }
     assertEquals(interpreted_before + 1, %WasmNumInterpretedCalls(instance));
     checkStack(stripPath(stack), [
-      'Error: thrown from imported function',                    // -
-      /^    at func \(interpreter.js:\d+:11\)$/,                 // -
-      '    at main (wasm-function[1]:0x32)',                     // -
-      /^    at testThrowFromImport \(interpreter.js:\d+:24\)$/,  // -
+      'Error: thrown from imported function',                   // -
+      /^    at func \(interpreter.js:\d+:11\)$/,                // -
+      '    at main (<anonymous>:wasm-function[1]:0x32)',        // -
+      /^    at testThrowFromImport \(interpreter.js:\d+:24\)$/, // -
       /^    at interpreter.js:\d+:3$/
     ]);
   }
@@ -218,10 +218,10 @@ function checkStack(stack, expected_lines) {
     for (var e = 0; e < stacks.length; ++e) {
       expected = ['Error: reentrant interpreter test #' + e];
       expected.push(/^    at func \(interpreter.js:\d+:17\)$/);
-      expected.push('    at main (wasm-function[1]:0x36)');
+      expected.push('    at main (<anonymous>:wasm-function[1]:0x36)');
       for (var k = e; k > 0; --k) {
         expected.push(/^    at func \(interpreter.js:\d+:33\)$/);
-        expected.push('    at main (wasm-function[1]:0x36)');
+        expected.push('    at main (<anonymous>:wasm-function[1]:0x36)');
       }
       expected.push(
           /^    at testReentrantInterpreter \(interpreter.js:\d+:22\)$/);
@@ -295,10 +295,10 @@ function checkStack(stack, expected_lines) {
   } catch (e) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
-      'TypeError: ' + kTrapMsgs[kTrapTypeError],                // -
-      '    at direct (wasm-function[1]:0x55)',                  // -
-      '    at main (wasm-function[3]:0x64)',                    // -
-      /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
+      'TypeError: ' + kTrapMsgs[kTrapTypeError],               // -
+      '    at direct (<anonymous>:wasm-function[1]:0x55)',     // -
+      '    at main (<anonymous>:wasm-function[3]:0x64)',       // -
+      /^    at testIllegalImports \(interpreter.js:\d+:22\)$/, // -
       /^    at interpreter.js:\d+:3$/
     ]);
   }
@@ -308,10 +308,10 @@ function checkStack(stack, expected_lines) {
   } catch (e) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
-      'TypeError: ' + kTrapMsgs[kTrapTypeError],                // -
-      '    at indirect (wasm-function[2]:0x5c)',                // -
-      '    at main (wasm-function[3]:0x64)',                    // -
-      /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
+      'TypeError: ' + kTrapMsgs[kTrapTypeError],               // -
+      '    at indirect (<anonymous>:wasm-function[2]:0x5c)',   // -
+      '    at main (<anonymous>:wasm-function[3]:0x64)',       // -
+      /^    at testIllegalImports \(interpreter.js:\d+:22\)$/, // -
       /^    at interpreter.js:\d+:3$/
     ]);
   }
@@ -358,8 +358,8 @@ function checkStack(stack, expected_lines) {
     if (!(e instanceof RangeError)) throw e;
     checkStack(stripPath(e.stack), [
       'RangeError: Maximum call stack size exceeded',
-      '    at main (wasm-function[0]:0x20)'
-    ].concat(Array(9).fill('    at main (wasm-function[0]:0x22)')));
+      '    at main (<anonymous>:wasm-function[0]:0x20)'
+    ].concat(Array(9).fill('    at main (<anonymous>:wasm-function[0]:0x22)')));
   }
 })();
 

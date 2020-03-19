@@ -670,23 +670,6 @@ void TurboAssembler::RestoreFrameStateForTailCall() {
   LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 }
 
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the highest encoding,
-  // which means that lowest encodings are closest to the stack pointer.
-  RegList regs = kSafepointSavedRegisters;
-  int index = 0;
-
-  DCHECK(reg_code >= 0 && reg_code < kNumRegisters);
-
-  for (int16_t i = 0; i < reg_code; i++) {
-    if ((regs & (1 << i)) != 0) {
-      index++;
-    }
-  }
-
-  return index;
-}
-
 void TurboAssembler::CanonicalizeNaN(const DoubleRegister dst,
                                      const DoubleRegister src) {
   // Turn potential sNaN into qNaN
@@ -1845,16 +1828,24 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    Register scratch = r6;
-    push(scratch);
-
-    Move(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+  Register addr_scratch = r1;
+  // See x64 code for reasoning about how to address the isolate data fields.
+  if (root_array_available()) {
     LoadPC(r0);
-    StoreP(r0, MemOperand(scratch));
-    Move(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreP(fp, MemOperand(scratch));
-    pop(scratch);
+    StoreP(r0, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_pc_offset()));
+    StoreP(fp, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    LoadPC(r0);
+    StoreP(r0, MemOperand(addr_scratch));
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(fp, MemOperand(addr_scratch));
   }
 
   // Just call directly. The function called cannot cause a GC, or
@@ -1868,15 +1859,19 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   Call(dest);
 
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register scratch1 = r6;
-    Register scratch2 = r7;
-    Push(scratch1, scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    lghi(scratch2, Operand::Zero());
-    StoreP(scratch2, MemOperand(scratch1));
-    Pop(scratch1, scratch2);
+  // We don't unset the PC; the FP is the source of truth.
+  Register zero_scratch = r0;
+  lghi(zero_scratch, Operand::Zero());
+
+  if (root_array_available()) {
+    StoreP(
+        zero_scratch,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(zero_scratch, MemOperand(addr_scratch));
   }
 
   int stack_passed_arguments =
@@ -3757,9 +3752,15 @@ void TurboAssembler::LoadFloat32ConvertToDouble(DoubleRegister dst,
   ldebr(dst, dst);
 }
 
-void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem) {
-  DCHECK(is_uint12(mem.offset()));
-  vl(dst, mem, Condition(0));
+void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                                 Register scratch) {
+  if (is_uint12(mem.offset())) {
+    vl(dst, mem, Condition(0));
+  } else {
+    DCHECK(is_int20(mem.offset()));
+    lay(scratch, mem);
+    vl(dst, MemOperand(scratch), Condition(0));
+  }
 }
 
 // Store Double Precision (64-bit) Floating Point number to memory
@@ -3789,9 +3790,15 @@ void TurboAssembler::StoreDoubleAsFloat32(DoubleRegister src,
   StoreFloat32(scratch, mem);
 }
 
-void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
-  DCHECK(is_uint12(mem.offset()));
-  vst(src, mem, Condition(0));
+void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem,
+                                  Register scratch) {
+  if (is_uint12(mem.offset())) {
+    vst(src, mem, Condition(0));
+  } else {
+    DCHECK(is_int20(mem.offset()));
+    lay(scratch, mem);
+    vst(src, MemOperand(scratch), Condition(0));
+  }
 }
 
 void TurboAssembler::AddFloat32(DoubleRegister dst, const MemOperand& opnd,
@@ -4197,13 +4204,17 @@ void TurboAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
 }
 
 void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
-                                 DoubleRegister scratch_0,
-                                 DoubleRegister scratch_1) {
-  DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadFloat32(scratch_0, src);
-  LoadFloat32(scratch_1, dst);
-  StoreFloat32(scratch_0, dst);
-  StoreFloat32(scratch_1, src);
+                                 DoubleRegister scratch) {
+  // push d0, to be used as scratch
+  lay(sp, MemOperand(sp, -kDoubleSize));
+  StoreDouble(d0, MemOperand(sp));
+  LoadFloat32(scratch, src);
+  LoadFloat32(d0, dst);
+  StoreFloat32(scratch, dst);
+  StoreFloat32(d0, src);
+  // restore d0
+  LoadDouble(d0, MemOperand(sp));
+  lay(sp, MemOperand(sp, kDoubleSize));
 }
 
 void TurboAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
@@ -4224,13 +4235,17 @@ void TurboAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
 }
 
 void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
-                                DoubleRegister scratch_0,
-                                DoubleRegister scratch_1) {
-  DCHECK(!AreAliased(scratch_0, scratch_1));
-  LoadDouble(scratch_0, src);
-  LoadDouble(scratch_1, dst);
-  StoreDouble(scratch_0, dst);
-  StoreDouble(scratch_1, src);
+                                DoubleRegister scratch) {
+  // push d0, to be used as scratch
+  lay(sp, MemOperand(sp, -kDoubleSize));
+  StoreDouble(d0, MemOperand(sp));
+  LoadDouble(scratch, src);
+  LoadDouble(d0, dst);
+  StoreDouble(scratch, dst);
+  StoreDouble(d0, src);
+  // restore d0
+  LoadDouble(d0, MemOperand(sp));
+  lay(sp, MemOperand(sp, kDoubleSize));
 }
 
 void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
@@ -4245,17 +4260,22 @@ void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch) {
   DCHECK(!AreAliased(src, scratch));
   vlr(scratch, src, Condition(0), Condition(0), Condition(0));
-  LoadSimd128(src, dst);
-  StoreSimd128(scratch, dst);
+  LoadSimd128(src, dst, ip);
+  StoreSimd128(scratch, dst, ip);
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
-                                 Simd128Register scratch_0,
-                                 Simd128Register scratch_1) {
-  LoadSimd128(scratch_0, src);
-  LoadSimd128(scratch_1, dst);
-  StoreSimd128(scratch_0, dst);
-  StoreSimd128(scratch_1, src);
+                                 Simd128Register scratch) {
+  // push d0, to be used as scratch
+  lay(sp, MemOperand(sp, -kSimd128Size));
+  StoreSimd128(d0, MemOperand(sp), ip);
+  LoadSimd128(scratch, src, ip);
+  LoadSimd128(d0, dst, ip);
+  StoreSimd128(scratch, dst, ip);
+  StoreSimd128(d0, src, ip);
+  // restore d0
+  LoadSimd128(d0, MemOperand(sp), ip);
+  lay(sp, MemOperand(sp, kSimd128Size));
 }
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {
@@ -4392,6 +4412,7 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
 }
 
 void TurboAssembler::Trap() { stop(); }
+void TurboAssembler::DebugBreak() { stop(); }
 
 }  // namespace internal
 }  // namespace v8

@@ -29,32 +29,43 @@ class EnumSet {
 
   bool empty() const { return bits_ == 0; }
   bool contains(E element) const { return (bits_ & Mask(element)) != 0; }
-  bool contains_any(const EnumSet& set) const {
-    return (bits_ & set.bits_) != 0;
-  }
+  bool contains_any(EnumSet set) const { return (bits_ & set.bits_) != 0; }
   void Add(E element) { bits_ |= Mask(element); }
-  void Add(const EnumSet& set) { bits_ |= set.bits_; }
+  void Add(EnumSet set) { bits_ |= set.bits_; }
   void Remove(E element) { bits_ &= ~Mask(element); }
-  void Remove(const EnumSet& set) { bits_ &= ~set.bits_; }
+  void Remove(EnumSet set) { bits_ &= ~set.bits_; }
   void RemoveAll() { bits_ = 0; }
-  void Intersect(const EnumSet& set) { bits_ &= set.bits_; }
+  void Intersect(EnumSet set) { bits_ &= set.bits_; }
   T ToIntegral() const { return bits_; }
-  bool operator==(const EnumSet& set) const { return bits_ == set.bits_; }
-  bool operator!=(const EnumSet& set) const { return bits_ != set.bits_; }
-  EnumSet operator|(const EnumSet& set) const {
-    return EnumSet(bits_ | set.bits_);
-  }
-  EnumSet operator&(const EnumSet& set) const {
-    return EnumSet(bits_ & set.bits_);
-  }
+
+  bool operator==(EnumSet set) const { return bits_ == set.bits_; }
+  bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
+
+  EnumSet operator|(EnumSet set) const { return EnumSet(bits_ | set.bits_); }
+  EnumSet operator&(EnumSet set) const { return EnumSet(bits_ & set.bits_); }
+  EnumSet operator-(EnumSet set) const { return EnumSet(bits_ & ~set.bits_); }
+
+  EnumSet& operator|=(EnumSet set) { return *this = *this | set; }
+  EnumSet& operator&=(EnumSet set) { return *this = *this & set; }
+  EnumSet& operator-=(EnumSet set) { return *this = *this - set; }
+
+  EnumSet operator|(E element) const { return EnumSet(bits_ | Mask(element)); }
+  EnumSet operator&(E element) const { return EnumSet(bits_ & Mask(element)); }
+  EnumSet operator-(E element) const { return EnumSet(bits_ & ~Mask(element)); }
+
+  EnumSet& operator|=(E element) { return *this = *this | element; }
+  EnumSet& operator&=(E element) { return *this = *this & element; }
+  EnumSet& operator-=(E element) { return *this = *this - element; }
 
   static constexpr EnumSet FromIntegral(T bits) { return EnumSet{bits}; }
 
  private:
   explicit constexpr EnumSet(T bits) : bits_(bits) {}
 
-  static T Mask(E element) {
+  static constexpr T Mask(E element) {
+#if V8_HAS_CXX14_CONSTEXPR
     DCHECK_GT(sizeof(T) * 8, static_cast<int>(element));
+#endif
     return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
   }
 

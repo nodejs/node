@@ -113,6 +113,8 @@ RegExpMacroAssemblerS390::RegExpMacroAssemblerS390(Isolate* isolate, Zone* zone,
       backtrack_label_(),
       exit_label_(),
       internal_failure_label_() {
+  masm_->set_root_array_available(false);
+
   DCHECK_EQ(0, registers_to_save % 2);
 
   __ b(&entry_label_);  // We'll write the entry code later.
@@ -228,7 +230,7 @@ void RegExpMacroAssemblerS390::CheckGreedyLoop(Label* on_equal) {
 }
 
 void RegExpMacroAssemblerS390::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
+    int start_reg, bool read_backward, Label* on_no_match) {
   Label fallthrough;
   __ LoadP(r2, register_location(start_reg));      // Index of start of
                                                    // capture
@@ -325,7 +327,7 @@ void RegExpMacroAssemblerS390::CheckNotBackReferenceIgnoreCase(
     //   r2: Address byte_offset1 - Address captured substring's start.
     //   r3: Address byte_offset2 - Address of current character position.
     //   r4: size_t byte_length - length of capture in bytes(!)
-    //   r5: Isolate* isolate or 0 if unicode flag.
+    //   r5: Isolate* isolate.
 
     // Address of start of capture.
     __ AddP(r2, end_of_input_address());
@@ -339,14 +341,7 @@ void RegExpMacroAssemblerS390::CheckNotBackReferenceIgnoreCase(
       __ SubP(r3, r3, r6);
     }
 // Isolate.
-#ifdef V8_INTL_SUPPORT
-    if (unicode) {
-      __ LoadImmP(r5, Operand::Zero());
-    } else  // NOLINT
-#endif      // V8_INTL_SUPPORT
-    {
-      __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
-    }
+    __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);

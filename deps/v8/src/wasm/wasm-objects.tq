@@ -74,11 +74,17 @@ extern class WasmMemoryObject extends JSObject {
   instances: WeakArrayList|Undefined;
 }
 
+type WasmValueType extends uint8 constexpr 'wasm::ValueType';
+bitfield struct WasmGlobalObjectFlags extends uint31 {
+  Type: WasmValueType: 8 bit;  // "type" is a reserved word.
+  is_mutable: bool: 1 bit;
+}
+
 extern class WasmGlobalObject extends JSObject {
   untagged_buffer: JSArrayBuffer|Undefined;
   tagged_buffer: FixedArray|Undefined;
   offset: Smi;
-  flags: Smi;
+  flags: SmiTagged<WasmGlobalObjectFlags>;
 }
 
 extern class WasmExceptionObject extends JSObject {

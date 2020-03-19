@@ -331,7 +331,7 @@ void float64_pow_wrapper(Address data) {
 // reset the thread-in-wasm flag before calling this function. However,
 // as this is only a problem with Asan on Windows, we did not consider
 // it worth the overhead.
-DISABLE_ASAN void memory_copy_wrapper(Address dst, Address src, uint32_t size) {
+DISABLE_ASAN void memory_copy(Address dst, Address src, uint32_t size) {
   // Use explicit forward and backward copy to match the required semantics for
   // the memory.copy instruction. It is assumed that the caller of this
   // function has already performed bounds checks, so {src + size} and
@@ -350,6 +350,14 @@ DISABLE_ASAN void memory_copy_wrapper(Address dst, Address src, uint32_t size) {
       *dst8++ = *src8++;
     }
   }
+}
+
+void memory_copy_wrapper(Address data) {
+  Address dst = ReadUnalignedValue<Address>(data);
+  Address src = ReadUnalignedValue<Address>(data + sizeof(dst));
+  uint32_t size =
+      ReadUnalignedValue<uint32_t>(data + sizeof(dst) + sizeof(src));
+  memory_copy(dst, src, size);
 }
 
 // Asan on Windows triggers exceptions in this function that confuse the

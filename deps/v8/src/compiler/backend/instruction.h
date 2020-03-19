@@ -1212,8 +1212,8 @@ class StateValueList {
   void PushPlain(MachineType type) {
     fields_.push_back(StateValueDescriptor::Plain(type));
   }
-  void PushOptimizedOut() {
-    fields_.push_back(StateValueDescriptor::OptimizedOut());
+  void PushOptimizedOut(size_t num = 1) {
+    fields_.insert(fields_.end(), num, StateValueDescriptor::OptimizedOut());
   }
 
   iterator begin() { return iterator(fields_.begin(), nested_.begin()); }

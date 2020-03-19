@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --randomize-all-allocations
-// Flags: --wasm-far-jump-table --wasm-max-initial-code-space-reservation=1
+// Flags: --wasm-max-initial-code-space-reservation=1
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 

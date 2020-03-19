@@ -9,9 +9,7 @@
 #include "include/v8-inspector.h"
 #include "include/v8.h"
 #include "src/inspector/protocol/Runtime.h"
-#include "src/inspector/string-16.h"
 
-using v8_inspector::String16;
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
 using v8_inspector::V8ContextInfo;
@@ -64,17 +62,4 @@ TEST(WrapInsideWrapOnInterrupt) {
                                strlen(object_group));
   isolate->RequestInterrupt(&WrapOnInterrupt, session.get());
   session->wrapObject(env.local(), v8::Null(isolate), object_group_view, false);
-}
-
-TEST(String16EndianTest) {
-  const v8_inspector::UChar* expected =
-      reinterpret_cast<const v8_inspector::UChar*>(u"Hello, \U0001F30E.");
-  const uint16_t* utf16le = reinterpret_cast<const uint16_t*>(
-      "H\0e\0l\0l\0o\0,\0 \0\x3c\xd8\x0e\xdf.\0");  // Same text in UTF16LE
-                                                    // encoding
-
-  String16 utf16_str = String16::fromUTF16LE(utf16le, 10);
-  String16 expected_str = expected;
-
-  CHECK_EQ(utf16_str, expected_str);
 }

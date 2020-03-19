@@ -113,6 +113,17 @@ h1, h2, h3, section {
   max-height: 200px;
   overflow-y: scroll;
 }
+
+#stats .transitionType {
+  text-align: right;
+}
+#stats .transitionType tr td:nth-child(2) {
+  text-align: left;
+}
+#stats .transitionType tr:nth-child(1) td {
+  border-bottom: 1px black dotted;
+}
+
 #timeline {
   position: relative;
   height: 300px;
@@ -436,9 +447,9 @@ function td(textOrNode) {
   return node;
 }
 
+
 function tr() {
-  let node = document.createElement("tr");
-  return node;
+  return document.createElement("tr");
 }
 
 function define(prototype, name, fn) {
@@ -1103,7 +1114,7 @@ class StatsView {
     ];
 
     let text = "";
-    let tableNode = table();
+    let tableNode = table("transitionType");
     let name, filter;
     let total = this.timeline.size();
     pairs.forEach(([name, color, filter]) => {
@@ -1120,7 +1131,7 @@ class StatsView {
       let count = this.timeline.count(filter);
       row.appendChild(td(count));
       let percent = Math.round(count / total * 1000) / 10;
-      row.appendChild(td(percent + "%"));
+      row.appendChild(td(percent.toFixed(1) + "%"));
       tableNode.appendChild(row);
     });
     this.node.appendChild(tableNode);
@@ -1204,7 +1215,7 @@ function transitionTypeToColor(type) {
 
   <h2>Instructions</h2>
   <section>
-    <p>Visualize Map trees that have been gathere using <code>--trace-maps</code>.</p>
+    <p>Visualize Map trees that have been gathered using <code>--trace-maps</code>.</p>
   </section>
 
   <div id="tooltip">

@@ -145,7 +145,7 @@ class V8_EXPORT V8InspectorSession {
   virtual void breakProgram(const StringView& breakReason,
                             const StringView& breakDetails) = 0;
   virtual void setSkipAllPauses(bool) = 0;
-  virtual void resume() = 0;
+  virtual void resume(bool setTerminateOnResume = false) = 0;
   virtual void stepOver() = 0;
   virtual std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
   searchInTextByLines(const StringView& text, const StringView& query,

@@ -2808,9 +2808,9 @@ bool LiveRangeBundle::TryMerge(LiveRangeBundle* other, bool trace_alloc) {
   auto iter2 = other->uses_.begin();
 
   while (iter1 != uses_.end() && iter2 != other->uses_.end()) {
-    if (iter1->start > iter2->end) {
+    if (iter1->start >= iter2->end) {
       ++iter2;
-    } else if (iter2->start > iter1->end) {
+    } else if (iter2->start >= iter1->end) {
       ++iter1;
     } else {
       TRACE_COND(trace_alloc, "No merge %d:%d %d:%d\n", iter1->start,

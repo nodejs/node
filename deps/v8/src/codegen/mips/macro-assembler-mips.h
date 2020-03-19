@@ -103,6 +103,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Debugging.
 
   void Trap() override;
+  void DebugBreak() override;
 
   // Calls Abort(msg) if the condition cc is not satisfied.
   // Use --debug_code to enable.

@@ -589,7 +589,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
+  CONVERT_TAGGED_INDEX_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ObjectBoilerplateDescription, description, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
   Handle<FeedbackVector> vector;
@@ -627,7 +627,7 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_SMI_ARG_CHECKED(literals_index, 1);
+  CONVERT_TAGGED_INDEX_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(ArrayBoilerplateDescription, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
   Handle<FeedbackVector> vector;
@@ -645,7 +645,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, maybe_vector, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_TAGGED_INDEX_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 

@@ -516,7 +516,7 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
 
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
-    wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
+    const wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
     int target_func_index) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
@@ -879,26 +879,22 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (old_buffer->is_asmjs_memory()) return -1;
 
   // Checks for maximum memory size.
-  uint32_t maximum_pages = wasm::max_mem_pages();
+  uint32_t maximum_pages = wasm::max_maximum_mem_pages();
   if (memory_object->has_maximum_pages()) {
     maximum_pages = std::min(
         maximum_pages, static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
+  DCHECK_GE(wasm::max_maximum_mem_pages(), maximum_pages);
   size_t old_size = old_buffer->byte_length();
-  CHECK_EQ(0, old_size % wasm::kWasmPageSize);
+  DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
-  CHECK_GE(wasm::max_mem_pages(), old_pages);
-  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
-      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
-    return -1;
-  }
+  CHECK_GE(wasm::max_maximum_mem_pages(), old_pages);
+  if (pages > maximum_pages - old_pages) return -1;
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
   if (!backing_store) return -1;
 
   // Compute new size.
   size_t new_pages = old_pages + pages;
-  size_t new_byte_length = new_pages * wasm::kWasmPageSize;
 
   // Try to handle shared memory first.
   if (old_buffer->is_shared()) {
@@ -909,6 +905,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                                     new_pages);
         // Broadcasting the update should update this memory object too.
         CHECK_NE(*old_buffer, memory_object->array_buffer());
+        // If the allocation succeeded, then this can't possibly overflow:
+        size_t new_byte_length = new_pages * wasm::kWasmPageSize;
         // This is a less than check, as it is not guaranteed that the SAB
         // length here will be equal to the stashed length above as calls to
         // grow the same memory object can come in from different workers.
@@ -1286,7 +1284,11 @@ void WasmInstanceObject::InitElemSegmentArrays(
   auto module = module_object->module();
   auto num_elem_segments = module->elem_segments.size();
   for (size_t i = 0; i < num_elem_segments; ++i) {
-    instance->dropped_elem_segments()[i] = 0;
+    instance->dropped_elem_segments()[i] =
+        module->elem_segments[i].status ==
+                wasm::WasmElemSegment::kStatusDeclarative
+            ? 1
+            : 0;
   }
 }
 
@@ -1437,7 +1439,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   // Note that {SignatureMap::Find} may return {-1} if the signature is
   // not found; it will simply never match any check.
   Zone zone(isolate->allocator(), ZONE_NAME);
-  wasm::FunctionSig* sig = js_function->GetSignature(&zone);
+  const wasm::FunctionSig* sig = js_function->GetSignature(&zone);
   auto sig_id = instance->module()->signature_map.Find(*sig);
 
   // Compile a wrapper for the target callable.
@@ -1458,8 +1460,9 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
         isolate->wasm_engine(), &env, kind, sig, false);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots, std::move(result.protected_instructions),
-        std::move(result.source_positions), GetCodeKind(result),
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), GetCodeKind(result),
         wasm::ExecutionTier::kNone);
     wasm::WasmCode* published_code =
         native_module->PublishCode(std::move(wasm_code));
@@ -1808,7 +1811,7 @@ Address WasmExportedFunction::GetWasmCallTarget() {
   return instance().GetCallTarget(function_index());
 }
 
-wasm::FunctionSig* WasmExportedFunction::sig() {
+const wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance().module()->functions[function_index()].sig;
 }
 
@@ -1820,7 +1823,7 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
 }
 
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
-                                           wasm::FunctionSig* sig,
+                                           const wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
@@ -1846,6 +1849,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<String> name = isolate->factory()->Function_string();
   if (callable->IsJSFunction()) {
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
+    name = String::Flatten(isolate, name);
   }
   Handle<Map> function_map = isolate->wasm_exported_function_map();
   NewFunctionArgs args =
@@ -1859,7 +1863,7 @@ JSReceiver WasmJSFunction::GetCallable() const {
   return shared().wasm_js_function_data().callable();
 }
 
-wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
+const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   WasmJSFunctionData function_data = shared().wasm_js_function_data();
   int sig_size = function_data.serialized_signature().length();
   wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
@@ -1871,7 +1875,7 @@ wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   return new (zone) wasm::FunctionSig(return_count, parameter_count, types);
 }
 
-bool WasmJSFunction::MatchesSignature(wasm::FunctionSig* sig) {
+bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
   int return_count = static_cast<int>(sig->return_count());

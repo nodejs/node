@@ -50,7 +50,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
           tracker = target_page->local_tracker();
         }
         DCHECK_NOT_NULL(tracker);
-        const size_t length = PerIsolateAccountingLength(old_buffer);
+        const size_t length = old_buffer.PerIsolateAccountingLength();
         // We should decrement before adding to avoid potential overflows in
         // the external memory counters.
         tracker->AddInternal(new_buffer, std::move(it->second));
@@ -60,7 +60,7 @@ void LocalArrayBufferTracker::Process(Callback callback) {
             static_cast<MemoryChunk*>(target_page), length);
       }
     } else if (result == kRemoveEntry) {
-      freed_memory += PerIsolateAccountingLength(old_buffer);
+      freed_memory += old_buffer.PerIsolateAccountingLength();
       auto backing_store = std::move(it->second);
       TRACE_BS("ABT:queue bs=%p mem=%p (length=%zu) cnt=%ld\n",
                backing_store.get(), backing_store->buffer_start(),
