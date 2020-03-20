@@ -952,7 +952,7 @@ added: v13.10.0
 
 This method returns the current store.
 If this method is called outside of an asynchronous context initialized by
-calling `asyncLocalStorage.run` or `asyncLocalStorage.runAndReturn`, it will
+calling `asyncLocalStorage.run` or `asyncLocalStorage.runSyncAndReturn`, it will
 return `undefined`.
 
 ### `asyncLocalStorage.enterWith(store)`
