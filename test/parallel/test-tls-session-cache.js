@@ -64,7 +64,7 @@ function doTest(testOptions, callback) {
         throw er;
     });
     ++requestCount;
-    cleartext.end();
+    cleartext.end('');
   });
   server.on('newSession', function(id, data, cb) {
     ++newSessionCount;
