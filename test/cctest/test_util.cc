@@ -268,6 +268,12 @@ TEST(UtilTest, SPrintF) {
   EXPECT_EQ(SPrintF("%u", -10000000000LL), "-10000000000");
   EXPECT_EQ(SPrintF("%i", 10), "10");
   EXPECT_EQ(SPrintF("%d", 10), "10");
+  EXPECT_EQ(SPrintF("%x", 15), "f");
+  EXPECT_EQ(SPrintF("%x", 16), "10");
+  EXPECT_EQ(SPrintF("%X", 15), "F");
+  EXPECT_EQ(SPrintF("%X", 16), "10");
+  EXPECT_EQ(SPrintF("%o", 7), "7");
+  EXPECT_EQ(SPrintF("%o", 8), "10");
 
   EXPECT_EQ(atof(SPrintF("%s", 0.5).c_str()), 0.5);
   EXPECT_EQ(atof(SPrintF("%s", -0.5).c_str()), -0.5);
