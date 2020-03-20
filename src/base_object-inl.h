@@ -234,13 +234,13 @@ BaseObject* BaseObjectPtrImpl<T, kIsWeak>::get_base_object() const {
 
 template <typename T, bool kIsWeak>
 BaseObjectPtrImpl<T, kIsWeak>::~BaseObjectPtrImpl() {
-  if (get() == nullptr) return;
   if (kIsWeak) {
-    if (--pointer_data()->weak_ptr_count == 0 &&
+    if (pointer_data() != nullptr &&
+        --pointer_data()->weak_ptr_count == 0 &&
         pointer_data()->self == nullptr) {
       delete pointer_data();
     }
-  } else {
+  } else if (get() != nullptr) {
     get()->decrease_refcount();
   }
 }
