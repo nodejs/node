@@ -93,9 +93,7 @@ static void Initialize(Local<Object> target,
 #else
   READONLY_PROPERTY(target,
                     "defaultPackageType",
-                    String::NewFromOneByte(isolate,
-                      reinterpret_cast<const unsigned char *>("commonjs"))
-                    .ToLocalChecked());
+                    FIXED_ONE_BYTE_STRING(isolate, "commonjs"));
 #endif
 
   READONLY_PROPERTY(target, "hasCachedBuiltins",
