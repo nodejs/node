@@ -2778,3 +2778,11 @@ assert.strictEqual(
   v8.setFlagsFromString('--no-allow-natives-syntax');
   assert.strictEqual(inspect(undetectable), '{}');
 }
+
+{
+  const x = 'a'.repeat(1e6);
+  assert.strictEqual(
+    util.inspect(x, { maxStringLength: 4 }),
+    "'aaaa'... 999996 more characters"
+  );
+}
