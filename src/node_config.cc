@@ -89,10 +89,7 @@ static void Initialize(Local<Object> target,
 #if defined NODE_DEFAULT_PACKAGE_TYPE
   READONLY_PROPERTY(target,
                     "defaultPackageType",
-                    String::NewFromOneByte(isolate,
-                      reinterpret_cast<const unsigned char *>(
-                        NODE_DEFAULT_PACKAGE_TYPE))
-                      .ToLocalChecked());
+                    FIXED_ONE_BYTE_STRING(isolate, NODE_DEFAULT_PACKAGE_TYPE));
 #else
   READONLY_PROPERTY(target,
                     "defaultPackageType",
