@@ -15,7 +15,7 @@ const host = '::';
 const WORKER_COUNT = 3;
 
 if (cluster.isMaster) {
-  const workers = new Map();
+  const workers = [];
   let address;
 
   const countdown = new Countdown(WORKER_COUNT, () => {
@@ -45,7 +45,7 @@ if (cluster.isMaster) {
       countdown.dec();
     }));
 
-    workers.set(i, worker);
+    workers[i] = worker;
   }
 } else {
   net.createServer().listen({
