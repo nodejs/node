@@ -339,20 +339,23 @@ __attribute__((__noinline__))
 MoveTextRegionToLargePages(const text_region& r) {
   void* nmem = nullptr;
   void* tmem = nullptr;
-  int ret = 0;
-
-  size_t size = r.to - r.from;
   void* start = r.from;
+  size_t size = r.to - r.from;
 
-  // Allocate temporary region preparing for copy.
+  auto free_mems = OnScopeLeave([&nmem, &tmem, size]() {
+    if (nmem != nullptr && nmem != MAP_FAILED && munmap(nmem, size) == -1)
+      PrintSystemError(errno);
+    if (tmem != nullptr && tmem != MAP_FAILED && munmap(tmem, size) == -1)
+      PrintSystemError(errno);
+  });
+
+#if !defined (__FreeBSD__)
+  // Allocate temporary region and back up the code we will re-map.
   nmem = mmap(nullptr, size,
               PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (nmem == MAP_FAILED) {
-    PrintSystemError(errno);
-    return -1;
-  }
-
+  if (nmem == MAP_FAILED) goto fail;
   memcpy(nmem, r.from, size);
+#endif
 
 #if defined(__linux__)
 // We already know the original page is r-xp
@@ -362,32 +365,15 @@ MoveTextRegionToLargePages(const text_region& r) {
   tmem = mmap(start, size,
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
-  if (tmem == MAP_FAILED) {
-    PrintSystemError(errno);
-    return -1;
-  }
-
-  ret = madvise(tmem, size, 14 /* MADV_HUGEPAGE */);
-  if (ret == -1) {
-    PrintSystemError(errno);
-    ret = munmap(tmem, size);
-    if (ret == -1) {
-      PrintSystemError(errno);
-    }
-    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
-    return -1;
-  }
+  if (tmem == MAP_FAILED) goto fail;
+  if (madvise(tmem, size, 14 /* MADV_HUGEPAGE */) == -1) goto fail;
   memcpy(start, nmem, size);
 #elif defined(__FreeBSD__)
   tmem = mmap(start, size,
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED |
               MAP_ALIGNED_SUPER, -1 , 0);
-  if (tmem == MAP_FAILED) {
-    PrintSystemError(errno);
-    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
-    return -1;
-  }
+  if (tmem == MAP_FAILED) goto fail;
 #elif defined(__APPLE__)
   // There is not enough room to reserve the mapping close
   // to the region address so we content to give a hint
@@ -398,37 +384,20 @@ MoveTextRegionToLargePages(const text_region& r) {
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS,
               VM_FLAGS_SUPERPAGE_SIZE_2MB, 0);
-  if (tmem == MAP_FAILED) {
-    PrintSystemError(errno);
-    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
-    return -1;
-  }
+  if (tmem == MAP_FAILED) goto fail;
   memcpy(tmem, nmem, size);
-  ret = mprotect(start, size, PROT_READ | PROT_WRITE | PROT_EXEC);
-  if (ret == -1) {
-    PrintSystemError(errno);
-    ret = munmap(tmem, size);
-    if (ret == -1) {
-      PrintSystemError(errno);
-    }
-    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
-    return -1;
-  }
+  if (mprotect(start, size, PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
+    goto fail;
   memcpy(start, tmem, size);
 #endif
 
-  ret = mprotect(start, size, PROT_READ | PROT_EXEC);
-  if (ret == -1) {
-    PrintSystemError(errno);
-    ret = munmap(tmem, size);
-    if (ret == -1) {
-      PrintSystemError(errno);
-    }
-    if (-1 == munmap(nmem, size)) PrintSystemError(errno);
-    return -1;
-  }
-  if (-1 == munmap(nmem, size)) PrintSystemError(errno);
-  return ret;
+  if (mprotect(start, size, PROT_READ | PROT_EXEC) == -1) goto fail;
+  // We need not `munmap(tmem, size)` in the above `OnScopeLeave` on success.
+  tmem = nullptr;
+  return 0;
+fail:
+  PrintSystemError(errno);
+  return -1;
 }
 #endif  // defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 
