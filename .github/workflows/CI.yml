@@ -64,7 +64,9 @@ jobs:
       with:
         node-version: 10.x
     - name: Lint docs
-      run: NODE=$(which node) make lint-md
+      run: |
+        echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
+        NODE=$(which node) make lint-md
   lint-js:
     runs-on: ubuntu-latest
     steps:
