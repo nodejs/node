@@ -5,6 +5,7 @@
 
 #include "async_wrap.h"
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 
