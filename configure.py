@@ -641,6 +641,12 @@ parser.add_option('--node-builtin-modules-path',
     default=False,
     help='node will load builtin modules from disk instead of from binary')
 
+parser.add_option('--default-package-type',
+    action='store',
+    dest='node_default_package_type',
+    default=False,
+    help='node will treat files outside of package boundaries as this type')
+
 # Create compile_commands.json in out/Debug and out/Release.
 parser.add_option('-C',
     action='store_true',
@@ -1184,6 +1190,11 @@ def configure_node(o):
   if options.node_builtin_modules_path:
     print('Warning! Loading builtin modules from disk is for development')
     o['variables']['node_builtin_modules_path'] = options.node_builtin_modules_path
+
+  if options.node_default_package_type:
+    if not ( options.node_default_package_type in ['module', 'commonjs'] ):
+      raise Exception('--default-package-type must be either "module" or "commonjs"');
+    o['variables']['node_default_package_type'] = options.node_default_package_type
 
 def configure_napi(output):
   version = getnapibuildversion.get_napi_version()

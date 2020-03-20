@@ -26,6 +26,7 @@
     'node_lib_target_name%': 'libnode',
     'node_intermediate_lib_type%': 'static_library',
     'node_builtin_modules_path%': '',
+    'node_default_package_type%': '',
     'library_files': [
       'lib/internal/bootstrap/environment.js',
       'lib/internal/bootstrap/loaders.js',
@@ -747,6 +748,9 @@
       'conditions': [
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
+        }],
+        [ 'node_default_package_type!=""', {
+          'defines': [ 'NODE_DEFAULT_PACKAGE_TYPE="<(node_default_package_type)"' ]
         }],
         [ 'node_shared=="true"', {
           'sources': [

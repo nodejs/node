@@ -13,6 +13,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 // The config binding is used to provide an internal view of compile time
@@ -83,6 +84,21 @@ static void Initialize(Local<Object> target,
 
 #if defined HAVE_DTRACE || defined HAVE_ETW
   READONLY_TRUE_PROPERTY(target, "hasDtrace");
+#endif
+
+#if defined NODE_DEFAULT_PACKAGE_TYPE
+  READONLY_PROPERTY(target,
+                    "defaultPackageType",
+                    String::NewFromOneByte(isolate,
+                      reinterpret_cast<const unsigned char *>(
+                        NODE_DEFAULT_PACKAGE_TYPE))
+                      .ToLocalChecked());
+#else
+  READONLY_PROPERTY(target,
+                    "defaultPackageType",
+                    String::NewFromOneByte(isolate,
+                      reinterpret_cast<const unsigned char *>("commonjs"))
+                    .ToLocalChecked());
 #endif
 
   READONLY_PROPERTY(target, "hasCachedBuiltins",
