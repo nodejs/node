@@ -391,6 +391,68 @@ static void RegisterDestroyHook(const FunctionCallbackInfo<Value>& args) {
   p->env->AddCleanupHook(DestroyParamCleanupHook, p);
 }
 
+static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Context> ctx = env->context();
+  Local<Object> return_obj = Object::New(args.GetIsolate());
+
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* w = req_wrap->GetAsyncWrap();
+    if (w->persistent().IsEmpty()) continue;
+    double async_id = w->get_async_id();
+    Local<Object> req_object = w->object();
+    return_obj->Set(ctx, Number::New(args.GetIsolate(), async_id), req_object);
+  }
+
+  args.GetReturnValue().Set(return_obj);
+}
+
+// Non-static, friend of HandleWrap. Could have been a HandleWrap method but
+// implemented here for consistency with GetActiveRequests().
+void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Context> ctx = env->context();
+  Local<Object> return_obj = Object::New(args.GetIsolate());
+
+  for (auto w : *env->handle_wrap_queue()) {
+    if (!HandleWrap::HasRef(w)) continue;
+    double async_id = w->get_async_id();
+    Local<Object> handle_object = w->object();
+    return_obj->Set(
+        ctx, Number::New(args.GetIsolate(), async_id), handle_object);
+  }
+
+  args.GetReturnValue().Set(return_obj);
+}
+
+static void GetAliveResources(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Context> ctx = env->context();
+  Local<Object> return_obj = Object::New(args.GetIsolate());
+
+  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
+    AsyncWrap* w = req_wrap->GetAsyncWrap();
+    if (w->persistent().IsEmpty()) continue;
+    double async_id = w->get_async_id();
+    Local<Object> req_resource = w->GetResource();
+    return_obj->Set(
+        ctx, Number::New(args.GetIsolate(), async_id), req_resource);
+  }
+
+  for (auto w : *env->handle_wrap_queue()) {
+    if (!HandleWrap::HasRef(w)) continue;
+    double async_id = w->get_async_id();
+    Local<Object> handle_resource = w->GetResource();
+    return_obj->Set(
+        ctx, Number::New(args.GetIsolate(), async_id), handle_resource);
+  }
+
+  args.GetReturnValue().Set(return_obj);
+}
+
 void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
   AsyncWrap* wrap;
   args.GetReturnValue().Set(kInvalidAsyncId);
@@ -479,6 +541,9 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->SetMethod(target, "enablePromiseHook", EnablePromiseHook);
   env->SetMethod(target, "disablePromiseHook", DisablePromiseHook);
   env->SetMethod(target, "registerDestroyHook", RegisterDestroyHook);
+  env->SetMethod(target, "getActiveRequests", GetActiveRequests);
+  env->SetMethod(target, "getActiveHandles", GetActiveHandles);
+  env->SetMethod(target, "getAliveResources", GetAliveResources);
 
   PropertyAttribute ReadOnlyDontDelete =
       static_cast<PropertyAttribute>(ReadOnly | DontDelete);
