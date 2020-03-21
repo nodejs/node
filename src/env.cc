@@ -76,6 +76,8 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
 #undef VY
 #undef VS
 #undef VP
+  for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
+    indexes.push_back(creator->AddData(async_wrap_provider(i)));
 
   return indexes;
 }
@@ -103,6 +105,15 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
 #undef VY
 #undef VS
 #undef VP
+
+  for (size_t j = 0; j < AsyncWrap::PROVIDERS_LENGTH; j++) {
+    MaybeLocal<String> field =
+        isolate_->GetDataFromSnapshotOnce<String>((*indexes)[i++]);
+    if (field.IsEmpty()) {
+      fprintf(stderr, "Failed to deserialize AsyncWrap provider %zu\n", j);
+    }
+    async_wrap_providers_[j].Set(isolate_, field.ToLocalChecked());
+  }
 }
 
 void IsolateData::CreateProperties() {
@@ -153,6 +164,20 @@ void IsolateData::CreateProperties() {
           .ToLocalChecked());
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
+
+  // Create all the provider strings that will be passed to JS. Place them in
+  // an array so the array index matches the PROVIDER id offset. This way the
+  // strings can be retrieved quickly.
+#define V(Provider)                                                           \
+  async_wrap_providers_[AsyncWrap::PROVIDER_ ## Provider].Set(                \
+      isolate_,                                                               \
+      v8::String::NewFromOneByte(                                             \
+        isolate_,                                                             \
+        reinterpret_cast<const uint8_t*>(#Provider),                          \
+        v8::NewStringType::kInternalized,                                     \
+        sizeof(#Provider) - 1).ToLocalChecked());
+  NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
 }
 
 IsolateData::IsolateData(Isolate* isolate,
@@ -189,6 +214,8 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField(#PropertyName, PropertyName());
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
+
+  tracker->TrackField("async_wrap_providers", async_wrap_providers_);
 
   if (node_allocator_ != nullptr) {
     tracker->TrackFieldWithSize(
@@ -951,7 +978,6 @@ void TickInfo::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("providers", providers_);
   tracker->TrackField("async_ids_stack", async_ids_stack_);
   tracker->TrackField("fields", fields_);
   tracker->TrackField("async_id_fields", async_id_fields_);
