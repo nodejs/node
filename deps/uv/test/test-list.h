@@ -352,6 +352,7 @@ TEST_DECLARE   (fs_open_flags)
 TEST_DECLARE   (fs_fd_hash)
 #endif
 TEST_DECLARE   (fs_utime)
+TEST_DECLARE   (fs_utime_round)
 TEST_DECLARE   (fs_futime)
 TEST_DECLARE   (fs_file_open_append)
 TEST_DECLARE   (fs_statfs)
@@ -968,6 +969,7 @@ TASK_LIST_START
 #endif
   TEST_ENTRY  (fs_chown)
   TEST_ENTRY  (fs_utime)
+  TEST_ENTRY  (fs_utime_round)
   TEST_ENTRY  (fs_futime)
   TEST_ENTRY  (fs_readlink)
   TEST_ENTRY  (fs_realpath)
