@@ -511,6 +511,7 @@ class IsolateData : public MemoryRetainer {
 #undef VY
 #undef VS
 #undef VP
+  inline v8::Local<v8::String> async_wrap_provider(int index) const;
 
   std::unordered_map<nghttp2_rcbuf*, v8::Eternal<v8::String>> http2_static_strs;
   inline v8::Isolate* isolate() const;
@@ -535,6 +536,9 @@ class IsolateData : public MemoryRetainer {
 #undef VY
 #undef VS
 #undef VP
+  // Keep a list of all Persistent strings used for AsyncWrap Provider types.
+  std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH>
+      async_wrap_providers_;
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
@@ -692,8 +696,6 @@ class AsyncHooks : public MemoryRetainer {
  private:
   friend class Environment;  // So we can call the constructor.
   inline AsyncHooks();
-  // Keep a list of all Persistent strings used for Provider types.
-  std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH> providers_;
   // Stores the ids of the current execution context stack.
   AliasedFloat64Array async_ids_stack_;
   // Attached to a Uint32Array that tracks the number of active hooks for
