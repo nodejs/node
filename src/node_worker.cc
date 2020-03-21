@@ -655,23 +655,9 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     w->stopped_ = true;
     w->env()->remove_sub_worker_context(w);
     {
-      HandleScope handle_scope(w->env()->isolate());
-      Context::Scope context_scope(w->env()->context());
-      // Reset the parent port as we're closing it now anyway.
-      w->object()->Set(w->env()->context(),
-                    w->env()->message_port_string(),
-                    Undefined(w->env()->isolate())).Check();
-      Local<Value> args[] = {
-          Integer::New(w->env()->isolate(), w->exit_code_),
-          w->custom_error_ != nullptr
-              ? OneByteString(w->env()->isolate(), w->custom_error_).As<Value>()
-              : Null(w->env()->isolate()).As<Value>(),
-          !w->custom_error_str_.empty()
-              ? OneByteString(w->env()->isolate(), w->custom_error_str_.c_str())
-                    .As<Value>()
-              : Null(w->env()->isolate()).As<Value>(),
-      };
-      w->MakeCallback(w->env()->onexit_string(), arraysize(args), args);
+      Isolate* isolate = w->env()->isolate();
+      HandleScope handle_scope(isolate);
+      THROW_ERR_WORKER_INIT_FAILED(isolate, err_buf);
     }
   w->MakeWeak();
   }
