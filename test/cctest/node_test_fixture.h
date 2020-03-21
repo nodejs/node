@@ -72,11 +72,13 @@ class NodeZeroIsolateTestFixture : public ::testing::Test {
     if (!node_initialized) {
       uv_os_unsetenv("NODE_OPTIONS");
       node_initialized = true;
-      int argc = 1;
-      const char* argv0 = "cctest";
-      int exec_argc;
-      const char** exec_argv;
-      node::Init(&argc, &argv0, &exec_argc, &exec_argv);
+      std::vector<std::string> argv { "cctest" };
+      std::vector<std::string> exec_argv;
+      std::vector<std::string> errors;
+
+      int exitcode = node::InitializeNodeWithArgs(&argv, &exec_argv, &errors);
+      CHECK_EQ(exitcode, 0);
+      CHECK(errors.empty());
     }
 
     tracing_agent = std::make_unique<node::tracing::Agent>();
