@@ -409,7 +409,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
       "the profile to the current working directory.",
       &EnvironmentOptions::heap_prof);
   AddOption("--heap-prof-name",
-            "specified file name of the V8 CPU profile generated with "
+            "specified file name of the V8 heap profile generated with "
             "--heap-prof",
             &EnvironmentOptions::heap_prof_name);
   AddOption("--heap-prof-dir",
