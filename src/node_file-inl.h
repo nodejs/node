@@ -85,8 +85,7 @@ void FillStatsArray(AliasedBufferBase<NativeT, V8T>* fields,
                    static_cast<NativeT>(stat))
 
 #define SET_FIELD_WITH_TIME_STAT(stat_offset, stat)                          \
-  /* NOLINTNEXTLINE(runtime/int) */                                          \
-  SET_FIELD_WITH_STAT(stat_offset, static_cast<unsigned long>(stat))
+  SET_FIELD_WITH_STAT(stat_offset, static_cast<double>(stat))
 
   SET_FIELD_WITH_STAT(kDev, s->st_dev);
   SET_FIELD_WITH_STAT(kMode, s->st_mode);
