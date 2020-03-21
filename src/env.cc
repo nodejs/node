@@ -181,12 +181,12 @@ IsolateData::IsolateData(Isolate* isolate,
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
 #define V(PropertyName, StringValue)                                           \
-  tracker->TrackField(#PropertyName, PropertyName(isolate()));
+  tracker->TrackField(#PropertyName, PropertyName());
   PER_ISOLATE_SYMBOL_PROPERTIES(V)
 #undef V
 
 #define V(PropertyName, StringValue)                                           \
-  tracker->TrackField(#PropertyName, PropertyName(isolate()));
+  tracker->TrackField(#PropertyName, PropertyName());
   PER_ISOLATE_STRING_PROPERTIES(V)
 #undef V
 
