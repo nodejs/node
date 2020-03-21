@@ -1065,3 +1065,15 @@ const { promisify } = require('util');
   src.push('asd');
   dst.destroy();
 }
+
+{
+  pipeline(async function * () {
+    yield 'asd';
+  }, async function * (source) {
+    for await (const chunk of source) {
+      yield { chunk };
+    }
+  }, common.mustCall((err) => {
+    assert.ifError(err);
+  }));
+}
