@@ -74,7 +74,24 @@ Note: please ensure you are only making the updates that are changed by npm.
 $ git rebase --whitespace=fix master
 ```
 
-## Step 7: Test the build
+## Step 7: Apply signed term-size commit
+
+The `term-size` package in npm's dependency tree contains an unsigned macOS
+binary in versions < 2.2.0. Until npm updates to a newer version of
+`update-notifier`, Node.js macOS package files can't be notarized and will fail
+to install on macOS Catalina and above.
+
+When `npm ls` shows a `term-size` package version < 2.2.0, cherry-pick
+commit `d2f08a1bdb` on top of the upgraded npm.
+
+```console
+$ git cherry-pick d2f08a1bdb
+```
+
+When `npm ls` shows a `term-size` package version >= 2.2.0, edit this file to
+remove this step.
+
+## Step 8: Test the build
 
 ```console
 $ make test-npm
