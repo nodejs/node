@@ -649,6 +649,9 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--v8-options",
             "print V8 command line options",
             &PerProcessOptions::print_v8_help);
+  AddOption("--dump-snapshot",
+            "",  // No help because this is for Node.js core developers.
+            &PerProcessOptions::dump_snapshot);
   AddOption("--report-compact",
             "output compact single-line JSON",
             &PerProcessOptions::report_compact,

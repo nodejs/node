@@ -5,6 +5,7 @@
 #include "node_native_module_env.h"
 #include "node_platform.h"
 #include "node_v8_platform-inl.h"
+#include "snapshot_support-inl.h"
 #include "uv.h"
 
 #if HAVE_INSPECTOR
@@ -390,6 +391,12 @@ Environment* CreateEnvironment(
     env->set_abort_on_uncaught_exception(false);
   }
 
+  if (isolate_data->snapshot_data() != nullptr &&
+      !isolate_data->snapshot_data()->errors().empty()) {
+    FreeEnvironment(env);
+    return nullptr;
+  }
+
 #if HAVE_INSPECTOR
   if (inspector_parent_handle) {
     env->InitializeInspector(
@@ -400,7 +407,8 @@ Environment* CreateEnvironment(
   }
 #endif
 
-  if (env->RunBootstrapping().IsEmpty()) {
+  if (env->isolate_data()->snapshot_data() == nullptr &&
+      env->RunBootstrapping().IsEmpty()) {
     FreeEnvironment(env);
     return nullptr;
   }

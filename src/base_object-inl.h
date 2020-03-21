@@ -101,6 +101,7 @@ Environment* BaseObject::env() const {
 }
 
 BaseObject* BaseObject::FromJSObject(v8::Local<v8::Value> value) {
+  DCHECK(value->IsObject());
   v8::Local<v8::Object> obj = value.As<v8::Object>();
   DCHECK_GE(obj->InternalFieldCount(), BaseObject::kSlot);
   return static_cast<BaseObject*>(

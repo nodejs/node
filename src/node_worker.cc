@@ -5,6 +5,7 @@
 #include "node_buffer.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 #include "async_wrap-inl.h"
 

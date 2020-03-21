@@ -4,6 +4,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cinttypes>
+// TODO(addaleax): There really, really should be an aliased_buffer-inl.h.
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -30,8 +32,10 @@ template <class NativeT,
           class V8T,
           // SFINAE NativeT to be scalar
           typename = std::enable_if_t<std::is_scalar<NativeT>::value>>
-class AliasedBufferBase {
+class AliasedBufferBase final : public Snapshottable {
  public:
+  AliasedBufferBase() {}
+
   AliasedBufferBase(v8::Isolate* isolate, const size_t count)
       : isolate_(isolate), count_(count), byte_offset_(0) {
     CHECK_GT(count, 0);
@@ -243,11 +247,45 @@ class AliasedBufferBase {
     count_ = new_capacity;
   }
 
+  void Serialize(SnapshotCreateData* snapshot_data) const override {
+    v8::HandleScope handle_scope(isolate_);
+    snapshot_data->StartWriteEntry("AliasedBuffer");
+    snapshot_data->WriteUint64(count_);
+    snapshot_data->WriteUint64(byte_offset_);
+    v8::Local<V8T> arr = GetJSArray();
+    snapshot_data->WriteObject(arr->CreationContext(), arr);
+    snapshot_data->EndWriteEntry();
+  }
+
+  AliasedBufferBase(v8::Local<v8::Context> context,
+                    SnapshotReadData* snapshot_data)
+      : isolate_(context->GetIsolate()) {
+    v8::HandleScope handle_scope(isolate_);
+    uint64_t count, byte_offset;
+    if (snapshot_data->StartReadEntry("AliasedBuffer").IsNothing() ||
+        !snapshot_data->ReadUint64().To(&count) ||
+        !snapshot_data->ReadUint64().To(&byte_offset)) {
+      return;
+    }
+
+    count_ = count;
+    byte_offset_ = byte_offset;
+
+    v8::Local<V8T> field;
+    if (!snapshot_data->ReadObject<V8T>(context).To(&field)) return;
+    js_array_.Reset(isolate_, field);
+    buffer_ = reinterpret_cast<NativeT*>(static_cast<char*>(
+        field->Buffer()->GetBackingStore()->Data()) +
+        byte_offset_);
+
+    snapshot_data->EndReadEntry();
+  }
+
  private:
-  v8::Isolate* isolate_;
-  size_t count_;
-  size_t byte_offset_;
-  NativeT* buffer_;
+  v8::Isolate* isolate_ = nullptr;
+  size_t count_ = 0;
+  size_t byte_offset_ = 0;
+  NativeT* buffer_ = nullptr;
   v8::Global<V8T> js_array_;
 };
 

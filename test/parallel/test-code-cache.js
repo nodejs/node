@@ -22,7 +22,8 @@ for (const key of canBeRequired) {
 // The computation has to be delayed until we have done loading modules
 const {
   compiledWithoutCache,
-  compiledWithCache
+  compiledWithCache,
+  includedInSnapshot
 } = getCacheUsage();
 
 const loadedModules = process.moduleLoadList
@@ -59,6 +60,7 @@ if (!process.features.cached_builtins) {
 
   const wrong = [];
   for (const key of loadedModules) {
+    if (includedInSnapshot.has(key)) continue;
     if (cannotBeRequired.has(key) && !compiledWithoutCache.has(key)) {
       wrong.push(`"${key}" should've been compiled **without** code cache`);
     }

@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "memory_tracker.h"
+#include "snapshot_support.h"
 #include "v8.h"
 #include <type_traits>  // std::remove_reference
 
@@ -34,7 +35,7 @@ class Environment;
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl;
 
-class BaseObject : public MemoryRetainer {
+class BaseObject : public MemoryRetainer, public Snapshottable {
  public:
   enum InternalFields { kSlot, kInternalFieldCount };
 
@@ -100,6 +101,11 @@ class BaseObject : public MemoryRetainer {
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
+
+  static v8::StartupData SerializeInternalFields(
+      v8::Local<v8::Object> object, int index, void* data);
+  virtual v8::StartupData SerializeInternalFields(
+      int index, SnapshotCreateData* snapshot_data) const;
 
  protected:
   virtual inline void OnGCCollect();

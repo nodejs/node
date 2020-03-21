@@ -96,6 +96,11 @@ void NativeModuleEnv::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
             OneByteString(isolate, "compiledWithoutCache"),
             ToJsSet(context, env->native_modules_without_cache))
       .FromJust();
+  result
+      ->Set(env->context(),
+            OneByteString(isolate, "includedInSnapshot"),
+            ToJsSet(context, env->native_modules_in_snapshot))
+      .FromJust();
   args.GetReturnValue().Set(result);
 }
 

@@ -4,6 +4,7 @@
 #include "node_perf.h"
 #include "node_buffer.h"
 #include "node_process.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 
 #include <cinttypes>
@@ -51,6 +52,41 @@ void PerformanceState::Mark(enum PerformanceMilestone milestone,
       TRACING_CATEGORY_NODE1(bootstrap),
       GetPerformanceMilestoneName(milestone),
       TRACE_EVENT_SCOPE_THREAD, ts / 1000);
+}
+
+PerformanceState::PerformanceState(Isolate* isolate)
+  : root(
+      isolate,
+      sizeof(performance_state_internal)),
+    milestones(
+      isolate,
+      offsetof(performance_state_internal, milestones),
+      NODE_PERFORMANCE_MILESTONE_INVALID,
+      root),
+    observers(
+      isolate,
+      offsetof(performance_state_internal, observers),
+      NODE_PERFORMANCE_ENTRY_TYPE_INVALID,
+      root) {
+  for (size_t i = 0; i < milestones.Length(); i++)
+    milestones[i] = -1.;
+}
+
+PerformanceState::PerformanceState(Local<Context> context,
+                                   SnapshotReadData* snapshot_data) {
+  if (snapshot_data->StartReadEntry("PerformanceState").IsNothing()) return;
+  root = AliasedUint8Array(context, snapshot_data);
+  milestones = AliasedFloat64Array(context, snapshot_data);
+  observers = AliasedUint32Array(context, snapshot_data);
+  snapshot_data->EndReadEntry();
+}
+
+void PerformanceState::Serialize(SnapshotCreateData* snapshot_data) const {
+  snapshot_data->StartWriteEntry("PerformanceState");
+  root.Serialize(snapshot_data);
+  milestones.Serialize(snapshot_data);
+  observers.Serialize(snapshot_data);
+  snapshot_data->EndWriteEntry();
 }
 
 // Initialize the performance entry object properties

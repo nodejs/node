@@ -52,25 +52,11 @@ enum PerformanceEntryType {
   NODE_PERFORMANCE_ENTRY_TYPE_INVALID
 };
 
-class PerformanceState {
+class PerformanceState final : public Snapshottable {
  public:
-  explicit PerformanceState(v8::Isolate* isolate) :
-    root(
-      isolate,
-      sizeof(performance_state_internal)),
-    milestones(
-      isolate,
-      offsetof(performance_state_internal, milestones),
-      NODE_PERFORMANCE_MILESTONE_INVALID,
-      root),
-    observers(
-      isolate,
-      offsetof(performance_state_internal, observers),
-      NODE_PERFORMANCE_ENTRY_TYPE_INVALID,
-      root) {
-    for (size_t i = 0; i < milestones.Length(); i++)
-      milestones[i] = -1.;
-  }
+  explicit PerformanceState(v8::Isolate* isolate);
+  PerformanceState(v8::Local<v8::Context> context,
+                   SnapshotReadData* snapshot_data);
 
   AliasedUint8Array root;
   AliasedFloat64Array milestones;
@@ -80,6 +66,8 @@ class PerformanceState {
 
   void Mark(enum PerformanceMilestone milestone,
             uint64_t ts = PERFORMANCE_NOW());
+
+  void Serialize(SnapshotCreateData* snapshot_data) const override;
 
  private:
   struct performance_state_internal {

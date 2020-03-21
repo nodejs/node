@@ -13,6 +13,7 @@
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
 #include "req_wrap-inl.h"
+#include "snapshot_support-inl.h"
 #include "stream_base.h"
 #include "tracing/agent.h"
 #include "tracing/traced_value.h"
@@ -27,6 +28,7 @@
 namespace node {
 
 using errors::TryCatchScope;
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
@@ -44,8 +46,8 @@ using v8::Number;
 using v8::Object;
 using v8::Private;
 using v8::Script;
-using v8::SnapshotCreator;
 using v8::StackTrace;
+using v8::StartupData;
 using v8::String;
 using v8::Symbol;
 using v8::TracingController;
@@ -58,20 +60,15 @@ int const Environment::kNodeContextTag = 0x6e6f64;
 void* const Environment::kNodeContextTagPtr = const_cast<void*>(
     static_cast<const void*>(&Environment::kNodeContextTag));
 
-std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
-  Isolate* isolate = creator->GetIsolate();
-  std::vector<size_t> indexes;
-  HandleScope handle_scope(isolate);
-  // XXX(joyeecheung): technically speaking, the indexes here should be
-  // consecutive and we could just return a range instead of an array,
-  // but that's not part of the V8 API contract so we use an array
-  // just to be safe.
+void IsolateData::Serialize(SnapshotCreateData* snapshot_data) const {
+  HandleScope handle_scope(isolate_);
 
+  snapshot_data->StartWriteEntry("IsolateData");
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
 #define VY(PropertyName, StringValue) V(Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(String, PropertyName)
 #define V(TypeName, PropertyName)                                              \
-  indexes.push_back(creator->AddData(PropertyName##_.Get(isolate)));
+  snapshot_data->WriteContextIndependentObject(PropertyName());
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
   PER_ISOLATE_STRING_PROPERTIES(VS)
@@ -80,13 +77,14 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
 #undef VS
 #undef VP
   for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
-    indexes.push_back(creator->AddData(async_wrap_provider(i)));
+    snapshot_data->WriteContextIndependentObject(async_wrap_provider(i));
 
-  return indexes;
+  snapshot_data->EndWriteEntry();
 }
 
-void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
-  size_t i = 0;
+void IsolateData::DeserializeProperties() {
+  if (snapshot_data_->StartReadEntry("IsolateData").IsNothing()) return;
+
   HandleScope handle_scope(isolate_);
 
 #define VP(PropertyName, StringValue) V(Private, PropertyName)
@@ -94,12 +92,10 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
 #define VS(PropertyName, StringValue) V(String, PropertyName)
 #define V(TypeName, PropertyName)                                              \
   do {                                                                         \
-    MaybeLocal<TypeName> field =                                               \
-        isolate_->GetDataFromSnapshotOnce<TypeName>((*indexes)[i++]);          \
-    if (field.IsEmpty()) {                                                     \
-      fprintf(stderr, "Failed to deserialize " #PropertyName "\n");            \
-    }                                                                          \
-    PropertyName##_.Set(isolate_, field.ToLocalChecked());                     \
+    Local<TypeName> field;                                                     \
+    if (!snapshot_data_->ReadContextIndependentObject<TypeName>().To(&field))  \
+      return;                                                                  \
+    PropertyName##_.Set(isolate_, field);                                      \
   } while (0);
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(VP)
   PER_ISOLATE_SYMBOL_PROPERTIES(VY)
@@ -110,13 +106,13 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
 #undef VP
 
   for (size_t j = 0; j < AsyncWrap::PROVIDERS_LENGTH; j++) {
-    MaybeLocal<String> field =
-        isolate_->GetDataFromSnapshotOnce<String>((*indexes)[i++]);
-    if (field.IsEmpty()) {
-      fprintf(stderr, "Failed to deserialize AsyncWrap provider %zu\n", j);
-    }
-    async_wrap_providers_[j].Set(isolate_, field.ToLocalChecked());
+    Local<String> field;
+    if (!snapshot_data_->ReadContextIndependentObject<String>().To(&field))
+      return;
+    async_wrap_providers_[j].Set(isolate_, field);
   }
+
+  snapshot_data_->EndReadEntry();
 }
 
 void IsolateData::CreateProperties() {
@@ -187,23 +183,25 @@ IsolateData::IsolateData(Isolate* isolate,
                          uv_loop_t* event_loop,
                          MultiIsolatePlatform* platform,
                          ArrayBufferAllocator* node_allocator,
-                         const std::vector<size_t>* indexes)
+                         SnapshotReadData* snapshot_data)
     : isolate_(isolate),
       event_loop_(event_loop),
       allocator_(isolate->GetArrayBufferAllocator()),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
       uses_node_allocator_(allocator_ == node_allocator_),
-      platform_(platform) {
+      platform_(platform),
+      snapshot_data_(snapshot_data) {
   CHECK_NOT_NULL(allocator_);
 
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
 
-  if (indexes == nullptr) {
+  if (snapshot_data == nullptr) {
     CreateProperties();
   } else {
-    DeserializeProperties(indexes);
+    snapshot_data->set_isolate(isolate);
+    DeserializeProperties();
   }
 }
 
@@ -288,6 +286,200 @@ void Environment::CreateProperties() {
   set_process_object(process_object);
 }
 
+void Environment::DeserializeProperties() {
+  // If we have not run the bootstrapping code yet, serialization will fail,
+  // therefore this will always be true when deserializing.
+  set_has_run_bootstrapping_code(true);
+
+  SnapshotReadData* snapshot_data = isolate_data()->snapshot_data();
+  bool can_call_into_js;
+  if (!snapshot_data->ReadBool().To(&can_call_into_js)) return;
+  can_call_into_js_ = can_call_into_js;
+
+  if (!snapshot_data->ReadUint32().To(&module_id_counter_)) return;
+  if (!snapshot_data->ReadUint32().To(&script_id_counter_)) return;
+  if (!snapshot_data->ReadUint32().To(&function_id_counter_)) return;
+
+  Isolate* isolate = this->isolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = this->context();
+
+  if (snapshot_data->StartReadEntry("StrongPersistentTemplates").IsNothing())
+    return;
+#define V(PropertyName, TypeName)                                             \
+  do {                                                                        \
+    Local<TypeName> field;                                                    \
+    if (!snapshot_data->ReadContextIndependentObject<TypeName>(               \
+            SnapshotReadData::kAllowEmpty).To(&field)) {                      \
+      return;                                                                 \
+    }                                                                         \
+    PropertyName##_.Reset(isolate_, field);                                   \
+  } while (0);
+  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+#undef V
+  if (snapshot_data->EndReadEntry().IsNothing()) return;
+
+  if (snapshot_data->StartReadEntry("StrongPersistentValues").IsNothing())
+    return;
+#define V(PropertyName, TypeName)                                             \
+  do {                                                                        \
+    Local<TypeName> field;                                                    \
+    if (!snapshot_data->ReadObject<TypeName>(context,                         \
+            SnapshotReadData::kAllowEmpty).To(&field)) {                      \
+      return;                                                                 \
+    }                                                                         \
+    PropertyName##_.Reset(isolate_, field);                                   \
+  } while (0);
+  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+#undef V
+  if (snapshot_data->EndReadEntry().IsNothing()) return;
+
+  if (snapshot_data->StartReadEntry("NativeModules").IsNothing()) return;
+  uint64_t expected_native_module_count;
+  if (!snapshot_data->ReadUint64().To(&expected_native_module_count)) return;
+  for (uint64_t i = 0; i < expected_native_module_count; i++) {
+    std::string str;
+    if (!snapshot_data->ReadString().To(&str)) return;
+    native_modules_in_snapshot.insert(str);
+  }
+  if (snapshot_data->EndReadEntry().IsNothing()) return;
+
+  if (snapshot_data->StartReadEntry("BaseObjects").IsNothing()) return;
+  uint64_t expected_base_object_count;
+  if (!snapshot_data->ReadUint64().To(&expected_base_object_count)) return;
+
+#ifdef DEBUG
+  std::set<const BaseObject*> deserialized_objects;
+#endif
+  for (uint64_t i = 0; i < expected_base_object_count; i++) {
+    std::string name;
+    if (!snapshot_data->StartReadEntry(nullptr).To(&name)) return;
+    BaseObject* obj = BaseObjectDeserializer::Deserialize(
+        name, this, snapshot_data);
+    if (obj == nullptr) return;
+#ifdef DEBUG
+    deserialized_objects.insert(obj);
+#endif
+  }
+
+#ifdef DEBUG
+  // Make sure all BaseObject instances have been attached to this Environment.
+  ForEachBaseObject([&](const BaseObject* obj) {
+    deserialized_objects.erase(obj);
+  });
+  CHECK(deserialized_objects.empty());
+#endif
+  if (snapshot_data->EndReadEntry().IsNothing()) return;
+
+  if (snapshot_data->StartReadEntry("bindings").IsNothing()) return;
+  uint32_t num_bindings;
+  if (!snapshot_data->ReadUint32().To(&num_bindings)) return;
+  for (uint32_t i = 0; i < num_bindings; i++) {
+    std::string name;
+    BaseObjectPtr<BaseObject> binding;
+    if (!snapshot_data->ReadString().To(&name) ||
+        !snapshot_data->ReadBaseObjectPtr<BaseObject>(context).To(&binding)) {
+      return;
+    }
+    bindings_.emplace(FastStringKey { name.c_str() }, binding);
+    // TODO(addaleax): Do this in a better way when moving BaseObject to the
+    // internal fields callback variant.
+    binding->Detach();
+  }
+
+  if (snapshot_data->EndReadEntry().IsNothing()) return;
+
+  Local<Context> ctx;
+  if (!snapshot_data->ReadObject<Context>(context).To(&ctx)) return;
+  if (ctx != context) {
+    snapshot_data->add_error(
+        "Context from snapshot does not match context provided to Environment");
+  }
+  snapshot_data->EndReadEntry();
+}
+
+void Environment::Serialize(SnapshotCreateData* snapshot_data) const {
+  // This method should only be called after CreateEnvironment() finished.
+  if (!has_run_bootstrapping_code()) {
+    snapshot_data->add_error("Environment has not been bootstrapped yet");
+    return;
+  }
+
+  snapshot_data->StartWriteEntry("Environment");
+  async_hooks()->Serialize(snapshot_data);
+  immediate_info()->Serialize(snapshot_data);
+  tick_info()->Serialize(snapshot_data);
+  stream_base_state_.Serialize(snapshot_data);
+  should_abort_on_uncaught_toggle_.Serialize(snapshot_data);
+  performance_state()->Serialize(snapshot_data);
+
+  snapshot_data->WriteBool(can_call_into_js());
+
+  snapshot_data->WriteUint32(module_id_counter_);
+  snapshot_data->WriteUint32(script_id_counter_);
+  snapshot_data->WriteUint32(function_id_counter_);
+
+  Isolate* isolate = this->isolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context = this->context();
+
+  snapshot_data->StartWriteEntry("StrongPersistentTemplates");
+#define V(PropertyName, TypeName)                                             \
+  snapshot_data->WriteContextIndependentObject(PropertyName());
+  ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+#undef V
+  snapshot_data->EndWriteEntry();
+
+  snapshot_data->StartWriteEntry("StrongPersistentValues");
+#define V(PropertyName, TypeName)                                             \
+  snapshot_data->WriteObject(context, PropertyName());
+  ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+#undef V
+  snapshot_data->EndWriteEntry();
+
+  snapshot_data->StartWriteEntry("NativeModules");
+  std::vector<std::string> native_modules;
+  native_modules.insert(native_modules.end(),
+                        native_modules_with_cache.begin(),
+                        native_modules_with_cache.end());
+  native_modules.insert(native_modules.end(),
+                        native_modules_without_cache.begin(),
+                        native_modules_without_cache.end());
+  // This one should currently always be empty, so this is just future-proofing.
+  native_modules.insert(native_modules.end(),
+                        native_modules_in_snapshot.begin(),
+                        native_modules_in_snapshot.end());
+  snapshot_data->WriteUint64(native_modules.size());
+  for (const std::string& str : native_modules)
+    snapshot_data->WriteString(str);
+  snapshot_data->EndWriteEntry();
+
+  snapshot_data->StartWriteEntry("BaseObjects");
+  size_t expected_base_object_count =
+      initial_base_object_count_ + base_object_count();
+  snapshot_data->WriteUint64(expected_base_object_count);
+
+  size_t observed_base_object_count = 0;
+  ForEachBaseObject([&](const BaseObject* obj) {
+    observed_base_object_count++;
+    obj->Serialize(snapshot_data);
+  });
+  CHECK_EQ(observed_base_object_count, expected_base_object_count);
+  snapshot_data->EndWriteEntry();
+
+  snapshot_data->StartWriteEntry("bindings");
+  snapshot_data->WriteUint32(bindings_.size());
+  for (const auto& binding : bindings_) {
+    snapshot_data->WriteString(binding.first.c_str());
+    snapshot_data->WriteBaseObjectPtr(context, binding.second);
+  }
+
+  snapshot_data->EndWriteEntry();
+
+  snapshot_data->WriteObject(context, context);
+  snapshot_data->EndWriteEntry();
+}
+
 std::string GetExecPath(const std::vector<std::string>& argv) {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
@@ -322,18 +514,27 @@ Environment::Environment(IsolateData* isolate_data,
                          ThreadId thread_id)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
-      immediate_info_(context->GetIsolate()),
-      tick_info_(context->GetIsolate()),
+      context_(isolate_, context),
+      async_hooks_(
+          // Read the `Environment` start tag if deserializing from snapshot --
+          // slightly awkward place for this, but it needs to happen before the
+          // AsyncHooks() constructor. Comma operator to the rescue!
+          (isolate_data->snapshot_data() != nullptr &&
+               isolate_data->snapshot_data()->StartReadEntry("Environment")
+                   .IsNothing(),
+           this)),
+      immediate_info_(this),
+      tick_info_(this),
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
       exec_path_(GetExecPath(args)),
-      should_abort_on_uncaught_toggle_(isolate_, 1),
-      stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1) ?
-          AllocateEnvironmentThreadId().id : thread_id.id),
-      context_(context->GetIsolate(), context) {
+          AllocateEnvironmentThreadId().id : thread_id.id) {
+  if (isolate_data->snapshot_data() != nullptr &&
+      !isolate_data->snapshot_data()->errors().empty()) return;
+
   // We'll be creating new objects so make sure we've entered the context.
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context);
@@ -383,8 +584,26 @@ Environment::Environment(IsolateData* isolate_data,
       },
       this);
 
-  performance_state_ =
-      std::make_unique<performance::PerformanceState>(isolate());
+  if (isolate_data->snapshot_data() != nullptr) {
+    stream_base_state_ = AliasedInt32Array(
+        context, isolate_data->snapshot_data());
+    should_abort_on_uncaught_toggle_ = AliasedUint32Array(
+        context, isolate_data->snapshot_data());
+    performance_state_ = std::make_unique<performance::PerformanceState>(
+        context, isolate_data->snapshot_data());
+  } else {
+    stream_base_state_ = AliasedInt32Array(
+        isolate(), StreamBase::kNumStreamBaseStateFields);
+    should_abort_on_uncaught_toggle_ = AliasedUint32Array(isolate(), 1);
+    // By default, always abort when --abort-on-uncaught-exception was passed.
+    should_abort_on_uncaught_toggle_[0] = 1;
+    performance_state_ = std::make_unique<performance::PerformanceState>(
+        isolate());
+  }
+
+  if (isolate_data->snapshot_data() != nullptr &&
+      !isolate_data->snapshot_data()->errors().empty()) return;
+
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
@@ -409,16 +628,14 @@ Environment::Environment(IsolateData* isolate_data,
                                       std::move(traced_value));
   }
 
-  // By default, always abort when --abort-on-uncaught-exception was passed.
-  should_abort_on_uncaught_toggle_[0] = 1;
-
   if (options_->no_force_async_hooks_checks) {
     async_hooks_.no_force_checks();
   }
 
-  // TODO(joyeecheung): deserialize when the snapshot covers the environment
-  // properties.
-  CreateProperties();
+  if (isolate_data->snapshot_data() == nullptr)
+    CreateProperties();
+  else
+    DeserializeProperties();
 
   // This adjusts the return value of base_object_count() so that tests that
   // check the count do not have to account for internally created BaseObjects.
@@ -605,7 +822,8 @@ void Environment::CleanupHandles() {
   Isolate::DisallowJavascriptExecutionScope disallow_js(isolate(),
       Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
 
-  RunAndClearNativeImmediates(true /* skip SetUnrefImmediate()s */);
+  if (immediate_info()->fields().Length() > 0)  // Check whether initialized
+    RunAndClearNativeImmediates(true /* skip SetUnrefImmediate()s */);
 
   for (ReqWrapBase* request : req_wrap_queue_)
     request->Cancel();
@@ -1006,14 +1224,38 @@ void ImmediateInfo::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fields", fields_);
 }
 
+void ImmediateInfo::Serialize(SnapshotCreateData* snapshot_data) const {
+  snapshot_data->StartWriteEntry("ImmediateInfo");
+  fields_.Serialize(snapshot_data);
+  snapshot_data->EndWriteEntry();
+}
+
 void TickInfo::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fields", fields_);
+}
+
+void TickInfo::Serialize(SnapshotCreateData* snapshot_data) const {
+  snapshot_data->StartWriteEntry("TickInfo");
+  fields_.Serialize(snapshot_data);
+  snapshot_data->EndWriteEntry();
 }
 
 void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("async_ids_stack", async_ids_stack_);
   tracker->TrackField("fields", fields_);
   tracker->TrackField("async_id_fields", async_id_fields_);
+}
+
+void AsyncHooks::Serialize(SnapshotCreateData* snapshot_data) const {
+  snapshot_data->StartWriteEntry("AsyncHooks");
+  async_ids_stack_.Serialize(snapshot_data);
+  fields_.Serialize(snapshot_data);
+  async_id_fields_.Serialize(snapshot_data);
+
+  snapshot_data->WriteObject(
+      env()->context(), execution_async_resources_.Get(env()->isolate()));
+
+  snapshot_data->EndWriteEntry();
 }
 
 void AsyncHooks::grow_async_ids_stack() {
@@ -1204,6 +1446,104 @@ Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
     env->set_base_object_ctor_template(tmpl);
   }
   return tmpl;
+}
+
+StartupData BaseObject::SerializeInternalFields(
+    Local<Object> object, int index, void* data) {
+  // TODO(addaleax): Not an ideal way to get the Environment.
+  Environment* env = Environment::GetCurrent(object->CreationContext());
+  if (env == nullptr || !GetConstructorTemplate(env)->HasInstance(object))
+    return {};
+  const BaseObject* self = FromJSObject(object);
+  if (self == nullptr) return {};  // No BaseObject associated with `object`.
+  CHECK_EQ(self->object(), object);
+  return self->SerializeInternalFields(
+      index, static_cast<SnapshotCreateData*>(data));
+}
+
+StartupData BaseObject::SerializeInternalFields(
+    int index, SnapshotCreateData* snapshot_data) const {
+  if (index == BaseObject::kSlot) {
+    // The 0th slot points back to the BaseObject* itself. We don't need to
+    // serialize it, the serialization of the global handle should have already
+    // occurred, and when deserializing, the BaseObject* slot should be reset
+    // with the correct value anyway.
+    return {};
+  }
+  snapshot_data->add_error(
+      SPrintF("Missing override of SerializeInternalFields() for BaseObject of "
+              "type %s for internal field %d", MemoryInfoName(), index));
+  return {};
+}
+
+AsyncHooks::AsyncHooks(Environment* env) {
+  if (env->isolate_data()->snapshot_data() != nullptr) {
+    SnapshotReadData* snapshot_data = env->isolate_data()->snapshot_data();
+
+    if (snapshot_data->StartReadEntry("AsyncHooks").IsNothing()) return;
+    async_ids_stack_ = AliasedFloat64Array(env->context(), snapshot_data);
+    fields_ = AliasedUint32Array(env->context(), snapshot_data);
+    async_id_fields_ = AliasedFloat64Array(env->context(), snapshot_data);
+
+    Local<Array> execution_async_resources;
+    if (!snapshot_data->ReadObject<Array>(env->context())
+            .To(&execution_async_resources)) {
+      return;
+    }
+    execution_async_resources_.Reset(env->isolate(), execution_async_resources);
+
+    snapshot_data->EndReadEntry();
+    return;
+  }
+
+  async_ids_stack_ = AliasedFloat64Array(env->isolate(), 16 * 2);
+  fields_ = AliasedUint32Array(env->isolate(), kFieldsCount);
+  async_id_fields_ = AliasedFloat64Array(env->isolate(), kUidFieldsCount);
+
+  clear_async_id_stack();
+
+  // Always perform async_hooks checks, not just when async_hooks is enabled.
+  // TODO(AndreasMadsen): Consider removing this for LTS releases.
+  // See discussion in https://github.com/nodejs/node/pull/15454
+  // When removing this, do it by reverting the commit. Otherwise the test
+  // and flag changes won't be included.
+  fields_[kCheck] = 1;
+
+  // kDefaultTriggerAsyncId should be -1, this indicates that there is no
+  // specified default value and it should fallback to the executionAsyncId.
+  // 0 is not used as the magic value, because that indicates a missing context
+  // which is different from a default context.
+  async_id_fields_[AsyncHooks::kDefaultTriggerAsyncId] = -1;
+
+  // kAsyncIdCounter should start at 1 because that'll be the id the execution
+  // context during bootstrap (code that runs before entering uv_run()).
+  async_id_fields_[AsyncHooks::kAsyncIdCounter] = 1;
+}
+
+TickInfo::TickInfo(Environment* env) {
+  if (env->isolate_data()->snapshot_data() != nullptr) {
+    SnapshotReadData* snapshot_data = env->isolate_data()->snapshot_data();
+
+    if (snapshot_data->StartReadEntry("TickInfo").IsNothing()) return;
+    fields_ = AliasedUint8Array(env->context(), snapshot_data);
+
+    snapshot_data->EndReadEntry();
+    return;
+  }
+  fields_ = AliasedUint8Array(env->isolate(), kFieldsCount);
+}
+
+ImmediateInfo::ImmediateInfo(Environment* env) {
+  if (env->isolate_data()->snapshot_data() != nullptr) {
+    SnapshotReadData* snapshot_data = env->isolate_data()->snapshot_data();
+
+    if (snapshot_data->StartReadEntry("ImmediateInfo").IsNothing()) return;
+    fields_ = AliasedUint32Array(env->context(), snapshot_data);
+
+    snapshot_data->EndReadEntry();
+    return;
+  }
+  fields_ = AliasedUint32Array(env->isolate(), kFieldsCount);
 }
 
 }  // namespace node

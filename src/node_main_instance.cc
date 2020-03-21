@@ -4,6 +4,7 @@
 #include "node_internals.h"
 #include "node_options-inl.h"
 #include "node_v8_platform-inl.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
@@ -23,11 +24,12 @@ using v8::Locker;
 using v8::Object;
 using v8::SealHandleScope;
 
-NodeMainInstance::NodeMainInstance(Isolate* isolate,
-                                   uv_loop_t* event_loop,
-                                   MultiIsolatePlatform* platform,
-                                   const std::vector<std::string>& args,
-                                   const std::vector<std::string>& exec_args)
+NodeMainInstance::NodeMainInstance(
+    Isolate* isolate,
+    uv_loop_t* event_loop,
+    MultiIsolatePlatform* platform,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args)
     : args_(args),
       exec_args_(exec_args),
       array_buffer_allocator_(nullptr),
@@ -36,8 +38,9 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
       isolate_data_(nullptr),
       owns_isolate_(false),
       deserialize_mode_(false) {
-  isolate_data_ =
-      std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
+  // TODO(addaleax): Use CreateIsolateData.
+  isolate_data_ = std::make_unique<IsolateData>(
+      isolate_, event_loop, platform, nullptr, nullptr);
 
   IsolateSettings misc;
   SetIsolateMiscHandlers(isolate_, misc);
@@ -49,8 +52,8 @@ std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
     MultiIsolatePlatform* platform,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args) {
-  return std::unique_ptr<NodeMainInstance>(
-      new NodeMainInstance(isolate, event_loop, platform, args, exec_args));
+  return std::unique_ptr<NodeMainInstance>(new NodeMainInstance(
+      isolate, event_loop, platform, args, exec_args));
 }
 
 NodeMainInstance::NodeMainInstance(
@@ -59,7 +62,7 @@ NodeMainInstance::NodeMainInstance(
     MultiIsolatePlatform* platform,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
-    const std::vector<size_t>* per_isolate_data_indexes)
+    SnapshotReadData* snapshot_data)
     : args_(args),
       exec_args_(exec_args),
       array_buffer_allocator_(ArrayBufferAllocator::Create()),
@@ -70,20 +73,23 @@ NodeMainInstance::NodeMainInstance(
   params->array_buffer_allocator = array_buffer_allocator_.get();
   isolate_ = Isolate::Allocate();
   CHECK_NOT_NULL(isolate_);
+  if (snapshot_data != nullptr)
+    snapshot_data->set_isolate(isolate_);
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate_, event_loop);
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate_, *params);
 
-  deserialize_mode_ = per_isolate_data_indexes != nullptr;
+  deserialize_mode_ = snapshot_data != nullptr;
   // If the indexes are not nullptr, we are not deserializing
   CHECK_IMPLIES(deserialize_mode_, params->external_references != nullptr);
+  // TODO(addaleax): Use CreateIsolateData.
   isolate_data_ = std::make_unique<IsolateData>(isolate_,
                                                 event_loop,
                                                 platform,
                                                 array_buffer_allocator_.get(),
-                                                per_isolate_data_indexes);
+                                                snapshot_data);
   IsolateSettings s;
   SetIsolateMiscHandlers(isolate_, s);
   if (!deserialize_mode_) {
@@ -206,6 +212,15 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
       args_,
       exec_args_,
       EnvironmentFlags::kDefaultFlags) };
+
+  if (deserialize_mode_) {
+    SnapshotReadData* snapshot_data = isolate_data_->snapshot_data();
+    CHECK_NOT_NULL(snapshot_data);
+    if (snapshot_data->errors().empty())
+      snapshot_data->Finish();
+
+    snapshot_data->PrintErrorsAndAbortIfAny();
+  }
 
   if (*exit_code != 0) {
     return env;
