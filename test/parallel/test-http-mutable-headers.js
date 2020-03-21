@@ -150,7 +150,7 @@ const s = http.createServer(common.mustCall((req, res) => {
     case 'writeHead':
       res.statusCode = 404;
       res.setHeader('x-foo', 'keyboard cat');
-      res.writeHead(200, { 'x-foo': 'bar', 'x-bar': 'baz' });
+      res.writeHead(200, undefined, { 'x-foo': 'bar', 'x-bar': 'baz' });
       break;
 
     default:
