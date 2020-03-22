@@ -1273,6 +1273,9 @@ class Environment : public MemoryRetainer {
   inline void set_process_exit_handler(
       std::function<void(Environment*, int)>&& handler);
 
+  void RunAndClearNativeImmediates(bool only_refed = false);
+  void RunAndClearInterrupts();
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1410,8 +1413,6 @@ class Environment : public MemoryRetainer {
   // yet or already have been destroyed.
   bool task_queues_async_initialized_ = false;
 
-  void RunAndClearNativeImmediates(bool only_refed = false);
-  void RunAndClearInterrupts();
   std::atomic<Environment**> interrupt_data_ {nullptr};
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
