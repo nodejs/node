@@ -685,6 +685,8 @@ asyncResource.triggerAsyncId();
   when the object is garbage collected. This usually does not need to be set
   (even if `emitDestroy` is called manually), unless the resource's `asyncId`
   is retrieved and the sensitive API's `emitDestroy` is called with it.
+  When set to `false`, the `emitDestroy` call on garbage collection
+  will only take place if there is at least one active `destroy` hook.
   **Default:** `false`.
 
 Example usage:
