@@ -87,7 +87,6 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
-using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
 using v8::Local;
@@ -117,189 +116,6 @@ MaybeLocal<Object> ToBufferEndian(Environment* env, MaybeStackBuffer<T>* buf) {
 
   return ret;
 }
-
-struct Converter {
-  explicit Converter(const char* name, const char* sub = nullptr)
-      : conv(nullptr) {
-    UErrorCode status = U_ZERO_ERROR;
-    conv = ucnv_open(name, &status);
-    CHECK(U_SUCCESS(status));
-    if (sub != nullptr) {
-      ucnv_setSubstChars(conv, sub, strlen(sub), &status);
-    }
-  }
-
-  explicit Converter(UConverter* converter,
-                     const char* sub = nullptr) : conv(converter) {
-    CHECK_NOT_NULL(conv);
-    UErrorCode status = U_ZERO_ERROR;
-    if (sub != nullptr) {
-      ucnv_setSubstChars(conv, sub, strlen(sub), &status);
-    }
-  }
-
-  ~Converter() {
-    ucnv_close(conv);
-  }
-
-  UConverter* conv;
-};
-
-class ConverterObject : public BaseObject, Converter {
- public:
-  enum ConverterFlags {
-    CONVERTER_FLAGS_FLUSH      = 0x1,
-    CONVERTER_FLAGS_FATAL      = 0x2,
-    CONVERTER_FLAGS_IGNORE_BOM = 0x4
-  };
-
-  ~ConverterObject() override = default;
-
-  static void Has(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    HandleScope scope(env->isolate());
-
-    CHECK_GE(args.Length(), 1);
-    Utf8Value label(env->isolate(), args[0]);
-
-    UErrorCode status = U_ZERO_ERROR;
-    UConverter* conv = ucnv_open(*label, &status);
-    args.GetReturnValue().Set(!!U_SUCCESS(status));
-    ucnv_close(conv);
-  }
-
-  static void Create(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    HandleScope scope(env->isolate());
-
-    Local<ObjectTemplate> t = env->i18n_converter_template();
-    Local<Object> obj;
-    if (!t->NewInstance(env->context()).ToLocal(&obj)) return;
-
-    CHECK_GE(args.Length(), 2);
-    Utf8Value label(env->isolate(), args[0]);
-    int flags = args[1]->Uint32Value(env->context()).ToChecked();
-    bool fatal =
-        (flags & CONVERTER_FLAGS_FATAL) == CONVERTER_FLAGS_FATAL;
-    bool ignoreBOM =
-        (flags & CONVERTER_FLAGS_IGNORE_BOM) == CONVERTER_FLAGS_IGNORE_BOM;
-
-    UErrorCode status = U_ZERO_ERROR;
-    UConverter* conv = ucnv_open(*label, &status);
-    if (U_FAILURE(status))
-      return;
-
-    if (fatal) {
-      status = U_ZERO_ERROR;
-      ucnv_setToUCallBack(conv, UCNV_TO_U_CALLBACK_STOP,
-                          nullptr, nullptr, nullptr, &status);
-    }
-
-    new ConverterObject(env, obj, conv, ignoreBOM);
-    args.GetReturnValue().Set(obj);
-  }
-
-  static void Decode(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-
-    CHECK_GE(args.Length(), 3);  // Converter, Buffer, Flags
-
-    ConverterObject* converter;
-    ASSIGN_OR_RETURN_UNWRAP(&converter, args[0].As<Object>());
-    ArrayBufferViewContents<char> input(args[1]);
-    int flags = args[2]->Uint32Value(env->context()).ToChecked();
-
-    UErrorCode status = U_ZERO_ERROR;
-    MaybeStackBuffer<UChar> result;
-    MaybeLocal<Object> ret;
-    size_t limit = ucnv_getMinCharSize(converter->conv) * input.length();
-    if (limit > 0)
-      result.AllocateSufficientStorage(limit);
-
-    UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
-    auto cleanup = OnScopeLeave([&]() {
-      if (flush) {
-        // Reset the converter state.
-        converter->bomSeen_ = false;
-        ucnv_reset(converter->conv);
-      }
-    });
-
-    const char* source = input.data();
-    size_t source_length = input.length();
-
-    UChar* target = *result;
-    ucnv_toUnicode(converter->conv,
-                   &target, target + (limit * sizeof(UChar)),
-                   &source, source + source_length,
-                   nullptr, flush, &status);
-
-    if (U_SUCCESS(status)) {
-      bool omit_initial_bom = false;
-      if (limit > 0) {
-        result.SetLength(target - &result[0]);
-        if (result.length() > 0 &&
-            converter->unicode_ &&
-            !converter->ignoreBOM_ &&
-            !converter->bomSeen_) {
-          // If the very first result in the stream is a BOM, and we are not
-          // explicitly told to ignore it, then we mark it for discarding.
-          if (result[0] == 0xFEFF) {
-            omit_initial_bom = true;
-          }
-          converter->bomSeen_ = true;
-        }
-      }
-      ret = ToBufferEndian(env, &result);
-      if (omit_initial_bom && !ret.IsEmpty()) {
-        // Peform `ret = ret.slice(2)`.
-        CHECK(ret.ToLocalChecked()->IsUint8Array());
-        Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
-        ret = Buffer::New(env,
-                          orig_ret->Buffer(),
-                          orig_ret->ByteOffset() + 2,
-                          orig_ret->ByteLength() - 2)
-                              .FromMaybe(Local<Uint8Array>());
-      }
-      if (!ret.IsEmpty())
-        args.GetReturnValue().Set(ret.ToLocalChecked());
-      return;
-    }
-
-    args.GetReturnValue().Set(status);
-  }
-
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(ConverterObject)
-  SET_SELF_SIZE(ConverterObject)
-
- protected:
-  ConverterObject(Environment* env,
-                  Local<Object> wrap,
-                  UConverter* converter,
-                  bool ignoreBOM,
-                  const char* sub = nullptr) :
-                  BaseObject(env, wrap),
-                  Converter(converter, sub),
-                  ignoreBOM_(ignoreBOM) {
-    MakeWeak();
-
-    switch (ucnv_getType(converter)) {
-      case UCNV_UTF8:
-      case UCNV_UTF16_BigEndian:
-      case UCNV_UTF16_LittleEndian:
-        unicode_ = true;
-        break;
-      default:
-        unicode_ = false;
-    }
-  }
-
- private:
-  bool unicode_ = false;     // True if this is a Unicode converter
-  bool ignoreBOM_ = false;   // True if the BOM should be ignored on Unicode
-  bool bomSeen_ = false;     // True if the BOM has been seen
-};
 
 // One-Shot Converters
 
@@ -333,10 +149,10 @@ MaybeLocal<Object> Transcode(Environment* env,
   MaybeStackBuffer<char> result;
   Converter to(toEncoding, "?");
   Converter from(fromEncoding);
-  const uint32_t limit = source_length * ucnv_getMaxCharSize(to.conv);
+  const uint32_t limit = source_length * to.max_char_size();
   result.AllocateSufficientStorage(limit);
   char* target = *result;
-  ucnv_convertEx(to.conv, from.conv, &target, target + limit,
+  ucnv_convertEx(to.conv(), from.conv(), &target, target + limit,
                  &source, source + source_length, nullptr, nullptr,
                  nullptr, nullptr, true, true, status);
   if (U_SUCCESS(*status)) {
@@ -357,7 +173,7 @@ MaybeLocal<Object> TranscodeToUcs2(Environment* env,
   MaybeStackBuffer<UChar> destbuf(source_length);
   Converter from(fromEncoding);
   const size_t length_in_chars = source_length * sizeof(UChar);
-  ucnv_toUChars(from.conv, *destbuf, length_in_chars,
+  ucnv_toUChars(from.conv(), *destbuf, length_in_chars,
                 source, source_length, status);
   if (U_SUCCESS(*status))
     ret = ToBufferEndian(env, &destbuf);
@@ -377,7 +193,7 @@ MaybeLocal<Object> TranscodeFromUcs2(Environment* env,
   const size_t length_in_chars = source_length / sizeof(UChar);
   CopySourceBuffer(&sourcebuf, source, source_length, length_in_chars);
   MaybeStackBuffer<char> destbuf(length_in_chars);
-  const uint32_t len = ucnv_fromUChars(to.conv, *destbuf, length_in_chars,
+  const uint32_t len = ucnv_fromUChars(to.conv(), *destbuf, length_in_chars,
                                        *sourcebuf, length_in_chars, status);
   if (U_SUCCESS(*status)) {
     destbuf.SetLength(len);
@@ -527,6 +343,178 @@ void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
 }
 
 }  // anonymous namespace
+
+Converter::Converter(const char* name, const char* sub) {
+  UErrorCode status = U_ZERO_ERROR;
+  UConverter* conv = ucnv_open(name, &status);
+  CHECK(U_SUCCESS(status));
+  conv_.reset(conv);
+  set_subst_chars(sub);
+}
+
+Converter::Converter(UConverter* converter, const char* sub)
+    : conv_(converter) {
+  set_subst_chars(sub);
+}
+
+void Converter::set_subst_chars(const char* sub) {
+  CHECK(conv_);
+  UErrorCode status = U_ZERO_ERROR;
+  if (sub != nullptr) {
+    ucnv_setSubstChars(conv_.get(), sub, strlen(sub), &status);
+    CHECK(U_SUCCESS(status));
+  }
+}
+
+void Converter::reset() {
+  ucnv_reset(conv_.get());
+}
+
+size_t Converter::min_char_size() const {
+  CHECK(conv_);
+  return ucnv_getMinCharSize(conv_.get());
+}
+
+size_t Converter::max_char_size() const {
+  CHECK(conv_);
+  return ucnv_getMaxCharSize(conv_.get());
+}
+
+void ConverterObject::Has(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_GE(args.Length(), 1);
+  Utf8Value label(env->isolate(), args[0]);
+
+  UErrorCode status = U_ZERO_ERROR;
+  ConverterPointer conv(ucnv_open(*label, &status));
+  args.GetReturnValue().Set(!!U_SUCCESS(status));
+}
+
+void ConverterObject::Create(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<ObjectTemplate> t = env->i18n_converter_template();
+  Local<Object> obj;
+  if (!t->NewInstance(env->context()).ToLocal(&obj)) return;
+
+  CHECK_GE(args.Length(), 2);
+  Utf8Value label(env->isolate(), args[0]);
+  int flags = args[1]->Uint32Value(env->context()).ToChecked();
+  bool fatal =
+      (flags & CONVERTER_FLAGS_FATAL) == CONVERTER_FLAGS_FATAL;
+
+  UErrorCode status = U_ZERO_ERROR;
+  UConverter* conv = ucnv_open(*label, &status);
+  if (U_FAILURE(status))
+    return;
+
+  if (fatal) {
+    status = U_ZERO_ERROR;
+    ucnv_setToUCallBack(conv, UCNV_TO_U_CALLBACK_STOP,
+                        nullptr, nullptr, nullptr, &status);
+  }
+
+  new ConverterObject(env, obj, conv, flags);
+  args.GetReturnValue().Set(obj);
+}
+
+void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_GE(args.Length(), 3);  // Converter, Buffer, Flags
+
+  ConverterObject* converter;
+  ASSIGN_OR_RETURN_UNWRAP(&converter, args[0].As<Object>());
+  ArrayBufferViewContents<char> input(args[1]);
+  int flags = args[2]->Uint32Value(env->context()).ToChecked();
+
+  UErrorCode status = U_ZERO_ERROR;
+  MaybeStackBuffer<UChar> result;
+  MaybeLocal<Object> ret;
+  size_t limit = converter->min_char_size() * input.length();
+  if (limit > 0)
+    result.AllocateSufficientStorage(limit);
+
+  UBool flush = (flags & CONVERTER_FLAGS_FLUSH) == CONVERTER_FLAGS_FLUSH;
+  auto cleanup = OnScopeLeave([&]() {
+    if (flush) {
+      // Reset the converter state.
+      converter->set_bom_seen(false);
+      converter->reset();
+    }
+  });
+
+  const char* source = input.data();
+  size_t source_length = input.length();
+
+  UChar* target = *result;
+  ucnv_toUnicode(converter->conv(),
+                 &target,
+                 target + (limit * sizeof(UChar)),
+                 &source,
+                 source + source_length,
+                 nullptr,
+                 flush,
+                 &status);
+
+  if (U_SUCCESS(status)) {
+    bool omit_initial_bom = false;
+    if (limit > 0) {
+      result.SetLength(target - &result[0]);
+      if (result.length() > 0 &&
+          converter->unicode() &&
+          !converter->ignore_bom() &&
+          !converter->bom_seen()) {
+        // If the very first result in the stream is a BOM, and we are not
+        // explicitly told to ignore it, then we mark it for discarding.
+        if (result[0] == 0xFEFF)
+          omit_initial_bom = true;
+        converter->set_bom_seen(true);
+      }
+    }
+    ret = ToBufferEndian(env, &result);
+    if (omit_initial_bom && !ret.IsEmpty()) {
+      // Peform `ret = ret.slice(2)`.
+      CHECK(ret.ToLocalChecked()->IsUint8Array());
+      Local<Uint8Array> orig_ret = ret.ToLocalChecked().As<Uint8Array>();
+      ret = Buffer::New(env,
+                        orig_ret->Buffer(),
+                        orig_ret->ByteOffset() + 2,
+                        orig_ret->ByteLength() - 2)
+                            .FromMaybe(Local<Uint8Array>());
+    }
+    if (!ret.IsEmpty())
+      args.GetReturnValue().Set(ret.ToLocalChecked());
+    return;
+  }
+
+  args.GetReturnValue().Set(status);
+}
+
+ConverterObject::ConverterObject(
+    Environment* env,
+    Local<Object> wrap,
+    UConverter* converter,
+    int flags,
+    const char* sub)
+    : BaseObject(env, wrap),
+      Converter(converter, sub),
+      flags_(flags) {
+  MakeWeak();
+
+  switch (ucnv_getType(converter)) {
+    case UCNV_UTF8:
+    case UCNV_UTF16_BigEndian:
+    case UCNV_UTF16_LittleEndian:
+      flags_ |= CONVERTER_FLAGS_UNICODE;
+      break;
+    default: {
+      // Fall through
+    }
+  }
+}
+
 
 bool InitializeICUDirectory(const std::string& path) {
   UErrorCode status = U_ZERO_ERROR;
