@@ -394,7 +394,8 @@ Environment::Environment(IsolateData* isolate_data,
 }
 
 Environment::~Environment() {
-  if (interrupt_data_ != nullptr) *interrupt_data_ = nullptr;
+  if (Environment** interrupt_data = interrupt_data_.load())
+    *interrupt_data = nullptr;
 
   // FreeEnvironment() should have set this.
   CHECK(is_stopping());
@@ -735,12 +736,15 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
 }
 
 void Environment::RequestInterruptFromV8() {
-  if (interrupt_data_ != nullptr) return;  // Already scheduled.
-
   // The Isolate may outlive the Environment, so some logic to handle the
   // situation in which the Environment is destroyed before the handler runs
   // is required.
-  interrupt_data_ = new Environment*(this);
+  Environment** interrupt_data = new Environment*(this);
+  Environment** dummy = nullptr;
+  if (!interrupt_data_.compare_exchange_strong(dummy, interrupt_data)) {
+    delete interrupt_data;
+    return;  // Already scheduled.
+  }
 
   isolate()->RequestInterrupt([](Isolate* isolate, void* data) {
     std::unique_ptr<Environment*> env_ptr { static_cast<Environment**>(data) };
@@ -751,9 +755,9 @@ void Environment::RequestInterruptFromV8() {
       // handled during cleanup.
       return;
     }
-    env->interrupt_data_ = nullptr;
+    env->interrupt_data_.store(nullptr);
     env->RunAndClearInterrupts();
-  }, interrupt_data_);
+  }, interrupt_data);
 }
 
 void Environment::ScheduleTimer(int64_t duration_ms) {
