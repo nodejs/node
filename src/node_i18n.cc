@@ -86,6 +86,7 @@ namespace node {
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Isolate;
@@ -171,8 +172,7 @@ class ConverterObject : public BaseObject, Converter {
     Environment* env = Environment::GetCurrent(args);
     HandleScope scope(env->isolate());
 
-    Local<ObjectTemplate> t = ObjectTemplate::New(env->isolate());
-    t->SetInternalFieldCount(ConverterObject::kInternalFieldCount);
+    Local<ObjectTemplate> t = env->i18n_converter_template();
     Local<Object> obj;
     if (!t->NewInstance(env->context()).ToLocal(&obj)) return;
 
@@ -821,6 +821,16 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "transcode", Transcode);
 
   // ConverterObject
+  {
+    Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate());
+    t->InstanceTemplate()->SetInternalFieldCount(
+        ConverterObject::kInternalFieldCount);
+    Local<String> converter_string =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "Converter");
+    t->SetClassName(converter_string);
+    env->set_i18n_converter_template(t->InstanceTemplate());
+  }
+
   env->SetMethod(target, "getConverter", ConverterObject::Create);
   env->SetMethod(target, "decode", ConverterObject::Decode);
   env->SetMethod(target, "hasConverter", ConverterObject::Has);
