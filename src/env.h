@@ -1256,6 +1256,9 @@ class Environment : public MemoryRetainer {
 
   inline void set_main_utf16(std::unique_ptr<v8::String::Value>);
 
+  void RunAndClearNativeImmediates(bool only_refed = false);
+  void RunAndClearInterrupts();
+
  private:
   template <typename Fn>
   inline void CreateImmediate(Fn&& cb, bool ref);
@@ -1440,8 +1443,6 @@ class Environment : public MemoryRetainer {
   // yet or already have been destroyed.
   bool task_queues_async_initialized_ = false;
 
-  void RunAndClearNativeImmediates(bool only_refed = false);
-  void RunAndClearInterrupts();
   std::atomic<Environment**> interrupt_data_ {nullptr};
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);

@@ -116,6 +116,8 @@ class Agent {
   // Interface for interacting with inspectors in worker threads
   std::shared_ptr<WorkerManager> GetWorkerManager();
 
+  inline Environment* env() const { return parent_env_; }
+
  private:
   void ToggleAsyncHook(v8::Isolate* isolate,
                        const v8::Global<v8::Function>& fn);
