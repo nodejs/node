@@ -84,7 +84,7 @@ class JSBindingsConnection : public AsyncWrap {
 
    private:
     Environment* env_;
-    JSBindingsConnection* connection_;
+    BaseObjectPtr<JSBindingsConnection> connection_;
   };
 
   JSBindingsConnection(Environment* env,

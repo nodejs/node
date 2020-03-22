@@ -76,6 +76,12 @@ function doConsoleLog(arrayBuffer) {
 // and do not interrupt the main code. Interrupting the code flow
 // can lead to unexpected behaviors.
 async function ensureListenerDoesNotInterrupt(session) {
+  // Make sure that the following code is not affected by the fact that it may
+  // run inside an inspector message callback, during which other inspector
+  // message callbacks (such as the one triggered by doConsoleLog()) would
+  // not be processed.
+  await new Promise(setImmediate);
+
   const currentTime = Date.now();
   let consoleLogHappened = false;
   session.once('Runtime.consoleAPICalled',

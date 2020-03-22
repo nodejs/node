@@ -662,8 +662,7 @@ class NodeInspectorClient : public V8InspectorClient {
   std::shared_ptr<MainThreadHandle> getThreadHandle() {
     if (!interface_) {
       interface_ = std::make_shared<MainThreadInterface>(
-          env_->inspector_agent(), env_->event_loop(), env_->isolate(),
-          env_->isolate_data()->platform());
+          env_->inspector_agent());
     }
     return interface_->GetHandle();
   }
@@ -699,10 +698,9 @@ class NodeInspectorClient : public V8InspectorClient {
 
     running_nested_loop_ = true;
 
-    MultiIsolatePlatform* platform = env_->isolate_data()->platform();
     while (shouldRunMessageLoop()) {
       if (interface_) interface_->WaitForFrontendEvent();
-      while (platform->FlushForegroundTasks(env_->isolate())) {}
+      env_->RunAndClearInterrupts();
     }
     running_nested_loop_ = false;
   }
