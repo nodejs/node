@@ -362,9 +362,8 @@ specification.
 
 Unlike `vm.Script` however, every `vm.Module` object is bound to a context from
 its creation. Operations on `vm.Module` objects are intrinsically asynchronous,
-in contrast with the synchronous nature of `vm.Script` objects. With the help
-of async functions, however, manipulating `vm.Module` objects is fairly
-straightforward.
+in contrast with the synchronous nature of `vm.Script` objects. The use of
+'async' functions can help with manipulating `vm.Module` objects.
 
 Using a `vm.Module` object requires three distinct steps: creation/parsing,
 linking, and evaluation. These three steps are illustrated in the following
