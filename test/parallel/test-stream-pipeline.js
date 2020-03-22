@@ -1048,3 +1048,20 @@ const { promisify } = require('util');
   }));
   src.push(null);
 }
+
+{
+  const src = new PassThrough();
+  const dst = pipeline(
+    src,
+    async function * (source) {
+      for await (const chunk of source) {
+        yield chunk;
+      }
+    },
+    common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ERR_STREAM_PREMATURE_CLOSE');
+    })
+  );
+  src.push('asd');
+  dst.destroy();
+}
