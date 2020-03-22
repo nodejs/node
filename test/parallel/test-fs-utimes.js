@@ -150,7 +150,7 @@ if (!process.arch.includes('arm') &&
   const Y2K38_mtime = 2 ** 31;
   fs.utimesSync(path, Y2K38_mtime, Y2K38_mtime);
   const Y2K38_stats = fs.statSync(path);
-  assert.strictEqual(Y2K38_mtime, Y2K38_stats.mtime.getTime() / 1000);
+  assert.strictEqual(Y2K38_stats.mtime.getTime() / 1000, Y2K38_mtime);
 }
 
 if (common.isWindows) {
@@ -158,7 +158,7 @@ if (common.isWindows) {
   const truncate_mtime = 1713037251360;
   fs.utimesSync(path, truncate_mtime / 1000, truncate_mtime / 1000);
   const truncate_stats = fs.statSync(path);
-  assert.strictEqual(truncate_mtime, truncate_stats.mtime.getTime());
+  assert.strictEqual(truncate_stats.mtime.getTime(), truncate_mtime);
 
   // test Y2K38 for windows
   // This value if treaded as a `signed long` gets converted to -2135622133469.
@@ -168,7 +168,7 @@ if (common.isWindows) {
   const overflow_mtime = 2159345162531;
   fs.utimesSync(path, overflow_mtime / 1000, overflow_mtime / 1000);
   const overflow_stats = fs.statSync(path);
-  assert.strictEqual(overflow_mtime, overflow_stats.mtime.getTime());
+  assert.strictEqual(overflow_stats.mtime.getTime(), overflow_mtime);
 }
 
 const expectTypeError = {
