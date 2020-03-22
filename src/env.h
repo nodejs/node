@@ -1420,7 +1420,7 @@ class Environment : public MemoryRetainer {
 
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
-  Environment** interrupt_data_ = nullptr;
+  std::atomic<Environment**> interrupt_data_ {nullptr};
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
 
