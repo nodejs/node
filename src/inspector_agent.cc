@@ -46,7 +46,6 @@ using v8::Local;
 using v8::Message;
 using v8::Object;
 using v8::Task;
-using v8::TaskRunner;
 using v8::Value;
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
@@ -61,18 +60,6 @@ static std::atomic_bool start_io_thread_async_initialized { false };
 // Protects the Agent* stored in start_io_thread_async.data.
 static Mutex start_io_thread_async_mutex;
 
-class StartIoTask : public Task {
- public:
-  explicit StartIoTask(Agent* agent) : agent(agent) {}
-
-  void Run() override {
-    agent->StartIoThread();
-  }
-
- private:
-  Agent* agent;
-};
-
 std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
                                                Local<Value> value) {
   TwoByteValue buffer(isolate, value);
@@ -82,10 +69,6 @@ std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
 // Called on the main thread.
 void StartIoThreadAsyncCallback(uv_async_t* handle) {
   static_cast<Agent*>(handle->data)->StartIoThread();
-}
-
-void StartIoInterrupt(Isolate* isolate, void* agent) {
-  static_cast<Agent*>(agent)->StartIoThread();
 }
 
 
@@ -981,12 +964,10 @@ void Agent::RequestIoThreadStart() {
   // for IO events)
   CHECK(start_io_thread_async_initialized);
   uv_async_send(&start_io_thread_async);
-  Isolate* isolate = parent_env_->isolate();
-  v8::Platform* platform = parent_env_->isolate_data()->platform();
-  std::shared_ptr<TaskRunner> taskrunner =
-    platform->GetForegroundTaskRunner(isolate);
-  taskrunner->PostTask(std::make_unique<StartIoTask>(this));
-  isolate->RequestInterrupt(StartIoInterrupt, this);
+  parent_env_->RequestInterrupt([this](Environment*) {
+    StartIoThread();
+  });
+
   CHECK(start_io_thread_async_initialized);
   uv_async_send(&start_io_thread_async);
 }
