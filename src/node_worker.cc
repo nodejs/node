@@ -659,7 +659,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
       HandleScope handle_scope(isolate);
       THROW_ERR_WORKER_INIT_FAILED(isolate, err_buf);
     }
-  w->MakeWeak();
+    w->MakeWeak();
   }
 }
 
