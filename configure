@@ -3,10 +3,7 @@
 # Locate an acceptable python interpreter and then re-execute the script.
 # Note that the mix of single and double quotes is intentional,
 # as is the fact that the ] goes on a new line.
-# When a 'which' call is made for a specific version of Python on Travis CI,
-# pyenv will alert which shims are available and then will fail the build.
 _=[ 'exec' '/bin/sh' '-c' '''
-test ${TRAVIS} && exec python "$0" "$@"  # workaround for pyenv on Travis CI
 test ${FORCE_PYTHON2} && exec python2 "$0" "$@"  # workaround for gclient
 which python3.8 >/dev/null && exec python3.8 "$0" "$@"
 which python3.7 >/dev/null && exec python3.7 "$0" "$@"
