@@ -1,0 +1,23 @@
+name: build-windows
+
+on: [push, pull_request]
+
+env:
+  PYTHON_VERSION: 3.8
+  FLAKY_TESTS: dontcare
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v1
+        with:
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Install deps
+        run: choco install nasm
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: ./vcbuild.bat
