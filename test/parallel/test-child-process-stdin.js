@@ -20,9 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+const {
+  mustCall,
+  mustCallAtLeast,
+  mustNotCall,
+} = require('../common');
 const assert = require('assert');
-
+const debug = require('util').debuglog('test');
 const spawn = require('child_process').spawn;
 
 const cat = spawn('cat');
@@ -38,21 +42,21 @@ cat.stdin.end();
 let response = '';
 
 cat.stdout.setEncoding('utf8');
-cat.stdout.on('data', function(chunk) {
-  console.log(`stdout: ${chunk}`);
+cat.stdout.on('data', mustCallAtLeast((chunk) => {
+  debug(`stdout: ${chunk}`);
   response += chunk;
-});
+}));
 
-cat.stdout.on('end', common.mustCall());
+cat.stdout.on('end', mustCall());
 
-cat.stderr.on('data', common.mustNotCall());
+cat.stderr.on('data', mustNotCall());
 
-cat.stderr.on('end', common.mustCall());
+cat.stderr.on('end', mustCall());
 
-cat.on('exit', common.mustCall(function(status) {
+cat.on('exit', mustCall((status) => {
   assert.strictEqual(status, 0);
 }));
 
-cat.on('close', common.mustCall(function() {
+cat.on('close', mustCall(() => {
   assert.strictEqual(response, 'hello world');
 }));

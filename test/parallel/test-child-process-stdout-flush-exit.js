@@ -24,6 +24,7 @@ const common = require('../common');
 const assert = require('assert');
 
 // If child process output to console and exit
+// The console.log statements here are part of the test.
 if (process.argv[2] === 'child') {
   console.log('hello');
   for (let i = 0; i < 200; i++) {
@@ -40,18 +41,15 @@ if (process.argv[2] === 'child') {
 
   let stdout = '';
 
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', function(data) {
-    assert.fail(`Unexpected parent stderr: ${data}`);
-  });
+  child.stderr.on('data', common.mustNotCall());
 
   // Check if we receive both 'hello' at start and 'goodbye' at end
   child.stdout.setEncoding('utf8');
-  child.stdout.on('data', function(data) {
+  child.stdout.on('data', common.mustCallAtLeast((data) => {
     stdout += data;
-  });
+  }));
 
-  child.on('close', common.mustCall(function() {
+  child.on('close', common.mustCall(() => {
     assert.strictEqual(stdout.slice(0, 6), 'hello\n');
     assert.strictEqual(stdout.slice(stdout.length - 8), 'goodbye\n');
   }));

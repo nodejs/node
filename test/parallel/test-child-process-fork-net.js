@@ -20,64 +20,69 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+const {
+  mustCall,
+  mustCallAtLeast,
+  platformTimeout,
+} = require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
+const debug = require('util').debuglog('test');
 const count = 12;
 
 if (process.argv[2] === 'child') {
   const needEnd = [];
   const id = process.argv[3];
 
-  process.on('message', function(m, socket) {
+  process.on('message', mustCall((m, socket) => {
     if (!socket) return;
 
-    console.error(`[${id}] got socket ${m}`);
+    debug(`[${id}] got socket ${m}`);
 
     // Will call .end('end') or .write('write');
     socket[m](m);
 
     socket.resume();
 
-    socket.on('data', function() {
-      console.error(`[${id}] socket.data ${m}`);
-    });
+    socket.on('data', mustCallAtLeast(() => {
+      debug(`[${id}] socket.data ${m}`);
+    }));
 
-    socket.on('end', function() {
-      console.error(`[${id}] socket.end ${m}`);
-    });
+    socket.on('end', mustCall(() => {
+      debug(`[${id}] socket.end ${m}`);
+    }));
 
     // Store the unfinished socket
     if (m === 'write') {
       needEnd.push(socket);
     }
 
-    socket.on('close', function(had_error) {
-      console.error(`[${id}] socket.close ${had_error} ${m}`);
-    });
+    socket.on('close', mustCall((had_error) => {
+      debug(`[${id}] socket.close ${had_error} ${m}`);
+    }));
 
-    socket.on('finish', function() {
-      console.error(`[${id}] socket finished ${m}`);
-    });
-  });
+    socket.on('finish', mustCall(() => {
+      debug(`[${id}] socket finished ${m}`);
+    }));
+  }));
 
-  process.on('message', function(m) {
+  process.on('message', mustCall((m) => {
     if (m !== 'close') return;
-    console.error(`[${id}] got close message`);
-    needEnd.forEach(function(endMe, i) {
-      console.error(`[${id}] ending ${i}/${needEnd.length}`);
+    debug(`[${id}] got close message`);
+    needEnd.forEach((endMe, i) => {
+      debug(`[${id}] ending ${i}/${needEnd.length}`);
       endMe.end('end');
     });
-  });
+  }));
 
-  process.on('disconnect', function() {
-    console.error(`[${id}] process disconnect, ending`);
-    needEnd.forEach(function(endMe, i) {
-      console.error(`[${id}] ending ${i}/${needEnd.length}`);
+  process.on('disconnect', mustCall(() => {
+    debug(`[${id}] process disconnect, ending`);
+    needEnd.forEach((endMe, i) => {
+      debug(`[${id}] ending ${i}/${needEnd.length}`);
       endMe.end('end');
     });
-  });
+  }));
 
 } else {
 
@@ -106,8 +111,10 @@ if (process.argv[2] === 'child') {
     }
     connected += 1;
 
-    socket.once('close', function() {
-      console.log(`[m] socket closed, total ${++closed}`);
+    // TODO(@jasnell): This is not actually being called.
+    // It is not clear if it is needed.
+    socket.once('close', () => {
+      debug(`[m] socket closed, total ${++closed}`);
     });
 
     if (connected === count) {
@@ -116,26 +123,27 @@ if (process.argv[2] === 'child') {
   });
 
   let disconnected = 0;
-  server.on('listening', function() {
+  server.on('listening', mustCall(() => {
 
     let j = count;
     while (j--) {
-      const client = net.connect(this.address().port, '127.0.0.1');
-      client.on('error', function() {
+      const client = net.connect(server.address().port, '127.0.0.1');
+      client.on('error', () => {
         // This can happen if we kill the subprocess too early.
         // The client should still get a close event afterwards.
-        console.error('[m] CLIENT: error event');
+        // It likely won't so don't wrap in a mustCall.
+        debug('[m] CLIENT: error event');
       });
-      client.on('close', function() {
-        console.error('[m] CLIENT: close event');
+      client.on('close', mustCall(() => {
+        debug('[m] CLIENT: close event');
         disconnected += 1;
-      });
+      }));
       client.resume();
     }
-  });
+  }));
 
   let closeEmitted = false;
-  server.on('close', common.mustCall(function() {
+  server.on('close', mustCall(function() {
     closeEmitted = true;
 
     child1.kill();
@@ -148,12 +156,12 @@ if (process.argv[2] === 'child') {
   function closeServer() {
     server.close();
 
-    setTimeout(function() {
+    setTimeout(() => {
       assert(!closeEmitted);
       child1.send('close');
       child2.send('close');
       child3.disconnect();
-    }, 200);
+    }, platformTimeout(200));
   }
 
   process.on('exit', function() {

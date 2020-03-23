@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
@@ -29,7 +29,7 @@ const count = 12;
 if (process.argv[2] === 'child') {
   const sockets = [];
 
-  process.on('message', function(m, socket) {
+  process.on('message', common.mustCall((m, socket) => {
     function sendClosed(id) {
       process.send({ id: id, status: 'closed' });
     }
@@ -52,41 +52,39 @@ if (process.argv[2] === 'child') {
         sockets[m.id].destroy();
       }
     }
-  });
+  }));
 
 } else {
   const child = fork(process.argv[1], ['child']);
 
-  child.on('exit', function(code, signal) {
+  child.on('exit', common.mustCall((code, signal) => {
     if (!subprocessKilled) {
       assert.fail('subprocess died unexpectedly! ' +
                   `code: ${code} signal: ${signal}`);
     }
-  });
+  }));
 
   const server = net.createServer();
   const sockets = [];
-  let sent = 0;
 
-  server.on('connection', function(socket) {
+  server.on('connection', common.mustCall((socket) => {
     child.send({ cmd: 'new' }, socket);
     sockets.push(socket);
 
     if (sockets.length === count) {
       closeSockets(0);
     }
-  });
+  }, count));
 
-  let disconnected = 0;
-  server.on('listening', function() {
+  const onClose = common.mustCall(count);
+
+  server.on('listening', common.mustCall(() => {
     let j = count;
     while (j--) {
       const client = net.connect(server.address().port, '127.0.0.1');
-      client.on('close', function() {
-        disconnected += 1;
-      });
+      client.on('close', onClose);
     }
-  });
+  }));
 
   let subprocessKilled = false;
   function closeSockets(i) {
@@ -97,29 +95,18 @@ if (process.argv[2] === 'child') {
       return;
     }
 
-    child.once('message', function(m) {
+    child.once('message', common.mustCall((m) => {
       assert.strictEqual(m.status, 'closed');
-      server.getConnections(function(err, num) {
+      server.getConnections(common.mustCall((err, num) => {
         assert.ifError(err);
         assert.strictEqual(num, count - (i + 1));
         closeSockets(i + 1);
-      });
-    });
-    sent++;
+      }));
+    }));
     child.send({ id: i, cmd: 'close' });
   }
 
-  let closeEmitted = false;
-  server.on('close', function() {
-    closeEmitted = true;
-  });
+  server.on('close', common.mustCall());
 
   server.listen(0, '127.0.0.1');
-
-  process.on('exit', function() {
-    assert.strictEqual(sent, count);
-    assert.strictEqual(disconnected, count);
-    assert.ok(closeEmitted);
-    console.log('ok');
-  });
 }
