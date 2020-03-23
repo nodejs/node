@@ -20,17 +20,22 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const common = require('../common');
+const {
+  isWindows,
+  mustCall,
+  mustCallAtLeast,
+} = require('../common');
 const assert = require('assert');
 const os = require('os');
 const spawn = require('child_process').spawn;
+const debug = require('util').debuglog('test');
 
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
 let grep, sed, echo;
 
-if (common.isWindows) {
+if (isWindows) {
   grep = spawn('grep', ['--binary', 'o']);
   sed = spawn('sed', ['--binary', 's/o/O/']);
   echo = spawn('cmd.exe',
@@ -54,62 +59,66 @@ if (common.isWindows) {
 
 
 // pipe echo | grep
-echo.stdout.on('data', function(data) {
-  console.error(`grep stdin write ${data.length}`);
+echo.stdout.on('data', mustCallAtLeast((data) => {
+  debug(`grep stdin write ${data.length}`);
   if (!grep.stdin.write(data)) {
     echo.stdout.pause();
   }
-});
+}));
 
-grep.stdin.on('drain', function(data) {
+// TODO(@jasnell): This does not appear to ever be
+// emitted. It's not clear if it is necessary.
+grep.stdin.on('drain', (data) => {
   echo.stdout.resume();
 });
 
 // Propagate end from echo to grep
-echo.stdout.on('end', function(code) {
+echo.stdout.on('end', mustCall((code) => {
   grep.stdin.end();
-});
+}));
 
-echo.on('exit', function() {
-  console.error('echo exit');
-});
+echo.on('exit', mustCall(() => {
+  debug('echo exit');
+}));
 
-grep.on('exit', function() {
-  console.error('grep exit');
-});
+grep.on('exit', mustCall(() => {
+  debug('grep exit');
+}));
 
-sed.on('exit', function() {
-  console.error('sed exit');
-});
+sed.on('exit', mustCall(() => {
+  debug('sed exit');
+}));
 
 
 // pipe grep | sed
-grep.stdout.on('data', function(data) {
-  console.error(`grep stdout ${data.length}`);
+grep.stdout.on('data', mustCallAtLeast((data) => {
+  debug(`grep stdout ${data.length}`);
   if (!sed.stdin.write(data)) {
     grep.stdout.pause();
   }
-});
+}));
 
-sed.stdin.on('drain', function(data) {
+// TODO(@jasnell): This does not appear to ever be
+// emitted. It's not clear if it is necessary.
+sed.stdin.on('drain', (data) => {
   grep.stdout.resume();
 });
 
 // Propagate end from grep to sed
-grep.stdout.on('end', function(code) {
-  console.error('grep stdout end');
+grep.stdout.on('end', mustCall((code) => {
+  debug('grep stdout end');
   sed.stdin.end();
-});
+}));
 
 
 let result = '';
 
 // print sed's output
-sed.stdout.on('data', function(data) {
+sed.stdout.on('data', mustCallAtLeast((data) => {
   result += data.toString('utf8', 0, data.length);
-  console.log(data);
-});
+  debug(data);
+}));
 
-sed.stdout.on('end', function(code) {
+sed.stdout.on('end', mustCall((code) => {
   assert.strictEqual(result, `hellO${os.EOL}nOde${os.EOL}wOrld${os.EOL}`);
-});
+}));
