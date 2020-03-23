@@ -24,7 +24,7 @@ WasmCode*& WasmImportWrapperCache::operator[](
 }
 
 WasmCode* WasmImportWrapperCache::Get(compiler::WasmImportCallKind kind,
-                                      FunctionSig* sig) const {
+                                      const FunctionSig* sig) const {
   base::MutexGuard lock(&mutex_);
   auto it = entry_map_.find({kind, sig});
   DCHECK(it != entry_map_.end());

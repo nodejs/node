@@ -36,6 +36,7 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
  private:
   Reduction ReduceBranch(Node* node);
   Reduction ReduceDeoptimizeConditional(Node* node);
+  Reduction ReduceTrapConditional(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReducePhi(Node* node);
@@ -46,6 +47,17 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);
+
+  // If the condition can be more simply represented by an inverted value,
+  // returns the node for that inverted value. Otherwise returns null.
+  Node* GetInvertedConditionOrNull(Node* cond);
+
+  struct SimplifiedCondition {
+    Node* condition;
+    bool is_inverted;
+  };
+  // Removes as many inversions as possible from a condition.
+  base::Optional<SimplifiedCondition> TryGetSimplifiedCondition(Node* cond);
 
   Graph* graph() const { return graph_; }
   JSHeapBroker* broker() const { return broker_; }

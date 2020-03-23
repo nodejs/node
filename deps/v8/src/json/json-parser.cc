@@ -267,7 +267,7 @@ void JsonParser<Char>::ReportUnexpectedToken(JsonToken token) {
 
   Handle<Script> script(factory->NewScript(original_source_));
   if (isolate()->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(script);
+    Script::InitLineEnds(isolate(), script);
   }
   // We should sent compile error event because we compile JSON object in
   // separated source file.

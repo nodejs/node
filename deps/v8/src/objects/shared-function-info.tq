@@ -14,10 +14,9 @@ extern class InterpreterData extends Struct {
   interpreter_trampoline: Code;
 }
 
-type FunctionKind extends uint8 constexpr 'v8::internal::FunctionKind';
-type FunctionSyntaxKind extends uint8
-constexpr 'v8::internal::FunctionSyntaxKind';
-type BailoutReason extends uint8 constexpr 'v8::internal::BailoutReason';
+type FunctionKind extends uint8 constexpr 'FunctionKind';
+type FunctionSyntaxKind extends uint8 constexpr 'FunctionSyntaxKind';
+type BailoutReason extends uint8 constexpr 'BailoutReason';
 
 bitfield struct SharedFunctionInfoFlags extends uint32 {
   // Have FunctionKind first to make it cheaper to access.
@@ -42,6 +41,11 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   private_name_lookup_skips_outer_class: bool: 1 bit;
 }
 
+bitfield struct SharedFunctionInfoFlags2 extends uint8 {
+  class_scope_has_private_brand: bool: 1 bit;
+  has_static_private_methods_or_accessors: bool: 1 bit;
+}
+
 extern class SharedFunctionInfo extends HeapObject {
   weak function_data: Object;
   name_or_scope_info: String|NoSharedNameSentinel|ScopeInfo;
@@ -49,9 +53,9 @@ extern class SharedFunctionInfo extends HeapObject {
   script_or_debug_info: Script|DebugInfo|Undefined;
   length: int16;
   formal_parameter_count: uint16;
-  // Currently set to uint16, can be set to uint8 to save space.
-  expected_nof_properties: uint16;
   function_token_offset: int16;
+  expected_nof_properties: uint8;
+  flags2: SharedFunctionInfoFlags2;
   flags: SharedFunctionInfoFlags;
   function_literal_id: int32;
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;

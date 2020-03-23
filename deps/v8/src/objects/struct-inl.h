@@ -34,9 +34,6 @@ void Struct::InitializeBody(int object_size) {
   }
 }
 
-TQ_SMI_ACCESSORS(ClassPositions, start)
-TQ_SMI_ACCESSORS(ClassPositions, end)
-
 Object AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
 }

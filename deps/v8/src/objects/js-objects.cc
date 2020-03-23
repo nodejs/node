@@ -12,6 +12,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
@@ -2137,10 +2138,10 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSMapIterator::kHeaderSize;
     case JS_WEAK_REF_TYPE:
       return JSWeakRef::kHeaderSize;
-    case JS_FINALIZATION_GROUP_TYPE:
-      return JSFinalizationGroup::kHeaderSize;
-    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
-      return JSFinalizationGroupCleanupIterator::kHeaderSize;
+    case JS_FINALIZATION_REGISTRY_TYPE:
+      return JSFinalizationRegistry::kHeaderSize;
+    case JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE:
+      return JSFinalizationRegistryCleanupIterator::kHeaderSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kHeaderSize;
     case JS_WEAK_SET_TYPE:
@@ -2376,7 +2377,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
       int enumeration_index = original_details.dictionary_index();
       DCHECK_GT(enumeration_index, 0);
       details = details.set_index(enumeration_index);
-      dictionary->SetEntry(isolate, entry, *name, *value, details);
+      dictionary->SetEntry(entry, *name, *value, details);
     }
   }
 }
@@ -3375,7 +3376,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     // Check that it really works.
     DCHECK(object->HasFastProperties());
     if (FLAG_trace_maps) {
-      LOG(isolate, MapEvent("SlowToFast", *old_map, *new_map, reason));
+      LOG(isolate, MapEvent("SlowToFast", old_map, new_map, reason));
     }
     return;
   }
@@ -3465,7 +3466,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   }
 
   if (FLAG_trace_maps) {
-    LOG(isolate, MapEvent("SlowToFast", *old_map, *new_map, reason));
+    LOG(isolate, MapEvent("SlowToFast", old_map, new_map, reason));
   }
   // Transform the object.
   object->synchronized_set_map(*new_map);
@@ -3796,7 +3797,7 @@ void JSObject::ApplyAttributesToDictionary(
       if (v.IsAccessorPair()) attrs &= ~READ_ONLY;
     }
     details = details.CopyAddAttributes(static_cast<PropertyAttributes>(attrs));
-    dictionary->DetailsAtPut(isolate, i, details);
+    dictionary->DetailsAtPut(i, details);
   }
 }
 
@@ -4563,14 +4564,10 @@ void JSObject::SetImmutableProto(Handle<JSObject> object) {
 }
 
 void JSObject::EnsureCanContainElements(Handle<JSObject> object,
-                                        Arguments* args, uint32_t first_arg,
+                                        JavaScriptArguments* args,
                                         uint32_t arg_count,
                                         EnsureElementsMode mode) {
-  // Elements in |Arguments| are ordered backwards (because they're on the
-  // stack), but the method that's called here iterates over them in forward
-  // direction.
-  return EnsureCanContainElements(
-      object, args->slot_at(first_arg + arg_count - 1), arg_count, mode);
+  return EnsureCanContainElements(object, args->first_slot(), arg_count, mode);
 }
 
 void JSObject::ValidateElements(JSObject object) {
@@ -5038,6 +5035,7 @@ void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
   DCHECK(function->raw_feedback_cell() !=
          isolate->heap()->many_closures_cell());
   function->raw_feedback_cell().set_value(*feedback_vector);
+  function->raw_feedback_cell().SetInterruptBudget();
 }
 
 // static
@@ -5105,7 +5103,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
 
     // Deoptimize all code that embeds the previous initial map.
     initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kInitialMapChangedGroup);
+        DependentCode::kInitialMapChangedGroup);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
@@ -5168,8 +5166,9 @@ void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
   if (FLAG_trace_maps) {
-    LOG(function->GetIsolate(), MapEvent("InitialMap", Map(), *map, "",
-                                         function->shared().DebugName()));
+    LOG(function->GetIsolate(), MapEvent("InitialMap", Handle<Map>(), map, "",
+                                         handle(function->shared().DebugName(),
+                                                function->GetIsolate())));
   }
 }
 
@@ -5250,7 +5249,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
-    case JS_FINALIZATION_GROUP_TYPE:
+    case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_PROMISE_TYPE:
     case JS_REG_EXP_TYPE:
@@ -5890,7 +5889,7 @@ void JSMessageObject::EnsureSourcePositionsAvailable(
     Isolate* isolate, Handle<JSMessageObject> message) {
   if (!message->DidEnsureSourcePositionsAvailable()) {
     DCHECK_EQ(message->start_position(), -1);
-    DCHECK_GE(message->bytecode_offset().value(), 0);
+    DCHECK_GE(message->bytecode_offset().value(), kFunctionEntryBytecodeOffset);
     Handle<SharedFunctionInfo> shared_info(
         SharedFunctionInfo::cast(message->shared_info()), isolate);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);

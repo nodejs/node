@@ -1508,16 +1508,6 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
 // Shared routine for word comparisons against zero.
 void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                                                FlagsContinuation* cont) {
-  // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
-    Int32BinopMatcher m(value);
-    if (!m.right().Is(0)) break;
-
-    user = value;
-    value = m.left().node();
-    cont->Negate();
-  }
-
   if (CanCover(user, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord32Equal:
@@ -1658,7 +1648,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   PPCOperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 4 + sw.value_range();
@@ -2456,6 +2446,12 @@ void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI8x16Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI16x8Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI32x4Abs(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags

@@ -592,6 +592,7 @@ TEST(DisasmIa320) {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       __ palignr(xmm5, xmm1, 5);
       __ palignr(xmm5, Operand(edx, 4), 5);
     }
@@ -802,6 +803,7 @@ TEST(DisasmIa320) {
   __ v##instruction(xmm5, xmm1);                                         \
   __ v##instruction(xmm5, Operand(edx, 4));
 
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
       SSE4_RM_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
 #undef EMIT_SSE4_RM_AVXINSTR
     }

@@ -66,7 +66,7 @@ void DateCache::ResetDateCache(
 // ECMA 262 - ES#sec-timeclip TimeClip (time)
 double DateCache::TimeClip(double time) {
   if (-kMaxTimeInMs <= time && time <= kMaxTimeInMs) {
-    return DoubleToInteger(time) + 0.0;
+    return DoubleToInteger(time);
   }
   return std::numeric_limits<double>::quiet_NaN();
 }

@@ -45,14 +45,14 @@ class CWasmArgumentsPacker {
     return base::ReadUnalignedValue<T>(address);
   }
 
-  static int TotalSize(FunctionSig* sig) {
+  static int TotalSize(const FunctionSig* sig) {
     int return_size = 0;
     for (ValueType t : sig->returns()) {
-      return_size += ValueTypes::ElementSizeInBytes(t);
+      return_size += t.element_size_bytes();
     }
     int param_size = 0;
     for (ValueType t : sig->parameters()) {
-      param_size += ValueTypes::ElementSizeInBytes(t);
+      param_size += t.element_size_bytes();
     }
     return std::max(return_size, param_size);
   }

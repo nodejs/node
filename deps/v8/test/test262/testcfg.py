@@ -53,7 +53,7 @@ FEATURE_FLAGS = {
   'Symbol.prototype.description': '--harmony-symbol-description',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Promise.allSettled': '--harmony-promise-all-settled',
-  'FinalizationGroup': '--harmony-weak-refs',
+  'FinalizationRegistry': '--harmony-weak-refs',
   'WeakRef': '--harmony-weak-refs',
   'host-gc-required': '--expose-gc-as=v8GC',
   'optional-chaining': '--harmony-optional-chaining',

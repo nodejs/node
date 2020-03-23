@@ -266,6 +266,7 @@ class Decoder {
     return offset - buffer_offset_;
   }
   const byte* end() const { return end_; }
+  void set_end(const byte* end) { end_ = end; }
 
   // Check if the byte at {offset} from the current pc equals {expected}.
   bool lookahead(int offset, byte expected) {

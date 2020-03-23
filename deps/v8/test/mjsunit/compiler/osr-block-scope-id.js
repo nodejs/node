@@ -36,6 +36,7 @@ function check() {
   }
   assertEquals(0, r.length);
 }
+%PrepareFunctionForOptimization(check);
 
 check();
 check();

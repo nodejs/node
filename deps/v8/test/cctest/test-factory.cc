@@ -20,7 +20,8 @@ namespace {
 // This needs to be large enough to create a new nosnap Isolate, but smaller
 // than kMaximalCodeRangeSize so we can recover from the OOM.
 constexpr int kInstructionSize = 100 * MB;
-STATIC_ASSERT(kInstructionSize < kMaximalCodeRangeSize || !kRequiresCodeRange);
+STATIC_ASSERT(kInstructionSize < kMaximalCodeRangeSize ||
+              !kPlatformRequiresCodeRange);
 
 size_t NearHeapLimitCallback(void* raw_bool, size_t current_heap_limit,
                              size_t initial_heap_limit) {

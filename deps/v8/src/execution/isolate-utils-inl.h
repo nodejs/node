@@ -23,8 +23,15 @@ inline const Isolate* GetIsolateForPtrCompr(HeapObject object) {
 }
 
 V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
-#if defined V8_COMPRESS_POINTERS || defined V8_ENABLE_THIRD_PARTY_HEAP
-  return GetIsolateFromWritableObject(object)->heap();
+  // Avoid using the below GetIsolateFromWritableObject because we want to be
+  // able to get the heap, but not the isolate, for off-thread objects.
+
+#if defined V8_ENABLE_THIRD_PARTY_HEAP
+  return Heap::GetIsolateFromWritableObject(object)->heap();
+#elif defined V8_COMPRESS_POINTERS
+  Isolate* isolate = Isolate::FromRoot(GetIsolateRoot(object.ptr()));
+  DCHECK_NOT_NULL(isolate);
+  return isolate->heap();
 #else
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
@@ -33,6 +40,9 @@ V8_INLINE Heap* GetHeapFromWritableObject(HeapObject object) {
 }
 
 V8_INLINE Isolate* GetIsolateFromWritableObject(HeapObject object) {
+  // We don't want to allow accessing the isolate off-thread.
+  DCHECK(!Heap::InOffThreadSpace(object));
+
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP
   return Heap::GetIsolateFromWritableObject(object);
 #elif defined V8_COMPRESS_POINTERS

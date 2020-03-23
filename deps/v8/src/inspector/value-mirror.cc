@@ -42,17 +42,18 @@ V8InternalValueType v8InternalValueTypeFrom(v8::Local<v8::Context> context,
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value, int maxDepth,
                          std::unique_ptr<protocol::Value>* result) {
-  if (!maxDepth) return Response::Error("Object reference chain is too long");
+  if (!maxDepth)
+    return Response::ServerError("Object reference chain is too long");
   maxDepth--;
 
   if (value->IsNull() || value->IsUndefined()) {
     *result = protocol::Value::null();
-    return Response::OK();
+    return Response::Success();
   }
   if (value->IsBoolean()) {
     *result =
         protocol::FundamentalValue::create(value.As<v8::Boolean>()->Value());
-    return Response::OK();
+    return Response::Success();
   }
   if (value->IsNumber()) {
     double doubleValue = value.As<v8::Number>()->Value();
@@ -62,16 +63,16 @@ Response toProtocolValue(v8::Local<v8::Context> context,
       int intValue = static_cast<int>(doubleValue);
       if (intValue == doubleValue) {
         *result = protocol::FundamentalValue::create(intValue);
-        return Response::OK();
+        return Response::Success();
       }
     }
     *result = protocol::FundamentalValue::create(doubleValue);
-    return Response::OK();
+    return Response::Success();
   }
   if (value->IsString()) {
     *result = protocol::StringValue::create(
         toProtocolString(context->GetIsolate(), value.As<v8::String>()));
-    return Response::OK();
+    return Response::Success();
   }
   if (value->IsArray()) {
     v8::Local<v8::Array> array = value.As<v8::Array>();
@@ -84,11 +85,11 @@ Response toProtocolValue(v8::Local<v8::Context> context,
         return Response::InternalError();
       std::unique_ptr<protocol::Value> element;
       Response response = toProtocolValue(context, value, maxDepth, &element);
-      if (!response.isSuccess()) return response;
+      if (!response.IsSuccess()) return response;
       inspectorArray->pushValue(std::move(element));
     }
     *result = std::move(inspectorArray);
-    return Response::OK();
+    return Response::Success();
   }
   if (value->IsObject()) {
     std::unique_ptr<protocol::DictionaryValue> jsonObject =
@@ -119,21 +120,21 @@ Response toProtocolValue(v8::Local<v8::Context> context,
       std::unique_ptr<protocol::Value> propertyValue;
       Response response =
           toProtocolValue(context, property, maxDepth, &propertyValue);
-      if (!response.isSuccess()) return response;
+      if (!response.IsSuccess()) return response;
       jsonObject->setValue(
           toProtocolString(context->GetIsolate(), propertyName),
           std::move(propertyValue));
     }
     *result = std::move(jsonObject);
-    return Response::OK();
+    return Response::Success();
   }
-  return Response::Error("Object couldn't be returned by value");
+  return Response::ServerError("Object couldn't be returned by value");
 }
 
 Response toProtocolValue(v8::Local<v8::Context> context,
                          v8::Local<v8::Value> value,
                          std::unique_ptr<protocol::Value>* result) {
-  if (value->IsUndefined()) return Response::OK();
+  if (value->IsUndefined()) return Response::Success();
   return toProtocolValue(context, value, 1000, result);
 }
 
@@ -361,7 +362,7 @@ class PrimitiveValueMirror final : public ValueMirror {
                   .build();
     if (m_value->IsNull())
       (*result)->setSubtype(RemoteObject::SubtypeEnum::Null);
-    return Response::OK();
+    return Response::Success();
   }
 
   void buildEntryPreview(
@@ -416,7 +417,7 @@ class NumberMirror final : public ValueMirror {
     } else {
       (*result)->setValue(protocol::FundamentalValue::create(m_value->Value()));
     }
-    return Response::OK();
+    return Response::Success();
   }
   void buildPropertyPreview(
       v8::Local<v8::Context> context, const String16& name,
@@ -470,7 +471,7 @@ class BigIntMirror final : public ValueMirror {
                   .setUnserializableValue(description)
                   .setDescription(description)
                   .build();
-    return Response::OK();
+    return Response::Success();
   }
 
   void buildPropertyPreview(v8::Local<v8::Context> context,
@@ -513,13 +514,13 @@ class SymbolMirror final : public ValueMirror {
       v8::Local<v8::Context> context, WrapMode mode,
       std::unique_ptr<RemoteObject>* result) const override {
     if (mode == WrapMode::kForceValue) {
-      return Response::Error("Object couldn't be returned by value");
+      return Response::ServerError("Object couldn't be returned by value");
     }
     *result = RemoteObject::create()
                   .setType(RemoteObject::TypeEnum::Symbol)
                   .setDescription(descriptionForSymbol(context, m_symbol))
                   .build();
-    return Response::OK();
+    return Response::Success();
   }
 
   void buildPropertyPreview(v8::Local<v8::Context> context,
@@ -576,7 +577,7 @@ class LocationMirror final : public ValueMirror {
                   .setDescription("Object")
                   .setValue(std::move(location))
                   .build();
-    return Response::OK();
+    return Response::Success();
   }
   v8::Local<v8::Value> v8Value() const override { return m_value; }
 
@@ -620,7 +621,7 @@ class FunctionMirror final : public ValueMirror {
     if (mode == WrapMode::kForceValue) {
       std::unique_ptr<protocol::Value> protocolValue;
       Response response = toProtocolValue(context, m_value, &protocolValue);
-      if (!response.isSuccess()) return response;
+      if (!response.IsSuccess()) return response;
       *result = RemoteObject::create()
                     .setType(RemoteObject::TypeEnum::Function)
                     .setValue(std::move(protocolValue))
@@ -633,7 +634,7 @@ class FunctionMirror final : public ValueMirror {
                     .setDescription(descriptionForFunction(context, m_value))
                     .build();
     }
-    return Response::OK();
+    return Response::Success();
   }
 
   void buildPropertyPreview(
@@ -881,7 +882,7 @@ class ObjectMirror final : public ValueMirror {
     if (mode == WrapMode::kForceValue) {
       std::unique_ptr<protocol::Value> protocolValue;
       Response response = toProtocolValue(context, m_value, &protocolValue);
-      if (!response.isSuccess()) return response;
+      if (!response.IsSuccess()) return response;
       *result = RemoteObject::create()
                     .setType(RemoteObject::TypeEnum::Object)
                     .setValue(std::move(protocolValue))
@@ -904,7 +905,7 @@ class ObjectMirror final : public ValueMirror {
         (*result)->setPreview(std::move(previewValue));
       }
     }
-    return Response::OK();
+    return Response::Success();
   }
 
   void buildObjectPreview(

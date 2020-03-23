@@ -467,12 +467,12 @@ class V8InspectorImpl::EvaluateScope::TerminateTask : public v8::Task {
 
 protocol::Response V8InspectorImpl::EvaluateScope::setTimeout(double timeout) {
   if (m_isolate->IsExecutionTerminating()) {
-    return protocol::Response::Error("Execution was terminated");
+    return protocol::Response::ServerError("Execution was terminated");
   }
   m_cancelToken.reset(new CancelToken());
   v8::debug::GetCurrentPlatform()->CallDelayedOnWorkerThread(
       std::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
-  return protocol::Response::OK();
+  return protocol::Response::Success();
 }
 
 }  // namespace v8_inspector

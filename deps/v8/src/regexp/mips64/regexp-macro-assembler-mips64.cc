@@ -142,6 +142,8 @@ RegExpMacroAssemblerMIPS::RegExpMacroAssemblerMIPS(Isolate* isolate, Zone* zone,
       backtrack_label_(),
       exit_label_(),
       internal_failure_label_() {
+  masm_->set_root_array_available(false);
+
   DCHECK_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code later.
   // If the code gets too big or corrupted, an internal exception will be
@@ -259,9 +261,8 @@ void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
   BranchOrBacktrack(on_equal, eq, current_input_offset(), Operand(a0));
 }
 
-
 void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
+    int start_reg, bool read_backward, Label* on_no_match) {
   Label fallthrough;
   __ Ld(a0, register_location(start_reg));      // Index of start of capture.
   __ Ld(a1, register_location(start_reg + 1));  // Index of end of capture.
@@ -356,7 +357,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     //   a0: Address byte_offset1 - Address captured substring's start.
     //   a1: Address byte_offset2 - Address of current character position.
     //   a2: size_t byte_length - length of capture in bytes(!).
-    //   a3: Isolate* isolate or 0 if unicode flag.
+    //   a3: Isolate* isolate.
 
     // Address of start of capture.
     __ Daddu(a0, a0, Operand(end_of_input_address()));
@@ -370,14 +371,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
       __ Dsubu(a1, a1, Operand(s3));
     }
     // Isolate.
-#ifdef V8_INTL_SUPPORT
-    if (unicode) {
-      __ mov(a3, zero_reg);
-    } else  // NOLINT
-#endif      // V8_INTL_SUPPORT
-    {
-      __ li(a3, Operand(ExternalReference::isolate_address(masm_->isolate())));
-    }
+    __ li(a3, Operand(ExternalReference::isolate_address(masm_->isolate())));
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
@@ -403,7 +397,6 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
 
   __ bind(&fallthrough);
 }
-
 
 void RegExpMacroAssemblerMIPS::CheckNotBackReference(int start_reg,
                                                      bool read_backward,

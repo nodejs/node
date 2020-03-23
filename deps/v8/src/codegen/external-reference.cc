@@ -289,6 +289,7 @@ FUNCTION_REFERENCE(wasm_word32_rol, wasm::word32_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word32_ror, wasm::word32_ror_wrapper)
 FUNCTION_REFERENCE(wasm_word64_rol, wasm::word64_rol_wrapper)
 FUNCTION_REFERENCE(wasm_word64_ror, wasm::word64_ror_wrapper)
+FUNCTION_REFERENCE(wasm_memory_init, wasm::memory_init_wrapper)
 FUNCTION_REFERENCE(wasm_memory_copy, wasm::memory_copy_wrapper)
 FUNCTION_REFERENCE(wasm_memory_fill, wasm::memory_fill_wrapper)
 
@@ -465,7 +466,7 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
 #define re_stack_check_func RegExpMacroAssemblerARM64::CheckStackGuardState
 #elif V8_TARGET_ARCH_ARM
 #define re_stack_check_func RegExpMacroAssemblerARM::CheckStackGuardState
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #define re_stack_check_func RegExpMacroAssemblerPPC::CheckStackGuardState
 #elif V8_TARGET_ARCH_MIPS
 #define re_stack_check_func RegExpMacroAssemblerMIPS::CheckStackGuardState
@@ -910,6 +911,11 @@ bool operator!=(ExternalReference lhs, ExternalReference rhs) {
 }
 
 size_t hash_value(ExternalReference reference) {
+  if (FLAG_predictable) {
+    // Avoid ASLR non-determinism in predictable mode. For this, just take the
+    // lowest 12 bit corresponding to a 4K page size.
+    return base::hash<Address>()(reference.address() & 0xfff);
+  }
   return base::hash<Address>()(reference.address());
 }
 

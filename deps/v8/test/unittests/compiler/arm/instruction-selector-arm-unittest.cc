@@ -402,131 +402,6 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
   }
 }
 
-
-TEST_P(InstructionSelectorDPITest, BranchIfZeroWithParameters) {
-  const DPI dpi = GetParam();
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
-                  MachineType::Int32());
-  RawMachineLabel a, b;
-  m.Branch(m.Word32Equal((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)),
-                         m.Int32Constant(0)),
-           &a, &b);
-  m.Bind(&a);
-  m.Return(m.Int32Constant(1));
-  m.Bind(&b);
-  m.Return(m.Int32Constant(0));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
-  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-  EXPECT_EQ(kEqual, s[0]->flags_condition());
-}
-
-
-TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithParameters) {
-  const DPI dpi = GetParam();
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
-                  MachineType::Int32());
-  RawMachineLabel a, b;
-  m.Branch(
-      m.Word32NotEqual((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)),
-                       m.Int32Constant(0)),
-      &a, &b);
-  m.Bind(&a);
-  m.Return(m.Int32Constant(1));
-  m.Bind(&b);
-  m.Return(m.Int32Constant(0));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
-  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-}
-
-
-TEST_P(InstructionSelectorDPITest, BranchIfZeroWithImmediate) {
-  const DPI dpi = GetParam();
-  TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
-    m.Branch(m.Word32Equal(
-                 (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)),
-                 m.Int32Constant(0)),
-             &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-    EXPECT_EQ(kEqual, s[0]->flags_condition());
-  }
-  TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
-    m.Branch(m.Word32Equal(
-                 (m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)),
-                 m.Int32Constant(0)),
-             &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-    EXPECT_EQ(kEqual, s[0]->flags_condition());
-  }
-}
-
-
-TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
-  const DPI dpi = GetParam();
-  TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
-    m.Branch(m.Word32NotEqual(
-                 (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)),
-                 m.Int32Constant(0)),
-             &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-  }
-  TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
-    m.Branch(m.Word32NotEqual(
-                 (m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)),
-                 m.Int32Constant(0)),
-             &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(dpi.test_arch_opcode, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
-    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-  }
-}
-
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorDPITest,
                          ::testing::ValuesIn(kDPIs));
 
@@ -978,50 +853,6 @@ TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
     EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kOverflow, s[0]->flags_condition());
   }
-}
-
-
-TEST_P(InstructionSelectorODPITest, BranchIfZeroWithParameters) {
-  const ODPI odpi = GetParam();
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
-                  MachineType::Int32());
-  RawMachineLabel a, b;
-  Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
-  m.Branch(m.Word32Equal(m.Projection(1, n), m.Int32Constant(0)), &a, &b);
-  m.Bind(&a);
-  m.Return(m.Projection(0, n));
-  m.Bind(&b);
-  m.Return(m.Int32Constant(0));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(odpi.arch_opcode, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
-  EXPECT_EQ(4U, s[0]->InputCount());
-  EXPECT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-  EXPECT_EQ(kNotOverflow, s[0]->flags_condition());
-}
-
-
-TEST_P(InstructionSelectorODPITest, BranchIfNotZeroWithParameters) {
-  const ODPI odpi = GetParam();
-  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
-                  MachineType::Int32());
-  RawMachineLabel a, b;
-  Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
-  m.Branch(m.Word32NotEqual(m.Projection(1, n), m.Int32Constant(0)), &a, &b);
-  m.Bind(&a);
-  m.Return(m.Projection(0, n));
-  m.Bind(&b);
-  m.Return(m.Int32Constant(0));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(odpi.arch_opcode, s[0]->arch_opcode());
-  EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
-  EXPECT_EQ(4U, s[0]->InputCount());
-  EXPECT_EQ(1U, s[0]->OutputCount());
-  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
-  EXPECT_EQ(kOverflow, s[0]->flags_condition());
 }
 
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest, InstructionSelectorODPITest,
@@ -1952,8 +1783,6 @@ TEST_F(InstructionSelectorTest, Float64Sqrt) {
 const Comparison kBinopCmpZeroRightInstructions[] = {
     {&RawMachineAssembler::Word32Equal, "Word32Equal", kEqual, kNotEqual,
      kEqual},
-    {&RawMachineAssembler::Word32NotEqual, "Word32NotEqual", kNotEqual, kEqual,
-     kNotEqual},
     {&RawMachineAssembler::Int32LessThan, "Int32LessThan", kNegative,
      kPositiveOrZero, kNegative},
     {&RawMachineAssembler::Int32GreaterThanOrEqual, "Int32GreaterThanOrEqual",
@@ -1966,8 +1795,6 @@ const Comparison kBinopCmpZeroRightInstructions[] = {
 const Comparison kBinopCmpZeroLeftInstructions[] = {
     {&RawMachineAssembler::Word32Equal, "Word32Equal", kEqual, kNotEqual,
      kEqual},
-    {&RawMachineAssembler::Word32NotEqual, "Word32NotEqual", kNotEqual, kEqual,
-     kNotEqual},
     {&RawMachineAssembler::Int32GreaterThan, "Int32GreaterThan", kNegative,
      kPositiveOrZero, kNegative},
     {&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",

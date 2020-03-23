@@ -248,7 +248,7 @@ class V8_EXPORT_PRIVATE OrderedHashSet
       Isolate* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
   static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
   static const int kPrefixSize = 0;
 
@@ -280,7 +280,7 @@ class V8_EXPORT_PRIVATE OrderedHashMap
   static Address GetHash(Isolate* isolate, Address raw_key);
 
   static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
 
   static const int kValueOffset = 1;
@@ -602,7 +602,7 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   V8_EXPORT_PRIVATE bool HasKey(Isolate* isolate, Handle<Object> key);
 
   static inline bool Is(Handle<HeapObject> table);
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static Handle<SmallOrderedHashSet> Rehash(Isolate* isolate,
                                             Handle<SmallOrderedHashSet> table,
                                             int new_capacity);
@@ -635,7 +635,7 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                                        SmallOrderedHashMap table, Object key);
   V8_EXPORT_PRIVATE bool HasKey(Isolate* isolate, Handle<Object> key);
   static inline bool Is(Handle<HeapObject> table);
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 
   static Handle<SmallOrderedHashMap> Rehash(Isolate* isolate,
                                             Handle<SmallOrderedHashMap> table,
@@ -701,8 +701,8 @@ class OrderedNameDictionary
       Isolate* isolate, Handle<OrderedNameDictionary> table, Handle<Name> key,
       Handle<Object> value, PropertyDetails details);
 
-  V8_EXPORT_PRIVATE void SetEntry(Isolate* isolate, int entry, Object key,
-                                  Object value, PropertyDetails details);
+  V8_EXPORT_PRIVATE void SetEntry(int entry, Object key, Object value,
+                                  PropertyDetails details);
 
   V8_EXPORT_PRIVATE static Handle<OrderedNameDictionary> DeleteEntry(
       Isolate* isolate, Handle<OrderedNameDictionary> table, int entry);
@@ -730,7 +730,7 @@ class OrderedNameDictionary
   inline int Hash();
 
   static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
 
   static const int kValueOffset = 1;
@@ -756,8 +756,8 @@ class V8_EXPORT_PRIVATE OrderedNameDictionaryHandler
   static Handle<HeapObject> DeleteEntry(Isolate* isolate,
                                         Handle<HeapObject> table, int entry);
   static int FindEntry(Isolate* isolate, HeapObject table, Name key);
-  static void SetEntry(Isolate* isolate, HeapObject table, int entry,
-                       Object key, Object value, PropertyDetails details);
+  static void SetEntry(HeapObject table, int entry, Object key, Object value,
+                       PropertyDetails details);
 
   // Returns the value for entry.
   static Object ValueAt(HeapObject table, int entry);
@@ -829,10 +829,10 @@ class SmallOrderedNameDictionary
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       Handle<Name> key, Handle<Object> value, PropertyDetails details);
 
-  V8_EXPORT_PRIVATE void SetEntry(Isolate* isolate, int entry, Object key,
-                                  Object value, PropertyDetails details);
+  V8_EXPORT_PRIVATE void SetEntry(int entry, Object key, Object value,
+                                  PropertyDetails details);
 
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static inline bool Is(Handle<HeapObject> table);
 
   OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,

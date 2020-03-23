@@ -12,10 +12,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 62
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
-                B(CreateFunctionContext), U8(0), U8(4),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(3),
@@ -57,10 +56,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 64
+bytecode array length: 63
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
-                B(CreateFunctionContext), U8(0), U8(4),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(3),
@@ -103,10 +101,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 64
+bytecode array length: 63
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
-                B(CreateFunctionContext), U8(0), U8(4),
+  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(3),
@@ -154,10 +151,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 62
 bytecodes: [
-  /*   38 E> */ B(StackCheck),
-                B(CreateFunctionContext), U8(0), U8(4),
+  /*   38 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(3),
@@ -204,10 +200,9 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 63
+bytecode array length: 62
 bytecodes: [
-  /*   34 E> */ B(StackCheck),
-                B(CreateFunctionContext), U8(0), U8(4),
+  /*   34 E> */ B(CreateFunctionContext), U8(0), U8(4),
                 B(PushContext), R(1),
                 B(Ldar), R(this),
                 B(StaCurrentContextSlot), U8(3),

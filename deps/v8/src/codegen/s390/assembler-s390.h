@@ -266,17 +266,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Otherwise, returns the current pc_offset().
   int link(Label* L);
 
-  // Determines if Label is bound and near enough so that a single
-  // branch instruction can be used to reach it.
-  bool is_near(Label* L, Condition cond);
-
   // Returns the branch offset to the given label from the current code position
   // Links the label to the current position if it is still unbound
   int branch_offset(Label* L) { return link(L) - pc_offset(); }
 
-  // Puts a labels target address at the given position.
-  // The high 8 bits are set to zero.
-  void label_at_put(Label* L, int at_offset);
   void load_label_offset(Register r1, Label* L);
 
   // Read/Modify the code target address in the branch/call instruction at pc.

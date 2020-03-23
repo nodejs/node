@@ -21,11 +21,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncFunctionObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAsyncGeneratorObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(AsyncGeneratorRequest)
 
-TQ_SMI_ACCESSORS(JSGeneratorObject, resume_mode)
-TQ_SMI_ACCESSORS(JSGeneratorObject, continuation)
-
-TQ_SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode)
-
 bool JSGeneratorObject::is_suspended() const {
   DCHECK_LT(kGeneratorExecuting, 0);
   DCHECK_LT(kGeneratorClosed, 0);
@@ -39,8 +34,6 @@ bool JSGeneratorObject::is_closed() const {
 bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
-
-TQ_SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting)
 
 }  // namespace internal
 }  // namespace v8

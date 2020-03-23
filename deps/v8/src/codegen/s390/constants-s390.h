@@ -613,7 +613,9 @@ using SixByteInstr = uint64_t;
   V(vperm, VPERM, 0xE78C) /* type = VRR_E VECTOR PERMUTE  */                  \
   V(vsel, VSEL, 0xE78D)   /* type = VRR_E VECTOR SELECT  */                   \
   V(vfms, VFMS, 0xE78E)   /* type = VRR_E VECTOR FP MULTIPLY AND SUBTRACT  */ \
-  V(vfma, VFMA, 0xE78F)   /* type = VRR_E VECTOR FP MULTIPLY AND ADD  */
+  V(vfnms, VFNMS,                                                             \
+    0xE79E) /* type = VRR_E VECTOR FP NEGATIVE MULTIPLY AND SUBTRACT  */      \
+  V(vfma, VFMA, 0xE78F) /* type = VRR_E VECTOR FP MULTIPLY AND ADD  */
 
 #define S390_VRI_C_OPCODE_LIST(V) \
   V(vrep, VREP, 0xE74D) /* type = VRI_C VECTOR REPLICATE  */
@@ -2329,6 +2331,13 @@ class VRR_E_Instruction : SixByteInstruction {
   DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R4Value, int, 32, 36)
   DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M6Value, uint32_t, 20, 24)
   DECLARE_FIELD_FOR_SIX_BYTE_INSTR(M5Value, uint32_t, 28, 32)
+};
+
+class VRR_F_Instruction : SixByteInstruction {
+ public:
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R1Value, int, 8, 12)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R2Value, int, 12, 16)
+  DECLARE_FIELD_FOR_SIX_BYTE_INSTR(R3Value, int, 16, 20)
 };
 
 class VRX_Instruction : SixByteInstruction {

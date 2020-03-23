@@ -21,59 +21,15 @@ namespace protocol {
 class Value;
 
 using String = v8_inspector::String16;
-using StringBuilder = v8_inspector::String16Builder;
 
 class StringUtil {
  public:
-  static String substring(const String& s, size_t pos, size_t len) {
-    return s.substring(pos, len);
-  }
-  static String fromInteger(int number) { return String::fromInteger(number); }
-  static String fromInteger(size_t number) {
-    return String::fromInteger(number);
-  }
-  static String fromDouble(double number) { return String::fromDouble(number); }
-  static double toDouble(const char* s, size_t len, bool* isOk);
-  static size_t find(const String& s, const char* needle) {
-    return s.find(needle);
-  }
-  static size_t find(const String& s, const String& needle) {
-    return s.find(needle);
-  }
-  static const size_t kNotFound = String::kNotFound;
-  static void builderAppend(
-      StringBuilder& builder,  // NOLINT(runtime/references)
-      const String& s) {
-    builder.append(s);
-  }
-  static void builderAppend(
-      StringBuilder& builder,  // NOLINT(runtime/references)
-      UChar c) {
-    builder.append(c);
-  }
-  static void builderAppend(
-      StringBuilder& builder,  // NOLINT(runtime/references)
-      const char* s, size_t len) {
-    builder.append(s, len);
-  }
-  static void builderReserve(
-      StringBuilder& builder,  // NOLINT(runtime/references)
-      size_t capacity) {
-    builder.reserveCapacity(capacity);
-  }
-  static String builderToString(
-      StringBuilder& builder) {  // NOLINT(runtime/references)
-    return builder.toString();
-  }
-  static std::unique_ptr<protocol::Value> parseJSON(const String16& json);
-  static std::unique_ptr<protocol::Value> parseJSON(const StringView& json);
-
   static String fromUTF8(const uint8_t* data, size_t length) {
     return String16::fromUTF8(reinterpret_cast<const char*>(data), length);
   }
 
   static String fromUTF16LE(const uint16_t* data, size_t length) {
-    return String16::fromUTF16LE(data, length);
+    return String16::fromUTF16(data, length);
   }
 
   static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }
@@ -132,5 +88,14 @@ std::unique_ptr<StringBuffer> StringBufferFrom(std::vector<uint8_t> str);
 String16 stackTraceIdToString(uintptr_t id);
 
 }  //  namespace v8_inspector
+
+// See third_party/inspector_protocol/crdtp/serializer_traits.h.
+namespace v8_crdtp {
+template <>
+struct SerializerTraits<v8_inspector::protocol::Binary> {
+  static void Serialize(const v8_inspector::protocol::Binary& binary,
+                        std::vector<uint8_t>* out);
+};
+}  // namespace v8_crdtp
 
 #endif  // V8_INSPECTOR_STRING_UTIL_H_

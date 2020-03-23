@@ -51,15 +51,21 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
   void BindTryRegionEnd(HandlerTableBuilder* handler_table_builder,
                         int handler_id);
 
-  Handle<BytecodeArray> ToBytecodeArray(Isolate* isolate, int register_count,
-                                        int parameter_count,
+  void SetFunctionEntrySourcePosition(int position);
+
+  template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<BytecodeArray> ToBytecodeArray(LocalIsolate* isolate,
+                                        int register_count, int parameter_count,
                                         Handle<ByteArray> handler_table);
 
-  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
+  template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<ByteArray> ToSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
   // Returns -1 if they match or the offset of the first mismatching byte.
-  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(BytecodeArray bytecode);
 #endif
 
   bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }

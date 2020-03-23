@@ -63,13 +63,16 @@ static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 static const char* const TORQUE_INTERNAL_NAMESPACE_STRING = "torque_internal";
-static const char* const REFERENCE_TYPE_STRING = "Reference";
+static const char* const MUTABLE_REFERENCE_TYPE_STRING = "MutableReference";
+static const char* const CONST_REFERENCE_TYPE_STRING = "ConstReference";
 static const char* const SLICE_TYPE_STRING = "Slice";
 static const char* const WEAK_TYPE_STRING = "Weak";
+static const char* const SMI_TAGGED_TYPE_STRING = "SmiTagged";
 static const char* const UNINITIALIZED_ITERATOR_TYPE_STRING =
     "UninitializedIterator";
 static const char* const GENERIC_TYPE_INSTANTIATION_NAMESPACE_STRING =
     "_generic_type_instantiation_namespace";
+static const char* const FIXED_ARRAY_BASE_TYPE_STRING = "FixedArrayBase";
 
 static const char* const ANNOTATION_GENERATE_PRINT = "@generatePrint";
 static const char* const ANNOTATION_NO_VERIFIER = "@noVerifier";
@@ -87,6 +90,9 @@ static const char* const ANNOTATION_INSTANCE_TYPE_VALUE =
     "@apiExposedInstanceTypeValue";
 static const char* const ANNOTATION_IF = "@if";
 static const char* const ANNOTATION_IFNOT = "@ifnot";
+static const char* const ANNOTATION_GENERATE_BODY_DESCRIPTOR =
+    "@generateBodyDescriptor";
+static const char* const ANNOTATION_EXPORT_CPP_CLASS = "@export";
 
 inline bool IsConstexprName(const std::string& name) {
   return name.substr(0, std::strlen(CONSTEXPR_TYPE_PREFIX)) ==
@@ -124,6 +130,8 @@ enum class ClassFlag {
   kHighestInstanceTypeWithinParent = 1 << 9,
   kLowestInstanceTypeWithinParent = 1 << 10,
   kUndefinedLayout = 1 << 11,
+  kGenerateBodyDescriptor = 1 << 12,
+  kExport = 1 << 13,
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

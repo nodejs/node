@@ -20,21 +20,18 @@ namespace compiler {
 OperationTyper::OperationTyper(JSHeapBroker* broker, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = broker->isolate()->factory();
-  infinity_ = Type::NewConstant(V8_INFINITY, zone);
-  minus_infinity_ = Type::NewConstant(-V8_INFINITY, zone);
+  infinity_ = Type::Constant(V8_INFINITY, zone);
+  minus_infinity_ = Type::Constant(-V8_INFINITY, zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
   singleton_empty_string_ =
-      Type::HeapConstant(broker, factory->empty_string(), zone);
-  singleton_NaN_string_ =
-      Type::HeapConstant(broker, factory->NaN_string(), zone);
-  singleton_zero_string_ =
-      Type::HeapConstant(broker, factory->zero_string(), zone);
-  singleton_false_ = Type::HeapConstant(broker, factory->false_value(), zone);
-  singleton_true_ = Type::HeapConstant(broker, factory->true_value(), zone);
-  singleton_the_hole_ =
-      Type::HeapConstant(broker, factory->the_hole_value(), zone);
+      Type::Constant(broker, factory->empty_string(), zone);
+  singleton_NaN_string_ = Type::Constant(broker, factory->NaN_string(), zone);
+  singleton_zero_string_ = Type::Constant(broker, factory->zero_string(), zone);
+  singleton_false_ = Type::Constant(broker, factory->false_value(), zone);
+  singleton_true_ = Type::Constant(broker, factory->true_value(), zone);
+  singleton_the_hole_ = Type::Hole();
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 
@@ -1242,13 +1239,16 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
       (lhs.Max() < rhs.Min() || lhs.Min() > rhs.Max())) {
     return singleton_false();
   }
-  if ((lhs.Is(Type::Hole()) || rhs.Is(Type::Hole())) && !lhs.Maybe(rhs)) {
-    return singleton_false();
-  }
-  if (lhs.IsHeapConstant() && rhs.Is(lhs)) {
+  if (lhs.IsSingleton() && rhs.Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
+    DCHECK(lhs.Is(rhs));
+    DCHECK(lhs.Is(Type::NonInternal()) || lhs.Is(Type::Hole()));
     return singleton_true();
+  }
+  if ((lhs.Is(Type::Unique()) || rhs.Is(Type::Unique())) && !lhs.Maybe(rhs)) {
+    // One of the inputs has a canonical representation but types don't overlap.
+    return singleton_false();
   }
   return Type::Boolean();
 }

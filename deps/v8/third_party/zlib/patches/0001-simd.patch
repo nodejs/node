@@ -5,11 +5,11 @@ index 9580440c0e6b..9162429cc7b4 100644
 @@ -28,6 +28,8 @@
  #  endif /* !DYNAMIC_CRC_TABLE */
  #endif /* MAKECRCH */
-
+ 
 +#include "deflate.h"
 +#include "x86.h"
  #include "zutil.h"      /* for STDC and FAR definitions */
-
+ 
  /* Definitions for doing the crc four data bytes at a time. */
 @@ -440,3 +442,28 @@ uLong ZEXPORT crc32_combine64(crc1, crc2, len2)
  {
@@ -545,13 +545,13 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 +++ b/deflate.c
 @@ -48,8 +48,9 @@
   */
-
+ 
  /* @(#) $Id$ */
 -
 +#include <assert.h>
  #include "deflate.h"
 +#include "x86.h"
-
+ 
  const char deflate_copyright[] =
     " deflate 1.2.11 Copyright 1995-2017 Jean-loup Gailly and Mark Adler ";
 @@ -86,7 +87,7 @@ local block_state deflate_huff   OF((deflate_state *s, int flush));
@@ -566,7 +566,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 @@ -100,6 +101,20 @@ local  void check_match OF((deflate_state *s, IPos start, IPos match,
                              int length));
  #endif
-
+ 
 +/* From crc32.c */
 +extern void ZLIB_INTERNAL crc_reset(deflate_state *const s);
 +extern void ZLIB_INTERNAL crc_finalize(deflate_state *const s);
@@ -587,7 +587,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 @@ -162,7 +177,6 @@ local const config configuration_table[10] = {
   */
  #define UPDATE_HASH(s,h,c) (h = (((h)<<s->hash_shift) ^ (c)) & s->hash_mask)
-
+ 
 -
  /* ===========================================================================
   * Insert string str in the dictionary and set match_head to the previous head
@@ -626,7 +626,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 +    return insert_string_c(s, str);
 +}
 +
-
+ 
  /* ===========================================================================
   * Initialize the hash table (avoiding 64K overflow for 16 bit systems).
 @@ -248,6 +273,7 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
@@ -640,7 +640,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 @@ -257,6 +283,8 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
       * output size for (length,distance) codes is <= 24 bits.
       */
-
+ 
 +    x86_check_features();
 +
      if (version == Z_NULL || version[0] != my_version[0] ||
@@ -649,7 +649,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 @@ -313,12 +341,19 @@ int ZEXPORT deflateInit2_(strm, level, method, windowBits, memLevel, strategy,
      s->w_size = 1 << s->w_bits;
      s->w_mask = s->w_size - 1;
-
+ 
 -    s->hash_bits = (uInt)memLevel + 7;
 +    if (x86_cpu_enable_simd) {
 +        s->hash_bits = 15;
@@ -660,14 +660,14 @@ index 1ec761448de9..aa0c9c67a6dc 100644
      s->hash_size = 1 << s->hash_bits;
      s->hash_mask = s->hash_size - 1;
      s->hash_shift =  ((s->hash_bits+MIN_MATCH-1)/MIN_MATCH);
-
+ 
 -    s->window = (Bytef *) ZALLOC(strm, s->w_size, 2*sizeof(Byte));
 +    s->window = (Bytef *) ZALLOC(strm,
 +                                 s->w_size + window_padding,
 +                                 2*sizeof(Byte));
      s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));
      s->head   = (Posf *)  ZALLOC(strm, s->hash_size, sizeof(Pos));
-
+ 
 @@ -418,11 +453,7 @@ int ZEXPORT deflateSetDictionary (strm, dictionary, dictLength)
          str = s->strstart;
          n = s->lookahead - (MIN_MATCH-1);
@@ -708,9 +708,9 @@ index 1ec761448de9..aa0c9c67a6dc 100644
      Bytef *buf;
      unsigned size;
 @@ -1173,15 +1205,16 @@ local unsigned read_buf(strm, buf, size)
-
+ 
      strm->avail_in  -= len;
-
+ 
 -    zmemcpy(buf, strm->next_in, len);
 -    if (strm->state->wrap == 1) {
 -        strm->adler = adler32(strm->adler, buf, len);
@@ -721,7 +721,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 -    }
 +    if (strm->state->wrap == 2)
 +        copy_with_crc(strm, buf, len);
-+    else
++    else 
  #endif
 +    {
 +        zmemcpy(buf, strm->next_in, len);
@@ -730,7 +730,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 +    }
      strm->next_in  += len;
      strm->total_in += len;
-
+ 
 @@ -1479,7 +1512,19 @@ local void check_match(s, start, match, length)
   *    performed for at least two bytes (required for the zip translate_eol
   *    option -- not supported here).
@@ -759,7 +759,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 -            INSERT_STRING(s, s->strstart, hash_head);
 +            hash_head = insert_string(s, s->strstart);
          }
-
+ 
          /* Find the longest match, discarding those <= prev_length.
 @@ -1878,7 +1923,7 @@ local block_state deflate_fast(s, flush)
                  s->match_length--; /* string at strstart already in table */
@@ -777,7 +777,7 @@ index 1ec761448de9..aa0c9c67a6dc 100644
 -            INSERT_STRING(s, s->strstart, hash_head);
 +            hash_head = insert_string(s, s->strstart);
          }
-
+ 
          /* Find the longest match, discarding those <= prev_length.
 @@ -2001,7 +2046,7 @@ local block_state deflate_slow(s, flush)
              s->prev_length -= 2;
@@ -837,12 +837,12 @@ index 23ecdd312bc0..ab56df7663b6 100644
 -
 +    unsigned zalign(16) crc0[4 * 5];
                  /* used by deflate.c: */
-
+ 
      uInt  w_size;        /* LZ77 window size (32K by default) */
 @@ -346,4 +346,14 @@ void ZLIB_INTERNAL _tr_stored_block OF((deflate_state *s, charf *buf,
                flush = _tr_tally(s, distance, length)
  #endif
-
+ 
 +/* Functions that are SIMD optimised on x86 */
 +void ZLIB_INTERNAL crc_fold_init(deflate_state* const s);
 +void ZLIB_INTERNAL crc_fold_copy(deflate_state* const s,
@@ -1090,7 +1090,7 @@ index 000000000000..e56fe8b85a39
 + * Copyright (C) 2013 Intel Corporation. All rights reserved.
 + * Author:
 + *  Jim Kukunas
-+ *
++ * 
 + * For conditions of distribution and use, see copyright notice in zlib.h
 + */
 +
@@ -1204,7 +1204,7 @@ index 80375b8b6109..4425bcf75eb3 100644
 @@ -283,4 +283,10 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
  #define ZSWAP32(q) ((((q) >> 24) & 0xff) + (((q) >> 8) & 0xff00) + \
                      (((q) & 0xff00) << 8) + (((q) & 0xff) << 24))
-
+ 
 +#ifdef _MSC_VER
 +#define zalign(x) __declspec(align(x))
 +#else

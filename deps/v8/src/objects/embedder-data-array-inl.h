@@ -16,7 +16,6 @@
 namespace v8 {
 namespace internal {
 
-TQ_SMI_ACCESSORS(EmbedderDataArray, length)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray)
 

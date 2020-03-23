@@ -14,9 +14,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   21 E> */ B(StackCheck),
                 B(LdaUndefined),
   /*   25 S> */ B(Return),
 ]
@@ -33,9 +32,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 6
 bytecodes: [
-  /*   21 E> */ B(StackCheck),
                 B(Mov), R(closure), R(0),
   /*   26 S> */ B(Ldar), R(0),
   /*   35 S> */ B(Return),

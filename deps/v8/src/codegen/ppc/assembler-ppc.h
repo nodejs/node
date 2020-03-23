@@ -230,10 +230,6 @@ class Assembler : public AssemblerBase {
     return link(L) - pc_offset();
   }
 
-  // Puts a labels target address at the given position.
-  // The high 8 bits are set to zero.
-  void label_at_put(Label* L, int at_offset);
-
   V8_INLINE static bool IsConstantPoolLoadStart(
       Address pc, ConstantPoolEntry::Access* access = nullptr);
   V8_INLINE static bool IsConstantPoolLoadEnd(

@@ -721,6 +721,7 @@ class LiveRangeBundle : public ZoneObject {
  private:
   friend class BundleBuilder;
 
+  // Representation of the non-empty interval [start,end[.
   class Range {
    public:
     Range(int s, int e) : start(s), end(e) {}

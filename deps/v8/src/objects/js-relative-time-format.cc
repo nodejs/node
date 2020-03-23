@@ -25,33 +25,42 @@ namespace v8 {
 namespace internal {
 
 namespace {
-UDateRelativeDateTimeFormatterStyle getIcuStyle(
-    JSRelativeTimeFormat::Style style) {
+// Style: identifying the relative time format style used.
+//
+// ecma402/#sec-properties-of-intl-relativetimeformat-instances
+
+enum class Style {
+  LONG,   // Everything spelled out.
+  SHORT,  // Abbreviations used when possible.
+  NARROW  // Use the shortest possible form.
+};
+
+UDateRelativeDateTimeFormatterStyle toIcuStyle(Style style) {
   switch (style) {
-    case JSRelativeTimeFormat::Style::LONG:
+    case Style::LONG:
       return UDAT_STYLE_LONG;
-    case JSRelativeTimeFormat::Style::SHORT:
+    case Style::SHORT:
       return UDAT_STYLE_SHORT;
-    case JSRelativeTimeFormat::Style::NARROW:
+    case Style::NARROW:
       return UDAT_STYLE_NARROW;
   }
   UNREACHABLE();
 }
+
+Style fromIcuStyle(UDateRelativeDateTimeFormatterStyle icu_style) {
+  switch (icu_style) {
+    case UDAT_STYLE_LONG:
+      return Style::LONG;
+    case UDAT_STYLE_SHORT:
+      return Style::SHORT;
+    case UDAT_STYLE_NARROW:
+      return Style::NARROW;
+    case UDAT_STYLE_COUNT:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+}
 }  // namespace
-
-JSRelativeTimeFormat::Style JSRelativeTimeFormat::getStyle(const char* str) {
-  if (strcmp(str, "long") == 0) return JSRelativeTimeFormat::Style::LONG;
-  if (strcmp(str, "short") == 0) return JSRelativeTimeFormat::Style::SHORT;
-  if (strcmp(str, "narrow") == 0) return JSRelativeTimeFormat::Style::NARROW;
-  UNREACHABLE();
-}
-
-JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::getNumeric(
-    const char* str) {
-  if (strcmp(str, "auto") == 0) return JSRelativeTimeFormat::Numeric::AUTO;
-  if (strcmp(str, "always") == 0) return JSRelativeTimeFormat::Numeric::ALWAYS;
-  UNREACHABLE();
-}
 
 MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     Isolate* isolate, Handle<Map> map, Handle<Object> locales,
@@ -103,9 +112,14 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // ResolveLocale(%RelativeTimeFormat%.[[AvailableLocales]],
   //               requestedLocales, opt,
   //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
                           requested_locales, matcher, {"nu"});
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSRelativeTimeFormat);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   UErrorCode status = U_ZERO_ERROR;
 
@@ -132,10 +146,6 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
     icu_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
     CHECK(U_SUCCESS(status));
   }
-  Handle<String> numbering_system_string =
-      isolate->factory()->NewStringFromAsciiChecked(
-          Intl::GetNumberingSystem(icu_locale).c_str());
-
   // 15. Let dataLocale be r.[[DataLocale]].
 
   // 16. Let s be ? GetOption(options, "style", "string",
@@ -164,25 +174,41 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   icu::NumberFormat* number_format =
       icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
   if (U_FAILURE(status)) {
-    delete number_format;
-    FATAL("Failed to create ICU number format, are ICU data files missing?");
+    // Data build filter files excluded data in "rbnf_tree" since ECMA402 does
+    // not support "algorithmic" numbering systems. Therefore we may get the
+    // U_MISSING_RESOURCE_ERROR here. Fallback to locale without the numbering
+    // system and create the object again.
+    if (status == U_MISSING_RESOURCE_ERROR) {
+      delete number_format;
+      status = U_ZERO_ERROR;
+      icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
+      CHECK(U_SUCCESS(status));
+      number_format =
+          icu::NumberFormat::createInstance(icu_locale, UNUM_DECIMAL, status);
+    }
+    if (U_FAILURE(status) || number_format == nullptr) {
+      delete number_format;
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                      JSRelativeTimeFormat);
+    }
   }
-  CHECK_NOT_NULL(number_format);
 
   // Change UDISPCTX_CAPITALIZATION_NONE to other values if
   // ECMA402 later include option to change capitalization.
   // Ref: https://github.com/tc39/proposal-intl-relative-time/issues/11
   icu::RelativeDateTimeFormatter* icu_formatter =
       new icu::RelativeDateTimeFormatter(icu_locale, number_format,
-                                         getIcuStyle(style_enum),
+                                         toIcuStyle(style_enum),
                                          UDISPCTX_CAPITALIZATION_NONE, status);
-  if (U_FAILURE(status)) {
+  if (U_FAILURE(status) || icu_formatter == nullptr) {
     delete icu_formatter;
-    FATAL(
-        "Failed to create ICU relative date time formatter, are ICU data files "
-        "missing?");
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSRelativeTimeFormat);
   }
-  CHECK_NOT_NULL(icu_formatter);
+
+  Handle<String> numbering_system_string =
+      isolate->factory()->NewStringFromAsciiChecked(
+          Intl::GetNumberingSystem(icu_locale).c_str());
 
   Handle<Managed<icu::RelativeDateTimeFormatter>> managed_formatter =
       Managed<icu::RelativeDateTimeFormatter>::FromRawPtr(isolate, 0,
@@ -191,11 +217,11 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   Handle<JSRelativeTimeFormat> relative_time_format_holder =
       Handle<JSRelativeTimeFormat>::cast(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
+
   DisallowHeapAllocation no_gc;
   relative_time_format_holder->set_flags(0);
   relative_time_format_holder->set_locale(*locale_str);
   relative_time_format_holder->set_numberingSystem(*numbering_system_string);
-  relative_time_format_holder->set_style(style_enum);
   relative_time_format_holder->set_numeric(numeric_enum);
   relative_time_format_holder->set_icu_formatter(*managed_formatter);
 
@@ -203,33 +229,41 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   return relative_time_format_holder;
 }
 
+namespace {
+
+Handle<String> StyleAsString(Isolate* isolate, Style style) {
+  switch (style) {
+    case Style::LONG:
+      return ReadOnlyRoots(isolate).long_string_handle();
+    case Style::SHORT:
+      return ReadOnlyRoots(isolate).short_string_handle();
+    case Style::NARROW:
+      return ReadOnlyRoots(isolate).narrow_string_handle();
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
 Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
     Isolate* isolate, Handle<JSRelativeTimeFormat> format_holder) {
   Factory* factory = isolate->factory();
+  icu::RelativeDateTimeFormatter* formatter =
+      format_holder->icu_formatter().raw();
+  CHECK_NOT_NULL(formatter);
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   Handle<String> locale(format_holder->locale(), isolate);
   Handle<String> numberingSystem(format_holder->numberingSystem(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
-  JSObject::AddProperty(isolate, result, factory->style_string(),
-                        format_holder->StyleAsString(), NONE);
+  JSObject::AddProperty(
+      isolate, result, factory->style_string(),
+      StyleAsString(isolate, fromIcuStyle(formatter->getFormatStyle())), NONE);
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
                         format_holder->NumericAsString(), NONE);
   JSObject::AddProperty(isolate, result, factory->numberingSystem_string(),
                         numberingSystem, NONE);
   return result;
-}
-
-Handle<String> JSRelativeTimeFormat::StyleAsString() const {
-  switch (style()) {
-    case Style::LONG:
-      return GetReadOnlyRoots().long_string_handle();
-    case Style::SHORT:
-      return GetReadOnlyRoots().short_string_handle();
-    case Style::NARROW:
-      return GetReadOnlyRoots().narrow_string_handle();
-  }
-  UNREACHABLE();
 }
 
 Handle<String> JSRelativeTimeFormat::NumericAsString() const {

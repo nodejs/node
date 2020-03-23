@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   struct LoadICParameters {
     LoadICParameters(TNode<Context> context,
                      base::Optional<TNode<Object>> receiver, TNode<Object> name,
-                     TNode<Smi> slot, TNode<HeapObject> vector,
+                     TNode<TaggedIndex> slot, TNode<HeapObject> vector,
                      base::Optional<TNode<Object>> holder = base::nullopt)
         : context_(context),
           receiver_(receiver),
@@ -91,7 +91,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Context> context() const { return context_; }
     TNode<Object> receiver() const { return receiver_.value(); }
     TNode<Object> name() const { return name_; }
-    TNode<Smi> slot() const { return slot_; }
+    TNode<TaggedIndex> slot() const { return slot_; }
     TNode<HeapObject> vector() const { return vector_; }
     TNode<Object> holder() const { return holder_.value(); }
     bool receiver_is_null() const { return !receiver_.has_value(); }
@@ -100,14 +100,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Context> context_;
     base::Optional<TNode<Object>> receiver_;
     TNode<Object> name_;
-    TNode<Smi> slot_;
+    TNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     base::Optional<TNode<Object>> holder_;
   };
 
   struct LazyLoadICParameters {
     LazyLoadICParameters(LazyNode<Context> context, TNode<Object> receiver,
-                         LazyNode<Object> name, LazyNode<Smi> slot,
+                         LazyNode<Object> name, LazyNode<TaggedIndex> slot,
                          TNode<HeapObject> vector,
                          base::Optional<TNode<Object>> holder = base::nullopt)
         : context_(context),
@@ -129,7 +129,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     TNode<Context> context() const { return context_(); }
     TNode<Object> receiver() const { return receiver_; }
     TNode<Object> name() const { return name_(); }
-    TNode<Smi> slot() const { return slot_(); }
+    TNode<TaggedIndex> slot() const { return slot_(); }
     TNode<HeapObject> vector() const { return vector_; }
     TNode<Object> holder() const { return holder_; }
 
@@ -137,14 +137,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     LazyNode<Context> context_;
     TNode<Object> receiver_;
     LazyNode<Object> name_;
-    LazyNode<Smi> slot_;
+    LazyNode<TaggedIndex> slot_;
     TNode<HeapObject> vector_;
     TNode<Object> holder_;
   };
 
   void LoadGlobalIC(TNode<HeapObject> maybe_feedback_vector,
-                    const LazyNode<Smi>& lazy_smi_slot,
-                    const LazyNode<UintPtrT>& lazy_slot,
+                    const LazyNode<TaggedIndex>& lazy_slot,
                     const LazyNode<Context>& lazy_context,
                     const LazyNode<Name>& lazy_name, TypeofMode typeof_mode,
                     ExitPoint* exit_point);
@@ -162,8 +161,8 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   struct StoreICParameters : public LoadICParameters {
     StoreICParameters(TNode<Context> context,
                       base::Optional<TNode<Object>> receiver,
-                      TNode<Object> name, TNode<Object> value, TNode<Smi> slot,
-                      TNode<HeapObject> vector)
+                      TNode<Object> name, TNode<Object> value,
+                      TNode<TaggedIndex> slot, TNode<HeapObject> vector)
         : LoadICParameters(context, receiver, name, slot, vector),
           value_(value) {}
 
@@ -243,9 +242,12 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // IC dispatcher behavior.
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  TNode<MaybeObject> TryMonomorphicCase(
-      TNode<Smi> slot, TNode<FeedbackVector> vector, TNode<Map> receiver_map,
-      Label* if_handler, TVariable<MaybeObject>* var_handler, Label* if_miss);
+  TNode<MaybeObject> TryMonomorphicCase(TNode<TaggedIndex> slot,
+                                        TNode<FeedbackVector> vector,
+                                        TNode<Map> receiver_map,
+                                        Label* if_handler,
+                                        TVariable<MaybeObject>* var_handler,
+                                        Label* if_miss);
   void HandlePolymorphicCase(TNode<Map> receiver_map,
                              TNode<WeakFixedArray> feedback, Label* if_handler,
                              TVariable<MaybeObject>* var_handler,
@@ -309,14 +311,13 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   // LoadGlobalIC implementation.
 
   void LoadGlobalIC_TryPropertyCellCase(TNode<FeedbackVector> vector,
-                                        TNode<UintPtrT> slot,
+                                        TNode<TaggedIndex> slot,
                                         const LazyNode<Context>& lazy_context,
                                         ExitPoint* exit_point,
                                         Label* try_handler, Label* miss);
 
   void LoadGlobalIC_TryHandlerCase(TNode<FeedbackVector> vector,
-                                   TNode<UintPtrT> slot,
-                                   const LazyNode<Smi>& lazy_smi_slot,
+                                   TNode<TaggedIndex> slot,
                                    const LazyNode<Context>& lazy_context,
                                    const LazyNode<Name>& lazy_name,
                                    TypeofMode typeof_mode,

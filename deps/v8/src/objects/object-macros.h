@@ -229,14 +229,6 @@
     TaggedField<Smi, offset>::Relaxed_Store(*this, Smi::FromInt(value)); \
   }
 
-#define TQ_SMI_ACCESSORS(holder, name)                                       \
-  int holder::name() const {                                                 \
-    return TorqueGenerated##holder<holder, Super>::name().value();           \
-  }                                                                          \
-  void holder::set_##name(int value) {                                       \
-    TorqueGenerated##holder<holder, Super>::set_##name(Smi::FromInt(value)); \
-  }
-
 #define BOOL_GETTER(holder, field, name, offset) \
   bool holder::name() const { return BooleanBit::get(field(), offset); }
 

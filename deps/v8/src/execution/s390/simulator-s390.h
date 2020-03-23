@@ -230,6 +230,7 @@ class Simulator : public SimulatorBase {
   void HandleRList(Instruction* instr, bool load);
   void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
+  void DebugAtNextPC();
 
   // Stop helper functions.
   inline bool isStopInstruction(Instruction* instr);
@@ -502,6 +503,7 @@ class Simulator : public SimulatorBase {
   S390_VRR_A_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRR_C_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRR_E_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
+  S390_VRR_F_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRX_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRS_A_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRS_B_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)

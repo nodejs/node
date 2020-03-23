@@ -397,6 +397,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   // We cannot store byte_length larger than Smi range in the snapshot.
   CHECK_LE(buffer.byte_length(), Smi::kMaxValue);
   int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
+  ArrayBufferExtension* extension = buffer.extension();
 
   // The embedder-allocated backing store only exists for the off-heap case.
   if (backing_store != nullptr) {
@@ -405,9 +406,16 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     // a backing store address. On deserialization we re-set data pointer
     // to proper value.
     buffer.set_backing_store(reinterpret_cast<void*>(static_cast<size_t>(ref)));
+
+    // Ensure deterministic output by setting extension to null during
+    // serialization.
+    buffer.set_extension(nullptr);
   }
+
   SerializeObject();
+
   buffer.set_backing_store(backing_store);
+  buffer.set_extension(extension);
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {

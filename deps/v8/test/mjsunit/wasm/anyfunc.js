@@ -222,6 +222,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   const function_index = builder.addFunction('hidden', kSig_i_v)
                              .addBody([kExprI32Const, expected])
                              .index;
+  builder.addDeclarativeElementSegment([function_index]);
   builder.addFunction('main', kSig_a_v)
       .addBody([kExprRefFunc, function_index])
       .exportFunc();
@@ -237,6 +238,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   const foo = builder.addFunction('foo', kSig_i_v)
                   .addBody([kExprI32Const, expected])
                   .exportFunc();
+  builder.addDeclarativeElementSegment([foo.index]);
   builder.addFunction('main', kSig_a_v)
       .addBody([kExprRefFunc, foo.index])
       .exportFunc();

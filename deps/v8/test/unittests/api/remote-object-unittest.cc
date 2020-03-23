@@ -105,8 +105,7 @@ TEST_F(RemoteObjectTest, ClassOf) {
       AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
       IndexedPropertyHandlerConfiguration());
   constructor_template->SetClassName(
-      String::NewFromUtf8(isolate(), "test_class", NewStringType::kNormal)
-          .ToLocalChecked());
+      String::NewFromUtf8Literal(isolate(), "test_class"));
 
   Local<Object> remote_object =
       constructor_template->NewRemoteInstance().ToLocalChecked();

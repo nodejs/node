@@ -157,7 +157,8 @@ inline void SetHomeObject(Isolate* isolate, JSFunction method,
 //    shared name.
 template <typename Dictionary>
 MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
-    Isolate* isolate, Arguments& args,  // NOLINT(runtime/references)
+    Isolate* isolate,
+    RuntimeArguments& args,  // NOLINT(runtime/references)
     Smi index, Handle<JSObject> home_object, Handle<String> name_prefix,
     Handle<Object> key) {
   int int_index = index.value();
@@ -195,7 +196,7 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
 // shared name.
 Object GetMethodWithSharedNameAndSetHomeObject(
     Isolate* isolate,
-    Arguments& args,  // NOLINT(runtime/references)
+    RuntimeArguments& args,  // NOLINT(runtime/references)
     Object index, JSObject home_object) {
   DisallowHeapAllocation no_gc;
   int int_index = Smi::ToInt(index);
@@ -235,7 +236,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
 template <typename Dictionary>
 bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
                       Handle<JSObject> receiver,
-                      Arguments& args,  // NOLINT(runtime/references)
+                      RuntimeArguments& args,  // NOLINT(runtime/references)
                       bool* install_name_accessor = nullptr) {
   Handle<Name> name_string = isolate->factory()->name_string();
 
@@ -312,7 +313,8 @@ bool AddDescriptorsByTemplate(
     Isolate* isolate, Handle<Map> map,
     Handle<DescriptorArray> descriptors_template,
     Handle<NumberDictionary> elements_dictionary_template,
-    Handle<JSObject> receiver, Arguments& args) {  // NOLINT(runtime/references)
+    Handle<JSObject> receiver,
+    RuntimeArguments& args) {  // NOLINT(runtime/references)
   int nof_descriptors = descriptors_template->number_of_descriptors();
 
   Handle<DescriptorArray> descriptors =
@@ -423,7 +425,7 @@ bool AddDescriptorsByTemplate(
     Handle<NumberDictionary> elements_dictionary_template,
     Handle<FixedArray> computed_properties, Handle<JSObject> receiver,
     bool install_name_accessor,
-    Arguments& args) {  // NOLINT(runtime/references)
+    RuntimeArguments& args) {  // NOLINT(runtime/references)
   int computed_properties_length = computed_properties->length();
 
   // Shallow-copy properties template.
@@ -511,7 +513,7 @@ bool InitClassPrototype(Isolate* isolate,
                         Handle<JSObject> prototype,
                         Handle<HeapObject> prototype_parent,
                         Handle<JSFunction> constructor,
-                        Arguments& args) {  // NOLINT(runtime/references)
+                        RuntimeArguments& args) {  // NOLINT(runtime/references)
   Handle<Map> map(prototype->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
   map->set_is_prototype_map(true);
@@ -555,11 +557,10 @@ bool InitClassPrototype(Isolate* isolate,
   }
 }
 
-bool InitClassConstructor(Isolate* isolate,
-                          Handle<ClassBoilerplate> class_boilerplate,
-                          Handle<HeapObject> constructor_parent,
-                          Handle<JSFunction> constructor,
-                          Arguments& args) {  // NOLINT(runtime/references)
+bool InitClassConstructor(
+    Isolate* isolate, Handle<ClassBoilerplate> class_boilerplate,
+    Handle<HeapObject> constructor_parent, Handle<JSFunction> constructor,
+    RuntimeArguments& args) {  // NOLINT(runtime/references)
   Handle<Map> map(constructor->map(), isolate);
   map = Map::CopyDropDescriptors(isolate, map);
   DCHECK(map->is_prototype_map());
@@ -611,7 +612,7 @@ bool InitClassConstructor(Isolate* isolate,
 MaybeHandle<Object> DefineClass(
     Isolate* isolate, Handle<ClassBoilerplate> class_boilerplate,
     Handle<Object> super_class, Handle<JSFunction> constructor,
-    Arguments& args) {  // NOLINT(runtime/references)
+    RuntimeArguments& args) {  // NOLINT(runtime/references)
   Handle<Object> prototype_parent;
   Handle<HeapObject> constructor_parent;
 
@@ -661,11 +662,14 @@ MaybeHandle<Object> DefineClass(
     return MaybeHandle<Object>();
   }
   if (FLAG_trace_maps) {
+    Handle<Map> empty_map;
     LOG(isolate,
-        MapEvent("InitialMap", Map(), constructor->map(),
-                 "init class constructor", constructor->shared().DebugName()));
-    LOG(isolate, MapEvent("InitialMap", Map(), prototype->map(),
-                          "init class prototype"));
+        MapEvent("InitialMap", empty_map, handle(constructor->map(), isolate),
+                 "init class constructor",
+                 handle(constructor->shared().DebugName(), isolate)));
+    LOG(isolate,
+        MapEvent("InitialMap", empty_map, handle(prototype->map(), isolate),
+                 "init class prototype"));
   }
 
   return prototype;

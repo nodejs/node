@@ -4,7 +4,7 @@
 
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
-var FG = new FinalizationGroup (function (iter) { globalThis.FGRan = true; });
+var FG = new FinalizationRegistry (function (iter) { globalThis.FRRan = true; });
 {
   let obj = {};
   // obj is its own unregister token and becomes unreachable after this
@@ -14,7 +14,7 @@ var FG = new FinalizationGroup (function (iter) { globalThis.FGRan = true; });
 }
 function tryAgain() {
   gc();
-  if (globalThis.FGRan || FG.cleanupSome()) {
+  if (globalThis.FRRan || FG.cleanupSome()) {
     return;
   }
   setTimeout(tryAgain, 0);

@@ -71,7 +71,12 @@ struct PropertyBase {
 
   // Statically-determined type, such as from .tq definition. Can be an empty
   // string if this property is itself a Torque-defined struct; in that case use
-  // |struct_fields| instead.
+  // |struct_fields| instead. This type should be treated as if it were used in
+  // the v8::internal namespace; that is, type "X::Y" can mean any of the
+  // following, in order of decreasing preference:
+  // - v8::internal::X::Y
+  // - v8::X::Y
+  // - X::Y
   const char* type;
 
   // In some cases, |type| may be a simple type representing a compressed

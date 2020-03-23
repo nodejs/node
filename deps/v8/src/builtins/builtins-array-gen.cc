@@ -50,8 +50,7 @@ TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
   // 8. c. Let mapped_value be ? Call(callbackfn, T, « kValue, k, O »).
   TNode<Number> k_number = ChangeUintPtrToTagged(k);
   TNode<Object> mapped_value =
-      CallJS(CodeFactory::Call(isolate()), context(), callbackfn(), this_arg(),
-             k_value, k_number, o());
+      Call(context(), callbackfn(), this_arg(), k_value, k_number, o());
   Label fast(this), slow(this), done(this), detached(this, Label::kDeferred);
 
   // 8. d. Perform ? Set(A, Pk, mapped_value, true).
@@ -544,8 +543,8 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = args.GetReceiver();
@@ -1071,8 +1070,8 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 }
 
 TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(kIncludes, argc, context);
@@ -1112,8 +1111,8 @@ TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
 }
 
 TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Generate(kIndexOf, argc, context);
@@ -1420,9 +1419,9 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
 
           // 1. Set element to ? Call(mapperFunction, thisArg , « element,
           //                          sourceIndex, source »).
-          element_maybe_smi = CallJS(CodeFactory::Call(isolate()), context,
-                                     mapper_function.value(), this_arg.value(),
-                                     element_maybe_smi, source_index, source);
+          element_maybe_smi =
+              Call(context, mapper_function.value(), this_arg.value(),
+                   element_maybe_smi, source_index, source);
         }
 
         // iii. Let shouldFlatten be false.
@@ -1541,8 +1540,8 @@ TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat
 TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
-  const TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   const TNode<Object> receiver = args.GetReceiver();
@@ -1583,8 +1582,8 @@ TF_BUILTIN(ArrayPrototypeFlat, CodeStubAssembler) {
 
 // https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
 TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
-  const TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  const TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   const TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   const TNode<Object> receiver = args.GetReceiver();
@@ -1871,8 +1870,8 @@ void ArrayBuiltinsAssembler::GenerateConstructor(
 
   BIND(&call_runtime);
   {
-    TailCallRuntime(Runtime::kNewArray, context, array_function, array_size,
-                    array_function, allocation_site);
+    TailCallRuntimeNewArray(context, array_function, array_size, array_function,
+                            allocation_site);
   }
 }
 

@@ -268,8 +268,12 @@ class MachineType {
     }
   }
 
-  bool LessThanOrEqualPointerSize() {
+  constexpr bool LessThanOrEqualPointerSize() const {
     return ElementSizeLog2Of(this->representation()) <= kSystemPointerSizeLog2;
+  }
+
+  constexpr byte MemSize() const {
+    return 1 << i::ElementSizeLog2Of(this->representation());
   }
 
  private:

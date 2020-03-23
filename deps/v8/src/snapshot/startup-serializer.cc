@@ -23,6 +23,7 @@ StartupSerializer::StartupSerializer(Isolate* isolate,
                                      ReadOnlySerializer* read_only_serializer)
     : RootsSerializer(isolate, RootIndex::kFirstStrongRoot),
       read_only_serializer_(read_only_serializer) {
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
   InitializeCodeAddressMap();
 }
 
@@ -167,6 +168,15 @@ void StartupSerializer::SerializeUsingPartialSnapshotCache(
   int cache_index = SerializeInObjectCache(obj);
   sink->Put(kPartialSnapshotCache, "PartialSnapshotCache");
   sink->PutInt(cache_index, "partial_snapshot_cache_index");
+}
+
+void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
+  Isolate* isolate = this->isolate();
+  CHECK(isolate->heap()->dirty_js_finalization_registries_list().IsUndefined(
+      isolate));
+  CHECK(
+      isolate->heap()->dirty_js_finalization_registries_list_tail().IsUndefined(
+          isolate));
 }
 
 void SerializedHandleChecker::AddToSet(FixedArray serialized) {

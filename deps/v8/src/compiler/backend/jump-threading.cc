@@ -165,8 +165,19 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
   // Skip empty blocks when the previous block doesn't fall through.
   bool prev_fallthru = true;
   for (auto const block : code->instruction_blocks()) {
-    int block_num = block->rpo_number().ToInt();
-    skip[block_num] = !prev_fallthru && result[block_num].ToInt() != block_num;
+    RpoNumber block_rpo = block->rpo_number();
+    int block_num = block_rpo.ToInt();
+    RpoNumber result_rpo = result[block_num];
+    skip[block_num] = !prev_fallthru && result_rpo != block_rpo;
+
+    if (result_rpo != block_rpo) {
+      // We need the handler information to be propagated, so that branch
+      // targets are annotated as necessary for control flow integrity
+      // checks (when enabled).
+      if (code->InstructionBlockAt(block_rpo)->IsHandler()) {
+        code->InstructionBlockAt(result_rpo)->MarkHandler();
+      }
+    }
 
     bool fallthru = true;
     for (int i = block->code_start(); i < block->code_end(); ++i) {
@@ -179,6 +190,8 @@ void JumpThreading::ApplyForwarding(Zone* local_zone,
           // Overwrite a redundant jump with a nop.
           TRACE("jt-fw nop @%d\n", i);
           instr->OverwriteWithNop();
+          // If this block was marked as a handler, it can be unmarked now.
+          code->InstructionBlockAt(block_rpo)->UnmarkHandler();
         }
         fallthru = false;  // jumps don't fall through to the next block.
       }

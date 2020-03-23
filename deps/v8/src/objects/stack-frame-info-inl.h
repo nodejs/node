@@ -53,9 +53,6 @@ BOOL_ACCESSORS(StackFrameInfo, flag, is_promise_all, kIsPromiseAllBit)
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceFrame)
 NEVER_READ_ONLY_SPACE_IMPL(StackTraceFrame)
 
-TQ_SMI_ACCESSORS(StackTraceFrame, frame_index)
-TQ_SMI_ACCESSORS(StackTraceFrame, id)
-
 }  // namespace internal
 }  // namespace v8
 

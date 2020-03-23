@@ -5,6 +5,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
@@ -1002,6 +1003,8 @@ class CodeGeneratorTester {
         Builtins::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
+    generator_->tasm()->CodeEntry();
+
     // Force a frame to be created.
     generator_->frame_access_state()->MarkHasFrame(true);
     generator_->AssembleConstructFrame();
@@ -1069,7 +1072,7 @@ class CodeGeneratorTester {
                                  CodeGeneratorTester::PushTypeFlag push_type) {
     generator_->AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
 #if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) || \
-    defined(V8_TARGET_ARCH_PPC)
+    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
     // Only folding register pushes is supported on ARM.
     bool supported = ((push_type & CodeGenerator::kRegisterPush) == push_type);
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32) || \

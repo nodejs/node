@@ -14,7 +14,9 @@
 
 namespace i = v8::internal;
 
-namespace v8_debug_helper_internal {
+namespace v8 {
+namespace internal {
+namespace debug_helper_internal {
 
 constexpr char kObject[] = "v8::internal::Object";
 constexpr char kTaggedValue[] = "v8::internal::TaggedValue";
@@ -104,6 +106,7 @@ TypedObject GetTypedObjectByInstanceType(uintptr_t address,
   case i::INSTANCE_TYPE:                             \
     return {type_source, std::make_unique<Tq##ClassName>(address)};
     TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
+    TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(INSTANCE_TYPE_CASE)
 #undef INSTANCE_TYPE_CASE
 
     default:
@@ -590,9 +593,11 @@ std::unique_ptr<ObjectPropertiesResult> GetObjectProperties(
                                                   stream.str(), kSmi);
 }
 
-}  // namespace v8_debug_helper_internal
+}  // namespace debug_helper_internal
+}  // namespace internal
+}  // namespace v8
 
-namespace di = v8_debug_helper_internal;
+namespace di = v8::internal::debug_helper_internal;
 
 extern "C" {
 V8_DEBUG_HELPER_EXPORT d::ObjectPropertiesResult*

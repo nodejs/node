@@ -34,11 +34,11 @@ CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
   wasm::FunctionSig::Builder builder(zone, return_count, param_count);
 
   for (int i = 0; i < param_count; i++) {
-    builder.AddParam(wasm::ValueTypes::ValueTypeFor(type));
+    builder.AddParam(wasm::ValueType::For(type));
   }
 
   for (int i = 0; i < return_count; i++) {
-    builder.AddReturn(wasm::ValueTypes::ValueTypeFor(type));
+    builder.AddReturn(wasm::ValueType::For(type));
   }
   return compiler::GetWasmCallDescriptor(zone, builder.Build());
 }

@@ -20,8 +20,6 @@ class V8_EXPORT_PRIVATE PromiseBuiltinsAssembler : public CodeStubAssembler {
   void ZeroOutEmbedderOffsets(TNode<JSPromise> promise);
 
   TNode<HeapObject> AllocateJSPromise(TNode<Context> context);
-
-  TNode<HeapObject> AllocatePromiseReactionJobTask(TNode<Context> context);
 };
 
 }  // namespace internal

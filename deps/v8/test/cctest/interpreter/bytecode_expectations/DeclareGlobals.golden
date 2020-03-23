@@ -12,13 +12,12 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 19
 bytecodes: [
-  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
                 B(Mov), R(closure), R(2),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
   /*    8 S> */ B(LdaSmi), I8(1),
   /*    8 E> */ B(StaGlobal), U8(1), U8(0),
                 B(LdaUndefined),
@@ -37,13 +36,12 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 14
 bytecodes: [
-  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(0),
                 B(Mov), R(closure), R(1),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), U8(2),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(0), U8(2),
                 B(LdaUndefined),
   /*   16 S> */ B(Return),
 ]
@@ -60,13 +58,12 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 25
 bytecodes: [
-  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
                 B(Mov), R(closure), R(2),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
   /*    8 S> */ B(LdaSmi), I8(1),
   /*    8 E> */ B(StaGlobal), U8(1), U8(0),
   /*   11 S> */ B(LdaSmi), I8(2),
@@ -88,13 +85,12 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 24
+bytecode array length: 23
 bytecodes: [
-  /*    0 E> */ B(StackCheck),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
                 B(Mov), R(closure), R(2),
-                B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
+  /*    0 E> */ B(CallRuntime), U16(Runtime::kDeclareGlobals), R(1), U8(2),
   /*   16 S> */ B(LdaGlobal), U8(1), U8(0),
                 B(Star), R(1),
   /*   16 E> */ B(CallUndefinedReceiver0), R(1), U8(2),

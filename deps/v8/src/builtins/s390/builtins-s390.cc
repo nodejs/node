@@ -6,21 +6,22 @@
 
 #include "src/api/api-arguments.h"
 #include "src/codegen/code-factory.h"
+// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
+#include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
-#include "src/logging/counters.h"
-// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
-#include "src/codegen/macro-assembler-inl.h"
-#include "src/codegen/register-configuration.h"
 #include "src/heap/heap-inl.h"
+#include "src/logging/counters.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/smi.h"
 #include "src/runtime/runtime.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -58,10 +59,15 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 
 namespace {
 
-MemOperand RealStackLimitAsMemOperand(MacroAssembler* masm) {
+enum StackLimitKind { kInterruptStackLimit, kRealStackLimit };
+
+MemOperand StackLimitAsMemOperand(MacroAssembler* masm, StackLimitKind kind) {
   DCHECK(masm->root_array_available());
   Isolate* isolate = masm->isolate();
-  ExternalReference limit = ExternalReference::address_of_real_jslimit(isolate);
+  ExternalReference limit =
+      kind == StackLimitKind::kRealStackLimit
+          ? ExternalReference::address_of_real_jslimit(isolate)
+          : ExternalReference::address_of_jslimit(isolate);
   DCHECK(TurboAssembler::IsAddressableThroughRootRegister(isolate, limit));
 
   intptr_t offset =
@@ -75,7 +81,8 @@ void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  __ LoadP(scratch, RealStackLimitAsMemOperand(masm));
+  __ LoadP(scratch,
+           StackLimitAsMemOperand(masm, StackLimitKind::kRealStackLimit));
   // Make scratch the space we have left. The stack might already be overflowed
   // here which will cause scratch to become negative.
   __ SubP(scratch, sp, scratch);
@@ -416,7 +423,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ LoadP(scratch, RealStackLimitAsMemOperand(masm));
+  __ LoadP(scratch,
+           StackLimitAsMemOperand(masm, StackLimitKind::kRealStackLimit));
   __ CmpLogicalP(sp, scratch);
   __ blt(&stack_overflow);
 
@@ -761,7 +769,8 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadP(scratch1, RealStackLimitAsMemOperand(masm));
+  __ LoadP(scratch1,
+           StackLimitAsMemOperand(masm, StackLimitKind::kRealStackLimit));
   // Make scratch1 the space we have left. The stack might already be overflowed
   // here which will cause scratch1 to become negative.
   __ SubP(scratch1, sp, scratch1);
@@ -1008,18 +1017,27 @@ static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
 
 // Advance the current bytecode offset. This simulates what all bytecode
 // handlers do upon completion of the underlying operation. Will bail out to a
-// label if the bytecode (without prefix) is a return bytecode.
+// label if the bytecode (without prefix) is a return bytecode. Will not advance
+// the bytecode offset if the current bytecode is a JumpLoop, instead just
+// re-executing the JumpLoop to jump to the correct bytecode.
 static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
                                           Register bytecode_array,
                                           Register bytecode_offset,
                                           Register bytecode, Register scratch1,
-                                          Label* if_return) {
+                                          Register scratch2, Label* if_return) {
   Register bytecode_size_table = scratch1;
-  Register scratch2 = bytecode;
+  Register scratch3 = bytecode;
+
+  // The bytecode offset value will be increased by one in wide and extra wide
+  // cases. In the case of having a wide or extra wide JumpLoop bytecode, we
+  // will restore the original bytecode. In order to simplify the code, we have
+  // a backup of it.
+  Register original_bytecode_offset = scratch2;
   DCHECK(!AreAliased(bytecode_array, bytecode_offset, bytecode_size_table,
-                     bytecode));
+                     bytecode, original_bytecode_offset));
   __ Move(bytecode_size_table,
           ExternalReference::bytecode_size_table_address());
+  __ Move(original_bytecode_offset, bytecode_offset);
 
   // Check if the bytecode is a Wide or ExtraWide prefix bytecode.
   Label process_bytecode, extra_wide;
@@ -1050,7 +1068,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   // Load the size of the current bytecode.
   __ bind(&process_bytecode);
 
-// Bailout to the return label if this is a return bytecode.
+  // Bailout to the return label if this is a return bytecode.
 #define JUMP_IF_EQUAL(NAME)                                           \
   __ CmpP(bytecode,                                                   \
           Operand(static_cast<int>(interpreter::Bytecode::k##NAME))); \
@@ -1058,10 +1076,24 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
 #undef JUMP_IF_EQUAL
 
+  // If this is a JumpLoop, re-execute it to perform the jump to the beginning
+  // of the loop.
+  Label end, not_jump_loop;
+  __ CmpP(bytecode,
+          Operand(static_cast<int>(interpreter::Bytecode::kJumpLoop)));
+  __ bne(&not_jump_loop);
+  // We need to restore the original bytecode_offset since we might have
+  // increased it to skip the wide / extra-wide prefix bytecode.
+  __ Move(bytecode_offset, original_bytecode_offset);
+  __ b(&end);
+
+  __ bind(&not_jump_loop);
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ ShiftLeftP(scratch2, bytecode, Operand(2));
-  __ LoadlW(scratch2, MemOperand(bytecode_size_table, scratch2));
-  __ AddP(bytecode_offset, bytecode_offset, scratch2);
+  __ ShiftLeftP(scratch3, bytecode, Operand(2));
+  __ LoadlW(scratch3, MemOperand(bytecode_size_table, scratch3));
+  __ AddP(bytecode_offset, bytecode_offset, scratch3);
+
+  __ bind(&end);
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1172,7 +1204,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Do a stack check to ensure we don't go over the limit.
     __ SubP(r8, sp, r4);
-    __ CmpLogicalP(r8, RealStackLimitAsMemOperand(masm));
+    __ CmpLogicalP(
+        r8, StackLimitAsMemOperand(masm, StackLimitKind::kRealStackLimit));
     __ blt(&stack_overflow);
 
     // If ok, push undefined as the initial value for all register file entries.
@@ -1201,6 +1234,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ ShiftLeftP(r8, r8, Operand(kSystemPointerSizeLog2));
   __ StoreP(r5, MemOperand(fp, r8));
   __ bind(&no_incoming_new_target_or_generator_register);
+
+  // Perform interrupt stack check.
+  // TODO(solanes): Merge with the real stack limit check above.
+  Label stack_check_interrupt, after_stack_check_interrupt;
+  __ LoadP(r5,
+           StackLimitAsMemOperand(masm, StackLimitKind::kInterruptStackLimit));
+  __ CmpLogicalP(sp, r5);
+  __ blt(&stack_check_interrupt);
+  __ bind(&after_stack_check_interrupt);
 
   // The accumulator is already loaded with undefined.
 
@@ -1236,7 +1278,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ LoadlB(r3, MemOperand(kInterpreterBytecodeArrayRegister,
                            kInterpreterBytecodeOffsetRegister));
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, r3, r4,
+                                kInterpreterBytecodeOffsetRegister, r3, r4, r5,
                                 &do_return);
   __ b(&do_dispatch);
 
@@ -1253,6 +1295,31 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   MaybeOptimizeCode(masm, feedback_vector, optimized_code_entry);
   // Fall through if there's no runnable optimized code.
   __ jmp(&not_optimized);
+
+  __ bind(&stack_check_interrupt);
+  // Modify the bytecode offset in the stack to be kFunctionEntryBytecodeOffset
+  // for the call to the StackGuard.
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Operand(Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
+                              kFunctionEntryBytecodeOffset)));
+  __ StoreP(kInterpreterBytecodeOffsetRegister,
+            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ CallRuntime(Runtime::kStackGuard);
+
+  // After the call, restore the bytecode array, bytecode offset and accumulator
+  // registers again. Also, restore the bytecode offset in the stack to its
+  // previous value.
+  __ LoadP(kInterpreterBytecodeArrayRegister,
+           MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
+
+  __ SmiTag(r5, kInterpreterBytecodeOffsetRegister);
+  __ StoreP(r5,
+            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+
+  __ jmp(&after_stack_check_interrupt);
 
   __ bind(&maybe_has_optimized_code);
   // Load code entry from the weak reference, if it was cleared, resume
@@ -1447,6 +1514,15 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
+  if (FLAG_debug_code) {
+    Label okay;
+    __ CmpP(kInterpreterBytecodeOffsetRegister,
+            Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+    __ bge(&okay);
+    __ bkpt(0);
+    __ bind(&okay);
+  }
+
   // Dispatch to the target bytecode.
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
@@ -1466,6 +1542,12 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
+  Label enter_bytecode, function_entry_bytecode;
+  __ CmpP(kInterpreterBytecodeOffsetRegister,
+          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag +
+                  kFunctionEntryBytecodeOffset));
+  __ beq(&function_entry_bytecode);
+
   // Load the current bytecode.
   __ LoadlB(r3, MemOperand(kInterpreterBytecodeArrayRegister,
                            kInterpreterBytecodeOffsetRegister));
@@ -1473,15 +1555,25 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   // Advance to the next bytecode.
   Label if_return;
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, r3, r4,
+                                kInterpreterBytecodeOffsetRegister, r3, r4, r5,
                                 &if_return);
 
+  __ bind(&enter_bytecode);
   // Convert new bytecode offset to a Smi and save in the stackframe.
   __ SmiTag(r4, kInterpreterBytecodeOffsetRegister);
   __ StoreP(r4,
             MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   Generate_InterpreterEnterBytecode(masm);
+
+  __ bind(&function_entry_bytecode);
+  // If the code deoptimizes during the implicit function entry stack interrupt
+  // check, it will have a bailout ID of kFunctionEntryBytecodeOffset, which is
+  // not a valid bytecode offset. Detect this case and advance to the first
+  // actual bytecode.
+  __ mov(kInterpreterBytecodeOffsetRegister,
+         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
+  __ b(&enter_bytecode);
 
   // We should never take the if_return path.
   __ bind(&if_return);
@@ -2139,7 +2231,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
-      __ CmpLogicalP(sp, RealStackLimitAsMemOperand(masm));
+      __ CmpLogicalP(
+          sp, StackLimitAsMemOperand(masm, StackLimitKind::kRealStackLimit));
       __ bgt(&done);  // Signed comparison.
       // Restore the stack pointer.
       __ LoadRR(sp, scratch);
@@ -2379,7 +2472,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -----------------------------------
 
   Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
-  __ tmll(r4, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ tmll(r4, Operand(kDontAdaptArgumentsSentinel));
   __ b(Condition(1), &dont_adapt_arguments);
   __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
   __ LoadlW(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
@@ -2586,6 +2679,28 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   }
   // Finally, jump to the entrypoint.
   __ Jump(ip);
+}
+
+void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
+  HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::WASM_DEBUG_BREAK);
+
+    // Save all parameter registers. They might hold live values, we restore
+    // them after the runtime call.
+    __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
+    __ MultiPushDoubles(WasmDebugBreakFrameConstants::kPushedFpRegs);
+
+    // Initialize the JavaScript context with 0. CEntry will use it to
+    // set the current context on the isolate.
+    __ LoadSmiLiteral(cp, Smi::zero());
+    __ CallRuntime(Runtime::kWasmDebugBreak, 0);
+
+    // Restore registers.
+    __ MultiPopDoubles(WasmDebugBreakFrameConstants::kPushedFpRegs);
+    __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
+  }
+  __ Ret();
 }
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,

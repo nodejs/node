@@ -76,7 +76,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   void breakProgram(const StringView& breakReason,
                     const StringView& breakDetails) override;
   void setSkipAllPauses(bool) override;
-  void resume() override;
+  void resume(bool terminateOnResume = false) override;
   void stepOver() override;
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
   searchInTextByLines(const StringView& text, const StringView& query,
@@ -100,13 +100,13 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   protocol::DictionaryValue* agentState(const String16& name);
 
   // protocol::FrontendChannel implementation.
-  void sendProtocolResponse(
+  void SendProtocolResponse(
       int callId, std::unique_ptr<protocol::Serializable> message) override;
-  void sendProtocolNotification(
+  void SendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
-  void fallThrough(int callId, const String16& method,
+  void FallThrough(int callId, v8_crdtp::span<uint8_t> method,
                    v8_crdtp::span<uint8_t> message) override;
-  void flushProtocolNotifications() override;
+  void FlushProtocolNotifications() override;
 
   std::unique_ptr<StringBuffer> serializeForFrontend(
       std::unique_ptr<protocol::Serializable> message);

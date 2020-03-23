@@ -87,7 +87,6 @@ namespace compiler {
 
 #define IGNORED_BYTECODE_LIST(V)      \
   V(IncBlockCounter)                  \
-  V(StackCheck)                       \
   V(ThrowSuperAlreadyCalledIfNotHole) \
   V(ThrowSuperNotCalledIfHole)
 
@@ -2082,7 +2081,8 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
       speculation_mode = feedback.AsCall().speculation_mode();
       // Incorporate target feedback into hints copy to simplify processing.
       base::Optional<HeapObjectRef> target = feedback.AsCall().target();
-      if (target.has_value() && target->map().is_callable()) {
+      if (target.has_value() &&
+          (target->map().is_callable() || target->IsFeedbackCell())) {
         callee = callee.Copy(zone());
         // TODO(mvstanton): if the map isn't callable then we have an allocation
         // site, and it may make sense to add the Array JSFunction constant.
@@ -2092,8 +2092,19 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
           new_target->AddConstant(target->object(), zone(), broker());
           callee.AddConstant(target->object(), zone(), broker());
         } else {
-          // Call; target is callee.
-          callee.AddConstant(target->object(), zone(), broker());
+          // Call; target is feedback cell or callee.
+          if (target->IsFeedbackCell() &&
+              target->AsFeedbackCell().value().IsFeedbackVector()) {
+            FeedbackVectorRef vector =
+                target->AsFeedbackCell().value().AsFeedbackVector();
+            vector.Serialize();
+            VirtualClosure virtual_closure(
+                vector.shared_function_info().object(), vector.object(),
+                Hints());
+            callee.AddVirtualClosure(virtual_closure, zone(), broker());
+          } else {
+            callee.AddConstant(target->object(), zone(), broker());
+          }
         }
       }
     }

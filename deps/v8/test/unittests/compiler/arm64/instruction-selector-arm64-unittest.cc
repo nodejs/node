@@ -1166,22 +1166,10 @@ const TestAndBranch kTestAndBranchMatchers32[] = {
           -> Node* { return m.Word32And(x, m.Int32Constant(mask)); },
       "if (x and mask)", kArm64TestAndBranch32, MachineType::Int32()},
      kNotEqual},
-    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
-         uint32_t mask) -> Node* {
-        return m.Word32BinaryNot(m.Word32And(x, m.Int32Constant(mask)));
-      },
-      "if not (x and mask)", kArm64TestAndBranch32, MachineType::Int32()},
-     kEqual},
     {{[](InstructionSelectorTest::StreamBuilder& m, Node* x, uint32_t mask)
           -> Node* { return m.Word32And(m.Int32Constant(mask), x); },
       "if (mask and x)", kArm64TestAndBranch32, MachineType::Int32()},
      kNotEqual},
-    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
-         uint32_t mask) -> Node* {
-        return m.Word32BinaryNot(m.Word32And(m.Int32Constant(mask), x));
-      },
-      "if not (mask and x)", kArm64TestAndBranch32, MachineType::Int32()},
-     kEqual},
     // Branch on the result of '(x and mask) == mask'. This tests that a bit is
     // set rather than cleared which is why conditions are inverted.
     {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
@@ -1193,25 +1181,11 @@ const TestAndBranch kTestAndBranchMatchers32[] = {
      kNotEqual},
     {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
          uint32_t mask) -> Node* {
-        return m.Word32BinaryNot(m.Word32Equal(
-            m.Word32And(x, m.Int32Constant(mask)), m.Int32Constant(mask)));
-      },
-      "if ((x and mask) != mask)", kArm64TestAndBranch32, MachineType::Int32()},
-     kEqual},
-    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
-         uint32_t mask) -> Node* {
         return m.Word32Equal(m.Int32Constant(mask),
                              m.Word32And(x, m.Int32Constant(mask)));
       },
       "if (mask == (x and mask))", kArm64TestAndBranch32, MachineType::Int32()},
      kNotEqual},
-    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
-         uint32_t mask) -> Node* {
-        return m.Word32BinaryNot(m.Word32Equal(
-            m.Int32Constant(mask), m.Word32And(x, m.Int32Constant(mask))));
-      },
-      "if (mask != (x and mask))", kArm64TestAndBranch32, MachineType::Int32()},
-     kEqual},
     // Same as above but swap 'mask' and 'x'.
     {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
          uint32_t mask) -> Node* {
@@ -1222,25 +1196,11 @@ const TestAndBranch kTestAndBranchMatchers32[] = {
      kNotEqual},
     {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
          uint32_t mask) -> Node* {
-        return m.Word32BinaryNot(m.Word32Equal(
-            m.Word32And(m.Int32Constant(mask), x), m.Int32Constant(mask)));
-      },
-      "if ((mask and x) != mask)", kArm64TestAndBranch32, MachineType::Int32()},
-     kEqual},
-    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
-         uint32_t mask) -> Node* {
         return m.Word32Equal(m.Int32Constant(mask),
                              m.Word32And(m.Int32Constant(mask), x));
       },
       "if (mask == (mask and x))", kArm64TestAndBranch32, MachineType::Int32()},
-     kNotEqual},
-    {{[](InstructionSelectorTest::StreamBuilder& m, Node* x,
-         uint32_t mask) -> Node* {
-        return m.Word32BinaryNot(m.Word32Equal(
-            m.Int32Constant(mask), m.Word32And(m.Int32Constant(mask), x)));
-      },
-      "if (mask != (mask and x))", kArm64TestAndBranch32, MachineType::Int32()},
-     kEqual}};
+     kNotEqual}};
 
 using InstructionSelectorTestAndBranchTest =
     InstructionSelectorTestWithParam<TestAndBranch>;
@@ -1466,30 +1426,7 @@ TEST_F(InstructionSelectorTest, Word32EqualZeroAndBranchWithOneBitMask) {
     uint32_t mask = 1 << bit;
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     RawMachineLabel a, b;
-    m.Branch(m.Word32Equal(m.Word32And(m.Int32Constant(mask), m.Parameter(0)),
-                           m.Int32Constant(0)),
-             &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64TestAndBranch32, s[0]->arch_opcode());
-    EXPECT_EQ(kEqual, s[0]->flags_condition());
-    EXPECT_EQ(4U, s[0]->InputCount());
-    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(bit, s.ToInt32(s[0]->InputAt(1)));
-  }
-
-  TRACED_FORRANGE(int, bit, 0, 31) {
-    uint32_t mask = 1 << bit;
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
-    m.Branch(
-        m.Word32NotEqual(m.Word32And(m.Int32Constant(mask), m.Parameter(0)),
-                         m.Int32Constant(0)),
-        &a, &b);
+    m.Branch(m.Word32And(m.Int32Constant(mask), m.Parameter(0)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
     m.Bind(&b);
@@ -1520,27 +1457,6 @@ TEST_F(InstructionSelectorTest, Word64EqualZeroAndBranchWithOneBitMask) {
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());
-    EXPECT_EQ(4U, s[0]->InputCount());
-    EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-    EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
-  }
-
-  TRACED_FORRANGE(int, bit, 0, 63) {
-    uint64_t mask = uint64_t{1} << bit;
-    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
-    RawMachineLabel a, b;
-    m.Branch(
-        m.Word64NotEqual(m.Word64And(m.Int64Constant(mask), m.Parameter(0)),
-                         m.Int64Constant(0)),
-        &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int64Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int64Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64TestAndBranch, s[0]->arch_opcode());
-    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
     EXPECT_EQ(4U, s[0]->InputCount());
     EXPECT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
     EXPECT_EQ(bit, s.ToInt64(s[0]->InputAt(1)));
@@ -1584,73 +1500,20 @@ TEST_F(InstructionSelectorTest, CompareAgainstZeroAndBranch) {
 }
 
 TEST_F(InstructionSelectorTest, EqualZeroAndBranch) {
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
-    Node* p0 = m.Parameter(0);
-    m.Branch(m.Word32Equal(p0, m.Int32Constant(0)), &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64CompareAndBranch32, s[0]->arch_opcode());
-    EXPECT_EQ(kEqual, s[0]->flags_condition());
-    EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  }
-
-  {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    RawMachineLabel a, b;
-    Node* p0 = m.Parameter(0);
-    m.Branch(m.Word32NotEqual(p0, m.Int32Constant(0)), &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int32Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int32Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64CompareAndBranch32, s[0]->arch_opcode());
-    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-    EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  }
-
-  {
-    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
-    RawMachineLabel a, b;
-    Node* p0 = m.Parameter(0);
-    m.Branch(m.Word64Equal(p0, m.Int64Constant(0)), &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int64Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int64Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64CompareAndBranch, s[0]->arch_opcode());
-    EXPECT_EQ(kEqual, s[0]->flags_condition());
-    EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  }
-
-  {
-    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
-    RawMachineLabel a, b;
-    Node* p0 = m.Parameter(0);
-    m.Branch(m.Word64NotEqual(p0, m.Int64Constant(0)), &a, &b);
-    m.Bind(&a);
-    m.Return(m.Int64Constant(1));
-    m.Bind(&b);
-    m.Return(m.Int64Constant(0));
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArm64CompareAndBranch, s[0]->arch_opcode());
-    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
-    EXPECT_EQ(3U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-  }
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+  RawMachineLabel a, b;
+  Node* p0 = m.Parameter(0);
+  m.Branch(m.Word64Equal(p0, m.Int64Constant(0)), &a, &b);
+  m.Bind(&a);
+  m.Return(m.Int64Constant(1));
+  m.Bind(&b);
+  m.Return(m.Int64Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64CompareAndBranch, s[0]->arch_opcode());
+  EXPECT_EQ(kEqual, s[0]->flags_condition());
+  EXPECT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
 }
 
 // -----------------------------------------------------------------------------
@@ -4632,7 +4495,16 @@ TEST_F(InstructionSelectorTest, CompareAgainstZero32) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const param = m.Parameter(0);
     RawMachineLabel a, b;
-    m.Branch((m.*cmp.mi.constructor)(param, m.Int32Constant(0)), &a, &b);
+    if (cmp.mi.constructor_name == std::string("Word32Equal")) {
+      // This case is inverted in an earlier reducer.
+      continue;
+    }
+    if (cmp.mi.constructor_name == std::string("Word32NotEqual")) {
+      // Simulate the result of an earlier reduction.
+      m.Branch(param, &a, &b);
+    } else {
+      m.Branch((m.*cmp.mi.constructor)(param, m.Int32Constant(0)), &a, &b);
+    }
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
     m.Bind(&b);
@@ -4660,6 +4532,11 @@ TEST_F(InstructionSelectorTest, CompareAgainstZero64) {
     StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
     Node* const param = m.Parameter(0);
     RawMachineLabel a, b;
+    if (cmp.mi.constructor_name == std::string("Word64NotEqual")) {
+      // This case is inverted in an earlier reducer, making it equivalent to
+      // Word64Equal.
+      continue;
+    }
     m.Branch((m.*cmp.mi.constructor)(param, m.Int64Constant(0)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int64Constant(1));

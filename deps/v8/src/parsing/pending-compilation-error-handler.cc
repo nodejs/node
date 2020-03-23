@@ -16,7 +16,7 @@ namespace internal {
 
 Handle<String> PendingCompilationErrorHandler::MessageDetails::ArgumentString(
     Isolate* isolate) const {
-  if (arg_ != nullptr) return arg_->string().get<Factory>();
+  if (arg_ != nullptr) return arg_->string();
   if (char_arg_ != nullptr) {
     return isolate->factory()
         ->NewStringFromUtf8(CStrVector(char_arg_))
@@ -75,6 +75,12 @@ void PendingCompilationErrorHandler::ReportWarnings(Isolate* isolate,
   }
 }
 
+void PendingCompilationErrorHandler::ReportWarnings(OffThreadIsolate* isolate,
+                                                    Handle<Script> script) {
+  // TODO(leszeks): Do nothing, re-report on the main thread.
+  UNREACHABLE();
+}
+
 void PendingCompilationErrorHandler::ReportErrors(
     Isolate* isolate, Handle<Script> script,
     AstValueFactory* ast_value_factory) {
@@ -83,7 +89,7 @@ void PendingCompilationErrorHandler::ReportErrors(
   } else {
     DCHECK(has_pending_error());
     // Internalize ast values for throwing the pending error.
-    ast_value_factory->Internalize(isolate->factory());
+    ast_value_factory->Internalize(isolate);
     ThrowPendingError(isolate, script);
   }
 }

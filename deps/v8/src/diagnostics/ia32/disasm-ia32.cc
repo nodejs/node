@@ -781,6 +781,7 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     break;                                                                     \
   }
 
+        SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSE_AVX_RM_DIS_CASE)
         SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE_AVX_RM_DIS_CASE)
 #undef DECLARE_SSE_AVX_RM_DIS_CASE
       default:
@@ -2100,6 +2101,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   }
 
               SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
+              SSSE3_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
               SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
               SSE4_RM_INSTRUCTION_LIST(SSE34_DIS_CASE)
 #undef SSE34_DIS_CASE

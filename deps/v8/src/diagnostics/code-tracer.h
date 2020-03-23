@@ -52,6 +52,9 @@ class CodeTracer final : public Malloced {
 
     if (file_ == nullptr) {
       file_ = base::OS::FOpen(filename_.begin(), "ab");
+      CHECK_WITH_MSG(file_ != nullptr,
+                     "could not open file. If on Android, try passing "
+                     "--redirect-code-traces-to=/sdcard/Download/<file-name>");
     }
 
     scope_depth_++;
@@ -63,6 +66,7 @@ class CodeTracer final : public Malloced {
     }
 
     if (--scope_depth_ == 0) {
+      DCHECK_NOT_NULL(file_);
       fclose(file_);
       file_ = nullptr;
     }

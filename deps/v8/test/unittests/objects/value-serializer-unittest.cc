@@ -235,8 +235,7 @@ class ValueSerializerTest : public TestWithIsolate {
   }
 
   Local<String> StringFromUtf8(const char* source) {
-    return String::NewFromUtf8(isolate(), source, NewStringType::kNormal)
-        .ToLocalChecked();
+    return String::NewFromUtf8(isolate(), source).ToLocalChecked();
   }
 
   std::string Utf8Value(Local<Value> value) {
@@ -2500,10 +2499,8 @@ class ValueSerializerTestWithWasm : public ValueSerializerTest {
     Maybe<uint32_t> GetWasmModuleTransferId(
         Isolate* isolate, Local<WasmModuleObject> module) override {
       isolate->ThrowException(Exception::Error(
-          String::NewFromOneByte(
-              isolate,
-              reinterpret_cast<const uint8_t*>(kUnsupportedSerialization),
-              NewStringType::kNormal)
+          String::NewFromOneByte(isolate, reinterpret_cast<const uint8_t*>(
+                                              kUnsupportedSerialization))
               .ToLocalChecked()));
       return Nothing<uint32_t>();
     }

@@ -1,0 +1,148 @@
+Test static private class methods
+
+Running test: testScopesPaused
+privateProperties on the base class
+[
+    [0] : {
+        name : #writeOnly
+        set : {
+            className : Function
+            description : set #writeOnly(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [1] : {
+        get : {
+            className : Function
+            description : get #readOnly() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #readOnly
+    }
+    [2] : {
+        get : {
+            className : Function
+            description : get #accessor() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #accessor
+        set : {
+            className : Function
+            description : set #accessor(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [3] : {
+        name : #inc
+        value : {
+            className : Function
+            description : #inc() { return ++A.#accessor; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [4] : {
+        name : #field
+        value : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+]
+Evaluating A.#inc();
+{
+    result : {
+        description : 3
+        type : number
+        value : 3
+    }
+}
+Evaluating this.#inc();
+{
+    result : {
+        description : 4
+        type : number
+        value : 4
+    }
+}
+Evaluating ++this.#accessor;
+{
+    result : {
+        description : 5
+        type : number
+        value : 5
+    }
+}
+Evaluating this.#readOnly;
+{
+    result : {
+        description : 5
+        type : number
+        value : 5
+    }
+}
+Evaluating this.#writeOnly = 0; this.#field;
+{
+    result : {
+        description : 0
+        type : number
+        value : 0
+    }
+}
+privateProperties on the subclass
+[
+    [0] : {
+        get : {
+            className : Function
+            description : get #accessor() { return 'subclassAccessor'; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #accessor
+    }
+    [1] : {
+        name : #subclassMethod
+        value : {
+            className : Function
+            description : #subclassMethod() { return B.#accessor; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+]
+Evaluating this.#inc(); from the base class
+{
+    exceptionDetails : {
+        columnNumber : 4
+        exception : {
+            className : SyntaxError
+            description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at Function.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+        exceptionId : <exceptionId>
+        lineNumber : 0
+        scriptId : <scriptId>
+        text : Uncaught
+    }
+    result : {
+        className : SyntaxError
+        description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at Function.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+Evaluating this.#subclassMethod();
+{
+    result : {
+        type : string
+        value : subclassAccessor
+    }
+}

@@ -13,6 +13,8 @@ namespace internal {
 class HeapNumber;
 class BigInt;
 class Object;
+class Smi;
+class TaggedIndex;
 
 namespace compiler {
 
@@ -129,6 +131,10 @@ struct MachineTypeOf<MaybeObject> {
 template <>
 struct MachineTypeOf<Smi> {
   static constexpr MachineType value = MachineType::TaggedSigned();
+};
+template <>
+struct MachineTypeOf<TaggedIndex> {
+  static constexpr MachineType value = MachineType::Pointer();
 };
 template <class HeapObjectSubtype>
 struct MachineTypeOf<HeapObjectSubtype,

@@ -591,6 +591,80 @@ TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));
 }
 
+#ifdef USE_SIMULATOR
+// TODO(v8:10026): Make this also work without the simulator. The part that
+// needs modifications is getting the RegisterState.
+class UnwinderTestHelper {
+ public:
+  explicit UnwinderTestHelper(const std::string& test_function)
+      : isolate_(CcTest::isolate()) {
+    CHECK(!instance_);
+    instance_ = this;
+    v8::HandleScope scope(isolate_);
+    v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);
+    global->Set(v8_str("TryUnwind"),
+                v8::FunctionTemplate::New(isolate_, TryUnwind));
+    LocalContext env(isolate_, nullptr, global);
+    CompileRun(v8_str(test_function.c_str()));
+  }
+
+  ~UnwinderTestHelper() { instance_ = nullptr; }
+
+ private:
+  static void TryUnwind(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    instance_->DoTryUnwind();
+  }
+
+  void DoTryUnwind() {
+    // Set up RegisterState.
+    v8::RegisterState register_state;
+    SimulatorHelper simulator_helper;
+    if (!simulator_helper.Init(isolate_)) return;
+    simulator_helper.FillRegisters(&register_state);
+    // At this point, the PC will point to a Redirection object, which is not
+    // in V8 as far as the unwinder is concerned. To make this work, point to
+    // the return address, which is in V8, instead.
+    register_state.pc = register_state.lr;
+
+    JSEntryStubs entry_stubs = isolate_->GetJSEntryStubs();
+    MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
+    size_t pages_length =
+        isolate_->CopyCodePages(arraysize(code_pages), code_pages);
+    CHECK_LE(pages_length, arraysize(code_pages));
+
+    void* stack_base = reinterpret_cast<void*>(0xffffffffffffffffL);
+    bool unwound = v8::Unwinder::TryUnwindV8Frames(
+        entry_stubs, pages_length, code_pages, &register_state, stack_base);
+    // Check that we have successfully unwound past js_entry_sp.
+    CHECK(unwound);
+    CHECK_GT(register_state.sp,
+             reinterpret_cast<void*>(CcTest::i_isolate()->js_entry_sp()));
+  }
+
+  v8::Isolate* isolate_;
+
+  static UnwinderTestHelper* instance_;
+};
+
+UnwinderTestHelper* UnwinderTestHelper::instance_;
+
+TEST(Unwind_TwoNestedFunctions_CodePagesAPI) {
+  i::FLAG_allow_natives_syntax = true;
+  const char* test_script =
+      "function test_unwinder_api_inner() {"
+      "  TryUnwind();"
+      "  return 0;"
+      "}"
+      "function test_unwinder_api_outer() {"
+      "  return test_unwinder_api_inner();"
+      "}"
+      "%NeverOptimizeFunction(test_unwinder_api_inner);"
+      "%NeverOptimizeFunction(test_unwinder_api_outer);"
+      "test_unwinder_api_outer();";
+
+  UnwinderTestHelper helper(test_script);
+}
+#endif
 }  // namespace test_unwinder_code_pages
 }  // namespace internal
 }  // namespace v8

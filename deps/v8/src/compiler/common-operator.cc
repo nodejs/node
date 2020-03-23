@@ -257,7 +257,8 @@ size_t hash_value(RelocatablePtrConstantInfo const& p) {
 
 std::ostream& operator<<(std::ostream& os,
                          RelocatablePtrConstantInfo const& p) {
-  return os << p.value() << ", " << p.rmode() << ", " << p.type();
+  return os << p.value() << ", " << static_cast<int>(p.rmode()) << ", "
+            << p.type();
 }
 
 SparseInputMask::InputIterator::InputIterator(
@@ -279,6 +280,15 @@ void SparseInputMask::InputIterator::Advance() {
     ++real_index_;
   }
   bit_mask_ >>= 1;
+}
+
+size_t SparseInputMask::InputIterator::AdvanceToNextRealOrEnd() {
+  DCHECK_NE(bit_mask_, SparseInputMask::kDenseBitMask);
+
+  size_t count = base::bits::CountTrailingZeros(bit_mask_);
+  bit_mask_ >>= count;
+  DCHECK(IsReal() || IsEnd());
+  return count;
 }
 
 Node* SparseInputMask::InputIterator::GetReal() const {
@@ -454,8 +464,6 @@ IfValueParameters const& IfValueParametersOf(const Operator* op) {
   V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)                        \
   V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                              \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                          \
-  V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)                    \
-  V(OsrLoopEntry, Operator::kFoldable | Operator::kNoThrow, 0, 1, 1, 0, 1, 1) \
   V(LoopExit, Operator::kKontrol, 0, 0, 2, 0, 0, 1)                           \
   V(LoopExitValue, Operator::kPure, 1, 0, 1, 1, 0, 0)                         \
   V(LoopExitEffect, Operator::kNoThrow, 0, 1, 1, 0, 1, 0)                     \
@@ -1159,6 +1167,13 @@ const Operator* CommonOperatorBuilder::Int64Constant(int64_t value) {
       value);                                     // parameter
 }
 
+const Operator* CommonOperatorBuilder::TaggedIndexConstant(int32_t value) {
+  return new (zone()) Operator1<int32_t>(               // --
+      IrOpcode::kTaggedIndexConstant, Operator::kPure,  // opcode
+      "TaggedIndexConstant",                            // name
+      0, 0, 0, 1, 0, 0,                                 // counts
+      value);                                           // parameter
+}
 
 const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
   return new (zone()) Operator1<float>(             // --
@@ -1293,6 +1308,13 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
       "TypeGuard",                            // name
       1, 1, 1, 1, 1, 0,                       // counts
       type);                                  // parameter
+}
+
+const Operator* CommonOperatorBuilder::FoldConstant() {
+  return new (zone()) Operator(                  // --
+      IrOpcode::kFoldConstant, Operator::kPure,  // opcode
+      "FoldConstant",                            // name
+      2, 0, 0, 1, 0, 0);                         // counts
 }
 
 const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {

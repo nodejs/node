@@ -180,20 +180,22 @@ struct Tests {
     // Constructor
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
-      Type type = T.NewConstant(value);
-      CHECK(type.IsHeapConstant() || type.IsOtherNumberConstant() ||
-            type.IsRange());
+      Type type = T.Constant(value);
+      CHECK(type.IsBitset() || type.IsHeapConstant() ||
+            type.IsOtherNumberConstant() || type.IsRange());
     }
 
     // Value attribute
     for (ValueIterator vt = T.values.begin(); vt != T.values.end(); ++vt) {
       Handle<i::Object> value = *vt;
-      Type type = T.NewConstant(value);
+      Type type = T.Constant(value);
       if (type.IsHeapConstant()) {
         CHECK(value.address() == type.AsHeapConstant()->Value().address());
       } else if (type.IsOtherNumberConstant()) {
         CHECK(value->IsHeapNumber());
         CHECK(value->Number() == type.AsOtherNumberConstant()->Value());
+      } else if (type.IsBitset()) {
+        CHECK(type.IsSingleton());
       } else {
         CHECK(type.IsRange());
         double v = value->Number();
@@ -206,8 +208,8 @@ struct Tests {
       for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
         Handle<i::Object> value1 = *vt1;
         Handle<i::Object> value2 = *vt2;
-        Type type1 = T.NewConstant(value1);
-        Type type2 = T.NewConstant(value2);
+        Type type1 = T.Constant(value1);
+        Type type2 = T.Constant(value2);
         if (type1.IsOtherNumberConstant() && type2.IsOtherNumberConstant()) {
           CHECK(Equal(type1, type2) ==
                 (type1.AsOtherNumberConstant()->Value() ==
@@ -224,62 +226,70 @@ struct Tests {
 
     // Typing of numbers
     Factory* fac = isolate->factory();
-    CHECK(T.NewConstant(fac->NewNumber(0)).Is(T.UnsignedSmall));
-    CHECK(T.NewConstant(fac->NewNumber(1)).Is(T.UnsignedSmall));
-    CHECK(T.NewConstant(fac->NewNumber(0x3FFFFFFF)).Is(T.UnsignedSmall));
-    CHECK(T.NewConstant(fac->NewNumber(-1)).Is(T.Negative31));
-    CHECK(T.NewConstant(fac->NewNumber(-0x3FFFFFFF)).Is(T.Negative31));
-    CHECK(T.NewConstant(fac->NewNumber(-0x40000000)).Is(T.Negative31));
-    CHECK(T.NewConstant(fac->NewNumber(0x40000000)).Is(T.Unsigned31));
-    CHECK(!T.NewConstant(fac->NewNumber(0x40000000)).Is(T.Unsigned30));
-    CHECK(T.NewConstant(fac->NewNumber(0x7FFFFFFF)).Is(T.Unsigned31));
-    CHECK(!T.NewConstant(fac->NewNumber(0x7FFFFFFF)).Is(T.Unsigned30));
-    CHECK(T.NewConstant(fac->NewNumber(-0x40000001)).Is(T.Negative32));
-    CHECK(!T.NewConstant(fac->NewNumber(-0x40000001)).Is(T.Negative31));
-    CHECK(T.NewConstant(fac->NewNumber(-0x7FFFFFFF)).Is(T.Negative32));
-    CHECK(!T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 1)).Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(0)).Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(1)).Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(42)).Equals(T.Range(42, 42)));
+    CHECK(T.Constant(fac->NewNumber(0x3FFFFFFF)).Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-1)).Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(-0x3FFFFFFF)).Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(-0x40000000)).Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(0x40000000)).Is(T.Unsigned31));
+    CHECK(!T.Constant(fac->NewNumber(0x40000000)).Is(T.Unsigned30));
+    CHECK(T.Constant(fac->NewNumber(0x7FFFFFFF)).Is(T.Unsigned31));
+    CHECK(!T.Constant(fac->NewNumber(0x7FFFFFFF)).Is(T.Unsigned30));
+    CHECK(T.Constant(fac->NewNumber(-0x40000001)).Is(T.Negative32));
+    CHECK(!T.Constant(fac->NewNumber(-0x40000001)).Is(T.Negative31));
+    CHECK(T.Constant(fac->NewNumber(-0x7FFFFFFF)).Is(T.Negative32));
+    CHECK(!T.Constant(fac->NewNumber(-0x7FFFFFFF - 1)).Is(T.Negative31));
     if (SmiValuesAre31Bits()) {
-      CHECK(!T.NewConstant(fac->NewNumber(0x40000000)).Is(T.UnsignedSmall));
-      CHECK(!T.NewConstant(fac->NewNumber(0x7FFFFFFF)).Is(T.UnsignedSmall));
-      CHECK(!T.NewConstant(fac->NewNumber(-0x40000001)).Is(T.SignedSmall));
-      CHECK(!T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 1)).Is(T.SignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(0x40000000)).Is(T.UnsignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(0x7FFFFFFF)).Is(T.UnsignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(-0x40000001)).Is(T.SignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(-0x7FFFFFFF - 1)).Is(T.SignedSmall));
     } else {
       CHECK(SmiValuesAre32Bits());
-      CHECK(T.NewConstant(fac->NewNumber(0x40000000)).Is(T.UnsignedSmall));
-      CHECK(T.NewConstant(fac->NewNumber(0x7FFFFFFF)).Is(T.UnsignedSmall));
-      CHECK(T.NewConstant(fac->NewNumber(-0x40000001)).Is(T.SignedSmall));
-      CHECK(T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 1)).Is(T.SignedSmall));
+      CHECK(T.Constant(fac->NewNumber(0x40000000)).Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(0x7FFFFFFF)).Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001)).Is(T.SignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7FFFFFFF - 1)).Is(T.SignedSmall));
     }
-    CHECK(T.NewConstant(fac->NewNumber(0x80000000u)).Is(T.Unsigned32));
-    CHECK(!T.NewConstant(fac->NewNumber(0x80000000u)).Is(T.Unsigned31));
-    CHECK(T.NewConstant(fac->NewNumber(0xFFFFFFFFu)).Is(T.Unsigned32));
-    CHECK(!T.NewConstant(fac->NewNumber(0xFFFFFFFFu)).Is(T.Unsigned31));
-    CHECK(T.NewConstant(fac->NewNumber(0xFFFFFFFFu + 1.0)).Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(0xFFFFFFFFu + 1.0)).Is(T.Integral32));
-    CHECK(T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 2.0)).Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(-0x7FFFFFFF - 2.0)).Is(T.Integral32));
-    CHECK(T.NewConstant(fac->NewNumber(0.1)).Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(0.1)).Is(T.Integral32));
-    CHECK(T.NewConstant(fac->NewNumber(-10.1)).Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(-10.1)).Is(T.Integral32));
-    CHECK(T.NewConstant(fac->NewNumber(10e60)).Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(10e60)).Is(T.Integral32));
-    CHECK(T.NewConstant(fac->NewNumber(-1.0 * 0.0)).Is(T.MinusZero));
-    CHECK(
-        T.NewConstant(fac->NewNumber(std::numeric_limits<double>::quiet_NaN()))
-            .Is(T.NaN));
-    CHECK(T.NewConstant(fac->NewNumber(V8_INFINITY)).Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(V8_INFINITY)).Is(T.Integral32));
-    CHECK(T.NewConstant(fac->NewNumber(-V8_INFINITY)).Is(T.PlainNumber));
-    CHECK(!T.NewConstant(fac->NewNumber(-V8_INFINITY)).Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(0x80000000u)).Is(T.Unsigned32));
+    CHECK(!T.Constant(fac->NewNumber(0x80000000u)).Is(T.Unsigned31));
+    CHECK(T.Constant(fac->NewNumber(0xFFFFFFFFu)).Is(T.Unsigned32));
+    CHECK(!T.Constant(fac->NewNumber(0xFFFFFFFFu)).Is(T.Unsigned31));
+    CHECK(T.Constant(fac->NewNumber(0xFFFFFFFFu + 1.0)).Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(0xFFFFFFFFu + 1.0)).Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-0x7FFFFFFF - 2.0)).Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-0x7FFFFFFF - 2.0)).Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(0.1)).Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(0.1)).Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-10.1)).Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-10.1)).Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(10e60)).Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(10e60)).Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-1.0 * 0.0)).Is(T.MinusZero));
+    CHECK(T.Constant(fac->NewNumber(V8_INFINITY)).Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(V8_INFINITY)).Is(T.Integral32));
+    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY)).Is(T.PlainNumber));
+    CHECK(!T.Constant(fac->NewNumber(-V8_INFINITY)).Is(T.Integral32));
 
     // Typing of Strings
     Handle<String> s1 = fac->NewStringFromAsciiChecked("a");
-    CHECK(T.NewConstant(s1).Is(T.InternalizedString));
+    CHECK(T.Constant(s1).Is(T.InternalizedString));
     const uc16 two_byte[1] = {0x2603};
     Handle<String> s2 =
         fac->NewTwoByteInternalizedString(Vector<const uc16>(two_byte, 1), 1);
-    CHECK(T.NewConstant(s2).Is(T.InternalizedString));
+    CHECK(T.Constant(s2).Is(T.InternalizedString));
+
+    // Typing of special constants
+    CHECK(T.Constant(fac->the_hole_value()).Equals(T.Hole));
+    CHECK(T.Constant(fac->null_value()).Equals(T.Null));
+    CHECK(T.Constant(fac->undefined_value()).Equals(T.Undefined));
+    CHECK(T.Constant(fac->minus_zero_value()).Equals(T.MinusZero));
+    CHECK(T.Constant(fac->NewNumber(-0.0)).Equals(T.MinusZero));
+    CHECK(T.Constant(fac->nan_value()).Equals(T.NaN));
+    CHECK(T.Constant(fac->NewNumber(std::numeric_limits<double>::quiet_NaN()))
+              .Equals(T.NaN));
   }
 
   void Range() {
@@ -545,8 +555,8 @@ struct Tests {
       for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
         Handle<i::Object> value1 = *vt1;
         Handle<i::Object> value2 = *vt2;
-        Type const_type1 = T.NewConstant(value1);
-        Type const_type2 = T.NewConstant(value2);
+        Type const_type1 = T.Constant(value1);
+        Type const_type2 = T.Constant(value2);
         if (const_type1.IsOtherNumberConstant() &&
             const_type2.IsOtherNumberConstant()) {
           CHECK(const_type1.Is(const_type2) ==
@@ -686,8 +696,8 @@ struct Tests {
       for (ValueIterator vt2 = T.values.begin(); vt2 != T.values.end(); ++vt2) {
         Handle<i::Object> value1 = *vt1;
         Handle<i::Object> value2 = *vt2;
-        Type const_type1 = T.NewConstant(value1);
-        Type const_type2 = T.NewConstant(value2);
+        Type const_type1 = T.Constant(value1);
+        Type const_type2 = T.Constant(value2);
         if (const_type1.IsOtherNumberConstant() &&
             const_type2.IsOtherNumberConstant()) {
           CHECK(const_type1.Maybe(const_type2) ==
@@ -1045,37 +1055,21 @@ struct Tests {
 }  // namespace
 
 TEST(IsSomeType) { Tests().IsSomeType(); }
-
 TEST(BitsetType) { Tests().Bitset(); }
-
 TEST(ConstantType) { Tests().Constant(); }
-
 TEST(RangeType) { Tests().Range(); }
-
 TEST(MinMax) { Tests().MinMax(); }
-
 TEST(BitsetGlb) { Tests().BitsetGlb(); }
-
 TEST(BitsetLub) { Tests().BitsetLub(); }
-
 TEST(Is1) { Tests().Is1(); }
-
 TEST(Is2) { Tests().Is2(); }
-
 TEST(Maybe) { Tests().Maybe(); }
-
 TEST(Union1) { Tests().Union1(); }
-
 TEST(Union2) { Tests().Union2(); }
-
 TEST(Union3) { Tests().Union3(); }
-
 TEST(Union4) { Tests().Union4(); }
-
 TEST(Intersect) { Tests().Intersect(); }
-
 TEST(Distributivity) { Tests().Distributivity(); }
-
 TEST(GetRange) { Tests().GetRange(); }
 
 }  // namespace compiler

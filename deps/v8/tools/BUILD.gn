@@ -14,25 +14,23 @@ group("gn_all") {
     "gcmole:v8_run_gcmole",
     "jsfunfuzz:v8_jsfunfuzz",
   ]
+
+  if (is_win) {
+    data_deps += [ "v8windbg" ]
+  }
 }
 
 group("v8_check_static_initializers") {
-  data_deps = [
-    "..:d8",
-  ]
+  data_deps = [ "..:d8" ]
 
-  data = [
-    "check-static-initializers.sh",
-  ]
+  data = [ "check-static-initializers.sh" ]
 }
 
 group("v8_android_test_runner_deps") {
   testonly = true
 
   if (is_android && !build_with_chromium) {
-    data_deps = [
-      "//build/android:test_runner_py",
-    ]
+    data_deps = [ "//build/android:test_runner_py" ]
     data = [
       # This is used by android.py, but not included by test_runner_py above.
       "//third_party/catapult/devil/devil/android/perf/",
@@ -44,9 +42,9 @@ group("v8_testrunner") {
   testonly = true
 
   data_deps = [
-    "..:v8_python_base",
-    "..:v8_dump_build_config",
     ":v8_android_test_runner_deps",
+    "..:v8_dump_build_config",
+    "..:v8_python_base",
   ]
 
   data = [

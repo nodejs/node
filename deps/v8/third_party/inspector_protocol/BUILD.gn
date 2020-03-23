@@ -14,7 +14,12 @@ v8_source_set("crdtp") {
   sources = [
     "crdtp/cbor.cc",
     "crdtp/cbor.h",
+    "crdtp/dispatch.cc",
+    "crdtp/dispatch.h",
+    "crdtp/error_support.cc",
+    "crdtp/error_support.h",
     "crdtp/export.h",
+    "crdtp/find_by_first.h",
     "crdtp/glue.h",
     "crdtp/json.cc",
     "crdtp/json.h",
@@ -22,14 +27,13 @@ v8_source_set("crdtp") {
     "crdtp/serializable.cc",
     "crdtp/serializable.h",
     "crdtp/serializer_traits.h",
+    "crdtp/span.cc",
     "crdtp/span.h",
     "crdtp/status.cc",
     "crdtp/status.h",
   ]
   configs = [ ":crdtp_config" ]
-  deps = [
-    ":crdtp_platform",
-  ]
+  deps = [ ":crdtp_platform" ]
 }
 
 # A small adapter library which only :crdtp may depend on.
@@ -39,9 +43,7 @@ v8_source_set("crdtp_platform") {
     "crdtp/json_platform.h",
     "crdtp/json_platform_v8.cc",
   ]
-  public_deps = [
-    "../..:v8_libbase",
-  ]
+  public_deps = [ "../..:v8_libbase" ]
   configs = [ ":crdtp_config" ]
 }
 
@@ -49,6 +51,9 @@ v8_source_set("crdtp_platform") {
 v8_source_set("crdtp_test") {
   sources = [
     "crdtp/cbor_test.cc",
+    "crdtp/dispatch_test.cc",
+    "crdtp/error_support_test.cc",
+    "crdtp/find_by_first_test.cc",
     "crdtp/glue_test.cc",
     "crdtp/json_test.cc",
     "crdtp/serializable_test.cc",
@@ -59,9 +64,7 @@ v8_source_set("crdtp_test") {
     "crdtp/status_test_support.h",
   ]
   configs = [ ":crdtp_config" ]
-  deps = [
-    ":crdtp_test_platform",
-  ]
+  deps = [ ":crdtp_test_platform" ]
   testonly = true
 }
 

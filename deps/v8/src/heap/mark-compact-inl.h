@@ -205,8 +205,11 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject black_object = HeapObject::FromAddress(addr);
-        map = Map::cast(ObjectSlot(addr).Acquire_Load());
+        Object map_object = ObjectSlot(addr).Acquire_Load();
+        CHECK(map_object.IsMap());
+        map = Map::cast(map_object);
         size = black_object.SizeFromMap(map);
+        CHECK_LE(addr + size, chunk_->area_end());
         Address end = addr + size - kTaggedSize;
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
@@ -232,9 +235,12 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
           object = black_object;
         }
       } else if ((mode == kGreyObjects || mode == kAllLiveObjects)) {
-        map = Map::cast(ObjectSlot(addr).Acquire_Load());
+        Object map_object = ObjectSlot(addr).Acquire_Load();
+        CHECK(map_object.IsMap());
+        map = Map::cast(map_object);
         object = HeapObject::FromAddress(addr);
         size = object.SizeFromMap(map);
+        CHECK_LE(addr + size, chunk_->area_end());
       }
 
       // We found a live object.

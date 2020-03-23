@@ -29,7 +29,7 @@ size_t LocalDeclEncoder::Emit(byte* buffer) const {
   LEBHelper::write_u32v(&pos, static_cast<uint32_t>(local_decls.size()));
   for (auto& local_decl : local_decls) {
     LEBHelper::write_u32v(&pos, local_decl.first);
-    *pos = ValueTypes::ValueTypeCodeFor(local_decl.second);
+    *pos = local_decl.second.value_type_code();
     ++pos;
   }
   DCHECK_EQ(Size(), pos - buffer);

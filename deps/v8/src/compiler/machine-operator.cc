@@ -389,6 +389,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(I32x4MaxU, Operator::kCommutative, 2, 0, 1)                            \
   V(I32x4GtU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I32x4GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x4Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I32x4BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
@@ -419,6 +421,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(I16x8GtU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I16x8GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I16x8RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
+  V(I16x8Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I16x8BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \
@@ -444,6 +448,8 @@ MachineType AtomicOpType(Operator const* op) {
   V(I8x16GtU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I8x16GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(I8x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
+  V(I8x16Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I8x16BitMask, Operator::kNoProperties, 1, 0, 1)                        \
   V(S128Load, Operator::kNoProperties, 2, 0, 1)                            \
   V(S128Store, Operator::kNoProperties, 3, 0, 1)                           \
   V(S128Zero, Operator::kNoProperties, 0, 0, 1)                            \
@@ -614,56 +620,52 @@ struct MachineOperatorGlobalCache {
   OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
-#define LOAD(Type)                                                            \
-  struct Load##Type##Operator final : public Operator1<LoadRepresentation> {  \
-    Load##Type##Operator()                                                    \
-        : Operator1<LoadRepresentation>(                                      \
-              IrOpcode::kLoad,                                                \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
-              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}               \
-  };                                                                          \
-  struct PoisonedLoad##Type##Operator final                                   \
-      : public Operator1<LoadRepresentation> {                                \
-    PoisonedLoad##Type##Operator()                                            \
-        : Operator1<LoadRepresentation>(                                      \
-              IrOpcode::kPoisonedLoad,                                        \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
-              "PoisonedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
-  };                                                                          \
-  struct UnalignedLoad##Type##Operator final                                  \
-      : public Operator1<LoadRepresentation> {                                \
-    UnalignedLoad##Type##Operator()                                           \
-        : Operator1<LoadRepresentation>(                                      \
-              IrOpcode::kUnalignedLoad,                                       \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
-              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}      \
-  };                                                                          \
-  struct ProtectedLoad##Type##Operator final                                  \
-      : public Operator1<LoadRepresentation> {                                \
-    ProtectedLoad##Type##Operator()                                           \
-        : Operator1<LoadRepresentation>(                                      \
-              IrOpcode::kProtectedLoad,                                       \
-              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 2, 1, \
-              1, 1, 1, 0, MachineType::Type()) {}                             \
-  };                                                                          \
-  Load##Type##Operator kLoad##Type;                                           \
-  PoisonedLoad##Type##Operator kPoisonedLoad##Type;                           \
-  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                         \
+#define LOAD(Type)                                                             \
+  struct Load##Type##Operator final : public Operator1<LoadRepresentation> {   \
+    Load##Type##Operator()                                                     \
+        : Operator1<LoadRepresentation>(IrOpcode::kLoad,                       \
+                                        Operator::kEliminatable, "Load", 2, 1, \
+                                        1, 1, 1, 0, MachineType::Type()) {}    \
+  };                                                                           \
+  struct PoisonedLoad##Type##Operator final                                    \
+      : public Operator1<LoadRepresentation> {                                 \
+    PoisonedLoad##Type##Operator()                                             \
+        : Operator1<LoadRepresentation>(                                       \
+              IrOpcode::kPoisonedLoad, Operator::kEliminatable,                \
+              "PoisonedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}        \
+  };                                                                           \
+  struct UnalignedLoad##Type##Operator final                                   \
+      : public Operator1<LoadRepresentation> {                                 \
+    UnalignedLoad##Type##Operator()                                            \
+        : Operator1<LoadRepresentation>(                                       \
+              IrOpcode::kUnalignedLoad, Operator::kEliminatable,               \
+              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
+  };                                                                           \
+  struct ProtectedLoad##Type##Operator final                                   \
+      : public Operator1<LoadRepresentation> {                                 \
+    ProtectedLoad##Type##Operator()                                            \
+        : Operator1<LoadRepresentation>(                                       \
+              IrOpcode::kProtectedLoad,                                        \
+              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 2, 1,  \
+              1, 1, 1, 0, MachineType::Type()) {}                              \
+  };                                                                           \
+  Load##Type##Operator kLoad##Type;                                            \
+  PoisonedLoad##Type##Operator kPoisonedLoad##Type;                            \
+  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                          \
   ProtectedLoad##Type##Operator kProtectedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
 
-#define LOAD_TRANSFORM_KIND(TYPE, KIND)                                     \
-  struct KIND##LoadTransform##TYPE##Operator final                          \
-      : public Operator1<LoadTransformParameters> {                         \
-    KIND##LoadTransform##TYPE##Operator()                                   \
-        : Operator1<LoadTransformParameters>(                               \
-              IrOpcode::kLoadTransform,                                     \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, \
-              #KIND "LoadTransform", 2, 1, 1, 1, 1, 0,                      \
-              LoadTransformParameters{LoadKind::k##KIND,                    \
-                                      LoadTransformation::k##TYPE}) {}      \
-  };                                                                        \
+#define LOAD_TRANSFORM_KIND(TYPE, KIND)                                \
+  struct KIND##LoadTransform##TYPE##Operator final                     \
+      : public Operator1<LoadTransformParameters> {                    \
+    KIND##LoadTransform##TYPE##Operator()                              \
+        : Operator1<LoadTransformParameters>(                          \
+              IrOpcode::kLoadTransform, Operator::kEliminatable,       \
+              #KIND "LoadTransform", 2, 1, 1, 1, 1, 0,                 \
+              LoadTransformParameters{LoadKind::k##KIND,               \
+                                      LoadTransformation::k##TYPE}) {} \
+  };                                                                   \
   KIND##LoadTransform##TYPE##Operator k##KIND##LoadTransform##TYPE;
 
 #define LOAD_TRANSFORM(TYPE)           \
@@ -764,8 +766,7 @@ struct MachineOperatorGlobalCache {
       : public Operator1<LoadRepresentation> {                              \
     Word32AtomicLoad##Type##Operator()                                      \
         : Operator1<LoadRepresentation>(                                    \
-              IrOpcode::kWord32AtomicLoad,                                  \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, \
+              IrOpcode::kWord32AtomicLoad, Operator::kEliminatable,         \
               "Word32AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {} \
   };                                                                        \
   Word32AtomicLoad##Type##Operator kWord32AtomicLoad##Type;
@@ -777,8 +778,7 @@ struct MachineOperatorGlobalCache {
       : public Operator1<LoadRepresentation> {                              \
     Word64AtomicLoad##Type##Operator()                                      \
         : Operator1<LoadRepresentation>(                                    \
-              IrOpcode::kWord64AtomicLoad,                                  \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, \
+              IrOpcode::kWord64AtomicLoad, Operator::kEliminatable,         \
               "Word64AtomicLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {} \
   };                                                                        \
   Word64AtomicLoad##Type##Operator kWord64AtomicLoad##Type;

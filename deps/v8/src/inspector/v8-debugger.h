@@ -77,7 +77,8 @@ class V8Debugger : public v8::debug::DebugDelegate,
   bool canBreakProgram();
   void breakProgram(int targetContextGroupId);
   void interruptAndBreak(int targetContextGroupId);
-  void continueProgram(int targetContextGroupId);
+  void continueProgram(int targetContextGroupId,
+                       bool terminateOnResume = false);
   void breakProgramOnAssert(int targetContextGroupId);
 
   void setPauseOnNextCall(bool, int targetContextGroupId);

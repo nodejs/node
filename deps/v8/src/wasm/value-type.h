@@ -29,30 +29,192 @@ class Simd128;
 // I32  I64  F32  F64    NullRef
 //   \    \    \    \    /
 //   ------------   Bottom
-enum ValueType : uint8_t {
-  kWasmStmt,
-  kWasmI32,
-  kWasmI64,
-  kWasmF32,
-  kWasmF64,
-  kWasmS128,
-  kWasmAnyRef,
-  kWasmFuncRef,
-  kWasmNullRef,
-  kWasmExnRef,
-  kWasmBottom,
+// Format: kind, log2Size, code, machineType, shortName, typeName
+#define FOREACH_VALUE_TYPE(V)                                                \
+  V(Stmt, -1, Void, None, 'v', "<stmt>")                                     \
+  V(I32, 2, I32, Int32, 'i', "i32")                                          \
+  V(I64, 3, I64, Int64, 'l', "i64")                                          \
+  V(F32, 2, F32, Float32, 'f', "f32")                                        \
+  V(F64, 3, F64, Float64, 'd', "f64")                                        \
+  V(S128, 4, S128, Simd128, 's', "s128")                                     \
+  V(AnyRef, kSystemPointerSizeLog2, AnyRef, TaggedPointer, 'r', "anyref")    \
+  V(FuncRef, kSystemPointerSizeLog2, FuncRef, TaggedPointer, 'a', "funcref") \
+  V(NullRef, kSystemPointerSizeLog2, NullRef, TaggedPointer, 'n', "nullref") \
+  V(ExnRef, kSystemPointerSizeLog2, ExnRef, TaggedPointer, 'e', "exn")       \
+  V(Bottom, -1, Void, None, '*', "<bot>")
+
+class ValueType {
+ public:
+  enum Kind : uint8_t {
+#define DEF_ENUM(kind, ...) k##kind,
+    FOREACH_VALUE_TYPE(DEF_ENUM)
+#undef DEF_ENUM
+  };
+
+  constexpr ValueType() : kind_(kStmt) {}
+  explicit constexpr ValueType(Kind kind) : kind_(kind) {}
+
+  constexpr Kind kind() const { return kind_; }
+
+  constexpr int element_size_log2() const {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK_NE(kStmt, kind_);
+    DCHECK_NE(kBottom, kind_);
+#endif
+
+    constexpr int kElementSizeLog2[] = {
+#define ELEM_SIZE_LOG2(kind, log2Size, ...) log2Size,
+        FOREACH_VALUE_TYPE(ELEM_SIZE_LOG2)
+#undef ELEM_SIZE_LOG2
+    };
+
+    return kElementSizeLog2[kind_];
+  }
+
+  constexpr int element_size_bytes() const { return 1 << element_size_log2(); }
+
+  constexpr bool operator==(ValueType other) const {
+    return kind_ == other.kind_;
+  }
+  constexpr bool operator!=(ValueType other) const {
+    return kind_ != other.kind_;
+  }
+
+  bool IsSubTypeOf(ValueType other) const {
+    return (*this == other) || (kind_ == kNullRef && other.kind_ == kAnyRef) ||
+           (kind_ == kFuncRef && other.kind_ == kAnyRef) ||
+           (kind_ == kExnRef && other.kind_ == kAnyRef) ||
+           (kind_ == kNullRef && other.kind_ == kFuncRef) ||
+           (kind_ == kNullRef && other.kind_ == kExnRef);
+  }
+
+  bool IsReferenceType() const {
+    return kind_ == kAnyRef || kind_ == kFuncRef || kind_ == kNullRef ||
+           kind_ == kExnRef;
+  }
+
+  static ValueType CommonSubType(ValueType a, ValueType b) {
+    if (a.kind() == b.kind()) return a;
+    // The only sub type of any value type is {bot}.
+    if (!a.IsReferenceType() || !b.IsReferenceType()) {
+      return ValueType(kBottom);
+    }
+    if (a.IsSubTypeOf(b)) return a;
+    if (b.IsSubTypeOf(a)) return b;
+    // {a} and {b} are not each other's subtype. The biggest sub-type of all
+    // reference types is {kWasmNullRef}.
+    return ValueType(kNullRef);
+  }
+
+  ValueTypeCode value_type_code() const {
+    DCHECK_NE(kBottom, kind_);
+
+    constexpr ValueTypeCode kValueTypeCode[] = {
+#define TYPE_CODE(kind, log2Size, code, ...) kLocal##code,
+        FOREACH_VALUE_TYPE(TYPE_CODE)
+#undef TYPE_CODE
+    };
+
+    return kValueTypeCode[kind_];
+  }
+
+  MachineType machine_type() const {
+    DCHECK_NE(kBottom, kind_);
+
+    constexpr MachineType kMachineType[] = {
+#define MACH_TYPE(kind, log2Size, code, machineType, ...) \
+  MachineType::machineType(),
+        FOREACH_VALUE_TYPE(MACH_TYPE)
+#undef MACH_TYPE
+    };
+
+    return kMachineType[kind_];
+  }
+
+  MachineRepresentation machine_representation() {
+    return machine_type().representation();
+  }
+
+  static ValueType For(MachineType type) {
+    switch (type.representation()) {
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kWord32:
+        return ValueType(kI32);
+      case MachineRepresentation::kWord64:
+        return ValueType(kI64);
+      case MachineRepresentation::kFloat32:
+        return ValueType(kF32);
+      case MachineRepresentation::kFloat64:
+        return ValueType(kF64);
+      case MachineRepresentation::kTaggedPointer:
+        return ValueType(kAnyRef);
+      case MachineRepresentation::kSimd128:
+        return ValueType(kS128);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  constexpr char short_name() const {
+    constexpr char kShortName[] = {
+#define SHORT_NAME(kind, log2Size, code, machineType, shortName, ...) shortName,
+        FOREACH_VALUE_TYPE(SHORT_NAME)
+#undef SHORT_NAME
+    };
+
+    return kShortName[kind_];
+  }
+
+  constexpr const char* type_name() const {
+    constexpr const char* kTypeName[] = {
+#define TYPE_NAME(kind, log2Size, code, machineType, shortName, typeName, ...) \
+  typeName,
+        FOREACH_VALUE_TYPE(TYPE_NAME)
+#undef TYPE_NAME
+    };
+
+    return kTypeName[kind_];
+  }
+
+ private:
+  Kind kind_ : 8;
+  // TODO(jkummerow): Add and use the following for reference types:
+  // uint32_t ref_index_ : 24;
 };
 
+static_assert(sizeof(ValueType) <= kUInt32Size,
+              "ValueType is small and can be passed by value");
+
+inline size_t hash_value(ValueType type) {
+  return static_cast<size_t>(type.kind());
+}
+
+// Output operator, useful for DCHECKS and others.
+inline std::ostream& operator<<(std::ostream& oss, ValueType type) {
+  return oss << type.type_name();
+}
+
+constexpr ValueType kWasmI32 = ValueType(ValueType::kI32);
+constexpr ValueType kWasmI64 = ValueType(ValueType::kI64);
+constexpr ValueType kWasmF32 = ValueType(ValueType::kF32);
+constexpr ValueType kWasmF64 = ValueType(ValueType::kF64);
+constexpr ValueType kWasmAnyRef = ValueType(ValueType::kAnyRef);
+constexpr ValueType kWasmExnRef = ValueType(ValueType::kExnRef);
+constexpr ValueType kWasmFuncRef = ValueType(ValueType::kFuncRef);
+constexpr ValueType kWasmNullRef = ValueType(ValueType::kNullRef);
+constexpr ValueType kWasmS128 = ValueType(ValueType::kS128);
+constexpr ValueType kWasmStmt = ValueType(ValueType::kStmt);
+constexpr ValueType kWasmBottom = ValueType(ValueType::kBottom);
+
 #define FOREACH_WASMVALUE_CTYPES(V) \
-  V(kWasmI32, int32_t)              \
-  V(kWasmI64, int64_t)              \
-  V(kWasmF32, float)                \
-  V(kWasmF64, double)               \
-  V(kWasmS128, Simd128)
+  V(kI32, int32_t)                  \
+  V(kI64, int64_t)                  \
+  V(kF32, float)                    \
+  V(kF64, double)                   \
+  V(kS128, Simd128)
 
 using FunctionSig = Signature<ValueType>;
-
-inline size_t hash_value(ValueType type) { return static_cast<size_t>(type); }
 
 #define FOREACH_LOAD_TYPE(V) \
   V(I32, , Int32)            \
@@ -79,7 +241,7 @@ class LoadType {
 #undef DEF_ENUM
   };
 
-  // Allow implicit convertion of the enum value to this wrapper.
+  // Allow implicit conversion of the enum value to this wrapper.
   constexpr LoadType(LoadTypeValue val)  // NOLINT(runtime/explicit)
       : val_(val) {}
 
@@ -90,16 +252,16 @@ class LoadType {
   constexpr MachineType mem_type() const { return kMemType[val_]; }
 
   static LoadType ForValueType(ValueType type) {
-    switch (type) {
-      case kWasmI32:
+    switch (type.kind()) {
+      case ValueType::kI32:
         return kI32Load;
-      case kWasmI64:
+      case ValueType::kI64:
         return kI64Load;
-      case kWasmF32:
+      case ValueType::kF32:
         return kF32Load;
-      case kWasmF64:
+      case ValueType::kF64:
         return kF64Load;
-      case kWasmS128:
+      case ValueType::kS128:
         return kS128Load;
       default:
         UNREACHABLE();
@@ -119,7 +281,7 @@ class LoadType {
   };
 
   static constexpr ValueType kValueType[] = {
-#define VALUE_TYPE(type, ...) kWasm##type,
+#define VALUE_TYPE(type, ...) ValueType(ValueType::k##type),
       FOREACH_LOAD_TYPE(VALUE_TYPE)
 #undef VALUE_TYPE
   };
@@ -162,16 +324,16 @@ class StoreType {
   constexpr MachineRepresentation mem_rep() const { return kMemRep[val_]; }
 
   static StoreType ForValueType(ValueType type) {
-    switch (type) {
-      case kWasmI32:
+    switch (type.kind()) {
+      case ValueType::kI32:
         return kI32Store;
-      case kWasmI64:
+      case ValueType::kI64:
         return kI64Store;
-      case kWasmF32:
+      case ValueType::kF32:
         return kF32Store;
-      case kWasmF64:
+      case ValueType::kF64:
         return kF64Store;
-      case kWasmS128:
+      case ValueType::kS128:
         return kS128Store;
       default:
         UNREACHABLE();
@@ -190,7 +352,7 @@ class StoreType {
   };
 
   static constexpr ValueType kValueType[] = {
-#define VALUE_TYPE(type, ...) kWasm##type,
+#define VALUE_TYPE(type, ...) ValueType(ValueType::k##type),
       FOREACH_STORE_TYPE(VALUE_TYPE)
 #undef VALUE_TYPE
   };
@@ -200,235 +362,6 @@ class StoreType {
       FOREACH_STORE_TYPE(MEMREP)
 #undef MEMREP
   };
-};
-
-// A collection of ValueType-related static methods.
-class V8_EXPORT_PRIVATE ValueTypes {
- public:
-  static inline bool IsSubType(ValueType actual, ValueType expected) {
-    return (expected == actual) ||
-           (expected == kWasmAnyRef && actual == kWasmNullRef) ||
-           (expected == kWasmAnyRef && actual == kWasmFuncRef) ||
-           (expected == kWasmAnyRef && actual == kWasmExnRef) ||
-           (expected == kWasmFuncRef && actual == kWasmNullRef) ||
-           (expected == kWasmExnRef && actual == kWasmNullRef);
-  }
-
-  static inline bool IsReferenceType(ValueType type) {
-    return type == kWasmAnyRef || type == kWasmFuncRef ||
-           type == kWasmNullRef || type == kWasmExnRef;
-  }
-
-  static inline ValueType CommonSubType(ValueType a, ValueType b) {
-    if (a == b) return a;
-    // The only sub type of any value type is {bot}.
-    if (!IsReferenceType(a) || !IsReferenceType(b)) return kWasmBottom;
-    if (IsSubType(a, b)) return a;
-    if (IsSubType(b, a)) return b;
-    // {a} and {b} are not each other's subtype. The biggest sub-type of all
-    // reference types is {kWasmNullRef}.
-    return kWasmNullRef;
-  }
-
-  static byte MemSize(MachineType type) {
-    return 1 << i::ElementSizeLog2Of(type.representation());
-  }
-
-  static int ElementSizeInBytes(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-      case kWasmF32:
-        return 4;
-      case kWasmI64:
-      case kWasmF64:
-        return 8;
-      case kWasmS128:
-        return 16;
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return kSystemPointerSize;
-      case kWasmStmt:
-      case kWasmBottom:
-        UNREACHABLE();
-    }
-  }
-
-  static int ElementSizeLog2Of(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-      case kWasmF32:
-        return 2;
-      case kWasmI64:
-      case kWasmF64:
-        return 3;
-      case kWasmS128:
-        return 4;
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return kSystemPointerSizeLog2;
-      case kWasmStmt:
-      case kWasmBottom:
-        UNREACHABLE();
-    }
-  }
-
-  static byte MemSize(ValueType type) { return 1 << ElementSizeLog2Of(type); }
-
-  static ValueTypeCode ValueTypeCodeFor(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return kLocalI32;
-      case kWasmI64:
-        return kLocalI64;
-      case kWasmF32:
-        return kLocalF32;
-      case kWasmF64:
-        return kLocalF64;
-      case kWasmS128:
-        return kLocalS128;
-      case kWasmAnyRef:
-        return kLocalAnyRef;
-      case kWasmFuncRef:
-        return kLocalFuncRef;
-      case kWasmNullRef:
-        return kLocalNullRef;
-      case kWasmExnRef:
-        return kLocalExnRef;
-      case kWasmStmt:
-        return kLocalVoid;
-      case kWasmBottom:
-        UNREACHABLE();
-    }
-  }
-
-  static MachineType MachineTypeFor(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return MachineType::Int32();
-      case kWasmI64:
-        return MachineType::Int64();
-      case kWasmF32:
-        return MachineType::Float32();
-      case kWasmF64:
-        return MachineType::Float64();
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return MachineType::TaggedPointer();
-      case kWasmS128:
-        return MachineType::Simd128();
-      case kWasmStmt:
-        return MachineType::None();
-      case kWasmBottom:
-        UNREACHABLE();
-    }
-  }
-
-  static MachineRepresentation MachineRepresentationFor(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return MachineRepresentation::kWord32;
-      case kWasmI64:
-        return MachineRepresentation::kWord64;
-      case kWasmF32:
-        return MachineRepresentation::kFloat32;
-      case kWasmF64:
-        return MachineRepresentation::kFloat64;
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
-        return MachineRepresentation::kTaggedPointer;
-      case kWasmS128:
-        return MachineRepresentation::kSimd128;
-      case kWasmStmt:
-        return MachineRepresentation::kNone;
-      case kWasmBottom:
-        UNREACHABLE();
-    }
-  }
-
-  static ValueType ValueTypeFor(MachineType type) {
-    switch (type.representation()) {
-      case MachineRepresentation::kWord8:
-      case MachineRepresentation::kWord16:
-      case MachineRepresentation::kWord32:
-        return kWasmI32;
-      case MachineRepresentation::kWord64:
-        return kWasmI64;
-      case MachineRepresentation::kFloat32:
-        return kWasmF32;
-      case MachineRepresentation::kFloat64:
-        return kWasmF64;
-      case MachineRepresentation::kTaggedPointer:
-        return kWasmAnyRef;
-      case MachineRepresentation::kSimd128:
-        return kWasmS128;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  static char ShortNameOf(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return 'i';
-      case kWasmI64:
-        return 'l';
-      case kWasmF32:
-        return 'f';
-      case kWasmF64:
-        return 'd';
-      case kWasmAnyRef:
-        return 'r';
-      case kWasmFuncRef:
-        return 'a';
-      case kWasmS128:
-        return 's';
-      case kWasmStmt:
-        return 'v';
-      case kWasmNullRef:
-        return 'n';
-      case kWasmExnRef:
-      case kWasmBottom:
-        return '*';
-    }
-  }
-
-  static const char* TypeName(ValueType type) {
-    switch (type) {
-      case kWasmI32:
-        return "i32";
-      case kWasmI64:
-        return "i64";
-      case kWasmF32:
-        return "f32";
-      case kWasmF64:
-        return "f64";
-      case kWasmAnyRef:
-        return "anyref";
-      case kWasmFuncRef:
-        return "funcref";
-      case kWasmNullRef:
-        return "nullref";
-      case kWasmExnRef:
-        return "exn";
-      case kWasmS128:
-        return "s128";
-      case kWasmStmt:
-        return "<stmt>";
-      case kWasmBottom:
-        return "<bot>";
-    }
-  }
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ValueTypes);
 };
 
 }  // namespace wasm

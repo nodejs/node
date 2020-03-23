@@ -32,6 +32,15 @@ Node* MachineGraph::IntPtrConstant(intptr_t value) {
                            : Int64Constant(static_cast<int64_t>(value));
 }
 
+Node* MachineGraph::TaggedIndexConstant(intptr_t value) {
+  int32_t value32 = static_cast<int32_t>(value);
+  Node** loc = cache_.FindTaggedIndexConstant(value32);
+  if (*loc == nullptr) {
+    *loc = graph()->NewNode(common()->TaggedIndexConstant(value32));
+  }
+  return *loc;
+}
+
 Node* MachineGraph::RelocatableInt32Constant(int32_t value,
                                              RelocInfo::Mode rmode) {
   Node** loc = cache_.FindRelocatableInt32Constant(

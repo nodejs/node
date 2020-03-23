@@ -154,20 +154,6 @@ class MemOperand {
   inline bool IsPreIndex() const;
   inline bool IsPostIndex() const;
 
-  // For offset modes, return the offset as an Operand. This helper cannot
-  // handle indexed modes.
-  inline Operand OffsetAsOperand() const;
-
-  enum PairResult {
-    kNotPair,  // Can't use a pair instruction.
-    kPairAB,   // Can use a pair instruction (operandA has lower address).
-    kPairBA    // Can use a pair instruction (operandB has lower address).
-  };
-  // Check if two MemOperand are consistent for stp/ldp use.
-  static PairResult AreConsistentForPair(const MemOperand& operandA,
-                                         const MemOperand& operandB,
-                                         int access_size_log2 = kXRegSizeLog2);
-
  private:
   Register base_;
   Register regoffset_;
@@ -953,7 +939,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Conditional speculation barrier.
   void csdb();
 
-  // Alias for system instructions.
+  // Branch target identification.
+  void bti(BranchTargetIdentifier id);
+
+  // No-op.
   void nop() { hint(NOP); }
 
   // Different nop operations are used by the code generator to detect certain

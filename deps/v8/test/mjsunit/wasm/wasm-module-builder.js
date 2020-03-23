@@ -45,7 +45,7 @@ var kWasmV3 = 0;
 
 var kHeaderSize = 8;
 var kPageSize = 65536;
-var kSpecMaxPages = 65535;
+var kSpecMaxPages = 65536;
 var kMaxVarInt32Size = 5;
 var kMaxVarInt64Size = 10;
 
@@ -82,7 +82,9 @@ let kSharedHasMaximumFlag = 3;
 let kActiveNoIndex = 0;
 let kPassive = 1;
 let kActiveWithIndex = 2;
+let kDeclarative = 3;
 let kPassiveWithElements = 5;
+let kDeclarativeWithElements = 7;
 
 // Function declaration flags
 let kDeclFunctionName   = 0x01;
@@ -468,9 +470,13 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 let kExprS128LoadMem = 0x00;
 let kExprS128StoreMem = 0x01;
 let kExprI32x4Splat = 0x0c;
+let kExprF32x4Splat = 0x12;
 let kExprI32x4Eq = 0x2c;
+let kExprS1x8AnyTrue = 0x63;
 let kExprS1x4AllTrue = 0x75;
+let kExprI32x4Add = 0x79;
 let kExprF32x4Min = 0x9e;
+let kExprS8x16LoadSplat = 0xc2;
 
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
@@ -906,13 +912,26 @@ class WasmModuleBuilder {
   }
 
   addElementSegment(table, base, is_global, array) {
-    this.element_segments.push({table: table, base: base, is_global: is_global,
-                                    array: array, is_active: true});
+    this.element_segments.push({
+      table: table,
+      base: base,
+      is_global: is_global,
+      array: array,
+      is_active: true,
+      is_declarative: false
+    });
     return this;
   }
 
   addPassiveElementSegment(array, is_import = false) {
-    this.element_segments.push({array: array, is_active: false});
+    this.element_segments.push(
+        {array: array, is_active: false, is_declarative: false});
+    return this;
+  }
+
+  addDeclarativeElementSegment(array, is_import = false) {
+    this.element_segments.push(
+        {array: array, is_active: false, is_declarative: true});
     return this;
   }
 
@@ -1180,9 +1199,20 @@ class WasmModuleBuilder {
             for (let index of init.array) {
               section.emit_u32v(index);
             }
+          } else if (
+              init.is_declarative &&
+              init.array.every(index => index !== null)) {
+            section.emit_u8(kDeclarative);
+            section.emit_u8(kExternalFunction);
+            section.emit_u32v(init.array.length);
+            for (let index of init.array) {
+              section.emit_u32v(index);
+            }
           } else {
-            // Passive segment.
-            section.emit_u8(kPassiveWithElements);  // flags
+            // Passive or declarative segment with elements.
+            section.emit_u8(
+                init.is_declarative ? kDeclarativeWithElements :
+                                      kPassiveWithElements);  // flags
             section.emit_u8(kWasmAnyFunc);
             section.emit_u32v(init.array.length);
             for (let index of init.array) {

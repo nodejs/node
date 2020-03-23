@@ -21,6 +21,9 @@ namespace {
 
 Decision DecideCondition(JSHeapBroker* broker, Node* const cond) {
   switch (cond->opcode()) {
+    case IrOpcode::kFoldConstant: {
+      return DecideCondition(broker, cond->InputAt(1));
+    }
     case IrOpcode::kInt32Constant: {
       Int32Matcher mcond(cond);
       return mcond.Value() ? Decision::kTrue : Decision::kFalse;
@@ -60,6 +63,9 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
       return ReduceDeoptimizeConditional(node);
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      return ReduceTrapConditional(node);
     case IrOpcode::kMerge:
       return ReduceMerge(node);
     case IrOpcode::kEffectPhi:
@@ -80,38 +86,77 @@ Reduction CommonOperatorReducer::Reduce(Node* node) {
   return NoChange();
 }
 
+Node* CommonOperatorReducer::GetInvertedConditionOrNull(Node* cond) {
+  switch (cond->opcode()) {
+    case IrOpcode::kBooleanNot:
+      return cond->InputAt(0);
+    case IrOpcode::kSelect:
+      // Check whether {cond} is a Select acting as a boolean not (i.e. true
+      // being returned in the false case and vice versa).
+      if (DecideCondition(broker(), cond->InputAt(1)) == Decision::kFalse &&
+          DecideCondition(broker(), cond->InputAt(2)) == Decision::kTrue) {
+        return cond->InputAt(0);
+      }
+      break;
+    case IrOpcode::kWord32Equal: {
+      // Check whether the comparison is against zero.
+      Uint32BinopMatcher m(cond);
+      if (m.right().Is(0)) {
+        return m.left().node();
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  return nullptr;
+}
+
+base::Optional<CommonOperatorReducer::SimplifiedCondition>
+CommonOperatorReducer::TryGetSimplifiedCondition(Node* cond) {
+  Node* new_cond = cond;
+  bool is_inverted = false;
+  while (true) {
+    if (Node* next = GetInvertedConditionOrNull(new_cond)) {
+      new_cond = next;
+      is_inverted = !is_inverted;
+    } else {
+      if (cond == new_cond) return {};
+      return CommonOperatorReducer::SimplifiedCondition{new_cond, is_inverted};
+    }
+  }
+}
 
 Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
   Node* const cond = node->InputAt(0);
-  // Swap IfTrue/IfFalse on {branch} if {cond} is a BooleanNot and use the input
-  // to BooleanNot as new condition for {branch}. Note we assume that {cond} was
-  // already properly optimized before we get here (as guaranteed by the graph
-  // reduction logic). The same applies if {cond} is a Select acting as boolean
-  // not (i.e. true being returned in the false case and vice versa).
-  if (cond->opcode() == IrOpcode::kBooleanNot ||
-      (cond->opcode() == IrOpcode::kSelect &&
-       DecideCondition(broker(), cond->InputAt(1)) == Decision::kFalse &&
-       DecideCondition(broker(), cond->InputAt(2)) == Decision::kTrue)) {
-    for (Node* const use : node->uses()) {
-      switch (use->opcode()) {
-        case IrOpcode::kIfTrue:
-          NodeProperties::ChangeOp(use, common()->IfFalse());
-          break;
-        case IrOpcode::kIfFalse:
-          NodeProperties::ChangeOp(use, common()->IfTrue());
-          break;
-        default:
-          UNREACHABLE();
+  // Swap IfTrue/IfFalse on {branch} if {cond} is a BooleanNot or similar, and
+  // use the input to BooleanNot as new condition for {branch}. Note we assume
+  // that {cond} was already properly optimized before we get here (as
+  // guaranteed by the graph reduction logic).
+  if (auto simplified = TryGetSimplifiedCondition(cond)) {
+    if (simplified->is_inverted) {
+      for (Node* const use : node->uses()) {
+        switch (use->opcode()) {
+          case IrOpcode::kIfTrue:
+            NodeProperties::ChangeOp(use, common()->IfFalse());
+            break;
+          case IrOpcode::kIfFalse:
+            NodeProperties::ChangeOp(use, common()->IfTrue());
+            break;
+          default:
+            UNREACHABLE();
+        }
       }
+      // Negate the hint for {branch}.
+      NodeProperties::ChangeOp(
+          node, common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
     }
     // Update the condition of {branch}. No need to mark the uses for revisit,
     // since we tell the graph reducer that the {branch} was changed and the
     // graph reduction logic will ensure that the uses are revisited properly.
-    node->ReplaceInput(0, cond->InputAt(0));
-    // Negate the hint for {branch}.
-    NodeProperties::ChangeOp(
-        node, common()->Branch(NegateBranchHint(BranchHintOf(node->op()))));
+    node->ReplaceInput(0, simplified->condition);
     return Changed(node);
   }
   Decision const decision = DecideCondition(broker(), cond);
@@ -141,17 +186,19 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   Node* frame_state = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  // Swap DeoptimizeIf/DeoptimizeUnless on {node} if {cond} is a BooleaNot
-  // and use the input to BooleanNot as new condition for {node}.  Note we
-  // assume that {cond} was already properly optimized before we get here
-  // (as guaranteed by the graph reduction logic).
-  if (condition->opcode() == IrOpcode::kBooleanNot) {
-    NodeProperties::ReplaceValueInput(node, condition->InputAt(0), 0);
-    NodeProperties::ChangeOp(
-        node,
-        condition_is_true
-            ? common()->DeoptimizeIf(p.kind(), p.reason(), p.feedback())
-            : common()->DeoptimizeUnless(p.kind(), p.reason(), p.feedback()));
+  // Swap DeoptimizeIf/DeoptimizeUnless on {node} if {cond} is a BooleanNot or
+  // similar, and use the input to BooleanNot as new condition for {node}.  Note
+  // we assume that {cond} was already properly optimized before we get here (as
+  // guaranteed by the graph reduction logic).
+  if (auto simplified = TryGetSimplifiedCondition(condition)) {
+    NodeProperties::ReplaceValueInput(node, simplified->condition, 0);
+    if (simplified->is_inverted) {
+      NodeProperties::ChangeOp(
+          node,
+          condition_is_true
+              ? common()->DeoptimizeIf(p.kind(), p.reason(), p.feedback())
+              : common()->DeoptimizeUnless(p.kind(), p.reason(), p.feedback()));
+    }
     return Changed(node);
   }
   Decision const decision = DecideCondition(broker(), condition);
@@ -167,6 +214,28 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
     Revisit(graph()->end());
   }
   return Replace(dead());
+}
+
+Reduction CommonOperatorReducer::ReduceTrapConditional(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kTrapIf ||
+         node->opcode() == IrOpcode::kTrapUnless);
+  bool condition_is_true = node->opcode() == IrOpcode::kTrapUnless;
+  TrapId trap_id = TrapIdOf(node->op());
+  Node* condition = NodeProperties::GetValueInput(node, 0);
+  // Swap TrapIf/TrapUnless on {node} if {cond} is a BooleanNot or similar,
+  // and use the input to BooleanNot as new condition for {node}.  Note we
+  // assume that {cond} was already properly optimized before we get here
+  // (as guaranteed by the graph reduction logic).
+  if (auto simplified = TryGetSimplifiedCondition(condition)) {
+    NodeProperties::ReplaceValueInput(node, simplified->condition, 0);
+    if (simplified->is_inverted) {
+      NodeProperties::ChangeOp(node, condition_is_true
+                                         ? common()->TrapIf(trap_id)
+                                         : common()->TrapUnless(trap_id));
+    }
+    return Changed(node);
+  }
+  return NoChange();
 }
 
 Reduction CommonOperatorReducer::ReduceMerge(Node* node) {

@@ -17,8 +17,8 @@ let cleanup = function(iter) {
   ++cleanup_call_count;
 }
 
-let fg = new FinalizationGroup(cleanup);
-// Create an object and register it in the FinalizationGroup. The object needs to be inside
+let fg = new FinalizationRegistry(cleanup);
+// Create an object and register it in the FinalizationRegistry. The object needs to be inside
 // a closure so that we can reliably kill them!
 let key = {"k": "this is the key"};
 

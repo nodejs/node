@@ -27,8 +27,7 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
   v8::Local<v8::Value> version_value, sources_value, mappings_value;
   bool has_valid_version =
       src_map_obj
-          ->Get(context,
-                v8::String::NewFromUtf8(v8_isolate, "version").ToLocalChecked())
+          ->Get(context, v8::String::NewFromUtf8Literal(v8_isolate, "version"))
           .ToLocal(&version_value) &&
       version_value->IsUint32();
   uint32_t version = 0;
@@ -38,8 +37,7 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
 
   bool has_valid_sources =
       src_map_obj
-          ->Get(context,
-                v8::String::NewFromUtf8(v8_isolate, "sources").ToLocalChecked())
+          ->Get(context, v8::String::NewFromUtf8Literal(v8_isolate, "sources"))
           .ToLocal(&sources_value) &&
       sources_value->IsArray();
   if (!has_valid_sources) return;
@@ -48,8 +46,7 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
       v8::Local<v8::Object>::Cast(sources_value);
   v8::Local<v8::Value> sources_len_value;
   if (!sources_arr
-           ->Get(context,
-                 v8::String::NewFromUtf8(v8_isolate, "length").ToLocalChecked())
+           ->Get(context, v8::String::NewFromUtf8Literal(v8_isolate, "length"))
            .ToLocal(&sources_len_value))
     return;
   uint32_t sources_len = 0;
@@ -71,9 +68,7 @@ WasmModuleSourceMap::WasmModuleSourceMap(v8::Isolate* v8_isolate,
 
   bool has_valid_mappings =
       src_map_obj
-          ->Get(
-              context,
-              v8::String::NewFromUtf8(v8_isolate, "mappings").ToLocalChecked())
+          ->Get(context, v8::String::NewFromUtf8Literal(v8_isolate, "mappings"))
           .ToLocal(&mappings_value) &&
       mappings_value->IsString();
   if (!has_valid_mappings) return;

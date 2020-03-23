@@ -9,7 +9,9 @@
 #include {{format_include(config.protocol.package, "Protocol")}}
 
 #include "{{config.crdtp.dir}}/cbor.h"
+#include "{{config.crdtp.dir}}/find_by_first.h"
 #include "{{config.crdtp.dir}}/serializer_traits.h"
+#include "{{config.crdtp.dir}}/span.h"
 
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
@@ -54,27 +56,27 @@ const char* {{type.id}}::{{property.name | to_title_case}}Enum::{{literal | dash
 std::unique_ptr<{{type.id}}> {{type.id}}::fromValue(protocol::Value* value, ErrorSupport* errors)
 {
     if (!value || value->type() != protocol::Value::TypeObject) {
-        errors->addError("object expected");
+        errors->AddError("object expected");
         return nullptr;
     }
 
     std::unique_ptr<{{type.id}}> result(new {{type.id}}());
     protocol::DictionaryValue* object = DictionaryValue::cast(value);
-    errors->push();
+    errors->Push();
     {% for property in type.properties %}
     protocol::Value* {{property.name}}Value = object->get("{{property.name}}");
       {% if property.optional %}
     if ({{property.name}}Value) {
-        errors->setName("{{property.name}}");
+        errors->SetName("{{property.name}}");
         result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
     }
       {% else %}
-    errors->setName("{{property.name}}");
+    errors->SetName("{{property.name}}");
     result->m_{{property.name}} = ValueConversions<{{protocol.resolve_type(property).raw_type}}>::fromValue({{property.name}}Value, errors);
       {% endif %}
     {% endfor %}
-    errors->pop();
-    if (errors->hasErrors())
+    errors->Pop();
+    if (!errors->Errors().empty())
         return nullptr;
     return result;
 }
@@ -169,7 +171,7 @@ void Frontend::{{event.name | to_method_case}}(
       {%- endif %} {{parameter.name}}{%- if not loop.last -%}, {% endif -%}
     {% endfor -%})
 {
-    if (!m_frontendChannel)
+    if (!frontend_channel_)
         return;
       {% if event.parameters %}
     std::unique_ptr<{{event.name | to_title_case}}Notification> messageData = {{event.name | to_title_case}}Notification::{{"create" | to_method_case}}()
@@ -185,69 +187,79 @@ void Frontend::{{event.name | to_method_case}}(
         messageData->{{"set" | to_method_case}}{{parameter.name | to_title_case}}(std::move({{parameter.name}}).takeJust());
           {% endif %}
         {% endfor %}
-    m_frontendChannel->sendProtocolNotification(InternalResponse::createNotification("{{domain.domain}}.{{event.name}}", std::move(messageData)));
+    frontend_channel_->SendProtocolNotification({{config.crdtp.namespace}}::CreateNotification("{{domain.domain}}.{{event.name}}", std::move(messageData)));
       {% else %}
-    m_frontendChannel->sendProtocolNotification(InternalResponse::createNotification("{{domain.domain}}.{{event.name}}"));
+    frontend_channel_->SendProtocolNotification({{config.crdtp.namespace}}::CreateNotification("{{domain.domain}}.{{event.name}}"));
       {% endif %}
 }
   {% endfor %}
 
 void Frontend::flush()
 {
-    m_frontendChannel->flushProtocolNotifications();
+    frontend_channel_->FlushProtocolNotifications();
 }
 
-void Frontend::sendRawCBORNotification(std::vector<uint8_t> notification)
+void Frontend::sendRawNotification(std::unique_ptr<Serializable> notification)
 {
-    m_frontendChannel->sendProtocolNotification(InternalRawNotification::fromBinary(std::move(notification)));
+    frontend_channel_->SendProtocolNotification(std::move(notification));
 }
 
 // --------------------- Dispatcher.
 
-class DispatcherImpl : public protocol::DispatcherBase {
+class DomainDispatcherImpl : public protocol::DomainDispatcher {
 public:
-    DispatcherImpl(FrontendChannel* frontendChannel, Backend* backend)
-        : DispatcherBase(frontendChannel)
-        , m_backend(backend) {
-  {% for command in domain.commands %}
-    {% if "redirect" in command %}
-      m_redirects["{{domain.domain}}.{{command.name}}"] = "{{command.redirect}}.{{command.name}}";
-      {% continue %}
-    {% endif %}
-    {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
-        m_dispatchMap["{{domain.domain}}.{{command.name}}"] = &DispatcherImpl::{{command.name}};
-  {% endfor %}
-    }
-    ~DispatcherImpl() override { }
-    bool canDispatch(const String& method) override;
-    void dispatch(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<protocol::DictionaryValue> messageObject) override;
-    std::unordered_map<String, String>& redirects() { return m_redirects; }
+    DomainDispatcherImpl(FrontendChannel* frontendChannel, Backend* backend)
+        : DomainDispatcher(frontendChannel)
+        , m_backend(backend) {}
+    ~DomainDispatcherImpl() override { }
 
-protected:
-    using CallHandler = void (DispatcherImpl::*)(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> messageObject, ErrorSupport* errors);
-    using DispatchMap = std::unordered_map<String, CallHandler>;
-    DispatchMap m_dispatchMap;
-    std::unordered_map<String, String> m_redirects;
+    using CallHandler = void (DomainDispatcherImpl::*)(const {{config.crdtp.namespace}}::Dispatchable& dispatchable, DictionaryValue* params, ErrorSupport* errors);
+
+    std::function<void(const {{config.crdtp.namespace}}::Dispatchable&)> Dispatch({{config.crdtp.namespace}}::span<uint8_t> command_name) override;
 
   {% for command in domain.commands %}
     {% if "redirect" in command %}{% continue %}{% endif %}
     {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
-    void {{command.name}}(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport*);
+    void {{command.name}}(const {{config.crdtp.namespace}}::Dispatchable& dispatchable, DictionaryValue* params, ErrorSupport* errors);
   {% endfor %}
-
+ protected:
     Backend* m_backend;
 };
 
-bool DispatcherImpl::canDispatch(const String& method) {
-    return m_dispatchMap.find(method) != m_dispatchMap.end();
+namespace {
+// This helper method with a static map of command methods (instance methods
+// of DomainDispatcherImpl declared just above) by their name is used immediately below,
+// in the DomainDispatcherImpl::Dispatch method.
+DomainDispatcherImpl::CallHandler CommandByName({{config.crdtp.namespace}}::span<uint8_t> command_name) {
+  static auto* commands = [](){
+    auto* commands = new std::vector<std::pair<{{config.crdtp.namespace}}::span<uint8_t>,
+                              DomainDispatcherImpl::CallHandler>>{
+      {% for command in domain.commands|sort(attribute="name",case_sensitive=True) %}
+        {% if "redirect" in command %}{% continue %}{% endif %}
+        {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
+    {
+          {{config.crdtp.namespace}}::SpanFrom("{{command.name}}"),
+          &DomainDispatcherImpl::{{command.name}}
+    },
+      {% endfor %}
+    };
+    return commands;
+  }();
+  return {{config.crdtp.namespace}}::FindByFirst<DomainDispatcherImpl::CallHandler>(*commands, command_name, nullptr);
 }
+}  // namespace
 
-void DispatcherImpl::dispatch(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<protocol::DictionaryValue> messageObject)
-{
-    std::unordered_map<String, CallHandler>::iterator it = m_dispatchMap.find(method);
-    DCHECK(it != m_dispatchMap.end());
-    protocol::ErrorSupport errors;
-    (this->*(it->second))(callId, method, message, std::move(messageObject), &errors);
+std::function<void(const {{config.crdtp.namespace}}::Dispatchable&)> DomainDispatcherImpl::Dispatch({{config.crdtp.namespace}}::span<uint8_t> command_name) {
+  CallHandler handler = CommandByName(command_name);
+  if (!handler) return nullptr;
+  return [this, handler](const {{config.crdtp.namespace}}::Dispatchable& dispatchable){
+    std::unique_ptr<DictionaryValue> params =
+        DictionaryValue::cast(protocol::Value::parseBinary(dispatchable.Params().data(),
+        dispatchable.Params().size()));
+    ErrorSupport errors;
+    errors.Push();
+    (this->*handler)(dispatchable, params.get(), &errors);
+  };
 }
 
   {% for command in domain.commands %}
@@ -256,10 +268,11 @@ void DispatcherImpl::dispatch(int callId, const String& method, {{config.crdtp.n
     {% if not protocol.generate_command(domain.domain, command.name) %}{% continue %}{% endif %}
     {% if protocol.is_async_command(domain.domain, command.name) %}
 
-class {{command_name_title}}CallbackImpl : public Backend::{{command_name_title}}Callback, public DispatcherBase::Callback {
+class {{command_name_title}}CallbackImpl : public Backend::{{command_name_title}}Callback, public DomainDispatcher::Callback {
 public:
-    {{command_name_title}}CallbackImpl(std::unique_ptr<DispatcherBase::WeakPtr> backendImpl, int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message)
-        : DispatcherBase::Callback(std::move(backendImpl), callId, method, message) { }
+    {{command_name_title}}CallbackImpl(std::unique_ptr<DomainDispatcher::WeakPtr> backendImpl, int callId, {{config.crdtp.namespace}}::span<uint8_t> message)
+        : DomainDispatcher::Callback(std::move(backendImpl), callId,
+{{config.crdtp.namespace}}::SpanFrom("{{domain.domain}}.{{command.name}}"), message) { }
 
     void sendSuccess(
       {%- for parameter in command.returns -%}
@@ -271,16 +284,16 @@ public:
         {%- if not loop.last -%}, {% endif -%}
       {%- endfor -%}) override
     {
-        std::unique_ptr<protocol::DictionaryValue> resultObject = DictionaryValue::create();
-          {% for parameter in command.returns %}
-            {% if "optional" in parameter %}
-        if ({{parameter.name}}.isJust())
-            resultObject->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue({{parameter.name}}.fromJust()));
-           {% else %}
-        resultObject->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue({{protocol.resolve_type(parameter).to_raw_type % parameter.name}}));
-            {% endif %}
-          {% endfor %}
-        sendIfActive(std::move(resultObject), DispatchResponse::OK());
+        std::vector<uint8_t> result_buffer;
+        {{config.crdtp.namespace}}::cbor::EnvelopeEncoder envelope_encoder;
+        envelope_encoder.EncodeStart(&result_buffer);
+        result_buffer.push_back({{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart());
+        {% for parameter in command.returns %}
+          {{config.crdtp.namespace}}::SerializeField({{config.crdtp.namespace}}::SpanFrom("{{parameter.name}}"), {{parameter.name}}, &result_buffer);
+        {% endfor %}
+        result_buffer.push_back({{config.crdtp.namespace}}::cbor::EncodeStop());
+        envelope_encoder.EncodeStop(&result_buffer);
+        sendIfActive({{config.crdtp.namespace}}::Serializable::From(std::move(result_buffer)), DispatchResponse::Success());
     }
 
     void fallThrough() override
@@ -290,37 +303,31 @@ public:
 
     void sendFailure(const DispatchResponse& response) override
     {
-        DCHECK(response.status() == DispatchResponse::kError);
+        DCHECK(response.IsError());
         sendIfActive(nullptr, response);
     }
 };
     {% endif %}
 
-void DispatcherImpl::{{command.name}}(int callId, const String& method, {{config.crdtp.namespace}}::span<uint8_t> message, std::unique_ptr<DictionaryValue> requestMessageObject, ErrorSupport* errors)
+void DomainDispatcherImpl::{{command.name}}(const {{config.crdtp.namespace}}::Dispatchable& dispatchable, DictionaryValue* params, ErrorSupport* errors)
 {
     {% if "parameters" in command %}
     // Prepare input parameters.
-    protocol::DictionaryValue* object = DictionaryValue::cast(requestMessageObject->get("params"));
-    errors->push();
       {% for parameter in command.parameters %}
         {% set parameter_type = protocol.resolve_type(parameter) %}
-    protocol::Value* {{parameter.name}}Value = object ? object->get("{{parameter.name}}") : nullptr;
+    protocol::Value* {{parameter.name}}Value = params ? params->get("{{parameter.name}}") : nullptr;
         {% if parameter.optional %}
     Maybe<{{parameter_type.raw_type}}> in_{{parameter.name}};
     if ({{parameter.name}}Value) {
-        errors->setName("{{parameter.name}}");
+        errors->SetName("{{parameter.name}}");
         in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
     }
         {% else %}
-    errors->setName("{{parameter.name}}");
+    errors->SetName("{{parameter.name}}");
     {{parameter_type.type}} in_{{parameter.name}} = ValueConversions<{{parameter_type.raw_type}}>::fromValue({{parameter.name}}Value, errors);
         {% endif %}
       {% endfor %}
-    errors->pop();
-    if (errors->hasErrors()) {
-        reportProtocolError(callId, DispatchResponse::kInvalidParams, kInvalidParamsString, errors);
-        return;
-    }
+    if (MaybeReportInvalidParams(dispatchable, *errors)) return;
     {% endif %}
     {% if "returns" in command and not protocol.is_async_command(domain.domain, command.name) %}
     // Declare output parameters.
@@ -334,7 +341,7 @@ void DispatcherImpl::{{command.name}}(int callId, const String& method, {{config
     {% endif %}
 
     {% if not protocol.is_async_command(domain.domain, command.name) %}
-    std::unique_ptr<DispatcherBase::WeakPtr> weak = weakPtr();
+    std::unique_ptr<DomainDispatcher::WeakPtr> weak = weakPtr();
     DispatchResponse response = m_backend->{{command.name | to_method_case}}(
       {%- for parameter in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
@@ -350,31 +357,31 @@ void DispatcherImpl::{{command.name}}(int callId, const String& method, {{config
           &out_{{parameter.name}}
         {%- endfor %}
       {% endif %});
-    if (response.status() == DispatchResponse::kFallThrough) {
-        channel()->fallThrough(callId, method, message);
+    if (response.IsFallThrough()) {
+        channel()->FallThrough(dispatchable.CallId(), {{config.crdtp.namespace}}::SpanFrom("{{domain.domain}}.{{command.name}}"), dispatchable.Serialized());
         return;
     }
       {% if "returns" in command %}
-    std::unique_ptr<protocol::DictionaryValue> result = DictionaryValue::create();
-    if (response.status() == DispatchResponse::kSuccess) {
-        {% for parameter in command.returns %}
-          {% if "optional" in parameter %}
-        if (out_{{parameter.name}}.isJust())
-            result->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue(out_{{parameter.name}}.fromJust()));
-          {% else %}
-        result->setValue("{{parameter.name}}", ValueConversions<{{protocol.resolve_type(parameter).raw_type}}>::toValue({{protocol.resolve_type(parameter).to_raw_type % ("out_" + parameter.name)}}));
-          {% endif %}
-        {% endfor %}
-    }
-    if (weak->get())
-        weak->get()->sendResponse(callId, response, std::move(result));
+      if (weak->get()) {
+        std::vector<uint8_t> result;
+        if (response.IsSuccess()) {
+          {{config.crdtp.namespace}}::cbor::EnvelopeEncoder envelope_encoder;
+          envelope_encoder.EncodeStart(&result);
+          result.push_back({{config.crdtp.namespace}}::cbor::EncodeIndefiniteLengthMapStart());
+          {% for parameter in command.returns %}
+            {{config.crdtp.namespace}}::SerializeField({{config.crdtp.namespace}}::SpanFrom("{{parameter.name}}"), out_{{parameter.name}}, &result);
+          {% endfor %}
+          result.push_back({{config.crdtp.namespace}}::cbor::EncodeStop());
+          envelope_encoder.EncodeStop(&result);
+        }
+        weak->get()->sendResponse(dispatchable.CallId(), response, {{config.crdtp.namespace}}::Serializable::From(std::move(result)));
+      }
       {% else %}
     if (weak->get())
-        weak->get()->sendResponse(callId, response);
+        weak->get()->sendResponse(dispatchable.CallId(), response);
       {% endif %}
     return;
     {% else %}
-    std::unique_ptr<{{command_name_title}}CallbackImpl> callback(new {{command.name | to_title_case}}CallbackImpl(weakPtr(), callId, method, message));
     m_backend->{{command.name | to_method_case}}(
       {%- for property in command.parameters -%}
         {%- if not loop.first -%}, {% endif -%}
@@ -385,18 +392,34 @@ void DispatcherImpl::{{command.name}}(int callId, const String& method, {{config
         {%- endif -%}
       {%- endfor -%}
         {%- if command.parameters -%}, {% endif -%}
-        std::move(callback));
-    return;
+        std::make_unique<{{command_name_title}}CallbackImpl>(weakPtr(), dispatchable.CallId(), dispatchable.Serialized()));
     {% endif %}
 }
   {% endfor %}
 
+namespace {
+// This helper method (with a static map of redirects) is used from Dispatcher::wire
+// immediately below.
+const std::vector<std::pair<{{config.crdtp.namespace}}::span<uint8_t>, {{config.crdtp.namespace}}::span<uint8_t>>>& SortedRedirects() {
+  static auto* redirects = [](){
+    auto* redirects = new std::vector<std::pair<{{config.crdtp.namespace}}::span<uint8_t>, {{config.crdtp.namespace}}::span<uint8_t>>>{
+      {% for command in domain.commands|sort(attribute="name",case_sensitive=True) %}
+        {% if "redirect" in command %}
+          { {{config.crdtp.namespace}}::SpanFrom("{{domain.domain}}.{{command.name}}"), {{config.crdtp.namespace}}::SpanFrom("{{command.redirect}}.{{command.name}}") },
+        {% endif %}
+      {% endfor %}
+    };
+    return redirects;
+  }();
+  return *redirects;
+}
+}  // namespace
+
 // static
 void Dispatcher::wire(UberDispatcher* uber, Backend* backend)
 {
-    std::unique_ptr<DispatcherImpl> dispatcher(new DispatcherImpl(uber->channel(), backend));
-    uber->setupRedirects(dispatcher->redirects());
-    uber->registerBackend("{{domain.domain}}", std::move(dispatcher));
+    auto dispatcher = std::make_unique<DomainDispatcherImpl>(uber->channel(), backend);
+    uber->WireBackend({{config.crdtp.namespace}}::SpanFrom("{{domain.domain}}"), SortedRedirects(), std::move(dispatcher));
 }
 
 } // {{domain.domain}}

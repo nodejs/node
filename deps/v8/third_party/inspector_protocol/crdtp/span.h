@@ -5,11 +5,11 @@
 #ifndef V8_CRDTP_SPAN_H_
 #define V8_CRDTP_SPAN_H_
 
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
-#include <vector>
+
+#include "export.h"
 
 namespace v8_crdtp {
 // =============================================================================
@@ -76,19 +76,15 @@ inline span<typename C::value_type> SpanFrom(const C& v) {
 
 // Less than / equality comparison functions for sorting / searching for byte
 // spans. These are similar to absl::string_view's < and == operators.
-constexpr inline bool SpanLessThan(span<uint8_t> x, span<uint8_t> y) noexcept {
-  auto min_size = std::min(x.size(), y.size());
-  const int r = min_size == 0 ? 0 : memcmp(x.data(), y.data(), min_size);
-  return (r < 0) || (r == 0 && x.size() < y.size());
-}
+bool SpanLessThan(span<uint8_t> x, span<uint8_t> y) noexcept;
 
-constexpr inline bool SpanEquals(span<uint8_t> x, span<uint8_t> y) noexcept {
-  auto len = x.size();
-  if (len != y.size())
-    return false;
-  return x.data() == y.data() || len == 0 ||
-         std::memcmp(x.data(), y.data(), len) == 0;
-}
+bool SpanEquals(span<uint8_t> x, span<uint8_t> y) noexcept;
+
+struct SpanLt {
+  bool operator()(span<uint8_t> l, span<uint8_t> r) const {
+    return SpanLessThan(l, r);
+  }
+};
 }  // namespace v8_crdtp
 
 #endif  // V8_CRDTP_SPAN_H_

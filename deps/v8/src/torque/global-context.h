@@ -35,15 +35,6 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return Get().declarables_;
   }
 
-  static void RegisterClass(const TypeAlias* alias) {
-    DCHECK(alias->ParentScope()->IsNamespace());
-    Get().classes_.push_back(alias);
-  }
-
-  using GlobalClassList = std::vector<const TypeAlias*>;
-
-  static const GlobalClassList& GetClasses() { return Get().classes_; }
-
   static void AddCppInclude(std::string include_path) {
     Get().cpp_includes_.insert(std::move(include_path));
   }
@@ -84,7 +75,6 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::set<std::string> cpp_includes_;
   std::map<SourceId, PerFileStreams> generated_per_file_;
-  GlobalClassList classes_;
   std::map<std::string, size_t> fresh_ids_;
 
   friend class LanguageServerData;

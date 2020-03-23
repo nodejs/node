@@ -42,6 +42,11 @@ bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
   return in_young || in_old;
 }
 
+bool IsTracked(i::Heap* heap, i::JSArrayBuffer buffer) {
+  return V8_ARRAY_BUFFER_EXTENSION_BOOL ? IsTracked(heap, buffer.extension())
+                                        : IsTracked(buffer);
+}
+
 }  // namespace
 
 namespace v8 {
@@ -504,6 +509,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
+  FLAG_concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -525,9 +531,10 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
 }
 
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
-  if (FLAG_never_compact || V8_ARRAY_BUFFER_EXTENSION_BOOL) return;
+  if (FLAG_never_compact) return;
   ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -544,13 +551,13 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
     Local<v8::ArrayBuffer> ab1 =
         v8::ArrayBuffer::New(isolate, kArraybufferSize);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
-    CHECK(IsTracked(*buf1));
+    CHECK(IsTracked(heap, *buf1));
     heap::GcAndSweep(heap, NEW_SPACE);
     heap::GcAndSweep(heap, NEW_SPACE);
 
     Page* page_before_gc = Page::FromHeapObject(*buf1);
     heap::ForceEvacuationCandidate(page_before_gc);
-    CHECK(IsTracked(*buf1));
+    CHECK(IsTracked(heap, *buf1));
 
     CcTest::CollectAllGarbage();
 

@@ -255,6 +255,29 @@ TEST(EnumCache) {
   }
 }
 
+TEST(ObjectMethodsThatTruncateMinusZero) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(env->GetIsolate());
+
+  Handle<Object> minus_zero = factory->NewNumber(-1.0 * 0.0);
+  CHECK(minus_zero->IsMinusZero());
+
+  Handle<Object> result =
+      Object::ToInteger(isolate, minus_zero).ToHandleChecked();
+  CHECK(result->IsZero());
+
+  result = Object::ToLength(isolate, minus_zero).ToHandleChecked();
+  CHECK(result->IsZero());
+
+  // Choose an error message template, doesn't matter which.
+  result = Object::ToIndex(isolate, minus_zero,
+                           MessageTemplate::kInvalidAtomicAccessIndex)
+               .ToHandleChecked();
+  CHECK(result->IsZero());
+}
+
 #define TEST_FUNCTION_KIND(Name)                                \
   TEST(Name) {                                                  \
     for (int i = 0; i < FunctionKind::kLastFunctionKind; i++) { \

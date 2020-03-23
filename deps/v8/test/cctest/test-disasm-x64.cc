@@ -391,8 +391,6 @@ TEST(DisasmX64) {
     // Move operation
     __ cvttss2si(rdx, Operand(rbx, rcx, times_4, 10000));
     __ cvttss2si(rdx, xmm1);
-    __ cvtsd2ss(xmm0, xmm1);
-    __ cvtsd2ss(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ cvttps2dq(xmm0, xmm1);
     __ cvttps2dq(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
@@ -437,13 +435,6 @@ TEST(DisasmX64) {
 
     __ ucomisd(xmm0, xmm1);
 
-    __ andpd(xmm0, xmm1);
-    __ andpd(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ orpd(xmm0, xmm1);
-    __ orpd(xmm0, Operand(rbx, rcx, times_4, 10000));
-    __ xorpd(xmm0, xmm1);
-    __ xorpd(xmm0, Operand(rbx, rcx, times_4, 10000));
-
     __ pcmpeqd(xmm1, xmm0);
 
     __ punpckldq(xmm1, xmm11);
@@ -458,6 +449,7 @@ TEST(DisasmX64) {
   __ instruction(xmm5, Operand(rdx, 4));
 
     SSE2_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
+    SSE2_UNOP_INSTRUCTION_LIST(EMIT_SSE2_INSTR)
     SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_INSTR)
 #undef EMIT_SSE2_INSTR
 
@@ -514,6 +506,7 @@ TEST(DisasmX64) {
       __ palignr(xmm5, xmm1, 5);
       __ palignr(xmm5, Operand(rdx, 4), 5);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
     }
   }
 
@@ -579,7 +572,7 @@ TEST(DisasmX64) {
       __ blendvpd(xmm5, Operand(rdx, 4));
 
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
-      SSE4_PMOV_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSE4_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       SSE4_EXTRACT_INSTRUCTION_LIST(EMIT_SSE34_IMM_INSTR)
     }
   }
@@ -635,29 +628,14 @@ TEST(DisasmX64) {
       __ vmovdqu(xmm9, Operand(rbx, rcx, times_4, 10000));
       __ vmovdqu(Operand(rbx, rcx, times_4, 10000), xmm0);
 
-      __ vaddsd(xmm0, xmm1, xmm2);
-      __ vaddsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vmulsd(xmm0, xmm1, xmm2);
-      __ vmulsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vsubsd(xmm0, xmm1, xmm2);
-      __ vsubsd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vdivsd(xmm0, xmm1, xmm2);
-      __ vdivsd(xmm0, xmm1, Operand(rbx, rcx, times_2, 10000));
-      __ vminsd(xmm8, xmm1, xmm2);
-      __ vminsd(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
-      __ vmaxsd(xmm8, xmm1, xmm2);
-      __ vmaxsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vroundss(xmm9, xmm1, xmm2, kRoundDown);
       __ vroundsd(xmm8, xmm3, xmm0, kRoundDown);
-      __ vsqrtsd(xmm8, xmm1, xmm2);
-      __ vsqrtsd(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vucomisd(xmm9, xmm1);
       __ vucomisd(xmm8, Operand(rbx, rdx, times_2, 10981));
 
       __ vcvtss2sd(xmm4, xmm9, xmm11);
-      __ vcvtsd2ss(xmm9, xmm3, xmm2);
       __ vcvtss2sd(xmm4, xmm9, Operand(rbx, rcx, times_1, 10000));
-      __ vcvtsd2ss(xmm9, xmm3, Operand(rbx, rcx, times_1, 10000));
+      __ vcvttps2dq(xmm4, xmm11);
       __ vcvtlsi2sd(xmm5, xmm9, rcx);
       __ vcvtlsi2sd(xmm9, xmm3, Operand(rbx, r9, times_4, 10000));
       __ vcvtqsi2sd(xmm5, xmm9, r11);
@@ -686,13 +664,6 @@ TEST(DisasmX64) {
       __ vxorps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vhaddps(xmm0, xmm1, xmm9);
       __ vhaddps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-
-      __ vandpd(xmm0, xmm9, xmm2);
-      __ vandpd(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vorpd(xmm0, xmm1, xmm9);
-      __ vorpd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
-      __ vxorpd(xmm0, xmm1, xmm9);
-      __ vxorpd(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
 
       __ vpcmpeqd(xmm0, xmm15, xmm5);
       __ vpcmpeqd(xmm15, xmm0, Operand(rbx, rcx, times_4, 10000));
@@ -744,23 +715,44 @@ TEST(DisasmX64) {
   __ v##instruction(xmm10, xmm5, xmm1);                               \
   __ v##instruction(xmm10, xmm5, Operand(rdx, 4));
 
+      SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
+#undef EMIT_SSE2_AVXINSTR
+
+#define EMIT_SSE2_UNOP_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
+  __ v##instruction(xmm10, xmm1);                                          \
+  __ v##instruction(xmm10, Operand(rdx, 4));
+
+      SSE2_UNOP_INSTRUCTION_LIST(EMIT_SSE2_UNOP_AVXINSTR)
+#undef EMIT_SSE2_AVXINSTR
+
+#define EMIT_SSE2_SD_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
+  __ v##instruction(xmm10, xmm5, xmm1);                                  \
+  __ v##instruction(xmm10, xmm5, Operand(rbx, rcx, times_4, 10000));
+      SSE2_INSTRUCTION_LIST_SD(EMIT_SSE2_SD_AVXINSTR)
+#undef EMIT_SSE2_SD_AVXINSTR
+
 #define EMIT_SSE34_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
                             notUsed4)                                  \
   __ v##instruction(xmm10, xmm5, xmm1);                                \
   __ v##instruction(xmm10, xmm5, Operand(rdx, 4));
 
-      SSE2_INSTRUCTION_LIST(EMIT_SSE2_AVXINSTR)
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
       SSE4_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
       SSE4_2_INSTRUCTION_LIST(EMIT_SSE34_AVXINSTR)
-#undef EMIT_SSE2_AVXINSTR
 #undef EMIT_SSE34_AVXINSTR
+
+#define EMIT_SSSE3_UNOP_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
+                                 notUsed4)                                  \
+  __ v##instruction(xmm9, xmm3);                                            \
+  __ v##instruction(xmm9, Operand(rdx, 5));
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSSE3_UNOP_AVXINSTR)
+#undef EMIT_SSSE3_UNOP_AVXINSTR
 
 #define EMIT_SSE4_PMOV_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3, \
                                 notUsed4)                                  \
   __ v##instruction(xmm10, xmm1);                                          \
   __ v##instruction(xmm10, Operand(rdx, 4));
-      SSE4_PMOV_INSTRUCTION_LIST(EMIT_SSE4_PMOV_AVXINSTR)
+      SSE4_UNOP_INSTRUCTION_LIST(EMIT_SSE4_PMOV_AVXINSTR)
 #undef EMIT_SSE4_PMOV_AVXINSTR
 
 #define EMIT_SSE2_SHIFT_IMM_AVX(instruction, notUsed1, notUsed2, notUsed3, \

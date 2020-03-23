@@ -21,9 +21,9 @@ TEST_F(WasmCallDescriptorTest, TestAnyRefIsGrouped) {
   ValueType params[kMaxCount];
 
   for (size_t i = 0; i < kMaxCount; i += 2) {
-    params[i] = ValueType::kWasmAnyRef;
+    params[i] = kWasmAnyRef;
     CHECK_LT(i + 1, kMaxCount);
-    params[i + 1] = ValueType::kWasmI32;
+    params[i + 1] = kWasmI32;
   }
 
   for (size_t count = 1; count <= kMaxCount; ++count) {

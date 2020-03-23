@@ -34,7 +34,7 @@ namespace number {
     // 4. Else, let radixNumber be ? ToInteger(radix).
     const radix: JSAny = arguments[0];
     const radixNumber: Number =
-        radix == Undefined ? 10 : ToInteger_Inline(radix, kTruncateMinusZero);
+        radix == Undefined ? 10 : ToInteger_Inline(radix);
 
     // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
     if (radixNumber < 2 || radixNumber > 36) {

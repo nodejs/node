@@ -17,9 +17,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 13
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
   /*   62 S> */ B(AddSmi), I8(1), U8(0),
@@ -48,23 +47,20 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 66
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   44 S> */ B(LdaZero),
                 B(Star), R(0),
   /*   71 S> */ B(LdaZero),
                 B(Star), R(1),
   /*   76 S> */ B(LdaSmi), I8(10),
   /*   76 E> */ B(TestLessThan), R(1), U8(0),
-                B(JumpIfFalse), U8(54),
-  /*   58 E> */ B(StackCheck),
+                B(JumpIfFalse), U8(52),
   /*  106 S> */ B(LdaZero),
                 B(Star), R(2),
   /*  111 S> */ B(LdaSmi), I8(3),
   /*  111 E> */ B(TestLessThan), R(2), U8(1),
-                B(JumpIfFalse), U8(34),
-  /*   93 E> */ B(StackCheck),
+                B(JumpIfFalse), U8(33),
   /*  129 S> */ B(Ldar), R(0),
                 B(Inc), U8(2),
                 B(Star), R(0),
@@ -78,11 +74,11 @@ bytecodes: [
   /*  118 S> */ B(Ldar), R(2),
                 B(Inc), U8(5),
                 B(Star), R(2),
-                B(JumpLoop), U8(36), I8(1),
+  /*   93 E> */ B(JumpLoop), U8(35), I8(1),
   /*   84 S> */ B(Ldar), R(1),
                 B(Inc), U8(6),
                 B(Star), R(1),
-                B(JumpLoop), U8(56), I8(0),
+  /*   58 E> */ B(JumpLoop), U8(54), I8(0),
   /*  188 S> */ B(Ldar), R(0),
   /*  199 S> */ B(Return),
 ]
@@ -101,10 +97,9 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 28
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(2),
@@ -141,10 +136,9 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 53
+bytecode array length: 52
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-                B(CreateFunctionContext), U8(0), U8(1),
+  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(StaCurrentContextSlot), U8(2),

@@ -67,6 +67,10 @@ bool Heap::CreateHeapObjects() {
 
   set_native_contexts_list(ReadOnlyRoots(this).undefined_value());
   set_allocation_sites_list(ReadOnlyRoots(this).undefined_value());
+  set_dirty_js_finalization_registries_list(
+      ReadOnlyRoots(this).undefined_value());
+  set_dirty_js_finalization_registries_list_tail(
+      ReadOnlyRoots(this).undefined_value());
 
   return true;
 }
@@ -399,6 +403,18 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_NAME_DICTIONARY_TYPE,
                          small_ordered_name_dictionary)
 
+#define TORQUE_INTERNAL_CLASS_LIST_MAP_ALLOCATOR(V, NAME, Name, name) \
+  ALLOCATE_MAP(NAME, Name::kSize, name)
+    TORQUE_INTERNAL_FIXED_CLASS_LIST_GENERATOR(
+        TORQUE_INTERNAL_CLASS_LIST_MAP_ALLOCATOR, _);
+#undef TORQUE_INTERNAL_CLASS_LIST_MAP_ALLOCATOR
+
+#define TORQUE_INTERNAL_CLASS_LIST_MAP_ALLOCATOR(V, NAME, Name, name) \
+  ALLOCATE_VARSIZE_MAP(NAME, name)
+    TORQUE_INTERNAL_VARSIZE_CLASS_LIST_GENERATOR(
+        TORQUE_INTERNAL_CLASS_LIST_MAP_ALLOCATOR, _);
+#undef TORQUE_INTERNAL_CLASS_LIST_MAP_ALLOCATOR
+
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
@@ -451,6 +467,8 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
+
+    ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)
@@ -618,7 +636,6 @@ void Heap::CreateInitialObjects() {
   // There's no "current microtask" in the beginning.
   set_current_microtask(roots.undefined_value());
 
-  set_dirty_js_finalization_groups(roots.undefined_value());
   set_weak_refs_keep_during_job(roots.undefined_value());
 
   // Allocate cache for single character one byte strings.

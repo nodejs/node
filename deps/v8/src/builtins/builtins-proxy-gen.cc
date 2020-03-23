@@ -126,8 +126,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
                               UncheckedCast<IntPtrT>(argc_ptr));
 
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
-  TNode<Object> result = CallJS(CodeFactory::Call(isolate()), context, trap,
-                                handler, target, receiver, array);
+  TNode<Object> result = Call(context, trap, handler, target, receiver, array);
   args.PopAndReturn(result);
 
   BIND(&trap_undefined);
@@ -181,8 +180,8 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
                               UncheckedCast<IntPtrT>(argc_ptr));
 
   // 8. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
-  TNode<Object> new_obj = CallJS(CodeFactory::Call(isolate()), context, trap,
-                                 handler, target, array, new_target);
+  TNode<Object> new_obj =
+      Call(context, trap, handler, target, array, new_target);
 
   // 9. If Type(newObj) is not Object, throw a TypeError exception.
   GotoIf(TaggedIsSmi(new_obj), &not_an_object);

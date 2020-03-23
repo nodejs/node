@@ -11,9 +11,8 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 25
+bytecode array length: 24
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(1),
   /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(2),
@@ -38,9 +37,8 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 28
+bytecode array length: 27
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(1),
   /*   39 E> */ B(LdaNamedProperty), R(1), U8(1), U8(2),
@@ -67,9 +65,8 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 101
+bytecode array length: 100
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaGlobal), U8(0), U8(0),
                 B(Star), R(0),
                 B(LdaNamedProperty), R(0), U8(1), U8(2),

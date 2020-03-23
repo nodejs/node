@@ -14,11 +14,9 @@
 namespace v8 {
 namespace internal {
 
-//
-// VMState class implementation.  A simple stack of VM states held by the
-// logger and partially threaded through the call stack.  States are pushed by
-// VMState construction and popped by destruction.
-//
+// VMState class implementation. A simple stack of VM states held by the logger
+// and partially threaded through the call stack. States are pushed by VMState
+// construction and popped by destruction.
 inline const char* StateToString(StateTag state) {
   switch (state) {
     case JS:
@@ -35,6 +33,8 @@ inline const char* StateToString(StateTag state) {
       return "OTHER";
     case EXTERNAL:
       return "EXTERNAL";
+    case ATOMICS_WAIT:
+      return "ATOMICS_WAIT";
     case IDLE:
       return "IDLE";
   }

@@ -26,7 +26,7 @@ enum class StepResult {
   kWaitingForFinalization
 };
 
-class V8_EXPORT_PRIVATE IncrementalMarking {
+class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
   enum State { STOPPED, SWEEPING, MARKING, COMPLETE };
 
@@ -105,9 +105,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     return state_;
   }
 
-  bool should_hurry() const { return should_hurry_; }
-  void set_should_hurry(bool val) { should_hurry_ = val; }
-
   bool finalize_marking_completed() const {
     return finalize_marking_completed_;
   }
@@ -172,11 +169,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void FinalizeSweeping();
 
-  StepResult V8Step(double max_step_size_in_ms, CompletionAction action,
-                    StepOrigin step_origin);
+  StepResult Step(double max_step_size_in_ms, CompletionAction action,
+                  StepOrigin step_origin);
 
   bool ShouldDoEmbedderStep();
-  StepResult EmbedderStep(double duration);
+  StepResult EmbedderStep(double expected_duration_ms, double* duration_ms);
 
   V8_INLINE void RestartIfNotMarking();
 
@@ -301,32 +298,34 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     heap_->SetIsMarkingFlag(s >= MARKING);
   }
 
+  double CurrentTimeToMarkingTask() const;
+
   Heap* const heap_;
   MarkCompactCollector* const collector_;
   WeakObjects* weak_objects_;
 
-  double start_time_ms_;
-  size_t initial_old_generation_size_;
-  size_t old_generation_allocation_counter_;
-  size_t bytes_marked_;
-  size_t scheduled_bytes_to_mark_;
-  double schedule_update_time_ms_;
+  double start_time_ms_ = 0.0;
+  double time_to_force_completion_ = 0.0;
+  size_t initial_old_generation_size_ = 0;
+  size_t old_generation_allocation_counter_ = 0;
+  size_t bytes_marked_ = 0;
+  size_t scheduled_bytes_to_mark_ = 0;
+  double schedule_update_time_ms_ = 0.0;
   // A sample of concurrent_marking()->TotalMarkedBytes() at the last
   // incremental marking step. It is used for updating
   // bytes_marked_ahead_of_schedule_ with contribution of concurrent marking.
-  size_t bytes_marked_concurrently_;
+  size_t bytes_marked_concurrently_ = 0;
 
   // Must use SetState() above to update state_
   State state_;
 
-  bool is_compacting_;
-  bool should_hurry_;
-  bool was_activated_;
-  bool black_allocation_;
-  bool finalize_marking_completed_;
+  bool is_compacting_ = false;
+  bool was_activated_ = false;
+  bool black_allocation_ = false;
+  bool finalize_marking_completed_ = false;
   IncrementalMarkingJob incremental_marking_job_;
 
-  GCRequestType request_type_;
+  GCRequestType request_type_ = NONE;
 
   Observer new_generation_observer_;
   Observer old_generation_observer_;

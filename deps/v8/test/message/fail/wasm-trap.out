@@ -1,4 +1,4 @@
 wasm-function[1]:0x30: RuntimeError: divide by zero
 RuntimeError: divide by zero
-    at main (wasm-function[1]:0x30)
+    at main (<anonymous>:wasm-function[1]:0x30)
     at *%(basename)s:{NUMBER}:16

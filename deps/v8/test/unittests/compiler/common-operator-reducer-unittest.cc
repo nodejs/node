@@ -182,6 +182,26 @@ TEST_F(CommonOperatorReducerTest, BranchWithSelect) {
   }
 }
 
+TEST_F(CommonOperatorReducerTest, BranchWithEqualsZero) {
+  Node* const value = Parameter(0);
+  TRACED_FOREACH(BranchHint, hint, kBranchHints) {
+    Node* const control = graph()->start();
+    Node* const branch = graph()->NewNode(
+        common()->Branch(hint),
+        graph()->NewNode(machine()->Word32Equal(), Uint32Constant(0), value),
+        control);
+    Node* const if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* const if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Reduction const r = Reduce(branch);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(branch, r.replacement());
+    EXPECT_THAT(branch, IsBranch(value, control));
+    EXPECT_THAT(if_false, IsIfTrue(branch));
+    EXPECT_THAT(if_true, IsIfFalse(branch));
+    EXPECT_EQ(NegateBranchHint(hint), BranchHintOf(branch->op()));
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Merge
 

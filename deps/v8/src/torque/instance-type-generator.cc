@@ -289,6 +289,8 @@ std::unique_ptr<InstanceTypeTree> AssignInstanceTypes() {
 // - fully_defined_single_instance_types: This list is pairs of class name and
 //   instance type, for classes which have defined layouts and a single
 //   corresponding instance type.
+// - fully_defined_multiple_instance_types: This list is pairs of class name and
+//   instance type, for classes which have defined layouts and subclasses.
 // - only_declared_single_instance_types: This list is pairs of class name and
 //   instance type, for classes which have a single corresponding instance type
 //   and do not have layout definitions in Torque.
@@ -302,6 +304,7 @@ std::unique_ptr<InstanceTypeTree> AssignInstanceTypes() {
 void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
                         std::ostream& values,
                         std::ostream& fully_defined_single_instance_types,
+                        std::ostream& fully_defined_multiple_instance_types,
                         std::ostream& only_declared_single_instance_types,
                         std::ostream& fully_defined_range_instance_types,
                         std::ostream& only_declared_range_instance_types,
@@ -331,6 +334,7 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
   for (auto& child : root->children) {
     PrintInstanceTypes(
         child.get(), definitions, values, fully_defined_single_instance_types,
+        fully_defined_multiple_instance_types,
         only_declared_single_instance_types, fully_defined_range_instance_types,
         only_declared_range_instance_types, inner_indent);
   }
@@ -351,6 +355,11 @@ void PrintInstanceTypes(InstanceTypeTree* root, std::ostream& definitions,
                                            : fully_defined_range_instance_types;
       range_instance_types << "  V(" << root->type->name() << ", FIRST_"
                            << type_name << ", LAST_" << type_name << ") \\\n";
+      if (!root->type->IsExtern() && !root->type->IsAbstract() &&
+          !root->type->HasUndefinedLayout()) {
+        fully_defined_multiple_instance_types << "  V(" << root->type->name()
+                                              << ", " << type_name << ") \\\n";
+      }
     }
   }
 }
@@ -370,12 +379,14 @@ void ImplementationVisitor::GenerateInstanceTypes(
     std::unique_ptr<InstanceTypeTree> instance_types = AssignInstanceTypes();
     std::stringstream values_list;
     std::stringstream fully_defined_single_instance_types;
+    std::stringstream fully_defined_multiple_instance_types;
     std::stringstream only_declared_single_instance_types;
     std::stringstream fully_defined_range_instance_types;
     std::stringstream only_declared_range_instance_types;
     if (instance_types != nullptr) {
       PrintInstanceTypes(instance_types.get(), header, values_list,
                          fully_defined_single_instance_types,
+                         fully_defined_multiple_instance_types,
                          only_declared_single_instance_types,
                          fully_defined_range_instance_types,
                          only_declared_range_instance_types, "  ");
@@ -392,6 +403,12 @@ void ImplementationVisitor::GenerateInstanceTypes(
     header << "// full Torque definitions.\n";
     header << "#define TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(V) \\\n";
     header << fully_defined_single_instance_types.str();
+    header << "\n";
+
+    header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that have\n";
+    header << "// full Torque definitions and subclasses.\n";
+    header << "#define TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(V) \\\n";
+    header << fully_defined_multiple_instance_types.str();
     header << "\n";
 
     header << "// Pairs of (ClassName, INSTANCE_TYPE) for classes that are\n";
@@ -416,10 +433,9 @@ void ImplementationVisitor::GenerateInstanceTypes(
     header << only_declared_range_instance_types.str();
     header << "\n";
 
-    header << "// Instance types for Torque-internal classes.\n";
-    header << "#define TORQUE_INTERNAL_INSTANCE_TYPES(V) \\\n";
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
+    header << "// Instance types for non-extern Torque classes.\n";
+    header << "#define TORQUE_INSTANCE_TYPES(V) \\\n";
+    for (const ClassType* type : TypeOracle::GetClasses()) {
       if (type->IsExtern()) continue;
       std::string type_name =
           CapifyStringWithUnderscores(type->name()) + "_TYPE";
@@ -427,17 +443,32 @@ void ImplementationVisitor::GenerateInstanceTypes(
     }
     header << "\n";
 
-    header << "// Struct list entries for Torque-internal classes.\n";
-    header << "#define TORQUE_STRUCT_LIST_GENERATOR(V, _) \\\n";
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
+    header << "// Map list macros for non-extern Torque classes.\n";
+    header << "#define TORQUE_INTERNAL_VARSIZE_CLASS_LIST_GENERATOR(V, _) \\\n";
+    for (const ClassType* type : TypeOracle::GetClasses()) {
       if (type->IsExtern()) continue;
+      if (!type->HasIndexedField()) continue;
       std::string type_name =
           CapifyStringWithUnderscores(type->name()) + "_TYPE";
       std::string variable_name = SnakeifyString(type->name());
       header << "  V(_, " << type_name << ", " << type->name() << ", "
              << variable_name << ") \\\n";
     }
+    header << "\n";
+    header << "#define TORQUE_INTERNAL_FIXED_CLASS_LIST_GENERATOR(V, _) \\\n";
+    for (const ClassType* type : TypeOracle::GetClasses()) {
+      if (type->IsExtern()) continue;
+      if (type->HasIndexedField()) continue;
+      std::string type_name =
+          CapifyStringWithUnderscores(type->name()) + "_TYPE";
+      std::string variable_name = SnakeifyString(type->name());
+      header << "  V(_, " << type_name << ", " << type->name() << ", "
+             << variable_name << ") \\\n";
+    }
+    header << "\n";
+    header << "#define TORQUE_INTERNAL_CLASS_LIST_GENERATOR(V, _) \\\n";
+    header << "  TORQUE_INTERNAL_VARSIZE_CLASS_LIST_GENERATOR(V, _) \\\n";
+    header << "  TORQUE_INTERNAL_FIXED_CLASS_LIST_GENERATOR(V, _)\n";
     header << "\n";
   }
   std::string output_header_path = output_directory + "/" + file_name;

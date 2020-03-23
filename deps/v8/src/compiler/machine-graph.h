@@ -44,6 +44,8 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // constants is probably not serializable.
   Node* IntPtrConstant(intptr_t value);
 
+  Node* TaggedIndexConstant(intptr_t value);
+
   Node* RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode);
   Node* RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode);
   Node* RelocatableIntPtrConstant(intptr_t value, RelocInfo::Mode rmode);

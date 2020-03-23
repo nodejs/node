@@ -169,7 +169,7 @@ class WasmStackFrame : public StackFrameBase {
 
   Handle<Object> GetFileName() override { return Null(); }
   Handle<Object> GetFunctionName() override;
-  Handle<Object> GetScriptNameOrSourceUrl() override { return Null(); }
+  Handle<Object> GetScriptNameOrSourceUrl() override;
   Handle<Object> GetMethodName() override { return Null(); }
   Handle<Object> GetTypeName() override { return Null(); }
   Handle<Object> GetWasmModuleName() override;
@@ -293,6 +293,8 @@ class ErrorUtils : public AllStatic {
                                                   Handle<Object> source);
   static Handle<Object> NewConstructedNonConstructable(Isolate* isolate,
                                                        Handle<Object> source);
+  static Object ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
+                                                     Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                              Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,

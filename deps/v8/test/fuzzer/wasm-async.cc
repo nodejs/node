@@ -78,7 +78,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Wait for the promise to resolve.
   while (!done) {
     support->PumpMessageLoop(platform::MessageLoopBehavior::kWaitForWork);
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
   }
   return 0;
 }

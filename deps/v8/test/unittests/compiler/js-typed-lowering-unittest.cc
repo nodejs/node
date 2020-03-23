@@ -174,8 +174,7 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithTheHole) {
     Reduction r = Reduce(
         graph()->NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
                          lhs, the_hole, context, effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsFalseConstant());
+    ASSERT_FALSE(r.Changed());
   }
 }
 

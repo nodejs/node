@@ -8,6 +8,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -57,7 +58,7 @@ class Variable final : public ZoneObject {
   // parameter initializers.
   void set_scope(Scope* scope) { scope_ = scope; }
 
-  Handle<String> name() const { return name_->string().get<Factory>(); }
+  Handle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return VariableModeField::decode(bit_field_); }
   void set_mode(VariableMode mode) {

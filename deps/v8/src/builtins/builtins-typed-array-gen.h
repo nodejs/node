@@ -85,8 +85,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
 
-  TNode<BoolT> IsSharedArrayBuffer(TNode<JSArrayBuffer> buffer);
-
   void SetJSTypedArrayOnHeapDataPtr(TNode<JSTypedArray> holder,
                                     TNode<ByteArray> base,
                                     TNode<UintPtrT> offset);

@@ -28,11 +28,6 @@ void PromiseBuiltinsAssembler::ZeroOutEmbedderOffsets(
   }
 }
 
-TNode<HeapObject> PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-    TNode<Context> context) {
-  return Allocate(PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks);
-}
-
 TNode<HeapObject> PromiseBuiltinsAssembler::AllocateJSPromise(
     TNode<Context> context) {
   return Allocate(JSPromise::kSizeWithEmbedderFields);

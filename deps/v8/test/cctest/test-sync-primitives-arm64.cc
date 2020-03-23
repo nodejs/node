@@ -200,7 +200,7 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
   AssembleLoadExcl(&masm, access1, w1, x1);
   AssembleMemoryAccess(&masm, access2, w3, w2, x1);
   AssembleStoreExcl(&masm, access3, w0, w3, x1);
-  __ br(lr);
+  __ Ret();
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -271,7 +271,7 @@ int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
   HandleScope scope(isolate);
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes);
   AssembleMemoryAccess(&masm, access, w0, w2, x1);
-  __ br(lr);
+  __ Ret();
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);

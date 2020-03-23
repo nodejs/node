@@ -7,6 +7,7 @@
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/common/globals.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
@@ -19,7 +20,7 @@
 namespace v8 {
 namespace internal {
 
-ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
+ParseInfo::ParseInfo(AccountingAllocator* zone_allocator, int script_id)
     : zone_(std::make_unique<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       extension_(nullptr),
@@ -28,7 +29,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       hash_seed_(0),
       function_kind_(FunctionKind::kNormalFunction),
       function_syntax_kind_(FunctionSyntaxKind::kDeclaration),
-      script_id_(-1),
+      script_id_(script_id),
       start_position_(0),
       end_position_(0),
       parameters_end_pos_(kNoSourcePosition),
@@ -42,8 +43,9 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       source_range_map_(nullptr),
       literal_(nullptr) {}
 
-ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
-    : ParseInfo(zone_allocator) {
+ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator,
+                     int script_id)
+    : ParseInfo(zone_allocator, script_id) {
   set_hash_seed(HashSeed(isolate));
   set_stack_limit(isolate->stack_guard()->real_climit());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
@@ -69,9 +71,8 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
 }
 
 ParseInfo::ParseInfo(Isolate* isolate)
-    : ParseInfo(isolate, isolate->allocator()) {
-  script_id_ = isolate->heap()->NextScriptId();
-  LOG(isolate, ScriptEvent(Logger::ScriptEventType::kReserveId, script_id_));
+    : ParseInfo(isolate, isolate->allocator(), isolate->GetNextScriptId()) {
+  LOG(isolate, ScriptEvent(Logger::ScriptEventType::kReserveId, script_id()));
 }
 
 template <typename T>
@@ -81,12 +82,16 @@ void ParseInfo::SetFunctionInfo(T function) {
   set_function_syntax_kind(function->syntax_kind());
   set_requires_instance_members_initializer(
       function->requires_instance_members_initializer());
+  set_class_scope_has_private_brand(function->class_scope_has_private_brand());
+  set_has_static_private_methods_or_accessors(
+      function->has_static_private_methods_or_accessors());
   set_toplevel(function->is_toplevel());
   set_is_oneshot_iife(function->is_oneshot_iife());
 }
 
 ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
-    : ParseInfo(isolate, isolate->allocator()) {
+    : ParseInfo(isolate, isolate->allocator(),
+                Script::cast(shared.script()).id()) {
   // Do not support re-parsing top-level function of a wrapped script.
   // TODO(yangguo): consider whether we need a top-level function in a
   //                wrapped script at all.
@@ -101,11 +106,7 @@ ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
   SetFunctionInfo(&shared);
 
   Script script = Script::cast(shared.script());
-  SetFlagsFromScript(isolate, script);
-
-  if (shared.HasOuterScopeInfo()) {
-    set_outer_scope_info(handle(shared.GetOuterScopeInfo(), isolate));
-  }
+  SetFlagsForFunctionFromScript(script);
 
   set_repl_mode(shared.is_repl_mode());
 
@@ -120,29 +121,27 @@ ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
 }
 
 ParseInfo::ParseInfo(Isolate* isolate, Script script)
-    : ParseInfo(isolate, isolate->allocator()) {
-  SetFlagsForToplevelCompileFromScript(isolate, script);
-  set_collect_type_profile(isolate->is_collecting_type_profile() &&
-                           script.IsUserJavaScript());
+    : ParseInfo(isolate, isolate->allocator(), script.id()) {
+  SetFlagsForToplevelCompileFromScript(isolate, script,
+                                       isolate->is_collecting_type_profile());
 }
 
 // static
 std::unique_ptr<ParseInfo> ParseInfo::FromParent(
     const ParseInfo* outer_parse_info, AccountingAllocator* zone_allocator,
     const FunctionLiteral* literal, const AstRawString* function_name) {
-  std::unique_ptr<ParseInfo> result =
-      std::make_unique<ParseInfo>(zone_allocator);
+  // Can't use make_unique because the constructor is private.
+  std::unique_ptr<ParseInfo> result(
+      new ParseInfo(zone_allocator, outer_parse_info->script_id_));
 
   // Replicate shared state of the outer_parse_info.
   result->flags_ = outer_parse_info->flags_;
-  result->script_id_ = outer_parse_info->script_id_;
   result->set_logger(outer_parse_info->logger());
   result->set_ast_string_constants(outer_parse_info->ast_string_constants());
   result->set_hash_seed(outer_parse_info->hash_seed());
 
   DCHECK_EQ(outer_parse_info->parameters_end_pos(), kNoSourcePosition);
   DCHECK_NULL(outer_parse_info->extension());
-  DCHECK(outer_parse_info->maybe_outer_scope_info().is_null());
 
   // Clone the function_name AstRawString into the ParseInfo's own
   // AstValueFactory.
@@ -165,19 +164,17 @@ ParseInfo::~ParseInfo() = default;
 
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
-Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
+template <typename LocalIsolate>
+Handle<Script> ParseInfo::CreateScript(LocalIsolate* isolate,
+                                       Handle<String> source,
                                        ScriptOriginOptions origin_options,
-                                       REPLMode repl_mode,
                                        NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script;
-  if (script_id_ == -1) {
-    script = isolate->factory()->NewScript(source);
-  } else {
-    script = isolate->factory()->NewScriptWithId(source, script_id_);
-  }
+  DCHECK_GE(script_id_, 0);
+  Handle<Script> script =
+      isolate->factory()->NewScriptWithId(source, script_id_);
   if (isolate->NeedsSourcePositionsForProfiling()) {
-    Script::InitLineEnds(script);
+    Script::InitLineEnds(isolate, script);
   }
   switch (natives) {
     case EXTENSION_CODE:
@@ -190,11 +187,26 @@ Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
       break;
   }
   script->set_origin_options(origin_options);
-  script->set_is_repl_mode(repl_mode == REPLMode::kYes);
+  script->set_is_repl_mode(is_repl_mode());
+  if (is_eval() && !is_wrapped_as_function()) {
+    script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
+  }
 
-  SetFlagsForToplevelCompileFromScript(isolate, *script);
+  CheckFlagsForToplevelCompileFromScript(*script,
+                                         isolate->is_collecting_type_profile());
   return script;
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Script> ParseInfo::CreateScript(Isolate* isolate,
+                                           Handle<String> source,
+                                           ScriptOriginOptions origin_options,
+                                           NativesFlag natives);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<Script> ParseInfo::CreateScript(OffThreadIsolate* isolate,
+                                           Handle<String> source,
+                                           ScriptOriginOptions origin_options,
+                                           NativesFlag natives);
 
 AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
   if (!ast_value_factory_.get()) {
@@ -206,6 +218,7 @@ AstValueFactory* ParseInfo::GetOrCreateAstValueFactory() {
 
 void ParseInfo::AllocateSourceRangeMap() {
   DCHECK(block_coverage_enabled());
+  DCHECK_NULL(source_range_map());
   set_source_range_map(new (zone()) SourceRangeMap(zone()));
 }
 
@@ -217,23 +230,51 @@ void ParseInfo::set_character_stream(
   character_stream_.swap(character_stream);
 }
 
-void ParseInfo::SetFlagsForToplevelCompileFromScript(Isolate* isolate,
-                                                     Script script) {
-  SetFlagsFromScript(isolate, script);
+void ParseInfo::SetFlagsForToplevelCompile(bool is_collecting_type_profile,
+                                           bool is_user_javascript,
+                                           LanguageMode language_mode,
+                                           REPLMode repl_mode) {
   set_allow_lazy_parsing();
   set_toplevel();
-  set_collect_type_profile(isolate->is_collecting_type_profile() &&
-                           script.IsUserJavaScript());
-  set_repl_mode(script.is_repl_mode());
+  set_collect_type_profile(is_user_javascript && is_collecting_type_profile);
+  set_language_mode(
+      stricter_language_mode(this->language_mode(), language_mode));
+  set_repl_mode(repl_mode == REPLMode::kYes);
+
+  if (V8_UNLIKELY(is_user_javascript && block_coverage_enabled())) {
+    AllocateSourceRangeMap();
+  }
+}
+
+template <typename LocalIsolate>
+void ParseInfo::SetFlagsForToplevelCompileFromScript(
+    LocalIsolate* isolate, Script script, bool is_collecting_type_profile) {
+  SetFlagsForFunctionFromScript(script);
+  SetFlagsForToplevelCompile(is_collecting_type_profile,
+                             script.IsUserJavaScript(), language_mode(),
+                             construct_repl_mode(script.is_repl_mode()));
 
   if (script.is_wrapped()) {
     set_function_syntax_kind(FunctionSyntaxKind::kWrapped);
   }
 }
 
-void ParseInfo::SetFlagsFromScript(Isolate* isolate, Script script) {
-  DCHECK(script_id_ == -1 || script_id_ == script.id());
-  script_id_ = script.id();
+void ParseInfo::CheckFlagsForToplevelCompileFromScript(
+    Script script, bool is_collecting_type_profile) {
+  CheckFlagsForFunctionFromScript(script);
+  DCHECK(allow_lazy_parsing());
+  DCHECK(is_toplevel());
+  DCHECK_EQ(collect_type_profile(),
+            is_collecting_type_profile && script.IsUserJavaScript());
+  DCHECK_EQ(is_repl_mode(), script.is_repl_mode());
+
+  if (script.is_wrapped()) {
+    DCHECK_EQ(function_syntax_kind(), FunctionSyntaxKind::kWrapped);
+  }
+}
+
+void ParseInfo::SetFlagsForFunctionFromScript(Script script) {
+  DCHECK_EQ(script_id_, script.id());
 
   set_eval(script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
   set_module(script.origin_options().IsModule());
@@ -242,10 +283,17 @@ void ParseInfo::SetFlagsFromScript(Isolate* isolate, Script script) {
   if (block_coverage_enabled() && script.IsUserJavaScript()) {
     AllocateSourceRangeMap();
   }
+}
 
-  if (script.is_wrapped()) {
-    set_wrapped_arguments(handle(script.wrapped_arguments(), isolate));
-  }
+void ParseInfo::CheckFlagsForFunctionFromScript(Script script) {
+  DCHECK_EQ(script_id_, script.id());
+  // We set "is_eval" for wrapped functions to get an outer declaration scope.
+  // This is a bit hacky, but ok since we can't be both eval and wrapped.
+  DCHECK_EQ(is_eval() && !is_wrapped_as_function(),
+            script.compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  DCHECK_EQ(is_module(), script.origin_options().IsModule());
+  DCHECK_IMPLIES(block_coverage_enabled() && script.IsUserJavaScript(),
+                 source_range_map() != nullptr);
 }
 
 void ParseInfo::ParallelTasks::Enqueue(ParseInfo* outer_parse_info,

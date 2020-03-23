@@ -22,9 +22,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 33
 bytecodes: [
-  /*   99 E> */ B(StackCheck),
                 B(Mov), R(closure), R(0),
   /*  104 S> */ B(LdaConstant), U8(0),
   /*  111 E> */ B(LdaKeyedProperty), R(closure), U8(1),
@@ -62,9 +61,8 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 47
+bytecode array length: 46
 bytecodes: [
-  /*  125 E> */ B(StackCheck),
                 B(Mov), R(closure), R(0),
   /*  130 S> */ B(LdaConstant), U8(0),
   /*  130 E> */ B(LdaKeyedProperty), R(closure), U8(0),
@@ -106,9 +104,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 39
 bytecodes: [
-  /*  113 E> */ B(StackCheck),
                 B(Mov), R(closure), R(1),
   /*  118 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(3),
@@ -149,9 +146,8 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 35
 bytecodes: [
-  /*  112 E> */ B(StackCheck),
                 B(Mov), R(closure), R(1),
   /*  117 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(3),

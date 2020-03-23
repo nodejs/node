@@ -17,8 +17,6 @@ class JSRegExpStringIterator
     : public TorqueGeneratedJSRegExpStringIterator<JSRegExpStringIterator,
                                                    JSObject> {
  public:
-  DECL_INT_ACCESSORS(flags)
-
   // [boolean]: The [[Done]] internal property.
   DECL_BOOLEAN_ACCESSORS(done)
 

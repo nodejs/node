@@ -256,7 +256,8 @@ Handle<String> WasmModuleObject::GetFunctionName(
       GetFunctionNameOrNull(isolate, module_object, func_index);
   if (!name.is_null()) return name.ToHandleChecked();
   EmbeddedVector<char, 32> buffer;
-  int length = SNPrintF(buffer, "wasm-function[%u]", func_index);
+  DCHECK_GE(func_index, module_object->module()->num_imported_functions);
+  int length = SNPrintF(buffer, "func%u", func_index);
   return isolate->factory()
       ->NewStringFromOneByte(Vector<uint8_t>::cast(buffer.SubVector(0, length)))
       .ToHandleChecked();
@@ -299,7 +300,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
   table_obj->set_entries(*backing_store);
   table_obj->set_current_length(initial);
   table_obj->set_maximum_length(*max);
-  table_obj->set_raw_type(static_cast<int>(type));
+  table_obj->set_raw_type(static_cast<int>(type.kind()));
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
   if (entries != nullptr) {
@@ -516,7 +517,7 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
 
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
-    wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
+    const wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
     int target_func_index) {
   // We simply need to update the IFTs for each instance that imports
   // this table.
@@ -879,26 +880,22 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (old_buffer->is_asmjs_memory()) return -1;
 
   // Checks for maximum memory size.
-  uint32_t maximum_pages = wasm::max_mem_pages();
+  uint32_t maximum_pages = wasm::max_maximum_mem_pages();
   if (memory_object->has_maximum_pages()) {
     maximum_pages = std::min(
         maximum_pages, static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  CHECK_GE(wasm::max_mem_pages(), maximum_pages);
+  DCHECK_GE(wasm::max_maximum_mem_pages(), maximum_pages);
   size_t old_size = old_buffer->byte_length();
-  CHECK_EQ(0, old_size % wasm::kWasmPageSize);
+  DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
-  CHECK_GE(wasm::max_mem_pages(), old_pages);
-  if ((pages > maximum_pages - old_pages) ||          // exceeds remaining
-      (pages > wasm::max_mem_pages() - old_pages)) {  // exceeds limit
-    return -1;
-  }
+  CHECK_GE(wasm::max_maximum_mem_pages(), old_pages);
+  if (pages > maximum_pages - old_pages) return -1;
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
   if (!backing_store) return -1;
 
   // Compute new size.
   size_t new_pages = old_pages + pages;
-  size_t new_byte_length = new_pages * wasm::kWasmPageSize;
 
   // Try to handle shared memory first.
   if (old_buffer->is_shared()) {
@@ -909,6 +906,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                                     new_pages);
         // Broadcasting the update should update this memory object too.
         CHECK_NE(*old_buffer, memory_object->array_buffer());
+        // If the allocation succeeded, then this can't possibly overflow:
+        size_t new_byte_length = new_pages * wasm::kWasmPageSize;
         // This is a less than check, as it is not guaranteed that the SAB
         // length here will be equal to the stashed length above as calls to
         // grow the same memory object can come in from different workers.
@@ -962,7 +961,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     global_obj->set_is_mutable(is_mutable);
   }
 
-  if (wasm::ValueTypes::IsReferenceType(type)) {
+  if (type.IsReferenceType()) {
     DCHECK(maybe_untagged_buffer.is_null());
     Handle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
@@ -974,7 +973,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     global_obj->set_tagged_buffer(*tagged_buffer);
   } else {
     DCHECK(maybe_tagged_buffer.is_null());
-    uint32_t type_size = wasm::ValueTypes::ElementSizeInBytes(type);
+    uint32_t type_size = type.element_size_bytes();
 
     Handle<JSArrayBuffer> untagged_buffer;
     if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
@@ -1233,6 +1232,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_module_object(*module_object);
   instance->set_jump_table_start(
       module_object->native_module()->jump_table_start());
+  instance->set_hook_on_function_call_address(
+      isolate->debug()->hook_on_function_call_address());
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
@@ -1286,7 +1287,11 @@ void WasmInstanceObject::InitElemSegmentArrays(
   auto module = module_object->module();
   auto num_elem_segments = module->elem_segments.size();
   for (size_t i = 0; i < num_elem_segments; ++i) {
-    instance->dropped_elem_segments()[i] = 0;
+    instance->dropped_elem_segments()[i] =
+        module->elem_segments[i].status ==
+                wasm::WasmElemSegment::kStatusDeclarative
+            ? 1
+            : 0;
   }
 }
 
@@ -1437,7 +1442,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   // Note that {SignatureMap::Find} may return {-1} if the signature is
   // not found; it will simply never match any check.
   Zone zone(isolate->allocator(), ZONE_NAME);
-  wasm::FunctionSig* sig = js_function->GetSignature(&zone);
+  const wasm::FunctionSig* sig = js_function->GetSignature(&zone);
   auto sig_id = instance->module()->signature_map.Find(*sig);
 
   // Compile a wrapper for the target callable.
@@ -1458,8 +1463,9 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
         isolate->wasm_engine(), &env, kind, sig, false);
     std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
         result.func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots, std::move(result.protected_instructions),
-        std::move(result.source_positions), GetCodeKind(result),
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), GetCodeKind(result),
         wasm::ExecutionTier::kNone);
     wasm::WasmCode* published_code =
         native_module->PublishCode(std::move(wasm_code));
@@ -1480,7 +1486,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
 // static
 uint8_t* WasmInstanceObject::GetGlobalStorage(
     Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
-  DCHECK(!wasm::ValueTypes::IsReferenceType(global.type));
+  DCHECK(!global.type.IsReferenceType());
   if (global.mutability && global.imported) {
     return reinterpret_cast<byte*>(
         instance->imported_mutable_globals()[global.index]);
@@ -1493,7 +1499,7 @@ uint8_t* WasmInstanceObject::GetGlobalStorage(
 std::pair<Handle<FixedArray>, uint32_t>
 WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
                                             const wasm::WasmGlobal& global) {
-  DCHECK(wasm::ValueTypes::IsReferenceType(global.type));
+  DCHECK(global.type.IsReferenceType());
   Isolate* isolate = instance->GetIsolate();
   if (global.mutability && global.imported) {
     Handle<FixedArray> buffer(
@@ -1511,7 +1517,7 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
 wasm::WasmValue WasmInstanceObject::GetGlobalValue(
     Handle<WasmInstanceObject> instance, const wasm::WasmGlobal& global) {
   Isolate* isolate = instance->GetIsolate();
-  if (wasm::ValueTypes::IsReferenceType(global.type)) {
+  if (global.type.IsReferenceType()) {
     Handle<FixedArray> global_buffer;  // The buffer of the global.
     uint32_t global_index = 0;         // The index into the buffer.
     std::tie(global_buffer, global_index) =
@@ -1520,9 +1526,9 @@ wasm::WasmValue WasmInstanceObject::GetGlobalValue(
   }
   Address ptr = reinterpret_cast<Address>(GetGlobalStorage(instance, global));
   using wasm::Simd128;
-  switch (global.type) {
+  switch (global.type.kind()) {
 #define CASE_TYPE(valuetype, ctype) \
-  case wasm::valuetype:             \
+  case wasm::ValueType::valuetype:  \
     return wasm::WasmValue(base::ReadLittleEndianValue<ctype>(ptr));
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
@@ -1645,8 +1651,7 @@ namespace {
 constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
 
 size_t ComputeEncodedElementSize(wasm::ValueType type) {
-  size_t byte_size =
-      static_cast<size_t>(wasm::ValueTypes::ElementSizeInBytes(type));
+  size_t byte_size = type.element_size_bytes();
   DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
   DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
   return byte_size / kBytesPerExceptionValuesArrayElement;
@@ -1662,28 +1667,29 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
   const wasm::WasmExceptionSig* sig = exception->sig;
   uint32_t encoded_size = 0;
   for (size_t i = 0; i < sig->parameter_count(); ++i) {
-    switch (sig->GetParam(i)) {
-      case wasm::kWasmI32:
-      case wasm::kWasmF32:
+    switch (sig->GetParam(i).kind()) {
+      case wasm::ValueType::kI32:
+      case wasm::ValueType::kF32:
         DCHECK_EQ(2, ComputeEncodedElementSize(sig->GetParam(i)));
         encoded_size += 2;
         break;
-      case wasm::kWasmI64:
-      case wasm::kWasmF64:
+      case wasm::ValueType::kI64:
+      case wasm::ValueType::kF64:
         DCHECK_EQ(4, ComputeEncodedElementSize(sig->GetParam(i)));
         encoded_size += 4;
         break;
-      case wasm::kWasmS128:
+      case wasm::ValueType::kS128:
         DCHECK_EQ(8, ComputeEncodedElementSize(sig->GetParam(i)));
         encoded_size += 8;
         break;
-      case wasm::kWasmAnyRef:
-      case wasm::kWasmFuncRef:
-      case wasm::kWasmNullRef:
-      case wasm::kWasmExnRef:
+      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kFuncRef:
+      case wasm::ValueType::kNullRef:
+      case wasm::ValueType::kExnRef:
         encoded_size += 1;
         break;
-      default:
+      case wasm::ValueType::kStmt:
+      case wasm::ValueType::kBottom:
         UNREACHABLE();
     }
   }
@@ -1808,7 +1814,7 @@ Address WasmExportedFunction::GetWasmCallTarget() {
   return instance().GetCallTarget(function_index());
 }
 
-wasm::FunctionSig* WasmExportedFunction::sig() {
+const wasm::FunctionSig* WasmExportedFunction::sig() {
   return instance().module()->functions[function_index()].sig;
 }
 
@@ -1820,7 +1826,7 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
 }
 
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
-                                           wasm::FunctionSig* sig,
+                                           const wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
@@ -1846,6 +1852,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<String> name = isolate->factory()->Function_string();
   if (callable->IsJSFunction()) {
     name = JSFunction::GetName(Handle<JSFunction>::cast(callable));
+    name = String::Flatten(isolate, name);
   }
   Handle<Map> function_map = isolate->wasm_exported_function_map();
   NewFunctionArgs args =
@@ -1859,7 +1866,7 @@ JSReceiver WasmJSFunction::GetCallable() const {
   return shared().wasm_js_function_data().callable();
 }
 
-wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
+const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   WasmJSFunctionData function_data = shared().wasm_js_function_data();
   int sig_size = function_data.serialized_signature().length();
   wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
@@ -1871,7 +1878,7 @@ wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   return new (zone) wasm::FunctionSig(return_count, parameter_count, types);
 }
 
-bool WasmJSFunction::MatchesSignature(wasm::FunctionSig* sig) {
+bool WasmJSFunction::MatchesSignature(const wasm::FunctionSig* sig) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
   int return_count = static_cast<int>(sig->return_count());

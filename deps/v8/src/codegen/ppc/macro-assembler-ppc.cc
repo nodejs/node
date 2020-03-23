@@ -5,7 +5,7 @@
 #include <assert.h>  // For assert
 #include <limits.h>  // For LONG_MIN, LONG_MAX.
 
-#if V8_TARGET_ARCH_PPC
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
@@ -671,23 +671,6 @@ void TurboAssembler::RestoreFrameStateForTailCall() {
   LoadP(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
   LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   mtlr(r0);
-}
-
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the highest encoding,
-  // which means that lowest encodings are closest to the stack pointer.
-  RegList regs = kSafepointSavedRegisters;
-  int index = 0;
-
-  DCHECK(reg_code >= 0 && reg_code < kNumRegisters);
-
-  for (int16_t i = 0; i < reg_code; i++) {
-    if ((regs & (1 << i)) != 0) {
-      index++;
-    }
-  }
-
-  return index;
 }
 
 void TurboAssembler::CanonicalizeNaN(const DoubleRegister dst,
@@ -1914,20 +1897,32 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    Register scratch1 = r7;
-    Register scratch2 = r8;
-    Push(scratch1, scratch2);
-
-    mflr(scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_pc_address(isolate()));
+  Register addr_scratch = r7;
+  Register scratch = r8;
+  Push(scratch);
+  mflr(scratch);
+  // See x64 code for reasoning about how to address the isolate data fields.
+  if (root_array_available()) {
     LoadPC(r0);
-    StoreP(r0, MemOperand(scratch1));
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    StoreP(fp, MemOperand(scratch1));
-    mtlr(scratch2);
-    Pop(scratch1, scratch2);
+    StoreP(r0, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_pc_offset()));
+    StoreP(fp, MemOperand(kRootRegister,
+                          IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Push(addr_scratch);
+
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    LoadPC(r0);
+    StoreP(r0, MemOperand(addr_scratch));
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(fp, MemOperand(addr_scratch));
+    Pop(addr_scratch);
   }
+  mtlr(scratch);
+  Pop(scratch);
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
@@ -1947,15 +1942,21 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   Call(dest);
 
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register scratch1 = r7;
-    Register scratch2 = r8;
-    Push(scratch1, scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    mov(scratch2, Operand::Zero());
-    StoreP(scratch2, MemOperand(scratch1));
-    Pop(scratch1, scratch2);
+  // We don't unset the PC; the FP is the source of truth.
+  Register zero_scratch = r0;
+  mov(zero_scratch, Operand::Zero());
+
+  if (root_array_available()) {
+    StoreP(
+        zero_scratch,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Push(addr_scratch);
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    StoreP(zero_scratch, MemOperand(addr_scratch));
+    Pop(addr_scratch);
   }
 
   // Remove frame bought in PrepareCallCFunction
@@ -3013,7 +3014,9 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
             SizeOfCodeGeneratedSince(&start_call));
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
+                                           Label* exit, DeoptimizeKind kind) {
+  USE(exit, kind);
   NoRootArrayScope no_root_array(this);
 
   // Save the deopt id in r29 (we don't need the roots array from now on).
@@ -3036,8 +3039,9 @@ void TurboAssembler::ZeroExtWord32(Register dst, Register src) {
 }
 
 void TurboAssembler::Trap() { stop(); }
+void TurboAssembler::DebugBreak() { stop(); }
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_PPC
+#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64

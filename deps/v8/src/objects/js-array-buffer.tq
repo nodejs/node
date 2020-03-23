@@ -2,9 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+bitfield struct JSArrayBufferFlags extends uint32 {
+  is_external: bool: 1 bit;
+  is_detachable: bool: 1 bit;
+  was_detached: bool: 1 bit;
+  is_asm_js_memory: bool: 1 bit;
+  is_shared: bool: 1 bit;
+}
+
 extern class JSArrayBuffer extends JSObject {
   byte_length: uintptr;
   backing_store: RawPtr;
+  @if(V8_ARRAY_BUFFER_EXTENSION_BOOL) extension: RawPtr;
+  @ifnot(V8_ARRAY_BUFFER_EXTENSION_BOOL) extension: void;
+  bit_field: JSArrayBufferFlags;
+  // Pads header size to be a multiple of kTaggedSize.
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}
+
+@export
+macro IsDetachedBuffer(buffer: JSArrayBuffer): bool {
+  return buffer.bit_field.was_detached;
+}
+
+macro IsSharedArrayBuffer(buffer: JSArrayBuffer): bool {
+  return buffer.bit_field.is_shared;
 }
 
 @abstract

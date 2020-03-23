@@ -238,17 +238,22 @@ class BigInt : public BigIntBase {
   class BodyDescriptor;
 
  private:
+  template <typename LocalIsolate>
   friend class StringToBigIntHelper;
   friend class ValueDeserializer;
   friend class ValueSerializer;
 
   // Special functions for StringToBigIntHelper:
-  static Handle<BigInt> Zero(Isolate* isolate);
+  template <typename LocalIsolate>
+  static Handle<BigInt> Zero(LocalIsolate* isolate, AllocationType allocation =
+                                                        AllocationType::kYoung);
+  template <typename LocalIsolate>
   static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
-      Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+      LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
       AllocationType allocation);
-  static void InplaceMultiplyAdd(Handle<FreshlyAllocatedBigInt> x,
-                                 uintptr_t factor, uintptr_t summand);
+  static void InplaceMultiplyAdd(FreshlyAllocatedBigInt x, uintptr_t factor,
+                                 uintptr_t summand);
+  template <typename LocalIsolate>
   static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);
 
   // Special functions for ValueSerializer/ValueDeserializer:

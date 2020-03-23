@@ -96,7 +96,6 @@ bool AccessorInfo::HasExpectedReceiverType() {
   return expected_receiver_type().IsFunctionTemplateInfo();
 }
 
-TQ_SMI_ACCESSORS(InterceptorInfo, flags)
 BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                kCanInterceptSymbolsBit)
 BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)

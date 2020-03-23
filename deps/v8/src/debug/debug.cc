@@ -37,6 +37,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/snapshot.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
@@ -995,19 +996,6 @@ void Debug::PrepareStep(StepAction step_action) {
   StackTraceFrameIterator frames_it(isolate_, frame_id);
   StandardFrame* frame = frames_it.frame();
 
-  // Handle stepping in wasm functions via the wasm interpreter.
-  if (frame->is_wasm_interpreter_entry()) {
-    WasmInterpreterEntryFrame* wasm_frame =
-        WasmInterpreterEntryFrame::cast(frame);
-    if (wasm_frame->NumberOfActiveFrames() > 0) {
-      wasm_frame->debug_info().PrepareStep(step_action);
-      return;
-    }
-  }
-  // If this is wasm, but there are no interpreted frames on top, all we can do
-  // is step out.
-  if (frame->is_wasm()) step_action = StepOut;
-
   BreakLocation location = BreakLocation::Invalid();
   Handle<SharedFunctionInfo> shared;
   int current_frame_count = CurrentFrameCount();
@@ -1051,6 +1039,25 @@ void Debug::PrepareStep(StepAction step_action) {
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
+  } else if (frame->is_wasm_interpreter_entry()) {
+    // Handle stepping in wasm functions via the wasm interpreter.
+    WasmInterpreterEntryFrame* wasm_frame =
+        WasmInterpreterEntryFrame::cast(frame);
+    if (wasm_frame->NumberOfActiveFrames() > 0) {
+      wasm_frame->debug_info().PrepareStep(step_action);
+      return;
+    }
+  } else if (FLAG_debug_in_liftoff && frame->is_wasm_compiled()) {
+    // Handle stepping in Liftoff code.
+    WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
+    wasm::WasmCodeRefScope code_ref_scope;
+    wasm::WasmCode* code = wasm_frame->wasm_code();
+    if (code->is_liftoff()) {
+      wasm_frame->native_module()->GetDebugInfo()->PrepareStep(isolate_);
+    }
+    // In case the wasm code returns, prepare the next frame (if JS) to break.
+    step_action = StepOut;
+    UpdateHookOnFunctionCall();
   }
 
   switch (step_action) {
@@ -1718,8 +1725,8 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   return FixedArray::ShrinkOrEmpty(isolate_, results, length);
 }
 
-void Debug::OnThrow(Handle<Object> exception) {
-  if (in_debug_scope() || ignore_events()) return;
+base::Optional<Object> Debug::OnThrow(Handle<Object> exception) {
+  if (in_debug_scope() || ignore_events()) return {};
   // Temporarily clear any scheduled_exception to allow evaluating
   // JavaScript from the debug event handler.
   HandleScope scope(isolate_);
@@ -1736,6 +1743,14 @@ void Debug::OnThrow(Handle<Object> exception) {
     isolate_->thread_local_top()->scheduled_exception_ = *scheduled_exception;
   }
   PrepareStepOnThrow();
+  // If the OnException handler requested termination, then indicated this to
+  // our caller Isolate::Throw so it can deal with it immediatelly instead of
+  // throwing the original exception.
+  if (isolate_->stack_guard()->CheckTerminateExecution()) {
+    isolate_->stack_guard()->ClearTerminateExecution();
+    return isolate_->TerminateExecution();
+  }
+  return {};
 }
 
 void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
@@ -2060,7 +2075,7 @@ void Debug::PrintBreakLocation() {
   if (script_obj->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_obj);
     Handle<String> source(String::cast(script->source()), isolate_);
-    Script::InitLineEnds(script);
+    Script::InitLineEnds(isolate_, script);
     int line =
         Script::GetLineNumber(script, source_position) - script->line_offset();
     int column = Script::GetColumnNumber(script, source_position) -
@@ -2092,7 +2107,6 @@ DebugScope::DebugScope(Debug* debug)
   // Link recursive debugger entry.
   base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
                       reinterpret_cast<base::AtomicWord>(this));
-
   // Store the previous frame id and return value.
   break_frame_id_ = debug_->break_frame_id();
 
@@ -2106,8 +2120,18 @@ DebugScope::DebugScope(Debug* debug)
   debug_->UpdateState();
 }
 
+void DebugScope::set_terminate_on_resume() { terminate_on_resume_ = true; }
 
 DebugScope::~DebugScope() {
+  // Terminate on resume must have been handled by retrieving it, if this is
+  // the outer scope.
+  if (terminate_on_resume_) {
+    if (!prev_) {
+      debug_->isolate_->stack_guard()->RequestTerminateExecution();
+    } else {
+      prev_->set_terminate_on_resume();
+    }
+  }
   // Leaving this debugger entry.
   base::Relaxed_Store(&debug_->thread_local_.current_debug_scope_,
                       reinterpret_cast<base::AtomicWord>(prev_));
@@ -2145,6 +2169,13 @@ void Debug::UpdateDebugInfosForExecutionMode() {
     }
     current = current->next();
   }
+}
+
+void Debug::SetTerminateOnResume() {
+  DebugScope* scope = reinterpret_cast<DebugScope*>(
+      base::Acquire_Load(&thread_local_.current_debug_scope_));
+  CHECK_NOT_NULL(scope);
+  scope->set_terminate_on_resume();
 }
 
 void Debug::StartSideEffectCheckMode() {

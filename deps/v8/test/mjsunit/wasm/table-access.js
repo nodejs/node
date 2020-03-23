@@ -138,6 +138,7 @@ const dummy_func = exports.set_table_func1;
   const function_index = builder.addFunction('hidden', sig_index)
                              .addBody([kExprI32Const, expected])
                              .index;
+  builder.addDeclarativeElementSegment([function_index]);
 
   builder.addFunction('main', kSig_i_v)
       .addBody([

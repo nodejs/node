@@ -31,19 +31,34 @@ bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
   return reg.code() % 2 == 0;
 }
 
-void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
+void WasmI32AtomicWait32Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  /* Register t4 correspond to f12 FPU register. */
-  const Register default_stub_registers[] = {a0, a1, t4};
+  const Register default_stub_registers[] = {a0, a1, a2, a3};
   CHECK_EQ(static_cast<size_t>(kParameterCount),
            arraysize(default_stub_registers));
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
+void WasmI32AtomicWait64Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  /* Register t4 correspond to f12 FPU register. */
-  const Register default_stub_registers[] = {a0, a1, a2, t4};
+  const Register default_stub_registers[] = {a0, a1, a2};
+  CHECK_EQ(static_cast<size_t>(kParameterCount),
+           arraysize(default_stub_registers));
+  data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
+}
+
+void WasmI64AtomicWait32Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  const Register default_stub_registers[] = {a0, a1, a2, a3, t0};
+  CHECK_EQ(static_cast<size_t>(kParameterCount - kStackArgumentsCount),
+           arraysize(default_stub_registers));
+  data->InitializePlatformSpecific(kParameterCount - kStackArgumentsCount,
+                                   default_stub_registers);
+}
+
+void WasmI64AtomicWait64Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  const Register default_stub_registers[] = {a0, a1, a2};
   CHECK_EQ(static_cast<size_t>(kParameterCount),
            arraysize(default_stub_registers));
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);

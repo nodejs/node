@@ -57,13 +57,14 @@ static int AddKey(Object key, Handle<FixedArray> combined_keys,
 static Handle<FixedArray> CombineKeys(Isolate* isolate,
                                       Handle<FixedArray> own_keys,
                                       Handle<FixedArray> prototype_chain_keys,
-                                      Handle<JSReceiver> receiver) {
+                                      Handle<JSReceiver> receiver,
+                                      bool may_have_elements) {
   int prototype_chain_keys_length = prototype_chain_keys->length();
   if (prototype_chain_keys_length == 0) return own_keys;
 
   Map map = receiver->map();
   int nof_descriptors = map.NumberOfOwnDescriptors();
-  if (nof_descriptors == 0) return prototype_chain_keys;
+  if (nof_descriptors == 0 && !may_have_elements) return prototype_chain_keys;
 
   Handle<DescriptorArray> descs(map.instance_descriptors(), isolate);
   int own_keys_length = own_keys.is_null() ? 0 : own_keys->length();
@@ -323,13 +324,18 @@ void FastKeyAccumulator::Prepare() {
   // Fully walk the prototype chain and find the last prototype with keys.
   is_receiver_simple_enum_ = false;
   has_empty_prototype_ = true;
+  only_own_has_simple_elements_ =
+      !receiver_->map().IsCustomElementsReceiverMap();
   JSReceiver last_prototype;
   may_have_elements_ = MayHaveElements(*receiver_);
   for (PrototypeIterator iter(isolate_, *receiver_); !iter.IsAtEnd();
        iter.Advance()) {
     JSReceiver current = iter.GetCurrent<JSReceiver>();
-    if (!may_have_elements_) {
-      may_have_elements_ = MayHaveElements(current);
+    if (!may_have_elements_ || only_own_has_simple_elements_) {
+      if (MayHaveElements(current)) {
+        may_have_elements_ = true;
+        only_own_has_simple_elements_ = false;
+      }
     }
     bool has_no_properties = CheckAndInitalizeEmptyEnumCache(current);
     if (has_no_properties) continue;
@@ -564,8 +570,23 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysSlow(
 
 MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
     GetKeysConversion keys_conversion) {
-  Handle<FixedArray> own_keys = KeyAccumulator::GetOwnEnumPropertyKeys(
-      isolate_, Handle<JSObject>::cast(receiver_));
+  Handle<FixedArray> own_keys;
+  if (may_have_elements_) {
+    MaybeHandle<FixedArray> maybe_own_keys;
+    if (receiver_->map().is_dictionary_map()) {
+      maybe_own_keys = GetOwnKeysWithElements<false>(
+          isolate_, Handle<JSObject>::cast(receiver_), keys_conversion,
+          skip_indices_);
+    } else {
+      maybe_own_keys = GetOwnKeysWithElements<true>(
+          isolate_, Handle<JSObject>::cast(receiver_), keys_conversion,
+          skip_indices_);
+    }
+    ASSIGN_RETURN_ON_EXCEPTION(isolate_, own_keys, maybe_own_keys, FixedArray);
+  } else {
+    own_keys = KeyAccumulator::GetOwnEnumPropertyKeys(
+        isolate_, Handle<JSObject>::cast(receiver_));
+  }
   Handle<FixedArray> prototype_chain_keys;
   if (has_prototype_info_cache_) {
     prototype_chain_keys =
@@ -587,7 +608,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
     prototype_chain_keys = accumulator.GetKeys(keys_conversion);
   }
   Handle<FixedArray> result = CombineKeys(
-      isolate_, own_keys, prototype_chain_keys, receiver_);
+      isolate_, own_keys, prototype_chain_keys, receiver_, may_have_elements_);
   if (is_for_in_ && own_keys.is_identical_to(result)) {
     // Don't leak the enumeration cache without the receiver since it might get
     // trimmed otherwise.
@@ -605,7 +626,7 @@ bool FastKeyAccumulator::MayHaveElements(JSReceiver receiver) {
 }
 
 bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
-  if (may_have_elements_) return false;
+  if (may_have_elements_ && !only_own_has_simple_elements_) return false;
   Handle<JSObject> object = Handle<JSObject>::cast(receiver);
   if (!object->HasFastProperties()) return false;
   if (object->HasNamedInterceptor()) return false;

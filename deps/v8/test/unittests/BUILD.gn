@@ -7,7 +7,7 @@ import("../../gni/v8.gni")
 if (is_fuchsia) {
   import("//build/config/fuchsia/rules.gni")
 
-  fuchsia_package("v8_unittests_pkg") {
+  cr_fuchsia_package("v8_unittests_pkg") {
     testonly = true
     binary = ":unittests"
     package_name_override = "v8_unittests"
@@ -170,12 +170,13 @@ v8_source_set("unittests_sources") {
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
     "heap/item-parallel-job-unittest.cc",
+    "heap/local-heap-unittest.cc",
     "heap/marking-unittest.cc",
     "heap/marking-worklist-unittest.cc",
     "heap/memory-reducer-unittest.cc",
     "heap/object-stats-unittest.cc",
     "heap/off-thread-factory-unittest.cc",
-    "heap/scavenge-job-unittest.cc",
+    "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
     "heap/unmapper-unittest.cc",
@@ -211,6 +212,7 @@ v8_source_set("unittests_sources") {
     "parser/preparser-unittest.cc",
     "profiler/strings-storage-unittest.cc",
     "regress/regress-crbug-1041240-unittest.cc",
+    "regress/regress-crbug-1056054-unittest.cc",
     "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
     "strings/char-predicates-unittest.cc",

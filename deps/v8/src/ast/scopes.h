@@ -645,9 +645,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                     bool force_context_allocation);
   static void ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                        Scope* end);
-  void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
-  void ResolveVariable(ParseInfo* info, VariableProxy* proxy);
-  V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
+  void ResolveTo(VariableProxy* proxy, Variable* var);
+  void ResolveVariable(VariableProxy* proxy);
+  V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(Scope* end);
 
   // Finds free variables of this scope. This mutates the unresolved variables
   // list along the way, so full resolution cannot be done afterwards.
@@ -656,7 +656,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                         UnresolvedList* new_unresolved_list,
                         bool maybe_in_arrowhead);
   void CollectNonLocals(DeclarationScope* max_outer_scope, Isolate* isolate,
-                        ParseInfo* info, Handle<StringSet>* non_locals);
+                        Handle<StringSet>* non_locals);
 
   // Predicates.
   bool MustAllocate(Variable* var);
@@ -670,7 +670,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   V8_INLINE void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
-  void AllocateScopeInfosRecursively(Isolate* isolate,
+  template <typename LocalIsolate>
+  void AllocateScopeInfosRecursively(LocalIsolate* isolate,
                                      MaybeHandle<ScopeInfo> outer_scope);
 
   void AllocateDebuggerScopeInfos(Isolate* isolate,
@@ -690,6 +691,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   void SetDefaults();
+
+  void set_scope_info(Handle<ScopeInfo> scope_info);
 
   friend class DeclarationScope;
   friend class ClassScope;
@@ -1098,9 +1101,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // Allocate ScopeInfos for top scope and any inner scopes that need them.
   // Does nothing if ScopeInfo is already allocated.
-  static void AllocateScopeInfos(ParseInfo* info, Isolate* isolate);
+  template <typename LocalIsolate>
+  V8_EXPORT_PRIVATE static void AllocateScopeInfos(ParseInfo* info,
+                                                   LocalIsolate* isolate);
 
-  Handle<StringSet> CollectNonLocals(Isolate* isolate, ParseInfo* info,
+  Handle<StringSet> CollectNonLocals(Isolate* isolate,
                                      Handle<StringSet> non_locals);
 
   // Determine if we can use lazy compilation for this scope.

@@ -1421,9 +1421,9 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
   a.AllocateArray(argument_count,
                   MapRef(broker(), factory()->fixed_array_map()));
   for (int i = 0; i < argument_count; ++i, ++parameters_it) {
-    DCHECK_NOT_NULL((*parameters_it).node);
+    DCHECK_NOT_NULL(parameters_it.node());
     a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
-            (*parameters_it).node);
+            parameters_it.node());
   }
   return a.Finish();
 }
@@ -1452,9 +1452,9 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
   AllocationBuilder a(jsgraph(), effect, control);
   a.AllocateArray(num_elements, MapRef(broker(), factory()->fixed_array_map()));
   for (int i = 0; i < num_elements; ++i, ++parameters_it) {
-    DCHECK_NOT_NULL((*parameters_it).node);
+    DCHECK_NOT_NULL(parameters_it.node());
     a.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
-            (*parameters_it).node);
+            parameters_it.node());
   }
   return a.Finish();
 }
@@ -1496,9 +1496,9 @@ Node* JSCreateLowering::AllocateAliasedArguments(
              jsgraph()->TheHoleConstant());
   }
   for (int i = mapped_count; i < argument_count; ++i, ++parameters_it) {
-    DCHECK_NOT_NULL((*parameters_it).node);
+    DCHECK_NOT_NULL(parameters_it.node());
     aa.Store(AccessBuilder::ForFixedArrayElement(), jsgraph()->Constant(i),
-             (*parameters_it).node);
+             parameters_it.node());
   }
   Node* arguments = aa.Finish();
 

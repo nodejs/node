@@ -63,7 +63,6 @@ const int kR9Available = 1;  // 1 if available to us, 0 if reserved
 
 // Register list in load/store instructions
 // Note that the bit values must match those used in actual instruction encoding
-const int kNumRegs = 16;
 
 // Caller-saved/arguments registers
 const RegList kJSCallerSaved = 1 << 0 |  // r0 a1
@@ -95,17 +94,6 @@ const int kNumCalleeSaved = 7 + kR9Available;
 
 // Double registers d8 to d15 are callee-saved.
 const int kNumDoubleCalleeSaved = 8;
-
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of 8.
-// TODO(regis): Only 8 registers may actually be sufficient. Revisit.
-const int kNumSafepointRegisters = 16;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,

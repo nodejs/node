@@ -18,12 +18,6 @@
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
-// TODO(all): If possible automatically prepend an indicator like
-// UNIMPLEMENTED or LOCATION.
-#define ASM_UNIMPLEMENTED(message) __ Debug(message, __LINE__, NO_PARAM)
-#define ASM_UNIMPLEMENTED_BREAK(message) \
-  __ Debug(message, __LINE__,            \
-           FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
 #if DEBUG
 #define ASM_LOCATION(message) __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
 #define ASM_LOCATION_IN_ASSEMBLER(message) \
@@ -33,8 +27,6 @@
 #define ASM_LOCATION_IN_ASSEMBLER(message)
 #endif
 #else
-#define ASM_UNIMPLEMENTED(message)
-#define ASM_UNIMPLEMENTED_BREAK(message)
 #define ASM_LOCATION(message)
 #define ASM_LOCATION_IN_ASSEMBLER(message)
 #endif
@@ -136,10 +128,6 @@ inline BranchType InvertBranchType(BranchType type) {
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
-enum TargetAddressStorageMode {
-  CAN_INLINE_TARGET_ADDRESS,
-  NEVER_INLINE_TARGET_ADDRESS
-};
 enum DiscardMoveMode { kDontDiscardForSameWReg, kDiscardForSameWReg };
 
 // The macro assembler supports moving automatically pre-shifted immediates for
@@ -590,6 +578,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Debug(const char* message, uint32_t code, Instr params = BREAK);
 
   void Trap() override;
+  void DebugBreak() override;
 
   // Print a message to stderr and abort execution.
   void Abort(AbortReason reason);
@@ -630,7 +619,31 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Returns false, otherwise.
   bool TryOneInstrMoveImmediate(const Register& dst, int64_t imm);
 
-  inline void Bind(Label* label);
+  inline void Bind(Label* label,
+                   BranchTargetIdentifier id = BranchTargetIdentifier::kNone);
+
+  // Control-flow integrity:
+
+  // Define a function entrypoint.
+  inline void CodeEntry();
+  // Define an exception handler.
+  inline void ExceptionHandler();
+  // Define an exception handler and bind a label.
+  inline void BindExceptionHandler(Label* label);
+
+  // Control-flow integrity:
+
+  // Define a jump (BR) target.
+  inline void JumpTarget();
+  // Define a jump (BR) target and bind a label.
+  inline void BindJumpTarget(Label* label);
+  // Define a call (BLR) target. The target also allows tail calls (via BR)
+  // when the target is x16 or x17.
+  inline void CallTarget();
+  // Define a jump/call target.
+  inline void JumpOrCallTarget();
+  // Define a jump/call target and bind a label.
+  inline void BindJumpOrCallTarget(Label* label);
 
   static unsigned CountClearHalfWords(uint64_t imm, unsigned reg_size);
 
@@ -781,20 +794,33 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // The stack pointer must be aligned to 16 bytes on entry and the total size
   // of the specified registers must also be a multiple of 16 bytes.
   //
-  // Other than the registers passed into Pop, the stack pointer and (possibly)
-  // the system stack pointer, these methods do not modify any other registers.
+  // Other than the registers passed into Pop, the stack pointer, (possibly)
+  // the system stack pointer and (possibly) the link register, these methods
+  // do not modify any other registers.
+  //
+  // Some of the methods take an optional LoadLRMode or StoreLRMode template
+  // argument, which specifies whether we need to sign the link register at the
+  // start of the operation, or authenticate it at the end of the operation,
+  // when control flow integrity measures are enabled.
+  // When the mode is kDontLoadLR or kDontStoreLR, LR must not be passed as an
+  // argument to the operation.
+  enum LoadLRMode { kAuthLR, kDontLoadLR };
+  enum StoreLRMode { kSignLR, kDontStoreLR };
+  template <StoreLRMode lr_mode = kDontStoreLR>
   void Push(const CPURegister& src0, const CPURegister& src1 = NoReg,
             const CPURegister& src2 = NoReg, const CPURegister& src3 = NoReg);
   void Push(const CPURegister& src0, const CPURegister& src1,
             const CPURegister& src2, const CPURegister& src3,
             const CPURegister& src4, const CPURegister& src5 = NoReg,
             const CPURegister& src6 = NoReg, const CPURegister& src7 = NoReg);
+  template <LoadLRMode lr_mode = kDontLoadLR>
   void Pop(const CPURegister& dst0, const CPURegister& dst1 = NoReg,
            const CPURegister& dst2 = NoReg, const CPURegister& dst3 = NoReg);
   void Pop(const CPURegister& dst0, const CPURegister& dst1,
            const CPURegister& dst2, const CPURegister& dst3,
            const CPURegister& dst4, const CPURegister& dst5 = NoReg,
            const CPURegister& dst6 = NoReg, const CPURegister& dst7 = NoReg);
+  template <StoreLRMode lr_mode = kDontStoreLR>
   void Push(const Register& src0, const VRegister& src1);
 
   // This is a convenience method for pushing a single Handle<Object>.
@@ -836,7 +862,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // kSRegSizeInBits are supported.
   //
   // Otherwise, (Push|Pop)(CPU|X|W|D|S)RegList is preferred.
+  //
+  // The methods take an optional LoadLRMode or StoreLRMode template argument.
+  // When control flow integrity measures are enabled and the link register is
+  // included in 'registers', passing kSignLR to PushCPURegList will sign the
+  // link register before pushing the list, and passing kAuthLR to
+  // PopCPURegList will authenticate it after popping the list.
+  template <StoreLRMode lr_mode = kDontStoreLR>
   void PushCPURegList(CPURegList registers);
+  template <LoadLRMode lr_mode = kDontLoadLR>
   void PopCPURegList(CPURegList registers);
 
   // Calculate how much stack space (in bytes) are required to store caller
@@ -941,7 +975,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
-  void CallForDeoptimization(Address target, int deopt_id);
+  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind);
 
   // Calls a C function.
   // The called function is not allowed to trigger a
@@ -958,7 +993,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32.
   // Exits with 'result' holding the answer.
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
-                         DoubleRegister double_input, StubCallMode stub_mode);
+                         DoubleRegister double_input, StubCallMode stub_mode,
+                         LinkRegisterStatus lr_status);
 
   inline void Mul(const Register& rd, const Register& rn, const Register& rm);
 
@@ -1040,10 +1076,18 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Poke 'src' onto the stack. The offset is in bytes. The stack pointer must
   // be 16 byte aligned.
+  // When the optional template argument is kSignLR and control flow integrity
+  // measures are enabled, we sign the link register before poking it onto the
+  // stack. 'src' must be lr in this case.
+  template <StoreLRMode lr_mode = kDontStoreLR>
   void Poke(const CPURegister& src, const Operand& offset);
 
   // Peek at a value on the stack, and put it in 'dst'. The offset is in bytes.
   // The stack pointer must be aligned to 16 bytes.
+  // When the optional template argument is kAuthLR and control flow integrity
+  // measures are enabled, we authenticate the link register after peeking the
+  // value. 'dst' must be lr in this case.
+  template <LoadLRMode lr_mode = kDontLoadLR>
   void Peek(const CPURegister& dst, const Operand& offset);
 
   // Poke 'src1' and 'src2' onto the stack. The values written will be adjacent
@@ -1294,6 +1338,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                const Register& source);
   void DecompressAnyTagged(const Register& destination,
                            const MemOperand& field_operand);
+
+  // Restore FP and LR from the values stored in the current frame. This will
+  // authenticate the LR when pointer authentication is enabled.
+  void RestoreFPAndLR();
+
+  void StoreReturnAddressInWasmExitFrame(Label* return_location);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code
@@ -1623,21 +1673,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     tbx(vd, vn, vn2, vn3, vn4, vm);
   }
 
+  // For the 'lr_mode' template argument of the following methods, see
+  // PushCPURegList/PopCPURegList.
+  template <StoreLRMode lr_mode = kDontStoreLR>
   inline void PushSizeRegList(
       RegList registers, unsigned reg_size,
       CPURegister::RegisterType type = CPURegister::kRegister) {
-    PushCPURegList(CPURegList(type, reg_size, registers));
+    PushCPURegList<lr_mode>(CPURegList(type, reg_size, registers));
   }
+  template <LoadLRMode lr_mode = kDontLoadLR>
   inline void PopSizeRegList(
       RegList registers, unsigned reg_size,
       CPURegister::RegisterType type = CPURegister::kRegister) {
-    PopCPURegList(CPURegList(type, reg_size, registers));
+    PopCPURegList<lr_mode>(CPURegList(type, reg_size, registers));
   }
+  template <StoreLRMode lr_mode = kDontStoreLR>
   inline void PushXRegList(RegList regs) {
-    PushSizeRegList(regs, kXRegSizeInBits);
+    PushSizeRegList<lr_mode>(regs, kXRegSizeInBits);
   }
+  template <LoadLRMode lr_mode = kDontLoadLR>
   inline void PopXRegList(RegList regs) {
-    PopSizeRegList(regs, kXRegSizeInBits);
+    PopSizeRegList<lr_mode>(regs, kXRegSizeInBits);
   }
   inline void PushWRegList(RegList regs) {
     PushSizeRegList(regs, kWRegSizeInBits);
@@ -1667,17 +1723,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // be aligned to 16 bytes.
   void PeekPair(const CPURegister& dst1, const CPURegister& dst2, int offset);
 
-  // Insert one or more instructions into the instruction stream that encode
-  // some caller-defined data. The instructions used will be executable with no
-  // side effects.
-  inline void InlineData(uint64_t data);
-
   // Preserve the callee-saved registers (as defined by AAPCS64).
   //
   // Higher-numbered registers are pushed before lower-numbered registers, and
   // thus get higher addresses.
   // Floating-point registers are pushed before general-purpose registers, and
   // thus get higher addresses.
+  //
+  // When control flow integrity measures are enabled, this method signs the
+  // link register before pushing it.
   //
   // Note that registers are not checked for invalid values. Use this method
   // only if you know that the GC won't try to examine the values on the stack.
@@ -1689,11 +1743,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // thus come from higher addresses.
   // Floating-point registers are popped after general-purpose registers, and
   // thus come from higher addresses.
+  //
+  // When control flow integrity measures are enabled, this method
+  // authenticates the link register after popping it.
   void PopCalleeSavedRegisters();
 
   // Helpers ------------------------------------------------------------------
-
-  static int SafepointRegisterStackIndex(int reg_code);
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
@@ -1925,24 +1980,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Debugging.
 
-  void AssertRegisterIsRoot(
-      Register reg, RootIndex index,
-      AbortReason reason = AbortReason::kRegisterDidNotMatchExpectedRoot);
-
   void LoadNativeContextSlot(int index, Register dst);
-
-  // Far branches resolving.
-  //
-  // The various classes of branch instructions with immediate offsets have
-  // different ranges. While the Assembler will fail to assemble a branch
-  // exceeding its range, the MacroAssembler offers a mechanism to resolve
-  // branches to too distant targets, either by tweaking the generated code to
-  // use branch instructions with wider ranges or generating veneers.
-  //
-  // Currently branches to distant targets are resolved using unconditional
-  // branch isntructions with a range of +-128MB. If that becomes too little
-  // (!), the mechanism can be extended to generate special veneers for really
-  // far targets.
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
@@ -2043,7 +2081,7 @@ class UseScratchRegisterScope {
     CPURegList list(reg1, reg2);
     Include(list);
   }
-  void Exclude(const Register& reg1, const Register& reg2) {
+  void Exclude(const Register& reg1, const Register& reg2 = NoReg) {
     CPURegList list(reg1, reg2);
     Exclude(list);
   }

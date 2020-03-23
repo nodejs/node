@@ -23,10 +23,6 @@ namespace internal {
 class EmbedderDataArray
     : public TorqueGeneratedEmbedderDataArray<EmbedderDataArray, HeapObject> {
  public:
-  // [length]: length of the array in an embedder data slots.
-  V8_INLINE int length() const;
-  V8_INLINE void set_length(int value);
-
   // TODO(v8:8989): [torque] Support marker constants.
   static const int kHeaderSize = kSize;
 

@@ -4,5 +4,5 @@
 
 @abstract
 extern class HeapObject extends StrongTagged {
-  map: Map;
+  const map: Map;
 }

@@ -45,147 +45,160 @@ MaybeLocal<Module> ResolveCallback(Local<Context> context,
 }
 
 TEST(ModuleInstantiationFailures1) {
-  Isolate* isolate = CcTest::isolate();
-  HandleScope scope(isolate);
-  LocalContext env;
-  v8::TryCatch try_catch(isolate);
+  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
+  for (auto top_level_await : {true, false}) {
+    i::FLAG_harmony_top_level_await = top_level_await;
+    Isolate* isolate = CcTest::isolate();
+    HandleScope scope(isolate);
+    LocalContext env;
+    v8::TryCatch try_catch(isolate);
 
-  Local<Module> module;
-  {
-    Local<String> source_text = v8_str(
-        "import './foo.js';\n"
-        "export {} from './bar.js';");
-    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-    CHECK_EQ(2, module->GetModuleRequestsLength());
-    CHECK(v8_str("./foo.js")->StrictEquals(module->GetModuleRequest(0)));
-    v8::Location loc = module->GetModuleRequestLocation(0);
-    CHECK_EQ(0, loc.GetLineNumber());
-    CHECK_EQ(7, loc.GetColumnNumber());
-    CHECK(v8_str("./bar.js")->StrictEquals(module->GetModuleRequest(1)));
-    loc = module->GetModuleRequestLocation(1);
-    CHECK_EQ(1, loc.GetLineNumber());
-    CHECK_EQ(15, loc.GetColumnNumber());
+    Local<Module> module;
+    {
+      Local<String> source_text = v8_str(
+          "import './foo.js';\n"
+          "export {} from './bar.js';");
+      ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+      CHECK_EQ(2, module->GetModuleRequestsLength());
+      CHECK(v8_str("./foo.js")->StrictEquals(module->GetModuleRequest(0)));
+      v8::Location loc = module->GetModuleRequestLocation(0);
+      CHECK_EQ(0, loc.GetLineNumber());
+      CHECK_EQ(7, loc.GetColumnNumber());
+      CHECK(v8_str("./bar.js")->StrictEquals(module->GetModuleRequest(1)));
+      loc = module->GetModuleRequestLocation(1);
+      CHECK_EQ(1, loc.GetLineNumber());
+      CHECK_EQ(15, loc.GetColumnNumber());
+    }
+
+    // Instantiation should fail.
+    {
+      v8::TryCatch inner_try_catch(isolate);
+      CHECK(
+          module->InstantiateModule(env.local(), ResolveCallback).IsNothing());
+      CHECK(inner_try_catch.HasCaught());
+      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    }
+
+    // Start over again...
+    {
+      Local<String> source_text = v8_str(
+          "import './dep1.js';\n"
+          "export {} from './bar.js';");
+      ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
+
+    // dep1.js
+    {
+      Local<String> source_text = v8_str("");
+      ScriptOrigin origin = ModuleOrigin(v8_str("dep1.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      dep1 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
+
+    // Instantiation should fail because a sub-module fails to resolve.
+    {
+      v8::TryCatch inner_try_catch(isolate);
+      CHECK(
+          module->InstantiateModule(env.local(), ResolveCallback).IsNothing());
+      CHECK(inner_try_catch.HasCaught());
+      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+      CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+    }
+
+    CHECK(!try_catch.HasCaught());
   }
-
-  // Instantiation should fail.
-  {
-    v8::TryCatch inner_try_catch(isolate);
-    CHECK(module->InstantiateModule(env.local(), ResolveCallback).IsNothing());
-    CHECK(inner_try_catch.HasCaught());
-    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-  }
-
-  // Start over again...
-  {
-    Local<String> source_text = v8_str(
-        "import './dep1.js';\n"
-        "export {} from './bar.js';");
-    ScriptOrigin origin = ModuleOrigin(v8_str("file.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  }
-
-  // dep1.js
-  {
-    Local<String> source_text = v8_str("");
-    ScriptOrigin origin = ModuleOrigin(v8_str("dep1.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    dep1 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  }
-
-  // Instantiation should fail because a sub-module fails to resolve.
-  {
-    v8::TryCatch inner_try_catch(isolate);
-    CHECK(module->InstantiateModule(env.local(), ResolveCallback).IsNothing());
-    CHECK(inner_try_catch.HasCaught());
-    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
-  }
-
-  CHECK(!try_catch.HasCaught());
+  i::FLAG_harmony_top_level_await = prev_top_level_await;
 }
 
 TEST(ModuleInstantiationFailures2) {
-  Isolate* isolate = CcTest::isolate();
-  HandleScope scope(isolate);
-  LocalContext env;
-  v8::TryCatch try_catch(isolate);
+  bool prev_top_level_await = i::FLAG_harmony_top_level_await;
+  for (auto top_level_await : {true, false}) {
+    i::FLAG_harmony_top_level_await = top_level_await;
 
-  // root1.js
-  Local<Module> root;
-  {
-    Local<String> source_text =
-        v8_str("import './dep1.js'; import './dep2.js'");
-    ScriptOrigin origin = ModuleOrigin(v8_str("root1.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    root = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  }
+    Isolate* isolate = CcTest::isolate();
+    HandleScope scope(isolate);
+    LocalContext env;
+    v8::TryCatch try_catch(isolate);
 
-  // dep1.js
-  {
-    Local<String> source_text = v8_str("export let x = 42");
-    ScriptOrigin origin = ModuleOrigin(v8_str("dep1.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    dep1 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  }
+    // root1.js
+    Local<Module> root;
+    {
+      Local<String> source_text =
+          v8_str("import './dep1.js'; import './dep2.js'");
+      ScriptOrigin origin = ModuleOrigin(v8_str("root1.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      root = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
 
-  // dep2.js
-  {
-    Local<String> source_text = v8_str("import {foo} from './dep3.js'");
-    ScriptOrigin origin = ModuleOrigin(v8_str("dep2.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    dep2 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  }
+    // dep1.js
+    {
+      Local<String> source_text = v8_str("export let x = 42");
+      ScriptOrigin origin = ModuleOrigin(v8_str("dep1.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      dep1 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
 
-  {
-    v8::TryCatch inner_try_catch(isolate);
-    CHECK(root->InstantiateModule(env.local(), ResolveCallback).IsNothing());
-    CHECK(inner_try_catch.HasCaught());
-    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-    CHECK_EQ(Module::kUninstantiated, root->GetStatus());
-    CHECK_EQ(Module::kUninstantiated, dep1->GetStatus());
-    CHECK_EQ(Module::kUninstantiated, dep2->GetStatus());
-  }
+    // dep2.js
+    {
+      Local<String> source_text = v8_str("import {foo} from './dep3.js'");
+      ScriptOrigin origin = ModuleOrigin(v8_str("dep2.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      dep2 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
 
-  // Change dep2.js
-  {
-    Local<String> source_text = v8_str("import {foo} from './dep2.js'");
-    ScriptOrigin origin = ModuleOrigin(v8_str("dep2.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    dep2 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  }
+    {
+      v8::TryCatch inner_try_catch(isolate);
+      CHECK(root->InstantiateModule(env.local(), ResolveCallback).IsNothing());
+      CHECK(inner_try_catch.HasCaught());
+      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+      CHECK_EQ(Module::kUninstantiated, root->GetStatus());
+      CHECK_EQ(Module::kUninstantiated, dep1->GetStatus());
+      CHECK_EQ(Module::kUninstantiated, dep2->GetStatus());
+    }
 
-  {
-    v8::TryCatch inner_try_catch(isolate);
-    CHECK(root->InstantiateModule(env.local(), ResolveCallback).IsNothing());
-    CHECK(inner_try_catch.HasCaught());
-    CHECK(!inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-    CHECK_EQ(Module::kUninstantiated, root->GetStatus());
-    CHECK_EQ(Module::kInstantiated, dep1->GetStatus());
-    CHECK_EQ(Module::kUninstantiated, dep2->GetStatus());
-  }
+    // Change dep2.js
+    {
+      Local<String> source_text = v8_str("import {foo} from './dep2.js'");
+      ScriptOrigin origin = ModuleOrigin(v8_str("dep2.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      dep2 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
 
-  // Change dep2.js again
-  {
-    Local<String> source_text = v8_str("import {foo} from './dep3.js'");
-    ScriptOrigin origin = ModuleOrigin(v8_str("dep2.js"), CcTest::isolate());
-    ScriptCompiler::Source source(source_text, origin);
-    dep2 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  }
+    {
+      v8::TryCatch inner_try_catch(isolate);
+      CHECK(root->InstantiateModule(env.local(), ResolveCallback).IsNothing());
+      CHECK(inner_try_catch.HasCaught());
+      CHECK(!inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+      CHECK_EQ(Module::kUninstantiated, root->GetStatus());
+      CHECK_EQ(Module::kInstantiated, dep1->GetStatus());
+      CHECK_EQ(Module::kUninstantiated, dep2->GetStatus());
+    }
 
-  {
-    v8::TryCatch inner_try_catch(isolate);
-    CHECK(root->InstantiateModule(env.local(), ResolveCallback).IsNothing());
-    CHECK(inner_try_catch.HasCaught());
-    CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
-    CHECK_EQ(Module::kUninstantiated, root->GetStatus());
-    CHECK_EQ(Module::kInstantiated, dep1->GetStatus());
-    CHECK_EQ(Module::kUninstantiated, dep2->GetStatus());
+    // Change dep2.js again
+    {
+      Local<String> source_text = v8_str("import {foo} from './dep3.js'");
+      ScriptOrigin origin = ModuleOrigin(v8_str("dep2.js"), CcTest::isolate());
+      ScriptCompiler::Source source(source_text, origin);
+      dep2 = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    }
+
+    {
+      v8::TryCatch inner_try_catch(isolate);
+      CHECK(root->InstantiateModule(env.local(), ResolveCallback).IsNothing());
+      CHECK(inner_try_catch.HasCaught());
+      CHECK(inner_try_catch.Exception()->StrictEquals(v8_str("boom")));
+      CHECK_EQ(Module::kUninstantiated, root->GetStatus());
+      CHECK_EQ(Module::kInstantiated, dep1->GetStatus());
+      CHECK_EQ(Module::kUninstantiated, dep2->GetStatus());
+    }
   }
+  i::FLAG_harmony_top_level_await = prev_top_level_await;
 }
 
 static MaybeLocal<Module> CompileSpecifierAsModuleResolveCallback(
@@ -726,7 +739,7 @@ TEST(ModuleEvaluationTopLevelAwaitError) {
     CHECK(promise->Result()->StrictEquals(v8_str("boom")));
     CHECK(module->GetException()->StrictEquals(v8_str("boom")));
 
-    // TODO(joshualitt) I am not sure, but this might not be supposed to throw
+    // TODO(cbruni) I am not sure, but this might not be supposed to throw
     // because it is async.
     CHECK(!try_catch.HasCaught());
   }
@@ -830,7 +843,7 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImport) {
     CHECK_EQ(promise->State(), v8::Promise::kPending);
     CHECK(!try_catch.HasCaught());
 
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
     CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
   }
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
@@ -874,7 +887,7 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
     CHECK_EQ(promise->State(), v8::Promise::kPending);
     CHECK(!try_catch.HasCaught());
 
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
     CHECK_EQ(Module::kErrored, module->GetStatus());
     CHECK_EQ(promise->State(), v8::Promise::kRejected);
     CHECK(promise->Result()->StrictEquals(v8_str("boom")));

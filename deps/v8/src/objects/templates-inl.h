@@ -24,9 +24,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
 
 NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
 
-TQ_SMI_ACCESSORS(TemplateInfo, number_of_properties)
-
-TQ_SMI_ACCESSORS(FunctionTemplateInfo, length)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
                kNeedsAccessCheckBit)
@@ -37,7 +34,6 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, do_not_cache, kDoNotCacheBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                kAcceptAnyReceiver)
-TQ_SMI_ACCESSORS(FunctionTemplateInfo, flag)
 
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
@@ -50,11 +46,11 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
   }
 }
 
-#define RARE_ACCESSORS(Name, CamelName, Type)                                 \
+#define RARE_ACCESSORS(Name, CamelName, Type, Default)                        \
   DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Type) {                    \
     HeapObject extra = rare_data(isolate);                                    \
     HeapObject undefined = GetReadOnlyRoots(isolate).undefined_value();       \
-    return extra == undefined ? undefined                                     \
+    return extra == undefined ? Default                                       \
                               : FunctionTemplateRareData::cast(extra).Name(); \
   }                                                                           \
   inline void FunctionTemplateInfo::Set##CamelName(                           \
@@ -65,14 +61,18 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     rare_data.set_##Name(*Name);                                              \
   }
 
-RARE_ACCESSORS(prototype_template, PrototypeTemplate, Object)
-RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate, Object)
-RARE_ACCESSORS(parent_template, ParentTemplate, Object)
-RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, Object)
-RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, Object)
-RARE_ACCESSORS(instance_template, InstanceTemplate, Object)
-RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, Object)
-RARE_ACCESSORS(access_check_info, AccessCheckInfo, Object)
+RARE_ACCESSORS(prototype_template, PrototypeTemplate, Object, undefined)
+RARE_ACCESSORS(prototype_provider_template, PrototypeProviderTemplate, Object,
+               undefined)
+RARE_ACCESSORS(parent_template, ParentTemplate, Object, undefined)
+RARE_ACCESSORS(named_property_handler, NamedPropertyHandler, Object, undefined)
+RARE_ACCESSORS(indexed_property_handler, IndexedPropertyHandler, Object,
+               undefined)
+RARE_ACCESSORS(instance_template, InstanceTemplate, Object, undefined)
+RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, Object, undefined)
+RARE_ACCESSORS(access_check_info, AccessCheckInfo, Object, undefined)
+RARE_ACCESSORS(c_function, CFunction, Object, Smi(0))
+RARE_ACCESSORS(c_signature, CSignature, Object, Smi(0))
 #undef RARE_ACCESSORS
 
 bool FunctionTemplateInfo::instantiated() {

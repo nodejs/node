@@ -14,7 +14,12 @@ extern class JSGeneratorObject extends JSObject {
   // suspended generator.
   input_or_debug_pos: Object;
 
+  // The most recent resume mode.
   resume_mode: Smi;
+
+  // A positive value indicates a suspended generator.  The special
+  // kGeneratorExecuting and kGeneratorClosed values indicate that a generator
+  // cannot be resumed.
   continuation: Smi;
 
   // Saved interpreter register file.
@@ -31,6 +36,7 @@ extern class JSAsyncGeneratorObject extends JSGeneratorObject {
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
   // undefined.
   queue: HeapObject;
+  // Whether or not the generator is currently awaiting.
   is_awaiting: Smi;
 }
 

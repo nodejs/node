@@ -91,18 +91,16 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
   }
 
   for (size_t i = 0; i < signature.types().size(); ++i) {
-    if (const StructType* type =
-            StructType::DynamicCast(signature.types()[i])) {
-      Error("Builtin '", decl->name, "' uses the struct '", type->name(),
-            "' as argument '", signature.parameter_names[i],
-            "', which is not supported.");
+    if (signature.types()[i]->StructSupertype()) {
+      Error("Builtin do not support structs as arguments, but argument ",
+            signature.parameter_names[i], " has type ", *signature.types()[i],
+            ".");
     }
   }
 
-  if (const StructType* struct_type =
-          StructType::DynamicCast(signature.return_type)) {
-    Error("Builtins ", decl->name, " cannot return structs ",
-          struct_type->name());
+  if (signature.return_type->StructSupertype()) {
+    Error("Builtins cannot return structs, but the return type is ",
+          *signature.return_type, ".");
   }
 
   return Declarations::CreateBuiltin(std::move(external_name),

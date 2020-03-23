@@ -309,9 +309,71 @@ void MacroAssembler::Bfxil(const Register& rd, const Register& rn, unsigned lsb,
   bfxil(rd, rn, lsb, width);
 }
 
-void TurboAssembler::Bind(Label* label) {
+void TurboAssembler::Bind(Label* label, BranchTargetIdentifier id) {
   DCHECK(allow_macro_instructions());
-  bind(label);
+  if (id == BranchTargetIdentifier::kNone) {
+    bind(label);
+  } else {
+    // Emit this inside an InstructionAccurateScope to ensure there are no extra
+    // instructions between the bind and the target identifier instruction.
+    InstructionAccurateScope scope(this, 1);
+    bind(label);
+    if (id == BranchTargetIdentifier::kPaciasp) {
+      paciasp();
+    } else {
+      bti(id);
+    }
+  }
+}
+
+void TurboAssembler::CodeEntry() {
+  // Since `kJavaScriptCallCodeStartRegister` is the target register for tail
+  // calls, we have to allow for jumps too, with "BTI jc". We also allow the
+  // register allocator to pick the target register for calls made from
+  // WebAssembly.
+  // TODO(v8:10026): Consider changing this so that we can use CallTarget(),
+  // which maps to "BTI c", here instead.
+  JumpOrCallTarget();
+}
+
+void TurboAssembler::ExceptionHandler() { JumpTarget(); }
+
+void TurboAssembler::BindExceptionHandler(Label* label) {
+  BindJumpTarget(label);
+}
+
+void TurboAssembler::JumpTarget() {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  bti(BranchTargetIdentifier::kBtiJump);
+#endif
+}
+
+void TurboAssembler::BindJumpTarget(Label* label) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Bind(label, BranchTargetIdentifier::kBtiJump);
+#else
+  Bind(label);
+#endif
+}
+
+void TurboAssembler::CallTarget() {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  bti(BranchTargetIdentifier::kBtiCall);
+#endif
+}
+
+void TurboAssembler::JumpOrCallTarget() {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  bti(BranchTargetIdentifier::kBtiJumpCall);
+#endif
+}
+
+void TurboAssembler::BindJumpOrCallTarget(Label* label) {
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  Bind(label, BranchTargetIdentifier::kBtiJumpCall);
+#else
+  Bind(label);
+#endif
 }
 
 void TurboAssembler::Bl(Label* label) {
@@ -1063,6 +1125,166 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
 
 void TurboAssembler::jmp(Label* L) { B(L); }
 
+template <TurboAssembler::StoreLRMode lr_mode>
+void TurboAssembler::Push(const CPURegister& src0, const CPURegister& src1,
+                          const CPURegister& src2, const CPURegister& src3) {
+  DCHECK(AreSameSizeAndType(src0, src1, src2, src3));
+  DCHECK_IMPLIES((lr_mode == kSignLR), ((src0 == lr) || (src1 == lr) ||
+                                        (src2 == lr) || (src3 == lr)));
+  DCHECK_IMPLIES((lr_mode == kDontStoreLR), ((src0 != lr) && (src1 != lr) &&
+                                             (src2 != lr) && (src3 != lr)));
+
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  if (lr_mode == kSignLR) {
+    Paciasp();
+  }
+#endif
+
+  int count = 1 + src1.is_valid() + src2.is_valid() + src3.is_valid();
+  int size = src0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
+
+  PushHelper(count, size, src0, src1, src2, src3);
+}
+
+template <TurboAssembler::StoreLRMode lr_mode>
+void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
+  DCHECK_IMPLIES((lr_mode == kSignLR), ((src0 == lr) || (src1 == lr)));
+  DCHECK_IMPLIES((lr_mode == kDontStoreLR), ((src0 != lr) && (src1 != lr)));
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  if (lr_mode == kSignLR) {
+    Paciasp();
+  }
+#endif
+
+  int size = src0.SizeInBytes() + src1.SizeInBytes();
+  DCHECK_EQ(0, size % 16);
+
+  // Reserve room for src0 and push src1.
+  str(src1, MemOperand(sp, -size, PreIndex));
+  // Fill the gap with src0.
+  str(src0, MemOperand(sp, src1.SizeInBytes()));
+}
+
+template <TurboAssembler::LoadLRMode lr_mode>
+void TurboAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
+                         const CPURegister& dst2, const CPURegister& dst3) {
+  // It is not valid to pop into the same register more than once in one
+  // instruction, not even into the zero register.
+  DCHECK(!AreAliased(dst0, dst1, dst2, dst3));
+  DCHECK(AreSameSizeAndType(dst0, dst1, dst2, dst3));
+  DCHECK(dst0.is_valid());
+
+  int count = 1 + dst1.is_valid() + dst2.is_valid() + dst3.is_valid();
+  int size = dst0.SizeInBytes();
+  DCHECK_EQ(0, (size * count) % 16);
+
+  PopHelper(count, size, dst0, dst1, dst2, dst3);
+
+  DCHECK_IMPLIES((lr_mode == kAuthLR), ((dst0 == lr) || (dst1 == lr) ||
+                                        (dst2 == lr) || (dst3 == lr)));
+  DCHECK_IMPLIES((lr_mode == kDontLoadLR), ((dst0 != lr) && (dst1 != lr)) &&
+                                               (dst2 != lr) && (dst3 != lr));
+
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  if (lr_mode == kAuthLR) {
+    Autiasp();
+  }
+#endif
+}
+
+template <TurboAssembler::StoreLRMode lr_mode>
+void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
+  DCHECK_IMPLIES((lr_mode == kSignLR), (src == lr));
+  DCHECK_IMPLIES((lr_mode == kDontStoreLR), (src != lr));
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  if (lr_mode == kSignLR) {
+    Paciasp();
+  }
+#endif
+
+  if (offset.IsImmediate()) {
+    DCHECK_GE(offset.ImmediateValue(), 0);
+  } else if (emit_debug_code()) {
+    Cmp(xzr, offset);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
+  }
+
+  Str(src, MemOperand(sp, offset));
+}
+
+template <TurboAssembler::LoadLRMode lr_mode>
+void TurboAssembler::Peek(const CPURegister& dst, const Operand& offset) {
+  if (offset.IsImmediate()) {
+    DCHECK_GE(offset.ImmediateValue(), 0);
+  } else if (emit_debug_code()) {
+    Cmp(xzr, offset);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
+  }
+
+  Ldr(dst, MemOperand(sp, offset));
+
+  DCHECK_IMPLIES((lr_mode == kAuthLR), (dst == lr));
+  DCHECK_IMPLIES((lr_mode == kDontLoadLR), (dst != lr));
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  if (lr_mode == kAuthLR) {
+    Autiasp();
+  }
+#endif
+}
+
+template <TurboAssembler::StoreLRMode lr_mode>
+void TurboAssembler::PushCPURegList(CPURegList registers) {
+  DCHECK_IMPLIES((lr_mode == kDontStoreLR), !registers.IncludesAliasOf(lr));
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  if (lr_mode == kSignLR && registers.IncludesAliasOf(lr)) {
+    Paciasp();
+  }
+#endif
+
+  int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
+
+  // Push up to four registers at a time.
+  while (!registers.IsEmpty()) {
+    int count_before = registers.Count();
+    const CPURegister& src0 = registers.PopHighestIndex();
+    const CPURegister& src1 = registers.PopHighestIndex();
+    const CPURegister& src2 = registers.PopHighestIndex();
+    const CPURegister& src3 = registers.PopHighestIndex();
+    int count = count_before - registers.Count();
+    PushHelper(count, size, src0, src1, src2, src3);
+  }
+}
+
+template <TurboAssembler::LoadLRMode lr_mode>
+void TurboAssembler::PopCPURegList(CPURegList registers) {
+  int size = registers.RegisterSizeInBytes();
+  DCHECK_EQ(0, (size * registers.Count()) % 16);
+
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  bool contains_lr = registers.IncludesAliasOf(lr);
+  DCHECK_IMPLIES((lr_mode == kDontLoadLR), !contains_lr);
+#endif
+
+  // Pop up to four registers at a time.
+  while (!registers.IsEmpty()) {
+    int count_before = registers.Count();
+    const CPURegister& dst0 = registers.PopLowestIndex();
+    const CPURegister& dst1 = registers.PopLowestIndex();
+    const CPURegister& dst2 = registers.PopLowestIndex();
+    const CPURegister& dst3 = registers.PopLowestIndex();
+    int count = count_before - registers.Count();
+    PopHelper(count, size, dst0, dst1, dst2, dst3);
+  }
+
+#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
+  if (lr_mode == kAuthLR && contains_lr) {
+    Autiasp();
+  }
+#endif
+}
+
 void TurboAssembler::Push(Handle<HeapObject> handle) {
   UseScratchRegisterScope temps(this);
   Register tmp = temps.AcquireX();
@@ -1243,12 +1465,6 @@ void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
     Tst(reg, bit_pattern);
     B(eq, label);
   }
-}
-
-void MacroAssembler::InlineData(uint64_t data) {
-  DCHECK(is_uint16(data));
-  InstructionAccurateScope scope(this, 1);
-  movz(xzr, data);
 }
 
 }  // namespace internal

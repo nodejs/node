@@ -580,16 +580,6 @@ void Assembler::next(Label* L) {
   }
 }
 
-bool Assembler::is_near(Label* L, Condition cond) {
-  DCHECK(L->is_bound());
-  if (L->is_bound() == false) return false;
-
-  int maxReach = ((cond == al) ? 26 : 16);
-  int offset = L->pos() - pc_offset();
-
-  return is_intn(offset, maxReach);
-}
-
 int Assembler::link(Label* L) {
   int position;
   if (L->is_bound()) {

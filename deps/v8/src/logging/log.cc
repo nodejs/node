@@ -238,11 +238,8 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                                       const wasm::WasmCode* code,
                                       wasm::WasmName name) {
   name_buffer_->Init(tag);
-  if (name.empty()) {
-    name_buffer_->AppendBytes("<wasm-unnamed>");
-  } else {
-    name_buffer_->AppendBytes(name.begin(), name.length());
-  }
+  DCHECK(!name.empty());
+  name_buffer_->AppendBytes(name.begin(), name.length());
   name_buffer_->AppendByte('-');
   if (code->IsAnonymous()) {
     name_buffer_->AppendBytes("<anonymous>");
@@ -587,6 +584,8 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "arm";
 #elif V8_TARGET_ARCH_PPC
   const char arch[] = "ppc";
+#elif V8_TARGET_ARCH_PPC64
+  const char arch[] = "ppc64";
 #elif V8_TARGET_ARCH_MIPS
   const char arch[] = "mips";
 #elif V8_TARGET_ARCH_ARM64
@@ -1303,11 +1302,9 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
   AppendCodeCreateHeader(msg, tag, AbstractCode::Kind::WASM_FUNCTION,
                          code->instructions().begin(),
                          code->instructions().length(), &timer_);
-  if (name.empty()) {
-    msg << "<unknown wasm>";
-  } else {
-    msg.AppendString(name);
-  }
+  DCHECK(!name.empty());
+  msg.AppendString(name);
+
   // We have to add two extra fields that allow the tick processor to group
   // events for the same wasm function, even if it gets compiled again. For
   // normal JS functions, we use the shared function info. For wasm, the pointer
@@ -1355,8 +1352,8 @@ void Logger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
 
 void Logger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   if (!is_listening_to_code_events()) return;
-  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from.address(),
-                    to.address());
+  MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from.InstructionStart(),
+                    to.InstructionStart());
 }
 
 void Logger::SharedFunctionInfoMoveEvent(Address from, Address to) {
@@ -1641,9 +1638,9 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
-void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
-                     char old_state, char new_state, const char* modifier,
-                     const char* slow_stub_reason) {
+void Logger::ICEvent(const char* type, bool keyed, Handle<Map> map,
+                     Handle<Object> key, char old_state, char new_state,
+                     const char* modifier, const char* slow_stub_reason) {
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
   Log::MessageBuilder msg(log_.get());
   if (keyed) msg << "Keyed";
@@ -1652,13 +1649,13 @@ void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
   Address pc = isolate_->GetAbstractPC(&line, &column);
   msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << line << kNext
       << column << kNext << old_state << kNext << new_state << kNext
-      << AsHex::Address(map.ptr()) << kNext;
-  if (key.IsSmi()) {
-    msg << Smi::ToInt(key);
-  } else if (key.IsNumber()) {
-    msg << key.Number();
-  } else if (key.IsName()) {
-    msg << Name::cast(key);
+      << AsHex::Address(map.is_null() ? kNullAddress : map->ptr()) << kNext;
+  if (key->IsSmi()) {
+    msg << Smi::ToInt(*key);
+  } else if (key->IsNumber()) {
+    msg << key->Number();
+  } else if (key->IsName()) {
+    msg << Name::cast(*key);
   }
   msg << kNext << modifier << kNext;
   if (slow_stub_reason != nullptr) {
@@ -1667,11 +1664,10 @@ void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
   msg.WriteToLogFile();
 }
 
-void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
-                      HeapObject name_or_sfi) {
-  DisallowHeapAllocation no_gc;
+void Logger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
+                      const char* reason, Handle<HeapObject> name_or_sfi) {
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
-  if (!to.is_null()) MapDetails(to);
+  if (!to.is_null()) MapDetails(*to);
   int line = -1;
   int column = -1;
   Address pc = 0;
@@ -1681,15 +1677,16 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
   }
   Log::MessageBuilder msg(log_.get());
   msg << "map" << kNext << type << kNext << timer_.Elapsed().InMicroseconds()
-      << kNext << AsHex::Address(from.ptr()) << kNext
-      << AsHex::Address(to.ptr()) << kNext << AsHex::Address(pc) << kNext
-      << line << kNext << column << kNext << reason << kNext;
+      << kNext << AsHex::Address(from.is_null() ? kNullAddress : from->ptr())
+      << kNext << AsHex::Address(to.is_null() ? kNullAddress : to->ptr())
+      << kNext << AsHex::Address(pc) << kNext << line << kNext << column
+      << kNext << reason << kNext;
 
   if (!name_or_sfi.is_null()) {
-    if (name_or_sfi.IsName()) {
-      msg << Name::cast(name_or_sfi);
-    } else if (name_or_sfi.IsSharedFunctionInfo()) {
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(name_or_sfi);
+    if (name_or_sfi->IsName()) {
+      msg << Name::cast(*name_or_sfi);
+    } else if (name_or_sfi->IsSharedFunctionInfo()) {
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(*name_or_sfi);
       msg << sfi.DebugName();
 #if V8_SFI_HAS_UNIQUE_ID
       msg << " " << sfi.unique_id();

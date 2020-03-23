@@ -13,6 +13,7 @@ Running test: testLoadedModulesOnDebuggerEnable
         isModule : true
         length : 39
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         startColumn : 0
         startLine : 0
@@ -33,6 +34,7 @@ Running test: testScriptEventsWhenDebuggerIsEnabled
         isModule : true
         length : 39
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         startColumn : 0
         startLine : 0
@@ -50,6 +52,7 @@ Running test: testScriptEventsWhenDebuggerIsEnabled
         isModule : true
         length : 1
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         startColumn : 0
         startLine : 0

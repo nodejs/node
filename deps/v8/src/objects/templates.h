@@ -16,7 +16,6 @@ namespace internal {
 class TemplateInfo : public TorqueGeneratedTemplateInfo<TemplateInfo, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_INT_ACCESSORS(number_of_properties)
 
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
@@ -82,13 +81,10 @@ class FunctionTemplateInfo
   DECL_RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, Object)
 
   DECL_RARE_ACCESSORS(access_check_info, AccessCheckInfo, Object)
+
+  DECL_RARE_ACCESSORS(c_function, CFunction, Object)
+  DECL_RARE_ACCESSORS(c_signature, CSignature, Object)
 #undef DECL_RARE_ACCESSORS
-
-  // Internal field to store a flag bitfield.
-  DECL_INT_ACCESSORS(flag)
-
-  // "length" property of the final JSFunction.
-  DECL_INT_ACCESSORS(length)
 
   // Begin flag bits ---------------------
   DECL_BOOLEAN_ACCESSORS(undetectable)
@@ -120,6 +116,14 @@ class FunctionTemplateInfo
   static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
       Isolate* isolate, Handle<FunctionTemplateInfo> info,
       MaybeHandle<Name> maybe_name);
+
+  static Handle<SharedFunctionInfo> GetOrCreateSharedFunctionInfo(
+      OffThreadIsolate* isolate, Handle<FunctionTemplateInfo> info,
+      Handle<Name> maybe_name) {
+    // We don't support streaming compilation of scripts with natives, so we
+    // don't need an off-thread implementation of this.
+    UNREACHABLE();
+  }
   // Returns parent function template or a null FunctionTemplateInfo.
   inline FunctionTemplateInfo GetParent(Isolate* isolate);
   // Returns true if |object| is an instance of this function template.

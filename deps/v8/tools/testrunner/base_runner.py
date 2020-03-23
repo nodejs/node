@@ -123,9 +123,8 @@ class ModeConfig(object):
     self.execution_mode = execution_mode
 
 
-DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap",
-               "--testing-d8-test-runner"]
-RELEASE_FLAGS = ["--nohard-abort", "--testing-d8-test-runner"]
+DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
+RELEASE_FLAGS = ["--nohard-abort"]
 MODES = {
   "debug": ModeConfig(
     flags=DEBUG_FLAGS,
@@ -345,9 +344,8 @@ class BaseTestRunner(object):
                            "color, mono)")
     parser.add_option("--json-test-results",
                       help="Path to a file for storing json results.")
-    parser.add_option("--junitout", help="File name of the JUnit output")
-    parser.add_option("--junittestsuite", default="v8tests",
-                      help="The testsuite name in the JUnit output file")
+    parser.add_option('--slow-tests-cutoff', type="int", default=100,
+                      help='Collect N slowest tests')
     parser.add_option("--exit-after-n-failures", type="int", default=100,
                       help="Exit after the first N failures instead of "
                            "running all tests. Pass 0 to disable this feature.")
@@ -381,6 +379,8 @@ class BaseTestRunner(object):
                       help="Timeout for single test in seconds")
     parser.add_option("-v", "--verbose", default=False, action="store_true",
                       help="Verbose output")
+    parser.add_option('--regenerate-expected-files', default=False, action='store_true',
+                      help='Regenerate expected files')
 
     # TODO(machenbach): Temporary options for rolling out new test runner
     # features.
@@ -705,13 +705,17 @@ class BaseTestRunner(object):
       "pointer_compression": self.build_config.pointer_compression,
     }
 
+  def _runner_flags(self):
+    """Extra default flags specific to the test runner implementation."""
+    return []
+
   def _create_test_config(self, options):
     timeout = options.timeout * self._timeout_scalefactor(options)
     return TestConfig(
         command_prefix=options.command_prefix,
         extra_flags=options.extra_flags,
         isolates=options.isolates,
-        mode_flags=self.mode_options.flags,
+        mode_flags=self.mode_options.flags + self._runner_flags(),
         no_harness=options.no_harness,
         noi18n=self.build_config.no_i18n,
         random_seed=options.random_seed,
@@ -719,6 +723,7 @@ class BaseTestRunner(object):
         shell_dir=self.outdir,
         timeout=timeout,
         verbose=options.verbose,
+        regenerate_expected_files=options.regenerate_expected_files,
     )
 
   def _timeout_scalefactor(self, options):
@@ -792,13 +797,9 @@ class BaseTestRunner(object):
 
   def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.junitout:
-      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
-                                                       options.junittestsuite))
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(
         self.framework_name,
-        options.json_test_results,
         self.build_config.arch,
         self.mode_options.execution_mode))
 

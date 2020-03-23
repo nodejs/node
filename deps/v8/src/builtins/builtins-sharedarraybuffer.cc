@@ -25,20 +25,18 @@ namespace internal {
 // #sec-atomics.islockfree
 inline bool AtomicIsLockFree(double size) {
   // According to the standard, 1, 2, and 4 byte atomics are supposed to be
-  // 'lock free' on every platform. But what exactly does 'lock free' mean?
-  // For example, on x64 V8 uses a lock prefix to implement the semantics of
-  // many atomic operations. Is that considered a lock? Probably not.
+  // 'lock free' on every platform. 'Lock free' means that all possible uses of
+  // those atomics guarantee forward progress for the agent cluster (i.e. all
+  // threads in contrast with a single thread).
   //
-  // On the other hand, V8 emits a few instructions for some arm atomics which
-  // do appear to be a low level form of a spin lock. With an abundance of
-  // caution, we only claim to have 'true lock free' support for 8 byte sizes
-  // on x64 platforms. If people care about this function returning true, then
-  // we need to clarify exactly what 'lock free' means at the standard level.
-  bool is_lock_free = size == 1 || size == 2 || size == 4;
-#if V8_TARGET_ARCH_x64
-  is_lock_free |= size == 8;
-#endif
-  return is_lock_free;
+  // This property is often, but not always, aligned with whether atomic
+  // accesses are implemented with software locks such as mutexes.
+  //
+  // V8 has lock free atomics for all sizes on all supported first-class
+  // architectures: ia32, x64, ARM32 variants, and ARM64. Further, this property
+  // is depended upon by WebAssembly, which prescribes that all atomic accesses
+  // are always lock free.
+  return size == 1 || size == 2 || size == 4 || size == 8;
 }
 
 // ES #sec-atomics.islockfree

@@ -22,6 +22,8 @@ int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 int ZLIB_INTERNAL x86_cpu_enable_ssse3 = 0;
 int ZLIB_INTERNAL x86_cpu_enable_simd = 0;
 
+#ifndef CPU_NO_SIMD
+
 #if defined(ARMV8_OS_ANDROID) || defined(ARMV8_OS_LINUX) || defined(ARMV8_OS_FUCHSIA)
 #include <pthread.h>
 #endif
@@ -141,5 +143,6 @@ static void _cpu_check_features(void)
                           x86_cpu_has_sse42 &&
                           x86_cpu_has_pclmulqdq;
 }
+#endif
 #endif
 #endif

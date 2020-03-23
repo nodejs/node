@@ -4,5 +4,5 @@
 
 // Flags: --harmony-weak-refs
 
-let fg = new FinalizationGroup(() => {});
+let fg = new FinalizationRegistry(() => {});
 fg.register(1);

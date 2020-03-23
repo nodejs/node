@@ -21,7 +21,7 @@ Response V8SchemaAgentImpl::getDomains(
   *result =
       std::make_unique<std::vector<std::unique_ptr<protocol::Schema::Domain>>>(
           m_session->supportedDomainsImpl());
-  return Response::OK();
+  return Response::Success();
 }
 
 }  // namespace v8_inspector

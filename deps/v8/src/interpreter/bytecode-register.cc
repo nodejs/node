@@ -8,10 +8,17 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+#ifdef V8_REVERSE_JSARGS
+static const int kFirstParamRegisterIndex =
+    (InterpreterFrameConstants::kRegisterFileFromFp -
+     InterpreterFrameConstants::kFirstParamFromFp) /
+    kSystemPointerSize;
+#else
 static const int kLastParamRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      InterpreterFrameConstants::kLastParamFromFp) /
     kSystemPointerSize;
+#endif
 static const int kFunctionClosureRegisterIndex =
     (InterpreterFrameConstants::kRegisterFileFromFp -
      StandardFrameConstants::kFunctionOffset) /
@@ -36,14 +43,22 @@ static const int kCallerPCOffsetRegisterIndex =
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, parameter_count);
+#ifdef V8_REVERSE_JSARGS
+  int register_index = kFirstParamRegisterIndex - index;
+#else
   int register_index = kLastParamRegisterIndex - parameter_count + index + 1;
+#endif
   DCHECK_LT(register_index, 0);
   return Register(register_index);
 }
 
 int Register::ToParameterIndex(int parameter_count) const {
   DCHECK(is_parameter());
+#ifdef V8_REVERSE_JSARGS
+  return kFirstParamRegisterIndex - index();
+#else
   return index() - kLastParamRegisterIndex + parameter_count - 1;
+#endif
 }
 
 Register Register::function_closure() {

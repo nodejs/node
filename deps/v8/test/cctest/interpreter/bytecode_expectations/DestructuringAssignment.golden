@@ -12,9 +12,8 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 167
+bytecode array length: 166
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(1),
   /*   60 S> */ B(GetIterator), R(1), U8(1), U8(3),
@@ -99,8 +98,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [35, 77, 85],
-  [109, 142, 144],
+  [34, 76, 84],
+  [108, 141, 143],
 ]
 
 ---
@@ -110,9 +109,8 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 253
+bytecode array length: 252
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(2),
   /*   69 S> */ B(GetIterator), R(2), U8(1), U8(3),
@@ -231,8 +229,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [35, 163, 171],
-  [195, 228, 230],
+  [34, 162, 170],
+  [194, 227, 229],
 ]
 
 ---
@@ -242,9 +240,8 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 218
+bytecode array length: 217
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   40 S> */ B(CreateEmptyObjectLiteral),
                 B(Star), R(0),
   /*   51 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
@@ -351,8 +348,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [38, 128, 136],
-  [160, 193, 195],
+  [37, 127, 135],
+  [159, 192, 194],
 ]
 
 ---
@@ -362,9 +359,8 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 14
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
   /*   54 S> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
@@ -386,9 +382,8 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 20
+bytecode array length: 19
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   40 S> */ B(CreateEmptyObjectLiteral),
                 B(Star), R(0),
   /*   48 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
@@ -413,9 +408,8 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 33
+bytecode array length: 32
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
   /*   64 S> */ B(LdaConstant), U8(1),

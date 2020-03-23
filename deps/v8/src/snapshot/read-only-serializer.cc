@@ -19,6 +19,7 @@ namespace internal {
 ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate)
     : RootsSerializer(isolate, RootIndex::kFirstReadOnlyRoot) {
   STATIC_ASSERT(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
 
 ReadOnlySerializer::~ReadOnlySerializer() {

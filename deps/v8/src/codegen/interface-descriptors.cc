@@ -380,6 +380,18 @@ void WasmMemoryGrowDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
+void WasmTableInitDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data,
+                                    kParameterCount - kStackArgumentsCount);
+}
+
+void WasmTableCopyDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data,
+                                    kParameterCount - kStackArgumentsCount);
+}
+
 void WasmTableGetDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
@@ -401,12 +413,23 @@ void WasmAtomicNotifyDescriptor::InitializePlatformSpecific(
 }
 
 #if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64)
-void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
+void WasmI32AtomicWait32Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
-void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
+void WasmI32AtomicWait64Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void WasmI64AtomicWait32Descriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data,
+                                    kParameterCount - kStackArgumentsCount);
+}
+
+void WasmI64AtomicWait64Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

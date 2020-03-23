@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-BUILTIN(FinalizationGroupConstructor) {
+BUILTIN(FinalizationRegistryConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
@@ -31,22 +31,22 @@ BUILTIN(FinalizationGroupConstructor) {
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 
-  Handle<JSFinalizationGroup> finalization_group =
-      Handle<JSFinalizationGroup>::cast(result);
-  finalization_group->set_native_context(*isolate->native_context());
-  finalization_group->set_cleanup(*cleanup);
-  finalization_group->set_flags(
-      JSFinalizationGroup::ScheduledForCleanupField::encode(false));
+  Handle<JSFinalizationRegistry> finalization_registry =
+      Handle<JSFinalizationRegistry>::cast(result);
+  finalization_registry->set_native_context(*isolate->native_context());
+  finalization_registry->set_cleanup(*cleanup);
+  finalization_registry->set_flags(
+      JSFinalizationRegistry::ScheduledForCleanupField::encode(false));
 
-  DCHECK(finalization_group->active_cells().IsUndefined(isolate));
-  DCHECK(finalization_group->cleared_cells().IsUndefined(isolate));
-  DCHECK(finalization_group->key_map().IsUndefined(isolate));
-  return *finalization_group;
+  DCHECK(finalization_registry->active_cells().IsUndefined(isolate));
+  DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
+  DCHECK(finalization_registry->key_map().IsUndefined(isolate));
+  return *finalization_registry;
 }
 
-BUILTIN(FinalizationGroupRegister) {
+BUILTIN(FinalizationRegistryRegister) {
   HandleScope scope(isolate);
-  const char* method_name = "FinalizationGroup.prototype.register";
+  const char* method_name = "FinalizationRegistry.prototype.register";
 
   //  1. Let finalizationGroup be the this value.
   //
@@ -55,7 +55,7 @@ BUILTIN(FinalizationGroupRegister) {
   //
   //  4. If finalizationGroup does not have a [[Cells]] internal slot,
   //  throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
+  CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
 
   Handle<Object> target = args.atOrUndefined(isolate, 1);
 
@@ -86,15 +86,15 @@ BUILTIN(FinalizationGroupRegister) {
   }
   // TODO(marja): Realms.
 
-  JSFinalizationGroup::Register(finalization_group,
-                                Handle<JSReceiver>::cast(target), holdings,
-                                unregister_token, isolate);
+  JSFinalizationRegistry::Register(finalization_registry,
+                                   Handle<JSReceiver>::cast(target), holdings,
+                                   unregister_token, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-BUILTIN(FinalizationGroupUnregister) {
+BUILTIN(FinalizationRegistryUnregister) {
   HandleScope scope(isolate);
-  const char* method_name = "FinalizationGroup.prototype.unregister";
+  const char* method_name = "FinalizationRegistry.prototype.unregister";
 
   // 1. Let finalizationGroup be the this value.
   //
@@ -103,7 +103,7 @@ BUILTIN(FinalizationGroupUnregister) {
   //
   // 3. If finalizationGroup does not have a [[Cells]] internal slot,
   //    throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
+  CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
 
   Handle<Object> unregister_token = args.atOrUndefined(isolate, 1);
 
@@ -115,15 +115,16 @@ BUILTIN(FinalizationGroupUnregister) {
                      unregister_token));
   }
 
-  bool success = JSFinalizationGroup::Unregister(
-      finalization_group, Handle<JSReceiver>::cast(unregister_token), isolate);
+  bool success = JSFinalizationRegistry::Unregister(
+      finalization_registry, Handle<JSReceiver>::cast(unregister_token),
+      isolate);
 
   return *isolate->factory()->ToBoolean(success);
 }
 
-BUILTIN(FinalizationGroupCleanupSome) {
+BUILTIN(FinalizationRegistryCleanupSome) {
   HandleScope scope(isolate);
-  const char* method_name = "FinalizationGroup.prototype.cleanupSome";
+  const char* method_name = "FinalizationRegistry.prototype.cleanupSome";
 
   // 1. Let finalizationGroup be the this value.
   //
@@ -132,9 +133,9 @@ BUILTIN(FinalizationGroupCleanupSome) {
   //
   // 3. If finalizationGroup does not have a [[Cells]] internal slot,
   //    throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
+  CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
 
-  Handle<Object> callback(finalization_group->cleanup(), isolate);
+  Handle<Object> callback(finalization_registry->cleanup(), isolate);
   Handle<Object> callback_obj = args.atOrUndefined(isolate, 1);
 
   // 4. If callback is not undefined and IsCallable(callback) is
@@ -148,10 +149,9 @@ BUILTIN(FinalizationGroupCleanupSome) {
     callback = callback_obj;
   }
 
-  // Don't do set_scheduled_for_cleanup(false); we still have the microtask
-  // scheduled and don't want to schedule another one in case the user never
-  // executes microtasks.
-  if (JSFinalizationGroup::Cleanup(isolate, finalization_group, callback)
+  // Don't do set_scheduled_for_cleanup(false); we still have the task
+  // scheduled.
+  if (JSFinalizationRegistry::Cleanup(isolate, finalization_registry, callback)
           .IsNothing()) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
@@ -159,19 +159,20 @@ BUILTIN(FinalizationGroupCleanupSome) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-BUILTIN(FinalizationGroupCleanupIteratorNext) {
+BUILTIN(FinalizationRegistryCleanupIteratorNext) {
   HandleScope scope(isolate);
-  CHECK_RECEIVER(JSFinalizationGroupCleanupIterator, iterator, "next");
+  CHECK_RECEIVER(JSFinalizationRegistryCleanupIterator, iterator, "next");
 
-  Handle<JSFinalizationGroup> finalization_group(iterator->finalization_group(),
-                                                 isolate);
-  if (!finalization_group->NeedsCleanup()) {
+  Handle<JSFinalizationRegistry> finalization_registry(
+      iterator->finalization_registry(), isolate);
+  if (!finalization_registry->NeedsCleanup()) {
     return *isolate->factory()->NewJSIteratorResult(
         handle(ReadOnlyRoots(isolate).undefined_value(), isolate), true);
   }
-  Handle<Object> holdings = handle(
-      JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate),
-      isolate);
+  Handle<Object> holdings =
+      handle(JSFinalizationRegistry::PopClearedCellHoldings(
+                 finalization_registry, isolate),
+             isolate);
 
   return *isolate->factory()->NewJSIteratorResult(holdings, false);
 }

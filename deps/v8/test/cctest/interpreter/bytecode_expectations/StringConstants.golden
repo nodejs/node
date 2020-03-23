@@ -11,9 +11,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 4
+bytecode array length: 3
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaConstant), U8(0),
   /*   60 S> */ B(Return),
 ]
@@ -29,9 +28,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 7
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   58 S> */ B(LdaConstant), U8(1),
@@ -50,9 +48,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 8
+bytecode array length: 7
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
   /*   57 S> */ B(LdaConstant), U8(0),

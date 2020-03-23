@@ -77,7 +77,8 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
     return false;
   }
   int function_index = function->function_index();
-  FunctionSig* signature = instance->module()->functions[function_index].sig;
+  const FunctionSig* signature =
+      instance->module()->functions[function_index].sig;
   size_t param_count = signature->parameter_count();
   std::unique_ptr<WasmValue[]> arguments(new WasmValue[param_count]);
 
@@ -88,29 +89,29 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
 
   // Fill the parameters up with default values.
   for (size_t i = argc; i < param_count; ++i) {
-    switch (signature->GetParam(i)) {
-      case kWasmI32:
+    switch (signature->GetParam(i).kind()) {
+      case ValueType::kI32:
         arguments[i] = WasmValue(int32_t{0});
         break;
-      case kWasmI64:
+      case ValueType::kI64:
         arguments[i] = WasmValue(int64_t{0});
         break;
-      case kWasmF32:
+      case ValueType::kF32:
         arguments[i] = WasmValue(0.0f);
         break;
-      case kWasmF64:
+      case ValueType::kF64:
         arguments[i] = WasmValue(0.0);
         break;
-      case kWasmAnyRef:
-      case kWasmFuncRef:
-      case kWasmNullRef:
-      case kWasmExnRef:
+      case ValueType::kAnyRef:
+      case ValueType::kFuncRef:
+      case ValueType::kNullRef:
+      case ValueType::kExnRef:
         arguments[i] =
             WasmValue(Handle<Object>::cast(isolate->factory()->null_value()));
         break;
-      case kWasmStmt:
-      case kWasmBottom:
-      case kWasmS128:
+      case ValueType::kStmt:
+      case ValueType::kBottom:
+      case ValueType::kS128:
         UNREACHABLE();
     }
   }

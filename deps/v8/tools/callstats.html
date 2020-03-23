@@ -1101,13 +1101,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var reader = new FileReader();
 
       reader.onload = function(evt) {
-        handleLoadText(this.result, append);
+        handleLoadText(this.result, append, file.name);
       }
       reader.readAsText(file);
     }
 
-    function handleLoadText(text, append) {
-      handleLoadJSON(JSON.parse(text), append);
+    function handleLoadText(text, append, fileName) {
+      handleLoadJSON(JSON.parse(text), append, fileName);
     }
 
     function getStateFromParams() {
@@ -1121,10 +1121,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return result;
     }
 
-    function handleLoadJSON(json, append) {
+    function handleLoadJSON(json, append, fileName) {
       let isFirstLoad = pages === undefined;
       json = fixClusterTelemetryResults(json);
-      json = fixSinglePageJSON(json);
+      json = fixSinglePageJSON(json, fileName);
       if (append && !isFirstLoad) {
         json = createUniqueVersions(json)
       }
@@ -1144,7 +1144,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function fixClusterTelemetryResults(json) {
       // Convert CT results to callstats compatible JSON
       // Input:
-      // { PATH: { "pairs": { METRIC: { "count": XX, "time": XX }.. }}.. }
+      // { VERSION_NAME: { PAGE: { METRIC: { "count": {XX}, "duration": {XX} }.. }}.. }
       let firstEntry;
       for (let key in json) {
         firstEntry = json[key];
@@ -1171,19 +1171,28 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       return {__proto__:null, ClusterTelemetry: result};
     }
 
-    function fixSinglePageJSON(json) {
+    function fixSinglePageJSON(json, name) {
       // Try to detect the single-version case, where we're missing the toplevel
       // version object. The incoming JSON is of the form:
-      //    {"Page 1": [... data points ... ], "Page 2": [...], ...}
+        //   { PAGE: ... , PAGE_2:  }
       // Instead of the default multi-page JSON:
       //    {"Version 1": { "Page 1": ..., ...}, "Version 2": {...}, ...}
       // In this case insert a single "Default" version as top-level entry.
-      var firstProperty = (object) => {
-        for (var key in object) return key;
+      let firstProperty = (object) => {
+        for (let key in object) return object[key];
       };
-      var maybePage = json[firstProperty(json)];
-      if (!Array.isArray(maybePage)) return json;
-      return {"Default": json}
+      let maybePage = firstProperty(json);
+      let maybeMetrics = firstProperty(maybePage);
+      let tempName = name ? name : new Date().toISOString();
+      if ('count' in maybeMetrics && 'duration' in maybeMetrics) {
+        return {[tempName]: json}
+      }
+      // Legacy fallback where the metrics are encoded as arrays:
+      //  { PAGE: [[metric_name, ...], [...], ]}
+      if (Array.isArray(maybeMetrics)) {
+        return {[tempName]: json}
+      }
+      return json
     }
 
     var appendIndex = 0;
@@ -1603,9 +1612,19 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       }
     }
     PageVersion.fromJSON = function(version, name, data) {
-      var page = new PageVersion(version, pages.get(name));
-      for (var i = 0; i < data.length; i++) {
-        page.add(Entry.fromJSON(i, data[data.length - i - 1]));
+      let page = new PageVersion(version, pages.get(name));
+      // Distinguish between the legacy format which just uses Arrays,
+      // or the new object style.
+      if (Array.isArray(data)) {
+        for (let i = 0; i < data.length; i++) {
+          page.add(Entry.fromLegacyJSON(i, data[data.length - i - 1]));
+        }
+      } else {
+        let position = 0;
+        for (let metric_name in data) {
+          page.add(Entry.fromJSON(position, metric_name, data[metric_name]));
+          position++;
+        }
       }
       page.sort();
       return page
@@ -1698,8 +1717,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return this._timeVariancePercent
       }
     }
-    Entry.fromJSON = function(position, data) {
+    Entry.fromLegacyJSON = function(position, data) {
       return new Entry(position, ...data);
+    }
+    Entry.fromJSON = function(position, name, data) {
+      let time = data.duration;
+      let count = data.count;
+      return new Entry(position, name, time.average, time.stddev, 
+                       count.average, count.stddev);
     }
 
     class Group {

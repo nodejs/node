@@ -8,6 +8,7 @@
 #include "src/objects/js-regexp.h"
 #include "src/objects/objects.h"
 #include "src/regexp/regexp-ast.h"
+#include "src/regexp/regexp-error.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -153,8 +154,8 @@ class RegExpBuilder : public ZoneObject {
 
 class V8_EXPORT_PRIVATE RegExpParser {
  public:
-  RegExpParser(FlatStringReader* in, Handle<String>* error,
-               JSRegExp::Flags flags, Isolate* isolate, Zone* zone);
+  RegExpParser(FlatStringReader* in, JSRegExp::Flags flags, Isolate* isolate,
+               Zone* zone);
 
   static bool ParseRegExp(Isolate* isolate, Zone* zone, FlatStringReader* input,
                           JSRegExp::Flags flags, RegExpCompileData* result);
@@ -177,13 +178,13 @@ class V8_EXPORT_PRIVATE RegExpParser {
   bool ParseUnicodeEscape(uc32* value);
   bool ParseUnlimitedLengthHexNumber(int max_value, uc32* value);
 
-  bool ParsePropertyClassName(std::vector<char>* name_1,
-                              std::vector<char>* name_2);
+  bool ParsePropertyClassName(ZoneVector<char>* name_1,
+                              ZoneVector<char>* name_2);
   bool AddPropertyClassRange(ZoneList<CharacterRange>* add_to, bool negate,
-                             const std::vector<char>& name_1,
-                             const std::vector<char>& name_2);
+                             const ZoneVector<char>& name_1,
+                             const ZoneVector<char>& name_2);
 
-  RegExpTree* GetPropertySequence(const std::vector<char>& name_1);
+  RegExpTree* GetPropertySequence(const ZoneVector<char>& name_1);
   RegExpTree* ParseCharacterClass(const RegExpBuilder* state);
 
   uc32 ParseOctalLiteral();
@@ -202,7 +203,7 @@ class V8_EXPORT_PRIVATE RegExpParser {
 
   char ParseClassEscape();
 
-  RegExpTree* ReportError(Vector<const char> message);
+  RegExpTree* ReportError(RegExpError error);
   void Advance();
   void Advance(int dist);
   void Reset(int pos);
@@ -335,7 +336,8 @@ class V8_EXPORT_PRIVATE RegExpParser {
 
   Isolate* isolate_;
   Zone* zone_;
-  Handle<String>* error_;
+  RegExpError error_ = RegExpError::kNone;
+  int error_pos_ = 0;
   ZoneList<RegExpCapture*>* captures_;
   ZoneSet<RegExpCapture*, RegExpCaptureNameLess>* named_captures_;
   ZoneList<RegExpBackReference*>* named_back_references_;

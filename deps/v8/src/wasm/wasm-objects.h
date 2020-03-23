@@ -170,7 +170,7 @@ class WasmModuleObject : public JSObject {
                                                    uint32_t func_index);
 
   // Get the function name of the function identified by the given index.
-  // Returns "wasm-function[func_index]" if the function is unnamed or the
+  // Returns "func[func_index]" if the function is unnamed or the
   // name is not a valid UTF-8 string.
   static Handle<String> GetFunctionName(Isolate*, Handle<WasmModuleObject>,
                                         uint32_t func_index);
@@ -247,7 +247,8 @@ class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
   // TODO(wasm): Unify these three methods into one.
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
-                                   int entry_index, wasm::FunctionSig* sig,
+                                   int entry_index,
+                                   const wasm::FunctionSig* sig,
                                    Handle<WasmInstanceObject> target_instance,
                                    int target_func_index);
   static void UpdateDispatchTables(Isolate* isolate,
@@ -333,13 +334,7 @@ class WasmGlobalObject : public JSObject {
   DECL_PRINTER(WasmGlobalObject)
   DECL_VERIFIER(WasmGlobalObject)
 
-#define WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS(V, _) \
-  V(TypeBits, wasm::ValueType, 8, _)              \
-  V(IsMutableBit, bool, 1, _)
-
-  DEFINE_BIT_FIELDS(WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS)
-
-#undef WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS
+  DEFINE_TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FLAGS()
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_WASM_GLOBAL_OBJECT_FIELDS)
@@ -410,6 +405,7 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(data_segment_starts, Address*)
   DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
+  DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
@@ -456,6 +452,7 @@ class WasmInstanceObject : public JSObject {
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
   V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
+  V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -641,7 +638,7 @@ class WasmExportedFunction : public JSFunction {
 
   Address GetWasmCallTarget();
 
-  wasm::FunctionSig* sig();
+  const wasm::FunctionSig* sig();
 
   DECL_CAST(WasmExportedFunction)
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);
@@ -653,14 +650,15 @@ class WasmJSFunction : public JSFunction {
  public:
   static bool IsWasmJSFunction(Object object);
 
-  static Handle<WasmJSFunction> New(Isolate* isolate, wasm::FunctionSig* sig,
+  static Handle<WasmJSFunction> New(Isolate* isolate,
+                                    const wasm::FunctionSig* sig,
                                     Handle<JSReceiver> callable);
 
   JSReceiver GetCallable() const;
   // Deserializes the signature of this function using the provided zone. Note
   // that lifetime of the signature is hence directly coupled to the zone.
-  wasm::FunctionSig* GetSignature(Zone* zone);
-  bool MatchesSignature(wasm::FunctionSig* sig);
+  const wasm::FunctionSig* GetSignature(Zone* zone);
+  bool MatchesSignature(const wasm::FunctionSig* sig);
 
   DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
@@ -882,7 +880,7 @@ class WasmDebugInfo : public Struct {
                                               int frame_index);
 
   V8_EXPORT_PRIVATE static Handle<Code> GetCWasmEntry(Handle<WasmDebugInfo>,
-                                                      wasm::FunctionSig*);
+                                                      const wasm::FunctionSig*);
 
   OBJECT_CONSTRUCTORS(WasmDebugInfo, Struct);
 };
@@ -952,11 +950,6 @@ class WasmExceptionTag
  public:
   V8_EXPORT_PRIVATE static Handle<WasmExceptionTag> New(Isolate* isolate,
                                                         int index);
-
-  // Note that this index is only useful for debugging purposes and it is not
-  // unique across modules. The GC however does not allow objects without at
-  // least one field, hence this also serves as a padding field for now.
-  DECL_INT_ACCESSORS(index)
 
   DECL_PRINTER(WasmExceptionTag)
 

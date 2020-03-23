@@ -109,6 +109,8 @@ const int kMmapFd = -1;
 
 const int kMmapFdOffset = 0;
 
+// TODO(v8:10026): Add the right permission flag to make executable pages
+// guarded.
 int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
@@ -464,7 +466,7 @@ void OS::DebugBreak() {
   asm("break");
 #elif V8_HOST_ARCH_MIPS64
   asm("break");
-#elif V8_HOST_ARCH_PPC
+#elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
   asm("twge 2,2");
 #elif V8_HOST_ARCH_IA32
   asm("int $3");
@@ -802,7 +804,7 @@ static void* ThreadEntry(void* arg) {
 
 
 void Thread::set_name(const char* name) {
-  strncpy(name_, name, sizeof(name_));
+  strncpy(name_, name, sizeof(name_) - 1);
   name_[sizeof(name_) - 1] = '\0';
 }
 

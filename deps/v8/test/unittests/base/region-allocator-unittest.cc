@@ -14,9 +14,7 @@ using Address = RegionAllocator::Address;
 using v8::internal::KB;
 using v8::internal::MB;
 
-class RegionAllocatorTest : public ::testing::TestWithParam<int> {};
-
-TEST_P(RegionAllocatorTest, SimpleAllocateRegionAt) {
+TEST(RegionAllocatorTest, SimpleAllocateRegionAt) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCount = 16;
   const size_t kSize = kPageSize * kPageCount;
@@ -50,7 +48,7 @@ TEST_P(RegionAllocatorTest, SimpleAllocateRegionAt) {
   CHECK_EQ(ra.AllocateRegion(kSize), kBegin);
 }
 
-TEST_P(RegionAllocatorTest, SimpleAllocateRegion) {
+TEST(RegionAllocatorTest, SimpleAllocateRegion) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCount = 16;
   const size_t kSize = kPageSize * kPageCount;
@@ -79,7 +77,7 @@ TEST_P(RegionAllocatorTest, SimpleAllocateRegion) {
   CHECK_EQ(ra.free_size(), 0);
 }
 
-TEST_P(RegionAllocatorTest, AllocateRegionRandom) {
+TEST(RegionAllocatorTest, AllocateRegionRandom) {
   const size_t kPageSize = 8 * KB;
   const size_t kPageCountLog = 16;
   const size_t kPageCount = (size_t{1} << kPageCountLog);
@@ -87,7 +85,7 @@ TEST_P(RegionAllocatorTest, AllocateRegionRandom) {
   const Address kBegin = static_cast<Address>(153 * MB);
   const Address kEnd = kBegin + kSize;
 
-  base::RandomNumberGenerator rng(GetParam());
+  base::RandomNumberGenerator rng(::testing::FLAGS_gtest_random_seed);
   RegionAllocator ra(kBegin, kSize, kPageSize);
 
   std::set<Address> allocated_pages;
@@ -123,7 +121,7 @@ TEST_P(RegionAllocatorTest, AllocateRegionRandom) {
   CHECK_EQ(ra.AllocateRegion(kPageSize), RegionAllocator::kAllocationFailure);
 }
 
-TEST_P(RegionAllocatorTest, AllocateBigRegions) {
+TEST(RegionAllocatorTest, AllocateBigRegions) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCountLog = 10;
   const size_t kPageCount = (size_t{1} << kPageCountLog) - 1;
@@ -153,7 +151,7 @@ TEST_P(RegionAllocatorTest, AllocateBigRegions) {
   CHECK_EQ(ra.free_size(), 0);
 }
 
-TEST_P(RegionAllocatorTest, MergeLeftToRightCoalecsingRegions) {
+TEST(RegionAllocatorTest, MergeLeftToRightCoalecsingRegions) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCountLog = 10;
   const size_t kPageCount = (size_t{1} << kPageCountLog);
@@ -187,8 +185,8 @@ TEST_P(RegionAllocatorTest, MergeLeftToRightCoalecsingRegions) {
   CHECK_EQ(ra.free_size(), 0);
 }
 
-TEST_P(RegionAllocatorTest, MergeRightToLeftCoalecsingRegions) {
-  base::RandomNumberGenerator rng(GetParam());
+TEST(RegionAllocatorTest, MergeRightToLeftCoalecsingRegions) {
+  base::RandomNumberGenerator rng(::testing::FLAGS_gtest_random_seed);
   const size_t kPageSize = 4 * KB;
   const size_t kPageCountLog = 10;
   const size_t kPageCount = (size_t{1} << kPageCountLog);
@@ -236,7 +234,7 @@ TEST_P(RegionAllocatorTest, MergeRightToLeftCoalecsingRegions) {
   CHECK_EQ(ra.AllocateRegion(kSize), kBegin);
 }
 
-TEST_P(RegionAllocatorTest, Fragmentation) {
+TEST(RegionAllocatorTest, Fragmentation) {
   const size_t kPageSize = 64 * KB;
   const size_t kPageCount = 9;
   const size_t kSize = kPageSize * kPageCount;
@@ -283,7 +281,7 @@ TEST_P(RegionAllocatorTest, Fragmentation) {
   CHECK_EQ(ra.AllocateRegion(kSize), kBegin);
 }
 
-TEST_P(RegionAllocatorTest, FindRegion) {
+TEST(RegionAllocatorTest, FindRegion) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCount = 16;
   const size_t kSize = kPageSize * kPageCount;
@@ -322,7 +320,7 @@ TEST_P(RegionAllocatorTest, FindRegion) {
   }
 }
 
-TEST_P(RegionAllocatorTest, TrimRegion) {
+TEST(RegionAllocatorTest, TrimRegion) {
   const size_t kPageSize = 4 * KB;
   const size_t kPageCount = 64;
   const size_t kSize = kPageSize * kPageCount;
@@ -352,7 +350,5 @@ TEST_P(RegionAllocatorTest, TrimRegion) {
   CHECK_EQ(ra.AllocateRegion(kSize), kBegin);
 }
 
-INSTANTIATE_TEST_SUITE_P(RegionAllocatorTest, RegionAllocatorTest,
-                         testing::Values(123));
 }  // namespace base
 }  // namespace v8

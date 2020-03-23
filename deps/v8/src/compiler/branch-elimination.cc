@@ -157,6 +157,11 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
     return Replace(dead());
   }
   SimplifyBranchCondition(node);
+  // Trigger revisits of the IfTrue/IfFalse projections, since they depend on
+  // the branch condition.
+  for (Node* const use : node->uses()) {
+    Revisit(use);
+  }
   return TakeConditionsFromFirstControl(node);
 }
 

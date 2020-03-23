@@ -1950,7 +1950,7 @@ TEST(OrderedNameDictionarySetEntry) {
   Handle<String> other_value = isolate->factory()->InternalizeUtf8String("baz");
   PropertyDetails other_details =
       PropertyDetails(kAccessor, READ_ONLY, PropertyCellType::kNoCell);
-  dict->SetEntry(isolate, entry, *key, *other_value, other_details);
+  dict->SetEntry(entry, *key, *other_value, other_details);
 
   entry = dict->FindEntry(isolate, *key);
   CHECK_EQ(0, entry);
@@ -1995,7 +1995,7 @@ TEST(SmallOrderedNameDictionarySetEntry) {
   Handle<String> other_value = factory->InternalizeUtf8String("baz");
   PropertyDetails other_details =
       PropertyDetails(kAccessor, READ_ONLY, PropertyCellType::kNoCell);
-  dict->SetEntry(isolate, entry, *key, *other_value, other_details);
+  dict->SetEntry(entry, *key, *other_value, other_details);
 
   entry = dict->FindEntry(isolate, *key);
   CHECK_EQ(0, entry);

@@ -209,14 +209,15 @@ GDB_EXTERNAL_EDITOR environment variable.
     super(Redirect, self).__init__("redirect", gdb.COMMAND_USER)
 
   def invoke(self, subcommand, from_tty):
-    old_stdout = gdb.execute("p dup(1)", to_string=True).split("=")[-1].strip()
+    old_stdout = gdb.execute(
+            "p (int)dup(1)", to_string=True).split("=")[-1].strip()
     try:
       time_suffix = time.strftime("%Y%m%d-%H%M%S")
       fd, file = tempfile.mkstemp(suffix="-%s.gdbout" % time_suffix)
       try:
         # Temporaily redirect stdout to the created tmp file for the
         # duration of the subcommand.
-        gdb.execute('p dup2(open("%s", 1), 1)' % file, to_string=True)
+        gdb.execute('p (int)dup2(open("%s", 1), 1)' % file, to_string=True)
         # Execute subcommand non interactively.
         result = gdb.execute(subcommand, from_tty=False, to_string=True)
         # Write returned string results to the temporary file as well.
@@ -231,11 +232,11 @@ GDB_EXTERNAL_EDITOR environment variable.
           print("Open output:\n  %s '%s'" % (os.environ['EDITOR'], file))
       finally:
         # Restore original stdout.
-        gdb.execute("p dup2(%s, 1)" % old_stdout, to_string=True)
+        gdb.execute("p (int)dup2(%s, 1)" % old_stdout, to_string=True)
         # Close the temporary file.
         os.close(fd)
     finally:
       # Close the originally duplicated stdout descriptor.
-      gdb.execute("p close(%s)" % old_stdout, to_string=True)
+      gdb.execute("p (int)close(%s)" % old_stdout, to_string=True)
 
 Redirect()

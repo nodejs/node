@@ -19,7 +19,11 @@ class IncrementalStringBuilder;  // to avoid including string-builder-inl.h
 
 class CallPrinter final : public AstVisitor<CallPrinter> {
  public:
-  explicit CallPrinter(Isolate* isolate, bool is_user_js);
+  enum class SpreadErrorInArgsHint { kErrorInArgs, kNoErrorInArgs };
+
+  explicit CallPrinter(Isolate* isolate, bool is_user_js,
+                       SpreadErrorInArgsHint error_in_spread_args =
+                           SpreadErrorInArgsHint::kNoErrorInArgs);
   ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
@@ -32,7 +36,9 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
     kCallAndNormalIterator,
     kCallAndAsyncIterator
   };
+
   ErrorHint GetErrorHint() const;
+  Expression* spread_arg() const { return spread_arg_; }
   ObjectLiteralProperty* destructuring_prop() const {
     return destructuring_prop_;
   }
@@ -62,8 +68,10 @@ class CallPrinter final : public AstVisitor<CallPrinter> {
   bool is_iterator_error_;
   bool is_async_iterator_error_;
   bool is_call_error_;
+  SpreadErrorInArgsHint error_in_spread_args_;
   ObjectLiteralProperty* destructuring_prop_;
   Assignment* destructuring_assignment_;
+  Expression* spread_arg_;
   FunctionKind function_kind_;
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

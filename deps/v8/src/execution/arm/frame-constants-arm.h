@@ -5,6 +5,7 @@
 #ifndef V8_EXECUTION_ARM_FRAME_CONSTANTS_ARM_H_
 #define V8_EXECUTION_ARM_FRAME_CONSTANTS_ARM_H_
 
+#include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/execution/frame-constants.h"
 
@@ -34,6 +35,44 @@ class WasmCompileLazyFrameConstants : public TypedFrameConstants {
       TypedFrameConstants::kFixedFrameSizeFromFp +
       kNumberOfSavedGpParamRegs * kPointerSize +
       kNumberOfSavedFpParamRegs * kDoubleSize;
+};
+
+// Frame constructed by the {WasmDebugBreak} builtin.
+// After pushing the frame type marker, the builtin pushes all Liftoff cache
+// registers (see liftoff-assembler-defs.h).
+class WasmDebugBreakFrameConstants : public TypedFrameConstants {
+ public:
+  // {r0, r1, r2, r3, r4, r5, r6, r8, r9}
+  static constexpr uint32_t kPushedGpRegs = 0b1101111111;
+  // {d0 .. d12}
+  static constexpr int kFirstPushedFpReg = 0;
+  static constexpr int kLastPushedFpReg = 12;
+
+  static constexpr int kNumPushedGpRegisters =
+      base::bits::CountPopulation(kPushedGpRegs);
+  static constexpr int kNumPushedFpRegisters =
+      kLastPushedFpReg - kFirstPushedFpReg + 1;
+
+  static constexpr int kLastPushedGpRegisterOffset =
+      -TypedFrameConstants::kFixedFrameSizeFromFp -
+      kSystemPointerSize * kNumPushedGpRegisters;
+  static constexpr int kLastPushedFpRegisterOffset =
+      kLastPushedGpRegisterOffset - kDoubleSize * kNumPushedFpRegisters;
+
+  // Offsets are fp-relative.
+  static int GetPushedGpRegisterOffset(int reg_code) {
+    DCHECK_NE(0, kPushedGpRegs & (1 << reg_code));
+    uint32_t lower_regs = kPushedGpRegs & ((uint32_t{1} << reg_code) - 1);
+    return kLastPushedGpRegisterOffset +
+           base::bits::CountPopulation(lower_regs) * kSystemPointerSize;
+  }
+
+  static int GetPushedFpRegisterOffset(int reg_code) {
+    DCHECK_LE(kFirstPushedFpReg, reg_code);
+    DCHECK_GE(kLastPushedFpReg, reg_code);
+    return kLastPushedFpRegisterOffset +
+           (reg_code - kFirstPushedFpReg) * kDoubleSize;
+  }
 };
 
 }  // namespace internal

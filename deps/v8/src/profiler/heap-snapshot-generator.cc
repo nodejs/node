@@ -978,7 +978,7 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
     int context_locals = scope_info.ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {
       String local_name = scope_info.ContextLocalName(i);
-      int idx = Context::MIN_CONTEXT_SLOTS + i;
+      int idx = scope_info.ContextHeaderLength() + i;
       SetContextReference(entry, local_name, context.get(idx),
                           Context::OffsetOfElementAt(idx));
     }

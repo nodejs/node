@@ -13,16 +13,11 @@ namespace {{namespace}} {
 {% endfor %}
 
 namespace {
-// When parsing CBOR, we limit recursion depth for objects and arrays
-// to this constant.
-static constexpr int kStackLimitValues = 1000;
-
-using {{config.crdtp.namespace}}::Error;
 using {{config.crdtp.namespace}}::Status;
+using {{config.crdtp.namespace}}::ParserHandler;
 using {{config.crdtp.namespace}}::span;
 namespace cbor {
-using {{config.crdtp.namespace}}::cbor::CBORTokenTag;
-using {{config.crdtp.namespace}}::cbor::CBORTokenizer;
+using {{config.crdtp.namespace}}::cbor::ParseCBOR;
 using {{config.crdtp.namespace}}::cbor::EncodeBinary;
 using {{config.crdtp.namespace}}::cbor::EncodeDouble;
 using {{config.crdtp.namespace}}::cbor::EncodeFalse;
@@ -39,165 +34,161 @@ using {{config.crdtp.namespace}}::cbor::EnvelopeEncoder;
 using {{config.crdtp.namespace}}::cbor::InitialByteForEnvelope;
 }  // namespace cbor
 
-// Below are three parsing routines for CBOR, which cover enough
-// to roundtrip JSON messages.
-std::unique_ptr<DictionaryValue> parseMap(int32_t stack_depth, cbor::CBORTokenizer* tokenizer);
-std::unique_ptr<ListValue> parseArray(int32_t stack_depth, cbor::CBORTokenizer* tokenizer);
-std::unique_ptr<Value> parseValue(int32_t stack_depth, cbor::CBORTokenizer* tokenizer);
+// Uses the parsing events received from driver of |ParserHandler|
+// (e.g. cbor::ParseCBOR) into a protocol::Value instance.
+class ValueParserHandler : public ParserHandler {
+ public:
+   // Provides the parsed protocol::Value.
+   std::unique_ptr<Value> ReleaseRoot() { return std::move(root_); }
 
-// |bytes| must start with the indefinite length array byte, so basically,
-// ParseArray may only be called after an indefinite length array has been
-// detected.
-std::unique_ptr<ListValue> parseArray(int32_t stack_depth, cbor::CBORTokenizer* tokenizer) {
-  DCHECK(tokenizer->TokenTag() == cbor::CBORTokenTag::ARRAY_START);
-  tokenizer->Next();
-  auto list = ListValue::create();
-  while (tokenizer->TokenTag() != cbor::CBORTokenTag::STOP) {
-    // Error::CBOR_UNEXPECTED_EOF_IN_ARRAY
-    if (tokenizer->TokenTag() == cbor::CBORTokenTag::DONE) return nullptr;
-    if (tokenizer->TokenTag() == cbor::CBORTokenTag::ERROR_VALUE) return nullptr;
-    // Parse value.
-    auto value = parseValue(stack_depth, tokenizer);
-    if (!value) return nullptr;
-    list->pushValue(std::move(value));
+   // The first parsing error encountered; |status().ok()| is the default.
+   Status status() const { return status_; }
+
+ private:
+  //
+  // Implementation of  ParserHandler.
+  //
+  void HandleMapBegin() override {
+    if (!status_.ok()) return;
+    std::unique_ptr<DictionaryValue> dict = DictionaryValue::create();
+    DictionaryValue* dict_ptr = dict.get();
+    AddValueToParent(std::move(dict));
+    stack_.emplace_back(dict_ptr);
   }
-  tokenizer->Next();
-  return list;
-}
 
-std::unique_ptr<Value> parseValue(
-    int32_t stack_depth, cbor::CBORTokenizer* tokenizer) {
-  // Error::CBOR_STACK_LIMIT_EXCEEDED
-  if (stack_depth > kStackLimitValues) return nullptr;
-  // Skip past the envelope to get to what's inside.
-  if (tokenizer->TokenTag() == cbor::CBORTokenTag::ENVELOPE)
-    tokenizer->EnterEnvelope();
-  switch (tokenizer->TokenTag()) {
-    case cbor::CBORTokenTag::ERROR_VALUE:
-      return nullptr;
-    case cbor::CBORTokenTag::DONE:
-      // Error::CBOR_UNEXPECTED_EOF_EXPECTED_VALUE
-      return nullptr;
-    case cbor::CBORTokenTag::TRUE_VALUE: {
-      std::unique_ptr<Value> value = FundamentalValue::create(true);
-      tokenizer->Next();
-      return value;
-    }
-    case cbor::CBORTokenTag::FALSE_VALUE: {
-      std::unique_ptr<Value> value = FundamentalValue::create(false);
-      tokenizer->Next();
-      return value;
-    }
-    case cbor::CBORTokenTag::NULL_VALUE: {
-      std::unique_ptr<Value> value = FundamentalValue::null();
-      tokenizer->Next();
-      return value;
-    }
-    case cbor::CBORTokenTag::INT32: {
-      std::unique_ptr<Value> value = FundamentalValue::create(tokenizer->GetInt32());
-      tokenizer->Next();
-      return value;
-    }
-    case cbor::CBORTokenTag::DOUBLE: {
-      std::unique_ptr<Value> value = FundamentalValue::create(tokenizer->GetDouble());
-      tokenizer->Next();
-      return value;
-    }
-    case cbor::CBORTokenTag::STRING8: {
-      span<uint8_t> str = tokenizer->GetString8();
-      std::unique_ptr<Value> value =
-          StringValue::create(StringUtil::fromUTF8(str.data(), str.size()));
-      tokenizer->Next();
-      return value;
-    }
-    case cbor::CBORTokenTag::STRING16: {
-      span<uint8_t> wire = tokenizer->GetString16WireRep();
-      DCHECK_EQ(wire.size() & 1, 0u);
-      std::unique_ptr<Value> value = StringValue::create(StringUtil::fromUTF16LE(
-          reinterpret_cast<const uint16_t*>(wire.data()), wire.size() / 2));
-      tokenizer->Next();
-      return value;
-    }
-    case cbor::CBORTokenTag::BINARY: {
-      span<uint8_t> payload = tokenizer->GetBinary();
-      tokenizer->Next();
-      return BinaryValue::create(Binary::fromSpan(payload.data(), payload.size()));
-    }
-    case cbor::CBORTokenTag::MAP_START:
-      return parseMap(stack_depth + 1, tokenizer);
-    case cbor::CBORTokenTag::ARRAY_START:
-      return parseArray(stack_depth + 1, tokenizer);
-    default:
-      // Error::CBOR_UNSUPPORTED_VALUE
-      return nullptr;
+  void HandleMapEnd() override {
+    if (!status_.ok()) return;
+    DCHECK(!stack_.empty());
+    DCHECK(stack_.back().is_dict);
+    stack_.pop_back();
   }
-}
-
-// |bytes| must start with the indefinite length array byte, so basically,
-// ParseArray may only be called after an indefinite length array has been
-// detected.
-std::unique_ptr<DictionaryValue> parseMap(
-    int32_t stack_depth, cbor::CBORTokenizer* tokenizer) {
-  auto dict = DictionaryValue::create();
-  tokenizer->Next();
-  while (tokenizer->TokenTag() != cbor::CBORTokenTag::STOP) {
-    if (tokenizer->TokenTag() == cbor::CBORTokenTag::DONE) {
-      // Error::CBOR_UNEXPECTED_EOF_IN_MAP
-      return nullptr;
-    }
-    if (tokenizer->TokenTag() == cbor::CBORTokenTag::ERROR_VALUE) return nullptr;
-    // Parse key.
-    String key;
-    if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING8) {
-      span<uint8_t> key_span = tokenizer->GetString8();
-      key = StringUtil::fromUTF8(key_span.data(), key_span.size());
-      tokenizer->Next();
-    } else if (tokenizer->TokenTag() == cbor::CBORTokenTag::STRING16) {
-      span<uint8_t> key_span = tokenizer->GetString16WireRep();
-      if (key_span.size() & 1) return nullptr;  // UTF16 is 2 byte multiple.
-      key = StringUtil::fromUTF16LE(
-          reinterpret_cast<const uint16_t*>(key_span.data()),
-          key_span.size() / 2);
-      tokenizer->Next();
-    } else {
-      // Error::CBOR_INVALID_MAP_KEY
-      return nullptr;
-    }
-    // Parse value.
-    auto value = parseValue(stack_depth, tokenizer);
-    if (!value) return nullptr;
-    dict->setValue(key, std::move(value));
+  
+  void HandleArrayBegin() override {
+    if (!status_.ok()) return;
+    std::unique_ptr<ListValue> list = ListValue::create();
+    ListValue* list_ptr = list.get();
+    AddValueToParent(std::move(list));
+    stack_.emplace_back(list_ptr);
   }
-  tokenizer->Next();
-  return dict;
-}
 
+  void HandleArrayEnd() override {
+    if (!status_.ok()) return;
+    DCHECK(!stack_.empty());
+    DCHECK(!stack_.back().is_dict);
+    stack_.pop_back();
+  }
+
+  void HandleString8(span<uint8_t> chars) override {
+    AddStringToParent(StringUtil::fromUTF8(chars.data(), chars.size()));
+  }
+
+  void HandleString16(span<uint16_t> chars) override {
+    AddStringToParent(
+        StringUtil::fromUTF16LE(chars.data(), chars.size()));
+  }
+
+  void HandleBinary(span<uint8_t> bytes) override {
+    AddValueToParent(
+        BinaryValue::create(Binary::fromSpan(bytes.data(), bytes.size())));
+  }
+   
+  void HandleDouble(double value) override {
+    AddValueToParent(FundamentalValue::create(value));
+  }
+   
+  void HandleInt32(int32_t value) override {
+    AddValueToParent(FundamentalValue::create(value));
+  }
+   
+  void HandleBool(bool value) override {
+    AddValueToParent(FundamentalValue::create(value));
+  }
+   
+  void HandleNull() override {
+    AddValueToParent(Value::null());
+  }
+
+  void HandleError(Status error) override {
+    status_ = error;
+  }
+
+  //
+  // Adding strings and values to the parent value.
+  // Strings are handled separately because they can be keys for
+  // dictionary values.
+  //
+  void AddStringToParent(String str) {
+    if (!status_.ok()) return;
+    if (!root_) {
+      DCHECK(!key_is_pending_);
+      root_ = StringValue::create(str);
+    } else if (stack_.back().is_dict) {
+      // If we already have a pending key, then this is the value of the
+      // key/value pair. Otherwise, it's the new pending key.
+      if (key_is_pending_) {
+        stack_.back().dict->setString(pending_key_, str);
+        key_is_pending_ = false;
+      } else {
+        pending_key_ = std::move(str);
+        key_is_pending_ = true;
+      }
+    } else {  // Top of the stack is a list.
+      DCHECK(!key_is_pending_);
+      stack_.back().list->pushValue(StringValue::create(str));
+    }
+  }
+
+  void AddValueToParent(std::unique_ptr<Value> value) {
+    if (!status_.ok()) return;
+    if (!root_) {
+      DCHECK(!key_is_pending_);
+      root_ = std::move(value);
+    } else if (stack_.back().is_dict) {
+      DCHECK(key_is_pending_);
+      stack_.back().dict->setValue(pending_key_, std::move(value));
+      key_is_pending_ = false;
+    } else {  // Top of the stack is a list.
+      DCHECK(!key_is_pending_);
+      stack_.back().list->pushValue(std::move(value));
+    }
+  }
+
+  // |status_.ok()| is the default; if we receive an error event
+  // we keep the first one and stop modifying any other state.
+  Status status_;
+
+  // The root of the parsed protocol::Value tree.
+  std::unique_ptr<Value> root_;
+
+  // If root_ is a list or a dictionary, this stack keeps track of
+  // the container we're currently parsing as well as its ancestors.
+  struct ContainerState {
+    ContainerState(DictionaryValue* dict) : is_dict(true), dict(dict) {}
+    ContainerState(ListValue* list) : is_dict(false), list(list) {}
+
+    bool is_dict;
+    union {
+      DictionaryValue* dict;
+      ListValue* list;
+    };
+  };
+  std::vector<ContainerState> stack_;
+
+  // For maps, keys and values are alternating events, so we keep the
+  // key around and process it when the value arrives.
+  bool key_is_pending_ = false;
+  String pending_key_;
+};
 } // anonymous namespace
 
 // static
 std::unique_ptr<Value> Value::parseBinary(const uint8_t* data, size_t size) {
-  span<uint8_t> bytes(data, size);
-
-  // Error::CBOR_NO_INPUT
-  if (bytes.empty()) return nullptr;
-
-  // Error::CBOR_INVALID_START_BYTE
-  if (bytes[0] != cbor::InitialByteForEnvelope()) return nullptr;
-
-  cbor::CBORTokenizer tokenizer(bytes);
-  if (tokenizer.TokenTag() == cbor::CBORTokenTag::ERROR_VALUE) return nullptr;
-
-  // We checked for the envelope start byte above, so the tokenizer
-  // must agree here, since it's not an error.
-  DCHECK(tokenizer.TokenTag() == cbor::CBORTokenTag::ENVELOPE);
-  tokenizer.EnterEnvelope();
-  // Error::MAP_START_EXPECTED
-  if (tokenizer.TokenTag() != cbor::CBORTokenTag::MAP_START) return nullptr;
-  std::unique_ptr<Value> result = parseMap(/*stack_depth=*/1, &tokenizer);
-  if (!result) return nullptr;
-  if (tokenizer.TokenTag() == cbor::CBORTokenTag::DONE) return result;
-  if (tokenizer.TokenTag() == cbor::CBORTokenTag::ERROR_VALUE) return nullptr;
-  // Error::CBOR_TRAILING_JUNK
+  ValueParserHandler handler;
+  cbor::ParseCBOR(span<uint8_t>(data, size), &handler);
+  // TODO(johannes): We have decent error info in handler.status(); provide
+  // a richer interface that makes this available to client code.
+  if (handler.status().ok())
+    return handler.ReleaseRoot();
   return nullptr;
 }
 
@@ -500,7 +491,7 @@ std::unique_ptr<Value> DictionaryValue::clone() const
         DCHECK(value != m_data.cend() && value->second);
         result->setValue(key, value->second->clone());
     }
-    return std::move(result);
+    return result;
 }
 
 DictionaryValue::DictionaryValue()
@@ -528,7 +519,7 @@ std::unique_ptr<Value> ListValue::clone() const
     std::unique_ptr<ListValue> result = ListValue::create();
     for (const std::unique_ptr<protocol::Value>& value : m_data)
         result->pushValue(value->clone());
-    return std::move(result);
+    return result;
 }
 
 ListValue::ListValue()

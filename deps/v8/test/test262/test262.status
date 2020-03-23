@@ -150,6 +150,12 @@
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-start-detached': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached': [FAIL],
+  # fill should also throw on detached buffers
+  'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
+  'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
+  'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
+  # includes should also throw on detached buffers
+  'built-ins/TypedArray/prototype/includes/detached-buffer-tointeger': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -496,17 +502,12 @@
   'language/comments/hashbang/use-strict': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
-  #
-  # These tests require exception handling support which is currently
-  #  blocked on landing https://chromium-review.googlesource.com/c/v8/v8/+/1655655
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
+  'built-ins/FinalizationRegistry/FinalizationRegistryCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
+  'built-ins/FinalizationRegistry/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
+  'built-ins/FinalizationRegistry/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9612
-  'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10313
+  'built-ins/Date/parse/without-utc-offset': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
@@ -535,7 +536,7 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10111
   # super() should evaluate arguments before checking IsConstructable
-  'language/expressions/class/super-evaluation-order': [FAIL],
+  'language/expressions/super/call-proto-not-ctor': [FAIL],
 
   # Intl.NumberFormat(..., {signDisplay:'exceptZero'}).format(0.0001)
   # produce +0 due to rounding
@@ -552,10 +553,13 @@
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW': [FAIL],
 
-  # Intl.NumberFormat constructor should throw RangeError
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10112
-  'intl402/NumberFormat/constructor-order': [FAIL],
-  'intl402/NumberFormat/constructor-unit': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10272
+  'intl402/DateTimeFormat/invalid-numbering-system-calendar-options': [FAIL],
+  'intl402/NumberFormat/invalid-numbering-system-options': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10274
+  # BigInt as literal property names must be valid
+  'language/expressions/object/literal-property-name-bigint': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 

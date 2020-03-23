@@ -16,7 +16,7 @@ import v8_fuzz_config
 DEFAULT_FLAGS = [
   '--correctness-fuzzer-suppressions',
   '--expose-gc',
-  '--allow-natives-syntax',
+  '--allow-natives-for-differential-fuzzing',
   '--invoke-weak-callbacks',
   '--omit-quit',
   '--es-staging',
@@ -28,23 +28,29 @@ DEFAULT_FLAGS = [
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 # List of files passed to each d8 run before the testcase.
-DEFAULT_FILES = [
-  os.path.join(BASE_PATH, 'v8_mock.js'),
-  os.path.join(BASE_PATH, 'v8_suppressions.js'),
-]
+DEFAULT_MOCK = os.path.join(BASE_PATH, 'v8_mock.js')
 
-# Architecture-specific mock file
+# Suppressions on JavaScript level for known issues.
+JS_SUPPRESSIONS = os.path.join(BASE_PATH, 'v8_suppressions.js')
+
+# Config-specific mock files.
 ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
+WEBASSEMBLY_MOCKS = os.path.join(BASE_PATH, 'v8_mock_webassembly.js')
 
 # Timeout in seconds for one d8 run.
 TIMEOUT = 3
 
 
 def _startup_files(options):
-  """Default files and optional architecture-specific mock file."""
-  files = DEFAULT_FILES[:]
+  """Default files and optional config-specific mock files."""
+  files = [DEFAULT_MOCK]
+  if not options.skip_suppressions:
+    files.append(JS_SUPPRESSIONS)
   if options.first.arch != options.second.arch:
     files.append(ARCH_MOCKS)
+  # Mock out WebAssembly when comparing with jitless mode.
+  if '--jitless' in options.first.flags + options.second.flags:
+    files.append(WEBASSEMBLY_MOCKS)
   return files
 
 
@@ -105,8 +111,8 @@ def Execute(args, cwd, timeout=None):
     process = subprocess.Popen(
       args=popen_args,
       stdout=subprocess.PIPE,
-      stderr=subprocess.STDOUT,
-      cwd=cwd
+      stderr=subprocess.PIPE,
+      cwd=cwd,
     )
   except Exception as e:
     sys.stderr.write("Error executing: %s\n" % popen_args)

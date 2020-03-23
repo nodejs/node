@@ -214,9 +214,8 @@ void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
   __ bind(&fallthrough);
 }
 
-
 void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
+    int start_reg, bool read_backward, Label* on_no_match) {
   Label fallthrough;
   ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
   ReadPositionFromRegister(rbx, start_reg + 1);  // Offset of end of capture
@@ -321,7 +320,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   Address byte_offset1 - Address captured substring's start.
     //   Address byte_offset2 - Address of current character position.
     //   size_t byte_length - length of capture in bytes(!)
-//   Isolate* isolate or 0 if unicode flag.
+    //   Isolate* isolate.
 #ifdef V8_TARGET_OS_WIN
     DCHECK(rcx == arg_reg_1);
     DCHECK(rdx == arg_reg_2);
@@ -349,14 +348,7 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     // Set byte_length.
     __ movq(arg_reg_3, rbx);
     // Isolate.
-#ifdef V8_INTL_SUPPORT
-    if (unicode) {
-      __ movq(arg_reg_4, Immediate(0));
-    } else  // NOLINT
-#endif      // V8_INTL_SUPPORT
-    {
-      __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
-    }
+    __ LoadAddress(arg_reg_4, ExternalReference::isolate_address(isolate()));
 
     { // NOLINT: Can't find a way to open this scope without confusing the
       // linter.
@@ -387,7 +379,6 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
   }
   __ bind(&fallthrough);
 }
-
 
 void RegExpMacroAssemblerX64::CheckNotBackReference(int start_reg,
                                                     bool read_backward,

@@ -8,13 +8,44 @@
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/wasm/graph-builder-interface.h"
+#include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+template <>
+void AppendSingle(std::vector<byte>* code, WasmOpcode op) {
+  // We do not yet have opcodes that take up more than 2 byte (decoded). But if
+  // that changes, this will need to be updated.
+  DCHECK_EQ(0, op >> 16);
+  byte prefix = (op >> 8) & 0xff;
+  byte opcode = op & 0xff;
+
+  if (!prefix) {
+    code->push_back(opcode);
+    return;
+  }
+
+  // Ensure the prefix is really one of the supported prefixed opcodes.
+  DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(prefix)));
+  code->push_back(prefix);
+
+  // Decoded opcodes fit in a byte (0x00-0xff).
+  DCHECK_LE(LEBHelper::sizeof_u32v(opcode), 2);
+  // Therefore, the encoding needs max 2 bytes.
+  uint8_t encoded[2];
+  uint8_t* d = encoded;
+  // d is updated to after the last uint8_t written.
+  LEBHelper::write_u32v(&d, opcode);
+  for (uint8_t* p = encoded; p < d; p++) {
+    code->push_back(*p);
+  }
+}
 
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import, ExecutionTier tier,
@@ -69,6 +100,12 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 }
 
+TestingModuleBuilder::~TestingModuleBuilder() {
+  // When the native module dies and is erased from the cache, it is expected to
+  // have either valid bytes or no bytes at all.
+  native_module_->SetWireBytes({});
+}
+
 byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   CHECK(!test_module_->has_memory);
   CHECK_NULL(mem_start_);
@@ -99,7 +136,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   return mem_start_;
 }
 
-uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
+uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
+                                           const char* name,
                                            FunctionType type) {
   if (test_module_->functions.size() == 0) {
     // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
@@ -107,7 +145,13 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
     test_module_->functions.reserve(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(test_module_->functions.size());
-  test_module_->functions.push_back({sig, index, 0, {0, 0}, false, false});
+  test_module_->functions.push_back({sig,      // sig
+                                     index,    // func_index
+                                     0,        // sig_index
+                                     {0, 0},   // code
+                                     false,    // imported
+                                     false,    // exported
+                                     false});  // declared
   if (type == kImport) {
     DCHECK_EQ(0, test_module_->num_declared_functions);
     ++test_module_->num_imported_functions;
@@ -131,8 +175,9 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
         sig);
     std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
         index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots, std::move(result.protected_instructions),
-        std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
+        result.tagged_parameter_slots,
+        result.protected_instructions_data.as_vector(),
+        result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
         wasm::ExecutionTier::kInterpreter);
     native_module_->PublishCode(std::move(code));
   }
@@ -228,7 +273,7 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   return bytes_offset;
 }
 
-uint32_t TestingModuleBuilder::AddException(FunctionSig* sig) {
+uint32_t TestingModuleBuilder::AddException(const FunctionSig* sig) {
   DCHECK_EQ(0, sig->return_count());
   uint32_t index = static_cast<uint32_t>(test_module_->exceptions.size());
   test_module_->exceptions.push_back(WasmException{sig});
@@ -283,7 +328,7 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
   DCHECK_EQ(index, dropped_elem_segments_.size());
 
-  test_module_->elem_segments.emplace_back();
+  test_module_->elem_segments.emplace_back(false);
   auto& elem_segment = test_module_->elem_segments.back();
   elem_segment.entries = entries;
 
@@ -293,18 +338,22 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   return index;
 }
 
-CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
+CompilationEnv TestingModuleBuilder::CreateCompilationEnv(
+    AssumeDebugging debug) {
   // This is a hack so we don't need to call
   // trap_handler::IsTrapHandlerEnabled().
   const bool is_trap_handler_enabled =
       V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler;
   return {test_module_ptr_,
           is_trap_handler_enabled ? kUseTrapHandler : kNoTrapHandler,
-          runtime_exception_support_, enabled_features_, lower_simd()};
+          runtime_exception_support_,
+          enabled_features_,
+          lower_simd(),
+          debug};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
-  byte size = ValueTypes::MemSize(ValueTypes::MachineTypeFor(type));
+  byte size = type.element_size_bytes();
   global_offset = (global_offset + size - 1) & ~(size - 1);  // align
   test_module_->globals.push_back(
       {type, true, WasmInitExpr(), {global_offset}, false, false});
@@ -342,7 +391,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 }
 
 void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
-                                  Zone* zone, FunctionSig* sig,
+                                  Zone* zone, const FunctionSig* sig,
                                   const byte* start, const byte* end) {
   WasmFeatures unused_detected_features;
   FunctionBody body(sig, 0, start, end);
@@ -369,7 +418,7 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end) {
   compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
@@ -542,7 +591,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate());
 }
 
-WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
+WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
                                            TestingModuleBuilder* builder,
                                            const char* name)
     : GraphAndBuilders(zone),
@@ -561,23 +610,24 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
 
 WasmFunctionCompiler::~WasmFunctionCompiler() = default;
 
-FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
+/* static */
+FunctionSig* WasmRunnerBase::CreateSig(Zone* zone, MachineType return_type,
                                        Vector<MachineType> param_types) {
   int return_count = return_type.IsNone() ? 0 : 1;
   int param_count = param_types.length();
 
   // Allocate storage array in zone.
-  ValueType* sig_types = zone_.NewArray<ValueType>(return_count + param_count);
+  ValueType* sig_types = zone->NewArray<ValueType>(return_count + param_count);
 
   // Convert machine types to local types, and check that there are no
   // MachineType::None()'s in the parameters.
   int idx = 0;
-  if (return_count) sig_types[idx++] = ValueTypes::ValueTypeFor(return_type);
+  if (return_count) sig_types[idx++] = ValueType::For(return_type);
   for (MachineType param : param_types) {
     CHECK_NE(MachineType::None(), param);
-    sig_types[idx++] = ValueTypes::ValueTypeFor(param);
+    sig_types[idx++] = ValueType::For(param);
   }
-  return new (&zone_) FunctionSig(return_count, param_count, sig_types);
+  return new (zone) FunctionSig(return_count, param_count, sig_types);
 }
 
 // static

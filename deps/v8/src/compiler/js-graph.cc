@@ -160,6 +160,8 @@ DEFINE_GETTER(NullConstant, HeapConstant(factory()->null_value()))
 
 DEFINE_GETTER(ZeroConstant, NumberConstant(0.0))
 
+DEFINE_GETTER(MinusZeroConstant, NumberConstant(-0.0))
+
 DEFINE_GETTER(OneConstant, NumberConstant(1.0))
 
 DEFINE_GETTER(MinusOneConstant, NumberConstant(-1.0))

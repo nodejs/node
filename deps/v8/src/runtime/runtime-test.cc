@@ -91,8 +91,7 @@ v8::Local<v8::Value> NewRangeException(v8::Isolate* isolate,
                                        const char* message) {
   return v8::Exception::RangeError(
       v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>(message),
-                                 v8::NewStringType::kNormal)
+                                 reinterpret_cast<const uint8_t*>(message))
           .ToLocalChecked());
 }
 
@@ -449,9 +448,10 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // Ensure that the function is marked for non-concurrent optimization, so that
   // subsequent runs don't also optimize.
   if (FLAG_trace_osr) {
-    PrintF("[OSR - OptimizeOsr marking ");
-    function->ShortPrint();
-    PrintF(" for non-concurrent optimization]\n");
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintF(scope.file(), "[OSR - OptimizeOsr marking ");
+    function->ShortPrint(scope.file());
+    PrintF(scope.file(), " for non-concurrent optimization]\n");
   }
   JSFunction::EnsureFeedbackVector(function);
   function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
@@ -730,7 +730,7 @@ RUNTIME_FUNCTION(Runtime_SimulateNewspaceFull) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   NewSpace* space = heap->new_space();
-  AlwaysAllocateScope always_allocate(heap);
+  AlwaysAllocateScopeForTesting always_allocate(heap);
   do {
     FillUpOneNewSpacePage(isolate, heap);
   } while (space->AddFreshPage());

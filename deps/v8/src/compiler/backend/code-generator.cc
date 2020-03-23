@@ -158,6 +158,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   }
 
   DeoptimizeKind deopt_kind = exit->kind();
+
   DeoptimizeReason deoptimization_reason = exit->reason();
   Address deopt_entry =
       Deoptimizer::GetDeoptimizationEntry(tasm()->isolate(), deopt_kind);
@@ -165,7 +166,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     tasm()->RecordDeoptReason(deoptimization_reason, exit->pos(),
                               deoptimization_id);
   }
-  tasm()->CallForDeoptimization(deopt_entry, deoptimization_id);
+
+  if (deopt_kind == DeoptimizeKind::kLazy) {
+    tasm()->BindExceptionHandler(exit->label());
+  } else {
+    ++non_lazy_deopt_count_;
+    tasm()->bind(exit->label());
+  }
+
+  tasm()->CallForDeoptimization(deopt_entry, deoptimization_id, exit->label(),
+                                deopt_kind);
   exit->set_emitted();
   return kSuccess;
 }
@@ -186,6 +196,9 @@ void CodeGenerator::AssembleCode() {
     AssembleSourcePosition(start_source_position());
   }
   offsets_info_.code_start_register_check = tasm()->pc_offset();
+
+  tasm()->CodeEntry();
+
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (FLAG_debug_code && (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
                           info->code_kind() == Code::BYTECODE_HANDLER)) {
@@ -312,31 +325,49 @@ void CodeGenerator::AssembleCode() {
   // emitted before emitting the deoptimization exits.
   PrepareForDeoptimizationExits(static_cast<int>(deoptimization_exits_.size()));
 
-  if (Deoptimizer::kSupportsFixedDeoptExitSize) {
+  if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
     deopt_exit_start_offset_ = tasm()->pc_offset();
   }
 
   // Assemble deoptimization exits.
   offsets_info_.deoptimization_exits = tasm()->pc_offset();
   int last_updated = 0;
+  // We sort the deoptimization exits here so that the lazy ones will
+  // be visited last. We need this as on architectures where
+  // Deoptimizer::kSupportsFixedDeoptExitSizes is true, lazy deopts
+  // might need additional instructions.
+  auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
+    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kEager,
+                  "lazy deopts are expected to be emitted last");
+    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kSoft,
+                  "lazy deopts are expected to be emitted last");
+    if (a->kind() != b->kind()) {
+      return a->kind() < b->kind();
+    }
+    return a->pc_offset() < b->pc_offset();
+  };
+  if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
+    std::sort(deoptimization_exits_.begin(), deoptimization_exits_.end(), cmp);
+  }
+
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     if (exit->emitted()) continue;
-    if (Deoptimizer::kSupportsFixedDeoptExitSize) {
+    if (Deoptimizer::kSupportsFixedDeoptExitSizes) {
       exit->set_deoptimization_id(next_deoptimization_id_++);
     }
-    tasm()->bind(exit->label());
+    result_ = AssembleDeoptimizerCall(exit);
+    if (result_ != kSuccess) return;
 
     // UpdateDeoptimizationInfo expects lazy deopts to be visited in pc_offset
     // order, which is always the case since they are added to
-    // deoptimization_exits_ in that order.
+    // deoptimization_exits_ in that order, and the optional sort operation
+    // above preserves that order.
     if (exit->kind() == DeoptimizeKind::kLazy) {
-      int trampoline_pc = tasm()->pc_offset();
+      int trampoline_pc = exit->label()->pos();
       last_updated = safepoints()->UpdateDeoptimizationInfo(
           exit->pc_offset(), trampoline_pc, last_updated,
           exit->deoptimization_id());
     }
-    result_ = AssembleDeoptimizerCall(exit);
-    if (result_ != kSuccess) return;
   }
 
   offsets_info_.pools = tasm()->pc_offset();
@@ -432,10 +463,9 @@ OwnedVector<byte> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTableVector();
 }
 
-OwnedVector<trap_handler::ProtectedInstructionData>
-CodeGenerator::GetProtectedInstructions() {
-  return OwnedVector<trap_handler::ProtectedInstructionData>::Of(
-      protected_instructions_);
+OwnedVector<byte> CodeGenerator::GetProtectedInstructionsData() {
+  return OwnedVector<byte>::Of(
+      Vector<byte>::cast(VectorOf(protected_instructions_)));
 }
 
 MaybeHandle<Code> CodeGenerator::FinalizeCode() {
@@ -531,6 +561,9 @@ bool CodeGenerator::IsMaterializableFromRoot(Handle<HeapObject> object,
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleBlock(
     const InstructionBlock* block) {
+  if (block->IsHandler()) {
+    tasm()->ExceptionHandler();
+  }
   for (int i = block->code_start(); i < block->code_end(); ++i) {
     CodeGenResult result = AssembleInstruction(i, block);
     if (result != kSuccess) return result;
@@ -883,6 +916,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   data->SetOptimizationId(Smi::FromInt(info->optimization_id()));
 
   data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
+  data->SetNonLazyDeoptCount(Smi::FromInt(non_lazy_deopt_count_));
 
   if (info->has_shared_info()) {
     data->SetSharedFunctionInfo(*info->shared_info());
@@ -944,6 +978,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   if (flags & CallDescriptor::kHasExceptionHandler) {
     InstructionOperandConverter i(this, instr);
     RpoNumber handler_rpo = i.InputRpo(instr->InputCount() - 1);
+    DCHECK(instructions()->InstructionBlockAt(handler_rpo)->IsHandler());
     handlers_.push_back({GetLabel(handler_rpo), tasm()->pc_offset()});
   }
 
@@ -1120,7 +1155,7 @@ DeoptimizationExit* CodeGenerator::BuildTranslation(
       current_source_position_, descriptor->bailout_id(), translation.index(),
       pc_offset, entry.kind(), entry.reason());
 
-  if (!Deoptimizer::kSupportsFixedDeoptExitSize) {
+  if (!Deoptimizer::kSupportsFixedDeoptExitSizes) {
     exit->set_deoptimization_id(next_deoptimization_id_++);
   }
 

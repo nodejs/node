@@ -53,8 +53,13 @@ template <typename T, IrOpcode::Value kOpcode>
 struct ValueMatcher : public NodeMatcher {
   using ValueType = T;
 
-  explicit ValueMatcher(Node* node)
-      : NodeMatcher(node), value_(), has_value_(opcode() == kOpcode) {
+  explicit ValueMatcher(Node* node) : NodeMatcher(node) {
+    static_assert(kOpcode != IrOpcode::kFoldConstant, "unsupported opcode");
+    if (node->opcode() == IrOpcode::kFoldConstant) {
+      node = node->InputAt(1);
+    }
+    DCHECK_NE(node->opcode(), IrOpcode::kFoldConstant);
+    has_value_ = opcode() == kOpcode;
     if (has_value_) {
       value_ = OpParameter<T>(node->op());
     }
@@ -110,6 +115,30 @@ inline ValueMatcher<uint64_t, IrOpcode::kInt64Constant>::ValueMatcher(
   }
 }
 
+template <>
+inline ValueMatcher<double, IrOpcode::kNumberConstant>::ValueMatcher(Node* node)
+    : NodeMatcher(node), value_(), has_value_(false) {
+  if (node->opcode() == IrOpcode::kNumberConstant) {
+    value_ = OpParameter<double>(node->op());
+    has_value_ = true;
+  } else if (node->opcode() == IrOpcode::kFoldConstant) {
+    node = node->InputAt(1);
+    DCHECK_NE(node->opcode(), IrOpcode::kFoldConstant);
+  }
+}
+
+template <>
+inline ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant>::ValueMatcher(
+    Node* node)
+    : NodeMatcher(node), value_(), has_value_(false) {
+  if (node->opcode() == IrOpcode::kHeapConstant) {
+    value_ = OpParameter<Handle<HeapObject>>(node->op());
+    has_value_ = true;
+  } else if (node->opcode() == IrOpcode::kFoldConstant) {
+    node = node->InputAt(1);
+    DCHECK_NE(node->opcode(), IrOpcode::kFoldConstant);
+  }
+}
 
 // A pattern matcher for integer constants.
 template <typename T, IrOpcode::Value kOpcode>

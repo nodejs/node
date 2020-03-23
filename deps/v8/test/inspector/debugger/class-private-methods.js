@@ -13,6 +13,10 @@ function run() {
   class A {
     #field = 2;
 
+    static #staticMethod() {}  // should not show up
+    static get #staticAccessor() { }  // should not show up
+    static set #staticAccessor(val) { }  // should not show up
+
     #inc() { this.#field++; return this.#field; }
 
     set #writeOnly(val) { this.#field = val; }

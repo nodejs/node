@@ -767,7 +767,7 @@ namespace test {
     check(a.b.GetX() == 2);
   }
 
-  class InternalClass extends Struct {
+  class InternalClass extends HeapObject {
     macro Flip() labels NotASmi {
       const tmp = Cast<Smi>(this.b) otherwise NotASmi;
       this.b = this.a;
@@ -833,7 +833,7 @@ namespace test {
     return new FixedArray{map: kFixedArrayMap, length: 5, objects: ...i};
   }
 
-  class SmiPair extends Struct {
+  class SmiPair extends HeapObject {
     macro GetA():&Smi {
       return & this.a;
     }
@@ -920,7 +920,7 @@ namespace test {
     StaticAssert(1 + 2 == 3);
   }
 
-  class SmiBox extends Struct {
+  class SmiBox extends HeapObject {
     value: Smi;
     unrelated: Smi;
   }
@@ -1119,5 +1119,109 @@ namespace test {
     check(val3.c);
     check(val3.d == 99);
     check(val3.e == 1234);
+  }
+
+  @export
+  class ExportedSubClass extends ExportedSubClassBase {
+    c_field: int32;
+    d_field: int32;
+    e_field: Smi;
+  }
+
+  @export
+  class ExportedSubClassBase extends HeapObject {
+    a: HeapObject;
+    b: HeapObject;
+  }
+
+  class InternalClassWithSmiElements extends FixedArrayBase {
+    data: Smi;
+    object: Oddball;
+    entries[length]: Smi;
+  }
+
+  struct InternalClassStructElement {
+    a: Smi;
+    b: Smi;
+  }
+
+  class InternalClassWithStructElements extends HeapObject {
+    dummy1: int32;
+    dummy2: int32;
+    const count: Smi;
+    data: Smi;
+    object: Object;
+    entries[count]: Smi;
+    more_entries[count]: InternalClassStructElement;
+  }
+
+  struct SmiGeneratorIterator {
+    macro Next(): Smi labels _NoMore {
+      return this.value++;
+    }
+    value: Smi;
+  }
+
+  struct InternalClassStructElementGeneratorIterator {
+    macro Next(): InternalClassStructElement labels _NoMore {
+      return InternalClassStructElement{a: this.value++, b: this.value++};
+    }
+    value: Smi;
+  }
+
+  @export
+  macro TestFullyGeneratedClassWithElements() {
+    // Test creation, initialization and access of a fully generated class with
+    // simple (Smi) elements
+    const length: Smi = Convert<Smi>(3);
+    const object1 = new InternalClassWithSmiElements{
+      length,
+      data: 0,
+      object: Undefined,
+      entries: ...SmiGeneratorIterator {
+        value: 11
+      }
+    };
+    assert(object1.length == 3);
+    assert(object1.data == 0);
+    assert(object1.object == Undefined);
+    assert(object1.entries[0] == 11);
+    assert(object1.entries[1] == 12);
+    assert(object1.entries[2] == 13);
+
+    // Test creation, initialization and access of a fully generated class
+    // with elements that are a struct.
+    const object2 = new InternalClassWithStructElements{
+      dummy1: 44,
+      dummy2: 45,
+      count: length,
+      data: 55,
+      object: Undefined,
+      entries: ...SmiGeneratorIterator{value: 3},
+      more_entries: ...InternalClassStructElementGeneratorIterator {
+        value: 1
+      }
+    };
+
+    assert(object2.dummy1 == 44);
+    assert(object2.dummy2 == 45);
+    assert(object2.count == 3);
+    assert(object2.data == 55);
+    assert(object2.object == Undefined);
+    assert(object2.entries[0] == 3);
+    assert(object2.entries[1] == 4);
+    assert(object2.entries[2] == 5);
+    assert(object2.more_entries[0].a == 1);
+    assert(object2.more_entries[0].b == 2);
+    assert(object2.more_entries[1].a == 3);
+    assert(object2.more_entries[1].b == 4);
+    assert(object2.more_entries[2].a == 5);
+    assert(object2.more_entries[2].b == 6);
+  }
+
+  @export
+  macro TestFullyGeneratedClassFromCpp(): ExportedSubClass {
+    return new
+    ExportedSubClass{a: Null, b: Null, c_field: 7, d_field: 8, e_field: 9};
   }
 }

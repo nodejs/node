@@ -24,15 +24,6 @@
   'proposals/multi-value/call': [FAIL],
   'proposals/multi-value/if': [FAIL],
   'proposals/multi-value/func': [FAIL],
-
-  # TODO(v8:10156): Spec tests are failing after rebasing the reference-types
-  # proposal on the bulk-operations proposal.
-  'proposals/reference-types/elem': [FAIL],
-  'proposals/reference-types/ref_func': [FAIL],
-  'proposals/reference-types/table_fill': [FAIL],
-  'proposals/reference-types/table_grow': [FAIL],
-  'proposals/reference-types/select': [FAIL],
-  'proposals/reference-types/br_table': [FAIL],
 }],  # ALWAYS
 
 ['arch == mipsel or arch == mips64el or arch == mips or arch == mips64', {

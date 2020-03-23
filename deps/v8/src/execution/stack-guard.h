@@ -130,7 +130,7 @@ class V8_EXPORT_PRIVATE StackGuard final {
     // The stack limit is split into a JavaScript and a C++ stack limit. These
     // two are the same except when running on a simulator where the C++ and
     // JavaScript stacks are separate. Each of the two stack limits have two
-    // values. The one eith the real_ prefix is the actual stack limit
+    // values. The one with the real_ prefix is the actual stack limit
     // set for the VM. The one without the real_ prefix has the same value as
     // the actual stack limit except when there is an interruption (e.g. debug
     // break or preemption) in which case it is lowered to make stack checks

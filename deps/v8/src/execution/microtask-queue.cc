@@ -115,6 +115,7 @@ void MicrotaskQueue::PerformCheckpoint(v8::Isolate* v8_isolate) {
       !HasMicrotasksSuppressions()) {
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
     RunMicrotasks(isolate);
+    isolate->ClearKeptObjects();
   }
 }
 

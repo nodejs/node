@@ -328,9 +328,7 @@ void BytecodeAnalysis::Analyze() {
     if (bytecode == Bytecode::kSwitchOnGeneratorState) {
       DCHECK_EQ(generator_switch_index, -1);
       generator_switch_index = iterator.current_index();
-    }
-
-    if (bytecode == Bytecode::kJumpLoop) {
+    } else if (bytecode == Bytecode::kJumpLoop) {
       // Every byte up to and including the last byte within the backwards jump
       // instruction is considered part of the loop, set loop end accordingly.
       int loop_end = current_offset + iterator.current_bytecode_size();
@@ -350,7 +348,16 @@ void BytecodeAnalysis::Analyze() {
       if (analyze_liveness_) {
         loop_end_index_queue_.push_back(iterator.current_index());
       }
-    } else if (loop_stack_.size() > 1) {
+    }
+
+    // We have to pop from loop_stack_ if:
+    // 1) We entered the body of the loop
+    // 2) If we have a JumpLoop that jumps to itself (i.e an empty loop)
+    bool pop_current_loop = loop_stack_.size() > 1 &&
+                            (bytecode != Bytecode::kJumpLoop ||
+                             iterator.GetJumpTargetOffset() == current_offset);
+
+    if (pop_current_loop) {
       LoopStackEntry& current_loop = loop_stack_.top();
       LoopInfo* current_loop_info = current_loop.loop_info;
 
@@ -553,10 +560,10 @@ void BytecodeAnalysis::Analyze() {
 }
 
 void BytecodeAnalysis::PushLoop(int loop_header, int loop_end) {
-  DCHECK(loop_header < loop_end);
-  DCHECK(loop_stack_.top().header_offset < loop_header);
-  DCHECK(end_to_header_.find(loop_end) == end_to_header_.end());
-  DCHECK(header_to_info_.find(loop_header) == header_to_info_.end());
+  DCHECK_LT(loop_header, loop_end);
+  DCHECK_LT(loop_stack_.top().header_offset, loop_header);
+  DCHECK_EQ(end_to_header_.find(loop_end), end_to_header_.end());
+  DCHECK_EQ(header_to_info_.find(loop_header), header_to_info_.end());
 
   int parent_offset = loop_stack_.top().header_offset;
 

@@ -176,7 +176,7 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
       wasm::DebugInfo* debug_info =
           WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
       return Utils::ToLocal(debug_info->GetLocalScopeObject(
-          isolate_, frame_->pc(), frame_->fp()));
+          isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
     }
     default:
       return {};

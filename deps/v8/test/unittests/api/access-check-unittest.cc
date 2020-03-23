@@ -19,8 +19,7 @@ bool AccessCheck(Local<Context> accessing_context,
 
 MaybeLocal<Value> CompileRun(Isolate* isolate, const char* source) {
   Local<String> source_string =
-      String::NewFromUtf8(isolate, source, NewStringType::kNormal)
-          .ToLocalChecked();
+      String::NewFromUtf8(isolate, source).ToLocalChecked();
   Local<Context> context = isolate->GetCurrentContext();
   Local<Script> script =
       Script::Compile(context, source_string).ToLocalChecked();
@@ -28,9 +27,7 @@ MaybeLocal<Value> CompileRun(Isolate* isolate, const char* source) {
 }
 
 v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x,
-                                 v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
 }
 
 }  // namespace
