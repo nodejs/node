@@ -81,8 +81,8 @@ binary in versions < 2.2.0. Until npm updates to a newer version of
 `update-notifier`, Node.js macOS package files can't be notarized and will fail
 to install on macOS Catalina and above.
 
-Where an `npm ls` shows a `term-size` package version < 2.2.0, cherry-pick
-commit `d2f08a1bdb` on to of the new npm.
+When `npm ls` shows a `term-size` package version < 2.2.0, cherry-pick
+commit `d2f08a1bdb` on top of the upgraded npm.
 
 ```console
 $ git cherry-pick d2f08a1bdb
