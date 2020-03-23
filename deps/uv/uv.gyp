@@ -263,6 +263,7 @@
             'src/unix/random-getrandom.c',
             'src/unix/random-sysctl-linux.c',
             'src/unix/sysinfo-loadavg.c',
+            'src/unix/random-getentropy.c',
           ],
           'link_settings': {
             'libraries': [ '-ldl' ],
