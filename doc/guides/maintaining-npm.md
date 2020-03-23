@@ -88,7 +88,7 @@ commit `d2f08a1bdb` on top of the upgraded npm.
 $ git cherry-pick d2f08a1bdb
 ```
 
-Where `npm ls` shows a `term-size` package version >= 2.2.0, edit this file to
+When `npm ls` shows a `term-size` package version >= 2.2.0, edit this file to
 remove this step.
 
 ## Step 8: Test the build
