@@ -3242,6 +3242,7 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
       KeyObject::kInternalFieldCount);
 
   env->SetProtoMethod(t, "init", Init);
+  env->SetProtoMethod(t, "initRaw", InitRaw);
   env->SetProtoMethodNoSideEffect(t, "getSymmetricKeySize",
                                   GetSymmetricKeySize);
   env->SetProtoMethodNoSideEffect(t, "getAsymmetricKeyType",
@@ -3348,6 +3349,24 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
   default:
     CHECK(false);
   }
+}
+
+void KeyObject::InitRaw(const FunctionCallbackInfo<Value>& args) {
+  KeyObject* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsArrayBufferView());
+  const int32_t nid = args[0].As<Int32>()->Value();
+  Local<ArrayBufferView> abv = args[1].As<ArrayBufferView>();
+  const size_t raw_pkey_len = abv->ByteLength();
+  unsigned char* raw_pkey = MallocOpenSSL<unsigned char>(raw_pkey_len);
+  abv->CopyContents(raw_pkey, raw_pkey_len);
+  EVPKeyPointer pkey_ptr(
+      EVP_PKEY_new_raw_private_key(nid, nullptr, raw_pkey, raw_pkey_len));
+  OPENSSL_clear_free(raw_pkey, raw_pkey_len);
+  ManagedEVPPKey pkey(std::move(pkey_ptr));
+  key->InitPrivate(pkey);
 }
 
 void KeyObject::InitSecret(v8::Local<v8::ArrayBufferView> abv) {
