@@ -1,0 +1,23 @@
+name: test-linux
+
+on: [push, pull_request]
+
+env:
+  PYTHON_VERSION: 3.8
+  FLAKY_TESTS: dontcare
+
+jobs:
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v1
+        with:
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: make build-ci -j2 V=1
+      - name: Test
+        run: make run-ci -j2 V=1
