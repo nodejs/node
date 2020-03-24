@@ -779,6 +779,14 @@
               ],
             }],
           ],
+          'conditions': [
+            ['OS=="win"', {
+              'sources': [
+                "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.cc",
+                "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.h"
+              ],
+            }],
+          ],
         }],
         ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
           'sources': [  ### gcmole(arch:mipsel) ###
