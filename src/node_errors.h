@@ -12,14 +12,10 @@
 
 namespace node {
 
-using v8::Local;
-using v8::Message;
-using v8::Value;
-
 enum ErrorHandlingMode { CONTEXTIFY_ERROR, FATAL_ERROR, MODULE_ERROR };
 void AppendExceptionLine(Environment* env,
-                         Local<Value> er,
-                         Local<Message> message,
+                         v8::Local<v8::Value> er,
+                         v8::Local<v8::Message> message,
                          enum ErrorHandlingMode mode);
 
 [[noreturn]] void FatalError(const char* location, const char* message);
@@ -195,8 +191,8 @@ class TryCatchScope : public v8::TryCatch {
 void TriggerUncaughtException(v8::Isolate* isolate,
                               const v8::TryCatch& try_catch);
 void TriggerUncaughtException(v8::Isolate* isolate,
-                              Local<Value> error,
-                              Local<Message> message,
+                              v8::Local<v8::Value> error,
+                              v8::Local<v8::Message> message,
                               bool from_promise = false);
 
 const char* errno_string(int errorno);
