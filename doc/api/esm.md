@@ -518,7 +518,7 @@ would be usable by any version of Node.js, since `import` can refer to CommonJS
 files; but it would not provide any of the advantages of using ES module syntax.
 
 A package could also switch from CommonJS to ES module syntax in a breaking
-change version bump. This has the obvious disadvantage that the newest version
+change version bump. This has the disadvantage that the newest version
 of the package would only be usable in ES module-supporting versions of Node.js.
 
 Every pattern has tradeoffs, but there are two broad approaches that satisfy the
@@ -1341,7 +1341,7 @@ JavaScript using the [`transformSource` hook][]. Before that hook gets called,
 however, other hooks need to tell Node.js not to throw an error on unknown file
 types; and to tell Node.js how to load this new file type.
 
-This is obviously less performant than transpiling source files before running
+This is less performant than transpiling source files before running
 Node.js; a transpiler loader should only be used for development and testing
 purposes.
 
