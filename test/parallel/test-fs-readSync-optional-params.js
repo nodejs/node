@@ -26,7 +26,7 @@ assert.deepStrictEqual(defaultBuffer2, expected);
 // Test passing in options
 const result3 = fs.readSync(fd, defaultBuffer3, {
   offset: 0,
-  lenght: defaultBuffer3.length,
+  length: defaultBuffer3.length,
   position: 0
 });
 
