@@ -917,8 +917,8 @@ It is also possible to
 
 ### `import()` expressions
 
-[Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be used
-to include ES module files from CommonJS code.
+[Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be
+used to include ES module files from CommonJS code.
 
 ## CommonJS, JSON, and Native Modules
 
