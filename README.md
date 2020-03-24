@@ -163,12 +163,16 @@ For information about the governance of the Node.js project, see
 **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [cjihrig](https://github.com/cjihrig) -
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
+* [codebytere](https://github.com/codebytere) -
+**Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
 * [fhinkel](https://github.com/fhinkel) -
 **Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt; (she/her)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
 **Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
+* [gireeshpunathil](https://github.com/gireeshpunathil) -
+**Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [jasnell](https://github.com/jasnell) -
 **James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
@@ -177,6 +181,8 @@ For information about the governance of the Node.js project, see
 **Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
 **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; (he/him)
+* [mmarchini](https://github.com/mmarchini) -
+**Matheus Marchini** &lt;mat@mmarchini.me&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
 * [sam-github](https://github.com/sam-github) -
@@ -200,8 +206,6 @@ For information about the governance of the Node.js project, see
 **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; (he/they)
 * [gibfahn](https://github.com/gibfahn) -
 **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
-* [gireeshpunathil](https://github.com/gireeshpunathil) -
-**Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [indutny](https://github.com/indutny) -
 **Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [isaacs](https://github.com/isaacs) -
