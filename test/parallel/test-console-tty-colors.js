@@ -86,7 +86,7 @@ check(false, false, false);
         });
       },
       {
-        message: 'Option "inspectOptions.color" cannot be used in ' +
+        message: 'Option "options.inspectOptions.color" cannot be used in ' +
                  'combination with option "colorMode"',
         code: 'ERR_INCOMPATIBLE_OPTION_PAIR'
       }
