@@ -37,8 +37,8 @@
 
 This document explains how Collaborators manage the Node.js project.
 Collaborators should understand the
-[guidelines for new contributors](CONTRIBUTING.md) and the
-[project governance model](GOVERNANCE.md).
+[guidelines for new contributors](../../CONTRIBUTING.md) and the
+[project governance model](../../GOVERNANCE.md).
 
 ## Issues and Pull Requests
 
@@ -50,7 +50,7 @@ request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 Always show courtesy to individuals submitting issues and pull requests. Be
 welcoming to first-time contributors, identified by the GitHub
-![First-time contributor](./doc/first_timer_badge.png) badge.
+![First-time contributor](../first_timer_badge.png) badge.
 
 For first-time contributors, check if the commit author is the same as the pull
 request author. This way, once their pull request lands, GitHub will show them
@@ -481,7 +481,7 @@ $ git checkout master
 ```
 
 Update the tree (assumes your repo is set up as detailed in
-[CONTRIBUTING.md](./doc/guides/contributing/pull-requests.md#step-1-fork)):
+[CONTRIBUTING.md](./contributing/pull-requests.md#step-1-fork)):
 
 ```text
 $ git fetch upstream
@@ -759,13 +759,13 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
-[Stability Index]: doc/api/documentation.md#stability-index
+[Stability Index]: ../api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
-[`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
-[`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
+[`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
+[`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
-[backporting guide]: doc/guides/backporting-to-release-lines.md
-[commit message guidelines]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
+[backporting guide]: ./backporting-to-release-lines.md
+[commit message guidelines]: ./contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
