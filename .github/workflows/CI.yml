@@ -21,6 +21,10 @@ jobs:
         run: npx envinfo
       - name: Build
         run: ./configure && make -j2
+      - uses: actions/upload-artifact@v1
+        with:
+          name: linux-binary
+          path: out/Release/node
   build-windows:
     runs-on: windows-latest
     steps:
@@ -31,6 +35,10 @@ jobs:
         run: choco install nasm
       - name: Build
         run: ./vcbuild.bat
+      - uses: actions/upload-artifact@v1
+        with:
+          name: windows-binary
+          path: out/Release/node.exe
   build-macOS:
     runs-on: macos-latest
     steps:
@@ -39,6 +47,10 @@ jobs:
         run: npx envinfo
       - name: Build
         run: ./configure && make -j8
+      - uses: actions/upload-artifact@v1
+        with:
+          name: macOS-binary
+          path: out/Release/node
   lint-addon-docs:
     runs-on: ubuntu-latest
     steps:
