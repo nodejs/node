@@ -513,7 +513,7 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v13.12.0
     pr-url: https://github.com/nodejs/node/pull/31664
     description: The `filename` parameter can be a WHATWG `URL` object using
                  `file:` protocol.
