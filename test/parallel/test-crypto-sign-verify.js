@@ -655,3 +655,13 @@ assert.throws(
   const actual = crypto.sign(null, data, privkey);
   assert.deepStrictEqual(actual, expected);
 }
+
+// siphash
+{
+  const key = Buffer.from('000102030405060708090A0B0C0D0E0F', 'hex');
+  const data = Buffer.from('000102030405', 'hex');
+  const privkey = crypto.createPrivateKey({ type: 'siphash', key });
+  const expected = Buffer.from('14eeca338b208613485ea0308fd7a15e', 'hex');
+  const actual = crypto.sign(null, data, privkey);
+  assert.deepStrictEqual(actual, expected);
+}
