@@ -84,3 +84,13 @@ assert.strictEqual(source._readableState.pipes.length, 0);
   checkDestCleanup(dest2);
   source.unpipe();
 }
+
+{
+  const src = Readable({ read: () => {} });
+  const dst = Writable({ write: () => {} });
+  src.pipe(dst);
+  src.on('resume', common.mustCall(() => {
+    src.on('pause', common.mustCall());
+    src.unpipe(dst);
+  }));
+}
