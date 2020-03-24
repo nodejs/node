@@ -650,8 +650,8 @@ assert.throws(
       '726f676f7665732c0a416e6420746865206d6f6d65207261746873206f75' +
       '7467726162652e',
       'hex');
+  const privkey = crypto.createPrivateKey({ type: 'poly1305', key });
   const expected = Buffer.from('4541669a7eaaee61e708dc7cbcc5eb62', 'hex');
-  const actual =
-    crypto.sign(null, data, crypto.createPrivateKey('poly1305', key));
+  const actual = crypto.sign(null, data, privkey);
   assert.deepStrictEqual(actual, expected);
 }
