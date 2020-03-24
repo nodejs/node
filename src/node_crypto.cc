@@ -6914,6 +6914,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "generateKeyPairDH", GenerateKeyPairDH);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_POLY1305);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
   NODE_DEFINE_CONSTANT(target, OPENSSL_EC_NAMED_CURVE);
