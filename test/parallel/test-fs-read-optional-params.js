@@ -27,7 +27,7 @@ fs.read(fd, common.mustCall((err, bytesRead, buffer) => {
 fs.read(fd, {
   buffer: bufferAsOption,
   offset: 0,
-  lenght: bufferAsOption.length,
+  length: bufferAsOption.length,
   position: 0
 },
         common.mustCall((err, bytesRead, buffer) => {
