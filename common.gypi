@@ -193,6 +193,11 @@
         ],
         'msvs_settings': {
           'VCCLCompilerTool': {
+            'conditions': [
+              ['target_arch=="arm64"', {
+                'FloatingPointModel': 1 # /fp:strict
+              }]
+            ],
             'EnableFunctionLevelLinking': 'true',
             'EnableIntrinsicFunctions': 'true',
             'FavorSizeOrSpeed': 1,          # /Ot, favor speed over size
