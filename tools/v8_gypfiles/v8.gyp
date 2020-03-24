@@ -461,6 +461,11 @@
       'toolsets': ['target'],
       'conditions': [
         ['want_separate_host_toolset', {
+          'conditions': [
+            ['v8_target_arch=="arm64"', {
+              'msvs_enable_marmasm': 1,
+            }]
+          ],
           'dependencies': [
             'generate_bytecode_builtins_list',
             'run_torque',
@@ -765,6 +770,14 @@
         ['v8_target_arch=="arm64"', {
           'sources': [  ### gcmole(arch:arm64) ###
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_current_cpu == \\"arm64.*?sources \+= ")',
+          ],
+          'conditions': [
+            ['OS=="win"', {
+              'sources': [
+                "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.cc",
+                "<(V8_ROOT)/src/diagnostics/unwinding-info-win64.h"
+              ],
+            }],
           ],
         }],
         ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {
