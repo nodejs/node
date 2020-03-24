@@ -19,13 +19,6 @@ class Environment;
 
 namespace performance {
 
-using v8::FunctionCallbackInfo;
-using v8::GCType;
-using v8::GCCallbackFlags;
-using v8::Local;
-using v8::Object;
-using v8::Value;
-
 extern const uint64_t timeOrigin;
 
 static inline const char* GetPerformanceMilestoneName(
@@ -60,9 +53,9 @@ class PerformanceEntry {
  public:
   static void Notify(Environment* env,
                      PerformanceEntryType type,
-                     Local<Value> object);
+                     v8::Local<v8::Value> object);
 
-  static void New(const FunctionCallbackInfo<Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   PerformanceEntry(Environment* env,
                    const char* name,
@@ -76,7 +69,7 @@ class PerformanceEntry {
 
   virtual ~PerformanceEntry() = default;
 
-  virtual v8::MaybeLocal<Object> ToObject() const;
+  virtual v8::MaybeLocal<v8::Object> ToObject() const;
 
   Environment* env() const { return env_; }
 
@@ -105,27 +98,27 @@ class PerformanceEntry {
 };
 
 enum PerformanceGCKind {
-  NODE_PERFORMANCE_GC_MAJOR = GCType::kGCTypeMarkSweepCompact,
-  NODE_PERFORMANCE_GC_MINOR = GCType::kGCTypeScavenge,
-  NODE_PERFORMANCE_GC_INCREMENTAL = GCType::kGCTypeIncrementalMarking,
-  NODE_PERFORMANCE_GC_WEAKCB = GCType::kGCTypeProcessWeakCallbacks
+  NODE_PERFORMANCE_GC_MAJOR = v8::GCType::kGCTypeMarkSweepCompact,
+  NODE_PERFORMANCE_GC_MINOR = v8::GCType::kGCTypeScavenge,
+  NODE_PERFORMANCE_GC_INCREMENTAL = v8::GCType::kGCTypeIncrementalMarking,
+  NODE_PERFORMANCE_GC_WEAKCB = v8::GCType::kGCTypeProcessWeakCallbacks
 };
 
 enum PerformanceGCFlags {
   NODE_PERFORMANCE_GC_FLAGS_NO =
-    GCCallbackFlags::kNoGCCallbackFlags,
+    v8::GCCallbackFlags::kNoGCCallbackFlags,
   NODE_PERFORMANCE_GC_FLAGS_CONSTRUCT_RETAINED =
-    GCCallbackFlags::kGCCallbackFlagConstructRetainedObjectInfos,
+    v8::GCCallbackFlags::kGCCallbackFlagConstructRetainedObjectInfos,
   NODE_PERFORMANCE_GC_FLAGS_FORCED =
-    GCCallbackFlags::kGCCallbackFlagForced,
+    v8::GCCallbackFlags::kGCCallbackFlagForced,
   NODE_PERFORMANCE_GC_FLAGS_SYNCHRONOUS_PHANTOM_PROCESSING =
-    GCCallbackFlags::kGCCallbackFlagSynchronousPhantomCallbackProcessing,
+    v8::GCCallbackFlags::kGCCallbackFlagSynchronousPhantomCallbackProcessing,
   NODE_PERFORMANCE_GC_FLAGS_ALL_AVAILABLE_GARBAGE =
-    GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage,
+    v8::GCCallbackFlags::kGCCallbackFlagCollectAllAvailableGarbage,
   NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY =
-    GCCallbackFlags::kGCCallbackFlagCollectAllExternalMemory,
+    v8::GCCallbackFlags::kGCCallbackFlagCollectAllExternalMemory,
   NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE =
-    GCCallbackFlags::kGCCallbackScheduleIdleGarbageCollection
+    v8::GCCallbackFlags::kGCCallbackScheduleIdleGarbageCollection
 };
 
 class GCPerformanceEntry : public PerformanceEntry {
@@ -150,7 +143,7 @@ class GCPerformanceEntry : public PerformanceEntry {
 class ELDHistogram : public HandleWrap, public Histogram {
  public:
   ELDHistogram(Environment* env,
-               Local<Object> wrap,
+               v8::Local<v8::Object> wrap,
                int32_t resolution);
 
   bool RecordDelta();
