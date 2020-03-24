@@ -235,6 +235,6 @@ const assert = require('assert');
     process.nextTick(() => {
       duplex.end = common.mustCall(orgEnd);
     });
-  })
+  });
   duplex.on('close', common.mustCall());
 }
