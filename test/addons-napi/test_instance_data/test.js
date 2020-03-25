@@ -19,6 +19,20 @@ if (module.parent) {
   // Test that the instance data can be accessed from a finalizer.
   test_instance_data.objectWithFinalizer(common.mustCall());
   global.gc();
+
+  // Test that instance data can be used in an async work callback.
+  new Promise((resolve) => test_instance_data.asyncWorkCallback(resolve))
+
+    // Test that the buffer finalizer can access the instance data.
+    .then(() => new Promise((resolve) => {
+      test_instance_data.testBufferFinalizer(resolve);
+      global.gc();
+    }))
+
+    // Test that the thread-safe function can access the instance data.
+    .then(() => new Promise((resolve) =>
+      test_instance_data.testThreadsafeFunction(common.mustCall(),
+                                                common.mustCall(resolve))));
 } else {
   // When launched as a script, run tests in either a child process or in a
   // worker thread.
