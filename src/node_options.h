@@ -186,10 +186,7 @@ class PerIsolateOptions : public Options {
   bool no_node_snapshot = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
-  bool report_compact = false;
   std::string report_signal = "SIGUSR2";
-  std::string report_filename;
-  std::string report_directory;
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors) override;
 };
@@ -236,6 +233,9 @@ class PerProcessOptions : public Options {
   bool trace_sigint = false;
   std::vector<std::string> cmdline;
   bool report_on_fatalerror = false;
+  bool report_compact = false;
+  std::string report_directory;
+  std::string report_filename;
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors) override;
