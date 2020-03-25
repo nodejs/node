@@ -12,9 +12,14 @@ const server = net.createServer(common.mustCall((socket) => {
   socket.resume();
   socket.on('end', common.mustCall(() => {
     process.nextTick(() => {
+      // Ensure socket is not destroyed straight away
+      // without proper shutdown.
       assert(!socket.destroyed);
       server.close();
     })
+  }));
+  socket.on('finish', common.mustCall(() => {
+    assert(!socket.destroyed);
   }));
   socket.on('close', common.mustCall());
 }));
