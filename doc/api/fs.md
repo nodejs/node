@@ -2438,6 +2438,10 @@ Synchronous lstat(2).
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31530
+    description: In `recursive` mode, the callback now receives the first
+                 created path as an argument.
   - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/21875
     description: The second argument can now be an `options` object with
@@ -2496,6 +2500,9 @@ See also: mkdir(2).
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/31530
+    description: In `recursive` mode, the first created path is returned now.
   - version: v10.12.0
     pr-url: https://github.com/nodejs/node/pull/21875
     description: The second argument can now be an `options` object with
