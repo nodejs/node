@@ -64,8 +64,6 @@ w1.on('change', common.mustCallAtLeast((curr, prev) => {
   // Wait until we get the write above.
   if (prev.size !== 0 || curr.size !== 5)
     return;
-  // Remove listeners to make w1HookCount final
-  w1.removeAllListeners('change');
 
   setImmediate(() => {
     checkInvocations(statwatcher1,
@@ -81,8 +79,6 @@ w1.on('change', common.mustCallAtLeast((curr, prev) => {
       // Wait until we get the write above.
       if (prev.size !== 0 || curr.size !== 5)
         return;
-      // Remove listeners to make w2HookCount final
-      w2.removeAllListeners('change');
 
       setImmediate(() => {
         checkInvocations(statwatcher1,
