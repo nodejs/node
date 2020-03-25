@@ -80,6 +80,14 @@ assert.throws(
   }
 );
 
+['buffer', 'offset', 'length'].forEach((option) =>
+  assert.throws(
+    () => fs.read(fd, {
+      [option]: null
+    }),
+    `not throws when options.${option} is null`
+  ));
+
 assert.throws(
   () => fs.read(null, Buffer.alloc(1), 0, 1, 0),
   {
