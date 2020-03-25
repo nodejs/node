@@ -582,10 +582,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "generate diagnostic report on uncaught exceptions",
             &PerIsolateOptions::report_uncaught_exception,
             kAllowedInEnvironment);
-  AddOption("--report-compact",
-            "output compact single-line JSON",
-            &PerIsolateOptions::report_compact,
-            kAllowedInEnvironment);
   AddOption("--report-on-signal",
             "generate diagnostic report upon receiving signals",
             &PerIsolateOptions::report_on_signal,
@@ -596,16 +592,6 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             &PerIsolateOptions::report_signal,
             kAllowedInEnvironment);
   Implies("--report-signal", "--report-on-signal");
-  AddOption("--report-filename",
-            "define custom report file name."
-            " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
-            &PerIsolateOptions::report_filename,
-            kAllowedInEnvironment);
-  AddOption("--report-directory",
-            "define custom report pathname."
-            " (default: current working directory of Node.js process)",
-            &PerIsolateOptions::report_directory,
-            kAllowedInEnvironment);
 
   Insert(eop, &PerIsolateOptions::get_per_env_options);
 }
@@ -663,6 +649,20 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--v8-options",
             "print V8 command line options",
             &PerProcessOptions::print_v8_help);
+  AddOption("--report-compact",
+            "output compact single-line JSON",
+            &PerProcessOptions::report_compact,
+            kAllowedInEnvironment);
+  AddOption("--report-directory",
+            "define custom report pathname."
+            " (default: current working directory of Node.js process)",
+            &PerProcessOptions::report_directory,
+            kAllowedInEnvironment);
+  AddOption("--report-filename",
+            "define custom report file name."
+            " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
+            &PerProcessOptions::report_filename,
+            kAllowedInEnvironment);
   AddOption("--report-on-fatalerror",
               "generate diagnostic report on fatal (internal) errors",
               &PerProcessOptions::report_on_fatalerror,
