@@ -8,7 +8,7 @@ const server = net.createServer(common.mustCall((socket) => {
   socket.end(Buffer.alloc(1024));
 })).listen(0, common.mustCall(() => {
   const socket = net.connect(server.address().port);
-  assert(socket.allowHalfOpen === false);
+  assert.strictEqual(socket.allowHalfOpen, false);
   socket.resume();
   socket.on('end', common.mustCall(() => {
     process.nextTick(() => {
@@ -16,7 +16,7 @@ const server = net.createServer(common.mustCall((socket) => {
       // without proper shutdown.
       assert(!socket.destroyed);
       server.close();
-    })
+    });
   }));
   socket.on('finish', common.mustCall(() => {
     assert(!socket.destroyed);
