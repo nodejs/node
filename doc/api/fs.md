@@ -2778,7 +2778,7 @@ changes:
   * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.length`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer} **Default:** `undefined`
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
@@ -4411,7 +4411,7 @@ added: v13.11.0
   * `buffer` {Buffer|Uint8Array} **Default:** `Buffer.alloc(16384)`
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.length`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer} **Default:** `undefined`
 * Returns: {Promise}
 
 #### `filehandle.readFile(options)`
