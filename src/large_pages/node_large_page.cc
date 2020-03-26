@@ -30,12 +30,16 @@
 #include "util.h"
 #include "uv.h"
 
+#if defined(__linux__) || defined(__FreeBSD__)
+#include <string.h>
 #if defined(__linux__)
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#endif
+#endif  // ifndef _GNU_SOURCE
+#endif  // defined(__linux__)
 #include <link.h>
-#endif
+#endif  // defined(__linux__) || defined(__FreeBSD__)
+
 #include <sys/types.h>
 #include <sys/mman.h>
 #if defined(__FreeBSD__)
@@ -73,7 +77,7 @@
 // Use madvise with MADV_HUGEPAGE to use Anonymous 2M Pages
 // If successful copy the code there and unmap the original region.
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(__FreeBSD__)
 extern "C" {
 // This symbol must be declared weak because this file becomes part of all
 // Node.js targets (like node_mksnapshot, node_mkcodecache, and cctest) and
@@ -81,7 +85,7 @@ extern "C" {
 extern char __attribute__((weak)) __node_text_start;
 extern char __start_lpstub;
 }  // extern "C"
-#endif  // defined(__linux__)
+#endif  // defined(__linux__) || defined(__FreeBSD__)
 
 #endif  // defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 namespace node {
@@ -121,19 +125,26 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
   return ((addr) & ~((hps) - 1));
 }
 
+#if defined(__linux__) || defined(__FreeBSD__)
+#if defined(__FreeBSD__)
+#ifndef ElfW
+#define ElfW(name) Elf_##name
+#endif  // ifndef ElfW
+#endif  // defined(__FreeBSD__)
+
 struct dl_iterate_params {
   uintptr_t start;
   uintptr_t end;
   uintptr_t reference_sym;
+  std::string exename;
 };
 
-#if defined(__linux__)
 int FindMapping(struct dl_phdr_info* info, size_t, void* data) {
-  if (info->dlpi_name[0] == 0) {
+  auto dl_params = static_cast<dl_iterate_params*>(data);
+  if (dl_params->exename == std::string(info->dlpi_name)) {
     for (int idx = 0; idx < info->dlpi_phnum; idx++) {
       const ElfW(Phdr)* phdr = &info->dlpi_phdr[idx];
       if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X)) {
-        auto dl_params = static_cast<dl_iterate_params*>(data);
         uintptr_t start = info->dlpi_addr + phdr->p_vaddr;
         uintptr_t end = start + phdr->p_memsz;
 
@@ -148,16 +159,29 @@ int FindMapping(struct dl_phdr_info* info, size_t, void* data) {
   }
   return 0;
 }
-#endif  // defined(__linux__)
+#endif  // defined(__linux__) || defined(__FreeBSD__)
 
 struct text_region FindNodeTextRegion() {
   struct text_region nregion;
   nregion.found_text_region = false;
-#if defined(__linux__)
+#if defined(__linux__) || defined(__FreeBSD__)
   dl_iterate_params dl_params = {
-    0, 0, reinterpret_cast<uintptr_t>(&__node_text_start)
+    0, 0, reinterpret_cast<uintptr_t>(&__node_text_start), ""
   };
   uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
+
+#if defined(__FreeBSD__)
+  // On FreeBSD we need the name of the binary, because `dl_iterate_phdr` does
+  // not pass in an empty string as the `dlpi_name` of the binary but rather its
+  // absolute path.
+  {
+    char selfexe[PATH_MAX];
+    size_t count = sizeof(selfexe);
+    if (uv_exepath(selfexe, &count))
+      return nregion;
+    dl_params.exename = std::string(selfexe, count);
+  }
+#endif  // defined(__FreeBSD__)
 
   if (dl_iterate_phdr(FindMapping, &dl_params) == 1) {
     Debug("Hugepages info: start: %p - sym: %p - end: %p\n",
@@ -186,62 +210,6 @@ struct text_region FindNodeTextRegion() {
         }
       }
     }
-  }
-#elif defined(__FreeBSD__)
-  std::string exename;
-  {
-    char selfexe[PATH_MAX];
-    size_t count = sizeof(selfexe);
-    if (uv_exepath(selfexe, &count))
-      return nregion;
-
-    exename = std::string(selfexe, count);
-  }
-
-  size_t numpg;
-  int mib[] = {CTL_KERN, KERN_PROC, KERN_PROC_VMMAP, getpid()};
-  const size_t miblen = arraysize(mib);
-  if (sysctl(mib, miblen, nullptr, &numpg, nullptr, 0) == -1) {
-    return nregion;
-  }
-
-  // Enough for struct kinfo_vmentry.
-  numpg = numpg * 4 / 3;
-  auto alg = std::vector<char>(numpg);
-
-  if (sysctl(mib, miblen, alg.data(), &numpg, nullptr, 0) == -1) {
-    return nregion;
-  }
-
-  char* start = alg.data();
-  char* end = start + numpg;
-
-  while (start < end) {
-    kinfo_vmentry* entry = reinterpret_cast<kinfo_vmentry*>(start);
-    const size_t cursz = entry->kve_structsize;
-    if (cursz == 0) {
-      break;
-    }
-
-    if (entry->kve_path[0] == '\0') {
-      continue;
-    }
-    bool excmapping = ((entry->kve_protection & KVME_PROT_READ) &&
-     (entry->kve_protection & KVME_PROT_EXEC));
-
-    if (!strcmp(exename.c_str(), entry->kve_path) && excmapping) {
-      char* estart =
-        reinterpret_cast<char*>(hugepage_align_up(entry->kve_start));
-      char* eend =
-        reinterpret_cast<char*>(hugepage_align_down(entry->kve_end));
-      size_t size = eend - estart;
-      nregion.found_text_region = true;
-      nregion.from = estart;
-      nregion.to = eend;
-      nregion.total_hugepages = size / hps;
-      break;
-    }
-    start += cursz;
   }
 #elif defined(__APPLE__)
   struct vm_region_submap_info_64 map;
@@ -349,13 +317,11 @@ MoveTextRegionToLargePages(const text_region& r) {
       PrintSystemError(errno);
   });
 
-#if !defined (__FreeBSD__)
   // Allocate temporary region and back up the code we will re-map.
   nmem = mmap(nullptr, size,
               PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (nmem == MAP_FAILED) goto fail;
   memcpy(nmem, r.from, size);
-#endif
 
 #if defined(__linux__)
 // We already know the original page is r-xp
@@ -374,6 +340,7 @@ MoveTextRegionToLargePages(const text_region& r) {
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED |
               MAP_ALIGNED_SUPER, -1 , 0);
   if (tmem == MAP_FAILED) goto fail;
+  memcpy(start, nmem, size);
 #elif defined(__APPLE__)
   // There is not enough room to reserve the mapping close
   // to the region address so we content to give a hint
@@ -419,11 +386,6 @@ int MapStaticCodeToLargePages() {
   struct text_region r = FindNodeTextRegion();
   if (r.found_text_region == false)
     return ENOENT;
-
-#if defined(__FreeBSD__)
-  if (r.from < reinterpret_cast<void*>(&MoveTextRegionToLargePages))
-    return -1;
-#endif
 
   return MoveTextRegionToLargePages(r);
 #else
