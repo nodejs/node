@@ -66,6 +66,12 @@ added:
     process via the `__wasi_proc_exit()` function. Setting this option to `true`
     causes `wasi.start()` to return the exit code rather than terminate the
     process. **Default:** `false`.
+  * `stdin` {integer} The file descriptor used as standard input in the
+    WebAssembly application. **Default:** `0`.
+  * `stdout` {integer} The file descriptor used as standard output in the
+    WebAssembly application. **Default:** `1`.
+  * `stderr` {integer} The file descriptor used as standard error in the
+    WebAssembly application. **Default:** `2`.
 
 ### `wasi.start(instance)`
 <!-- YAML
