@@ -164,3 +164,15 @@ test('boolean --boool=false', function (t) {
     t.same(parsed.boool, false);
     t.end();
 });
+
+test('boolean using something similar to true', function (t) {
+    var opts = { boolean: 'h' };
+    var result = parse(['-h', 'true.txt'], opts);
+    var expected = {
+        h: true,
+        '_': ['true.txt']
+    };
+
+    t.same(result, expected);
+    t.end();
+});

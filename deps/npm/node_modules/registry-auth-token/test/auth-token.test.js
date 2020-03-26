@@ -50,6 +50,42 @@ describe('auth-token', function () {
         done()
       })
     })
+
+    it('should return legacy auth token defined by reference to an environment variable (with curly braces)', function (done) {
+      var environmentVariable = '__REGISTRY_AUTH_TOKEN_NPM_TOKEN__'
+      var content = [
+        '_auth=${' + environmentVariable + '}',
+        'registry=http://registry.foobar.eu/'
+      ].join('\n')
+
+      process.env[environmentVariable] = 'foobar'
+
+      fs.writeFile(npmRcPath, content, function (err) {
+        var getAuthToken = requireUncached('../index')
+        assert(!err, err)
+        assert.deepEqual(getAuthToken(), {token: 'foobar', type: 'Basic'})
+        delete process.env[environmentVariable]
+        done()
+      })
+    })
+
+    it('should return legacy auth token defined by reference to an environment variable (without curly braces)', function (done) {
+      var environmentVariable = '__REGISTRY_AUTH_TOKEN_NPM_TOKEN__'
+      var content = [
+        '_auth=$' + environmentVariable,
+        'registry=http://registry.foobar.eu/'
+      ].join('\n')
+
+      process.env[environmentVariable] = 'foobar'
+
+      fs.writeFile(npmRcPath, content, function (err) {
+        var getAuthToken = requireUncached('../index')
+        assert(!err, err)
+        assert.deepEqual(getAuthToken(), {token: 'foobar', type: 'Basic'})
+        delete process.env[environmentVariable]
+        done()
+      })
+    })
   })
 
   describe('bearer token', function () {
