@@ -910,6 +910,14 @@ void Environment::set_filehandle_close_warning(bool on) {
   emit_filehandle_warning_ = on;
 }
 
+bool Environment::emit_insecure_umask_warning() const {
+  return emit_insecure_umask_warning_;
+}
+
+void Environment::set_emit_insecure_umask_warning(bool on) {
+  emit_insecure_umask_warning_ = on;
+}
+
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }

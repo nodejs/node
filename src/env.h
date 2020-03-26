@@ -1065,6 +1065,8 @@ class Environment : public MemoryRetainer {
 
   inline bool filehandle_close_warning() const;
   inline void set_filehandle_close_warning(bool on);
+  inline bool emit_insecure_umask_warning() const;
+  inline void set_emit_insecure_umask_warning(bool on);
 
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
@@ -1285,6 +1287,7 @@ class Environment : public MemoryRetainer {
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
   bool emit_filehandle_warning_ = true;
+  bool emit_insecure_umask_warning_ = true;
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
 

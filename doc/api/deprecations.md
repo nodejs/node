@@ -2635,16 +2635,16 @@ modules is unsupported.
 It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: `process.umask()` with no arguments
+<a id="DEP0139"></a>
+### DEP0139: `process.umask()` with no arguments
 <!-- YAML
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/32499
-    description: Documentation-only deprecation.
+    description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Calling `process.umask()` with no arguments causes the process-wide umask to be
 written twice. This introduces a race condition between threads, and is a
