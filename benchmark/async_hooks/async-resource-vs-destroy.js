@@ -35,7 +35,7 @@ function buildCurrentResource(getServe) {
 
   function getCLS() {
     const resource = executionAsyncResource();
-    if (resource === null || !resource[cls]) {
+    if (!resource[cls]) {
       return null;
     }
     return resource[cls].state;
@@ -43,9 +43,6 @@ function buildCurrentResource(getServe) {
 
   function setCLS(state) {
     const resource = executionAsyncResource();
-    if (resource === null) {
-      return;
-    }
     if (!resource[cls]) {
       resource[cls] = { state };
     } else {
@@ -116,11 +113,17 @@ function buildAsyncLocalStorage(getServe) {
 
   function getCLS() {
     const store = asyncLocalStorage.getStore();
+    if (store === undefined) {
+      return null;
+    }
     return store.state;
   }
 
   function setCLS(state) {
     const store = asyncLocalStorage.getStore();
+    if (store === undefined) {
+      return;
+    }
     store.state = state;
   }
 
