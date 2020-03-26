@@ -11,7 +11,7 @@ if (!process.env.HAS_STARTED_WORKER) {
   w.on('message', common.mustNotCall());
   w.on('error', common.mustCall((err) => {
     assert.strictEqual(err.constructor, SyntaxError);
-    assert(/SyntaxError/.test(err));
+    assert.strictEqual(err.name, 'SyntaxError');
   }));
 } else {
   throw new Error('foo');
