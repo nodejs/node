@@ -25,6 +25,18 @@ assert.throws(() => { new WASI({ preopens: 'fhqwhgads' }); },
 assert.throws(() => { new WASI({ returnOnExit: 'fhqwhgads' }); },
               { code: 'ERR_INVALID_ARG_TYPE', message: /\breturnOnExit\b/ });
 
+// If stdin is not an int32 and not undefined, it should throw.
+assert.throws(() => { new WASI({ stdin: 'fhqwhgads' }); },
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bstdin\b/ });
+
+// If stdout is not an int32 and not undefined, it should throw.
+assert.throws(() => { new WASI({ stdout: 'fhqwhgads' }); },
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bstdout\b/ });
+
+// If stderr is not an int32 and not undefined, it should throw.
+assert.throws(() => { new WASI({ stderr: 'fhqwhgads' }); },
+              { code: 'ERR_INVALID_ARG_TYPE', message: /\bstderr\b/ });
+
 // If options is provided, but not an object, the constructor should throw.
 [null, 'foo', '', 0, NaN, Symbol(), true, false, () => {}].forEach((value) => {
   assert.throws(() => { new WASI(value); },
