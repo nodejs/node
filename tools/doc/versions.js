@@ -15,7 +15,7 @@ const isRelease = () => {
 const getUrl = (url) => {
   return new Promise((resolve, reject) => {
     const https = require('https');
-    const request = https.get(url, { timeout: 5000 }, (response) => {
+    const request = https.get(url, { timeout: 30000 }, (response) => {
       if (response.statusCode !== 200) {
         reject(new Error(
           `Failed to get ${url}, status code ${response.statusCode}`));
