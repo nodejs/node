@@ -58,15 +58,6 @@ using v8::ReadOnly;
 using v8::String;
 using v8::Value;
 
-void ErrName(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  int err;
-  if (!args[0]->Int32Value(env->context()).To(&err)) return;
-  CHECK_LT(err, 0);
-  const char* name = uv_err_name(err);
-  args.GetReturnValue().Set(OneByteString(env->isolate(), name));
-}
-
 void GetErrMap(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -97,11 +88,6 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(isolate, "errname"),
-              env->NewFunctionTemplate(ErrName)
-                  ->GetFunction(env->context())
-                  .ToLocalChecked()).Check();
 
   // TODO(joyeecheung): This should be deprecated in user land in favor of
   // `util.getSystemErrorName(err)`.
