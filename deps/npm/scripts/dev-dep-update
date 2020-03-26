@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 node . install --save --save-dev $1@$2 &&\
 node scripts/gen-dev-ignores.js &&\
+rm -f node_modules/{*,*/*}/CODE_OF_CONDUCT.md node_modules/{*,*/*}/CONTRIBUTING.md &&\
 git add package.json package-lock.json &&\
 git commit -m"$1@$2" &&\
 node . repo $1 &&\
