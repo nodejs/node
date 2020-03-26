@@ -129,13 +129,11 @@ static void SetSignal(const FunctionCallbackInfo<Value>& info) {
 }
 
 static void ShouldReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
   info.GetReturnValue().Set(
       node::per_process::cli_options->report_on_fatalerror);
 }
 
 static void SetReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
-  Environment* env = Environment::GetCurrent(info);
   CHECK(info[0]->IsBoolean());
   node::per_process::cli_options->report_on_fatalerror = info[0]->IsTrue();
 }
