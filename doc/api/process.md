@@ -2396,7 +2396,17 @@ flag's behavior.
 ## `process.umask([mask])`
 <!-- YAML
 added: v0.1.19
+changes:
+  - version:
+    - v14.0.0
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32499
+    description: Calling `process.umask()` with no arguments is deprecated.
+
 -->
+
+> Stability: 0 - Deprecated. Calling `process.umask()` with no arguments is
+> deprecated. No alternative is provided.
 
 * `mask` {string|integer}
 
