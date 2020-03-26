@@ -105,6 +105,8 @@ using v8::Value;
 # define IS_OCB_MODE(mode) ((mode) == EVP_CIPH_OCB_MODE)
 #endif
 
+void CheckThrow(Environment* env, SignBase::Error error);
+
 static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
@@ -4349,6 +4351,124 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void Mac::Initialize(Environment* env, Local<Object> target) {
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  t->InstanceTemplate()->SetInternalFieldCount(Mac::kInternalFieldCount);
+
+  env->SetProtoMethod(t, "update", Update);
+  env->SetProtoMethod(t, "final", Final);
+
+  target->Set(env->context(),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "Mac"),
+              t->GetFunction(env->context()).ToLocalChecked()).Check();
+}
+
+
+Mac::Mac(Environment* env, Local<Object> wrap, EVPMDPointer&& mdctx)
+    : BaseObject(env, wrap)
+    , mdctx_(std::move(mdctx)) {
+  MakeWeak();
+}
+
+
+void Mac::New(const FunctionCallbackInfo<Value>& args) {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK(args[0]->IsInt32());
+  const int nid = args[0].As<Int32>()->Value();
+
+  CHECK(args[1]->IsArrayBufferView());
+  ByteSource key = ByteSource::FromBuffer(args[1]);
+
+  const EVP_MD* md = nullptr;
+  if (nid == EVP_PKEY_HMAC) {
+    CHECK(args[2]->IsString());
+    const node::Utf8Value name(env->isolate(), args[2]);
+    md = EVP_get_digestbyname(*name);
+    if (md == nullptr)
+      return CheckThrow(env, SignBase::Error::kSignUnknownDigest);
+  }
+
+  EVPKeyPointer key_ptr;
+  if (nid == EVP_PKEY_CMAC) {
+    CHECK(args[2]->IsString());
+    const node::Utf8Value name(env->isolate(), args[2]);
+    const EVP_CIPHER* cipher = EVP_get_cipherbyname(*name);
+    if (cipher == nullptr) return env->ThrowError("Unknown cipher");
+    key_ptr.reset(
+        EVP_PKEY_new_CMAC_key(nullptr,
+                              reinterpret_cast<const unsigned char*>(key.get()),
+                              key.size(), cipher));
+  } else {
+    key_ptr.reset(
+        EVP_PKEY_new_raw_private_key(
+            nid, nullptr, reinterpret_cast<const unsigned char*>(key.get()),
+            key.size()));
+  }
+
+  ManagedEVPPKey pkey(std::move(key_ptr));
+  EVPMDPointer mdctx(EVP_MD_CTX_new());
+
+
+  EVP_PKEY_CTX* pkctx = nullptr;
+  if (!EVP_DigestSignInit(mdctx.get(), &pkctx, md, nullptr, pkey.get()))
+    return ThrowCryptoError(env, ERR_get_error(), "EVP_DigestSignInit");
+
+  // TODO(bnoordhuis) Call EVP_PKEY_CTX_ctrl() or EVP_PKEY_CTX_ctrl_str().
+  // Only necessary for EVP_PKEY algorithms that require additional
+  // configuration, none of which we currently support.
+  USE(pkctx);
+
+  new Mac(env, args.This(), std::move(mdctx));
+}
+
+
+void Mac::Update(const FunctionCallbackInfo<Value>& args) {
+  Decode<Mac>(args, [](Mac* mac, const FunctionCallbackInfo<Value>& args,
+                       const char* data, size_t size) {
+    CHECK_EQ(1, EVP_DigestSignUpdate(mac->mdctx_.get(), data, size));
+  });
+}
+
+
+void Mac::Final(const FunctionCallbackInfo<Value>& args) {
+  Mac* mac;
+  ASSIGN_OR_RETURN_UNWRAP(&mac, args.Holder());
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+  Environment* env = Environment::GetCurrent(args);
+
+  enum encoding encoding = BUFFER;
+  if (args.Length() > 0)
+    encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
+
+  size_t size;
+  if (!EVP_DigestSignFinal(mac->mdctx_.get(), nullptr, &size))
+    return ThrowCryptoError(env, ERR_get_error(), "EVP_DigestSignFinal");
+
+  unsigned char* data = MallocOpenSSL<unsigned char>(size);
+  ByteSource source =
+      ByteSource::Allocated(reinterpret_cast<char*>(data), size);
+
+  if (!EVP_DigestSignFinal(mac->mdctx_.get(), data, &size))
+    return ThrowCryptoError(env, ERR_get_error(), "EVP_DigestSignFinal");
+
+  Local<Value> error;
+  MaybeLocal<Value> rc =
+      StringBytes::Encode(env->isolate(), source.get(), source.size(),
+                          encoding, &error);
+
+  if (rc.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return;
+  }
+
+  args.GetReturnValue().Set(rc.ToLocalChecked());
+}
+
+
 SignBase::Error SignBase::Init(const char* sign_type) {
   CHECK_NULL(mdctx_);
   // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
@@ -6864,6 +6984,7 @@ void Initialize(Local<Object> target,
   ECDH::Initialize(env, target);
   Hmac::Initialize(env, target);
   Hash::Initialize(env, target);
+  Mac::Initialize(env, target);
   Sign::Initialize(env, target);
   Verify::Initialize(env, target);
 
@@ -6893,8 +7014,12 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "generateKeyPairEC", GenerateKeyPairEC);
   env->SetMethod(target, "generateKeyPairNid", GenerateKeyPairNid);
   env->SetMethod(target, "generateKeyPairDH", GenerateKeyPairDH);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_CMAC);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_HMAC);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_POLY1305);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SIPHASH);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
   NODE_DEFINE_CONSTANT(target, OPENSSL_EC_NAMED_CURVE);

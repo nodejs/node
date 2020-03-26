@@ -589,6 +589,26 @@ class Hash final : public BaseObject {
   unsigned char* md_value_;
 };
 
+class Mac : public BaseObject {
+ public:
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+
+  // TODO(joyeecheung): track the memory used by OpenSSL types
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(Mac)
+  SET_SELF_SIZE(Mac)
+
+ protected:
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  Mac(Environment* env, v8::Local<v8::Object> wrap, EVPMDPointer&& mdctx);
+
+ private:
+  EVPMDPointer mdctx_;
+};
+
 class SignBase : public BaseObject {
  public:
   typedef enum {
