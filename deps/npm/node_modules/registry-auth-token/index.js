@@ -52,10 +52,13 @@ function getRegistryAuthInfo (checkUrl, options) {
 }
 
 function getLegacyAuthInfo (npmrc) {
-  if (npmrc._auth) {
-    return {token: npmrc._auth, type: 'Basic'}
+  if (!npmrc._auth) {
+    return undefined
   }
-  return undefined
+
+  var token = replaceEnvironmentVariable(npmrc._auth)
+
+  return {token: token, type: 'Basic'}
 }
 
 function normalizePath (path) {
@@ -80,15 +83,19 @@ function getAuthInfoForUrl (regUrl, npmrc) {
   return undefined
 }
 
+function replaceEnvironmentVariable (token) {
+  return token.replace(/^\$\{?([^}]*)\}?$/, function (fullMatch, envVar) {
+    return process.env[envVar]
+  })
+}
+
 function getBearerToken (tok) {
   if (!tok) {
     return undefined
   }
 
-  // check if bearer token
-  var token = tok.replace(/^\$\{?([^}]*)\}?$/, function (fullMatch, envVar) {
-    return process.env[envVar]
-  })
+  // check if bearer token is set as environment variable
+  var token = replaceEnvironmentVariable(tok)
 
   return {token: token, type: 'Bearer'}
 }
@@ -100,9 +107,7 @@ function getTokenForUsernameAndPassword (username, password) {
 
   // passwords are base64 encoded, so we need to decode it
   // See https://github.com/npm/npm/blob/v3.10.6/lib/config/set-credentials-by-uri.js#L26
-  var pass = decodeBase64(password.replace(/^\$\{?([^}]*)\}?$/, function (fullMatch, envVar) {
-    return process.env[envVar]
-  }))
+  var pass = decodeBase64(replaceEnvironmentVariable(password))
 
   // a basic auth token is base64 encoded 'username:password'
   // See https://github.com/npm/npm/blob/v3.10.6/lib/config/get-credentials-by-uri.js#L70
