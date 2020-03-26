@@ -2542,6 +2542,24 @@ accordingly instead to avoid the ambigiuty.
 To maintain existing behaviour `response.finished` should be replaced with
 `response.writableEnded`.
 
+<a id="DEP0139"></a>
+### DEP0139: `process.umask()` with no arguments
+<!-- YAML
+changes:
+  - version:
+    - v14.0.0
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32499
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling `process.umask()` with no arguments causes the process-wide umask to be
+written twice. This introduces a race condition between threads, and is a
+potential security vulnerability. There is no safe, cross-platform alternative
+API.
+
 [`--http-parser=legacy`]: cli.html#cli_http_parser_library
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
