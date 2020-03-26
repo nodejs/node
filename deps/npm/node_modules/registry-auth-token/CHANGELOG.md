@@ -2,6 +2,12 @@
 
 All notable changes will be documented in this file.
 
+## [3.4.0] - 2019-03-20
+
+### Changes
+
+- Enabled legacy auth token to be read from environment variable (Martin Flodin)
+
 ## [3.3.2] - 2018-01-26
 
 ### Changes
