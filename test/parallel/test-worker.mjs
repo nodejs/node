@@ -2,17 +2,17 @@ import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 import { Worker, isMainThread, parentPort } from 'worker_threads';
 
-const TEST_STRING = 'Hello, world!';
+const kTestString = 'Hello, world!';
 
 if (isMainThread) {
   const w = new Worker(new URL(import.meta.url));
   w.on('message', mustCall((message) => {
-    assert.strictEqual(message, TEST_STRING);
+    assert.strictEqual(message, kTestString);
   }));
 } else {
   setImmediate(() => {
     process.nextTick(() => {
-      parentPort.postMessage(TEST_STRING);
+      parentPort.postMessage(kTestString);
     });
   });
 }
