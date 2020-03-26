@@ -323,7 +323,7 @@
       'target_name': 'node_text_start',
       'type': 'none',
       'conditions': [
-        [ 'OS=="linux" and '
+        [ 'OS in "linux freebsd" and '
           'target_arch=="x64"', {
           'type': 'static_library',
           'sources': [
@@ -512,7 +512,7 @@
             'src/node_snapshot_stub.cc'
           ],
         }],
-        [ 'OS=="linux" and '
+        [ 'OS in "linux freebsd" and '
           'target_arch=="x64"', {
           'dependencies': [ 'node_text_start' ],
           'ldflags+': [
