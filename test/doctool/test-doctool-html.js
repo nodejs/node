@@ -22,7 +22,7 @@ const remark2rehype = require('remark-rehype');
 const raw = require('rehype-raw');
 const htmlStringify = require('rehype-stringify');
 
-async function toHTML({ input, filename, nodeVersion }) {
+function toHTML({ input, filename, nodeVersion, versions }) {
   const content = unified()
     .use(markdown)
     .use(html.firstHeader)
@@ -34,7 +34,7 @@ async function toHTML({ input, filename, nodeVersion }) {
     .use(htmlStringify)
     .processSync(input);
 
-  return html.toHTML({ input, content, filename, nodeVersion });
+  return html.toHTML({ input, content, filename, nodeVersion, versions });
 }
 
 // Test data is a list of objects with two properties.
@@ -99,6 +99,16 @@ const testData = [
 ];
 
 const spaces = /\s/g;
+const versions = [
+  { num: '10.x', lts: true },
+  { num: '9.x' },
+  { num: '8.x' },
+  { num: '7.x' },
+  { num: '6.x' },
+  { num: '5.x' },
+  { num: '4.x' },
+  { num: '0.12.x' },
+  { num: '0.10.x' }];
 
 testData.forEach(({ file, html }) => {
   // Normalize expected data by stripping whitespace.
@@ -106,9 +116,10 @@ testData.forEach(({ file, html }) => {
 
   readFile(file, 'utf8', common.mustCall(async (err, input) => {
     assert.ifError(err);
-    const output = await toHTML({ input: input,
-                                  filename: 'foo',
-                                  nodeVersion: process.version });
+    const output = toHTML({ input: input,
+                            filename: 'foo',
+                            nodeVersion: process.version,
+                            versions: versions });
 
     const actual = output.replace(spaces, '');
     // Assert that the input stripped of all whitespace contains the
