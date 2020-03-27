@@ -114,7 +114,7 @@ Emitted when the server has been bound after calling [`server.listen()`][].
 added: v0.1.90
 -->
 
-* Returns: {Object|string}
+* Returns: {Object|string|null}
 
 Returns the bound `address`, the address `family` name, and `port` of the server
 as reported by the operating system if listening on an IP socket
@@ -138,7 +138,8 @@ server.listen(() => {
 });
 ```
 
-Don't call `server.address()` until the `'listening'` event has been emitted.
+`server.address()` returns `null` before the `'listening'` event has been
+emitted or after calling `server.close()`.
 
 ### `server.close([callback])`
 <!-- YAML
