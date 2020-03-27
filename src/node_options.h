@@ -116,7 +116,7 @@ class EnvironmentOptions : public Options {
   bool expose_internals = false;
   bool frozen_intrinsics = false;
   std::string heap_snapshot_signal;
-  uint64_t max_http_header_size = 8 * 1024;
+  uint64_t max_http_header_size = 16 * 1024;
   bool no_deprecation = false;
   bool no_force_async_hooks_checks = false;
   bool no_warnings = false;
