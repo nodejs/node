@@ -135,6 +135,7 @@ _UpgradeReport_Files/
 # === Global Rules ===
 # Keep last to avoid being excluded
 *.pyc
+.master-CHANGELOG.md
 __pycache__
 .DS_Store
 *~

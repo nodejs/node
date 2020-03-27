@@ -1,6 +1,6 @@
 'use strict';
 
-const { readFileSync } = require('fs');
+const { readFileSync, existsSync, writeFileSync } = require('fs');
 const path = require('path');
 const srcRoot = path.join(__dirname, '..', '..');
 
@@ -31,6 +31,13 @@ const getUrl = (url) => {
   });
 };
 
+const createMaster = (masterPath, file) => {
+  writeFileSync(
+    masterPath,
+    file, { encoding: 'utf8' }
+  );
+};
+
 const kNoInternet = !!process.env.NODE_TEST_NO_INTERNET;
 
 module.exports = {
@@ -45,11 +52,15 @@ module.exports = {
       'https://raw.githubusercontent.com/nodejs/node/master/CHANGELOG.md';
     let changelog;
     const file = path.join(srcRoot, 'CHANGELOG.md');
+    const masterChangelog = path.join(srcRoot, '.master-CHANGELOG.md');
     if (kNoInternet) {
       changelog = readFileSync(file, { encoding: 'utf8' });
+    } else if (existsSync(masterChangelog)) {
+      changelog = readFileSync(masterChangelog, { encoding: 'utf8' });
     } else {
       try {
         changelog = await getUrl(url);
+        createMaster(masterChangelog, changelog);
       } catch (e) {
         // Fail if this is a release build, otherwise fallback to local files.
         if (isRelease()) {
