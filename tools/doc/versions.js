@@ -31,13 +31,6 @@ const getUrl = (url) => {
   });
 };
 
-const createMaster = (masterPath, file) => {
-  writeFileSync(
-    masterPath,
-    file, { encoding: 'utf8' }
-  );
-};
-
 const kNoInternet = !!process.env.NODE_TEST_NO_INTERNET;
 
 module.exports = {
@@ -60,7 +53,8 @@ module.exports = {
     } else {
       try {
         changelog = await getUrl(url);
-        createMaster(masterChangelog, changelog);
+        // Create the .master-CHANGLELOG.md file
+        writeFileSync(masterChangelog, changelog);
       } catch (e) {
         // Fail if this is a release build, otherwise fallback to local files.
         if (isRelease()) {
