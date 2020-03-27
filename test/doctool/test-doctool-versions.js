@@ -2,8 +2,14 @@
 
 require('../common');
 const assert = require('assert');
+const { spawnSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const tmpdir = require('../common/tmpdir');
 const util = require('util');
-const { versions } = require('../../tools/doc/versions.js');
+
+const debuglog = util.debuglog('test');
+const versionsTool = path.join('../../tools/doc/versions.js');
 
 // At the time of writing these are the minimum expected versions.
 // New versions of Node.js do not have to be explicitly added here.
@@ -21,39 +27,48 @@ const expected = [
   '0.10.x',
 ];
 
-async function test() {
-  const vers = await versions();
-  // Coherence checks for each returned version.
-  for (const version of vers) {
-    const tested = util.inspect(version);
-    const parts = version.num.split('.');
-    const expectedLength = parts[0] === '0' ? 3 : 2;
-    assert.strictEqual(parts.length, expectedLength,
-                       `'num' from ${tested} should be '<major>.x'.`);
-    assert.strictEqual(parts[parts.length - 1], 'x',
-                       `'num' from ${tested} doesn't end in '.x'.`);
-    const isEvenRelease = Number.parseInt(parts[expectedLength - 2]) % 2 === 0;
-    const hasLtsProperty = version.hasOwnProperty('lts');
-    if (hasLtsProperty) {
-      // Odd-numbered versions of Node.js are never LTS.
-      assert.ok(isEvenRelease, `${tested} should not be an 'lts' release.`);
-      assert.ok(version.lts, `'lts' from ${tested} should 'true'.`);
-    }
-  }
+tmpdir.refresh();
+const versionsFile = path.join(tmpdir.path, 'versions.json');
+debuglog(versionsFile);
+const opts = { cwd: tmpdir.path, encoding: 'utf8' };
+const cp = spawnSync(process.execPath, [ versionsTool, versionsFile ], opts);
+debuglog(cp.stderr);
+debuglog(cp.stdout);
+assert.strictEqual(cp.stdout, '');
+assert.strictEqual(cp.signal, null);
+assert.strictEqual(cp.status, 0);
+const versions = JSON.parse(fs.readFileSync(versionsFile));
+debuglog(versions);
 
-  // Check that the minimum number of versions were returned.
-  // Later versions are allowed, but not checked for here (they were checked
-  // above).
-  // Also check for the previous semver major -- From master this will be the
-  // most recent major release.
-  const thisMajor = Number.parseInt(process.versions.node.split('.')[0]);
-  const prevMajorString = `${thisMajor - 1}.x`;
-  if (!expected.includes(prevMajorString)) {
-    expected.unshift(prevMajorString);
-  }
-  for (const version of expected) {
-    assert.ok(vers.find((x) => x.num === version),
-              `Did not find entry for '${version}' in ${util.inspect(vers)}`);
+// Coherence checks for each returned version.
+for (const version of versions) {
+  const tested = util.inspect(version);
+  const parts = version.num.split('.');
+  const expectedLength = parts[0] === '0' ? 3 : 2;
+  assert.strictEqual(parts.length, expectedLength,
+                     `'num' from ${tested} should be '<major>.x'.`);
+  assert.strictEqual(parts[parts.length - 1], 'x',
+                     `'num' from ${tested} doesn't end in '.x'.`);
+  const isEvenRelease = Number.parseInt(parts[expectedLength - 2]) % 2 === 0;
+  const hasLtsProperty = version.hasOwnProperty('lts');
+  if (hasLtsProperty) {
+    // Odd-numbered versions of Node.js are never LTS.
+    assert.ok(isEvenRelease, `${tested} should not be an 'lts' release.`);
+    assert.ok(version.lts, `'lts' from ${tested} should 'true'.`);
   }
 }
-test();
+
+// Check that the minimum number of versions were returned.
+// Later versions are allowed, but not checked for here (they were checked
+// above).
+// Also check for the previous semver major -- From master this will be the
+// most recent major release.
+const thisMajor = Number.parseInt(process.versions.node.split('.')[0]);
+const prevMajorString = `${thisMajor - 1}.x`;
+if (!expected.includes(prevMajorString)) {
+  expected.unshift(prevMajorString);
+}
+for (const version of expected) {
+  assert.ok(versions.find((x) => x.num === version),
+            `Did not find entry for '${version}' in ${util.inspect(versions)}`);
+}
