@@ -357,6 +357,11 @@ class LiftoffCompiler {
   bool CheckSupportedType(FullDecoder* decoder,
                           Vector<const ValueType> supported_types,
                           ValueType type, const char* context) {
+    // Special case for kWasm128 which requires specific hardware support.
+    if (type == kWasmS128 && (!CpuFeatures::SupportsWasmSimd128())) {
+      unsupported(decoder, kSimd, "simd");
+      return false;
+    }
     // Check supported types.
     for (ValueType supported : supported_types) {
       if (type == supported) return true;
@@ -2198,6 +2203,9 @@ class LiftoffCompiler {
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
+    if (!CpuFeatures::SupportsWasmSimd128()) {
+      return unsupported(decoder, kSimd, "simd");
+    }
     switch (opcode) {
       case wasm::kExprF32x4Splat:
         EmitUnOp<kWasmF32, kWasmS128>(

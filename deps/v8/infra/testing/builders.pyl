@@ -1686,6 +1686,26 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
+  'V8 Linux - previous branch': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262', 'variant': 'default'},
+      {'name': 'v8testing'},
+    ],
+  },
+  'V8 Linux - previous branch - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262', 'variant': 'default'},
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
   'V8 Linux64 - beta branch': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
@@ -1717,6 +1737,26 @@
     ],
   },
   'V8 Linux64 - stable branch - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262', 'variant': 'default'},
+      {'name': 'v8testing', 'shards': 3},
+    ],
+  },
+  'V8 Linux64 - previous branch': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262', 'variant': 'default'},
+      {'name': 'v8testing'},
+    ],
+  },
+  'V8 Linux64 - previous branch - debug': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
     },
@@ -1766,6 +1806,26 @@
       {'name': 'v8testing', 'shards': 10},
     ],
   },
+  'V8 arm - sim - previous branch': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262', 'variant': 'default'},
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
+  'V8 arm - sim - previous branch - debug': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'mozilla', 'shards': 2},
+      {'name': 'test262', 'variant': 'default', 'shards': 2},
+      {'name': 'v8testing', 'shards': 10},
+    ],
+  },
   'V8 mips64el - sim - beta branch': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
@@ -1775,6 +1835,14 @@
     ],
   },
   'V8 mips64el - sim - stable branch': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'unittests'},
+    ],
+  },
+  'V8 mips64el - sim - previous branch': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
     },
@@ -1798,6 +1866,14 @@
       {'name': 'v8testing', 'shards': 4},
     ],
   },
+  'V8 mipsel - sim - previous branch': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'shards': 4},
+    ],
+  },
   'V8 ppc64 - sim - beta branch': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
@@ -1814,6 +1890,14 @@
       {'name': 'unittests'},
     ],
   },
+  'V8 ppc64 - sim - previous branch': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'unittests'},
+    ],
+  },
   'V8 s390x - sim - beta branch': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
@@ -1823,6 +1907,14 @@
     ],
   },
   'V8 s390x - sim - stable branch': {
+    'swarming_dimensions': {
+      'os': 'Ubuntu-16.04',
+    },
+    'tests': [
+      {'name': 'unittests'},
+    ],
+  },
+  'V8 s390x - sim - previous branch': {
     'swarming_dimensions': {
       'os': 'Ubuntu-16.04',
     },
