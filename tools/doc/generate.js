@@ -40,6 +40,7 @@ let filename = null;
 let nodeVersion = null;
 let outputDir = null;
 let apilinks = {};
+let versions = {};
 
 args.forEach(function(arg) {
   if (!arg.startsWith('--')) {
@@ -55,6 +56,13 @@ args.forEach(function(arg) {
       throw new Error(`${linkFile} is empty`);
     }
     apilinks = JSON.parse(data);
+  } else if (arg.startsWith('--versions-file=')) {
+    const versionsFile = arg.replace(/^--versions-file=/, '');
+    const data = fs.readFileSync(versionsFile, 'utf8');
+    if (!data.trim()) {
+      throw new Error(`${versionsFile} is empty`);
+    }
+    versions = JSON.parse(data);
   }
 });
 
@@ -84,7 +92,8 @@ fs.readFile(filename, 'utf8', async (er, input) => {
 
   const basename = path.basename(filename, '.md');
 
-  const myHtml = await html.toHTML({ input, content, filename, nodeVersion });
+  const myHtml = html.toHTML({ input, content, filename, nodeVersion,
+                               versions });
   const htmlTarget = path.join(outputDir, `${basename}.html`);
   fs.writeFileSync(htmlTarget, myHtml);
 
