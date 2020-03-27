@@ -211,6 +211,7 @@ v8_source_set("unittests_sources") {
     "parser/preparser-unittest.cc",
     "profiler/strings-storage-unittest.cc",
     "regress/regress-crbug-1041240-unittest.cc",
+    "regress/regress-crbug-1056054-unittest.cc",
     "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
     "strings/char-predicates-unittest.cc",

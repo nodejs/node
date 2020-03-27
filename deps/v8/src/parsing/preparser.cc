@@ -75,10 +75,6 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   scope->set_is_being_lazily_parsed(true);
 #endif
 
-  // Note: We should only skip the hashbang in non-Eval scripts
-  // (currently, Eval is not handled by the PreParser).
-  scanner()->SkipHashBang();
-
   // ModuleDeclarationInstantiation for Source Text Module Records creates a
   // new Module Environment Record whose outer lexical environment record is
   // the global scope.

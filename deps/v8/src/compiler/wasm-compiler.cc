@@ -6932,6 +6932,11 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
+  if (ContainsSimd(func_body.sig) &&
+      (!CpuFeatures::SupportsWasmSimd128() || env->lower_simd)) {
+    call_descriptor = GetI32WasmCallDescriptorForSimd(&zone, call_descriptor);
+  }
+
   Pipeline::GenerateCodeForWasmFunction(
       &info, wasm_engine, mcgraph, call_descriptor, source_positions,
       node_origins, func_body, env->module, func_index);

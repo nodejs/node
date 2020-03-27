@@ -505,7 +505,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
                         Scope::DeserializationMode::kIncludingVariables);
 
   scanner_.Initialize();
-  scanner_.SkipHashBang();
   FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
