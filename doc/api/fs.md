@@ -3815,7 +3815,7 @@ to be notified of filesystem changes.
 * On Aix systems, this feature depends on [`AHAFS`][], which must be enabled.
 
 If the underlying functionality is not available for some reason, then
-`fs.watch` will not be able to function (may an exception will be thrown).
+`fs.watch` will not be able to function (an exception may be thrown).
 For example, watching files or directories can be unreliable, and in some
 cases impossible, on network file systems (NFS, SMB, etc), or host file systems
 when using virtualization software such as Vagrant, Docker, etc.
