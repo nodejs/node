@@ -42,6 +42,7 @@ let filename = null;
 let nodeVersion = null;
 let outputDir = null;
 let apilinks = {};
+let versions = {};
 
 async function main() {
   for (const arg of args) {
@@ -58,6 +59,13 @@ async function main() {
         throw new Error(`${linkFile} is empty`);
       }
       apilinks = JSON.parse(data);
+    } else if (arg.startsWith('--versions-file=')) {
+      const versionsFile = arg.replace(/^--versions-file=/, '');
+      const data = await fs.readFile(versionsFile, 'utf8');
+      if (!data.trim()) {
+        throw new Error(`${versionsFile} is empty`);
+      }
+      versions = JSON.parse(data);
     }
   }
 
@@ -84,7 +92,8 @@ async function main() {
     .use(htmlStringify)
     .process(input);
 
-  const myHtml = await html.toHTML({ input, content, filename, nodeVersion });
+  const myHtml = await html.toHTML({ input, content, filename, nodeVersion,
+                                     versions });
   const basename = path.basename(filename, '.md');
   const htmlTarget = path.join(outputDir, `${basename}.html`);
   const jsonTarget = path.join(outputDir, `${basename}.json`);

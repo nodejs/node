@@ -784,15 +784,22 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
 run-npm-ci = $(PWD)/$(NPM) ci
 
 LINK_DATA = out/doc/apilinks.json
+VERSIONS_DATA = out/doc/previous-versions.json
 gen-api = tools/doc/generate.js --node-version=$(FULLVERSION) \
-		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api
+		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api \
+		--versions-file=$(VERSIONS_DATA)
 gen-apilink = tools/doc/apilinks.js $(LINK_DATA) $(wildcard lib/*.js)
 
 $(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.js
 	$(call available-node, $(gen-apilink))
 
+# Regenerate previous versions data if the current version changes
+$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.js
+	$(call available-node, tools/doc/versions.js $@)
+
 out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.js \
-	tools/doc/markdown.js tools/doc/html.js tools/doc/json.js tools/doc/apilinks.js | $(LINK_DATA)
+	tools/doc/markdown.js tools/doc/html.js tools/doc/json.js \
+	tools/doc/apilinks.js $(VERSIONS_DATA) | $(LINK_DATA)
 	$(call available-node, $(gen-api))
 
 out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.js \
