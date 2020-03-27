@@ -4,14 +4,14 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
-const MAX = +(process.argv[2] || 8 * 1024); // Command line option, or 8KB.
+const MAX = +(process.argv[2] || 16 * 1024); // Command line option, or 16KB.
 
 const { getOptionValue } = require('internal/options');
 
 console.log('pid is', process.pid);
 console.log('max header size is', getOptionValue('--max-http-header-size'));
 
-// Verify that we cannot receive more than 8KB of headers.
+// Verify that we cannot receive more than 16KB of headers.
 
 function once(cb) {
   let called = false;

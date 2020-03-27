@@ -440,9 +440,13 @@ disappear in a non-semver-major release.
 ### `--max-http-header-size=size`
 <!-- YAML
 added: v11.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32520
+    description: Change maximum default size of HTTP headers from 8KB to 16KB.
 -->
 
-Specify the maximum size, in bytes, of HTTP headers. Defaults to 8KB.
+Specify the maximum size, in bytes, of HTTP headers. Defaults to 16KB.
 
 ### `--napi-modules`
 <!-- YAML

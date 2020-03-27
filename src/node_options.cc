@@ -422,7 +422,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::heap_prof_interval);
 #endif  // HAVE_INSPECTOR
   AddOption("--max-http-header-size",
-            "set the maximum size of HTTP headers (default: 8192 (8KB))",
+            "set the maximum size of HTTP headers (default: 16384 (16KB))",
             &EnvironmentOptions::max_http_header_size,
             kAllowedInEnvironment);
   AddOption("--redirect-warnings",
