@@ -2059,7 +2059,7 @@ changes:
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
-    **Default:** 8192 (8KB).
+    **Default:** 16384 (16KB).
 * `requestListener` {Function}
 
 * Returns: {http.Server}
@@ -2213,7 +2213,7 @@ changes:
   * `maxHeaderSize` {number} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received from the server, i.e.
     the maximum length of response headers in bytes.
-    **Default:** 8192 (8KB).
+    **Default:** 16384 (16KB).
   * `method` {string} A string specifying the HTTP request method. **Default:**
     `'GET'`.
   * `path` {string} Request path. Should include query string if any.
