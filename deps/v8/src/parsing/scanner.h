@@ -422,9 +422,6 @@ class V8_EXPORT_PRIVATE Scanner {
 
   const Utf16CharacterStream* stream() const { return source_; }
 
-  // If the next characters in the stream are "#!", the line is skipped.
-  void SkipHashBang();
-
  private:
   // Scoped helper for saving & restoring scanner error state.
   // This is used for tagged template literals, in which normally forbidden

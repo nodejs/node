@@ -909,29 +909,36 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kParameter: {
       DCHECK_EQ(1, node->InputCount());
+      int param_count = static_cast<int>(signature()->parameter_count());
       // Only exchange the node if the parameter count actually changed. We do
-      // not even have to do the default lowering because the the start node,
+      // not even have to do the default lowering because the start node,
       // the only input of a parameter node, only changes if the parameter count
       // changes.
-      if (GetParameterCountAfterLowering() !=
-          static_cast<int>(signature()->parameter_count())) {
+      if (GetParameterCountAfterLowering() != param_count) {
         int old_index = ParameterIndexOf(node->op());
+        // Parameter index 0 is the instance parameter, we will use old_index to
+        // index into the function signature, so we need to decrease it by 1.
+        --old_index;
         int new_index =
             GetParameterIndexAfterLoweringSimd128(signature(), old_index);
-        if (old_index == new_index) {
-          NodeProperties::ChangeOp(node, common()->Parameter(new_index));
+        // Similarly, the index into function signature needs to account for the
+        // instance parameter, so increase it by 1.
+        ++new_index;
+        NodeProperties::ChangeOp(node, common()->Parameter(new_index));
 
+        if (old_index < 0) {
+          break;
+        }
+
+        DCHECK(old_index < param_count);
+
+        if (signature()->GetParam(old_index) ==
+            MachineRepresentation::kSimd128) {
           Node* new_node[kNumLanes32];
-          for (int i = 0; i < kNumLanes32; ++i) {
-            new_node[i] = nullptr;
-          }
           new_node[0] = node;
-          if (signature()->GetParam(old_index) ==
-              MachineRepresentation::kSimd128) {
-            for (int i = 1; i < kNumLanes32; ++i) {
-              new_node[i] = graph()->NewNode(common()->Parameter(new_index + i),
-                                             graph()->start());
-            }
+          for (int i = 1; i < kNumLanes32; ++i) {
+            new_node[i] = graph()->NewNode(common()->Parameter(new_index + i),
+                                           graph()->start());
           }
           ReplaceNode(node, new_node, kNumLanes32);
         }

@@ -401,6 +401,9 @@
   'tzoffset-transition-moscow': [SKIP],
   'tzoffset-transition-new-york': [SKIP],
   'tzoffset-seoul': [SKIP],
+
+  # noi18n is required for Intl
+  'regress/regress-crbug-1052647': [SKIP],
 }],  # 'no_i18n'
 
 ##############################################################################
