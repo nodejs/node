@@ -364,13 +364,12 @@ class InspectorTimer {
   InspectorTimer(const InspectorTimer&) = delete;
 
   void Stop() {
-    env_->RemoveCleanupHook(CleanupHook, this);
+    if (timer_.data == nullptr) return;
 
-    if (timer_.data == this) {
-      timer_.data = nullptr;
-      uv_timer_stop(&timer_);
-      env_->CloseHandle(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
-    }
+    env_->RemoveCleanupHook(CleanupHook, this);
+    timer_.data = nullptr;
+    uv_timer_stop(&timer_);
+    env_->CloseHandle(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
   }
 
  private:
