@@ -442,7 +442,7 @@ disappear in a non-semver-major release.
 added: v11.6.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32520
     description: Change maximum default size of HTTP headers from 8KB to 16KB.
 -->
 
