@@ -357,30 +357,24 @@ class InspectorTimer {
     int64_t interval_ms = 1000 * interval_s;
     uv_timer_start(&timer_, OnTimer, interval_ms, interval_ms);
     timer_.data = this;
-
-    env->AddCleanupHook(CleanupHook, this);
   }
 
   InspectorTimer(const InspectorTimer&) = delete;
 
   void Stop() {
-    env_->RemoveCleanupHook(CleanupHook, this);
+    if (timer_.data == nullptr) return;
 
-    if (timer_.data == this) {
-      timer_.data = nullptr;
-      uv_timer_stop(&timer_);
-      env_->CloseHandle(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
-    }
+    timer_.data = nullptr;
+    uv_timer_stop(&timer_);
+    env_->CloseHandle(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
   }
+
+  inline Environment* env() const { return env_; }
 
  private:
   static void OnTimer(uv_timer_t* uvtimer) {
     InspectorTimer* timer = node::ContainerOf(&InspectorTimer::timer_, uvtimer);
     timer->callback_(timer->data_);
-  }
-
-  static void CleanupHook(void* data) {
-    static_cast<InspectorTimer*>(data)->Stop();
   }
 
   static void TimerClosedCb(uv_handle_t* uvtimer) {
@@ -405,16 +399,29 @@ class InspectorTimerHandle {
   InspectorTimerHandle(Environment* env, double interval_s,
                        V8InspectorClient::TimerCallback callback, void* data) {
     timer_ = new InspectorTimer(env, interval_s, callback, data);
+
+    env->AddCleanupHook(CleanupHook, this);
   }
 
   InspectorTimerHandle(const InspectorTimerHandle&) = delete;
 
   ~InspectorTimerHandle() {
-    CHECK_NOT_NULL(timer_);
-    timer_->Stop();
+    Stop();
+  }
+
+ private:
+  void Stop() {
+    if (timer_ != nullptr) {
+      timer_->env()->RemoveCleanupHook(CleanupHook, this);
+      timer_->Stop();
+    }
     timer_ = nullptr;
   }
- private:
+
+  static void CleanupHook(void* data) {
+    static_cast<InspectorTimerHandle*>(data)->Stop();
+  }
+
   InspectorTimer* timer_;
 };
 
@@ -737,8 +744,9 @@ class NodeInspectorClient : public V8InspectorClient {
   bool is_main_;
   bool running_nested_loop_ = false;
   std::unique_ptr<V8Inspector> client_;
-  std::unordered_map<int, std::unique_ptr<ChannelImpl>> channels_;
+  // Note: ~ChannelImpl may access timers_ so timers_ has to come first.
   std::unordered_map<void*, InspectorTimerHandle> timers_;
+  std::unordered_map<int, std::unique_ptr<ChannelImpl>> channels_;
   int next_session_id_ = 1;
   bool waiting_for_resume_ = false;
   bool waiting_for_frontend_ = false;
