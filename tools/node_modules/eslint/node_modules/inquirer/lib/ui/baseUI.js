@@ -55,19 +55,28 @@ class UI {
     // Close the readline
     this.rl.output.end();
     this.rl.pause();
-
-    // @see https://github.com/nodejs/node/issues/21771
-    if (!/^win/i.test(process.platform)) {
-      this.rl.close();
-    }
+    this.rl.close();
   }
 }
 
 function setupReadlineOptions(opt) {
   opt = opt || {};
+  // Inquirer 8.x:
+  // opt.skipTTYChecks = opt.skipTTYChecks === undefined ? opt.input !== undefined : opt.skipTTYChecks;
+  opt.skipTTYChecks = opt.skipTTYChecks === undefined ? true : opt.skipTTYChecks;
 
   // Default `input` to stdin
   var input = opt.input || process.stdin;
+
+  // Check if prompt is being called in TTY environment
+  // If it isn't return a failed promise
+  if (!opt.skipTTYChecks && !input.isTTY) {
+    const nonTtyError = new Error(
+      'Prompts can not be meaningfully rendered in non-TTY environments'
+    );
+    nonTtyError.isTtyError = true;
+    throw nonTtyError;
+  }
 
   // Add mute capabilities to the output
   var ms = new MuteStream();

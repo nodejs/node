@@ -8,7 +8,10 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const getPropertyName = require("./utils/ast-utils").getStaticPropertyName;
+const {
+    getStaticPropertyName: getPropertyName,
+    getVariableByName
+} = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -61,7 +64,7 @@ function isGlobalThisReferenceOrGlobalWindow(scope, node) {
     if (scope.type === "global" && node.type === "ThisExpression") {
         return true;
     }
-    if (node.name === "window") {
+    if (node.name === "window" || (node.name === "globalThis" && getVariableByName(scope, "globalThis"))) {
         return !isShadowed(scope, node);
     }
 
@@ -119,7 +122,6 @@ module.exports = {
                         });
                     }
                 }
-
             }
         };
 

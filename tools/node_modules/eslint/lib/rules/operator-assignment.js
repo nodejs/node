@@ -214,12 +214,12 @@ module.exports = {
                             ) {
                                 rightText = `${sourceCode.text.slice(operatorToken.range[1], node.right.range[0])}(${sourceCode.getText(node.right)})`;
                             } else {
-                                const firstRightToken = sourceCode.getFirstToken(node.right);
+                                const tokenAfterOperator = sourceCode.getTokenAfter(operatorToken, { includeComments: true });
                                 let rightTextPrefix = "";
 
                                 if (
-                                    operatorToken.range[1] === firstRightToken.range[0] &&
-                                    !astUtils.canTokensBeAdjacent({ type: "Punctuator", value: newOperator }, firstRightToken)
+                                    operatorToken.range[1] === tokenAfterOperator.range[0] &&
+                                    !astUtils.canTokensBeAdjacent({ type: "Punctuator", value: newOperator }, tokenAfterOperator)
                                 ) {
                                     rightTextPrefix = " "; // foo+=+bar -> foo= foo+ +bar
                                 }

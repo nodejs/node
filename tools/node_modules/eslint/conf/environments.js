@@ -40,7 +40,8 @@ const newGlobals2017 = {
 const newGlobals2020 = {
     BigInt: false,
     BigInt64Array: false,
-    BigUint64Array: false
+    BigUint64Array: false,
+    globalThis: false
 };
 
 //------------------------------------------------------------------------------

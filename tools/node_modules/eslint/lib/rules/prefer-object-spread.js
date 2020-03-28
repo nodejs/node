@@ -181,8 +181,8 @@ function defineFixer(node, sourceCode) {
         const leftParen = sourceCode.getTokenAfter(node.callee, isOpeningParenToken);
         const rightParen = sourceCode.getLastToken(node);
 
-        // Remove the callee `Object.assign`
-        yield fixer.remove(node.callee);
+        // Remove everything before the opening paren: callee `Object.assign`, type arguments, and whitespace between the callee and the paren.
+        yield fixer.removeRange([node.range[0], leftParen.range[0]]);
 
         // Replace the parens of argument list to braces.
         if (needsParens(node, sourceCode)) {
