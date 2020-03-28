@@ -739,6 +739,14 @@ void Environment::RequestInterruptFromV8() {
   // The Isolate may outlive the Environment, so some logic to handle the
   // situation in which the Environment is destroyed before the handler runs
   // is required.
+
+  // We allocate a new pointer to a pointer to this Environment instance, and
+  // try to set it as interrupt_data_. If interrupt_data_ was already set, then
+  // callbacks are already scheduled to run and we can delete our own pointer
+  // and just return. If it was nullptr previously, the Environment** is stored;
+  // ~Environment sets the Environment* contained in it to nullptr, so that
+  // the callback can check whether ~Environment has already run and it is thus
+  // not safe to access the Environment instance itself.
   Environment** interrupt_data = new Environment*(this);
   Environment** dummy = nullptr;
   if (!interrupt_data_.compare_exchange_strong(dummy, interrupt_data)) {
