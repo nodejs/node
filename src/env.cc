@@ -355,7 +355,7 @@ Environment::Environment(IsolateData* isolate_data,
       this);
 
   performance_state_ =
-      std::make_unique<performance::performance_state>(isolate());
+      std::make_unique<performance::PerformanceState>(isolate());
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,

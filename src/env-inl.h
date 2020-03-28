@@ -969,7 +969,7 @@ inline const Mutex& Environment::extra_linked_bindings_mutex() const {
   return extra_linked_bindings_mutex_;
 }
 
-inline performance::performance_state* Environment::performance_state() {
+inline performance::PerformanceState* Environment::performance_state() {
   return performance_state_.get();
 }
 
