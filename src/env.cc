@@ -466,8 +466,6 @@ Environment::~Environment() {
       tracing_controller->RemoveTraceStateObserver(trace_state_observer_.get());
   }
 
-  delete[] http_parser_buffer_;
-
   TRACE_EVENT_NESTABLE_ASYNC_END0(
     TRACING_CATEGORY_NODE1(environment), "Environment", this);
 

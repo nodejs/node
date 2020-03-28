@@ -580,23 +580,6 @@ inline double Environment::get_default_trigger_async_id() {
   return default_trigger_async_id;
 }
 
-inline char* Environment::http_parser_buffer() const {
-  return http_parser_buffer_;
-}
-
-inline void Environment::set_http_parser_buffer(char* buffer) {
-  CHECK_NULL(http_parser_buffer_);  // Should be set only once.
-  http_parser_buffer_ = buffer;
-}
-
-inline bool Environment::http_parser_buffer_in_use() const {
-  return http_parser_buffer_in_use_;
-}
-
-inline void Environment::set_http_parser_buffer_in_use(bool in_use) {
-  http_parser_buffer_in_use_ = in_use;
-}
-
 inline AliasedFloat64Array* Environment::fs_stats_field_array() {
   return &fs_stats_field_array_;
 }

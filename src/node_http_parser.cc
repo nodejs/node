@@ -82,6 +82,20 @@ inline bool IsOWS(char c) {
   return c == ' ' || c == '\t';
 }
 
+class BindingData : public BaseObject {
+ public:
+  BindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
+
+  std::vector<char> parser_buffer;
+  bool parser_buffer_in_use = false;
+
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackField("parser_buffer", parser_buffer);
+  }
+  SET_SELF_SIZE(BindingData)
+  SET_MEMORY_INFO_NAME(BindingData)
+};
+
 // helper class for the Parser
 struct StringPtr {
   StringPtr() {
@@ -164,10 +178,11 @@ struct StringPtr {
 
 class Parser : public AsyncWrap, public StreamListener {
  public:
-  Parser(Environment* env, Local<Object> wrap)
-      : AsyncWrap(env, wrap),
+  Parser(BindingData* binding_data, Local<Object> wrap)
+      : AsyncWrap(binding_data->env(), wrap),
         current_buffer_len_(0),
-        current_buffer_data_(nullptr) {
+        current_buffer_data_(nullptr),
+        binding_data_(binding_data) {
   }
 
 
@@ -429,8 +444,8 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    new Parser(env, args.This());
+    BindingData* binding_data = Unwrap<BindingData>(args.Data());
+    new Parser(binding_data, args.This());
   }
 
 
@@ -605,14 +620,14 @@ class Parser : public AsyncWrap, public StreamListener {
     // For most types of streams, OnStreamRead will be immediately after
     // OnStreamAlloc, and will consume all data, so using a static buffer for
     // reading is more efficient. For other streams, just use Malloc() directly.
-    if (env()->http_parser_buffer_in_use())
+    if (binding_data_->parser_buffer_in_use)
       return uv_buf_init(Malloc(suggested_size), suggested_size);
-    env()->set_http_parser_buffer_in_use(true);
+    binding_data_->parser_buffer_in_use = true;
 
-    if (env()->http_parser_buffer() == nullptr)
-      env()->set_http_parser_buffer(new char[kAllocBufferSize]);
+    if (binding_data_->parser_buffer.empty())
+      binding_data_->parser_buffer.resize(kAllocBufferSize);
 
-    return uv_buf_init(env()->http_parser_buffer(), kAllocBufferSize);
+    return uv_buf_init(binding_data_->parser_buffer.data(), kAllocBufferSize);
   }
 
 
@@ -622,8 +637,8 @@ class Parser : public AsyncWrap, public StreamListener {
     // is free for re-use, or free() the data if it didn’t come from there
     // in the first place.
     auto on_scope_leave = OnScopeLeave([&]() {
-      if (buf.base == env()->http_parser_buffer())
-        env()->set_http_parser_buffer_in_use(false);
+      if (buf.base == binding_data_->parser_buffer.data())
+        binding_data_->parser_buffer_in_use = false;
       else
         free(buf.base);
     });
@@ -863,6 +878,8 @@ class Parser : public AsyncWrap, public StreamListener {
   uint64_t headers_timeout_;
   uint64_t header_parsing_start_time_ = 0;
 
+  BaseObjectPtr<BindingData> binding_data_;
+
   // These are helper functions for filling `http_parser_settings`, which turn
   // a member function of Parser into a C-style HTTP parser callback.
   template <typename Parser, Parser> struct Proxy;
@@ -903,6 +920,9 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
+  Environment::BindingScope<BindingData> binding_scope(env);
+  if (!binding_scope) return;
+
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(Parser::kInternalFieldCount);
   t->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "HTTPParser"));
