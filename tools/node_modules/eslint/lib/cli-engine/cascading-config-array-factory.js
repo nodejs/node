@@ -140,6 +140,7 @@ function createBaseConfigArray({
 function createCLIConfigArray({
     cliConfigData,
     configArrayFactory,
+    cwd,
     ignorePath,
     specificConfigPath
 }) {
@@ -158,7 +159,7 @@ function createCLIConfigArray({
         cliConfigArray.unshift(
             ...configArrayFactory.loadFile(
                 specificConfigPath,
-                { name: "--config" }
+                { name: "--config", basePath: cwd }
             )
         );
     }
@@ -198,7 +199,7 @@ class CascadingConfigArrayFactory {
         cliConfig: cliConfigData = null,
         cwd = process.cwd(),
         ignorePath,
-        resolvePluginsRelativeTo = cwd,
+        resolvePluginsRelativeTo,
         rulePaths = [],
         specificConfigPath = null,
         useEslintrc = true
@@ -220,6 +221,7 @@ class CascadingConfigArrayFactory {
             cliConfigArray: createCLIConfigArray({
                 cliConfigData,
                 configArrayFactory,
+                cwd,
                 ignorePath,
                 specificConfigPath
             }),

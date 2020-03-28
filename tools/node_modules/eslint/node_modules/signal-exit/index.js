@@ -3,6 +3,7 @@
 // ignored, since we can never get coverage for them.
 var assert = require('assert')
 var signals = require('./signals.js')
+var isWin = /^win/i.test(process.platform)
 
 var EE = require('events')
 /* istanbul ignore if */
@@ -92,6 +93,11 @@ signals.forEach(function (sig) {
       /* istanbul ignore next */
       emit('afterexit', null, sig)
       /* istanbul ignore next */
+      if (isWin && sig === 'SIGHUP') {
+        // "SIGHUP" throws an `ENOSYS` error on Windows,
+        // so use a supported signal instead
+        sig = 'SIGINT'
+      }
       process.kill(process.pid, sig)
     }
   }

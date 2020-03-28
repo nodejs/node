@@ -62,6 +62,7 @@ const acorn = require("acorn");
 const jsx = require("acorn-jsx");
 const astNodeTypes = require("./lib/ast-node-types");
 const espree = require("./lib/espree");
+const { getLatestEcmaVersion, getSupportedEcmaVersions } = require("./lib/options");
 
 // To initialize lazily.
 const parsers = {
@@ -170,3 +171,7 @@ exports.Syntax = (function() {
 exports.VisitorKeys = (function() {
     return require("eslint-visitor-keys").KEYS;
 }());
+
+exports.latestEcmaVersion = getLatestEcmaVersion();
+
+exports.supportedEcmaVersions = getSupportedEcmaVersions();

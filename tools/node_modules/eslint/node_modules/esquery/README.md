@@ -7,7 +7,7 @@ The following selectors are supported:
 * [wildcard](http://dev.w3.org/csswg/selectors4/#universal-selector): `*`
 * [attribute existence](http://dev.w3.org/csswg/selectors4/#attribute-selectors): `[attr]`
 * [attribute value](http://dev.w3.org/csswg/selectors4/#attribute-selectors): `[attr="foo"]` or `[attr=123]`
-* attribute regex: `[attr=/foo.*/]`
+* attribute regex: `[attr=/foo.*/]` or (with flags) `[attr=/foo.*/is]`
 * attribute conditions: `[attr!="foo"]`, `[attr>2]`, `[attr<3]`, `[attr>=2]`, or `[attr<=3]`
 * nested attribute: `[attr.level2="foo"]`
 * field: `FunctionDeclaration > Identifier.id`

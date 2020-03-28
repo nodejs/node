@@ -31,8 +31,6 @@ class ConfirmPrompt extends Base {
     }
 
     this.opt.default = rawDefault ? 'Y/n' : 'y/N';
-
-    return this;
   }
 
   /**

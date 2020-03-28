@@ -90,7 +90,24 @@ const configFilenames = [
  * @typedef {Object} ConfigArrayFactoryInternalSlots
  * @property {Map<string,Plugin>} additionalPluginPool The map for additional plugins.
  * @property {string} cwd The path to the current working directory.
- * @property {string} resolvePluginsRelativeTo An absolute path the the directory that plugins should be resolved from.
+ * @property {string | undefined} resolvePluginsRelativeTo An absolute path the the directory that plugins should be resolved from.
+ */
+
+/**
+ * @typedef {Object} ConfigArrayFactoryLoadingContext
+ * @property {string} filePath The path to the current configuration.
+ * @property {string} matchBasePath The base path to resolve relative paths in `overrides[].files`, `overrides[].excludedFiles`, and `ignorePatterns`.
+ * @property {string} name The name of the current configuration.
+ * @property {string} pluginBasePath The base path to resolve plugins.
+ * @property {"config" | "ignore" | "implicit-processor"} type The type of the current configuration. This is `"config"` in normal. This is `"ignore"` if it came from `.eslintignore`. This is `"implicit-processor"` if it came from legacy file-extension processors.
+ */
+
+/**
+ * @typedef {Object} ConfigArrayFactoryLoadingContext
+ * @property {string} filePath The path to the current configuration.
+ * @property {string} matchBasePath The base path to resolve relative paths in `overrides[].files`, `overrides[].excludedFiles`, and `ignorePatterns`.
+ * @property {string} name The name of the current configuration.
+ * @property {"config" | "ignore" | "implicit-processor"} type The type of the current configuration. This is `"config"` in normal. This is `"ignore"` if it came from `.eslintignore`. This is `"implicit-processor"` if it came from legacy file-extension processors.
  */
 
 /** @type {WeakMap<ConfigArrayFactory, ConfigArrayFactoryInternalSlots>} */
@@ -328,21 +345,39 @@ function writeDebugLogForLoading(request, relativeTo, filePath) {
 }
 
 /**
- * Concatenate two config data.
- * @param {IterableIterator<ConfigArrayElement>|null} elements The config elements.
- * @param {ConfigArray|null} parentConfigArray The parent config array.
- * @returns {ConfigArray} The concatenated config array.
+ * Create a new context with default values.
+ * @param {ConfigArrayFactoryInternalSlots} slots The internal slots.
+ * @param {"config" | "ignore" | "implicit-processor" | undefined} providedType The type of the current configuration. Default is `"config"`.
+ * @param {string | undefined} providedName The name of the current configuration. Default is the relative path from `cwd` to `filePath`.
+ * @param {string | undefined} providedFilePath The path to the current configuration. Default is empty string.
+ * @param {string | undefined} providedMatchBasePath The type of the current configuration. Default is the directory of `filePath` or `cwd`.
+ * @returns {ConfigArrayFactoryLoadingContext} The created context.
  */
-function createConfigArray(elements, parentConfigArray) {
-    if (!elements) {
-        return parentConfigArray || new ConfigArray();
-    }
-    const configArray = new ConfigArray(...elements);
+function createContext(
+    { cwd, resolvePluginsRelativeTo },
+    providedType,
+    providedName,
+    providedFilePath,
+    providedMatchBasePath
+) {
+    const filePath = providedFilePath
+        ? path.resolve(cwd, providedFilePath)
+        : "";
+    const matchBasePath =
+        (providedMatchBasePath && path.resolve(cwd, providedMatchBasePath)) ||
+        (filePath && path.dirname(filePath)) ||
+        cwd;
+    const name =
+        providedName ||
+        (filePath && path.relative(cwd, filePath)) ||
+        "";
+    const pluginBasePath =
+        resolvePluginsRelativeTo ||
+        (filePath && path.dirname(filePath)) ||
+        cwd;
+    const type = providedType || "config";
 
-    if (parentConfigArray && !configArray.isRoot()) {
-        configArray.unshift(...parentConfigArray);
-    }
-    return configArray;
+    return { filePath, matchBasePath, name, pluginBasePath, type };
 }
 
 /**
@@ -377,63 +412,95 @@ class ConfigArrayFactory {
     constructor({
         additionalPluginPool = new Map(),
         cwd = process.cwd(),
-        resolvePluginsRelativeTo = cwd
+        resolvePluginsRelativeTo
     } = {}) {
-        internalSlotsMap.set(this, { additionalPluginPool, cwd, resolvePluginsRelativeTo: path.resolve(cwd, resolvePluginsRelativeTo) });
+        internalSlotsMap.set(this, {
+            additionalPluginPool,
+            cwd,
+            resolvePluginsRelativeTo:
+                resolvePluginsRelativeTo &&
+                path.resolve(cwd, resolvePluginsRelativeTo)
+        });
     }
 
     /**
      * Create `ConfigArray` instance from a config data.
      * @param {ConfigData|null} configData The config data to create.
      * @param {Object} [options] The options.
+     * @param {string} [options.basePath] The base path to resolve relative paths in `overrides[].files`, `overrides[].excludedFiles`, and `ignorePatterns`.
      * @param {string} [options.filePath] The path to this config data.
      * @param {string} [options.name] The config name.
-     * @param {ConfigArray} [options.parent] The parent config array.
      * @returns {ConfigArray} Loaded config.
      */
-    create(configData, { filePath, name, parent } = {}) {
-        return createConfigArray(
-            configData
-                ? this._normalizeConfigData(configData, filePath, name)
-                : null,
-            parent
-        );
+    create(configData, { basePath, filePath, name } = {}) {
+        if (!configData) {
+            return new ConfigArray();
+        }
+
+        const slots = internalSlotsMap.get(this);
+        const ctx = createContext(slots, "config", name, filePath, basePath);
+        const elements = this._normalizeConfigData(configData, ctx);
+
+        return new ConfigArray(...elements);
     }
 
     /**
      * Load a config file.
      * @param {string} filePath The path to a config file.
      * @param {Object} [options] The options.
+     * @param {string} [options.basePath] The base path to resolve relative paths in `overrides[].files`, `overrides[].excludedFiles`, and `ignorePatterns`.
      * @param {string} [options.name] The config name.
-     * @param {ConfigArray} [options.parent] The parent config array.
      * @returns {ConfigArray} Loaded config.
      */
-    loadFile(filePath, { name, parent } = {}) {
-        const { cwd } = internalSlotsMap.get(this);
-        const absolutePath = path.resolve(cwd, filePath);
+    loadFile(filePath, { basePath, name } = {}) {
+        const slots = internalSlotsMap.get(this);
+        const ctx = createContext(slots, "config", name, filePath, basePath);
 
-        return createConfigArray(
-            this._loadConfigData(absolutePath, name),
-            parent
-        );
+        return new ConfigArray(...this._loadConfigData(ctx));
     }
 
     /**
      * Load the config file on a given directory if exists.
      * @param {string} directoryPath The path to a directory.
      * @param {Object} [options] The options.
+     * @param {string} [options.basePath] The base path to resolve relative paths in `overrides[].files`, `overrides[].excludedFiles`, and `ignorePatterns`.
      * @param {string} [options.name] The config name.
-     * @param {ConfigArray} [options.parent] The parent config array.
      * @returns {ConfigArray} Loaded config. An empty `ConfigArray` if any config doesn't exist.
      */
-    loadInDirectory(directoryPath, { name, parent } = {}) {
-        const { cwd } = internalSlotsMap.get(this);
-        const absolutePath = path.resolve(cwd, directoryPath);
+    loadInDirectory(directoryPath, { basePath, name } = {}) {
+        const slots = internalSlotsMap.get(this);
 
-        return createConfigArray(
-            this._loadConfigDataInDirectory(absolutePath, name),
-            parent
-        );
+        for (const filename of configFilenames) {
+            const ctx = createContext(
+                slots,
+                "config",
+                name,
+                path.join(directoryPath, filename),
+                basePath
+            );
+
+            if (fs.existsSync(ctx.filePath)) {
+                let configData;
+
+                try {
+                    configData = loadConfigFile(ctx.filePath);
+                } catch (error) {
+                    if (!error || error.code !== "ESLINT_CONFIG_FIELD_NOT_FOUND") {
+                        throw error;
+                    }
+                }
+
+                if (configData) {
+                    debug(`Config file found: ${ctx.filePath}`);
+                    return new ConfigArray(
+                        ...this._normalizeConfigData(configData, ctx)
+                    );
+                }
+            }
+        }
+
+        debug(`Config file not found on ${directoryPath}`);
+        return new ConfigArray();
     }
 
     /**
@@ -465,13 +532,18 @@ class ConfigArrayFactory {
      * @returns {ConfigArray} Loaded config. An empty `ConfigArray` if any config doesn't exist.
      */
     loadESLintIgnore(filePath) {
-        const { cwd } = internalSlotsMap.get(this);
-        const absolutePath = path.resolve(cwd, filePath);
-        const name = path.relative(cwd, absolutePath);
-        const ignorePatterns = loadESLintIgnoreFile(absolutePath);
+        const slots = internalSlotsMap.get(this);
+        const ctx = createContext(
+            slots,
+            "ignore",
+            void 0,
+            filePath,
+            slots.cwd
+        );
+        const ignorePatterns = loadESLintIgnoreFile(ctx.filePath);
 
-        return createConfigArray(
-            this._normalizeESLintIgnoreData(ignorePatterns, absolutePath, name)
+        return new ConfigArray(
+            ...this._normalizeESLintIgnoreData(ignorePatterns, ctx)
         );
     }
 
@@ -480,9 +552,9 @@ class ConfigArrayFactory {
      * @returns {ConfigArray} Loaded config. An empty `ConfigArray` if any config doesn't exist.
      */
     loadDefaultESLintIgnore() {
-        const { cwd } = internalSlotsMap.get(this);
-        const eslintIgnorePath = path.resolve(cwd, ".eslintignore");
-        const packageJsonPath = path.resolve(cwd, "package.json");
+        const slots = internalSlotsMap.get(this);
+        const eslintIgnorePath = path.resolve(slots.cwd, ".eslintignore");
+        const packageJsonPath = path.resolve(slots.cwd, "package.json");
 
         if (fs.existsSync(eslintIgnorePath)) {
             return this.loadESLintIgnore(eslintIgnorePath);
@@ -494,12 +566,16 @@ class ConfigArrayFactory {
                 if (!Array.isArray(data.eslintIgnore)) {
                     throw new Error("Package.json eslintIgnore property requires an array of paths");
                 }
-                return createConfigArray(
-                    this._normalizeESLintIgnoreData(
-                        data.eslintIgnore,
-                        packageJsonPath,
-                        "eslintIgnore in package.json"
-                    )
+                const ctx = createContext(
+                    slots,
+                    "ignore",
+                    "eslintIgnore in package.json",
+                    packageJsonPath,
+                    slots.cwd
+                );
+
+                return new ConfigArray(
+                    ...this._normalizeESLintIgnoreData(data.eslintIgnore, ctx)
                 );
             }
         }
@@ -509,65 +585,25 @@ class ConfigArrayFactory {
 
     /**
      * Load a given config file.
-     * @param {string} filePath The path to a config file.
-     * @param {string} name The config name.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} Loaded config.
      * @private
      */
-    _loadConfigData(filePath, name) {
-        return this._normalizeConfigData(
-            loadConfigFile(filePath),
-            filePath,
-            name
-        );
-    }
-
-    /**
-     * Load the config file in a given directory if exists.
-     * @param {string} directoryPath The path to a directory.
-     * @param {string} name The config name.
-     * @returns {IterableIterator<ConfigArrayElement> | null} Loaded config. `null` if any config doesn't exist.
-     * @private
-     */
-    _loadConfigDataInDirectory(directoryPath, name) {
-        for (const filename of configFilenames) {
-            const filePath = path.join(directoryPath, filename);
-
-            if (fs.existsSync(filePath)) {
-                let configData;
-
-                try {
-                    configData = loadConfigFile(filePath);
-                } catch (error) {
-                    if (!error || error.code !== "ESLINT_CONFIG_FIELD_NOT_FOUND") {
-                        throw error;
-                    }
-                }
-
-                if (configData) {
-                    debug(`Config file found: ${filePath}`);
-                    return this._normalizeConfigData(configData, filePath, name);
-                }
-            }
-        }
-
-        debug(`Config file not found on ${directoryPath}`);
-        return null;
+    _loadConfigData(ctx) {
+        return this._normalizeConfigData(loadConfigFile(ctx.filePath), ctx);
     }
 
     /**
      * Normalize a given `.eslintignore` data to config array elements.
      * @param {string[]} ignorePatterns The patterns to ignore files.
-     * @param {string|undefined} filePath The file path of this config.
-     * @param {string|undefined} name The name of this config.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
-    *_normalizeESLintIgnoreData(ignorePatterns, filePath, name) {
+    *_normalizeESLintIgnoreData(ignorePatterns, ctx) {
         const elements = this._normalizeObjectConfigData(
-            { type: "ignore", ignorePatterns },
-            filePath,
-            name
+            { ignorePatterns },
+            ctx
         );
 
         // Set `ignorePattern.loose` flag for backward compatibility.
@@ -582,53 +618,38 @@ class ConfigArrayFactory {
     /**
      * Normalize a given config to an array.
      * @param {ConfigData} configData The config data to normalize.
-     * @param {string|undefined} providedFilePath The file path of this config.
-     * @param {string|undefined} providedName The name of this config.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
-    _normalizeConfigData(configData, providedFilePath, providedName) {
-        const { cwd } = internalSlotsMap.get(this);
-        const filePath = providedFilePath
-            ? path.resolve(cwd, providedFilePath)
-            : "";
-        const name = providedName || (filePath && path.relative(cwd, filePath));
-
-        validateConfigSchema(configData, name || filePath);
-
-        return this._normalizeObjectConfigData(configData, filePath, name);
+    _normalizeConfigData(configData, ctx) {
+        validateConfigSchema(configData, ctx.name || ctx.filePath);
+        return this._normalizeObjectConfigData(configData, ctx);
     }
 
     /**
      * Normalize a given config to an array.
      * @param {ConfigData|OverrideConfigData} configData The config data to normalize.
-     * @param {string} filePath The file path of this config.
-     * @param {string} name The name of this config.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
-    *_normalizeObjectConfigData(configData, filePath, name) {
-        const { cwd } = internalSlotsMap.get(this);
+    *_normalizeObjectConfigData(configData, ctx) {
         const { files, excludedFiles, ...configBody } = configData;
-        const basePath = filePath ? path.dirname(filePath) : cwd;
-        const criteria = OverrideTester.create(files, excludedFiles, basePath);
-        const elements =
-            this._normalizeObjectConfigDataBody(configBody, filePath, name);
+        const criteria = OverrideTester.create(
+            files,
+            excludedFiles,
+            ctx.matchBasePath
+        );
+        const elements = this._normalizeObjectConfigDataBody(configBody, ctx);
 
         // Apply the criteria to every element.
         for (const element of elements) {
 
-            // Adopt the base path of the entry file (the outermost base path).
-            if (element.criteria) {
-                element.criteria.basePath = basePath;
-            }
-            if (element.ignorePattern) {
-                element.ignorePattern.basePath = basePath;
-            }
-
             /*
-             * Merge the criteria; this is for only file extension processors in
-             * `overrides` section for now.
+             * Merge the criteria.
+             * This is for the `overrides` entries that came from the
+             * configurations of `overrides[].extends`.
              */
             element.criteria = OverrideTester.and(criteria, element.criteria);
 
@@ -647,8 +668,7 @@ class ConfigArrayFactory {
     /**
      * Normalize a given config to an array.
      * @param {ConfigData} configData The config data to normalize.
-     * @param {string} filePath The file path of this config.
-     * @param {string} name The name of this config.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
@@ -667,41 +687,37 @@ class ConfigArrayFactory {
             root,
             rules,
             settings,
-            type = "config",
             overrides: overrideList = []
         },
-        filePath,
-        name
+        ctx
     ) {
         const extendList = Array.isArray(extend) ? extend : [extend];
         const ignorePattern = ignorePatterns && new IgnorePattern(
             Array.isArray(ignorePatterns) ? ignorePatterns : [ignorePatterns],
-            filePath ? path.dirname(filePath) : internalSlotsMap.get(this).cwd
+            ctx.matchBasePath
         );
 
         // Flatten `extends`.
         for (const extendName of extendList.filter(Boolean)) {
-            yield* this._loadExtends(extendName, filePath, name);
+            yield* this._loadExtends(extendName, ctx);
         }
 
         // Load parser & plugins.
-        const parser =
-            parserName && this._loadParser(parserName, filePath, name);
-        const plugins =
-            pluginList && this._loadPlugins(pluginList, filePath, name);
+        const parser = parserName && this._loadParser(parserName, ctx);
+        const plugins = pluginList && this._loadPlugins(pluginList, ctx);
 
         // Yield pseudo config data for file extension processors.
         if (plugins) {
-            yield* this._takeFileExtensionProcessors(plugins, filePath, name);
+            yield* this._takeFileExtensionProcessors(plugins, ctx);
         }
 
         // Yield the config data except `extends` and `overrides`.
         yield {
 
             // Debug information.
-            type,
-            name,
-            filePath,
+            type: ctx.type,
+            name: ctx.name,
+            filePath: ctx.filePath,
 
             // Config data.
             criteria: null,
@@ -723,8 +739,7 @@ class ConfigArrayFactory {
         for (let i = 0; i < overrideList.length; ++i) {
             yield* this._normalizeObjectConfigData(
                 overrideList[i],
-                filePath,
-                `${name}#overrides[${i}]`
+                { ...ctx, name: `${ctx.name}#overrides[${i}]` }
             );
         }
     }
@@ -732,34 +747,22 @@ class ConfigArrayFactory {
     /**
      * Load configs of an element in `extends`.
      * @param {string} extendName The name of a base config.
-     * @param {string} importerPath The file path which has the `extends` property.
-     * @param {string} importerName The name of the config which has the `extends` property.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
-    _loadExtends(extendName, importerPath, importerName) {
-        debug("Loading {extends:%j} relative to %s", extendName, importerPath);
+    _loadExtends(extendName, ctx) {
+        debug("Loading {extends:%j} relative to %s", extendName, ctx.filePath);
         try {
             if (extendName.startsWith("eslint:")) {
-                return this._loadExtendedBuiltInConfig(
-                    extendName,
-                    importerName
-                );
+                return this._loadExtendedBuiltInConfig(extendName, ctx);
             }
             if (extendName.startsWith("plugin:")) {
-                return this._loadExtendedPluginConfig(
-                    extendName,
-                    importerPath,
-                    importerName
-                );
+                return this._loadExtendedPluginConfig(extendName, ctx);
             }
-            return this._loadExtendedShareableConfig(
-                extendName,
-                importerPath,
-                importerName
-            );
+            return this._loadExtendedShareableConfig(extendName, ctx);
         } catch (error) {
-            error.message += `\nReferenced from: ${importerPath || importerName}`;
+            error.message += `\nReferenced from: ${ctx.filePath || ctx.name}`;
             throw error;
         }
     }
@@ -767,32 +770,37 @@ class ConfigArrayFactory {
     /**
      * Load configs of an element in `extends`.
      * @param {string} extendName The name of a base config.
-     * @param {string} importerName The name of the config which has the `extends` property.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
-    _loadExtendedBuiltInConfig(extendName, importerName) {
-        const name = `${importerName} » ${extendName}`;
-
+    _loadExtendedBuiltInConfig(extendName, ctx) {
         if (extendName === "eslint:recommended") {
-            return this._loadConfigData(eslintRecommendedPath, name);
+            return this._loadConfigData({
+                ...ctx,
+                filePath: eslintRecommendedPath,
+                name: `${ctx.name} » ${extendName}`
+            });
         }
         if (extendName === "eslint:all") {
-            return this._loadConfigData(eslintAllPath, name);
+            return this._loadConfigData({
+                ...ctx,
+                filePath: eslintAllPath,
+                name: `${ctx.name} » ${extendName}`
+            });
         }
 
-        throw configMissingError(extendName, importerName);
+        throw configMissingError(extendName, ctx.name);
     }
 
     /**
      * Load configs of an element in `extends`.
      * @param {string} extendName The name of a base config.
-     * @param {string} importerPath The file path which has the `extends` property.
-     * @param {string} importerName The name of the config which has the `extends` property.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
-    _loadExtendedPluginConfig(extendName, importerPath, importerName) {
+    _loadExtendedPluginConfig(extendName, ctx) {
         const slashIndex = extendName.lastIndexOf("/");
         const pluginName = extendName.slice("plugin:".length, slashIndex);
         const configName = extendName.slice(slashIndex + 1);
@@ -801,33 +809,32 @@ class ConfigArrayFactory {
             throw new Error("'extends' cannot use a file path for plugins.");
         }
 
-        const plugin = this._loadPlugin(pluginName, importerPath, importerName);
+        const plugin = this._loadPlugin(pluginName, ctx);
         const configData =
             plugin.definition &&
             plugin.definition.configs[configName];
 
         if (configData) {
-            return this._normalizeConfigData(
-                configData,
-                plugin.filePath,
-                `${importerName} » plugin:${plugin.id}/${configName}`
-            );
+            return this._normalizeConfigData(configData, {
+                ...ctx,
+                filePath: plugin.filePath,
+                name: `${ctx.name} » plugin:${plugin.id}/${configName}`
+            });
         }
 
-        throw plugin.error || configMissingError(extendName, importerPath);
+        throw plugin.error || configMissingError(extendName, ctx.filePath);
     }
 
     /**
      * Load configs of an element in `extends`.
      * @param {string} extendName The name of a base config.
-     * @param {string} importerPath The file path which has the `extends` property.
-     * @param {string} importerName The name of the config which has the `extends` property.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The normalized config.
      * @private
      */
-    _loadExtendedShareableConfig(extendName, importerPath, importerName) {
+    _loadExtendedShareableConfig(extendName, ctx) {
         const { cwd } = internalSlotsMap.get(this);
-        const relativeTo = importerPath || path.join(cwd, "__placeholder__.js");
+        const relativeTo = ctx.filePath || path.join(cwd, "__placeholder__.js");
         let request;
 
         if (isFilePath(extendName)) {
@@ -848,29 +855,32 @@ class ConfigArrayFactory {
         } catch (error) {
             /* istanbul ignore else */
             if (error && error.code === "MODULE_NOT_FOUND") {
-                throw configMissingError(extendName, importerPath);
+                throw configMissingError(extendName, ctx.filePath);
             }
             throw error;
         }
 
         writeDebugLogForLoading(request, relativeTo, filePath);
-        return this._loadConfigData(filePath, `${importerName} » ${request}`);
+        return this._loadConfigData({
+            ...ctx,
+            filePath,
+            name: `${ctx.name} » ${request}`
+        });
     }
 
     /**
      * Load given plugins.
      * @param {string[]} names The plugin names to load.
-     * @param {string} importerPath The path to a config file that imports it. This is just a debug info.
-     * @param {string} importerName The name of a config file that imports it. This is just a debug info.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {Record<string,DependentPlugin>} The loaded parser.
      * @private
      */
-    _loadPlugins(names, importerPath, importerName) {
+    _loadPlugins(names, ctx) {
         return names.reduce((map, name) => {
             if (isFilePath(name)) {
                 throw new Error("Plugins array cannot includes file paths.");
             }
-            const plugin = this._loadPlugin(name, importerPath, importerName);
+            const plugin = this._loadPlugin(name, ctx);
 
             map[plugin.id] = plugin;
 
@@ -881,15 +891,14 @@ class ConfigArrayFactory {
     /**
      * Load a given parser.
      * @param {string} nameOrPath The package name or the path to a parser file.
-     * @param {string} importerPath The path to a config file that imports it.
-     * @param {string} importerName The name of a config file that imports it. This is just a debug info.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {DependentParser} The loaded parser.
      */
-    _loadParser(nameOrPath, importerPath, importerName) {
-        debug("Loading parser %j from %s", nameOrPath, importerPath);
+    _loadParser(nameOrPath, ctx) {
+        debug("Loading parser %j from %s", nameOrPath, ctx.filePath);
 
         const { cwd } = internalSlotsMap.get(this);
-        const relativeTo = importerPath || path.join(cwd, "__placeholder__.js");
+        const relativeTo = ctx.filePath || path.join(cwd, "__placeholder__.js");
 
         try {
             const filePath = ModuleResolver.resolve(nameOrPath, relativeTo);
@@ -900,8 +909,8 @@ class ConfigArrayFactory {
                 definition: require(filePath),
                 filePath,
                 id: nameOrPath,
-                importerName,
-                importerPath
+                importerName: ctx.name,
+                importerPath: ctx.filePath
             });
         } catch (error) {
 
@@ -912,19 +921,19 @@ class ConfigArrayFactory {
                     definition: require("espree"),
                     filePath: require.resolve("espree"),
                     id: nameOrPath,
-                    importerName,
-                    importerPath
+                    importerName: ctx.name,
+                    importerPath: ctx.filePath
                 });
             }
 
-            debug("Failed to load parser '%s' declared in '%s'.", nameOrPath, importerName);
-            error.message = `Failed to load parser '${nameOrPath}' declared in '${importerName}': ${error.message}`;
+            debug("Failed to load parser '%s' declared in '%s'.", nameOrPath, ctx.name);
+            error.message = `Failed to load parser '${nameOrPath}' declared in '${ctx.name}': ${error.message}`;
 
             return new ConfigDependency({
                 error,
                 id: nameOrPath,
-                importerName,
-                importerPath
+                importerName: ctx.name,
+                importerPath: ctx.filePath
             });
         }
     }
@@ -932,18 +941,17 @@ class ConfigArrayFactory {
     /**
      * Load a given plugin.
      * @param {string} name The plugin name to load.
-     * @param {string} importerPath The path to a config file that imports it. This is just a debug info.
-     * @param {string} importerName The name of a config file that imports it. This is just a debug info.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {DependentPlugin} The loaded plugin.
      * @private
      */
-    _loadPlugin(name, importerPath, importerName) {
-        debug("Loading plugin %j from %s", name, importerPath);
+    _loadPlugin(name, ctx) {
+        debug("Loading plugin %j from %s", name, ctx.filePath);
 
-        const { additionalPluginPool, resolvePluginsRelativeTo } = internalSlotsMap.get(this);
+        const { additionalPluginPool } = internalSlotsMap.get(this);
         const request = naming.normalizePackageName(name, "eslint-plugin");
         const id = naming.getShorthandName(request, "eslint-plugin");
-        const relativeTo = path.join(resolvePluginsRelativeTo, "__placeholder__.js");
+        const relativeTo = path.join(ctx.pluginBasePath, "__placeholder__.js");
 
         if (name.match(/\s+/u)) {
             const error = Object.assign(
@@ -957,8 +965,8 @@ class ConfigArrayFactory {
             return new ConfigDependency({
                 error,
                 id,
-                importerName,
-                importerPath
+                importerName: ctx.name,
+                importerPath: ctx.filePath
             });
         }
 
@@ -970,10 +978,10 @@ class ConfigArrayFactory {
         if (plugin) {
             return new ConfigDependency({
                 definition: normalizePlugin(plugin),
-                filePath: importerPath,
+                filePath: ctx.filePath,
                 id,
-                importerName,
-                importerPath
+                importerName: ctx.name,
+                importerPath: ctx.filePath
             });
         }
 
@@ -989,8 +997,8 @@ class ConfigArrayFactory {
                 error.messageTemplate = "plugin-missing";
                 error.messageData = {
                     pluginName: request,
-                    resolvePluginsRelativeTo,
-                    importerName
+                    resolvePluginsRelativeTo: ctx.pluginBasePath,
+                    importerName: ctx.name
                 };
             }
         }
@@ -1008,33 +1016,32 @@ class ConfigArrayFactory {
                     definition: normalizePlugin(pluginDefinition),
                     filePath,
                     id,
-                    importerName,
-                    importerPath
+                    importerName: ctx.name,
+                    importerPath: ctx.filePath
                 });
             } catch (loadError) {
                 error = loadError;
             }
         }
 
-        debug("Failed to load plugin '%s' declared in '%s'.", name, importerName);
-        error.message = `Failed to load plugin '${name}' declared in '${importerName}': ${error.message}`;
+        debug("Failed to load plugin '%s' declared in '%s'.", name, ctx.name);
+        error.message = `Failed to load plugin '${name}' declared in '${ctx.name}': ${error.message}`;
         return new ConfigDependency({
             error,
             id,
-            importerName,
-            importerPath
+            importerName: ctx.name,
+            importerPath: ctx.filePath
         });
     }
 
     /**
      * Take file expression processors as config array elements.
      * @param {Record<string,DependentPlugin>} plugins The plugin definitions.
-     * @param {string} filePath The file path of this config.
-     * @param {string} name The name of this config.
+     * @param {ConfigArrayFactoryLoadingContext} ctx The loading context.
      * @returns {IterableIterator<ConfigArrayElement>} The config array elements of file expression processors.
      * @private
      */
-    *_takeFileExtensionProcessors(plugins, filePath, name) {
+    *_takeFileExtensionProcessors(plugins, ctx) {
         for (const pluginId of Object.keys(plugins)) {
             const processors =
                 plugins[pluginId] &&
@@ -1049,12 +1056,14 @@ class ConfigArrayFactory {
                 if (processorId.startsWith(".")) {
                     yield* this._normalizeObjectConfigData(
                         {
-                            type: "implicit-processor",
                             files: [`*${processorId}`],
                             processor: `${pluginId}/${processorId}`
                         },
-                        filePath,
-                        `${name}#processors["${pluginId}/${processorId}"]`
+                        {
+                            ...ctx,
+                            type: "implicit-processor",
+                            name: `${ctx.name}#processors["${pluginId}/${processorId}"]`
+                        }
                     );
                 }
             }
@@ -1062,4 +1071,4 @@ class ConfigArrayFactory {
     }
 }
 
-module.exports = { ConfigArrayFactory };
+module.exports = { ConfigArrayFactory, createContext };

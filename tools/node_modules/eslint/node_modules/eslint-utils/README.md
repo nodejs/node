@@ -13,7 +13,6 @@ This package provides utility functions and classes for make ESLint custom rules
 For examples:
 
 - [getStaticValue](https://eslint-utils.mysticatea.dev/api/ast-utils.html#getstaticvalue) evaluates static value on AST.
-- [PatternMatcher](https://eslint-utils.mysticatea.dev/api/ast-utils.html#patternmatcher-class) finds a regular expression pattern as handling escape sequences.
 - [ReferenceTracker](https://eslint-utils.mysticatea.dev/api/scope-utils.html#referencetracker-class) checks the members of modules/globals as handling assignments and destructuring.
 
 ## 📖 Usage

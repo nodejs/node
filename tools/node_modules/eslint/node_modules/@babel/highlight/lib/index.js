@@ -9,7 +9,7 @@ exports.default = highlight;
 
 var _jsTokens = _interopRequireWildcard(require("js-tokens"));
 
-var _esutils = _interopRequireDefault(require("esutils"));
+var _helperValidatorIdentifier = require("@babel/helper-validator-identifier");
 
 var _chalk = _interopRequireDefault(require("chalk"));
 
@@ -42,7 +42,7 @@ function getTokenType(match) {
   const token = (0, _jsTokens.matchToToken)(match);
 
   if (token.type === "name") {
-    if (_esutils.default.keyword.isReservedWordES6(token.value)) {
+    if ((0, _helperValidatorIdentifier.isKeyword)(token.value) || (0, _helperValidatorIdentifier.isReservedWord)(token.value)) {
       return "keyword";
     }
 

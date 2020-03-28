@@ -1,15 +1,19 @@
 module.exports = function (args, opts) {
     if (!opts) opts = {};
     
-    var flags = { bools : {}, strings : {} };
-    
-    [].concat(opts['boolean']).filter(Boolean).forEach(function (key) {
-        flags.bools[key] = true;
-    });
-    
-    [].concat(opts.string).filter(Boolean).forEach(function (key) {
-        flags.strings[key] = true;
-    });
+    var flags = { bools : {}, strings : {}, unknownFn: null };
+
+    if (typeof opts['unknown'] === 'function') {
+        flags.unknownFn = opts['unknown'];
+    }
+
+    if (typeof opts['boolean'] === 'boolean' && opts['boolean']) {
+      flags.allBools = true;
+    } else {
+      [].concat(opts['boolean']).filter(Boolean).forEach(function (key) {
+          flags.bools[key] = true;
+      });
+    }
     
     var aliases = {};
     Object.keys(opts.alias || {}).forEach(function (key) {
@@ -20,7 +24,14 @@ module.exports = function (args, opts) {
             }));
         });
     });
-    
+
+    [].concat(opts.string).filter(Boolean).forEach(function (key) {
+        flags.strings[key] = true;
+        if (aliases[key]) {
+            flags.strings[aliases[key]] = true;
+        }
+     });
+
     var defaults = opts['default'] || {};
     
     var argv = { _ : [] };
@@ -35,7 +46,16 @@ module.exports = function (args, opts) {
         args = args.slice(0, args.indexOf('--'));
     }
 
-    function setArg (key, val) {
+    function argDefined(key, arg) {
+        return (flags.allBools && /^--[^=]+$/.test(arg)) ||
+            flags.strings[key] || flags.bools[key] || aliases[key];
+    }
+
+    function setArg (key, val, arg) {
+        if (arg && flags.unknownFn && !argDefined(key, arg)) {
+            if (flags.unknownFn(arg) === false) return;
+        }
+
         var value = !flags.strings[key] && isNumber(val)
             ? Number(val) : val
         ;
@@ -45,7 +65,41 @@ module.exports = function (args, opts) {
             setKey(argv, x.split('.'), value);
         });
     }
+
+    function setKey (obj, keys, value) {
+        var o = obj;
+        for (var i = 0; i < keys.length-1; i++) {
+            var key = keys[i];
+            if (key === '__proto__') return;
+            if (o[key] === undefined) o[key] = {};
+            if (o[key] === Object.prototype || o[key] === Number.prototype
+                || o[key] === String.prototype) o[key] = {};
+            if (o[key] === Array.prototype) o[key] = [];
+            o = o[key];
+        }
+
+        var key = keys[keys.length - 1];
+        if (key === '__proto__') return;
+        if (o === Object.prototype || o === Number.prototype
+            || o === String.prototype) o = {};
+        if (o === Array.prototype) o = [];
+        if (o[key] === undefined || flags.bools[key] || typeof o[key] === 'boolean') {
+            o[key] = value;
+        }
+        else if (Array.isArray(o[key])) {
+            o[key].push(value);
+        }
+        else {
+            o[key] = [ o[key], value ];
+        }
+    }
     
+    function aliasIsBoolean(key) {
+      return aliases[key].some(function (x) {
+          return flags.bools[x];
+      });
+    }
+
     for (var i = 0; i < args.length; i++) {
         var arg = args[i];
         
@@ -54,27 +108,33 @@ module.exports = function (args, opts) {
             // 'dotall' regex modifier. See:
             // http://stackoverflow.com/a/1068308/13216
             var m = arg.match(/^--([^=]+)=([\s\S]*)$/);
-            setArg(m[1], m[2]);
+            var key = m[1];
+            var value = m[2];
+            if (flags.bools[key]) {
+                value = value !== 'false';
+            }
+            setArg(key, value, arg);
         }
         else if (/^--no-.+/.test(arg)) {
             var key = arg.match(/^--no-(.+)/)[1];
-            setArg(key, false);
+            setArg(key, false, arg);
         }
         else if (/^--.+/.test(arg)) {
             var key = arg.match(/^--(.+)/)[1];
             var next = args[i + 1];
             if (next !== undefined && !/^-/.test(next)
             && !flags.bools[key]
-            && (aliases[key] ? !flags.bools[aliases[key]] : true)) {
-                setArg(key, next);
+            && !flags.allBools
+            && (aliases[key] ? !aliasIsBoolean(key) : true)) {
+                setArg(key, next, arg);
                 i++;
             }
             else if (/^(true|false)$/.test(next)) {
-                setArg(key, next === 'true');
+                setArg(key, next === 'true', arg);
                 i++;
             }
             else {
-                setArg(key, flags.strings[key] ? '' : true);
+                setArg(key, flags.strings[key] ? '' : true, arg);
             }
         }
         else if (/^-[^-]+/.test(arg)) {
@@ -85,24 +145,30 @@ module.exports = function (args, opts) {
                 var next = arg.slice(j+2);
                 
                 if (next === '-') {
-                    setArg(letters[j], next)
+                    setArg(letters[j], next, arg)
                     continue;
+                }
+                
+                if (/[A-Za-z]/.test(letters[j]) && /=/.test(next)) {
+                    setArg(letters[j], next.split('=')[1], arg);
+                    broken = true;
+                    break;
                 }
                 
                 if (/[A-Za-z]/.test(letters[j])
                 && /-?\d+(\.\d*)?(e-?\d+)?$/.test(next)) {
-                    setArg(letters[j], next);
+                    setArg(letters[j], next, arg);
                     broken = true;
                     break;
                 }
                 
                 if (letters[j+1] && letters[j+1].match(/\W/)) {
-                    setArg(letters[j], arg.slice(j+2));
+                    setArg(letters[j], arg.slice(j+2), arg);
                     broken = true;
                     break;
                 }
                 else {
-                    setArg(letters[j], flags.strings[letters[j]] ? '' : true);
+                    setArg(letters[j], flags.strings[letters[j]] ? '' : true, arg);
                 }
             }
             
@@ -110,23 +176,29 @@ module.exports = function (args, opts) {
             if (!broken && key !== '-') {
                 if (args[i+1] && !/^(-|--)[^-]/.test(args[i+1])
                 && !flags.bools[key]
-                && (aliases[key] ? !flags.bools[aliases[key]] : true)) {
-                    setArg(key, args[i+1]);
+                && (aliases[key] ? !aliasIsBoolean(key) : true)) {
+                    setArg(key, args[i+1], arg);
                     i++;
                 }
-                else if (args[i+1] && /true|false/.test(args[i+1])) {
-                    setArg(key, args[i+1] === 'true');
+                else if (args[i+1] && /^(true|false)$/.test(args[i+1])) {
+                    setArg(key, args[i+1] === 'true', arg);
                     i++;
                 }
                 else {
-                    setArg(key, flags.strings[key] ? '' : true);
+                    setArg(key, flags.strings[key] ? '' : true, arg);
                 }
             }
         }
         else {
-            argv._.push(
-                flags.strings['_'] || !isNumber(arg) ? arg : Number(arg)
-            );
+            if (!flags.unknownFn || flags.unknownFn(arg) !== false) {
+                argv._.push(
+                    flags.strings['_'] || !isNumber(arg) ? arg : Number(arg)
+                );
+            }
+            if (opts.stopEarly) {
+                argv._.push.apply(argv._, args.slice(i + 1));
+                break;
+            }
         }
     }
     
@@ -140,9 +212,17 @@ module.exports = function (args, opts) {
         }
     });
     
-    notFlags.forEach(function(key) {
-        argv._.push(key);
-    });
+    if (opts['--']) {
+        argv['--'] = new Array();
+        notFlags.forEach(function(key) {
+            argv['--'].push(key);
+        });
+    }
+    else {
+        notFlags.forEach(function(key) {
+            argv._.push(key);
+        });
+    }
 
     return argv;
 };
@@ -157,31 +237,9 @@ function hasKey (obj, keys) {
     return key in o;
 }
 
-function setKey (obj, keys, value) {
-    var o = obj;
-    keys.slice(0,-1).forEach(function (key) {
-        if (o[key] === undefined) o[key] = {};
-        o = o[key];
-    });
-    
-    var key = keys[keys.length - 1];
-    if (o[key] === undefined || typeof o[key] === 'boolean') {
-        o[key] = value;
-    }
-    else if (Array.isArray(o[key])) {
-        o[key].push(value);
-    }
-    else {
-        o[key] = [ o[key], value ];
-    }
-}
-
 function isNumber (x) {
     if (typeof x === 'number') return true;
     if (/^0x[0-9a-f]+$/i.test(x)) return true;
     return /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(e[-+]?\d+)?$/.test(x);
 }
 
-function longest (xs) {
-    return Math.max.apply(null, xs.map(function (x) { return x.length }));
-}

@@ -1357,17 +1357,65 @@ module.exports = {
      * next to each other, behavior is undefined (although it should return `true` in most cases).
      */
     canTokensBeAdjacent(leftValue, rightValue) {
+        const espreeOptions = {
+            ecmaVersion: espree.latestEcmaVersion,
+            comment: true,
+            range: true
+        };
+
         let leftToken;
 
         if (typeof leftValue === "string") {
-            const leftTokens = espree.tokenize(leftValue, { ecmaVersion: 2015 });
+            let tokens;
 
-            leftToken = leftTokens[leftTokens.length - 1];
+            try {
+                tokens = espree.tokenize(leftValue, espreeOptions);
+            } catch (e) {
+                return false;
+            }
+
+            const comments = tokens.comments;
+
+            leftToken = tokens[tokens.length - 1];
+            if (comments.length) {
+                const lastComment = comments[comments.length - 1];
+
+                if (lastComment.range[0] > leftToken.range[0]) {
+                    leftToken = lastComment;
+                }
+            }
         } else {
             leftToken = leftValue;
         }
 
-        const rightToken = typeof rightValue === "string" ? espree.tokenize(rightValue, { ecmaVersion: 2015 })[0] : rightValue;
+        if (leftToken.type === "Shebang") {
+            return false;
+        }
+
+        let rightToken;
+
+        if (typeof rightValue === "string") {
+            let tokens;
+
+            try {
+                tokens = espree.tokenize(rightValue, espreeOptions);
+            } catch (e) {
+                return false;
+            }
+
+            const comments = tokens.comments;
+
+            rightToken = tokens[0];
+            if (comments.length) {
+                const firstComment = comments[0];
+
+                if (firstComment.range[0] < rightToken.range[0]) {
+                    rightToken = firstComment;
+                }
+            }
+        } else {
+            rightToken = rightValue;
+        }
 
         if (leftToken.type === "Punctuator" || rightToken.type === "Punctuator") {
             if (leftToken.type === "Punctuator" && rightToken.type === "Punctuator") {
@@ -1378,6 +1426,9 @@ module.exports = {
                     PLUS_TOKENS.has(leftToken.value) && PLUS_TOKENS.has(rightToken.value) ||
                     MINUS_TOKENS.has(leftToken.value) && MINUS_TOKENS.has(rightToken.value)
                 );
+            }
+            if (leftToken.type === "Punctuator" && leftToken.value === "/") {
+                return !["Block", "Line", "RegularExpression"].includes(rightToken.type);
             }
             return true;
         }
@@ -1390,6 +1441,10 @@ module.exports = {
         }
 
         if (leftToken.type !== "Numeric" && rightToken.type === "Numeric" && rightToken.value.startsWith(".")) {
+            return true;
+        }
+
+        if (leftToken.type === "Block" || rightToken.type === "Block" || rightToken.type === "Line") {
             return true;
         }
 
@@ -1413,11 +1468,17 @@ module.exports = {
         const match = namePattern.exec(comment.value);
 
         // Convert the index to loc.
-        return sourceCode.getLocFromIndex(
+        const start = sourceCode.getLocFromIndex(
             comment.range[0] +
             "/*".length +
             (match ? match.index + 1 : 0)
         );
+        const end = {
+            line: start.line,
+            column: start.column + (match ? name.length : 1)
+        };
+
+        return { start, end };
     },
 
     /**

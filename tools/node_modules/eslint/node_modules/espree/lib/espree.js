@@ -2,77 +2,11 @@
 
 /* eslint-disable no-param-reassign*/
 const TokenTranslator = require("./token-translator");
+const { normalizeOptions } = require("./options");
 
-const DEFAULT_ECMA_VERSION = 5;
 const STATE = Symbol("espree's internal state");
 const ESPRIMA_FINISH_NODE = Symbol("espree's esprimaFinishNode");
 
-/**
- * Normalize ECMAScript version from the initial config
- * @param {number} ecmaVersion ECMAScript version from the initial config
- * @throws {Error} throws an error if the ecmaVersion is invalid.
- * @returns {number} normalized ECMAScript version
- */
-function normalizeEcmaVersion(ecmaVersion = DEFAULT_ECMA_VERSION) {
-    if (typeof ecmaVersion !== "number") {
-        throw new Error(`ecmaVersion must be a number. Received value of type ${typeof ecmaVersion} instead.`);
-    }
-
-    let version = ecmaVersion;
-
-    // Calculate ECMAScript edition number from official year version starting with
-    // ES2015, which corresponds with ES6 (or a difference of 2009).
-    if (version >= 2015) {
-        version -= 2009;
-    }
-
-    switch (version) {
-        case 3:
-        case 5:
-        case 6:
-        case 7:
-        case 8:
-        case 9:
-        case 10:
-        case 11:
-            return version;
-
-        // no default
-    }
-
-    throw new Error("Invalid ecmaVersion.");
-}
-
-/**
- * Normalize sourceType from the initial config
- * @param {string} sourceType to normalize
- * @throws {Error} throw an error if sourceType is invalid
- * @returns {string} normalized sourceType
- */
-function normalizeSourceType(sourceType = "script") {
-    if (sourceType === "script" || sourceType === "module") {
-        return sourceType;
-    }
-    throw new Error("Invalid sourceType.");
-}
-
-/**
- * Normalize parserOptions
- * @param {Object} options the parser options to normalize
- * @throws {Error} throw an error if found invalid option.
- * @returns {Object} normalized options
- */
-function normalizeOptions(options) {
-    const ecmaVersion = normalizeEcmaVersion(options.ecmaVersion);
-    const sourceType = normalizeSourceType(options.sourceType);
-    const ranges = options.range === true;
-    const locations = options.loc === true;
-
-    if (sourceType === "module" && ecmaVersion < 6) {
-        throw new Error("sourceType 'module' is not supported when ecmaVersion < 2015. Consider adding `{ ecmaVersion: 2015 }` to the parser options.");
-    }
-    return Object.assign({}, options, { ecmaVersion, sourceType, ranges, locations });
-}
 
 /**
  * Converts an Acorn comment to a Esprima comment.

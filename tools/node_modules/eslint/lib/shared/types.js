@@ -37,7 +37,7 @@ module.exports = {};
  * @property {ParserOptions} [parserOptions] The parser options.
  * @property {string[]} [plugins] The plugin specifiers.
  * @property {string} [processor] The processor specifier.
- * @property {boolean|undefined} reportUnusedDisableDirectives The flag to report unused `eslint-disable` comments.
+ * @property {boolean} [reportUnusedDisableDirectives] The flag to report unused `eslint-disable` comments.
  * @property {boolean} [root] The root flag.
  * @property {Record<string, RuleConf>} [rules] The rule settings.
  * @property {Object} [settings] The shared settings.
@@ -56,7 +56,7 @@ module.exports = {};
  * @property {ParserOptions} [parserOptions] The parser options.
  * @property {string[]} [plugins] The plugin specifiers.
  * @property {string} [processor] The processor specifier.
- * @property {boolean|undefined} reportUnusedDisableDirectives The flag to report unused `eslint-disable` comments.
+ * @property {boolean} [reportUnusedDisableDirectives] The flag to report unused `eslint-disable` comments.
  * @property {Record<string, RuleConf>} [rules] The rule settings.
  * @property {Object} [settings] The shared settings.
  */
