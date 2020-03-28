@@ -9,13 +9,26 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const { CALL, ReferenceTracker } = require("eslint-utils");
+const { CALL, CONSTRUCT, ReferenceTracker } = require("eslint-utils");
+const getPropertyName = require("./utils/ast-utils").getStaticPropertyName;
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
 const nonCallableGlobals = ["Atomics", "JSON", "Math", "Reflect"];
+
+/**
+ * Returns the name of the node to report
+ * @param {ASTNode} node A node to report
+ * @returns {string} name to report
+ */
+function getReportNodeName(node) {
+    if (node.callee.type === "MemberExpression") {
+        return getPropertyName(node.callee);
+    }
+    return node.callee.name;
+}
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -35,7 +48,8 @@ module.exports = {
         schema: [],
 
         messages: {
-            unexpectedCall: "'{{name}}' is not a function."
+            unexpectedCall: "'{{name}}' is not a function.",
+            unexpectedRefCall: "'{{name}}' is reference to '{{ref}}', which is not a function."
         }
     },
 
@@ -49,12 +63,17 @@ module.exports = {
 
                 for (const g of nonCallableGlobals) {
                     traceMap[g] = {
-                        [CALL]: true
+                        [CALL]: true,
+                        [CONSTRUCT]: true
                     };
                 }
 
-                for (const { node } of tracker.iterateGlobalReferences(traceMap)) {
-                    context.report({ node, messageId: "unexpectedCall", data: { name: node.callee.name } });
+                for (const { node, path } of tracker.iterateGlobalReferences(traceMap)) {
+                    const name = getReportNodeName(node);
+                    const ref = path[0];
+                    const messageId = name === ref ? "unexpectedCall" : "unexpectedRefCall";
+
+                    context.report({ node, messageId, data: { name, ref } });
                 }
             }
         };

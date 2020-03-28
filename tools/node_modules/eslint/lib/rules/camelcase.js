@@ -126,6 +126,40 @@ module.exports = {
         }
 
         /**
+         * Checks whether the given node represents assignment target property in destructuring.
+         *
+         * For examples:
+         *    ({a: b.foo} = c);  // => true for `foo`
+         *    ([a.foo] = b);     // => true for `foo`
+         *    ([a.foo = 1] = b); // => true for `foo`
+         *    ({...a.foo} = b);  // => true for `foo`
+         * @param {ASTNode} node An Identifier node to check
+         * @returns {boolean} True if the node is an assignment target property in destructuring.
+         */
+        function isAssignmentTargetPropertyInDestructuring(node) {
+            if (
+                node.parent.type === "MemberExpression" &&
+                node.parent.property === node &&
+                !node.parent.computed
+            ) {
+                const effectiveParent = node.parent.parent;
+
+                return (
+                    effectiveParent.type === "Property" &&
+                    effectiveParent.value === node.parent &&
+                    effectiveParent.parent.type === "ObjectPattern" ||
+                    effectiveParent.type === "ArrayPattern" ||
+                    effectiveParent.type === "RestElement" ||
+                    (
+                        effectiveParent.type === "AssignmentPattern" &&
+                        effectiveParent.left === node.parent
+                    )
+                );
+            }
+            return false;
+        }
+
+        /**
          * Reports an AST node as a rule violation.
          * @param {ASTNode} node The node to report.
          * @returns {void}
@@ -170,6 +204,9 @@ module.exports = {
                     // Report AssignmentExpressions only if they are the left side of the assignment
                     } else if (effectiveParent.type === "AssignmentExpression" && nameIsUnderscored && (effectiveParent.right.type !== "MemberExpression" || effectiveParent.left.type === "MemberExpression" && effectiveParent.left.property.name === node.name)) {
                         report(node);
+
+                    } else if (isAssignmentTargetPropertyInDestructuring(node) && nameIsUnderscored) {
+                        report(node);
                     }
 
                 /*
@@ -186,7 +223,7 @@ module.exports = {
 
                         const assignmentKeyEqualsValue = node.parent.key.name === node.parent.value.name;
 
-                        if (isUnderscored(name) && node.parent.computed) {
+                        if (nameIsUnderscored && node.parent.computed) {
                             report(node);
                         }
 

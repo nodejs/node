@@ -276,7 +276,8 @@ function verifyText({
  */
 function createIgnoreResult(filePath, baseDir) {
     let message;
-    const isHidden = /^\./u.test(path.basename(filePath));
+    const isHidden = filePath.split(path.sep)
+        .find(segment => /^\./u.test(segment));
     const isInNodeModules = baseDir && path.relative(baseDir, filePath).startsWith("node_modules");
 
     if (isHidden) {
