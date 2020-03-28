@@ -12,13 +12,6 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-const OPEN_PAREN = /\$\{$/u;
-const CLOSE_PAREN = /^\}/u;
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -49,7 +42,6 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
         const always = context.options[0] === "always";
-        const prefix = always ? "expected" : "unexpected";
 
         /**
          * Checks spacing before `}` of a given token.
@@ -57,25 +49,39 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingBefore(token) {
-            const prevToken = sourceCode.getTokenBefore(token, { includeComments: true });
+            if (!token.value.startsWith("}")) {
+                return; // starts with a backtick, this is the first template element in the template literal
+            }
 
-            if (prevToken &&
-                CLOSE_PAREN.test(token.value) &&
-                astUtils.isTokenOnSameLine(prevToken, token) &&
-                sourceCode.isSpaceBetweenTokens(prevToken, token) !== always
-            ) {
+            const prevToken = sourceCode.getTokenBefore(token, { includeComments: true }),
+                hasSpace = sourceCode.isSpaceBetween(prevToken, token);
+
+            if (!astUtils.isTokenOnSameLine(prevToken, token)) {
+                return;
+            }
+
+            if (always && !hasSpace) {
                 context.report({
-                    loc: token.loc.start,
-                    messageId: `${prefix}Before`,
-                    fix(fixer) {
-                        if (always) {
-                            return fixer.insertTextBefore(token, " ");
+                    loc: {
+                        start: token.loc.start,
+                        end: {
+                            line: token.loc.start.line,
+                            column: token.loc.start.column + 1
                         }
-                        return fixer.removeRange([
-                            prevToken.range[1],
-                            token.range[0]
-                        ]);
-                    }
+                    },
+                    messageId: "expectedBefore",
+                    fix: fixer => fixer.insertTextBefore(token, " ")
+                });
+            }
+
+            if (!always && hasSpace) {
+                context.report({
+                    loc: {
+                        start: prevToken.loc.end,
+                        end: token.loc.start
+                    },
+                    messageId: "unexpectedBefore",
+                    fix: fixer => fixer.removeRange([prevToken.range[1], token.range[0]])
                 });
             }
         }
@@ -86,28 +92,39 @@ module.exports = {
          * @returns {void}
          */
         function checkSpacingAfter(token) {
-            const nextToken = sourceCode.getTokenAfter(token, { includeComments: true });
+            if (!token.value.endsWith("${")) {
+                return; // ends with a backtick, this is the last template element in the template literal
+            }
 
-            if (nextToken &&
-                OPEN_PAREN.test(token.value) &&
-                astUtils.isTokenOnSameLine(token, nextToken) &&
-                sourceCode.isSpaceBetweenTokens(token, nextToken) !== always
-            ) {
+            const nextToken = sourceCode.getTokenAfter(token, { includeComments: true }),
+                hasSpace = sourceCode.isSpaceBetween(token, nextToken);
+
+            if (!astUtils.isTokenOnSameLine(token, nextToken)) {
+                return;
+            }
+
+            if (always && !hasSpace) {
                 context.report({
                     loc: {
-                        line: token.loc.end.line,
-                        column: token.loc.end.column - 2
+                        start: {
+                            line: token.loc.end.line,
+                            column: token.loc.end.column - 2
+                        },
+                        end: token.loc.end
                     },
-                    messageId: `${prefix}After`,
-                    fix(fixer) {
-                        if (always) {
-                            return fixer.insertTextAfter(token, " ");
-                        }
-                        return fixer.removeRange([
-                            token.range[1],
-                            nextToken.range[0]
-                        ]);
-                    }
+                    messageId: "expectedAfter",
+                    fix: fixer => fixer.insertTextAfter(token, " ")
+                });
+            }
+
+            if (!always && hasSpace) {
+                context.report({
+                    loc: {
+                        start: token.loc.end,
+                        end: nextToken.loc.start
+                    },
+                    messageId: "unexpectedAfter",
+                    fix: fixer => fixer.removeRange([token.range[1], nextToken.range[0]])
                 });
             }
         }

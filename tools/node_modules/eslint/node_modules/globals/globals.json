@@ -1027,6 +1027,24 @@
 		"URL": false,
 		"URLSearchParams": false
 	},
+	"nodeBuiltin": {
+		"Buffer": false,
+		"clearImmediate": false,
+		"clearInterval": false,
+		"clearTimeout": false,
+		"console": false,
+		"global": false,
+		"Intl": false,
+		"process": false,
+		"queueMicrotask": false,
+		"setImmediate": false,
+		"setInterval": false,
+		"setTimeout": false,
+		"TextDecoder": false,
+		"TextEncoder": false,
+		"URL": false,
+		"URLSearchParams": false
+	},
 	"commonjs": {
 		"exports": true,
 		"global": false,

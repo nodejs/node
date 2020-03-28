@@ -232,7 +232,6 @@ Annotations created this way can be shown using the "Show Annotations" iTerm com
 
 - [ansi-styles](https://github.com/chalk/ansi-styles) - ANSI escape codes for styling strings in the terminal
 
-
 ---
 
 <div align="center">

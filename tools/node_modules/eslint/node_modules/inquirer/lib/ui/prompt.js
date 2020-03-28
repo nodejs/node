@@ -16,9 +16,13 @@ class PromptUI extends Base {
     this.prompts = prompts;
   }
 
-  run(questions) {
+  run(questions, answers) {
     // Keep global reference to the answers
-    this.answers = {};
+    if (_.isPlainObject(answers)) {
+      this.answers = _.clone(answers);
+    } else {
+      this.answers = {};
+    }
 
     // Make sure questions is an array.
     if (_.isPlainObject(questions)) {
@@ -40,9 +44,9 @@ class PromptUI extends Base {
     return this.process
       .pipe(
         reduce((answers, answer) => {
-          _.set(this.answers, answer.name, answer.answer);
-          return this.answers;
-        }, {})
+          _.set(answers, answer.name, answer.answer);
+          return answers;
+        }, this.answers)
       )
       .toPromise(Promise)
       .then(this.onCompletion.bind(this));
@@ -100,6 +104,10 @@ class PromptUI extends Base {
   }
 
   filterIfRunnable(question) {
+    if (question.askAnswered !== true && this.answers[question.name] !== undefined) {
+      return empty();
+    }
+
     if (question.when === false) {
       return empty();
     }

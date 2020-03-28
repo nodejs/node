@@ -65,6 +65,7 @@ const { IgnorePattern } = require("./ignore-pattern");
  * @property {boolean|undefined} root The flag to express root.
  * @property {Record<string, RuleConf>|undefined} rules The rule settings
  * @property {Object|undefined} settings The shared settings.
+ * @property {"config" | "ignore" | "implicit-processor"} type The element type.
  */
 
 /**
@@ -156,6 +157,23 @@ function mergeWithoutOverwrite(target, source) {
 }
 
 /**
+ * The error for plugin conflicts.
+ */
+class PluginConflictError extends Error {
+
+    /**
+     * Initialize this error object.
+     * @param {string} pluginId The plugin ID.
+     * @param {{filePath:string, importerName:string}[]} plugins The resolved plugins.
+     */
+    constructor(pluginId, plugins) {
+        super(`Plugin "${pluginId}" was conflicted between ${plugins.map(p => `"${p.importerName}"`).join(" and ")}.`);
+        this.messageTemplate = "plugin-conflict";
+        this.messageData = { pluginId, plugins };
+    }
+}
+
+/**
  * Merge plugins.
  * `target`'s definition is prior to `source`'s.
  * @param {Record<string, DependentPlugin>} target The destination to merge
@@ -180,6 +198,17 @@ function mergePlugins(target, source) {
                 throw sourceValue.error;
             }
             target[key] = sourceValue;
+        } else if (sourceValue.filePath !== targetValue.filePath) {
+            throw new PluginConflictError(key, [
+                {
+                    filePath: targetValue.filePath,
+                    importerName: targetValue.importerName
+                },
+                {
+                    filePath: sourceValue.filePath,
+                    importerName: sourceValue.importerName
+                }
+            ]);
         }
     }
 }
