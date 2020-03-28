@@ -52,9 +52,9 @@ enum PerformanceEntryType {
   NODE_PERFORMANCE_ENTRY_TYPE_INVALID
 };
 
-class performance_state {
+class PerformanceState {
  public:
-  explicit performance_state(v8::Isolate* isolate) :
+  explicit PerformanceState(v8::Isolate* isolate) :
     root(
       isolate,
       sizeof(performance_state_internal)),
