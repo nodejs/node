@@ -331,13 +331,16 @@ MoveTextRegionToLargePages(const text_region& r) {
   tmem = mmap(start, size,
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
-  if (tmem != MAP_FAILED)
-    if (madvise(tmem, size, 14 /* MADV_HUGEPAGE */) == -1) goto fail;
+  if (tmem == MAP_FAILED) goto fail;
+  if (madvise(tmem, size, 14 /* MADV_HUGEPAGE */) == -1) goto fail;
+  memcpy(start, nmem, size);
 #elif defined(__FreeBSD__)
   tmem = mmap(start, size,
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED |
               MAP_ALIGNED_SUPER, -1 , 0);
+  if (tmem == MAP_FAILED) goto fail;
+  memcpy(start, nmem, size);
 #elif defined(__APPLE__)
   // There is not enough room to reserve the mapping close
   // to the region address so we content to give a hint
@@ -348,9 +351,12 @@ MoveTextRegionToLargePages(const text_region& r) {
               PROT_READ | PROT_WRITE | PROT_EXEC,
               MAP_PRIVATE | MAP_ANONYMOUS,
               VM_FLAGS_SUPERPAGE_SIZE_2MB, 0);
-#endif
   if (tmem == MAP_FAILED) goto fail;
-  memcpy(start, nmem, size);
+  memcpy(tmem, nmem, size);
+  if (mprotect(start, size, PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
+    goto fail;
+  memcpy(start, tmem, size);
+#endif
 
   if (mprotect(start, size, PROT_READ | PROT_EXEC) == -1) goto fail;
   // We need not `munmap(tmem, size)` in the above `OnScopeLeave` on success.
