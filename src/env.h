@@ -1270,6 +1270,8 @@ class Environment : public MemoryRetainer {
       std::shared_ptr<v8::ArrayBuffer::Allocator>);
 
   inline void set_main_utf16(std::unique_ptr<v8::String::Value>);
+  inline void set_process_exit_handler(
+      std::function<void(Environment*, int)>&& handler);
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
@@ -1427,6 +1429,9 @@ class Environment : public MemoryRetainer {
   typedef std::unordered_set<std::shared_ptr<v8::ArrayBuffer::Allocator>>
       ArrayBufferAllocatorList;
   ArrayBufferAllocatorList* keep_alive_allocators_ = nullptr;
+
+  std::function<void(Environment*, int)> process_exit_handler_ {
+      DefaultProcessExitHandler };
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);
