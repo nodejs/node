@@ -16,6 +16,7 @@
 
 namespace report {
 using node::Environment;
+using node::Mutex;
 using node::Utf8Value;
 using v8::Boolean;
 using v8::Context;
@@ -134,12 +135,14 @@ static void SetSignal(const FunctionCallbackInfo<Value>& info) {
 }
 
 static void ShouldReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
+  Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
   info.GetReturnValue().Set(
       node::per_process::cli_options->report_on_fatalerror);
 }
 
 static void SetReportOnFatalError(const FunctionCallbackInfo<Value>& info) {
   CHECK(info[0]->IsBoolean());
+  Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
   node::per_process::cli_options->report_on_fatalerror = info[0]->IsTrue();
 }
 
