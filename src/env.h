@@ -1257,6 +1257,8 @@ class Environment : public MemoryRetainer {
 #endif  // HAVE_INSPECTOR
 
   inline void set_main_utf16(std::unique_ptr<v8::String::Value>);
+  inline void set_process_exit_handler(
+      std::function<void(Environment*, int)>&& handler);
 
  private:
   template <typename Fn>
@@ -1458,6 +1460,9 @@ class Environment : public MemoryRetainer {
 
   int64_t base_object_count_ = 0;
   std::atomic_bool is_stopping_ { false };
+
+  std::function<void(Environment*, int)> process_exit_handler_ {
+      DefaultProcessExitHandler };
 
   template <typename T>
   void ForEachBaseObject(T&& iterator);

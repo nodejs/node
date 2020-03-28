@@ -1279,6 +1279,11 @@ void Environment::set_main_utf16(std::unique_ptr<v8::String::Value> str) {
   main_utf16_ = std::move(str);
 }
 
+void Environment::set_process_exit_handler(
+    std::function<void(Environment*, int)>&& handler) {
+  process_exit_handler_ = std::move(handler);
+}
+
 #define VP(PropertyName, StringValue) V(v8::Private, PropertyName)
 #define VY(PropertyName, StringValue) V(v8::Symbol, PropertyName)
 #define VS(PropertyName, StringValue) V(v8::String, PropertyName)
