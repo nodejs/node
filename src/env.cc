@@ -43,11 +43,13 @@ using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Private;
+using v8::Script;
 using v8::SnapshotCreator;
 using v8::StackTrace;
 using v8::String;
 using v8::Symbol;
 using v8::TracingController;
+using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 using worker::Worker;
@@ -435,8 +437,30 @@ Environment::Environment(IsolateData* isolate_data,
 }
 
 Environment::~Environment() {
-  if (Environment** interrupt_data = interrupt_data_.load())
+  if (Environment** interrupt_data = interrupt_data_.load()) {
+    // There are pending RequestInterrupt() callbacks. Tell them not to run,
+    // then force V8 to run interrupts by compiling and running an empty script
+    // so as not to leak memory.
     *interrupt_data = nullptr;
+
+    Isolate::AllowJavascriptExecutionScope allow_js_here(isolate());
+    HandleScope handle_scope(isolate());
+    TryCatch try_catch(isolate());
+    Context::Scope context_scope(context());
+
+#ifdef DEBUG
+    bool consistency_check = false;
+    isolate()->RequestInterrupt([](Isolate*, void* data) {
+      *static_cast<bool*>(data) = true;
+    }, &consistency_check);
+#endif
+
+    Local<Script> script;
+    if (Script::Compile(context(), String::Empty(isolate())).ToLocal(&script))
+      USE(script->Run(context()));
+
+    DCHECK(consistency_check);
+  }
 
   // FreeEnvironment() should have set this.
   CHECK(is_stopping());
