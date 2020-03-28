@@ -433,6 +433,7 @@ class KeyObject : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void InitRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   void InitSecret(v8::Local<v8::ArrayBufferView> abv);
   void InitPublic(const ManagedEVPPKey& pkey);
   void InitPrivate(const ManagedEVPPKey& pkey);
