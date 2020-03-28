@@ -473,6 +473,18 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
+// Set a callback that is called when process.exit() is called from JS,
+// overriding the default handler.
+// It receives the Environment* instance and the exit code as arguments.
+// This could e.g. call Stop(env); in order to terminate execution and stop
+// the event loop.
+// The default handler disposes of the global V8 platform instance, if one is
+// being used, and calls exit().
+NODE_EXTERN void SetProcessExitHandler(
+    Environment* env,
+    std::function<void(Environment*, int)>&& handler);
+NODE_EXTERN void DefaultProcessExitHandler(Environment* env, int exit_code);
+
 // This may return nullptr if context is not associated with a Node instance.
 NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
 

@@ -447,3 +447,20 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   CHECK_EQ(from_inspector->IntegerValue(context).FromJust(), 42);
 }
 #endif  // HAVE_INSPECTOR
+
+TEST_F(EnvironmentTest, ExitHandlerTest) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+
+  int callback_calls = 0;
+
+  Env env {handle_scope, argv};
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 42);
+    callback_calls++;
+    node::Stop(*env);
+  });
+  node::LoadEnvironment(*env, "process.exit(42)").ToLocalChecked();
+  EXPECT_EQ(callback_calls, 1);
+}

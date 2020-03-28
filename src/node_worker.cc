@@ -311,6 +311,9 @@ void Worker::Run() {
         if (is_stopped()) return;
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
+        SetProcessExitHandler(env_.get(), [this](Environment*, int exit_code) {
+          Exit(exit_code);
+        });
       }
       {
         Mutex::ScopedLock lock(mutex_);
@@ -420,9 +423,10 @@ void Worker::JoinThread() {
     MakeCallback(env()->onexit_string(), arraysize(args), args);
   }
 
-  // We cleared all libuv handles bound to this Worker above,
-  // the C++ object is no longer needed for anything now.
-  MakeWeak();
+  // If we get here, the !thread_joined_ condition at the top of the function
+  // implies that the thread was running. In that case, its final action will
+  // be to schedule a callback on the parent thread which will delete this
+  // object, so there's nothing more to do here.
 }
 
 Worker::~Worker() {

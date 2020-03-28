@@ -984,14 +984,7 @@ void Environment::Exit(int exit_code) {
                     StackTrace::CurrentStackTrace(
                         isolate(), stack_trace_limit(), StackTrace::kDetailed));
   }
-  if (is_main_thread()) {
-    set_can_call_into_js(false);
-    stop_sub_worker_contexts();
-    DisposePlatform();
-    exit(exit_code);
-  } else {
-    worker_context()->Exit(exit_code);
-  }
+  process_exit_handler_(this, exit_code);
 }
 
 void Environment::stop_sub_worker_contexts() {
