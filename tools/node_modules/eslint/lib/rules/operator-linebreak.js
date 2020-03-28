@@ -172,10 +172,7 @@ module.exports = {
                 // lone operator
                 context.report({
                     node,
-                    loc: {
-                        line: operatorToken.loc.end.line,
-                        column: operatorToken.loc.end.column
-                    },
+                    loc: operatorToken.loc,
                     messageId: "badLinebreak",
                     data: {
                         operator
@@ -187,10 +184,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    loc: {
-                        line: operatorToken.loc.end.line,
-                        column: operatorToken.loc.end.column
-                    },
+                    loc: operatorToken.loc,
                     messageId: "operatorAtBeginning",
                     data: {
                         operator
@@ -202,10 +196,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    loc: {
-                        line: operatorToken.loc.end.line,
-                        column: operatorToken.loc.end.column
-                    },
+                    loc: operatorToken.loc,
                     messageId: "operatorAtEnd",
                     data: {
                         operator
@@ -217,10 +208,7 @@ module.exports = {
 
                 context.report({
                     node,
-                    loc: {
-                        line: operatorToken.loc.end.line,
-                        column: operatorToken.loc.end.column
-                    },
+                    loc: operatorToken.loc,
                     messageId: "noLinebreak",
                     data: {
                         operator

@@ -13,6 +13,7 @@ module.exports = class Choice {
   constructor(val, answers) {
     // Don't process Choice and Separator object
     if (val instanceof Choice || val.type === 'separator') {
+      // eslint-disable-next-line no-constructor-return
       return val;
     }
 

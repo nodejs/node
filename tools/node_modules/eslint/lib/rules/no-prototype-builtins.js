@@ -47,7 +47,7 @@ module.exports = {
             if (DISALLOWED_PROPS.indexOf(propName) > -1) {
                 context.report({
                     messageId: "prototypeBuildIn",
-                    loc: node.callee.property.loc.start,
+                    loc: node.callee.property.loc,
                     data: { prop: propName },
                     node
                 });

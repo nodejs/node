@@ -45,7 +45,7 @@ function sortByKey(a, b) {
 function writeJSONConfigFile(config, filePath) {
     debug(`Writing JSON config file: ${filePath}`);
 
-    const content = stringify(config, { cmp: sortByKey, space: 4 });
+    const content = `${stringify(config, { cmp: sortByKey, space: 4 })}\n`;
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -80,7 +80,7 @@ function writeJSConfigFile(config, filePath) {
     debug(`Writing JS config file: ${filePath}`);
 
     let contentToWrite;
-    const stringifiedContent = `module.exports = ${stringify(config, { cmp: sortByKey, space: 4 })};`;
+    const stringifiedContent = `module.exports = ${stringify(config, { cmp: sortByKey, space: 4 })};\n`;
 
     try {
         const { CLIEngine } = require("../cli-engine");

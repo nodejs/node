@@ -79,13 +79,13 @@ module.exports = {
 
             "CallExpression[arguments.length=2]"(node) {
                 const [strNode, radixNode] = node.arguments,
-                    str = strNode.value,
+                    str = astUtils.getStaticStringValue(strNode),
                     radix = radixNode.value;
 
                 if (
-                    strNode.type === "Literal" &&
+                    str !== null &&
+                    astUtils.isStringLiteral(strNode) &&
                     radixNode.type === "Literal" &&
-                    typeof str === "string" &&
                     typeof radix === "number" &&
                     radixMap.has(radix) &&
                     isParseInt(node.callee)

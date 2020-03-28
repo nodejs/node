@@ -68,7 +68,7 @@ module.exports = {
          * @returns {void}
          */
         function exitFunction(node) {
-            if (node.async && !scopeInfo.hasAwait && !astUtils.isEmptyFunction(node)) {
+            if (!node.generator && node.async && !scopeInfo.hasAwait && !astUtils.isEmptyFunction(node)) {
                 context.report({
                     node,
                     loc: astUtils.getFunctionHeadLoc(node, sourceCode),

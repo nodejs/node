@@ -32,7 +32,7 @@ module.exports = {
         return {
 
             NewExpression(node) {
-                const wrapperObjects = ["String", "Number", "Boolean", "Math", "JSON"];
+                const wrapperObjects = ["String", "Number", "Boolean"];
 
                 if (wrapperObjects.indexOf(node.callee.name) > -1) {
                     context.report({

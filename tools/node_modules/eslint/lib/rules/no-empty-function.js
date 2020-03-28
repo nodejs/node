@@ -23,7 +23,9 @@ const ALLOW_OPTIONS = Object.freeze([
     "generatorMethods",
     "getters",
     "setters",
-    "constructors"
+    "constructors",
+    "asyncFunctions",
+    "asyncMethods"
 ]);
 
 /**

@@ -17,7 +17,8 @@ const astUtils = require("./utils/ast-utils");
 
 const candidatesOfGlobalObject = Object.freeze([
     "global",
-    "window"
+    "window",
+    "globalThis"
 ]);
 
 /**

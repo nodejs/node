@@ -10,6 +10,9 @@
 //------------------------------------------------------------------------------
 
 const astUtils = require("./utils/ast-utils");
+const eslintUtils = require("eslint-utils");
+
+const precedence = astUtils.getPrecedence;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -126,6 +129,60 @@ module.exports = {
             return Boolean(sourceCode.getCommentsInside(node).length);
         }
 
+        /**
+         * Checks if the given node is wrapped in grouping parentheses. Parentheses for constructs such as if() don't count.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} `true` if the node is parenthesized.
+         * @private
+         */
+        function isParenthesized(node) {
+            return eslintUtils.isParenthesized(1, node, sourceCode);
+        }
+
+        /**
+         * Determines whether the given node needs to be parenthesized when replacing the previous node.
+         * It assumes that `previousNode` is the node to be reported by this rule, so it has a limited list
+         * of possible parent node types. By the same assumption, the node's role in a particular parent is already known.
+         * For example, if the parent is `ConditionalExpression`, `previousNode` must be its `test` child.
+         * @param {ASTNode} previousNode Previous node.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} `true` if the node needs to be parenthesized.
+         */
+        function needsParens(previousNode, node) {
+            if (isParenthesized(previousNode)) {
+
+                // parentheses around the previous node will stay, so there is no need for an additional pair
+                return false;
+            }
+
+            // parent of the previous node will become parent of the replacement node
+            const parent = previousNode.parent;
+
+            switch (parent.type) {
+                case "CallExpression":
+                case "NewExpression":
+                    return node.type === "SequenceExpression";
+                case "IfStatement":
+                case "DoWhileStatement":
+                case "WhileStatement":
+                case "ForStatement":
+                    return false;
+                case "ConditionalExpression":
+                    return precedence(node) <= precedence(parent);
+                case "UnaryExpression":
+                    return precedence(node) < precedence(parent);
+                case "LogicalExpression":
+                    if (previousNode === parent.left) {
+                        return precedence(node) < precedence(parent);
+                    }
+                    return precedence(node) <= precedence(parent);
+
+                /* istanbul ignore next */
+                default:
+                    throw new Error(`Unexpected parent type: ${parent.type}`);
+            }
+        }
+
         return {
             UnaryExpression(node) {
                 const parent = node.parent;
@@ -143,22 +200,25 @@ module.exports = {
                     context.report({
                         node: parent,
                         messageId: "unexpectedNegation",
-                        fix: fixer => {
+                        fix(fixer) {
                             if (hasCommentsInside(parent)) {
                                 return null;
+                            }
+
+                            if (needsParens(parent, node.argument)) {
+                                return fixer.replaceText(parent, `(${sourceCode.getText(node.argument)})`);
                             }
 
                             let prefix = "";
                             const tokenBefore = sourceCode.getTokenBefore(parent);
                             const firstReplacementToken = sourceCode.getFirstToken(node.argument);
 
-                            if (tokenBefore && tokenBefore.range[1] === parent.range[0] &&
-                                    !astUtils.canTokensBeAdjacent(tokenBefore, firstReplacementToken)) {
+                            if (
+                                tokenBefore &&
+                                tokenBefore.range[1] === parent.range[0] &&
+                                !astUtils.canTokensBeAdjacent(tokenBefore, firstReplacementToken)
+                            ) {
                                 prefix = " ";
-                            }
-
-                            if (astUtils.getPrecedence(node.argument) < astUtils.getPrecedence(parent.parent)) {
-                                return fixer.replaceText(parent, `(${sourceCode.getText(node.argument)})`);
                             }
 
                             return fixer.replaceText(parent, prefix + sourceCode.getText(node.argument));
@@ -166,9 +226,8 @@ module.exports = {
                     });
                 }
             },
-            CallExpression(node) {
-                const parent = node.parent;
 
+            CallExpression(node) {
                 if (node.callee.type !== "Identifier" || node.callee.name !== "Boolean") {
                     return;
                 }
@@ -177,11 +236,15 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "unexpectedCall",
-                        fix: fixer => {
-                            if (!node.arguments.length) {
+                        fix(fixer) {
+                            const parent = node.parent;
+
+                            if (node.arguments.length === 0) {
                                 if (parent.type === "UnaryExpression" && parent.operator === "!") {
 
-                                    // !Boolean() -> true
+                                    /*
+                                     * !Boolean() -> true
+                                     */
 
                                     if (hasCommentsInside(parent)) {
                                         return null;
@@ -191,32 +254,48 @@ module.exports = {
                                     let prefix = "";
                                     const tokenBefore = sourceCode.getTokenBefore(parent);
 
-                                    if (tokenBefore && tokenBefore.range[1] === parent.range[0] &&
-                                            !astUtils.canTokensBeAdjacent(tokenBefore, replacement)) {
+                                    if (
+                                        tokenBefore &&
+                                        tokenBefore.range[1] === parent.range[0] &&
+                                        !astUtils.canTokensBeAdjacent(tokenBefore, replacement)
+                                    ) {
                                         prefix = " ";
                                     }
 
                                     return fixer.replaceText(parent, prefix + replacement);
                                 }
 
-                                // Boolean() -> false
+                                /*
+                                 * Boolean() -> false
+                                 */
+
                                 if (hasCommentsInside(node)) {
                                     return null;
                                 }
+
                                 return fixer.replaceText(node, "false");
                             }
 
-                            if (node.arguments.length > 1 || node.arguments[0].type === "SpreadElement" ||
-                                    hasCommentsInside(node)) {
-                                return null;
+                            if (node.arguments.length === 1) {
+                                const argument = node.arguments[0];
+
+                                if (argument.type === "SpreadElement" || hasCommentsInside(node)) {
+                                    return null;
+                                }
+
+                                /*
+                                 * Boolean(expression) -> expression
+                                 */
+
+                                if (needsParens(node, argument)) {
+                                    return fixer.replaceText(node, `(${sourceCode.getText(argument)})`);
+                                }
+
+                                return fixer.replaceText(node, sourceCode.getText(argument));
                             }
 
-                            const argument = node.arguments[0];
-
-                            if (astUtils.getPrecedence(argument) < astUtils.getPrecedence(node.parent)) {
-                                return fixer.replaceText(node, `(${sourceCode.getText(argument)})`);
-                            }
-                            return fixer.replaceText(node, sourceCode.getText(argument));
+                            // two or more arguments
+                            return null;
                         }
                     });
                 }

@@ -8,7 +8,7 @@ var slash = '/';
 var backslash = /\\/g;
 var enclosure = /[\{\[].*[\/]*.*[\}\]]$/;
 var globby = /(^|[^\\])([\{\[]|\([^\)]+$)/;
-var escaped = /\\([\*\?\|\[\]\(\)\{\}])/g;
+var escaped = /\\([\!\*\?\|\[\]\(\)\{\}])/g;
 
 /**
  * @param {string} str

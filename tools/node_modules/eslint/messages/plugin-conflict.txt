@@ -1,0 +1,7 @@
+ESLint couldn't determine the plugin "<%- pluginId %>" uniquely.
+<% for (const { filePath, importerName } of plugins) { %>
+- <%= filePath %> (loaded in "<%= importerName %>")<% } %>
+
+Please remove the "plugins" setting from either config or remove either plugin installation.
+
+If you still can't figure out the problem, please stop by https://gitter.im/eslint/eslint to chat with the team.

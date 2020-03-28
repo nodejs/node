@@ -64,7 +64,7 @@ module.exports = {
             context.report({
                 node: node.parent.parent,
                 messageId: "unexpected",
-                loc: node.parent.property.loc.start,
+                loc: node.parent.property.loc,
                 fix(fixer) {
                     if (node.parent.parent.arguments.length && !isSideEffectFree(node.parent.parent.arguments[0])) {
                         return null;

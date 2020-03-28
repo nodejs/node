@@ -7,6 +7,9 @@
 
 const { isNumericLiteral } = require("./utils/ast-utils");
 
+// Maximum array length by the ECMAScript Specification.
+const MAX_ARRAY_LENGTH = 2 ** 32 - 1;
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -76,82 +79,114 @@ module.exports = {
             ignore = (config.ignore || []).map(normalizeIgnoreValue),
             ignoreArrayIndexes = !!config.ignoreArrayIndexes;
 
+        const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
+
         /**
-         * Returns whether the number should be ignored
-         * @param {number} num the number
-         * @returns {boolean} true if the number should be ignored
+         * Returns whether the rule is configured to ignore the given value
+         * @param {bigint|number} value The value to check
+         * @returns {boolean} true if the value is ignored
          */
-        function shouldIgnoreNumber(num) {
-            return ignore.indexOf(num) !== -1;
+        function isIgnoredValue(value) {
+            return ignore.indexOf(value) !== -1;
         }
 
         /**
-         * Returns whether the number should be ignored when used as a radix within parseInt() or Number.parseInt()
-         * @param {ASTNode} parent the non-"UnaryExpression" parent
-         * @param {ASTNode} node the node literal being evaluated
-         * @returns {boolean} true if the number should be ignored
+         * Returns whether the given node is used as a radix within parseInt() or Number.parseInt()
+         * @param {ASTNode} fullNumberNode `Literal` or `UnaryExpression` full number node
+         * @returns {boolean} true if the node is radix
          */
-        function shouldIgnoreParseInt(parent, node) {
-            return parent.type === "CallExpression" && node === parent.arguments[1] &&
-                (parent.callee.name === "parseInt" ||
-                parent.callee.type === "MemberExpression" &&
-                parent.callee.object.name === "Number" &&
-                parent.callee.property.name === "parseInt");
+        function isParseIntRadix(fullNumberNode) {
+            const parent = fullNumberNode.parent;
+
+            return parent.type === "CallExpression" && fullNumberNode === parent.arguments[1] &&
+                (
+                    parent.callee.name === "parseInt" ||
+                    (
+                        parent.callee.type === "MemberExpression" &&
+                        parent.callee.object.name === "Number" &&
+                        parent.callee.property.name === "parseInt"
+                    )
+                );
         }
 
         /**
-         * Returns whether the number should be ignored when used to define a JSX prop
-         * @param {ASTNode} parent the non-"UnaryExpression" parent
-         * @returns {boolean} true if the number should be ignored
+         * Returns whether the given node is a direct child of a JSX node.
+         * In particular, it aims to detect numbers used as prop values in JSX tags.
+         * Example: <input maxLength={10} />
+         * @param {ASTNode} fullNumberNode `Literal` or `UnaryExpression` full number node
+         * @returns {boolean} true if the node is a JSX number
          */
-        function shouldIgnoreJSXNumbers(parent) {
-            return parent.type.indexOf("JSX") === 0;
+        function isJSXNumber(fullNumberNode) {
+            return fullNumberNode.parent.type.indexOf("JSX") === 0;
         }
 
         /**
-         * Returns whether the number should be ignored when used as an array index with enabled 'ignoreArrayIndexes' option.
-         * @param {ASTNode} node Node to check
-         * @returns {boolean} true if the number should be ignored
+         * Returns whether the given node is used as an array index.
+         * Value must coerce to a valid array index name: "0", "1", "2" ... "4294967294".
+         *
+         * All other values, like "-1", "2.5", or "4294967295", are just "normal" object properties,
+         * which can be created and accessed on an array in addition to the array index properties,
+         * but they don't affect array's length and are not considered by methods such as .map(), .forEach() etc.
+         *
+         * The maximum array length by the specification is 2 ** 32 - 1 = 4294967295,
+         * thus the maximum valid index is 2 ** 32 - 2 = 4294967294.
+         *
+         * All notations are allowed, as long as the value coerces to one of "0", "1", "2" ... "4294967294".
+         *
+         * Valid examples:
+         * a[0], a[1], a[1.2e1], a[0xAB], a[0n], a[1n]
+         * a[-0] (same as a[0] because -0 coerces to "0")
+         * a[-0n] (-0n evaluates to 0n)
+         *
+         * Invalid examples:
+         * a[-1], a[-0xAB], a[-1n], a[2.5], a[1.23e1], a[12e-1]
+         * a[4294967295] (above the max index, it's an access to a regular property a["4294967295"])
+         * a[999999999999999999999] (even if it wasn't above the max index, it would be a["1e+21"])
+         * a[1e310] (same as a["Infinity"])
+         * @param {ASTNode} fullNumberNode `Literal` or `UnaryExpression` full number node
+         * @param {bigint|number} value Value expressed by the fullNumberNode
+         * @returns {boolean} true if the node is a valid array index
          */
-        function shouldIgnoreArrayIndexes(node) {
-            const parent = node.parent;
+        function isArrayIndex(fullNumberNode, value) {
+            const parent = fullNumberNode.parent;
 
-            return ignoreArrayIndexes &&
-                parent.type === "MemberExpression" && parent.property === node;
+            return parent.type === "MemberExpression" && parent.property === fullNumberNode &&
+                (Number.isInteger(value) || typeof value === "bigint") &&
+                value >= 0 && value < MAX_ARRAY_LENGTH;
         }
 
         return {
             Literal(node) {
-                const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
-
                 if (!isNumericLiteral(node)) {
                     return;
                 }
 
                 let fullNumberNode;
-                let parent;
                 let value;
                 let raw;
 
-                // For negative magic numbers: update the value and parent node
+                // Treat unary minus as a part of the number
                 if (node.parent.type === "UnaryExpression" && node.parent.operator === "-") {
                     fullNumberNode = node.parent;
-                    parent = fullNumberNode.parent;
                     value = -node.value;
                     raw = `-${node.raw}`;
                 } else {
                     fullNumberNode = node;
-                    parent = node.parent;
                     value = node.value;
                     raw = node.raw;
                 }
 
-                if (shouldIgnoreNumber(value) ||
-                    shouldIgnoreParseInt(parent, fullNumberNode) ||
-                    shouldIgnoreArrayIndexes(fullNumberNode) ||
-                    shouldIgnoreJSXNumbers(parent)) {
+                // Always allow radix arguments and JSX props
+                if (
+                    isIgnoredValue(value) ||
+                    isParseIntRadix(fullNumberNode) ||
+                    isJSXNumber(fullNumberNode) ||
+                    (ignoreArrayIndexes && isArrayIndex(fullNumberNode, value))
+                ) {
                     return;
                 }
+
+                const parent = fullNumberNode.parent;
 
                 if (parent.type === "VariableDeclarator") {
                     if (enforceConst && parent.parent.kind !== "const") {
