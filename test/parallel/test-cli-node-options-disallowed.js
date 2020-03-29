@@ -25,6 +25,8 @@ disallow('-c');
 disallow('--interactive');
 disallow('-i');
 disallow('--v8-options');
+disallow('--expose_internals');
+disallow('--expose-internals');
 disallow('--');
 
 function disallow(opt) {
