@@ -501,9 +501,10 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   }
 }
 
-void Environment::ExitEnv() {
+void Environment::Stop() {
   set_can_call_into_js(false);
   set_stopping(true);
+  stop_sub_worker_contexts();
   isolate_->TerminateExecution();
   SetImmediateThreadsafe([](Environment* env) { uv_stop(env->event_loop()); });
 }

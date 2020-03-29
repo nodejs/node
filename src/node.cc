@@ -1059,7 +1059,7 @@ int Start(int argc, char** argv) {
 }
 
 int Stop(Environment* env) {
-  env->ExitEnv();
+  env->Stop();
   return 0;
 }
 
