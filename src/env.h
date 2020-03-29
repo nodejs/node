@@ -876,6 +876,9 @@ class Environment : public MemoryRetainer {
 
     T* data = nullptr;
     Environment* env;
+
+    inline operator bool() const { return data != nullptr; }
+    inline bool operator !() const { return data == nullptr; }
   };
 
   template <typename T>
