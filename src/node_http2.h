@@ -246,18 +246,11 @@ class Http2Options {
   size_t max_outstanding_settings_ = kDefaultMaxSettings;
 };
 
-class Http2Priority {
- public:
+struct Http2Priority : public nghttp2_priority_spec {
   Http2Priority(Environment* env,
                 v8::Local<v8::Value> parent,
                 v8::Local<v8::Value> weight,
                 v8::Local<v8::Value> exclusive);
-
-  nghttp2_priority_spec* operator*() {
-    return &spec;
-  }
- private:
-  nghttp2_priority_spec spec;
 };
 
 class Http2StreamListener : public StreamListener {
