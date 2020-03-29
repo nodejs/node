@@ -173,8 +173,8 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Environment::BindingScope<BindingData> binding_scope(env);
+  if (!binding_scope) return;
   BindingData* binding_data = binding_scope.data;
-  if (binding_data == nullptr) return;
 
   env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
                              CachedDataVersionTag);
