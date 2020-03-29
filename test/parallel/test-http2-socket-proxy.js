@@ -1,4 +1,4 @@
-// Flags: --expose_internals
+// Flags: --expose-internals
 
 'use strict';
 

@@ -560,7 +560,7 @@ const errorTests = [
     expect: '... ... ... undefined'
   },
   // REPL should get a normal require() function, not one that allows
-  // access to internal modules without the --expose_internals flag.
+  // access to internal modules without the --expose-internals flag.
   {
     send: 'require("internal/repl")',
     expect: [
