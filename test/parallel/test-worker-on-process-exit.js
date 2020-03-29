@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const { Worker } = require('worker_threads');
@@ -20,4 +20,3 @@ if (process.argv[2] !== 'child') {
   nestedWorker.on('exit', () => console.log('exit event received'));
   nestedWorker.on('online', () => process.exit());
 }
-
