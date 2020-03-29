@@ -1,4 +1,4 @@
-name: misc
+name: Build Docs
 
 on: [push, pull_request]
 
