@@ -985,6 +985,7 @@ void Environment::Exit(int exit_code) {
                         isolate(), stack_trace_limit(), StackTrace::kDetailed));
   }
   if (is_main_thread()) {
+    set_can_call_into_js(false);
     stop_sub_worker_contexts();
     DisposePlatform();
     exit(exit_code);
