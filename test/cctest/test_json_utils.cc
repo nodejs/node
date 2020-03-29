@@ -1,9 +1,9 @@
-#include "node_report.h"
+#include "json_utils.h"
 
 #include "gtest/gtest.h"
 
-TEST(ReportUtilTest, EscapeJsonChars) {
-  using report::EscapeJsonChars;
+TEST(JSONUtilsTest, EscapeJsonChars) {
+  using node::EscapeJsonChars;
   EXPECT_EQ("abc", EscapeJsonChars("abc"));
   EXPECT_EQ("abc\\n", EscapeJsonChars("abc\n"));
   EXPECT_EQ("abc\\nabc", EscapeJsonChars("abc\nabc"));
