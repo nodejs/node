@@ -405,7 +405,7 @@ Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: v13.11.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/29747
     description: The `callback` is invoked if 'finish' or 'error' is emitted.
   - version: v10.0.0
