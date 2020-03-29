@@ -43,7 +43,7 @@ let gotWorld = false;
 server.listen(0, () => {
   const client = spawn(common.opensslCli, [
     's_client',
-    '-connect', '127.0.0.1:' + server.address().port,
+    '-connect', `127.0.0.1:${server.address().port}`,
     '-cipher', CIPHERS,
     '-psk', KEY,
     '-psk_identity', IDENTITY
