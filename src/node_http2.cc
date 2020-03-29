@@ -210,7 +210,7 @@ Http2Options::Http2Options(Environment* env, nghttp2_session_type type) {
   // Important: The maxSessionMemory option in javascript is expressed in
   //            terms of MB increments (i.e. the value 1 == 1 MB)
   if (flags & (1 << IDX_OPTIONS_MAX_SESSION_MEMORY))
-    SetMaxSessionMemory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] * 1e6);
+    SetMaxSessionMemory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] * 1000000);
 }
 
 void Http2Session::Http2Settings::Init() {
@@ -350,8 +350,8 @@ Http2Priority::Http2Priority(Environment* env,
   int32_t weight_ = weight->Int32Value(context).ToChecked();
   bool exclusive_ = exclusive->BooleanValue(env->isolate());
   Debug(env, DebugCategory::HTTP2STREAM,
-        "Http2Priority: parent: %d, weight: %d, exclusive: %d\n",
-        parent_, weight_, exclusive_);
+        "Http2Priority: parent: %d, weight: %d, exclusive: %s\n",
+        parent_, weight_, exclusive_ ? "yes" : "no");
   nghttp2_priority_spec_init(&spec, parent_, weight_, exclusive_ ? 1 : 0);
 }
 
@@ -579,8 +579,10 @@ void Http2Stream::EmitStatistics() {
     } else {
       buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTESENT] = 0;
     }
-    buffer[IDX_STREAM_STATS_SENTBYTES] = entry->sent_bytes();
-    buffer[IDX_STREAM_STATS_RECEIVEDBYTES] = entry->received_bytes();
+    buffer[IDX_STREAM_STATS_SENTBYTES] =
+        static_cast<double>(entry->sent_bytes());
+    buffer[IDX_STREAM_STATS_RECEIVEDBYTES] =
+        static_cast<double>(entry->received_bytes());
     Local<Object> obj;
     if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
   });
@@ -603,10 +605,12 @@ void Http2Session::EmitStatistics() {
     buffer[IDX_SESSION_STATS_STREAMCOUNT] = entry->stream_count();
     buffer[IDX_SESSION_STATS_STREAMAVERAGEDURATION] =
         entry->stream_average_duration();
-    buffer[IDX_SESSION_STATS_DATA_SENT] = entry->data_sent();
-    buffer[IDX_SESSION_STATS_DATA_RECEIVED] = entry->data_received();
+    buffer[IDX_SESSION_STATS_DATA_SENT] =
+        static_cast<double>(entry->data_sent());
+    buffer[IDX_SESSION_STATS_DATA_RECEIVED] =
+        static_cast<double>(entry->data_received());
     buffer[IDX_SESSION_STATS_MAX_CONCURRENT_STREAMS] =
-        entry->max_concurrent_streams();
+        static_cast<double>(entry->max_concurrent_streams());
     Local<Object> obj;
     if (entry->ToObject().ToLocal(&obj)) entry->Notify(obj);
   });
@@ -1514,9 +1518,9 @@ void Http2Session::ClearOutgoing(int status) {
     outgoing_storage_.clear();
     outgoing_length_ = 0;
 
-    std::vector<nghttp2_stream_write> current_outgoing_buffers_;
+    std::vector<NgHttp2StreamWrite> current_outgoing_buffers_;
     current_outgoing_buffers_.swap(outgoing_buffers_);
-    for (const nghttp2_stream_write& wr : current_outgoing_buffers_) {
+    for (const NgHttp2StreamWrite& wr : current_outgoing_buffers_) {
       WriteWrap* wrap = wr.req_wrap;
       if (wrap != nullptr) {
         // TODO(addaleax): Pass `status` instead of 0, so that we actually error
@@ -1543,7 +1547,7 @@ void Http2Session::ClearOutgoing(int status) {
   }
 }
 
-void Http2Session::PushOutgoingBuffer(nghttp2_stream_write&& write) {
+void Http2Session::PushOutgoingBuffer(NgHttp2StreamWrite&& write) {
   outgoing_length_ += write.buf.len;
   outgoing_buffers_.emplace_back(std::move(write));
 }
@@ -1560,7 +1564,7 @@ void Http2Session::CopyDataIntoOutgoing(const uint8_t* src, size_t src_length) {
   // of the outgoing_buffers_ vector may invalidate the pointer.
   // The correct base pointers will be set later, before writing to the
   // underlying socket.
-  PushOutgoingBuffer(nghttp2_stream_write {
+  PushOutgoingBuffer(NgHttp2StreamWrite {
     uv_buf_init(nullptr, src_length)
   });
 }
@@ -1623,7 +1627,7 @@ uint8_t Http2Session::SendPendingData() {
   // (Those are marked by having .base == nullptr.)
   size_t offset = 0;
   size_t i = 0;
-  for (const nghttp2_stream_write& write : outgoing_buffers_) {
+  for (const NgHttp2StreamWrite& write : outgoing_buffers_) {
     statistics_.data_sent += write.buf.len;
     if (write.buf.base == nullptr) {
       bufs[i++] = uv_buf_init(
@@ -1679,7 +1683,7 @@ int Http2Session::OnSendData(
     // we told it so, which means that we *should* have data available.
     CHECK(!stream->queue_.empty());
 
-    nghttp2_stream_write& write = stream->queue_.front();
+    NgHttp2StreamWrite& write = stream->queue_.front();
     if (write.buf.len <= length) {
       // This write does not suffice by itself, so we can consume it completely.
       length -= write.buf.len;
@@ -1689,7 +1693,7 @@ int Http2Session::OnSendData(
     }
 
     // Slice off `length` bytes of the first write in the queue.
-    session->PushOutgoingBuffer(nghttp2_stream_write {
+    session->PushOutgoingBuffer(NgHttp2StreamWrite {
       uv_buf_init(write.buf.base, length)
     });
     write.buf.base += length;
@@ -1699,7 +1703,7 @@ int Http2Session::OnSendData(
 
   if (frame->data.padlen > 0) {
     // Send padding if that was requested.
-    session->PushOutgoingBuffer(nghttp2_stream_write {
+    session->PushOutgoingBuffer(NgHttp2StreamWrite {
       uv_buf_init(const_cast<char*>(zero_bytes_256), frame->data.padlen - 1)
     });
   }
@@ -1780,7 +1784,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 
   // Remember the current buffer, so that OnDataChunkReceived knows the
   // offset of a DATA frame's data into the socket read buffer.
-  stream_buf_ = uv_buf_init(buf.data(), nread);
+  stream_buf_ = uv_buf_init(buf.data(), static_cast<unsigned int>(nread));
 
   Isolate* isolate = env()->isolate();
 
@@ -1793,7 +1797,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 
   if (UNLIKELY(ret < 0)) {
     Debug(this, "fatal error receiving data: %d", ret);
-    Local<Value> arg = Integer::New(isolate, ret);
+    Local<Value> arg = Integer::New(isolate, static_cast<int32_t>(ret));
     MakeCallback(env()->http2session_on_error_function(), 1, &arg);
     return;
   }
@@ -1802,7 +1806,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 }
 
 bool Http2Session::HasWritesOnSocketForStream(Http2Stream* stream) {
-  for (const nghttp2_stream_write& wr : outgoing_buffers_) {
+  for (const NgHttp2StreamWrite& wr : outgoing_buffers_) {
     if (wr.req_wrap != nullptr && wr.req_wrap->stream() == stream)
       return true;
   }
@@ -1949,7 +1953,7 @@ void Http2Stream::Destroy() {
     // here because it's possible for destroy to have been called while
     // we still have queued outbound writes.
     while (!queue_.empty()) {
-      nghttp2_stream_write& head = queue_.front();
+      NgHttp2StreamWrite& head = queue_.front();
       if (head.req_wrap != nullptr)
         head.req_wrap->Done(UV_ECANCELED);
       queue_.pop();
@@ -2167,7 +2171,7 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
   for (size_t i = 0; i < nbufs; ++i) {
     // Store the req_wrap on the last write info in the queue, so that it is
     // only marked as finished once all buffers associated with it are finished.
-    queue_.emplace(nghttp2_stream_write {
+    queue_.emplace(NgHttp2StreamWrite {
       i == nbufs - 1 ? req_wrap : nullptr,
       bufs[i]
     });
@@ -2403,11 +2407,11 @@ void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
   buffer[IDX_SESSION_STATE_REMOTE_WINDOW_SIZE] =
       nghttp2_session_get_remote_window_size(s);
   buffer[IDX_SESSION_STATE_OUTBOUND_QUEUE_SIZE] =
-      nghttp2_session_get_outbound_queue_size(s);
+      static_cast<double>(nghttp2_session_get_outbound_queue_size(s));
   buffer[IDX_SESSION_STATE_HD_DEFLATE_DYNAMIC_TABLE_SIZE] =
-      nghttp2_session_get_hd_deflate_dynamic_table_size(s);
+      static_cast<double>(nghttp2_session_get_hd_deflate_dynamic_table_size(s));
   buffer[IDX_SESSION_STATE_HD_INFLATE_DYNAMIC_TABLE_SIZE] =
-      nghttp2_session_get_hd_inflate_dynamic_table_size(s);
+      static_cast<double>(nghttp2_session_get_hd_inflate_dynamic_table_size(s));
 }
 
 
@@ -2415,7 +2419,7 @@ void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
 void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args.IsConstructCall());
-  int val = args[0]->IntegerValue(env->context()).ToChecked();
+  int32_t val = args[0]->Int32Value(env->context()).ToChecked();
   nghttp2_session_type type = static_cast<nghttp2_session_type>(val);
   Http2Session* session = new Http2Session(env, args.This(), type);
   session->get_async_id();  // avoid compiler warning
@@ -2453,7 +2457,7 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Environment* env = session->env();
 
   Local<Array> headers = args[0].As<Array>();
-  int options = args[1]->IntegerValue(env->context()).ToChecked();
+  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
   Http2Priority priority(env, args[2], args[3], args[4]);
 
   Debug(session, "request submitted");
@@ -2464,7 +2468,7 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
           *priority,
           Http2Headers(env, headers),
           &ret,
-          options);
+          static_cast<int>(options));
 
   if (ret <= 0 || stream == nullptr) {
     Debug(session, "could not submit request: %s", nghttp2_strerror(ret));
@@ -2553,10 +2557,12 @@ void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int options = args[1]->IntegerValue(env->context()).ToChecked();
+  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
 
   args.GetReturnValue().Set(
-      stream->SubmitResponse(Http2Headers(env, headers), options));
+      stream->SubmitResponse(
+          Http2Headers(env, headers),
+          static_cast<int>(options)));
   Debug(stream, "response submitted");
 }
 
@@ -2606,13 +2612,16 @@ void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&parent, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int options = args[1]->IntegerValue(env->context()).ToChecked();
+  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
 
   Debug(parent, "creating push promise");
 
   int32_t ret = 0;
   Http2Stream* stream =
-      parent->SubmitPushPromise(Http2Headers(env, headers), &ret, options);
+      parent->SubmitPushPromise(
+          Http2Headers(env, headers),
+          &ret,
+          static_cast<int>(options));
 
   if (ret <= 0 || stream == nullptr) {
     Debug(parent, "failed to create push stream: %d", ret);
@@ -2726,13 +2735,13 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
   Local<String> origin_string = args[0].As<String>();
-  int count = args[1]->IntegerValue(context).ToChecked();
+  int32_t count = args[1]->Int32Value(context).ToChecked();
 
 
   Origins origins(env->isolate(),
                   env->context(),
                   origin_string,
-                  count);
+                  static_cast<int>(count));
 
   session->Origin(*origins, origins.length());
 }
@@ -2886,7 +2895,7 @@ void Http2Session::Http2Ping::DetachFromSession() {
   session_ = nullptr;
 }
 
-void nghttp2_stream_write::MemoryInfo(MemoryTracker* tracker) const {
+void NgHttp2StreamWrite::MemoryInfo(MemoryTracker* tracker) const {
   if (req_wrap != nullptr)
     tracker->TrackField("req_wrap", req_wrap->GetAsyncWrap());
   tracker->TrackField("buf", buf);
