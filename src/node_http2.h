@@ -24,13 +24,13 @@ namespace http2 {
 // may send in order to prevent abuse. The current default cap is 10. The
 // user may set a different limit using a per Http2Session configuration
 // option.
-#define DEFAULT_MAX_PINGS 10
+constexpr size_t kDefaultMaxPings = 10;
 
 // Also strictly limit the number of outstanding SETTINGS frames a user sends
-#define DEFAULT_MAX_SETTINGS 10
+constexpr size_t kDefaultMaxSettings = 10;
 
 // Default maximum total memory cap for Http2Session.
-#define DEFAULT_MAX_SESSION_MEMORY 1e7
+constexpr uint64_t kDefaultMaxSessionMemory = 10000000;
 
 // These are the standard HTTP/2 defaults as specified by the RFC
 #define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
@@ -123,17 +123,17 @@ enum nghttp2_stream_options {
   STREAM_OPTION_GET_TRAILERS = 0x2,
 };
 
-struct nghttp2_stream_write : public MemoryRetainer {
+struct NgHttp2StreamWrite : public MemoryRetainer {
   WriteWrap* req_wrap = nullptr;
   uv_buf_t buf;
 
-  inline explicit nghttp2_stream_write(uv_buf_t buf_) : buf(buf_) {}
-  inline nghttp2_stream_write(WriteWrap* req, uv_buf_t buf_) :
+  inline explicit NgHttp2StreamWrite(uv_buf_t buf_) : buf(buf_) {}
+  inline NgHttp2StreamWrite(WriteWrap* req, uv_buf_t buf_) :
       req_wrap(req), buf(buf_) {}
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  SET_MEMORY_INFO_NAME(nghttp2_stream_write)
-  SET_SELF_SIZE(nghttp2_stream_write)
+  SET_MEMORY_INFO_NAME(NgHttp2StreamWrite)
+  SET_SELF_SIZE(NgHttp2StreamWrite)
 };
 
 // The Padding Strategy determines the method by which extra padding is
@@ -239,11 +239,11 @@ class Http2Options {
 
  private:
   Nghttp2OptionPointer options_;
-  uint64_t max_session_memory_ = DEFAULT_MAX_SESSION_MEMORY;
+  uint64_t max_session_memory_ = kDefaultMaxSessionMemory;
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
-  size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
-  size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
+  size_t max_outstanding_pings_ = kDefaultMaxPings;
+  size_t max_outstanding_settings_ = kDefaultMaxSettings;
 };
 
 class Http2Priority {
@@ -473,7 +473,7 @@ class Http2Stream : public AsyncWrap,
 
   // Outbound Data... This is the data written by the JS layer that is
   // waiting to be written out to the socket.
-  std::queue<nghttp2_stream_write> queue_;
+  std::queue<NgHttp2StreamWrite> queue_;
   size_t available_outbound_length_ = 0;
 
   Http2StreamListener stream_listener_;
@@ -836,7 +836,7 @@ class Http2Session : public AsyncWrap,
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
 
   // The maximum amount of memory allocated for this session
-  uint64_t max_session_memory_ = DEFAULT_MAX_SESSION_MEMORY;
+  uint64_t max_session_memory_ = kDefaultMaxSessionMemory;
   uint64_t current_session_memory_ = 0;
   // The amount of memory allocated by nghttp2 internals
   uint64_t current_nghttp2_memory_ = 0;
@@ -859,13 +859,13 @@ class Http2Session : public AsyncWrap,
   AllocatedBuffer stream_buf_allocation_;
   size_t stream_buf_offset_ = 0;
 
-  size_t max_outstanding_pings_ = DEFAULT_MAX_PINGS;
+  size_t max_outstanding_pings_ = kDefaultMaxPings;
   std::queue<BaseObjectPtr<Http2Ping>> outstanding_pings_;
 
-  size_t max_outstanding_settings_ = DEFAULT_MAX_SETTINGS;
+  size_t max_outstanding_settings_ = kDefaultMaxSettings;
   std::queue<BaseObjectPtr<Http2Settings>> outstanding_settings_;
 
-  std::vector<nghttp2_stream_write> outgoing_buffers_;
+  std::vector<NgHttp2StreamWrite> outgoing_buffers_;
   std::vector<uint8_t> outgoing_storage_;
   size_t outgoing_length_ = 0;
   std::vector<int32_t> pending_rst_streams_;
@@ -877,7 +877,7 @@ class Http2Session : public AsyncWrap,
   // Also use the invalid frame count as a measure for rejecting input frames.
   uint32_t invalid_frame_count_ = 0;
 
-  void PushOutgoingBuffer(nghttp2_stream_write&& write);
+  void PushOutgoingBuffer(NgHttp2StreamWrite&& write);
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
 
