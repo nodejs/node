@@ -44,6 +44,24 @@ namespace http2 {
 #define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
 #define MAX_INITIAL_WINDOW_SIZE 2147483647
 
+template <typename T, void(*fn)(T*)>
+struct Nghttp2Deleter {
+  void operator()(T* ptr) const noexcept { fn(ptr); }
+};
+
+using Nghttp2OptionPointer =
+    std::unique_ptr<nghttp2_option,
+                    Nghttp2Deleter<nghttp2_option, nghttp2_option_del>>;
+
+using Nghttp2SessionPointer =
+    std::unique_ptr<nghttp2_session,
+                    Nghttp2Deleter<nghttp2_session, nghttp2_session_del>>;
+
+using Nghttp2SessionCallbacksPointer =
+    std::unique_ptr<nghttp2_session_callbacks,
+                    Nghttp2Deleter<nghttp2_session_callbacks,
+                                   nghttp2_session_callbacks_del>>;
+
 struct Http2HeadersTraits {
   typedef nghttp2_nv nv_t;
   static const uint8_t kNoneFlag = NGHTTP2_NV_FLAG_NONE;
@@ -173,12 +191,10 @@ class Http2Options {
  public:
   Http2Options(Environment* env, nghttp2_session_type type);
 
-  ~Http2Options() {
-    nghttp2_option_del(options_);
-  }
+  ~Http2Options() = default;
 
   nghttp2_option* operator*() const {
-    return options_;
+    return options_.get();
   }
 
   void SetMaxHeaderPairs(uint32_t max) {
@@ -201,7 +217,7 @@ class Http2Options {
     max_outstanding_pings_ = max;
   }
 
-  size_t GetMaxOutstandingPings() {
+  size_t GetMaxOutstandingPings() const {
     return max_outstanding_pings_;
   }
 
@@ -209,7 +225,7 @@ class Http2Options {
     max_outstanding_settings_ = max;
   }
 
-  size_t GetMaxOutstandingSettings() {
+  size_t GetMaxOutstandingSettings() const {
     return max_outstanding_settings_;
   }
 
@@ -217,12 +233,12 @@ class Http2Options {
     max_session_memory_ = max;
   }
 
-  uint64_t GetMaxSessionMemory() {
+  uint64_t GetMaxSessionMemory() const {
     return max_session_memory_;
   }
 
  private:
-  nghttp2_option* options_;
+  Nghttp2OptionPointer options_;
   uint64_t max_session_memory_ = DEFAULT_MAX_SESSION_MEMORY;
   uint32_t max_header_pairs_ = DEFAULT_MAX_HEADER_LIST_PAIRS;
   padding_strategy_type padding_strategy_ = PADDING_STRATEGY_NONE;
@@ -571,9 +587,9 @@ class Http2Session : public AsyncWrap,
 
   inline nghttp2_session_type type() const { return session_type_; }
 
-  inline nghttp2_session* session() const { return session_; }
+  inline nghttp2_session* session() const { return session_.get(); }
 
-  inline nghttp2_session* operator*() { return session_; }
+  inline nghttp2_session* operator*() { return session_.get(); }
 
   inline uint32_t GetMaxHeaderPairs() const { return max_header_pairs_; }
 
@@ -799,16 +815,15 @@ class Http2Session : public AsyncWrap,
 
   struct Callbacks {
     inline explicit Callbacks(bool kHasGetPaddingCallback);
-    inline ~Callbacks();
 
-    nghttp2_session_callbacks* callbacks;
+    Nghttp2SessionCallbacksPointer callbacks;
   };
 
   /* Use callback_struct_saved[kHasGetPaddingCallback ? 1 : 0] */
   static const Callbacks callback_struct_saved[2];
 
   // The underlying nghttp2_session handle
-  nghttp2_session* session_;
+  Nghttp2SessionPointer session_;
 
   // JS-accessible numeric fields, as indexed by SessionUint8Fields.
   SessionJSFields* js_fields_ = nullptr;
