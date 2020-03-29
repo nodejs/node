@@ -2296,8 +2296,8 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
   Environment::BindingScope<BindingData> binding_scope(env);
+  if (!binding_scope) return;
   BindingData* binding_data = binding_scope.data;
-  if (binding_data == nullptr) return;
 
   env->SetMethod(target, "access", Access);
   env->SetMethod(target, "close", Close);
