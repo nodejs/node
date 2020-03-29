@@ -171,11 +171,15 @@ changes:
   * `stderr` {string|Buffer}
 * Returns: {ChildProcess}
 
-Spawns a shell then executes the `command` within that shell, buffering any
+If the `shell` option is not passed as `false`, then a shell is spawned
+that executes the `command` within that shell, buffering any
 generated output. The `command` string passed to the exec function is processed
 directly by the shell and special characters (vary based on
 [shell](https://en.wikipedia.org/wiki/List_of_command-line_interpreters))
 need to be dealt with accordingly:
+
+If the `shell` option is passed as `false`, then certain shell behaviours such
+as I/O redirection and file globbing are not supported.
 
 ```js
 exec('"/path/to/test file/test.sh" arg1 arg2');
@@ -279,11 +283,11 @@ changes:
 * Returns: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
-except that it does not spawn a shell by default. Rather, the specified
-executable `file` is spawned directly as a new process making it slightly more
-efficient than [`child_process.exec()`][].
+except that it does not spawn a shell by default. Also, `child_process.execFile()`
+takes an array of strings as an argument whereas `child_process.exec()`
+takes a single command string.
 
-The same options as [`child_process.exec()`][] are supported. Since a shell is
+The same options as [`child_process.exec()`][] are supported. If a shell is
 not spawned, behaviors such as I/O redirection and file globbing are not
 supported.
 
