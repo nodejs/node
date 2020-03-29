@@ -1,0 +1,20 @@
+name: Lint C++ files
+
+on: [push, pull_request]
+
+env:
+  PYTHON_VERSION: 3.8
+
+jobs:
+  lint-cpp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v1
+        with:
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint C/C++ files
+        run: make lint-cpp

@@ -1,0 +1,22 @@
+name: Lint docs
+
+on: [push, pull_request]
+
+env:
+  NODE_VERSION: 10.x
+
+jobs:
+  lint-md:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint docs
+        run: |
+          echo "::add-matcher::.github/workflows/remark-lint-problem-matcher.json"
+          NODE=$(which node) make lint-md

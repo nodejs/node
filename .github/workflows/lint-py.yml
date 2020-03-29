@@ -1,0 +1,22 @@
+name: Lint Python files
+
+on: [push, pull_request]
+
+env:
+  PYTHON_VERSION: 3.8
+
+jobs:
+  lint-py:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v1
+        with:
+          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint Python
+        run: |
+          make lint-py-build || true
+          NODE=$(which node) make lint lint-py

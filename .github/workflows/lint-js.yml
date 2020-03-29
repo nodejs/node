@@ -1,0 +1,20 @@
+name: Lint JavaScript files
+
+on: [push, pull_request]
+
+env:
+  NODE_VERSION: 10.x
+
+jobs:
+  lint-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Lint JavaScript files
+        run: NODE=$(which node) make lint-js
