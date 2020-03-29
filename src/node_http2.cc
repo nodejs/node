@@ -348,11 +348,11 @@ Http2Priority::Http2Priority(Environment* env,
   Local<Context> context = env->context();
   int32_t parent_ = parent->Int32Value(context).ToChecked();
   int32_t weight_ = weight->Int32Value(context).ToChecked();
-  bool exclusive_ = exclusive->BooleanValue(env->isolate());
+  bool exclusive_ = exclusive->IsTrue();
   Debug(env, DebugCategory::HTTP2STREAM,
         "Http2Priority: parent: %d, weight: %d, exclusive: %s\n",
         parent_, weight_, exclusive_ ? "yes" : "no");
-  nghttp2_priority_spec_init(&spec, parent_, weight_, exclusive_ ? 1 : 0);
+  nghttp2_priority_spec_init(this, parent_, weight_, exclusive_ ? 1 : 0);
 }
 
 
@@ -996,8 +996,7 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   MaybeLocal<Value> answer =
     stream->MakeCallback(env->http2session_on_stream_close_function(),
                           1, &arg);
-  if (answer.IsEmpty() ||
-      !(answer.ToLocalChecked()->BooleanValue(env->isolate()))) {
+  if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
     // Skip to destroy
     stream->Destroy();
   }
@@ -2444,9 +2443,7 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
 
   uint32_t code = args[0]->Uint32Value(context).ToChecked();
-  bool socketDestroyed = args[1]->BooleanValue(env->isolate());
-
-  session->Close(code, socketDestroyed);
+  session->Close(code, args[1]->IsTrue());
 }
 
 // Submits a new request on the Http2Session and returns either an error code
@@ -2465,7 +2462,7 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   int32_t ret = 0;
   Http2Stream* stream =
       session->Http2Session::SubmitRequest(
-          *priority,
+          &priority,
           Http2Headers(env, headers),
           &ret,
           static_cast<int>(options));
@@ -2638,9 +2635,9 @@ void Http2Stream::Priority(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
   Http2Priority priority(env, args[0], args[1], args[2]);
-  bool silent = args[3]->BooleanValue(env->isolate());
+  bool silent = args[3]->IsTrue();
 
-  CHECK_EQ(stream->SubmitPriority(*priority, silent), 0);
+  CHECK_EQ(stream->SubmitPriority(&priority, silent), 0);
   Debug(stream, "priority submitted");
 }
 
