@@ -70,7 +70,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
         }
       );
     });
-    const longInput = 'http://foo.bar' + 'a'.repeat(16383);
+    const longInput = `http://foo.bar${'a'.repeat(16383)}`;
     throws(
       () => session.origin(longInput),
       {
@@ -107,7 +107,7 @@ const ca = readKey('fake-startcom-root-cert.pem', 'binary');
 
 // Test automatically sending origin on connection start
 {
-  const origins = [ 'https://foo.org/a/b/c', 'https://bar.org' ];
+  const origins = ['https://foo.org/a/b/c', 'https://bar.org'];
   const server = createSecureServer({ key, cert, origins });
   server.on('stream', mustCall((stream) => {
     stream.respond();

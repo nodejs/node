@@ -16,5 +16,5 @@ server.listen(0, common.localhostIPv4, common.mustCall(() => {
 
   const port = server.address().port;
   const host = common.localhostIPv4;
-  h2.connect('http://' + host + ':' + port, afterConnect);
+  h2.connect(`http://${host}:${port}`, afterConnect);
 }));

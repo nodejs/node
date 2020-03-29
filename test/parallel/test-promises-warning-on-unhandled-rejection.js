@@ -23,7 +23,7 @@ process.on('warning', common.mustCall((warning) => {
       assert(
         /Unhandled promise rejection/.test(warning.message),
         'Expected warning message to contain "Unhandled promise rejection" ' +
-        'but did not. Had "' + warning.message + '" instead.'
+        `but did not. Had "${warning.message}" instead.`
       );
       break;
     case 2:
@@ -40,7 +40,7 @@ process.on('warning', common.mustCall((warning) => {
       assert(
         /Unhandled promise rejection/.test(warning.message),
         'Expected warning message to contain "Unhandled promise rejection" ' +
-        'but did not. Had "' + warning.message + '" instead.'
+        `but did not. Had "${warning.message}" instead.`
       );
       break;
     case 5:

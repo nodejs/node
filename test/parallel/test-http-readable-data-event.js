@@ -10,14 +10,14 @@ let next = null;
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, {
-    'Content-Length': '' + (helloWorld.length + helloAgainLater.length)
+    'Content-Length': `${(helloWorld.length + helloAgainLater.length)}`
   });
 
   // We need to make sure the data is flushed
   // before writing again
   next = () => {
     res.end(helloAgainLater);
-    next = () => {};
+    next = () => { };
   };
 
   res.write(helloWorld);
