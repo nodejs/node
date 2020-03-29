@@ -430,8 +430,8 @@ void InitializeHttpParser(Local<Object> target,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Environment::BindingScope<BindingData> binding_scope(env);
+  if (!binding_scope) return;
   BindingData* binding_data = binding_scope.data;
-  if (binding_data == nullptr) return;
 
   // Created within the Environment::BindingScope
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
