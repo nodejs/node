@@ -2,7 +2,7 @@
 
 // Verifies that the REPL history file is created with mode 0600
 
-// Flags: --expose_internals
+// Flags: --expose-internals
 
 const common = require('../common');
 
