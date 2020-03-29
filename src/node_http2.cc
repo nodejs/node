@@ -2938,8 +2938,8 @@ void Initialize(Local<Object> target,
   HandleScope handle_scope(isolate);
 
   Environment::BindingScope<Http2State> binding_scope(env);
+  if (!binding_scope) return;
   Http2State* state = binding_scope.data;
-  if (state == nullptr) return;
 
 #define SET_STATE_TYPEDARRAY(name, field)             \
   target->Set(context,                                \
