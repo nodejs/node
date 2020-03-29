@@ -1,4 +1,5 @@
 #include "env-inl.h"
+#include "json_utils.h"
 #include "node_report.h"
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
@@ -16,6 +17,7 @@
 #include <dlfcn.h>
 #endif
 
+#include <iostream>
 #include <cstring>
 #include <ctime>
 #include <cwctype>
@@ -30,6 +32,7 @@ using node::arraysize;
 using node::ConditionVariable;
 using node::DiagnosticFilename;
 using node::Environment;
+using node::JSONWriter;
 using node::Mutex;
 using node::NativeSymbolDebuggingContext;
 using node::TIME_TYPE;
