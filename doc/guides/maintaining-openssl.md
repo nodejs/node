@@ -94,7 +94,7 @@ The commit message can be (with the openssl version set to the relevant value):
  deps: update archs files for OpenSSL-1.1.0
 
  After an OpenSSL source update, all the config files need to be regenerated and
- comitted by:
+ committed by:
     $ cd deps/openssl/config
     $ make
     $ git add deps/openssl/config/archs
