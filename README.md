@@ -585,6 +585,8 @@ use these keys to verify a downloaded file.
 
 Other keys used to sign some previous releases:
 
+* **Myles Borins** &lt;myles.borins@gmail.com&gt;
+`0EFFE1BCEFD9C84E3D098152933B01F40B5CA946`
 * **Jeremiah Senkpiel** &lt;fishrock@keybase.io&gt;
 `FD3A5288F042B6850C66B31F09FE44734EB7990E`
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
