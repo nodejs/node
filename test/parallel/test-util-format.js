@@ -58,6 +58,7 @@ assert.strictEqual(util.format('%d', ''), '0');
 assert.strictEqual(util.format('%d', ' -0.000'), '-0');
 assert.strictEqual(util.format('%d', Symbol()), 'NaN');
 assert.strictEqual(util.format('%d', Infinity), 'Infinity');
+assert.strictEqual(util.format('%d', -Infinity), '-Infinity');
 assert.strictEqual(util.format('%d %d', 42, 43), '42 43');
 assert.strictEqual(util.format('%d %d', 42), '42 %d');
 assert.strictEqual(
@@ -83,6 +84,7 @@ assert.strictEqual(util.format('%i', 1.5), '1');
 assert.strictEqual(util.format('%i', -0.5), '-0');
 assert.strictEqual(util.format('%i', ''), 'NaN');
 assert.strictEqual(util.format('%i', Infinity), 'NaN');
+assert.strictEqual(util.format('%i', -Infinity), 'NaN');
 assert.strictEqual(util.format('%i', Symbol()), 'NaN');
 assert.strictEqual(util.format('%i %i', 42, 43), '42 43');
 assert.strictEqual(util.format('%i %i', 42), '42 %i');
@@ -123,6 +125,7 @@ assert.strictEqual(util.format('%f', ''), 'NaN');
 assert.strictEqual(util.format('%f', Symbol('foo')), 'NaN');
 assert.strictEqual(util.format('%f', 5n), '5');
 assert.strictEqual(util.format('%f', Infinity), 'Infinity');
+assert.strictEqual(util.format('%f', -Infinity), '-Infinity');
 assert.strictEqual(util.format('%f %f', 42, 43), '42 43');
 assert.strictEqual(util.format('%f %f', 42), '42 %f');
 
@@ -145,6 +148,7 @@ assert.strictEqual(util.format('%s', { toString() { return 'Foo'; } }), 'Foo');
 assert.strictEqual(util.format('%s', { toString: 5 }), '{ toString: 5 }');
 assert.strictEqual(util.format('%s', () => 5), '() => 5');
 assert.strictEqual(util.format('%s', Infinity), 'Infinity');
+assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
 
 // String format specifier including `toString` properties on the prototype.
 {
