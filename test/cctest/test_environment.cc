@@ -429,6 +429,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
 
       v8::Local<v8::Value> extracted_value = LoadEnvironment(
           environment,
+          "while (!global.variableFromParent) {}\n"
           "return global.variableFromParent;",
           std::move(data->inspector_parent_handle)).ToLocalChecked();
 
