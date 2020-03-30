@@ -26,9 +26,9 @@ All contributors to Node.js tacitly agree to abide by both the letter and
 spirit of the [Code of Conduct][]. Failure, or unwillingness, to do so will
 result in contributions being respectfully declined.
 
-A *bad actor* is someone who repeatedly violates the *spirit* of the Code of
-Conduct through consistent failure to self-regulate the way in which they
-interact with other contributors in the project. In doing so, bad actors
+A *bad actor* is someone who repeatedly violates the spirit of the Code of
+Conduct through failure to regulate how they
+interact with others. In doing so, bad actors
 alienate other contributors, discourage collaboration, and generally reflect
 poorly on the project as a whole.
 
