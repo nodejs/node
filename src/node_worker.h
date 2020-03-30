@@ -83,7 +83,6 @@ class Worker : public AsyncWrap {
   bool thread_joined_ = true;
   const char* custom_error_ = nullptr;
   std::string custom_error_str_;
-  bool loop_init_failed_ = false;
   int exit_code_ = 0;
   ThreadId thread_id_;
   uintptr_t stack_base_ = 0;
