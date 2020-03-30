@@ -592,16 +592,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
   Mutex::ScopedLock lock(w->mutex_);
 
-  // The object now owns the created thread and should not be garbage collected
-  // until that finishes.
-  w->ClearWeak();
-
-  w->env()->add_sub_worker_context(w);
   w->stopped_ = false;
-  w->thread_joined_ = false;
-
-  if (w->has_ref_)
-    w->env()->add_refs(1);
 
   uv_thread_options_t thread_options;
   thread_options.flags = UV_THREAD_HAS_STACK_SIZE;
@@ -628,21 +619,27 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
           // implicitly delete w
         });
   }, static_cast<void*>(w));
-  if (ret != 0) {
+
+  if (ret == 0) {
+    // The object now owns the created thread and should not be garbage
+    // collected until that finishes.
+    w->ClearWeak();
+    w->thread_joined_ = false;
+
+    if (w->has_ref_)
+      w->env()->add_refs(1);
+
+    w->env()->add_sub_worker_context(w);
+  } else {
+    w->stopped_ = true;
+
     char err_buf[128];
     uv_err_name_r(ret, err_buf, sizeof(err_buf));
-    w->custom_error_ = "ERR_WORKER_INIT_FAILED";
-    w->custom_error_str_ = err_buf;
-    w->loop_init_failed_ = true;
-    w->thread_joined_ = true;
-    w->stopped_ = true;
-    w->env()->remove_sub_worker_context(w);
     {
       Isolate* isolate = w->env()->isolate();
       HandleScope handle_scope(isolate);
       THROW_ERR_WORKER_INIT_FAILED(isolate, err_buf);
     }
-    w->MakeWeak();
   }
 }
 
