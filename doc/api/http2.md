@@ -2281,7 +2281,7 @@ changes:
     * `http2.constants.PADDING_STRATEGY_NONE`: No padding is applied.
     * `http2.constants.PADDING_STRATEGY_MAX`: The maximum amount of padding,
       determined by the internal implementation, is applied.
-    * `http2.constants.PADDING_STRATEGY_ALIGNED`: Attemps to apply enough
+    * `http2.constants.PADDING_STRATEGY_ALIGNED`: Attempts to apply enough
       padding to ensure that the total frame length, including the
       9-byte header, is a multiple of 8. For each frame, there is a maximum
       allowed number of padding bytes that is determined by current flow control
