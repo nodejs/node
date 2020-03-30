@@ -145,10 +145,10 @@ class WorkerThreadData {
       uv_err_name_r(ret, err_buf, sizeof(err_buf));
       w->custom_error_ = "ERR_WORKER_INIT_FAILED";
       w->custom_error_str_ = err_buf;
-      w->loop_init_failed_ = true;
       w->stopped_ = true;
       return;
     }
+    loop_init_failed_ = false;
 
     Isolate::CreateParams params;
     SetIsolateCreateParamsForNode(&params);
@@ -201,6 +201,7 @@ class WorkerThreadData {
     }
 
     if (isolate != nullptr) {
+      CHECK(!loop_init_failed_);
       bool platform_finished = false;
 
       isolate_data_.reset();
@@ -219,18 +220,20 @@ class WorkerThreadData {
 
       // Wait until the platform has cleaned up all relevant resources.
       while (!platform_finished) {
-        CHECK(!w_->loop_init_failed_);
         uv_run(&loop_, UV_RUN_ONCE);
       }
     }
-    if (!w_->loop_init_failed_) {
+    if (!loop_init_failed_) {
       CheckedUvLoopClose(&loop_);
     }
   }
 
+  bool loop_is_usable() const { return !loop_init_failed_; }
+
  private:
   Worker* const w_;
   uv_loop_t loop_;
+  bool loop_init_failed_ = true;
   DeleteFnPtr<IsolateData, FreeIsolateData> isolate_data_;
 
   friend class Worker;
@@ -260,7 +263,7 @@ void Worker::Run() {
 
   WorkerThreadData data(this);
   if (isolate_ == nullptr) return;
-  CHECK(!data.w_->loop_init_failed_);
+  CHECK(data.loop_is_usable());
 
   Debug(this, "Starting worker with id %llu", thread_id_);
   {
