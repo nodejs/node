@@ -22,7 +22,7 @@ Check that Node.js still builds and tests.
 It may be necessary to update deps/zlib/zlib.gyp if any significant changes have
 occurred upstream.
 
-## Commiting zlib
+## Committing zlib
 
 Add zlib: `git add --all deps/zlib`
 
