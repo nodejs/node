@@ -2010,7 +2010,7 @@ const buf = Buffer.alloc(256);
 const len = buf.write('\u00bd + \u00bc = \u00be', 0);
 
 console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
-// Prints: 12 bytes: ½ + ¼ =
+// Prints: 12 bytes: ½ + ¼ ¾
 
 const buffer = Buffer.alloc(10);
 
