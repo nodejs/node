@@ -922,7 +922,6 @@ void InitializeHttpParser(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   Environment::BindingScope<BindingData> binding_scope(env);
   if (!binding_scope) return;
-  BindingData* binding_data = binding_scope.data;
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(Parser::kInternalFieldCount);
