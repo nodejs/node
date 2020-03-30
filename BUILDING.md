@@ -302,7 +302,7 @@ $ sudo ./tools/macos-firewall.sh
 To verify the build:
 
 ```console
-$ make test-only
+$ make -j4 test-only
 ```
 
 At this point, you are ready to make code changes and re-run the tests.
