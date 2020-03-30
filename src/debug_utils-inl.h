@@ -30,16 +30,17 @@ struct ToStringHelper {
   template <unsigned BASE_BITS,
             typename T,
             typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
-  static std::string BaseConvert(T value) {
+  static std::string BaseConvert(const T& value) {
+    auto v = static_cast<uint64_t>(value);
     char ret[3 * sizeof(T)];
     char* ptr = ret + 3 * sizeof(T) - 1;
     *ptr = '\0';
     const char* digits = "0123456789abcdef";
     do {
-      unsigned digit = value & ((1 << BASE_BITS) - 1);
+      unsigned digit = v & ((1 << BASE_BITS) - 1);
       *--ptr =
           (BASE_BITS < 4 ? static_cast<char>('0' + digit) : digits[digit]);
-    } while ((value >>= BASE_BITS) != 0);
+    } while ((v >>= BASE_BITS) != 0);
     return ptr;
   }
   template <unsigned BASE_BITS,
@@ -56,8 +57,8 @@ std::string ToString(const T& value) {
 }
 
 template <unsigned BASE_BITS, typename T>
-std::string ToBaseString(T&& value) {
-  return ToStringHelper::BaseConvert<BASE_BITS>(std::forward<T>(value));
+std::string ToBaseString(const T& value) {
+  return ToStringHelper::BaseConvert<BASE_BITS>(value);
 }
 
 inline std::string SPrintFImpl(const char* format) {
