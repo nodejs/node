@@ -646,8 +646,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     // check header parsing time
     if (header_parsing_start_time_ != 0 && headers_timeout_ != 0) {
-      auto now = uv_hrtime();
-      auto parsing_time = (now - header_parsing_start_time_) / 1e6;
+      uint64_t now = uv_hrtime();
+      uint64_t parsing_time = (now - header_parsing_start_time_) / 1e6;
 
       if (parsing_time > headers_timeout_) {
         Local<Value> cb =
