@@ -20,6 +20,41 @@
 //
 // SPDX-License-Identifier: MIT
 
+// The functions in this file map the .text section of Node.js into 2MB pages.
+// They perform the following steps:
+//
+// 1: Find the Node.js binary's `.text` section in memory. This is done below in
+//    `FindNodeTextRegion`. It is accomplished in a platform-specific way. On
+//    Linux and FreeBSD, `dl_iterate_phdr(3)` is used. When the region is found,
+//    it is "trimmed" as follows:
+//    * Modify the start to point to the very beginning of the Node.js `.text`
+//      section (from symbol `__node_text_start` declared in node_text_start.S).
+//    * Possibly modify the end to account for the `lpstub` section which
+//      contains `MoveTextRegionToLargePages`, the function we do not wish to
+//      move (see below).
+//    * Align the address of the start to its nearest higher large page
+//      boundary.
+//    * Align the address of the end to its nearest lower large page boundary.
+//
+// 2: Move the text region to large pages. This is done below in
+//    `MoveTextRegionToLargePages`. We need to be very careful:
+//    a) `MoveTextRegionToLargePages` itself should not be moved.
+//       We use gcc attributes
+//       (__section__) to put it outside the `.text` section,
+//       (__aligned__) to align it at the 2M boundary, and
+//       (__noline__) to not inline this function.
+//    b) `MoveTextRegionToLargePages` should not call any function(s) that might
+//       be moved.
+//    To move the .text section, perform the following steps:
+//      * Map a new, temporary area and copy the original code there.
+//      * Use mmap using the start address with MAP_FIXED so we get exactly the
+//        same virtual address (except on OSX). On platforms other than Linux,
+//        use mmap flags to request hugepages.
+//      * On Linux use madvise with MADV_HUGEPAGE to use anonymous 2MB pages.
+//      * If successful copy the code to the newly mapped area and protect it to
+//        be readable and executable.
+//      * Unmap the temporary area.
+
 #include "node_large_page.h"
 
 #include <cerrno>   // NOLINT(build/include)
@@ -27,15 +62,14 @@
 // Besides returning ENOTSUP at runtime we do nothing if this define is missing.
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 #include "debug_utils-inl.h"
-#include "util.h"
-#include "uv.h"
 
 #if defined(__linux__) || defined(__FreeBSD__)
-#include <string.h>
 #if defined(__linux__)
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif  // ifndef _GNU_SOURCE
+#elif defined(__FreeBSD__)
+#include "uv.h"  // uv_exepath
 #endif  // defined(__linux__)
 #include <link.h>
 #endif  // defined(__linux__) || defined(__FreeBSD__)
@@ -44,38 +78,16 @@
 #include <sys/mman.h>
 #if defined(__FreeBSD__)
 #include <sys/sysctl.h>
-#include <sys/user.h>
 #elif defined(__APPLE__)
 #include <mach/vm_map.h>
 #endif
-#include <unistd.h>  // getpid
 
 #include <climits>  // PATH_MAX
-#include <clocale>
-#include <csignal>
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <string>
 #include <fstream>
-#include <iostream>
-#include <vector>
-
-// The functions in this file map the text segment of node into 2M pages.
-// The algorithm is simple
-// Find the text region of node binary in memory
-// 1: Examine the /proc/self/maps to determine the currently mapped text
-// region and obtain the start and end
-// Modify the start to point to the very beginning of node text segment
-// (from variable nodetext setup in ld.script)
-// Align the address of start and end to Large Page Boundaries
-//
-// 2: Move the text region to large pages
-// Map a new area and copy the original code there
-// Use mmap using the start address with MAP_FIXED so we get exactly the
-// same virtual address
-// Use madvise with MADV_HUGEPAGE to use Anonymous 2M Pages
-// If successful copy the code there and unmap the original region.
 
 #if defined(__linux__) || defined(__FreeBSD__)
 extern "C" {
@@ -282,20 +294,44 @@ bool IsSuperPagesEnabled() {
 }
 #endif
 
+// Functions in this class must always be inlined because they must end up in
+// the `lpstub` section rather than the `.text` section.
+class MemoryMapPointer {
+ public:
+  FORCE_INLINE explicit MemoryMapPointer() {}
+  FORCE_INLINE bool operator==(void* rhs) const { return mem_ == rhs; }
+  FORCE_INLINE void* mem() const { return mem_; }
+  MemoryMapPointer(const MemoryMapPointer&) = delete;
+  MemoryMapPointer(MemoryMapPointer&&) = delete;
+  void operator= (const MemoryMapPointer&) = delete;
+  void operator= (const MemoryMapPointer&&) = delete;
+  FORCE_INLINE void Reset(void* start,
+                          size_t size,
+                          int prot,
+                          int flags,
+                          int fd = -1,
+                          size_t offset = 0) {
+    mem_ = mmap(start, size, prot, flags, fd, offset);
+    size_ = size;
+  }
+  FORCE_INLINE void Reset() {
+    mem_ = nullptr;
+    size_ = 0;
+  }
+  FORCE_INLINE ~MemoryMapPointer() {
+    if (mem_ == nullptr) return;
+    if (mem_ == MAP_FAILED) return;
+    if (munmap(mem_, size_) == 0) return;
+    PrintSystemError(errno);
+  }
+
+ private:
+  size_t size_ = 0;
+  void* mem_ = nullptr;
+};
+
 }  // End of anonymous namespace
 
-// Moving the text region to large pages. We need to be very careful.
-// 1: This function itself should not be moved.
-// We use a gcc attributes
-// (__section__) to put it outside the ".text" section
-// (__aligned__) to align it at 2M boundary
-// (__noline__) to not inline this function
-// 2: This function should not call any function(s) that might be moved.
-// a. map a new area and copy the original code there
-// b. mmap using the start address with MAP_FIXED so we get exactly
-//    the same virtual address (except on macOS).
-// c. madvise with MADV_HUGEPAGE
-// d. If successful copy the code there and unmap the original region
 int
 #if !defined(__APPLE__)
 __attribute__((__section__("lpstub")))
@@ -305,62 +341,56 @@ __attribute__((__section__("__TEXT,__lpstub")))
 __attribute__((__aligned__(hps)))
 __attribute__((__noinline__))
 MoveTextRegionToLargePages(const text_region& r) {
-  void* nmem = nullptr;
-  void* tmem = nullptr;
+  MemoryMapPointer nmem;
+  MemoryMapPointer tmem;
   void* start = r.from;
   size_t size = r.to - r.from;
 
-  auto free_mems = OnScopeLeave([&nmem, &tmem, size]() {
-    if (nmem != nullptr && nmem != MAP_FAILED && munmap(nmem, size) == -1)
-      PrintSystemError(errno);
-    if (tmem != nullptr && tmem != MAP_FAILED && munmap(tmem, size) == -1)
-      PrintSystemError(errno);
-  });
-
-  // Allocate temporary region and back up the code we will re-map.
-  nmem = mmap(nullptr, size,
-              PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (nmem == MAP_FAILED) goto fail;
-  memcpy(nmem, r.from, size);
+  // Allocate a temporary region and back up the code we will re-map.
+  nmem.Reset(nullptr, size,
+             PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS);
+  if (nmem.mem() == MAP_FAILED) goto fail;
+  memcpy(nmem.mem(), r.from, size);
 
 #if defined(__linux__)
 // We already know the original page is r-xp
 // (PROT_READ, PROT_EXEC, MAP_PRIVATE)
 // We want PROT_WRITE because we are writing into it.
 // We want it at the fixed address and we use MAP_FIXED.
-  tmem = mmap(start, size,
-              PROT_READ | PROT_WRITE | PROT_EXEC,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1 , 0);
-  if (tmem == MAP_FAILED) goto fail;
-  if (madvise(tmem, size, 14 /* MADV_HUGEPAGE */) == -1) goto fail;
-  memcpy(start, nmem, size);
+  tmem.Reset(start, size,
+             PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED);
+  if (tmem.mem() == MAP_FAILED) goto fail;
+  if (madvise(tmem.mem(), size, 14 /* MADV_HUGEPAGE */) == -1) goto fail;
+  memcpy(start, nmem.mem(), size);
 #elif defined(__FreeBSD__)
-  tmem = mmap(start, size,
-              PROT_READ | PROT_WRITE | PROT_EXEC,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED |
-              MAP_ALIGNED_SUPER, -1 , 0);
-  if (tmem == MAP_FAILED) goto fail;
-  memcpy(start, nmem, size);
+  tmem.Reset(start, size,
+             PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED |
+             MAP_ALIGNED_SUPER);
+  if (tmem.mem() == MAP_FAILED) goto fail;
+  memcpy(start, nmem.mem(), size);
 #elif defined(__APPLE__)
   // There is not enough room to reserve the mapping close
   // to the region address so we content to give a hint
   // without forcing the new address being closed to.
   // We explicitally gives all permission since we plan
   // to write into it.
-  tmem = mmap(start, size,
-              PROT_READ | PROT_WRITE | PROT_EXEC,
-              MAP_PRIVATE | MAP_ANONYMOUS,
-              VM_FLAGS_SUPERPAGE_SIZE_2MB, 0);
-  if (tmem == MAP_FAILED) goto fail;
-  memcpy(tmem, nmem, size);
+  tmem.Reset(start, size,
+             PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_PRIVATE | MAP_ANONYMOUS,
+             VM_FLAGS_SUPERPAGE_SIZE_2MB);
+  if (tmem.mem() == MAP_FAILED) goto fail;
+  memcpy(tmem.mem(), nmem.mem(), size);
   if (mprotect(start, size, PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
     goto fail;
-  memcpy(start, tmem, size);
+  memcpy(start, tmem.mem(), size);
 #endif
 
   if (mprotect(start, size, PROT_READ | PROT_EXEC) == -1) goto fail;
-  // We need not `munmap(tmem, size)` in the above `OnScopeLeave` on success.
-  tmem = nullptr;
+
+  // We need not `munmap(tmem, size)` on success.
+  tmem.Reset();
   return 0;
 fail:
   PrintSystemError(errno);
