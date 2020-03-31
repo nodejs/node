@@ -14,10 +14,10 @@ Tests that top-level await in Runtime.evaluate REPL mode includes stack trace.
                 callFrames : [
                     [0] : {
                         columnNumber : 0
-                        functionName :
+                        functionName : 
                         lineNumber : 0
                         scriptId : <scriptId>
-                        url :
+                        url : 
                     }
                 ]
             }
@@ -50,21 +50,21 @@ Tests that top-level await in Runtime.evaluate REPL mode includes stack trace.
                         functionName : bar
                         lineNumber : 2
                         scriptId : <scriptId>
-                        url :
+                        url : 
                     }
                     [1] : {
                         columnNumber : 6
                         functionName : foo
                         lineNumber : 6
                         scriptId : <scriptId>
-                        url :
+                        url : 
                     }
                     [2] : {
                         columnNumber : 4
-                        functionName :
+                        functionName : 
                         lineNumber : 9
                         scriptId : <scriptId>
-                        url :
+                        url : 
                     }
                 ]
             }
