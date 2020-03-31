@@ -12,7 +12,7 @@
 .type	OPENSSL_atomic_add,@function
 .align	16
 OPENSSL_atomic_add:
-.cfi_startproc
+.cfi_startproc	
 	movl	(%rdi),%eax
 .Lspin:	leaq	(%rsi,%rax,1),%r8
 .byte	0xf0
@@ -21,19 +21,19 @@ OPENSSL_atomic_add:
 	movl	%r8d,%eax
 .byte	0x48,0x98
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_atomic_add,.-OPENSSL_atomic_add
 
 .globl	OPENSSL_rdtsc
 .type	OPENSSL_rdtsc,@function
 .align	16
 OPENSSL_rdtsc:
-.cfi_startproc
+.cfi_startproc	
 	rdtsc
 	shlq	$32,%rdx
 	orq	%rdx,%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_rdtsc,.-OPENSSL_rdtsc
 
 .globl	OPENSSL_ia32_cpuid
@@ -209,7 +209,7 @@ OPENSSL_ia32_cpuid:
 .type	OPENSSL_cleanse,@function
 .align	16
 OPENSSL_cleanse:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%rax,%rax
 	cmpq	$15,%rsi
 	jae	.Lot
@@ -239,14 +239,14 @@ OPENSSL_cleanse:
 	cmpq	$0,%rsi
 	jne	.Little
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_cleanse,.-OPENSSL_cleanse
 
 .globl	CRYPTO_memcmp
 .type	CRYPTO_memcmp,@function
 .align	16
 CRYPTO_memcmp:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%rax,%rax
 	xorq	%r10,%r10
 	cmpq	$0,%rdx
@@ -275,13 +275,13 @@ CRYPTO_memcmp:
 	shrq	$63,%rax
 .Lno_data:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	CRYPTO_memcmp,.-CRYPTO_memcmp
 .globl	OPENSSL_wipe_cpu
 .type	OPENSSL_wipe_cpu,@function
 .align	16
 OPENSSL_wipe_cpu:
-.cfi_startproc
+.cfi_startproc	
 	pxor	%xmm0,%xmm0
 	pxor	%xmm1,%xmm1
 	pxor	%xmm2,%xmm2
@@ -308,13 +308,13 @@ OPENSSL_wipe_cpu:
 	xorq	%r11,%r11
 	leaq	8(%rsp),%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_wipe_cpu,.-OPENSSL_wipe_cpu
 .globl	OPENSSL_instrument_bus
 .type	OPENSSL_instrument_bus,@function
 .align	16
 OPENSSL_instrument_bus:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rdi,%r10
 	movq	%rsi,%rcx
 	movq	%rsi,%r11
@@ -341,14 +341,14 @@ OPENSSL_instrument_bus:
 
 	movq	%r11,%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_instrument_bus,.-OPENSSL_instrument_bus
 
 .globl	OPENSSL_instrument_bus2
 .type	OPENSSL_instrument_bus2,@function
 .align	16
 OPENSSL_instrument_bus2:
-.cfi_startproc
+.cfi_startproc	
 	movq	%rdi,%r10
 	movq	%rsi,%rcx
 	movq	%rdx,%r11
@@ -391,13 +391,13 @@ OPENSSL_instrument_bus2:
 	movq	8(%rsp),%rax
 	subq	%rcx,%rax
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_instrument_bus2,.-OPENSSL_instrument_bus2
 .globl	OPENSSL_ia32_rdrand_bytes
 .type	OPENSSL_ia32_rdrand_bytes,@function
 .align	16
 OPENSSL_ia32_rdrand_bytes:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%rax,%rax
 	cmpq	$0,%rsi
 	je	.Ldone_rdrand_bytes
@@ -434,13 +434,13 @@ OPENSSL_ia32_rdrand_bytes:
 .Ldone_rdrand_bytes:
 	xorq	%r10,%r10
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_ia32_rdrand_bytes,.-OPENSSL_ia32_rdrand_bytes
 .globl	OPENSSL_ia32_rdseed_bytes
 .type	OPENSSL_ia32_rdseed_bytes,@function
 .align	16
 OPENSSL_ia32_rdseed_bytes:
-.cfi_startproc
+.cfi_startproc	
 	xorq	%rax,%rax
 	cmpq	$0,%rsi
 	je	.Ldone_rdseed_bytes
@@ -477,5 +477,5 @@ OPENSSL_ia32_rdseed_bytes:
 .Ldone_rdseed_bytes:
 	xorq	%r10,%r10
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	OPENSSL_ia32_rdseed_bytes,.-OPENSSL_ia32_rdseed_bytes

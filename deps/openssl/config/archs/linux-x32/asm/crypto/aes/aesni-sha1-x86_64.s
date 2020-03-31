@@ -5,7 +5,7 @@
 .type	aesni_cbc_sha1_enc,@function
 .align	32
 aesni_cbc_sha1_enc:
-.cfi_startproc
+.cfi_startproc	
 
 	movl	OPENSSL_ia32cap_P+0(%rip),%r10d
 	movq	OPENSSL_ia32cap_P+4(%rip),%r11
@@ -18,7 +18,7 @@ aesni_cbc_sha1_enc:
 	je	aesni_cbc_sha1_enc_avx
 	jmp	aesni_cbc_sha1_enc_ssse3
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha1_enc,.-aesni_cbc_sha1_enc
 .type	aesni_cbc_sha1_enc_ssse3,@function
 .align	32
@@ -2732,7 +2732,7 @@ K_XX_XX:
 .type	aesni_cbc_sha1_enc_shaext,@function
 .align	32
 aesni_cbc_sha1_enc_shaext:
-.cfi_startproc
+.cfi_startproc	
 	movq	8(%rsp),%r10
 	movdqu	(%r9),%xmm8
 	movd	16(%r9),%xmm9
@@ -3031,5 +3031,5 @@ aesni_cbc_sha1_enc_shaext:
 	movdqu	%xmm8,(%r9)
 	movd	%xmm9,16(%r9)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha1_enc_shaext,.-aesni_cbc_sha1_enc_shaext
