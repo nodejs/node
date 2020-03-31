@@ -227,8 +227,8 @@ if (cluster.isMaster) {
     cluster.fork();
   }
 
-  for (const id in cluster.workers) {
-    cluster.workers[id].on('message', messageHandler);
+  for (const worker of cluster.workers.values()) {
+    worker.on('message', messageHandler);
   }
 
 } else {
@@ -836,13 +836,18 @@ if (cluster.isMaster) {
 ## `cluster.workers`
 <!-- YAML
 added: v0.7.0
+changes:
+  - version: TODO
+    pr-url: https://github.com/nodejs/node/pull/32584
+    description: Converted to map implementation for easier traversal and
+      size lookups
 -->
 
-* {Object}
+* {Map}
 
-A hash that stores the active worker objects, keyed by `id` field. Makes it
-easy to loop through all the workers. It is only available in the master
-process.
+A map that stores the active worker objects, keyed by `id` field. Makes it
+easy to loop through all the workers, either by `id` or by the `value`.
+It is only available in the master process.
 
 A worker is removed from `cluster.workers` after the worker has disconnected
 _and_ exited. The order between these two events cannot be determined in
@@ -852,8 +857,8 @@ list happens before last `'disconnect'` or `'exit'` event is emitted.
 ```js
 // Go through all workers
 function eachWorker(callback) {
-  for (const id in cluster.workers) {
-    callback(cluster.workers[id]);
+  for (const worker of cluster.workers.values()) {
+    callback(worker);
   }
 }
 eachWorker((worker) => {
@@ -865,7 +870,7 @@ Using the worker's unique id is the easiest way to locate the worker.
 
 ```js
 socket.on('data', (id) => {
-  const worker = cluster.workers[id];
+  const worker = cluster.workers.get(id);
 });
 ```
 

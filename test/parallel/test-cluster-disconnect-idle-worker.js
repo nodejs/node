@@ -29,6 +29,6 @@ if (cluster.isMaster) {
   fork(); // It is intentionally called `fork` instead of
   fork(); // `cluster.fork` to test that `this` is not used
   cluster.disconnect(common.mustCall(() => {
-    assert.deepStrictEqual(Object.keys(cluster.workers), []);
+    assert.strictEqual(cluster.workers.size, 0);
   }));
 }

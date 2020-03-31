@@ -32,7 +32,7 @@ if (cluster.isMaster) {
     assert(worker === worker1 || worker === worker2);
     assert.strictEqual(exitCode, 0);
     assert.strictEqual(signalCode, null);
-    if (Object.keys(cluster.workers).length === 0)
+    if (cluster.workers.size === 0)
       conn.destroy();
   });
 

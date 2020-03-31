@@ -50,12 +50,11 @@ if (cluster.isMaster) {
     function broadcast() {
       if (broadcasts++ === n) {
         bench.end(n);
-        for (const id in cluster.workers)
-          cluster.workers[id].disconnect();
+        for (const worker of cluster.workers.values())
+          worker.disconnect();
         return;
       }
-      for (const id in cluster.workers) {
-        const worker = cluster.workers[id];
+      for (const worker of cluster.workers.values()) {
         for (let i = 0; i < sendsPerBroadcast; ++i)
           worker.send(data);
       }

@@ -62,9 +62,8 @@ function master() {
 
   // Set up event handlers for every worker. Each worker sends a message when
   // it has received the expected number of packets. After that it disconnects.
-  for (const key in cluster.workers) {
-    if (cluster.workers.hasOwnProperty(key))
-      setupWorker(cluster.workers[key]);
+  for (const worker of cluster.workers.values()) {
+    setupWorker(worker);
   }
 
   function setupWorker(worker) {

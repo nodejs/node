@@ -21,8 +21,8 @@ if (cluster.isMaster) {
     if (msg.type === 'getpids') {
       const pids = [];
       pids.push(process.pid);
-      for (var key in cluster.workers)
-        pids.push(cluster.workers[key].process.pid);
+      for (const worker in cluster.workers.values())
+        pids.push(worker.process.pid);
       process.send({ type: 'pids', pids: pids });
     }
   });

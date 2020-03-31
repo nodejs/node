@@ -52,9 +52,8 @@ if (cluster.isMaster) {
       // not guaranteed on secureConnect (it depends on TLS1.2 vs TLS1.3), but
       // it is guaranteed to happen before the connection is closed.
       if (++reqCount === expectedReqCount) {
-        Object.keys(cluster.workers).forEach(function(id) {
-          cluster.workers[id].send('die');
-        });
+        for (const worker of cluster.workers.values())
+          worker.send('die');
       } else {
         shoot();
       }
