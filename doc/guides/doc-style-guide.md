@@ -68,4 +68,4 @@ See also API documentation structure overview in [doctools README][].
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
 [serial commas]: https://en.wikipedia.org/wiki/Serial_comma
 [plugin]: https://editorconfig.org/#download
-[doctools README]: ../tools/doc/README.md
+[doctools README]: ../../tools/doc/README.md

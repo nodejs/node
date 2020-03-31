@@ -110,7 +110,7 @@ onboarding session.
     organization (not just Collaborators on Node.js core) have access. Its
     contents should not be shared externally.
   * You can find the full moderation policy
-    [here](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md).
+    [here](https://github.com/nodejs/admin/blob/master/Moderation-Policy.md).
 
 ## Reviewing PRs
 

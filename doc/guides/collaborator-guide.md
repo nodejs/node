@@ -752,13 +752,13 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
-[Stability Index]: doc/api/documentation.md#stability-index
+[Stability Index]: ../api/documentation.md#stability-index
 [TSC]: https://github.com/nodejs/TSC
-[`--pending-deprecation`]: doc/api/cli.md#--pending-deprecation
-[`--throw-deprecation`]: doc/api/cli.md#--throw-deprecation
+[`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
+[`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
 [`node-core-utils`]: https://github.com/nodejs/node-core-utils
-[backporting guide]: doc/guides/backporting-to-release-lines.md
-[commit message guidelines]: ./doc/guides/contributing/pull-requests.md#commit-message-guidelines
+[backporting guide]: backporting-to-release-lines.md
+[commit message guidelines]: contributing/pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [git-node]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/master/docs/git-node.md#git-node-metadata
