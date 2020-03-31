@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -356,8 +356,10 @@ OPENSSL_INIT_SETTINGS *OPENSSL_INIT_new(void)
 {
     OPENSSL_INIT_SETTINGS *ret = malloc(sizeof(*ret));
 
-    if (ret != NULL)
-        memset(ret, 0, sizeof(*ret));
+    if (ret == NULL)
+        return NULL;
+
+    memset(ret, 0, sizeof(*ret));
     ret->flags = DEFAULT_CONF_MFLAGS;
 
     return ret;
