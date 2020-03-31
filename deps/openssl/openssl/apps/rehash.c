@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2013-2014 Timo Teräs <timo.teras@gmail.com>
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -274,11 +274,19 @@ static int do_file(const char *filename, const char *fullpath, enum Hash h)
     if (x->x509 != NULL) {
         type = TYPE_CERT;
         name = X509_get_subject_name(x->x509);
-        X509_digest(x->x509, evpmd, digest, NULL);
+        if (!X509_digest(x->x509, evpmd, digest, NULL)) {
+            BIO_printf(bio_err, "out of memory\n");
+            ++errs;
+            goto end;
+        }
     } else if (x->crl != NULL) {
         type = TYPE_CRL;
         name = X509_CRL_get_issuer(x->crl);
-        X509_CRL_digest(x->crl, evpmd, digest, NULL);
+        if (!X509_CRL_digest(x->crl, evpmd, digest, NULL)) {
+            BIO_printf(bio_err, "out of memory\n");
+            ++errs;
+            goto end;
+        }
     } else {
         ++errs;
         goto end;

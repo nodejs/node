@@ -52,7 +52,9 @@ Deprecated:
 
 BN_generate_prime_ex() generates a pseudo-random prime number of
 at least bit length B<bits>. The returned number is probably prime
-with a negligible error.
+with a negligible error. If B<add> is B<NULL> the returned prime
+number will have exact bit length B<bits> with the top most two
+bits set.
 
 If B<ret> is not B<NULL>, it will be used to store the number.
 
@@ -89,7 +91,9 @@ If B<add> is not B<NULL>, the prime will fulfill the condition p % B<add>
 generator.
 
 If B<safe> is true, it will be a safe prime (i.e. a prime p so
-that (p-1)/2 is also prime).
+that (p-1)/2 is also prime). If B<safe> is true, and B<rem> == B<NULL>
+the condition will be p % B<add> == 3.
+It is recommended that B<add> is a multiple of 4.
 
 The random generator must be seeded prior to calling BN_generate_prime_ex().
 If the automatic seeding or reseeding of the OpenSSL CSPRNG fails due to
@@ -206,7 +210,7 @@ and BN_GENCB_get_arg() functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
