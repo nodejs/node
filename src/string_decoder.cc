@@ -4,6 +4,7 @@
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "string_bytes.h"
+#include "snapshot_support-inl.h"
 #include "util.h"
 
 using v8::Array;
@@ -319,6 +320,12 @@ void InitializeStringDecoder(Local<Object> target,
   env->SetMethod(target, "decode", DecodeData);
   env->SetMethod(target, "flush", FlushData);
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  DecodeData,
+  FlushData
+};
 
 }  // anonymous namespace
 

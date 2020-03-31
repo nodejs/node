@@ -1,5 +1,6 @@
 #include "env-inl.h"
 #include "node.h"
+#include "snapshot_support-inl.h"
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -75,6 +76,15 @@ void InitializeTypes(Local<Object> target,
   env->SetMethodNoSideEffect(target, "isAnyArrayBuffer", IsAnyArrayBuffer);
   env->SetMethodNoSideEffect(target, "isBoxedPrimitive", IsBoxedPrimitive);
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+#define V(type) Is##type,
+  VALUE_METHOD_MAP(V)
+#undef V
+  IsAnyArrayBuffer,
+  IsBoxedPrimitive,
+};
 
 }  // anonymous namespace
 }  // namespace node

@@ -1,6 +1,7 @@
-#include "node_errors.h"
-#include "util-inl.h"
 #include "base_object-inl.h"
+#include "node_errors.h"
+#include "snapshot_support-inl.h"
+#include "util-inl.h"
 
 namespace node {
 namespace util {
@@ -335,6 +336,24 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "guessHandleType", GuessHandleType);
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  GetHiddenValue,
+  SetHiddenValue,
+  GetPromiseDetails,
+  GetProxyDetails,
+  PreviewEntries,
+  GetOwnNonIndexProperties,
+  GetConstructorName,
+  Sleep,
+  ArrayBufferViewHasBuffer,
+  WeakReference::New,
+  WeakReference::Get,
+  WeakReference::IncRef,
+  WeakReference::DecRef,
+  GuessHandleType,
+};
 
 }  // namespace util
 }  // namespace node

@@ -49,6 +49,7 @@
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -824,6 +825,20 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "decode", ConverterObject::Decode);
   env->SetMethod(target, "hasConverter", ConverterObject::Has);
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  // Pick the right variant for overloaded names.
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(ToUnicode),
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(ToASCII),
+  GetStringWidth,
+  ICUErrorName,
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(Transcode),
+  ConverterObject::Create,
+  ConverterObject::Decode,
+  ConverterObject::Has,
+};
+
 
 }  // namespace i18n
 }  // namespace node

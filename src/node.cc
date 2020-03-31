@@ -39,6 +39,7 @@
 #include "node_revert.h"
 #include "node_v8_platform-inl.h"
 #include "node_version.h"
+#include "snapshot_support-inl.h"
 
 #if HAVE_OPENSSL
 #include "node_crypto.h"
@@ -1028,16 +1029,14 @@ int Start(int argc, char** argv) {
   {
     Isolate::CreateParams params;
     const std::vector<size_t>* indexes = nullptr;
-    std::vector<intptr_t> external_references;
+    std::vector<intptr_t> external_references = ExternalReferences::get_list();
+    external_references.push_back(ExternalReferences::kEnd);
 
     bool force_no_snapshot =
         per_process::cli_options->per_isolate->no_node_snapshot;
     if (!force_no_snapshot) {
       v8::StartupData* blob = NodeMainInstance::GetEmbeddedSnapshotBlob();
       if (blob != nullptr) {
-        // TODO(joyeecheung): collect external references and set it in
-        // params.external_references.
-        external_references.push_back(reinterpret_cast<intptr_t>(nullptr));
         params.external_references = external_references.data();
         params.snapshot_blob = blob;
         indexes = NodeMainInstance::GetIsolateDataIndexes();
@@ -1061,6 +1060,14 @@ int Stop(Environment* env) {
   env->ExitEnv();
   return 0;
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  binding::GetLinkedBinding,
+  binding::GetInternalBinding,
+  MarkBootstrapComplete,
+};
+
 
 }  // namespace node
 

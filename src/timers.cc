@@ -1,4 +1,5 @@
 #include "env-inl.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -58,6 +59,14 @@ void Initialize(Local<Object> target,
               env->immediate_info()->fields().GetJSArray()).Check();
 }
 
+static ExternalReferences external_references {
+  __FILE__,
+  GetLibuvNow,
+  SetupTimers,
+  ScheduleTimer,
+  ToggleTimerRef,
+  ToggleImmediateRef,
+};
 
 }  // anonymous namespace
 }  // namespace node

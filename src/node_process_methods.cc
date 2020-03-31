@@ -5,6 +5,7 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_process.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
@@ -491,6 +492,33 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
   env->SetMethod(target, "patchProcessObject", PatchProcessObject);
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  DebugProcess,
+  DebugEnd,
+  // Abort is overloaded, pick the right one
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(Abort),
+  CauseSegfault,
+  Chdir,
+  StartProfilerIdleNotifier,
+  StopProfilerIdleNotifier,
+  Umask,
+  RawDebug,
+  MemoryUsage,
+  CPUUsage,
+  Hrtime,
+  HrtimeBigInt,
+  ResourceUsage,
+  GetActiveHandles,
+  GetActiveRequests,
+  Kill,
+  Cwd,
+  binding::DLOpen,
+  ReallyExit,
+  Uptime,
+  PatchProcessObject,
+};
 
 }  // namespace node
 

@@ -24,6 +24,7 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "tracing/traced_value.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 
 #include "v8.h"
@@ -580,6 +581,23 @@ void AsyncWrap::Initialize(Local<Object> target,
           ->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
+static ExternalReferences external_references {
+  __FILE__,
+  SetupHooks,
+  AsyncWrap::PushAsyncContext,
+  AsyncWrap::PopAsyncContext,
+  AsyncWrap::QueueDestroyAsyncId,
+  EnablePromiseHook,
+  DisablePromiseHook,
+  RegisterDestroyHook,
+  AsyncWrapObject::New,
+  AsyncWrap::GetAsyncId,
+  // AsyncReset is overloaded, pick the right one
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(
+      AsyncWrap::AsyncReset),
+  AsyncWrap::GetProviderType,
+  PromiseWrap::getIsChainedPromise,
+};
 
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,

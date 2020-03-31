@@ -2,6 +2,7 @@
 #include "base_object-inl.h"
 #include "node_errors.h"
 #include "node_i18n.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 
 #include <cmath>
@@ -2331,6 +2332,17 @@ void Initialize(Local<Object> target,
   PARSESTATES(XX)
 #undef XX
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  // Parse is overloaded, pick the right one
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(Parse),
+  EncodeAuthSet,
+  ToUSVString,
+  DomainToASCII,
+  DomainToUnicode,
+  SetURLConstructor,
+};
 }  // namespace
 
 std::string URL::ToFilePath() const {

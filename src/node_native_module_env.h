@@ -37,7 +37,6 @@ class NativeModuleEnv {
   // in node_code_cache_stub.cc
   static void InitializeCodeCache();
 
- private:
   static void RecordResult(const char* id,
                            NativeModuleLoader::Result result,
                            Environment* env);

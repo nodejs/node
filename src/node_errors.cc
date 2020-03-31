@@ -7,6 +7,7 @@
 #include "node_report.h"
 #include "node_process.h"
 #include "node_v8_platform-inl.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 
 namespace node {
@@ -847,6 +848,16 @@ void Initialize(Local<Object> target,
       target, "noSideEffectsToString", NoSideEffectsToString);
   env->SetMethod(target, "triggerUncaughtException", TriggerUncaughtException);
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  SetPrepareStackTraceCallback,
+  SetEnhanceStackForFatalException,
+  NoSideEffectsToString,
+  // TriggerUncaughtException is overloaded, pick the right one
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(
+      TriggerUncaughtException),
+};
 
 void DecorateErrorStack(Environment* env,
                         const errors::TryCatchScope& try_catch) {

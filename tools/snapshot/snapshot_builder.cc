@@ -4,6 +4,7 @@
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_v8_platform-inl.h"
+#include "snapshot_support-inl.h"
 
 namespace node {
 
@@ -63,15 +64,14 @@ const std::vector<size_t>* NodeMainInstance::GetIsolateDataIndexes() {
 std::string SnapshotBuilder::Generate(
     const std::vector<std::string> args,
     const std::vector<std::string> exec_args) {
-  // TODO(joyeecheung): collect external references and set it in
-  // params.external_references.
-  std::vector<intptr_t> external_references = {
-      reinterpret_cast<intptr_t>(nullptr)};
   Isolate* isolate = Isolate::Allocate();
   per_process::v8_platform.Platform()->RegisterIsolate(isolate,
                                                        uv_default_loop());
   std::unique_ptr<NodeMainInstance> main_instance;
   std::string result;
+
+  std::vector<intptr_t> external_references = ExternalReferences::get_list();
+  external_references.push_back(ExternalReferences::kEnd);
 
   {
     std::vector<size_t> isolate_data_indexes;

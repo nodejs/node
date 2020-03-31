@@ -3,6 +3,7 @@
 #include "node_errors.h"
 #include "node_internals.h"
 #include "node_process.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 #include "v8.h"
 
@@ -144,6 +145,14 @@ static void Initialize(Local<Object> target,
                  "setPromiseRejectCallback",
                  SetPromiseRejectCallback);
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  EnqueueMicrotask,
+  SetTickCallback,
+  RunMicrotasks,
+  SetPromiseRejectCallback,
+};
 
 }  // namespace task_queue
 }  // namespace node

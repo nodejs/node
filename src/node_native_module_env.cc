@@ -1,4 +1,5 @@
 #include "node_native_module_env.h"
+#include "snapshot_support-inl.h"
 #include "env-inl.h"
 
 namespace node {
@@ -201,6 +202,15 @@ void NativeModuleEnv::Initialize(Local<Object> target,
   // internalBinding('native_module') should be frozen
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  NativeModuleEnv::ConfigStringGetter,
+  NativeModuleEnv::ModuleIdsGetter,
+  NativeModuleEnv::GetModuleCategories,
+  NativeModuleEnv::GetCacheUsage,
+  NativeModuleEnv::CompileFunction,
+};
 
 }  // namespace native_module
 }  // namespace node

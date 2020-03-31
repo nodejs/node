@@ -1,5 +1,6 @@
 #include "env-inl.h"
 #include "node_internals.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
@@ -400,6 +401,25 @@ static void Initialize(Local<Object> target,
   }
 #endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  // SafeGetenv is overloaded, pick the right one
+  static_cast<void(*)(const FunctionCallbackInfo<Value>& args)>(SafeGetenv),
+#ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
+  GetUid,
+  GetEUid,
+  GetGid,
+  GetEGid,
+  GetGroups,
+  InitGroups,
+  SetEGid,
+  SetEUid,
+  SetGid,
+  SetUid,
+  SetGroups,
+#endif
+};
 
 }  // namespace credentials
 }  // namespace node

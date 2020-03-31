@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_process.h"
+#include "snapshot_support-inl.h"
 
 #include <time.h>  // tzset(), _tzset()
 
@@ -385,4 +386,15 @@ MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
       PropertyHandlerFlags::kHasNoSideEffect));
   return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
 }
+
+
+static ExternalReferences external_references {
+  __FILE__,
+  EnvGetter,
+  EnvSetter,
+  EnvQuery,
+  EnvDeleter,
+  EnvEnumerator
+};
+
 }  // namespace node

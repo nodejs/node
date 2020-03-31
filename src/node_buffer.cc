@@ -28,6 +28,7 @@
 #include "string_bytes.h"
 #include "string_search.h"
 #include "util-inl.h"
+#include "snapshot_support-inl.h"
 #include "v8.h"
 
 #include <cstring>
@@ -1221,6 +1222,37 @@ void Initialize(Local<Object> target,
               .FromJust());
   }
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  SetBufferPrototype,
+  CreateFromString,
+  ByteLengthUtf8,
+  Copy,
+  Compare,
+  CompareOffset,
+  Fill,
+  IndexOfBuffer,
+  IndexOfNumber,
+  IndexOfString,
+  Swap16,
+  Swap32,
+  Swap64,
+  EncodeInto,
+  EncodeUtf8String,
+  StringSlice<ASCII>,
+  StringSlice<BASE64>,
+  StringSlice<LATIN1>,
+  StringSlice<HEX>,
+  StringSlice<UCS2>,
+  StringSlice<UTF8>,
+  StringWrite<ASCII>,
+  StringWrite<BASE64>,
+  StringWrite<LATIN1>,
+  StringWrite<HEX>,
+  StringWrite<UCS2>,
+  StringWrite<UTF8>,
+};
 
 }  // anonymous namespace
 }  // namespace Buffer

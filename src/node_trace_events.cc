@@ -5,6 +5,7 @@
 #include "node_internals.h"
 #include "node_v8_platform-inl.h"
 #include "tracing/agent.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 
 #include <set>
@@ -153,6 +154,15 @@ void NodeCategorySet::Initialize(Local<Object> target,
   target->Set(context, trace,
               binding->Get(context, trace).ToLocalChecked()).Check();
 }
+
+static ExternalReferences external_references {
+  __FILE__,
+  GetEnabledCategories,
+  SetTraceCategoryStateUpdateHandler,
+  NodeCategorySet::New,
+  NodeCategorySet::Enable,
+  NodeCategorySet::Disable,
+};
 
 }  // namespace node
 
