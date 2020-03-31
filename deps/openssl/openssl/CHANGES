@@ -7,6 +7,24 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1e and 1.1.1f [31 Mar 2020]
+
+  *) Revert the change of EOF detection while reading in libssl to avoid
+     regressions in applications depending on the current way of reporting
+     the EOF. As the existing method is not fully accurate the change to
+     reporting the EOF via SSL_ERROR_SSL is kept on the current development
+     branch and will be present in the 3.0 release.
+     [Tomas Mraz]
+
+  *) Revised BN_generate_prime_ex to not avoid factors 3..17863 in p-1
+     when primes for RSA keys are computed.
+     Since we previously always generated primes == 2 (mod 3) for RSA keys,
+     the 2-prime and 3-prime RSA modules were easy to distinguish, since
+     N = p*q = 1 (mod 3), but N = p*q*r = 2 (mod 3). Therefore fingerprinting
+     2-prime vs. 3-prime RSA keys was possible by computing N mod 3.
+     This avoids possible fingerprinting of newly generated RSA modules.
+     [Bernd Edlinger]
+
  Changes between 1.1.1d and 1.1.1e [17 Mar 2020]
   *) Properly detect EOF while reading in libssl. Previously if we hit an EOF
      while reading in libssl then we would report an error back to the
