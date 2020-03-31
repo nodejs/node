@@ -153,6 +153,7 @@ sequential/test-inspector-port-cluster: SLOW
 sequential/test-net-bytes-per-incoming-chunk-overhead: SLOW
 sequential/test-pipe: SLOW
 sequential/test-util-debug: SLOW
+sequential/test-worker-prof: SLOW
 
 [$type==coverage]
 async-hooks/test-callback-error: PASS,FAIL,CRASH
