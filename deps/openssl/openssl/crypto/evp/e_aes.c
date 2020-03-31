@@ -393,7 +393,7 @@ static int aesni_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 
         /*
          * Verify that the two keys are different.
-         *
+         * 
          * This addresses Rogaway's vulnerability.
          * See comment in aes_xts_init_key() below.
          */
@@ -813,7 +813,7 @@ static int aes_t4_xts_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 
         /*
          * Verify that the two keys are different.
-         *
+         * 
          * This addresses Rogaway's vulnerability.
          * See comment in aes_xts_init_key() below.
          */

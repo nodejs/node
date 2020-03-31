@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -1904,7 +1904,7 @@ int s_server_main(int argc, char *argv[])
         BIO_printf(bio_s_out, "Setting secondary ctx parameters\n");
 
         if (sdebug)
-            ssl_ctx_security_debug(ctx, sdebug);
+            ssl_ctx_security_debug(ctx2, sdebug);
 
         if (session_id_prefix) {
             if (strlen(session_id_prefix) >= 32)
