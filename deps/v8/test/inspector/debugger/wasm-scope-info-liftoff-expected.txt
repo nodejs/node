@@ -17,7 +17,7 @@ at C (interpreted) (0:85):
    globals: "global#0": 0 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack:
+   stack: 
 at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 0 (number)
@@ -29,7 +29,7 @@ at A (liftoff) (0:54):
    globals: "global#0": 0 (number)
  - scope (local):
    locals: "arg#0": 42 (number)
-   stack:
+   stack: 
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -54,7 +54,7 @@ at A (liftoff) (0:54):
    globals: "global#0": 0 (number)
  - scope (local):
    locals: "arg#0": 42 (number)
-   stack:
+   stack: 
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -67,7 +67,7 @@ at C (interpreted) (0:89):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
-   stack:
+   stack: 
 at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
@@ -79,7 +79,7 @@ at A (liftoff) (0:54):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "arg#0": 42 (number)
-   stack:
+   stack: 
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -104,7 +104,7 @@ at A (liftoff) (0:54):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "arg#0": 42 (number)
-   stack:
+   stack: 
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
@@ -117,7 +117,7 @@ at C (interpreted) (0:93):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 47 (number)
-   stack:
+   stack: 
 at B (liftoff) (0:76):
  - scope (global):
    globals: "global#0": 42 (number)
@@ -129,7 +129,7 @@ at A (liftoff) (0:54):
    globals: "global#0": 42 (number)
  - scope (local):
    locals: "arg#0": 42 (number)
-   stack:
+   stack: 
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
