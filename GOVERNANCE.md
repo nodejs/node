@@ -7,7 +7,7 @@
 * [Technical Steering Committee](#technical-steering-committee)
   * [TSC Meetings](#tsc-meetings)
 * [Collaborator Nominations](#collaborator-nominations)
-  * [Onboarding](#./onboarding)
+  * [Onboarding](#onboarding)
 * [Consensus Seeking Process](#consensus-seeking-process)
 
 <!-- /TOC -->
