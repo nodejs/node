@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -107,12 +107,8 @@ static int null_callback(int ok, X509_STORE_CTX *e)
 /* Return 1 is a certificate is self signed */
 static int cert_self_signed(X509 *x)
 {
-    /*
-     * FIXME: x509v3_cache_extensions() needs to detect more failures and not
-     * set EXFLAG_SET when that happens.  Especially, if the failures are
-     * parse errors, rather than memory pressure!
-     */
-    X509_check_purpose(x, -1, 0);
+    if (X509_check_purpose(x, -1, 0) != 1)
+        return 0;
     if (x->ex_flags & EXFLAG_SS)
         return 1;
     else

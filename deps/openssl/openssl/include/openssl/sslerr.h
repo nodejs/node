@@ -734,7 +734,6 @@ int ERR_load_SSL_strings(void);
 # define SSL_R_UNABLE_TO_LOAD_SSL3_SHA1_ROUTINES          243
 # define SSL_R_UNEXPECTED_CCS_MESSAGE                     262
 # define SSL_R_UNEXPECTED_END_OF_EARLY_DATA               178
-# define SSL_R_UNEXPECTED_EOF_WHILE_READING               294
 # define SSL_R_UNEXPECTED_MESSAGE                         244
 # define SSL_R_UNEXPECTED_RECORD                          245
 # define SSL_R_UNINITIALIZED                              276
