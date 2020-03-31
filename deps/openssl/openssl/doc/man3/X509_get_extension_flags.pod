@@ -80,6 +80,17 @@ The certificate contains an unhandled critical extension.
 
 Some certificate extension values are invalid or inconsistent. The
 certificate should be rejected.
+This bit may also be raised after an out-of-memory error while
+processing the X509 object, so it may not be related to the processed
+ASN1 object itself.
+
+=item B<EXFLAG_INVALID_POLICY>
+
+The NID_certificate_policies certificate extension is invalid or
+inconsistent. The certificate should be rejected.
+This bit may also be raised after an out-of-memory error while
+processing the X509 object, so it may not be related to the processed
+ASN1 object itself.
 
 =item B<EXFLAG_KUSAGE>
 
@@ -183,7 +194,7 @@ X509_get_proxy_pathlen() were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
