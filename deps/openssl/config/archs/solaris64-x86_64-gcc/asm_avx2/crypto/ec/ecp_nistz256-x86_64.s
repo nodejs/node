@@ -3874,12 +3874,12 @@ ecp_nistz256_ord_sqr_montx:
 .type	ecp_nistz256_to_mont,@function
 .align	32
 ecp_nistz256_to_mont:
-.cfi_startproc
+.cfi_startproc	
 	movl	$0x80100,%ecx
 	andl	OPENSSL_ia32cap_P+8(%rip),%ecx
 	leaq	.LRR(%rip),%rdx
 	jmp	.Lmul_mont
-.cfi_endproc
+.cfi_endproc	
 .size	ecp_nistz256_to_mont,.-ecp_nistz256_to_mont
 
 
@@ -4823,7 +4823,7 @@ ecp_nistz256_from_mont:
 .type	ecp_nistz256_scatter_w5,@function
 .align	32
 ecp_nistz256_scatter_w5:
-.cfi_startproc
+.cfi_startproc	
 	leal	-3(%rdx,%rdx,2),%edx
 	movdqa	0(%rsi),%xmm0
 	shll	$5,%edx
@@ -4840,7 +4840,7 @@ ecp_nistz256_scatter_w5:
 	movdqa	%xmm5,80(%rdi,%rdx,1)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ecp_nistz256_scatter_w5,.-ecp_nistz256_scatter_w5
 
 
@@ -4914,7 +4914,7 @@ ecp_nistz256_gather_w5:
 .type	ecp_nistz256_scatter_w7,@function
 .align	32
 ecp_nistz256_scatter_w7:
-.cfi_startproc
+.cfi_startproc	
 	movdqu	0(%rsi),%xmm0
 	shll	$6,%edx
 	movdqu	16(%rsi),%xmm1
@@ -4926,7 +4926,7 @@ ecp_nistz256_scatter_w7:
 	movdqa	%xmm3,48(%rdi,%rdx,1)
 
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	ecp_nistz256_scatter_w7,.-ecp_nistz256_scatter_w7
 
 

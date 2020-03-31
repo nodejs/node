@@ -111,8 +111,8 @@ our %config = (
   sourcedir => ".",
   target => "linux-ppc64",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1e",
-  version_num => "0x1010105fL",
+  version => "1.1.1f",
+  version_num => "0x1010106fL",
 );
 
 our %target = (
