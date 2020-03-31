@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -240,8 +240,9 @@ static int trust_1oid(X509_TRUST *trust, X509 *x, int flags)
 static int trust_compat(X509_TRUST *trust, X509 *x, int flags)
 {
     /* Call for side-effect of computing hash and caching extensions */
-    X509_check_purpose(x, -1, 0);
-    if ((flags & X509_TRUST_NO_SS_COMPAT) == 0 && x->ex_flags & EXFLAG_SS)
+    if (X509_check_purpose(x, -1, 0) != 1)
+        return X509_TRUST_UNTRUSTED;
+    if ((flags & X509_TRUST_NO_SS_COMPAT) == 0 && (x->ex_flags & EXFLAG_SS))
         return X509_TRUST_TRUSTED;
     else
         return X509_TRUST_UNTRUSTED;

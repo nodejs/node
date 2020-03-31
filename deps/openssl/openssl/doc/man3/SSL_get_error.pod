@@ -155,6 +155,18 @@ connection and SSL_shutdown() must not be called.
 
 =back
 
+=head1 BUGS
+
+The B<SSL_ERROR_SYSCALL> with B<errno> value of 0 indicates unexpected EOF from
+the peer. This will be properly reported as B<SSL_ERROR_SSL> with reason
+code B<SSL_R_UNEXPECTED_EOF_WHILE_READING> in the OpenSSL 3.0 release because
+it is truly a TLS protocol error to terminate the connection without
+a SSL_shutdown().
+
+The issue is kept unfixed in OpenSSL 1.1.1 releases because many applications
+which choose to ignore this protocol error depend on the existing way of
+reporting the error.
+
 =head1 SEE ALSO
 
 L<ssl(7)>
@@ -166,7 +178,7 @@ The SSL_ERROR_WANT_CLIENT_HELLO_CB error code was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

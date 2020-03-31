@@ -2852,7 +2852,6 @@ SSL_R_UNABLE_TO_LOAD_SSL3_MD5_ROUTINES:242:unable to load ssl3 md5 routines
 SSL_R_UNABLE_TO_LOAD_SSL3_SHA1_ROUTINES:243:unable to load ssl3 sha1 routines
 SSL_R_UNEXPECTED_CCS_MESSAGE:262:unexpected ccs message
 SSL_R_UNEXPECTED_END_OF_EARLY_DATA:178:unexpected end of early data
-SSL_R_UNEXPECTED_EOF_WHILE_READING:294:unexpected eof while reading
 SSL_R_UNEXPECTED_MESSAGE:244:unexpected message
 SSL_R_UNEXPECTED_RECORD:245:unexpected record
 SSL_R_UNINITIALIZED:276:uninitialized
