@@ -111,7 +111,7 @@ snippet: "
     #d() { return 1; }
     constructor() { (() => this)().#d(); }
   }
-
+  
   var test = D;
   new test;
 "
@@ -147,3 +147,4 @@ constant pool: [
 ]
 handlers: [
 ]
+
