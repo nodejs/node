@@ -2,16 +2,17 @@
 require('../common');
 const assert = require('assert');
 const http = require('http');
+const debug = require('util').debuglog('test');
 
 const testResBody = 'other stuff!\n';
 const kMessageCount = 2;
 
 const server = http.createServer((req, res) => {
   for (let i = 0; i < kMessageCount; i++) {
-    console.error(`Server sending informational message #${i}...`);
+    debug(`Server sending informational message #${i}...`);
     res.writeProcessing();
   }
-  console.error('Server sending full response...');
+  debug('Server sending full response...');
   res.writeHead(200, {
     'Content-Type': 'text/plain',
     'ABCD': '1'
@@ -25,7 +26,7 @@ server.listen(0, function() {
     path: '/world'
   });
   req.end();
-  console.error('Client sending request...');
+  debug('Client sending request...');
 
   let body = '';
   let infoCount = 0;
@@ -40,7 +41,7 @@ server.listen(0, function() {
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });
     res.on('end', function() {
-      console.error('Got full response.');
+      debug('Got full response.');
       assert.strictEqual(body, testResBody);
       assert.ok('abcd' in res.headers);
       server.close();
