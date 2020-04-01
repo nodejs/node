@@ -1,0 +1,6 @@
+{
+  "main": "main.js",
+  "exports": {
+    ".": "./exports_main.js"
+  }
+}

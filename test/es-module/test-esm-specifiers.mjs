@@ -9,12 +9,18 @@ import { fileURLToPath } from 'url';
 import commonjs from '../fixtures/es-module-specifiers/package-type-commonjs';
 // esm index.js
 import module from '../fixtures/es-module-specifiers/package-type-module';
+// esm main.js
+import pkg_main from '../fixtures/es-module-specifiers/package-with-main';
+// esm exports_main.js
+import pkg_export from '../fixtures/es-module-specifiers/package-with-exports';
 // Notice the trailing slash
 import success, { explicit, implicit, implicitModule, getImplicitCommonjs }
   from '../fixtures/es-module-specifiers/';
 
 assert.strictEqual(commonjs, 'commonjs');
 assert.strictEqual(module, 'module');
+assert.strictEqual(pkg_main, 'package-with-main');
+assert.strictEqual(pkg_export, 'package-with-exports');
 assert.strictEqual(success, 'success');
 assert.strictEqual(explicit, 'esm');
 assert.strictEqual(implicit, 'cjs');
