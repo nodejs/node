@@ -67,7 +67,7 @@ for (let i = 0; i < invalidCallbacks.length; i++) {
   );
 }
 
-const server = net.Server();
+const server = net.Server((conn) => { /* do nothing */ });
 server.listen(0, common.mustCall(() => {
   const socket = net.createConnection(server.address().port);
   socket.setTimeout(1, common.mustCall(() => {
