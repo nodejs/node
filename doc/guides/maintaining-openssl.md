@@ -83,8 +83,8 @@ Update all architecture dependent files. Do not forget to git add or remove
 files if they are changed before commit:
 ```sh
 % git add deps/openssl/config/archs
-% git add deps/openssl/openssl/crypto/include/internal/bn_conf.h
-% git add deps/openssl/openssl/crypto/include/internal/dso_conf.h
+% git add deps/openssl/openssl/include/crypto/bn_conf.h
+% git add deps/openssl/openssl/include/crypto/dso_conf.h
 % git add deps/openssl/openssl/include/openssl/opensslconf.h
 % git commit
 ```
@@ -98,8 +98,8 @@ The commit message can be (with the openssl version set to the relevant value):
     $ cd deps/openssl/config
     $ make
     $ git add deps/openssl/config/archs
-    $ git add deps/openssl/openssl/crypto/include/internal/bn_conf.h
-    $ git add deps/openssl/openssl/crypto/include/internal/dso_conf.h
+    $ git add deps/openssl/openssl/include/crypto/bn_conf.h
+    $ git add deps/openssl/openssl/include/crypto/dso_conf.h
     $ git add deps/openssl/openssl/include/openssl/opensslconf.h
     $ git commit
 ```
