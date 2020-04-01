@@ -85,7 +85,7 @@ event is not emitted until all connections are ended.
 added: v0.1.90
 changes:
  - version: REPLACEME
-   pr-url: XXX
+   pr-url: https://github.com/nodejs/node/pull/32516
    description: New connections are now closed instead of silently leaking them
                 when there are no `'connection'` listeners.
 -->
