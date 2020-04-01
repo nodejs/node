@@ -12,7 +12,7 @@ snippet: "
   class A {
     get #a() { return 1; }
     set #a(val) { }
-
+  
     constructor() {
       this.#a++;
       this.#a = 1;
@@ -189,3 +189,4 @@ constant pool: [
 ]
 handlers: [
 ]
+

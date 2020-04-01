@@ -13,7 +13,7 @@ snippet: "
     #a() { return 1; }
     constructor() { return this.#a(); }
   }
-
+  
   var test = A;
   new A;
 "
@@ -44,7 +44,7 @@ snippet: "
     #b() { return 1; }
     constructor() { this.#b = 1; }
   }
-
+  
   var test = B;
   new test;
 "
@@ -76,7 +76,7 @@ snippet: "
     #c() { return 1; }
     constructor() { this.#c++; }
   }
-
+  
   var test = C;
   new test;
 "
@@ -101,3 +101,4 @@ constant pool: [
 ]
 handlers: [
 ]
+
