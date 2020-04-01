@@ -102,30 +102,26 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  uv_cpu_info_t* cpu_infos;
-  int count;
+  CPUInfo cpu_infos;
 
-  int err = uv_cpu_info(&cpu_infos, &count);
-  if (err)
+  if (!cpu_infos)
     return;
 
   // It's faster to create an array packed with all the data and
   // assemble them into objects in JS than to call Object::Set() repeatedly
   // The array is in the format
   // [model, speed, (5 entries of cpu_times), model2, speed2, ...]
-  std::vector<Local<Value>> result(count * 7);
-  for (int i = 0, j = 0; i < count; i++) {
-    uv_cpu_info_t* ci = cpu_infos + i;
-    result[j++] = OneByteString(isolate, ci->model);
-    result[j++] = Number::New(isolate, ci->speed);
-    result[j++] = Number::New(isolate, ci->cpu_times.user);
-    result[j++] = Number::New(isolate, ci->cpu_times.nice);
-    result[j++] = Number::New(isolate, ci->cpu_times.sys);
-    result[j++] = Number::New(isolate, ci->cpu_times.idle);
-    result[j++] = Number::New(isolate, ci->cpu_times.irq);
+  std::vector<Local<Value>> result(cpu_infos.count() * 7);
+  for (int i = 0, j = 0; i < cpu_infos.count(); i++) {
+    result[j++] = OneByteString(isolate, cpu_infos[i].model);
+    result[j++] = Number::New(isolate, cpu_infos[i].speed);
+    result[j++] = Number::New(isolate, cpu_infos[i].cpu_times.user);
+    result[j++] = Number::New(isolate, cpu_infos[i].cpu_times.nice);
+    result[j++] = Number::New(isolate, cpu_infos[i].cpu_times.sys);
+    result[j++] = Number::New(isolate, cpu_infos[i].cpu_times.idle);
+    result[j++] = Number::New(isolate, cpu_infos[i].cpu_times.irq);
   }
 
-  uv_free_cpu_info(cpu_infos, count);
   args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 

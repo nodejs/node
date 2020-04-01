@@ -30,6 +30,7 @@ constexpr double SEC_PER_MICROS = 1e-6;
 namespace report {
 using node::arraysize;
 using node::ConditionVariable;
+using node::CPUInfo;
 using node::DiagnosticFilename;
 using node::Environment;
 using node::JSONWriter;
@@ -387,11 +388,10 @@ static void PrintVersionInformation(JSONWriter* writer) {
 
 // Report CPU info
 static void PrintCpuInfo(JSONWriter* writer) {
-  uv_cpu_info_t* cpu_info;
-  int count;
-  if (uv_cpu_info(&cpu_info, &count) == 0) {
+  CPUInfo cpu_info;
+  if (cpu_info) {
     writer->json_arraystart("cpus");
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < cpu_info.count(); i++) {
       writer->json_start();
       writer->json_keyvalue("model", cpu_info[i].model);
       writer->json_keyvalue("speed", cpu_info[i].speed);
@@ -403,7 +403,6 @@ static void PrintCpuInfo(JSONWriter* writer) {
       writer->json_end();
     }
     writer->json_arrayend();
-    uv_free_cpu_info(cpu_info, count);
   }
 }
 

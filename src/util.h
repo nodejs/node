@@ -33,6 +33,8 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include "uv.h"
+
 #include <cassert>
 #include <climits>  // PATH_MAX
 #include <csignal>
@@ -762,6 +764,31 @@ class PersistentToLocal {
       const v8::PersistentBase<TypeName>& persistent) {
     return v8::Local<TypeName>::New(isolate, persistent);
   }
+};
+
+class CPUInfo {
+ public:
+  CPUInfo() {
+    if (uv_cpu_info(&info_, &count_) != 0) {
+      info_ = nullptr;
+      count_ = 0;
+    }
+  }
+  ~CPUInfo() {
+    if (info_ != nullptr)
+      uv_free_cpu_info(info_, count_);
+  }
+  int count() const { return count_; }
+  operator bool() const {
+    return info_ != nullptr;
+  }
+  const uv_cpu_info_t& operator[](int idx) const {
+    return info_[idx];
+  }
+
+ private:
+  uv_cpu_info_t* info_ = nullptr;
+  int count_ = 0;
 };
 
 }  // namespace node
