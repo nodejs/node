@@ -165,7 +165,7 @@ snippet: "
       get #d() { return 1; }
       set #d(val) { }
     }
-
+  
     class E extends D {
       get #e() { return 2; }
       set #e(val) { }
@@ -395,3 +395,4 @@ constant pool: [
 ]
 handlers: [
 ]
+
