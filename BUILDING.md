@@ -265,15 +265,14 @@ More Developer Tools...`. This step will install `clang`, `clang++`, and
 
 #### Building Node.js
 
-If the path to your build directory contains a space, the build will likely
-fail.
-
 To build Node.js:
 
 ```console
 $ ./configure
 $ make -j4
 ```
+
+Remember to contain the path to your file with single or double quotes. spaces without quoations are interpreted by bash as seperate commands, thus they will fail (or do something rediculous).
 
 If you run into a `No module named 'distutils.spawn'` error when executing
 `./configure`, please try `python3 -m pip install --upgrade setuptools` or
