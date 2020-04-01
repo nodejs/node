@@ -542,7 +542,8 @@ maintaining the Node.js project.
 
 ### Release Keys
 
-GPG keys used to sign Node.js releases:
+GPG keys used to sign Node.js releases (you may encounter a release signed
+by a sub-key of a key listed below (which itself isn't listed below)):
 
 * **Beth Griggs** &lt;bethany.griggs@uk.ibm.com&gt;
 `4ED778F539E3634C779C87C6D7062848A1AB005C`
