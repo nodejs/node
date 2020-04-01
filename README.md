@@ -566,7 +566,9 @@ by a sub-key of a key listed below (which itself isn't listed below)):
 * **Shelley Vohr** &lt;shelley.vohr@gmail.com&gt;
 `B9E2F5981AA6E0CD28160D9FF13993A75599653C`
 
-To import the full set of trusted release keys:
+If you encounter a release signed by a key not listed above, please import it
+and check whether it is a sub-key of a primary key listed above. You can also
+import the full set of trusted release keys:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
