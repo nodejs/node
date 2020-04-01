@@ -70,4 +70,4 @@ jobs:
       - name: Lint Python
         run: |
           make lint-py-build || true
-          NODE=$(which node) make lint lint-py
+          NODE=$(which node) make lint-py
