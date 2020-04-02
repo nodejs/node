@@ -60,6 +60,12 @@ namespace internal {
 // TODO(sigurds): Change this value once we use relative jumps.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 0;
 
+// Used to encode a boolean value when emitting 32 bit
+// opcodes which will indicate the presence of function descriptors
+constexpr int kHasFunctionDescriptorBitShift = 9;
+constexpr int kHasFunctionDescriptorBitMask = 1
+                                              << kHasFunctionDescriptorBitShift;
+
 // Number of registers
 const int kNumRegisters = 32;
 

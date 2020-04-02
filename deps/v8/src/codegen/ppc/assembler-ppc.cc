@@ -1121,20 +1121,6 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 }
 #endif
 
-// Function descriptor for AIX.
-// Code address skips the function descriptor "header".
-// TOC and static chain are ignored and set to 0.
-void Assembler::function_descriptor() {
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
-    Label instructions;
-    DCHECK_EQ(pc_offset(), 0);
-    emit_label_addr(&instructions);
-    dp(0);
-    dp(0);
-    bind(&instructions);
-  }
-}
-
 int Assembler::instructions_required_for_mov(Register dst,
                                              const Operand& src) const {
   bool canOptimize =
