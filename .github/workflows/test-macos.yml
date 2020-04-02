@@ -3,7 +3,7 @@ name: test-macOS
 on: [push, pull_request]
 
 env:
-  PYTHON_VERSION: 3.8
+  PYTHON_VERSION: 2.7
   FLAKY_TESTS: dontcare
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v1
         with:
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
         run: npx envinfo
       - name: Build
