@@ -218,8 +218,7 @@ class Environment;
 NODE_EXTERN int Start(int argc, char* argv[]);
 
 // Tear down Node.js while it is running (there are active handles
-// in the loop and / or actively executing JavaScript code). This also stops
-// all Workers that may have been started earlier.
+// in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env);
 
 // TODO(addaleax): Officially deprecate this and replace it with something
@@ -469,8 +468,8 @@ NODE_EXTERN void FreeEnvironment(Environment* env);
 // It receives the Environment* instance and the exit code as arguments.
 // This could e.g. call Stop(env); in order to terminate execution and stop
 // the event loop.
-// The default handler calls Stop(), disposes of the global V8 platform
-// instance, if one is being used, and calls exit().
+// The default handler disposes of the global V8 platform instance, if one is
+// being used, and calls exit().
 NODE_EXTERN void SetProcessExitHandler(
     Environment* env,
     std::function<void(Environment*, int)>&& handler);

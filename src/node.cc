@@ -1035,7 +1035,7 @@ int Start(int argc, char** argv) {
 }
 
 int Stop(Environment* env) {
-  env->Stop();
+  env->ExitEnv();
   return 0;
 }
 
