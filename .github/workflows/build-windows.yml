@@ -19,7 +19,5 @@ jobs:
         run: choco install nasm
       - name: Environment Information
         run: npx envinfo
-      - name: Setup Visual studio
-        run: npx windows-build-tools
       - name: Build
         run: ./vcbuild.bat
