@@ -200,6 +200,12 @@ is not set to `true`, it returns a `Promise` for an `Object` with `address` and
 `family` properties.
 
 ### Supported getaddrinfo flags
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32183
+    description: Added support for the `dns.ALL` flag.
+-->
 
 The following flags can be passed as hints to [`dns.lookup()`][].
 
