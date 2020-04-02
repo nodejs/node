@@ -1233,9 +1233,9 @@ lint-md-build:
 	$(warning "Deprecated no-op target 'lint-md-build'")
 
 ifeq ("$(wildcard tools/.mdlintstamp)","")
-    LINT_MD_NEWER =
+	LINT_MD_NEWER =
 else
-    LINT_MD_NEWER = -newer tools/.mdlintstamp
+	LINT_MD_NEWER = -newer tools/.mdlintstamp
 endif
 
 LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(wildcard *.md)
