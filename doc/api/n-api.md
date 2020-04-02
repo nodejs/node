@@ -2447,7 +2447,8 @@ napi_status napi_get_arraybuffer_info(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] arraybuffer`: `napi_value` representing the `ArrayBuffer` being queried.
-* `[out] data`: The underlying data buffer of the `ArrayBuffer`.
+* `[out] data`: The underlying data buffer of the `ArrayBuffer`. If byte_length
+  is 0 this may be NULL or any other pointer value.
 * `[out] byte_length`: Length in bytes of the underlying data buffer.
 
 Returns `napi_ok` if the API succeeded.
@@ -2479,6 +2480,7 @@ napi_status napi_get_buffer_info(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] value`: `napi_value` representing the `node::Buffer` being queried.
 * `[out] data`: The underlying data buffer of the `node::Buffer`.
+  If length is 0 this may be NULL or any other pointer value.
 * `[out] length`: Length in bytes of the underlying data buffer.
 
 Returns `napi_ok` if the API succeeded.
@@ -2568,6 +2570,7 @@ napi_status napi_get_dataview_info(napi_env env,
   properties to query.
 * `[out] byte_length`: `Number` of bytes in the `DataView`.
 * `[out] data`: The data buffer underlying the `DataView`.
+If byte_length is 0 this may be NULL or any other pointer value.
 * `[out] arraybuffer`: `ArrayBuffer` underlying the `DataView`.
 * `[out] byte_offset`: The byte offset within the data buffer from which
   to start projecting the `DataView`.
