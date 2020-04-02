@@ -1038,6 +1038,8 @@ void Environment::Exit(int exit_code) {
 }
 
 void Environment::stop_sub_worker_contexts() {
+  DCHECK_EQ(Isolate::GetCurrent(), isolate());
+
   while (!sub_worker_contexts_.empty()) {
     Worker* w = *sub_worker_contexts_.begin();
     remove_sub_worker_context(w);
