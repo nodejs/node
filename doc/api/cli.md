@@ -1159,6 +1159,7 @@ Node.js options that are allowed are:
 * `--inspect-publish-uid`
 * `--inspect`
 * `--max-http-header-size`
+* `--max-worker-threads`
 * `--napi-modules`
 * `--no-deprecation`
 * `--no-force-async-hooks-checks`

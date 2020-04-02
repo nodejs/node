@@ -34,7 +34,5 @@ if (process.argv[2] === 'child') {
     process.execPath,
     ['--max-worker-threads=1', __filename, 'child'],
     { stdio: 'inherit' });
-  child.on('close', common.mustCall((code) => {
-    assert.strictEqual(code, 0);
-  }));
+  child.on('close', common.mustCall((code) => assert(!code)));
 }
