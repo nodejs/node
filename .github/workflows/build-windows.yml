@@ -3,7 +3,7 @@ name: build-windows
 on: [push, pull_request]
 
 env:
-  PYTHON_VERSION: 3.8
+  PYTHON_VERSION: 2.7
   FLAKY_TESTS: dontcare
 
 jobs:
