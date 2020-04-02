@@ -606,7 +606,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     // AIX uses function descriptors on CFunction calls. code_entry in this case
     // may also point to a Regex interpreter entry trampoline which does not
     // have a function descriptor. This method is ineffective on other platforms
-    // and is equivalent to CallCFunction..
+    // and is equivalent to CallCFunction.
     TNode<Int32T> result =
         UncheckedCast<Int32T>(CallCFunctionWithoutFunctionDescriptor(
             code_entry, retval_type, std::make_pair(arg0_type, arg0),
