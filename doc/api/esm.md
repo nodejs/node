@@ -1663,7 +1663,7 @@ The resolver can throw the following errors:
 
 **ESM_FORMAT**(_url_)
 
-> 1. Assert: _url_ corresponds to an existing file pathname.
+> 1. Assert: _url_ corresponds to an existing file.
 > 1. Let _pjson_ be the result of **READ_PACKAGE_SCOPE**(_url_).
 > 1. If _url_ ends in _".mjs"_, then
 >    1. Return _"module"_.
