@@ -71,6 +71,17 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors) {
       use_largepages != "silent") {
     errors->push_back("invalid value for --use-largepages");
   }
+
+  // When set to a negative, the value is auto-calculated
+  // based on the number of CPUs. Setting the value to 0
+  // disables the check.
+  if (max_worker_thread_count < 0) {
+    CPUInfo cpu_info;
+    max_worker_thread_count = cpu_info ?
+        cpu_info.count() * kMaxWorkerThreadMultiplier :
+        kMaxWorkerThreadMultiplier;
+  }
+
   per_isolate->CheckOptions(errors);
 }
 
@@ -735,6 +746,11 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--trace-sigint",
             "enable printing JavaScript stacktrace on SIGINT",
             &PerProcessOptions::trace_sigint,
+            kAllowedInEnvironment);
+
+  AddOption("--max-worker-threads",
+            "specify max number of worker threads",
+            &PerProcessOptions::max_worker_thread_count,
             kAllowedInEnvironment);
 
   Insert(iop, &PerProcessOptions::get_per_isolate_options);

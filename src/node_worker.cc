@@ -5,9 +5,11 @@
 #include "node_buffer.h"
 #include "node_options-inl.h"
 #include "node_perf.h"
+#include "node_process.h"
 #include "util-inl.h"
 #include "async_wrap-inl.h"
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -41,6 +43,31 @@ using v8::Value;
 namespace node {
 namespace worker {
 
+namespace {
+// The worker count is intentionally process scoped so
+// we can track the total number of active workers
+// across the process.
+std::atomic<int64_t> active_worker_thread_count {0};
+std::atomic<bool> active_worker_thread_warn {true};
+
+void EmitWorkerThreadWarning(Environment* env, int64_t count, int64_t max) {
+  if (env->is_main_thread()) {
+    USE(ProcessEmitWarning(env,
+        "Too many active worker threads (%" PRId64 "). "
+        "Performance may be degraded. "
+        "(--max-worker-threads=%" PRId64 ")", count, max));
+  } else {
+    // If this is not the main thread, recursively move up
+    // until we get to the main thread.
+    env->worker_context()->env()
+        ->SetImmediateThreadsafe([count, max](Environment* env) {
+      EmitWorkerThreadWarning(env, count, max);
+    });
+  }
+}
+
+}  // namespace
+
 Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
@@ -55,6 +82,23 @@ Worker::Worker(Environment* env,
       env_vars_(env_vars) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
+
+  int64_t count = ++active_worker_thread_count;
+  int64_t max_worker_thread_count =
+      per_process::cli_options->max_worker_thread_count;
+  if (max_worker_thread_count > 0 &&
+      count > max_worker_thread_count &&
+      active_worker_thread_warn.exchange(false)) {
+    // Having too many active worker threads can degrade overall
+    // performance of the entire Node.js application by causing
+    // too much CPU contention. The default max-worker-threads is
+    // 4 times the total number of CPUs available but may be set
+    // explicitly using the --max-worker-threads=n command line option.
+    // Setting --max-worker-threads=0 disables this check.
+    // This is tracked per process rather than per environment/isolate
+    // so we can account also for all Workers created within Workers.
+    EmitWorkerThreadWarning(env, count, max_worker_thread_count);
+  }
 
   // Set up everything that needs to be set up in the parent environment.
   parent_port_ = MessagePort::New(env, env->context());
@@ -433,6 +477,8 @@ void Worker::JoinThread() {
 }
 
 Worker::~Worker() {
+  active_worker_thread_count--;
+
   Mutex::ScopedLock lock(mutex_);
 
   CHECK(stopped_);

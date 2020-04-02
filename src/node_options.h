@@ -13,6 +13,8 @@
 
 namespace node {
 
+constexpr uint64_t kMaxWorkerThreadMultiplier = 4;
+
 class HostPort {
  public:
   HostPort(const std::string& host_name, int port)
@@ -199,6 +201,7 @@ class PerProcessOptions : public Options {
   std::string trace_event_categories;
   std::string trace_event_file_pattern = "node_trace.${rotation}.log";
   int64_t v8_thread_pool_size = 4;
+  int64_t max_worker_thread_count = 0;
   bool zero_fill_all_buffers = false;
   bool debug_arraybuffer_allocations = false;
   std::string disable_proto;

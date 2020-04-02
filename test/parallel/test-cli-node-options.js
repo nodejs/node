@@ -28,6 +28,7 @@ expect('--no_warnings', 'B\n');
 expect('--trace-warnings', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
+expectNoWorker('--max-worker-threads=1', 'B\n');
 expect('--trace-sync-io', 'B\n');
 expectNoWorker('--trace-events-enabled', 'B\n');
 expect('--track-heap-objects', 'B\n');

@@ -246,6 +246,13 @@ disappear in a non-semver-major release.
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 16KB.
 .
+.It FL -max-worker-threads Ns = Ns Ar Size
+Specify the maximum number of worker threads that should be created for
+this Node.js process. If the limit is exceeded, additional Worker threads
+may be created but a process warning will be emitted. When set to any negative
+value, the limit is set to four times the number of CPUs available. When set to
+0, the check is disabled. Defaults to 0.
+.
 .It Fl -napi-modules
 This option is a no-op.
 It is kept for compatibility.

@@ -448,6 +448,17 @@ changes:
 
 Specify the maximum size, in bytes, of HTTP headers. Defaults to 16KB.
 
+### `--max-worker-threads=n`
+<!-- YAML
+added: REPLACEME
+-->
+
+Specify the maximum number of worker threads that should be created for
+this Node.js process. If the limit is exceeded, additional Worker threads
+may be created but a process warning will be emitted. When set to any negative
+value, the limit is set to four times the number of CPUs available. When set
+to 0, the check is disabled. Defaults to 0.
+
 ### `--napi-modules`
 <!-- YAML
 added: v7.10.0

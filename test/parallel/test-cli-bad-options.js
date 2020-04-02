@@ -13,6 +13,7 @@ if (process.features.inspector) {
   requiresArgument('--debug-port=');
 }
 requiresArgument('--eval');
+requiresArgument('--max-worker-threads');
 
 function requiresArgument(option) {
   const r = spawn(process.execPath, [option], { encoding: 'utf8' });
