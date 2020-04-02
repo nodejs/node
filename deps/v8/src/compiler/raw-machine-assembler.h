@@ -983,6 +983,22 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* CallCFunction(Node* function, MachineType return_type,
                       std::initializer_list<CFunctionArg> args);
 
+  // Call to a C function without a function discriptor on AIX.
+  template <class... CArgs>
+  Node* CallCFunctionWithoutFunctionDescriptor(Node* function,
+                                               MachineType return_type,
+                                               CArgs... cargs) {
+    static_assert(v8::internal::conjunction<
+                      std::is_convertible<CArgs, CFunctionArg>...>::value,
+                  "invalid argument types");
+    return CallCFunctionWithoutFunctionDescriptor(function, return_type,
+                                                  {cargs...});
+  }
+
+  Node* CallCFunctionWithoutFunctionDescriptor(
+      Node* function, MachineType return_type,
+      std::initializer_list<CFunctionArg> args);
+
   // Call to a C function, while saving/restoring caller registers.
   template <class... CArgs>
   Node* CallCFunctionWithCallerSavedRegisters(Node* function,

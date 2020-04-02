@@ -289,9 +289,9 @@ int NativeRegExpMacroAssembler::Execute(
       Address regexp);
 
   auto fn = GeneratedCode<RegexpMatcherSig>::FromCode(code);
-  int result = fn.CallIrregexp(input.ptr(), start_offset, input_start,
-                               input_end, output, output_size, stack_base,
-                               call_origin, isolate, regexp.ptr());
+  int result =
+      fn.Call(input.ptr(), start_offset, input_start, input_end, output,
+              output_size, stack_base, call_origin, isolate, regexp.ptr());
   DCHECK(result >= RETRY);
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {
