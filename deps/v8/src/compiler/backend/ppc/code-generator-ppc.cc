@@ -1032,7 +1032,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       num_parameters = kNumParametersMask & misc_field;
       has_function_descriptor =
           (misc_field & kHasFunctionDescriptorBitMask) != 0;
-#else
+#endif
       constexpr int offset = 9 * kInstrSize;
       if (isWasmCapiFunction) {
         __ mflr(r0);
