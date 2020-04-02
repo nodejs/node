@@ -193,6 +193,14 @@ class PerIsolateOptions : public Options {
 
 class PerProcessOptions : public Options {
  public:
+  // Options shouldn't be here unless they affect the entire process scope, and
+  // that should avoided when possible.
+  //
+  // When an option is used during process initialization, it does not need
+  // protection, but any use after that will likely require synchronization
+  // using the node::per_process::cli_options_mutex, typically:
+  //
+  //     Mutex::ScopedLock lock(node::per_process::cli_options_mutex);
   std::shared_ptr<PerIsolateOptions> per_isolate { new PerIsolateOptions() };
 
   std::string title;
@@ -213,7 +221,8 @@ class PerProcessOptions : public Options {
   std::string icu_data_dir;
 #endif
 
-  // TODO(addaleax): Some of these could probably be per-Environment.
+  // Per-process because they affect singleton OpenSSL shared library state,
+  // or are used once during process intialization.
 #if HAVE_OPENSSL
   std::string openssl_config;
   std::string tls_cipher_list = DEFAULT_CIPHER_LIST_CORE;
@@ -229,13 +238,17 @@ class PerProcessOptions : public Options {
   bool force_fips_crypto = false;
 #endif
 #endif
-  std::string use_largepages = "off";
-  bool trace_sigint = false;
-  std::vector<std::string> cmdline;
+
+  // Per-process because reports can be triggered outside a known V8 context.
   bool report_on_fatalerror = false;
   bool report_compact = false;
   std::string report_directory;
   std::string report_filename;
+
+  // TODO(addaleax): Some of these could probably be per-Environment.
+  std::string use_largepages = "off";
+  bool trace_sigint = false;
+  std::vector<std::string> cmdline;
 
   inline PerIsolateOptions* get_per_isolate_options();
   void CheckOptions(std::vector<std::string>* errors) override;
