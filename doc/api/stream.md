@@ -1463,7 +1463,9 @@ run().catch(console.error);
 
 ### Readable.from(iterable, [options])
 <!-- YAML
-added: v12.3.0
+added:
+  - v12.3.0
+  - v10.17.0
 -->
 
 * `iterable` {Iterable} Object implementing the `Symbol.asyncIterator` or
