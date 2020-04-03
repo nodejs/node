@@ -27,3 +27,6 @@ test-vm-timeout-escape-promise: PASS,FLAKY
 [$system==aix]
 
 [$arch==arm]
+# The Raspberry Pis are too slow to run this test.
+# See https://github.com/nodejs/build/issues/2227#issuecomment-608334574
+test-crypto-authenticated-stream: SKIP
