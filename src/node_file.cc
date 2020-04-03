@@ -878,10 +878,8 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
 
   while (p < pe) {
     char c = *p++;
-    if (c == '"') goto quote;  // Keeps code flat and inner loop small.
     if (c == '\\' && p < pe && *p == '"') p++;
-    continue;
-quote:
+    if (c != '"') continue;
     *ppos++ = p;
     if (ppos < &pos[2]) continue;
     ppos = &pos[0];
