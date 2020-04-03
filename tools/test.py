@@ -1488,6 +1488,7 @@ def PrintCrashed(code):
 # default JavaScript test-run, e.g., internet/ requires a network connection,
 # addons/ requires compilation.
 IGNORED_SUITES = [
+  'abort',
   'addons',
   'benchmark',
   'doctool',

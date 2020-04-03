@@ -21,3 +21,5 @@ void init(v8::Local<v8::Object> exports) {
                   "allocateAndResizeBuffer",
                   AllocateAndResizeBuffer);
 }
+
+NODE_MODULE(NODE_GYP_MODULE_NAME, init)

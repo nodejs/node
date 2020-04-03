@@ -144,6 +144,8 @@ class AddonTestConfiguration(SimpleTestConfiguration):
         for f in os.listdir(os.path.join(path, subpath)):
           if SelectTest(f):
             result.append([subpath, f[:-3]])
+      elif SelectTest(subpath):
+        result.append([subpath[:-3]])
     return result
 
   def ListTests(self, current_path, path, arch, mode):
@@ -156,7 +158,7 @@ class AddonTestConfiguration(SimpleTestConfiguration):
             SimpleTestCase(tst, file_path, arch, mode, self.context, self, self.additional_flags))
     return result
 
-class AbortTestConfiguration(SimpleTestConfiguration):
+class AbortTestConfiguration(AddonTestConfiguration):
   def __init__(self, context, root, section, additional=None):
     super(AbortTestConfiguration, self).__init__(context, root, section,
                                                  additional)
