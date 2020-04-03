@@ -9,7 +9,7 @@ const tmpdir = require('../common/tmpdir');
 const util = require('util');
 
 const debuglog = util.debuglog('test');
-const versionsTool = path.join('../../tools/doc/versions.js');
+const versionsTool = path.resolve(__dirname, '../../tools/doc/versions.js');
 
 // At the time of writing these are the minimum expected versions.
 // New versions of Node.js do not have to be explicitly added here.
@@ -29,7 +29,7 @@ const expected = [
 
 tmpdir.refresh();
 const versionsFile = path.join(tmpdir.path, 'versions.json');
-debuglog(versionsFile);
+debuglog(`${process.execPath} ${versionsTool} ${versionsFile}`);
 const opts = { cwd: tmpdir.path, encoding: 'utf8' };
 const cp = spawnSync(process.execPath, [ versionsTool, versionsFile ], opts);
 debuglog(cp.stderr);
