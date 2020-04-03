@@ -14,7 +14,7 @@ const async_hooks = require('async_hooks');
     }, {
       code: 'ERR_ASYNC_CALLBACK',
       name: 'TypeError',
-      message: `something.${field} must be a function`
+      message: `hook.${field} must be a function`
     });
   });
 });
