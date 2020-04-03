@@ -9,7 +9,7 @@ const nestedHook = async_hooks.createHook({
 });
 
 async_hooks.createHook({
-  init: common.mustCall((id, type) => {
+  init: common.mustCall(() => {
     nestedHook.enable();
   }, 2)
 }).enable();
