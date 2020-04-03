@@ -5,6 +5,7 @@ on: [push, pull_request]
 env:
   PYTHON_VERSION: 3.8
   FLAKY_TESTS: dontcare
+  CCACHE_DIR: ~/.ccache
 
 jobs:
   test-linux:
@@ -26,13 +27,13 @@ jobs:
           sudo /usr/sbin/update-ccache-symlinks
       - name: Environment Information
         run: |
-          export CCACHE_DIR=~/.ccache
           export PATH="/usr/lib/ccache:$PATH"
           npx envinfo
       - name: Build
         run: |
-          export CCACHE_DIR=~/.ccache
           export PATH="/usr/lib/ccache:$PATH"
           make build-ci -j2 V=1
       - name: Test
-        run: make run-ci -j2 V=1
+        run: |
+          export PATH="/usr/lib/ccache:$PATH"
+          make run-ci -j2 V=1
