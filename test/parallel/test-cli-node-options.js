@@ -29,6 +29,7 @@ expect('--trace-warnings', 'B\n');
 expect('--redirect-warnings=_', 'B\n');
 expect('--trace-deprecation', 'B\n');
 expect('--trace-sync-io', 'B\n');
+expect('--fs-url-strings', 'B\n');
 expectNoWorker('--trace-events-enabled', 'B\n');
 expect('--track-heap-objects', 'B\n');
 expect('--throw-deprecation',

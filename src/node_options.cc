@@ -329,6 +329,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental frozen intrinsics support",
             &EnvironmentOptions::frozen_intrinsics,
             kAllowedInEnvironment);
+  AddOption("--fs-url-strings",
+            "enable file:// URL strings in the fs API",
+            &EnvironmentOptions::fs_url_strings,
+            kAllowedInEnvironment);
   AddOption("--heapsnapshot-signal",
             "Generate heap snapshot on specified signal",
             &EnvironmentOptions::heap_snapshot_signal,

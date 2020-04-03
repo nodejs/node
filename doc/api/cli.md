@@ -272,6 +272,13 @@ reference. Code may break under this flag.
 `--require` runs prior to freezing intrinsics in order to allow polyfills to
 be added.
 
+### `--fs-url-strings`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables use of `'file://'` URL strings in `fs` module APIs.
+
 ### `--heapsnapshot-signal=signal`
 <!-- YAML
 added: v12.0.0
@@ -1138,6 +1145,7 @@ Node.js options that are allowed are:
 * `--force-context-aware`
 * `--force-fips`
 * `--frozen-intrinsics`
+* `--fs-url-strings`
 * `--heapsnapshot-signal`
 * `--http-parser`
 * `--icu-data-dir`
