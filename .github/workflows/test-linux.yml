@@ -15,9 +15,24 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/cache@v1
+        id: cache
+        with:
+          path: ~/.ccache
+          key: ${{ runner.os }}-ccache
+      - name: Setup ccache
+        run: |
+          sudo apt-get install ccache
+          sudo /usr/sbin/update-ccache-symlinks
       - name: Environment Information
-        run: npx envinfo
+        run: |
+          export CCACHE_DIR=~/.ccache
+          export PATH="/usr/lib/ccache:$PATH"
+          npx envinfo
       - name: Build
-        run: make build-ci -j2 V=1
+        run: |
+          export CCACHE_DIR=~/.ccache
+          export PATH="/usr/lib/ccache:$PATH"
+          make build-ci -j2 V=1
       - name: Test
         run: make run-ci -j2 V=1
