@@ -321,7 +321,7 @@ goto msbuild-found
 :msbuild-not-found
 echo Failed to find a suitable Visual Studio installation.
 echo Try to run in a "Developer Command Prompt" or consult
-echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows-1
+echo https://github.com/nodejs/node/blob/master/BUILDING.md#windows
 goto exit
 
 :msbuild-found
