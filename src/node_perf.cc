@@ -172,7 +172,6 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(env->isolate());
   Utf8Value name(env->isolate(), args[0]);
   Utf8Value startMark(env->isolate(), args[1]);
-  Utf8Value endMark(env->isolate(), args[2]);
 
   AliasedFloat64Array& milestones = env->performance_state()->milestones;
 
@@ -186,11 +185,17 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
       startTimestamp = milestones[milestone];
   }
 
-  uint64_t endTimestamp = GetPerformanceMark(env, *endMark);
-  if (endTimestamp == 0) {
-    PerformanceMilestone milestone = ToPerformanceMilestoneEnum(*endMark);
-    if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
-      endTimestamp = milestones[milestone];
+  uint64_t endTimestamp = 0;
+  if (args[2]->IsUndefined()) {
+    endTimestamp = PERFORMANCE_NOW();
+  } else {
+    Utf8Value endMark(env->isolate(), args[2]);
+    endTimestamp = GetPerformanceMark(env, *endMark);
+    if (endTimestamp == 0) {
+      PerformanceMilestone milestone = ToPerformanceMilestoneEnum(*endMark);
+      if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
+        endTimestamp = milestones[milestone];
+    }
   }
 
   if (endTimestamp < startTimestamp)
