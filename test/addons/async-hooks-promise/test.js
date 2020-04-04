@@ -26,7 +26,7 @@ hook0.disable();
 
 let pwrap = null;
 const hook1 = async_hooks.createHook({
-  init(id, type, tid, resource) {
+  init(_, __, ___, resource) {
     pwrap = resource;
   }
 }).enable();
