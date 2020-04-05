@@ -420,6 +420,10 @@ enum Flags : uint64_t {
 };
 }  // namespace EnvironmentFlags
 
+struct InspectorParentHandle {
+  virtual ~InspectorParentHandle();
+};
+
 // TODO(addaleax): Maybe move per-Environment options parsing here.
 // Returns nullptr when the Environment cannot be created e.g. there are
 // pending JavaScript exceptions.
@@ -436,16 +440,14 @@ NODE_EXTERN Environment* CreateEnvironment(
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags = EnvironmentFlags::kDefaultFlags,
-    ThreadId thread_id = {} /* allocates a thread id automatically */);
+    ThreadId thread_id = {} /* allocates a thread id automatically */,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
 
-struct InspectorParentHandle {
-  virtual ~InspectorParentHandle();
-};
 // Returns a handle that can be passed to `LoadEnvironment()`, making the
 // child Environment accessible to the inspector as if it were a Node.js Worker.
 // `child_thread_id` can be created using `AllocateEnvironmentThreadId()`
 // and then later passed on to `CreateEnvironment()` to create the child
-// Environment.
+// Environment, together with the inspector handle.
 // This method should not be called while the parent Environment is active
 // on another thread.
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
@@ -463,14 +465,16 @@ using StartExecutionCallback =
 
 // TODO(addaleax): Deprecate this in favour of the MaybeLocal<> overload.
 NODE_EXTERN void LoadEnvironment(Environment* env);
+// The `InspectorParentHandle` arguments here are ignored and not used.
+// For passing `InspectorParentHandle`, use `CreateEnvironment()`.
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallback cb,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
+    std::unique_ptr<InspectorParentHandle> ignored_donotuse_removeme = {});
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
     const char* main_script_source_utf8,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle = {});
+    std::unique_ptr<InspectorParentHandle> ignored_donotuse_removeme = {});
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
