@@ -314,4 +314,4 @@ async function runTest() {
   );
 }
 
-runTest();
+runTest().then(common.mustCall());

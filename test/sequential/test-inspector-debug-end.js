@@ -41,4 +41,4 @@ async function runTest() {
   await testSessionNoCrash();
 }
 
-runTest();
+runTest().then(common.mustCall());
