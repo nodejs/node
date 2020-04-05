@@ -16,4 +16,4 @@ async function test() {
   child.kill();
 }
 
-test();
+test().then(common.mustCall());

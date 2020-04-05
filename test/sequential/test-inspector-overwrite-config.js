@@ -41,4 +41,4 @@ async function runTests() {
   assert.ok(asserted, 'log statement did not reach the inspector');
 }
 
-runTests();
+runTests().then(common.mustCall());

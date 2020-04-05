@@ -43,4 +43,4 @@ async function test() {
   instance.kill();
 }
 
-test();
+test().then(common.mustCall());

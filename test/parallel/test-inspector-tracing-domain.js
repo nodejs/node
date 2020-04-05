@@ -66,4 +66,4 @@ async function test() {
   console.log('Success');
 }
 
-test();
+test().then(common.mustCall());

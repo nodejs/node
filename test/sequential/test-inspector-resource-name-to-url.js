@@ -37,4 +37,4 @@ common.skipIfInspectorDisabled();
     const { params: { url } } = await promise;
     strictEqual(url, expected);
   }
-})();
+})().then(common.mustCall());

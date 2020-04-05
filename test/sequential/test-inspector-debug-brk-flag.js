@@ -27,7 +27,7 @@ async function testBreakpointOnStart(session) {
 }
 
 async function runTests() {
-  const child = new NodeInstance(['--inspect', '--debug-brk']);
+  const child = new NodeInstance(['--inspect', '--inspect-brk']);
   const session = await child.connectInspectorSession();
 
   await testBreakpointOnStart(session);
@@ -36,4 +36,4 @@ async function runTests() {
   assert.strictEqual((await child.expectShutdown()).exitCode, 55);
 }
 
-runTests();
+runTests().then(common.mustCall());
