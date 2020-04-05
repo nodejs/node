@@ -135,7 +135,10 @@ class EnvironmentTestFixture : public NodeTestFixture {
  public:
   class Env {
    public:
-    Env(const v8::HandleScope& handle_scope, const Argv& argv) {
+    Env(const v8::HandleScope& handle_scope,
+        const Argv& argv,
+        node::EnvironmentFlags::Flags flags =
+            node::EnvironmentFlags::kDefaultFlags) {
       auto isolate = handle_scope.GetIsolate();
       context_ = node::NewContext(isolate);
       CHECK(!context_.IsEmpty());
@@ -145,10 +148,13 @@ class EnvironmentTestFixture : public NodeTestFixture {
                                               &NodeTestFixture::current_loop,
                                               platform.get());
       CHECK_NE(nullptr, isolate_data_);
+      std::vector<std::string> args(*argv, *argv + 1);
+      std::vector<std::string> exec_args(*argv, *argv + 1);
       environment_ = node::CreateEnvironment(isolate_data_,
                                              context_,
-                                             1, *argv,
-                                             argv.nr_args(), *argv);
+                                             args,
+                                             exec_args,
+                                             flags);
       CHECK_NE(nullptr, environment_);
     }
 
