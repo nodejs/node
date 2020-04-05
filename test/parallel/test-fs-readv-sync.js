@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
@@ -12,7 +13,7 @@ const expected = 'ümlaut. Лорем 運務ホソモ指及 आपको कर�
 const exptectedBuff = Buffer.from(expected);
 const expectedLength = exptectedBuff.length;
 
-const filename = 'readv_sync.txt';
+const filename = path.join(tmpdir.path, 'readv_sync.txt');
 fs.writeFileSync(filename, exptectedBuff);
 
 const allocateEmptyBuffers = (combinedLength) => {
