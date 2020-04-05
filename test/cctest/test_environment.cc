@@ -334,7 +334,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
       "        id: 1,\n"
       "        method: 'Runtime.evaluate',\n"
       "        params: {\n"
-      "          expression: 'global.variableFromParent = 42;'\n"
+      "          expression: 'globalThis.variableFromParent = 42;'\n"
       "        }\n"
       "      })\n"
       "    });\n"
@@ -401,14 +401,14 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
           { "dummy" },
           {},
           node::EnvironmentFlags::kNoFlags,
-          data->thread_id);
+          data->thread_id,
+          std::move(data->inspector_parent_handle));
       CHECK_NOT_NULL(environment);
 
       v8::Local<v8::Value> extracted_value = LoadEnvironment(
           environment,
           "while (!global.variableFromParent) {}\n"
-          "return global.variableFromParent;",
-          std::move(data->inspector_parent_handle)).ToLocalChecked();
+          "return global.variableFromParent;").ToLocalChecked();
 
       uv_run(&loop, UV_RUN_DEFAULT);
       CHECK(extracted_value->IsInt32());
