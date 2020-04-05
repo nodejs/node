@@ -317,6 +317,19 @@ void FreeIsolateData(IsolateData* isolate_data) {
   delete isolate_data;
 }
 
+InspectorParentHandle::~InspectorParentHandle() {}
+
+// Hide the internal handle class from the public API.
+#if HAVE_INSPECTOR
+struct InspectorParentHandleImpl : public InspectorParentHandle {
+  std::unique_ptr<inspector::ParentInspectorHandle> impl;
+
+  explicit InspectorParentHandleImpl(
+      std::unique_ptr<inspector::ParentInspectorHandle>&& impl)
+    : impl(std::move(impl)) {}
+};
+#endif
+
 Environment* CreateEnvironment(IsolateData* isolate_data,
                                Local<Context> context,
                                int argc,
@@ -335,7 +348,8 @@ Environment* CreateEnvironment(
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
     EnvironmentFlags::Flags flags,
-    ThreadId thread_id) {
+    ThreadId thread_id,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
@@ -351,6 +365,16 @@ Environment* CreateEnvironment(
   if (flags & EnvironmentFlags::kOwnsProcessState) {
     env->set_abort_on_uncaught_exception(false);
   }
+
+#if HAVE_INSPECTOR
+  if (inspector_parent_handle) {
+    env->InitializeInspector(
+        std::move(static_cast<InspectorParentHandleImpl*>(
+            inspector_parent_handle.get())->impl));
+  } else {
+    env->InitializeInspector({});
+  }
+#endif
 
   if (env->RunBootstrapping().IsEmpty()) {
     FreeEnvironment(env);
@@ -381,19 +405,6 @@ void FreeEnvironment(Environment* env) {
   delete env;
 }
 
-InspectorParentHandle::~InspectorParentHandle() {}
-
-// Hide the internal handle class from the public API.
-#if HAVE_INSPECTOR
-struct InspectorParentHandleImpl : public InspectorParentHandle {
-  std::unique_ptr<inspector::ParentInspectorHandle> impl;
-
-  explicit InspectorParentHandleImpl(
-      std::unique_ptr<inspector::ParentInspectorHandle>&& impl)
-    : impl(std::move(impl)) {}
-};
-#endif
-
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env,
     ThreadId thread_id,
@@ -417,19 +428,9 @@ void LoadEnvironment(Environment* env) {
 MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallback cb,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
+    std::unique_ptr<InspectorParentHandle> removeme) {
   env->InitializeLibuv(per_process::v8_is_profiling);
   env->InitializeDiagnostics();
-
-#if HAVE_INSPECTOR
-  if (inspector_parent_handle) {
-    env->InitializeInspector(
-        std::move(static_cast<InspectorParentHandleImpl*>(
-            inspector_parent_handle.get())->impl));
-  } else {
-    env->InitializeInspector({});
-  }
-#endif
 
   return StartExecution(env, cb);
 }
@@ -437,7 +438,7 @@ MaybeLocal<Value> LoadEnvironment(
 MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     const char* main_script_source_utf8,
-    std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
+    std::unique_ptr<InspectorParentHandle> removeme) {
   CHECK_NOT_NULL(main_script_source_utf8);
   return LoadEnvironment(
       env,
@@ -462,8 +463,7 @@ MaybeLocal<Value> LoadEnvironment(
             env->process_object(),
             env->native_module_require()};
         return ExecuteBootstrapper(env, name.c_str(), &params, &args);
-      },
-      std::move(inspector_parent_handle));
+      });
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
