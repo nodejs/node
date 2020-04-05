@@ -68,4 +68,4 @@ function assertArrayIncludes(actual, expected) {
     `Expected ${actualString} to contain ${expectedString}.`);
 }
 
-runTests();
+runTests().then(common.mustCall());

@@ -74,4 +74,4 @@ async function runTest() {
   return child.expectShutdown();
 }
 
-runTest();
+runTest().then(common.mustCall());

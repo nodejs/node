@@ -46,4 +46,4 @@ async function runTests() {
   assert.strictEqual((await instance.expectShutdown()).exitCode, 55);
 }
 
-runTests();
+runTests().then(common.mustCall());
