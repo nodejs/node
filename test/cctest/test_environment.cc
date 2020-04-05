@@ -168,8 +168,9 @@ TEST_F(EnvironmentTest, AtExitRunsJS) {
 TEST_F(EnvironmentTest, MultipleEnvironmentsPerIsolate) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
+  // Only one of the Environments can have default flags and own the inspector.
   Env env1 {handle_scope, argv};
-  Env env2 {handle_scope, argv};
+  Env env2 {handle_scope, argv, node::EnvironmentFlags::kNoFlags};
 
   AtExit(*env1, at_exit_callback1);
   AtExit(*env2, at_exit_callback2);
