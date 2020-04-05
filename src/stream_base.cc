@@ -524,7 +524,7 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
   Context::Scope context_scope(env->context());
 
   // To deal with the case where POLLHUP is received and UV_EOF is returned, as
-  // libuv returns an empty buffer. (On unices only)
+  // libuv returns an empty buffer (on unices only).
   if (nread == UV_EOF && buf.base == nullptr) {
     stream->CallJSOnreadMethod(nread, Local<ArrayBuffer>());
     return;
