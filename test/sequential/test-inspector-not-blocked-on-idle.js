@@ -17,4 +17,4 @@ async function runTests() {
   node.kill();
 }
 
-runTests();
+runTests().then(common.mustCall());

@@ -28,4 +28,4 @@ async function runTest() {
   return child.kill();
 }
 
-runTest();
+runTest().then(common.mustCall());
