@@ -58,4 +58,4 @@ async function runTests() {
   assert.throws(() => require('inspector').waitForDebugger(), re);
 }
 
-runTests();
+runTests().then(common.mustCall());

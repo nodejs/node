@@ -34,4 +34,4 @@ async function runTest() {
   session.disconnect();
 }
 
-runTest();
+runTest().then(common.mustCall());

@@ -127,4 +127,4 @@ async function doTests() {
   await testNoCrashConsoleLogBeforeThrow();
 }
 
-doTests();
+doTests().then(common.mustCall());

@@ -75,4 +75,4 @@ async function runTests() {
   assert.strictEqual((await child.expectShutdown()).exitCode, 0);
 }
 
-runTests();
+runTests().then(common.mustCall());

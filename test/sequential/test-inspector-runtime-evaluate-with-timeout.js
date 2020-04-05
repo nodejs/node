@@ -22,4 +22,4 @@ common.skipIfInspectorDisabled();
     }
   );
   session.disconnect();
-})();
+})().then(common.mustCall());
