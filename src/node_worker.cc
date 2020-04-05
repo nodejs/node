@@ -310,7 +310,8 @@ void Worker::Run() {
             std::move(argv_),
             std::move(exec_argv_),
             EnvironmentFlags::kNoFlags,
-            thread_id_));
+            thread_id_,
+            std::move(inspector_parent_handle_)));
         if (is_stopped()) return;
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
@@ -328,12 +329,8 @@ void Worker::Run() {
       {
         CreateEnvMessagePort(env_.get());
         Debug(this, "Created message port for worker %llu", thread_id_.id);
-        if (LoadEnvironment(env_.get(),
-                            StartExecutionCallback{},
-                            std::move(inspector_parent_handle_))
-                .IsEmpty()) {
+        if (LoadEnvironment(env_.get(), StartExecutionCallback{}).IsEmpty())
           return;
-        }
 
         Debug(this, "Loaded environment for worker %llu", thread_id_.id);
       }
