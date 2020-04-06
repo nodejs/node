@@ -129,6 +129,9 @@ class WasmGCForegroundTask : public CancelableTask {
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, Vector<const uint8_t> wire_bytes) {
   if (origin != kWasmOrigin) return nullptr;
+  // Temporarily disabled to fix stability issue on M-81
+  // (https://crbug.com/1070199).
+  if (!FLAG_future) return nullptr;
   base::MutexGuard lock(&mutex_);
   while (true) {
     auto it = map_.find(wire_bytes);
@@ -153,6 +156,9 @@ void NativeModuleCache::Update(std::shared_ptr<NativeModule> native_module,
                                bool error) {
   DCHECK_NOT_NULL(native_module);
   if (native_module->module()->origin != kWasmOrigin) return;
+  // Temporarily disabled to fix stability issue on M-81
+  // (https://crbug.com/1070199).
+  if (!FLAG_future) return;
   Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   base::MutexGuard lock(&mutex_);
   auto it = map_.find(wire_bytes);
