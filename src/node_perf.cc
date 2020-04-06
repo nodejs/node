@@ -147,6 +147,13 @@ void Mark(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(obj);
 }
 
+void HasMark(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  const auto* marks = env->performance_marks();
+  Utf8Value name(env->isolate(), args[0]);
+  args.GetReturnValue().Set(marks->find(*name) != marks->end());
+}
+
 void ClearMark(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto marks = env->performance_marks();
@@ -573,6 +580,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "clearMark", ClearMark);
   env->SetMethod(target, "mark", Mark);
+  env->SetMethod(target, "hasMark", HasMark);
   env->SetMethod(target, "measure", Measure);
   env->SetMethod(target, "markMilestone", MarkMilestone);
   env->SetMethod(target, "setupObservers", SetupPerformanceObservers);
