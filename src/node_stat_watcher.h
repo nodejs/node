@@ -26,13 +26,11 @@
 
 #include "node.h"
 #include "handle_wrap.h"
+#include "node_file-inl.h"
 #include "uv.h"
 #include "v8.h"
 
 namespace node {
-namespace fs {
-struct BindingData;
-}
 
 class Environment;
 
