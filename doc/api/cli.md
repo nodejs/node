@@ -1405,7 +1405,9 @@ garbage collection in an effort to free unused memory.
 On a machine with 2GB of memory, consider setting this to
 1536 (1.5GB) to leave some memory for other uses and avoid swapping.
 
-E.g. `node --max-old-space-size=1536 index.js`
+```console
+$ node --max-old-space-size=1536 index.js
+```
 
 [`--openssl-config`]: #cli_openssl_config_file
 [`Buffer`]: buffer.html#buffer_class_buffer
