@@ -903,7 +903,7 @@ deprecated: REPLACEME
 
 The module that first required this one, or `null` if the current module is the
 entry point of the current process, or `undefined` if the module was loaded by
-something that is not a CJS module (E.G.: REPL or `import`). Read only.
+something that is not a CommonJS module (E.G.: REPL or `import`). Read only.
 
 ### `module.path`
 <!-- YAML

@@ -2722,7 +2722,7 @@ if (require.main === module) {
 }
 ```
 
-When looking for the CJS modules that have required the current one,
+When looking for the CommonJS modules that have required the current one,
 `require.cache` and `module.children` can be used:
 
 ```js
