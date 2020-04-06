@@ -19,6 +19,7 @@ cd %~dp0
 set CI_NATIVE_SUITES=addons js-native-api node-api abort
 set CI_JS_SUITES=default
 set CI_DOC=doctool
+echo %CI_DEBUG_TEST%
 @rem Same as the test-ci target in Makefile
 set "common_test_suites=%CI_JS_SUITES% %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set build_aborts_tests=1"
 
@@ -63,6 +64,7 @@ set http2_debug=
 set nghttp2_debug=
 set link_module=
 set no_cctest=
+set no_debug_test=
 set cctest=
 set openssl_no_asm=
 set doc=
@@ -143,6 +145,7 @@ if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
 if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
+if /i "%i"=="no-debug-test" set no_debug_test=1&goto arg-ok
 if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
@@ -658,6 +661,7 @@ echo running 'cctest %cctest_args%'
 if %errorlevel% neq 0 set exit_code=%errorlevel%
 :run-test-py
 echo running 'python tools\test.py %test_args%'
+if no_debug_test neq 1 set NODE_DEBUG=test
 python tools\test.py %test_args%
 if %errorlevel% neq 0 set exit_code=%errorlevel%
 goto test-v8
