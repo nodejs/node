@@ -155,6 +155,25 @@ class ThreadSafeFunction : public node::AsyncResource {
       if (mode == napi_tsfn_nonblocking) {
         return napi_queue_full;
       }
+
+      // Return `napi_would_deadlock` because waiting on the queue from a JS
+      // thread will block the event loop of that same thread thus preventing it
+      // from removing items from the queue thereby causing deadlock. Deadlock
+      // can also be caused by one JS thread calling the thread-safe function of
+      // another JS thread because if two JS threads call each other's thread-
+      // safe functions blockingly when both their queues are full they will
+      // both deadlock as they wait on each other.
+      //
+      // Thus, we return `napi_would_deadlock` if we find a Node.js event loop.
+      v8::Isolate* isolate = v8::Isolate::GetCurrent();
+      if (isolate != nullptr) {
+        node::Environment* node_env = node::Environment::GetCurrent(isolate);
+        if (node_env != nullptr) {
+          if (node_env->event_loop() != nullptr)
+            return napi_would_deadlock;
+        }
+      }
+
       cond->Wait(lock);
     }
 
