@@ -9,7 +9,7 @@ Symbol-keyed properties of an object are not included in the output of
 default.
 
 Learn more about symbols at
-https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Symbol.
+<https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Symbol>.
 
 ## `Symbol(string)`
 

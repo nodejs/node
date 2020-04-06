@@ -430,7 +430,7 @@ To generate a test coverage report, see the
 [Test Coverage section of the Building guide][].
 
 Nightly coverage reports for the Node.js master branch are available at
-https://coverage.nodejs.org/.
+<https://coverage.nodejs.org/>.
 
 [ASCII]: http://man7.org/linux/man-pages/man7/ascii.7.html
 [Google Test]: https://github.com/google/googletest
