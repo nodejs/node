@@ -600,4 +600,11 @@
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
 }],  # variant == turboprop
 
+##############################################################################
+['variant != future', {
+  # Wasm native module cache is temporarily disabled in non-future variant
+  # (https://crbug.com/1070199)
+  'test-compilation-cache/*': [SKIP]
+}],  # variant != future
+
 ]

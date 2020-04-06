@@ -157,6 +157,9 @@
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
   'regress/wasm/regress-1010272': [PASS, NO_VARIANTS, ['system == android', SKIP], ['predictable', SKIP]],
+
+  # Needs to be adapted after changes to Function constructor. chromium:1065094
+  'cross-realm-filtering': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
