@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const os = require('os')
 
 if (process.argv[2] === 'child') {
   const { pipeline } = require('stream');
@@ -23,6 +24,6 @@ if (process.argv[2] === 'child') {
     'child'
   ].join(' '), common.mustCall((err, stdout) => {
     assert.ifError(err);
-    assert.strictEqual(stdout, 'hello');
+    assert.strictEqual(stdout.split(os.EOL).shift(), 'hello');
   }));
 }
