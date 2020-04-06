@@ -346,6 +346,8 @@
         'node.gypi'
       ],
 
+      'cflags': [ '-Werror', ],
+
       'include_dirs': [
         'src',
         'deps/v8/include'
@@ -527,6 +529,8 @@
       'includes': [
         'node.gypi',
       ],
+
+      'cflags': [ '-Werror', ],
 
       'include_dirs': [
         'src',
