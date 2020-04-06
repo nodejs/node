@@ -14,7 +14,7 @@ EE.on(
 );
 
 // Verify with no error listener
-common.expectsError(
+assert.throws(
   () => EE.emit('error', theErr), theErr
 );
 
