@@ -682,7 +682,7 @@ The nodejs.org website will automatically rebuild and include the new version.
 To announce the build on Twitter through the official @nodejs account, email
 [pr@nodejs.org](mailto:pr@nodejs.org) with a message such as:
 
-> v5.8.0 of @nodejs is out: https://nodejs.org/en/blog/release/v5.8.0/
+> v5.8.0 of @nodejs is out: <https://nodejs.org/en/blog/release/v5.8.0/>
 > …
 > something here about notable changes
 

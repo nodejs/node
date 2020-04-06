@@ -165,7 +165,7 @@ onboarding session.
     * It is not automatically run. You need to start it manually.
   * Log in on CI is integrated with GitHub. Try to log in now!
   * You will be using `node-test-pull-request` most of the time. Go there now!
-    * Consider bookmarking it: https://ci.nodejs.org/job/node-test-pull-request/
+    * Consider bookmarking it: <https://ci.nodejs.org/job/node-test-pull-request/>
   * To get to the form to start a job, click on `Build with Parameters`. (If you
     don't see it, that probably means you are not logged in!) Click it now!
   * To start CI testing from this screen, you need to fill in two elements on
@@ -200,7 +200,7 @@ needs to be pointed out separately during the onboarding.
 ## Exercise: Make a PR adding yourself to the README
 
 * Example:
-  https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0
+  <https://github.com/nodejs/node/commit/ce986de829457c39257cd205067602e765768fb0>
   * For raw commit message: `git log ce986de829457c39257cd205067602e765768fb0
     -1`
 * Collaborators are in alphabetical order by GitHub username.
