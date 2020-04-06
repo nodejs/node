@@ -23,6 +23,7 @@
 require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
+const debug = require('util').debuglog('test');
 
 assert(cluster.isMaster);
 
@@ -36,7 +37,7 @@ const configs = [];
 
 // Capture changes
 cluster.on('setup', () => {
-  console.log('"setup" emitted', cluster.settings);
+  debug(`"setup" emitted ${JSON.stringify(cluster.settings)}`);
   configs.push(cheapClone(cluster.settings));
 });
 
@@ -65,5 +66,5 @@ execs.forEach((v, i) => {
 // Cluster emits 'setup' asynchronously, so we must stay alive long
 // enough for that to happen
 setTimeout(() => {
-  console.log('cluster setup complete');
+  debug('cluster setup complete');
 }, (execs.length + 1) * 100);
