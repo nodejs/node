@@ -24,6 +24,6 @@ if (process.argv[2] === 'child') {
     'child'
   ].join(' '), common.mustCall((err, stdout) => {
     assert.ifError(err);
-    assert.strictEqual(stdout.split(os.EOL).shift(), 'hello');
+    assert.strictEqual(stdout.split(os.EOL).shift().trim(), 'hello');
   }));
 }
