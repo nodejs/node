@@ -16,13 +16,13 @@ if (process.argv[2] === 'child') {
   const cp = require('child_process');
   cp.exec([
     'echo',
-    '"hello"',
+    'hello',
     '|',
     `"${process.execPath}"`,
     `"${__filename}"`,
     'child'
   ].join(' '), common.mustCall((err, stdout) => {
     assert.ifError(err);
-    assert.strictEqual(stdout, 'hello\n');
+    assert.strictEqual(stdout, 'hello');
   }));
 }
