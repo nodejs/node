@@ -31,7 +31,7 @@
 
 namespace node {
 namespace fs {
-struct BindingData;
+class BindingData;
 }
 
 class Environment;
