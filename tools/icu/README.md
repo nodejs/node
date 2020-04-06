@@ -21,7 +21,7 @@ Note:
 > The files in this directory were written for the Node.js v0.12 effort.
 > The original intent was to merge the tools such as `icutrim.py` and `iculslocs.cc`
 > back into ICU. ICU has gained its own “data slicer” tool.
-> There is an issue open, https://github.com/nodejs/node/issues/25136
+> There is an issue open, <https://github.com/nodejs/node/issues/25136>
 > for replacing `icutrim.py` with the [ICU data slicer][].
 
 ## See Also
