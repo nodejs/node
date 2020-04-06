@@ -129,6 +129,7 @@ class ThreadSafeFunction : public node::AsyncResource {
       is_closing(false),
       context(context_),
       max_queue_size(max_queue_size_),
+      main_thread(uv_thread_self()),
       env(env_),
       finalize_data(finalize_data_),
       finalize_cb(finalize_cb_),
@@ -148,12 +149,15 @@ class ThreadSafeFunction : public node::AsyncResource {
 
   napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
     node::Mutex::ScopedLock lock(this->mutex);
+    uv_thread_t current_thread = uv_thread_self();
 
     while (queue.size() >= max_queue_size &&
         max_queue_size > 0 &&
         !is_closing) {
       if (mode == napi_tsfn_nonblocking) {
         return napi_queue_full;
+      } else if (uv_thread_equal(&current_thread, &main_thread)) {
+        return napi_would_deadlock;
       }
       cond->Wait(lock);
     }
@@ -434,6 +438,7 @@ class ThreadSafeFunction : public node::AsyncResource {
   // means we don't need the mutex to read them.
   void* context;
   size_t max_queue_size;
+  uv_thread_t main_thread;
 
   // These are variables accessed only from the loop thread.
   v8impl::Persistent<v8::Function> ref;
