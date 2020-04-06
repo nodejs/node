@@ -88,6 +88,6 @@ information described.
 * [ ] Make sure the PRs for the vulnerabilities are closed.
 
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
-[docker-node]: https://github.com/nodejs/docker-node/issues)
-[nodejs/build]: https://github.com/nodejs/build/issues)
+[docker-node]: https://github.com/nodejs/docker-node/issues
+[nodejs/build]: https://github.com/nodejs/build/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec

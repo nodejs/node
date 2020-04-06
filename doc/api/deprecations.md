@@ -2352,7 +2352,7 @@ The undocumented `net._setSimultaneousAccepts()` function was originally
 intended for debugging and performance tuning when using the `child_process`
 and `cluster` modules on Windows. The function is not generally useful and
 is being removed. See discussion here:
-https://github.com/nodejs/node/issues/18391
+<https://github.com/nodejs/node/issues/18391>
 
 <a id="DEP0122"></a>
 ### DEP0122: `tls` `Server.prototype.setOptions()`
