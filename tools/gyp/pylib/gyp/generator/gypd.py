@@ -32,36 +32,33 @@ to change.
 
 
 import gyp.common
-import errno
-import os
 import pprint
 
 
 # These variables should just be spit back out as variable references.
 _generator_identity_variables = [
-  'CONFIGURATION_NAME',
-  'EXECUTABLE_PREFIX',
-  'EXECUTABLE_SUFFIX',
-  'INTERMEDIATE_DIR',
-  'LIB_DIR',
-  'PRODUCT_DIR',
-  'RULE_INPUT_ROOT',
-  'RULE_INPUT_DIRNAME',
-  'RULE_INPUT_EXT',
-  'RULE_INPUT_NAME',
-  'RULE_INPUT_PATH',
-  'SHARED_INTERMEDIATE_DIR',
-  'SHARED_LIB_DIR',
-  'SHARED_LIB_PREFIX',
-  'SHARED_LIB_SUFFIX',
-  'STATIC_LIB_PREFIX',
-  'STATIC_LIB_SUFFIX',
+    "CONFIGURATION_NAME",
+    "EXECUTABLE_PREFIX",
+    "EXECUTABLE_SUFFIX",
+    "INTERMEDIATE_DIR",
+    "LIB_DIR",
+    "PRODUCT_DIR",
+    "RULE_INPUT_ROOT",
+    "RULE_INPUT_DIRNAME",
+    "RULE_INPUT_EXT",
+    "RULE_INPUT_NAME",
+    "RULE_INPUT_PATH",
+    "SHARED_INTERMEDIATE_DIR",
+    "SHARED_LIB_DIR",
+    "SHARED_LIB_PREFIX",
+    "SHARED_LIB_SUFFIX",
+    "STATIC_LIB_PREFIX",
+    "STATIC_LIB_SUFFIX",
 ]
 
 # gypd doesn't define a default value for OS like many other generator
 # modules.  Specify "-D OS=whatever" on the command line to provide a value.
-generator_default_variables = {
-}
+generator_default_variables = {}
 
 # gypd supports multiple toolsets
 generator_supports_multiple_toolsets = True
@@ -71,24 +68,22 @@ generator_supports_multiple_toolsets = True
 # module should use < for the early phase and then switch to > for the late
 # phase.  Bonus points for carrying @ back into the output too.
 for v in _generator_identity_variables:
-  generator_default_variables[v] = '<(%s)' % v
+    generator_default_variables[v] = "<(%s)" % v
 
 
 def GenerateOutput(target_list, target_dicts, data, params):
-  output_files = {}
-  for qualified_target in target_list:
-    [input_file, target] = \
-        gyp.common.ParseQualifiedTarget(qualified_target)[0:2]
+    output_files = {}
+    for qualified_target in target_list:
+        [input_file, target] = gyp.common.ParseQualifiedTarget(qualified_target)[0:2]
 
-    if input_file[-4:] != '.gyp':
-      continue
-    input_file_stem = input_file[:-4]
-    output_file = input_file_stem + params['options'].suffix + '.gypd'
+        if input_file[-4:] != ".gyp":
+            continue
+        input_file_stem = input_file[:-4]
+        output_file = input_file_stem + params["options"].suffix + ".gypd"
 
-    if not output_file in output_files:
-      output_files[output_file] = input_file
+        output_files[output_file] = output_files.get(output_file, input_file)
 
-  for output_file, input_file in output_files.items():
-    output = open(output_file, 'w')
-    pprint.pprint(data[input_file], output)
-    output.close()
+    for output_file, input_file in output_files.items():
+        output = open(output_file, "w")
+        pprint.pprint(data[input_file], output)
+        output.close()
