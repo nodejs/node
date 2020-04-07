@@ -20,4 +20,4 @@ jobs:
       - name: Build
         run: make build-ci -j8 V=1
       - name: Test
-        run: make run-ci -j8 V=1
+        run: make run-ci -j8 V=1 TEST_CI_ARGS="-p dots"
