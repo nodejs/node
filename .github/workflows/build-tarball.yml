@@ -3,18 +3,19 @@ name: Build from tarball
 on: [push, pull_request]
 
 env:
-  PYTHON_VERSION: 3.8
   FLAKY_TESTS: dontcare
 
 jobs:
   build-tarball:
+    env:
+      PYTHON_VERSION: 3.8
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v1
         with:
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}    
+          python-version: ${{ env.PYTHON_VERSION }}    
       - name: Environment Information
         run: npx envinfo
       - name: Make tarball
@@ -31,6 +32,8 @@ jobs:
           name: tarballs
           path: tarballs
   test-tarball-linux:
+    env:
+      PYTHON_VERSION: 3.8
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
@@ -38,7 +41,7 @@ jobs:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v1
         with:
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}  
+          python-version: ${{ env.PYTHON_VERSION }}  
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
@@ -69,10 +72,10 @@ jobs:
         run: |
           git config --global core.autocrlf true
       - uses: actions/checkout@v2
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
+      - name: Set up Python 2.7
         uses: actions/setup-python@v1
         with:
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+          python-version: 2.7
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
