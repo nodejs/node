@@ -2646,7 +2646,7 @@ changes:
 
 Type: Runtime
 
-Calling `process.umask()` with no arguments causes the process-wide umask to be
+Calling `process.umask()` with no argument causes the process-wide umask to be
 written twice. This introduces a race condition between threads, and is a
 potential security vulnerability. There is no safe, cross-platform alternative
 API.
