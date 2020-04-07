@@ -572,8 +572,8 @@ const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 A `TypeError` will be thrown if `array` is not an `Array` or other type
 appropriate for `Buffer.from()` variants.
 
-`Buffer.from(array)` may also use the internal `Buffer` pool like
- [`Buffer.allocUnsafe()`][] does.
+`Buffer.from(array)` and [`Buffer.from(string)`][] may also use the internal
+`Buffer` pool like [`Buffer.allocUnsafe()`][] does.
 
 ### Class Method: `Buffer.from(arrayBuffer[, byteOffset[, length]])`
 <!-- YAML
