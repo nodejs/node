@@ -380,7 +380,7 @@ A `TypeError` will be thrown if `size` is not a number.
 The `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
 `Buffer` instances created using [`Buffer.allocUnsafe()`][],
-[`Buffer.from(array)`][] and the deprecated `new Buffer(size)` constructor only
+[`Buffer.from(array)`][], and the deprecated `new Buffer(size)` constructor only
 when `size` is less than or equal to `Buffer.poolSize >> 1` (floor of
 [`Buffer.poolSize`][] divided by two).
 
