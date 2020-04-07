@@ -1713,12 +1713,9 @@ const server = http.createServer((req, res) => {
 });
 ```
 
-`Content-Length` is given in bytes not characters. The above example
-works because the string `'hello world'` contains only single byte characters.
-If the body contains higher coded characters then `Buffer.byteLength()`
-should be used to determine the number of bytes in a given encoding.
-And Node.js does not check whether `Content-Length` and the length of the body
-which has been transmitted are equal or not.
+`Content-Length` is given in bytes, not characters. Node.js does not check
+whether `Content-Length` and the length of the body which has been transmitted
+are equal or not.
 
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
