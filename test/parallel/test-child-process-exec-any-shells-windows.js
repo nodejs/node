@@ -23,10 +23,10 @@ const test = (shell) => {
           }));
 };
 const testCopy = (shellName, shellPath) => {
-  // Copy the executable to a path with spaces, to ensure there are no issues
+  // Symlink the executable to a path with spaces, to ensure there are no issues
   // related to quoting of argv0
   const copyPath = `${tmpPath}\\${shellName}`;
-  fs.copyFileSync(shellPath, copyPath);
+  fs.symlinkSync(shellPath, copyPath);
   test(copyPath);
 };
 
