@@ -636,6 +636,8 @@ For TCP connections, available `options` are:
   `0` indicates that both IPv4 and IPv6 addresses are allowed. **Default:** `0`.
 * `hints` {number} Optional [`dns.lookup()` hints][].
 * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
+* `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
+  are allowed. **Default:** `false`.
 
 For [IPC][] connections, available `options` are:
 
