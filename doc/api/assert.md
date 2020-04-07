@@ -79,7 +79,7 @@ const assert = require('assert');
 
 Whenever possible, use the [strict assertion mode][] instead. Otherwise, the
 [Abstract Equality Comparison][] may cause surprising results. This is
-especially true for [`assert.deepEqual()`][], where the comparison rules are
+especially true for [`assert.deepEqual()`][], where the comparison rules are extremely
 lax:
 
 ```js
