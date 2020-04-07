@@ -113,8 +113,8 @@ const ARGS = [
   assert.strictEqual(reports.length, 0);
 
   const lines = child.stderr.split('\n');
-  // Skip over unavoidable free-form output from V8.
-  const report = lines[1];
+  // Skip over unavoidable free-form output and gc log from V8.
+  const report = lines.find((i) => i.startsWith('{'));
   const json = JSON.parse(report);
 
   assert.strictEqual(json.header.threadId, null);
