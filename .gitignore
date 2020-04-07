@@ -36,7 +36,6 @@
 /*.exe
 /*.swp
 /out
-/*.txt
 
 # === Rules for artifacts of `./configure` ===
 /icu_config.gypi
