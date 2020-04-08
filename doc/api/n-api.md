@@ -2534,7 +2534,7 @@ napi_status napi_get_typedarray_info(napi_env env,
 * `[out] length`: The number of elements in the `TypedArray`.
 * `[out] data`: The data buffer underlying the `TypedArray` adjusted by
   the `byte_offset` value so that it points to the first element in the
-  `TypedArray`. If the length of the array is 0 this may be NULL or any
+  `TypedArray`. If the length of the array is 0, this may be NULL or any
   other pointer value.
 * `[out] arraybuffer`: The `ArrayBuffer` underlying the `TypedArray`.
 * `[out] byte_offset`: The byte offset within the underlying native array
