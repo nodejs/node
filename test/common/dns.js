@@ -36,16 +36,15 @@ function readDomainFromPacket(buffer, offset) {
       nread: 1 + length + nread,
       domain: domain ? `${chunk}.${domain}` : chunk
     };
-  } else {
-    // Pointer to another part of the packet.
-    assert.strictEqual(length & 0xC0, 0xC0);
-    // eslint-disable-next-line space-infix-ops, space-unary-ops
-    const pointeeOffset = buffer.readUInt16BE(offset) &~ 0xC000;
-    return {
-      nread: 2,
-      domain: readDomainFromPacket(buffer, pointeeOffset)
-    };
   }
+  // Pointer to another part of the packet.
+  assert.strictEqual(length & 0xC0, 0xC0);
+  // eslint-disable-next-line space-infix-ops, space-unary-ops
+  const pointeeOffset = buffer.readUInt16BE(offset) &~ 0xC000;
+  return {
+    nread: 2,
+    domain: readDomainFromPacket(buffer, pointeeOffset)
+  };
 }
 
 function parseDNSPacket(buffer) {

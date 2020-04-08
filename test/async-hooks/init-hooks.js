@@ -165,14 +165,13 @@ class ActivityCollector {
         // Worker threads start main script execution inside of an AsyncWrap
         // callback, so we don't yield errors for these.
         return null;
-      } else {
-        const err = new Error(`Found a handle whose ${hook}` +
-                              ' hook was invoked but not its init hook');
-        // Don't throw if we see invocations due to an assertion in a test
-        // failing since we want to list the assertion failure instead
-        if (/process\._fatalException/.test(err.stack)) return null;
-        throw err;
       }
+      const err = new Error(`Found a handle whose ${hook}` +
+                            ' hook was invoked but not its init hook');
+      // Don't throw if we see invocations due to an assertion in a test
+      // failing since we want to list the assertion failure instead
+      if (/process\._fatalException/.test(err.stack)) return null;
+      throw err;
     }
     return h;
   }
