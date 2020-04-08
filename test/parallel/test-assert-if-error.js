@@ -1,8 +1,7 @@
 'use strict';
 
 require('../common');
-const assert = require('assert').strict;
-/* eslint-disable no-restricted-properties */
+const assert = require('assert');
 
 // Test that assert.ifError has the correct stack trace of both stacks.
 
@@ -26,12 +25,13 @@ const stack = err.stack;
       try {
         assert.ifError(err);
       } catch (e) {
-        assert.equal(e.message, 'ifError got unwanted exception: test error');
-        assert.equal(err.message, msg);
-        assert.equal(e.actual, err);
-        assert.equal(e.actual.stack, stack);
-        assert.equal(e.expected, null);
-        assert.equal(e.operator, 'ifError');
+        assert.strictEqual(e.message,
+                           'ifError got unwanted exception: test error');
+        assert.strictEqual(err.message, msg);
+        assert.strictEqual(e.actual, err);
+        assert.strictEqual(e.actual.stack, stack);
+        assert.strictEqual(e.expected, null);
+        assert.strictEqual(e.operator, 'ifError');
         threw = true;
       }
       assert(threw);
