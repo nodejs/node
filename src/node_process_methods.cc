@@ -426,7 +426,10 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
 class FastHrtime : public BaseObject {
  public:
   static Local<Object> New(Environment* env) {
-    Local<v8::ObjectTemplate> otmpl = v8::ObjectTemplate::New(env->isolate());
+    Local<v8::FunctionTemplate> ctor =
+        v8::FunctionTemplate::New(env->isolate());
+    ctor->Inherit(BaseObject::GetConstructorTemplate(env));
+    Local<v8::ObjectTemplate> otmpl = ctor->InstanceTemplate();
     otmpl->SetInternalFieldCount(FastHrtime::kInternalFieldCount);
 
     auto create_func = [env](auto fast_func, auto slow_func) {
