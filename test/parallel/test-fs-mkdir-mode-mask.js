@@ -7,15 +7,12 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-let mode;
-
 if (common.isWindows) {
   common.skip('mode is not supported in mkdir on Windows');
   return;
-} else {
-  mode = 0o644;
 }
 
+const mode = 0o644;
 const maskToIgnore = 0o10000;
 
 const tmpdir = require('../common/tmpdir');

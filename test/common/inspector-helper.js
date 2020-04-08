@@ -217,9 +217,8 @@ class InspectorSession {
       return Promise
         .all(commands.map((command) => this._sendMessage(command)))
         .then(() => {});
-    } else {
-      return this._sendMessage(commands);
     }
+    return this._sendMessage(commands);
   }
 
   waitForNotification(methodOrPredicate, description) {

@@ -36,9 +36,8 @@ function getSharedLibPath() {
     return path.join(kExecPath, 'node.dll');
   } else if (common.isOSX) {
     return path.join(kExecPath, `libnode.${kShlibSuffix}`);
-  } else {
-    return path.join(kExecPath, 'lib.target', `libnode.${kShlibSuffix}`);
   }
+  return path.join(kExecPath, 'lib.target', `libnode.${kShlibSuffix}`);
 }
 
 // Get the binary path of stack frames.

@@ -129,6 +129,7 @@ module.exports = {
     'no-dupe-else-if': 'error',
     'no-duplicate-case': 'error',
     'no-duplicate-imports': 'error',
+    'no-else-return': ['error', { allowElseIf: true }],
     'no-empty-character-class': 'error',
     'no-ex-assign': 'error',
     'no-extra-boolean-cast': 'error',

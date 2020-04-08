@@ -25,9 +25,8 @@ function getEnabledCategoriesFromCommandLine() {
   const indexOfCatFlag = process.execArgv.indexOf('--trace-event-categories');
   if (indexOfCatFlag === -1) {
     return undefined;
-  } else {
-    return process.execArgv[indexOfCatFlag + 1];
   }
+  return process.execArgv[indexOfCatFlag + 1];
 }
 
 const isChild = process.argv[2] === 'child';

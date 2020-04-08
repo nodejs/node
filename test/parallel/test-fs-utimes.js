@@ -31,15 +31,14 @@ tmpdir.refresh();
 function stat_resource(resource) {
   if (typeof resource === 'string') {
     return fs.statSync(resource);
-  } else {
-    const stats = fs.fstatSync(resource);
-    // Ensure mtime has been written to disk
-    // except for directories on AIX where it cannot be synced
-    if (common.isAIX && stats.isDirectory())
-      return stats;
-    fs.fsyncSync(resource);
-    return fs.fstatSync(resource);
   }
+  const stats = fs.fstatSync(resource);
+  // Ensure mtime has been written to disk
+  // except for directories on AIX where it cannot be synced
+  if (common.isAIX && stats.isDirectory())
+    return stats;
+  fs.fsyncSync(resource);
+  return fs.fstatSync(resource);
 }
 
 function check_mtime(resource, mtime) {

@@ -16,11 +16,10 @@ function makeTest(count, rest) {
     return function test(...args) {
       assert.strictEqual(count, args.length);
     };
-  } else {
-    return function test() {
-      assert.strictEqual(count, arguments.length);
-    };
   }
+  return function test() {
+    assert.strictEqual(count, arguments.length);
+  };
 }
 
 function main({ n, context, count, rest, method }) {
