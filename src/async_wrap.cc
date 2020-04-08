@@ -49,7 +49,6 @@ using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
 using v8::ReadOnly;
 using v8::String;
-using v8::TryCatch;
 using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
