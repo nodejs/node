@@ -1040,8 +1040,7 @@ Maybe<int> SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
       js_array
           ->Set(context,
                 i,
-                value->ToString(env()->isolate()->GetCurrentContext())
-                    .ToLocalChecked())
+                string)
           .Check();
     }
 
