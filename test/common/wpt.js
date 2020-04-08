@@ -73,9 +73,8 @@ class ResourceLoader {
             text() { return data.toString(); }
           };
         });
-    } else {
-      return fs.readFileSync(file, 'utf8');
     }
+    return fs.readFileSync(file, 'utf8');
   }
 }
 
@@ -603,24 +602,23 @@ class WPTRunner {
     const matches = code.match(/\/\/ META: .+/g);
     if (!matches) {
       return {};
-    } else {
-      const result = {};
-      for (const match of matches) {
-        const parts = match.match(/\/\/ META: ([^=]+?)=(.+)/);
-        const key = parts[1];
-        const value = parts[2];
-        if (key === 'script') {
-          if (result[key]) {
-            result[key].push(value);
-          } else {
-            result[key] = [value];
-          }
-        } else {
-          result[key] = value;
-        }
-      }
-      return result;
     }
+    const result = {};
+    for (const match of matches) {
+      const parts = match.match(/\/\/ META: ([^=]+?)=(.+)/);
+      const key = parts[1];
+      const value = parts[2];
+      if (key === 'script') {
+        if (result[key]) {
+          result[key].push(value);
+        } else {
+          result[key] = [value];
+        }
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
   }
 
   buildQueue() {

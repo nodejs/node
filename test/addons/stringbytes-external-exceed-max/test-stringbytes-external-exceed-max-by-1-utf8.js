@@ -38,9 +38,8 @@ assert.throws(() => {
       name: 'Error'
     })(e);
     return true;
-  } else {
-    return true;
   }
+  return true;
 });
 
 assert.throws(() => {
