@@ -508,8 +508,7 @@ function textJoin(nodes, file) {
       return `_${textJoin(node.children, file)}_`;
     } else if (node.children) {
       return textJoin(node.children, file);
-    } else {
-      return node.value;
     }
+    return node.value;
   }).join('');
 }
