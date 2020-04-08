@@ -96,7 +96,8 @@ jobs:
           $env:msbuild_args="/binaryLogger:node.binlog"
           ./vcbuild.bat x64 release msi
           echo "::set-env name=TAR_DIR::$pwd"
-          echo "::set-env name=test_ci_args::--shell=$pwd\out\Release\node.exe"
+      - name: Copy out directory to checkout dir
+        run: Move-Item -Path "$env:TAR_DIR\out" -Destination "$env:GITHUB_WORKSPACE"
       - name: "Test JS Suites"
         shell: cmd
         run: |
