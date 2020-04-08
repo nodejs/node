@@ -1004,9 +1004,8 @@ static X509_STORE* NewRootCertStore() {
     X509_STORE_set_default_paths(store);
   } else {
     Mutex::ScopedLock lock(root_certs_vector_mutex);
-    for (X509* cert : root_certs_vector) {
+    for (X509* cert : root_certs_vector)
       X509_STORE_add_cert(store, cert);
-    }
   }
 
   return store;
@@ -1085,7 +1084,6 @@ static unsigned long AddRootCertsFromFile(  // NOLINT(runtime/int)
   if (!bio)
     return ERR_get_error();
 
-  // Scope for root_certs_vector lock
   {
     Mutex::ScopedLock lock(root_certs_vector_mutex);
     while (X509* x509 =
@@ -6643,7 +6641,6 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
 
   std::vector<Local<Value>> result;
 
-  // Scope for root_certs_vector lock
   {
     Mutex::ScopedLock lock(root_certs_vector_mutex);
 
