@@ -644,6 +644,7 @@ void Initialize(Local<Object> target,
   eldh->SetClassName(eldh_classname);
   eldh->InstanceTemplate()->SetInternalFieldCount(
       ELDHistogram::kInternalFieldCount);
+  eldh->Inherit(BaseObject::GetConstructorTemplate(env));
   env->SetProtoMethod(eldh, "exceeds", ELDHistogramExceeds);
   env->SetProtoMethod(eldh, "min", ELDHistogramMin);
   env->SetProtoMethod(eldh, "max", ELDHistogramMax);
