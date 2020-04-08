@@ -452,6 +452,7 @@ void Initialize(Local<Object> target,
 
   ser->InstanceTemplate()->SetInternalFieldCount(
       SerializerContext::kInternalFieldCount);
+  ser->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(ser, "writeHeader", SerializerContext::WriteHeader);
   env->SetProtoMethod(ser, "writeValue", SerializerContext::WriteValue);
@@ -479,6 +480,7 @@ void Initialize(Local<Object> target,
 
   des->InstanceTemplate()->SetInternalFieldCount(
       DeserializerContext::kInternalFieldCount);
+  des->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(des, "readHeader", DeserializerContext::ReadHeader);
   env->SetProtoMethod(des, "readValue", DeserializerContext::ReadValue);

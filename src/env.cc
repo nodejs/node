@@ -270,6 +270,7 @@ void Environment::CreateProperties() {
     Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
     templ->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
+    templ->Inherit(BaseObject::GetConstructorTemplate(this));
 
     set_binding_data_ctor_template(templ);
   }
@@ -1193,6 +1194,16 @@ bool BaseObject::IsDoneInitializing() const { return true; }
 
 Local<Object> BaseObject::WrappedObject() const {
   return object();
+}
+
+Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->base_object_ctor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BaseObject"));
+    env->set_base_object_ctor_template(tmpl);
+  }
+  return tmpl;
 }
 
 }  // namespace node

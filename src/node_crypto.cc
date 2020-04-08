@@ -454,6 +454,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
       SecureContext::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
   Local<String> secureContextString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext");
   t->SetClassName(secureContextString);
@@ -3242,6 +3243,7 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
       KeyObject::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethodNoSideEffect(t, "getSymmetricKeySize",
@@ -3476,6 +3478,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       CipherBase::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethod(t, "initiv", InitIv);
@@ -4090,6 +4093,7 @@ void Hmac::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       Hmac::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", HmacInit);
   env->SetProtoMethod(t, "update", HmacUpdate);
@@ -4202,6 +4206,7 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       Hash::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "update", HashUpdate);
   env->SetProtoMethod(t, "digest", HashDigest);
@@ -4458,6 +4463,7 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       SignBase::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", SignInit);
   env->SetProtoMethod(t, "update", SignUpdate);
@@ -4780,6 +4786,7 @@ void Verify::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       SignBase::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", VerifyInit);
   env->SetProtoMethod(t, "update", VerifyUpdate);
@@ -5090,6 +5097,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
     t->InstanceTemplate()->SetInternalFieldCount(
         DiffieHellman::kInternalFieldCount);
+    t->Inherit(BaseObject::GetConstructorTemplate(env));
 
     env->SetProtoMethod(t, "generateKeys", GenerateKeys);
     env->SetProtoMethod(t, "computeSecret", ComputeSecret);
@@ -5448,6 +5456,7 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   t->InstanceTemplate()->SetInternalFieldCount(ECDH::kInternalFieldCount);
 
