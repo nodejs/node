@@ -8,7 +8,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { promises: fs } = require('fs');
+const { promises: { open } } = require('fs');
 
 const warning =
   'Closing a FileHandle object on garbage collection is deprecated. ' +
@@ -17,7 +17,7 @@ const warning =
   'thrown if a file descriptor is closed during garbage collection.';
 
 async function doOpen() {
-  const fh = await fs.open(__filename);
+  const fh = await open(__filename);
 
   common.expectWarning({
     Warning: [[`Closing file descriptor ${fh.fd} on garbage collection`]],
