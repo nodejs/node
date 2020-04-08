@@ -325,6 +325,7 @@ void Initialize(Local<Object> target,
   weak_ref->InstanceTemplate()->SetInternalFieldCount(
       WeakReference::kInternalFieldCount);
   weak_ref->SetClassName(weak_ref_string);
+  weak_ref->Inherit(BaseObject::GetConstructorTemplate(env));
   env->SetProtoMethod(weak_ref, "get", WeakReference::Get);
   env->SetProtoMethod(weak_ref, "incRef", WeakReference::IncRef);
   env->SetProtoMethod(weak_ref, "decRef", WeakReference::DecRef);
