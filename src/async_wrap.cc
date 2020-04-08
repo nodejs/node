@@ -557,6 +557,7 @@ Local<FunctionTemplate> AsyncWrap::GetConstructorTemplate(Environment* env) {
   if (tmpl.IsEmpty()) {
     tmpl = env->NewFunctionTemplate(nullptr);
     tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
+    tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
     env->SetProtoMethod(tmpl, "getAsyncId", AsyncWrap::GetAsyncId);
     env->SetProtoMethod(tmpl, "asyncReset", AsyncWrap::AsyncReset);
     env->SetProtoMethod(tmpl, "getProviderType", AsyncWrap::GetProviderType);
