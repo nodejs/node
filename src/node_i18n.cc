@@ -811,6 +811,7 @@ void Initialize(Local<Object> target,
   // ConverterObject
   {
     Local<FunctionTemplate> t = FunctionTemplate::New(env->isolate());
+    t->Inherit(BaseObject::GetConstructorTemplate(env));
     t->InstanceTemplate()->SetInternalFieldCount(
         ConverterObject::kInternalFieldCount);
     Local<String> converter_string =

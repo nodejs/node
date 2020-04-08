@@ -98,6 +98,9 @@ class BaseObject : public MemoryRetainer {
   // a BaseObjectPtr to this object.
   inline void Detach();
 
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
  protected:
   virtual inline void OnGCCollect();
 

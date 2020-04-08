@@ -264,6 +264,7 @@ void Environment::CreateProperties() {
   Local<Context> ctx = context();
   Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
   templ->InstanceTemplate()->SetInternalFieldCount(1);
+  templ->Inherit(BaseObject::GetConstructorTemplate(this));
   Local<Object> obj = templ->GetFunction(ctx)
                           .ToLocalChecked()
                           ->NewInstance(ctx)
@@ -1206,6 +1207,16 @@ Local<Object> BaseObject::WrappedObject() const {
 
 bool BaseObject::IsRootNode() const {
   return !persistent_handle_.IsWeak();
+}
+
+Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->base_object_ctor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BaseObject"));
+    env->set_base_object_ctor_template(tmpl);
+  }
+  return tmpl;
 }
 
 }  // namespace node

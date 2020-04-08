@@ -155,6 +155,7 @@ BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
   };
 
   v8::Local<v8::FunctionTemplate> t = env->NewFunctionTemplate(constructor);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
   return t;
