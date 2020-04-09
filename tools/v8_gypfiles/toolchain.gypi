@@ -176,27 +176,13 @@
           'V8_TARGET_ARCH_ARM',
         ],
         'conditions': [
-          [ 'arm_version==7 or arm_version=="default"', {
+          # ARMv7 supports NEON+VFP3, ARMv6 only supports VFP2.
+          [ 'arm_version==7', {
             'defines': [
               'CAN_USE_ARMV7_INSTRUCTIONS',
-            ],
-          }],
-          [ 'arm_fpu=="vfpv3-d16" or arm_fpu=="default"', {
-            'defines': [
-              'CAN_USE_VFP3_INSTRUCTIONS',
-            ],
-          }],
-          [ 'arm_fpu=="vfpv3"', {
-            'defines': [
-              'CAN_USE_VFP3_INSTRUCTIONS',
-              'CAN_USE_VFP32DREGS',
-            ],
-          }],
-          [ 'arm_fpu=="neon"', {
-            'defines': [
-              'CAN_USE_VFP3_INSTRUCTIONS',
-              'CAN_USE_VFP32DREGS',
               'CAN_USE_NEON',
+              'CAN_USE_VFP32DREGS',
+              'CAN_USE_VFP3_INSTRUCTIONS',
             ],
           }],
           [ 'arm_test_noprobe=="on"', {
@@ -204,94 +190,6 @@
               'ARM_TEST_NO_FEATURE_PROBE',
             ],
           }],
-        ],
-        'target_conditions': [
-          ['_toolset=="host"', {
-            'conditions': [
-              ['v8_target_arch==host_arch', {
-                # Host built with an Arm CXX compiler.
-                'conditions': [
-                  [ 'arm_version==7', {
-                    'cflags': ['-march=armv7-a',],
-                  }],
-                  [ 'arm_version==7 or arm_version=="default"', {
-                    'conditions': [
-                      [ 'arm_fpu!="default"', {
-                        'cflags': ['-mfpu=<(arm_fpu)',],
-                      }],
-                    ],
-                  }],
-                  [ 'arm_float_abi!="default"', {
-                    'cflags': ['-mfloat-abi=<(arm_float_abi)',],
-                  }],
-                  [ 'arm_thumb==1', {
-                    'cflags': ['-mthumb',],
-                  }],
-                  [ 'arm_thumb==0', {
-                    'cflags': ['-marm',],
-                  }],
-                ],
-              }, {
-                # 'v8_target_arch!=host_arch'
-                # Host not built with an Arm CXX compiler (simulator build).
-                'conditions': [
-                  [ 'arm_float_abi=="hard"', {
-                    'defines': [
-                      'USE_EABI_HARDFLOAT=1',
-                    ],
-                  }],
-                  [ 'arm_float_abi=="softfp" or arm_float_abi=="default"', {
-                    'defines': [
-                      'USE_EABI_HARDFLOAT=0',
-                    ],
-                  }],
-                ],
-              }],
-            ],
-          }],  # _toolset=="host"
-          ['_toolset=="target"', {
-            'conditions': [
-              ['v8_target_arch==target_arch', {
-                # Target built with an Arm CXX compiler.
-                'conditions': [
-                  [ 'arm_version==7', {
-                    'cflags': ['-march=armv7-a',],
-                  }],
-                  [ 'arm_version==7 or arm_version=="default"', {
-                    'conditions': [
-                      [ 'arm_fpu!="default"', {
-                        'cflags': ['-mfpu=<(arm_fpu)',],
-                      }],
-                    ],
-                  }],
-                  [ 'arm_float_abi!="default"', {
-                    'cflags': ['-mfloat-abi=<(arm_float_abi)',],
-                  }],
-                  [ 'arm_thumb==1', {
-                    'cflags': ['-mthumb',],
-                  }],
-                  [ 'arm_thumb==0', {
-                    'cflags': ['-marm',],
-                  }],
-                ],
-              }, {
-                # 'v8_target_arch!=target_arch'
-                # Target not built with an Arm CXX compiler (simulator build).
-                'conditions': [
-                  [ 'arm_float_abi=="hard"', {
-                    'defines': [
-                      'USE_EABI_HARDFLOAT=1',
-                    ],
-                  }],
-                  [ 'arm_float_abi=="softfp" or arm_float_abi=="default"', {
-                    'defines': [
-                      'USE_EABI_HARDFLOAT=0',
-                    ],
-                  }],
-                ],
-              }],
-            ],
-          }],  # _toolset=="target"
         ],
       }],  # v8_target_arch=="arm"
       ['v8_target_arch=="arm64"', {

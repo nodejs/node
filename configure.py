@@ -51,8 +51,6 @@ valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
             'android', 'aix', 'cloudabi')
 valid_arch = ('arm', 'arm64', 'ia32', 'mips', 'mipsel', 'mips64el', 'ppc',
               'ppc64', 'x32','x64', 'x86', 'x86_64', 's390x')
-valid_arm_float_abi = ('soft', 'softfp', 'hard')
-valid_arm_fpu = ('vfp', 'vfpv3', 'vfpv3-d16', 'neon')
 valid_mips_arch = ('loongson', 'r1', 'r2', 'r6', 'rx')
 valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
@@ -381,20 +379,6 @@ parser.add_option('--v8-options',
     action='store',
     dest='v8_options',
     help='v8 options to pass, see `node --v8-options` for examples.')
-
-parser.add_option('--with-arm-float-abi',
-    action='store',
-    dest='arm_float_abi',
-    choices=valid_arm_float_abi,
-    help='specifies which floating-point ABI to use ({0}).'.format(
-        ', '.join(valid_arm_float_abi)))
-
-parser.add_option('--with-arm-fpu',
-    action='store',
-    dest='arm_fpu',
-    choices=valid_arm_fpu,
-    help='ARM FPU mode ({0}) [default: %default]'.format(
-        ', '.join(valid_arm_fpu)))
 
 parser.add_option('--with-mips-arch-variant',
     action='store',
@@ -883,28 +867,6 @@ def cc_macros(cc=None):
   return k
 
 
-def is_arch_armv7():
-  """Check for ARMv7 instructions"""
-  cc_macros_cache = cc_macros()
-  return cc_macros_cache.get('__ARM_ARCH') == '7'
-
-
-def is_arch_armv6():
-  """Check for ARMv6 instructions"""
-  cc_macros_cache = cc_macros()
-  return cc_macros_cache.get('__ARM_ARCH') == '6'
-
-
-def is_arm_hard_float_abi():
-  """Check for hardfloat or softfloat eabi on ARM"""
-  # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
-  # the Floating Point ABI used (PCS stands for Procedure Call Standard).
-  # We use these as well as a couple of other defines to statically determine
-  # what FP ABI used.
-
-  return '__ARM_PCS_VFP' in cc_macros()
-
-
 def host_arch_cc():
   """Host architecture check using the CC command."""
 
@@ -957,29 +919,10 @@ def host_arch_win():
 
 
 def configure_arm(o):
-  if options.arm_float_abi:
-    arm_float_abi = options.arm_float_abi
-  elif is_arm_hard_float_abi():
-    arm_float_abi = 'hard'
-  else:
-    arm_float_abi = 'default'
-
-  arm_fpu = 'vfp'
-
-  if is_arch_armv7():
-    arm_fpu = 'vfpv3'
-    o['variables']['arm_version'] = '7'
-  else:
-    o['variables']['arm_version'] = '6' if is_arch_armv6() else 'default'
-
-  o['variables']['arm_thumb'] = 0      # -marm
-  o['variables']['arm_float_abi'] = arm_float_abi
-
-  if options.dest_os == 'android':
-    arm_fpu = 'vfpv3'
-    o['variables']['arm_version'] = '7'
-
-  o['variables']['arm_fpu'] = options.arm_fpu or arm_fpu
+  armv7 = options.dest_os == 'android' or cc_macros().get('__ARM_ARCH') == '7'
+  # ARMv6 is primarily the ARM1176 CPU used in the Broadcom BCM2835 SoC of
+  # first-gen Raspberry Pis and the Pi Zero. It supports VFP2 but not NEON.
+  o['variables']['arm_version'] = '7' if armv7 else '6'
 
 
 def configure_mips(o):

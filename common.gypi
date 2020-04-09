@@ -2,6 +2,7 @@
   'variables': {
     'configuring_node%': 0,
     'asan%': 0,
+    'arm_version%': 0,                # ARM architecture version (6 or 7)
     'werror': '',                     # Turn off -Werror in V8 build.
     'visibility%': 'hidden',          # V8's visibility setting
     'target_arch%': 'ia32',           # set v8's target architecture
@@ -268,6 +269,17 @@
     'msvs_cygwin_shell': 0, # prevent actions from trying to use cygwin
 
     'conditions': [
+      [ 'arm_version==7', {
+        'target_conditions': [
+          ['_toolset=="target"', {
+            # Any Cortex-A that can run V8 supports at least armv7-a+neon.
+            'cflags': [
+              '-march=armv7-a',
+              '-mfpu=neon',  # Implies VFPv3.
+              ],
+          }],
+        ],
+      }],
       [ 'configuring_node', {
         'msvs_configuration_attributes': {
           'OutputDirectory': '<(DEPTH)/out/$(Configuration)/',

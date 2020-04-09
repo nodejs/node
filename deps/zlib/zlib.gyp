@@ -5,7 +5,6 @@
 {
   'variables': {
     'use_system_zlib%': 0,
-    'arm_fpu%': '',
     'llvm_version%': '0.0',
   },
   'conditions': [
@@ -64,7 +63,8 @@
                 'USE_FILE32API'
               ],
             }],
-            ['(target_arch in "ia32 x64 x32" and OS!="ios") or arm_fpu=="neon"', {
+            ['(target_arch in "arm64 ia32 x64 x32" and OS!="ios") or '
+             'arm_version==7', {
               'sources': [
                 'adler32_simd.c',
                 'adler32_simd.h',
@@ -112,7 +112,7 @@
             }, {
               'sources': [ 'simd_stub.c', ],
             }],
-            ['arm_fpu=="neon"', {
+            ['target_arch=="arm64" or arm_version==7', {
               'defines': [
                 'ADLER32_SIMD_NEON',
                 'INFLATE_CHUNK_SIMD_NEON',
@@ -136,7 +136,7 @@
                     ['OS=="linux"', {
                       'defines': [ 'ARMV8_OS_LINUX' ],
                     }],
-                    ['OS="win"', {
+                    ['OS=="win"', {
                       'defines': [ 'ARMV8_OS_WINDOWS' ],
                     }],
                     ['OS!="android" and OS!="win" and llvm_version=="0.0"', {
