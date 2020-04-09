@@ -112,7 +112,20 @@
             }, {
               'sources': [ 'simd_stub.c', ],
             }],
-            ['target_arch=="arm64" or arm_version==7', {
+            ['arm_version==7', {
+              'defines': [
+                'ADLER32_SIMD_NEON',
+                'INFLATE_CHUNK_SIMD_NEON',
+              ],
+              'sources': [
+                'arm_features.c',
+                'arm_features.h',
+                'contrib/optimizations/slide_hash_neon.h',
+                'crc32_simd.c',
+                'crc32_simd.h',
+              ],
+            }],
+            ['target_arch=="arm64"', {
               'defines': [
                 'ADLER32_SIMD_NEON',
                 'INFLATE_CHUNK_SIMD_NEON',
