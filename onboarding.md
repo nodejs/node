@@ -207,8 +207,7 @@ needs to be pointed out separately during the onboarding.
 * Optionally, include your personal pronouns.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
   labels.
-* Run CI on the PR. Because the PR does not affect any code, use the
-  `node-test-pull-request-lite-pipeline` CI task.
+* Run CI on the PR. Use the `node-test-pull-request` CI task.
 * After two Collaborator approvals for the change and two Collaborator approvals
   for fast-tracking, land the PR.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
