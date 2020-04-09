@@ -784,6 +784,12 @@ class FastStringKey {
   size_t cached_hash_;
 };
 
+// Like std::static_pointer_cast but for unique_ptr with the default deleter.
+template <typename T, typename U>
+std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
+  return std::unique_ptr<T>(static_cast<T*>(ptr.release()));
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

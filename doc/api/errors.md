@@ -1589,8 +1589,9 @@ is thrown if a required option is missing.
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 ### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
 
-A `MessagePort` was found in the object passed to a `postMessage()` call,
-but not provided in the `transferList` for that call.
+An object that needs to be explicitly listed in the `transferList` argument
+was found in the object passed to a `postMessage()` call, but not provided in
+the `transferList` for that call. Usually, this is a `MessagePort`.
 
 <a id="ERR_MISSING_PASSPHRASE"></a>
 ### `ERR_MISSING_PASSPHRASE`

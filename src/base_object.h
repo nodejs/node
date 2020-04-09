@@ -34,6 +34,10 @@ class Environment;
 template <typename T, bool kIsWeak>
 class BaseObjectPtrImpl;
 
+namespace worker {
+class TransferData;
+}
+
 class BaseObject : public MemoryRetainer {
  public:
   enum InternalFields { kSlot, kInternalFieldCount };
@@ -101,7 +105,39 @@ class BaseObject : public MemoryRetainer {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
- protected:
+  // Interface for transferring BaseObject instances using the .postMessage()
+  // method of MessagePorts (and, by extension, Workers).
+  // GetTransferMode() returns a transfer mode that indicates how to deal with
+  // the current object:
+  // - kUntransferable:
+  //     No transfer is possible, either because this type of BaseObject does
+  //     not know how to be transfered, or because it is not in a state in
+  //     which it is possible to do so (e.g. because it has already been
+  //     transfered).
+  // - kTransferable:
+  //     This object can be transfered in a destructive fashion, i.e. will be
+  //     rendered unusable on the sending side of the channel in the process
+  //     of being transfered. (In C++ this would be referred to as movable but
+  //     not copyable.) Objects of this type need to be listed in the
+  //     `transferList` argument of the relevant postMessage() call in order to
+  //     make sure that they are not accidentally destroyed on the sending side.
+  //     TransferForMessaging() will be called to get a representation of the
+  //     object that is used for subsequent deserialization.
+  // - kCloneable:
+  //     This object can be cloned without being modified.
+  //     CloneForMessaging() will be called to get a representation of the
+  //     object that is used for subsequent deserialization, unless the
+  //     object is listed in transferList, in which case TransferForMessaging()
+  //     is attempted first.
+  enum class TransferMode {
+    kUntransferable,
+    kTransferable,
+    kCloneable
+  };
+  virtual TransferMode GetTransferMode() const;
+  virtual std::unique_ptr<worker::TransferData> TransferForMessaging();
+  virtual std::unique_ptr<worker::TransferData> CloneForMessaging() const;
+
   virtual inline void OnGCCollect();
 
  private:
