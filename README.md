@@ -566,8 +566,7 @@ GPG keys used to sign Node.js releases:
 `B9E2F5981AA6E0CD28160D9FF13993A75599653C`
 
 To avoid nuances involved in verification of a sub-key possibly used to sign a
-release, it is advised to import the full set of trusted release keys (rather
-than an individual key used to sign a release):
+release, import the full set of trusted release keys:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
