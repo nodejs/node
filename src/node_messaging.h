@@ -15,6 +15,23 @@ class MessagePort;
 
 typedef MaybeStackBuffer<v8::Local<v8::Value>, 8> TransferList;
 
+// Used to represent the in-flight structure of an object that is being
+// transfered or cloned using postMessage().
+class TransferData : public MemoryRetainer {
+ public:
+  // Deserialize this object on the receiving end after a .postMessage() call.
+  // - `context` may not be the same as `env->context()`. This method should
+  //    not produce JS objects coming from Contexts other than `context`.
+  // - `self` is a unique_ptr for the object that this is being called on.
+  // - The return value is treated like a `Maybe`, i.e. if `nullptr` is
+  //   returned, any further deserialization of the message is stopped and
+  //   control is returned to the event loop or JS as soon as possible.
+  virtual BaseObjectPtr<BaseObject> Deserialize(
+      Environment* env,
+      v8::Local<v8::Context> context,
+      std::unique_ptr<TransferData> self) = 0;
+};
+
 // Represents a single communication message.
 class Message : public MemoryRetainer {
  public:
@@ -54,16 +71,17 @@ class Message : public MemoryRetainer {
   void AddSharedArrayBuffer(std::shared_ptr<v8::BackingStore> backing_store);
   // Internal method of Message that is called once serialization finishes
   // and that transfers ownership of `data` to this message.
-  void AddMessagePort(std::unique_ptr<MessagePortData>&& data);
+  void AddTransferable(std::unique_ptr<TransferData>&& data);
   // Internal method of Message that is called when a new WebAssembly.Module
   // object is encountered in the incoming value's structure.
   uint32_t AddWASMModule(v8::CompiledWasmModule&& mod);
 
-  // The MessagePorts that will be transferred, as recorded by Serialize().
+  // The host objects that will be transferred, as recorded by Serialize()
+  // (e.g. MessagePorts).
   // Used for warning user about posting the target MessagePort to itself,
   // which will as a side effect destroy the communication channel.
-  const std::vector<std::unique_ptr<MessagePortData>>& message_ports() const {
-    return message_ports_;
+  const std::vector<std::unique_ptr<TransferData>>& transferables() const {
+    return transferables_;
   }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -75,7 +93,7 @@ class Message : public MemoryRetainer {
   MallocedBuffer<char> main_message_buf_;
   std::vector<std::shared_ptr<v8::BackingStore>> array_buffers_;
   std::vector<std::shared_ptr<v8::BackingStore>> shared_array_buffers_;
-  std::vector<std::unique_ptr<MessagePortData>> message_ports_;
+  std::vector<std::unique_ptr<TransferData>> transferables_;
   std::vector<v8::CompiledWasmModule> wasm_modules_;
 
   friend class MessagePort;
@@ -83,7 +101,7 @@ class Message : public MemoryRetainer {
 
 // This contains all data for a `MessagePort` instance that is not tied to
 // a specific Environment/Isolate/event loop, for easier transfer between those.
-class MessagePortData : public MemoryRetainer {
+class MessagePortData : public TransferData {
  public:
   explicit MessagePortData(MessagePort* owner);
   ~MessagePortData() override;
@@ -108,6 +126,10 @@ class MessagePortData : public MemoryRetainer {
   void Disentangle();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
+  BaseObjectPtr<BaseObject> Deserialize(
+      Environment* env,
+      v8::Local<v8::Context> context,
+      std::unique_ptr<TransferData> self) override;
 
   SET_MEMORY_INFO_NAME(MessagePortData)
   SET_SELF_SIZE(MessagePortData)
@@ -194,6 +216,9 @@ class MessagePort : public HandleWrap {
   // have been deleted already. For all intents and purposes, an object with a
   // NULL pointer to the C++ MessagePort object is also detached.
   inline bool IsDetached() const;
+
+  TransferMode GetTransferMode() const override;
+  std::unique_ptr<TransferData> TransferForMessaging() override;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(MessagePort)
