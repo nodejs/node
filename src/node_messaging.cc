@@ -865,7 +865,12 @@ void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
 }
 
 void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsObject());
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject() ||
+      !env->message_port_constructor_template()->HasInstance(args[0])) {
+    return THROW_ERR_INVALID_ARG_TYPE(env,
+        "First argument needs to be a MessagePort instance");
+  }
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
   if (port == nullptr) {
     // Return 'no messages' for a closed port.
