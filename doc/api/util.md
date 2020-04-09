@@ -488,7 +488,7 @@ changes:
     negative to show no elements. **Default:** `100`.
   * `maxStringLength` {integer} Specifies the maximum number of characters to
     include when formatting. Set to `null` or `Infinity` to show all elements.
-    Set to `0` or negative to show no characters. **Default:** `Infinity`.
+    Set to `0` or negative to show no characters. **Default:** `10000`.
   * `breakLength` {integer} The length at which input values are split across
     multiple lines. Set to `Infinity` to format the input as a single line
     (in combination with `compact` set to `true` or any number >= `1`).
