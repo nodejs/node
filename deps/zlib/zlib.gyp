@@ -118,8 +118,6 @@
                 'INFLATE_CHUNK_SIMD_NEON',
               ],
               'sources': [
-                'arm_features.c',
-                'arm_features.h',
                 'contrib/optimizations/slide_hash_neon.h',
                 'crc32_simd.c',
                 'crc32_simd.h',
