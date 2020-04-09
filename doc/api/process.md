@@ -2254,6 +2254,8 @@ The `process.stdin` property returns a stream connected to
 stream) unless fd `0` refers to a file, in which case it is
 a [Readable][] stream.
 
+For details of how to read from `stdin` see [`readable.read()`][].
+
 As a [Duplex][] stream, `process.stdin` can also be used in "old" mode that
 is compatible with scripts written for Node.js prior to v0.10.
 For more information see [Stream compatibility][].
@@ -2261,50 +2263,6 @@ For more information see [Stream compatibility][].
 In "old" streams mode the `stdin` stream is paused by default, so one
 must call `process.stdin.resume()` to read from it. Note also that calling
 `process.stdin.resume()` itself would switch stream to "old" mode.
-
-```js
-process.stdin.setEncoding('utf8');
-
-// 'readable' may be triggered multiple times as data is buffered in
-process.stdin.on('readable', () => {
-  let chunk;
-  // Use a loop to make sure we read all currently available data
-  while ((chunk = process.stdin.read()) !== null) {
-    process.stdout.write(`data: ${chunk}`);
-  }
-});
-
-// 'end' will be triggered once when there is no more data available
-process.stdin.on('end', () => {
-  process.stdout.write('end');
-});
-```
-
-Each call to `stdin.read()` returns a chunk of data. The chunks are not
-concatenated. A `while` loop is necessary to consume all data currently in the
-buffer. When reading a large file `.read()` may return `null`, having
-consumed all buffered content so far, but there is still more data to come not
-yet buffered. In this case a new `'readable'` event will be emitted when there
-is more data in the buffer. Finally the `'end'` event will be emitted when
-there is no more data to come.
-
-Therefore to read a file's whole contents from `stdin` you need to collect
-chunks across multiple `'readable'` events, something like:
-
-```js
-var chunks = [];
-
-process.stdin.on('readable', () => {
-  let chunk;
-  while ((chunk = process.stdin.read()) !== null) {
-    chunks.push(chunk);
-  }
-});
-
-process.stdin.on('end', () => {
-  let content = chunks.join('');
-});
-```
 
 ### `process.stdin.fd`
 
@@ -2639,6 +2597,7 @@ cases:
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
 [LTS]: https://github.com/nodejs/Release
 [Readable]: stream.html#stream_readable_streams
+[`readable.read()`]: stream.html#stream_readable_read_size
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [TTY]: tty.html#tty_tty
