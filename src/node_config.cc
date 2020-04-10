@@ -4,16 +4,22 @@
 #include "node_i18n.h"
 #include "node_native_module_env.h"
 #include "node_options.h"
+#include "snapshot_support-inl.h"
 #include "util-inl.h"
 
 namespace node {
 
 using v8::Context;
+using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::Object;
 using v8::Value;
+
+static void HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(native_module::has_code_cache);
+}
 
 // The config binding is used to provide an internal view of compile time
 // config options that are required internally by lib/*.js code. This is an
@@ -85,9 +91,15 @@ static void Initialize(Local<Object> target,
   READONLY_TRUE_PROPERTY(target, "hasDtrace");
 #endif
 
-  READONLY_PROPERTY(target, "hasCachedBuiltins",
-     v8::Boolean::New(isolate, native_module::has_code_cache));
+  // Make this a method instead of a constant in order for snapshotted builts
+  // to correctly report this.
+  env->SetMethodNoSideEffect(target, "hasCachedBuiltins", HasCachedBuiltins);
 }  // InitConfig
+
+static ExternalReferences external_references {
+  __FILE__,
+  HasCachedBuiltins
+};
 
 }  // namespace node
 
