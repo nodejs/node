@@ -1152,6 +1152,25 @@ void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void GetZeroFillField(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  // This can be a nullptr when running inside an isolate where we
+  // do not own the ArrayBuffer allocator.
+  NodeArrayBufferAllocator* allocator = env->isolate_data()->node_allocator();
+  if (allocator == nullptr) return;
+
+  std::shared_ptr<v8::BackingStore> backing = allocator->zero_fill_field();
+  Local<ArrayBuffer> array_buffer =
+      ArrayBuffer::New(env->isolate(), std::move(backing));
+  array_buffer->SetPrivate(
+      env->context(),
+      env->arraybuffer_untransferable_private_symbol(),
+      True(env->isolate())).Check();
+  args.GetReturnValue().Set(Uint32Array::New(array_buffer, 0, 1));
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1159,6 +1178,7 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
 
   env->SetMethod(target, "setBufferPrototype", SetBufferPrototype);
+  env->SetMethod(target, "getZeroFillField", GetZeroFillField);
   env->SetMethodNoSideEffect(target, "createFromString", CreateFromString);
 
   env->SetMethodNoSideEffect(target, "byteLengthUtf8", ByteLengthUtf8);
@@ -1198,34 +1218,12 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "hexWrite", StringWrite<HEX>);
   env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
   env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
-
-  // It can be a nullptr when running inside an isolate where we
-  // do not own the ArrayBuffer allocator.
-  if (NodeArrayBufferAllocator* allocator =
-          env->isolate_data()->node_allocator()) {
-    uint32_t* zero_fill_field = allocator->zero_fill_field();
-    std::unique_ptr<BackingStore> backing =
-      ArrayBuffer::NewBackingStore(zero_fill_field,
-                                   sizeof(*zero_fill_field),
-                                   [](void*, size_t, void*){},
-                                   nullptr);
-    Local<ArrayBuffer> array_buffer =
-        ArrayBuffer::New(env->isolate(), std::move(backing));
-    array_buffer->SetPrivate(
-        env->context(),
-        env->arraybuffer_untransferable_private_symbol(),
-        True(env->isolate())).Check();
-    CHECK(target
-              ->Set(env->context(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill"),
-                    Uint32Array::New(array_buffer, 0, 1))
-              .FromJust());
-  }
 }
 
 static ExternalReferences external_references {
   __FILE__,
   SetBufferPrototype,
+  GetZeroFillField,
   CreateFromString,
   ByteLengthUtf8,
   Copy,

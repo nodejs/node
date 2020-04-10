@@ -107,7 +107,7 @@ void PromiseRejectCallback(v8::PromiseRejectMessage message);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
-  inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
+  std::shared_ptr<v8::BackingStore> zero_fill_field();
 
   void* Allocate(size_t size) override;  // Defined in src/node.cc
   void* AllocateUninitialized(size_t size) override;
@@ -127,6 +127,7 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
 
  private:
   uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
+  std::shared_ptr<v8::BackingStore> zero_fill_field_bs_;
   std::atomic<size_t> total_mem_usage_ {0};
 };
 

@@ -14,6 +14,7 @@
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FinalizationGroup;
@@ -89,6 +90,17 @@ static void HostCleanupFinalizationGroupCallback(
     return;
   }
   env->RegisterFinalizationGroupForCleanup(group);
+}
+
+std::shared_ptr<v8::BackingStore> NodeArrayBufferAllocator::zero_fill_field() {
+  if (!zero_fill_field_bs_) {
+    zero_fill_field_bs_ =
+        ArrayBuffer::NewBackingStore(&zero_fill_field_,
+                                     sizeof(zero_fill_field_),
+                                     [](void*, size_t, void*){},
+                                     nullptr);
+  }
+  return zero_fill_field_bs_;
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
