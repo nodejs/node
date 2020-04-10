@@ -30,6 +30,13 @@ assert.throws(() => crypto.createDiffieHellman(13.37), {
            'It must be an integer. Received 13.37',
 });
 
+assert.throws(() => crypto.createDiffieHellman('abcdef', 13.37), {
+  code: 'ERR_OUT_OF_RANGE',
+  name: 'RangeError',
+  message: 'The value of "generator" is out of range. ' +
+           'It must be an integer. Received 13.37',
+});
+
 for (const bits of [-1, 0, 1]) {
   assert.throws(() => crypto.createDiffieHellman(bits), {
     code: 'ERR_OSSL_BN_BITS_TOO_SMALL',
