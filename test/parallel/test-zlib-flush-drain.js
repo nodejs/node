@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
@@ -28,13 +28,16 @@ const ws = deflater._writableState;
 const beforeFlush = ws.needDrain;
 let afterFlush = ws.needDrain;
 
-deflater.flush(function(err) {
-  afterFlush = ws.needDrain;
+deflater.on('data', () => {
 });
 
-deflater.on('drain', function() {
+deflater.flush(common.mustCall(function(err) {
+  afterFlush = ws.needDrain;
+}));
+
+deflater.on('drain', common.mustCall(function() {
   drainCount++;
-});
+}));
 
 process.once('exit', function() {
   assert.strictEqual(
