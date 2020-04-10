@@ -28,6 +28,9 @@ const ws = deflater._writableState;
 const beforeFlush = ws.needDrain;
 let afterFlush = ws.needDrain;
 
+deflater.on('data', () => {
+});
+
 deflater.flush(function(err) {
   afterFlush = ws.needDrain;
 });
