@@ -291,178 +291,178 @@ const Transform = require('_stream_transform');
 }
 
 
-// {
-//   // Verify passthrough event emission
-//   const pt = new PassThrough();
-//   let emits = 0;
-//   pt.on('readable', function() {
-//     emits++;
-//   });
+{
+  // Verify passthrough event emission
+  const pt = new PassThrough();
+  let emits = 0;
+  pt.on('readable', function() {
+    emits++;
+  });
 
-//   pt.write(Buffer.from('foog'));
-//   pt.write(Buffer.from('bark'));
+  pt.write(Buffer.from('foog'));
+  pt.write(Buffer.from('bark'));
 
-//   assert.strictEqual(emits, 0);
-//   assert.strictEqual(pt.read(5).toString(), 'foogb');
-//   assert.strictEqual(String(pt.read(5)), 'null');
-//   assert.strictEqual(emits, 0);
+  assert.strictEqual(emits, 0);
+  assert.strictEqual(pt.read(5).toString(), 'foogb');
+  assert.strictEqual(String(pt.read(5)), 'null');
+  assert.strictEqual(emits, 0);
 
-//   pt.write(Buffer.from('bazy'));
-//   pt.write(Buffer.from('kuel'));
+  pt.write(Buffer.from('bazy'));
+  pt.write(Buffer.from('kuel'));
 
-//   assert.strictEqual(emits, 0);
-//   assert.strictEqual(pt.read(5).toString(), 'arkba');
-//   assert.strictEqual(pt.read(5).toString(), 'zykue');
-//   assert.strictEqual(pt.read(5), null);
+  assert.strictEqual(emits, 0);
+  assert.strictEqual(pt.read(5).toString(), 'arkba');
+  assert.strictEqual(pt.read(5).toString(), 'zykue');
+  assert.strictEqual(pt.read(5), null);
 
-//   pt.end();
+  pt.end();
 
-//   assert.strictEqual(emits, 1);
-//   assert.strictEqual(pt.read(5).toString(), 'l');
-//   assert.strictEqual(pt.read(5), null);
-//   assert.strictEqual(emits, 1);
-// }
+  assert.strictEqual(emits, 1);
+  assert.strictEqual(pt.read(5).toString(), 'l');
+  assert.strictEqual(pt.read(5), null);
+  assert.strictEqual(emits, 1);
+}
 
-// {
-//   // Verify passthrough event emission reordering
-//   const pt = new PassThrough();
-//   let emits = 0;
-//   pt.on('readable', function() {
-//     emits++;
-//   });
+{
+  // Verify passthrough event emission reordering
+  const pt = new PassThrough();
+  let emits = 0;
+  pt.on('readable', function() {
+    emits++;
+  });
 
-//   pt.write(Buffer.from('foog'));
-//   pt.write(Buffer.from('bark'));
+  pt.write(Buffer.from('foog'));
+  pt.write(Buffer.from('bark'));
 
-//   assert.strictEqual(emits, 0);
-//   assert.strictEqual(pt.read(5).toString(), 'foogb');
-//   assert.strictEqual(pt.read(5), null);
+  assert.strictEqual(emits, 0);
+  assert.strictEqual(pt.read(5).toString(), 'foogb');
+  assert.strictEqual(pt.read(5), null);
 
-//   pt.once('readable', common.mustCall(function() {
-//     assert.strictEqual(pt.read(5).toString(), 'arkba');
-//     assert.strictEqual(pt.read(5), null);
+  pt.once('readable', common.mustCall(function() {
+    assert.strictEqual(pt.read(5).toString(), 'arkba');
+    assert.strictEqual(pt.read(5), null);
 
-//     pt.once('readable', common.mustCall(function() {
-//       assert.strictEqual(pt.read(5).toString(), 'zykue');
-//       assert.strictEqual(pt.read(5), null);
-//       pt.once('readable', common.mustCall(function() {
-//         assert.strictEqual(pt.read(5).toString(), 'l');
-//         assert.strictEqual(pt.read(5), null);
-//         assert.strictEqual(emits, 3);
-//       }));
-//       pt.end();
-//     }));
-//     pt.write(Buffer.from('kuel'));
-//   }));
+    pt.once('readable', common.mustCall(function() {
+      assert.strictEqual(pt.read(5).toString(), 'zykue');
+      assert.strictEqual(pt.read(5), null);
+      pt.once('readable', common.mustCall(function() {
+        assert.strictEqual(pt.read(5).toString(), 'l');
+        assert.strictEqual(pt.read(5), null);
+        assert.strictEqual(emits, 3);
+      }));
+      pt.end();
+    }));
+    pt.write(Buffer.from('kuel'));
+  }));
 
-//   pt.write(Buffer.from('bazy'));
-// }
+  pt.write(Buffer.from('bazy'));
+}
 
-// {
-//   // Verify passthrough facade
-//   const pt = new PassThrough();
-//   const datas = [];
-//   pt.on('data', function(chunk) {
-//     datas.push(chunk.toString());
-//   });
+{
+  // Verify passthrough facade
+  const pt = new PassThrough();
+  const datas = [];
+  pt.on('data', function(chunk) {
+    datas.push(chunk.toString());
+  });
 
-//   pt.on('end', common.mustCall(function() {
-//     assert.deepStrictEqual(datas, ['foog', 'bark', 'bazy', 'kuel']);
-//   }));
+  pt.on('end', common.mustCall(function() {
+    assert.deepStrictEqual(datas, ['foog', 'bark', 'bazy', 'kuel']);
+  }));
 
-//   pt.write(Buffer.from('foog'));
-//   setTimeout(function() {
-//     pt.write(Buffer.from('bark'));
-//     setTimeout(function() {
-//       pt.write(Buffer.from('bazy'));
-//       setTimeout(function() {
-//         pt.write(Buffer.from('kuel'));
-//         setTimeout(function() {
-//           pt.end();
-//         }, 10);
-//       }, 10);
-//     }, 10);
-//   }, 10);
-// }
+  pt.write(Buffer.from('foog'));
+  setTimeout(function() {
+    pt.write(Buffer.from('bark'));
+    setTimeout(function() {
+      pt.write(Buffer.from('bazy'));
+      setTimeout(function() {
+        pt.write(Buffer.from('kuel'));
+        setTimeout(function() {
+          pt.end();
+        }, 10);
+      }, 10);
+    }, 10);
+  }, 10);
+}
 
-// {
-//   // Verify object transform (JSON parse)
-//   const jp = new Transform({ objectMode: true });
-//   jp._transform = function(data, encoding, cb) {
-//     try {
-//       jp.push(JSON.parse(data));
-//       cb();
-//     } catch (er) {
-//       cb(er);
-//     }
-//   };
+{
+  // Verify object transform (JSON parse)
+  const jp = new Transform({ objectMode: true });
+  jp._transform = function(data, encoding, cb) {
+    try {
+      jp.push(JSON.parse(data));
+      cb();
+    } catch (er) {
+      cb(er);
+    }
+  };
 
-//   // Anything except null/undefined is fine.
-//   // those are "magic" in the stream API, because they signal EOF.
-//   const objects = [
-//     { foo: 'bar' },
-//     100,
-//     'string',
-//     { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
-//   ];
+  // Anything except null/undefined is fine.
+  // those are "magic" in the stream API, because they signal EOF.
+  const objects = [
+    { foo: 'bar' },
+    100,
+    'string',
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+  ];
 
-//   let ended = false;
-//   jp.on('end', function() {
-//     ended = true;
-//   });
+  let ended = false;
+  jp.on('end', function() {
+    ended = true;
+  });
 
-//   objects.forEach(function(obj) {
-//     jp.write(JSON.stringify(obj));
-//     const res = jp.read();
-//     assert.deepStrictEqual(res, obj);
-//   });
+  objects.forEach(function(obj) {
+    jp.write(JSON.stringify(obj));
+    const res = jp.read();
+    assert.deepStrictEqual(res, obj);
+  });
 
-//   jp.end();
-//   // Read one more time to get the 'end' event
-//   jp.read();
+  jp.end();
+  // Read one more time to get the 'end' event
+  jp.read();
 
-//   process.nextTick(common.mustCall(function() {
-//     assert.strictEqual(ended, true);
-//   }));
-// }
+  process.nextTick(common.mustCall(function() {
+    assert.strictEqual(ended, true);
+  }));
+}
 
-// {
-//   // Verify object transform (JSON stringify)
-//   const js = new Transform({ objectMode: true });
-//   js._transform = function(data, encoding, cb) {
-//     try {
-//       js.push(JSON.stringify(data));
-//       cb();
-//     } catch (er) {
-//       cb(er);
-//     }
-//   };
+{
+  // Verify object transform (JSON stringify)
+  const js = new Transform({ objectMode: true });
+  js._transform = function(data, encoding, cb) {
+    try {
+      js.push(JSON.stringify(data));
+      cb();
+    } catch (er) {
+      cb(er);
+    }
+  };
 
-//   // Anything except null/undefined is fine.
-//   // those are "magic" in the stream API, because they signal EOF.
-//   const objects = [
-//     { foo: 'bar' },
-//     100,
-//     'string',
-//     { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
-//   ];
+  // Anything except null/undefined is fine.
+  // those are "magic" in the stream API, because they signal EOF.
+  const objects = [
+    { foo: 'bar' },
+    100,
+    'string',
+    { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
+  ];
 
-//   let ended = false;
-//   js.on('end', function() {
-//     ended = true;
-//   });
+  let ended = false;
+  js.on('end', function() {
+    ended = true;
+  });
 
-//   objects.forEach(function(obj) {
-//     js.write(obj);
-//     const res = js.read();
-//     assert.strictEqual(res, JSON.stringify(obj));
-//   });
+  objects.forEach(function(obj) {
+    js.write(obj);
+    const res = js.read();
+    assert.strictEqual(res, JSON.stringify(obj));
+  });
 
-//   js.end();
-//   // Read one more time to get the 'end' event
-//   js.read();
+  js.end();
+  // Read one more time to get the 'end' event
+  js.read();
 
-//   process.nextTick(common.mustCall(function() {
-//     assert.strictEqual(ended, true);
-//   }));
-// }
+  process.nextTick(common.mustCall(function() {
+    assert.strictEqual(ended, true);
+  }));
+}
