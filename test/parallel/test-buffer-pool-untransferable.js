@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const { MessageChannel } = require('worker_threads');
 
@@ -12,7 +12,7 @@ const b = Buffer.from('hello world');
 assert.strictEqual(a.buffer, b.buffer);
 const length = a.length;
 
-const { port1, port2 } = new MessageChannel();
+const { port1 } = new MessageChannel();
 port1.postMessage(a, [ a.buffer ]);
 
 // Verify that the pool ArrayBuffer has not actually been transfered:
