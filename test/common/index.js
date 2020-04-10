@@ -223,6 +223,15 @@ function createZeroFilledFile(filename) {
   fs.closeSync(fd);
 }
 
+function receive(req, cb) {
+  let buf = '';
+  req.on('data', (data) => {
+    buf += data;
+  });
+  req.on('end', () => {
+    cb(buf);
+  });
+}
 
 const pwdCommand = isWindows ?
   ['cmd.exe', ['/d', '/c', 'cd']] :
@@ -688,6 +697,7 @@ const common = {
   platformTimeout,
   printSkipMessage,
   pwdCommand,
+  receive,
   rootDir,
   runWithInvalidFD,
   skip,

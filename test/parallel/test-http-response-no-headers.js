@@ -45,18 +45,13 @@ function test(httpVersion, callback) {
     };
 
     const req = http.get(options, common.mustCall(function(res) {
-      let body = '';
-
-      res.on('data', function(data) {
-        body += data;
-      });
-
       res.on('aborted', common.mustNotCall());
-      res.on('end', common.mustCall(function() {
-        assert.strictEqual(body, expected[httpVersion]);
+
+      common.receive(res, function(data) {
+        assert.strictEqual(data, expected[httpVersion]);
         server.close();
         if (callback) process.nextTick(callback);
-      }));
+      });
     }));
 
     req.on('error', function(err) {
