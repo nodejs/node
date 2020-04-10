@@ -876,41 +876,40 @@ chains. It allows storing data throughout the lifetime of a web request
 or any other asynchronous duration. It is similar to thread-local storage
 in other languages.
 
-The following example builds a logger that will always know the current HTTP
-request and uses it to display enhanced logs without needing to explicitly
-provide the current HTTP request to it.
+The following example uses `AsyncLocalStorage` to build a simple logger
+that assigns IDs to incoming HTTP requests and includes them in messages
+logged within each request.
 
 ```js
-const { AsyncLocalStorage } = require('async_hooks');
 const http = require('http');
+const { AsyncLocalStorage } = require('async_hooks');
 
-const kReq = 'CURRENT_REQUEST';
 const asyncLocalStorage = new AsyncLocalStorage();
 
-function log(...args) {
-  const store = asyncLocalStorage.getStore();
-  // Make sure the store exists and it contains a request.
-  if (store && store.has(kReq)) {
-    const req = store.get(kReq);
-    // Prints `GET /items ERR could not do something
-    console.log(req.method, req.url, ...args);
-  } else {
-    console.log(...args);
-  }
+function logWithId(msg) {
+  const id = asyncLocalStorage.getStore();
+  console.log(`${id !== undefined ? id : '-'}:`, msg);
 }
 
-http.createServer((request, response) => {
-  asyncLocalStorage.run(new Map(), () => {
-    const store = asyncLocalStorage.getStore();
-    store.set(kReq, request);
-    someAsyncOperation((err, result) => {
-      if (err) {
-        log('ERR', err.message);
-      }
+let idSeq = 0;
+http.createServer((req, res) => {
+  asyncLocalStorage.run(idSeq++, () => {
+    logWithId('start');
+    // Imagine any chain of async operations here
+    setImmediate(() => {
+      logWithId('finish');
+      res.end();
     });
   });
-})
-.listen(8080);
+}).listen(8080);
+
+http.get('http://localhost:8080');
+http.get('http://localhost:8080');
+// Prints:
+//   0: start
+//   1: start
+//   0: finish
+//   1: finish
 ```
 
 When having multiple instances of `AsyncLocalStorage`, they are independent
