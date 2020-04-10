@@ -1072,12 +1072,6 @@ void DefineCryptoConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_UNCOMPRESSED);
 
   NODE_DEFINE_CONSTANT(target, POINT_CONVERSION_HYBRID);
-
-  NODE_DEFINE_STRING_CONSTANT(
-      target,
-      "defaultCipherList",
-      per_process::cli_options->tls_cipher_list.c_str());
-
 #endif
 }
 
