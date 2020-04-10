@@ -45,6 +45,37 @@ for (const bits of [-1, 0, 1]) {
   });
 }
 
+// Through a fluke of history, g=0 defaults to DH_GENERATOR (2).
+{
+  const g = 0;
+  crypto.createDiffieHellman('abcdef', g);
+  crypto.createDiffieHellman('abcdef', 'hex', g);
+}
+
+for (const g of [-1, 1]) {
+  const ex = {
+    code: 'ERR_OSSL_DH_BAD_GENERATOR',
+    name: 'Error',
+    message: /bad generator/,
+  };
+  assert.throws(() => crypto.createDiffieHellman('abcdef', g), ex);
+  assert.throws(() => crypto.createDiffieHellman('abcdef', 'hex', g), ex);
+}
+
+crypto.createDiffieHellman('abcdef', Buffer.from([2]));  // OK
+
+for (const g of [Buffer.from([]),
+                 Buffer.from([0]),
+                 Buffer.from([1])]) {
+  const ex = {
+    code: 'ERR_OSSL_DH_BAD_GENERATOR',
+    name: 'Error',
+    message: /bad generator/,
+  };
+  assert.throws(() => crypto.createDiffieHellman('abcdef', g), ex);
+  assert.throws(() => crypto.createDiffieHellman('abcdef', 'hex', g), ex);
+}
+
 {
   const DiffieHellman = crypto.DiffieHellman;
   const dh = DiffieHellman(p1, 'buffer');
