@@ -31,13 +31,13 @@ let afterFlush = ws.needDrain;
 deflater.on('data', () => {
 });
 
-deflater.flush(common.mustCall(function(err) {
+deflater.flush(function(err) {
   afterFlush = ws.needDrain;
-}));
+});
 
-deflater.on('drain', common.mustCall(function() {
+deflater.on('drain', function() {
   drainCount++;
-}));
+});
 
 process.once('exit', function() {
   assert.strictEqual(
