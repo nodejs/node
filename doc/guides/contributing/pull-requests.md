@@ -58,6 +58,9 @@ To get started, you will need to have `git` installed locally. Depending on
 your operating system, there are also a number of other dependencies required.
 These are detailed in the [Building guide][].
 
+Depending on your environment you might want to grab IDE specific settings from
+[IDE configs](https://github.com/nodejs/node-code-ide-configs).
+
 Once you have `git` and are sure you have all of the necessary dependencies,
 it's time to create a fork.
 
