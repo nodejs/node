@@ -53,6 +53,7 @@ WHATWG URL's `origin` property includes `protocol` and `host`, but not
 Parsing the URL string using the WHATWG API:
 
 ```js
+const URL = require('url').URL
 const myURL =
   new URL('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
 ```
