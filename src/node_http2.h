@@ -7,6 +7,7 @@
 #include <cstdint>
 #include "nghttp2/nghttp2.h"
 
+#include "aliased_struct.h"
 #include "node_http2_state.h"
 #include "node_http_common.h"
 #include "node_mem.h"
@@ -823,8 +824,7 @@ class Http2Session : public AsyncWrap,
   Nghttp2SessionPointer session_;
 
   // JS-accessible numeric fields, as indexed by SessionUint8Fields.
-  SessionJSFields* js_fields_ = nullptr;
-  std::shared_ptr<v8::BackingStore> js_fields_store_;
+  AliasedStruct<SessionJSFields> js_fields_;
 
   // The session type: client or server
   nghttp2_session_type session_type_;
