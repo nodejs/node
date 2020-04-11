@@ -616,7 +616,8 @@ assert.strictEqual(reallyLong.lastIndexOf(pattern), 0);
   }, {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "buffer" argument must be an instance of Buffer. ' +
+    message: 'The "buffer" argument must be an instance of Buffer, ' +
+             'TypedArray, or DataView. ' +
              'Received an instance of lastIndexOf'
   });
 }
