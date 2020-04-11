@@ -84,14 +84,3 @@ const EventEmitter = require('events');
   // listeners were added.
   assert.deepStrictEqual(ee.listeners('hello'), [listen2, listen1]);
 }
-
-// Verify that the listener must be a function
-assert.throws(() => {
-  const ee = new EventEmitter();
-  ee.on('foo', null);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-  message: 'The "listener" argument must be of type function. ' +
-           'Received null'
-});

@@ -144,17 +144,6 @@ function listener2() {}
   assert.deepStrictEqual(ee, ee.removeListener('foo', () => {}));
 }
 
-// Verify that the removed listener must be a function
-assert.throws(() => {
-  const ee = new EventEmitter();
-  ee.removeListener('foo', null);
-}, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  name: 'TypeError',
-  message: 'The "listener" argument must be of type function. ' +
-           'Received null'
-});
-
 {
   const ee = new EventEmitter();
   const listener = () => {};
