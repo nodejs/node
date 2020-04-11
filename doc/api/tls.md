@@ -1274,6 +1274,9 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32786
+    description: The `highWaterMark` option is accepted now.
   - version: v13.6.0
     pr-url: https://github.com/nodejs/node/pull/23188
     description: The `pskCallback` option is now supported.
@@ -1370,6 +1373,8 @@ changes:
     TLS connection. When a server offers a DH parameter with a size less
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
     **Default:** `1024`.
+  * `highWaterMark`: {number} Consistent with the readable stream `highWaterMark` parameter.
+    **Default:** `16 * 1024`.
   * `secureContext`: TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
