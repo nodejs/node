@@ -1,0 +1,90 @@
+x-ccache-setup-steps: &ccache-setup-steps
+  - export CCACHE_NOSTATS=1
+  - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
+  - export CC='ccache gcc-6'
+  - export CXX='ccache g++-6'
+
+os: linux
+language: cpp
+env:
+  global:
+    - PYTHON_VERSION="3.7.1"
+    - PYTHON=python3
+jobs:
+  include:
+    - stage: "Compile"
+      name: "Compile V8"
+      cache: ccache
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      install: *ccache-setup-steps
+      script:
+        - pyenv global ${PYTHON_VERSION}
+        - ./configure
+        - make -j2 -C out V=1 v8
+
+    - name: "Compile Node.js"
+      cache: ccache
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      install: *ccache-setup-steps
+      script:
+        - pyenv global ${PYTHON_VERSION}
+        - ./configure
+        - make -j2 V=1
+        - cp out/Release/node /home/travis/.ccache
+        - cp out/Release/cctest /home/travis/.ccache
+
+    - stage: "Tests"
+      name: "Test JS Suites"
+      cache: ccache
+      install:
+        - mkdir -p out/Release
+        - cp /home/travis/.ccache/node out/Release/node
+      script:
+        - pyenv global ${PYTHON_VERSION}
+        - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare default
+
+    - name: "Test C++ Suites"
+      cache: ccache
+      install:
+        - export CCACHE_NOSTATS=1
+        - export CCACHE_SLOPPINESS="file_macro,include_file_mtime,include_file_ctime,time_macros,file_stat_matches"
+        - export CC='ccache gcc'
+        - export CXX='ccache g++'
+        - mkdir -p out/Release
+        - cp /home/travis/.ccache/node out/Release/node
+        - ln -fs out/Release/node node
+        - cp /home/travis/.ccache/cctest out/Release/cctest
+        - touch config.gypi
+      script:
+        - pyenv global ${PYTHON_VERSION}
+        - out/Release/cctest
+        - make -j1 V=1 test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
+        - python tools/test.py -j 2 -p dots --report --mode=release --flaky-tests=dontcare addons js-native-api node-api
+
+    - name: "Run Linter and Build Docs"
+      language: node_js
+      node_js: "node"
+      install:
+        - pyenv global ${PYTHON_VERSION}
+        - make lint-py-build || true
+      script:
+        - NODE=$(which node) make lint-py doc-only lint
+
+    - name: "First commit message adheres to guidelines at <a href=\"https://goo.gl/p2fr5Q\">https://goo.gl/p2fr5Q</a>"
+      if: type = pull_request
+      language: node_js
+      node_js: "node"
+      script:
+        - if [ "${TRAVIS_PULL_REQUEST}" != "false" ]; then
+            bash -x tools/lint-pr-commit-message.sh ${TRAVIS_PULL_REQUEST};
+          fi
