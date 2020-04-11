@@ -105,6 +105,13 @@ const myURL = new URL('/foo', 'https://example.org/');
 // https://example.org/foo
 ```
 
+The URL constructor is accessible as a property on the global object.
+It can also be imported from the built-in url module:
+
+```js
+console.log(URL === require('url').URL); // Prints 'true'.
+```
+
 A `TypeError` will be thrown if the `input` or `base` are not valid URLs. Note
 that an effort will be made to coerce the given values into strings. For
 instance:
