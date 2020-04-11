@@ -1,4 +1,5 @@
 #include "aliased_buffer.h"
+#include "aliased_struct-inl.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
@@ -18,7 +19,6 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
-using v8::BackingStore;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
@@ -471,6 +471,7 @@ Http2Session::Http2Session(Http2State* http2_state,
                            Local<Object> wrap,
                            nghttp2_session_type type)
     : AsyncWrap(http2_state->env(), wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
+      js_fields_(http2_state->env()->isolate()),
       session_type_(type),
       http2_state_(http2_state) {
   MakeWeak();
@@ -518,14 +519,8 @@ Http2Session::Http2Session(Http2State* http2_state,
   outgoing_storage_.reserve(1024);
   outgoing_buffers_.reserve(32);
 
-  // Make the js_fields_ property accessible to JS land.
-  js_fields_store_ =
-      ArrayBuffer::NewBackingStore(env()->isolate(), sizeof(SessionJSFields));
-  js_fields_ = new(js_fields_store_->Data()) SessionJSFields;
-
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env()->isolate(), js_fields_store_);
   Local<Uint8Array> uint8_arr =
-      Uint8Array::New(ab, 0, kSessionUint8FieldCount);
+      Uint8Array::New(js_fields_.GetArrayBuffer(), 0, kSessionUint8FieldCount);
   USE(wrap->Set(env()->context(), env()->fields_string(), uint8_arr));
 }
 
@@ -536,7 +531,6 @@ Http2Session::~Http2Session() {
   // current_nghttp2_memory_ check passes.
   session_.reset();
   CHECK_EQ(current_nghttp2_memory_, 0);
-  js_fields_->~SessionJSFields();
 }
 
 std::string Http2Session::diagnostic_name() const {
