@@ -430,8 +430,11 @@ included in the iteration results.
 added: v10.10.0
 -->
 
-A representation of a directory entry, as returned by reading from an
-[`fs.Dir`][].
+A representation of a directory entry, which can be a file or folder
+within the directory, as returned by reading from an [`fs.Dir`][]. The
+directory entry is a structure of a mapping of a filename to an inode, which
+is unique for each file. The inode contains all information except the name
+and actual data of the file.
 
 Additionally, when [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with
 the `withFileTypes` option set to `true`, the resulting array is filled with
