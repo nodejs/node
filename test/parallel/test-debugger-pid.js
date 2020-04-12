@@ -29,9 +29,12 @@ interfacer.on('line', function(line) {
     case 1:
       expected =
         new RegExp(`^\\(node:${pid}\\) \\[DEP0068\\] DeprecationWarning: `);
-      assert.ok(expected.test(line), `expected regexp match for ${line}`);
+      assert.match(line, expected);
       break;
     case 2:
+      assert.match(line, /Use `node --trace-deprecation \.\.\.` to show where /);
+      break;
+    case 3:
       // Doesn't currently work on Windows.
       if (!common.isWindows) {
         expected = "Target process: 655555 doesn't exist.";
@@ -48,6 +51,6 @@ interfacer.on('line', function(line) {
 interfacer.on('exit', function(code, signal) {
   assert.strictEqual(code, 1, `Got unexpected code: ${code}`);
   if (!common.isWindows) {
-    assert.strictEqual(lineCount, 2);
+    assert.strictEqual(lineCount, 3);
   }
 });
