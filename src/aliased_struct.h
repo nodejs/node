@@ -9,55 +9,45 @@
 
 namespace node {
 
-template <typename T,
-          typename = std::enable_if_t<std::is_object<T>::value>>
-class AliasedStruct {
+// AliasedStruct is a utility that allows uses a V8 Backing Store
+// to be exposed to the C++/C side as a struct and to the
+// JavaScript side as an ArrayBuffer to efficiently share
+// data without marshalling. It is similar in nature to
+// AliasedBuffer.
+//
+//   struct Foo { int x; }
+//
+//   AliasedStruct<Foo> foo;
+//   foo->x = 1;
+//
+//   Local<ArrayBuffer> ab = foo.GetArrayBuffer();
+template <typename T>
+class AliasedStruct final {
  public:
-  explicit AliasedStruct(v8::Isolate* isolate) : isolate_(isolate) {
-    const v8::HandleScope handle_scope(isolate);
+  template <typename... Args>
+  explicit AliasedStruct(v8::Isolate* isolate, Args&&... args);
 
-    store_ = v8::ArrayBuffer::NewBackingStore(isolate, sizeof(T));
-    ptr_ = new (store_->Data()) T;
-    DCHECK_NOT_NULL(ptr_);
+  inline AliasedStruct(const AliasedStruct& that);
 
-    v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, store_);
-    buffer_ = v8::Global<v8::ArrayBuffer>(isolate, buffer);
-  }
+  inline ~AliasedStruct();
 
-  AliasedStruct(const AliasedStruct& that)
-     : isolate_(that.isolate_),
-       store_(that.store_),
-       ptr_(that.ptr_) {
-    buffer_ = v8::Global<v8::ArrayBuffer>(that.isolate_, that.GetArrayBuffer());
-  }
-
-  ~AliasedStruct() {
-    if (ptr_ != nullptr) ptr_->~T();
-  }
-
-  AliasedStruct& operator=(AliasedStruct&& that) noexcept {
-    this->~AliasedStruct();
-    isolate_ = that.isolate_;
-    store_ = that.store_;
-    ptr_ = that.ptr_;
-
-    buffer_.Reset(isolate_, that.buffer_.Get(isolate_));
-
-    that.ptr_ = nullptr;
-    that.store_.reset();
-    that.buffer_.Reset();
-    return *this;
-  }
+  inline AliasedStruct& operator=(AliasedStruct&& that) noexcept;
 
   v8::Local<v8::ArrayBuffer> GetArrayBuffer() const {
     return buffer_.Get(isolate_);
   }
 
-  T* Data() const { return ptr_; }
+  const T* Data() const { return ptr_; }
 
-  T* operator*() const { return ptr_; }
+  T* Data() { return ptr_; }
 
-  T* operator->() const { return ptr_; }
+  const T& operator*() const { return *ptr_; }
+
+  T& operator*()  { return *ptr_; }
+
+  const T* operator->() const { return ptr_; }
+
+  T* operator->() { return ptr_; }
 
  private:
   v8::Isolate* isolate_;
