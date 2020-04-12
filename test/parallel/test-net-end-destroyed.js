@@ -8,8 +8,7 @@ const server = net.createServer();
 
 server.on('connection', common.mustCall());
 
-// Ensure socket is not destroyed before
-// emitting 'end'.
+// Ensure that the socket is not destroyed when the 'end' event is emitted.
 
 server.listen(common.mustCall(function() {
   const socket = net.createConnection({
