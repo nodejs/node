@@ -17,7 +17,7 @@ if (process.argv[2] === 'child') {
       if (env.NODE_NO_WARNINGS === '1')
         assert.strictEqual(stderr, '');
       else
-        assert(/Warning: foo$/.test(stderr.trim()));
+        assert.match(stderr.trim(), /Warning: foo\n/);
     }));
   }
 

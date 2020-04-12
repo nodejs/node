@@ -1,4 +1,5 @@
 (node:*) ExperimentalWarning: The ESM module loader is experimental.
+(Use `node --trace-warnings ...` to show where the warning was created)
 (node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
 file://*/test/fixtures/es-module-loaders/syntax-error.mjs:2
 await async () => 0;
