@@ -1,0 +1,83 @@
+Test accessing unused private methods at runtime
+
+Running test: testScopesPaused
+Get privateProperties of A in testStatic()
+[
+    [0] : {
+        name : #staticMethod
+        value : {
+            className : Function
+            description : #staticMethod() { return 1; }
+            objectId : {"injectedScriptId":1,"id":34}
+            type : function
+        }
+    }
+]
+Access A.#staticMethod() in testStatic()
+{
+    exceptionDetails : {
+        columnNumber : 0
+        exception : {
+            className : ReferenceError
+            description : ReferenceError: A is not defined     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+            objectId : {"injectedScriptId":1,"id":36}
+            subtype : error
+            type : object
+        }
+        exceptionId : 1
+        lineNumber : 0
+        scriptId : 5
+        text : Uncaught
+    }
+    result : {
+        className : ReferenceError
+        description : ReferenceError: A is not defined     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+        objectId : {"injectedScriptId":1,"id":35}
+        subtype : error
+        type : object
+    }
+}
+Access this.#staticMethod() in testStatic()
+{
+    exceptionDetails : {
+        columnNumber : 0
+        exception : {
+            className : Error
+            description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+            objectId : {"injectedScriptId":1,"id":38}
+            subtype : error
+            type : object
+        }
+        exceptionId : 2
+        lineNumber : 0
+        scriptId : 6
+        text : Uncaught
+    }
+    result : {
+        className : Error
+        description : Error: Unused static private method '#staticMethod' cannot be accessed at debug time     at eval (eval at testStatic (:1:1), <anonymous>:1:1)     at Function.testStatic (<anonymous>:6:29)     at run (<anonymous>:9:7)     at <anonymous>:1:1
+        objectId : {"injectedScriptId":1,"id":37}
+        subtype : error
+        type : object
+    }
+}
+get privateProperties of a in testInstance()
+[
+    [0] : {
+        name : #instanceMethod
+        value : {
+            className : Function
+            description : #instanceMethod() { return 2; }
+            objectId : {"injectedScriptId":1,"id":61}
+            type : function
+        }
+    }
+]
+Evaluating this.#instanceMethod() in testInstance()
+{
+    result : {
+        description : 2
+        type : number
+        value : 2
+    }
+}

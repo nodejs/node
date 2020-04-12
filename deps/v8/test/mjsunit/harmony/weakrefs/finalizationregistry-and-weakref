@@ -16,7 +16,7 @@ let cleanup = function(iter) {
   cleanup_called = true;
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 let weak_ref;
 (function() {
   let o = {};
@@ -25,7 +25,7 @@ let weak_ref;
 })();
 
 // Since the WeakRef was created during this turn, it is not cleared by GC. The
-// pointer inside the FinalizationGroup is not cleared either, since the WeakRef
+// pointer inside the FinalizationRegistry is not cleared either, since the WeakRef
 // keeps the target object alive.
 gc();
 (function() {
