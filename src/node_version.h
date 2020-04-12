@@ -22,8 +22,13 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
+<<<<<<< HEAD
 #define NODE_MAJOR_VERSION 14
 #define NODE_MINOR_VERSION 0
+=======
+#define NODE_MAJOR_VERSION 0
+#define NODE_MINOR_VERSION 13
+>>>>>>> origin/archived-io.js-v0.10
 #define NODE_PATCH_VERSION 0
 
 #define NODE_VERSION_IS_LTS 0
