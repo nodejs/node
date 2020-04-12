@@ -35,7 +35,11 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
+<<<<<<< HEAD
     'v8_embedder_string': '-node.12',
+=======
+    'v8_embedder_string': '-node.8',
+>>>>>>> origin/canary-base
 
     ##### V8 defaults for Node.js #####
 
