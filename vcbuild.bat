@@ -159,6 +159,7 @@ goto next-arg
 
 :args-done
 
+<<<<<<< HEAD
 if defined build_release (
   set config=Release
   set package=1
@@ -170,6 +171,28 @@ if defined build_release (
   set cctest=1
   set ltcg=1
 )
+=======
+:project-gen
+@rem Skip project generation if requested.
+if defined noprojgen goto msbuild
+
+if defined NIGHTLY set TAG=nightly-%NIGHTLY%
+
+if not defined PYTHON set PYTHON=python
+
+@rem Generate the VS project.
+SETLOCAL
+  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
+  "%PYTHON%" configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
+  if errorlevel 1 goto create-msvs-files-failed
+  if not exist node.sln goto create-msvs-files-failed
+  echo Project files generated.
+ENDLOCAL
+
+:msbuild
+@rem Skip project generation if requested.
+if defined nobuild goto sign
+>>>>>>> origin/archived-io.js-v0.10
 
 if defined msi     set stage_package=1
 if defined package set stage_package=1
@@ -626,6 +649,7 @@ endlocal
 goto run-tests
 
 :run-tests
+<<<<<<< HEAD
 if defined test_check_deopts goto node-check-deopts
 if defined test_node_inspect goto node-test-inspect
 goto node-tests
@@ -723,6 +747,32 @@ goto exit
 echo Failed to create vc project files.
 del .used_configure_flags
 set exit_code=1
+=======
+echo running 'python tools/test.py %test_args%'
+"%PYTHON%" tools/test.py %test_args%
+if "%test%"=="test" goto jslint
+goto exit
+
+:create-msvs-files-failed
+echo Failed to create vc project files. 
+goto exit
+
+:upload
+echo uploading .exe .msi .pdb to nodejs.org
+call :getnodeversion
+@echo on
+ssh node@nodejs.org mkdir -p web/nodejs.org/dist/v%NODE_VERSION%
+scp Release\node.msi node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%.msi
+scp Release\node.exe node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.exe
+scp Release\node.pdb node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node.pdb
+@echo off
+goto exit
+
+:jslint
+echo running jslint
+set PYTHONPATH=tools/closure_linter/
+"%PYTHON%" tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+>>>>>>> origin/archived-io.js-v0.10
 goto exit
 
 :help
@@ -749,6 +799,7 @@ rem ***************
 
 :getnodeversion
 set NODE_VERSION=
+<<<<<<< HEAD
 set TAG=
 set FULLVERSION=
 
@@ -792,4 +843,8 @@ set FULLVERSION=%NODE_VERSION%-%TAG%
 :distexit
 if not defined DISTTYPEDIR set DISTTYPEDIR=%DISTTYPE%
 set TARGET_NAME=node-v%FULLVERSION%-win-%target_arch%
+=======
+for /F "usebackq tokens=*" %%i in (`"%PYTHON%" "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
+if not defined NODE_VERSION echo Cannot determine current version of node.js & exit /b 1
+>>>>>>> origin/archived-io.js-v0.10
 goto :EOF
