@@ -93,17 +93,6 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
     function->shared().set_name_should_print_as_anonymous(true);
   }
 
-  // The spec says that we have to wrap code created via the function
-  // constructor in e.g. 'function anonymous(' as above, including with extra
-  // line breaks. Ths is confusing when reporting stack traces from the eval'd
-  // code as the line number of the error is always reported with 2 extra line
-  // breaks e.g. line 1 is reported as line 3. We fix this up here by setting
-  // line_offset which is read by stack trace code.
-  Handle<Script> script(Script::cast(function->shared().script()), isolate);
-  if (script->line_offset() == 0) {
-    script->set_line_offset(-2);
-  }
-
   // If new.target is equal to target then the function created
   // is already correctly setup and nothing else should be done
   // here. But if new.target is not equal to target then we are

@@ -11,9 +11,6 @@
   # not work, but we expect it to not crash.
   'debug/debug-step-turbofan': [PASS, FAIL],
 
-  # BUG (v8:9721)
-  'debug/es6/generators-relocation': [FAIL],
-
   # Issue 3641: The new 'then' semantics suppress some exceptions.
   # These tests may be changed or removed when 'chain' is deprecated.
   'debug/es6/debug-promises/reject-with-throw-in-reject': [FAIL],
