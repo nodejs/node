@@ -375,8 +375,13 @@ static void ReportFatalException(Environment* env,
     }
 
     if (!env->options()->trace_uncaught) {
-      FPrintF(stderr, "(Use `node --trace-uncaught ...` to show "
-                      "where the exception was thrown)\n");
+      std::string argv0;
+      if (!env->argv().empty()) argv0 = env->argv()[0];
+      if (argv0.empty()) argv0 = "node";
+      FPrintF(stderr,
+              "(Use `%s --trace-uncaught ...` to show where the exception "
+              "was thrown)\n",
+              fs::Basename(argv0, ".exe"));
     }
   }
 

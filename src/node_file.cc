@@ -82,6 +82,22 @@ constexpr char kPathSeparator = '/';
 const char* const kPathSeparator = "\\/";
 #endif
 
+std::string Basename(const std::string& str, const std::string& extension) {
+  std::string ret = str;
+
+  // Remove everything leading up to and including the final path separator.
+  std::string::size_type pos = ret.find_last_of(kPathSeparator);
+  if (pos != std::string::npos) ret = ret.substr(pos + 1);
+
+  // Strip away the extension, if any.
+  if (ret.size() >= extension.size() &&
+      ret.substr(ret.size() - extension.size()) == extension) {
+    ret = ret.substr(0, ret.size() - extension.size());
+  }
+
+  return ret;
+}
+
 inline int64_t GetOffset(Local<Value> value) {
   return IsSafeJsInt(value) ? value.As<Integer>()->Value() : -1;
 }

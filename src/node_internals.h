@@ -396,6 +396,10 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Environment* env, HeapSnapshotPointer&& snapshot);
 }  // namespace heap
 
+namespace fs {
+std::string Basename(const std::string& str, const std::string& extension);
+}  // namespace fs
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
