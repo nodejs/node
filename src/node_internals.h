@@ -397,7 +397,7 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
 }  // namespace heap
 
 namespace fs {
-std::string Basename(const std::string& str);
+std::string Basename(const std::string& str, const std::string& extension);
 }  // namespace fs
 
 }  // namespace node
