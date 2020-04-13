@@ -733,7 +733,7 @@ added: v0.1.90
 Ensures that no more I/O activity happens on this socket.
 Destroys the stream and closes the connection.
 
-See, [`writable.destroy()`][] for further details.
+See [`writable.destroy()`][] for further details.
 
 ### `socket.destroyed`
 
