@@ -125,9 +125,19 @@ const util = require('util');
 // Check to throws invalid exportNames
 {
   assert.throws(() => new SyntheticModule(undefined, () => {}, {}), {
-    message: 'The "exportNames" argument must be an Array of strings.' +
-      ' Received undefined',
+    message: 'The "exportNames" argument must be an ' +
+        'Array of unique strings.' +
+        ' Received undefined',
     name: 'TypeError'
+  });
+}
+
+// Check to throws duplicated exportNames
+// https://github.com/nodejs/node/issues/32806
+{
+  assert.throws(() => new SyntheticModule(['x', 'x'], () => {}, {}), {
+    message: 'The argument \'exportNames.x\' is duplicated. Received \'x\'',
+    name: 'TypeError',
   });
 }
 
