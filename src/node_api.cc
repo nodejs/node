@@ -110,6 +110,15 @@ static inline void trigger_fatal_exception(
   node::errors::TriggerUncaughtException(env->isolate, local_err, local_msg);
 }
 
+// `uv_thread_self()` returns 0 on Windows for threads that were not created
+// using `uv_thread_start()`. Thus, for correct comparison, we need to use
+// `GetCurrentThreadId()`.
+#ifdef _WIN32
+#define THREAD_SELF_API reinterpret_cast<uv_thread_t>(GetCurrentThreadId())
+#else
+#define THREAD_SELF_API uv_thread_self()
+#endif  // _WIN32
+
 class ThreadSafeFunction : public node::AsyncResource {
  public:
   ThreadSafeFunction(v8::Local<v8::Function> func,
@@ -129,7 +138,7 @@ class ThreadSafeFunction : public node::AsyncResource {
       is_closing(false),
       context(context_),
       max_queue_size(max_queue_size_),
-      main_thread(uv_thread_self()),
+      main_thread(THREAD_SELF_API),
       env(env_),
       finalize_data(finalize_data_),
       finalize_cb(finalize_cb_),
@@ -149,7 +158,7 @@ class ThreadSafeFunction : public node::AsyncResource {
 
   napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
     node::Mutex::ScopedLock lock(this->mutex);
-    uv_thread_t current_thread = uv_thread_self();
+    uv_thread_t current_thread = THREAD_SELF_API;
 
     while (queue.size() >= max_queue_size &&
         max_queue_size > 0 &&
