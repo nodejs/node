@@ -367,6 +367,8 @@ For information about the governance of the Node.js project, see
 **Ouyang Yadong** &lt;oyydoibh@gmail.com&gt; (he/him)
 * [psmarshall](https://github.com/psmarshall) -
 **Peter Marshall** &lt;petermarshall@chromium.org&gt; (he/him)
+* [puzpuzpuz](https://github.com/puzpuzpuz) -
+**Andrey Pechkurov** &lt;apechkurov@gmail.com&gt; (he/him)
 * [Qard](https://github.com/Qard) -
 **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; (he/him)
 * [refack](https://github.com/refack) -
