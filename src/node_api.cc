@@ -113,15 +113,34 @@ static inline void trigger_fatal_exception(
 // `uv_thread_self()` returns 0 on Windows for threads that were not created
 // using `uv_thread_start()`. Thus, for correct comparison, we need to use
 // `GetCurrentThreadId()`.
+class ThreadID {
+ public:
 #ifdef _WIN32
-typedef DWORD thread_id_t;
-#define TSFN_SELF_TID GetCurrentThreadId()
-#define TSFN_COMPARE_TIDS(id1, id2) ((id1) == (id2))
+  ThreadID(): _tid(GetCurrentThreadId()) {}
 #else
-typedef uv_thread_t thread_id_t;
-#define TSFN_SELF_TID uv_thread_self()
-#define TSFN_COMPARE_TIDS(id1, id2) uv_thread_equal((&(id1)), (&(id2)))
+  ThreadID(): _tid(uv_thread_self()) {}
 #endif  // _WIN32
+
+  ThreadID(const ThreadID&) = delete;
+  ThreadID(ThreadID&&) = delete;
+  void operator= (const ThreadID&) = delete;
+  void operator= (const ThreadID&&) = delete;
+
+#ifdef _WIN32
+  inline bool operator==(const ThreadID& other) { return _tid == other._tid; }
+#else
+  inline bool operator==(const ThreadID& other) {
+    return static_cast<bool>(uv_thread_equal(&_tid, &other._tid));
+  }
+#endif
+
+ private:
+#ifdef _WIN32
+  DWORD _tid = 0;
+#else
+  uv_thread_t _tid;
+#endif  // _WIN32
+};
 
 class ThreadSafeFunction : public node::AsyncResource {
  public:
@@ -142,7 +161,6 @@ class ThreadSafeFunction : public node::AsyncResource {
       is_closing(false),
       context(context_),
       max_queue_size(max_queue_size_),
-      main_thread(TSFN_SELF_TID),
       env(env_),
       finalize_data(finalize_data_),
       finalize_cb(finalize_cb_),
@@ -162,14 +180,14 @@ class ThreadSafeFunction : public node::AsyncResource {
 
   napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
     node::Mutex::ScopedLock lock(this->mutex);
-    thread_id_t current_thread = TSFN_SELF_TID;
+    ThreadID current_thread;
 
     while (queue.size() >= max_queue_size &&
         max_queue_size > 0 &&
         !is_closing) {
       if (mode == napi_tsfn_nonblocking) {
         return napi_queue_full;
-      } else if (TSFN_COMPARE_TIDS(&current_thread, &main_thread)) {
+      } else if (current_thread == main_thread) {
         return napi_would_deadlock;
       }
       cond->Wait(lock);
@@ -451,7 +469,7 @@ class ThreadSafeFunction : public node::AsyncResource {
   // means we don't need the mutex to read them.
   void* context;
   size_t max_queue_size;
-  thread_id_t main_thread;
+  ThreadID main_thread;
 
   // These are variables accessed only from the loop thread.
   v8impl::Persistent<v8::Function> ref;
