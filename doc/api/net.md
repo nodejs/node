@@ -722,24 +722,25 @@ that the
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 callback is a listener for the `'connect'` event.
 
-### `socket.destroy([exception])`
+### `socket.destroy([error])`
 <!-- YAML
 added: v0.1.90
 -->
 
-* `exception` {Object}
+* `error` {Object}
 * Returns: {net.Socket}
 
-Ensures that no more I/O activity happens on this socket. Only necessary in
-case of errors (parse error or so).
+Ensures that no more I/O activity happens on this socket. Effectivly discards
+any buffered data and ends the socket.
 
-If `exception` is specified, an [`'error'`][] event will be emitted and any
-listeners for that event will receive `exception` as an argument.
+See, [`writable.destroy()`][] for further details.
 
 ### `socket.destroyed`
 
 * {boolean} Indicates if the connection is destroyed or not. Once a
   connection is destroyed no further data can be transferred using it.
+
+See, [`writable.destroyed`][] for further details.
 
 ### `socket.end([data[, encoding]][, callback])`
 <!-- YAML
@@ -754,8 +755,7 @@ added: v0.1.90
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the
 server will still send some data.
 
-If `data` is specified, it is equivalent to calling
-`socket.write(data, encoding)` followed by [`socket.end()`][].
+See, [`writable.end()`][] for further details.
 
 ### `socket.localAddress`
 <!-- YAML
@@ -1268,6 +1268,9 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
+[`writable.destroyed`]: stream.html#stream_writable_destroyed
+[`writable.destroy()`]: stream.html#stream_writable_destroy_error
+[`writable.end()`]: stream.html#stream_writable_end_chunk_encoding_callback
 [half-closed]: https://tools.ietf.org/html/rfc1122
 [stream_writable_write]: stream.html#stream_writable_write_chunk_encoding_callback
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
