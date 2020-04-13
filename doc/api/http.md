@@ -636,9 +636,9 @@ Destroy the request. Optionally emit an `'error'` event,
 and emit a `'close'` event. Calling this will cause remaining data
 in the response to be dropped and the socket to be destroyed.
 
-See [`writable.destroyed`][] for further details.
+See [`writable.destroy()`][] for further details.
 
-##### `request.destroyed`
+#### `request.destroyed`
 <!-- YAML
 added: REPLACEME
 -->
@@ -646,6 +646,8 @@ added: REPLACEME
 * {boolean}
 
 Is `true` after [`request.destroy()`][] has been called.
+
+See [`writable.destroyed`][] for further details.
 
 ### `request.finished`
 <!-- YAML
@@ -2502,5 +2504,6 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
 [`writable.destroy()`]: stream.html#stream_writable_destroy_error
+[`writable.destroyed`]: stream.html#stream_writable_destroyed
 [`writable.cork()`]: stream.html#stream_writable_cork
 [`writable.uncork()`]: stream.html#stream_writable_uncork

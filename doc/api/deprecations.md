@@ -2652,7 +2652,7 @@ potential security vulnerability. There is no safe, cross-platform alternative
 API.
 
 <a id="DEPXXX"></a>
-### DEPXXX: Use `request.destroy()` in favor of `request.abort()`
+### DEPXXX: Use `request.destroy()` instead of `request.abort()`
 <!-- YAML
 changes:
   - version: REPLACEME
@@ -2662,7 +2662,7 @@ changes:
 
 Type: Documentation-only
 
-Use [`request.destroy()`][] in favor of [`request.abort()`][].
+Use [`request.destroy()`][] instead of [`request.abort()`][].
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
