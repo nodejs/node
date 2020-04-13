@@ -2728,7 +2728,7 @@ Use [`request.destroy()`][] in favor of [`request.abort()`][].
 [`request.abort()`]: http.html#http_request_abort
 [`request.socket`]: http.html#http_request_socket
 [`request.connection`]: http.html#http_request_connection
-[`request.destroy()`]: http.html#http_request_destroy_err_callback
+[`request.destroy()`]: http.html#http_request_destroy_error
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
 [`response.end()`]: http.html#http_response_end_data_encoding_callback

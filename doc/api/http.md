@@ -624,6 +624,27 @@ If `data` is specified, it is equivalent to calling
 If `callback` is specified, it will be called when the request stream
 is finished.
 
+### `request.destroy([error])`
+<!-- YAML
+added: 14.0.0
+-->
+
+* `error` {Error} Optional, an error to emit with `'error'` event.
+* Returns: {this}
+
+Destroy the request. Optionally emit an `'error'` event,
+and emit a `'close'` event. Calling this will cause remaining data
+in the response to be dropped and the socket to be destroyed.
+
+##### `request.destroyed`
+<!-- YAML
+added: 14.0.0
+-->
+
+* {boolean}
+
+Is `true` after [`request.destroy()`][] has been called.
+
 ### `request.finished`
 <!-- YAML
 added: v0.0.1
@@ -2448,6 +2469,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`new URL()`]: url.html#url_constructor_new_url_input_base
 [`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
+[`request.destroy()`]: #http_request_destroy_error
 [`request.flushHeaders()`]: #http_request_flushheaders
 [`request.getHeader()`]: #http_request_getheader_name
 [`request.setHeader()`]: #http_request_setheader_name_value
@@ -2477,5 +2499,6 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`socket.unref()`]: net.html#net_socket_unref
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
+[`writable.destroy()`]: stream.html#stream_writable_destroy_error
 [`writable.cork()`]: stream.html#stream_writable_cork
 [`writable.uncork()`]: stream.html#stream_writable_uncork
