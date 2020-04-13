@@ -2651,6 +2651,19 @@ written twice. This introduces a race condition between threads, and is a
 potential security vulnerability. There is no safe, cross-platform alternative
 API.
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: Use `request.destroy()` instead of `request.abort()`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32807
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Use [`request.destroy()`][] instead of [`request.abort()`][].
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2712,8 +2725,10 @@ API.
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
 [`require.main`]: modules.html#modules_accessing_the_main_module
+[`request.abort()`]: http.html#http_request_abort
 [`request.socket`]: http.html#http_request_socket
 [`request.connection`]: http.html#http_request_connection
+[`request.destroy()`]: http.html#http_request_destroy_error
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
 [`response.end()`]: http.html#http_response_end_data_encoding_callback
