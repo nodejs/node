@@ -5,6 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/29802
+test-http2-reset-flood: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/20750
@@ -42,8 +44,6 @@ test-crypto-keygen: SKIP
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
 test-fs-stat-bigint: PASS,FLAKY
-# https://github.com/nodejs/node/issues/29802
-test-http2-reset-flood: PASS,FLAKY
 
 [$system==aix]
 
