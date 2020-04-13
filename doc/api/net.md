@@ -730,7 +730,7 @@ added: v0.1.90
 * `error` {Object}
 * Returns: {net.Socket}
 
-Ensures that no more I/O activity happens on this socket. Effectivly discards
+Ensures that no more I/O activity happens on this socket. It effectively discards
 any buffered data and ends the socket.
 
 See, [`writable.destroy()`][] for further details.
@@ -740,7 +740,7 @@ See, [`writable.destroy()`][] for further details.
 * {boolean} Indicates if the connection is destroyed or not. Once a
   connection is destroyed no further data can be transferred using it.
 
-See, [`writable.destroyed`][] for further details.
+See [`writable.destroyed`][] for further details.
 
 ### `socket.end([data[, encoding]][, callback])`
 <!-- YAML
@@ -755,7 +755,7 @@ added: v0.1.90
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the
 server will still send some data.
 
-See, [`writable.end()`][] for further details.
+See [`writable.end()`][] for further details.
 
 ### `socket.localAddress`
 <!-- YAML
