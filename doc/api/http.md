@@ -626,7 +626,7 @@ is finished.
 
 ### `request.destroy([error])`
 <!-- YAML
-added: 14.0.0
+added: REPLACEME
 -->
 
 * `error` {Error} Optional, an error to emit with `'error'` event.
@@ -638,7 +638,7 @@ in the response to be dropped and the socket to be destroyed.
 
 ##### `request.destroyed`
 <!-- YAML
-added: 14.0.0
+added: REPLACEME
 -->
 
 * {boolean}
