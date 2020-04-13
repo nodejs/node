@@ -730,8 +730,7 @@ added: v0.1.90
 * `error` {Object}
 * Returns: {net.Socket}
 
-Ensures that no more I/O activity happens on this socket. It effectively discards
-any buffered data and ends the socket.
+Ensures that no more I/O activity happens on this socket.
 
 See, [`writable.destroy()`][] for further details.
 
