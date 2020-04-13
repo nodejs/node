@@ -116,9 +116,15 @@ static inline void trigger_fatal_exception(
 class ThreadID {
  public:
 #ifdef _WIN32
+  typedef DWORD thread_id_t;
   ThreadID(): _tid(GetCurrentThreadId()) {}
+  inline bool operator==(const ThreadID& other) { return _tid == other._tid; }
 #else
+  typedef uv_thread_t thread_id_t;
   ThreadID(): _tid(uv_thread_self()) {}
+  inline bool operator==(const ThreadID& other) {
+    return static_cast<bool>(uv_thread_equal(&_tid, &other._tid));
+  }
 #endif  // _WIN32
 
   ThreadID(const ThreadID&) = delete;
@@ -126,20 +132,8 @@ class ThreadID {
   void operator= (const ThreadID&) = delete;
   void operator= (const ThreadID&&) = delete;
 
-#ifdef _WIN32
-  inline bool operator==(const ThreadID& other) { return _tid == other._tid; }
-#else
-  inline bool operator==(const ThreadID& other) {
-    return static_cast<bool>(uv_thread_equal(&_tid, &other._tid));
-  }
-#endif
-
  private:
-#ifdef _WIN32
-  DWORD _tid = 0;
-#else
-  uv_thread_t _tid;
-#endif  // _WIN32
+  thread_id_t _tid;
 };
 
 class ThreadSafeFunction : public node::AsyncResource {
