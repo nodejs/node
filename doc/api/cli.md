@@ -441,7 +441,7 @@ disappear in a non-semver-major release.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v13.13.0
     pr-url: https://github.com/nodejs/node/pull/32520
     description: Change maximum default size of HTTP headers from 8KB to 16KB.
 -->

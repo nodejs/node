@@ -398,7 +398,7 @@ stream.write('With ES6');
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v13.13.0
     pr-url: https://github.com/nodejs/node/pull/32392
     description: The `maxStringLength` option is supported now.
   - version: v13.5.0
