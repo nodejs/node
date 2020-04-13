@@ -12,7 +12,7 @@ Node.js itself. This API will be Application Binary Interface (ABI) stable
 across versions of Node.js. It is intended to insulate Addons from
 changes in the underlying JavaScript engine and allow modules
 compiled for one major version to run on later major versions of Node.js without
-recompilation. The [ABI Stability][] guide provides a more in-depth explanation.
+recompilation. The [ABI Stability][] guide provides a mor'e in-depth explanation.
 
 Addons are built/packaged with the same approach/tools outlined in the section
 titled [C++ Addons][]. The only difference is the set of APIs that are used by
@@ -1117,10 +1117,10 @@ NAPI_NO_RETURN void napi_fatal_error(const char* location,
 
 * `[in] location`: Optional location at which the error occurred.
 * `[in] location_len`: The length of the location in bytes, or
-  `NAPI_AUTO_LENGTH` if it is `NULL`-terminated.
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
 * `[in] message`: The message associated with the error.
 * `[in] message_len`: The length of the message in bytes, or `NAPI_AUTO_LENGTH`
-  if it is `NULL`-terminated.
+  if it is null-terminated.
 
 The function call does not return, the process will be terminated.
 
@@ -2342,7 +2342,7 @@ napi_status napi_create_string_latin1(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
 * `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
-  is `NULL`-terminated.
+  is null-terminated.
 * `[out] result`: A `napi_value` representing a JavaScript `String`.
 
 Returns `napi_ok` if the API succeeded.
@@ -2369,7 +2369,7 @@ napi_status napi_create_string_utf16(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] str`: Character buffer representing a UTF16-LE-encoded string.
 * `[in] length`: The length of the string in two-byte code units, or
-  `NAPI_AUTO_LENGTH` if it is `NULL`-terminated.
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
 * `[out] result`: A `napi_value` representing a JavaScript `String`.
 
 Returns `napi_ok` if the API succeeded.
@@ -2396,7 +2396,7 @@ napi_status napi_create_string_utf8(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] str`: Character buffer representing a UTF8-encoded string.
 * `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
-  is `NULL`-terminated.
+  is null-terminated.
 * `[out] result`: A `napi_value` representing a JavaScript `String`.
 
 Returns `napi_ok` if the API succeeded.
@@ -2831,7 +2831,7 @@ napi_status napi_get_value_string_latin1(napi_env env,
   passed in, the length of the string (in bytes) is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
   insufficient, the returned string will be truncated.
-* `[out] result`: Number of bytes copied into the buffer, excluding the `NULL`
+* `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
 Returns `napi_ok` if the API succeeded. If a non-`String` `napi_value`
@@ -2860,7 +2860,7 @@ napi_status napi_get_value_string_utf8(napi_env env,
   in, the length of the string (in bytes) is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
   insufficient, the returned string will be truncated.
-* `[out] result`: Number of bytes copied into the buffer, excluding the `NULL`
+* `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
 Returns `napi_ok` if the API succeeded. If a non-`String` `napi_value`
@@ -2889,7 +2889,7 @@ napi_status napi_get_value_string_utf16(napi_env env,
 * `[in] bufsize`: Size of the destination buffer. When this value is
   insufficient, the returned string will be truncated.
 * `[out] result`: Number of 2-byte code units copied into the buffer, excluding
-  the `NULL` terminator.
+  the null terminator.
 
 Returns `napi_ok` if the API succeeded. If a non-`String` `napi_value`
 is passed in it returns `napi_string_expected`.
@@ -4029,7 +4029,7 @@ napi_status napi_create_function(napi_env env,
 * `[in] utf8Name`: The name of the function encoded as UTF8. This is visible
   within JavaScript as the new function object's `name` property.
 * `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH` if
-  it is `NULL`-terminated.
+  it is null-terminated.
 * `[in] cb`: The native function which should be called when this function
   object is invoked.
 * `[in] data`: User-provided data context. This will be passed back into the
@@ -4263,7 +4263,7 @@ napi_status napi_define_class(napi_env env,
   not required to be the same as the C++ class name, though it is recommended
   for clarity.
 * `[in] length`: The length of the `utf8name` in bytes, or `NAPI_AUTO_LENGTH`
-  if it is `NULL`-terminated.
+  if it is null-terminated.
 * `[in] constructor`: Callback function that handles constructing instances
   of the class. (This should be a static method on the class, not an actual
   C++ constructor function.)
@@ -4555,7 +4555,7 @@ This API allocates a work object that is used to execute logic asynchronously.
 It should be freed using [`napi_delete_async_work`][] once the work is no longer
 required.
 
-`async_resource_name` should be a `NULL`-terminated, UTF-8-encoded string.
+`async_resource_name` should be a null-terminated, UTF-8-encoded string.
 
 The `async_resource_name` identifier is provided by the user and should be
 representative of the type of async work being performed. It is also recommended
