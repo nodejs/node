@@ -114,9 +114,13 @@ static inline void trigger_fatal_exception(
 // using `uv_thread_start()`. Thus, for correct comparison, we need to use
 // `GetCurrentThreadId()`.
 #ifdef _WIN32
-#define THREAD_SELF_API reinterpret_cast<uv_thread_t>(GetCurrentThreadId())
+typedef DWORD thread_id_t;
+#define TSFN_SELF_TID GetCurrentThreadId()
+#define TSFN_COMPARE_TIDS(id1, id2) ((id1) == (id2))
 #else
-#define THREAD_SELF_API uv_thread_self()
+typedef uv_thread_t thread_id_t;
+#define TSFN_SELF_TID uv_thread_self()
+#define TSFN_COMPARE_TIDS(id1, id2) uv_thread_equal((&(id1)), (&(id2)))
 #endif  // _WIN32
 
 class ThreadSafeFunction : public node::AsyncResource {
@@ -138,7 +142,7 @@ class ThreadSafeFunction : public node::AsyncResource {
       is_closing(false),
       context(context_),
       max_queue_size(max_queue_size_),
-      main_thread(THREAD_SELF_API),
+      main_thread(TSFN_SELF_TID),
       env(env_),
       finalize_data(finalize_data_),
       finalize_cb(finalize_cb_),
@@ -158,14 +162,14 @@ class ThreadSafeFunction : public node::AsyncResource {
 
   napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
     node::Mutex::ScopedLock lock(this->mutex);
-    uv_thread_t current_thread = THREAD_SELF_API;
+    thread_id_t current_thread = TSFN_SELF_TID;
 
     while (queue.size() >= max_queue_size &&
         max_queue_size > 0 &&
         !is_closing) {
       if (mode == napi_tsfn_nonblocking) {
         return napi_queue_full;
-      } else if (uv_thread_equal(&current_thread, &main_thread)) {
+      } else if (TSFN_COMPARE_TIDS(&current_thread, &main_thread)) {
         return napi_would_deadlock;
       }
       cond->Wait(lock);
@@ -447,7 +451,7 @@ class ThreadSafeFunction : public node::AsyncResource {
   // means we don't need the mutex to read them.
   void* context;
   size_t max_queue_size;
-  uv_thread_t main_thread;
+  thread_id_t main_thread;
 
   // These are variables accessed only from the loop thread.
   v8impl::Persistent<v8::Function> ref;
