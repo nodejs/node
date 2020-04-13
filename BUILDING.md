@@ -175,7 +175,6 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-ppc64le         | CentOS 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                  |
 | linux-s390x           | RHEL 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                    |
 | linux-x64             | CentOS 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                  |
-| sunos-x64             | SmartOS 18 with GCC 7                                                    |
 | win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2019                            |
 
 <em id="fn7">7</em>: The Enterprise Linux devtoolset-6 allows us to compile
