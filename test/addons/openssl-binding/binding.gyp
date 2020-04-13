@@ -3,15 +3,25 @@
     {
       'target_name': 'binding',
       'includes': ['../common.gypi'],
-      'variables': {
-        # Skip this building on IBM i.
-        'aix_variant_name': '<!(uname -s)',
-      },
       'conditions': [
-        ['node_use_openssl=="true" and '
-         '"<(aix_variant_name)"!="OS400"', {
-          'sources': ['binding.cc'],
-          'include_dirs': ['../../../deps/openssl/openssl/include'],
+        ['node_use_openssl=="true"', {
+          'conditions': [
+            ['OS=="aix"', {
+              'variables': {
+                # Used to differentiate `AIX` and `OS400`(IBM i).
+                'aix_variant_name': '<!(uname -s)',
+              },
+              'conditions': [
+                [ '"<(aix_variant_name)"!="OS400"', { # Not `OS400`(IBM i)
+                  'sources': ['binding.cc'],
+                  'include_dirs': ['../../../deps/openssl/openssl/include'],
+                }],
+              ],
+            }, {
+              'sources': ['binding.cc'],
+              'include_dirs': ['../../../deps/openssl/openssl/include'],
+            }],
+          ],
         }],
         ['OS=="mac"', {
           'xcode_settings': {
