@@ -3071,9 +3071,9 @@ this API: [`fs.read()`][].
 
 ## `fs.readSync(fd, buffer, [options])`
 <!-- YAML
-added: REPLACEME
+added: v13.13.0
 changes:
-  - version: REPLACEME
+  - version: v13.13.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
                  to make offset, length and position optional
@@ -3097,7 +3097,7 @@ this API: [`fs.read()`][].
 
 ## `fs.readv(fd, buffers[, position], callback)`
 <!-- YAML
-added: REPLACEME
+added: v13.13.0
 -->
 
 * `fd` {integer}
@@ -3120,7 +3120,7 @@ The callback will be given three arguments: `err`, `bytesRead`, and
 
 ## `fs.readvSync(fd, buffers[, position])`
 <!-- YAML
-added: REPLACEME
+added: v13.13.0
 -->
 
 * `fd` {integer}
@@ -4509,7 +4509,7 @@ of the file.
 
 #### `filehandle.readv(buffers[, position])`
 <!-- YAML
-added: REPLACEME
+added: v13.13.0
 -->
 
 * `buffers` {ArrayBufferView[]}
