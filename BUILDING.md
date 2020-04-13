@@ -170,15 +170,15 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | --------------------- | ------------------------------------------------------------------------ |
 | aix-ppc64             | AIX 7.1 TL05 on PPC64BE with GCC 6                                       |
 | darwin-x64 (and .pkg) | macOS 10.15, Xcode Command Line Tools 11 with -mmacosx-version-min=10.13 |
-| linux-arm64           | CentOS 7 with devtoolset-6 / GCC 6                                       |
+| linux-arm64           | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
 | linux-armv7l          | Cross-compiled on Ubuntu 16.04 x64 with [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)   |
-| linux-ppc64le         | CentOS 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                  |
-| linux-s390x           | RHEL 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                    |
-| linux-x64             | CentOS 7 with devtoolset-6 / GCC 6 <sup>[7](#fn7)</sup>                  |
+| linux-ppc64le         | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
+| linux-s390x           | RHEL 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                    |
+| linux-x64             | CentOS 7 with devtoolset-8 / GCC 8 <sup>[8](#fn8)</sup>                  |
 | win-x64 and win-x86   | Windows 2012 R2 (x64) with Visual Studio 2019                            |
 
-<em id="fn7">7</em>: The Enterprise Linux devtoolset-6 allows us to compile
-binaries with GCC 6 but linked to the glibc and libstdc++ versions of the host
+<em id="fn8">8</em>: The Enterprise Linux devtoolset-8 allows us to compile
+binaries with GCC 8 but linked to the glibc and libstdc++ versions of the host
 platforms (CentOS 7 / RHEL 7). Therefore, binaries produced on these systems
 are compatible with glibc >= 2.17 and libstdc++ >= 6.0.20 (`GLIBCXX_3.4.20`).
 These are available on distributions natively supporting GCC 4.9, such as
