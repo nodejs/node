@@ -568,6 +568,7 @@ server.listen(1337, '127.0.0.1', () => {
 ### `request.abort()`
 <!-- YAML
 added: v0.3.8
+deprecated: REPLACEME
 -->
 
 Marks the request as aborting. Calling this will cause remaining data
@@ -2356,8 +2357,44 @@ the following events will be emitted in the following order:
 * `'close'`
 * `'close'` on the `res` object
 
-If `req.abort()` is called before the connection succeeds, the following events
-will be emitted in the following order:
+
+If `req.destroy()` is called before a socket is assigned, the following
+events will be emitted in the following order:
+
+* (`req.destroy()` called here)
+* `'error'` with an error with message `'Error: socket hang up'` and code
+  `'ECONNRESET'`
+* `'close'`
+
+If `req.destroy()` is called before the connection succeeds, the following
+events will be emitted in the following order:
+
+* `'socket'`
+* (`req.destroy()` called here)
+* `'error'` with an error with message `'Error: socket hang up'` and code
+  `'ECONNRESET'`
+* `'close'`
+
+If `req.destroy()` is called after the response is received, the following
+events will be emitted in the following order:
+
+* `'socket'`
+* `'response'`
+  * `'data'` any number of times, on the `res` object
+* (`req.destroy()` called here)
+* `'aborted'` on the `res` object
+* `'close'`
+* `'close'` on the `res` object
+
+If `req.abort()` is called before a socket is assigned, the following
+events will be emitted in the following order:
+
+* (`req.abort()` called here)
+* `'abort'`
+* `'close'`
+
+If `req.abort()` is called before the connection succeeds, the following
+events will be emitted in the following order:
 
 * `'socket'`
 * (`req.abort()` called here)
@@ -2366,8 +2403,8 @@ will be emitted in the following order:
   `'ECONNRESET'`
 * `'close'`
 
-If `req.abort()` is called after the response is received, the following events
-will be emitted in the following order:
+If `req.abort()` is called after the response is received, the following
+events will be emitted in the following order:
 
 * `'socket'`
 * `'response'`
