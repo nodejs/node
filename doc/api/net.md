@@ -1261,7 +1261,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.connect(path)`]: #net_socket_connect_path_connectlistener
 [`socket.connect(port)`]: #net_socket_connect_port_host_connectlistener
 [`socket.connecting`]: #net_socket_connecting
-[`socket.destroy()`]: #net_socket_destroy_exception
+[`socket.destroy()`]: #net_socket_destroy_error
 [`socket.end()`]: #net_socket_end_data_encoding_callback
 [`socket.pause()`]: #net_socket_pause
 [`socket.resume()`]: #net_socket_resume
