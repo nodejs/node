@@ -869,7 +869,7 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject() ||
       !env->message_port_constructor_template()->HasInstance(args[0])) {
     return THROW_ERR_INVALID_ARG_TYPE(env,
-        "First argument needs to be a MessagePort instance");
+        "The \"port\" argument must be a MessagePort instance");
   }
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
   if (port == nullptr) {
@@ -890,7 +890,7 @@ void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject() ||
       !env->message_port_constructor_template()->HasInstance(args[0])) {
     return THROW_ERR_INVALID_ARG_TYPE(env,
-        "First argument needs to be a MessagePort instance");
+        "The \"port\" argument must be a MessagePort instance");
   }
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
   CHECK_NOT_NULL(port);
