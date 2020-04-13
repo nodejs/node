@@ -333,7 +333,7 @@ For pull requests introducing new core modules:
 
 N-API provides an ABI-stable API guaranteed for future Node.js versions. N-API
 additions call for unusual care and scrutiny. If a change adds to `node_api.h`,
-`js_native_api.h`, `node_api_types.h` or `js_native_api_types.h`, consult [the relevant
+`js_native_api.h`, `node_api_types.h`, or `js_native_api_types.h`, consult [the relevant
 guide](https://github.com/nodejs/node/blob/master/doc/guides/adding-new-napi-api.md).
 
 ### Deprecations
