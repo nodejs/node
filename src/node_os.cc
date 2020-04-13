@@ -132,16 +132,12 @@ static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
 
 static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
   double amount = uv_get_free_memory();
-  if (amount < 0)
-    return;
   args.GetReturnValue().Set(amount);
 }
 
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
   double amount = uv_get_total_memory();
-  if (amount < 0)
-    return;
   args.GetReturnValue().Set(amount);
 }
 
