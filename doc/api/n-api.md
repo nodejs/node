@@ -12,7 +12,7 @@ Node.js itself. This API will be Application Binary Interface (ABI) stable
 across versions of Node.js. It is intended to insulate Addons from
 changes in the underlying JavaScript engine and allow modules
 compiled for one major version to run on later major versions of Node.js without
-recompilation. The [ABI Stability][] guide provides a mor'e in-depth explanation.
+recompilation. The [ABI Stability][] guide provides a more in-depth explanation.
 
 Addons are built/packaged with the same approach/tools outlined in the section
 titled [C++ Addons][]. The only difference is the set of APIs that are used by
