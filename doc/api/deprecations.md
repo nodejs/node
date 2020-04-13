@@ -2651,7 +2651,6 @@ written twice. This introduces a race condition between threads, and is a
 potential security vulnerability. There is no safe, cross-platform alternative
 API.
 
-
 <a id="DEPXXX"></a>
 ### DEPXXX: Use `request.destroy()` in favor of `request.abort()`
 <!-- YAML

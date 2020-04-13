@@ -2357,7 +2357,6 @@ the following events will be emitted in the following order:
 * `'close'`
 * `'close'` on the `res` object
 
-
 If `req.destroy()` is called before a socket is assigned, the following
 events will be emitted in the following order:
 
