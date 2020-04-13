@@ -51,4 +51,4 @@ AliasedStruct<T>::~AliasedStruct() {
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#endif  // SRC_ALIASED_STRUCT_H_
+#endif  // SRC_ALIASED_STRUCT_INL_H_
