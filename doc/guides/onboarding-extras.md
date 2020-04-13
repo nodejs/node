@@ -21,6 +21,8 @@ request.
 * `feature request` - Any issue that requests a new feature (usually not PRs)
 * `good first issue` - Issues suitable for newcomers to process
 * `meta` - For issues whose topic is governance, policies, procedures, etc.
+* `tsc-agenda` - Open issues and pull requests with this label will be added to
+  the Technical Steering Committee meeting agenda
 
 --
 
