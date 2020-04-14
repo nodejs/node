@@ -1661,13 +1661,15 @@ The resolver can throw the following errors:
 >             loop on any _Package Path Not Exported_ error.
 >    1. Throw a _Package Path Not Exported_ error.
 > 1. Otherwise, if _target_ is an Array, then
->    1. If _target.length is zero, throw an _Invalid Package Target_ error.
+>    1. If _target.length is zero, throw a _Package Path Not Exported_ error.
 >    1. For each item _targetValue_ in _target_, do
 >       1. If _targetValue_ is an Array, continue the loop.
 >       1. Return the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
 >          _targetValue_, _subpath_, _env_), continuing the loop on any
 >          _Package Path Not Exported_ or _Invalid Package Target_ error.
 >    1. Throw the last fallback resolution error.
+> 1. Otherwise, if _target_ is _null_, throw a _Package Path Not Exported_
+>    error.
 > 1. Otherwise throw an _Invalid Package Target_ error.
 
 **ESM_FORMAT**(_url_)
