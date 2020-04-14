@@ -706,6 +706,12 @@ parser.add_option('--v8-lite-mode',
          'memory footprint, but also implies no just-in-time compilation ' +
          'support, thus much slower execution)')
 
+parser.add_option('--v8-enable-object-print',
+    action='store_true',
+    dest='v8_enable_object_print',
+    default=False,
+    help='compile V8 with auxiliar functions for native debuggers')
+
 parser.add_option('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
@@ -1321,6 +1327,7 @@ def configure_v8(o):
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
   o['variables']['dcheck_always_on'] = 1 if options.v8_with_dchecks else 0
+  o['variables']['v8_enable_object_print'] = 1 if options.v8_enable_object_print else 0
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
