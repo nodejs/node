@@ -58,5 +58,9 @@ test-worker-prof: PASS,FLAKY
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/23089
 test-gc-http-client-onerror: PASS,FLAKY
+# https://github.com/nodejs/node/issues/29802
+test-http2-reset-flood: PASS,FLAKY
+# https://github.com/nodejs/node/issues/28803
+test-stdout-close-catch: PASS,FLAKY
 
 [$system==aix]
