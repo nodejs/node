@@ -66,6 +66,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/invalid4', './invalid4'],
     // Null mapping
     ['pkgexports/null', './null'],
+    ['pkgexports/null/subpath', './null/subpath'],
     // Empty fallback
     ['pkgexports/nofallback1', './nofallback1'],
   ]);
