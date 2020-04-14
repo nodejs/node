@@ -50,6 +50,8 @@ test-fs-stat-bigint: PASS,FLAKY
 test-http2-reset-flood: PASS,FLAKY
 # https://github.com/nodejs/node/issues/28803
 test-stdout-close-catch: PASS,FLAKY
+# https://github.com/nodejs/node/issues/31280
+test-worker-message-port-message-before-close: PASS,FLAKY
 
 [$system==aix]
 
