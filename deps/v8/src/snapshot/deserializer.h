@@ -107,6 +107,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
 
   std::shared_ptr<BackingStore> backing_store(size_t i) {
+    DCHECK_LT(i, backing_stores_.size());
     return backing_stores_[i];
   }
 
