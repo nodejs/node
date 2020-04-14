@@ -117,12 +117,14 @@ class ThreadID {
  public:
 #ifdef _WIN32
   typedef DWORD thread_id_t;
-  ThreadID(): _tid(GetCurrentThreadId()) {}
-  inline bool operator==(const ThreadID& other) { return _tid == other._tid; }
+  ThreadID() : _tid(GetCurrentThreadId()) {}
+  inline bool operator==(const ThreadID& other) const {
+    return _tid == other._tid;
+  }
 #else
   typedef uv_thread_t thread_id_t;
-  ThreadID(): _tid(uv_thread_self()) {}
-  inline bool operator==(const ThreadID& other) {
+  ThreadID() : _tid(uv_thread_self()) {}
+  inline bool operator==(const ThreadID& other) const {
     return static_cast<bool>(uv_thread_equal(&_tid, &other._tid));
   }
 #endif  // _WIN32
