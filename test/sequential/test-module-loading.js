@@ -302,17 +302,14 @@ assert.throws(
       }
     },
     'fixtures/path.js': {},
-    'fixtures/throws_error.js': {},
     'fixtures/registerExt.test': {},
     'fixtures/registerExt.hello.world': {},
     'fixtures/registerExt2.test': {},
     'fixtures/module-load-order/file1': {},
     'fixtures/module-load-order/file2.js': {},
-    'fixtures/module-load-order/file3.node': {},
     'fixtures/module-load-order/file4.reg': {},
     'fixtures/module-load-order/file5.reg2': {},
     'fixtures/module-load-order/file6/index.js': {},
-    'fixtures/module-load-order/file7/index.node': {},
     'fixtures/module-load-order/file8/index.reg': {},
     'fixtures/module-load-order/file9/index.reg2': {},
     'fixtures/module-require/parent/index.js': {
