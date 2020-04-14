@@ -295,11 +295,6 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   virtual bool FlushForegroundTasks(v8::Isolate* isolate) = 0;
   virtual void DrainTasks(v8::Isolate* isolate) = 0;
 
-  // TODO(addaleax): Remove this, it is unnecessary.
-  // This would currently be called before `UnregisterIsolate()` but will be
-  // folded into it in the future.
-  virtual void CancelPendingDelayedTasks(v8::Isolate* isolate);
-
   // This needs to be called between the calls to `Isolate::Allocate()` and
   // `Isolate::Initialize()`, so that initialization can already start
   // using the platform.
