@@ -66,6 +66,11 @@ if (process.getuid() !== 0) {
     () => { process.setuid('nobody'); },
     /(?:EPERM, .+|User identifier does not exist: nobody)$/
   );
+
+  assert.throws(
+    () => { process.setuid(-0); },
+    /(?:EPERM, .+|Operation not permitted)$/
+  );
   return;
 }
 
