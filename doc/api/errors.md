@@ -1745,7 +1745,7 @@ could not be determined.
 <a id="ERR_SOCKET_CANNOT_SEND"></a>
 ### `ERR_SOCKET_CANNOT_SEND`
 
-Data could be sent on a socket.
+Data could not be sent on a socket.
 
 <a id="ERR_SOCKET_CLOSED"></a>
 ### `ERR_SOCKET_CLOSED`
