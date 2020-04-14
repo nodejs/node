@@ -64,6 +64,10 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     // Conditional exports with no match are "not exported" errors
     ['pkgexports/invalid1', './invalid1'],
     ['pkgexports/invalid4', './invalid4'],
+    // Null mapping
+    ['pkgexports/null', './null'],
+    // Empty fallback
+    ['pkgexports/nofallback1', './nofallback1'],
   ]);
 
   const invalidExports = new Map([
@@ -74,12 +78,10 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/belowdir/pkgexports/asdf.js', './belowdir/'],
     // This target file steps below the package
     ['pkgexports/belowfile', './belowfile'],
-    // Invalid target handling
-    ['pkgexports/null', './null'],
+    // Invalid targets
     ['pkgexports/invalid2', './invalid2'],
     ['pkgexports/invalid3', './invalid3'],
     // Missing / invalid fallbacks
-    ['pkgexports/nofallback1', './nofallback1'],
     ['pkgexports/nofallback2', './nofallback2'],
     // Reaching into nested node_modules
     ['pkgexports/nodemodules', './nodemodules'],
