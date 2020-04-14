@@ -328,7 +328,7 @@ inline bool WriteSnapshot(Isolate* isolate, const char* filename) {
 
 }  // namespace
 
-void DeleteHeapSnapshot(const v8::HeapSnapshot* snapshot) {
+void DeleteHeapSnapshot(const HeapSnapshot* snapshot) {
   const_cast<HeapSnapshot*>(snapshot)->Delete();
 }
 
