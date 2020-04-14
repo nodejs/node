@@ -76,7 +76,8 @@ ExternalReferenceEncoder::Value ExternalReferenceEncoder::Encode(
   if (maybe_index.IsNothing()) {
     void* addr = reinterpret_cast<void*>(address);
     v8::base::OS::PrintError("Unknown external reference %p.\n", addr);
-    v8::base::OS::PrintError("%s", ExternalReferenceTable::ResolveSymbol(addr));
+    v8::base::OS::PrintError("%s\n",
+                             ExternalReferenceTable::ResolveSymbol(addr));
     v8::base::OS::Abort();
   }
   Value result(maybe_index.FromJust());
