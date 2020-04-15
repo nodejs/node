@@ -100,7 +100,8 @@ Data types
             UV_FS_OPENDIR,
             UV_FS_READDIR,
             UV_FS_CLOSEDIR,
-            UV_FS_MKSTEMP
+            UV_FS_MKSTEMP,
+            UV_FS_LUTIME
         } uv_fs_type;
 
 .. c:type:: uv_statfs_t
@@ -402,12 +403,17 @@ API
 
 .. c:function:: int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime, double mtime, uv_fs_cb cb)
 .. c:function:: int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime, double mtime, uv_fs_cb cb)
+.. c:function:: int uv_fs_lutime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime, double mtime, uv_fs_cb cb)
 
-    Equivalent to :man:`utime(2)` and :man:`futimes(3)` respectively.
+    Equivalent to :man:`utime(2)`, :man:`futimes(3)` and :man:`lutimes(3)` respectively.
 
     .. note::
-      AIX: This function only works for AIX 7.1 and newer. It can still be called on older
-      versions but will return ``UV_ENOSYS``.
+      z/OS: `uv_fs_lutime()` is not implemented for z/OS. It can still be called but will return
+      ``UV_ENOSYS``.
+
+    .. note::
+      AIX: `uv_fs_futime()` and `uv_fs_lutime()` functions only work for AIX 7.1 and newer.
+      They can still be called on older versions but will return ``UV_ENOSYS``.
 
     .. versionchanged:: 1.10.0 sub-second precission is supported on Windows
 

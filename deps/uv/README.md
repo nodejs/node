@@ -152,47 +152,14 @@ $ gpg --verify libuv-1.7.0.tar.gz.sign
 
 ## Build Instructions
 
-For GCC there are two build methods: via autotools or via [GYP][].
-GYP is a meta-build system which can generate MSVS, Makefile, and XCode
-backends. It is best used for integration into other projects.
+For UNIX-like platforms, including macOS, there are two build methods:
+autotools or [CMake][].
 
-To build with autotools:
+For Windows, [CMake][] is the only supported build method and has the
+following prerequisites:
 
-```bash
-$ sh autogen.sh
-$ ./configure
-$ make
-$ make check
-$ make install
-```
+<details>
 
-To build with [CMake](https://cmake.org/):
-
-```bash
-$ mkdir -p out/cmake ; cd out/cmake   # create build directory
-$ cmake ../.. -DBUILD_TESTING=ON      # generate project with test
-$ cmake --build .                     # build
-$ ctest -C Debug --output-on-failure  # run tests
-
-# Or manually run tests:
-$ ./out/cmake/uv_run_tests    # shared library build
-$ ./out/cmake/uv_run_tests_a  # static library build
-```
-
-To build with GYP, first run:
-
-```bash
-$ git clone https://chromium.googlesource.com/external/gyp build/gyp
-```
-
-### Windows
-
-Prerequisites:
-
-* [Python 2.6 or 2.7][] as it is required
-  by [GYP][].
-  If python is not in your path, set the environment variable `PYTHON` to its
-  location. For example: `set PYTHON=C:\Python27\python.exe`
 * One of:
   * [Visual C++ Build Tools][]
   * [Visual Studio 2015 Update 3][], all editions
@@ -205,67 +172,44 @@ Prerequisites:
   [Git for Windows][] includes Git Bash
   and tools which can be included in the global `PATH`.
 
-To build, launch a git shell (e.g. Cmd or PowerShell), run `vcbuild.bat`
-(to build with VS2017 you need to explicitly add a `vs2017` argument),
-which will checkout the GYP code into `build/gyp`, generate `uv.sln`
-as well as the necesery related project files, and start building.
+</details>
 
-```console
-> vcbuild
-```
-
-Or:
-
-```console
-> vcbuild vs2017
-```
-
-To run the tests:
-
-```console
-> vcbuild test
-```
-
-To see all the options that could passed to `vcbuild`:
-
-```console
-> vcbuild help
-vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild] [vs2017] [x86/x64] [static/shared]
-Examples:
-  vcbuild.bat              : builds debug build
-  vcbuild.bat test         : builds debug build and runs tests
-  vcbuild.bat release bench: builds release build and runs benchmarks
-```
-
-
-### Unix
-
-For Debug builds (recommended) run:
+To build with autotools:
 
 ```bash
-$ ./gyp_uv.py -f make
-$ make -C out
+$ sh autogen.sh
+$ ./configure
+$ make
+$ make check
+$ make install
 ```
 
-For Release builds run:
+To build with [CMake][]:
 
 ```bash
-$ ./gyp_uv.py -f make
-$ BUILDTYPE=Release make -C out
+$ mkdir -p build
+
+$ (cd build && cmake .. -DBUILD_TESTING=ON) # generate project with tests
+$ cmake --build build                       # add `-j <n>` with cmake >= 3.12
+
+# Run tests:
+$ (cd build && ctest -C Debug --output-on-failure)
+
+# Or manually run tests:
+$ build/uv_run_tests                        # shared library build
+$ build/uv_run_tests_a                      # static library build
 ```
 
-Run `./gyp_uv.py -f make -Dtarget_arch=x32` to build [x32][] binaries.
-
-### OS X
-
-Run:
+To cross-compile with [CMake][] (unsupported but generally works):
 
 ```bash
-$ ./gyp_uv.py -f xcode
-$ xcodebuild -ARCHS="x86_64" -project out/uv.xcodeproj -configuration Release -alltargets
+$ cmake ../..                 \
+  -DCMAKE_SYSTEM_NAME=Windows \
+  -DCMAKE_SYSTEM_VERSION=6.1  \
+  -DCMAKE_C_COMPILER=i686-w64-mingw32-gcc
 ```
 
-Using Homebrew:
+### Install with Homebrew
 
 ```bash
 $ brew install --HEAD libuv
@@ -277,110 +221,48 @@ Make sure that you specify the architecture you wish to build for in the
 "ARCHS" flag. You can specify more than one by delimiting with a space
 (e.g. "x86_64 i386").
 
-### Android
-
-Run:
-
-For arm
-
-```bash
-$ source ./android-configure-arm NDK_PATH gyp [API_LEVEL]
-$ make -C out
-```
-
-or for arm64
-
-```bash
-$ source ./android-configure-arm64 NDK_PATH gyp [API_LEVEL]
-$ make -C out
-```
-
-or for x86
-
-```bash
-$ source ./android-configure-x86 NDK_PATH gyp [API_LEVEL]
-$ make -C out
-```
-
-or for x86_64
-
-```bash
-$ source ./android-configure-x86_64 NDK_PATH gyp [API_LEVEL]
-$ make -C out
-```
-
-The default API level is 24, but a different one can be selected as follows:
-
-```bash
-$ source ./android-configure-arm ~/android-ndk-r15b gyp 21
-$ make -C out
-```
-
-Note for UNIX users: compile your project with `-D_LARGEFILE_SOURCE` and
-`-D_FILE_OFFSET_BITS=64`. GYP builds take care of that automatically.
-
-### Using Ninja
-
-To use ninja for build on ninja supported platforms, run:
-
-```bash
-$ ./gyp_uv.py -f ninja
-$ ninja -C out/Debug     #for debug build OR
-$ ninja -C out/Release
-```
-
-
 ### Running tests
-
-#### Build
-
-Build (includes tests):
-
-```bash
-$ ./gyp_uv.py -f make
-$ make -C out
-```
-
-#### Run all tests
-
-```bash
-$ ./out/Debug/run-tests
-```
 
 Some tests are timing sensitive. Relaxing test timeouts may be necessary
 on slow or overloaded machines:
 
 ```bash
-$ env UV_TEST_TIMEOUT_MULTIPLIER=2 ./out/Debug/run-tests  # 10s instead of 5s
+$ env UV_TEST_TIMEOUT_MULTIPLIER=2 build/uv_run_tests # 10s instead of 5s
 ```
 
 #### Run one test
 
 The list of all tests is in `test/test-list.h`.
 
-This invocation will cause the `run-tests` driver to fork and execute `TEST_NAME` in a child process:
+This invocation will cause the test driver to fork and execute `TEST_NAME` in
+a child process:
 
 ```bash
-$ ./out/Debug/run-tests TEST_NAME
+$ build/uv_run_tests_a TEST_NAME
 ```
 
-This invocation will cause the `run-tests` driver to execute the test within the `run-tests` process:
+This invocation will cause the test driver to execute the test in
+the same process:
 
 ```bash
-$ ./out/Debug/run-tests TEST_NAME TEST_NAME
+$ build/uv_run_tests_a TEST_NAME TEST_NAME
 ```
 
 #### Debugging tools
 
-When running the test from within the `run-tests` process (`run-tests TEST_NAME TEST_NAME`), tools like gdb and valgrind work normally.
-When running the test from a child of the `run-tests` process (`run-tests TEST_NAME`), use these tools in a fork-aware manner.
+When running the test from within the test driver process
+(`build/uv_run_tests_a TEST_NAME TEST_NAME`), tools like gdb and valgrind
+work normally.
+
+When running the test from a child of the test driver process
+(`build/uv_run_tests_a TEST_NAME`), use these tools in a fork-aware manner.
 
 ##### Fork-aware gdb
 
 Use the [follow-fork-mode](https://sourceware.org/gdb/onlinedocs/gdb/Forks.html) setting:
 
 ```
-$ gdb --args out/Debug/run-tests TEST_NAME
+$ gdb --args build/uv_run_tests_a TEST_NAME
 
 (gdb) set follow-fork-mode child
 ...
@@ -391,13 +273,14 @@ $ gdb --args out/Debug/run-tests TEST_NAME
 Use the `--trace-children=yes` parameter:
 
 ```bash
-$ valgrind --trace-children=yes -v --tool=memcheck --leak-check=full --track-origins=yes --leak-resolution=high --show-reachable=yes --log-file=memcheck-%p.log out/Debug/run-tests TEST_NAME
+$ valgrind --trace-children=yes -v --tool=memcheck --leak-check=full --track-origins=yes --leak-resolution=high --show-reachable=yes --log-file=memcheck-%p.log build/uv_run_tests_a TEST_NAME
 ```
 
 ### Running benchmarks
 
 See the section on running tests.
-The benchmark driver is `out/Debug/run-benchmarks` and the benchmarks are listed in `test/benchmark-list.h`.
+The benchmark driver is `./uv_run_benchmarks_a` and the benchmarks are
+listed in `test/benchmark-list.h`.
 
 ## Supported Platforms
 
@@ -413,8 +296,6 @@ that is detected by `autoconf`.
 [IBM documentation](http://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/)
 describes the package in more detail.
 
-AIX support for filesystem events is not compiled when building with `gyp`.
-
 ### z/OS Notes
 
 z/OS creates System V semaphores and message queues. These persist on the system
@@ -426,12 +307,10 @@ Use the `ipcrm` command to manually clear up System V resources.
 
 See the [guidelines for contributing][].
 
+[CMake]: https://cmake.org/
 [node.js]: http://nodejs.org/
-[GYP]: http://code.google.com/p/gyp/
 [guidelines for contributing]: https://github.com/libuv/libuv/blob/master/CONTRIBUTING.md
 [libuv_banner]: https://raw.githubusercontent.com/libuv/libuv/master/img/banner.png
-[x32]: https://en.wikipedia.org/wiki/X32_ABI
-[Python 2.6 or 2.7]: https://www.python.org/downloads/
 [Visual C++ Build Tools]: https://visualstudio.microsoft.com/visual-cpp-build-tools/
 [Visual Studio 2015 Update 3]: https://www.visualstudio.com/vs/older-downloads/
 [Visual Studio 2017]: https://www.visualstudio.com/downloads/

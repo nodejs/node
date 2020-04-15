@@ -43,7 +43,7 @@
 
 
 /* Do platform-specific initialization. */
-int platform_init(int argc, char **argv) {
+void platform_init(int argc, char **argv) {
   /* Disable the "application crashed" popup. */
   SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
       SEM_NOOPENFILEERRORBOX);
@@ -67,8 +67,6 @@ int platform_init(int argc, char **argv) {
   setvbuf(stderr, NULL, _IONBF, 0);
 
   strcpy(executable_path, argv[0]);
-
-  return 0;
 }
 
 
