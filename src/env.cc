@@ -174,10 +174,10 @@ void IsolateData::CreateProperties() {
 #define V(Provider)                                                           \
   async_wrap_providers_[AsyncWrap::PROVIDER_ ## Provider].Set(                \
       isolate_,                                                               \
-      v8::String::NewFromOneByte(                                             \
+      String::NewFromOneByte(                                                 \
         isolate_,                                                             \
         reinterpret_cast<const uint8_t*>(#Provider),                          \
-        v8::NewStringType::kInternalized,                                     \
+        NewStringType::kInternalized,                                         \
         sizeof(#Provider) - 1).ToLocalChecked());
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
