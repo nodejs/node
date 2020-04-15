@@ -130,13 +130,20 @@ async function noReturnAfterThrow() {
 
 async function closeStreamWhileNextIsPending() {
   const finallyMustCall = mustCall();
+  const dataMustCall = mustCall();
+
   let resolveDestroy;
-  const destroyed = new Promise((resolve) => { resolveDestroy = resolve; });
+  const destroyed =
+    new Promise((resolve) => { resolveDestroy = mustCall(resolve); });
+  let resolveYielded;
+  const yielded =
+    new Promise((resolve) => { resolveYielded = mustCall(resolve); });
 
   async function* infiniteGenerate() {
     try {
       while (true) {
         yield 'a';
+        resolveYielded();
         await destroyed;
       }
     } finally {
@@ -147,7 +154,11 @@ async function closeStreamWhileNextIsPending() {
   const stream = Readable.from(infiniteGenerate());
 
   stream.on('data', (data) => {
+    dataMustCall();
     strictEqual(data, 'a');
+  });
+
+  yielded.then(() => {
     stream.destroy();
     resolveDestroy();
   });
