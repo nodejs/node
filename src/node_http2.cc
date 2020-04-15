@@ -21,6 +21,7 @@ using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -212,33 +213,33 @@ Http2Options::Http2Options(Http2State* http2_state, nghttp2_session_type type) {
     SetMaxSessionMemory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] * 1000000);
 }
 
-void Http2Session::Http2Settings::Init(Http2State* http2_state) {
+#define GRABSETTING(entries, count, name)                                      \
+  do {                                                                         \
+    if (flags & (1 << IDX_SETTINGS_ ## name)) {                                \
+      uint32_t val = buffer[IDX_SETTINGS_ ## name];                            \
+      entries[count++] =                                                       \
+          nghttp2_settings_entry {NGHTTP2_SETTINGS_ ## name, val};             \
+    } } while(0)
+
+size_t Http2Session::Http2Settings::Init(
+    Http2State* http2_state,
+    nghttp2_settings_entry* entries) {
   AliasedUint32Array& buffer = http2_state->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
-  size_t n = 0;
+  size_t count = 0;
 
-#define GRABSETTING(N, trace)                                                 \
-  if (flags & (1 << IDX_SETTINGS_##N)) {                                      \
-    uint32_t val = buffer[IDX_SETTINGS_##N];                                  \
-    if (session_ != nullptr)                                                  \
-      Debug(session_, "setting " trace ": %d\n", val);                        \
-    entries_[n++] =                                                           \
-        nghttp2_settings_entry {NGHTTP2_SETTINGS_##N, val};                   \
-  }
+  GRABSETTING(entries, count, HEADER_TABLE_SIZE);
+  GRABSETTING(entries, count, MAX_CONCURRENT_STREAMS);
+  GRABSETTING(entries, count, MAX_FRAME_SIZE);
+  GRABSETTING(entries, count, INITIAL_WINDOW_SIZE);
+  GRABSETTING(entries, count, MAX_HEADER_LIST_SIZE);
+  GRABSETTING(entries, count, ENABLE_PUSH);
+  GRABSETTING(entries, count, ENABLE_CONNECT_PROTOCOL);
 
-  GRABSETTING(HEADER_TABLE_SIZE, "header table size");
-  GRABSETTING(MAX_CONCURRENT_STREAMS, "max concurrent streams");
-  GRABSETTING(MAX_FRAME_SIZE, "max frame size");
-  GRABSETTING(INITIAL_WINDOW_SIZE, "initial window size");
-  GRABSETTING(MAX_HEADER_LIST_SIZE, "max header list size");
-  GRABSETTING(ENABLE_PUSH, "enable push");
-  GRABSETTING(ENABLE_CONNECT_PROTOCOL, "enable connect protocol");
-
-#undef GRABSETTING
-
-  count_ = n;
+  return count;
 }
+#undef GRABSETTING
 
 // The Http2Settings class is used to configure a SETTINGS frame that is
 // to be sent to the connected peer. The settings are set using a TypedArray
@@ -250,23 +251,37 @@ Http2Session::Http2Settings::Http2Settings(Http2State* http2_state,
     : AsyncWrap(http2_state->env(), obj, PROVIDER_HTTP2SETTINGS),
       session_(session),
       startTime_(start_time) {
-  Init(http2_state);
+  count_ = Init(http2_state, entries_);
 }
 
 // Generates a Buffer that contains the serialized payload of a SETTINGS
 // frame. This can be used, for instance, to create the Base64-encoded
 // content of an Http2-Settings header field.
 Local<Value> Http2Session::Http2Settings::Pack() {
-  const size_t len = count_ * 6;
-  Local<Value> buf = Buffer::New(env(), len).ToLocalChecked();
+  return Pack(session_->env(), count_, entries_);
+}
+
+Local<Value> Http2Session::Http2Settings::Pack(Http2State* state) {
+  nghttp2_settings_entry entries[IDX_SETTINGS_COUNT];
+  size_t count = Init(state, entries);
+  return Pack(state->env(), count, entries);
+}
+
+Local<Value> Http2Session::Http2Settings::Pack(
+    Environment* env,
+    size_t count,
+    const nghttp2_settings_entry* entries) {
+  EscapableHandleScope scope(env->isolate());
+  const size_t size = count * 6;
+  AllocatedBuffer buffer = env->AllocateManaged(size);
   ssize_t ret =
       nghttp2_pack_settings_payload(
-        reinterpret_cast<uint8_t*>(Buffer::Data(buf)), len,
-        &entries_[0], count_);
-  if (ret >= 0)
-    return buf;
-  else
-    return Undefined(env()->isolate());
+          reinterpret_cast<uint8_t*>(buffer.data()),
+          size,
+          entries,
+          count);
+  Local<Value> undef = Undefined(env->isolate());
+  return scope.Escape(ret >= 0 ? buffer.ToBuffer().FromMaybe(undef) : undef);
 }
 
 // Updates the shared TypedArray with the current remote or local settings for
@@ -2330,16 +2345,7 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
 // output for an HTTP2-Settings header field.
 void PackSettings(const FunctionCallbackInfo<Value>& args) {
   Http2State* state = Unwrap<Http2State>(args.Data());
-  Environment* env = state->env();
-  // TODO(addaleax): We should not be creating a full AsyncWrap for this.
-  Local<Object> obj;
-  if (!env->http2settings_constructor_template()
-           ->NewInstance(env->context())
-           .ToLocal(&obj)) {
-    return;
-  }
-  Http2Session::Http2Settings settings(state, nullptr, obj);
-  args.GetReturnValue().Set(settings.Pack());
+  args.GetReturnValue().Set(Http2Session::Http2Settings::Pack(state));
 }
 
 // A TypedArray instance is shared between C++ and JS land to contain the

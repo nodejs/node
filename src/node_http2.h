@@ -1005,10 +1005,7 @@ class Http2Session::Http2Settings : public AsyncWrap {
                 v8::Local<v8::Object> obj,
                 uint64_t start_time = uv_hrtime());
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("session", session_);
-  }
-
+  SET_NO_MEMORY_INFO();
   SET_MEMORY_INFO_NAME(Http2Settings)
   SET_SELF_SIZE(Http2Settings)
 
@@ -1018,6 +1015,8 @@ class Http2Session::Http2Settings : public AsyncWrap {
   // Returns a Buffer instance with the serialized SETTINGS payload
   v8::Local<v8::Value> Pack();
 
+  static v8::Local<v8::Value> Pack(Http2State* state);
+
   // Resets the default values in the settings buffer
   static void RefreshDefaults(Http2State* http2_state);
 
@@ -1026,7 +1025,15 @@ class Http2Session::Http2Settings : public AsyncWrap {
                      get_setting fn);
 
  private:
-  void Init(Http2State* http2_state);
+  static size_t Init(
+      Http2State* http2_state,
+      nghttp2_settings_entry* entries);
+
+  static v8::Local<v8::Value> Pack(
+      Environment* env,
+      size_t count,
+      const nghttp2_settings_entry* entries);
+
   Http2Session* session_;
   uint64_t startTime_;
   size_t count_ = 0;
