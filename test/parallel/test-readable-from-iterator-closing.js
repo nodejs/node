@@ -181,10 +181,10 @@ async function closeAfterNullYielded() {
 
   const stream = Readable.from(infiniteGenerate());
 
-  for await (const chunk of stream) {
+  stream.on('data', (chunk) => {
     bodyMustCall();
     strictEqual(chunk, 'a');
-  }
+  });
 }
 
 Promise.all([
