@@ -2225,32 +2225,66 @@ INLINE static int fs__utime_handle(HANDLE handle, double atime, double mtime) {
   return 0;
 }
 
-
-static void fs__utime(uv_fs_t* req) {
+INLINE static DWORD fs__utime_impl_from_path(WCHAR* path,
+                                             double atime,
+                                             double mtime,
+                                             int do_lutime) {
   HANDLE handle;
+  DWORD flags;
+  DWORD ret;
 
-  handle = CreateFileW(req->file.pathw,
+  flags = FILE_FLAG_BACKUP_SEMANTICS;
+  if (do_lutime) {
+    flags |= FILE_FLAG_OPEN_REPARSE_POINT;
+  }
+
+  handle = CreateFileW(path,
                        FILE_WRITE_ATTRIBUTES,
                        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                        NULL,
                        OPEN_EXISTING,
-                       FILE_FLAG_BACKUP_SEMANTICS,
+                       flags,
                        NULL);
 
   if (handle == INVALID_HANDLE_VALUE) {
-    SET_REQ_WIN32_ERROR(req, GetLastError());
-    return;
-  }
-
-  if (fs__utime_handle(handle, req->fs.time.atime, req->fs.time.mtime) != 0) {
-    SET_REQ_WIN32_ERROR(req, GetLastError());
-    CloseHandle(handle);
-    return;
+    ret = GetLastError();
+  } else if (fs__utime_handle(handle, atime, mtime) != 0) {
+    ret = GetLastError();
+  } else {
+    ret = 0;
   }
 
   CloseHandle(handle);
+  return ret;
+}
+
+INLINE static void fs__utime_impl(uv_fs_t* req, int do_lutime) {
+  DWORD error;
+
+  error = fs__utime_impl_from_path(req->file.pathw,
+                                   req->fs.time.atime,
+                                   req->fs.time.mtime,
+                                   do_lutime);
+
+  if (error != 0) {
+    if (do_lutime &&
+        (error == ERROR_SYMLINK_NOT_SUPPORTED ||
+         error == ERROR_NOT_A_REPARSE_POINT)) {
+      /* Opened file is a reparse point but not a symlink. Try again. */
+      fs__utime_impl(req, 0);
+    } else {
+      /* utime failed. */
+      SET_REQ_WIN32_ERROR(req, error);
+    }
+
+    return;
+  }
 
   req->result = 0;
+}
+
+static void fs__utime(uv_fs_t* req) {
+  fs__utime_impl(req, /* do_lutime */ 0);
 }
 
 
@@ -2272,6 +2306,10 @@ static void fs__futime(uv_fs_t* req) {
   }
 
   req->result = 0;
+}
+
+static void fs__lutime(uv_fs_t* req) {
+  fs__utime_impl(req, /* do_lutime */ 1);
 }
 
 
@@ -2621,14 +2659,62 @@ static void fs__statfs(uv_fs_t* req) {
   DWORD bytes_per_sector;
   DWORD free_clusters;
   DWORD total_clusters;
+  WCHAR* pathw;
 
-  if (0 == GetDiskFreeSpaceW(req->file.pathw,
+  pathw = req->file.pathw;
+retry_get_disk_free_space:
+  if (0 == GetDiskFreeSpaceW(pathw,
                              &sectors_per_cluster,
                              &bytes_per_sector,
                              &free_clusters,
                              &total_clusters)) {
-    SET_REQ_WIN32_ERROR(req, GetLastError());
-    return;
+    DWORD err;
+    WCHAR* fpart;
+    size_t len;
+    DWORD ret;
+    BOOL is_second;
+
+    err = GetLastError();
+    is_second = pathw != req->file.pathw;
+    if (err != ERROR_DIRECTORY || is_second) {
+      if (is_second)
+        uv__free(pathw);
+
+      SET_REQ_WIN32_ERROR(req, err);
+      return;
+    }
+
+    len = MAX_PATH + 1;
+    pathw = uv__malloc(len * sizeof(*pathw));
+    if (pathw == NULL) {
+      SET_REQ_UV_ERROR(req, UV_ENOMEM, ERROR_OUTOFMEMORY);
+      return;
+    }
+retry_get_full_path_name:
+    ret = GetFullPathNameW(req->file.pathw,
+                           len,
+                           pathw,
+                           &fpart);
+    if (ret == 0) {
+      uv__free(pathw);
+      SET_REQ_WIN32_ERROR(req, err);
+      return;
+    } else if (ret > len) {
+      len = ret;
+      pathw = uv__reallocf(pathw, len * sizeof(*pathw));
+      if (pathw == NULL) {
+        SET_REQ_UV_ERROR(req, UV_ENOMEM, ERROR_OUTOFMEMORY);
+        return;
+      }
+      goto retry_get_full_path_name;
+    }
+    if (fpart != 0)
+      *fpart = L'\0';
+
+    goto retry_get_disk_free_space;
+  }
+  if (pathw != req->file.pathw) {
+    uv__free(pathw);
   }
 
   stat_fs = uv__malloc(sizeof(*stat_fs));
@@ -2670,6 +2756,7 @@ static void uv__fs_work(struct uv__work* w) {
     XX(FTRUNCATE, ftruncate)
     XX(UTIME, utime)
     XX(FUTIME, futime)
+    XX(LUTIME, lutime)
     XX(ACCESS, access)
     XX(CHMOD, chmod)
     XX(FCHMOD, fchmod)
@@ -3217,6 +3304,21 @@ int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file fd, double atime,
     double mtime, uv_fs_cb cb) {
   INIT(UV_FS_FUTIME);
   req->file.fd = fd;
+  req->fs.time.atime = atime;
+  req->fs.time.mtime = mtime;
+  POST;
+}
+
+int uv_fs_lutime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime,
+    double mtime, uv_fs_cb cb) {
+  int err;
+
+  INIT(UV_FS_LUTIME);
+  err = fs__capture_path(req, path, NULL, cb != NULL);
+  if (err) {
+    return uv_translate_sys_error(err);
+  }
+
   req->fs.time.atime = atime;
   req->fs.time.mtime = mtime;
   POST;

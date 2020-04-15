@@ -55,7 +55,7 @@
 #endif
 
 #define TOO_LONG_NAME_LENGTH 65536
-#define PATHMAX 1024
+#define PATHMAX 4096
 
 typedef struct {
   const char* path;
@@ -95,6 +95,7 @@ static int readlink_cb_count;
 static int realpath_cb_count;
 static int utime_cb_count;
 static int futime_cb_count;
+static int lutime_cb_count;
 static int statfs_cb_count;
 
 static uv_loop_t* loop;
@@ -806,12 +807,19 @@ TEST_IMPL(fs_file_loop) {
   return 0;
 }
 
-static void check_utime(const char* path, double atime, double mtime) {
+static void check_utime(const char* path,
+                        double atime,
+                        double mtime,
+                        int test_lutime) {
   uv_stat_t* s;
   uv_fs_t req;
   int r;
 
-  r = uv_fs_stat(loop, &req, path, NULL);
+  if (test_lutime)
+    r = uv_fs_lstat(loop, &req, path, NULL);
+  else
+    r = uv_fs_stat(loop, &req, path, NULL);
+
   ASSERT(r == 0);
 
   ASSERT(req.result == 0);
@@ -832,7 +840,7 @@ static void utime_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_UTIME);
 
   c = req->data;
-  check_utime(c->path, c->atime, c->mtime);
+  check_utime(c->path, c->atime, c->mtime, /* test_lutime */ 0);
 
   uv_fs_req_cleanup(req);
   utime_cb_count++;
@@ -847,10 +855,24 @@ static void futime_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_FUTIME);
 
   c = req->data;
-  check_utime(c->path, c->atime, c->mtime);
+  check_utime(c->path, c->atime, c->mtime, /* test_lutime */ 0);
 
   uv_fs_req_cleanup(req);
   futime_cb_count++;
+}
+
+
+static void lutime_cb(uv_fs_t* req) {
+  utime_check_t* c;
+
+  ASSERT(req->result == 0);
+  ASSERT(req->fs_type == UV_FS_LUTIME);
+
+  c = req->data;
+  check_utime(c->path, c->atime, c->mtime, /* test_lutime */ 1);
+
+  uv_fs_req_cleanup(req);
+  lutime_cb_count++;
 }
 
 
@@ -2470,7 +2492,7 @@ TEST_IMPL(fs_utime) {
   r = uv_fs_stat(NULL, &req, path, NULL);
   ASSERT(r == 0);
   ASSERT(req.result == 0);
-  check_utime(path, atime, mtime);
+  check_utime(path, atime, mtime, /* test_lutime */ 0);
   uv_fs_req_cleanup(&req);
 
   atime = mtime = 1291404900; /* 2010-12-03 20:35:00 - mees <3 */
@@ -2576,7 +2598,7 @@ TEST_IMPL(fs_futime) {
   r = uv_fs_stat(NULL, &req, path, NULL);
   ASSERT(r == 0);
   ASSERT(req.result == 0);
-  check_utime(path, atime, mtime);
+  check_utime(path, atime, mtime, /* test_lutime */ 0);
   uv_fs_req_cleanup(&req);
 
   atime = mtime = 1291404900; /* 2010-12-03 20:35:00 - mees <3 */
@@ -2594,6 +2616,84 @@ TEST_IMPL(fs_futime) {
 
   /* Cleanup. */
   unlink(path);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
+TEST_IMPL(fs_lutime) {
+  utime_check_t checkme;
+  const char* path = "test_file";
+  const char* symlink_path = "test_file_symlink";
+  double atime;
+  double mtime;
+  uv_fs_t req;
+  int r, s;
+
+
+  /* Setup */
+  loop = uv_default_loop();
+  unlink(path);
+  r = uv_fs_open(NULL, &req, path, O_RDWR | O_CREAT, S_IWUSR | S_IRUSR, NULL);
+  ASSERT(r >= 0);
+  ASSERT(req.result >= 0);
+  uv_fs_req_cleanup(&req);
+  uv_fs_close(loop, &req, r, NULL);
+
+  unlink(symlink_path);
+  s = uv_fs_symlink(NULL, &req, path, symlink_path, 0, NULL);
+#ifdef _WIN32
+  if (s == UV_EPERM) {
+    /*
+     * Creating a symlink before Windows 10 Creators Update was only allowed
+     * when running elevated console (with admin rights)
+     */
+    RETURN_SKIP(
+        "Symlink creation requires elevated console (with admin rights)");
+  }
+#endif
+  ASSERT(s == 0);
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  /* Test the synchronous version. */
+  atime = mtime = 400497753; /* 1982-09-10 11:22:33 */
+
+#ifdef _WIN32
+  mtime += 0.444;            /* 1982-09-10 11:22:33.444 */
+#endif
+
+  checkme.atime = atime;
+  checkme.mtime = mtime;
+  checkme.path = symlink_path;
+  req.data = &checkme;
+
+  r = uv_fs_lutime(NULL, &req, symlink_path, atime, mtime, NULL);
+#if (defined(_AIX) && !defined(_AIX71)) ||                                    \
+     defined(__MVS__)
+  ASSERT(r == UV_ENOSYS);
+  RETURN_SKIP("lutime is not implemented for z/OS and AIX versions below 7.1");
+#endif
+  ASSERT(r == 0);
+  lutime_cb(&req);
+  ASSERT(lutime_cb_count == 1);
+
+  /* Test the asynchronous version. */
+  atime = mtime = 1291404900; /* 2010-12-03 20:35:00 */
+
+  checkme.atime = atime;
+  checkme.mtime = mtime;
+  checkme.path = symlink_path;
+
+  r = uv_fs_lutime(loop, &req, symlink_path, atime, mtime, lutime_cb);
+  ASSERT(r == 0);
+  uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(lutime_cb_count == 2);
+
+  /* Cleanup. */
+  unlink(path);
+  unlink(symlink_path);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

@@ -322,5 +322,6 @@ char *uv__strndup(const char* s, size_t n);
 void* uv__malloc(size_t size);
 void uv__free(void* ptr);
 void* uv__realloc(void* ptr, size_t size);
+void* uv__reallocf(void* ptr, size_t size);
 
 #endif /* UV_COMMON_H_ */

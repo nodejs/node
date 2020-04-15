@@ -100,6 +100,17 @@ void* uv__realloc(void* ptr, size_t size) {
   return NULL;
 }
 
+void* uv__reallocf(void* ptr, size_t size) {
+  void* newptr;
+
+  newptr = uv__realloc(ptr, size);
+  if (newptr == NULL)
+    if (size > 0)
+      uv__free(ptr);
+
+  return newptr;
+}
+
 int uv_replace_allocator(uv_malloc_func malloc_func,
                          uv_realloc_func realloc_func,
                          uv_calloc_func calloc_func,

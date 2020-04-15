@@ -47,8 +47,9 @@ All functionality related to the new platform must be implemented in its own
 file inside ``src/unix/`` unless it's already done in a common file, in which
 case adding an `ifdef` is fine.
 
-Two build systems are supported: autotools and GYP. Ideally both need to be
-supported, but if GYP does not support the new platform it can be left out.
+Two build systems are supported: autotools and cmake. Ideally both need to be
+supported, but if one of the two does not support the new platform it can be
+left out.
 
 ### Windows
 

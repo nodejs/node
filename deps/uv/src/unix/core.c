@@ -71,7 +71,7 @@ extern char** environ;
 # include <sys/sysctl.h>
 # include <sys/filio.h>
 # include <sys/wait.h>
-# if defined(__FreeBSD__) || defined(__linux__)
+# if defined(__FreeBSD__)
 #  define uv__accept4 accept4
 # endif
 # if defined(__NetBSD__)
@@ -88,7 +88,8 @@ extern char** environ;
 #endif
 
 #if defined(__linux__)
-#include <sys/syscall.h>
+# include <sys/syscall.h>
+# define uv__accept4 accept4
 #endif
 
 static int uv__run_pending(uv_loop_t* loop);
@@ -518,7 +519,7 @@ int uv__close_nocancel(int fd) {
 #if defined(__APPLE__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdollar-in-identifier-extension"
-#if defined(__LP64__) || defined(TARGET_OS_IPHONE)
+#if defined(__LP64__) || TARGET_OS_IPHONE
   extern int close$NOCANCEL(int);
   return close$NOCANCEL(fd);
 #else
@@ -834,8 +835,8 @@ static void maybe_resize(uv_loop_t* loop, unsigned int len) {
   }
 
   nwatchers = next_power_of_two(len + 2) - 2;
-  watchers = uv__realloc(loop->watchers,
-                         (nwatchers + 2) * sizeof(loop->watchers[0]));
+  watchers = uv__reallocf(loop->watchers,
+                          (nwatchers + 2) * sizeof(loop->watchers[0]));
 
   if (watchers == NULL)
     abort();
@@ -1257,7 +1258,7 @@ int uv_os_environ(uv_env_item_t** envitems, int* count) {
 
   *envitems = uv__calloc(i, sizeof(**envitems));
 
-  if (envitems == NULL)
+  if (*envitems == NULL)
     return UV_ENOMEM;
 
   for (j = 0, cnt = 0; j < i; j++) {
