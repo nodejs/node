@@ -60,7 +60,7 @@ assert.throws(() => {
     client.connect(port);
   }, {
     name: 'RangeError',
-    message: /^Port should be >= 0 and < 65536/,
+    message: /^Port should be > 0 and < 65536/,
     code: 'ERR_SOCKET_BAD_PORT'
   });
 });
