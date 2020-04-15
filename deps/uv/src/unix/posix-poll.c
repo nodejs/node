@@ -61,7 +61,7 @@ static void uv__pollfds_maybe_resize(uv_loop_t* loop) {
     return;
 
   n = loop->poll_fds_size ? loop->poll_fds_size * 2 : 64;
-  p = uv__realloc(loop->poll_fds, n * sizeof(*loop->poll_fds));
+  p = uv__reallocf(loop->poll_fds, n * sizeof(*loop->poll_fds));
   if (p == NULL)
     abort();
 

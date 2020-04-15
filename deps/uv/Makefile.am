@@ -123,17 +123,9 @@ EXTRA_DIST = test/fixtures/empty_file \
              include \
              docs \
              img \
-             android-configure-arm \
-             android-configure-arm64 \
-             android-configure-x86 \
-             android-configure-x86_64 \
              CONTRIBUTING.md \
              LICENSE \
-             README.md \
-             vcbuild.bat \
-             common.gypi \
-             gyp_uv.py \
-             uv.gyp
+             README.md
 
 
 
@@ -346,7 +338,8 @@ test_run_tests_CFLAGS += -D__EXTENSIONS__ \
 endif
 
 if OS390
-test_run_tests_CFLAGS += -D_UNIX03_THREADS \
+test_run_tests_CFLAGS += -D_ISOC99_SOURCE \
+                         -D_UNIX03_THREADS \
                          -D_UNIX03_SOURCE \
                          -D_OPEN_SYS_IF_EXT=1 \
                          -D_OPEN_SYS_SOCK_IPV6 \

@@ -142,7 +142,6 @@ Bug fixes and features should come with tests.  Add your tests in the
 If you add a new test file, it needs to be registered in three places:
 - `CMakeLists.txt`: add the file's name to the `uv_test_sources` list.
 - `Makefile.am`: add the file's name to the `test_run_tests_SOURCES` list.
-- `uv.gyp`: add the file's name to the `sources` list in the `run-tests` target.
 
 Look at other tests to see how they should be structured (license boilerplate,
 the way entry points are declared, etc.).

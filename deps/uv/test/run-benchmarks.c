@@ -33,8 +33,7 @@ static int maybe_run_test(int argc, char **argv);
 
 
 int main(int argc, char **argv) {
-  if (platform_init(argc, argv))
-    return EXIT_FAILURE;
+  platform_init(argc, argv);
 
   switch (argc) {
   case 1: return run_tests(1);

@@ -649,6 +649,16 @@ API
         On Windows, setting `PRIORITY_HIGHEST` will only work for elevated user,
         for others it will be silently reduced to `PRIORITY_HIGH`.
 
+    .. note::
+        On IBM i PASE, the highest process priority is -10. The constant
+        `UV_PRIORITY_HIGHEST` is -10, `UV_PRIORITY_HIGH` is -7, 
+        `UV_PRIORITY_ABOVE_NORMAL` is -4, `UV_PRIORITY_NORMAL` is 0,
+        `UV_PRIORITY_BELOW_NORMAL` is 15 and `UV_PRIORITY_LOW` is 39.
+
+    .. note::
+        On IBM i PASE, you are not allowed to change your priority unless you
+        have the *JOBCTL special authority (even to lower it).
+
     .. versionadded:: 1.23.0
 
 .. c:function:: int uv_os_uname(uv_utsname_t* buffer)

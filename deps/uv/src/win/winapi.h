@@ -4590,11 +4590,6 @@ typedef NTSTATUS (NTAPI *sNtQueryInformationProcess)
                   PULONG ReturnLength);
 
 /*
- * Advapi32 headers
- */
-typedef BOOLEAN (WINAPI *sRtlGenRandom)(PVOID Buffer, ULONG BufferLength);
-
-/*
  * Kernel32 headers
  */
 #ifndef FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
@@ -4735,9 +4730,6 @@ extern sNtQueryVolumeInformationFile pNtQueryVolumeInformationFile;
 extern sNtQueryDirectoryFile pNtQueryDirectoryFile;
 extern sNtQuerySystemInformation pNtQuerySystemInformation;
 extern sNtQueryInformationProcess pNtQueryInformationProcess;
-
-/* Advapi32 function pointers */
-extern sRtlGenRandom pRtlGenRandom;
 
 /* Kernel32 function pointers */
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;

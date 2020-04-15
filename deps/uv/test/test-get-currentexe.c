@@ -23,28 +23,29 @@
 #include "task.h"
 #include <string.h>
 
-#define PATHMAX 1024
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+#define PATHMAX 4096
 extern char executable_path[];
 
 TEST_IMPL(get_currentexe) {
   char buffer[PATHMAX];
+  char path[PATHMAX];
   size_t size;
   char* match;
-  char* path;
   int r;
 
   size = sizeof(buffer) / sizeof(buffer[0]);
   r = uv_exepath(buffer, &size);
   ASSERT(!r);
 
-  /* uv_exepath can return an absolute path on darwin, so if the test runner
-   * was run with a relative prefix of "./", we need to strip that prefix off
-   * executable_path or we'll fail. */
-  if (executable_path[0] == '.' && executable_path[1] == '/') {
-    path = executable_path + 2;
-  } else {
-    path = executable_path;
-  }
+#ifdef _WIN32
+  snprintf(path, sizeof(path), "%s", executable_path);
+#else
+  ASSERT(NULL != realpath(executable_path, path));
+#endif
 
   match = strstr(buffer, path);
   /* Verify that the path returned from uv_exepath is a subdirectory of

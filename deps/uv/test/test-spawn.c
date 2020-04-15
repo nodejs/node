@@ -236,13 +236,14 @@ TEST_IMPL(spawn_empty_env) {
   char* env[1];
 
   /* The autotools dynamic library build requires the presence of
-   * DYLD_LIBARY_PATH (macOS) or LD_LIBRARY_PATH (other Unices)
+   * DYLD_LIBARY_PATH (macOS) or LD_LIBRARY_PATH/LIBPATH (other Unices)
    * in the environment, but of course that doesn't work with
    * the empty environment that we're testing here.
    */
   if (NULL != getenv("DYLD_LIBRARY_PATH") ||
-      NULL != getenv("LD_LIBRARY_PATH")) {
-    RETURN_SKIP("doesn't work with DYLD_LIBRARY_PATH/LD_LIBRARY_PATH");
+      NULL != getenv("LD_LIBRARY_PATH") ||
+      NULL != getenv("LIBPATH")) {
+    RETURN_SKIP("doesn't work with DYLD_LIBRARY_PATH/LD_LIBRARY_PATH/LIBPATH");
   }
 
   init_process_options("spawn_helper1", exit_cb);
