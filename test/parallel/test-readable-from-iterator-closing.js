@@ -164,11 +164,35 @@ async function closeStreamWhileNextIsPending() {
   });
 }
 
+async function closeAfterNullYielded() {
+  const finallyMustCall = mustCall();
+  const bodyMustCall = mustCall(3);
+
+  function* infiniteGenerate() {
+    try {
+      yield 'a';
+      yield 'a';
+      yield 'a';
+      while (true) yield null;
+    } finally {
+      finallyMustCall();
+    }
+  }
+
+  const stream = Readable.from(infiniteGenerate());
+
+  for await (const chunk of stream) {
+    bodyMustCall();
+    strictEqual(chunk, 'a');
+  }
+}
+
 Promise.all([
   asyncSupport(),
   syncSupport(),
   syncPromiseSupport(),
   syncRejectedSupport(),
   noReturnAfterThrow(),
-  closeStreamWhileNextIsPending()
+  closeStreamWhileNextIsPending(),
+  closeAfterNullYielded(),
 ]).then(mustCall());
