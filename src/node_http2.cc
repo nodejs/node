@@ -2970,6 +2970,9 @@ void Initialize(Local<Object> target,
 
   // Method to fetch the nghttp2 string description of an nghttp2 error code
   env->SetMethod(target, "nghttp2ErrorString", HttpErrorString);
+  env->SetMethod(target, "refreshDefaultSettings", RefreshDefaultSettings);
+  env->SetMethod(target, "packSettings", PackSettings);
+  env->SetMethod(target, "setCallbackFunctions", SetCallbackFunctions);
 
   Local<String> http2SessionClassName =
     FIXED_ONE_BYTE_STRING(isolate, "Http2Session");
@@ -3038,113 +3041,53 @@ void Initialize(Local<Object> target,
               session->GetFunction(env->context()).ToLocalChecked()).Check();
 
   Local<Object> constants = Object::New(isolate);
-  Local<Array> name_for_error_code = Array::New(isolate);
 
-#define NODE_NGHTTP2_ERROR_CODES(V)                       \
-  V(NGHTTP2_SESSION_SERVER);                              \
-  V(NGHTTP2_SESSION_CLIENT);                              \
-  V(NGHTTP2_STREAM_STATE_IDLE);                           \
-  V(NGHTTP2_STREAM_STATE_OPEN);                           \
-  V(NGHTTP2_STREAM_STATE_RESERVED_LOCAL);                 \
-  V(NGHTTP2_STREAM_STATE_RESERVED_REMOTE);                \
-  V(NGHTTP2_STREAM_STATE_HALF_CLOSED_LOCAL);              \
-  V(NGHTTP2_STREAM_STATE_HALF_CLOSED_REMOTE);             \
-  V(NGHTTP2_STREAM_STATE_CLOSED);                         \
-  V(NGHTTP2_NO_ERROR);                                    \
-  V(NGHTTP2_PROTOCOL_ERROR);                              \
-  V(NGHTTP2_INTERNAL_ERROR);                              \
-  V(NGHTTP2_FLOW_CONTROL_ERROR);                          \
-  V(NGHTTP2_SETTINGS_TIMEOUT);                            \
-  V(NGHTTP2_STREAM_CLOSED);                               \
-  V(NGHTTP2_FRAME_SIZE_ERROR);                            \
-  V(NGHTTP2_REFUSED_STREAM);                              \
-  V(NGHTTP2_CANCEL);                                      \
-  V(NGHTTP2_COMPRESSION_ERROR);                           \
-  V(NGHTTP2_CONNECT_ERROR);                               \
-  V(NGHTTP2_ENHANCE_YOUR_CALM);                           \
-  V(NGHTTP2_INADEQUATE_SECURITY);                         \
-  V(NGHTTP2_HTTP_1_1_REQUIRED);                           \
-
-#define V(name)                                                         \
-  NODE_DEFINE_CONSTANT(constants, name);                                \
-  name_for_error_code->Set(env->context(),                              \
-                           static_cast<int>(name),                      \
-                           FIXED_ONE_BYTE_STRING(isolate,               \
-                                                 #name)).Check();
-  NODE_NGHTTP2_ERROR_CODES(V)
+  // This does alocate one more slot than needed but it's not used.
+#define V(name) FIXED_ONE_BYTE_STRING(isolate, #name),
+  Local<Value> error_code_names[] = {
+    HTTP2_ERROR_CODES(V)
+    Local<Value>() // Unused.
+  };
 #undef V
 
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_HCAT_REQUEST);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_HCAT_RESPONSE);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_HCAT_PUSH_RESPONSE);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_HCAT_HEADERS);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_NV_FLAG_NONE);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_NV_FLAG_NO_INDEX);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_DEFERRED);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_INVALID_ARGUMENT);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, NGHTTP2_ERR_STREAM_CLOSED);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_ERR_FRAME_SIZE_ERROR);
+  Local<Array> name_for_error_code =
+      Array::New(
+          isolate,
+          error_code_names,
+          arraysize(error_code_names) - 1);
 
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, STREAM_OPTION_EMPTY_PAYLOAD);
-  NODE_DEFINE_HIDDEN_CONSTANT(constants, STREAM_OPTION_GET_TRAILERS);
-
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_NONE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_END_STREAM);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_END_HEADERS);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_ACK);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_PADDED);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_FLAG_PRIORITY);
-
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_SETTINGS_HEADER_TABLE_SIZE);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_SETTINGS_ENABLE_PUSH);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_SETTINGS_MAX_FRAME_SIZE);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE);
-  NODE_DEFINE_CONSTANT(constants, DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL);
-  NODE_DEFINE_CONSTANT(constants, MAX_MAX_FRAME_SIZE);
-  NODE_DEFINE_CONSTANT(constants, MIN_MAX_FRAME_SIZE);
-  NODE_DEFINE_CONSTANT(constants, MAX_INITIAL_WINDOW_SIZE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_DEFAULT_WEIGHT);
-
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_HEADER_TABLE_SIZE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_ENABLE_PUSH);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_MAX_FRAME_SIZE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
-  NODE_DEFINE_CONSTANT(constants, NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL);
-
-  NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_NONE);
-  NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_ALIGNED);
-  NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_MAX);
-  NODE_DEFINE_CONSTANT(constants, PADDING_STRATEGY_CALLBACK);
-
-#define STRING_CONSTANT(NAME, VALUE)                                          \
-  NODE_DEFINE_STRING_CONSTANT(constants, "HTTP2_HEADER_" # NAME, VALUE);
-HTTP_KNOWN_HEADERS(STRING_CONSTANT)
-#undef STRING_CONSTANT
-
-#define STRING_CONSTANT(NAME, VALUE)                                          \
-  NODE_DEFINE_STRING_CONSTANT(constants, "HTTP2_METHOD_" # NAME, VALUE);
-HTTP_KNOWN_METHODS(STRING_CONSTANT)
-#undef STRING_CONSTANT
-
-#define V(name, _) NODE_DEFINE_CONSTANT(constants, HTTP_STATUS_##name);
-HTTP_STATUS_CODES(V)
-#undef V
-
-  env->SetMethod(target, "refreshDefaultSettings", RefreshDefaultSettings);
-  env->SetMethod(target, "packSettings", PackSettings);
-  env->SetMethod(target, "setCallbackFunctions", SetCallbackFunctions);
-
-  target->Set(context,
-              env->constants_string(),
-              constants).Check();
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "nameForErrorCode"),
               name_for_error_code).Check();
+
+#define V(constant) NODE_DEFINE_HIDDEN_CONSTANT(constants, constant);
+  HTTP2_HIDDEN_CONSTANTS(V)
+#undef V
+
+#define V(constant) NODE_DEFINE_CONSTANT(constants, constant);
+  HTTP2_CONSTANTS(V)
+#undef V
+
+  // NGHTTP2_DEFAULT_WEIGHT is a macro and not a regular define
+  // it won't be set properly on the constants object if included
+  // in the HTTP2_CONSTANTS macro.
+  NODE_DEFINE_CONSTANT(constants, NGHTTP2_DEFAULT_WEIGHT);
+
+#define V(NAME, VALUE)                                          \
+  NODE_DEFINE_STRING_CONSTANT(constants, "HTTP2_HEADER_" # NAME, VALUE);
+  HTTP_KNOWN_HEADERS(V)
+#undef V
+
+#define V(NAME, VALUE)                                          \
+  NODE_DEFINE_STRING_CONSTANT(constants, "HTTP2_METHOD_" # NAME, VALUE);
+  HTTP_KNOWN_METHODS(V)
+#undef V
+
+#define V(name, _) NODE_DEFINE_CONSTANT(constants, HTTP_STATUS_##name);
+  HTTP_STATUS_CODES(V)
+#undef V
+
+  target->Set(context, env->constants_string(), constants).Check();
 }
 }  // namespace http2
 }  // namespace node

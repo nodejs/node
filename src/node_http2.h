@@ -34,16 +34,16 @@ constexpr size_t kDefaultMaxSettings = 10;
 constexpr uint64_t kDefaultMaxSessionMemory = 10000000;
 
 // These are the standard HTTP/2 defaults as specified by the RFC
-#define DEFAULT_SETTINGS_HEADER_TABLE_SIZE 4096
-#define DEFAULT_SETTINGS_ENABLE_PUSH 1
-#define DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS 0xffffffffu
-#define DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE 65535
-#define DEFAULT_SETTINGS_MAX_FRAME_SIZE 16384
-#define DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE 65535
-#define DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL 0
-#define MAX_MAX_FRAME_SIZE 16777215
-#define MIN_MAX_FRAME_SIZE DEFAULT_SETTINGS_MAX_FRAME_SIZE
-#define MAX_INITIAL_WINDOW_SIZE 2147483647
+constexpr uint32_t DEFAULT_SETTINGS_HEADER_TABLE_SIZE = 4096;
+constexpr uint32_t DEFAULT_SETTINGS_ENABLE_PUSH = 1;
+constexpr uint32_t DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS = 0xffffffffu;
+constexpr uint32_t DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE = 65535;
+constexpr uint32_t DEFAULT_SETTINGS_MAX_FRAME_SIZE = 16384;
+constexpr uint32_t DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE = 65535;
+constexpr uint32_t DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL = 0;
+constexpr uint32_t MAX_MAX_FRAME_SIZE = 16777215;
+constexpr uint32_t MIN_MAX_FRAME_SIZE = DEFAULT_SETTINGS_MAX_FRAME_SIZE;
+constexpr uint32_t MAX_INITIAL_WINDOW_SIZE = 2147483647;
 
 template <typename T, void(*fn)(T*)>
 struct Nghttp2Deleter {
@@ -1053,6 +1053,76 @@ class Origins {
   size_t count_;
   MaybeStackBuffer<char, 512> buf_;
 };
+
+#define HTTP2_HIDDEN_CONSTANTS(V)                                              \
+  V(NGHTTP2_HCAT_REQUEST)                                                      \
+  V(NGHTTP2_HCAT_RESPONSE)                                                     \
+  V(NGHTTP2_HCAT_PUSH_RESPONSE)                                                \
+  V(NGHTTP2_HCAT_HEADERS)                                                      \
+  V(NGHTTP2_NV_FLAG_NONE)                                                      \
+  V(NGHTTP2_NV_FLAG_NO_INDEX)                                                  \
+  V(NGHTTP2_ERR_DEFERRED)                                                      \
+  V(NGHTTP2_ERR_STREAM_ID_NOT_AVAILABLE)                                       \
+  V(NGHTTP2_ERR_INVALID_ARGUMENT)                                              \
+  V(NGHTTP2_ERR_STREAM_CLOSED)                                                 \
+  V(STREAM_OPTION_EMPTY_PAYLOAD)                                               \
+  V(STREAM_OPTION_GET_TRAILERS)
+
+#define HTTP2_ERROR_CODES(V)                                                   \
+  V(NGHTTP2_NO_ERROR)                                                          \
+  V(NGHTTP2_PROTOCOL_ERROR)                                                    \
+  V(NGHTTP2_INTERNAL_ERROR)                                                    \
+  V(NGHTTP2_FLOW_CONTROL_ERROR)                                                \
+  V(NGHTTP2_SETTINGS_TIMEOUT)                                                  \
+  V(NGHTTP2_STREAM_CLOSED)                                                     \
+  V(NGHTTP2_FRAME_SIZE_ERROR)                                                  \
+  V(NGHTTP2_REFUSED_STREAM)                                                    \
+  V(NGHTTP2_CANCEL)                                                            \
+  V(NGHTTP2_COMPRESSION_ERROR)                                                 \
+  V(NGHTTP2_CONNECT_ERROR)                                                     \
+  V(NGHTTP2_ENHANCE_YOUR_CALM)                                                 \
+  V(NGHTTP2_INADEQUATE_SECURITY)                                               \
+  V(NGHTTP2_HTTP_1_1_REQUIRED)                                                 \
+
+#define HTTP2_CONSTANTS(V)                                                     \
+  V(NGHTTP2_ERR_FRAME_SIZE_ERROR)                                              \
+  V(NGHTTP2_SESSION_SERVER)                                                    \
+  V(NGHTTP2_SESSION_CLIENT)                                                    \
+  V(NGHTTP2_STREAM_STATE_IDLE)                                                 \
+  V(NGHTTP2_STREAM_STATE_OPEN)                                                 \
+  V(NGHTTP2_STREAM_STATE_RESERVED_LOCAL)                                       \
+  V(NGHTTP2_STREAM_STATE_RESERVED_REMOTE)                                      \
+  V(NGHTTP2_STREAM_STATE_HALF_CLOSED_LOCAL)                                    \
+  V(NGHTTP2_STREAM_STATE_HALF_CLOSED_REMOTE)                                   \
+  V(NGHTTP2_STREAM_STATE_CLOSED)                                               \
+  V(NGHTTP2_FLAG_NONE)                                                         \
+  V(NGHTTP2_FLAG_END_STREAM)                                                   \
+  V(NGHTTP2_FLAG_END_HEADERS)                                                  \
+  V(NGHTTP2_FLAG_ACK)                                                          \
+  V(NGHTTP2_FLAG_PADDED)                                                       \
+  V(NGHTTP2_FLAG_PRIORITY)                                                     \
+  V(DEFAULT_SETTINGS_HEADER_TABLE_SIZE)                                        \
+  V(DEFAULT_SETTINGS_ENABLE_PUSH)                                              \
+  V(DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS)                                   \
+  V(DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE)                                      \
+  V(DEFAULT_SETTINGS_MAX_FRAME_SIZE)                                           \
+  V(DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE)                                     \
+  V(DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL)                                  \
+  V(MAX_MAX_FRAME_SIZE)                                                        \
+  V(MIN_MAX_FRAME_SIZE)                                                        \
+  V(MAX_INITIAL_WINDOW_SIZE)                                                   \
+  V(NGHTTP2_SETTINGS_HEADER_TABLE_SIZE)                                        \
+  V(NGHTTP2_SETTINGS_ENABLE_PUSH)                                              \
+  V(NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS)                                   \
+  V(NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE)                                      \
+  V(NGHTTP2_SETTINGS_MAX_FRAME_SIZE)                                           \
+  V(NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE)                                     \
+  V(NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL)                                  \
+  V(PADDING_STRATEGY_NONE)                                                     \
+  V(PADDING_STRATEGY_ALIGNED)                                                  \
+  V(PADDING_STRATEGY_MAX)                                                      \
+  V(PADDING_STRATEGY_CALLBACK)                                                 \
+  HTTP2_ERROR_CODES(V)
 
 }  // namespace http2
 }  // namespace node
