@@ -166,7 +166,7 @@ async function closeStreamWhileNextIsPending() {
 
 async function closeAfterNullYielded() {
   const finallyMustCall = mustCall();
-  const bodyMustCall = mustCall(3);
+  const dataMustCall = mustCall(3);
 
   function* infiniteGenerate() {
     try {
@@ -182,7 +182,7 @@ async function closeAfterNullYielded() {
   const stream = Readable.from(infiniteGenerate());
 
   stream.on('data', (chunk) => {
-    bodyMustCall();
+    dataMustCall();
     strictEqual(chunk, 'a');
   });
 }
