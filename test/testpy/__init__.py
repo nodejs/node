@@ -89,6 +89,13 @@ class SimpleTestCase(test.TestCase):
 
     return result
 
+    # We want to use the provided openssl.cnf, not the default one of 
+    # the shared lib
+    has_shared_openssl = Execute([vm,
+       "-p", "process.config.variables.node_shared_openssl"], context)
+    if has_shared_openssl.stdout.rstrip() == "true":
+       os.environ['OPENSSL_CONF'] = "./deps/openssl/openssl/apps/openssl.cnf"
+
   def GetSource(self):
     return open(self.file).read()
 
