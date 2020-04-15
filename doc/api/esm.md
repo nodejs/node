@@ -358,6 +358,9 @@ Node.js supports the following conditions:
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file. _This condition should always come after `"import"` or
    `"require"`._
+* `"production"` - matched if `process.env.NODE_ENV` is set to `production`.
+* `"development"` - matched if `process.env.NODE_ENV` is not set to `production`
+   so that `"production"` and `"development"` are fully mutually exclusive.
 * `"default"` - the generic fallback that will always match. Can be a CommonJS
    or ES module file. _This condition should always come last._
 
@@ -1472,7 +1475,9 @@ In the following algorithms, all subroutine errors are propagated as errors
 of these top-level routines unless stated otherwise.
 
 _defaultEnv_ is the conditional environment name priority array,
-`["node", "import"]`.
+`["node", "import", "development"]`. If `process.env.NODE_ENV` is set to
+`production` then the `"production"` condition is used in place of
+`"development"`.
 
 The resolver can throw the following errors:
 * _Invalid Module Specifier_: Module specifier is an invalid URL, package name
