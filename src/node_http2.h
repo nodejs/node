@@ -1131,6 +1131,15 @@ class Origins {
   V(PADDING_STRATEGY_CALLBACK)                                                 \
   HTTP2_ERROR_CODES(V)
 
+#define HTTP2_SETTINGS(V)                                                      \
+  V(HEADER_TABLE_SIZE)                                                         \
+  V(ENABLE_PUSH)                                                               \
+  V(MAX_CONCURRENT_STREAMS)                                                    \
+  V(INITIAL_WINDOW_SIZE)                                                       \
+  V(MAX_FRAME_SIZE)                                                            \
+  V(MAX_HEADER_LIST_SIZE)                                                      \
+  V(ENABLE_CONNECT_PROTOCOL)                                                   \
+
 }  // namespace http2
 }  // namespace node
 

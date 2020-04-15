@@ -229,13 +229,9 @@ size_t Http2Session::Http2Settings::Init(
 
   size_t count = 0;
 
-  GRABSETTING(entries, count, HEADER_TABLE_SIZE);
-  GRABSETTING(entries, count, MAX_CONCURRENT_STREAMS);
-  GRABSETTING(entries, count, MAX_FRAME_SIZE);
-  GRABSETTING(entries, count, INITIAL_WINDOW_SIZE);
-  GRABSETTING(entries, count, MAX_HEADER_LIST_SIZE);
-  GRABSETTING(entries, count, ENABLE_PUSH);
-  GRABSETTING(entries, count, ENABLE_CONNECT_PROTOCOL);
+#define V(name) GRABSETTING(entries, count, name);
+  HTTP2_SETTINGS(V)
+#undef V
 
   return count;
 }
@@ -289,48 +285,28 @@ Local<Value> Http2Session::Http2Settings::Pack(
 void Http2Session::Http2Settings::Update(Http2Session* session,
                                          get_setting fn) {
   AliasedUint32Array& buffer = session->http2_state()->settings_buffer;
-  buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
-      fn(**session, NGHTTP2_SETTINGS_HEADER_TABLE_SIZE);
-  buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS] =
-      fn(**session, NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
-  buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE] =
-      fn(**session, NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE);
-  buffer[IDX_SETTINGS_MAX_FRAME_SIZE] =
-      fn(**session, NGHTTP2_SETTINGS_MAX_FRAME_SIZE);
-  buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE] =
-      fn(**session, NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE);
-  buffer[IDX_SETTINGS_ENABLE_PUSH] =
-      fn(**session, NGHTTP2_SETTINGS_ENABLE_PUSH);
-  buffer[IDX_SETTINGS_ENABLE_CONNECT_PROTOCOL] =
-      fn(**session, NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL);
+
+#define V(name)                                                                \
+  buffer[IDX_SETTINGS_ ## name] = fn(**session, NGHTTP2_SETTINGS_ ## name);
+  HTTP2_SETTINGS(V)
+#undef V
+
 }
 
 // Initializes the shared TypedArray with the default settings values.
 void Http2Session::Http2Settings::RefreshDefaults(Http2State* http2_state) {
   AliasedUint32Array& buffer = http2_state->settings_buffer;
+  uint32_t flags = 0;
 
-  buffer[IDX_SETTINGS_HEADER_TABLE_SIZE] =
-      DEFAULT_SETTINGS_HEADER_TABLE_SIZE;
-  buffer[IDX_SETTINGS_ENABLE_PUSH] =
-      DEFAULT_SETTINGS_ENABLE_PUSH;
-  buffer[IDX_SETTINGS_MAX_CONCURRENT_STREAMS] =
-      DEFAULT_SETTINGS_MAX_CONCURRENT_STREAMS;
-  buffer[IDX_SETTINGS_INITIAL_WINDOW_SIZE] =
-      DEFAULT_SETTINGS_INITIAL_WINDOW_SIZE;
-  buffer[IDX_SETTINGS_MAX_FRAME_SIZE] =
-      DEFAULT_SETTINGS_MAX_FRAME_SIZE;
-  buffer[IDX_SETTINGS_MAX_HEADER_LIST_SIZE] =
-      DEFAULT_SETTINGS_MAX_HEADER_LIST_SIZE;
-  buffer[IDX_SETTINGS_ENABLE_CONNECT_PROTOCOL] =
-      DEFAULT_SETTINGS_ENABLE_CONNECT_PROTOCOL;
-  buffer[IDX_SETTINGS_COUNT] =
-    (1 << IDX_SETTINGS_HEADER_TABLE_SIZE) |
-    (1 << IDX_SETTINGS_ENABLE_PUSH) |
-    (1 << IDX_SETTINGS_MAX_CONCURRENT_STREAMS) |
-    (1 << IDX_SETTINGS_INITIAL_WINDOW_SIZE) |
-    (1 << IDX_SETTINGS_MAX_FRAME_SIZE) |
-    (1 << IDX_SETTINGS_MAX_HEADER_LIST_SIZE) |
-    (1 << IDX_SETTINGS_ENABLE_CONNECT_PROTOCOL);
+#define V(name)                                                            \
+  do {                                                                     \
+    buffer[IDX_SETTINGS_ ## name] = DEFAULT_SETTINGS_ ## name;             \
+    flags |= 1 << IDX_SETTINGS_ ## name;                                   \
+  } while (0);
+  HTTP2_SETTINGS(V)
+#undef V
+
+  buffer[IDX_SETTINGS_COUNT] = flags;
 }
 
 
