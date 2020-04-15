@@ -26,7 +26,7 @@
 #include <stdint.h> /* uintptr_t */
 
 #include <errno.h>
-#include <unistd.h> /* readlink, usleep */
+#include <unistd.h> /* usleep */
 #include <string.h> /* strdup */
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,18 +67,12 @@ void notify_parent_process(void) {
 
 
 /* Do platform-specific initialization. */
-int platform_init(int argc, char **argv) {
+void platform_init(int argc, char **argv) {
   /* Disable stdio output buffering. */
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
   signal(SIGPIPE, SIG_IGN);
-
-  if (realpath(argv[0], executable_path) == NULL) {
-    perror("realpath");
-    return -1;
-  }
-
-  return 0;
+  snprintf(executable_path, sizeof(executable_path), "%s", argv[0]);
 }
 
 

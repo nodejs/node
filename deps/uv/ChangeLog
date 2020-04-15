@@ -1,3 +1,74 @@
+2020.04.16, Version 1.36.0 (Stable), 533b738838ad8407032e14b6772b29ef9af63cfa
+
+Changes since version 1.35.0:
+
+* build: add aix-common.c for AIX cmake build (Jesse Gorzinski)
+
+* zos: explicitly mark message queue events (Irek Fakhrutdinov)
+
+* zos: move mq check out of loop to save cpu cycles (Irek Fakhrutdinov)
+
+* zos: add checks to ensure behavior of epoll_wait (Irek Fakhrutdinov)
+
+* src: add uv__reallocf() (Ben Noordhuis)
+
+* build: ibmi support for cmake (Jesse Gorzinski)
+
+* build: fix gyp build for Android API >= 28 (Lin Zhang)
+
+* udp: return recvmmsg-ed datagrams in order (Saúl Ibarra Corretgé)
+
+* zos,test: fix spawn_empty_env for shared library build (Richard Lau)
+
+* zos: fix non-Release builds (Richard Lau)
+
+* zos: fix return value on expired nanosleep() call (Richard Lau)
+
+* build: fix z/OS cmake build (Richard Lau)
+
+* test: add a bunch of ASSERT macros (Santiago Gimeno)
+
+* test: remove unused extern declaration (Ben Noordhuis)
+
+* test: canonicalize argv[0] in exepath test (Ben Noordhuis)
+
+* test: simplify platform_init() (Ben Noordhuis)
+
+* ibmi: Fix isatty EBADF handling and refactor (Kevin Adler)
+
+* test: Test EBADF tty handling (Kevin Adler)
+
+* build: make cmake build benchmarks (Ben Noordhuis)
+
+* win: use RtlGenRandom from advapi32.dll directly (Ben Noordhuis)
+
+* android: fix OOB write in uv_interface_addresses() (Lin Zhang)
+
+* test: pass test when hostname is single character (毛毛)
+
+* ibmi: set the highest process priority to -10 (Xu Meng)
+
+* build: remove support for gyp (Ben Noordhuis)
+
+* doc: add note to README on cross-compiling (Ben Noordhuis)
+
+* fs: add uv_fs_lutime() (Sk Sajidul Kadir)
+
+* unix: implement cpu_relax() for arm (David Carlier)
+
+* linux: fix uv__accept4() (twosee)
+
+* win: handle file paths in uv_fs_statfs() (erw7)
+
+* unix: fix uv_os_environ() null pointer check (Rikard Falkeborn)
+
+* win: fix uv_os_environ() null pointer check (Rikard Falkeborn)
+
+* unix: fix compilation on macOS 32-bit architectures (Brad King)
+
+* win: replace alloca() with stack-based array (Ben Noordhuis)
+
+
 2020.03.12, Version 1.35.0 (Stable), e45f1ec38db882f8dc17b51f51a6684027034609
 
 Changes since version 1.34.2:

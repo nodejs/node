@@ -43,8 +43,7 @@ Data types
             */
             UV_UDP_REUSEADDR = 4
             /*
-             * Indicates that the message was received by recvmmsg and that it's not at
-             * the beginning of the buffer allocated by alloc_cb - so the buffer provided
+             * Indicates that the message was received by recvmmsg, so the buffer provided
              * must not be freed by the recv_cb callback.
              */
             UV_UDP_MMSG_CHUNK = 8
@@ -72,9 +71,13 @@ Data types
 
     The callee is responsible for freeing the buffer, libuv does not reuse it.
     The buffer may be a null buffer (where `buf->base` == NULL and `buf->len` == 0)
-    on error. Don't free the buffer when the UV_UDP_MMSG_CHUNK flag is set.
-    The final callback receives the whole buffer (containing the first chunk)
-    with the UV_UDP_MMSG_CHUNK flag cleared.
+    on error.
+
+    When using :man:`recvmmsg(2)`, chunks will have the `UV_UDP_MMSG_CHUNK` flag set,
+    those must not be freed. There will be a final callback with `nread` set to 0,
+    `addr` set to NULL and the buffer pointing at the initially allocated data with
+    the `UV_UDP_MMSG_CHUNK` flag cleared. This is a good chance for the callee to
+    free the provided buffer.
 
     .. note::
         The receive callback will be called with `nread` == 0 and `addr` == NULL when there is
@@ -372,6 +375,10 @@ API
     :param recv_cb: Callback to invoke with received data.
 
     :returns: 0 on success, or an error code < 0 on failure.
+
+    .. versionchanged:: 1.35.0 added support for :man:`recvmmsg(2)` on supported platforms).
+                        The use of this feature requires a buffer larger than
+                        2 * 64KB to be passed to `alloc_cb`.
 
 .. c:function:: int uv_udp_recv_stop(uv_udp_t* handle)
 

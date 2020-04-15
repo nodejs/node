@@ -61,7 +61,6 @@ void uv_loadavg(double avg[3]) {
 int uv_exepath(char* buffer, size_t* size) {
   int mib[4];
   char **argsbuf = NULL;
-  char **argsbuf_tmp;
   size_t argsbuf_size = 100U;
   size_t exepath_size;
   pid_t mypid;
@@ -73,10 +72,9 @@ int uv_exepath(char* buffer, size_t* size) {
   mypid = getpid();
   for (;;) {
     err = UV_ENOMEM;
-    argsbuf_tmp = uv__realloc(argsbuf, argsbuf_size);
-    if (argsbuf_tmp == NULL)
+    argsbuf = uv__reallocf(argsbuf, argsbuf_size);
+    if (argsbuf == NULL)
       goto out;
-    argsbuf = argsbuf_tmp;
     mib[0] = CTL_KERN;
     mib[1] = KERN_PROC_ARGS;
     mib[2] = mypid;

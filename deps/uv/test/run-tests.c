@@ -59,9 +59,7 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  if (platform_init(argc, argv))
-    return EXIT_FAILURE;
-
+  platform_init(argc, argv);
   argv = uv_setup_args(argc, argv);
 
   switch (argc) {

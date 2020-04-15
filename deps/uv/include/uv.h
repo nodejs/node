@@ -607,8 +607,7 @@ enum uv_udp_flags {
    */
   UV_UDP_REUSEADDR = 4,
   /*
-   * Indicates that the message was received by recvmmsg and that it's not at
-   * the beginning of the buffer allocated by alloc_cb - so the buffer provided
+   * Indicates that the message was received by recvmmsg, so the buffer provided
    * must not be freed by the recv_cb callback.
    */
   UV_UDP_MMSG_CHUNK = 8
@@ -1183,12 +1182,22 @@ UV_EXTERN void uv_os_free_passwd(uv_passwd_t* pwd);
 UV_EXTERN uv_pid_t uv_os_getpid(void);
 UV_EXTERN uv_pid_t uv_os_getppid(void);
 
-#define UV_PRIORITY_LOW 19
-#define UV_PRIORITY_BELOW_NORMAL 10
-#define UV_PRIORITY_NORMAL 0
-#define UV_PRIORITY_ABOVE_NORMAL -7
-#define UV_PRIORITY_HIGH -14
-#define UV_PRIORITY_HIGHEST -20
+#if defined(__PASE__)
+/* On IBM i PASE, the highest process priority is -10 */
+# define UV_PRIORITY_LOW 39            // RUNPTY(99)
+# define UV_PRIORITY_BELOW_NORMAL 15   // RUNPTY(50)
+# define UV_PRIORITY_NORMAL 0          // RUNPTY(20)
+# define UV_PRIORITY_ABOVE_NORMAL -4   // RUNTY(12)
+# define UV_PRIORITY_HIGH -7           // RUNPTY(6)
+# define UV_PRIORITY_HIGHEST -10       // RUNPTY(1)
+#else
+# define UV_PRIORITY_LOW 19
+# define UV_PRIORITY_BELOW_NORMAL 10
+# define UV_PRIORITY_NORMAL 0
+# define UV_PRIORITY_ABOVE_NORMAL -7
+# define UV_PRIORITY_HIGH -14
+# define UV_PRIORITY_HIGHEST -20
+#endif
 
 UV_EXTERN int uv_os_getpriority(uv_pid_t pid, int* priority);
 UV_EXTERN int uv_os_setpriority(uv_pid_t pid, int priority);
@@ -1265,7 +1274,8 @@ typedef enum {
   UV_FS_READDIR,
   UV_FS_CLOSEDIR,
   UV_FS_STATFS,
-  UV_FS_MKSTEMP
+  UV_FS_MKSTEMP,
+  UV_FS_LUTIME
 } uv_fs_type;
 
 struct uv_dir_s {
@@ -1435,6 +1445,12 @@ UV_EXTERN int uv_fs_utime(uv_loop_t* loop,
 UV_EXTERN int uv_fs_futime(uv_loop_t* loop,
                            uv_fs_t* req,
                            uv_file file,
+                           double atime,
+                           double mtime,
+                           uv_fs_cb cb);
+UV_EXTERN int uv_fs_lutime(uv_loop_t* loop,
+                           uv_fs_t* req,
+                           const char* path,
                            double atime,
                            double mtime,
                            uv_fs_cb cb);

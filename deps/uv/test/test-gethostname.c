@@ -51,7 +51,7 @@ TEST_IMPL(gethostname) {
   size = UV_MAXHOSTNAMESIZE;
   r = uv_os_gethostname(buf, &size);
   ASSERT(r == 0);
-  ASSERT(size > 1 && size == strlen(buf));
+  ASSERT(size > 0 && size == strlen(buf));
   ASSERT(size + 1 == enobufs_size);
 
   return 0;
