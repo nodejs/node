@@ -30,7 +30,7 @@ const assert = require('assert');
 }
 
 {
-  // Emit finish asynchronously
+  // Emit finish asynchronously.
 
   const w = new Writable({
     write(chunk, encoding, cb) {
@@ -43,7 +43,7 @@ const assert = require('assert');
 }
 
 {
-  // Emit prefinish synchronously
+  // Emit prefinish synchronously.
 
   const w = new Writable({
     write(chunk, encoding, cb) {
@@ -60,7 +60,7 @@ const assert = require('assert');
 }
 
 {
-  // Emit prefinish synchronously w/ final
+  // Emit prefinish synchronously w/ final.
 
   const w = new Writable({
     write(chunk, encoding, cb) {
@@ -81,7 +81,7 @@ const assert = require('assert');
 
 
 {
-  // Call _final synchronouslyl
+  // Call _final synchronously.
 
   let sync = true;
   const w = new Writable({
