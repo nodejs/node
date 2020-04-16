@@ -25979,6 +25979,8 @@ void AtomicsWaitCallbackForTesting(
   CHECK_EQ(timeout_in_ms, info->expected_timeout);
   CHECK_EQ(value, info->expected_value);
   CHECK_EQ(offset_in_bytes, info->expected_offset);
+  CHECK_EQ(v8::StateTag::ATOMICS_WAIT,
+           reinterpret_cast<i::Isolate*>(info->isolate)->current_vm_state());
 
   auto ThrowSomething = [&]() {
     info->isolate->ThrowException(v8::Integer::New(info->isolate, 42));

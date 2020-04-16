@@ -178,6 +178,9 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       case IDLE:
         name = "(IDLE)";
         break;
+      // Treat atomics wait as a normal JS event; we don't care about the
+      // difference for allocations.
+      case ATOMICS_WAIT:
       case JS:
         name = "(JS)";
         break;

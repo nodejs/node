@@ -1014,6 +1014,7 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
     case PARSER:
     case COMPILER:
     case BYTECODE_COMPILER:
+    case ATOMICS_WAIT:
     // DOM events handlers are reported as OTHER / EXTERNAL entries.
     // To avoid confusing people, let's put all these entries into
     // one bucket.
