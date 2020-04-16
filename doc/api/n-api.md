@@ -457,7 +457,6 @@ typedef enum {
   napi_date_expected,
   napi_arraybuffer_expected,
   napi_detachable_arraybuffer_expected,
-  napi_would_deadlock,
 } napi_status;
 ```
 
@@ -5096,12 +5095,6 @@ preventing data from being successfully added to the queue. If set to
 `napi_call_threadsafe_function()` never blocks if the thread-safe function was
 created with a maximum queue size of 0.
 
-As a special case, when `napi_call_threadsafe_function()` is called from the
-main thread, it will return `napi_would_deadlock` if the queue is full and it
-was called with `napi_tsfn_blocking`. The reason for this is that the main
-thread is responsible for reducing the number of items in the queue so, if it
-waits for room to become available on the queue, then it will deadlock.
-
 The actual call into JavaScript is controlled by the callback given via the
 `call_js_cb` parameter. `call_js_cb` is invoked on the main thread once for each
 value that was placed into the queue by a successful call to
@@ -5238,12 +5231,6 @@ This API may be called from any thread which makes use of `func`.
 <!-- YAML
 added: v10.6.0
 napiVersion: 4
-changes:
-  - version: v13.13.0
-    pr-url: https://github.com/nodejs/node/pull/32689
-    description: >
-      Return `napi_would_deadlock` when called with `napi_tsfn_blocking` from
-      the main thread and the queue is full.
 -->
 
 ```C
@@ -5261,13 +5248,9 @@ napi_call_threadsafe_function(napi_threadsafe_function func,
   `napi_tsfn_nonblocking` to indicate that the call should return immediately
   with a status of `napi_queue_full` whenever the queue is full.
 
-This API will return `napi_would_deadlock` if called with `napi_tsfn_blocking`
-from the main thread and the queue is full.
-
 This API will return `napi_closing` if `napi_release_threadsafe_function()` was
-called with `abort` set to `napi_tsfn_abort` from any thread.
-
-The value is only added to the queue if the API returns `napi_ok`.
+called with `abort` set to `napi_tsfn_abort` from any thread. The value is only
+added to the queue if the API returns `napi_ok`.
 
 This API may be called from any thread which makes use of `func`.
 
