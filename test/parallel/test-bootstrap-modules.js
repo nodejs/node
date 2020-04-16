@@ -24,6 +24,7 @@ const expectedModules = new Set([
   'Internal Binding process_methods',
   'Internal Binding report',
   'Internal Binding string_decoder',
+  'Internal Binding symbols',
   'Internal Binding task_queue',
   'Internal Binding timers',
   'Internal Binding trace_events',
