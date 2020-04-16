@@ -3438,7 +3438,6 @@ VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
 VALUE_IS_SPECIFIC_TYPE(WasmModuleObject, WasmModuleObject)
 VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
 VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
-VALUE_IS_SPECIFIC_TYPE(WebAssemblyCompiledModule, WasmModuleObject)
 
 #undef VALUE_IS_SPECIFIC_TYPE
 
