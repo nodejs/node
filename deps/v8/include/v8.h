@@ -5926,13 +5926,14 @@ class V8_EXPORT External : public Value {
   static void CheckCast(v8::Value* obj);
 };
 
-#define V8_INTRINSICS_LIST(F)                    \
-  F(ArrayProto_entries, array_entries_iterator)  \
-  F(ArrayProto_forEach, array_for_each_iterator) \
-  F(ArrayProto_keys, array_keys_iterator)        \
-  F(ArrayProto_values, array_values_iterator)    \
-  F(ErrorPrototype, initial_error_prototype)     \
-  F(IteratorPrototype, initial_iterator_prototype)
+#define V8_INTRINSICS_LIST(F)                      \
+  F(ArrayProto_entries, array_entries_iterator)    \
+  F(ArrayProto_forEach, array_for_each_iterator)   \
+  F(ArrayProto_keys, array_keys_iterator)          \
+  F(ArrayProto_values, array_values_iterator)      \
+  F(ErrorPrototype, initial_error_prototype)       \
+  F(IteratorPrototype, initial_iterator_prototype) \
+  F(ObjProto_valueOf, object_value_of_function)
 
 enum Intrinsic {
 #define V8_DECL_INTRINSIC(name, iname) k##name,
