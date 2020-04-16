@@ -408,7 +408,6 @@ constexpr size_t kFsStatsBufferLength =
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
-  V(promise_wrap_template, v8::ObjectTemplate)                                 \
   V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
   V(script_context_constructor_template, v8::FunctionTemplate)                 \
   V(secure_context_constructor_template, v8::FunctionTemplate)                 \
@@ -458,6 +457,7 @@ constexpr size_t kFsStatsBufferLength =
   V(prepare_stack_trace_callback, v8::Function)                                \
   V(process_object, v8::Object)                                                \
   V(primordials, v8::Object)                                                   \
+  V(promise_hook_handler, v8::Function)                                        \
   V(promise_reject_callback, v8::Function)                                     \
   V(script_data_constructor_function, v8::Function)                            \
   V(source_map_cache_getter, v8::Function)                                     \
@@ -507,6 +507,7 @@ class IsolateData : public MemoryRetainer {
 #undef VS
 #undef VP
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
+  inline v8::Local<v8::String> promise_hook_type(int index) const;
 
   std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
 
@@ -535,6 +536,10 @@ class IsolateData : public MemoryRetainer {
   // Keep a list of all Persistent strings used for AsyncWrap Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH>
       async_wrap_providers_;
+
+  // Keep a list of all Persistent strings used for PromiseHook types.
+  std::array<v8::Eternal<v8::String>, 4>
+      promise_hook_types_;
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
