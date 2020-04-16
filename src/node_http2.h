@@ -159,7 +159,9 @@ struct NgHttp2StreamWrite : public MemoryRetainer {
 typedef uint32_t(*get_setting)(nghttp2_session* session,
                                nghttp2_settings_id id);
 
+class Http2Ping;
 class Http2Session;
+class Http2Settings;
 class Http2Stream;
 
 // This scope should be present when any call into nghttp2 that may schedule
@@ -571,9 +573,6 @@ class Http2Session : public AsyncWrap,
                v8::Local<v8::Object> wrap,
                SessionType type = NGHTTP2_SESSION_SERVER);
   ~Http2Session() override;
-
-  class Http2Ping;
-  class Http2Settings;
 
   StreamBase* underlying_stream() {
     return static_cast<StreamBase*>(stream_);
@@ -1020,7 +1019,7 @@ class Http2StreamPerformanceEntry
   BaseObjectPtr<Http2State> http2_state_;
 };
 
-class Http2Session::Http2Ping : public AsyncWrap {
+class Http2Ping : public AsyncWrap {
  public:
   explicit Http2Ping(Http2Session* session, v8::Local<v8::Object> obj);
 
@@ -1040,7 +1039,7 @@ class Http2Session::Http2Ping : public AsyncWrap {
 // The Http2Settings class is used to parse the settings passed in for
 // an Http2Session, converting those into an array of nghttp2_settings_entry
 // structs.
-class Http2Session::Http2Settings : public AsyncWrap {
+class Http2Settings : public AsyncWrap {
  public:
   Http2Settings(Http2State* http2_state,
                 Http2Session* session,
