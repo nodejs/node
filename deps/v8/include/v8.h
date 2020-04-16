@@ -11854,9 +11854,9 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryOffset);
   int64_t* external_memory_limit = reinterpret_cast<int64_t*>(
       reinterpret_cast<uint8_t*>(this) + I::kExternalMemoryLimitOffset);
-  int64_t* external_memory_at_last_mc =
+  int64_t* external_memory_low_since_mc =
       reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(this) +
-                                 I::kExternalMemoryAtLastMarkCompactOffset);
+                                 I::kExternalMemoryLowSinceMarkCompactOffset);
 
   // Embedders are weird: we see both over- and underflows here. Perform the
   // addition with unsigned types to avoid undefined behavior.
@@ -11865,23 +11865,22 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
                            static_cast<uint64_t>(*external_memory));
   *external_memory = amount;
 
-  int64_t allocation_diff_since_last_mc =
-      static_cast<int64_t>(static_cast<uint64_t>(*external_memory) -
-                           static_cast<uint64_t>(*external_memory_at_last_mc));
+  if (amount < *external_memory_low_since_mc) {
+    *external_memory_low_since_mc = amount;
+    *external_memory_limit = amount + I::kExternalAllocationSoftLimit;
+  }
+
+  if (change_in_bytes <= 0) return *external_memory;
+
+  int64_t allocation_diff_since_last_mc = static_cast<int64_t>(
+      static_cast<uint64_t>(*external_memory) -
+      static_cast<uint64_t>(*external_memory_low_since_mc));
   // Only check memory pressure and potentially trigger GC if the amount of
   // external memory increased.
   if (allocation_diff_since_last_mc > kMemoryReducerActivationLimit) {
     CheckMemoryPressure();
   }
-
-  if (change_in_bytes < 0) {
-    const int64_t lower_limit =
-        static_cast<int64_t>(static_cast<uint64_t>(*external_memory_limit) +
-                             static_cast<uint64_t>(change_in_bytes));
-    if (lower_limit > I::kExternalAllocationSoftLimit) {
-      *external_memory_limit = lower_limit;
-    }
-  } else if (change_in_bytes > 0 && amount > *external_memory_limit) {
+  if (amount > *external_memory_limit) {
     ReportExternalAllocationLimitReached();
   }
   return *external_memory;

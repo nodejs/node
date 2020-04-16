@@ -65,7 +65,14 @@ int64_t Heap::external_memory() {
 }
 
 void Heap::update_external_memory(int64_t delta) {
-  isolate()->isolate_data()->external_memory_ += delta;
+  const int64_t amount = isolate()->isolate_data()->external_memory_ + delta;
+  isolate()->isolate_data()->external_memory_ = amount;
+  if (amount <
+      isolate()->isolate_data()->external_memory_low_since_mark_compact_) {
+    isolate()->isolate_data()->external_memory_low_since_mark_compact_ = amount;
+    isolate()->isolate_data()->external_memory_limit_ =
+        amount + kExternalAllocationSoftLimit;
+  }
 }
 
 void Heap::update_external_memory_concurrently_freed(uintptr_t freed) {
@@ -73,8 +80,8 @@ void Heap::update_external_memory_concurrently_freed(uintptr_t freed) {
 }
 
 void Heap::account_external_memory_concurrently_freed() {
-  isolate()->isolate_data()->external_memory_ -=
-      external_memory_concurrently_freed_;
+  update_external_memory(
+      -static_cast<int64_t>(external_memory_concurrently_freed_));
   external_memory_concurrently_freed_ = 0;
 }
 
