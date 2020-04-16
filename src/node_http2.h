@@ -276,7 +276,9 @@ class Http2Stream : public AsyncWrap,
       int options = 0);
   ~Http2Stream() override;
 
-  nghttp2_stream* operator*();
+  nghttp2_stream* operator*() const;
+
+  nghttp2_stream* stream() const;
 
   Http2Session* session() { return session_.get(); }
   const Http2Session* session() const { return session_.get(); }

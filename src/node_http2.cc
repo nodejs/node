@@ -76,7 +76,7 @@ const Http2Session::Callbacks Http2Session::callback_struct_saved[2] = {
 // For example:
 //
 // Http2Scope h2scope(session);
-// nghttp2_submit_ping(**session, ... );
+// nghttp2_submit_ping(session->session(), ... );
 //
 // When the Http2Scope passes out of scope and is deconstructed, it will
 // call Http2Session::MaybeScheduleWrite().
@@ -290,7 +290,8 @@ void Http2Settings::Update(Http2Session* session, get_setting fn) {
   AliasedUint32Array& buffer = session->http2_state()->settings_buffer;
 
 #define V(name)                                                                \
-  buffer[IDX_SETTINGS_ ## name] = fn(**session, NGHTTP2_SETTINGS_ ## name);
+  buffer[IDX_SETTINGS_ ## name] =                                              \
+      fn(session->session(), NGHTTP2_SETTINGS_ ## name);
   HTTP2_SETTINGS(V)
 #undef V
 
@@ -315,8 +316,11 @@ void Http2Settings::RefreshDefaults(Http2State* http2_state) {
 
 void Http2Settings::Send() {
   Http2Scope h2scope(session_.get());
-  CHECK_EQ(nghttp2_submit_settings(**session_, NGHTTP2_FLAG_NONE,
-                                   &entries_[0], count_), 0);
+  CHECK_EQ(nghttp2_submit_settings(
+      session_->session(),
+      NGHTTP2_FLAG_NONE,
+      &entries_[0],
+      count_), 0);
 }
 
 void Http2Settings::Done(bool ack) {
@@ -801,8 +805,11 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
           session->js_fields_->max_rejected_streams)
         return NGHTTP2_ERR_CALLBACK_FAILURE;
       // Too many concurrent streams being opened
-      nghttp2_submit_rst_stream(**session, NGHTTP2_FLAG_NONE, id,
-                                NGHTTP2_ENHANCE_YOUR_CALM);
+      nghttp2_submit_rst_stream(
+          session->session(),
+          NGHTTP2_FLAG_NONE,
+          id,
+          NGHTTP2_ENHANCE_YOUR_CALM);
       return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
     }
 
@@ -1889,8 +1896,10 @@ void Http2Stream::StartHeaders(nghttp2_headers_category category) {
 }
 
 
-nghttp2_stream* Http2Stream::operator*() {
-  return nghttp2_session_find_stream(**session_, id_);
+nghttp2_stream* Http2Stream::operator*() const { return stream(); }
+
+nghttp2_stream* Http2Stream::stream() const {
+  return nghttp2_session_find_stream(session_->session(), id_);
 }
 
 void Http2Stream::Close(int32_t code) {
@@ -1913,8 +1922,9 @@ int Http2Stream::DoShutdown(ShutdownWrap* req_wrap) {
   {
     Http2Scope h2scope(this);
     set_not_writable();
-    CHECK_NE(nghttp2_session_resume_data(**session_, id_),
-             NGHTTP2_ERR_NOMEM);
+    CHECK_NE(nghttp2_session_resume_data(
+        session_->session(), id_),
+        NGHTTP2_ERR_NOMEM);
     Debug(this, "writable side shutdown");
   }
   return 1;
@@ -1978,7 +1988,7 @@ int Http2Stream::SubmitResponse(const Http2Headers& headers, int options) {
 
   Http2Stream::Provider::Stream prov(this, options);
   int ret = nghttp2_submit_response(
-      **session_,
+      session_->session(),
       id_,
       headers.data(),
       headers.length(),
@@ -1994,7 +2004,7 @@ int Http2Stream::SubmitInfo(const Http2Headers& headers) {
   Http2Scope h2scope(this);
   Debug(this, "sending %d informational headers", headers.length());
   int ret = nghttp2_submit_headers(
-      **session_,
+      session_->session(),
       NGHTTP2_FLAG_NONE,
       id_,
       nullptr,
@@ -2027,10 +2037,14 @@ int Http2Stream::SubmitTrailers(const Http2Headers& headers) {
   // to indicate that the stream is ready to be closed.
   if (headers.length() == 0) {
     Http2Stream::Provider::Stream prov(this, 0);
-    ret = nghttp2_submit_data(**session_, NGHTTP2_FLAG_END_STREAM, id_, *prov);
+    ret = nghttp2_submit_data(
+        session_->session(),
+        NGHTTP2_FLAG_END_STREAM,
+        id_,
+        *prov);
   } else {
     ret = nghttp2_submit_trailer(
-        **session_,
+        session_->session(),
         id_,
         headers.data(),
         headers.length());
@@ -2046,11 +2060,14 @@ int Http2Stream::SubmitPriority(nghttp2_priority_spec* prispec,
   Http2Scope h2scope(this);
   Debug(this, "sending priority spec");
   int ret = silent ?
-      nghttp2_session_change_stream_priority(**session_,
-                                             id_, prispec) :
-      nghttp2_submit_priority(**session_,
-                              NGHTTP2_FLAG_NONE,
-                              id_, prispec);
+      nghttp2_session_change_stream_priority(
+          session_->session(),
+          id_,
+          prispec) :
+      nghttp2_submit_priority(
+          session_->session(),
+          NGHTTP2_FLAG_NONE,
+          id_, prispec);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -2076,8 +2093,11 @@ void Http2Stream::FlushRstStream() {
   if (is_destroyed())
     return;
   Http2Scope h2scope(this);
-  CHECK_EQ(nghttp2_submit_rst_stream(**session_, NGHTTP2_FLAG_NONE,
-                                     id_, code_), 0);
+  CHECK_EQ(nghttp2_submit_rst_stream(
+      session_->session(),
+      NGHTTP2_FLAG_NONE,
+      id_,
+      code_), 0);
 }
 
 
@@ -2089,7 +2109,7 @@ Http2Stream* Http2Stream::SubmitPushPromise(const Http2Headers& headers,
   Http2Scope h2scope(this);
   Debug(this, "sending push promise");
   *ret = nghttp2_submit_push_promise(
-      **session_,
+      session_->session(),
       NGHTTP2_FLAG_NONE,
       id_,
       headers.data(),
@@ -2116,9 +2136,10 @@ int Http2Stream::ReadStart() {
 
   // Tell nghttp2 about our consumption of the data that was handed
   // off to JS land.
-  nghttp2_session_consume_stream(**session_,
-                                 id_,
-                                 inbound_consumed_data_while_paused_);
+  nghttp2_session_consume_stream(
+      session_->session(),
+      id_,
+      inbound_consumed_data_while_paused_);
   inbound_consumed_data_while_paused_ = 0;
 
   return 0;
@@ -2164,7 +2185,9 @@ int Http2Stream::DoWrite(WriteWrap* req_wrap,
     });
     IncrementAvailableOutboundLength(bufs[i].len);
   }
-  CHECK_NE(nghttp2_session_resume_data(**session_, id_), NGHTTP2_ERR_NOMEM);
+  CHECK_NE(nghttp2_session_resume_data(
+      session_->session(),
+      id_), NGHTTP2_ERR_NOMEM);
   return 0;
 }
 
@@ -2340,7 +2363,7 @@ void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   int32_t id = args[0]->Int32Value(env->context()).ToChecked();
-  if (nghttp2_session_set_next_stream_id(**session, id) < 0) {
+  if (nghttp2_session_set_next_stream_id(session->session(), id) < 0) {
     Debug(session, "failed to set next stream id to %d", id);
     return args.GetReturnValue().Set(false);
   }
@@ -2369,7 +2392,7 @@ void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
 
   AliasedFloat64Array& buffer = session->http2_state()->session_state_buffer;
 
-  nghttp2_session* s = **session;
+  nghttp2_session* s = session->session();
 
   buffer[IDX_SESSION_STATE_EFFECTIVE_LOCAL_WINDOW_SIZE] =
       nghttp2_session_get_effective_local_window_size(s);
@@ -2633,8 +2656,8 @@ void Http2Stream::RefreshState(const FunctionCallbackInfo<Value>& args) {
   AliasedFloat64Array& buffer =
       stream->session()->http2_state()->stream_state_buffer;
 
-  nghttp2_stream* str = **stream;
-  nghttp2_session* s = **(stream->session());
+  nghttp2_stream* str = stream->stream();
+  nghttp2_session* s = stream->session()->session();
 
   if (str == nullptr) {
     buffer[IDX_STREAM_STATE] = NGHTTP2_STREAM_STATE_IDLE;
@@ -2841,7 +2864,10 @@ void Http2Ping::Send(const uint8_t* payload) {
     payload = data;
   }
   Http2Scope h2scope(session_.get());
-  CHECK_EQ(nghttp2_submit_ping(**session_, NGHTTP2_FLAG_NONE, payload), 0);
+  CHECK_EQ(nghttp2_submit_ping(
+      session_->session(),
+      NGHTTP2_FLAG_NONE,
+      payload), 0);
 }
 
 void Http2Ping::Done(bool ack, const uint8_t* payload) {
