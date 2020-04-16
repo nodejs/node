@@ -279,8 +279,6 @@ class Http2Stream : public AsyncWrap,
   Http2Session* session() { return session_.get(); }
   const Http2Session* session() const { return session_.get(); }
 
-  void EmitStatistics();
-
   // Required for StreamBase
   int ReadStart() override;
 
@@ -469,6 +467,8 @@ class Http2Stream : public AsyncWrap,
               nghttp2_headers_category category,
               int options);
 
+  void EmitStatistics();
+
   BaseObjectWeakPtr<Http2Session> session_;     // The Parent HTTP/2 Session
   int32_t id_ = 0;                              // The Stream Identifier
   int32_t code_ = NGHTTP2_NO_ERROR;             // The RST_STREAM code (if any)
@@ -574,8 +574,6 @@ class Http2Session : public AsyncWrap,
 
   class Http2Ping;
   class Http2Settings;
-
-  void EmitStatistics();
 
   StreamBase* underlying_stream() {
     return static_cast<StreamBase*>(stream_);
@@ -773,6 +771,8 @@ class Http2Session : public AsyncWrap,
   Statistics statistics_ = {};
 
  private:
+  void EmitStatistics();
+
   // Frame Padding Strategies
   ssize_t OnDWordAlignedPadding(size_t frameLength,
                                 size_t maxPayloadLen);
