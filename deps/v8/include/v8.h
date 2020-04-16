@@ -7241,10 +7241,10 @@ typedef void (*MicrotasksCompletedCallback)(Isolate*);
 typedef void (*MicrotasksCompletedCallbackWithData)(Isolate*, void*);
 typedef void (*MicrotaskCallback)(void* data);
 
-
 /**
  * Policy for running microtasks:
- *   - explicit: microtasks are invoked with Isolate::RunMicrotasks() method;
+ *   - explicit: microtasks are invoked with the
+ *               Isolate::PerformMicrotaskCheckpoint() method;
  *   - scoped: microtasks invocation is controlled by MicrotasksScope objects;
  *   - auto: microtasks are invoked when the script call depth decrements
  *           to zero.
@@ -7335,7 +7335,7 @@ class V8_EXPORT MicrotaskQueue {
 };
 
 /**
- * This scope is used to control microtasks when kScopeMicrotasksInvocation
+ * This scope is used to control microtasks when MicrotasksPolicy::kScoped
  * is used on Isolate. In this mode every non-primitive call to V8 should be
  * done inside some MicrotasksScope.
  * Microtasks are executed when topmost MicrotasksScope marked as kRunMicrotasks
@@ -8416,10 +8416,13 @@ class V8_EXPORT Isolate {
    * objects are originally built when a WeakRef is created or
    * successfully dereferenced.
    *
-   * The embedder is expected to call this when a synchronous sequence
-   * of ECMAScript execution completes. It's the embedders
-   * responsiblity to make this call at a time which does not
-   * interrupt synchronous ECMAScript code execution.
+   * This is invoked automatically after microtasks are run. See
+   * MicrotasksPolicy for when microtasks are run.
+   *
+   * This needs to be manually invoked only if the embedder is manually running
+   * microtasks via a custom MicrotaskQueue class's PerformCheckpoint. In that
+   * case, it is the embedder's responsibility to make this call at a time which
+   * does not interrupt synchronous ECMAScript code execution.
    */
   void ClearKeptObjects();
 
@@ -8944,10 +8947,18 @@ class V8_EXPORT Isolate {
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
 
   /**
-   * Runs the default MicrotaskQueue until it gets empty.
-   * Any exceptions thrown by microtask callbacks are swallowed.
+   * An alias for PerformMicrotaskCheckpoint.
    */
-  void RunMicrotasks();
+  V8_DEPRECATE_SOON("Use PerformMicrotaskCheckpoint.")
+  void RunMicrotasks() { PerformMicrotaskCheckpoint(); }
+
+  /**
+   * Runs the default MicrotaskQueue until it gets empty and perform other
+   * microtask checkpoint steps, such as calling ClearKeptObjects. Asserts that
+   * the MicrotasksPolicy is not kScoped. Any exceptions thrown by microtask
+   * callbacks are swallowed.
+   */
+  void PerformMicrotaskCheckpoint();
 
   /**
    * Enqueues the callback to the default MicrotaskQueue
