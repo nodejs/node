@@ -239,14 +239,19 @@ size_t Http2Settings::Init(
 // The Http2Settings class is used to configure a SETTINGS frame that is
 // to be sent to the connected peer. The settings are set using a TypedArray
 // that is shared with the JavaScript side.
-Http2Settings::Http2Settings(Http2State* http2_state,
-                                           Http2Session* session,
-                                           Local<Object> obj,
-                                           uint64_t start_time)
-    : AsyncWrap(http2_state->env(), obj, PROVIDER_HTTP2SETTINGS),
+Http2Settings::Http2Settings(Http2Session* session,
+                             Local<Object> obj,
+                             Local<Function> callback,
+                             uint64_t start_time)
+    : AsyncWrap(session->env(), obj, PROVIDER_HTTP2SETTINGS),
       session_(session),
       startTime_(start_time) {
-  count_ = Init(http2_state, entries_);
+  callback_.Reset(env()->isolate(), callback);
+  count_ = Init(session->http2_state(), entries_);
+}
+
+Local<Function> Http2Settings::callback() const {
+  return Local<Function>::New(env()->isolate(), callback_);
 }
 
 // Generates a Buffer that contains the serialized payload of a SETTINGS
@@ -281,8 +286,7 @@ Local<Value> Http2Settings::Pack(
 
 // Updates the shared TypedArray with the current remote or local settings for
 // the session.
-void Http2Settings::Update(Http2Session* session,
-                                         get_setting fn) {
+void Http2Settings::Update(Http2Session* session, get_setting fn) {
   AliasedUint32Array& buffer = session->http2_state()->settings_buffer;
 
 #define V(name)                                                                \
@@ -310,7 +314,7 @@ void Http2Settings::RefreshDefaults(Http2State* http2_state) {
 
 
 void Http2Settings::Send() {
-  Http2Scope h2scope(session_);
+  Http2Scope h2scope(session_.get());
   CHECK_EQ(nghttp2_submit_settings(**session_, NGHTTP2_FLAG_NONE,
                                    &entries_[0], count_), 0);
 }
@@ -320,10 +324,10 @@ void Http2Settings::Done(bool ack) {
   double duration = (end - startTime_) / 1e6;
 
   Local<Value> argv[] = {
-    Boolean::New(env()->isolate(), ack),
+    ack ? v8::True(env()->isolate()) : v8::False(env()->isolate()),
     Number::New(env()->isolate(), duration)
   };
-  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
+  MakeCallback(callback(), arraysize(argv), argv);
 }
 
 // The Http2Priority class initializes an appropriate nghttp2_priority_spec
@@ -2733,28 +2737,9 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(payload.length(), 8);
   }
 
-  Local<Object> obj;
-  if (!env->http2ping_constructor_template()
-           ->NewInstance(env->context())
-           .ToLocal(&obj)) {
-    return;
-  }
-  if (obj->Set(env->context(), env->ondone_string(), args[1]).IsNothing())
-    return;
-
-  Http2Ping* ping = session->AddPing(
-      MakeDetachedBaseObject<Http2Ping>(session, obj));
-  // To prevent abuse, we strictly limit the number of unacknowledged PING
-  // frames that may be sent at any given time. This is configurable in the
-  // Options when creating a Http2Session.
-  if (ping == nullptr) return args.GetReturnValue().Set(false);
-
-  // The Ping itself is an Async resource. When the acknowledgement is received,
-  // the callback will be invoked and a notification sent out to JS land. The
-  // notification will include the duration of the ping, allowing the round
-  // trip to be measured.
-  ping->Send(payload.data());
-  args.GetReturnValue().Set(true);
+  CHECK(args[1]->IsFunction());
+  args.GetReturnValue().Set(
+      session->AddPing(payload.data(), args[1].As<Function>()));
 }
 
 // Submits a SETTINGS frame for the Http2Session
@@ -2762,23 +2747,8 @@ void Http2Session::Settings(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-
-  Local<Object> obj;
-  if (!env->http2settings_constructor_template()
-           ->NewInstance(env->context())
-           .ToLocal(&obj)) {
-    return;
-  }
-  if (obj->Set(env->context(), env->ondone_string(), args[0]).IsNothing())
-    return;
-
-  Http2Settings* settings = session->AddSettings(
-      MakeDetachedBaseObject<Http2Settings>(
-          session->http2_state(), session, obj, 0));
-  if (settings == nullptr) return args.GetReturnValue().Set(false);
-
-  settings->Send();
-  args.GetReturnValue().Set(true);
+  CHECK(args[0]->IsFunction());
+  args.GetReturnValue().Set(session->AddSettings(args[0].As<Function>()));
 }
 
 BaseObjectPtr<Http2Ping> Http2Session::PopPing() {
@@ -2791,16 +2761,33 @@ BaseObjectPtr<Http2Ping> Http2Session::PopPing() {
   return ping;
 }
 
-Http2Ping* Http2Session::AddPing(
-    BaseObjectPtr<Http2Ping> ping) {
+bool Http2Session::AddPing(const uint8_t* payload, Local<Function> callback) {
+  Local<Object> obj;
+  if (!env()->http2ping_constructor_template()
+          ->NewInstance(env()->context())
+              .ToLocal(&obj)) {
+    return false;
+  }
+
+  BaseObjectPtr<Http2Ping> ping =
+      MakeDetachedBaseObject<Http2Ping>(this, obj, callback);
+  if (!ping)
+    return false;
+
   if (outstanding_pings_.size() == max_outstanding_pings_) {
     ping->Done(false);
-    return nullptr;
+    return false;
   }
-  Http2Ping* ptr = ping.get();
-  outstanding_pings_.emplace(std::move(ping));
+
   IncrementCurrentSessionMemory(sizeof(*ping));
-  return ptr;
+  // The Ping itself is an Async resource. When the acknowledgement is received,
+  // the callback will be invoked and a notification sent out to JS land. The
+  // notification will include the duration of the ping, allowing the round
+  // trip to be measured.
+  ping->Send(payload);
+
+  outstanding_pings_.push(std::move(ping));
+  return true;
 }
 
 BaseObjectPtr<Http2Settings> Http2Session::PopSettings() {
@@ -2813,60 +2800,76 @@ BaseObjectPtr<Http2Settings> Http2Session::PopSettings() {
   return settings;
 }
 
-Http2Settings* Http2Session::AddSettings(
-    BaseObjectPtr<Http2Settings> settings) {
-  if (outstanding_settings_.size() == max_outstanding_settings_) {
-    settings->Done(false);
-    return nullptr;
+bool Http2Session::AddSettings(Local<Function> callback) {
+  Local<Object> obj;
+  if (!env()->http2settings_constructor_template()
+          ->NewInstance(env()->context())
+              .ToLocal(&obj)) {
+    return false;
   }
-  Http2Settings* ptr = settings.get();
-  outstanding_settings_.emplace(std::move(settings));
+
+  BaseObjectPtr<Http2Settings> settings =
+      MakeDetachedBaseObject<Http2Settings>(this, obj, callback, 0);
+  if (!settings)
+    return false;
+
   IncrementCurrentSessionMemory(sizeof(*settings));
-  return ptr;
+  settings->Send();
+  outstanding_settings_.push(std::move(settings));
+  return true;
 }
 
-Http2Ping::Http2Ping(Http2Session* session, Local<Object> obj)
+Http2Ping::Http2Ping(
+    Http2Session* session,
+    Local<Object> obj,
+    Local<Function> callback)
     : AsyncWrap(session->env(), obj, AsyncWrap::PROVIDER_HTTP2PING),
       session_(session),
       startTime_(uv_hrtime()) {
+  callback_.Reset(env()->isolate(), callback);
+}
+
+Local<Function> Http2Ping::callback() const {
+  return Local<Function>::New(env()->isolate(), callback_);
 }
 
 void Http2Ping::Send(const uint8_t* payload) {
-  CHECK_NOT_NULL(session_);
+  CHECK(session_);
   uint8_t data[8];
   if (payload == nullptr) {
     memcpy(&data, &startTime_, arraysize(data));
     payload = data;
   }
-  Http2Scope h2scope(session_);
+  Http2Scope h2scope(session_.get());
   CHECK_EQ(nghttp2_submit_ping(**session_, NGHTTP2_FLAG_NONE, payload), 0);
 }
 
 void Http2Ping::Done(bool ack, const uint8_t* payload) {
   uint64_t duration_ns = uv_hrtime() - startTime_;
   double duration_ms = duration_ns / 1e6;
-  if (session_ != nullptr) session_->statistics_.ping_rtt = duration_ns;
+  if (session_) session_->statistics_.ping_rtt = duration_ns;
 
-  HandleScope handle_scope(env()->isolate());
+  Isolate* isolate = env()->isolate();
+  HandleScope handle_scope(isolate);
   Context::Scope context_scope(env()->context());
 
-  Local<Value> buf = Undefined(env()->isolate());
+  Local<Value> buf = Undefined(isolate);
   if (payload != nullptr) {
-    buf = Buffer::Copy(env()->isolate(),
+    buf = Buffer::Copy(isolate,
                        reinterpret_cast<const char*>(payload),
                        8).ToLocalChecked();
   }
 
   Local<Value> argv[] = {
-    Boolean::New(env()->isolate(), ack),
-    Number::New(env()->isolate(), duration_ms),
+    ack ? v8::True(isolate) : v8::False(isolate),
+    Number::New(isolate, duration_ms),
     buf
   };
-  MakeCallback(env()->ondone_string(), arraysize(argv), argv);
+  MakeCallback(callback(), arraysize(argv), argv);
 }
 
 void Http2Ping::DetachFromSession() {
-  session_ = nullptr;
+  session_.reset();
 }
 
 void NgHttp2StreamWrite::MemoryInfo(MemoryTracker* tracker) const {

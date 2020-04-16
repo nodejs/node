@@ -718,14 +718,13 @@ class Http2Session : public AsyncWrap,
     return env()->event_loop();
   }
 
-  Http2State* http2_state() {
-    return http2_state_.get();
-  }
+  Http2State* http2_state() const { return http2_state_.get(); }
+
   BaseObjectPtr<Http2Ping> PopPing();
-  Http2Ping* AddPing(BaseObjectPtr<Http2Ping> ping);
+  bool AddPing(const uint8_t* data, v8::Local<v8::Function> callback);
 
   BaseObjectPtr<Http2Settings> PopSettings();
-  Http2Settings* AddSettings(BaseObjectPtr<Http2Settings> settings);
+  bool AddSettings(v8::Local<v8::Function> callback);
 
   void IncrementCurrentSessionMemory(uint64_t amount) {
     current_session_memory_ += amount;
@@ -1021,7 +1020,10 @@ class Http2StreamPerformanceEntry
 
 class Http2Ping : public AsyncWrap {
  public:
-  explicit Http2Ping(Http2Session* session, v8::Local<v8::Object> obj);
+  explicit Http2Ping(
+      Http2Session* session,
+      v8::Local<v8::Object> obj,
+      v8::Local<v8::Function> callback);
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Http2Ping)
@@ -1031,8 +1033,11 @@ class Http2Ping : public AsyncWrap {
   void Done(bool ack, const uint8_t* payload = nullptr);
   void DetachFromSession();
 
+  v8::Local<v8::Function> callback() const;
+
  private:
-  Http2Session* session_;
+  BaseObjectWeakPtr<Http2Session> session_;
+  v8::Persistent<v8::Function> callback_;
   uint64_t startTime_;
 };
 
@@ -1041,9 +1046,9 @@ class Http2Ping : public AsyncWrap {
 // structs.
 class Http2Settings : public AsyncWrap {
  public:
-  Http2Settings(Http2State* http2_state,
-                Http2Session* session,
+  Http2Settings(Http2Session* session,
                 v8::Local<v8::Object> obj,
+                v8::Local<v8::Function> callback,
                 uint64_t start_time = uv_hrtime());
 
   SET_NO_MEMORY_INFO();
@@ -1052,6 +1057,8 @@ class Http2Settings : public AsyncWrap {
 
   void Send();
   void Done(bool ack);
+
+  v8::Local<v8::Function> callback() const;
 
   // Returns a Buffer instance with the serialized SETTINGS payload
   v8::Local<v8::Value> Pack();
@@ -1075,7 +1082,8 @@ class Http2Settings : public AsyncWrap {
       size_t count,
       const nghttp2_settings_entry* entries);
 
-  Http2Session* session_;
+  BaseObjectWeakPtr<Http2Session> session_;
+  v8::Persistent<v8::Function> callback_;
   uint64_t startTime_;
   size_t count_ = 0;
   nghttp2_settings_entry entries_[IDX_SETTINGS_COUNT];
