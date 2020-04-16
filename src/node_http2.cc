@@ -49,17 +49,6 @@ namespace {
 
 const char zero_bytes_256[256] = {};
 
-Http2Stream* GetStream(Http2Session* session,
-                              int32_t id,
-                              nghttp2_data_source* source) {
-  Http2Stream* stream = static_cast<Http2Stream*>(source->ptr);
-  if (stream == nullptr)
-    stream = session->FindStream(id);
-  CHECK_NOT_NULL(stream);
-  CHECK_EQ(id, stream->id());
-  return stream;
-}
-
 }  // anonymous namespace
 
 // These configure the callbacks required by nghttp2 itself. There are
@@ -1662,7 +1651,7 @@ int Http2Session::OnSendData(
       nghttp2_data_source* source,
       void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
-  Http2Stream* stream = GetStream(session, frame->hd.stream_id, source);
+  Http2Stream* stream = session->FindStream(frame->hd.stream_id);
 
   // Send the frame header + a byte that indicates padding length.
   session->CopyDataIntoOutgoing(framehd, 9);
@@ -2261,7 +2250,7 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
                                               void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Debug(session, "reading outbound data for stream %d", id);
-  Http2Stream* stream = GetStream(session, id, source);
+  Http2Stream* stream = session->FindStream(id);
   if (stream->statistics_.first_byte_sent == 0)
     stream->statistics_.first_byte_sent = uv_hrtime();
   CHECK_EQ(id, stream->id());
