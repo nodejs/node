@@ -106,6 +106,10 @@ const int kApiTaggedSize = kApiInt32Size;
 const int kApiTaggedSize = kApiSystemPointerSize;
 #endif
 
+constexpr bool PointerCompressionIsEnabled() {
+  return kApiTaggedSize != kApiSystemPointerSize;
+}
+
 #ifdef V8_31BIT_SMIS_ON_64BIT_ARCH
 using PlatformSmiTagging = SmiTagging<kApiInt32Size>;
 #else
