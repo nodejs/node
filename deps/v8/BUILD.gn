@@ -2298,6 +2298,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/factory-inl.h",
     "src/heap/factory.cc",
     "src/heap/factory.h",
+    "src/heap/finalization-group-cleanup-task.cc",
+    "src/heap/finalization-group-cleanup-task.h",
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-idle-time-handler.h",
     "src/heap/gc-tracer.cc",

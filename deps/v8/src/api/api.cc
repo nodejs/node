@@ -10950,6 +10950,26 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   callback(info);
 }
 
+void InvokeFinalizationGroupCleanupFromTask(
+    Handle<Context> context, Handle<JSFinalizationGroup> finalization_group,
+    Handle<Object> callback) {
+  Isolate* isolate = finalization_group->native_context().GetIsolate();
+  RuntimeCallTimerScope timer(
+      isolate, RuntimeCallCounterId::kFinalizationGroupCleanupFromTask);
+  // Do not use ENTER_V8 because this is always called from a running
+  // FinalizationGroupCleanupTask within V8 and we should not log it as an API
+  // call. This method is implemented here to avoid duplication of the exception
+  // handling and microtask running logic in CallDepthScope.
+  if (IsExecutionTerminatingCheck(isolate)) return;
+  Local<v8::Context> api_context = Utils::ToLocal(context);
+  CallDepthScope<true> call_depth_scope(isolate, api_context);
+  VMState<OTHER> state(isolate);
+  if (JSFinalizationGroup::Cleanup(isolate, finalization_group, callback)
+          .IsNothing()) {
+    call_depth_scope.Escape();
+  }
+}
+
 // Undefine macros for jumbo build.
 #undef LOG_API
 #undef ENTER_V8_DO_NOT_USE

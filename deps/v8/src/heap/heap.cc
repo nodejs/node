@@ -33,6 +33,7 @@
 #include "src/heap/combined-heap.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
+#include "src/heap/finalization-group-cleanup-task.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-controller.h"
@@ -1197,17 +1198,11 @@ void Heap::GarbageCollectionEpilogue() {
     ReduceNewSpaceSize();
   }
 
-  if (FLAG_harmony_weak_refs) {
+  if (FLAG_harmony_weak_refs &&
+      isolate()->host_cleanup_finalization_group_callback()) {
     HandleScope handle_scope(isolate());
-    while (!isolate()->heap()->dirty_js_finalization_groups().IsUndefined(
-        isolate())) {
-      Handle<JSFinalizationGroup> finalization_group(
-          JSFinalizationGroup::cast(
-              isolate()->heap()->dirty_js_finalization_groups()),
-          isolate());
-      isolate()->heap()->set_dirty_js_finalization_groups(
-          finalization_group->next());
-      finalization_group->set_next(ReadOnlyRoots(isolate()).undefined_value());
+    Handle<JSFinalizationGroup> finalization_group;
+    while (TakeOneDirtyJSFinalizationGroup().ToHandle(&finalization_group)) {
       isolate()->RunHostCleanupFinalizationGroupCallback(finalization_group);
     }
   }
@@ -1662,6 +1657,9 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     memory_reducer_->NotifyPossibleGarbage(event);
   }
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
+  if (!isolate()->context().is_null()) {
+    RemoveDirtyFinalizationGroupsOnContext(isolate()->raw_native_context());
+  }
 
   number_of_disposed_maps_ = retained_maps().length();
   tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
@@ -6002,11 +6000,25 @@ void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
   set_interpreter_entry_trampoline_for_profiling(code);
 }
 
+void Heap::PostFinalizationGroupCleanupTaskIfNeeded() {
+  DCHECK(!isolate()->host_cleanup_finalization_group_callback());
+  // Only one cleanup task is posted at a time.
+  if (!HasDirtyJSFinalizationGroups() ||
+      is_finalization_group_cleanup_task_posted_) {
+    return;
+  }
+  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+      reinterpret_cast<v8::Isolate*>(isolate()));
+  auto task = std::make_unique<FinalizationGroupCleanupTask>(this);
+  taskrunner->PostNonNestableTask(std::move(task));
+  is_finalization_group_cleanup_task_posted_ = true;
+}
+
 void Heap::AddDirtyJSFinalizationGroup(
     JSFinalizationGroup finalization_group,
     std::function<void(HeapObject object, ObjectSlot slot, Object target)>
         gc_notify_updated_slot) {
-  DCHECK(dirty_js_finalization_groups().IsUndefined(isolate()) ||
+  DCHECK(!HasDirtyJSFinalizationGroups() ||
          dirty_js_finalization_groups().IsJSFinalizationGroup());
   DCHECK(finalization_group.next().IsUndefined(isolate()));
   DCHECK(!finalization_group.scheduled_for_cleanup());
@@ -6019,6 +6031,44 @@ void Heap::AddDirtyJSFinalizationGroup(
   set_dirty_js_finalization_groups(finalization_group);
   // Roots are rescanned after objects are moved, so no need to record a slot
   // for the root pointing to the first JSFinalizationGroup.
+}
+
+MaybeHandle<JSFinalizationGroup> Heap::TakeOneDirtyJSFinalizationGroup() {
+  if (HasDirtyJSFinalizationGroups()) {
+    Handle<JSFinalizationGroup> finalization_group(
+        JSFinalizationGroup::cast(dirty_js_finalization_groups()), isolate());
+    set_dirty_js_finalization_groups(finalization_group->next());
+    finalization_group->set_next(ReadOnlyRoots(isolate()).undefined_value());
+    return finalization_group;
+  }
+  return {};
+}
+
+void Heap::RemoveDirtyFinalizationGroupsOnContext(NativeContext context) {
+  if (!FLAG_harmony_weak_refs) return;
+  if (isolate()->host_cleanup_finalization_group_callback()) return;
+
+  DisallowHeapAllocation no_gc;
+
+  Isolate* isolate = this->isolate();
+  Object prev = ReadOnlyRoots(isolate).undefined_value();
+  Object current = dirty_js_finalization_groups();
+  while (!current.IsUndefined(isolate)) {
+    JSFinalizationGroup finalization_group = JSFinalizationGroup::cast(current);
+    if (finalization_group.native_context() == context) {
+      if (prev.IsUndefined(isolate)) {
+        set_dirty_js_finalization_groups(finalization_group.next());
+      } else {
+        JSFinalizationGroup::cast(prev).set_next(finalization_group.next());
+      }
+      finalization_group.set_scheduled_for_cleanup(false);
+      current = finalization_group.next();
+      finalization_group.set_next(ReadOnlyRoots(isolate).undefined_value());
+    } else {
+      prev = current;
+      current = finalization_group.next();
+    }
+  }
 }
 
 void Heap::KeepDuringJob(Handle<JSReceiver> target) {

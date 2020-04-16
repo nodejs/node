@@ -26,6 +26,7 @@ namespace v8 {
 
 namespace internal {
 class JSArrayBufferView;
+class JSFinalizationGroup;
 }  // namespace internal
 
 namespace debug {
@@ -560,6 +561,10 @@ void InvokeAccessorGetterCallback(
 
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback);
+
+void InvokeFinalizationGroupCleanupFromTask(
+    Handle<Context> context, Handle<JSFinalizationGroup> finalization_group,
+    Handle<Object> callback);
 
 }  // namespace internal
 }  // namespace v8

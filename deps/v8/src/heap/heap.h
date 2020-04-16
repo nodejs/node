@@ -795,11 +795,32 @@ class Heap {
   // See also: FLAG_interpreted_frames_native_stack.
   void SetInterpreterEntryTrampolineForProfiling(Code code);
 
-  // Add finalization_group into the dirty_js_finalization_groups list.
+  // Add finalization_group to the end of the dirty_js_finalization_groups list.
   void AddDirtyJSFinalizationGroup(
       JSFinalizationGroup finalization_group,
       std::function<void(HeapObject object, ObjectSlot slot, Object target)>
           gc_notify_updated_slot);
+
+  // Pop and return the head of the dirty_js_finalization_groups list.
+  MaybeHandle<JSFinalizationGroup> TakeOneDirtyJSFinalizationGroup();
+
+  // Called from Heap::NotifyContextDisposed to remove all FinalizationGroups
+  // with {context} from the dirty list when the context e.g. navigates away or
+  // is detached. If the dirty list is empty afterwards, the cleanup task is
+  // aborted if needed.
+  void RemoveDirtyFinalizationGroupsOnContext(NativeContext context);
+
+  inline bool HasDirtyJSFinalizationGroups();
+
+  void PostFinalizationGroupCleanupTaskIfNeeded();
+
+  void set_is_finalization_group_cleanup_task_posted(bool posted) {
+    is_finalization_group_cleanup_task_posted_ = posted;
+  }
+
+  bool is_finalization_group_cleanup_task_posted() {
+    return is_finalization_group_cleanup_task_posted_;
+  }
 
   V8_EXPORT_PRIVATE void KeepDuringJob(Handle<JSReceiver> target);
   void ClearKeptObjects();
@@ -2148,6 +2169,8 @@ class Heap {
   std::map<int, RetainingPathOption> retaining_path_target_option_;
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
+
+  bool is_finalization_group_cleanup_task_posted_ = false;
 
   std::unique_ptr<third_party_heap::Heap> tp_heap_;
 
