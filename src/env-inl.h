@@ -1003,7 +1003,10 @@ inline AllocatedBuffer::~AllocatedBuffer() {
 
 inline void AllocatedBuffer::clear() {
   uv_buf_t buf = release();
-  env_->Free(buf.base, buf.len);
+  if (buf.base != nullptr) {
+    CHECK_NOT_NULL(env_);
+    env_->Free(buf.base, buf.len);
+  }
 }
 
 // It's a bit awkward to define this Buffer::New() overload here, but it
