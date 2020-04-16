@@ -9,6 +9,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
 #include "src/execution/isolate.h"
+#include "src/execution/vm-state-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/bigint.h"
@@ -132,6 +133,7 @@ template <typename T>
 Object FutexEmulation::Wait(Isolate* isolate,
                             Handle<JSArrayBuffer> array_buffer, size_t addr,
                             T value, double rel_timeout_ms) {
+  VMState<ATOMICS_WAIT> state(isolate);
   DCHECK_LT(addr, array_buffer->byte_length());
 
   bool use_timeout = rel_timeout_ms != V8_INFINITY;
