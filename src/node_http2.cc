@@ -515,6 +515,18 @@ Http2Session::~Http2Session() {
   CHECK_EQ(current_nghttp2_memory_, 0);
 }
 
+void Http2Session::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("streams", streams_);
+  tracker->TrackField("outstanding_pings", outstanding_pings_);
+  tracker->TrackField("outstanding_settings", outstanding_settings_);
+  tracker->TrackField("outgoing_buffers", outgoing_buffers_);
+  tracker->TrackFieldWithSize("stream_buf", stream_buf_.len);
+  tracker->TrackFieldWithSize("outgoing_storage", outgoing_storage_.size());
+  tracker->TrackFieldWithSize("pending_rst_streams",
+                              pending_rst_streams_.size() * sizeof(int32_t));
+  tracker->TrackFieldWithSize("nghttp2_memory", current_nghttp2_memory_);
+}
+
 std::string Http2Session::diagnostic_name() const {
   return std::string("Http2Session ") + TypeName() + " (" +
       std::to_string(static_cast<int64_t>(get_async_id())) + ")";
@@ -1856,6 +1868,11 @@ Http2Stream::~Http2Stream() {
   Debug(this, "tearing down stream");
   session_->DecrementCurrentSessionMemory(current_headers_length_);
   session_->RemoveStream(this);
+}
+
+void Http2Stream::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("current_headers", current_headers_);
+  tracker->TrackField("queue", queue_);
 }
 
 std::string Http2Stream::diagnostic_name() const {

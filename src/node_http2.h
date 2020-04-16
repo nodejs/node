@@ -429,11 +429,7 @@ class Http2Stream : public AsyncWrap,
   int DoWrite(WriteWrap* w, uv_buf_t* bufs, size_t count,
               uv_stream_t* send_handle) override;
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("current_headers", current_headers_);
-    tracker->TrackField("queue", queue_);
-  }
-
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Http2Stream)
   SET_SELF_SIZE(Http2Stream)
 
@@ -665,18 +661,7 @@ class Http2Session : public AsyncWrap,
   // Write data from stream_buf_ to the session
   ssize_t ConsumeHTTP2Data();
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("streams", streams_);
-    tracker->TrackField("outstanding_pings", outstanding_pings_);
-    tracker->TrackField("outstanding_settings", outstanding_settings_);
-    tracker->TrackField("outgoing_buffers", outgoing_buffers_);
-    tracker->TrackFieldWithSize("stream_buf", stream_buf_.len);
-    tracker->TrackFieldWithSize("outgoing_storage", outgoing_storage_.size());
-    tracker->TrackFieldWithSize("pending_rst_streams",
-                                pending_rst_streams_.size() * sizeof(int32_t));
-    tracker->TrackFieldWithSize("nghttp2_memory", current_nghttp2_memory_);
-  }
-
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Http2Session)
   SET_SELF_SIZE(Http2Session)
 
