@@ -124,7 +124,7 @@ V8StackTraceId::V8StackTraceId(uintptr_t id,
                                bool should_pause)
     : id(id), debugger_id(debugger_id), should_pause(should_pause) {}
 
-V8StackTraceId::V8StackTraceId(const StringView& json)
+V8StackTraceId::V8StackTraceId(StringView json)
     : id(0), debugger_id(V8DebuggerId().pair()) {
   auto dict =
       protocol::DictionaryValue::cast(protocol::StringUtil::parseJSON(json));
