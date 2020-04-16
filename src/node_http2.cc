@@ -342,8 +342,8 @@ Http2Priority::Http2Priority(Environment* env,
                              Local<Value> weight,
                              Local<Value> exclusive) {
   Local<Context> context = env->context();
-  int32_t parent_ = parent->Int32Value(context).ToChecked();
-  int32_t weight_ = weight->Int32Value(context).ToChecked();
+  int32_t parent_ = parent->Int32Value(context).FromMaybe(0);
+  int32_t weight_ = weight->Int32Value(context).FromMaybe(0);
   bool exclusive_ = exclusive->IsTrue();
   Debug(env, DebugCategory::HTTP2STREAM,
         "Http2Priority: parent: %d, weight: %d, exclusive: %s\n",
@@ -992,7 +992,8 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   MaybeLocal<Value> answer =
     stream->MakeCallback(env->http2session_on_stream_close_function(),
                           1, &arg);
-  if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
+  Local<Value> def = v8::False(env->isolate());
+  if (answer.IsEmpty() || answer.FromMaybe(def)->IsFalse()) {
     // Skip to destroy
     stream->Destroy();
   }
@@ -1285,17 +1286,21 @@ void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
   nghttp2_goaway goaway_frame = frame->goaway;
   Debug(this, "handling goaway frame");
 
+  Local<Value> undef = Undefined(isolate);
   Local<Value> argv[3] = {
     Integer::NewFromUnsigned(isolate, goaway_frame.error_code),
     Integer::New(isolate, goaway_frame.last_stream_id),
-    Undefined(isolate)
+    undef
   };
 
   size_t length = goaway_frame.opaque_data_len;
   if (length > 0) {
+    // If the copy fails for any reason here, we just ignore it.
+    // The additional goaway data is completely optional and we
+    // shouldn't fail if we're not able to process it.
     argv[2] = Buffer::Copy(isolate,
                            reinterpret_cast<char*>(goaway_frame.opaque_data),
-                           length).ToLocalChecked();
+                           length).FromMaybe(undef);
   }
 
   MakeCallback(env()->http2session_on_goaway_data_function(),
@@ -1318,14 +1323,8 @@ void Http2Session::HandleAltSvcFrame(const nghttp2_frame* frame) {
 
   Local<Value> argv[3] = {
     Integer::New(isolate, id),
-    String::NewFromOneByte(isolate,
-                           altsvc->origin,
-                           NewStringType::kNormal,
-                           altsvc->origin_len).ToLocalChecked(),
-    String::NewFromOneByte(isolate,
-                           altsvc->field_value,
-                           NewStringType::kNormal,
-                           altsvc->field_value_len).ToLocalChecked(),
+    OneByteString(isolate, altsvc->origin, altsvc->origin_len),
+    OneByteString(isolate, altsvc->field_value, altsvc->field_value_len)
   };
 
   MakeCallback(env()->http2session_on_altsvc_function(),
@@ -1348,10 +1347,7 @@ void Http2Session::HandleOriginFrame(const nghttp2_frame* frame) {
 
   for (size_t i = 0; i < nov; ++i) {
     const nghttp2_origin_entry& entry = origin->ov[i];
-    origin_v[i] =
-        String::NewFromOneByte(
-            isolate, entry.origin, NewStringType::kNormal, entry.origin_len)
-            .ToLocalChecked();
+    origin_v[i] = OneByteString(isolate, entry.origin, entry.origin_len);
   }
   Local<Value> holder = Array::New(isolate, origin_v.data(), origin_v.size());
   MakeCallback(env()->http2session_on_origin_function(), 1, &holder);
@@ -1385,9 +1381,13 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
 
   if (!(js_fields_->bitfield & (1 << kSessionHasPingListeners))) return;
   // Notify the session that a ping occurred
-  arg = Buffer::Copy(env(),
-                      reinterpret_cast<const char*>(frame->ping.opaque_data),
-                      8).ToLocalChecked();
+  Local<Value> undef = Undefined(env()->isolate());
+  // There are few reasons why the copy should fail, but if it does,
+  // we'll just return Undefined rather than a buffer.
+  arg = Buffer::Copy(
+      env(),
+      reinterpret_cast<const char*>(frame->ping.opaque_data),
+      8).FromMaybe(undef);
   MakeCallback(env()->http2session_on_ping_function(), 1, &arg);
 }
 
@@ -2332,12 +2332,11 @@ void Http2Stream::DecrementAvailableOutboundLength(size_t amount) {
 // back to JS land
 void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uint32_t val = args[0]->Uint32Value(env->context()).ToChecked();
+  uint32_t val = args[0]->Uint32Value(env->context()).FromMaybe(0);
   args.GetReturnValue().Set(
-      String::NewFromOneByte(
+      OneByteString(
           env->isolate(),
-          reinterpret_cast<const uint8_t*>(nghttp2_strerror(val)),
-          NewStringType::kInternalized).ToLocalChecked());
+          reinterpret_cast<const uint8_t*>(nghttp2_strerror(val))));
 }
 
 
@@ -2362,7 +2361,7 @@ void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
+  int32_t id = args[0]->Int32Value(env->context()).FromMaybe(0);
   if (nghttp2_session_set_next_stream_id(session->session(), id) < 0) {
     Debug(session, "failed to set next stream id to %d", id);
     return args.GetReturnValue().Set(false);
@@ -2420,8 +2419,10 @@ void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
   Http2State* state = Unwrap<Http2State>(args.Data());
   Environment* env = state->env();
   CHECK(args.IsConstructCall());
-  int32_t val = args[0]->Int32Value(env->context()).ToChecked();
-  SessionType type = static_cast<SessionType>(val);
+  SessionType type =
+      static_cast<SessionType>(
+          args[0]->Int32Value(env->context())
+              .FromMaybe(NGHTTP2_SESSION_SERVER));
   Http2Session* session = new Http2Session(state, args.This(), type);
   session->get_async_id();  // avoid compiler warning
   Debug(session, "session created");
@@ -2444,7 +2445,7 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
 
-  uint32_t code = args[0]->Uint32Value(context).ToChecked();
+  uint32_t code = args[0]->Uint32Value(context).FromMaybe(0);
   session->Close(code, args[1]->IsTrue());
 }
 
@@ -2456,7 +2457,7 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Environment* env = session->env();
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
+  int32_t options = args[1]->Int32Value(env->context()).FromMaybe(0);
   Http2Priority priority(env, args[2], args[3], args[4]);
 
   Debug(session, "request submitted");
@@ -2506,8 +2507,8 @@ void Http2Session::Goaway(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
-  uint32_t code = args[0]->Uint32Value(context).ToChecked();
-  int32_t lastStreamID = args[1]->Int32Value(context).ToChecked();
+  uint32_t code = args[0]->Uint32Value(context).FromMaybe(0);
+  int32_t lastStreamID = args[1]->Int32Value(context).FromMaybe(-1);
   ArrayBufferViewContents<uint8_t> opaque_data;
 
   if (args[2]->IsArrayBufferView()) {
@@ -2543,7 +2544,7 @@ void Http2Stream::RstStream(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   Http2Stream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
-  uint32_t code = args[0]->Uint32Value(context).ToChecked();
+  uint32_t code = args[0]->Uint32Value(context).FromMaybe(0);
   Debug(stream, "sending rst_stream with code %d", code);
   stream->SubmitRstStream(code);
 }
@@ -2556,7 +2557,7 @@ void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
+  int32_t options = args[1]->Int32Value(env->context()).FromMaybe(0);
 
   args.GetReturnValue().Set(
       stream->SubmitResponse(
@@ -2611,7 +2612,7 @@ void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&parent, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
+  int32_t options = args[1]->Int32Value(env->context()).FromMaybe(0);
 
   Debug(parent, "creating push promise");
 
@@ -2706,11 +2707,16 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
-  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
+  int32_t id = args[0]->Int32Value(env->context()).FromMaybe(0);
 
   // origin and value are both required to be ASCII, handle them as such.
-  Local<String> origin_str = args[1]->ToString(env->context()).ToLocalChecked();
-  Local<String> value_str = args[2]->ToString(env->context()).ToLocalChecked();
+  Local<String> origin_str =
+      args[1]->ToString(env->context()).FromMaybe(Local<String>());
+  Local<String> value_str =
+      args[2]->ToString(env->context()).FromMaybe(Local<String>());
+
+  if (origin_str.IsEmpty() || value_str.IsEmpty())
+    return;
 
   size_t origin_len = origin_str->Length();
   size_t value_len = value_str->Length();
@@ -2735,8 +2741,7 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
   Local<String> origin_string = args[0].As<String>();
-  int32_t count = args[1]->Int32Value(context).ToChecked();
-
+  int32_t count = args[1]->Int32Value(context).FromMaybe(0);
 
   Origins origins(env->isolate(),
                   env->context(),
@@ -2883,7 +2888,7 @@ void Http2Ping::Done(bool ack, const uint8_t* payload) {
   if (payload != nullptr) {
     buf = Buffer::Copy(isolate,
                        reinterpret_cast<const char*>(payload),
-                       8).ToLocalChecked();
+                       8).FromMaybe(buf);
   }
 
   Local<Value> argv[] = {
