@@ -24,6 +24,4 @@ const a = Promise.resolve(42);
 a.then(common.mustCall());
 
 assert.strictEqual(initCalls[0].triggerId, 1);
-assert.strictEqual(initCalls[0].resource.isChainedPromise, false);
 assert.strictEqual(initCalls[1].triggerId, initCalls[0].id);
-assert.strictEqual(initCalls[1].resource.isChainedPromise, true);
