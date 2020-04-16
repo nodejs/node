@@ -5652,7 +5652,25 @@ void v8::V8::InitializePlatform(Platform* platform) {
 
 void v8::V8::ShutdownPlatform() { i::V8::ShutdownPlatform(); }
 
-bool v8::V8::Initialize() {
+bool v8::V8::Initialize(const int build_config) {
+  const bool kEmbedderPointerCompression =
+      (build_config & kPointerCompression) != 0;
+  if (kEmbedderPointerCompression != COMPRESS_POINTERS_BOOL) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "pointer compression is %s while on V8 side it's %s.",
+        kEmbedderPointerCompression ? "ENABLED" : "DISABLED",
+        COMPRESS_POINTERS_BOOL ? "ENABLED" : "DISABLED");
+  }
+
+  const int kEmbedderSmiValueSize = (build_config & k31BitSmis) ? 31 : 32;
+  if (kEmbedderSmiValueSize != internal::kSmiValueSize) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "Smi value size is %d while on V8 side it's %d.",
+        kEmbedderSmiValueSize, internal::kSmiValueSize);
+  }
+
   i::V8::Initialize();
   return true;
 }
