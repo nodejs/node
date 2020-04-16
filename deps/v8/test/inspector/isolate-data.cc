@@ -461,13 +461,14 @@ namespace {
 class StringBufferImpl : public v8_inspector::StringBuffer {
  public:
   StringBufferImpl(v8::Isolate* isolate, v8::Local<v8::String> string)
-      : data_(ToVector(isolate, string)),
-        view_(data_.begin(), data_.length()) {}
-  const v8_inspector::StringView& string() override { return view_; }
+      : data_(ToVector(isolate, string)) {}
+
+  v8_inspector::StringView string() const override {
+    return v8_inspector::StringView(data_.begin(), data_.length());
+  }
 
  private:
   v8::internal::Vector<uint16_t> data_;
-  v8_inspector::StringView view_;
 };
 }  // anonymous namespace
 
