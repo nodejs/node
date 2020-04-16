@@ -7181,57 +7181,6 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 }
 
-MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(
-    Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
-    MemorySpan<const uint8_t> wire_bytes) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::MaybeHandle<i::WasmModuleObject> maybe_module_object =
-      i::wasm::DeserializeNativeModule(
-          i_isolate, {serialized_module.data(), serialized_module.size()},
-          {wire_bytes.data(), wire_bytes.size()}, {});
-  i::Handle<i::WasmModuleObject> module_object;
-  if (!maybe_module_object.ToHandle(&module_object)) {
-    return MaybeLocal<WasmModuleObject>();
-  }
-  return Local<WasmModuleObject>::Cast(
-      Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
-}
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::DeserializeOrCompile(
-    Isolate* isolate, MemorySpan<const uint8_t> serialized_module,
-    MemorySpan<const uint8_t> wire_bytes) {
-  MaybeLocal<WasmModuleObject> ret =
-      Deserialize(isolate, serialized_module, wire_bytes);
-  if (!ret.IsEmpty()) {
-    return ret;
-  }
-  return Compile(isolate, wire_bytes.data(), wire_bytes.size());
-}
-
-MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(Isolate* isolate,
-                                                       const uint8_t* start,
-                                                       size_t length) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
-    return MaybeLocal<WasmModuleObject>();
-  }
-  i::MaybeHandle<i::JSObject> maybe_compiled;
-  {
-    i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
-    maybe_compiled = i_isolate->wasm_engine()->SyncCompile(
-        i_isolate, enabled_features, &thrower,
-        i::wasm::ModuleWireBytes(start, start + length));
-  }
-  CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_pending_exception());
-  if (maybe_compiled.is_null()) {
-    i_isolate->OptionalRescheduleException(false);
-    return MaybeLocal<WasmModuleObject>();
-  }
-  return Local<WasmModuleObject>::Cast(
-      Utils::ToLocal(maybe_compiled.ToHandleChecked()));
-}
-
 WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
     Isolate* isolate) {
   USE(isolate_);
