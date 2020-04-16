@@ -1708,7 +1708,7 @@ int Http2Session::OnSendData(
 
 // Creates a new Http2Stream and submits a new http2 request.
 Http2Stream* Http2Session::SubmitRequest(
-    nghttp2_priority_spec* prispec,
+    const Http2Priority& priority,
     const Http2Headers& headers,
     int32_t* ret,
     int options) {
@@ -1718,7 +1718,7 @@ Http2Stream* Http2Session::SubmitRequest(
   Http2Stream::Provider::Stream prov(options);
   *ret = nghttp2_submit_request(
       session_.get(),
-      prispec,
+      &priority,
       headers.data(),
       headers.length(),
       *prov,
@@ -2054,7 +2054,7 @@ int Http2Stream::SubmitTrailers(const Http2Headers& headers) {
 }
 
 // Submit a PRIORITY frame to the connected peer.
-int Http2Stream::SubmitPriority(nghttp2_priority_spec* prispec,
+int Http2Stream::SubmitPriority(const Http2Priority& priority,
                                 bool silent) {
   CHECK(!this->is_destroyed());
   Http2Scope h2scope(this);
@@ -2063,11 +2063,11 @@ int Http2Stream::SubmitPriority(nghttp2_priority_spec* prispec,
       nghttp2_session_change_stream_priority(
           session_->session(),
           id_,
-          prispec) :
+          &priority) :
       nghttp2_submit_priority(
           session_->session(),
           NGHTTP2_FLAG_NONE,
-          id_, prispec);
+          id_, &priority);
   CHECK_NE(ret, NGHTTP2_ERR_NOMEM);
   return ret;
 }
@@ -2458,14 +2458,13 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> headers = args[0].As<Array>();
   int32_t options = args[1]->Int32Value(env->context()).FromMaybe(0);
-  Http2Priority priority(env, args[2], args[3], args[4]);
 
   Debug(session, "request submitted");
 
   int32_t ret = 0;
   Http2Stream* stream =
       session->Http2Session::SubmitRequest(
-          &priority,
+          Http2Priority(env, args[2], args[3], args[4]),
           Http2Headers(env, headers),
           &ret,
           static_cast<int>(options));
@@ -2637,10 +2636,9 @@ void Http2Stream::Priority(const FunctionCallbackInfo<Value>& args) {
   Http2Stream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
-  Http2Priority priority(env, args[0], args[1], args[2]);
-  bool silent = args[3]->IsTrue();
-
-  CHECK_EQ(stream->SubmitPriority(&priority, silent), 0);
+  CHECK_EQ(stream->SubmitPriority(
+      Http2Priority(env, args[0], args[1], args[2]),
+      args[3]->IsTrue()), 0);
   Debug(stream, "priority submitted");
 }
 

@@ -306,7 +306,7 @@ class Http2Stream : public AsyncWrap,
   void OnTrailers();
 
   // Submit a PRIORITY frame for this stream
-  int SubmitPriority(nghttp2_priority_spec* prispec, bool silent = false);
+  int SubmitPriority(const Http2Priority& priority, bool silent = false);
 
   // Submits an RST_STREAM frame using the given code
   void SubmitRstStream(const uint32_t code);
@@ -598,7 +598,7 @@ class Http2Session : public AsyncWrap,
   // will be a pointer to the Http2Stream instance assigned.
   // This only works if the session is a client session.
   Http2Stream* SubmitRequest(
-      nghttp2_priority_spec* prispec,
+      const Http2Priority& priority,
       const Http2Headers& headers,
       int32_t* ret,
       int options = 0);
