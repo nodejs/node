@@ -1128,17 +1128,11 @@ class TracedReference : public TracedReferenceBase<T> {
 
   /**
    * Copy assignment operator initializing TracedGlobal from an existing one.
-   *
-   * Note: Prohibited when |other| has a finalization callback set through
-   * |SetFinalizationCallback|.
    */
   V8_INLINE TracedReference& operator=(const TracedReference& rhs);
 
   /**
    * Copy assignment operator initializing TracedGlobal from an existing one.
-   *
-   * Note: Prohibited when |other| has a finalization callback set through
-   * |SetFinalizationCallback|.
    */
   template <class S>
   V8_INLINE TracedReference& operator=(const TracedReference<S>& rhs);
@@ -1155,20 +1149,6 @@ class TracedReference : public TracedReferenceBase<T> {
     return reinterpret_cast<TracedReference<S>&>(
         const_cast<TracedReference<T>&>(*this));
   }
-
-  /**
-   * Adds a finalization callback to the handle. The type of this callback is
-   * similar to WeakCallbackType::kInternalFields, i.e., it will pass the
-   * parameter and the first two internal fields of the object.
-   *
-   * The callback is then supposed to reset the handle in the callback. No
-   * further V8 API may be called in this callback. In case additional work
-   * involving V8 needs to be done, a second callback can be scheduled using
-   * WeakCallbackInfo<void>::SetSecondPassCallback.
-   */
-  V8_DEPRECATED("Use TracedGlobal<> if callbacks are required.")
-  V8_INLINE void SetFinalizationCallback(
-      void* parameter, WeakCallbackInfo<void>::Callback callback);
 };
 
  /**
@@ -10948,13 +10928,6 @@ uint16_t TracedReferenceBase<T>::WrapperClassId() const {
 
 template <class T>
 void TracedGlobal<T>::SetFinalizationCallback(
-    void* parameter, typename WeakCallbackInfo<void>::Callback callback) {
-  V8::SetFinalizationCallbackTraced(
-      reinterpret_cast<internal::Address*>(this->val_), parameter, callback);
-}
-
-template <class T>
-void TracedReference<T>::SetFinalizationCallback(
     void* parameter, typename WeakCallbackInfo<void>::Callback callback) {
   V8::SetFinalizationCallbackTraced(
       reinterpret_cast<internal::Address*>(this->val_), parameter, callback);
