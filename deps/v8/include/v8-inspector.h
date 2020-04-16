@@ -145,7 +145,10 @@ class V8_EXPORT V8InspectorSession {
   virtual void breakProgram(StringView breakReason,
                             StringView breakDetails) = 0;
   virtual void setSkipAllPauses(bool) = 0;
-  virtual void resume() = 0;
+
+  // NOTE: setTerminateOnResume is not implemented on the base version of
+  // Node.js v14.0.0 / V8 8.1.
+  virtual void resume(bool setTerminateOnResume = false) = 0;
   virtual void stepOver() = 0;
   virtual std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
   searchInTextByLines(StringView text, StringView query, bool caseSensitive,

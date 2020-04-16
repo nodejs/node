@@ -77,7 +77,7 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   void cancelPauseOnNextStatement() override;
   void breakProgram(StringView breakReason, StringView breakDetails) override;
   void setSkipAllPauses(bool) override;
-  void resume() override;
+  void resume(bool terminateOnResume = false) override;
   void stepOver() override;
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
   searchInTextByLines(StringView text, StringView query, bool caseSensitive,
