@@ -5885,6 +5885,9 @@ class V8_EXPORT FinalizationGroup : public Object {
    * occurred. Otherwise the result is |true| if the cleanup callback
    * was called successfully. The result is never |false|.
    */
+  V8_DEPRECATED(
+      "FinalizationGroup cleanup is automatic if "
+      "HostCleanupFinalizationGroupCallback is not set")
   static V8_WARN_UNUSED_RESULT Maybe<bool> Cleanup(
       Local<FinalizationGroup> finalization_group);
 };
@@ -8444,6 +8447,9 @@ class V8_EXPORT Isolate {
    * are ready to be cleaned up and require FinalizationGroup::Cleanup()
    * to be called in a future task.
    */
+  V8_DEPRECATED(
+      "FinalizationGroup cleanup is automatic if "
+      "HostCleanupFinalizationGroupCallback is not set")
   void SetHostCleanupFinalizationGroupCallback(
       HostCleanupFinalizationGroupCallback callback);
 
@@ -9056,10 +9062,10 @@ class V8_EXPORT Isolate {
   void LowMemoryNotification();
 
   /**
-   * Optional notification that a context has been disposed. V8 uses
-   * these notifications to guide the GC heuristic. Returns the number
-   * of context disposals - including this one - since the last time
-   * V8 had a chance to clean up.
+   * Optional notification that a context has been disposed. V8 uses these
+   * notifications to guide the GC heuristic and cancel FinalizationGroup
+   * cleanup tasks. Returns the number of context disposals - including this one
+   * - since the last time V8 had a chance to clean up.
    *
    * The optional parameter |dependant_context| specifies whether the disposed
    * context was depending on state from other contexts or not.

@@ -916,16 +916,6 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   return MaybeLocal<Promise>();
 }
 
-void Shell::HostCleanupFinalizationGroup(Local<Context> context,
-                                         Local<FinalizationGroup> fg) {
-  Isolate* isolate = context->GetIsolate();
-  PerIsolateData::Get(isolate)->HostCleanupFinalizationGroup(fg);
-}
-
-void PerIsolateData::HostCleanupFinalizationGroup(Local<FinalizationGroup> fg) {
-  cleanup_finalization_groups_.emplace(isolate_, fg);
-}
-
 void Shell::HostInitializeImportMetaObject(Local<Context> context,
                                            Local<Module> module,
                                            Local<Object> meta) {
@@ -1123,15 +1113,6 @@ MaybeLocal<Context> PerIsolateData::GetTimeoutContext() {
   return result;
 }
 
-MaybeLocal<FinalizationGroup> PerIsolateData::GetCleanupFinalizationGroup() {
-  if (cleanup_finalization_groups_.empty())
-    return MaybeLocal<FinalizationGroup>();
-  Local<FinalizationGroup> result =
-      cleanup_finalization_groups_.front().Get(isolate_);
-  cleanup_finalization_groups_.pop();
-  return result;
-}
-
 PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
   data_->realm_count_ = 1;
   data_->realm_current_ = 0;
@@ -1281,8 +1262,11 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
                          int index) {
   Isolate* isolate = args.GetIsolate();
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
+  Local<Context> context = data->realms_[index].Get(isolate);
+  DisposeModuleEmbedderData(context);
   data->realms_[index].Reset();
+  // ContextDisposedNotification expects the disposed context to be entered.
+  v8::Context::Scope scope(context);
   isolate->ContextDisposedNotification();
   isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
 }
@@ -2742,8 +2726,6 @@ void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostCleanupFinalizationGroupCallback(
-      Shell::HostCleanupFinalizationGroup);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
@@ -2889,8 +2871,6 @@ void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostCleanupFinalizationGroupCallback(
-      Shell::HostCleanupFinalizationGroup);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
@@ -3272,21 +3252,6 @@ bool RunSetTimeoutCallback(Isolate* isolate, bool* did_run) {
   return true;
 }
 
-bool RunCleanupFinalizationGroupCallback(Isolate* isolate, bool* did_run) {
-  PerIsolateData* data = PerIsolateData::Get(isolate);
-  HandleScope handle_scope(isolate);
-  while (true) {
-    Local<FinalizationGroup> fg;
-    if (!data->GetCleanupFinalizationGroup().ToLocal(&fg)) return true;
-    *did_run = true;
-    TryCatch try_catch(isolate);
-    try_catch.SetVerbose(true);
-    if (FinalizationGroup::Cleanup(fg).IsNothing()) {
-      return false;
-    }
-  }
-}
-
 bool ProcessMessages(
     Isolate* isolate,
     const std::function<platform::MessageLoopBehavior()>& behavior) {
@@ -3302,17 +3267,12 @@ bool ProcessMessages(
       v8::platform::RunIdleTasks(g_default_platform, isolate,
                                  50.0 / base::Time::kMillisecondsPerSecond);
     }
-    bool ran_finalization_callback = false;
-    if (!RunCleanupFinalizationGroupCallback(isolate,
-                                             &ran_finalization_callback)) {
-      return false;
-    }
     bool ran_set_timeout = false;
     if (!RunSetTimeoutCallback(isolate, &ran_set_timeout)) {
       return false;
     }
 
-    if (!ran_set_timeout && !ran_finalization_callback) return true;
+    if (!ran_set_timeout) return true;
   }
   return true;
 }
@@ -3767,8 +3727,6 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   Isolate* isolate = Isolate::New(create_params);
-  isolate->SetHostCleanupFinalizationGroupCallback(
-      Shell::HostCleanupFinalizationGroup);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
@@ -3831,8 +3789,6 @@ int Shell::Main(int argc, char* argv[]) {
       i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
       Isolate* isolate2 = Isolate::New(create_params);
       i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
-      isolate2->SetHostCleanupFinalizationGroupCallback(
-          Shell::HostCleanupFinalizationGroup);
       isolate2->SetHostImportModuleDynamicallyCallback(
           Shell::HostImportModuleDynamically);
       isolate2->SetHostInitializeImportMetaObjectCallback(

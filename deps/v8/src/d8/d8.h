@@ -226,8 +226,6 @@ class PerIsolateData {
     PerIsolateData* data_;
   };
 
-  inline void HostCleanupFinalizationGroup(Local<FinalizationGroup> fg);
-  inline MaybeLocal<FinalizationGroup> GetCleanupFinalizationGroup();
   inline void SetTimeout(Local<Function> callback, Local<Context> context);
   inline MaybeLocal<Function> GetTimeoutCallback();
   inline MaybeLocal<Context> GetTimeoutContext();
@@ -245,7 +243,6 @@ class PerIsolateData {
   Global<Value> realm_shared_;
   std::queue<Global<Function>> set_timeout_callbacks_;
   std::queue<Global<Context>> set_timeout_contexts_;
-  std::queue<Global<FinalizationGroup>> cleanup_finalization_groups_;
   AsyncHooks* async_hooks_wrapper_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
@@ -423,8 +420,6 @@ class Shell : public i::AllStatic {
   static void SetUMask(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void MakeDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RemoveDirectory(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void HostCleanupFinalizationGroup(Local<Context> context,
-                                           Local<FinalizationGroup> fg);
   static MaybeLocal<Promise> HostImportModuleDynamically(
       Local<Context> context, Local<ScriptOrModule> referrer,
       Local<String> specifier);
