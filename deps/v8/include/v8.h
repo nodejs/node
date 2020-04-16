@@ -6382,11 +6382,6 @@ class V8_EXPORT FunctionTemplate : public Template {
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 
-  /** Get a template included in the snapshot by index. */
-  V8_DEPRECATED("Use v8::Isolate::GetDataFromSnapshotOnce instead")
-  static MaybeLocal<FunctionTemplate> FromSnapshot(Isolate* isolate,
-                                                   size_t index);
-
   /**
    * Creates a function template backed/cached by a private property.
    */
@@ -6673,11 +6668,6 @@ class V8_EXPORT ObjectTemplate : public Template {
   static Local<ObjectTemplate> New(
       Isolate* isolate,
       Local<FunctionTemplate> constructor = Local<FunctionTemplate>());
-
-  /** Get a template included in the snapshot by index. */
-  V8_DEPRECATED("Use v8::Isolate::GetDataFromSnapshotOnce instead")
-  static MaybeLocal<ObjectTemplate> FromSnapshot(Isolate* isolate,
-                                                 size_t index);
 
   /** Creates a new instance of this template.*/
   V8_WARN_UNUSED_RESULT MaybeLocal<Object> NewInstance(Local<Context> context);
@@ -9765,13 +9755,6 @@ class V8_EXPORT SnapshotCreator {
   size_t AddContext(Local<Context> context,
                     SerializeInternalFieldsCallback callback =
                         SerializeInternalFieldsCallback());
-
-  /**
-   * Add a template to be included in the snapshot blob.
-   * \returns the index of the template in the snapshot blob.
-   */
-  V8_DEPRECATED("use AddData instead")
-  size_t AddTemplate(Local<Template> template_obj);
 
   /**
    * Attach arbitrary V8::Data to the context snapshot, which can be retrieved
