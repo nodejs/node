@@ -631,10 +631,6 @@ size_t SnapshotCreator::AddContext(Local<Context> context,
   return index;
 }
 
-size_t SnapshotCreator::AddTemplate(Local<Template> template_obj) {
-  return AddData(template_obj);
-}
-
 size_t SnapshotCreator::AddData(i::Address object) {
   DCHECK_NE(object, i::kNullAddress);
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
@@ -1490,21 +1486,6 @@ Local<FunctionTemplate> FunctionTemplate::New(
   return templ;
 }
 
-MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
-                                                            size_t index) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
-  int int_index = static_cast<int>(index);
-  if (int_index < serialized_objects.length()) {
-    i::Object info = serialized_objects.get(int_index);
-    if (info.IsFunctionTemplateInfo()) {
-      return Utils::ToLocal(i::Handle<i::FunctionTemplateInfo>(
-          i::FunctionTemplateInfo::cast(info), i_isolate));
-    }
-  }
-  return Local<FunctionTemplate>();
-}
-
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
     Isolate* isolate, FunctionCallback callback, Local<Private> cache_property,
     Local<Value> data, Local<Signature> signature, int length,
@@ -1685,21 +1666,6 @@ static Local<ObjectTemplate> ObjectTemplateNew(
 Local<ObjectTemplate> ObjectTemplate::New(
     i::Isolate* isolate, v8::Local<FunctionTemplate> constructor) {
   return ObjectTemplateNew(isolate, constructor, false);
-}
-
-MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
-                                                        size_t index) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
-  int int_index = static_cast<int>(index);
-  if (int_index < serialized_objects.length()) {
-    i::Object info = serialized_objects.get(int_index);
-    if (info.IsObjectTemplateInfo()) {
-      return Utils::ToLocal(i::Handle<i::ObjectTemplateInfo>(
-          i::ObjectTemplateInfo::cast(info), i_isolate));
-    }
-  }
-  return Local<ObjectTemplate>();
 }
 
 // Ensure that the object template has a constructor.  If no
