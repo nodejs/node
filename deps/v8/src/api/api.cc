@@ -1499,7 +1499,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
 Local<FunctionTemplate> FunctionTemplate::New(
     Isolate* isolate, FunctionCallback callback, v8::Local<Value> data,
     v8::Local<Signature> signature, int length, ConstructorBehavior behavior,
-    SideEffectType side_effect_type) {
+    SideEffectType side_effect_type, const CFunction*) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // function templates when the isolate is created for serialization.
@@ -1540,7 +1540,8 @@ Local<AccessorSignature> AccessorSignature::New(
 
 void FunctionTemplate::SetCallHandler(FunctionCallback callback,
                                       v8::Local<Value> data,
-                                      SideEffectType side_effect_type) {
+                                      SideEffectType side_effect_type,
+                                      const CFunction*) {
   auto info = Utils::OpenHandle(this);
   EnsureNotInstantiated(info, "v8::FunctionTemplate::SetCallHandler");
   i::Isolate* isolate = info->GetIsolate();

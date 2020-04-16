@@ -6279,6 +6279,7 @@ typedef bool (*AccessCheckCallback)(Local<Context> accessing_context,
                                     Local<Object> accessed_object,
                                     Local<Value> data);
 
+class CFunction;
 /**
  * A FunctionTemplate is used to create functions at runtime. There
  * can only be one function created from a FunctionTemplate in a
@@ -6387,7 +6388,8 @@ class V8_EXPORT FunctionTemplate : public Template {
       Local<Value> data = Local<Value>(),
       Local<Signature> signature = Local<Signature>(), int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
-      SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
+      const CFunction* not_available_in_node_v14_yet = nullptr);
 
   /**
    * Creates a function template backed/cached by a private property.
@@ -6418,7 +6420,8 @@ class V8_EXPORT FunctionTemplate : public Template {
    */
   void SetCallHandler(
       FunctionCallback callback, Local<Value> data = Local<Value>(),
-      SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
+      SideEffectType side_effect_type = SideEffectType::kHasSideEffect,
+      const CFunction* not_available_in_node_v14_yet = nullptr);
 
   /** Set the predefined length property for the FunctionTemplate. */
   void SetLength(int length);
@@ -8110,7 +8113,10 @@ class V8_EXPORT Isolate {
           array_buffer_allocator_shared(),
           external_references(nullptr),
           allow_atomics_wait(true),
-          only_terminate_in_safe_scope(false) {}
+          only_terminate_in_safe_scope(false),
+          embedder_wrapper_type_index(-1),
+          embedder_wrapper_object_index(-1) {}
+
 
     /**
      * Allows the host application to provide the address of a function that is
@@ -8174,6 +8180,10 @@ class V8_EXPORT Isolate {
      * Termination is postponed when there is no active SafeForTerminationScope.
      */
     bool only_terminate_in_safe_scope;
+
+    // Not available in Node v14 yet.
+    int embedder_wrapper_type_index;
+    int embedder_wrapper_object_index;
   };
 
 
