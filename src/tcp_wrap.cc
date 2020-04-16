@@ -185,7 +185,7 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
   int enable;
   if (!args[0]->Int32Value(env->context()).To(&enable)) return;
-  unsigned int delay = args[1].As<Uint32>()->Value();
+  unsigned int delay = static_cast<unsigned int>(args[1].As<Uint32>()->Value());
   int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
   args.GetReturnValue().Set(err);
 }
@@ -278,7 +278,8 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());
-  int port = args[2].As<Uint32>()->Value();
+  // explicit cast to fit to libuv's type expectation
+  int port = static_cast<int>(args[2].As<Uint32>()->Value());
   Connect<sockaddr_in>(args,
                        [port](const char* ip_address, sockaddr_in* addr) {
       return uv_ip4_addr(ip_address, port, addr);
