@@ -642,7 +642,7 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
 // but this is faster and does not fail if the stream is not found.
 Http2Stream* Http2Session::FindStream(int32_t id) {
   auto s = streams_.find(id);
-  return s != streams_.end() ? s->second : nullptr;
+  return s != streams_.end() ? s->second.get() : nullptr;
 }
 
 bool Http2Session::CanAddStream() {
@@ -659,7 +659,7 @@ bool Http2Session::CanAddStream() {
 
 void Http2Session::AddStream(Http2Stream* stream) {
   CHECK_GE(++statistics_.stream_count, 0);
-  streams_[stream->id()] = stream;
+  streams_[stream->id()] = BaseObjectPtr<Http2Stream>(stream);
   size_t size = streams_.size();
   if (size > statistics_.max_concurrent_streams)
     statistics_.max_concurrent_streams = size;

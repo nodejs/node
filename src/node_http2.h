@@ -888,7 +888,7 @@ class Http2Session : public AsyncWrap,
   uint64_t current_nghttp2_memory_ = 0;
 
   // The collection of active Http2Streams associated with this session
-  std::unordered_map<int32_t, Http2Stream*> streams_;
+  std::unordered_map<int32_t, BaseObjectPtr<Http2Stream>> streams_;
 
   int flags_ = kSessionStateNone;
 
