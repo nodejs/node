@@ -647,7 +647,7 @@ class Http2Session : public AsyncWrap,
   void MaybeStopReading();
 
   // Returns pointer to the stream, or nullptr if stream does not exist
-  Http2Stream* FindStream(int32_t id);
+  BaseObjectPtr<Http2Stream> FindStream(int32_t id);
 
   bool CanAddStream();
 
@@ -655,7 +655,7 @@ class Http2Session : public AsyncWrap,
   void AddStream(Http2Stream* stream);
 
   // Removes a stream instance from this session
-  void RemoveStream(Http2Stream* stream);
+  BaseObjectPtr<Http2Stream> RemoveStream(int32_t id);
 
   // Indicates whether there currently exist outgoing buffers for this stream.
   bool HasWritesOnSocketForStream(Http2Stream* stream);
@@ -1019,7 +1019,7 @@ class Http2Ping : public AsyncWrap {
       v8::Local<v8::Object> obj,
       v8::Local<v8::Function> callback);
 
-  SET_NO_MEMORY_INFO()
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Http2Ping)
   SET_SELF_SIZE(Http2Ping)
 
@@ -1045,7 +1045,7 @@ class Http2Settings : public AsyncWrap {
                 v8::Local<v8::Function> callback,
                 uint64_t start_time = uv_hrtime());
 
-  SET_NO_MEMORY_INFO();
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Http2Settings)
   SET_SELF_SIZE(Http2Settings)
 

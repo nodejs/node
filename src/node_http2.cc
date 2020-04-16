@@ -236,7 +236,11 @@ Http2Settings::Http2Settings(Http2Session* session,
 }
 
 Local<Function> Http2Settings::callback() const {
-  return Local<Function>::New(env()->isolate(), callback_);
+  return callback_.Get(env()->isolate());
+}
+
+void Http2Settings::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("callback", callback_);
 }
 
 // Generates a Buffer that contains the serialized payload of a SETTINGS
@@ -265,8 +269,9 @@ Local<Value> Http2Settings::Pack(
           size,
           entries,
           count);
-  Local<Value> undef = Undefined(env->isolate());
-  return scope.Escape(ret >= 0 ? buffer.ToBuffer().FromMaybe(undef) : undef);
+  Local<Value> buf = Undefined(env->isolate());
+  if (ret >= 0) buf = buffer.ToBuffer().ToLocalChecked();
+  return scope.Escape(buf);
 }
 
 // Updates the shared TypedArray with the current remote or local settings for
@@ -326,8 +331,8 @@ Http2Priority::Http2Priority(Environment* env,
                              Local<Value> weight,
                              Local<Value> exclusive) {
   Local<Context> context = env->context();
-  int32_t parent_ = parent->Int32Value(context).FromMaybe(0);
-  int32_t weight_ = weight->Int32Value(context).FromMaybe(0);
+  int32_t parent_ = parent->Int32Value(context).ToChecked();
+  int32_t weight_ = weight->Int32Value(context).ToChecked();
   bool exclusive_ = exclusive->IsTrue();
   Debug(env, DebugCategory::HTTP2STREAM,
         "Http2Priority: parent: %d, weight: %d, exclusive: %s\n",
@@ -650,9 +655,9 @@ void Http2Session::Close(uint32_t code, bool socket_closed) {
 
 // Locates an existing known stream by ID. nghttp2 has a similar method
 // but this is faster and does not fail if the stream is not found.
-Http2Stream* Http2Session::FindStream(int32_t id) {
+BaseObjectPtr<Http2Stream> Http2Session::FindStream(int32_t id) {
   auto s = streams_.find(id);
-  return s != streams_.end() ? s->second.get() : nullptr;
+  return s != streams_.end() ? s->second : BaseObjectPtr<Http2Stream>();
 }
 
 bool Http2Session::CanAddStream() {
@@ -677,11 +682,16 @@ void Http2Session::AddStream(Http2Stream* stream) {
 }
 
 
-void Http2Session::RemoveStream(Http2Stream* stream) {
-  if (streams_.empty() || stream == nullptr)
-    return;  // Nothing to remove, item was never added?
-  streams_.erase(stream->id());
-  DecrementCurrentSessionMemory(sizeof(*stream));
+BaseObjectPtr<Http2Stream> Http2Session::RemoveStream(int32_t id) {
+  BaseObjectPtr<Http2Stream> stream;
+  if (streams_.empty())
+    return stream;
+  stream = FindStream(id);
+  if (stream) {
+    streams_.erase(id);
+    DecrementCurrentSessionMemory(sizeof(*stream));
+  }
+  return stream;
 }
 
 // Used as one of the Padding Strategy functions. Will attempt to ensure
@@ -783,10 +793,10 @@ int Http2Session::OnBeginHeadersCallback(nghttp2_session* handle,
   int32_t id = GetFrameID(frame);
   Debug(session, "beginning headers for stream %d", id);
 
-  Http2Stream* stream = session->FindStream(id);
+  BaseObjectPtr<Http2Stream> stream = session->FindStream(id);
   // The common case is that we're creating a new stream. The less likely
   // case is that we're receiving a set of trailers
-  if (LIKELY(stream == nullptr)) {
+  if (LIKELY(!stream)) {
     if (UNLIKELY(!session->CanAddStream() ||
                  Http2Stream::New(session, id, frame->headers.cat) ==
                      nullptr)) {
@@ -820,11 +830,11 @@ int Http2Session::OnHeaderCallback(nghttp2_session* handle,
                                    void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   int32_t id = GetFrameID(frame);
-  Http2Stream* stream = session->FindStream(id);
+  BaseObjectPtr<Http2Stream> stream = session->FindStream(id);
   // If stream is null at this point, either something odd has happened
   // or the stream was closed locally while header processing was occurring.
   // either way, do not proceed and close the stream.
-  if (UNLIKELY(stream == nullptr))
+  if (UNLIKELY(!stream))
     return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
 
   // If the stream has already been destroyed, ignore.
@@ -966,10 +976,10 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   Local<Context> context = env->context();
   Context::Scope context_scope(context);
   Debug(session, "stream %d closed with code: %d", id, code);
-  Http2Stream* stream = session->FindStream(id);
+  BaseObjectPtr<Http2Stream> stream = session->FindStream(id);
   // Intentionally ignore the callback if the stream does not exist or has
   // already been destroyed
-  if (stream == nullptr || stream->is_destroyed())
+  if (!stream || stream->is_destroyed())
     return 0;
 
   stream->Close(code);
@@ -982,7 +992,7 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
     stream->MakeCallback(env->http2session_on_stream_close_function(),
                           1, &arg);
   Local<Value> def = v8::False(env->isolate());
-  if (answer.IsEmpty() || answer.FromMaybe(def)->IsFalse()) {
+  if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
     // Skip to destroy
     stream->Destroy();
   }
@@ -1028,9 +1038,10 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
   // so that it can send a WINDOW_UPDATE frame. This is a critical part of
   // the flow control process in http2
   CHECK_EQ(nghttp2_session_consume_connection(handle, len), 0);
-  Http2Stream* stream = session->FindStream(id);
+  BaseObjectPtr<Http2Stream> stream = session->FindStream(id);
+
   // If the stream has been destroyed, ignore this chunk
-  if (stream->is_destroyed())
+  if (!stream || stream->is_destroyed())
     return 0;
 
   stream->statistics_.received_bytes += len;
@@ -1077,7 +1088,7 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
   // If we are currently waiting for a write operation to finish, we should
   // tell nghttp2 that we want to wait before we process more input data.
   if (session->is_write_in_progress()) {
-    CHECK(!session->is_reading_stopped());
+    CHECK(session->is_reading_stopped());
     session->set_receive_paused();
     return NGHTTP2_ERR_PAUSE;
   }
@@ -1185,10 +1196,10 @@ void Http2Session::HandleHeadersFrame(const nghttp2_frame* frame) {
 
   int32_t id = GetFrameID(frame);
   Debug(this, "handle headers frame for stream %d", id);
-  Http2Stream* stream = FindStream(id);
+  BaseObjectPtr<Http2Stream> stream = FindStream(id);
 
   // If the stream has already been destroyed, ignore.
-  if (stream->is_destroyed())
+  if (!stream || stream->is_destroyed())
     return;
 
   // The headers are stored as a vector of Http2Header instances.
@@ -1254,9 +1265,11 @@ void Http2Session::HandlePriorityFrame(const nghttp2_frame* frame) {
 int Http2Session::HandleDataFrame(const nghttp2_frame* frame) {
   int32_t id = GetFrameID(frame);
   Debug(this, "handling data frame for stream %d", id);
-  Http2Stream* stream = FindStream(id);
+  BaseObjectPtr<Http2Stream> stream = FindStream(id);
 
-  if (!stream->is_destroyed() && frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
+  if (stream &&
+      !stream->is_destroyed() &&
+      frame->hd.flags & NGHTTP2_FLAG_END_STREAM) {
     stream->EmitRead(UV_EOF);
   } else if (frame->hd.length == 0) {
     return 1;  // Consider 0-length frame without END_STREAM an error.
@@ -1275,11 +1288,10 @@ void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
   nghttp2_goaway goaway_frame = frame->goaway;
   Debug(this, "handling goaway frame");
 
-  Local<Value> undef = Undefined(isolate);
   Local<Value> argv[3] = {
     Integer::NewFromUnsigned(isolate, goaway_frame.error_code),
     Integer::New(isolate, goaway_frame.last_stream_id),
-    undef
+    Undefined(isolate)
   };
 
   size_t length = goaway_frame.opaque_data_len;
@@ -1289,7 +1301,7 @@ void Http2Session::HandleGoawayFrame(const nghttp2_frame* frame) {
     // shouldn't fail if we're not able to process it.
     argv[2] = Buffer::Copy(isolate,
                            reinterpret_cast<char*>(goaway_frame.opaque_data),
-                           length).FromMaybe(undef);
+                           length).ToLocalChecked();
   }
 
   MakeCallback(env()->http2session_on_goaway_data_function(),
@@ -1370,13 +1382,10 @@ void Http2Session::HandlePingFrame(const nghttp2_frame* frame) {
 
   if (!(js_fields_->bitfield & (1 << kSessionHasPingListeners))) return;
   // Notify the session that a ping occurred
-  Local<Value> undef = Undefined(env()->isolate());
-  // There are few reasons why the copy should fail, but if it does,
-  // we'll just return Undefined rather than a buffer.
   arg = Buffer::Copy(
       env(),
       reinterpret_cast<const char*>(frame->ping.opaque_data),
-      8).FromMaybe(undef);
+      8).ToLocalChecked();
   MakeCallback(env()->http2session_on_ping_function(), 1, &arg);
 }
 
@@ -1429,7 +1438,7 @@ void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   if (is_reading_stopped() &&
       !is_write_in_progress() &&
       nghttp2_session_want_read(session_.get())) {
-    set_reading_stopped();
+    set_reading_stopped(false);
     stream_->ReadStart();
   }
 
@@ -1524,8 +1533,8 @@ void Http2Session::ClearOutgoing(int status) {
     SendPendingData();
 
     for (int32_t stream_id : current_pending_rst_streams) {
-      Http2Stream* stream = FindStream(stream_id);
-      if (LIKELY(stream != nullptr))
+      BaseObjectPtr<Http2Stream> stream = FindStream(stream_id);
+      if (LIKELY(stream))
         stream->FlushRstStream();
     }
   }
@@ -1651,7 +1660,8 @@ int Http2Session::OnSendData(
       nghttp2_data_source* source,
       void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
-  Http2Stream* stream = session->FindStream(frame->hd.stream_id);
+  BaseObjectPtr<Http2Stream> stream = session->FindStream(frame->hd.stream_id);
+  if (!stream) return 0;
 
   // Send the frame header + a byte that indicates padding length.
   session->CopyDataIntoOutgoing(framehd, 9);
@@ -1758,6 +1768,9 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     // The data in stream_buf_ is already accounted for, add nread received
     // bytes to session memory but remove the already processed
     // stream_buf_offset_ bytes.
+    // TODO(@jasnell): There are some cases where nread is < stream_buf_offset_
+    // here but things still work. Those need to be investigated.
+    // CHECK_GE(nread, stream_buf_offset_);
     IncrementCurrentSessionMemory(nread - stream_buf_offset_);
 
     buf = std::move(new_buf);
@@ -1861,11 +1874,7 @@ Http2Stream::Http2Stream(Http2Session* session,
 }
 
 Http2Stream::~Http2Stream() {
-  if (!session_)
-    return;
   Debug(this, "tearing down stream");
-  session_->DecrementCurrentSessionMemory(current_headers_length_);
-  session_->RemoveStream(this);
 }
 
 void Http2Stream::MemoryInfo(MemoryTracker* tracker) const {
@@ -1939,26 +1948,30 @@ void Http2Stream::Destroy() {
 
   // Wait until the start of the next loop to delete because there
   // may still be some pending operations queued for this stream.
-  BaseObjectPtr<Http2Stream> strong_ref{this};
-  env()->SetImmediate([this, strong_ref](Environment* env) {
-    // Free any remaining outgoing data chunks here. This should be done
-    // here because it's possible for destroy to have been called while
-    // we still have queued outbound writes.
-    while (!queue_.empty()) {
-      NgHttp2StreamWrite& head = queue_.front();
-      if (head.req_wrap != nullptr)
-        head.req_wrap->Done(UV_ECANCELED);
-      queue_.pop();
-    }
+  BaseObjectPtr<Http2Stream> strong_ref = session_->RemoveStream(id_);
+  if (strong_ref) {
+    env()->SetImmediate([this, strong_ref = std::move(strong_ref)](
+        Environment* env) {
+      // Free any remaining outgoing data chunks here. This should be done
+      // here because it's possible for destroy to have been called while
+      // we still have queued outbound writes.
+      while (!queue_.empty()) {
+        NgHttp2StreamWrite& head = queue_.front();
+        if (head.req_wrap != nullptr)
+          head.req_wrap->Done(UV_ECANCELED);
+        queue_.pop();
+      }
 
-    // We can destroy the stream now if there are no writes for it
-    // already on the socket. Otherwise, we'll wait for the garbage collector
-    // to take care of cleaning up.
-    if (session() == nullptr || !session()->HasWritesOnSocketForStream(this)) {
-      // Delete once strong_ref goes out of scope.
-      Detach();
-    }
-  });
+      // We can destroy the stream now if there are no writes for it
+      // already on the socket. Otherwise, we'll wait for the garbage collector
+      // to take care of cleaning up.
+      if (session() == nullptr ||
+          !session()->HasWritesOnSocketForStream(this)) {
+        // Delete once strong_ref goes out of scope.
+        Detach();
+      }
+    });
+  }
 
   statistics_.end_time = uv_hrtime();
   session_->statistics_.stream_average_duration =
@@ -2255,7 +2268,8 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
                                               void* user_data) {
   Http2Session* session = static_cast<Http2Session*>(user_data);
   Debug(session, "reading outbound data for stream %d", id);
-  Http2Stream* stream = session->FindStream(id);
+  BaseObjectPtr<Http2Stream> stream = session->FindStream(id);
+  if (!stream) return 0;
   if (stream->statistics_.first_byte_sent == 0)
     stream->statistics_.first_byte_sent = uv_hrtime();
   CHECK_EQ(id, stream->id());
@@ -2326,7 +2340,7 @@ void Http2Stream::DecrementAvailableOutboundLength(size_t amount) {
 // back to JS land
 void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uint32_t val = args[0]->Uint32Value(env->context()).FromMaybe(0);
+  uint32_t val = args[0]->Uint32Value(env->context()).ToChecked();
   args.GetReturnValue().Set(
       OneByteString(
           env->isolate(),
@@ -2355,7 +2369,7 @@ void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-  int32_t id = args[0]->Int32Value(env->context()).FromMaybe(0);
+  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
   if (nghttp2_session_set_next_stream_id(session->session(), id) < 0) {
     Debug(session, "failed to set next stream id to %d", id);
     return args.GetReturnValue().Set(false);
@@ -2415,8 +2429,7 @@ void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   SessionType type =
       static_cast<SessionType>(
-          args[0]->Int32Value(env->context())
-              .FromMaybe(NGHTTP2_SESSION_SERVER));
+          args[0]->Int32Value(env->context()).ToChecked());
   Http2Session* session = new Http2Session(state, args.This(), type);
   session->get_async_id();  // avoid compiler warning
   Debug(session, "session created");
@@ -2439,7 +2452,7 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
 
-  uint32_t code = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t code = args[0]->Uint32Value(context).ToChecked();
   session->Close(code, args[1]->IsTrue());
 }
 
@@ -2451,7 +2464,7 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Environment* env = session->env();
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).FromMaybe(0);
+  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
 
   Debug(session, "request submitted");
 
@@ -2500,8 +2513,8 @@ void Http2Session::Goaway(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
-  uint32_t code = args[0]->Uint32Value(context).FromMaybe(0);
-  int32_t lastStreamID = args[1]->Int32Value(context).FromMaybe(-1);
+  uint32_t code = args[0]->Uint32Value(context).ToChecked();
+  int32_t lastStreamID = args[1]->Int32Value(context).ToChecked();
   ArrayBufferViewContents<uint8_t> opaque_data;
 
   if (args[2]->IsArrayBufferView()) {
@@ -2537,7 +2550,7 @@ void Http2Stream::RstStream(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   Http2Stream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
-  uint32_t code = args[0]->Uint32Value(context).FromMaybe(0);
+  uint32_t code = args[0]->Uint32Value(context).ToChecked();
   Debug(stream, "sending rst_stream with code %d", code);
   stream->SubmitRstStream(code);
 }
@@ -2550,7 +2563,7 @@ void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).FromMaybe(0);
+  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
 
   args.GetReturnValue().Set(
       stream->SubmitResponse(
@@ -2605,7 +2618,7 @@ void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&parent, args.Holder());
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).FromMaybe(0);
+  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
 
   Debug(parent, "creating push promise");
 
@@ -2700,13 +2713,11 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
-  int32_t id = args[0]->Int32Value(env->context()).FromMaybe(0);
+  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
 
   // origin and value are both required to be ASCII, handle them as such.
-  Local<String> origin_str =
-      args[1]->ToString(env->context()).FromMaybe(Local<String>());
-  Local<String> value_str =
-      args[2]->ToString(env->context()).FromMaybe(Local<String>());
+  Local<String> origin_str = args[1]->ToString(env->context()).ToLocalChecked();
+  Local<String> value_str = args[2]->ToString(env->context()).ToLocalChecked();
 
   if (origin_str.IsEmpty() || value_str.IsEmpty())
     return;
@@ -2734,7 +2745,7 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
   Local<String> origin_string = args[0].As<String>();
-  size_t count = args[1]->Int32Value(context).FromMaybe(0);
+  size_t count = args[1]->Int32Value(context).ToChecked();
 
   session->Origin(Origins(env, origin_string, count));
 }
@@ -2802,7 +2813,7 @@ bool Http2Session::AddPing(const uint8_t* payload, Local<Function> callback) {
   // trip to be measured.
   ping->Send(payload);
 
-  outstanding_pings_.push(std::move(ping));
+  outstanding_pings_.emplace(std::move(ping));
   return true;
 }
 
@@ -2829,9 +2840,14 @@ bool Http2Session::AddSettings(Local<Function> callback) {
   if (!settings)
     return false;
 
+  if (outstanding_settings_.size() == max_outstanding_settings_) {
+    settings->Done(false);
+    return false;
+  }
+
   IncrementCurrentSessionMemory(sizeof(*settings));
   settings->Send();
-  outstanding_settings_.push(std::move(settings));
+  outstanding_settings_.emplace(std::move(settings));
   return true;
 }
 
@@ -2845,8 +2861,12 @@ Http2Ping::Http2Ping(
   callback_.Reset(env()->isolate(), callback);
 }
 
+void Http2Ping::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("callback", callback_);
+}
+
 Local<Function> Http2Ping::callback() const {
-  return Local<Function>::New(env()->isolate(), callback_);
+  return callback_.Get(env()->isolate());
 }
 
 void Http2Ping::Send(const uint8_t* payload) {
@@ -2876,7 +2896,7 @@ void Http2Ping::Done(bool ack, const uint8_t* payload) {
   if (payload != nullptr) {
     buf = Buffer::Copy(isolate,
                        reinterpret_cast<const char*>(payload),
-                       8).FromMaybe(buf);
+                       8).ToLocalChecked();
   }
 
   Local<Value> argv[] = {
@@ -3048,7 +3068,6 @@ void Initialize(Local<Object> target,
 #define V(name) FIXED_ONE_BYTE_STRING(isolate, #name),
   Local<Value> error_code_names[] = {
     HTTP2_ERROR_CODES(V)
-    Local<Value>()  // Unused.
   };
 #undef V
 
@@ -3056,7 +3075,7 @@ void Initialize(Local<Object> target,
       Array::New(
           isolate,
           error_code_names,
-          arraysize(error_code_names) - 1);
+          arraysize(error_code_names));
 
   target->Set(context,
               FIXED_ONE_BYTE_STRING(isolate, "nameForErrorCode"),
