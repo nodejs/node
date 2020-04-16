@@ -168,18 +168,17 @@ async function closeAfterNullYielded() {
   const finallyMustCall = mustCall();
   const dataMustCall = mustCall(3);
 
-  function* infiniteGenerate() {
+  function* generate() {
     try {
       yield 'a';
       yield 'a';
       yield 'a';
-      while (true) yield null;
     } finally {
       finallyMustCall();
     }
   }
 
-  const stream = Readable.from(infiniteGenerate());
+  const stream = Readable.from(generate());
 
   stream.on('data', (chunk) => {
     dataMustCall();

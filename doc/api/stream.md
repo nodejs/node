@@ -1700,7 +1700,8 @@ added:
 -->
 
 * `iterable` {Iterable} Object implementing the `Symbol.asyncIterator` or
-  `Symbol.iterator` iterable protocol.
+  `Symbol.iterator` iterable protocol. Emits an 'error' event if a null
+   value is passed.
 * `options` {Object} Options provided to `new stream.Readable([options])`.
   By default, `Readable.from()` will set `options.objectMode` to `true`, unless
   this is explicitly opted out by setting `options.objectMode` to `false`.
