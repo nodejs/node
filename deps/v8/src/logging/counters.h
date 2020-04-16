@@ -735,6 +735,7 @@ class RuntimeCallTimer final {
   V(ArrayBuffer_Detach)                                    \
   V(ArrayBuffer_New)                                       \
   V(ArrayBuffer_NewBackingStore)                           \
+  V(ArrayBuffer_BackingStore_Reallocate)                   \
   V(Array_CloneElementAt)                                  \
   V(Array_New)                                             \
   V(BigInt64Array_New)                                     \
