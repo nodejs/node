@@ -624,8 +624,10 @@ class Http2Session : public AsyncWrap,
 #define IS_FLAG(name, flag)                                                    \
   bool is_##name() const { return flags_ & flag; }                             \
   void set_##name(bool on = true) {                                            \
-    if (on) flags_ |= flag;                                                    \
-    else flags_ &= ~flag;                                                      \
+    if (on)                                                                    \
+      flags_ |= flag;                                                          \
+    else                                                                       \
+      flags_ &= ~flag;                                                         \
   }
 
   IS_FLAG(in_scope, kSessionStateHasScope)
@@ -672,10 +674,11 @@ class Http2Session : public AsyncWrap,
     pending_rst_streams_.emplace_back(stream_id);
   }
 
-  bool HasPendingRstStream(int32_t stream_id) {
-    return pending_rst_streams_.end() != std::find(pending_rst_streams_.begin(),
-                                                   pending_rst_streams_.end(),
-                                                   stream_id);
+  bool has_pending_rststream(int32_t stream_id) {
+    return pending_rst_streams_.end() !=
+        std::find(pending_rst_streams_.begin(),
+            pending_rst_streams_.end(),
+            stream_id);
   }
 
   // Handle reads/writes from the underlying network transport.
@@ -1028,7 +1031,7 @@ class Http2Ping : public AsyncWrap {
 
  private:
   BaseObjectWeakPtr<Http2Session> session_;
-  v8::Persistent<v8::Function> callback_;
+  v8::Global<v8::Function> callback_;
   uint64_t startTime_;
 };
 
@@ -1074,7 +1077,7 @@ class Http2Settings : public AsyncWrap {
       const nghttp2_settings_entry* entries);
 
   BaseObjectWeakPtr<Http2Session> session_;
-  v8::Persistent<v8::Function> callback_;
+  v8::Global<v8::Function> callback_;
   uint64_t startTime_;
   size_t count_ = 0;
   nghttp2_settings_entry entries_[IDX_SETTINGS_COUNT];

@@ -31,7 +31,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -204,7 +203,7 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
       uint32_t val = buffer[IDX_SETTINGS_ ## name];                            \
       entries[count++] =                                                       \
           nghttp2_settings_entry {NGHTTP2_SETTINGS_ ## name, val};             \
-    } } while(0)
+    } } while (0)
 
 size_t Http2Settings::Init(
     Http2State* http2_state,
@@ -280,7 +279,6 @@ void Http2Settings::Update(Http2Session* session, get_setting fn) {
       fn(session->session(), NGHTTP2_SETTINGS_ ## name);
   HTTP2_SETTINGS(V)
 #undef V
-
 }
 
 // Initializes the shared TypedArray with the default settings values.
@@ -1933,7 +1931,7 @@ void Http2Stream::Destroy() {
   // Do nothing if this stream instance is already destroyed
   if (is_destroyed())
     return;
-  if (session_->HasPendingRstStream(id_))
+  if (session_->has_pending_rststream(id_))
     FlushRstStream();
   set_destroyed();
 
@@ -3050,7 +3048,7 @@ void Initialize(Local<Object> target,
 #define V(name) FIXED_ONE_BYTE_STRING(isolate, #name),
   Local<Value> error_code_names[] = {
     HTTP2_ERROR_CODES(V)
-    Local<Value>() // Unused.
+    Local<Value>()  // Unused.
   };
 #undef V
 
