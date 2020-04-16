@@ -4,6 +4,7 @@ BUILD_ARCH_TYPE=$1
 V8_BUILD_OPTIONS=$2
 
 cd deps/v8
+find . -type d -name .git | xargs rm -rf
 tools/node/fetch_deps.py .
 
 ARCH="`arch`"
