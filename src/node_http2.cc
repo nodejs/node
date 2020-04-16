@@ -49,6 +49,11 @@ namespace {
 
 const char zero_bytes_256[256] = {};
 
+bool HasHttp2Observer(Environment* env) {
+  AliasedUint32Array& observers = env->performance_state()->observers;
+  return observers[performance::NODE_PERFORMANCE_ENTRY_TYPE_HTTP2] != 0;
+}
+
 }  // anonymous namespace
 
 // These configure the callbacks required by nghttp2 itself. There are
@@ -515,11 +520,6 @@ Http2Session::~Http2Session() {
 std::string Http2Session::diagnostic_name() const {
   return std::string("Http2Session ") + TypeName() + " (" +
       std::to_string(static_cast<int64_t>(get_async_id())) + ")";
-}
-
-bool HasHttp2Observer(Environment* env) {
-  AliasedUint32Array& observers = env->performance_state()->observers;
-  return observers[performance::NODE_PERFORMANCE_ENTRY_TYPE_HTTP2] != 0;
 }
 
 void Http2Stream::EmitStatistics() {
