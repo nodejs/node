@@ -8380,6 +8380,13 @@ class V8_EXPORT Isolate {
     kRegExpReplaceCalledOnSlowRegExp = 80,
     kDisplayNames = 81,
     kSharedArrayBufferConstructed = 82,
+    kArrayPrototypeHasElements = 83,
+    kObjectPrototypeHasElements = 84,
+    kNumberFormatStyleUnit = 85,
+    kDateTimeFormatRange = 86,
+    kDateTimeFormatDateTimeStyle = 87,
+    kBreakIteratorTypeWord = 88,
+    kBreakIteratorTypeLine = 89,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
