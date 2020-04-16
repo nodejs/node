@@ -163,6 +163,7 @@ class Http2Ping;
 class Http2Session;
 class Http2Settings;
 class Http2Stream;
+class Origins;
 
 // This scope should be present when any call into nghttp2 that may schedule
 // data to be written to the underlying transport is made, and schedules
@@ -581,15 +582,19 @@ class Http2Session : public AsyncWrap,
 
   void Close(uint32_t code = NGHTTP2_NO_ERROR,
              bool socket_closed = false);
+
   void Consume(v8::Local<v8::Object> stream);
+
   void Goaway(uint32_t code, int32_t lastStreamID,
               const uint8_t* data, size_t len);
+
   void AltSvc(int32_t id,
               uint8_t* origin,
               size_t origin_len,
               uint8_t* value,
               size_t value_len);
-  void Origin(nghttp2_origin_entry* ov, size_t count);
+
+  void Origin(const Origins& origins);
 
   uint8_t SendPendingData();
 
@@ -1092,14 +1097,13 @@ class Http2Settings : public AsyncWrap {
 
 class Origins {
  public:
-  Origins(v8::Isolate* isolate,
-          v8::Local<v8::Context> context,
+  Origins(Environment* env,
           v8::Local<v8::String> origin_string,
           size_t origin_count);
   ~Origins() = default;
 
-  nghttp2_origin_entry* operator*() {
-    return reinterpret_cast<nghttp2_origin_entry*>(*buf_);
+  const nghttp2_origin_entry* operator*() const {
+    return reinterpret_cast<const nghttp2_origin_entry*>(buf_.data());
   }
 
   size_t length() const {
@@ -1108,7 +1112,7 @@ class Origins {
 
  private:
   size_t count_;
-  MaybeStackBuffer<char, 512> buf_;
+  AllocatedBuffer buf_;
 };
 
 #define HTTP2_HIDDEN_CONSTANTS(V)                                              \

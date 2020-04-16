@@ -348,34 +348,32 @@ const char* Http2Session::TypeName() const {
   }
 }
 
-Origins::Origins(Isolate* isolate,
-                 Local<Context> context,
-                 Local<String> origin_string,
-                 size_t origin_count) : count_(origin_count) {
+Origins::Origins(
+    Environment* env,
+    Local<String> origin_string,
+    size_t origin_count)
+    : count_(origin_count) {
   int origin_string_len = origin_string->Length();
   if (count_ == 0) {
     CHECK_EQ(origin_string_len, 0);
     return;
   }
 
-  // Allocate a single buffer with count_ nghttp2_nv structs, followed
-  // by the raw header data as passed from JS. This looks like:
-  // | possible padding | nghttp2_nv | nghttp2_nv | ... | header contents |
-  buf_.AllocateSufficientStorage((alignof(nghttp2_origin_entry) - 1) +
-                                 count_ * sizeof(nghttp2_origin_entry) +
-                                 origin_string_len);
+  buf_ = env->AllocateManaged((alignof(nghttp2_origin_entry) - 1) +
+                              count_ * sizeof(nghttp2_origin_entry) +
+                              origin_string_len);
 
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
   char* start = reinterpret_cast<char*>(
-      RoundUp(reinterpret_cast<uintptr_t>(*buf_),
+      RoundUp(reinterpret_cast<uintptr_t>(buf_.data()),
               alignof(nghttp2_origin_entry)));
   char* origin_contents = start + (count_ * sizeof(nghttp2_origin_entry));
   nghttp2_origin_entry* const nva =
       reinterpret_cast<nghttp2_origin_entry*>(start);
 
-  CHECK_LE(origin_contents + origin_string_len, *buf_ + buf_.length());
+  CHECK_LE(origin_contents + origin_string_len, buf_.data() + buf_.size());
   CHECK_EQ(origin_string->WriteOneByte(
-               isolate,
+               env->isolate(),
                reinterpret_cast<uint8_t*>(origin_contents),
                0,
                origin_string_len,
@@ -2672,12 +2670,13 @@ void Http2Session::AltSvc(int32_t id,
                                  origin, origin_len, value, value_len), 0);
 }
 
-void Http2Session::Origin(nghttp2_origin_entry* ov, size_t count) {
+void Http2Session::Origin(const Origins& origins) {
   Http2Scope h2scope(this);
   CHECK_EQ(nghttp2_submit_origin(
       session_.get(),
       NGHTTP2_FLAG_NONE,
-      ov, count), 0);
+      *origins,
+      origins.length()), 0);
 }
 
 // Submits an AltSvc frame to be sent to the connected peer.
@@ -2720,14 +2719,9 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
   Local<String> origin_string = args[0].As<String>();
-  int32_t count = args[1]->Int32Value(context).FromMaybe(0);
+  size_t count = args[1]->Int32Value(context).FromMaybe(0);
 
-  Origins origins(env->isolate(),
-                  env->context(),
-                  origin_string,
-                  static_cast<int>(count));
-
-  session->Origin(*origins, origins.length());
+  session->Origin(Origins(env, origin_string, count));
 }
 
 // Submits a PING frame to be sent to the connected peer.
