@@ -71,28 +71,20 @@ const Http2Session::Callbacks Http2Session::callback_struct_saved[2] = {
 // call Http2Session::MaybeScheduleWrite().
 Http2Scope::Http2Scope(Http2Stream* stream) : Http2Scope(stream->session()) {}
 
-Http2Scope::Http2Scope(Http2Session* session) {
-  if (session == nullptr)
-    return;
+Http2Scope::Http2Scope(Http2Session* session) : session_(session) {
+  if (!session_) return;
 
-  if (session->is_in_scope() | session->is_write_scheduled()) {
-    // There is another scope further below on the stack, or it is already
-    // known that a write is scheduled. In either case, there is nothing to do.
+  // If there is another scope further below on the stack, or
+  // a write is already scheduled, there's nothing to do.
+  if (session_->is_in_scope() || session_->is_write_scheduled()) {
+    session_.reset();
     return;
   }
-  session->set_in_scope();
-  session_ = session;
-
-  // Always keep the session object alive for at least as long as
-  // this scope is active.
-  session_handle_ = session->object();
-  CHECK(!session_handle_.IsEmpty());
+  session_->set_in_scope();
 }
 
 Http2Scope::~Http2Scope() {
-  if (session_ == nullptr)
-    return;
-
+  if (!session_) return;
   session_->set_in_scope(false);
   session_->MaybeScheduleWrite();
 }

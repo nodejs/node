@@ -174,8 +174,7 @@ class Http2Scope {
   ~Http2Scope();
 
  private:
-  Http2Session* session_ = nullptr;
-  v8::Local<v8::Object> session_handle_;
+  BaseObjectPtr<Http2Session> session_;
 };
 
 // The Http2Options class is used to parse the options object passed in to
