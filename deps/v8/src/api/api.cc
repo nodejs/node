@@ -309,6 +309,7 @@ class CallDepthScope {
 #ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
     if (do_callback) CheckMicrotasksScopesConsistency(microtask_queue);
 #endif
+    DCHECK(CheckKeptObjectsClearedAfterMicrotaskCheckpoint(microtask_queue));
     isolate_->set_next_v8_call_is_safe_for_termination(safe_for_termination_);
   }
 
@@ -323,6 +324,15 @@ class CallDepthScope {
   }
 
  private:
+  bool CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
+      i::MicrotaskQueue* microtask_queue) {
+    bool did_perform_microtask_checkpoint =
+        do_callback && microtask_queue &&
+        microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto;
+    return !did_perform_microtask_checkpoint ||
+           isolate_->heap()->weak_refs_keep_during_job().IsUndefined(isolate_);
+  }
+
   i::Isolate* const isolate_;
   Local<Context> context_;
   bool escaped_;
@@ -8588,10 +8598,10 @@ void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   isolate->SetPromiseRejectCallback(callback);
 }
 
-void Isolate::RunMicrotasks() {
+void Isolate::PerformMicrotaskCheckpoint() {
   DCHECK_NE(MicrotasksPolicy::kScoped, GetMicrotasksPolicy());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->default_microtask_queue()->RunMicrotasks(isolate);
+  isolate->default_microtask_queue()->PerformCheckpoint(this);
 }
 
 void Isolate::EnqueueMicrotask(Local<Function> v8_function) {

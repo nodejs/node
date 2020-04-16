@@ -830,7 +830,7 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImport) {
     CHECK_EQ(promise->State(), v8::Promise::kPending);
     CHECK(!try_catch.HasCaught());
 
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
     CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
   }
   i::FLAG_harmony_top_level_await = previous_top_level_await_flag_value;
@@ -874,7 +874,7 @@ TEST(ModuleEvaluationTopLevelAwaitDynamicImportError) {
     CHECK_EQ(promise->State(), v8::Promise::kPending);
     CHECK(!try_catch.HasCaught());
 
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
     CHECK_EQ(Module::kErrored, module->GetStatus());
     CHECK_EQ(promise->State(), v8::Promise::kRejected);
     CHECK(promise->Result()->StrictEquals(v8_str("boom")));

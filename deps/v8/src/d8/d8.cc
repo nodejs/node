@@ -1066,7 +1066,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     // able to just busy loop waiting for execution to finish.
     Local<Promise> result_promise(Local<Promise>::Cast(result));
     while (result_promise->State() == Promise::kPending) {
-      isolate->RunMicrotasks();
+      isolate->PerformMicrotaskCheckpoint();
     }
 
     if (result_promise->State() == Promise::kRejected) {
@@ -3297,7 +3297,6 @@ bool ProcessMessages(
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
       MicrotasksScope::PerformCheckpoint(isolate);
-      isolate->ClearKeptObjects();
     }
     if (g_default_platform->IdleTasksEnabled(isolate)) {
       v8::platform::RunIdleTasks(g_default_platform, isolate,
