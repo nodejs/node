@@ -4930,6 +4930,15 @@ class V8_EXPORT BackingStore : public v8::internal::BackingStoreBase {
    */
   bool IsShared() const;
 
+  /**
+   * Wrapper around ArrayBuffer::Allocator::Reallocate that preserves IsShared.
+   * Assumes that the backing_store was allocated by the ArrayBuffer allocator
+   * of the given isolate.
+   */
+  static std::unique_ptr<BackingStore> Reallocate(
+      v8::Isolate* isolate, std::unique_ptr<BackingStore> backing_store,
+      size_t byte_length);
+
  private:
   /**
    * See [Shared]ArrayBuffer::GetBackingStore and
@@ -4971,13 +4980,13 @@ class V8_EXPORT ArrayBuffer : public Object {
     virtual ~Allocator() = default;
 
     /**
-     * Allocate |length| bytes. Return NULL if allocation is not successful.
+     * Allocate |length| bytes. Return nullptr if allocation is not successful.
      * Memory should be initialized to zeroes.
      */
     virtual void* Allocate(size_t length) = 0;
 
     /**
-     * Allocate |length| bytes. Return NULL if allocation is not successful.
+     * Allocate |length| bytes. Return nullptr if allocation is not successful.
      * Memory does not have to be initialized.
      */
     virtual void* AllocateUninitialized(size_t length) = 0;
@@ -4987,6 +4996,20 @@ class V8_EXPORT ArrayBuffer : public Object {
      * That memory is guaranteed to be previously allocated by |Allocate|.
      */
     virtual void Free(void* data, size_t length) = 0;
+
+    /**
+     * Reallocate the memory block of size |old_length| to a memory block of
+     * size |new_length| by expanding, contracting, or copying the existing
+     * memory block. If |new_length| > |old_length|, then the new part of
+     * the memory must be initialized to zeros. Return nullptr if reallocation
+     * is not successful.
+     *
+     * The caller guarantees that the memory block was previously allocated
+     * using Allocate or AllocateUninitialized.
+     *
+     * The default implementation allocates a new block and copies data.
+     */
+    virtual void* Reallocate(void* data, size_t old_length, size_t new_length);
 
     /**
      * ArrayBuffer allocation mode. kNormal is a malloc/free style allocation,

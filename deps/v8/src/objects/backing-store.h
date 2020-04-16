@@ -87,6 +87,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool GrowWasmMemoryInPlace(Isolate* isolate, size_t delta_pages,
                              size_t max_pages);
 
+  // Wrapper around ArrayBuffer::Allocator::Reallocate.
+  bool Reallocate(Isolate* isolate, size_t new_byte_length);
+
   // Allocate a new, larger, backing store for this Wasm memory and copy the
   // contents of this backing store into it.
   std::unique_ptr<BackingStore> CopyWasmMemory(Isolate* isolate,

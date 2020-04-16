@@ -552,6 +552,21 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   }
 
   void Free(void* data, size_t) override { free(data); }
+
+  void* Reallocate(void* data, size_t old_length, size_t new_length) override {
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
+    // Work around for GCC bug on AIX
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
+    void* new_data = __linux_realloc(data, new_length);
+#else
+    void* new_data = realloc(data, new_length);
+#endif
+    if (new_length > old_length) {
+      memset(reinterpret_cast<uint8_t*>(new_data) + old_length, 0,
+             new_length - old_length);
+    }
+    return new_data;
+  }
 };
 
 struct SnapshotCreatorData {
@@ -3757,6 +3772,22 @@ size_t v8::BackingStore::ByteLength() const {
 
 bool v8::BackingStore::IsShared() const {
   return reinterpret_cast<const i::BackingStore*>(this)->is_shared();
+}
+
+// static
+std::unique_ptr<v8::BackingStore> v8::BackingStore::Reallocate(
+    v8::Isolate* isolate, std::unique_ptr<v8::BackingStore> backing_store,
+    size_t byte_length) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, ArrayBuffer, BackingStore_Reallocate);
+  CHECK_LE(byte_length, i::JSArrayBuffer::kMaxByteLength);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::BackingStore* i_backing_store =
+      reinterpret_cast<i::BackingStore*>(backing_store.get());
+  if (!i_backing_store->Reallocate(i_isolate, byte_length)) {
+    i::FatalProcessOutOfMemory(i_isolate, "v8::BackingStore::Reallocate");
+  }
+  return backing_store;
 }
 
 std::shared_ptr<v8::BackingStore> v8::ArrayBuffer::GetBackingStore() {
@@ -7203,6 +7234,21 @@ void WasmModuleObjectBuilderStreaming::OnBytesReceived(const uint8_t* bytes,
 void WasmModuleObjectBuilderStreaming::Finish() {}
 
 void WasmModuleObjectBuilderStreaming::Abort(MaybeLocal<Value> exception) {}
+
+void* v8::ArrayBuffer::Allocator::Reallocate(void* data, size_t old_length,
+                                             size_t new_length) {
+  if (old_length == new_length) return data;
+  uint8_t* new_data =
+      reinterpret_cast<uint8_t*>(AllocateUninitialized(new_length));
+  if (new_data == nullptr) return nullptr;
+  size_t bytes_to_copy = std::min(old_length, new_length);
+  memcpy(new_data, data, bytes_to_copy);
+  if (new_length > bytes_to_copy) {
+    memset(new_data + bytes_to_copy, 0, new_length - bytes_to_copy);
+  }
+  Free(data, old_length);
+  return new_data;
+}
 
 // static
 v8::ArrayBuffer::Allocator* v8::ArrayBuffer::Allocator::NewDefaultAllocator() {
