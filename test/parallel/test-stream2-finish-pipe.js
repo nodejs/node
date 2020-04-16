@@ -30,7 +30,7 @@ r._read = function(size) {
 
 const w = new stream.Writable();
 w._write = function(data, encoding, cb) {
-  cb(null);
+  process.nextTick(cb, null);
 };
 
 r.pipe(w);

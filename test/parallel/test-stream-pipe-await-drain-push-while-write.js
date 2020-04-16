@@ -19,7 +19,7 @@ const writable = new stream.Writable({
       });
     }
 
-    cb();
+    process.nextTick(cb);
   }, 3)
 });
 
