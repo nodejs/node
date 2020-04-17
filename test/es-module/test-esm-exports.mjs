@@ -78,6 +78,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/null', './null'],
     ['pkgexports/invalid2', './invalid2'],
     ['pkgexports/invalid3', './invalid3'],
+    ['pkgexports/invalid5', 'invalid5'],
     // Missing / invalid fallbacks
     ['pkgexports/nofallback1', './nofallback1'],
     ['pkgexports/nofallback2', './nofallback2'],
@@ -106,6 +107,9 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       strictEqual(err.code, 'ERR_INVALID_PACKAGE_TARGET');
       assertStartsWith(err.message, 'Invalid "exports"');
       assertIncludes(err.message, subpath);
+      if (!subpath.startsWith('./')) {
+        assertIncludes(err.message, 'targets must start with');
+      }
     }));
   }
 
