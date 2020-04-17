@@ -43,9 +43,12 @@
       "<(V8_ROOT)/src/builtins/convert.tq",
       "<(V8_ROOT)/src/builtins/console.tq",
       "<(V8_ROOT)/src/builtins/data-view.tq",
+      "<(V8_ROOT)/src/builtins/finalization-registry.tq",
       "<(V8_ROOT)/src/builtins/frames.tq",
       "<(V8_ROOT)/src/builtins/frame-arguments.tq",
       "<(V8_ROOT)/src/builtins/growable-fixed-array.tq",
+      "<(V8_ROOT)/src/builtins/ic-callable.tq",
+      "<(V8_ROOT)/src/builtins/ic.tq",
       "<(V8_ROOT)/src/builtins/internal-coverage.tq",
       "<(V8_ROOT)/src/builtins/iterator.tq",
       "<(V8_ROOT)/src/builtins/math.tq",
@@ -55,6 +58,7 @@
       "<(V8_ROOT)/src/builtins/promise-abstract-operations.tq",
       "<(V8_ROOT)/src/builtins/promise-all.tq",
       "<(V8_ROOT)/src/builtins/promise-all-element-closure.tq",
+      "<(V8_ROOT)/src/builtins/promise-any.tq",
       "<(V8_ROOT)/src/builtins/promise-constructor.tq",
       "<(V8_ROOT)/src/builtins/promise-finally.tq",
       "<(V8_ROOT)/src/builtins/promise-misc.tq",
@@ -113,6 +117,7 @@
       "<(V8_ROOT)/src/builtins/typed-array-sort.tq",
       "<(V8_ROOT)/src/builtins/typed-array-subarray.tq",
       "<(V8_ROOT)/src/builtins/typed-array.tq",
+      "<(V8_ROOT)/src/builtins/wasm.tq",
       "<(V8_ROOT)/src/ic/handler-configuration.tq",
       "<(V8_ROOT)/src/objects/allocation-site.tq",
       "<(V8_ROOT)/src/objects/api-callbacks.tq",
@@ -131,6 +136,7 @@
       "<(V8_ROOT)/src/objects/free-space.tq",
       "<(V8_ROOT)/src/objects/heap-number.tq",
       "<(V8_ROOT)/src/objects/heap-object.tq",
+      "<(V8_ROOT)/src/objects/js-aggregate-error.tq",
       "<(V8_ROOT)/src/objects/js-array-buffer.tq",
       "<(V8_ROOT)/src/objects/js-array.tq",
       "<(V8_ROOT)/src/objects/js-collection-iterator.tq",
@@ -228,7 +234,7 @@
             '<(torque_output_root)/torque-generated/class-verifiers-tq.h',
             '<(torque_output_root)/torque-generated/enum-verifiers-tq.cc',
             '<(torque_output_root)/torque-generated/objects-printer-tq.cc',
-            '<(torque_output_root)/torque-generated/objects-body-descriptors-tq-inl.h',
+            '<(torque_output_root)/torque-generated/objects-body-descriptors-tq-inl.inc',
             '<(torque_output_root)/torque-generated/class-definitions-tq.cc',
             '<(torque_output_root)/torque-generated/class-definitions-tq-inl.h',
             '<(torque_output_root)/torque-generated/class-definitions-tq.h',
@@ -745,6 +751,13 @@
         '<@(inspector_all_sources)',
       ],
       'conditions': [
+        ['v8_enable_third_party_heap==1', {
+          # TODO(targos): add values from v8_third_party_heap_files to sources
+        }, {
+          'sources': [
+            '<(V8_ROOT)/src/heap/third-party/heap-api-stub.cc',
+          ],
+        }],
         ['want_separate_host_toolset', {
           'toolsets': ['host', 'target'],
         }],
@@ -876,6 +889,9 @@
          }],
         ['v8_postmortem_support', {
           'dependencies': ['postmortem-metadata#target'],
+        }],
+        ['v8_enable_third_party_heap', {
+          # TODO(targos): add values from v8_third_party_heap_libs to link_settings.libraries
         }],
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access
@@ -1218,6 +1234,8 @@
         '<(V8_ROOT)/include/libplatform/v8-tracing.h',
         '<(V8_ROOT)/src/libplatform/default-foreground-task-runner.cc',
         '<(V8_ROOT)/src/libplatform/default-foreground-task-runner.h',
+        '<(V8_ROOT)/src/libplatform/default-job.cc',
+        '<(V8_ROOT)/src/libplatform/default-job.h',
         '<(V8_ROOT)/src/libplatform/default-platform.cc',
         '<(V8_ROOT)/src/libplatform/default-platform.h',
         '<(V8_ROOT)/src/libplatform/default-worker-threads-task-runner.cc',
@@ -1575,6 +1593,8 @@
           '<(V8_ROOT)/src/objects/instance-type.h',
           '<(V8_ROOT)/src/objects/js-array-inl.h',
           '<(V8_ROOT)/src/objects/js-array.h',
+          '<(V8_ROOT)/src/objects/js-aggregate-error-inl.h',
+          '<(V8_ROOT)/src/objects/js-aggregate-error.h',
           '<(V8_ROOT)/src/objects/js-array-buffer-inl.h',
           '<(V8_ROOT)/src/objects/js-array-buffer.h',
           '<(V8_ROOT)/src/objects/js-objects-inl.h',
