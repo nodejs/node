@@ -166,7 +166,7 @@ request.on('response', (response) => {
       pipeline(response, zlib.createGunzip(), output, onError);
       break;
     case 'deflate':
-      pipeline(response, zlib.createInflate(), outout, onError);
+      pipeline(response, zlib.createInflate(), output, onError);
       break;
     default:
       pipeline(response, output, onError);
