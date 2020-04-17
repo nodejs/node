@@ -117,6 +117,11 @@ parser.add_option('--dest-os',
     choices=valid_os,
     help='operating system to build for ({0})'.format(', '.join(valid_os)))
 
+parser.add_option('--error-on-warn',
+    action='store_true',
+    dest='error_on_warn',
+    help='Turn compiler warnings into errors for node core sources.')
+
 parser.add_option('--gdb',
     action='store_true',
     dest='gdb',
@@ -1018,6 +1023,7 @@ def configure_node(o):
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['debug_node'] = b(options.debug_node)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
+  o['variables']['error_on_warn'] = b(options.error_on_warn)
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch

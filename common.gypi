@@ -26,6 +26,7 @@
     'uv_library%': 'static_library',
 
     'clang%': 0,
+    'error_on_warn%': '0',
 
     'openssl_fips%': '',
     'openssl_no_asm%': 0,
@@ -219,8 +220,9 @@
     # simply not feasible to squelch all warnings, never mind that the
     # libraries in deps/ are not under our control.
     'conditions': [
-      ['_target_name!="<(node_lib_target_name)" or '
-        '_target_name!="<(node_core_target_name)"', {
+      [ 'error_on_warn=="true" and '
+        '(_target_name!="<(node_lib_target_name)" or '
+          '_target_name!="<(node_core_target_name)")', {
         'cflags!': ['-Werror'],
       }],
     ],

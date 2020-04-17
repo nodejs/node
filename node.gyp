@@ -346,8 +346,6 @@
         'node.gypi'
       ],
 
-      'cflags': [ '-Werror', ],
-
       'include_dirs': [
         'src',
         'deps/v8/include'
@@ -377,6 +375,9 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'error_on_warn=="true"', {
+          'cflags': ['-Werror'],
+        }],
         [ 'node_intermediate_lib_type=="static_library" and '
             'node_shared=="true" and OS=="aix"', {
           # For AIX, shared lib is linked by static lib and .exp. In the
@@ -529,8 +530,6 @@
       'includes': [
         'node.gypi',
       ],
-
-      'cflags': [ '-Werror', ],
 
       'include_dirs': [
         'src',
@@ -753,6 +752,9 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'error_on_warn=="true"', {
+          'cflags': ['-Werror'],
+        }],
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
         }],
