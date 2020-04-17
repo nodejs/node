@@ -43,6 +43,7 @@
       "<(V8_ROOT)/src/builtins/convert.tq",
       "<(V8_ROOT)/src/builtins/console.tq",
       "<(V8_ROOT)/src/builtins/data-view.tq",
+      "<(V8_ROOT)/src/builtins/finalization-registry.tq",
       "<(V8_ROOT)/src/builtins/frames.tq",
       "<(V8_ROOT)/src/builtins/frame-arguments.tq",
       "<(V8_ROOT)/src/builtins/growable-fixed-array.tq",
