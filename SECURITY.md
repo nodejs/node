@@ -11,8 +11,7 @@ handling your submission.
 After the initial reply to your report, the security team will endeavor to keep
 you informed of the progress being made towards a fix and full announcement,
 and may ask for additional information or guidance surrounding the reported
-issue.  These updates will be sent at least every five days; in practice, this
-is more likely to be every 24-48 hours.
+issue.
 
 ### Node.js Bug Bounty Program
 
