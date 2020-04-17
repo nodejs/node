@@ -156,23 +156,27 @@ class ThreadSafeFunction : public node::AsyncResource {
         return napi_queue_full;
       }
 
-      // Return `napi_would_deadlock` because waiting on the queue from a JS
-      // thread will block the event loop of that same thread thus preventing it
-      // from removing items from the queue thereby causing deadlock. Deadlock
-      // can also be caused by one JS thread calling the thread-safe function of
-      // another JS thread because if two JS threads call each other's thread-
-      // safe functions blockingly when both their queues are full they will
-      // both deadlock as they wait on each other.
+      // Here we check if there is a Node.js event loop running on this thread.
+      // If there is, and our queue is full, we return `napi_would_deadlock`. We
+      // do this for two reasons:
       //
-      // Thus, we return `napi_would_deadlock` if we find a Node.js event loop.
+      // 1. If this is the thread on which our own event loop runs then we
+      //    cannot wait here because that will prevent our event loop from
+      //    running and emptying the very queue on which we are waiting.
+      //
+      // 2. If this is not the thread on which our own event loop runs then we
+      //    still cannot wait here because that allows the following sequence of
+      //    events:
+      //
+      //    1. JSThread1 calls JSThread2 and blocks while its queue is full and
+      //       because JSThread2's queue is also full.
+      //
+      //    2. JSThread2 calls JSThread1 before it's had a chance to remove an
+      //       item from its own queue and blocks because JSThread1's queue is
+      //       also full.
       v8::Isolate* isolate = v8::Isolate::GetCurrent();
-      if (isolate != nullptr) {
-        node::Environment* node_env = node::Environment::GetCurrent(isolate);
-        if (node_env != nullptr) {
-          if (node_env->event_loop() != nullptr)
-            return napi_would_deadlock;
-        }
-      }
+      if (isolate != nullptr && node::GetCurrentEventLoop(isolate) != nullptr)
+        return napi_would_deadlock;
 
       cond->Wait(lock);
     }
