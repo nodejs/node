@@ -7,6 +7,8 @@ const {
   validateArray,
   validateBoolean,
   validateInteger,
+  validateNumber,
+  validateString,
   validateObject,
 } = require('internal/validators');
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
@@ -37,8 +39,39 @@ const invalidArgValueError = {
   }, outOfRangeError);
 
   // validateInteger() works with unsafe integers.
-  validateInteger(MAX_SAFE_INTEGER + 1, 'foo', 0, MAX_SAFE_INTEGER + 1);
-  validateInteger(MIN_SAFE_INTEGER - 1, 'foo', MIN_SAFE_INTEGER - 1);
+  validateInteger(
+    MAX_SAFE_INTEGER + 1,
+    'foo',
+    { min: 0, max: MAX_SAFE_INTEGER + 1 });
+  validateInteger(
+    MIN_SAFE_INTEGER - 1,
+    'foo',
+    { min: MIN_SAFE_INTEGER - 1 });
+  validateInteger(undefined, 'foo', { allowUndefined: true });
+}
+
+{
+  // validateNumber tests
+  validateNumber(1, 'foo');
+  validateNumber(1.1, 'foo');
+  validateNumber(1, 'foo', { min: 0 });
+  validateNumber(2, 'foo', { max: 2 });
+
+  ['test', true, {}, [], null].forEach((i) => {
+    assert.throws(() => validateNumber(i, 'foo'), invalidArgTypeError);
+  });
+  assert.throws(() => validateNumber(1, 'foo', { min: 2 }), outOfRangeError);
+  assert.throws(() => validateNumber(2, 'foo', { max: 1 }), outOfRangeError);
+}
+
+{
+  // validateString tests
+  validateString('test', 'foo');
+  validateString(undefined, 'foo', { allowUndefined: true });
+
+  [1, NaN, null, undefined, {}, []].forEach((i) => {
+    assert.throws(() => validateString(i, 'foo'));
+  });
 }
 
 {
@@ -63,6 +96,7 @@ const invalidArgValueError = {
   // validateBoolean tests.
   validateBoolean(true, 'foo');
   validateBoolean(false, 'foo');
+  validateBoolean(undefined, 'foo', { allowUndefined: true });
 
   [undefined, null, 0, 0.0, 42, '', 'string', {}, []].forEach((val) => {
     assert.throws(() => {
@@ -75,6 +109,7 @@ const invalidArgValueError = {
   // validateObject tests.
   validateObject({}, 'foo');
   validateObject({ a: 42, b: 'foo' }, 'foo');
+  validateObject(undefined, 'foo', { allowUndefined: true });
 
   [undefined, null, true, false, 0, 0.0, 42, '', 'string', []]
     .forEach((val) => {
