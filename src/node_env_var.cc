@@ -121,7 +121,7 @@ void RealEnvStore::Set(Isolate* isolate,
   node::Utf8Value val(isolate, value);
 
 #ifdef _WIN32
-  if (key[0] == L'=') return;
+  if (key.length() > 0 && key[0] == L'=') return;
 #endif
   uv_os_setenv(*key, *val);
   DateTimeConfigurationChangeNotification(isolate, key);
