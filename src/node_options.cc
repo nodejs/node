@@ -285,7 +285,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvironment);
   AddAlias("--loader", "--experimental-loader");
   AddOption("--experimental-modules",
-            "experimental modules features",
+            "",
             &EnvironmentOptions::experimental_modules,
             kAllowedInEnvironment);
   AddOption("--experimental-wasm-modules",
