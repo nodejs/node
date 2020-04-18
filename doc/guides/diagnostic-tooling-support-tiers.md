@@ -124,6 +124,7 @@ The tools are currently assigned to Tiers as follows:
 
  | Tool Type | Tool/API Name             | Regular Testing in Node.js CI | Integrated with Node.js | Target Tier |
  |-----------|---------------------------|-------------------------------|-------------------------|-------------|
+ | FFDC      | node-report               | No                            | No                      |     1       |
  | Memory    | mdb_V8                    | No                            | No                      |     4       |
  | Memory    | node-heapdump             | No                            | No                      |     2       |
  | Memory    | V8 heap profiler          | No                            | Yes                     |     1       |
