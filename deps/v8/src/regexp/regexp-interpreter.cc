@@ -1051,8 +1051,29 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
     return IrregexpInterpreter::RETRY;
   }
 
-  return Match(isolate, regexp_obj, subject_string, registers, registers_length,
-               start_position, call_origin);
+  // In generated code, registers are allocated on the stack. The given
+  // `registers` argument is only guaranteed to hold enough space for permanent
+  // registers (i.e. for captures), and not for temporary registers used only
+  // during matcher execution. We match that behavior in the interpreter by
+  // using a SmallVector as internal register storage.
+  static constexpr int kBaseRegisterArraySize = 64;  // Arbitrary.
+  const int internal_register_count =
+      Smi::ToInt(regexp_obj.DataAt(JSRegExp::kIrregexpMaxRegisterCountIndex));
+  base::SmallVector<int, kBaseRegisterArraySize> internal_registers(
+      internal_register_count);
+
+  Result result =
+      Match(isolate, regexp_obj, subject_string, internal_registers.data(),
+            internal_register_count, start_position, call_origin);
+
+  // Copy capture registers to the output array.
+  if (result == IrregexpInterpreter::SUCCESS) {
+    CHECK_GE(internal_registers.size(), registers_length);
+    MemCopy(registers, internal_registers.data(),
+            registers_length * sizeof(registers[0]));
+  }
+
+  return result;
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromRuntime(

@@ -84,5 +84,11 @@
 }],  # 'arch == s390 or arch == s390x'
 
 ##############################################################################
+['variant != future', {
+  # Wasm native module cache is temporarily disabled in non-future variant
+  # (https://crbug.com/1070199)
+  'debugger/wasm-scripts': [SKIP],
+}],  # variant != future
+
 
 ]
