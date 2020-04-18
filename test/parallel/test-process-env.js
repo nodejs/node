@@ -106,3 +106,11 @@ if (common.isWindows) {
   const keys = Object.keys(process.env);
   assert.ok(keys.length > 0);
 }
+
+// Setting environment variables on Windows with empty names should not cause
+// an assertion failure.
+// https://github.com/nodejs/node/issues/32920
+{
+  process.env[''] = '';
+  assert.strictEqual(process.env[''], undefined);
+}
