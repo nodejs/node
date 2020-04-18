@@ -313,23 +313,11 @@ function versionSort(a, b) {
 
 function buildToc({ filename, apilinks }) {
   return (tree, file) => {
-    const startIncludeRefRE = /^\s*<!-- \[start-include:(.+)\] -->\s*$/;
-    const endIncludeRefRE = /^\s*<!-- \[end-include:.+\] -->\s*$/;
-    const realFilenames = [filename];
     const idCounters = Object.create(null);
     let toc = '';
     let depth = 0;
 
     visit(tree, null, (node) => {
-      // Keep track of the current filename for comment wrappers of inclusions.
-      if (node.type === 'html') {
-        const [, includedFileName] = node.value.match(startIncludeRefRE) || [];
-        if (includedFileName !== undefined)
-          realFilenames.unshift(includedFileName);
-        else if (endIncludeRefRE.test(node.value))
-          realFilenames.shift();
-      }
-
       if (node.type !== 'heading') return;
 
       if (node.depth - depth > 1) {
@@ -339,7 +327,7 @@ function buildToc({ filename, apilinks }) {
       }
 
       depth = node.depth;
-      const realFilename = path.basename(realFilenames[0], '.md');
+      const realFilename = path.basename(filename, '.md');
       const headingText = file.contents.slice(
         node.children[0].position.start.offset,
         node.position.end.offset).trim();
