@@ -41,12 +41,16 @@ Data types
             * (provided they all set the flag) but only the last one to bind will receive
             * any traffic, in effect "stealing" the port from the previous listener.
             */
-            UV_UDP_REUSEADDR = 4
+            UV_UDP_REUSEADDR = 4,
             /*
              * Indicates that the message was received by recvmmsg, so the buffer provided
              * must not be freed by the recv_cb callback.
              */
-            UV_UDP_MMSG_CHUNK = 8
+            UV_UDP_MMSG_CHUNK = 8,
+            /*
+            * Indicates that recvmmsg should be used, if available.
+            */
+            UV_UDP_RECVMMSG = 256
         };
 
 .. c:type:: void (*uv_udp_send_cb)(uv_udp_send_t* req, int status)
@@ -125,12 +129,17 @@ API
 
 .. c:function:: int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags)
 
-    Initialize the handle with the specified flags. At the moment the lower 8 bits
-    of the `flags` parameter are used as the socket domain. A socket will be created
-    for the given domain. If the specified domain is ``AF_UNSPEC`` no socket is created,
-    just like :c:func:`uv_udp_init`.
+    Initialize the handle with the specified flags. The lower 8 bits of the `flags`
+    parameter are used as the socket domain. A socket will be created for the given domain.
+    If the specified domain is ``AF_UNSPEC`` no socket is created, just like :c:func:`uv_udp_init`.
+
+    The remaining bits can be used to set one of these flags:
+
+    * `UV_UDP_RECVMMSG`: if set, and the platform supports it, :man:`recvmmsg(2)` will
+      be used.
 
     .. versionadded:: 1.7.0
+    .. versionchanged:: 1.37.0 added the `UV_UDP_RECVMMSG` flag.
 
 .. c:function:: int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock)
 
@@ -379,6 +388,9 @@ API
     .. versionchanged:: 1.35.0 added support for :man:`recvmmsg(2)` on supported platforms).
                         The use of this feature requires a buffer larger than
                         2 * 64KB to be passed to `alloc_cb`.
+    .. versionchanged:: 1.37.0 :man:`recvmmsg(2)` support is no longer enabled implicitly,
+                        it must be explicitly requested by passing the `UV_UDP_RECVMMSG` flag to
+                        :c:func:`uv_udp_init_ex`.
 
 .. c:function:: int uv_udp_recv_stop(uv_udp_t* handle)
 
