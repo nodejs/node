@@ -4,21 +4,12 @@
 
 namespace {
 
-// the test needs to fake out the async structure, so we need to use
-// the raw structure here and then cast as done behind the scenes
-// in napi calls.
-struct async_context {
-  double async_id;
-  double trigger_async_id;
-};
-
-
 napi_value RunInCallbackScope(napi_env env, napi_callback_info info) {
   size_t argc;
-  napi_value args[4];
+  napi_value args[3];
 
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, nullptr, nullptr, nullptr));
-  NAPI_ASSERT(env, argc == 4 , "Wrong number of arguments");
+  NAPI_ASSERT(env, argc == 3 , "Wrong number of arguments");
 
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
@@ -28,35 +19,29 @@ napi_value RunInCallbackScope(napi_env env, napi_callback_info info) {
       "Wrong type of arguments. Expects an object as first argument.");
 
   NAPI_CALL(env, napi_typeof(env, args[1], &valuetype));
-  NAPI_ASSERT(env, valuetype == napi_number,
-      "Wrong type of arguments. Expects a number as second argument.");
+  NAPI_ASSERT(env, valuetype == napi_string,
+      "Wrong type of arguments. Expects a string as second argument.");
 
   NAPI_CALL(env, napi_typeof(env, args[2], &valuetype));
-  NAPI_ASSERT(env, valuetype == napi_number,
-      "Wrong type of arguments. Expects a number as third argument.");
-
-  NAPI_CALL(env, napi_typeof(env, args[3], &valuetype));
   NAPI_ASSERT(env, valuetype == napi_function,
       "Wrong type of arguments. Expects a function as third argument.");
 
-  struct async_context context;
-  NAPI_CALL(env, napi_get_value_double(env, args[1], &context.async_id));
-  NAPI_CALL(env,
-      napi_get_value_double(env, args[2], &context.trigger_async_id));
+  napi_async_context context;
+  NAPI_CALL(env, napi_async_init(env, args[0], args[1], &context));
 
   napi_callback_scope scope = nullptr;
   NAPI_CALL(
       env,
       napi_open_callback_scope(env,
                                args[0],
-                               reinterpret_cast<napi_async_context>(&context),
+                               context,
                                &scope));
 
   // if the function has an exception pending after the call that is ok
   // so we don't use NAPI_CALL as we must close the callback scope regardless
   napi_value result = nullptr;
   napi_status function_call_result =
-      napi_call_function(env, args[0], args[3], 0, nullptr, &result);
+      napi_call_function(env, args[0], args[2], 0, nullptr, &result);
   if (function_call_result != napi_ok) {
     GET_AND_THROW_LAST_ERROR((env));
   }
