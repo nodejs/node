@@ -29,7 +29,6 @@
 namespace node {
 
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::HeapCodeStatistics;
@@ -213,14 +212,6 @@ void Initialize(Local<Object> target,
 
   HEAP_CODE_STATISTICS_PROPERTIES(V)
 #undef V
-
-  // Export symbols used by v8.getHeapSpaceStatistics()
-  target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(),
-                                    "kHeapSpaceStatisticsPropertiesCount"),
-              Uint32::NewFromUnsigned(env->isolate(),
-                                      kHeapSpaceStatisticsPropertiesCount))
-              .Check();
 
   size_t number_of_heap_spaces = env->isolate()->NumberOfHeapSpaces();
 
