@@ -306,15 +306,15 @@ std::string GetExecPath(const std::vector<std::string>& argv) {
 }
 
 Environment::Environment(IsolateData* isolate_data,
-                         Local<Context> context,
+                         Isolate* isolate,
                          const std::vector<std::string>& args,
                          const std::vector<std::string>& exec_args,
                          EnvironmentFlags::Flags flags,
                          ThreadId thread_id)
-    : isolate_(context->GetIsolate()),
+    : isolate_(isolate),
       isolate_data_(isolate_data),
-      immediate_info_(context->GetIsolate()),
-      tick_info_(context->GetIsolate()),
+      immediate_info_(isolate),
+      tick_info_(isolate),
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
@@ -322,12 +322,11 @@ Environment::Environment(IsolateData* isolate_data,
       should_abort_on_uncaught_toggle_(isolate_, 1),
       stream_base_state_(isolate_, StreamBase::kNumStreamBaseStateFields),
       flags_(flags),
-      thread_id_(thread_id.id == static_cast<uint64_t>(-1) ?
-          AllocateEnvironmentThreadId().id : thread_id.id),
-      context_(context->GetIsolate(), context) {
+      thread_id_(thread_id.id == static_cast<uint64_t>(-1)
+                     ? AllocateEnvironmentThreadId().id
+                     : thread_id.id) {
   // We'll be creating new objects so make sure we've entered the context.
-  HandleScope handle_scope(isolate());
-  Context::Scope context_scope(context);
+  HandleScope handle_scope(isolate);
 
   // Set some flags if only kDefaultFlags was passed. This can make API version
   // transitions easier for embedders.
@@ -338,6 +337,8 @@ Environment::Environment(IsolateData* isolate_data,
   }
 
   set_env_vars(per_process::system_environment);
+  // TODO(joyeecheung): pass Isolate* and env_vars to it instead of the entire
+  // env
   enabled_debug_list_.Parse(this);
 
   // We create new copies of the per-Environment option sets, so that it is
@@ -348,12 +349,14 @@ Environment::Environment(IsolateData* isolate_data,
   inspector_host_port_.reset(
       new ExclusiveAccess<HostPort>(options_->debug_options().host_port));
 
+  if (flags & EnvironmentFlags::kOwnsProcessState) {
+    set_abort_on_uncaught_exception(false);
+  }
+
 #if HAVE_INSPECTOR
   // We can only create the inspector agent after having cloned the options.
   inspector_agent_ = std::make_unique<inspector::Agent>(this);
 #endif
-
-  AssignToContext(context, ContextInfo(""));
 
   static uv_once_t init_once = UV_ONCE_INIT;
   uv_once(&init_once, InitThreadLocalOnce);
@@ -367,8 +370,7 @@ Environment::Environment(IsolateData* isolate_data,
 
   destroy_async_id_list_.reserve(512);
 
-  performance_state_ =
-      std::make_unique<performance::PerformanceState>(isolate());
+  performance_state_ = std::make_unique<performance::PerformanceState>(isolate);
   performance_state_->Mark(
       performance::NODE_PERFORMANCE_MILESTONE_ENVIRONMENT);
   performance_state_->Mark(performance::NODE_PERFORMANCE_MILESTONE_NODE_START,
@@ -400,6 +402,29 @@ Environment::Environment(IsolateData* isolate_data,
     async_hooks_.no_force_checks();
   }
 
+  // This adjusts the return value of base_object_count() so that tests that
+  // check the count do not have to account for internally created BaseObjects.
+  initial_base_object_count_ = base_object_count();
+}
+
+Environment::Environment(IsolateData* isolate_data,
+                         Local<Context> context,
+                         const std::vector<std::string>& args,
+                         const std::vector<std::string>& exec_args,
+                         EnvironmentFlags::Flags flags,
+                         ThreadId thread_id)
+    : Environment(isolate_data,
+                  context->GetIsolate(),
+                  args,
+                  exec_args,
+                  flags,
+                  thread_id) {
+  InitializeMainContext(context);
+}
+
+void Environment::InitializeMainContext(Local<Context> context) {
+  context_.Reset(context->GetIsolate(), context);
+  AssignToContext(context, ContextInfo(""));
   // TODO(joyeecheung): deserialize when the snapshot covers the environment
   // properties.
   CreateProperties();

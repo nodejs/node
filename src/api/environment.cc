@@ -356,10 +356,7 @@ Environment* CreateEnvironment(
       exec_args,
       flags,
       thread_id);
-  if (flags & EnvironmentFlags::kOwnsProcessState) {
-    env->set_abort_on_uncaught_exception(false);
-  }
-
+  env->InitializeMainContext(context);
 #if HAVE_INSPECTOR
   if (inspector_parent_handle) {
     env->InitializeInspector(
