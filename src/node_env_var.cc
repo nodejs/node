@@ -106,7 +106,7 @@ void RealEnvStore::Set(Isolate* isolate,
   node::Utf8Value val(isolate, value);
 
 #ifdef _WIN32
-  if (key.length() > 0 && key[0] == L'=') return;
+  if (key.length() > 0 && key[0] == '=') return;
 #endif
   uv_os_setenv(*key, *val);
 }
@@ -123,7 +123,7 @@ int32_t RealEnvStore::Query(const char* key) const {
   }
 
 #ifdef _WIN32
-  if (key[0] == L'=') {
+  if (key[0] == '=') {
     return static_cast<int32_t>(v8::ReadOnly) |
            static_cast<int32_t>(v8::DontDelete) |
            static_cast<int32_t>(v8::DontEnum);
