@@ -16,15 +16,17 @@ class FileHandleReadWrap;
 class BindingData : public BaseObject {
  public:
   explicit BindingData(Environment* env, v8::Local<v8::Object> wrap)
-    : BaseObject(env, wrap),
-      stats_field_array(env->isolate(), kFsStatsBufferLength),
-      stats_field_bigint_array(env->isolate(), kFsStatsBufferLength) {}
+      : BaseObject(env, wrap),
+        stats_field_array(env->isolate(), kFsStatsBufferLength),
+        stats_field_bigint_array(env->isolate(), kFsStatsBufferLength) {}
 
   AliasedFloat64Array stats_field_array;
   AliasedBigUint64Array stats_field_bigint_array;
 
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;
+
+  static constexpr FastStringKey binding_data_name { "fs" };
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)

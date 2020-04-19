@@ -190,7 +190,7 @@ void NativeModuleEnv::Initialize(Local<Object> target,
                     FIXED_ONE_BYTE_STRING(env->isolate(), "moduleCategories"),
                     GetModuleCategories,
                     nullptr,
-                    env->as_callback_data(),
+                    Local<Value>(),
                     DEFAULT,
                     None,
                     SideEffectType::kHasNoSideEffect)

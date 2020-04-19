@@ -764,6 +764,27 @@ class PersistentToLocal {
   }
 };
 
+// Can be used as a key for std::unordered_map when lookup performance is more
+// important than size and the keys are statically used to avoid redundant hash
+// computations.
+class FastStringKey {
+ public:
+  constexpr explicit FastStringKey(const char* name);
+
+  struct Hash {
+    constexpr size_t operator()(const FastStringKey& key) const;
+  };
+  constexpr bool operator==(const FastStringKey& other) const;
+
+  constexpr const char* c_str() const;
+
+ private:
+  static constexpr size_t HashImpl(const char* str);
+
+  const char* name_;
+  size_t cached_hash_;
+};
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

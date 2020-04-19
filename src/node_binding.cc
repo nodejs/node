@@ -230,6 +230,7 @@ namespace node {
 
 using v8::Context;
 using v8::Exception;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Local;
 using v8::NewStringType;
@@ -556,8 +557,11 @@ inline struct node_module* FindModule(struct node_module* list,
 static Local<Object> InitModule(Environment* env,
                                 node_module* mod,
                                 Local<String> module) {
-  Local<Object> exports = Object::New(env->isolate());
   // Internal bindings don't have a "module" object, only exports.
+  Local<Function> ctor = env->binding_data_ctor_template()
+                             ->GetFunction(env->context())
+                             .ToLocalChecked();
+  Local<Object> exports = ctor->NewInstance(env->context()).ToLocalChecked();
   CHECK_NULL(mod->nm_register_func);
   CHECK_NOT_NULL(mod->nm_context_register_func);
   Local<Value> unused = Undefined(env->isolate());

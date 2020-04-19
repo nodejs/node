@@ -533,6 +533,37 @@ inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
   return false;
 }
 
+constexpr size_t FastStringKey::HashImpl(const char* str) {
+  // Low-quality hash (djb2), but just fine for current use cases.
+  size_t h = 5381;
+  do {
+    h = h * 33 + *str;  // NOLINT(readability/pointer_notation)
+  } while (*(str++) != '\0');
+  return h;
+}
+
+constexpr size_t FastStringKey::Hash::operator()(
+    const FastStringKey& key) const {
+  return key.cached_hash_;
+}
+
+constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
+  const char* p1 = name_;
+  const char* p2 = other.name_;
+  if (p1 == p2) return true;
+  do {
+    if (*(p1++) != *(p2++)) return false;
+  } while (*p1 != '\0');
+  return true;
+}
+
+constexpr FastStringKey::FastStringKey(const char* name)
+  : name_(name), cached_hash_(HashImpl(name)) {}
+
+constexpr const char* FastStringKey::c_str() const {
+  return name_;
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
