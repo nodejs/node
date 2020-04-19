@@ -262,11 +262,9 @@ static void uv__udp_recvmsg(uv_udp_t* handle) {
     assert(buf.base != NULL);
 
 #if HAVE_MMSG
-    uv_once(&once, uv__udp_mmsg_init);
-    if (uv__recvmmsg_avail) {
-      /* Returned space for more than 1 datagram, use it to receive
-       * multiple datagrams. */
-      if (buf.len >= 2 * UV__UDP_DGRAM_MAXSIZE) {
+    if (handle->flags & UV_HANDLE_UDP_RECVMMSG) {
+      uv_once(&once, uv__udp_mmsg_init);
+      if (uv__recvmmsg_avail) {
         nread = uv__udp_recvmmsg(handle, &buf);
         if (nread > 0)
           count -= nread;
@@ -949,6 +947,7 @@ static int uv__udp_set_source_membership6(uv_udp_t* handle,
 int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
   int domain;
   int err;
+  int extra_flags;
   int fd;
 
   /* Use the lower 8 bits for the domain */
@@ -956,7 +955,9 @@ int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
   if (domain != AF_INET && domain != AF_INET6 && domain != AF_UNSPEC)
     return UV_EINVAL;
 
-  if (flags & ~0xFF)
+  /* Use the higher bits for extra flags */
+  extra_flags = flags & ~0xFF;
+  if (extra_flags & ~UV_UDP_RECVMMSG)
     return UV_EINVAL;
 
   if (domain != AF_UNSPEC) {
@@ -976,6 +977,9 @@ int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
   uv__io_init(&handle->io_watcher, uv__udp_io, fd);
   QUEUE_INIT(&handle->write_queue);
   QUEUE_INIT(&handle->write_completed_queue);
+
+  if (extra_flags & UV_UDP_RECVMMSG)
+    handle->flags |= UV_HANDLE_UDP_RECVMMSG;
 
   return 0;
 }
