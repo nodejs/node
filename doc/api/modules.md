@@ -1031,7 +1031,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Helpers for for interacting with the source map cache. This cache is
+Helpers for interacting with the source map cache. This cache is
 populated when source map parsing is enabled and
 [source map include directives][] are found in a modules' footer.
 
