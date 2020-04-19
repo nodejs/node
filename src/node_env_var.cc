@@ -379,7 +379,7 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
 
 MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
                                      Isolate* isolate,
-                                     Local<Object> data) {
+                                     Local<Value> data) {
   EscapableHandleScope scope(isolate);
   Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(

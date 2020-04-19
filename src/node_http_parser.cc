@@ -82,9 +82,10 @@ inline bool IsOWS(char c) {
   return c == ' ' || c == '\t';
 }
 
-class BindingData : public BaseObject {
+class BindingData : public BindingDataBase {
  public:
-  BindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
+  BindingData(Environment* env, Local<Object> obj)
+      : BindingDataBase(env, obj) {}
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
@@ -444,7 +445,7 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   static void New(const FunctionCallbackInfo<Value>& args) {
-    BindingData* binding_data = Unwrap<BindingData>(args.Data());
+    BindingData* binding_data = BindingDataBase::Unwrap<BindingData>(args);
     new Parser(binding_data, args.This());
   }
 
@@ -920,7 +921,7 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Environment::BindingScope<BindingData> binding_scope(env);
+  Environment::BindingScope<BindingData> binding_scope(env, context, target);
   if (!binding_scope) return;
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);

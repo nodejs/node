@@ -402,13 +402,13 @@ Some internal bindings, such as the HTTP parser, maintain internal state that
 only affects that particular binding. In that case, one common way to store
 that state is through the use of `Environment::BindingScope`, which gives all
 new functions created within it access to an object for storing such state.
-That object is always a [`BaseObject`][].
+That object is always a `BindingDataBase`.
 
 ```c++
 // In the HTTP parser source code file:
-class BindingData : public BaseObject {
+class BindingData : public BindingDataBase {
  public:
-  BindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
+  BindingData(Environment* env, Local<Object> obj) : BindingDataBase(env, obj) {}
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
@@ -418,7 +418,7 @@ class BindingData : public BaseObject {
 
 // Available for binding functions, e.g. the HTTP Parser constructor:
 static void New(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = BindingDataBase::Unwrap<BindingData>(args);
   new Parser(binding_data, args.This());
 }
 
@@ -429,7 +429,7 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Environment::BindingScope<BindingData> binding_scope(env);
+  Environment::BindingScope<BindingData> binding_scope(env, context, target);
   if (!binding_scope) return;
   BindingData* binding_data = binding_scope.data;
 

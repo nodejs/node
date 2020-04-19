@@ -287,6 +287,10 @@ inline void Environment::AssignToContext(v8::Local<v8::Context> context,
   // Used by Environment::GetCurrent to know that we are on a node context.
   context->SetAlignedPointerInEmbedderData(
     ContextEmbedderIndex::kContextTag, Environment::kNodeContextTagPtr);
+  // Used to retrieve bindings
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::KBindingListIndex, &(this->bindings_));
+
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
 #endif  // HAVE_INSPECTOR
@@ -318,55 +322,74 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
 
 inline Environment* Environment::GetCurrent(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  return GetFromCallbackData(info.Data());
+  return BindingDataBase::Unwrap<BindingDataBase>(info)->env();
 }
 
 template <typename T>
 inline Environment* Environment::GetCurrent(
     const v8::PropertyCallbackInfo<T>& info) {
-  return GetFromCallbackData(info.Data());
+  return BindingDataBase::Unwrap<BindingDataBase>(info)->env();
 }
 
-Environment* Environment::GetFromCallbackData(v8::Local<v8::Value> val) {
-  DCHECK(val->IsObject());
-  v8::Local<v8::Object> obj = val.As<v8::Object>();
-  DCHECK_GE(obj->InternalFieldCount(),
-            BaseObject::kInternalFieldCount);
-  Environment* env = Unwrap<BaseObject>(obj)->env();
-  DCHECK(env->as_callback_data_template()->HasInstance(obj));
-  return env;
+inline BindingDataBase::BindingDataBase(Environment* env,
+                                        v8::Local<v8::Object> target)
+    : BaseObject(env, target) {}
+
+template <typename T, typename U>
+inline T* BindingDataBase::Unwrap(const v8::PropertyCallbackInfo<U>& info) {
+  return Unwrap<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
 }
 
 template <typename T>
-Environment::BindingScope<T>::BindingScope(Environment* env) : env(env) {
-  v8::Local<v8::Object> callback_data;
-  if (!env->MakeBindingCallbackData<T>().ToLocal(&callback_data))
-    return;
-  data = Unwrap<T>(callback_data);
+inline T* BindingDataBase::Unwrap(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  return Unwrap<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
+}
 
-  // No nesting allowed currently.
-  CHECK_EQ(env->current_callback_data(), env->as_callback_data());
-  env->set_current_callback_data(callback_data);
+template <typename T>
+inline T* BindingDataBase::Unwrap(v8::Local<v8::Context> context,
+                                  v8::Local<v8::Value> val) {
+  CHECK(val->IsUint32());
+  uint32_t index = val.As<v8::Uint32>()->Value();
+  std::vector<BindingDataBase*>* list =
+      static_cast<std::vector<BindingDataBase*>*>(
+          context->GetAlignedPointerFromEmbedderData(
+              ContextEmbedderIndex::KBindingListIndex));
+  CHECK_GT(list->size(), index);
+  T* result = static_cast<T*>(list->at(index));
+  return result;
+}
+
+template <typename T>
+inline v8::Local<v8::Uint32> BindingDataBase::New(
+    Environment* env,
+    v8::Local<v8::Context> context,
+    v8::Local<v8::Object> target) {
+  T* data = new T(env, target);
+  // This won't compile if T is not a BindingDataBase subclass.
+  BindingDataBase* item = static_cast<BindingDataBase*>(data);
+  std::vector<BindingDataBase*>* list =
+      static_cast<std::vector<BindingDataBase*>*>(
+          context->GetAlignedPointerFromEmbedderData(
+              ContextEmbedderIndex::KBindingListIndex));
+  size_t index = list->size();
+  list->push_back(item);
+  return v8::Integer::NewFromUnsigned(env->isolate(), index).As<v8::Uint32>();
+}
+
+template <typename T>
+Environment::BindingScope<T>::BindingScope(Environment* env,
+                                           v8::Local<v8::Context> context,
+                                           v8::Local<v8::Object> target)
+    : env(env) {
+  v8::Local<v8::Uint32> index = BindingDataBase::New<T>(env, context, target);
+  data = BindingDataBase::Unwrap<T>(context, index);
+  env->set_current_callback_data(index);
 }
 
 template <typename T>
 Environment::BindingScope<T>::~BindingScope() {
-  env->set_current_callback_data(env->as_callback_data());
-}
-
-template <typename T>
-v8::MaybeLocal<v8::Object> Environment::MakeBindingCallbackData() {
-  v8::Local<v8::Function> ctor;
-  v8::Local<v8::Object> obj;
-  if (!as_callback_data_template()->GetFunction(context()).ToLocal(&ctor) ||
-      !ctor->NewInstance(context()).ToLocal(&obj)) {
-    return v8::MaybeLocal<v8::Object>();
-  }
-  T* data = new T(this, obj);
-  // This won't compile if T is not a BaseObject subclass.
-  CHECK_EQ(data, static_cast<BaseObject*>(data));
-  data->MakeWeak();
-  return obj;
+  env->set_current_callback_data(env->default_callback_data());
 }
 
 inline Environment* Environment::GetThreadLocalEnv() {
@@ -1085,7 +1108,7 @@ inline v8::Local<v8::FunctionTemplate>
                                      v8::Local<v8::Signature> signature,
                                      v8::ConstructorBehavior behavior,
                                      v8::SideEffectType side_effect_type) {
-  v8::Local<v8::Object> external = current_callback_data();
+  v8::Local<v8::Value> external = current_callback_data();
   return v8::FunctionTemplate::New(isolate(), callback, external,
                                    signature, 0, behavior, side_effect_type);
 }
@@ -1276,6 +1299,7 @@ void Environment::set_process_exit_handler(
   }
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+  ENVIRONMENT_CALLBACK_DATA(V)
 #undef V
 
   inline v8::Local<v8::Context> Environment::context() const {

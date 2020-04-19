@@ -50,6 +50,7 @@ using v8::String;
 using v8::Symbol;
 using v8::TracingController;
 using v8::TryCatch;
+using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 using worker::Worker;
@@ -261,9 +262,10 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
 }
 
-class NoBindingData : public BaseObject {
+class NoBindingData : public BindingDataBase {
  public:
-  NoBindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
+  NoBindingData(Environment* env, Local<Object> obj)
+      : BindingDataBase(env, obj) {}
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(NoBindingData)
@@ -273,17 +275,19 @@ class NoBindingData : public BaseObject {
 void Environment::CreateProperties() {
   HandleScope handle_scope(isolate_);
   Local<Context> ctx = context();
+
   {
     Context::Scope context_scope(ctx);
     Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
     templ->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
-    set_as_callback_data_template(templ);
 
-    Local<Object> obj = MakeBindingCallbackData<NoBindingData>()
-        .ToLocalChecked();
-    set_as_callback_data(obj);
-    set_current_callback_data(obj);
+    set_binding_data_ctor_template(templ);
+    Local<Function> ctor = templ->GetFunction(ctx).ToLocalChecked();
+    Local<Object> obj = ctor->NewInstance(ctx).ToLocalChecked();
+    Local<Uint32> index = BindingDataBase::New<NoBindingData>(this, ctx, obj);
+    set_default_callback_data(index);
+    set_current_callback_data(index);
   }
 
   // Store primordials setup by the per-context script in the environment.
@@ -1133,6 +1137,7 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
 #define V(PropertyName, TypeName)                                              \
   tracker->TrackField(#PropertyName, PropertyName());
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+  ENVIRONMENT_CALLBACK_DATA(V)
 #undef V
 
   // FIXME(joyeecheung): track other fields in Environment.
