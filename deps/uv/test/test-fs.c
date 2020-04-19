@@ -2493,6 +2493,33 @@ TEST_IMPL(fs_utime) {
 }
 
 
+TEST_IMPL(fs_utime_round) {
+  const char path[] = "test_file";
+  double atime;
+  double mtime;
+  uv_fs_t req;
+  int r;
+
+  loop = uv_default_loop();
+  unlink(path);
+  r = uv_fs_open(NULL, &req, path, O_RDWR | O_CREAT, S_IWUSR | S_IRUSR, NULL);
+  ASSERT(r >= 0);
+  ASSERT(req.result >= 0);
+  uv_fs_req_cleanup(&req);
+  ASSERT(0 == uv_fs_close(loop, &req, r, NULL));
+
+  atime = mtime = -14245440.0;  /* 1969-07-20T02:56:00.00Z */
+  ASSERT(0 == uv_fs_utime(NULL, &req, path, atime, mtime, NULL));
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, atime, mtime);
+  unlink(path);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 #ifdef _WIN32
 TEST_IMPL(fs_stat_root) {
   int r;

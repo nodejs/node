@@ -157,6 +157,49 @@ extern char *mkdtemp(char *template); /* See issue #740 on AIX < 7 */
   while (0)
 
 
+/* Returns the positive fractional part of a floating-point number.
+ * Garbage in, garbage out: don't pass in NaN or Infinity.
+ *
+ * Open-coded (sort of, it's not exactly equivalent to modf(3))
+ * to avoid a dependency on libm.
+ */
+static double uv__frac(double x) {
+  if (x < 0)
+    x = -x;
+
+  x -= (uint64_t) x;
+
+  return x;
+}
+
+
+UV_UNUSED(static struct timespec uv__to_timespec(double x)) {
+  struct timespec t;
+
+  t.tv_sec = x;
+  t.tv_nsec = 1e9 * uv__frac(x);
+
+  /* TODO(bnoordhuis) Remove this. utimesat() has nanosecond resolution but we
+   * stick to microsecond resolution for the sake of consistency with other
+   * platforms. I'm the original author of this compatibility hack but I'm
+   * less convinced it's useful nowadays.
+   */
+  t.tv_nsec -= t.tv_nsec % 1000;
+
+  return t;
+}
+
+
+UV_UNUSED(static struct timeval uv__to_timeval(double x)) {
+  struct timeval t;
+
+  t.tv_sec = x;
+  t.tv_usec = 1e6 * uv__frac(x);
+
+  return t;
+}
+
+
 static int uv__fs_close(int fd) {
   int rc;
 
@@ -209,14 +252,9 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 #if defined(__linux__)                                                        \
     || defined(_AIX71)                                                        \
     || defined(__HAIKU__)
-  /* utimesat() has nanosecond resolution but we stick to microseconds
-   * for the sake of consistency with other platforms.
-   */
   struct timespec ts[2];
-  ts[0].tv_sec  = req->atime;
-  ts[0].tv_nsec = (uint64_t)(req->atime * 1000000) % 1000000 * 1000;
-  ts[1].tv_sec  = req->mtime;
-  ts[1].tv_nsec = (uint64_t)(req->mtime * 1000000) % 1000000 * 1000;
+  ts[0] = uv__to_timespec(req->atime);
+  ts[1] = uv__to_timespec(req->mtime);
 #if defined(__ANDROID_API__) && __ANDROID_API__ < 21
   return utimensat(req->file, NULL, ts, 0);
 #else
@@ -230,10 +268,8 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
     || defined(__OpenBSD__)                                                   \
     || defined(__sun)
   struct timeval tv[2];
-  tv[0].tv_sec  = req->atime;
-  tv[0].tv_usec = (uint64_t)(req->atime * 1000000) % 1000000;
-  tv[1].tv_sec  = req->mtime;
-  tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
+  tv[0] = uv__to_timeval(req->atime);
+  tv[1] = uv__to_timeval(req->mtime);
 # if defined(__sun)
   return futimesat(req->file, NULL, tv);
 # else
@@ -973,14 +1009,9 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
     || defined(_AIX71)                                                         \
     || defined(__sun)                                                          \
     || defined(__HAIKU__)
-  /* utimesat() has nanosecond resolution but we stick to microseconds
-   * for the sake of consistency with other platforms.
-   */
   struct timespec ts[2];
-  ts[0].tv_sec  = req->atime;
-  ts[0].tv_nsec = (uint64_t)(req->atime * 1000000) % 1000000 * 1000;
-  ts[1].tv_sec  = req->mtime;
-  ts[1].tv_nsec = (uint64_t)(req->mtime * 1000000) % 1000000 * 1000;
+  ts[0] = uv__to_timespec(req->atime);
+  ts[1] = uv__to_timespec(req->mtime);
   return utimensat(AT_FDCWD, req->path, ts, 0);
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
@@ -989,10 +1020,8 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
     || defined(__NetBSD__)                                                    \
     || defined(__OpenBSD__)
   struct timeval tv[2];
-  tv[0].tv_sec  = req->atime;
-  tv[0].tv_usec = (uint64_t)(req->atime * 1000000) % 1000000;
-  tv[1].tv_sec  = req->mtime;
-  tv[1].tv_usec = (uint64_t)(req->mtime * 1000000) % 1000000;
+  tv[0] = uv__to_timeval(req->atime);
+  tv[1] = uv__to_timeval(req->mtime);
   return utimes(req->path, tv);
 #elif defined(_AIX)                                                           \
     && !defined(_AIX71)
