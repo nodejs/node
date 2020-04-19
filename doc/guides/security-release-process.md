@@ -2,7 +2,7 @@
 
 The security release process covers the steps required to plan/implement a
 security release. This document is copied into the description of the Next
-Security Release, and used to track progess on the release. It contains ***TEXT
+Security Release, and used to track progress on the release. It contains ***TEXT
 LIKE THIS*** which will be replaced during the release process with the
 information described.
 
