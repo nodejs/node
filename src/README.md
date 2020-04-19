@@ -400,15 +400,22 @@ NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 
 Some internal bindings, such as the HTTP parser, maintain internal state that
 only affects that particular binding. In that case, one common way to store
-that state is through the use of `Environment::BindingScope`, which gives all
-new functions created within it access to an object for storing such state.
+that state is through the use of `Environment::AddBindingData`, which gives
+binding functions access to an object for storing such state.
 That object is always a [`BaseObject`][].
+
+Its class needs to have a static `binding_data_name` field that based on a
+constant string, in order to disambiguate it from other classes of this type,
+and which could e.g. match the binding’s name (in the example above, that would
+be `cares_wrap`).
 
 ```c++
 // In the HTTP parser source code file:
 class BindingData : public BaseObject {
  public:
   BindingData(Environment* env, Local<Object> obj) : BaseObject(env, obj) {}
+
+  static constexpr FastStringKey binding_data_name { "http_parser" };
 
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
@@ -418,22 +425,21 @@ class BindingData : public BaseObject {
 
 // Available for binding functions, e.g. the HTTP Parser constructor:
 static void New(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
   new Parser(binding_data, args.This());
 }
 
-// ... because the initialization function told the Environment to use this
-// BindingData class for all functions created by it:
+// ... because the initialization function told the Environment to store the
+// BindingData object:
 void InitializeHttpParser(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Environment::BindingScope<BindingData> binding_scope(env);
-  if (!binding_scope) return;
-  BindingData* binding_data = binding_scope.data;
+  BindingData* const binding_data =
+      env->AddBindingData<BindingData>(context, target);
+  if (binding_data == nullptr) return;
 
-  // Created within the Environment::BindingScope
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   ...
 }

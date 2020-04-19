@@ -390,9 +390,9 @@ constexpr size_t kFsStatsBufferLength =
   V(zero_return_string, "ZERO_RETURN")
 
 #define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
-  V(as_callback_data_template, v8::FunctionTemplate)                           \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
+  V(binding_data_ctor_template, v8::FunctionTemplate)                          \
   V(compiled_fn_entry_template, v8::ObjectTemplate)                            \
   V(dir_instance_template, v8::ObjectTemplate)                                 \
   V(fd_constructor_template, v8::ObjectTemplate)                               \
@@ -420,7 +420,6 @@ constexpr size_t kFsStatsBufferLength =
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)
 
 #define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                                \
-  V(as_callback_data, v8::Object)                                              \
   V(async_hooks_after_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                 \
   V(async_hooks_binding, v8::Object)                                           \
@@ -429,7 +428,6 @@ constexpr size_t kFsStatsBufferLength =
   V(async_hooks_promise_resolve_function, v8::Function)                        \
   V(buffer_prototype_object, v8::Object)                                       \
   V(crypto_key_object_constructor, v8::Function)                               \
-  V(current_callback_data, v8::Object)                                         \
   V(domain_callback, v8::Function)                                             \
   V(domexception_function, v8::Function)                                       \
   V(enhance_fatal_stack_after_inspector, v8::Function)                         \
@@ -864,25 +862,24 @@ class Environment : public MemoryRetainer {
   static inline Environment* GetCurrent(
       const v8::PropertyCallbackInfo<T>& info);
 
-  static inline Environment* GetFromCallbackData(v8::Local<v8::Value> val);
-
   // Methods created using SetMethod(), SetPrototypeMethod(), etc. inside
   // this scope can access the created T* object using
-  // Unwrap<T>(args.Data()) later.
+  // GetBindingData<T>(args) later.
   template <typename T>
-  struct BindingScope {
-    explicit inline BindingScope(Environment* env);
-    inline ~BindingScope();
-
-    T* data = nullptr;
-    Environment* env;
-
-    inline operator bool() const { return data != nullptr; }
-    inline bool operator !() const { return data == nullptr; }
-  };
-
+  T* AddBindingData(v8::Local<v8::Context> context,
+                    v8::Local<v8::Object> target);
+  template <typename T, typename U>
+  static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
   template <typename T>
-  inline v8::MaybeLocal<v8::Object> MakeBindingCallbackData();
+  static inline T* GetBindingData(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  template <typename T>
+  static inline T* GetBindingData(v8::Local<v8::Context> context);
+
+  typedef std::unordered_map<
+      FastStringKey,
+      BaseObjectPtr<BaseObject>,
+      FastStringKey::Hash> BindingDataStore;
 
   static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();
@@ -1427,6 +1424,8 @@ class Environment : public MemoryRetainer {
   std::atomic<Environment**> interrupt_data_ {nullptr};
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
+
+  BindingDataStore bindings_;
 
   // Use an unordered_set, so that we have efficient insertion and removal.
   std::unordered_set<CleanupHookCallback,

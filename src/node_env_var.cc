@@ -377,13 +377,11 @@ static void EnvEnumerator(const PropertyCallbackInfo<Array>& info) {
       env->env_vars()->Enumerate(env->isolate()));
 }
 
-MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context,
-                                     Isolate* isolate,
-                                     Local<Object> data) {
+MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
   EscapableHandleScope scope(isolate);
   Local<ObjectTemplate> env_proxy_template = ObjectTemplate::New(isolate);
   env_proxy_template->SetHandler(NamedPropertyHandlerConfiguration(
-      EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, data,
+      EnvGetter, EnvSetter, EnvQuery, EnvDeleter, EnvEnumerator, Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
   return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
 }

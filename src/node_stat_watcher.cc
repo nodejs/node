@@ -95,7 +95,8 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
 void StatWatcher::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  fs::BindingData* binding_data = Unwrap<fs::BindingData>(args.Data());
+  fs::BindingData* binding_data =
+      Environment::GetBindingData<fs::BindingData>(args);
   new StatWatcher(binding_data, args.This(), args[0]->IsTrue());
 }
 

@@ -158,7 +158,7 @@ FileHandle* FileHandle::New(BindingData* binding_data,
 }
 
 void FileHandle::New(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsInt32());
@@ -543,7 +543,7 @@ void FSReqCallback::SetReturnValue(const FunctionCallbackInfo<Value>& args) {
 
 void NewFSReqCallback(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
   new FSReqCallback(binding_data, args.This(), args[0]->IsTrue());
 }
 
@@ -948,7 +948,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void Stat(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
 
   const int argc = args.Length();
@@ -979,7 +979,7 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void LStat(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
 
   const int argc = args.Length();
@@ -1011,7 +1011,7 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void FStat(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
 
   const int argc = args.Length();
@@ -1674,7 +1674,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
-  BindingData* binding_data = Unwrap<BindingData>(args.Data());
+  BindingData* binding_data = Environment::GetBindingData<BindingData>(args);
   Environment* env = binding_data->env();
   Isolate* isolate = env->isolate();
 
@@ -2303,15 +2303,18 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
                       file_handle_read_wrap_freelist);
 }
 
+// TODO(addaleax): Remove once we're on C++17.
+constexpr FastStringKey BindingData::binding_data_name;
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  Environment::BindingScope<BindingData> binding_scope(env);
-  if (!binding_scope) return;
-  BindingData* binding_data = binding_scope.data;
+  BindingData* const binding_data =
+      env->AddBindingData<BindingData>(context, target);
+  if (binding_data == nullptr) return;
 
   env->SetMethod(target, "access", Access);
   env->SetMethod(target, "close", Close);

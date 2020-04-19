@@ -96,6 +96,8 @@ class BindingData : public BaseObject {
         heap_code_statistics_buffer(env->isolate(),
                                     kHeapCodeStatisticsPropertiesCount) {}
 
+  static constexpr FastStringKey binding_data_name { "v8" };
+
   AliasedFloat64Array heap_statistics_buffer;
   AliasedFloat64Array heap_space_statistics_buffer;
   AliasedFloat64Array heap_code_statistics_buffer;
@@ -111,6 +113,8 @@ class BindingData : public BaseObject {
   SET_MEMORY_INFO_NAME(BindingData)
 };
 
+// TODO(addaleax): Remove once we're on C++17.
+constexpr FastStringKey BindingData::binding_data_name;
 
 void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -121,7 +125,7 @@ void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Unwrap<BindingData>(args.Data());
+  BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapStatistics s;
   args.GetIsolate()->GetHeapStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_statistics_buffer;
@@ -132,7 +136,7 @@ void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Unwrap<BindingData>(args.Data());
+  BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapSpaceStatistics s;
   Isolate* const isolate = args.GetIsolate();
   CHECK(args[0]->IsUint32());
@@ -147,7 +151,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = Unwrap<BindingData>(args.Data());
+  BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapCodeStatistics s;
   args.GetIsolate()->GetHeapCodeAndMetadataStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_code_statistics_buffer;
@@ -170,9 +174,9 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Environment::BindingScope<BindingData> binding_scope(env);
-  if (!binding_scope) return;
-  BindingData* binding_data = binding_scope.data;
+  BindingData* const binding_data =
+      env->AddBindingData<BindingData>(context, target);
+  if (binding_data == nullptr) return;
 
   env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
                              CachedDataVersionTag);

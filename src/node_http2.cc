@@ -2351,7 +2351,7 @@ void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
 // would be suitable, for instance, for creating the Base64
 // output for an HTTP2-Settings header field.
 void PackSettings(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Unwrap<Http2State>(args.Data());
+  Http2State* state = Environment::GetBindingData<Http2State>(args);
   args.GetReturnValue().Set(Http2Settings::Pack(state));
 }
 
@@ -2359,7 +2359,7 @@ void PackSettings(const FunctionCallbackInfo<Value>& args) {
 // default SETTINGS. RefreshDefaultSettings updates that TypedArray with the
 // default values.
 void RefreshDefaultSettings(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Unwrap<Http2State>(args.Data());
+  Http2State* state = Environment::GetBindingData<Http2State>(args);
   Http2Settings::RefreshDefaults(state);
 }
 
@@ -2423,7 +2423,7 @@ void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
 
 // Constructor for new Http2Session instances.
 void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
-  Http2State* state = Unwrap<Http2State>(args.Data());
+  Http2State* state = Environment::GetBindingData<Http2State>(args);
   Environment* env = state->env();
   CHECK(args.IsConstructCall());
   SessionType type =
@@ -2941,6 +2941,9 @@ void Http2State::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("root_buffer", root_buffer);
 }
 
+// TODO(addaleax): Remove once we're on C++17.
+constexpr FastStringKey Http2State::binding_data_name;
+
 // Set up the process.binding('http2') binding.
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -2950,9 +2953,8 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
 
-  Environment::BindingScope<Http2State> binding_scope(env);
-  if (!binding_scope) return;
-  Http2State* state = binding_scope.data;
+  Http2State* const state = env->AddBindingData<Http2State>(context, target);
+  if (state == nullptr) return;
 
 #define SET_STATE_TYPEDARRAY(name, field)             \
   target->Set(context,                                \
