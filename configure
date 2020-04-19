@@ -5,11 +5,11 @@
 # as is the fact that the ] goes on a new line.
 _=[ 'exec' '/bin/sh' '-c' '''
 test ${FORCE_PYTHON2} && exec python2 "$0" "$@"  # workaround for gclient
-which python3.8 >/dev/null && exec python3.8 "$0" "$@"
-which python3.7 >/dev/null && exec python3.7 "$0" "$@"
-which python3.6 >/dev/null && exec python3.6 "$0" "$@"
-which python3.5 >/dev/null && exec python3.5 "$0" "$@"
-which python2.7 >/dev/null && exec python2.7 "$0" "$@"
+command -v python3.8 >/dev/null && exec python3.8 "$0" "$@"
+command -v python3.7 >/dev/null && exec python3.7 "$0" "$@"
+command -v python3.6 >/dev/null && exec python3.6 "$0" "$@"
+command -v python3.5 >/dev/null && exec python3.5 "$0" "$@"
+command -v python2.7 >/dev/null && exec python2.7 "$0" "$@"
 exec python "$0" "$@"
 ''' "$0" "$@"
 ]
