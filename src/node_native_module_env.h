@@ -7,6 +7,7 @@
 
 namespace node {
 class Environment;
+class ExternalReferenceRegistry;
 
 namespace native_module {
 
@@ -14,6 +15,7 @@ extern const bool has_code_cache;
 
 class NativeModuleEnv {
  public:
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,
