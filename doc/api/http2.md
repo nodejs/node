@@ -1710,6 +1710,17 @@ added: v8.4.0
 The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2Server`.
 
+#### Event: `'sessionError'`
+<!-- YAML
+added: v8.4.0
+-->
+
+> Stability: 1 - Experimental. Use [`'aborted'`][].
+
+The `'sessionError'` event is emitted when an `'error'` event is emitted by
+an `Http2Session` object associated with the `Http2Server`.
+
+
 #### Event: `'stream'`
 <!-- YAML
 added: v8.4.0
@@ -1862,6 +1873,16 @@ added: v8.4.0
 
 The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2SecureServer`.
+
+#### Event: `'sessionError'`
+<!-- YAML
+added: v8.4.0
+-->
+
+> Stability: 1 - Experimental. Use [`'aborted'`][].
+
+The `'sessionError'` event is emitted when an `'error'` event is emitted by
+an `Http2Session` object associated with the `Http2SecureServer`.
 
 #### Event: `'stream'`
 <!-- YAML
@@ -3565,6 +3586,7 @@ following additional properties:
 [`'checkContinue'`]: #http2_event_checkcontinue
 [`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
+[`'aborted'`]: #http2_event_aborted
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [`Duplex`]: stream.html#stream_class_stream_duplex
