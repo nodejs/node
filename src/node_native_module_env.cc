@@ -1,5 +1,6 @@
 #include "node_native_module_env.h"
 #include "env-inl.h"
+#include "node_external_reference.h"
 
 namespace node {
 namespace native_module {
@@ -216,8 +217,21 @@ void NativeModuleEnv::Initialize(Local<Object> target,
   target->SetIntegrityLevel(context, IntegrityLevel::kFrozen).FromJust();
 }
 
+void NativeModuleEnv::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(ConfigStringGetter);
+  registry->Register(ModuleIdsGetter);
+  registry->Register(GetModuleCategories);
+  registry->Register(GetCacheUsage);
+  registry->Register(CompileFunction);
+  registry->Register(HasCachedBuiltins);
+}
+
 }  // namespace native_module
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(
     native_module, node::native_module::NativeModuleEnv::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(
+    native_module,
+    node::native_module::NativeModuleEnv::RegisterExternalReferences)

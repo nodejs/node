@@ -46,7 +46,10 @@ class ExternalReferenceRegistry {
   std::vector<intptr_t> external_references_;
 };
 
-#define EXTERNAL_REFERENCE_BINDING_LIST_BASE(V) V(process_object)
+#define EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                \
+  V(binding)                                                                   \
+  V(native_module)                                                             \
+  V(process_object)
 
 #define EXTERNAL_REFERENCE_BINDING_LIST(V)                                     \
   EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)
