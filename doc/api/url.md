@@ -53,7 +53,6 @@ WHATWG URL's `origin` property includes `protocol` and `host`, but not
 Parsing the URL string using the WHATWG API:
 
 ```js
-const URL = require('url').URL
 const myURL =
   new URL('https://user:pass@sub.example.com:8080/p/a/t/h?query=string#hash');
 ```
@@ -104,6 +103,13 @@ Creates a new `URL` object by parsing the `input` relative to the `base`. If
 ```js
 const myURL = new URL('/foo', 'https://example.org/');
 // https://example.org/foo
+```
+
+The URL constructor is accessible as a property on the global object.
+It can also be imported from the built-in url module:
+
+```
+console.log(URL === require('url').URL); // Prints 'true'.
 ```
 
 A `TypeError` will be thrown if the `input` or `base` are not valid URLs. Note
