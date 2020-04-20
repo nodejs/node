@@ -209,6 +209,22 @@ async function checkInvalidOptionForEvaluate() {
   });
 }
 
+function checkInvalidCachedData() {
+  [true, false, 'foo', {}, Array, function() {}].forEach((invalidArg) => {
+    const message = 'The "options.cachedData" property must be an ' +
+                    'instance of Buffer, TypedArray, or DataView.' +
+                    common.invalidArgTypeHelper(invalidArg);
+    assert.throws(
+      () => new SourceTextModule('import "foo";', { cachedData: invalidArg }),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError',
+        message,
+      }
+    );
+  });
+}
+
 const finished = common.mustCall();
 
 (async function main() {
@@ -217,5 +233,6 @@ const finished = common.mustCall();
   await checkLinking();
   await checkExecution();
   await checkInvalidOptionForEvaluate();
+  checkInvalidCachedData();
   finished();
 })();
