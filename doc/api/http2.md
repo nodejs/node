@@ -1710,14 +1710,6 @@ added: v8.4.0
 The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2Server`.
 
-#### Event: `'sessionError'`
-<!-- YAML
-added: v8.4.0
--->
-
-The `'sessionError'` event is emitted when an `'error'` event is emitted by
-an `Http2Session` object associated with the `Http2Server`.
-
 #### Event: `'stream'`
 <!-- YAML
 added: v8.4.0
@@ -1870,14 +1862,6 @@ added: v8.4.0
 
 The `'session'` event is emitted when a new `Http2Session` is created by the
 `Http2SecureServer`.
-
-#### Event: `'sessionError'`
-<!-- YAML
-added: v8.4.0
--->
-
-The `'sessionError'` event is emitted when an `'error'` event is emitted by
-an `Http2Session` object associated with the `Http2SecureServer`.
 
 #### Event: `'stream'`
 <!-- YAML

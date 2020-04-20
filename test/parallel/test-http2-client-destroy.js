@@ -70,27 +70,27 @@ const Countdown = require('../common/countdown');
 
     req.on('response', common.mustNotCall());
 
-    const sessionError = {
+    const aborted = {
       name: 'Error',
       code: 'ERR_HTTP2_INVALID_SESSION',
       message: 'The session has been destroyed'
     };
 
-    assert.throws(() => client.setNextStreamID(), sessionError);
-    assert.throws(() => client.ping(), sessionError);
-    assert.throws(() => client.settings({}), sessionError);
-    assert.throws(() => client.goaway(), sessionError);
-    assert.throws(() => client.request(), sessionError);
+    assert.throws(() => client.setNextStreamID(), aborted);
+    assert.throws(() => client.ping(), aborted);
+    assert.throws(() => client.settings({}), aborted);
+    assert.throws(() => client.goaway(), aborted);
+    assert.throws(() => client.request(), aborted);
     client.close();  // Should be a non-op at this point
 
     // Wait for setImmediate call from destroy() to complete
     // so that state.destroyed is set to true
     setImmediate(() => {
-      assert.throws(() => client.setNextStreamID(), sessionError);
-      assert.throws(() => client.ping(), sessionError);
-      assert.throws(() => client.settings({}), sessionError);
-      assert.throws(() => client.goaway(), sessionError);
-      assert.throws(() => client.request(), sessionError);
+      assert.throws(() => client.setNextStreamID(), aborted);
+      assert.throws(() => client.ping(), aborted);
+      assert.throws(() => client.settings({}), aborted);
+      assert.throws(() => client.goaway(), aborted);
+      assert.throws(() => client.request(), aborted);
       client.close();  // Should be a non-op at this point
     });
 
