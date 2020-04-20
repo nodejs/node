@@ -1,7 +1,8 @@
 #include "node_binding.h"
-#include "node_errors.h"
 #include <atomic>
 #include "env-inl.h"
+#include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_native_module_env.h"
 #include "util.h"
 
@@ -676,5 +677,13 @@ void RegisterBuiltinModules() {
 #undef V
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetLinkedBinding);
+  registry->Register(GetInternalBinding);
+}
+
 }  // namespace binding
 }  // namespace node
+
+NODE_MODULE_EXTERNAL_REFERENCE(binding,
+                               node::binding::RegisterExternalReferences)
