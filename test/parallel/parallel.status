@@ -9,6 +9,8 @@ prefix parallel
 test-http2-reset-flood: PASS,FLAKY
 
 [$system==win32]
+# https://github.com/nodejs/node/issues/32863
+test-child-process-fork-args: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
 test-http2-client-upload: PASS,FLAKY
 # https://github.com/nodejs/node/issues/20750
