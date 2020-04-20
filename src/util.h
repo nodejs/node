@@ -351,12 +351,12 @@ class MaybeStackBuffer {
   }
 
   T& operator[](size_t index) {
-    CHECK_LT(index, length() + 1);
+    CHECK_LT(index, length());
     return buf_[index];
   }
 
   const T& operator[](size_t index) const {
-    CHECK_LT(index, length() + 1);
+    CHECK_LT(index, length());
     return buf_[index];
   }
 
