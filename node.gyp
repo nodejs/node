@@ -48,6 +48,7 @@
       'lib/cluster.js',
       'lib/dgram.js',
       'lib/dns.js',
+      'lib/dns/promises.js',
       'lib/domain.js',
       'lib/events.js',
       'lib/fs.js',
