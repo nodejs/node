@@ -148,6 +148,7 @@ const customTypesMap = {
   'URLSearchParams': 'url.html#url_class_urlsearchparams',
 
   'vm.Module': 'vm.html#vm_class_vm_module',
+  'vm.Script': 'vm.html#vm_class_vm_script',
   'vm.SourceTextModule': 'vm.html#vm_class_vm_sourcetextmodule',
 
   'MessagePort': 'worker_threads.html#worker_threads_class_messageport',
