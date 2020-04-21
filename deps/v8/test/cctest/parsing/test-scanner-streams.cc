@@ -331,8 +331,8 @@ TEST(Utf8AdvanceUntilOverChunkBoundaries) {
   for (size_t i = 1; i < len; i++) {
     // Copy source string into buffer, splitting it at i.
     // Then add three chunks, 0..i-1, i..strlen-1, empty.
-    strncpy(buffer, unicode_utf8, i);
-    strncpy(buffer + i + 1, unicode_utf8 + i, len - i);
+    memcpy(buffer, unicode_utf8, i);
+    memcpy(buffer + i + 1, unicode_utf8 + i, len - i);
     buffer[i] = '\0';
     buffer[len + 1] = '\n';
     buffer[len + 2] = '\0';
@@ -360,8 +360,8 @@ TEST(Utf8ChunkBoundaries) {
   for (size_t i = 1; i < len; i++) {
     // Copy source string into buffer, splitting it at i.
     // Then add three chunks, 0..i-1, i..strlen-1, empty.
-    strncpy(buffer, unicode_utf8, i);
-    strncpy(buffer + i + 1, unicode_utf8 + i, len - i);
+    memcpy(buffer, unicode_utf8, i);
+    memcpy(buffer + i + 1, unicode_utf8 + i, len - i);
     buffer[i] = '\0';
     buffer[len + 1] = '\0';
     buffer[len + 2] = '\0';
