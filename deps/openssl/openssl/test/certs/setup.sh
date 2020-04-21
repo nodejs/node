@@ -154,7 +154,7 @@ openssl x509 -in sca-cert.pem -trustout \
     -addtrust anyExtendedKeyUsage -out sca+anyEKU.pem
 
 # Primary leaf cert: ee-cert
-# ee variants: expired, issuer-key2, issuer-name2
+# ee variants: expired, issuer-key2, issuer-name2, bad-pathlen
 # trust variants: +serverAuth, -serverAuth, +clientAuth, -clientAuth
 # purpose variants: client
 #
@@ -163,6 +163,8 @@ openssl x509 -in sca-cert.pem -trustout \
 ./mkcert.sh genee server.example ee-key ee-cert2 ca-key2 ca-cert2
 ./mkcert.sh genee server.example ee-key ee-name2 ca-key ca-name2
 ./mkcert.sh genee -p clientAuth server.example ee-key ee-client ca-key ca-cert
+./mkcert.sh genee server.example ee-key ee-pathlen ca-key ca-cert \
+    -extfile <(echo "basicConstraints=CA:FALSE,pathlen:0")
 #
 openssl x509 -in ee-cert.pem -trustout \
     -addtrust serverAuth -out ee+serverAuth.pem
