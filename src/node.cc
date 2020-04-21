@@ -350,6 +350,7 @@ MaybeLocal<Value> Environment::BootstrapNode() {
     return scope.EscapeMaybe(result);
   }
 
+  // TODO(joyeecheung): skip these in the snapshot building for workers.
   auto thread_switch_id =
       is_main_thread() ? "internal/bootstrap/switches/is_main_thread"
                        : "internal/bootstrap/switches/is_not_main_thread";

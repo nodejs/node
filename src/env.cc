@@ -1208,6 +1208,11 @@ EnvSerializeInfo Environment::Serialize(SnapshotCreator* creator) {
   EnvSerializeInfo info;
   Local<Context> ctx = context();
 
+  // Currently all modules are compiled without cache in builtin snapshot
+  // builder.
+  info.native_modules = std::vector<std::string>(
+      native_modules_without_cache.begin(), native_modules_without_cache.end());
+
   info.async_hooks = async_hooks_.Serialize(ctx, creator);
   info.immediate_info = immediate_info_.Serialize(ctx, creator);
   info.tick_info = tick_info_.Serialize(ctx, creator);
@@ -1257,11 +1262,24 @@ std::ostream& operator<<(std::ostream& output,
   return output;
 }
 
+std::ostream& operator<<(std::ostream& output,
+                         const std::vector<std::string>& vec) {
+  output << "{\n";
+  for (const auto& info : vec) {
+    output << "  \"" << info << "\",\n";
+  }
+  output << "}";
+  return output;
+}
+
 std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
   output << "{\n"
+         << "// -- native_modules begins --\n"
+         << i.native_modules << ",\n"
+         << "// -- native_modules ends --\n"
          << "// -- async_hooks begins --\n"
          << i.async_hooks << ",\n"
-         << "// -- async_hooks begins --\n"
+         << "// -- async_hooks ends --\n"
          << i.tick_info << ",  // tick_info\n"
          << i.immediate_info << ",  // immediate_info\n"
          << "// -- performance_state begins --\n"
@@ -1284,6 +1302,7 @@ std::ostream& operator<<(std::ostream& output, const EnvSerializeInfo& i) {
 void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   Local<Context> ctx = context();
 
+  native_modules_in_snapshot = info->native_modules;
   async_hooks_.Deserialize(ctx);
   immediate_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);

@@ -899,6 +899,7 @@ struct PropInfo {
 };
 
 struct EnvSerializeInfo {
+  std::vector<std::string> native_modules;
   AsyncHooks::SerializeInfo async_hooks;
   TickInfo::SerializeInfo tick_info;
   ImmediateInfo::SerializeInfo immediate_info;
@@ -1086,6 +1087,9 @@ class Environment : public MemoryRetainer {
 
   std::set<std::string> native_modules_with_cache;
   std::set<std::string> native_modules_without_cache;
+  // This is only filled during deserialization. We use a vector since
+  // it's only used for tests.
+  std::vector<std::string> native_modules_in_snapshot;
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
   std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
