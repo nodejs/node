@@ -81,16 +81,19 @@ const { Console } = console;
 ### `new Console(options)`
 <!-- YAML
 changes:
-  - version: v8.0.0
-    pr-url: https://github.com/nodejs/node/pull/9744
-    description: The `ignoreErrors` option was introduced.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32964
+    description: The `groupIndentation` option was introduced.
+  - version: v11.7.0
+    pr-url: https://github.com/nodejs/node/pull/24978
+    description: The `inspectOptions` option is introduced.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19372
     description: The `Console` constructor now supports an `options` argument,
                  and the `colorMode` option was introduced.
-  - version: v11.7.0
-    pr-url: https://github.com/nodejs/node/pull/24978
-    description: The `inspectOptions` option is introduced.
+  - version: v8.0.0
+    pr-url: https://github.com/nodejs/node/pull/9744
+    description: The `ignoreErrors` option was introduced.
 -->
 
 * `options` {Object}
@@ -107,6 +110,8 @@ changes:
     **Default:** `'auto'`.
   * `inspectOptions` {Object} Specifies options that are passed along to
     [`util.inspect()`][].
+  * `groupIndentation` {number} Set group indentation.
+    **Default:** `2`.
 
 Creates a new `Console` with one or two writable stream instances. `stdout` is a
 writable stream to print log or info output. `stderr` is used for warning or
@@ -306,7 +311,8 @@ added: v8.5.0
 
 * `...label` {any}
 
-Increases indentation of subsequent lines by two spaces.
+Increases indentation of subsequent lines by spaces for `groupIndentation`
+length.
 
 If one or more `label`s are provided, those are printed first without the
 additional indentation.
@@ -323,7 +329,8 @@ An alias for [`console.group()`][].
 added: v8.5.0
 -->
 
-Decreases indentation of subsequent lines by two spaces.
+Decreases indentation of subsequent lines by spaces for `groupIndentation`
+length.
 
 ### `console.info([data][, ...args])`
 <!-- YAML
