@@ -222,10 +222,10 @@ static int acpt_state(BIO *b, BIO_ACCEPT *c)
             break;
 
         case ACPT_S_CREATE_SOCKET:
-            ret = BIO_socket(BIO_ADDRINFO_family(c->addr_iter),
-                             BIO_ADDRINFO_socktype(c->addr_iter),
-                             BIO_ADDRINFO_protocol(c->addr_iter), 0);
-            if (ret == (int)INVALID_SOCKET) {
+            s = BIO_socket(BIO_ADDRINFO_family(c->addr_iter),
+                           BIO_ADDRINFO_socktype(c->addr_iter),
+                           BIO_ADDRINFO_protocol(c->addr_iter), 0);
+            if (s == (int)INVALID_SOCKET) {
                 SYSerr(SYS_F_SOCKET, get_last_socket_error());
                 ERR_add_error_data(4,
                                    "hostname=", c->param_addr,
@@ -233,9 +233,10 @@ static int acpt_state(BIO *b, BIO_ACCEPT *c)
                 BIOerr(BIO_F_ACPT_STATE, BIO_R_UNABLE_TO_CREATE_SOCKET);
                 goto exit_loop;
             }
-            c->accept_sock = ret;
-            b->num = ret;
+            c->accept_sock = s;
+            b->num = s;
             c->state = ACPT_S_LISTEN;
+            s = -1;
             break;
 
         case ACPT_S_LISTEN:

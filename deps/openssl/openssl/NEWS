@@ -5,6 +5,10 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.1.1f and OpenSSL 1.1.1g [21 Apr 2020]
+
+      o Fixed segmentation fault in SSL_check_chain() (CVE-2020-1967)
+
   Major changes between OpenSSL 1.1.1e and OpenSSL 1.1.1f [31 Mar 2020]
 
       o Revert the unexpected EOF reporting via SSL_ERROR_SSL
