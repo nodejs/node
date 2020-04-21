@@ -70,7 +70,9 @@ const invalidArgValueError = {
   validateString(undefined, 'foo', { allowUndefined: true });
 
   [1, NaN, null, undefined, {}, []].forEach((i) => {
-    assert.throws(() => validateString(i, 'foo'));
+    assert.throws(() => validateString(i, 'foo'), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
   });
 }
 
