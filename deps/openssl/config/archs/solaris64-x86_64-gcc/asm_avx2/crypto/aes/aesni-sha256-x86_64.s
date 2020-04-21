@@ -5,7 +5,7 @@
 .type	aesni_cbc_sha256_enc,@function
 .align	16
 aesni_cbc_sha256_enc:
-.cfi_startproc
+.cfi_startproc	
 	leaq	OPENSSL_ia32cap_P(%rip),%r11
 	movl	$1,%eax
 	cmpq	$0,%rdi
@@ -31,7 +31,7 @@ aesni_cbc_sha256_enc:
 	ud2
 .Lprobe:
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc,.-aesni_cbc_sha256_enc
 
 .align	64
@@ -4081,7 +4081,7 @@ aesni_cbc_sha256_enc_avx2:
 .type	aesni_cbc_sha256_enc_shaext,@function
 .align	32
 aesni_cbc_sha256_enc_shaext:
-.cfi_startproc
+.cfi_startproc	
 	movq	8(%rsp),%r10
 	leaq	K256+128(%rip),%rax
 	movdqu	(%r9),%xmm1
@@ -4431,5 +4431,5 @@ aesni_cbc_sha256_enc_shaext:
 	movdqu	%xmm1,(%r9)
 	movdqu	%xmm2,16(%r9)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	aesni_cbc_sha256_enc_shaext,.-aesni_cbc_sha256_enc_shaext
