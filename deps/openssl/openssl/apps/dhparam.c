@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,28 +8,24 @@
  */
 
 #include <openssl/opensslconf.h>
-#ifdef OPENSSL_NO_DH
-NON_EMPTY_TRANSLATION_UNIT
-#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+#include "apps.h"
+#include "progs.h"
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/bn.h>
+#include <openssl/dh.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
 
-# include <stdio.h>
-# include <stdlib.h>
-# include <time.h>
-# include <string.h>
-# include "apps.h"
-# include "progs.h"
-# include <openssl/bio.h>
-# include <openssl/err.h>
-# include <openssl/bn.h>
-# include <openssl/dh.h>
-# include <openssl/x509.h>
-# include <openssl/pem.h>
+#ifndef OPENSSL_NO_DSA
+# include <openssl/dsa.h>
+#endif
 
-# ifndef OPENSSL_NO_DSA
-#  include <openssl/dsa.h>
-# endif
-
-# define DEFBITS 2048
+#define DEFBITS 2048
 
 static int dh_cb(int p, int n, BN_GENCB *cb);
 
@@ -56,13 +52,13 @@ const OPTIONS dhparam_options[] = {
     {"C", OPT_C, '-', "Print C code"},
     {"2", OPT_2, '-', "Generate parameters using 2 as the generator value"},
     {"5", OPT_5, '-', "Generate parameters using 5 as the generator value"},
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
     {"dsaparam", OPT_DSAPARAM, '-',
      "Read or generate DSA parameters, convert to DH"},
-# endif
-# ifndef OPENSSL_NO_ENGINE
+#endif
+#ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device"},
-# endif
+#endif
     {NULL}
 };
 
@@ -146,13 +142,13 @@ int dhparam_main(int argc, char **argv)
     if (g && !num)
         num = DEFBITS;
 
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
     if (dsaparam && g) {
         BIO_printf(bio_err,
                    "generator may not be chosen for DSA parameters\n");
         goto end;
     }
-# endif
+#endif
 
     out = bio_open_default(outfile, 'w', outformat);
     if (out == NULL)
@@ -173,7 +169,7 @@ int dhparam_main(int argc, char **argv)
 
         BN_GENCB_set(cb, dh_cb, bio_err);
 
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
         if (dsaparam) {
             DSA *dsa = DSA_new();
 
@@ -196,7 +192,7 @@ int dhparam_main(int argc, char **argv)
                 goto end;
             }
         } else
-# endif
+#endif
         {
             dh = DH_new();
             BIO_printf(bio_err,
@@ -217,7 +213,7 @@ int dhparam_main(int argc, char **argv)
         if (in == NULL)
             goto end;
 
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
         if (dsaparam) {
             DSA *dsa;
 
@@ -239,7 +235,7 @@ int dhparam_main(int argc, char **argv)
                 goto end;
             }
         } else
-# endif
+#endif
         {
             if (informat == FORMAT_ASN1) {
                 /*
@@ -376,4 +372,3 @@ static int dh_cb(int p, int n, BN_GENCB *cb)
     (void)BIO_flush(BN_GENCB_get_arg(cb));
     return 1;
 }
-#endif
