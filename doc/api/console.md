@@ -307,10 +307,6 @@ values are concatenated. See [`util.format()`][] for more information.
 ### `console.group([...label])`
 <!-- YAML
 added: v8.5.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/32964
-    description: The `groupIndentation` option was introduced.
 -->
 
 * `...label` {any}
@@ -331,10 +327,6 @@ An alias for [`console.group()`][].
 ### `console.groupEnd()`
 <!-- YAML
 added: v8.5.0
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/32964
-    description: The `groupIndentation` option was introduced.
 -->
 
 Decreases indentation of subsequent lines by spaces for `groupIndentation`
