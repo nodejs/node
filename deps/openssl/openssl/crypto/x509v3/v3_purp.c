@@ -384,12 +384,16 @@ static void x509v3_cache_extensions(X509 *x)
         if (bs->ca)
             x->ex_flags |= EXFLAG_CA;
         if (bs->pathlen) {
-            if ((bs->pathlen->type == V_ASN1_NEG_INTEGER)
-                || !bs->ca) {
+            if (bs->pathlen->type == V_ASN1_NEG_INTEGER) {
                 x->ex_flags |= EXFLAG_INVALID;
                 x->ex_pathlen = 0;
-            } else
+            } else {
                 x->ex_pathlen = ASN1_INTEGER_get(bs->pathlen);
+                if (!bs->ca && x->ex_pathlen != 0) {
+                    x->ex_flags |= EXFLAG_INVALID;
+                    x->ex_pathlen = 0;
+                }
+            }
         } else
             x->ex_pathlen = -1;
         BASIC_CONSTRAINTS_free(bs);
@@ -545,9 +549,11 @@ static void x509v3_cache_extensions(X509 *x)
  * return codes:
  * 0 not a CA
  * 1 is a CA
- * 2 basicConstraints absent so "maybe" a CA
+ * 2 Only possible in older versions of openSSL when basicConstraints are absent
+ *   new versions will not return this value. May be a CA
  * 3 basicConstraints absent but self signed V1.
  * 4 basicConstraints absent but keyUsage present and keyCertSign asserted.
+ * 5 Netscape specific CA Flags present
  */
 
 static int check_ca(const X509 *x)

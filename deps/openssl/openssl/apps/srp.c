@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2004, EdelKey Project. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -12,28 +12,24 @@
  */
 
 #include <openssl/opensslconf.h>
-#ifdef OPENSSL_NO_SRP
-NON_EMPTY_TRANSLATION_UNIT
-#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <openssl/conf.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/txt_db.h>
+#include <openssl/buffer.h>
+#include <openssl/srp.h>
+#include "apps.h"
+#include "progs.h"
 
-# include <stdio.h>
-# include <stdlib.h>
-# include <string.h>
-# include <openssl/conf.h>
-# include <openssl/bio.h>
-# include <openssl/err.h>
-# include <openssl/txt_db.h>
-# include <openssl/buffer.h>
-# include <openssl/srp.h>
-# include "apps.h"
-# include "progs.h"
-
-# define BASE_SECTION    "srp"
-# define CONFIG_FILE "openssl.cnf"
+#define BASE_SECTION    "srp"
+#define CONFIG_FILE "openssl.cnf"
 
 
-# define ENV_DATABASE            "srpvfile"
-# define ENV_DEFAULT_SRP         "default_srp"
+#define ENV_DATABASE            "srpvfile"
+#define ENV_DEFAULT_SRP         "default_srp"
 
 static int get_index(CA_DB *db, char *id, char type)
 {
@@ -212,9 +208,9 @@ const OPTIONS srp_options[] = {
     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
     {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
     OPT_R_OPTIONS,
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
-# endif
+#endif
     {NULL}
 };
 
@@ -610,4 +606,3 @@ int srp_main(int argc, char **argv)
     release_engine(e);
     return ret;
 }
-#endif

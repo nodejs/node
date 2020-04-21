@@ -508,6 +508,12 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
                 ret = 1;
             break;
         }
+        if ((x->ex_flags & EXFLAG_CA) == 0
+            && x->ex_pathlen != -1
+            && (ctx->param->flags & X509_V_FLAG_X509_STRICT)) {
+            ctx->error = X509_V_ERR_INVALID_EXTENSION;
+            ret = 0;
+        }
         if (ret == 0 && !verify_cb_cert(ctx, x, i, X509_V_OK))
             return 0;
         /* check_purpose() makes the callback as needed */

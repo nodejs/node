@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,23 +8,19 @@
  */
 
 #include <openssl/opensslconf.h>
-#ifdef OPENSSL_NO_DSA
-NON_EMPTY_TRANSLATION_UNIT
-#else
-
-# include <stdio.h>
-# include <stdlib.h>
-# include <string.h>
-# include <time.h>
-# include "apps.h"
-# include "progs.h"
-# include <openssl/bio.h>
-# include <openssl/err.h>
-# include <openssl/dsa.h>
-# include <openssl/evp.h>
-# include <openssl/x509.h>
-# include <openssl/pem.h>
-# include <openssl/bn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include "apps.h"
+#include "progs.h"
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/dsa.h>
+#include <openssl/evp.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+#include <openssl/bn.h>
 
 typedef enum OPTION_choice {
     OPT_ERR = -1, OPT_EOF = 0, OPT_HELP,
@@ -49,14 +45,14 @@ const OPTIONS dsa_options[] = {
     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
     {"passout", OPT_PASSOUT, 's', "Output file pass phrase source"},
     {"", OPT_CIPHER, '-', "Any supported cipher"},
-# ifndef OPENSSL_NO_RC4
+#ifndef OPENSSL_NO_RC4
     {"pvk-strong", OPT_PVK_STRONG, '-', "Enable 'Strong' PVK encoding level (default)"},
     {"pvk-weak", OPT_PVK_WEAK, '-', "Enable 'Weak' PVK encoding level"},
     {"pvk-none", OPT_PVK_NONE, '-', "Don't enforce PVK encoding"},
-# endif
-# ifndef OPENSSL_NO_ENGINE
+#endif
+#ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device"},
-# endif
+#endif
     {NULL}
 };
 
@@ -71,9 +67,9 @@ int dsa_main(int argc, char **argv)
     OPTION_CHOICE o;
     int informat = FORMAT_PEM, outformat = FORMAT_PEM, text = 0, noout = 0;
     int i, modulus = 0, pubin = 0, pubout = 0, ret = 1;
-# ifndef OPENSSL_NO_RC4
+#ifndef OPENSSL_NO_RC4
     int pvk_encr = 2;
-# endif
+#endif
     int private = 0;
 
     prog = opt_init(argc, argv, dsa_options);
@@ -214,7 +210,7 @@ int dsa_main(int argc, char **argv)
             i = PEM_write_bio_DSAPrivateKey(out, dsa, enc,
                                             NULL, 0, NULL, passout);
         }
-# ifndef OPENSSL_NO_RSA
+#ifndef OPENSSL_NO_RSA
     } else if (outformat == FORMAT_MSBLOB || outformat == FORMAT_PVK) {
         EVP_PKEY *pk;
         pk = EVP_PKEY_new();
@@ -229,13 +225,13 @@ int dsa_main(int argc, char **argv)
                 goto end;
             }
             assert(private);
-#  ifdef OPENSSL_NO_RC4
+# ifdef OPENSSL_NO_RC4
             BIO_printf(bio_err, "PVK format not supported\n");
             EVP_PKEY_free(pk);
             goto end;
-#  else
+# else
             i = i2b_PVK_bio(out, pk, pvk_encr, 0, passout);
-#  endif
+# endif
         } else if (pubin || pubout) {
             i = i2b_PublicKey_bio(out, pk);
         } else {
@@ -243,7 +239,7 @@ int dsa_main(int argc, char **argv)
             i = i2b_PrivateKey_bio(out, pk);
         }
         EVP_PKEY_free(pk);
-# endif
+#endif
     } else {
         BIO_printf(bio_err, "bad output format specified for outfile\n");
         goto end;
@@ -262,4 +258,3 @@ int dsa_main(int argc, char **argv)
     OPENSSL_free(passout);
     return ret;
 }
-#endif
