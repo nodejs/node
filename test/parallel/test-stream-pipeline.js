@@ -7,11 +7,13 @@ const {
   Readable,
   Transform,
   pipeline,
-  PassThrough
+  PassThrough,
+  Duplex
 } = require('stream');
 const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
+const net = require('net');
 
 {
   let finished = false;
@@ -917,7 +919,7 @@ const { promisify } = require('util');
   const src = new PassThrough({ autoDestroy: false });
   const dst = new PassThrough({ autoDestroy: false });
   pipeline(src, dst, common.mustCall(() => {
-    assert.strictEqual(src.destroyed, true);
+    assert.strictEqual(src.destroyed, false);
     assert.strictEqual(dst.destroyed, false);
   }));
   src.end();
@@ -959,8 +961,8 @@ const { promisify } = require('util');
 }
 
 {
-  const src = new PassThrough();
-  const dst = new PassThrough();
+  const src = new PassThrough({ autoDestroy: true });
+  const dst = new PassThrough({ autoDestroy: true });
   dst.readable = false;
   pipeline(src, dst, common.mustCall((err) => {
     assert(!err);
@@ -1060,4 +1062,136 @@ const { promisify } = require('util');
   }, common.mustCall((err) => {
     assert.ifError(err);
   }));
+}
+
+{
+  let closed = false;
+  const src = new Readable({
+    read() {},
+    destroy(err, cb) {
+      process.nextTick(cb);
+    }
+  });
+  const dst = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  });
+  src.on('close', () => {
+    closed = true;
+  });
+  src.push(null);
+  pipeline(src, dst, common.mustCall((err) => {
+    assert.strictEqual(closed, true);
+  }));
+}
+
+{
+  let closed = false;
+  const src = new Readable({
+    read() {},
+    destroy(err, cb) {
+      process.nextTick(cb);
+    }
+  });
+  const dst = new Duplex({});
+  src.on('close', common.mustCall(() => {
+    closed = true;
+  }));
+  src.push(null);
+  pipeline(src, dst, common.mustCall((err) => {
+    assert.strictEqual(closed, true);
+  }));
+}
+
+{
+  const server = net.createServer(common.mustCall((socket) => {
+    // echo server
+    pipeline(socket, socket, common.mustCall());
+    // 13 force destroys the socket before it has a chance to emit finish
+    socket.on('finish', common.mustCall(() => {
+      server.close();
+    }));
+  })).listen(0, common.mustCall(() => {
+    const socket = net.connect(server.address().port);
+    socket.end();
+  }));
+}
+
+{
+  const d = new Duplex({
+    autoDestroy: false,
+    write: common.mustCall((data, enc, cb) => {
+      d.push(data);
+      cb();
+    }),
+    read: common.mustCall(() => {
+      d.push(null);
+    }),
+    final: common.mustCall((cb) => {
+      setTimeout(() => {
+        assert.strictEqual(d.destroyed, false);
+        cb();
+      }, 1000);
+    }),
+    destroy: common.mustNotCall()
+  });
+
+  const sink = new Writable({
+    write: common.mustCall((data, enc, cb) => {
+      cb();
+    })
+  });
+
+  pipeline(d, sink, common.mustCall());
+
+  d.write('test');
+  d.end();
+}
+
+{
+  const server = net.createServer(common.mustCall((socket) => {
+    // echo server
+    pipeline(socket, socket, common.mustCall());
+    socket.on('finish', common.mustCall(() => {
+      server.close();
+    }));
+  })).listen(0, common.mustCall(() => {
+    const socket = net.connect(server.address().port);
+    socket.end();
+  }));
+}
+
+{
+  const d = new Duplex({
+    autoDestroy: false,
+    write: common.mustCall((data, enc, cb) => {
+      d.push(data);
+      cb();
+    }),
+    read: common.mustCall(() => {
+      d.push(null);
+    }),
+    final: common.mustCall((cb) => {
+      setTimeout(() => {
+        assert.strictEqual(d.destroyed, false);
+        cb();
+      }, 1000);
+    }),
+    // `destroy()` won't be invoked by pipeline since
+    // the writable side has not completed when
+    // the pipeline has completed.
+    destroy: common.mustNotCall()
+  });
+
+  const sink = new Writable({
+    write: common.mustCall((data, enc, cb) => {
+      cb();
+    })
+  });
+
+  pipeline(d, sink, common.mustCall());
+
+  d.write('test');
+  d.end();
 }
