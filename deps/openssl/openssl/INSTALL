@@ -535,9 +535,9 @@
                    conjunction with the "-DPEDANTIC" option (or the
                    --strict-warnings option).
 
-  no-ui
-                   Don't build with the "UI" capability (i.e. the set of
-                   features enabling text based prompts).
+  no-ui-console
+                   Don't build with the "UI" console method (i.e. the "UI"
+                   method that enables text based console prompts).
 
   enable-unit-test
                    Enable additional unit test APIs. This should not typically

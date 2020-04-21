@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1297,5 +1297,7 @@ int ECDSA_size(const EC_KEY *r)
     i = i2d_ASN1_INTEGER(&bs, NULL);
     i += i;                     /* r and s */
     ret = ASN1_object_size(1, i, V_ASN1_SEQUENCE);
+    if (ret < 0)
+        return 0;
     return ret;
 }
