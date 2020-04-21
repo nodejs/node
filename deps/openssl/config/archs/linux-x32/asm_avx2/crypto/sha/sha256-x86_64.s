@@ -1775,7 +1775,7 @@ K256:
 .align	64
 sha256_block_data_order_shaext:
 _shaext_shortcut:
-.cfi_startproc
+.cfi_startproc	
 	leaq	K256+128(%rip),%rcx
 	movdqu	(%rdi),%xmm1
 	movdqu	16(%rdi),%xmm2
@@ -1978,7 +1978,7 @@ _shaext_shortcut:
 	movdqu	%xmm1,(%rdi)
 	movdqu	%xmm2,16(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha256_block_data_order_shaext,.-sha256_block_data_order_shaext
 .type	sha256_block_data_order_ssse3,@function
 .align	64

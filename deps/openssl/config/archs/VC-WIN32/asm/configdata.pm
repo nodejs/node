@@ -115,8 +115,8 @@ our %config = (
   sourcedir => ".",
   target => "VC-WIN32",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1f",
-  version_num => "0x1010106fL",
+  version => "1.1.1g",
+  version_num => "0x1010107fL",
 );
 
 our %target = (
@@ -132,7 +132,7 @@ our %target = (
   LDFLAGS => "/nologo /debug",
   MT => "mt",
   MTFLAGS => "-nologo",
-  RANLIB => "CODE(0x55e4d97a23c8)",
+  RANLIB => "CODE(0x555663f9f6e8)",
   RC => "rc",
   _conf_fname_int => [ "Configurations/00-base-templates.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/10-main.conf", "Configurations/00-base-templates.conf", "Configurations/10-main.conf", "Configurations/shared-info.pl" ],
   aes_asm_src => "aes_core.c aes_cbc.c vpaes-x86.s aesni-x86.s",
@@ -7460,6 +7460,7 @@ our %unified_info = (
                 [
                     ".",
                     "include",
+                    "crypto/modes",
                 ],
             "crypto/rand/drbg_lib.o" =>
                 [
