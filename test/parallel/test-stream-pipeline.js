@@ -916,7 +916,7 @@ const { promisify } = require('util');
   const src = new PassThrough({ autoDestroy: false });
   const dst = new PassThrough({ autoDestroy: false });
   pipeline(src, dst, common.mustCall(() => {
-    assert.strictEqual(src.destroyed, true);
+    assert.strictEqual(src.destroyed, false);
     assert.strictEqual(dst.destroyed, false);
   }));
   src.end();
