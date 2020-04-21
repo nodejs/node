@@ -13,6 +13,7 @@ const {
 const assert = require('assert');
 const http = require('http');
 const { promisify } = require('util');
+const net = require('net');
 
 {
   let finished = false;
@@ -1117,4 +1118,52 @@ const { promisify } = require('util');
   pipeline(src, dst, common.mustCall((err) => {
     assert.strictEqual(closed, true);
   }));
+}
+
+{
+  const server = net.createServer(common.mustCall((socket) => {
+    // echo server
+    pipeline(socket, socket, common.mustCall());
+    // 13 force destroys the socket before it has a chance to emit finish
+    socket.on('finish', common.mustCall(() => {
+      server.close();
+    }));
+  })).listen(0, common.mustCall(() => {
+    const socket = net.connect(server.address().port);
+    socket.end();
+  }));
+}
+
+{
+  const d = new Duplex({
+    autoDestroy: false,
+    write: common.mustCall((data, enc, cb) => {
+      d.push(data);
+      cb();
+    }),
+    read: common.mustCall(() => {
+      d.push(null);
+    }),
+    final: common.mustCall((cb) => {
+      setTimeout(() => {
+        assert.strictEqual(d.destroyed, false);
+        cb();
+      }, 1000);
+    }),
+    // `destroy()` won't be invoked by pipeline since
+    // the writable side has not completed when
+    // the pipeline has completed.
+    destroy: common.mustNotCall()
+  });
+
+  const sink = new Writable({
+    write: common.mustCall((data, enc, cb) => {
+      cb();
+    })
+  });
+
+  pipeline(d, sink, common.mustCall());
+
+  d.write('test');
+  d.end();
 }
