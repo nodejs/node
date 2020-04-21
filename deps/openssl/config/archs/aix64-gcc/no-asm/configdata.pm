@@ -110,8 +110,8 @@ our %config = (
   sourcedir => ".",
   target => "aix64-gcc",
   tdirs => [ "ossl_shim" ],
-  version => "1.1.1f",
-  version_num => "0x1010106fL",
+  version => "1.1.1g",
+  version_num => "0x1010107fL",
 );
 
 our %target = (
@@ -7380,6 +7380,7 @@ our %unified_info = (
                 [
                     ".",
                     "include",
+                    "crypto/modes",
                 ],
             "crypto/rand/drbg_lib.o" =>
                 [
