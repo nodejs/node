@@ -2,6 +2,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_v8_platform-inl.h"
 #include "tracing/agent.h"
@@ -11,6 +12,8 @@
 #include <string>
 
 namespace node {
+
+class ExternalReferenceRegistry;
 
 using v8::Array;
 using v8::Context;
@@ -29,7 +32,7 @@ class NodeCategorySet : public BaseObject {
                   Local<Value> unused,
                   Local<Context> context,
                   void* priv);
-
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void New(const FunctionCallbackInfo<Value>& args);
   static void Enable(const FunctionCallbackInfo<Value>& args);
   static void Disable(const FunctionCallbackInfo<Value>& args);
@@ -154,7 +157,18 @@ void NodeCategorySet::Initialize(Local<Object> target,
               binding->Get(context, trace).ToLocalChecked()).Check();
 }
 
+void NodeCategorySet::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(GetEnabledCategories);
+  registry->Register(SetTraceCategoryStateUpdateHandler);
+  registry->Register(NodeCategorySet::New);
+  registry->Register(NodeCategorySet::Enable);
+  registry->Register(NodeCategorySet::Disable);
+}
+
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(trace_events,
                                    node::NodeCategorySet::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(
+    trace_events, node::NodeCategorySet::RegisterExternalReferences)

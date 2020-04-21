@@ -1,4 +1,5 @@
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "util-inl.h"
 
@@ -371,6 +372,25 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 #endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SafeGetenv);
+
+#ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
+  registry->Register(GetUid);
+  registry->Register(GetEUid);
+  registry->Register(GetGid);
+  registry->Register(GetEGid);
+  registry->Register(GetGroups);
+
+  registry->Register(InitGroups);
+  registry->Register(SetEGid);
+  registry->Register(SetEUid);
+  registry->Register(SetGid);
+  registry->Register(SetUid);
+  registry->Register(SetGroups);
+#endif  // NODE_IMPLEMENTS_POSIX_CREDENTIALS
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -403,3 +423,5 @@ static void Initialize(Local<Object> target,
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(credentials, node::credentials::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(credentials,
+                               node::credentials::RegisterExternalReferences)

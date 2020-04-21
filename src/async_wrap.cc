@@ -23,6 +23,7 @@
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "tracing/traced_value.h"
 #include "util-inl.h"
 
@@ -695,6 +696,25 @@ void AsyncWrap::Initialize(Local<Object> target,
   PromiseWrap::Initialize(env);
 }
 
+void AsyncWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(SetupHooks);
+  registry->Register(SetCallbackTrampoline);
+  registry->Register(PushAsyncContext);
+  registry->Register(PopAsyncContext);
+  registry->Register(ExecutionAsyncResource);
+  registry->Register(ClearAsyncIdStack);
+  registry->Register(QueueDestroyAsyncId);
+  registry->Register(EnablePromiseHook);
+  registry->Register(DisablePromiseHook);
+  registry->Register(RegisterDestroyHook);
+  registry->Register(AsyncWrapObject::New);
+  registry->Register(AsyncWrap::GetAsyncId);
+  registry->Register(AsyncWrap::AsyncReset);
+  registry->Register(AsyncWrap::GetProviderType);
+  registry->Register(PromiseWrap::GetAsyncId);
+  registry->Register(PromiseWrap::GetTriggerAsyncId);
+}
 
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
@@ -924,3 +944,5 @@ Local<Object> AsyncWrap::GetOwner(Environment* env, Local<Object> obj) {
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(async_wrap, node::AsyncWrap::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(async_wrap,
+                               node::AsyncWrap::RegisterExternalReferences)

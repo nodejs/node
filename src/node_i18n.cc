@@ -41,6 +41,7 @@
 
 
 #include "node_i18n.h"
+#include "node_external_reference.h"
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
@@ -824,9 +825,21 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "hasConverter", ConverterObject::Has);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(ToUnicode);
+  registry->Register(ToASCII);
+  registry->Register(GetStringWidth);
+  registry->Register(ICUErrorName);
+  registry->Register(Transcode);
+  registry->Register(ConverterObject::Create);
+  registry->Register(ConverterObject::Decode);
+  registry->Register(ConverterObject::Has);
+}
+
 }  // namespace i18n
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(icu, node::i18n::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(icu, node::i18n::RegisterExternalReferences)
 
 #endif  // NODE_HAVE_I18N_SUPPORT
