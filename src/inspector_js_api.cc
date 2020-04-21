@@ -2,9 +2,10 @@
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "memory_tracker-inl.h"
+#include "node_external_reference.h"
 #include "util-inl.h"
-#include "v8.h"
 #include "v8-inspector.h"
+#include "v8.h"
 
 #include <memory>
 
@@ -345,8 +346,35 @@ void Initialize(Local<Object> target, Local<Value> unused,
 }
 
 }  // namespace
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(InspectorConsoleCall);
+  registry->Register(SetConsoleExtensionInstaller);
+  registry->Register(CallAndPauseOnStart);
+  registry->Register(Open);
+  registry->Register(Url);
+  registry->Register(WaitForDebugger);
+
+  registry->Register(AsyncTaskScheduledWrapper);
+  registry->Register(InvokeAsyncTaskFnWithId<&Agent::AsyncTaskCanceled>);
+  registry->Register(InvokeAsyncTaskFnWithId<&Agent::AsyncTaskStarted>);
+  registry->Register(InvokeAsyncTaskFnWithId<&Agent::AsyncTaskFinished>);
+
+  registry->Register(RegisterAsyncHookWrapper);
+  registry->Register(IsEnabled);
+
+  registry->Register(JSBindingsConnection<LocalConnection>::New);
+  registry->Register(JSBindingsConnection<LocalConnection>::Dispatch);
+  registry->Register(JSBindingsConnection<LocalConnection>::Disconnect);
+  registry->Register(JSBindingsConnection<MainThreadConnection>::New);
+  registry->Register(JSBindingsConnection<MainThreadConnection>::Dispatch);
+  registry->Register(JSBindingsConnection<MainThreadConnection>::Disconnect);
+}
+
 }  // namespace inspector
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(inspector,
                                   node::inspector::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(inspector,
+                               node::inspector::RegisterExternalReferences)

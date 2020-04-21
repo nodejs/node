@@ -36,7 +36,6 @@
 #include <string>
 
 namespace node {
-
 namespace i18n {
 
 bool InitializeICUDirectory(const std::string& path);

@@ -22,6 +22,7 @@
 #include "handle_wrap.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#include "node_external_reference.h"
 #include "util-inl.h"
 
 namespace node {
@@ -152,5 +153,15 @@ Local<FunctionTemplate> HandleWrap::GetConstructorTemplate(Environment* env) {
   return tmpl;
 }
 
+void HandleWrap::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(HandleWrap::Close);
+  registry->Register(HandleWrap::HasRef);
+  registry->Register(HandleWrap::Ref);
+  registry->Register(HandleWrap::Unref);
+}
 
 }  // namespace node
+
+NODE_MODULE_EXTERNAL_REFERENCE(handle_wrap,
+                               node::HandleWrap::RegisterExternalReferences)

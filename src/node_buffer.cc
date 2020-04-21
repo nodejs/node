@@ -23,6 +23,7 @@
 #include "allocated_buffer-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 
 #include "env-inl.h"
@@ -1197,7 +1198,45 @@ void Initialize(Local<Object> target,
 }
 
 }  // anonymous namespace
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SetBufferPrototype);
+  registry->Register(CreateFromString);
+
+  registry->Register(ByteLengthUtf8);
+  registry->Register(Copy);
+  registry->Register(Compare);
+  registry->Register(CompareOffset);
+  registry->Register(Fill);
+  registry->Register(IndexOfBuffer);
+  registry->Register(IndexOfNumber);
+  registry->Register(IndexOfString);
+
+  registry->Register(Swap16);
+  registry->Register(Swap32);
+  registry->Register(Swap64);
+
+  registry->Register(EncodeInto);
+  registry->Register(EncodeUtf8String);
+
+  registry->Register(StringSlice<ASCII>);
+  registry->Register(StringSlice<BASE64>);
+  registry->Register(StringSlice<LATIN1>);
+  registry->Register(StringSlice<HEX>);
+  registry->Register(StringSlice<UCS2>);
+  registry->Register(StringSlice<UTF8>);
+
+  registry->Register(StringWrite<ASCII>);
+  registry->Register(StringWrite<BASE64>);
+  registry->Register(StringWrite<LATIN1>);
+  registry->Register(StringWrite<HEX>);
+  registry->Register(StringWrite<UCS2>);
+  registry->Register(StringWrite<UTF8>);
+  registry->Register(GetZeroFillToggle);
+}
+
 }  // namespace Buffer
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(buffer, node::Buffer::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(buffer, node::Buffer::RegisterExternalReferences)

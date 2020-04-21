@@ -47,12 +47,41 @@ class ExternalReferenceRegistry {
 };
 
 #define EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                \
+  V(async_wrap)                                                                \
   V(binding)                                                                   \
+  V(buffer)                                                                    \
+  V(credentials)                                                               \
+  V(env_var)                                                                   \
+  V(errors)                                                                    \
+  V(handle_wrap)                                                               \
+  V(messaging)                                                                 \
   V(native_module)                                                             \
-  V(process_object)
+  V(process_methods)                                                           \
+  V(process_object)                                                            \
+  V(task_queue)                                                                \
+  V(url)                                                                       \
+  V(util)                                                                      \
+  V(string_decoder)                                                            \
+  V(trace_events)                                                              \
+  V(timers)                                                                    \
+  V(types)
+
+#if NODE_HAVE_I18N_SUPPORT
+#define EXTERNAL_REFERENCE_BINDING_LIST_I18N(V) V(icu)
+#else
+#define EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)
+#endif  // NODE_HAVE_I18N_SUPPORT
+
+#if HAVE_INSPECTOR
+#define EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V) V(inspector)
+#else
+#define EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)
+#endif  // HAVE_INSPECTOR
 
 #define EXTERNAL_REFERENCE_BINDING_LIST(V)                                     \
-  EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)
+  EXTERNAL_REFERENCE_BINDING_LIST_BASE(V)                                      \
+  EXTERNAL_REFERENCE_BINDING_LIST_INSPECTOR(V)                                 \
+  EXTERNAL_REFERENCE_BINDING_LIST_I18N(V)
 
 }  // namespace node
 

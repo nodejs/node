@@ -1,6 +1,7 @@
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_process.h"
 
 #include <time.h>  // tzset(), _tzset()
@@ -384,4 +385,14 @@ MaybeLocal<Object> CreateEnvVarProxy(Local<Context> context, Isolate* isolate) {
       PropertyHandlerFlags::kHasNoSideEffect));
   return scope.EscapeMaybe(env_proxy_template->NewInstance(context));
 }
+
+void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(EnvGetter);
+  registry->Register(EnvSetter);
+  registry->Register(EnvQuery);
+  registry->Register(EnvDeleter);
+  registry->Register(EnvEnumerator);
+}
 }  // namespace node
+
+NODE_MODULE_EXTERNAL_REFERENCE(env_var, node::RegisterEnvVarExternalReferences)

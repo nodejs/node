@@ -263,10 +263,6 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code,
     return nullptr;
   }
 
-  if (deserialize_mode_ && env->BootstrapNode().IsEmpty()) {
-    return nullptr;
-  }
-
   CHECK(env->req_wrap_queue()->IsEmpty());
   CHECK(env->handle_wrap_queue()->IsEmpty());
   env->set_has_run_bootstrapping_code(true);

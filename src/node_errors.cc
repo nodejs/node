@@ -3,9 +3,10 @@
 
 #include "debug_utils-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
-#include "node_report.h"
 #include "node_process.h"
+#include "node_report.h"
 #include "node_v8_platform-inl.h"
 #include "util-inl.h"
 
@@ -852,6 +853,14 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
   errors::TriggerUncaughtException(isolate, exception, message, from_promise);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(SetPrepareStackTraceCallback);
+  registry->Register(EnableSourceMaps);
+  registry->Register(SetEnhanceStackForFatalException);
+  registry->Register(NoSideEffectsToString);
+  registry->Register(TriggerUncaughtException);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1023,3 +1032,4 @@ void TriggerUncaughtException(Isolate* isolate, const v8::TryCatch& try_catch) {
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(errors, node::errors::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(errors, node::errors::RegisterExternalReferences)

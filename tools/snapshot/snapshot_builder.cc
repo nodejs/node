@@ -130,7 +130,7 @@ std::string SnapshotBuilder::Generate(
                             nullptr,
                             node::EnvironmentFlags::kDefaultFlags,
                             {});
-      env->BootstrapInternalLoaders().ToLocalChecked();
+      env->RunBootstrapping().ToLocalChecked();
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
         env->PrintAllBaseObjects();
         printf("Environment = %p\n", env);

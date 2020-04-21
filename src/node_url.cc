@@ -1,6 +1,7 @@
 #include "node_url.h"
 #include "base_object-inl.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_i18n.h"
 #include "util-inl.h"
 
@@ -2325,6 +2326,15 @@ void Initialize(Local<Object> target,
 }
 }  // namespace
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(Parse);
+  registry->Register(EncodeAuthSet);
+  registry->Register(ToUSVString);
+  registry->Register(DomainToASCII);
+  registry->Register(DomainToUnicode);
+  registry->Register(SetURLConstructor);
+}
+
 std::string URL::ToFilePath() const {
   if (context_.scheme != "file:") {
     return "";
@@ -2446,3 +2456,4 @@ MaybeLocal<Value> URL::ToObject(Environment* env) const {
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(url, node::url::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(url, node::url::RegisterExternalReferences)
