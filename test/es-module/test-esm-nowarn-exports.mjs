@@ -16,7 +16,6 @@ child.stderr.on('data', (data) => {
   stderr += data;
 });
 child.on('close', (code, signal) => {
-  console.log(stderr);
   strictEqual(code, 0);
   strictEqual(signal, null);
   ok(stderr.toString().includes(
