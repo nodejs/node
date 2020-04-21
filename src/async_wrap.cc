@@ -250,12 +250,13 @@ static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
 
 
 static void DisablePromiseHook(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(args);
+  env->set_promise_hook_handler(Local<Function>());
 
   // The per-Isolate API provides no way of knowing whether there are multiple
   // users of the PromiseHook. That hopefully goes away when V8 introduces
   // a per-context API.
-  isolate->SetPromiseHook(nullptr);
+  args.GetIsolate()->SetPromiseHook(nullptr);
 }
 
 
