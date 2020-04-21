@@ -89,10 +89,6 @@ void PlatformEmbeddedFileWriterMac::DeclareFunctionBegin(const char* name,
 
 void PlatformEmbeddedFileWriterMac::DeclareFunctionEnd(const char* name) {}
 
-int PlatformEmbeddedFileWriterMac::HexLiteral(uint64_t value) {
-  return fprintf(fp_, "0x%" PRIx64, value);
-}
-
 void PlatformEmbeddedFileWriterMac::FilePrologue() {}
 
 void PlatformEmbeddedFileWriterMac::DeclareExternalFilename(

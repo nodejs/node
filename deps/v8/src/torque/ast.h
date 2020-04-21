@@ -629,6 +629,8 @@ struct BasicTypeExpression : TypeExpression {
         is_constexpr(IsConstexprName(name)),
         name(std::move(name)),
         generic_arguments(std::move(generic_arguments)) {}
+  BasicTypeExpression(SourcePosition pos, std::string name)
+      : BasicTypeExpression(pos, {}, std::move(name), {}) {}
   std::vector<std::string> namespace_qualification;
   bool is_constexpr;
   std::string name;
@@ -838,7 +840,7 @@ struct InstanceTypeConstraints {
 struct AbstractTypeDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(AbstractTypeDeclaration)
   AbstractTypeDeclaration(SourcePosition pos, Identifier* name, bool transient,
-                          base::Optional<Identifier*> extends,
+                          base::Optional<TypeExpression*> extends,
                           base::Optional<std::string> generates)
       : TypeDeclaration(kKind, pos, name),
         is_constexpr(IsConstexprName(name->value)),
@@ -847,7 +849,7 @@ struct AbstractTypeDeclaration : TypeDeclaration {
         generates(std::move(generates)) {}
   bool is_constexpr;
   bool transient;
-  base::Optional<Identifier*> extends;
+  base::Optional<TypeExpression*> extends;
   base::Optional<std::string> generates;
 };
 
@@ -1173,8 +1175,7 @@ struct ClassBody : AstNode {
 struct ClassDeclaration : TypeDeclaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
   ClassDeclaration(SourcePosition pos, Identifier* name, ClassFlags flags,
-                   base::Optional<TypeExpression*> super,
-                   base::Optional<std::string> generates,
+                   TypeExpression* super, base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
                    std::vector<ClassFieldExpression> fields,
                    InstanceTypeConstraints instance_type_constraints)
@@ -1186,7 +1187,7 @@ struct ClassDeclaration : TypeDeclaration {
         fields(std::move(fields)),
         instance_type_constraints(std::move(instance_type_constraints)) {}
   ClassFlags flags;
-  base::Optional<TypeExpression*> super;
+  TypeExpression* super;
   base::Optional<std::string> generates;
   std::vector<Declaration*> methods;
   std::vector<ClassFieldExpression> fields;

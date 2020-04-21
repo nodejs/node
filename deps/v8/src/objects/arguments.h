@@ -113,9 +113,6 @@ class AliasedArgumentsEntry
     : public TorqueGeneratedAliasedArgumentsEntry<AliasedArgumentsEntry,
                                                   Struct> {
  public:
-  inline int aliased_context_slot() const;
-  inline void set_aliased_context_slot(int count);
-
   // Dispatched behavior.
   DECL_PRINTER(AliasedArgumentsEntry)
 

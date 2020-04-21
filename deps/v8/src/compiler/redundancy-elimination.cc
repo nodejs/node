@@ -21,6 +21,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kCheckBigInt:
     case IrOpcode::kCheckBounds:
+    case IrOpcode::kCheckClosure:
     case IrOpcode::kCheckEqualsInternalizedString:
     case IrOpcode::kCheckEqualsSymbol:
     case IrOpcode::kCheckFloat64Hole:
@@ -332,8 +333,8 @@ Reduction RedundancyElimination::ReduceSpeculativeNumberComparison(Node* node) {
           // the regular Number comparisons in JavaScript also identify
           // 0 and -0 (unlike special comparisons as Object.is).
           NodeProperties::ReplaceValueInput(node, check, 0);
-          Reduction const reduction = ReduceSpeculativeNumberComparison(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(
+              ReduceSpeculativeNumberComparison(node));
         }
       }
     }
@@ -350,8 +351,8 @@ Reduction RedundancyElimination::ReduceSpeculativeNumberComparison(Node* node) {
           // the regular Number comparisons in JavaScript also identify
           // 0 and -0 (unlike special comparisons as Object.is).
           NodeProperties::ReplaceValueInput(node, check, 1);
-          Reduction const reduction = ReduceSpeculativeNumberComparison(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(
+              ReduceSpeculativeNumberComparison(node));
         }
       }
     }

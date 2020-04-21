@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-BUILTIN(FinalizationGroupConstructor) {
+BUILTIN(FinalizationRegistryConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
@@ -31,22 +31,22 @@ BUILTIN(FinalizationGroupConstructor) {
       isolate, result,
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 
-  Handle<JSFinalizationGroup> finalization_group =
-      Handle<JSFinalizationGroup>::cast(result);
-  finalization_group->set_native_context(*isolate->native_context());
-  finalization_group->set_cleanup(*cleanup);
-  finalization_group->set_flags(
-      JSFinalizationGroup::ScheduledForCleanupField::encode(false));
+  Handle<JSFinalizationRegistry> finalization_registry =
+      Handle<JSFinalizationRegistry>::cast(result);
+  finalization_registry->set_native_context(*isolate->native_context());
+  finalization_registry->set_cleanup(*cleanup);
+  finalization_registry->set_flags(
+      JSFinalizationRegistry::ScheduledForCleanupBit::encode(false));
 
-  DCHECK(finalization_group->active_cells().IsUndefined(isolate));
-  DCHECK(finalization_group->cleared_cells().IsUndefined(isolate));
-  DCHECK(finalization_group->key_map().IsUndefined(isolate));
-  return *finalization_group;
+  DCHECK(finalization_registry->active_cells().IsUndefined(isolate));
+  DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
+  DCHECK(finalization_registry->key_map().IsUndefined(isolate));
+  return *finalization_registry;
 }
 
-BUILTIN(FinalizationGroupRegister) {
+BUILTIN(FinalizationRegistryRegister) {
   HandleScope scope(isolate);
-  const char* method_name = "FinalizationGroup.prototype.register";
+  const char* method_name = "FinalizationRegistry.prototype.register";
 
   //  1. Let finalizationGroup be the this value.
   //
@@ -55,7 +55,7 @@ BUILTIN(FinalizationGroupRegister) {
   //
   //  4. If finalizationGroup does not have a [[Cells]] internal slot,
   //  throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
+  CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
 
   Handle<Object> target = args.atOrUndefined(isolate, 1);
 
@@ -86,15 +86,15 @@ BUILTIN(FinalizationGroupRegister) {
   }
   // TODO(marja): Realms.
 
-  JSFinalizationGroup::Register(finalization_group,
-                                Handle<JSReceiver>::cast(target), holdings,
-                                unregister_token, isolate);
+  JSFinalizationRegistry::Register(finalization_registry,
+                                   Handle<JSReceiver>::cast(target), holdings,
+                                   unregister_token, isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-BUILTIN(FinalizationGroupUnregister) {
+BUILTIN(FinalizationRegistryUnregister) {
   HandleScope scope(isolate);
-  const char* method_name = "FinalizationGroup.prototype.unregister";
+  const char* method_name = "FinalizationRegistry.prototype.unregister";
 
   // 1. Let finalizationGroup be the this value.
   //
@@ -103,7 +103,7 @@ BUILTIN(FinalizationGroupUnregister) {
   //
   // 3. If finalizationGroup does not have a [[Cells]] internal slot,
   //    throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
+  CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
 
   Handle<Object> unregister_token = args.atOrUndefined(isolate, 1);
 
@@ -115,65 +115,11 @@ BUILTIN(FinalizationGroupUnregister) {
                      unregister_token));
   }
 
-  bool success = JSFinalizationGroup::Unregister(
-      finalization_group, Handle<JSReceiver>::cast(unregister_token), isolate);
-
-  return *isolate->factory()->ToBoolean(success);
-}
-
-BUILTIN(FinalizationGroupCleanupSome) {
-  HandleScope scope(isolate);
-  const char* method_name = "FinalizationGroup.prototype.cleanupSome";
-
-  // 1. Let finalizationGroup be the this value.
-  //
-  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
-  //    exception.
-  //
-  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
-  //    throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationGroup, finalization_group, method_name);
-
-  Handle<Object> callback(finalization_group->cleanup(), isolate);
-  Handle<Object> callback_obj = args.atOrUndefined(isolate, 1);
-
-  // 4. If callback is not undefined and IsCallable(callback) is
-  //    false, throw a TypeError exception.
-  if (!callback_obj->IsUndefined(isolate)) {
-    if (!callback_obj->IsCallable()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable));
-    }
-    callback = callback_obj;
-  }
-
-  // Don't do set_scheduled_for_cleanup(false); we still have the microtask
-  // scheduled and don't want to schedule another one in case the user never
-  // executes microtasks.
-  if (JSFinalizationGroup::Cleanup(isolate, finalization_group, callback)
-          .IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-BUILTIN(FinalizationGroupCleanupIteratorNext) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSFinalizationGroupCleanupIterator, iterator, "next");
-
-  Handle<JSFinalizationGroup> finalization_group(iterator->finalization_group(),
-                                                 isolate);
-  if (!finalization_group->NeedsCleanup()) {
-    return *isolate->factory()->NewJSIteratorResult(
-        handle(ReadOnlyRoots(isolate).undefined_value(), isolate), true);
-  }
-  Handle<Object> holdings = handle(
-      JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate),
+  bool success = JSFinalizationRegistry::Unregister(
+      finalization_registry, Handle<JSReceiver>::cast(unregister_token),
       isolate);
 
-  return *isolate->factory()->NewJSIteratorResult(holdings, false);
+  return *isolate->factory()->ToBoolean(success);
 }
 
 BUILTIN(WeakRefConstructor) {

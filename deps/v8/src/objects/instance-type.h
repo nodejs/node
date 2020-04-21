@@ -214,7 +214,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(V) \
   TORQUE_INSTANCE_CHECKERS_SINGLE_ONLY_DECLARED(V) \
   V(BigInt, BIGINT_TYPE)                           \
-  V(CoverageInfo, FIXED_ARRAY_TYPE)                \
   V(FixedArrayExact, FIXED_ARRAY_TYPE)
 
 #define INSTANCE_TYPE_CHECKERS_RANGE(V)           \

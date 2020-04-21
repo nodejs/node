@@ -149,9 +149,10 @@ bool FeedbackVector::has_optimization_marker() const {
 
 // Conversion from an integer index to either a slot or an ic slot.
 // static
-FeedbackSlot FeedbackVector::ToSlot(int index) {
-  DCHECK_GE(index, 0);
-  return FeedbackSlot(index);
+FeedbackSlot FeedbackVector::ToSlot(intptr_t index) {
+  DCHECK_LE(static_cast<uintptr_t>(index),
+            static_cast<uintptr_t>(std::numeric_limits<int>::max()));
+  return FeedbackSlot(static_cast<int>(index));
 }
 
 MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {

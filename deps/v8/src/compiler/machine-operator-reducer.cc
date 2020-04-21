@@ -297,6 +297,27 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
+      if (m.left().IsWord32And() && m.right().HasValue()) {
+        Uint32BinopMatcher mand(m.left().node());
+        if ((mand.left().IsWord32Shr() || mand.left().IsWord32Sar()) &&
+            mand.right().HasValue()) {
+          Uint32BinopMatcher mshift(mand.left().node());
+          // ((x >> K1) & K2) == K3 => (x & (K2 << K1)) == (K3 << K1)
+          if (mshift.right().HasValue()) {
+            auto shift_bits = mshift.right().Value();
+            auto mask = mand.right().Value();
+            auto rhs = static_cast<uint32_t>(m.right().Value());
+            // Make sure that we won't shift data off the end.
+            if (shift_bits <= base::bits::CountLeadingZeros(mask) &&
+                shift_bits <= base::bits::CountLeadingZeros(rhs)) {
+              node->ReplaceInput(
+                  0, Word32And(mshift.left().node(), mask << shift_bits));
+              node->ReplaceInput(1, Int32Constant(rhs << shift_bits));
+              return Changed(node);
+            }
+          }
+        }
+      }
       break;
     }
     case IrOpcode::kWord64Equal: {
@@ -340,8 +361,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         node->ReplaceInput(
             1, Int32Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
         NodeProperties::ChangeOp(node, machine()->Word32Shl());
-        Reduction reduction = ReduceWord32Shl(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(ReduceWord32Shl(node));
       }
       break;
     }
@@ -832,6 +852,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kBranch:
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      return ReduceConditional(node);
     default:
       break;
   }
@@ -852,8 +878,7 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
       node->ReplaceInput(0, m.right().node());
       node->ReplaceInput(1, mleft.right().node());
       NodeProperties::ChangeOp(node, machine()->Int32Sub());
-      Reduction const reduction = ReduceInt32Sub(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceInt32Sub(node));
     }
   }
   if (m.right().IsInt32Sub()) {
@@ -861,8 +886,7 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
     if (mright.left().Is(0)) {  // y + (0 - x) => y - x
       node->ReplaceInput(1, mright.right().node());
       NodeProperties::ChangeOp(node, machine()->Int32Sub());
-      Reduction const reduction = ReduceInt32Sub(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceInt32Sub(node));
     }
   }
   // (x + Int32Constant(a)) + Int32Constant(b)) => x + Int32Constant(a + b)
@@ -913,8 +937,7 @@ Reduction MachineOperatorReducer::ReduceInt32Sub(Node* node) {
     node->ReplaceInput(
         1, Int32Constant(base::NegateWithWraparound(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Int32Add());
-    Reduction const reduction = ReduceInt32Add(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceInt32Add(node));
   }
   return NoChange();
 }
@@ -932,8 +955,7 @@ Reduction MachineOperatorReducer::ReduceInt64Sub(Node* node) {
     node->ReplaceInput(
         1, Int64Constant(base::NegateWithWraparound(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Int64Add());
-    Reduction const reduction = ReduceInt64Add(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceInt64Add(node));
   }
   return NoChange();
 }
@@ -957,8 +979,7 @@ Reduction MachineOperatorReducer::ReduceInt64Mul(Node* node) {
     node->ReplaceInput(
         1, Int64Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Word64Shl());
-    Reduction reduction = ReduceWord64Shl(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceWord64Shl(node));
   }
   return NoChange();
 }
@@ -1241,8 +1262,7 @@ Reduction MachineOperatorReducer::ReduceWord32Shl(Node* node) {
         node->ReplaceInput(1,
                            Uint32Constant(~((1U << m.right().Value()) - 1U)));
         NodeProperties::ChangeOp(node, machine()->Word32And());
-        Reduction reduction = ReduceWord32And(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(ReduceWord32And(node));
       }
     }
   }
@@ -1304,8 +1324,7 @@ Reduction MachineOperatorReducer::ReduceWord32Sar(Node* node) {
         node->ReplaceInput(0, Int32Constant(0));
         node->ReplaceInput(1, mleft.left().node());
         NodeProperties::ChangeOp(node, machine()->Int32Sub());
-        Reduction const reduction = ReduceInt32Sub(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(ReduceInt32Sub(node));
       }
     } else if (mleft.left().IsLoad()) {
       LoadRepresentation const rep =
@@ -1355,8 +1374,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
       node->ReplaceInput(0, mleft.left().node());
       node->ReplaceInput(
           1, a.IntNConstant(m.right().Value() & mleft.right().Value()));
-      Reduction const reduction = a.ReduceWordNAnd(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(a.ReduceWordNAnd(node));
     }
   }
   if (m.right().IsNegativePowerOf2()) {
@@ -1379,8 +1397,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
                            a.WordNAnd(mleft.left().node(), m.right().node()));
         node->ReplaceInput(1, mleft.right().node());
         NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-        Reduction const reduction = a.ReduceIntNAdd(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
       }
       if (A::IsIntNMul(mleft.left())) {
         typename A::IntNBinopMatcher mleftleft(mleft.left().node());
@@ -1390,8 +1407,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
               0, a.WordNAnd(mleft.right().node(), m.right().node()));
           node->ReplaceInput(1, mleftleft.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
       if (A::IsIntNMul(mleft.right())) {
@@ -1402,8 +1418,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
                              a.WordNAnd(mleft.left().node(), m.right().node()));
           node->ReplaceInput(1, mleftright.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
       if (A::IsWordNShl(mleft.left())) {
@@ -1414,8 +1429,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
               0, a.WordNAnd(mleft.right().node(), m.right().node()));
           node->ReplaceInput(1, mleftleft.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
       if (A::IsWordNShl(mleft.right())) {
@@ -1426,8 +1440,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
                              a.WordNAnd(mleft.left().node(), m.right().node()));
           node->ReplaceInput(1, mleftright.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
     } else if (A::IsIntNMul(m.left())) {
@@ -1655,6 +1668,37 @@ Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
   Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) {
     return ReplaceFloat64(std::floor(m.Value()));
+  }
+  return NoChange();
+}
+
+Reduction MachineOperatorReducer::ReduceConditional(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kBranch ||
+         node->opcode() == IrOpcode::kDeoptimizeIf ||
+         node->opcode() == IrOpcode::kDeoptimizeUnless ||
+         node->opcode() == IrOpcode::kTrapIf ||
+         node->opcode() == IrOpcode::kTrapUnless);
+  // This reducer only applies operator reductions to the branch condition.
+  // Reductions involving control flow happen elsewhere. Non-zero inputs are
+  // considered true in all conditional ops.
+  NodeMatcher condition(NodeProperties::GetValueInput(node, 0));
+  if (condition.IsWord32And()) {
+    Uint32BinopMatcher mand(condition.node());
+    if ((mand.left().IsWord32Shr() || mand.left().IsWord32Sar()) &&
+        mand.right().HasValue()) {
+      Uint32BinopMatcher mshift(mand.left().node());
+      // Branch condition (x >> K1) & K2 => x & (K2 << K1)
+      if (mshift.right().HasValue()) {
+        auto shift_bits = mshift.right().Value();
+        auto mask = mand.right().Value();
+        // Make sure that we won't shift data off the end.
+        if (shift_bits <= base::bits::CountLeadingZeros(mask)) {
+          NodeProperties::ReplaceValueInput(
+              node, Word32And(mshift.left().node(), mask << shift_bits), 0);
+          return Changed(node);
+        }
+      }
+    }
   }
   return NoChange();
 }

@@ -133,7 +133,7 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
-V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(
+V8_EXPORT_PRIVATE const FunctionSig* DecodeWasmSignatureForTesting(
     const WasmFeatures& enabled, Zone* zone, const byte* start,
     const byte* end);
 
@@ -160,11 +160,20 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 // function.
 AsmJsOffsetsResult DecodeAsmJsOffsets(Vector<const uint8_t> encoded_offsets);
 
-// Decode the function names from the name section.
-// Returns the result as an unordered map. Only names with valid utf8 encoding
-// are stored and conflicts are resolved by choosing the last name read.
+// Decode the function names from the name section and also look at export
+// table. Returns the result as an unordered map. Only names with valid utf8
+// encoding are stored and conflicts are resolved by choosing the last name
+// read.
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names);
+                         std::unordered_map<uint32_t, WireBytesRef>* names,
+                         const Vector<const WasmExport> export_table);
+
+// Decode the global or memory names from import table and export table. Returns
+// the result as an unordered map.
+void GenerateNamesFromImportsAndExports(
+    ImportExportKindCode kind, const Vector<const WasmImport> import_table,
+    const Vector<const WasmExport> export_table,
+    std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>* names);
 
 // Decode the local names assignment from the name section.
 // The result will be empty if no name section is present. On encountering an
@@ -194,6 +203,8 @@ class ModuleDecoder {
 
   ModuleResult FinishDecoding(bool verify_functions = true);
 
+  void set_code_section(uint32_t offset, uint32_t size);
+
   const std::shared_ptr<WasmModule>& shared_module() const;
   WasmModule* module() const { return shared_module().get(); }
 
@@ -203,10 +214,10 @@ class ModuleDecoder {
   // SectionCode if the unknown section is known to decoder.
   // The decoder is expected to point after the section length and just before
   // the identifier string of the unknown section.
-  // If a SectionCode other than kUnknownSectionCode is returned, the decoder
-  // will point right after the identifier string. Otherwise, the position is
-  // undefined.
-  static SectionCode IdentifyUnknownSection(Decoder* decoder, const byte* end);
+  // The return value is the number of bytes that were consumed.
+  static size_t IdentifyUnknownSection(ModuleDecoder* decoder,
+                                       Vector<const uint8_t> bytes,
+                                       uint32_t offset, SectionCode* result);
 
  private:
   const WasmFeatures enabled_features_;

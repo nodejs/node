@@ -15,6 +15,10 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+enum class Type { CHARACTER, WORD, SENTENCE, LINE };
+}  // anonymous namespace
+
 MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
     Isolate* isolate, Handle<Map> map, Handle<Object> locales,
     Handle<Object> options_obj, const char* service) {
@@ -42,9 +46,14 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSV8BreakIterator>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  Intl::ResolvedLocale r =
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
       Intl::ResolveLocale(isolate, JSV8BreakIterator::GetAvailableLocales(),
                           requested_locales, matcher, {});
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSV8BreakIterator);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   // Extract type from options
   Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
@@ -70,20 +79,24 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
           icu::BreakIterator::createSentenceInstance(icu_locale, status));
       break;
     case Type::LINE:
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kBreakIteratorTypeLine);
       break_iterator.reset(
           icu::BreakIterator::createLineInstance(icu_locale, status));
       break;
     default:
+      isolate->CountUsage(
+          v8::Isolate::UseCounterFeature::kBreakIteratorTypeWord);
       break_iterator.reset(
           icu::BreakIterator::createWordInstance(icu_locale, status));
       break;
   }
 
   // Error handling for break_iterator
-  if (U_FAILURE(status)) {
-    FATAL("Failed to create ICU break iterator, are ICU data files missing?");
+  if (U_FAILURE(status) || break_iterator.get() == nullptr) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSV8BreakIterator);
   }
-  CHECK_NOT_NULL(break_iterator.get());
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kBreakIterator);
 
   // Construct managed objects from pointers
@@ -102,7 +115,6 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
           isolate->factory()->NewFastOrSlowJSObjectFromMap(map));
   DisallowHeapAllocation no_gc;
   break_iterator_holder->set_locale(*locale_str);
-  break_iterator_holder->set_type(type_enum);
   break_iterator_holder->set_break_iterator(*managed_break_iterator);
   break_iterator_holder->set_unicode_string(*managed_unicode_string);
 
@@ -110,9 +122,60 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
   return break_iterator_holder;
 }
 
+namespace {
+
+Type GetType(icu::BreakIterator* break_iterator) {
+  // Since the developer calling the Intl.v8BreakIterator already know the type,
+  // we usually do not need to know the type unless the resolvedOptions() is
+  // called, we use the following trick to figure out the type instead of
+  // storing it with the JSV8BreakIterator object to save memory.
+  // This routine is not fast but should be seldomly used only.
+
+  // We need to clone a copy of break iteator because we need to setText to it.
+  std::unique_ptr<icu::BreakIterator> cloned_break_iterator(
+      break_iterator->clone());
+  // Use a magic string "He is." to call next().
+  //  character type: will return 1 for "H"
+  //  word type: will return 2 for "He"
+  //  line type: will return 3 for "He "
+  //  sentence type: will return 6 for "He is."
+  icu::UnicodeString data("He is.");
+  cloned_break_iterator->setText(data);
+  switch (cloned_break_iterator->next()) {
+    case 1:  // After "H"
+      return Type::CHARACTER;
+    case 2:  // After "He"
+      return Type::WORD;
+    case 3:  // After "He "
+      return Type::LINE;
+    case 6:  // After "He is."
+      return Type::SENTENCE;
+    default:
+      UNREACHABLE();
+  }
+}
+
+Handle<String> TypeAsString(Isolate* isolate, Type type) {
+  switch (type) {
+    case Type::CHARACTER:
+      return ReadOnlyRoots(isolate).character_string_handle();
+    case Type::WORD:
+      return ReadOnlyRoots(isolate).word_string_handle();
+    case Type::SENTENCE:
+      return ReadOnlyRoots(isolate).sentence_string_handle();
+    case Type::LINE:
+      return ReadOnlyRoots(isolate).line_string_handle();
+  }
+  UNREACHABLE();
+}
+
+}  // anonymous namespace
+
 Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
     Isolate* isolate, Handle<JSV8BreakIterator> break_iterator) {
   Factory* factory = isolate->factory();
+
+  Type type = GetType(break_iterator->break_iterator().raw());
 
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   Handle<String> locale(break_iterator->locale(), isolate);
@@ -120,7 +183,7 @@ Handle<JSObject> JSV8BreakIterator::ResolvedOptions(
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->type_string(),
-                        break_iterator->TypeAsString(), NONE);
+                        TypeAsString(isolate, type), NONE);
   return result;
 }
 
@@ -133,20 +196,6 @@ void JSV8BreakIterator::AdoptText(
   Handle<Managed<icu::UnicodeString>> unicode_string =
       Intl::SetTextToBreakIterator(isolate, text, break_iterator);
   break_iterator_holder->set_unicode_string(*unicode_string);
-}
-
-Handle<String> JSV8BreakIterator::TypeAsString() const {
-  switch (type()) {
-    case Type::CHARACTER:
-      return GetReadOnlyRoots().character_string_handle();
-    case Type::WORD:
-      return GetReadOnlyRoots().word_string_handle();
-    case Type::SENTENCE:
-      return GetReadOnlyRoots().sentence_string_handle();
-    case Type::LINE:
-      return GetReadOnlyRoots().line_string_handle();
-  }
-  UNREACHABLE();
 }
 
 Handle<Object> JSV8BreakIterator::Current(
@@ -190,9 +239,7 @@ String JSV8BreakIterator::BreakType(Isolate* isolate,
 }
 
 const std::set<std::string>& JSV8BreakIterator::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::BreakIterator>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
-  return available_locales.Pointer()->Get();
+  return Intl::GetAvailableLocales();
 }
 
 }  // namespace internal

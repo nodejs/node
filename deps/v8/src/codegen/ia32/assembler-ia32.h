@@ -958,6 +958,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
 
+  void pmovmskb(Register dst, XMMRegister src);
+
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void maxsd(XMMRegister dst, XMMRegister src) { maxsd(dst, Operand(src)); }
@@ -1439,6 +1441,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x7E, src, xmm0, dst, k66, k0F, kWIG);
   }
 
+  void vmovmskps(Register dst, XMMRegister src);
+
+  void vpmovmskb(Register dst, XMMRegister src);
+
   // BMI instruction
   void andn(Register dst, Register src1, Register src2) {
     andn(dst, src1, Operand(src2));
@@ -1619,6 +1625,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   SSSE3_INSTRUCTION_LIST(DECLARE_SSSE3_INSTRUCTION)
+  SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSSE3_INSTRUCTION)
 #undef DECLARE_SSSE3_INSTRUCTION
 
 #define DECLARE_SSE4_INSTRUCTION(instruction, prefix, escape1, escape2,     \
@@ -1656,6 +1663,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0);   \
   }
 
+  SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_AVX_RM_INSTRUCTION)
   SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE4_AVX_RM_INSTRUCTION)
 #undef DECLARE_SSE4_AVX_RM_INSTRUCTION
 

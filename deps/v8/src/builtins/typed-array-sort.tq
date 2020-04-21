@@ -92,7 +92,7 @@ namespace typed_array {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
     const comparefnObj: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
-    if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
+    if (comparefnObj != Undefined && !Is<Callable>(comparefnObj)) {
       ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
     }
 

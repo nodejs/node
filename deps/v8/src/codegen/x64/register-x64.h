@@ -217,6 +217,8 @@ constexpr Register kRootRegister = r13;  // callee save
 
 constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 
+constexpr DoubleRegister kFPReturnRegister0 = xmm0;
+
 }  // namespace internal
 }  // namespace v8
 

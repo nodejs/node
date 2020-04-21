@@ -19,7 +19,7 @@
 #include "src/compiler/backend/mips64/instruction-codes-mips64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/compiler/backend/x64/instruction-codes-x64.h"
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/compiler/backend/ppc/instruction-codes-ppc.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/compiler/backend/s390/instruction-codes-s390.h"
@@ -82,7 +82,6 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchCallBuiltinPointer)                                            \
   V(ArchJmp)                                                           \
   V(ArchBinarySearchSwitch)                                            \
-  V(ArchLookupSwitch)                                                  \
   V(ArchTableSwitch)                                                   \
   V(ArchNop)                                                           \
   V(ArchAbortCSAAssert)                                                \

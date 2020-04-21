@@ -121,12 +121,14 @@ namespace compiler {
   V(PPC_LoadWord64)                  \
   V(PPC_LoadFloat32)                 \
   V(PPC_LoadDouble)                  \
+  V(PPC_LoadSimd128)                 \
   V(PPC_StoreWord8)                  \
   V(PPC_StoreWord16)                 \
   V(PPC_StoreWord32)                 \
   V(PPC_StoreWord64)                 \
   V(PPC_StoreFloat32)                \
   V(PPC_StoreDouble)                 \
+  V(PPC_StoreSimd128)                \
   V(PPC_ByteRev32)                   \
   V(PPC_ByteRev64)                   \
   V(PPC_CompressSigned)              \

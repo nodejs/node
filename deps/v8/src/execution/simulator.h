@@ -18,7 +18,7 @@
 #include "src/execution/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/execution/arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/execution/ppc/simulator-ppc.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/execution/mips/simulator-mips.h"

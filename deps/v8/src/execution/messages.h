@@ -169,7 +169,7 @@ class WasmStackFrame : public StackFrameBase {
 
   Handle<Object> GetFileName() override { return Null(); }
   Handle<Object> GetFunctionName() override;
-  Handle<Object> GetScriptNameOrSourceUrl() override { return Null(); }
+  Handle<Object> GetScriptNameOrSourceUrl() override;
   Handle<Object> GetMethodName() override { return Null(); }
   Handle<Object> GetTypeName() override { return Null(); }
   Handle<Object> GetWasmModuleName() override;
@@ -269,6 +269,10 @@ class ErrorUtils : public AllStatic {
   // |kNone| is useful when you don't need the stack information at all, for
   // example when creating a deserialized error.
   enum class StackTraceCollection { kDetailed, kSimple, kNone };
+  static MaybeHandle<JSObject> Construct(Isolate* isolate,
+                                         Handle<JSFunction> target,
+                                         Handle<Object> new_target,
+                                         Handle<Object> message);
   static MaybeHandle<JSObject> Construct(
       Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
       Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
@@ -293,6 +297,8 @@ class ErrorUtils : public AllStatic {
                                                   Handle<Object> source);
   static Handle<Object> NewConstructedNonConstructable(Isolate* isolate,
                                                        Handle<Object> source);
+  static Object ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
+                                                     Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                              Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,

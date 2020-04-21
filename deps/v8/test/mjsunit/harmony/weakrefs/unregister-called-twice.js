@@ -5,13 +5,13 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_call_count = 0;
-let cleanup = function(iter) {
+let cleanup = function(holdings) {
   ++cleanup_call_count;
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 let key = {"k": "this is the key"};
-// Create an object and register it in the FinalizationGroup. The object needs
+// Create an object and register it in the FinalizationRegistry. The object needs
 // to be inside a closure so that we can reliably kill them!
 
 (function() {

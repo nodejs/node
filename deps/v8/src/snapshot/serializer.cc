@@ -102,15 +102,16 @@ bool Serializer::MustBeDeferred(HeapObject object) { return false; }
 void Serializer::VisitRootPointers(Root root, const char* description,
                                    FullObjectSlot start, FullObjectSlot end) {
   for (FullObjectSlot current = start; current < end; ++current) {
-    SerializeRootObject(*current);
+    SerializeRootObject(current);
   }
 }
 
-void Serializer::SerializeRootObject(Object object) {
-  if (object.IsSmi()) {
-    PutSmi(Smi::cast(object));
+void Serializer::SerializeRootObject(FullObjectSlot slot) {
+  Object o = *slot;
+  if (o.IsSmi()) {
+    PutSmiRoot(slot);
   } else {
-    SerializeObject(HeapObject::cast(object));
+    SerializeObject(HeapObject::cast(o));
   }
 }
 
@@ -209,12 +210,21 @@ void Serializer::PutRoot(RootIndex root, HeapObject object) {
   }
 }
 
-void Serializer::PutSmi(Smi smi) {
-  sink_.Put(kOnePointerRawData, "Smi");
-  Tagged_t raw_value = static_cast<Tagged_t>(smi.ptr());
-  byte bytes[kTaggedSize];
-  memcpy(bytes, &raw_value, kTaggedSize);
-  for (int i = 0; i < kTaggedSize; i++) sink_.Put(bytes[i], "Byte");
+void Serializer::PutSmiRoot(FullObjectSlot slot) {
+  // Serializing a smi root in compressed pointer builds will serialize the
+  // full object slot (of kSystemPointerSize) to avoid complications during
+  // deserialization (endianness or smi sequences).
+  STATIC_ASSERT(decltype(slot)::kSlotDataSize == sizeof(Address));
+  STATIC_ASSERT(decltype(slot)::kSlotDataSize == kSystemPointerSize);
+  static constexpr int bytes_to_output = decltype(slot)::kSlotDataSize;
+  static constexpr int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
+  sink_.PutSection(kFixedRawDataStart + size_in_tagged, "Smi");
+
+  Address raw_value = Smi::cast(*slot).ptr();
+  const byte* raw_value_as_bytes = reinterpret_cast<const byte*>(&raw_value);
+  for (size_t i = 0; i < bytes_to_output; i++) {
+    sink_.Put(raw_value_as_bytes[i], "Byte");
+  }
 }
 
 void Serializer::PutBackReference(HeapObject object,
@@ -397,6 +407,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   // We cannot store byte_length larger than Smi range in the snapshot.
   CHECK_LE(buffer.byte_length(), Smi::kMaxValue);
   int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
+  ArrayBufferExtension* extension = buffer.extension();
 
   // The embedder-allocated backing store only exists for the off-heap case.
   if (backing_store != nullptr) {
@@ -405,9 +416,16 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     // a backing store address. On deserialization we re-set data pointer
     // to proper value.
     buffer.set_backing_store(reinterpret_cast<void*>(static_cast<size_t>(ref)));
+
+    // Ensure deterministic output by setting extension to null during
+    // serialization.
+    buffer.set_extension(nullptr);
   }
+
   SerializeObject();
+
   buffer.set_backing_store(backing_store);
+  buffer.set_extension(extension);
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
@@ -826,8 +844,8 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     DCHECK(to_skip == bytes_to_output);
     if (IsAligned(bytes_to_output, kObjectAlignment) &&
         bytes_to_output <= kNumberOfFixedRawData * kTaggedSize) {
-      int size_in_words = bytes_to_output >> kTaggedSizeLog2;
-      sink_->PutSection(kFixedRawDataStart + size_in_words, "FixedRawData");
+      int size_in_tagged = bytes_to_output >> kTaggedSizeLog2;
+      sink_->PutSection(kFixedRawDataStart + size_in_tagged, "FixedRawData");
     } else {
       sink_->Put(kVariableRawData, "VariableRawData");
       sink_->PutInt(bytes_to_output, "length");

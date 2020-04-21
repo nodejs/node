@@ -198,9 +198,13 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kPPC_LoadWord64;
       mode = kInt16Imm_4ByteAligned;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kPPC_LoadSimd128;
+      // Vectors do not support MRI mode, only MRR is available.
+      mode = kNoImmediate;
+      break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
   }
@@ -321,9 +325,13 @@ void InstructionSelector::VisitStore(Node* node) {
 #else
       case MachineRepresentation::kWord64:  // Fall through.
 #endif
+      case MachineRepresentation::kSimd128:
+        opcode = kPPC_StoreSimd128;
+        // Vectors do not support MRI mode, only MRR is available.
+        mode = kNoImmediate;
+        break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:         // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -1658,7 +1666,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   PPCOperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 4 + sw.value_range();
@@ -2456,6 +2464,12 @@ void InstructionSelector::VisitF64x2Min(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitF64x2Max(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitLoadTransform(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI8x16Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI16x8Abs(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitI32x4Abs(Node* node) { UNIMPLEMENTED(); }
 
 // static
 MachineOperatorBuilder::Flags

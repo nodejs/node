@@ -94,8 +94,7 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
 static v8::Local<v8::Script> Compile(v8::Isolate* isolate, const char* src) {
   return v8::Script::Compile(
              isolate->GetCurrentContext(),
-             v8::String::NewFromUtf8(isolate, src, v8::NewStringType::kNormal)
-                 .ToLocalChecked())
+             v8::String::NewFromUtf8(isolate, src).ToLocalChecked())
       .ToLocalChecked();
 }
 

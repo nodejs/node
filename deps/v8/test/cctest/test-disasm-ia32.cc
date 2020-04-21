@@ -546,6 +546,9 @@ TEST(DisasmIa320) {
     __ pinsrw(xmm5, edx, 5);
     __ pinsrw(xmm5, Operand(edx, 4), 5);
 
+    __ movmskps(edx, xmm5);
+    __ pmovmskb(edx, xmm5);
+
 #define EMIT_SSE2_INSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ instruction(xmm5, xmm1);                                      \
   __ instruction(xmm5, Operand(edx, 4));
@@ -592,6 +595,7 @@ TEST(DisasmIa320) {
     if (CpuFeatures::IsSupported(SSSE3)) {
       CpuFeatureScope scope(&assm, SSSE3);
       SSSE3_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE34_INSTR)
       __ palignr(xmm5, xmm1, 5);
       __ palignr(xmm5, Operand(edx, 4), 5);
     }
@@ -781,6 +785,10 @@ TEST(DisasmIa320) {
       __ vmovd(xmm0, Operand(ebx, ecx, times_4, 10000));
       __ vmovd(eax, xmm1);
       __ vmovd(Operand(ebx, ecx, times_4, 10000), xmm1);
+
+      __ vmovmskps(edx, xmm5);
+      __ vpmovmskb(ebx, xmm1);
+
 #define EMIT_SSE2_AVXINSTR(instruction, notUsed1, notUsed2, notUsed3) \
   __ v##instruction(xmm7, xmm5, xmm1);                                \
   __ v##instruction(xmm7, xmm5, Operand(edx, 4));
@@ -802,6 +810,7 @@ TEST(DisasmIa320) {
   __ v##instruction(xmm5, xmm1);                                         \
   __ v##instruction(xmm5, Operand(edx, 4));
 
+      SSSE3_UNOP_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
       SSE4_RM_INSTRUCTION_LIST(EMIT_SSE4_RM_AVXINSTR)
 #undef EMIT_SSE4_RM_AVXINSTR
     }

@@ -207,6 +207,19 @@ constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
+enum MSARegisterCode {
+#define REGISTER_CODE(R) kMsaCode_##R,
+  SIMD128_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kMsaAfterLast
+};
+
+// MIPS SIMD (MSA) register
+class MSARegister : public RegisterBase<MSARegister, kMsaAfterLast> {
+  friend class RegisterBase;
+  explicit constexpr MSARegister(int code) : RegisterBase(code) {}
+};
+
 enum DoubleRegisterCode {
 #define REGISTER_CODE(R) kDoubleCode_##R,
   DOUBLE_REGISTERS(REGISTER_CODE)
@@ -234,22 +247,11 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
     return FPURegister::from_code(code() + 1);
   }
 
+  MSARegister toW() const { return MSARegister::from_code(code()); }
+
  private:
   friend class RegisterBase;
   explicit constexpr FPURegister(int code) : RegisterBase(code) {}
-};
-
-enum MSARegisterCode {
-#define REGISTER_CODE(R) kMsaCode_##R,
-  SIMD128_REGISTERS(REGISTER_CODE)
-#undef REGISTER_CODE
-      kMsaAfterLast
-};
-
-// MIPS SIMD (MSA) register
-class MSARegister : public RegisterBase<MSARegister, kMsaAfterLast> {
-  friend class RegisterBase;
-  explicit constexpr MSARegister(int code) : RegisterBase(code) {}
 };
 
 // A few double registers are reserved: one as a scratch register and one to
@@ -382,6 +384,8 @@ constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a0;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
+
+constexpr DoubleRegister kFPReturnRegister0 = f0;
 
 }  // namespace internal
 }  // namespace v8

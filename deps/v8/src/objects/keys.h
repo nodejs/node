@@ -192,6 +192,7 @@ class FastKeyAccumulator {
   bool may_have_elements_ = true;
   bool has_prototype_info_cache_ = false;
   bool try_prototype_info_cache_ = false;
+  bool only_own_has_simple_elements_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(FastKeyAccumulator);
 };

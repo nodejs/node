@@ -92,8 +92,6 @@ bool Scanner::BookmarkScope::HasBeenApplied() const {
 Scanner::Scanner(Utf16CharacterStream* source, bool is_module)
     : source_(source),
       found_html_comment_(false),
-      allow_harmony_optional_chaining_(false),
-      allow_harmony_nullish_(false),
       is_module_(is_module),
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone) {
@@ -233,9 +231,9 @@ void Scanner::TryToParseSourceURLComment() {
   if (!name.is_one_byte()) return;
   Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
-  if (name_literal == StaticCharVector("sourceURL")) {
+  if (name_literal == StaticOneByteVector("sourceURL")) {
     value = &source_url_;
-  } else if (name_literal == StaticCharVector("sourceMappingURL")) {
+  } else if (name_literal == StaticOneByteVector("sourceMappingURL")) {
     value = &source_mapping_url_;
   } else {
     return;
@@ -576,7 +574,8 @@ Token::Value Scanner::ScanTemplateSpan() {
   return result;
 }
 
-Handle<String> Scanner::SourceUrl(Isolate* isolate) const {
+template <typename LocalIsolate>
+Handle<String> Scanner::SourceUrl(LocalIsolate* isolate) const {
   Handle<String> tmp;
   if (source_url_.length() > 0) {
     tmp = source_url_.Internalize(isolate);
@@ -584,13 +583,21 @@ Handle<String> Scanner::SourceUrl(Isolate* isolate) const {
   return tmp;
 }
 
-Handle<String> Scanner::SourceMappingUrl(Isolate* isolate) const {
+template Handle<String> Scanner::SourceUrl(Isolate* isolate) const;
+template Handle<String> Scanner::SourceUrl(OffThreadIsolate* isolate) const;
+
+template <typename LocalIsolate>
+Handle<String> Scanner::SourceMappingUrl(LocalIsolate* isolate) const {
   Handle<String> tmp;
   if (source_mapping_url_.length() > 0) {
     tmp = source_mapping_url_.Internalize(isolate);
   }
   return tmp;
 }
+
+template Handle<String> Scanner::SourceMappingUrl(Isolate* isolate) const;
+template Handle<String> Scanner::SourceMappingUrl(
+    OffThreadIsolate* isolate) const;
 
 bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
                                               bool is_check_first_digit) {

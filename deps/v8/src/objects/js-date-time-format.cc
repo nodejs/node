@@ -34,6 +34,24 @@ namespace internal {
 
 namespace {
 
+JSDateTimeFormat::HourCycle ToHourCycle(const std::string& hc) {
+  if (hc == "h11") return JSDateTimeFormat::HourCycle::kH11;
+  if (hc == "h12") return JSDateTimeFormat::HourCycle::kH12;
+  if (hc == "h23") return JSDateTimeFormat::HourCycle::kH23;
+  if (hc == "h24") return JSDateTimeFormat::HourCycle::kH24;
+  return JSDateTimeFormat::HourCycle::kUndefined;
+}
+
+Maybe<JSDateTimeFormat::HourCycle> GetHourCycle(Isolate* isolate,
+                                                Handle<JSReceiver> options,
+                                                const char* method) {
+  return Intl::GetStringOption<JSDateTimeFormat::HourCycle>(
+      isolate, options, "hourCycle", method, {"h11", "h12", "h23", "h24"},
+      {JSDateTimeFormat::HourCycle::kH11, JSDateTimeFormat::HourCycle::kH12,
+       JSDateTimeFormat::HourCycle::kH23, JSDateTimeFormat::HourCycle::kH24},
+      JSDateTimeFormat::HourCycle::kUndefined);
+}
+
 class PatternMap {
  public:
   PatternMap(std::string pattern, std::string value)
@@ -210,29 +228,30 @@ DEFFINE_TRAIT(H24Trait, "kk", "k")
 DEFFINE_TRAIT(HDefaultTrait, "jj", "j")
 #undef DEFFINE_TRAIT
 
-const std::vector<PatternData>& GetPatternData(Intl::HourCycle hour_cycle) {
+const std::vector<PatternData>& GetPatternData(
+    JSDateTimeFormat::HourCycle hour_cycle) {
   switch (hour_cycle) {
-    case Intl::HourCycle::kH11: {
+    case JSDateTimeFormat::HourCycle::kH11: {
       static base::LazyInstance<Pattern, H11Trait>::type h11 =
           LAZY_INSTANCE_INITIALIZER;
       return h11.Pointer()->Get();
     }
-    case Intl::HourCycle::kH12: {
+    case JSDateTimeFormat::HourCycle::kH12: {
       static base::LazyInstance<Pattern, H12Trait>::type h12 =
           LAZY_INSTANCE_INITIALIZER;
       return h12.Pointer()->Get();
     }
-    case Intl::HourCycle::kH23: {
+    case JSDateTimeFormat::HourCycle::kH23: {
       static base::LazyInstance<Pattern, H23Trait>::type h23 =
           LAZY_INSTANCE_INITIALIZER;
       return h23.Pointer()->Get();
     }
-    case Intl::HourCycle::kH24: {
+    case JSDateTimeFormat::HourCycle::kH24: {
       static base::LazyInstance<Pattern, H24Trait>::type h24 =
           LAZY_INSTANCE_INITIALIZER;
       return h24.Pointer()->Get();
     }
-    case Intl::HourCycle::kUndefined: {
+    case JSDateTimeFormat::HourCycle::kUndefined: {
       static base::LazyInstance<Pattern, HDefaultTrait>::type hDefault =
           LAZY_INSTANCE_INITIALIZER;
       return hDefault.Pointer()->Get();
@@ -242,7 +261,7 @@ const std::vector<PatternData>& GetPatternData(Intl::HourCycle hour_cycle) {
   }
 }
 
-std::string GetGMTTzID(Isolate* isolate, const std::string& input) {
+std::string GetGMTTzID(const std::string& input) {
   std::string ret = "Etc/GMT";
   switch (input.length()) {
     case 8:
@@ -285,10 +304,8 @@ char LocaleIndependentAsciiToLower(char ch) {
 // or ho_cHi_minH -> Ho_Chi_Minh. It is locale-agnostic and only
 // deals with ASCII only characters.
 // 'of', 'au' and 'es' are special-cased and lowercased.
-// Also "Antarctica/DumontDUrville" is special case.
 // ICU's timezone parsing is case sensitive, but ECMAScript is case insensitive
-std::string ToTitleCaseTimezoneLocation(Isolate* isolate,
-                                        const std::string& input) {
+std::string ToTitleCaseTimezoneLocation(const std::string& input) {
   std::string title_cased;
   int word_length = 0;
   for (char ch : input) {
@@ -313,38 +330,103 @@ std::string ToTitleCaseTimezoneLocation(Isolate* isolate,
       return std::string();
     }
   }
-  // Special case
-  if (title_cased == "Antarctica/Dumontdurville") {
-    return "Antarctica/DumontDUrville";
-  }
+
   return title_cased;
 }
 
-}  // namespace
+class SpecialTimeZoneMap {
+ public:
+  SpecialTimeZoneMap() {
+    Add("America/Argentina/ComodRivadavia");
+    Add("America/Knox_IN");
+    Add("Antarctica/McMurdo");
+    Add("Australia/ACT");
+    Add("Australia/LHI");
+    Add("Australia/NSW");
+    Add("Antarctica/DumontDUrville");
+    Add("Brazil/DeNoronha");
+    Add("CET");
+    Add("CST6CDT");
+    Add("Chile/EasterIsland");
+    Add("EET");
+    Add("EST");
+    Add("EST5EDT");
+    Add("GB");
+    Add("GB-Eire");
+    Add("HST");
+    Add("MET");
+    Add("MST");
+    Add("MST7MDT");
+    Add("Mexico/BajaNorte");
+    Add("Mexico/BajaSur");
+    Add("NZ");
+    Add("NZ-CHAT");
+    Add("PRC");
+    Add("PST8PDT");
+    Add("ROC");
+    Add("ROK");
+    Add("UCT");
+    Add("W-SU");
+    Add("WET");
+  }
 
-std::string JSDateTimeFormat::CanonicalizeTimeZoneID(Isolate* isolate,
-                                                     const std::string& input) {
+  std::string Find(const std::string& id) {
+    auto it = map_.find(id);
+    if (it != map_.end()) {
+      return it->second;
+    }
+    return "";
+  }
+
+ private:
+  void Add(const char* id) {
+    std::string upper(id);
+    transform(upper.begin(), upper.end(), upper.begin(),
+              LocaleIndependentAsciiToUpper);
+    map_.insert({upper, id});
+  }
+  std::map<std::string, std::string> map_;
+};
+
+// Return the time zone id which match ICU's expectation of title casing
+// return empty string when error.
+std::string CanonicalizeTimeZoneID(const std::string& input) {
   std::string upper = input;
   transform(upper.begin(), upper.end(), upper.begin(),
             LocaleIndependentAsciiToUpper);
-  if (upper == "UTC" || upper == "GMT" || upper == "ETC/UTC" ||
-      upper == "ETC/GMT") {
-    return "UTC";
+  if (upper.length() >= 3) {
+    if (memcmp(upper.c_str(), "ETC", 3) == 0) {
+      if (upper == "ETC/UTC" || upper == "ETC/GMT" || upper == "ETC/UCT") {
+        return "UTC";
+      }
+      if (strncmp(upper.c_str(), "ETC/GMT", 7) == 0) {
+        return GetGMTTzID(input);
+      }
+    } else if (memcmp(upper.c_str(), "GMT", 3) == 0) {
+      if (upper == "GMT" || upper == "GMT0" || upper == "GMT+0" ||
+          upper == "GMT-0") {
+        return "UTC";
+      }
+    } else if (memcmp(upper.c_str(), "US/", 3) == 0) {
+      std::string title = ToTitleCaseTimezoneLocation(input);
+      // Change "Us/" to "US/"
+      title[1] = 'S';
+      return title;
+    } else if (upper == "UTC") {
+      return "UTC";
+    }
   }
   // We expect only _, '-' and / beside ASCII letters.
-  // All inputs should conform to Area/Location(/Location)*, or Etc/GMT* .
-  // TODO(jshin): 1. Support 'GB-Eire", 'EST5EDT", "ROK', 'US/*', 'NZ' and many
-  // other aliases/linked names when moving timezone validation code to C++.
-  // See crbug.com/364374 and crbug.com/v8/8007 .
-  // 2. Resolve the difference betwee CLDR/ICU and IANA time zone db.
-  // See http://unicode.org/cldr/trac/ticket/9892 and crbug.com/645807 .
-  if (strncmp(upper.c_str(), "ETC/GMT", 7) == 0) {
-    return GetGMTTzID(isolate, input);
-  }
-  return ToTitleCaseTimezoneLocation(isolate, input);
-}
 
-namespace {
+  static base::LazyInstance<SpecialTimeZoneMap>::type special_time_zone_map =
+      LAZY_INSTANCE_INITIALIZER;
+
+  std::string special_case = special_time_zone_map.Pointer()->Find(upper);
+  if (!special_case.empty()) {
+    return special_case;
+  }
+  return ToTitleCaseTimezoneLocation(input);
+}
 
 Handle<String> DateTimeStyleAsString(Isolate* isolate,
                                      JSDateTimeFormat::DateTimeStyle style) {
@@ -485,32 +567,32 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
             .FromJust());
 
   // 5.b.i. Let hc be dtf.[[HourCycle]].
-  Intl::HourCycle hc = date_time_format->hour_cycle();
+  HourCycle hc = date_time_format->hour_cycle();
 
-  if (hc != Intl::HourCycle::kUndefined) {
+  if (hc != HourCycle::kUndefined) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->hourCycle_string(),
               date_time_format->HourCycleAsString(), Just(kDontThrow))
               .FromJust());
     switch (hc) {
       //  ii. If hc is "h11" or "h12", let v be true.
-      case Intl::HourCycle::kH11:
-      case Intl::HourCycle::kH12:
+      case HourCycle::kH11:
+      case HourCycle::kH12:
         CHECK(JSReceiver::CreateDataProperty(
                   isolate, options, factory->hour12_string(),
                   factory->true_value(), Just(kDontThrow))
                   .FromJust());
         break;
       // iii. Else if, hc is "h23" or "h24", let v be false.
-      case Intl::HourCycle::kH23:
-      case Intl::HourCycle::kH24:
+      case HourCycle::kH23:
+      case HourCycle::kH24:
         CHECK(JSReceiver::CreateDataProperty(
                   isolate, options, factory->hour12_string(),
                   factory->false_value(), Just(kDontThrow))
                   .FromJust());
         break;
       // iv. Else, let v be undefined.
-      case Intl::HourCycle::kUndefined:
+      case HourCycle::kUndefined:
         break;
     }
   }
@@ -852,16 +934,14 @@ bool IsValidTimeZoneName(const icu::TimeZone& tz) {
          canonical != icu::UnicodeString("Etc/Unknown", -1, US_INV);
 }
 
-std::unique_ptr<icu::TimeZone> CreateTimeZone(Isolate* isolate,
-                                              const char* timezone) {
+std::unique_ptr<icu::TimeZone> CreateTimeZone(const char* timezone) {
   // Create time zone as specified by the user. We have to re-create time zone
   // since calendar takes ownership.
   if (timezone == nullptr) {
     // 19.a. Else / Let timeZone be DefaultTimeZone().
     return std::unique_ptr<icu::TimeZone>(icu::TimeZone::createDefault());
   }
-  std::string canonicalized =
-      JSDateTimeFormat::CanonicalizeTimeZoneID(isolate, timezone);
+  std::string canonicalized = CanonicalizeTimeZoneID(timezone);
   if (canonicalized.empty()) return std::unique_ptr<icu::TimeZone>();
   std::unique_ptr<icu::TimeZone> tz(
       icu::TimeZone::createTimeZone(canonicalized.c_str()));
@@ -925,21 +1005,21 @@ icu::Calendar* CreateCalendar(Isolate* isolate, const icu::Locale& icu_locale,
 }
 
 icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
-                                             Intl::HourCycle hc) {
+                                             JSDateTimeFormat::HourCycle hc) {
   char16_t replacement;
   switch (hc) {
-    case Intl::HourCycle::kUndefined:
+    case JSDateTimeFormat::HourCycle::kUndefined:
       return pattern;
-    case Intl::HourCycle::kH11:
+    case JSDateTimeFormat::HourCycle::kH11:
       replacement = 'K';
       break;
-    case Intl::HourCycle::kH12:
+    case JSDateTimeFormat::HourCycle::kH12:
       replacement = 'h';
       break;
-    case Intl::HourCycle::kH23:
+    case JSDateTimeFormat::HourCycle::kH23:
       replacement = 'H';
       break;
-    case Intl::HourCycle::kH24:
+    case JSDateTimeFormat::HourCycle::kH24:
       replacement = 'k';
       break;
   }
@@ -971,7 +1051,7 @@ icu::UnicodeString ReplaceHourCycleInPattern(icu::UnicodeString pattern,
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator* generator, Intl::HourCycle hc) {
+    icu::DateTimePatternGenerator* generator, JSDateTimeFormat::HourCycle hc) {
   // See https://github.com/tc39/ecma402/issues/225 . The best pattern
   // generation needs to be done in the base locale according to the
   // current spec however odd it may be. See also crbug.com/826549 .
@@ -1005,7 +1085,7 @@ class DateFormatCache {
   icu::SimpleDateFormat* Create(const icu::Locale& icu_locale,
                                 const icu::UnicodeString& skeleton,
                                 icu::DateTimePatternGenerator* generator,
-                                Intl::HourCycle hc) {
+                                JSDateTimeFormat::HourCycle hc) {
     std::string key;
     skeleton.toUTF8String<std::string>(key);
     key += ":";
@@ -1034,7 +1114,7 @@ class DateFormatCache {
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
     const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
-    icu::DateTimePatternGenerator* generator, Intl::HourCycle hc) {
+    icu::DateTimePatternGenerator* generator, JSDateTimeFormat::HourCycle hc) {
   static base::LazyInstance<DateFormatCache>::type cache =
       LAZY_INSTANCE_INITIALIZER;
   return std::unique_ptr<icu::SimpleDateFormat>(
@@ -1078,7 +1158,8 @@ icu::DateIntervalFormat* LazyCreateDateIntervalFormat(
   return (*managed_interval_format).raw();
 }
 
-Intl::HourCycle HourCycleFromPattern(const icu::UnicodeString pattern) {
+JSDateTimeFormat::HourCycle HourCycleFromPattern(
+    const icu::UnicodeString pattern) {
   bool in_quote = false;
   for (int32_t i = 0; i < pattern.length(); i++) {
     char16_t ch = pattern[i];
@@ -1087,20 +1168,20 @@ Intl::HourCycle HourCycleFromPattern(const icu::UnicodeString pattern) {
         in_quote = !in_quote;
         break;
       case 'K':
-        if (!in_quote) return Intl::HourCycle::kH11;
+        if (!in_quote) return JSDateTimeFormat::HourCycle::kH11;
         break;
       case 'h':
-        if (!in_quote) return Intl::HourCycle::kH12;
+        if (!in_quote) return JSDateTimeFormat::HourCycle::kH12;
         break;
       case 'H':
-        if (!in_quote) return Intl::HourCycle::kH23;
+        if (!in_quote) return JSDateTimeFormat::HourCycle::kH23;
         break;
       case 'k':
-        if (!in_quote) return Intl::HourCycle::kH24;
+        if (!in_quote) return JSDateTimeFormat::HourCycle::kH24;
         break;
     }
   }
-  return Intl::HourCycle::kUndefined;
+  return JSDateTimeFormat::HourCycle::kUndefined;
 }
 
 icu::DateFormat::EStyle DateTimeStyleToEStyle(
@@ -1120,23 +1201,23 @@ icu::DateFormat::EStyle DateTimeStyleToEStyle(
 }
 
 icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
-                                   Intl::HourCycle hc) {
+                                   JSDateTimeFormat::HourCycle hc) {
   icu::UnicodeString result;
   char16_t to;
   switch (hc) {
-    case Intl::HourCycle::kH11:
+    case JSDateTimeFormat::HourCycle::kH11:
       to = 'K';
       break;
-    case Intl::HourCycle::kH12:
+    case JSDateTimeFormat::HourCycle::kH12:
       to = 'h';
       break;
-    case Intl::HourCycle::kH23:
+    case JSDateTimeFormat::HourCycle::kH23:
       to = 'H';
       break;
-    case Intl::HourCycle::kH24:
+    case JSDateTimeFormat::HourCycle::kH24:
       to = 'k';
       break;
-    case Intl::HourCycle::kUndefined:
+    case JSDateTimeFormat::HourCycle::kUndefined:
       UNREACHABLE();
   }
   for (int32_t i = 0; i < input.length(); i++) {
@@ -1170,7 +1251,7 @@ icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
 std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
     JSDateTimeFormat::DateTimeStyle date_style,
     JSDateTimeFormat::DateTimeStyle time_style, const icu::Locale& icu_locale,
-    Intl::HourCycle hc, icu::DateTimePatternGenerator* generator) {
+    JSDateTimeFormat::HourCycle hc, icu::DateTimePatternGenerator* generator) {
   std::unique_ptr<icu::SimpleDateFormat> result;
   if (date_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
     if (time_style != JSDateTimeFormat::DateTimeStyle::kUndefined) {
@@ -1340,15 +1421,14 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   // 7. Let hourCycle be ? GetOption(options, "hourCycle", "string", « "h11",
   // "h12", "h23", "h24" », undefined).
-  Maybe<Intl::HourCycle> maybe_hour_cycle =
-      Intl::GetHourCycle(isolate, options, service);
+  Maybe<HourCycle> maybe_hour_cycle = GetHourCycle(isolate, options, service);
   MAYBE_RETURN(maybe_hour_cycle, MaybeHandle<JSDateTimeFormat>());
-  Intl::HourCycle hour_cycle = maybe_hour_cycle.FromJust();
+  HourCycle hour_cycle = maybe_hour_cycle.FromJust();
 
   // 8. If hour12 is not undefined, then
   if (maybe_get_hour12.FromJust()) {
     // a. Let hourCycle be null.
-    hour_cycle = Intl::HourCycle::kUndefined;
+    hour_cycle = HourCycle::kUndefined;
   }
   // 9. Set opt.[[hc]] to hourCycle.
 
@@ -1362,9 +1442,14 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   //     requestedLocales, opt, %DateTimeFormat%.[[RelevantExtensionKeys]],
   //     localeData).
   //
-  Intl::ResolvedLocale r = Intl::ResolveLocale(
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale = Intl::ResolveLocale(
       isolate, JSDateTimeFormat::GetAvailableLocales(), requested_locales,
       locale_matcher, relevant_extension_keys);
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSDateTimeFormat);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
@@ -1410,7 +1495,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       isolate, options, "timeZone", empty_values, service, &timezone);
   MAYBE_RETURN(maybe_timezone, Handle<JSDateTimeFormat>());
 
-  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone.get());
+  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(timezone.get());
   if (tz.get() == nullptr) {
     THROW_NEW_ERROR(
         isolate,
@@ -1441,20 +1526,20 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // 15.Let hcDefault be dataLocaleData.[[hourCycle]].
   icu::UnicodeString hour_pattern = generator->getBestPattern("jjmm", status);
   CHECK(U_SUCCESS(status));
-  Intl::HourCycle hc_default = HourCycleFromPattern(hour_pattern);
+  HourCycle hc_default = HourCycleFromPattern(hour_pattern);
 
   // 16.Let hc be r.[[hc]].
-  Intl::HourCycle hc = Intl::HourCycle::kUndefined;
-  if (hour_cycle == Intl::HourCycle::kUndefined) {
+  HourCycle hc = HourCycle::kUndefined;
+  if (hour_cycle == HourCycle::kUndefined) {
     auto hc_extension_it = r.extensions.find("hc");
     if (hc_extension_it != r.extensions.end()) {
-      hc = Intl::ToHourCycle(hc_extension_it->second.c_str());
+      hc = ToHourCycle(hc_extension_it->second.c_str());
     }
   } else {
     hc = hour_cycle;
   }
   // 17. If hc is null, then
-  if (hc == Intl::HourCycle::kUndefined) {
+  if (hc == HourCycle::kUndefined) {
     // a. Set hc to hcDefault.
     hc = hc_default;
   }
@@ -1464,26 +1549,24 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     // a. If hour12 is true, then
     if (hour12) {
       // i. If hcDefault is "h11" or "h23", then
-      if (hc_default == Intl::HourCycle::kH11 ||
-          hc_default == Intl::HourCycle::kH23) {
+      if (hc_default == HourCycle::kH11 || hc_default == HourCycle::kH23) {
         // 1. Set hc to "h11".
-        hc = Intl::HourCycle::kH11;
+        hc = HourCycle::kH11;
         // ii. Else,
       } else {
         // 1. Set hc to "h12".
-        hc = Intl::HourCycle::kH12;
+        hc = HourCycle::kH12;
       }
       // b. Else,
     } else {
       // ii. If hcDefault is "h11" or "h23", then
-      if (hc_default == Intl::HourCycle::kH11 ||
-          hc_default == Intl::HourCycle::kH23) {
+      if (hc_default == HourCycle::kH11 || hc_default == HourCycle::kH23) {
         // 1. Set hc to "h23".
-        hc = Intl::HourCycle::kH23;
+        hc = HourCycle::kH23;
         // iii. Else,
       } else {
         // 1. Set hc to "h24".
-        hc = Intl::HourCycle::kH24;
+        hc = HourCycle::kH24;
       }
     }
   }
@@ -1522,6 +1605,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // 32. If dateStyle or timeStyle are not undefined, then
   if (date_style != DateTimeStyle::kUndefined ||
       time_style != DateTimeStyle::kUndefined) {
+    // Track newer feature dateStyle/timeStyle option.
+    isolate->CountUsage(
+        v8::Isolate::UseCounterFeature::kDateTimeFormatDateTimeStyle);
+
     icu_date_format = DateTimeStylePattern(date_style, time_style, icu_locale,
                                            hc, generator.get());
   }
@@ -1583,14 +1670,15 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
       icu_date_format = CreateICUDateFormatFromCache(icu_locale, skeleton_ustr,
                                                      generator.get(), hc);
       if (icu_date_format.get() == nullptr) {
-        FATAL("Failed to create ICU date format, are ICU data files missing?");
+        THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                        JSDateTimeFormat);
       }
     }
 
     // g. If dateTimeFormat.[[Hour]] is not undefined, then
     if (!has_hour_option) {
       // h. Else, i. Set dateTimeFormat.[[HourCycle]] to undefined.
-      hc = Intl::HourCycle::kUndefined;
+      hc = HourCycle::kUndefined;
     }
   }
 
@@ -1613,10 +1701,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   //
   // See details in https://github.com/tc39/test262/pull/2035
   if (maybe_get_hour12.FromJust() ||
-      maybe_hour_cycle.FromJust() != Intl::HourCycle::kUndefined) {
+      maybe_hour_cycle.FromJust() != HourCycle::kUndefined) {
     auto hc_extension_it = r.extensions.find("hc");
     if (hc_extension_it != r.extensions.end()) {
-      if (hc != Intl::ToHourCycle(hc_extension_it->second.c_str())) {
+      if (hc != ToHourCycle(hc_extension_it->second.c_str())) {
         // Remove -hc- if it does not agree with what we used.
         UErrorCode status = U_ZERO_ERROR;
         resolved_locale.setUnicodeKeywordValue("hc", nullptr, status);
@@ -1790,15 +1878,15 @@ const std::set<std::string>& JSDateTimeFormat::GetAvailableLocales() {
 
 Handle<String> JSDateTimeFormat::HourCycleAsString() const {
   switch (hour_cycle()) {
-    case Intl::HourCycle::kUndefined:
+    case HourCycle::kUndefined:
       return GetReadOnlyRoots().undefined_string_handle();
-    case Intl::HourCycle::kH11:
+    case HourCycle::kH11:
       return GetReadOnlyRoots().h11_string_handle();
-    case Intl::HourCycle::kH12:
+    case HourCycle::kH12:
       return GetReadOnlyRoots().h12_string_handle();
-    case Intl::HourCycle::kH23:
+    case HourCycle::kH23:
       return GetReadOnlyRoots().h23_string_handle();
-    case Intl::HourCycle::kH24:
+    case HourCycle::kH24:
       return GetReadOnlyRoots().h24_string_handle();
     default:
       UNREACHABLE();
@@ -1929,6 +2017,9 @@ MaybeHandle<T> FormatRangeCommon(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
     double y,
     MaybeHandle<T> (*formatToResult)(Isolate*, const icu::FormattedValue&)) {
+  // Track newer feature formateRange and formatRangeToParts
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
+
   // #sec-partitiondatetimerangepattern
   // 1. Let x be TimeClip(x).
   x = DateCache::TimeClip(x);

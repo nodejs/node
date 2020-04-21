@@ -442,8 +442,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     NodeProperties::ReplaceValueInput(node, object, 1);
     NodeProperties::ReplaceEffectInput(node, effect);
     NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
-    Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSOrdinaryHasInstance(node));
   }
 
   if (access_info.IsDataConstant()) {
@@ -623,8 +622,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     NodeProperties::ReplaceValueInput(
         node, jsgraph()->Constant(bound_target_function), 1);
     NodeProperties::ChangeOp(node, javascript()->InstanceOf(FeedbackSource()));
-    Reduction const reduction = ReduceJSInstanceOf(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSInstanceOf(node));
   }
 
   if (m.Ref(broker()).IsJSFunction()) {
@@ -650,8 +648,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     NodeProperties::ReplaceValueInput(node, object, 0);
     NodeProperties::ReplaceValueInput(node, prototype_constant, 1);
     NodeProperties::ChangeOp(node, javascript()->HasInPrototypeChain());
-    Reduction const reduction = ReduceJSHasInPrototypeChain(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSHasInPrototypeChain(node));
   }
 
   return NoChange();
@@ -1375,6 +1372,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
       javascript()->LoadNamed(iterator_symbol, p.loadFeedback());
 
   // Lazy deopt of the load iterator property
+  // TODO(v8:10047): Use TaggedIndexConstant here once deoptimizer supports it.
   Node* call_slot = jsgraph()->SmiConstant(p.callFeedback().slot.ToInt());
   Node* call_feedback = jsgraph()->HeapConstant(p.callFeedback().vector);
   Node* lazy_deopt_parameters[] = {receiver, call_slot, call_feedback};
@@ -2454,8 +2452,16 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   Node* const key = NodeProperties::GetValueInput(node, 1);
   Node* const value = NodeProperties::GetValueInput(node, 2);
+  Node* const flags = NodeProperties::GetValueInput(node, 3);
 
   if (!p.feedback().IsValid()) return NoChange();
+
+  NumberMatcher mflags(flags);
+  CHECK(mflags.HasValue());
+  DataPropertyInLiteralFlags cflags(mflags.Value());
+  DCHECK(!(cflags & DataPropertyInLiteralFlag::kDontEnum));
+  if (cflags & DataPropertyInLiteralFlag::kSetFunctionName) return NoChange();
+
   return ReducePropertyAccess(node, key, base::nullopt, value,
                               FeedbackSource(p.feedback()),
                               AccessMode::kStoreInLiteral);
@@ -2635,6 +2641,15 @@ JSNativeContextSpecialization::BuildElementAccess(
           Node* etrue = effect;
           Node* vtrue;
           {
+            // Do a real bounds check against {length}. This is in order to
+            // protect against a potential typer bug leading to the elimination
+            // of the NumberLessThan above.
+            index = etrue = graph()->NewNode(
+                simplified()->CheckBounds(
+                    FeedbackSource(),
+                    CheckBoundsParameters::kAbortOnOutOfBounds),
+                index, length, etrue, if_true);
+
             // Perform the actual load
             vtrue = etrue = graph()->NewNode(
                 simplified()->LoadTypedElement(external_array_type),
@@ -2696,6 +2711,15 @@ JSNativeContextSpecialization::BuildElementAccess(
           Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
           Node* etrue = effect;
           {
+            // Do a real bounds check against {length}. This is in order to
+            // protect against a potential typer bug leading to the elimination
+            // of the NumberLessThan above.
+            index = etrue = graph()->NewNode(
+                simplified()->CheckBounds(
+                    FeedbackSource(),
+                    CheckBoundsParameters::kAbortOnOutOfBounds),
+                index, length, etrue, if_true);
+
             // Perform the actual store.
             etrue = graph()->NewNode(
                 simplified()->StoreTypedElement(external_array_type),
@@ -2828,6 +2852,14 @@ JSNativeContextSpecialization::BuildElementAccess(
         Node* etrue = effect;
         Node* vtrue;
         {
+          // Do a real bounds check against {length}. This is in order to
+          // protect against a potential typer bug leading to the elimination of
+          // the NumberLessThan above.
+          index = etrue = graph()->NewNode(
+              simplified()->CheckBounds(
+                  FeedbackSource(), CheckBoundsParameters::kAbortOnOutOfBounds),
+              index, length, etrue, if_true);
+
           // Perform the actual load
           vtrue = etrue =
               graph()->NewNode(simplified()->LoadElement(element_access),
@@ -3096,13 +3128,18 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                                           IsSafetyCheck::kCriticalSafetyCheck),
                          check, *control);
 
-    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
-
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* etrue;
+    // Do a real bounds check against {length}. This is in order to protect
+    // against a potential typer bug leading to the elimination of the
+    // NumberLessThan above.
+    Node* etrue = index = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource(),
+                                  CheckBoundsParameters::kAbortOnOutOfBounds),
+        index, length, *effect, if_true);
+    Node* masked_index = graph()->NewNode(simplified()->PoisonIndex(), index);
     Node* vtrue = etrue =
         graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                         masked_index, *effect, if_true);
+                         masked_index, etrue, if_true);
     vtrue = graph()->NewNode(simplified()->StringFromSingleCharCode(), vtrue);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

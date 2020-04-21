@@ -168,7 +168,8 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   const PropertyAccess& p = PropertyAccessOf(node->op());
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable = Builtins::CallableFor(
         isolate(), ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
@@ -198,7 +199,8 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
     ReplaceWithStubCall(node, callable, flags);
     return;
   }
-  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable = Builtins::CallableFor(
         isolate(), ShouldUseMegamorphicLoadBuiltin(p.feedback(), broker())
@@ -222,7 +224,8 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 1,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable = CodeFactory::LoadGlobalIC(isolate(), p.typeof_mode());
     ReplaceWithStubCall(node, callable, flags);
@@ -252,7 +255,8 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   PropertyAccess const& p = PropertyAccessOf(node->op());
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kKeyedStoreICTrampoline);
@@ -276,7 +280,8 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
     ReplaceWithRuntimeCall(node, Runtime::kSetNamedProperty);
     return;
   }
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kStoreICTrampoline);
@@ -295,7 +300,8 @@ void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable = CodeFactory::StoreOwnIC(isolate());
     ReplaceWithStubCall(node, callable, flags);
@@ -313,7 +319,8 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
-  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kStoreGlobalICTrampoline);
@@ -332,7 +339,7 @@ void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
   RelaxControls(node);
   node->InsertInputs(zone(), 4, 2);
   node->ReplaceInput(4, jsgraph()->HeapConstant(p.feedback().vector));
-  node->ReplaceInput(5, jsgraph()->SmiConstant(p.feedback().index()));
+  node->ReplaceInput(5, jsgraph()->TaggedIndexConstant(p.feedback().index()));
   ReplaceWithRuntimeCall(node, Runtime::kDefineDataPropertyInLiteral);
 }
 
@@ -342,7 +349,8 @@ void JSGenericLowering::LowerJSStoreInArrayLiteral(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   RelaxControls(node);
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 3,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   node->InsertInput(zone(), 4, jsgraph()->HeapConstant(p.feedback().vector));
   ReplaceWithStubCall(node, callable, flags);
 }
@@ -404,7 +412,7 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
   CreateArgumentsType const type = CreateArgumentsTypeOf(node->op());
   switch (type) {
     case CreateArgumentsType::kMappedArguments:
-      ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments_Generic);
+      ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments);
       break;
     case CreateArgumentsType::kUnmappedArguments:
       ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments);
@@ -550,7 +558,8 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 1,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
 
   // Use the CreateShallowArrayLiteratlr builtin only for shallow boilerplates
@@ -574,7 +583,8 @@ void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   FeedbackParameter const& p = FeedbackParameterOf(node->op());
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 1,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   node->RemoveInput(4);  // control
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCreateEmptyArrayLiteral);
@@ -592,7 +602,8 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 1,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
@@ -615,7 +626,8 @@ void JSGenericLowering::LowerJSCloneObject(Node* node) {
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCloneObjectIC);
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.flags()));
-  node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 2,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   node->InsertInput(zone(), 3, jsgraph()->HeapConstant(p.feedback().vector));
   ReplaceWithStubCall(node, callable, flags);
 }
@@ -630,7 +642,8 @@ void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCreateRegExpLiteral);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector));
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 1,
+                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
   ReplaceWithStubCall(node, callable, flags);

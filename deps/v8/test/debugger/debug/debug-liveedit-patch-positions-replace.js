@@ -65,7 +65,7 @@ function CallM(changer) {
 }
 
 // This several iterations should cause call IC for BeingReplaced call. This IC
-// will keep reference to code object of BeingRepalced function. This reference
+// will keep reference to code object of BeingReplaced function. This reference
 // should also be patched. Unfortunately, this is a manually checked fact (from
 // debugger or debug print) and doesn't work as an automatic test.
 CallM(NoOp);

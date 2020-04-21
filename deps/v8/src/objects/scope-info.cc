@@ -12,6 +12,7 @@
 
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/roots/roots.h"
 
 namespace v8 {
 namespace internal {
@@ -60,7 +61,9 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
 #endif
 
 // static
-Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
+template <typename LocalIsolate>
+Handle<ScopeInfo> ScopeInfo::Create(LocalIsolate* isolate, Zone* zone,
+                                    Scope* scope,
                                     MaybeHandle<ScopeInfo> outer_scope) {
   // Collect variables.
   int context_local_count = 0;
@@ -375,6 +378,15 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   DCHECK_EQ(scope->num_heap_slots(), scope_info_handle->ContextLength());
   return scope_info_handle;
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ScopeInfo> ScopeInfo::Create<Isolate>(
+        Isolate* isolate, Zone* zone, Scope* scope,
+        MaybeHandle<ScopeInfo> outer_scope);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<ScopeInfo> ScopeInfo::Create<OffThreadIsolate>(
+        OffThreadIsolate* isolate, Zone* zone, Scope* scope,
+        MaybeHandle<ScopeInfo> outer_scope);
 
 // static
 Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
@@ -1031,8 +1043,9 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
   return os;
 }
 
+template <typename LocalIsolate>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
-    Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
+    LocalIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
     Handle<PrimitiveHeapObject> local_name,
     Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
     int beg_pos, int end_pos) {
@@ -1049,16 +1062,27 @@ Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
   return result;
 }
 
+template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+    Isolate* isolate, Handle<PrimitiveHeapObject> export_name,
+    Handle<PrimitiveHeapObject> local_name,
+    Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
+    int beg_pos, int end_pos);
+template Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(
+    OffThreadIsolate* isolate, Handle<PrimitiveHeapObject> export_name,
+    Handle<PrimitiveHeapObject> local_name,
+    Handle<PrimitiveHeapObject> import_name, int module_request, int cell_index,
+    int beg_pos, int end_pos);
+
+template <typename LocalIsolate>
 Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
-    Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
+    LocalIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr) {
   // Serialize module requests.
   int size = static_cast<int>(descr->module_requests().size());
   Handle<FixedArray> module_requests = isolate->factory()->NewFixedArray(size);
   Handle<FixedArray> module_request_positions =
       isolate->factory()->NewFixedArray(size);
   for (const auto& elem : descr->module_requests()) {
-    module_requests->set(elem.second.index,
-                         *elem.first->string().get<Factory>());
+    module_requests->set(elem.second.index, *elem.first->string());
     module_request_positions->set(elem.second.index,
                                   Smi::FromInt(elem.second.position));
   }
@@ -1113,6 +1137,10 @@ Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
   result->set(kModuleRequestPositionsIndex, *module_request_positions);
   return result;
 }
+template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+    Isolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
+template Handle<SourceTextModuleInfo> SourceTextModuleInfo::New(
+    OffThreadIsolate* isolate, Zone* zone, SourceTextModuleDescriptor* descr);
 
 int SourceTextModuleInfo::RegularExportCount() const {
   DCHECK_EQ(regular_exports().length() % kRegularExportLength, 0);

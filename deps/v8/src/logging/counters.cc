@@ -319,6 +319,11 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 base::TimeTicks (*RuntimeCallTimer::Now)() =
     &base::TimeTicks::HighResolutionNow;
 
+base::TimeTicks RuntimeCallTimer::NowCPUTime() {
+  base::ThreadTicks ticks = base::ThreadTicks::Now();
+  return base::TimeTicks::FromInternalValue(ticks.ToInternalValue());
+}
+
 class RuntimeCallStatEntries {
  public:
   void Print(std::ostream& os) {
@@ -453,6 +458,11 @@ RuntimeCallStats::RuntimeCallStats(ThreadType thread_type)
   };
   for (int i = 0; i < kNumberOfCounters; i++) {
     this->counters_[i] = RuntimeCallCounter(kNames[i]);
+  }
+  if (FLAG_rcs_cpu_time) {
+    CHECK(base::ThreadTicks::IsSupported());
+    base::ThreadTicks::WaitUntilInitialized();
+    RuntimeCallTimer::Now = &RuntimeCallTimer::NowCPUTime;
   }
 }
 

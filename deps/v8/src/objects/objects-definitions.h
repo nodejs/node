@@ -157,11 +157,10 @@ namespace internal {
     wasm_exported_function_data)                                              \
   V(_, WASM_INDIRECT_FUNCTION_TABLE_TYPE, WasmIndirectFunctionTable,          \
     wasm_indirect_function_table)                                             \
-  V(_, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData, wasm_js_function_data)
+  V(_, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData, wasm_js_function_data) \
+  V(_, WASM_VALUE_TYPE, WasmValue, wasm_value)
 
-#define STRUCT_LIST_GENERATOR(V, _) \
-  STRUCT_LIST_GENERATOR_BASE(V, _)  \
-  TORQUE_STRUCT_LIST_GENERATOR(V, _)
+#define STRUCT_LIST_GENERATOR(V, _) STRUCT_LIST_GENERATOR_BASE(V, _)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)

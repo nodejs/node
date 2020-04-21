@@ -235,7 +235,6 @@ class SerializerDeserializer : public RootVisitor {
 
     // 0x60..0x7f
     kFixedRawData = 0x60,
-    kOnePointerRawData = kFixedRawData,
     kFixedRawDataStart = kFixedRawData - 1,
 
     //

@@ -70,11 +70,7 @@ class String16 {
   // Convenience methods.
   V8_EXPORT std::string utf8() const;
   V8_EXPORT static String16 fromUTF8(const char* stringStart, size_t length);
-
-  // Instantiates a String16 in native endianness from UTF16 LE.
-  // On Big endian architectures, byte order needs to be flipped.
-  V8_EXPORT static String16 fromUTF16LE(const UChar* stringStart,
-                                        size_t length);
+  V8_EXPORT static String16 fromUTF16(const UChar* stringStart, size_t length);
 
   std::size_t hash() const {
     if (!hash_code) {

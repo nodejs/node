@@ -17,7 +17,7 @@ struct DescriptorEntry {
 }
 
 extern class DescriptorArray extends HeapObject {
-  number_of_all_descriptors: uint16;
+  const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;
   raw_number_of_marked_descriptors: uint16;
   filler16_bits: uint16;

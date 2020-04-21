@@ -175,7 +175,7 @@ class TyperTest : public TypedGraphTest {
           for (int x1 = lmin; x1 < lmin + width; x1++) {
             for (int x2 = rmin; x2 < rmin + width; x2++) {
               double result_value = opfun(x1, x2);
-              Type result_type = Type::NewConstant(
+              Type result_type = Type::Constant(
                   &broker_, isolate()->factory()->NewNumber(result_value),
                   zone());
               EXPECT_TRUE(result_type.Is(expected_type));
@@ -197,7 +197,7 @@ class TyperTest : public TypedGraphTest {
         double x1 = RandomInt(r1.AsRange());
         double x2 = RandomInt(r2.AsRange());
         double result_value = opfun(x1, x2);
-        Type result_type = Type::NewConstant(
+        Type result_type = Type::Constant(
             &broker_, isolate()->factory()->NewNumber(result_value), zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
@@ -205,13 +205,13 @@ class TyperTest : public TypedGraphTest {
     // Test extreme cases.
     double x1 = +1e-308;
     double x2 = -1e-308;
-    Type r1 = Type::NewConstant(&broker_, isolate()->factory()->NewNumber(x1),
-                                zone());
-    Type r2 = Type::NewConstant(&broker_, isolate()->factory()->NewNumber(x2),
-                                zone());
+    Type r1 =
+        Type::Constant(&broker_, isolate()->factory()->NewNumber(x1), zone());
+    Type r2 =
+        Type::Constant(&broker_, isolate()->factory()->NewNumber(x2), zone());
     Type expected_type = TypeBinaryOp(op, r1, r2);
     double result_value = opfun(x1, x2);
-    Type result_type = Type::NewConstant(
+    Type result_type = Type::Constant(
         &broker_, isolate()->factory()->NewNumber(result_value), zone());
     EXPECT_TRUE(result_type.Is(expected_type));
   }
@@ -226,11 +226,11 @@ class TyperTest : public TypedGraphTest {
         double x1 = RandomInt(r1.AsRange());
         double x2 = RandomInt(r2.AsRange());
         bool result_value = opfun(x1, x2);
-        Type result_type = Type::NewConstant(
-            &broker_,
-            result_value ? isolate()->factory()->true_value()
-                         : isolate()->factory()->false_value(),
-            zone());
+        Type result_type =
+            Type::Constant(&broker_,
+                           result_value ? isolate()->factory()->true_value()
+                                        : isolate()->factory()->false_value(),
+                           zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
     }
@@ -246,7 +246,7 @@ class TyperTest : public TypedGraphTest {
         int32_t x1 = static_cast<int32_t>(RandomInt(r1.AsRange()));
         int32_t x2 = static_cast<int32_t>(RandomInt(r2.AsRange()));
         double result_value = opfun(x1, x2);
-        Type result_type = Type::NewConstant(
+        Type result_type = Type::Constant(
             &broker_, isolate()->factory()->NewNumber(result_value), zone());
         EXPECT_TRUE(result_type.Is(expected_type));
       }
@@ -584,6 +584,98 @@ SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
   }
 SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 #undef TEST_MONOTONICITY
+
+TEST_F(TyperTest, Manual_Operation_NumberMax) {
+  BinaryTyper t = [&](Type type1, Type type2) {
+    return operation_typer_.NumberMax(type1, type2);
+  };
+
+  Type zero = Type::Constant(0, zone());
+  Type zero_or_minuszero = Type::Union(zero, Type::MinusZero(), zone());
+  Type dot_five = Type::Constant(0.5, zone());
+
+  Type a = t(Type::MinusZero(), Type::MinusZero());
+  CHECK(Type::MinusZero().Is(a));
+
+  Type b = t(Type::MinusZero(), zero_or_minuszero);
+  CHECK(Type::MinusZero().Is(b));
+  CHECK(zero.Is(b));
+  CHECK(a.Is(b));
+
+  Type c = t(zero_or_minuszero, Type::MinusZero());
+  CHECK(Type::MinusZero().Is(c));
+  CHECK(zero.Is(c));
+  CHECK(a.Is(c));
+
+  Type d = t(zero_or_minuszero, zero_or_minuszero);
+  CHECK(Type::MinusZero().Is(d));
+  CHECK(zero.Is(d));
+  CHECK(b.Is(d));
+  CHECK(c.Is(d));
+
+  Type e =
+      t(Type::MinusZero(), Type::Union(Type::MinusZero(), dot_five, zone()));
+  CHECK(Type::MinusZero().Is(e));
+  CHECK(dot_five.Is(e));
+  CHECK(a.Is(e));
+
+  Type f = t(Type::MinusZero(), zero);
+  CHECK(zero.Is(f));
+  CHECK(f.Is(b));
+  CHECK(f.Is(zero));  // Checks precision, not soundness.
+
+  Type g = t(zero, Type::MinusZero());
+  CHECK(zero.Is(g));
+  CHECK(g.Is(c));
+  CHECK(g.Is(zero));  // Checks precision, not soundness.
+}
+
+TEST_F(TyperTest, Manual_Operation_NumberMin) {
+  BinaryTyper t = [&](Type type1, Type type2) {
+    return operation_typer_.NumberMin(type1, type2);
+  };
+
+  Type zero = Type::Constant(0, zone());
+  Type zero_or_minuszero = Type::Union(zero, Type::MinusZero(), zone());
+  Type one = Type::Constant(1, zone());
+  Type minus_dot_five = Type::Constant(-0.5, zone());
+
+  Type a = t(Type::MinusZero(), Type::MinusZero());
+  CHECK(Type::MinusZero().Is(a));
+
+  Type b = t(Type::MinusZero(), zero_or_minuszero);
+  CHECK(Type::MinusZero().Is(b));
+  CHECK(zero.Is(b));
+  CHECK(a.Is(b));
+
+  Type c = t(zero_or_minuszero, Type::MinusZero());
+  CHECK(Type::MinusZero().Is(c));
+  CHECK(zero.Is(c));
+  CHECK(a.Is(c));
+
+  Type d = t(zero_or_minuszero, zero_or_minuszero);
+  CHECK(Type::MinusZero().Is(d));
+  CHECK(zero.Is(d));
+  CHECK(b.Is(d));
+  CHECK(c.Is(d));
+
+  Type e = t(Type::MinusZero(),
+             Type::Union(Type::MinusZero(), minus_dot_five, zone()));
+  CHECK(Type::MinusZero().Is(e));
+  CHECK(minus_dot_five.Is(e));
+  CHECK(a.Is(e));
+
+  Type f = t(Type::MinusZero(), zero);
+  CHECK(Type::MinusZero().Is(f));
+  CHECK(f.Is(b));
+
+  Type g = t(zero, Type::MinusZero());
+  CHECK(Type::MinusZero().Is(g));
+  CHECK(g.Is(c));
+
+  Type h = t(one, Type::MinusZero());
+  CHECK(Type::MinusZero().Is(h));
+}
 
 }  // namespace compiler
 }  // namespace internal

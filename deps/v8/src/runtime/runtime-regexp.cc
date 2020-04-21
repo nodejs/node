@@ -1234,7 +1234,6 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
     if (subject_length > kMinLengthToCache) {
       // Store the last successful match into the array for caching.
-      // TODO(yangguo): do not expose last match to JS and simplify caching.
       int capture_registers = (capture_count + 1) * 2;
       Handle<FixedArray> last_match_cache =
           isolate->factory()->NewFixedArray(capture_registers);

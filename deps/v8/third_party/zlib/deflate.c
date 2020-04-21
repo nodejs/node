@@ -1213,7 +1213,7 @@ ZLIB_INTERNAL unsigned deflate_read_buf(strm, buf, size)
 #ifdef GZIP
     if (strm->state->wrap == 2)
         copy_with_crc(strm, buf, len);
-    else
+    else 
 #endif
     {
         zmemcpy(buf, strm->next_in, len);

@@ -18,7 +18,7 @@ namespace wasm {
 // toolchain (e.g. Emscripten). This implementation mostly complies with the
 // specification (https://sourcemaps.info/spec.html), with the following
 // accommodations:
-// 1. "names" field is an empty array in current source maps of WASM, hence it
+// 1. "names" field is an empty array in current source maps of Wasm, hence it
 // is not handled;
 // 2. The semicolons divides "mappings" field into groups, each of which
 // represents a line in the generated code. As *.wasm is in binary format, there
@@ -37,13 +37,13 @@ class V8_EXPORT_PRIVATE WasmModuleSourceMap {
   // and can be correctly decoded.
   bool IsValid() const { return valid_; }
 
-  // Given a function located at [start, end) in WASM Module, this function
+  // Given a function located at [start, end) in Wasm Module, this function
   // checks if this function has its corresponding source code.
   bool HasSource(size_t start, size_t end) const;
 
   // Given a function's base address start and an address addr within, this
   // function checks if the address can be mapped to an offset in this function.
-  // For example, we have the following memory layout for WASM functions, foo
+  // For example, we have the following memory layout for Wasm functions, foo
   // and bar, and O1, O2, O3 and O4 are the decoded offsets of source map:
   //
   // O1 --- O2 ----- O3 ----- O4

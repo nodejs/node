@@ -20,7 +20,7 @@
 #define UNIMPLEMENTED_PPC()
 #endif
 
-#if V8_HOST_ARCH_PPC &&                                            \
+#if (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) &&                    \
     (V8_OS_AIX || (V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && \
                    (!defined(_CALL_ELF) || _CALL_ELF == 1)))
 #define ABI_USES_FUNCTION_DESCRIPTORS 1
@@ -28,28 +28,30 @@
 #define ABI_USES_FUNCTION_DESCRIPTORS 0
 #endif
 
-#if !V8_HOST_ARCH_PPC || V8_OS_AIX || V8_TARGET_ARCH_PPC64
+#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || V8_OS_AIX || \
+    V8_TARGET_ARCH_PPC64
 #define ABI_PASSES_HANDLES_IN_REGS 1
 #else
 #define ABI_PASSES_HANDLES_IN_REGS 0
 #endif
 
-#if !V8_HOST_ARCH_PPC || !V8_TARGET_ARCH_PPC64 || V8_TARGET_LITTLE_ENDIAN || \
-    (defined(_CALL_ELF) && _CALL_ELF == 2)
+#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || !V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_LITTLE_ENDIAN || (defined(_CALL_ELF) && _CALL_ELF == 2)
 #define ABI_RETURNS_OBJECT_PAIRS_IN_REGS 1
 #else
 #define ABI_RETURNS_OBJECT_PAIRS_IN_REGS 0
 #endif
 
-#if !V8_HOST_ARCH_PPC ||     \
-    (V8_TARGET_ARCH_PPC64 && \
+#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || \
+    (V8_TARGET_ARCH_PPC64 &&                     \
      (V8_TARGET_LITTLE_ENDIAN || (defined(_CALL_ELF) && _CALL_ELF == 2)))
 #define ABI_CALL_VIA_IP 1
 #else
 #define ABI_CALL_VIA_IP 0
 #endif
 
-#if !V8_HOST_ARCH_PPC || V8_OS_AIX || V8_TARGET_ARCH_PPC64
+#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || V8_OS_AIX || \
+    V8_TARGET_ARCH_PPC64
 #define ABI_TOC_REGISTER 2
 #else
 #define ABI_TOC_REGISTER 13
@@ -1227,7 +1229,11 @@ using Instr = uint32_t;
   /* Store Floating-Point Single with Update Indexed */ \
   V(stfsux, STFSUX, 0x7C00056E)                         \
   /* Store Floating-Point Single Indexed */             \
-  V(stfsx, STFSX, 0x7C00052E)
+  V(stfsx, STFSX, 0x7C00052E)                           \
+  /* Load Vector Indexed */                             \
+  V(lvx, LVX, 0x7C0000CE)                               \
+  /* Store Vector Indexed */                            \
+  V(stvx, STVX, 0x7C0001CE)
 
 #define PPC_X_OPCODE_E_FORM_LIST(V)          \
   /* Shift Right Algebraic Word Immediate */ \
@@ -1691,8 +1697,6 @@ using Instr = uint32_t;
   V(lvsl, LVSL, 0x7C00000C)                                                   \
   /* Load Vector for Shift Right */                                           \
   V(lvsr, LVSR, 0x7C00004C)                                                   \
-  /* Load Vector Indexed */                                                   \
-  V(lvx, LVX, 0x7C0000CE)                                                     \
   /* Load Vector Indexed Last */                                              \
   V(lvxl, LVXL, 0x7C0002CE)                                                   \
   /* Store Vector Element Byte Indexed */                                     \
@@ -1701,8 +1705,6 @@ using Instr = uint32_t;
   V(stvehx, STVEHX, 0x7C00014E)                                               \
   /* Store Vector Element Word Indexed */                                     \
   V(stvewx, STVEWX, 0x7C00018E)                                               \
-  /* Store Vector Indexed */                                                  \
-  V(stvx, STVX, 0x7C0001CE)                                                   \
   /* Store Vector Indexed Last */                                             \
   V(stvxl, STVXL, 0x7C0003CE)                                                 \
   /* Vector Minimum Signed Doubleword */                                      \

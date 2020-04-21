@@ -24,6 +24,7 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
@@ -207,6 +208,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.
       TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
+      TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
     case ALLOCATION_SITE_TYPE:
@@ -635,6 +637,12 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
     }
   }
   os << "\n - register file: " << Brief(parameters_and_registers());
+  JSObjectPrintBody(os, *this);
+}
+
+void JSAggregateError::JSAggregateErrorPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSAggregateError");
+  os << "\n - errors: " << Brief(errors());
   JSObjectPrintBody(os, *this);
 }
 
@@ -1150,7 +1158,7 @@ void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
 
 void WeakCell::WeakCellPrint(std::ostream& os) {
   PrintHeader(os, "WeakCell");
-  os << "\n - finalization_group: " << Brief(finalization_group());
+  os << "\n - finalization_registry: " << Brief(finalization_registry());
   os << "\n - target: " << Brief(target());
   os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
@@ -1166,8 +1174,8 @@ void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationGroup");
+void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationRegistry");
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
@@ -1183,13 +1191,6 @@ void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
     cleared_cell = WeakCell::cast(cleared_cell).next();
   }
   os << "\n - key_map: " << Brief(key_map());
-  JSObjectPrintBody(os, *this);
-}
-
-void JSFinalizationGroupCleanupIterator::
-    JSFinalizationGroupCleanupIteratorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationGroupCleanupIterator");
-  os << "\n - finalization_group: " << Brief(finalization_group());
   JSObjectPrintBody(os, *this);
 }
 
@@ -1306,12 +1307,12 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   }
   if (WasmExportedFunction::IsWasmExportedFunction(*this)) {
     WasmExportedFunction function = WasmExportedFunction::cast(*this);
-    os << "\n - WASM instance: " << Brief(function.instance());
-    os << "\n - WASM function index: " << function.function_index();
+    os << "\n - Wasm instance: " << Brief(function.instance());
+    os << "\n - Wasm function index: " << function.function_index();
   }
   if (WasmJSFunction::IsWasmJSFunction(*this)) {
     WasmJSFunction function = WasmJSFunction::cast(*this);
-    os << "\n - WASM wrapper around: " << Brief(function.GetCallable());
+    os << "\n - Wasm wrapper around: " << Brief(function.GetCallable());
   }
   shared().PrintSourceCode(os);
   JSObjectPrintBody(os, *this);
@@ -1364,6 +1365,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   if (HasInferredName()) {
     os << "\n - inferred name: " << Brief(inferred_name());
   }
+  if (class_scope_has_private_brand()) {
+    os << "\n - class_scope_has_private_brand";
+  }
+  if (has_static_private_methods_or_accessors()) {
+    os << "\n - has_static_private_methods_or_accessors";
+  }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
   if (needs_home_object()) {
@@ -1377,7 +1384,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data());
-  os << "\n - code (from data): " << Brief(GetCode());
+  os << "\n - code (from data): ";
+  if (Heap::InOffThreadSpace(*this)) {
+    os << "<not available off-thread>";
+  } else {
+    os << Brief(GetCode());
+  }
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());
@@ -1779,7 +1791,7 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {  // NOLINT
   os << "\n - tagged_buffer: " << Brief(tagged_buffer());
   os << "\n - offset: " << offset();
   os << "\n - flags: " << flags();
-  os << "\n - type: " << type();
+  os << "\n - type: " << type().kind();
   os << "\n - is_mutable: " << is_mutable();
   os << "\n";
 }
@@ -1986,15 +1998,18 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n - context data: " << Brief(context_data());
   os << "\n - compilation type: " << compilation_type();
   os << "\n - line ends: " << Brief(line_ends());
-  if (has_eval_from_shared()) {
-    os << "\n - eval from shared: " << Brief(eval_from_shared());
-  }
-  if (is_wrapped()) {
-    os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
-  }
-  os << "\n - eval from position: " << eval_from_position();
-  if (has_wasm_breakpoint_infos()) {
-    os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
+  if (type() == TYPE_WASM) {
+    if (has_wasm_breakpoint_infos()) {
+      os << "\n - wasm_breakpoint_infos: " << Brief(wasm_breakpoint_infos());
+    }
+  } else {
+    if (has_eval_from_shared()) {
+      os << "\n - eval from shared: " << Brief(eval_from_shared());
+    }
+    if (is_wrapped()) {
+      os << "\n - wrapped arguments: " << Brief(wrapped_arguments());
+    }
+    os << "\n - eval from position: " << eval_from_position();
   }
   os << "\n - shared function infos: " << Brief(shared_function_infos());
   os << "\n";
@@ -2004,7 +2019,6 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
 void JSV8BreakIterator::JSV8BreakIteratorPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSV8BreakIterator");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - type: " << TypeAsString();
   os << "\n - break iterator: " << Brief(break_iterator());
   os << "\n - unicode string: " << Brief(unicode_string());
   os << "\n - bound adopt text: " << Brief(bound_adopt_text());
@@ -2059,7 +2073,6 @@ void JSLocale::JSLocalePrint(std::ostream& os) {  // NOLINT
 void JSNumberFormat::JSNumberFormatPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSNumberFormat");
   os << "\n - locale: " << Brief(locale());
-  os << "\n - numberingSystem: " << Brief(numberingSystem());
   os << "\n - icu_number_formatter: " << Brief(icu_number_formatter());
   os << "\n - bound_format: " << Brief(bound_format());
   JSObjectPrintBody(os, *this);
@@ -2079,7 +2092,6 @@ void JSRelativeTimeFormat::JSRelativeTimeFormatPrint(
   JSObjectPrintHeader(os, *this, "JSRelativeTimeFormat");
   os << "\n - locale: " << Brief(locale());
   os << "\n - numberingSystem: " << Brief(numberingSystem());
-  os << "\n - style: " << StyleAsString();
   os << "\n - numeric: " << NumericAsString();
   os << "\n - icu formatter: " << Brief(icu_formatter());
   os << "\n";
@@ -2190,6 +2202,12 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - break_points: ";
   break_points().FixedArrayPrint(os);
   os << "\n - coverage_info: " << Brief(coverage_info());
+}
+
+void WasmValue::WasmValuePrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmValue");
+  os << "\n - value_type: " << value_type();
+  os << "\n - bytes: " << Brief(bytes());
 }
 
 void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT

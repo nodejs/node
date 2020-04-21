@@ -268,6 +268,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     int function_token_pos, FunctionSyntaxKind function_syntax_kind,
     LanguageMode language_mode,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
+  FunctionParsingScope function_parsing_scope(this);
   // Wrapped functions are not parsed in the preparser.
   DCHECK_NULL(arguments_for_wrapped_function);
   DCHECK_NE(FunctionSyntaxKind::kWrapped, function_syntax_kind);

@@ -52,7 +52,7 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
     static std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> fromValue(protocol::Value* value, ErrorSupport* errors)
     {
         if (!value) {
-            errors->addError("value expected");
+            errors->AddError("value expected");
             return nullptr;
         }
 
@@ -60,7 +60,7 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
         value->AppendSerialized(&binary);
         auto result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(binary.data(), binary.size());
         if (!result)
-            errors->addError("cannot parse");
+            errors->AddError("cannot parse");
         return result;
     }
 

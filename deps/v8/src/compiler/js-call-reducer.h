@@ -106,8 +106,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                    const SharedFunctionInfoRef& shared);
   Reduction ReduceArraySome(Node* node, const SharedFunctionInfoRef& shared);
 
-  enum class ArrayIteratorKind { kArray, kTypedArray };
-  Reduction ReduceArrayIterator(Node* node, IterationKind kind);
+  enum class ArrayIteratorKind { kArrayLike, kTypedArray };
+  Reduction ReduceArrayIterator(Node* node, ArrayIteratorKind array_kind,
+                                IterationKind iteration_kind);
   Reduction ReduceArrayIteratorPrototypeNext(Node* node);
   Reduction ReduceFastArrayIteratorNext(InstanceType type, Node* node,
                                         IterationKind kind);

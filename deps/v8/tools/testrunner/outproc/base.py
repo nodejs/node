@@ -19,7 +19,12 @@ OUTCOMES_FAIL_OR_TIMEOUT = [statusfile.FAIL, statusfile.TIMEOUT]
 class BaseOutProc(object):
   def process(self, output, reduction=None):
     has_unexpected_output = self.has_unexpected_output(output)
+    if has_unexpected_output:
+      self.regenerate_expected_files(output)
     return self._create_result(has_unexpected_output, output, reduction)
+
+  def regenerate_expected_files(self, output):
+    return
 
   def has_unexpected_output(self, output):
     return self.get_outcome(output) not in self.expected_outcomes
@@ -125,9 +130,11 @@ class ExpectedOutProc(OutProc):
   """Output processor that has is_failure_output depending on comparing the
   output with the expected output.
   """
-  def __init__(self, expected_outcomes, expected_filename):
+  def __init__(self, expected_outcomes, expected_filename,
+                regenerate_expected_files=False):
     super(ExpectedOutProc, self).__init__(expected_outcomes)
     self._expected_filename = expected_filename
+    self._regenerate_expected_files = regenerate_expected_files
 
   def _is_failure_output(self, output):
     with open(self._expected_filename, 'r') as f:
@@ -142,6 +149,14 @@ class ExpectedOutProc(OutProc):
         if expected != actual:
           return True
       return False
+
+  def regenerate_expected_files(self, output):
+    if not self._regenerate_expected_files:
+      return
+    lines = output.stdout.splitlines()
+    with open(self._expected_filename, 'w') as f:
+      for _, line in enumerate(lines):
+        f.write(line+'\n')
 
   def _act_block_iterator(self, output):
     """Iterates over blocks of actual output lines."""

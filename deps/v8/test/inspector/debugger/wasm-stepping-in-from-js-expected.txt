@@ -3,8 +3,8 @@ Installing code and global variable.
 Calling instantiate function.
 Waiting for wasm scripts to be parsed.
 Ignoring script with url v8://test/callInstantiate
-Got wasm script: wasm://wasm/fa045c1e
-Setting breakpoint on line 3 of wasm function
+Got wasm script: wasm://wasm/7d022e0e
+Setting breakpoint on i32.const
 {
     columnNumber : 37
     lineNumber : 0
@@ -23,10 +23,10 @@ paused
 
 Debugger.stepInto
 paused
-Script wasm://wasm/fa045c1e byte offset 35: Wasm opcode 0x20
+Script wasm://wasm/7d022e0e byte offset 35: Wasm opcode 0x20
 Debugger.resume
 paused
-Script wasm://wasm/fa045c1e byte offset 37: Wasm opcode 0x41
+Script wasm://wasm/7d022e0e byte offset 37: Wasm opcode 0x41
 Debugger.resume
 exports.main returned!
 Finished!

@@ -1576,7 +1576,7 @@ HEAP_TEST(TestSizeOfObjects) {
     // Allocate objects on several different old-space pages so that
     // concurrent sweeper threads will be busy sweeping the old space on
     // subsequent GC runs.
-    AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
       isolate->factory()->NewFixedArray(8192, AllocationType::kOld);
@@ -2175,8 +2175,8 @@ TEST(InstanceOfStubWriteBarrier) {
   while (!marking_state->IsBlack(f->code()) && !marking->IsStopped()) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
-    marking->V8Step(kStepSizeInMs, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                    StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  StepOrigin::kV8);
   }
 
   CHECK(marking->IsMarking());
@@ -2189,7 +2189,6 @@ TEST(InstanceOfStubWriteBarrier) {
     g->Call(ctx, global, 0, nullptr).ToLocalChecked();
   }
 
-  CcTest::heap()->incremental_marking()->set_should_hurry(true);
   CcTest::CollectGarbage(OLD_SPACE);
 }
 
@@ -2269,8 +2268,8 @@ TEST(IdleNotificationFinishMarking) {
 
   const double kStepSizeInMs = 100;
   do {
-    marking->V8Step(kStepSizeInMs, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                    StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  StepOrigin::kV8);
   } while (!CcTest::heap()
                 ->mark_compact_collector()
                 ->marking_worklists()
@@ -2299,7 +2298,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   heap::SimulateFullSpace(CcTest::heap()->new_space());
-  AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+  AlwaysAllocateScopeForTesting always_allocate(CcTest::heap());
   v8::Local<v8::Value> res = CompileRun(
       "function c(x) {"
       "  this.x = x;"
@@ -2823,7 +2822,7 @@ TEST(Regress1465) {
 
   CompileRun("function F() {}");
   {
-    AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+    AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
     for (int i = 0; i < transitions_count; i++) {
       EmbeddedVector<char, 64> buffer;
       SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
@@ -2861,7 +2860,7 @@ static i::Handle<JSObject> GetByName(const char* name) {
 
 #ifdef DEBUG
 static void AddTransitions(int transitions_count) {
-  AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+  AlwaysAllocateScopeForTesting always_allocate(CcTest::i_isolate()->heap());
   for (int i = 0; i < transitions_count; i++) {
     EmbeddedVector<char, 64> buffer;
     SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
@@ -3011,7 +3010,7 @@ TEST(ReleaseOverReservedPages) {
   const int initial_page_count = old_space->CountTotalPages();
   const int overall_page_count = number_of_test_pages + initial_page_count;
   for (int i = 0; i < number_of_test_pages; i++) {
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     heap::SimulateFullSpace(old_space);
     factory->NewFixedArray(1, AllocationType::kOld);
   }
@@ -3507,8 +3506,13 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
     FixedArray parameters = stack_trace->Parameters(0);
 
     CHECK_EQ(parameters.length(), 2);
+#ifdef V8_REVERSE_JSARGS
+    CHECK(parameters.get(1).IsSmi());
+    CHECK_EQ(Smi::ToInt(parameters.get(1)), 9999);
+#else
     CHECK(parameters.get(0).IsSmi());
     CHECK_EQ(Smi::ToInt(parameters.get(0)), 9999);
+#endif
   });
 }
 
@@ -3588,7 +3592,7 @@ TEST(Regress169928) {
 
   // This should crash with a protection violation if we are running a build
   // with the bug.
-  AlwaysAllocateScope aa_scope(isolate);
+  AlwaysAllocateScopeForTesting aa_scope(isolate->heap());
   v8::Script::Compile(env.local(), mote_code_string)
       .ToLocalChecked()
       ->Run(env.local())
@@ -4858,10 +4862,8 @@ TEST(Regress357137) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope hscope(isolate);
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-  global->Set(
-      v8::String::NewFromUtf8(isolate, "interrupt", v8::NewStringType::kNormal)
-          .ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, RequestInterrupt));
+  global->Set(v8::String::NewFromUtf8Literal(isolate, "interrupt"),
+              v8::FunctionTemplate::New(isolate, RequestInterrupt));
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   CHECK(!context.IsEmpty());
   v8::Context::Scope cscope(context);
@@ -4985,7 +4987,6 @@ TEST(Regress3631) {
       "for (var i = 0; i < 50; i++) {"
       "  weak_map.set(future_keys[i], i);"
       "}");
-  heap->incremental_marking()->set_should_hurry(true);
   CcTest::CollectGarbage(OLD_SPACE);
 }
 
@@ -5050,7 +5051,8 @@ TEST(Regress3877) {
   CHECK(weak_prototype_holder->Get(0)->IsCleared());
 }
 
-Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
+Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
+                                      Handle<NativeContext> context) {
   HandleScope inner_scope(isolate);
   Handle<Map> map = Map::Create(isolate, 1);
   v8::Local<v8::Value> result =
@@ -5058,18 +5060,24 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
   Handle<JSReceiver> proto =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
-  heap->AddRetainedMap(map);
+  isolate->heap()->AddRetainedMap(context, map);
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
   array->Set(0, HeapObjectReference::Weak(*map));
   return inner_scope.CloseAndEscape(array);
 }
 
-
 void CheckMapRetainingFor(int n) {
   FLAG_retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  Handle<WeakFixedArray> array_with_map = AddRetainedMap(isolate, heap);
+  v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
+  Handle<Context> context = Utils::OpenHandle(*ctx);
+  CHECK(context->IsNativeContext());
+  Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
+
+  ctx->Enter();
+  Handle<WeakFixedArray> array_with_map =
+      AddRetainedMap(isolate, native_context);
   CHECK(array_with_map->Get(0)->IsWeak());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
@@ -5079,6 +5087,8 @@ void CheckMapRetainingFor(int n) {
   heap::SimulateIncrementalMarking(heap);
   CcTest::CollectGarbage(OLD_SPACE);
   CHECK(array_with_map->Get(0)->IsCleared());
+
+  ctx->Exit();
 }
 
 
@@ -5091,6 +5101,30 @@ TEST(MapRetaining) {
   CheckMapRetainingFor(0);
   CheckMapRetainingFor(1);
   CheckMapRetainingFor(7);
+}
+
+TEST(RetainedMapsCleanup) {
+  if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
+  Handle<Context> context = Utils::OpenHandle(*ctx);
+  CHECK(context->IsNativeContext());
+  Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
+
+  ctx->Enter();
+  Handle<WeakFixedArray> array_with_map =
+      AddRetainedMap(isolate, native_context);
+  CHECK(array_with_map->Get(0)->IsWeak());
+  heap->NotifyContextDisposed(true);
+  CcTest::CollectAllGarbage();
+  ctx->Exit();
+
+  CHECK_EQ(ReadOnlyRoots(heap).empty_weak_array_list(),
+           native_context->retained_maps());
 }
 
 TEST(PreprocessStackTrace) {
@@ -5131,7 +5165,7 @@ void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
   CHECK(IsAligned(bytes, kTaggedSize));
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  AlwaysAllocateScope always_allocate(isolate);
+  AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
   int elements =
       static_cast<int>((bytes - FixedArray::kHeaderSize) / kTaggedSize);
   Handle<FixedArray> array = factory->NewFixedArray(
@@ -5217,10 +5251,8 @@ TEST(MessageObjectLeak) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
-  global->Set(
-      v8::String::NewFromUtf8(isolate, "check", v8::NewStringType::kNormal)
-          .ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, CheckLeak));
+  global->Set(v8::String::NewFromUtf8Literal(isolate, "check"),
+              v8::FunctionTemplate::New(isolate, CheckLeak));
   v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   v8::Context::Scope cscope(context);
 
@@ -5421,7 +5453,7 @@ HEAP_TEST(Regress589413) {
 
   {
     // Ensure that incremental marking is not started unexpectedly.
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
 
     // Make sure the byte arrays will be promoted on the next GC.
     CcTest::CollectGarbage(NEW_SPACE);
@@ -5553,9 +5585,9 @@ TEST(Regress598319) {
   // only partially marked the large object.
   const double kSmallStepSizeInMs = 0.1;
   while (!marking->IsComplete()) {
-    marking->V8Step(kSmallStepSizeInMs,
-                    i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                    StepOrigin::kV8);
+    marking->Step(kSmallStepSizeInMs,
+                  i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  StepOrigin::kV8);
     if (page->IsFlagSet(Page::HAS_PROGRESS_BAR) && page->ProgressBar() > 0) {
       CHECK_NE(page->ProgressBar(), arr.get().Size());
       {
@@ -5573,9 +5605,9 @@ TEST(Regress598319) {
   // Finish marking with bigger steps to speed up test.
   const double kLargeStepSizeInMs = 1000;
   while (!marking->IsComplete()) {
-    marking->V8Step(kLargeStepSizeInMs,
-                    i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                    StepOrigin::kV8);
+    marking->Step(kLargeStepSizeInMs,
+                  i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -5651,14 +5683,14 @@ TEST(Regress615489) {
   CHECK(marking->IsMarking());
   marking->StartBlackAllocationForTesting();
   {
-    AlwaysAllocateScope always_allocate(CcTest::i_isolate());
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     v8::HandleScope inner(CcTest::isolate());
     isolate->factory()->NewFixedArray(500, AllocationType::kOld)->Size();
   }
   const double kStepSizeInMs = 100;
   while (!marking->IsComplete()) {
-    marking->V8Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                    StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -5711,8 +5743,7 @@ TEST(Regress631969) {
 
   // Allocate a cons string and promote it to a fresh page in the old space.
   heap::SimulateFullSpace(heap->old_space());
-  Handle<String> s3;
-  factory->NewConsString(s1, s2).ToHandle(&s3);
+  Handle<String> s3 = factory->NewConsString(s1, s2).ToHandleChecked();
   CcTest::CollectGarbage(NEW_SPACE);
   CcTest::CollectGarbage(NEW_SPACE);
 
@@ -5720,8 +5751,8 @@ TEST(Regress631969) {
   const double kStepSizeInMs = 100;
   IncrementalMarking* marking = heap->incremental_marking();
   while (!marking->IsComplete()) {
-    marking->V8Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                    StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -6391,13 +6422,13 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   heap::SimulateIncrementalMarking(heap, false);
   Handle<Map> map;
   {
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     map = isolate->factory()->NewMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
   }
   heap->incremental_marking()->StartBlackAllocationForTesting();
   Handle<HeapObject> object;
   {
-    AlwaysAllocateScope always_allocate(isolate);
+    AlwaysAllocateScopeForTesting always_allocate(heap);
     object = handle(isolate->factory()->NewForTest(map, AllocationType::kOld),
                     isolate);
   }
@@ -6891,6 +6922,83 @@ TEST(Regress9701) {
   int mark_sweep_count_after = heap->ms_count();
   // We expect only scavenges, no full GCs.
   CHECK_EQ(mark_sweep_count_before, mark_sweep_count_after);
+}
+
+#if defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_OS_ANDROID)
+UNINITIALIZED_TEST(HugeHeapLimit) {
+  uint64_t kMemoryGB = 16;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.constraints.ConfigureDefaults(kMemoryGB * GB, kMemoryGB * GB);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+#ifdef V8_COMPRESS_POINTERS
+  size_t kExpectedHeapLimit = Heap::AllocatorLimitOnMaxOldGenerationSize();
+#else
+  size_t kExpectedHeapLimit = size_t{4} * GB;
+#endif
+  CHECK_EQ(kExpectedHeapLimit, i_isolate->heap()->MaxOldGenerationSize());
+  CHECK_LT(size_t{3} * GB, i_isolate->heap()->MaxOldGenerationSize());
+  isolate->Dispose();
+}
+#endif
+
+UNINITIALIZED_TEST(HeapLimit) {
+  uint64_t kMemoryGB = 15;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.constraints.ConfigureDefaults(kMemoryGB * GB, kMemoryGB * GB);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+#if defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_OS_ANDROID)
+  size_t kExpectedHeapLimit = size_t{2} * GB;
+#else
+  size_t kExpectedHeapLimit = size_t{1} * GB;
+#endif
+  CHECK_EQ(kExpectedHeapLimit, i_isolate->heap()->MaxOldGenerationSize());
+  isolate->Dispose();
+}
+
+TEST(NoCodeRangeInJitlessMode) {
+  if (!FLAG_jitless) return;
+  CcTest::InitializeVM();
+  CHECK(
+      CcTest::i_isolate()->heap()->memory_allocator()->code_range().is_empty());
+}
+
+TEST(Regress978156) {
+  if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+
+  HandleScope handle_scope(CcTest::i_isolate());
+  Heap* heap = CcTest::i_isolate()->heap();
+
+  // 1. Ensure that the new space is empty.
+  CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
+  // 2. Fill the first page of the new space with FixedArrays.
+  std::vector<Handle<FixedArray>> arrays;
+  i::heap::FillCurrentPage(heap->new_space(), &arrays);
+  // 3. Trim the last array by one word thus creating a one-word filler.
+  Handle<FixedArray> last = arrays.back();
+  CHECK_GT(last->length(), 0);
+  heap->RightTrimFixedArray(*last, 1);
+  // 4. Get the last filler on the page.
+  HeapObject filler = HeapObject::FromAddress(
+      MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);
+  HeapObject::FromAddress(last->address() + last->Size());
+  CHECK(filler.IsFiller());
+  // 5. Start incremental marking.
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (marking->IsStopped()) {
+    marking->Start(i::GarbageCollectionReason::kTesting);
+  }
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  // 6. Mark the filler black to access its two markbits. This triggers
+  // an out-of-bounds access of the marking bitmap in a bad case.
+  marking_state->WhiteToGrey(filler);
+  marking_state->GreyToBlack(filler);
 }
 
 }  // namespace heap

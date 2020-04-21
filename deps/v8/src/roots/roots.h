@@ -7,6 +7,7 @@
 
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/objects-definitions.h"
 #include "src/objects/objects.h"
@@ -17,7 +18,7 @@ namespace internal {
 
 // Forward declarations.
 enum ElementsKind : uint8_t;
-class OffThreadFactory;
+class OffThreadIsolate;
 template <typename T>
 class Handle;
 class Heap;
@@ -83,6 +84,7 @@ class Symbol;
   V(Map, object_boilerplate_description_map, ObjectBoilerplateDescriptionMap)  \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, code_data_container_map, CodeDataContainerMap)                        \
+  V(Map, coverage_info_map, CoverageInfoMap)                                   \
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
@@ -241,7 +243,6 @@ class Symbol;
   V(FixedArray, materialized_objects, MaterializedObjects)                 \
   V(WeakArrayList, detached_contexts, DetachedContexts)                    \
   V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
-  V(WeakArrayList, retained_maps, RetainedMaps)                            \
   /* Feedback vectors that we need for code coverage or type profile */    \
   V(Object, feedback_vectors_for_profiling_tools,                          \
     FeedbackVectorsForProfilingTools)                                      \
@@ -250,8 +251,6 @@ class Symbol;
   V(TemplateList, message_listeners, MessageListeners)                     \
   /* Support for async stack traces */                                     \
   V(HeapObject, current_microtask, CurrentMicrotask)                       \
-  /* JSFinalizationGroup objects which need cleanup */                     \
-  V(Object, dirty_js_finalization_groups, DirtyJSFinalizationGroups)       \
   /* KeepDuringJob set for JS WeakRefs */                                  \
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
   V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
@@ -309,6 +308,7 @@ class Symbol;
   PUBLIC_SYMBOL_ROOT_LIST(V)       \
   WELL_KNOWN_SYMBOL_ROOT_LIST(V)   \
   STRUCT_MAPS_LIST(V)              \
+  TORQUE_INTERNAL_MAP_ROOT_LIST(V) \
   ALLOCATION_SITE_MAPS_LIST(V)     \
   DATA_HANDLER_MAPS_LIST(V)
 
@@ -480,7 +480,7 @@ class ReadOnlyRoots {
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
-  V8_INLINE explicit ReadOnlyRoots(OffThreadFactory* factory);
+  V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) \
   V8_INLINE class Type name() const;         \

@@ -78,6 +78,7 @@
       # Sanitizers.
       'V8 Linux64 ASAN': 'release_x64_asan',
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
+      'V8 Linux - arm64 - sim - CFI': 'release_simulate_arm64_cfi',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
       'V8 Linux gcc': 'release_x86_gcc',
@@ -98,6 +99,7 @@
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
       'V8 Linux - predictable': 'release_x86_predictable',
       'V8 Linux - full debug': 'full_debug_x86',
+      'V8 Mac64 - full debug': 'full_debug_x64',
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
     'client.v8.clusterfuzz': {
@@ -251,6 +253,7 @@
       'v8_mac64_rel_ng': 'release_x64_trybot',
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_dbg_ng': 'debug_x64',
+      'v8_mac64_compile_full_dbg_ng': 'full_debug_x64',
       'v8_mac64_asan_rel': 'release_x64_asan_no_lsan',
       'v8_linux_arm_rel_ng': 'release_simulate_arm_trybot',
       'v8_linux_arm_lite_rel_ng': 'release_simulate_arm_lite_trybot',
@@ -258,6 +261,7 @@
       'v8_linux_arm_armv8a_rel': 'release_simulate_arm_trybot',
       'v8_linux_arm_armv8a_dbg': 'debug_simulate_arm',
       'v8_linux_arm64_rel_ng': 'release_simulate_arm64_trybot',
+      'v8_linux_arm64_cfi_rel_ng' : 'release_simulate_arm64_cfi',
       'v8_linux_arm64_dbg': 'debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_dbg': 'debug_simulate_arm64',
       'v8_linux_mipsel_compile_rel': 'release_simulate_mipsel',
@@ -363,6 +367,8 @@
       'release_trybot', 'simulate_arm', 'v8_enable_lite_mode'],
     'release_simulate_arm64': [
       'release_bot', 'simulate_arm64'],
+    'release_simulate_arm64_cfi': [
+      'release_bot', 'simulate_arm64', 'v8_control_flow_integrity'],
     'release_simulate_arm64_pointer_compression': [
       # TODO(v8:v7703): Make pointer compression bots testing non pointer
       # compression mode while pointer compression is temporarily enabled
@@ -513,6 +519,8 @@
       'debug_trybot', 'x64'],
     'debug_x64_trybot_custom': [
       'debug_trybot', 'x64', 'v8_snapshot_custom'],
+    'full_debug_x64': [
+      'debug_bot', 'x64', 'v8_full_debug'],
 
     # Debug configs for x86.
     'debug_x86': [
@@ -774,6 +782,10 @@
     'v8_correctness_fuzzer': {
       'mixins': ['v8_enable_test_features'],
       'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
+    },
+
+    'v8_control_flow_integrity' : {
+      'gn_args': 'v8_control_flow_integrity=true',
     },
 
     'v8_enable_lite_mode': {

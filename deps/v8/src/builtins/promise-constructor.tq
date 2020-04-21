@@ -53,7 +53,7 @@ namespace promise {
     }
 
     // 2. If IsCallable(executor) is false, throw a TypeError exception.
-    if (!TaggedIsCallable(executor)) {
+    if (!Is<Callable>(executor)) {
       ThrowTypeError(MessageTemplate::kResolverNotAFunction, executor);
     }
 

@@ -26,12 +26,14 @@ namespace v8 {
 
 namespace internal {
 class JSArrayBufferView;
+class JSFinalizationRegistry;
 }  // namespace internal
 
 namespace debug {
 class AccessorPair;
 class GeneratorObject;
 class Script;
+class WasmValue;
 class WeakMap;
 }  // namespace debug
 
@@ -92,7 +94,7 @@ class RegisteredExtension {
   V(Data, Object)                              \
   V(RegExp, JSRegExp)                          \
   V(Object, JSReceiver)                        \
-  V(FinalizationGroup, JSFinalizationGroup)    \
+  V(FinalizationGroup, JSFinalizationRegistry) \
   V(Array, JSArray)                            \
   V(Map, JSMap)                                \
   V(Set, JSSet)                                \
@@ -128,6 +130,7 @@ class RegisteredExtension {
   V(debug::Script, Script)                     \
   V(debug::WeakMap, JSWeakMap)                 \
   V(debug::AccessorPair, AccessorPair)         \
+  V(debug::WasmValue, WasmValue)               \
   V(Promise, JSPromise)                        \
   V(Primitive, Object)                         \
   V(PrimitiveArray, FixedArray)                \
@@ -205,7 +208,7 @@ class Utils {
   static inline Local<BigUint64Array> ToLocalBigUint64Array(
       v8::internal::Handle<v8::internal::JSTypedArray> obj);
   static inline Local<FinalizationGroup> ToLocal(
-      v8::internal::Handle<v8::internal::JSFinalizationGroup> obj);
+      v8::internal::Handle<v8::internal::JSFinalizationRegistry> obj);
 
   static inline Local<SharedArrayBuffer> ToLocalShared(
       v8::internal::Handle<v8::internal::JSArrayBuffer> obj);
@@ -560,6 +563,11 @@ void InvokeAccessorGetterCallback(
 
 void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback);
+
+void InvokeFinalizationRegistryCleanupFromTask(
+    Handle<Context> context,
+    Handle<JSFinalizationRegistry> finalization_registry,
+    Handle<Object> callback);
 
 }  // namespace internal
 }  // namespace v8

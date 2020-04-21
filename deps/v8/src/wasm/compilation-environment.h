@@ -72,7 +72,7 @@ struct CompilationEnv {
                                : 0),
         max_memory_size((module && module->has_maximum_pages
                              ? module->maximum_pages
-                             : max_mem_pages()) *
+                             : max_initial_mem_pages()) *
                         uint64_t{kWasmPageSize}),
         enabled_features(enabled_features),
         lower_simd(lower_simd) {}

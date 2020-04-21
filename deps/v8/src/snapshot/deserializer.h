@@ -29,7 +29,7 @@ class Object;
 // of objects found in code.
 #if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
     defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390) ||    \
-    V8_EMBEDDED_CONSTANT_POOL
+    defined(V8_TARGET_ARCH_PPC64) || V8_EMBEDDED_CONSTANT_POOL
 #define V8_CODE_EMBEDS_OBJECT_POINTER 1
 #else
 #define V8_CODE_EMBEDS_OBJECT_POINTER 0
@@ -107,6 +107,7 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   }
 
   std::shared_ptr<BackingStore> backing_store(size_t i) {
+    DCHECK_LT(i, backing_stores_.size());
     return backing_stores_[i];
   }
 

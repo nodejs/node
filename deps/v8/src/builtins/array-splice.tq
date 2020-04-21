@@ -3,28 +3,35 @@
 // found in the LICENSE file.
 
 namespace array {
-  // Given {elements}, we want to create a non-zero length array of type
-  // FixedArrayType. Most of this behavior is outsourced to ExtractFixedArray(),
-  // but the special case of wanting to have a FixedDoubleArray when given a
-  // zero-length input FixedArray is handled here.
+  // Given {source}, we want to create a non-zero length array of type
+  // FixedArrayType with the specified {result_capacity}. Starting from
+  // {startIndex}, {count} number of elements are copied to the newly
+  // created result array. Most of this behavior is outsourced to
+  // ExtractFixedArray(). We handle the case where the {source} is
+  // EmptyFixedArray but result is expected to be a FixedDoubleArray.
   macro Extract(implicit context: Context)(
-      elements: FixedArray, first: Smi, count: Smi, capacity: Smi): FixedArray {
+      source: FixedArray, startIndex: Smi, count: Smi,
+      resultCapacity: Smi): FixedArray {
     return ExtractFixedArray(
-        elements, Convert<intptr>(first), Convert<intptr>(count),
-        Convert<intptr>(capacity));
+        source, Convert<intptr>(startIndex), Convert<intptr>(count),
+        Convert<intptr>(resultCapacity));
   }
 
   macro Extract(implicit context: Context)(
-      elements: FixedDoubleArray|EmptyFixedArray, first: Smi, count: Smi,
-      capacity: Smi): FixedDoubleArray|EmptyFixedArray {
-    typeswitch (elements) {
+      source: FixedDoubleArray|EmptyFixedArray, startIndex: Smi, count: Smi,
+      resultCapacity: Smi): FixedDoubleArray|EmptyFixedArray {
+    typeswitch (source) {
       case (EmptyFixedArray): {
-        return AllocateZeroedFixedDoubleArray(Convert<intptr>(capacity));
+        // ExtractFixedDoubleArray expects {source} to be a FixedDoubleArray.
+        // Handle the case where {source} is empty here.
+        return AllocateFixedDoubleArrayWithHoles(
+            Convert<intptr>(resultCapacity),
+            AllocationFlag::kAllowLargeObjectAllocation);
       }
-      case (elements: FixedDoubleArray): {
+      case (source: FixedDoubleArray): {
         return ExtractFixedDoubleArray(
-            elements, Convert<intptr>(first), Convert<intptr>(count),
-            Convert<intptr>(capacity));
+            source, Convert<intptr>(startIndex), Convert<intptr>(count),
+            Convert<intptr>(resultCapacity));
       }
     }
   }

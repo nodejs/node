@@ -153,7 +153,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void Ret() { b(r14); }
   void Ret(Condition cond) { b(cond, r14); }
 
-  void CallForDeoptimization(Address target, int deopt_id);
+  void CallForDeoptimization(Address target, int deopt_id, Label* exit,
+                             DeoptimizeKind kind);
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
@@ -178,7 +179,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Smi smi) { LoadSmiLiteral(dst, smi); }
-  void Move(Register dst, Handle<HeapObject> value);
+  void Move(Register dst, Handle<HeapObject> source,
+            RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
@@ -417,7 +419,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadDouble(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32(DoubleRegister dst, const MemOperand& opnd);
   void LoadFloat32ConvertToDouble(DoubleRegister dst, const MemOperand& mem);
-  void LoadSimd128(Simd128Register dst, const MemOperand& mem);
+  void LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                   Register scratch);
 
   void AddFloat32(DoubleRegister dst, const MemOperand& opnd,
                   DoubleRegister scratch);
@@ -449,7 +452,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreFloat32(DoubleRegister dst, const MemOperand& opnd);
   void StoreDoubleAsFloat32(DoubleRegister src, const MemOperand& mem,
                             DoubleRegister scratch);
-  void StoreSimd128(Simd128Register src, const MemOperand& mem);
+  void StoreSimd128(Simd128Register src, const MemOperand& mem,
+                    Register scratch);
 
   void Branch(Condition c, const Operand& opnd);
   void BranchOnCount(Register r1, Label* l);
@@ -782,19 +786,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SwapFloat32(DoubleRegister src, DoubleRegister dst,
                    DoubleRegister scratch);
   void SwapFloat32(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
-  void SwapFloat32(MemOperand src, MemOperand dst, DoubleRegister scratch_0,
-                   DoubleRegister scratch_1);
+  void SwapFloat32(MemOperand src, MemOperand dst, DoubleRegister scratch);
   void SwapDouble(DoubleRegister src, DoubleRegister dst,
                   DoubleRegister scratch);
   void SwapDouble(DoubleRegister src, MemOperand dst, DoubleRegister scratch);
-  void SwapDouble(MemOperand src, MemOperand dst, DoubleRegister scratch_0,
-                  DoubleRegister scratch_1);
+  void SwapDouble(MemOperand src, MemOperand dst, DoubleRegister scratch);
   void SwapSimd128(Simd128Register src, Simd128Register dst,
                    Simd128Register scratch);
   void SwapSimd128(Simd128Register src, MemOperand dst,
                    Simd128Register scratch);
-  void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch_0,
-                   Simd128Register scratch_1);
+  void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch);
 
   // Cleanse pointer address on 31bit by zero out top  bit.
   // This is a NOP on 64-bit.
@@ -849,6 +850,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void MovFromFloatResult(DoubleRegister dst);
 
   void Trap() override;
+  void DebugBreak() override;
 
   // Emit code for a truncating division by a constant. The dividend register is
   // unchanged and ip gets clobbered. Dividend and result must be different.
@@ -971,16 +973,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     // High bits must be identical to fit into an 32-bit integer
     cgfr(value, value);
   }
-  void SmiUntag(Register reg, int scale = 0) { SmiUntag(reg, reg, scale); }
+  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
 
-  void SmiUntag(Register dst, Register src, int scale = 0) {
-    if (scale > kSmiShift) {
-      ShiftLeftP(dst, src, Operand(scale - kSmiShift));
-    } else if (scale < kSmiShift) {
-      ShiftRightArithP(dst, src, Operand(kSmiShift - scale));
+  void SmiUntag(Register dst, const MemOperand& src);
+  void SmiUntag(Register dst, Register src) {
+    if (SmiValuesAre31Bits()) {
+      ShiftRightArith(dst, src, Operand(kSmiShift));
     } else {
-      // do nothing
+      ShiftRightArithP(dst, src, Operand(kSmiShift));
     }
+    lgfr(dst, dst);
   }
 
   // Activation support.
@@ -996,10 +998,49 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ComputeCodeStartAddress(Register dst);
   void LoadPC(Register dst);
 
+  // Control-flow integrity:
+
+  // Define a function entrypoint. This doesn't emit any code for this
+  // architecture, as control-flow integrity is not supported for it.
+  void CodeEntry() {}
+  // Define an exception handler.
+  void ExceptionHandler() {}
+  // Define an exception handler and bind a label.
+  void BindExceptionHandler(Label* label) { bind(label); }
+
   // Generates an instruction sequence s.t. the return address points to the
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
+
+  // ---------------------------------------------------------------------------
+  // Pointer compression Support
+
+  // Loads a field containing a HeapObject and decompresses it if pointer
+  // compression is enabled.
+  void LoadTaggedPointerField(const Register& destination,
+                              const MemOperand& field_operand,
+                              const Register& scratch = no_reg);
+
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadAnyTaggedField(const Register& destination,
+                          const MemOperand& field_operand,
+                          const Register& scratch = no_reg);
+
+  // Loads a field containing smi value and untags it.
+  void SmiUntagField(Register dst, const MemOperand& src);
+
+  // Compresses and stores tagged value to given on-heap location.
+  void StoreTaggedField(const Register& value,
+                        const MemOperand& dst_field_operand,
+                        const Register& scratch = no_reg);
+
+  void DecompressTaggedSigned(Register destination, MemOperand field_operand);
+  void DecompressTaggedSigned(Register destination, Register src);
+  void DecompressTaggedPointer(Register destination, MemOperand field_operand);
+  void DecompressTaggedPointer(Register destination, Register source);
+  void DecompressAnyTagged(Register destination, MemOperand field_operand);
+  void DecompressAnyTagged(Register destination, Register source);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
@@ -1070,6 +1111,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void PushRoot(RootIndex index) {
     LoadRoot(r0, index);
     Push(r0);
+  }
+
+  template <class T>
+  void CompareTagged(Register src1, T src2) {
+    if (COMPRESS_POINTERS_BOOL) {
+      Cmp32(src1, src2);
+    } else {
+      CmpP(src1, src2);
+    }
   }
 
   // Jump to a runtime routine.
@@ -1277,13 +1327,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void InvokePrologue(Register expected_parameter_count,
                       Register actual_parameter_count, Label* done,
                       InvokeFlag flag);
-
-  // Compute memory operands for safepoint stack slots.
-  static int SafepointRegisterStackIndex(int reg_code);
-
-  // Needs access to SafepointRegisterStackIndex for compiled frame
-  // traversal.
-  friend class StandardFrame;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };

@@ -752,6 +752,52 @@ WASM_EXEC_TEST(I64AtomicAddUseOnlyHighWord) {
   CHECK_EQ(0x12345678, r.Call());
 }
 
+WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyLowWord) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  memory[1] = 0x1234567890abcdeful;
+  r.builder().SetHasSharedMemory();
+  // Test that we can use just the low word of an I64AtomicLoad.
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange, WASM_I32V(8), WASM_I64V(1),
+               WASM_I64V(memory[1]), MachineRepresentation::kWord64)));
+  CHECK_EQ(0x90abcdef, r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyHighWord) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  memory[1] = 0x1234567890abcdeful;
+  r.builder().SetHasSharedMemory();
+  // Test that we can use just the high word of an I64AtomicLoad.
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_ROR(
+               WASM_ATOMICS_TERNARY_OP(
+                   kExprI64AtomicCompareExchange, WASM_I32V(8), WASM_I64V(1),
+                   WASM_I64V(memory[1]), MachineRepresentation::kWord64),
+               WASM_I64V(32))));
+  CHECK_EQ(0x12345678, r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicCompareExchange32UZeroExtended) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  memory[1] = 0;
+  r.builder().SetHasSharedMemory();
+  // Test that the high word of the expected value is cleared in the return
+  // value.
+  BUILD(r, WASM_I64_EQZ(WASM_ATOMICS_TERNARY_OP(
+               kExprI64AtomicCompareExchange32U, WASM_I32V(8),
+               WASM_I64V(0x1234567800000000), WASM_I64V(0),
+               MachineRepresentation::kWord32)));
+  CHECK_EQ(1, r.Call());
+}
+
 }  // namespace test_run_wasm_atomics_64
 }  // namespace wasm
 }  // namespace internal

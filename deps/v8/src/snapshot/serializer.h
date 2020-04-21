@@ -198,10 +198,10 @@ class Serializer : public SerializerDeserializer {
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
-  void SerializeRootObject(Object object);
+  void SerializeRootObject(FullObjectSlot slot);
 
   void PutRoot(RootIndex root_index, HeapObject object);
-  void PutSmi(Smi smi);
+  void PutSmiRoot(FullObjectSlot slot);
   void PutBackReference(HeapObject object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   // Emit alignment prefix if necessary, return required padding space in bytes.

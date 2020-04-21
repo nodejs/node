@@ -79,7 +79,7 @@ declare_args() {
   v8_enable_vtunetracemark = false
 
   # Sets -dENABLE_HANDLE_ZAPPING.
-  v8_enable_handle_zapping = is_debug
+  v8_enable_handle_zapping = true
 
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
@@ -107,7 +107,7 @@ declare_args() {
 
   # Enable pointer compression (sets -dV8_COMPRESS_POINTERS).
   v8_enable_pointer_compression = ""
-  v8_enable_31bit_smis_on_64bit_arch = true
+  v8_enable_31bit_smis_on_64bit_arch = false
 
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
@@ -128,7 +128,7 @@ declare_args() {
   v8_enable_concurrent_marking = true
 
   # Sets -dV8_ARRAY_BUFFER_EXTENSION
-  v8_enable_array_buffer_extension = false
+  v8_enable_array_buffer_extension = true
 
   # Enables various testing features.
   v8_enable_test_features = ""
@@ -211,6 +211,16 @@ declare_args() {
   # Enable additional targets necessary for verification of torque
   # file generation
   v8_verify_torque_generation_invariance = false
+
+  # Disable all snapshot compression.
+  v8_enable_snapshot_compression = true
+
+  # Enable control-flow integrity features, such as pointer authentication for
+  # ARM64.
+  v8_control_flow_integrity = false
+
+  # Enable object names in cppgc for debug purposes.
+  cppgc_enable_object_names = false
 }
 
 # Derived defaults.
@@ -270,6 +280,9 @@ assert(!v8_disable_write_barriers || v8_enable_single_generation,
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
        "Untrusted code mitigations are unsupported on ia32")
 
+assert(v8_current_cpu == "arm64" || !v8_control_flow_integrity,
+       "Control-flow integrity is only supported on arm64")
+
 assert(
     !v8_enable_pointer_compression || !v8_enable_shared_ro_heap,
     "Pointer compression is not supported with shared read-only heap enabled")
@@ -283,6 +296,8 @@ v8_toolset_for_shell = "host"
 
 config("internal_config_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  configs = [ ":v8_tracing_config" ]
 
   include_dirs = [
     ".",
@@ -305,6 +320,17 @@ config("internal_config") {
   }
 }
 
+# Should be applied to all targets that write trace events.
+config("v8_tracing_config") {
+  if (v8_use_perfetto) {
+    include_dirs = [
+      "third_party/perfetto/include",
+      "$root_gen_dir/third_party/perfetto",
+      "$root_gen_dir/third_party/perfetto/build_config",
+    ]
+  }
+}
+
 # This config should be applied to code using the libplatform.
 config("libplatform_config") {
   include_dirs = [ "include" ]
@@ -321,6 +347,14 @@ config("libbase_config") {
   libs = []
   if (is_android && current_toolchain != host_toolchain) {
     libs += [ "log" ]
+  }
+}
+
+# This config should be applied to code using the cppgc_base.
+config("cppgc_base_config") {
+  defines = []
+  if (cppgc_enable_object_names) {
+    defines += [ "CPPGC_SUPPORTS_OBJECT_NAMES" ]
   }
 }
 
@@ -501,6 +535,15 @@ config("features") {
   if (v8_enable_regexp_interpreter_threaded_dispatch) {
     defines += [ "V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH" ]
   }
+  if (v8_enable_snapshot_compression) {
+    defines += [ "V8_SNAPSHOT_COMPRESSION" ]
+  }
+  if (v8_control_flow_integrity) {
+    defines += [ "V8_ENABLE_CONTROL_FLOW_INTEGRITY" ]
+  }
+  if (v8_enable_wasm_gdb_remote_debugging) {
+    defines += [ "V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING" ]
+  }
 }
 
 config("toolchain") {
@@ -543,6 +586,12 @@ config("toolchain") {
   }
   if (v8_current_cpu == "arm64") {
     defines += [ "V8_TARGET_ARCH_ARM64" ]
+    if (v8_control_flow_integrity) {
+      # TODO(v8:10026): Enable this in src/build.
+      if (current_cpu == "arm64") {
+        cflags += [ "-mbranch-protection=standard" ]
+      }
+    }
   }
 
   # Mips64el/mipsel simulators.
@@ -593,7 +642,9 @@ config("toolchain") {
     if (v8_can_use_fpu_instructions) {
       defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
     }
-
+    if (mips_use_msa) {
+      defines += [ "_MIPS_MSA" ]
+    }
     if (host_byteorder == "little") {
       defines += [ "V8_TARGET_ARCH_MIPS64_LE" ]
     } else if (host_byteorder == "big") {
@@ -609,15 +660,13 @@ config("toolchain") {
     }
     if (mips_arch_variant == "r6") {
       defines += [ "_MIPS_ARCH_MIPS64R6" ]
-      if (mips_use_msa) {
-        defines += [ "_MIPS_MSA" ]
-      }
     } else if (mips_arch_variant == "r2") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
   }
   if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     defines += [ "V8_TARGET_ARCH_S390" ]
+    cflags += [ "-ffp-contract=off" ]
     if (v8_current_cpu == "s390x") {
       defines += [ "V8_TARGET_ARCH_S390X" ]
     }
@@ -628,8 +677,9 @@ config("toolchain") {
     }
   }
   if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    defines += [ "V8_TARGET_ARCH_PPC" ]
-    if (v8_current_cpu == "ppc64") {
+    if (v8_current_cpu == "ppc") {
+      defines += [ "V8_TARGET_ARCH_PPC" ]
+    } else if (v8_current_cpu == "ppc64") {
       defines += [ "V8_TARGET_ARCH_PPC64" ]
     }
     if (host_byteorder == "little") {
@@ -973,6 +1023,7 @@ torque_files = [
   "src/builtins/convert.tq",
   "src/builtins/console.tq",
   "src/builtins/data-view.tq",
+  "src/builtins/finalization-registry.tq",
   "src/builtins/frames.tq",
   "src/builtins/frame-arguments.tq",
   "src/builtins/growable-fixed-array.tq",
@@ -1062,6 +1113,7 @@ torque_files = [
   "src/objects/heap-number.tq",
   "src/objects/heap-object.tq",
   "src/objects/intl-objects.tq",
+  "src/objects/js-aggregate-error.tq",
   "src/objects/js-array-buffer.tq",
   "src/objects/js-array.tq",
   "src/objects/js-collection-iterator.tq",
@@ -1138,11 +1190,14 @@ template("run_torque") {
       "bit-fields-tq.h",
       "builtin-definitions-tq.h",
       "interface-descriptors-tq.inc",
+      "factory-tq.cc",
+      "factory-tq.inc",
       "field-offsets-tq.h",
       "class-verifiers-tq.cc",
       "class-verifiers-tq.h",
       "enum-verifiers-tq.cc",
       "objects-printer-tq.cc",
+      "objects-body-descriptors-tq-inl.h",
       "class-definitions-tq.cc",
       "class-definitions-tq-inl.h",
       "class-definitions-tq.h",
@@ -1228,6 +1283,7 @@ v8_source_set("torque_generated_initializers") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_tracing",
   ]
 
   public_deps = [ ":v8_maybe_icu" ]
@@ -1256,6 +1312,7 @@ v8_source_set("torque_generated_definitions") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_tracing",
   ]
 
   public_deps = [ ":v8_maybe_icu" ]
@@ -1264,6 +1321,7 @@ v8_source_set("torque_generated_definitions") {
     "$target_gen_dir/torque-generated/class-definitions-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.cc",
     "$target_gen_dir/torque-generated/class-verifiers-tq.h",
+    "$target_gen_dir/torque-generated/factory-tq.cc",
     "$target_gen_dir/torque-generated/objects-printer-tq.cc",
   ]
 
@@ -1631,9 +1689,14 @@ v8_source_set("v8_initializers") {
       ### gcmole(arch:mips64el) ###
       "src/builtins/mips64/builtins-mips64.cc",
     ]
-  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+  } else if (v8_current_cpu == "ppc") {
     sources += [
       ### gcmole(arch:ppc) ###
+      "src/builtins/ppc/builtins-ppc.cc",
+    ]
+  } else if (v8_current_cpu == "ppc64") {
+    sources += [
+      ### gcmole(arch:ppc64) ###
       "src/builtins/ppc/builtins-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
@@ -1684,6 +1747,7 @@ v8_header_set("v8_headers") {
   public_configs = [ ":v8_header_features" ]
 
   sources = [
+    "include/v8-fast-api-calls.h",
     "include/v8-internal.h",
     "include/v8.h",
     "include/v8config.h",
@@ -1865,7 +1929,6 @@ v8_compiler_sources = [
   "src/compiler/memory-optimizer.cc",
   "src/compiler/memory-optimizer.h",
   "src/compiler/node-aux-data.h",
-  "src/compiler/node-cache.cc",
   "src/compiler/node-cache.h",
   "src/compiler/node-marker.cc",
   "src/compiler/node-marker.h",
@@ -1957,6 +2020,7 @@ v8_source_set("v8_compiler_opt") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_maybe_icu",
+    ":v8_tracing",
   ]
 
   if (is_debug && !v8_optimized_debug && v8_enable_fast_mksnapshot) {
@@ -1981,6 +2045,7 @@ v8_source_set("v8_compiler") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_maybe_icu",
+    ":v8_tracing",
   ]
 
   configs = [ ":internal_config" ]
@@ -1991,6 +2056,18 @@ group("v8_compiler_for_mksnapshot") {
     deps = [ ":v8_compiler_opt" ]
   } else {
     deps = [ ":v8_compiler" ]
+  }
+}
+
+# Any target using trace events must directly or indirectly depend on
+# v8_tracing.
+group("v8_tracing") {
+  if (v8_use_perfetto) {
+    if (build_with_chromium) {
+      public_deps = [ "//third_party/perfetto:libperfetto" ]
+    } else {
+      public_deps = [ ":v8_libperfetto" ]
+    }
   }
 }
 
@@ -2005,6 +2082,7 @@ v8_source_set("v8_base_without_compiler") {
 
     ### gcmole(all) ###
     "$target_gen_dir/builtins-generated/bytecodes-builtins-list.h",
+    "include/v8-fast-api-calls.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
     "include/v8-internal.h",
@@ -2072,7 +2150,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-json.cc",
     "src/builtins/builtins-number.cc",
     "src/builtins/builtins-object.cc",
-    "src/builtins/builtins-promise.cc",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-reflect.cc",
     "src/builtins/builtins-regexp.cc",
@@ -2235,6 +2312,9 @@ v8_source_set("v8_base_without_compiler") {
     "src/execution/messages.h",
     "src/execution/microtask-queue.cc",
     "src/execution/microtask-queue.h",
+    "src/execution/off-thread-isolate.cc",
+    "src/execution/off-thread-isolate.h",
+    "src/execution/pointer-authentication.h",
     "src/execution/protectors-inl.h",
     "src/execution/protectors.cc",
     "src/execution/protectors.h",
@@ -2273,8 +2353,13 @@ v8_source_set("v8_base_without_compiler") {
     "src/handles/handles-inl.h",
     "src/handles/handles.cc",
     "src/handles/handles.h",
+    "src/handles/local-handles-inl.h",
+    "src/handles/local-handles.cc",
+    "src/handles/local-handles.h",
     "src/handles/maybe-handles-inl.h",
     "src/handles/maybe-handles.h",
+    "src/handles/persistent-handles.cc",
+    "src/handles/persistent-handles.h",
     "src/heap/array-buffer-collector.cc",
     "src/heap/array-buffer-collector.h",
     "src/heap/array-buffer-sweeper.cc",
@@ -2289,6 +2374,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/code-stats.h",
     "src/heap/combined-heap.cc",
     "src/heap/combined-heap.h",
+    "src/heap/concurrent-allocator-inl.h",
+    "src/heap/concurrent-allocator.h",
     "src/heap/concurrent-marking.cc",
     "src/heap/concurrent-marking.h",
     "src/heap/embedder-tracing.cc",
@@ -2298,6 +2385,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/factory-inl.h",
     "src/heap/factory.cc",
     "src/heap/factory.h",
+    "src/heap/finalization-registry-cleanup-task.cc",
+    "src/heap/finalization-registry-cleanup-task.h",
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-idle-time-handler.h",
     "src/heap/gc-tracer.cc",
@@ -2321,6 +2410,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/item-parallel-job.h",
     "src/heap/local-allocator-inl.h",
     "src/heap/local-allocator.h",
+    "src/heap/local-heap.cc",
+    "src/heap/local-heap.h",
     "src/heap/mark-compact-inl.h",
     "src/heap/mark-compact.cc",
     "src/heap/mark-compact.h",
@@ -2346,6 +2437,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/read-only-heap.cc",
     "src/heap/read-only-heap.h",
     "src/heap/remembered-set.h",
+    "src/heap/safepoint.cc",
+    "src/heap/safepoint.h",
     "src/heap/scavenge-job.cc",
     "src/heap/scavenge-job.h",
     "src/heap/scavenger-inl.h",
@@ -2446,6 +2539,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/logging/log-utils.h",
     "src/logging/log.cc",
     "src/logging/log.h",
+    "src/logging/off-thread-logger.h",
     "src/numbers/bignum-dtoa.cc",
     "src/numbers/bignum-dtoa.h",
     "src/numbers/bignum.cc",
@@ -2536,6 +2630,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/internal-index.h",
     "src/objects/intl-objects.cc",
     "src/objects/intl-objects.h",
+    "src/objects/js-aggregate-error-inl.h",
+    "src/objects/js-aggregate-error.h",
     "src/objects/js-array-buffer-inl.h",
     "src/objects/js-array-buffer.cc",
     "src/objects/js-array-buffer.h",
@@ -2688,6 +2784,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/tagged-impl-inl.h",
     "src/objects/tagged-impl.cc",
     "src/objects/tagged-impl.h",
+    "src/objects/tagged-index.h",
     "src/objects/tagged-value-inl.h",
     "src/objects/tagged-value.h",
     "src/objects/template-objects-inl.h",
@@ -2773,6 +2870,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/regexp/regexp-compiler.h",
     "src/regexp/regexp-dotprinter.cc",
     "src/regexp/regexp-dotprinter.h",
+    "src/regexp/regexp-error.cc",
+    "src/regexp/regexp-error.h",
     "src/regexp/regexp-interpreter.cc",
     "src/regexp/regexp-interpreter.h",
     "src/regexp/regexp-macro-assembler-arch.h",
@@ -2823,6 +2922,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-typedarray.cc",
     "src/runtime/runtime-utils.h",
     "src/runtime/runtime-wasm.cc",
+    "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
     "src/runtime/runtime.h",
     "src/sanitizer/asan.h",
@@ -2858,6 +2958,8 @@ v8_source_set("v8_base_without_compiler") {
     "src/snapshot/serializer.cc",
     "src/snapshot/serializer.h",
     "src/snapshot/snapshot-common.cc",
+    "src/snapshot/snapshot-compression.cc",
+    "src/snapshot/snapshot-compression.h",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
     "src/snapshot/snapshot.h",
@@ -2959,11 +3061,14 @@ v8_source_set("v8_base_without_compiler") {
     "src/wasm/signature-map.h",
     "src/wasm/streaming-decoder.cc",
     "src/wasm/streaming-decoder.h",
+    "src/wasm/struct-types.h",
     "src/wasm/value-type.h",
     "src/wasm/wasm-arguments.h",
     "src/wasm/wasm-code-manager.cc",
     "src/wasm/wasm-code-manager.h",
     "src/wasm/wasm-constants.h",
+    "src/wasm/wasm-debug-evaluate.cc",
+    "src/wasm/wasm-debug-evaluate.h",
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-engine.cc",
     "src/wasm/wasm-engine.h",
@@ -3010,8 +3115,31 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone.h",
   ]
 
+  if (!v8_control_flow_integrity) {
+    sources += [ "src/execution/pointer-authentication-dummy.h" ]
+  }
+
   if (v8_enable_third_party_heap) {
     sources += v8_third_party_heap_files
+  }
+
+  if (v8_enable_wasm_gdb_remote_debugging) {
+    sources += [
+      "src/debug/wasm/gdb-server/gdb-remote-util.cc",
+      "src/debug/wasm/gdb-server/gdb-remote-util.h",
+      "src/debug/wasm/gdb-server/gdb-server-thread.cc",
+      "src/debug/wasm/gdb-server/gdb-server-thread.h",
+      "src/debug/wasm/gdb-server/gdb-server.cc",
+      "src/debug/wasm/gdb-server/gdb-server.h",
+      "src/debug/wasm/gdb-server/packet.cc",
+      "src/debug/wasm/gdb-server/packet.h",
+      "src/debug/wasm/gdb-server/session.cc",
+      "src/debug/wasm/gdb-server/session.h",
+      "src/debug/wasm/gdb-server/target.cc",
+      "src/debug/wasm/gdb-server/target.h",
+      "src/debug/wasm/gdb-server/transport.cc",
+      "src/debug/wasm/gdb-server/transport.h",
+    ]
   }
 
   if (v8_check_header_includes) {
@@ -3167,6 +3295,9 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
       "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
+    if (v8_control_flow_integrity) {
+      sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
+    }
     if (is_win) {
       sources += [
         "src/diagnostics/unwinding-info-win64.cc",
@@ -3227,8 +3358,38 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
       "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
-  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+  } else if (v8_current_cpu == "ppc") {
     sources += [  ### gcmole(arch:ppc) ###
+      "src/codegen/ppc/assembler-ppc-inl.h",
+      "src/codegen/ppc/assembler-ppc.cc",
+      "src/codegen/ppc/assembler-ppc.h",
+      "src/codegen/ppc/constants-ppc.cc",
+      "src/codegen/ppc/constants-ppc.h",
+      "src/codegen/ppc/cpu-ppc.cc",
+      "src/codegen/ppc/interface-descriptors-ppc.cc",
+      "src/codegen/ppc/macro-assembler-ppc.cc",
+      "src/codegen/ppc/macro-assembler-ppc.h",
+      "src/codegen/ppc/register-ppc.h",
+      "src/compiler/backend/ppc/code-generator-ppc.cc",
+      "src/compiler/backend/ppc/instruction-codes-ppc.h",
+      "src/compiler/backend/ppc/instruction-scheduler-ppc.cc",
+      "src/compiler/backend/ppc/instruction-selector-ppc.cc",
+      "src/compiler/backend/ppc/unwinding-info-writer-ppc.cc",
+      "src/compiler/backend/ppc/unwinding-info-writer-ppc.h",
+      "src/debug/ppc/debug-ppc.cc",
+      "src/deoptimizer/ppc/deoptimizer-ppc.cc",
+      "src/diagnostics/ppc/disasm-ppc.cc",
+      "src/diagnostics/ppc/eh-frame-ppc.cc",
+      "src/execution/ppc/frame-constants-ppc.cc",
+      "src/execution/ppc/frame-constants-ppc.h",
+      "src/execution/ppc/simulator-ppc.cc",
+      "src/execution/ppc/simulator-ppc.h",
+      "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
+      "src/regexp/ppc/regexp-macro-assembler-ppc.h",
+      "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
+    ]
+  } else if (v8_current_cpu == "ppc64") {
+    sources += [  ### gcmole(arch:ppc64) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
       "src/codegen/ppc/assembler-ppc.cc",
       "src/codegen/ppc/assembler-ppc.h",
@@ -3298,6 +3459,7 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_libbase",
     ":v8_libsampler",
     ":v8_shared_internal_headers",
+    ":v8_tracing",
     ":v8_version",
     "src/inspector:inspector",
   ]
@@ -3357,7 +3519,10 @@ v8_source_set("v8_base_without_compiler") {
     ]
   }
 
-  deps += [ "//third_party/zlib" ]
+  deps += [
+    "//third_party/zlib",
+    "//third_party/zlib/google:compression_utils_portable",
+  ]
 
   if (v8_postmortem_support) {
     sources += [ "$target_gen_dir/debug-support.cc" ]
@@ -3385,6 +3550,14 @@ v8_source_set("v8_base_without_compiler") {
       "src/extensions/vtunedomain-support-extension.h",
     ]
     deps += [ "src/third_party/vtune:v8_vtune_trace_mark" ]
+  }
+
+  if (v8_use_perfetto) {
+    sources -= [ "//base/trace_event/common/trace_event_common.h" ]
+    sources += [
+      "src/tracing/trace-categories.cc",
+      "src/tracing/trace-categories.h",
+    ]
   }
 }
 
@@ -3519,6 +3692,7 @@ v8_component("v8_libbase") {
     "src/base/atomicops_internals_std.h",
     "src/base/base-export.h",
     "src/base/bit-field.h",
+    "src/base/bits-iterator.h",
     "src/base/bits.cc",
     "src/base/bits.h",
     "src/base/bounded-page-allocator.cc",
@@ -3747,20 +3921,25 @@ v8_component("v8_libplatform") {
   deps = [
     ":v8_headers",
     ":v8_libbase",
+    ":v8_tracing",
   ]
+
   if (v8_use_perfetto) {
+    sources -= [
+      "//base/trace_event/common/trace_event_common.h",
+      "src/libplatform/tracing/trace-buffer.cc",
+      "src/libplatform/tracing/trace-buffer.h",
+      "src/libplatform/tracing/trace-object.cc",
+      "src/libplatform/tracing/trace-writer.cc",
+      "src/libplatform/tracing/trace-writer.h",
+    ]
     sources += [
-      "src/libplatform/tracing/json-trace-event-listener.cc",
-      "src/libplatform/tracing/json-trace-event-listener.h",
       "src/libplatform/tracing/trace-event-listener.cc",
       "src/libplatform/tracing/trace-event-listener.h",
     ]
     deps += [
+      # TODO(skyostil): Switch TraceEventListener to protozero.
       "//third_party/perfetto/protos/perfetto/trace:lite",
-      "//third_party/perfetto/protos/perfetto/trace/chrome:minimal_complete_lite",
-      "//third_party/perfetto/protos/perfetto/trace/chrome:zero",
-      "//third_party/perfetto/src/tracing:client_api",
-      "//third_party/perfetto/src/tracing:platform_posix",
     ]
   }
 }
@@ -3788,13 +3967,103 @@ v8_source_set("fuzzer_support") {
 
   configs = [ ":internal_config_base" ]
 
-  deps = [ ":v8" ]
-
   public_deps = [
+    ":v8",
     ":v8_libbase",
     ":v8_libplatform",
     ":v8_maybe_icu",
   ]
+}
+
+v8_source_set("cppgc_base") {
+  visibility = [ ":*" ]
+
+  sources = [
+    "include/cppgc/allocation.h",
+    "include/cppgc/garbage-collected.h",
+    "include/cppgc/heap.h",
+    "include/cppgc/internal/accessors.h",
+    "include/cppgc/internal/api-contants.h",
+    "include/cppgc/internal/compiler-specific.h",
+    "include/cppgc/internal/finalizer-traits.h",
+    "include/cppgc/internal/gc-info.h",
+    "include/cppgc/internal/persistent-node.h",
+    "include/cppgc/internal/pointer-policies.h",
+    "include/cppgc/internal/prefinalizer-handler.h",
+    "include/cppgc/liveness-broker.h",
+    "include/cppgc/liveness-broker.h",
+    "include/cppgc/macros.h",
+    "include/cppgc/member.h",
+    "include/cppgc/persistent.h",
+    "include/cppgc/platform.h",
+    "include/cppgc/prefinalizer.h",
+    "include/cppgc/source-location.h",
+    "include/cppgc/trace-trait.h",
+    "include/cppgc/type-traits.h",
+    "include/cppgc/visitor.h",
+    "include/v8config.h",
+    "src/heap/cppgc/allocation.cc",
+    "src/heap/cppgc/gc-info-table.cc",
+    "src/heap/cppgc/gc-info-table.h",
+    "src/heap/cppgc/gc-info.cc",
+    "src/heap/cppgc/heap-inl.h",
+    "src/heap/cppgc/heap-object-header-inl.h",
+    "src/heap/cppgc/heap-object-header.cc",
+    "src/heap/cppgc/heap-object-header.h",
+    "src/heap/cppgc/heap-page.cc",
+    "src/heap/cppgc/heap-page.h",
+    "src/heap/cppgc/heap.cc",
+    "src/heap/cppgc/heap.h",
+    "src/heap/cppgc/liveness-broker.cc",
+    "src/heap/cppgc/logging.cc",
+    "src/heap/cppgc/page-memory-inl.h",
+    "src/heap/cppgc/page-memory.cc",
+    "src/heap/cppgc/page-memory.h",
+    "src/heap/cppgc/persistent-node.cc",
+    "src/heap/cppgc/platform.cc",
+    "src/heap/cppgc/pointer-policies.cc",
+    "src/heap/cppgc/prefinalizer-handler.cc",
+    "src/heap/cppgc/prefinalizer-handler.h",
+    "src/heap/cppgc/sanitizers.h",
+    "src/heap/cppgc/source-location.cc",
+    "src/heap/cppgc/stack.cc",
+    "src/heap/cppgc/stack.h",
+  ]
+
+  if (is_clang || !is_win) {
+    if (target_cpu == "x64") {
+      sources += [ "src/heap/cppgc/asm/x64/push_registers_asm.cc" ]
+    } else if (target_cpu == "x86") {
+      sources += [ "src/heap/cppgc/asm/ia32/push_registers_asm.cc" ]
+    } else if (target_cpu == "arm") {
+      sources += [ "src/heap/cppgc/asm/arm/push_registers_asm.cc" ]
+    } else if (target_cpu == "arm64") {
+      sources += [ "src/heap/cppgc/asm/arm64/push_registers_asm.cc" ]
+    } else if (target_cpu == "ppc64") {
+      sources += [ "src/heap/cppgc/asm/ppc/push_registers_asm.cc" ]
+    } else if (target_cpu == "s390x") {
+      sources += [ "src/heap/cppgc/asm/s390/push_registers_asm.cc" ]
+    } else if (target_cpu == "mipsel") {
+      sources += [ "src/heap/cppgc/asm/mips/push_registers_asm.cc" ]
+    } else if (target_cpu == "mips64el") {
+      sources += [ "src/heap/cppgc/asm/mips64/push_registers_asm.cc" ]
+    }
+  } else if (is_win) {
+    if (target_cpu == "x64") {
+      sources += [ "src/heap/cppgc/asm/x64/push_registers_masm.S" ]
+    } else if (target_cpu == "x86") {
+      sources += [ "src/heap/cppgc/asm/ia32/push_registers_masm.S" ]
+    } else if (target_cpu == "arm64") {
+      sources += [ "src/heap/cppgc/asm/arm64/push_registers_masm.S" ]
+    }
+  }
+
+  configs = [
+    ":internal_config",
+    ":cppgc_base_config",
+  ]
+
+  public_deps = [ ":v8_libbase" ]
 }
 
 ###############################################################################
@@ -3841,6 +4110,12 @@ v8_static_library("wee8") {
     "third_party/wasm-api/wasm.h",
     "third_party/wasm-api/wasm.hh",
   ]
+}
+
+v8_static_library("cppgc") {
+  deps = [ ":cppgc_base" ]
+
+  configs = [ ":internal_config" ]
 }
 
 ###############################################################################
@@ -4074,7 +4349,7 @@ group("v8_archive") {
 if (is_fuchsia && !build_with_chromium) {
   import("//build/config/fuchsia/rules.gni")
 
-  fuchsia_package("d8_fuchsia_pkg") {
+  cr_fuchsia_package("d8_fuchsia_pkg") {
     testonly = true
     binary = ":d8"
     package_name_override = "d8"
@@ -4134,6 +4409,15 @@ if (is_component_build) {
 
     public_configs = [ ":external_config" ]
   }
+
+  v8_component("cppgc_for_testing") {
+    testonly = true
+
+    public_deps = [ ":cppgc_base" ]
+
+    configs = [ ":internal_config" ]
+    public_configs = [ ":external_config" ]
+  }
 } else {
   group("v8") {
     public_deps = [
@@ -4157,6 +4441,14 @@ if (is_component_build) {
 
     public_configs = [ ":external_config" ]
   }
+
+  group("cppgc_for_testing") {
+    testonly = true
+
+    public_deps = [ ":cppgc_base" ]
+
+    public_configs = [ ":external_config" ]
+  }
 }
 
 v8_executable("d8") {
@@ -4177,12 +4469,14 @@ v8_executable("d8") {
     # the :external_config applied to it by virtue of depending on :v8, and
     # you can't have both applied to the same target.
     ":internal_config_base",
+    ":v8_tracing_config",
   ]
 
   deps = [
     ":v8",
     ":v8_libbase",
     ":v8_libplatform",
+    ":v8_tracing",
     "//build/win:default_exe_manifest",
   ]
 
@@ -4200,10 +4494,6 @@ v8_executable("d8") {
 
   if (v8_enable_vtunejit) {
     deps += [ "src/third_party/vtune:v8_vtune" ]
-  }
-
-  if (v8_use_perfetto) {
-    deps += [ "//third_party/perfetto/include/perfetto/tracing" ]
   }
 }
 
@@ -4360,6 +4650,7 @@ v8_source_set("wasm_module_runner") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_tracing",
   ]
 
   public_deps = [ ":v8_maybe_icu" ]
@@ -4436,6 +4727,7 @@ v8_source_set("lib_wasm_fuzzer_common") {
   deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_tracing",
   ]
 
   public_deps = [ ":v8_maybe_icu" ]
@@ -4518,7 +4810,7 @@ if (!build_with_chromium && v8_use_perfetto) {
         "-Wno-tautological-constant-compare",
       ]
     }
-    if (is_win) {
+    if (is_win && is_clang) {
       cflags += [ "-Wno-microsoft-unqualified-friend" ]
     }
   }
@@ -4677,4 +4969,21 @@ if (!build_with_chromium && v8_use_perfetto) {
       configs += [ "//build/config/compiler:no_chromium_code" ]
     }
   }  # host_toolchain
+
+  v8_component("v8_libperfetto") {
+    configs = [ ":v8_tracing_config" ]
+    public_configs = [ "//third_party/perfetto/gn:public_config" ]
+    deps = [
+      "//third_party/perfetto/src/trace_processor:export_json",
+      "//third_party/perfetto/src/trace_processor:storage_minimal",
+      "//third_party/perfetto/src/tracing:client_api",
+      "//third_party/perfetto/src/tracing/core",
+
+      # TODO(skyostil): Support non-POSIX platforms.
+      "//third_party/perfetto/protos/perfetto/config:cpp",
+      "//third_party/perfetto/protos/perfetto/trace/track_event:zero",
+      "//third_party/perfetto/src/tracing:in_process_backend",
+      "//third_party/perfetto/src/tracing:platform_posix",
+    ]
+  }
 }  # if (!build_with_chromium && v8_use_perfetto)

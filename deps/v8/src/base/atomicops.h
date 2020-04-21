@@ -57,77 +57,66 @@ using Atomic64 = intptr_t;
 using AtomicWord = intptr_t;
 
 // Atomically execute:
-//      result = *ptr;
-//      if (*ptr == old_value)
-//        *ptr = new_value;
-//      return result;
+//   result = *ptr;
+//   if (result == old_value)
+//     *ptr = new_value;
+//   return result;
 //
-// I.e., replace "*ptr" with "new_value" if "*ptr" used to be "old_value".
-// Always return the old value of "*ptr"
-//
-// This routine implies no memory barriers.
+// I.e. replace |*ptr| with |new_value| if |*ptr| used to be |old_value|.
+// Always return the value of |*ptr| before the operation.
+// Acquire, Relaxed, Release correspond to standard C++ memory orders.
 Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr, Atomic16 old_value,
                                 Atomic16 new_value);
-Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,
-                                Atomic32 new_value);
-
-// Atomically store new_value into *ptr, returning the previous value held in
-// *ptr.  This routine implies no memory barriers.
-Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr, Atomic32 new_value);
-
-// Atomically increment *ptr by "increment".  Returns the new value of
-// *ptr with the increment applied.  This routine implies no memory barriers.
-Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr, Atomic32 increment);
-
-Atomic32 Barrier_AtomicIncrement(volatile Atomic32* ptr,
-                                 Atomic32 increment);
-
-// These following lower-level operations are typically useful only to people
-// implementing higher-level synchronization operations like spinlocks,
-// mutexes, and condition-variables.  They combine CompareAndSwap(), a load,
-// or a store with appropriate memory-ordering instructions.  "Acquire"
-// operations ensure that no later memory access can be reordered ahead of the
-// operation. "Release" operations ensure that no previous memory access can
-// be reordered after the operation.  "Fence" operations have both "Acquire"
-// and "Release" semantics. A SeqCst_MemoryFence() has "Fence" semantics, but
-// does no memory access.
-Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
-                                Atomic32 old_value,
-                                Atomic32 new_value);
-Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
-                                Atomic32 old_value,
+Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,
                                 Atomic32 new_value);
 Atomic32 AcquireRelease_CompareAndSwap(volatile Atomic32* ptr,
                                        Atomic32 old_value, Atomic32 new_value);
+Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,
+                                Atomic32 new_value);
+Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr, Atomic32 old_value,
+                                Atomic32 new_value);
+#ifdef V8_HOST_ARCH_64_BIT
+Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
+                                Atomic64 new_value);
+Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
+                                       Atomic64 old_value, Atomic64 new_value);
+Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
+                                Atomic64 new_value);
+Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
+                                Atomic64 new_value);
+#endif  // V8_HOST_ARCH_64_BIT
+
+// Atomically store new_value into |*ptr|, returning the previous value held in
+// |*ptr|.
+Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr, Atomic32 new_value);
+#ifdef V8_HOST_ARCH_64_BIT
+Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr, Atomic64 new_value);
+#endif  // V8_HOST_ARCH_64_BIT
+
+// Atomically increment |*ptr| by |increment|. Returns the new value of
+// |*ptr| with the increment applied.
+Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr, Atomic32 increment);
+
+#ifdef V8_HOST_ARCH_64_BIT
+Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
+#endif  // V8_HOST_ARCH_64_BIT
 
 void SeqCst_MemoryFence();
+
 void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value);
 void Relaxed_Store(volatile Atomic16* ptr, Atomic16 value);
 void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value);
 void Release_Store(volatile Atomic32* ptr, Atomic32 value);
+#ifdef V8_HOST_ARCH_64_BIT
+void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value);
+void Release_Store(volatile Atomic64* ptr, Atomic64 value);
+#endif  // V8_HOST_ARCH_64_BIT
 
 Atomic8 Relaxed_Load(volatile const Atomic8* ptr);
 Atomic16 Relaxed_Load(volatile const Atomic16* ptr);
 Atomic32 Relaxed_Load(volatile const Atomic32* ptr);
 Atomic32 Acquire_Load(volatile const Atomic32* ptr);
-
-// 64-bit atomic operations (only available on 64-bit processors).
 #ifdef V8_HOST_ARCH_64_BIT
-Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
-                                Atomic64 new_value);
-Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr, Atomic64 new_value);
-Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
-Atomic64 Barrier_AtomicIncrement(volatile Atomic64* ptr, Atomic64 increment);
-
-Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
-                                Atomic64 old_value,
-                                Atomic64 new_value);
-Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr, Atomic64 old_value,
-                                Atomic64 new_value);
-Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
-                                       Atomic64 old_value, Atomic64 new_value);
-void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value);
-void Release_Store(volatile Atomic64* ptr, Atomic64 value);
 Atomic64 Relaxed_Load(volatile const Atomic64* ptr);
 Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 #endif  // V8_HOST_ARCH_64_BIT

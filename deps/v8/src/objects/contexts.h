@@ -42,11 +42,6 @@ enum ContextLookupFlags {
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal) \
   V(ASYNC_MODULE_EVALUATE_INTERNAL, JSFunction,                   \
     async_module_evaluate_internal)                               \
-  V(MAKE_ERROR_INDEX, JSFunction, make_error)                     \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)         \
-  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)       \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)           \
-  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)             \
   V(OBJECT_CREATE, JSFunction, object_create)                     \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)               \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)       \
@@ -54,7 +49,6 @@ enum ContextLookupFlags {
   V(MATH_POW_INDEX, JSFunction, math_pow)                         \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,               \
     promise_internal_constructor)                                 \
-  V(IS_PROMISE_INDEX, JSFunction, is_promise)                     \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
@@ -63,6 +57,9 @@ enum ContextLookupFlags {
   /* it's already UBSan-fiendly and doesn't require a star... So declare */    \
   /* it as a HeapObject for now. */                                            \
   V(EMBEDDER_DATA_INDEX, HeapObject, embedder_data)                            \
+  V(CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX, HeapObject,                    \
+    continuation_preserved_embedder_data)                                      \
+  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                                        \
   /* Below is alpha-sorted */                                                  \
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
@@ -188,13 +185,11 @@ enum ContextLookupFlags {
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
   V(WEAK_CELL_MAP_INDEX, Map, weak_cell_map)                                   \
-  V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_MAP_INDEX, Map,                     \
-    js_finalization_group_cleanup_iterator_map)                                \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
-  V(JS_FINALIZATION_GROUP_FUNCTION_INDEX, JSFunction,                          \
-    js_finalization_group_fun)                                                 \
+  V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
+    js_finalization_registry_fun)                                              \
   /* Context maps */                                                           \
   V(NATIVE_CONTEXT_MAP_INDEX, Map, native_context_map)                         \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
@@ -340,14 +335,18 @@ enum ContextLookupFlags {
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                          \
   V(ERROR_TO_STRING, JSFunction, error_to_string)                              \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)                \
+  V(AGGREGATE_ERROR_FUNCTION_INDEX, JSFunction, aggregate_error_function)      \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(GLOBAL_PROXY_FUNCTION_INDEX, JSFunction, global_proxy_function)            \
   V(MAP_DELETE_INDEX, JSFunction, map_delete)                                  \
   V(MAP_GET_INDEX, JSFunction, map_get)                                        \
   V(MAP_HAS_INDEX, JSFunction, map_has)                                        \
   V(MAP_SET_INDEX, JSFunction, map_set)                                        \
+  V(FINALIZATION_REGISTRY_CLEANUP_SOME, JSFunction,                            \
+    finalization_registry_cleanup_some)                                        \
   V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)            \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \
+  V(OBJECT_VALUE_OF_FUNCTION_INDEX, JSFunction, object_value_of_function)      \
   V(PROMISE_ALL_INDEX, JSFunction, promise_all)                                \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                            \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                      \
@@ -367,8 +366,8 @@ enum ContextLookupFlags {
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
-  V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)                      \
-  NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)
+  V(RETAINED_MAPS, WeakArrayList, retained_maps)                               \
+  V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)
 
 // A table of all script contexts. Every loaded top-level script with top-level
 // lexical declarations contributes its ScriptContext into this table.
@@ -506,6 +505,10 @@ class Context : public HeapObject {
   V8_INLINE static constexpr int SlotOffset(int index) {
     return SizeFor(index) - kHeapObjectTag;
   }
+
+  // Initializes the variable slots of the context. Lexical variables that need
+  // initialization are filled with the hole.
+  void Initialize(Isolate* isolate);
 
   // TODO(ishell): eventually migrate to the offset based access instead of
   // index-based.
@@ -679,8 +682,6 @@ class Context : public HeapObject {
 #endif
 
   OBJECT_CONSTRUCTORS(Context, HeapObject);
-  DECL_INT_ACCESSORS(length_and_extension_flag)
-  DECL_SYNCHRONIZED_INT_ACCESSORS(length_and_extension_flag)
 };
 
 class NativeContext : public Context {

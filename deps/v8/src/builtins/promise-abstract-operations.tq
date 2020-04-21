@@ -40,7 +40,8 @@ namespace promise {
   EnqueueMicrotask(Context, Microtask): Undefined;
 
   macro
-  ExtractHandlerContext(implicit context: Context)(handler: Callable|Undefined):
+  ExtractHandlerContextInternal(implicit context: Context)(handler: Callable|
+                                                           Undefined):
       Context labels NotFound {
     let iter: JSAny = handler;
     while (true) {
@@ -62,16 +63,25 @@ namespace promise {
     goto NotFound;
   }
 
-  // According to the HTML specification, we use the handler's context to
-  // EnqueueJob for Promise resolution.
+  macro
+  ExtractHandlerContext(implicit context: Context)(handler: Callable|
+                                                   Undefined): Context {
+    try {
+      return ExtractHandlerContextInternal(handler) otherwise NotFound;
+    }
+    label NotFound deferred {
+      return context;
+    }
+  }
+
   macro
   ExtractHandlerContext(implicit context: Context)(
       primary: Callable|Undefined, secondary: Callable|Undefined): Context {
     try {
-      return ExtractHandlerContext(primary) otherwise NotFound;
+      return ExtractHandlerContextInternal(primary) otherwise NotFound;
     }
     label NotFound deferred {
-      return ExtractHandlerContext(secondary) otherwise Default;
+      return ExtractHandlerContextInternal(secondary) otherwise Default;
     }
     label Default deferred {
       return context;
@@ -92,6 +102,9 @@ namespace promise {
       secondaryHandler = promiseReaction.fulfill_handler;
     }
 
+    // According to HTML, we use the context of the appropriate handler as the
+    // context of the microtask. See step 3 of HTML's EnqueueJob:
+    // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
     const handlerContext: Context =
         ExtractHandlerContext(primaryHandler, secondaryHandler);
 
@@ -102,7 +115,8 @@ namespace promise {
         kPromiseReactionSize ==
         kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks);
     if constexpr (reactionType == kPromiseReactionFulfill) {
-      promiseReaction.map = PromiseFulfillReactionJobTaskMapConstant();
+      * UnsafeConstCast(& promiseReaction.map) =
+          PromiseFulfillReactionJobTaskMapConstant();
       const promiseReactionJobTask =
           UnsafeCast<PromiseFulfillReactionJobTask>(promiseReaction);
       promiseReactionJobTask.argument = argument;
@@ -116,7 +130,8 @@ namespace promise {
           kPromiseReactionJobTaskPromiseOrCapabilityOffset);
     } else {
       StaticAssert(reactionType == kPromiseReactionReject);
-      promiseReaction.map = PromiseRejectReactionJobTaskMapConstant();
+      * UnsafeConstCast(& promiseReaction.map) =
+          PromiseRejectReactionJobTaskMapConstant();
       const promiseReactionJobTask =
           UnsafeCast<PromiseRejectReactionJobTask>(promiseReaction);
       promiseReactionJobTask.argument = argument;
@@ -330,8 +345,8 @@ namespace promise {
       const promise = Construct(promiseConstructor, executor);
       capability.promise = promise;
 
-      if (!TaggedIsCallable(capability.resolve) ||
-          !TaggedIsCallable(capability.reject)) {
+      if (!Is<Callable>(capability.resolve) ||
+          !Is<Callable>(capability.reject)) {
         ThrowTypeError(MessageTemplate::kPromiseNonCallable);
       }
       return capability;
@@ -416,34 +431,33 @@ namespace promise {
       // PromiseReaction holding both the onFulfilled and onRejected callbacks.
       // Once the {promise} is resolved we decide on the concrete handler to
       // push onto the microtask queue.
+      const handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
       const promiseReactions =
           UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
       const reaction = NewPromiseReaction(
-          promiseReactions, resultPromiseOrCapability, onFulfilled, onRejected);
+          handlerContext, promiseReactions, resultPromiseOrCapability,
+          onFulfilled, onRejected);
       promise.reactions_or_result = reaction;
     } else {
-      let map: Map;
-      let handler: Callable|Undefined = Undefined;
+      const reactionsOrResult = promise.reactions_or_result;
+      let microtask: PromiseReactionJobTask;
       let handlerContext: Context;
       if (promise.Status() == PromiseState::kFulfilled) {
-        map = PromiseFulfillReactionJobTaskMapConstant();
-        handler = onFulfilled;
         handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
+        microtask = NewPromiseFulfillReactionJobTask(
+            handlerContext, reactionsOrResult, onFulfilled,
+            resultPromiseOrCapability);
       } else
         deferred {
           assert(promise.Status() == PromiseState::kRejected);
-          map = PromiseRejectReactionJobTaskMapConstant();
-          handler = onRejected;
           handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
+          microtask = NewPromiseRejectReactionJobTask(
+              handlerContext, reactionsOrResult, onRejected,
+              resultPromiseOrCapability);
           if (!promise.HasHandler()) {
             runtime::PromiseRevokeReject(promise);
           }
         }
-
-      const reactionsOrResult = promise.reactions_or_result;
-      const microtask = NewPromiseReactionJobTask(
-          map, handlerContext, reactionsOrResult, handler,
-          resultPromiseOrCapability);
       EnqueueMicrotask(handlerContext, microtask);
     }
     promise.SetHasHandler();

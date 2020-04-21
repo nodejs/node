@@ -329,7 +329,7 @@ void AsmJsScanner::ConsumeNumber(uc32 ch) {
     token_ = kParseError;
     return;
   }
-  if (has_dot) {
+  if (has_dot || trunc(double_value_) != double_value_) {
     token_ = kDouble;
   } else {
     // Exceeding safe integer range is an error.

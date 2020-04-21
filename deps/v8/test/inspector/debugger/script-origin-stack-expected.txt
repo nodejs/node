@@ -11,6 +11,7 @@ Debugger.scriptParsed.stackTrace should contain only one frame
         isModule : false
         length : 0
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         stackTrace : {
             callFrames : [

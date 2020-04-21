@@ -6,7 +6,7 @@
 #define V8_OBJECTS_JS_WEAK_REFS_H_
 
 #include "src/objects/js-objects.h"
-#include "src/objects/microtask.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -17,13 +17,13 @@ namespace internal {
 class NativeContext;
 class WeakCell;
 
-// FinalizationGroup object from the JS Weak Refs spec proposal:
+// FinalizationRegistry object from the JS Weak Refs spec proposal:
 // https://github.com/tc39/proposal-weakrefs
-class JSFinalizationGroup : public JSObject {
+class JSFinalizationRegistry : public JSObject {
  public:
-  DECL_PRINTER(JSFinalizationGroup)
-  EXPORT_DECL_VERIFIER(JSFinalizationGroup)
-  DECL_CAST(JSFinalizationGroup)
+  DECL_PRINTER(JSFinalizationRegistry)
+  EXPORT_DECL_VERIFIER(JSFinalizationRegistry)
+  DECL_CAST(JSFinalizationRegistry)
 
   DECL_ACCESSORS(native_context, NativeContext)
   DECL_ACCESSORS(cleanup, Object)
@@ -32,18 +32,21 @@ class JSFinalizationGroup : public JSObject {
   DECL_ACCESSORS(cleared_cells, HeapObject)
   DECL_ACCESSORS(key_map, Object)
 
-  // For storing a list of JSFinalizationGroup objects in NativeContext.
-  DECL_ACCESSORS(next, Object)
+  DECL_ACCESSORS(next_dirty, Object)
 
   DECL_INT_ACCESSORS(flags)
 
-  inline static void Register(Handle<JSFinalizationGroup> finalization_group,
-                              Handle<JSReceiver> target,
-                              Handle<Object> holdings, Handle<Object> key,
-                              Isolate* isolate);
-  inline static bool Unregister(Handle<JSFinalizationGroup> finalization_group,
-                                Handle<JSReceiver> unregister_token,
-                                Isolate* isolate);
+  DECL_BOOLEAN_ACCESSORS(scheduled_for_cleanup)
+
+  class BodyDescriptor;
+
+  inline static void Register(
+      Handle<JSFinalizationRegistry> finalization_registry,
+      Handle<JSReceiver> target, Handle<Object> holdings, Handle<Object> key,
+      Isolate* isolate);
+  inline static bool Unregister(
+      Handle<JSFinalizationRegistry> finalization_registry,
+      Handle<JSReceiver> unregister_token, Isolate* isolate);
 
   // RemoveUnregisterToken is called from both Unregister and during GC. Since
   // it modifies slots in key_map and WeakCells and the normal write barrier is
@@ -58,33 +61,27 @@ class JSFinalizationGroup : public JSObject {
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
 
-  inline bool scheduled_for_cleanup() const;
-  inline void set_scheduled_for_cleanup(bool scheduled_for_cleanup);
-
-  // Remove the first cleared WeakCell from the cleared_cells
-  // list (assumes there is one) and return its holdings.
-  inline static Object PopClearedCellHoldings(
-      Handle<JSFinalizationGroup> finalization_group, Isolate* isolate);
-
-  // Constructs an iterator for the WeakCells in the cleared_cells list and
-  // calls the user's cleanup function.
+  // Remove the already-popped weak_cell from its unregister token linked list,
+  // as well as removing the entry from the key map if it is the only WeakCell
+  // with its unregister token. This method cannot GC and does not shrink the
+  // key map. Asserts that weak_cell has a non-undefined unregister token.
   //
-  // Returns Nothing<bool> if exception occurs, otherwise returns Just(true).
-  static V8_WARN_UNUSED_RESULT Maybe<bool> Cleanup(
-      Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
-      Handle<Object> callback);
+  // It takes raw Addresses because it is called from CSA and Torque.
+  V8_EXPORT_PRIVATE static void RemoveCellFromUnregisterTokenMap(
+      Isolate* isolate, Address raw_finalization_registry,
+      Address raw_weak_cell);
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_FINALIZATION_GROUP_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSObject::kHeaderSize, TORQUE_GENERATED_JS_FINALIZATION_REGISTRY_FIELDS)
 
   // Bitfields in flags.
-  using ScheduledForCleanupField = base::BitField<bool, 0, 1>;
+  DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
 
-  OBJECT_CONSTRUCTORS(JSFinalizationGroup, JSObject);
+  OBJECT_CONSTRUCTORS(JSFinalizationRegistry, JSObject);
 };
 
-// Internal object for storing weak references in JSFinalizationGroup.
+// Internal object for storing weak references in JSFinalizationRegistry.
 class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
  public:
   DECL_PRINTER(WeakCell)
@@ -93,14 +90,14 @@ class WeakCell : public TorqueGeneratedWeakCell<WeakCell, HeapObject> {
   class BodyDescriptor;
 
   // Nullify is called during GC and it modifies the pointers in WeakCell and
-  // JSFinalizationGroup. Thus we need to tell the GC about the modified slots
-  // via the gc_notify_updated_slot function. The normal write barrier is not
-  // enough, since it's disabled before GC.
+  // JSFinalizationRegistry. Thus we need to tell the GC about the modified
+  // slots via the gc_notify_updated_slot function. The normal write barrier is
+  // not enough, since it's disabled before GC.
   template <typename GCNotifyUpdatedSlotCallback>
   inline void Nullify(Isolate* isolate,
                       GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
 
-  inline void RemoveFromFinalizationGroupCells(Isolate* isolate);
+  inline void RemoveFromFinalizationRegistryCells(Isolate* isolate);
 
   TQ_OBJECT_CONSTRUCTORS(WeakCell)
 };
@@ -113,16 +110,6 @@ class JSWeakRef : public TorqueGeneratedJSWeakRef<JSWeakRef, JSObject> {
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(JSWeakRef)
-};
-
-class JSFinalizationGroupCleanupIterator
-    : public TorqueGeneratedJSFinalizationGroupCleanupIterator<
-          JSFinalizationGroupCleanupIterator, JSObject> {
- public:
-  DECL_PRINTER(JSFinalizationGroupCleanupIterator)
-  DECL_VERIFIER(JSFinalizationGroupCleanupIterator)
-
-  TQ_OBJECT_CONSTRUCTORS(JSFinalizationGroupCleanupIterator)
 };
 
 }  // namespace internal

@@ -47,6 +47,7 @@ void BreakableControlFlowBuilder::EmitJumpIfNull(BytecodeLabels* sites) {
 
 LoopBuilder::~LoopBuilder() {
   DCHECK(continue_labels_.empty() || continue_labels_.is_bound());
+  DCHECK(end_labels_.empty() || end_labels_.is_bound());
 }
 
 void LoopBuilder::LoopHeader() {
@@ -54,7 +55,8 @@ void LoopBuilder::LoopHeader() {
   // requirements of bytecode basic blocks. The only entry into a loop
   // must be the loop header. Surely breaks is okay? Not if nested
   // and misplaced between the headers.
-  DCHECK(break_labels_.empty() && continue_labels_.empty());
+  DCHECK(break_labels_.empty() && continue_labels_.empty() &&
+         end_labels_.empty());
   builder()->Bind(&loop_header_);
 }
 
@@ -64,16 +66,29 @@ void LoopBuilder::LoopBody() {
   }
 }
 
-void LoopBuilder::JumpToHeader(int loop_depth) {
-  // Pass the proper loop nesting level to the backwards branch, to trigger
-  // on-stack replacement when armed for the given loop nesting depth.
-  int level = Min(loop_depth, AbstractCode::kMaxLoopNestingMarker - 1);
-  // Loop must have closed form, i.e. all loop elements are within the loop,
-  // the loop header precedes the body and next elements in the loop.
-  builder()->JumpLoop(&loop_header_, level);
+void LoopBuilder::JumpToHeader(int loop_depth, LoopBuilder* const parent_loop) {
+  BindLoopEnd();
+  if (parent_loop &&
+      loop_header_.offset() == parent_loop->loop_header_.offset()) {
+    // TurboFan can't cope with multiple loops that have the same loop header
+    // bytecode offset. If we have an inner loop with the same header offset
+    // than its parent loop, we do not create a JumpLoop bytecode. Instead, we
+    // Jump to our parent's JumpToHeader which in turn can be a JumpLoop or, iff
+    // they are a nested inner loop too, a Jump to its parent's JumpToHeader.
+    parent_loop->JumpToLoopEnd();
+  } else {
+    // Pass the proper loop nesting level to the backwards branch, to trigger
+    // on-stack replacement when armed for the given loop nesting depth.
+    int level = Min(loop_depth, AbstractCode::kMaxLoopNestingMarker - 1);
+    // Loop must have closed form, i.e. all loop elements are within the loop,
+    // the loop header precedes the body and next elements in the loop.
+    builder()->JumpLoop(&loop_header_, level, source_position_);
+  }
 }
 
 void LoopBuilder::BindContinueTarget() { continue_labels_.Bind(builder()); }
+
+void LoopBuilder::BindLoopEnd() { end_labels_.Bind(builder()); }
 
 SwitchBuilder::~SwitchBuilder() {
 #ifdef DEBUG

@@ -14,6 +14,11 @@
 
   # https://crbug.com/v8/9029
   'debugger/script-on-after-compile-snapshot': [SKIP],
+
+  # https://crbug.com/v8/10356
+  # This test worked in the wasm interpreter, but fails when using Liftoff for
+  # debugging.
+  'debugger/wasm-anyref-global': [FAIL],
 }],  # ALWAYS
 
 ##############################################################################
@@ -70,8 +75,7 @@
 ##############################################################################
 ['arch == ppc or arch == ppc64', {
   # Liftoff needs to be enabled before running these tests.
-  'debugger/wasm-scope-info-liftoff': [SKIP],
-  'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+  'debugger/wasm-*': [SKIP],
 }],  # 'arch == ppc or arch == ppc64'
 
 ##############################################################################
@@ -79,16 +83,7 @@
   # Stack manipulations in LiveEdit is not implemented for this arch.
   'debugger/set-script-source-stack-padding': [SKIP],
   # Liftoff needs to be enabled before running these tests.
-  'debugger/wasm-scope-info-liftoff': [SKIP],
-  'debugger/wasm-set-breakpoint-liftoff': [SKIP],
+  'debugger/wasm-*': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
-
-##############################################################################
-['variant != future', {
-  # Wasm native module cache is temporarily disabled in non-future variant
-  # (https://crbug.com/1070199)
-  'debugger/wasm-scripts': [SKIP],
-}],  # variant != future
-
 
 ]

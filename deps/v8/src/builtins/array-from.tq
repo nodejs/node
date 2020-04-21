@@ -33,7 +33,7 @@ namespace array {
       mapping = false;
     } else {
       // a. If IsCallable(mapfn) is false, throw a TypeError exception.
-      if (!TaggedIsCallable(mapfn)) deferred {
+      if (!Is<Callable>(mapfn)) deferred {
           ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
         }
       // b. Let mapping be true.

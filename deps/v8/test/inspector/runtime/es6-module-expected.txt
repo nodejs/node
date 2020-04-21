@@ -11,6 +11,7 @@ Checks basic ES6 modules support.
         isModule : true
         length : 83
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         startColumn : 0
         startLine : 0
@@ -29,6 +30,7 @@ Checks basic ES6 modules support.
         isModule : true
         length : 84
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         startColumn : 0
         startLine : 0
@@ -47,6 +49,7 @@ Checks basic ES6 modules support.
         isModule : true
         length : 286
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         startColumn : 0
         startLine : 0
@@ -206,6 +209,7 @@ console.log(239)
         isModule : true
         length : 1
         scriptId : <scriptId>
+        scriptLanguage : JavaScript
         sourceMapURL : 
         startColumn : 0
         startLine : 0

@@ -32,7 +32,7 @@ namespace typed_array {
       // 4. Else, let mapping be false.
       const mapping: bool = arguments.length > 1;
       const mapfnObj: JSAny = mapping ? arguments[1] : Undefined;
-      if (mapping && !TaggedIsCallable(mapfnObj)) deferred {
+      if (mapping && !Is<Callable>(mapfnObj)) deferred {
           ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfnObj);
         }
 

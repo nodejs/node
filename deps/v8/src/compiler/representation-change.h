@@ -196,6 +196,9 @@ class UseInfo {
   static UseInfo Float32() {
     return UseInfo(MachineRepresentation::kFloat32, Truncation::Any());
   }
+  static UseInfo Float64() {
+    return UseInfo(MachineRepresentation::kFloat64, Truncation::Any());
+  }
   static UseInfo TruncatingFloat64(
       IdentifyZeros identify_zeros = kDistinguishZeros) {
     return UseInfo(MachineRepresentation::kFloat64,

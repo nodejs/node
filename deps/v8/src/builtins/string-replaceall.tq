@@ -131,7 +131,7 @@ namespace string {
 
     // 5. Let functionalReplace be IsCallable(replaceValue).
     let replaceValueArg = replaceValue;
-    const functionalReplace = TaggedIsCallable(replaceValue);
+    const functionalReplace = Is<Callable>(replaceValue);
 
     // 6. If functionalReplace is false, then
     if (!functionalReplace) {

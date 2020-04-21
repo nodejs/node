@@ -20,21 +20,18 @@ namespace compiler {
 OperationTyper::OperationTyper(JSHeapBroker* broker, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = broker->isolate()->factory();
-  infinity_ = Type::NewConstant(V8_INFINITY, zone);
-  minus_infinity_ = Type::NewConstant(-V8_INFINITY, zone);
+  infinity_ = Type::Constant(V8_INFINITY, zone);
+  minus_infinity_ = Type::Constant(-V8_INFINITY, zone);
   Type truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero.Maybe(Type::Integral32()));
 
   singleton_empty_string_ =
-      Type::HeapConstant(broker, factory->empty_string(), zone);
-  singleton_NaN_string_ =
-      Type::HeapConstant(broker, factory->NaN_string(), zone);
-  singleton_zero_string_ =
-      Type::HeapConstant(broker, factory->zero_string(), zone);
-  singleton_false_ = Type::HeapConstant(broker, factory->false_value(), zone);
-  singleton_true_ = Type::HeapConstant(broker, factory->true_value(), zone);
-  singleton_the_hole_ =
-      Type::HeapConstant(broker, factory->the_hole_value(), zone);
+      Type::Constant(broker, factory->empty_string(), zone);
+  singleton_NaN_string_ = Type::Constant(broker, factory->NaN_string(), zone);
+  singleton_zero_string_ = Type::Constant(broker, factory->zero_string(), zone);
+  singleton_false_ = Type::Constant(broker, factory->false_value(), zone);
+  singleton_true_ = Type::Constant(broker, factory->true_value(), zone);
+  singleton_the_hole_ = Type::Hole();
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 
@@ -1043,23 +1040,31 @@ Type OperationTyper::NumberMax(Type lhs, Type rhs) {
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
-  lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
-  DCHECK(!lhs.IsNone());
-  rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
-  DCHECK(!rhs.IsNone());
-  if (lhs.Is(cache_->kIntegerOrMinusZero) &&
-      rhs.Is(cache_->kIntegerOrMinusZero)) {
-    // TODO(turbofan): This could still be improved in ruling out -0 when
-    // one of the inputs' min is 0.
-    double max = std::max(lhs.Max(), rhs.Max());
-    double min = std::max(lhs.Min(), rhs.Min());
+
+  if (!lhs.Is(cache_->kIntegerOrMinusZeroOrNaN) ||
+      !rhs.Is(cache_->kIntegerOrMinusZeroOrNaN)) {
+    return Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
+  }
+
+  bool const lhs_maybe_minus_zero = lhs.Maybe(Type::MinusZero());
+  bool const rhs_maybe_minus_zero = rhs.Maybe(Type::MinusZero());
+  lhs = Type::Intersect(lhs, cache_->kInteger, zone());
+  rhs = Type::Intersect(rhs, cache_->kInteger, zone());
+
+  bool maybe_minus_zero = lhs_maybe_minus_zero || rhs_maybe_minus_zero;
+  if (!lhs.IsNone() || !rhs.IsNone()) {
+    double min = std::max(lhs.IsNone() ? -V8_INFINITY : lhs.Min(),
+                          rhs.IsNone() ? -V8_INFINITY : rhs.Min());
+    double max = std::max(lhs.IsNone() ? -V8_INFINITY : lhs.Max(),
+                          rhs.IsNone() ? -V8_INFINITY : rhs.Max());
     type = Type::Union(type, Type::Range(min, max, zone()), zone());
-    if (min <= 0.0 && 0.0 <= max &&
-        (lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero()))) {
-      type = Type::Union(type, Type::MinusZero(), zone());
-    }
-  } else {
-    type = Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
+    maybe_minus_zero =
+        maybe_minus_zero && (min < 0.0 || (min == 0.0 && lhs_maybe_minus_zero &&
+                                           rhs_maybe_minus_zero));
+  }
+
+  if (maybe_minus_zero) {
+    type = Type::Union(type, Type::MinusZero(), zone());
   }
   return type;
 }
@@ -1075,21 +1080,28 @@ Type OperationTyper::NumberMin(Type lhs, Type rhs) {
   if (lhs.Maybe(Type::NaN()) || rhs.Maybe(Type::NaN())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
-  lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
-  DCHECK(!lhs.IsNone());
-  rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
-  DCHECK(!rhs.IsNone());
-  if (lhs.Is(cache_->kIntegerOrMinusZero) &&
-      rhs.Is(cache_->kIntegerOrMinusZero)) {
-    double max = std::min(lhs.Max(), rhs.Max());
-    double min = std::min(lhs.Min(), rhs.Min());
+
+  if (!lhs.Is(cache_->kIntegerOrMinusZeroOrNaN) ||
+      !rhs.Is(cache_->kIntegerOrMinusZeroOrNaN)) {
+    return Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
+  }
+
+  bool maybe_minus_zero =
+      lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero());
+  lhs = Type::Intersect(lhs, cache_->kInteger, zone());
+  rhs = Type::Intersect(rhs, cache_->kInteger, zone());
+
+  if (!lhs.IsNone() || !rhs.IsNone()) {
+    double min = std::min(lhs.IsNone() ? +V8_INFINITY : lhs.Min(),
+                          rhs.IsNone() ? +V8_INFINITY : rhs.Min());
+    double max = std::min(lhs.IsNone() ? +V8_INFINITY : lhs.Max(),
+                          rhs.IsNone() ? +V8_INFINITY : rhs.Max());
     type = Type::Union(type, Type::Range(min, max, zone()), zone());
-    if (min <= 0.0 && 0.0 <= max &&
-        (lhs.Maybe(Type::MinusZero()) || rhs.Maybe(Type::MinusZero()))) {
-      type = Type::Union(type, Type::MinusZero(), zone());
-    }
-  } else {
-    type = Type::Union(type, Type::Union(lhs, rhs, zone()), zone());
+    maybe_minus_zero = maybe_minus_zero && max >= 0.0;
+  }
+
+  if (maybe_minus_zero) {
+    type = Type::Union(type, Type::MinusZero(), zone());
   }
   return type;
 }
@@ -1242,13 +1254,16 @@ Type OperationTyper::StrictEqual(Type lhs, Type rhs) {
       (lhs.Max() < rhs.Min() || lhs.Min() > rhs.Max())) {
     return singleton_false();
   }
-  if ((lhs.Is(Type::Hole()) || rhs.Is(Type::Hole())) && !lhs.Maybe(rhs)) {
-    return singleton_false();
-  }
-  if (lhs.IsHeapConstant() && rhs.Is(lhs)) {
+  if (lhs.IsSingleton() && rhs.Is(lhs)) {
     // Types are equal and are inhabited only by a single semantic value,
     // which is not nan due to the earlier check.
+    DCHECK(lhs.Is(rhs));
+    DCHECK(lhs.Is(Type::NonInternal()) || lhs.Is(Type::Hole()));
     return singleton_true();
+  }
+  if ((lhs.Is(Type::Unique()) || rhs.Is(Type::Unique())) && !lhs.Maybe(rhs)) {
+    // One of the inputs has a canonical representation but types don't overlap.
+    return singleton_false();
   }
   return Type::Boolean();
 }

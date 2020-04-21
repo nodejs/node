@@ -19,12 +19,11 @@ function scheduleMicrotask(func) {
 
 let log = [];
 
-let cleanup = (iter) => {
+let cleanup = (holdings) => {
   cleanedUp = true;
-  for (holdings of iter) { }
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 let o = null;
 
 (function() {

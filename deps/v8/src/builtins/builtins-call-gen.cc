@@ -65,14 +65,14 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
 }
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
-    TNode<Object> target, SloppyTNode<Object> new_target,
+    TNode<Object> target, base::Optional<TNode<Object>> new_target,
     TNode<Object> arguments_list, TNode<Context> context) {
   Label if_done(this), if_arguments(this), if_array(this),
       if_holey_array(this, Label::kDeferred),
       if_runtime(this, Label::kDeferred);
 
   // Perform appropriate checks on {target} (and {new_target} first).
-  if (new_target == nullptr) {
+  if (!new_target) {
     // Check that {target} is Callable.
     Label if_target_callable(this),
         if_target_not_callable(this, Label::kDeferred);
@@ -102,12 +102,12 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // Check that {new_target} is a Constructor.
     Label if_new_target_constructor(this),
         if_new_target_not_constructor(this, Label::kDeferred);
-    GotoIf(TaggedIsSmi(new_target), &if_new_target_not_constructor);
-    Branch(IsConstructor(CAST(new_target)), &if_new_target_constructor,
+    GotoIf(TaggedIsSmi(*new_target), &if_new_target_not_constructor);
+    Branch(IsConstructor(CAST(*new_target)), &if_new_target_constructor,
            &if_new_target_not_constructor);
     BIND(&if_new_target_not_constructor);
     {
-      CallRuntime(Runtime::kThrowNotConstructor, context, new_target);
+      CallRuntime(Runtime::kThrowNotConstructor, context, *new_target);
       Unreachable();
     }
     BIND(&if_new_target_constructor);
@@ -215,12 +215,12 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 
     BIND(&if_not_double);
     {
-      if (new_target == nullptr) {
+      if (!new_target) {
         Callable callable = CodeFactory::CallVarargs(isolate());
         TailCallStub(callable, context, target, args_count, length, elements);
       } else {
         Callable callable = CodeFactory::ConstructVarargs(isolate());
-        TailCallStub(callable, context, target, new_target, args_count, length,
+        TailCallStub(callable, context, target, *new_target, args_count, length,
                      elements);
       }
     }
@@ -240,7 +240,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
 // boxed as HeapNumbers, then tail calls CallVarargs/ConstructVarargs depending
 // on whether {new_target} was passed.
 void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
-    TNode<Object> target, SloppyTNode<Object> new_target,
+    TNode<Object> target, base::Optional<TNode<Object>> new_target,
     TNode<FixedDoubleArray> elements, TNode<Int32T> length,
     TNode<Int32T> args_count, TNode<Context> context, TNode<Int32T> kind) {
   const ElementsKind new_kind = PACKED_ELEMENTS;
@@ -258,19 +258,19 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructDoubleVarargs(
   CopyFixedArrayElements(PACKED_DOUBLE_ELEMENTS, elements, new_kind,
                          new_elements, intptr_length, intptr_length,
                          barrier_mode);
-  if (new_target == nullptr) {
+  if (!new_target) {
     Callable callable = CodeFactory::CallVarargs(isolate());
     TailCallStub(callable, context, target, args_count, length, new_elements);
   } else {
     Callable callable = CodeFactory::ConstructVarargs(isolate());
-    TailCallStub(callable, context, target, new_target, args_count, length,
+    TailCallStub(callable, context, target, *new_target, args_count, length,
                  new_elements);
   }
 }
 
 void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
-    TNode<Object> target, TNode<Object> new_target, TNode<Object> spread,
-    TNode<Int32T> args_count, TNode<Context> context) {
+    TNode<Object> target, base::Optional<TNode<Object>> new_target,
+    TNode<Object> spread, TNode<Int32T> args_count, TNode<Context> context) {
   Label if_smiorobject(this), if_double(this),
       if_generic(this, Label::kDeferred);
 
@@ -316,7 +316,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_generic);
   {
-    Label if_iterator_fn_not_callable(this, Label::kDeferred);
+    Label if_iterator_fn_not_callable(this, Label::kDeferred),
+        if_iterator_is_null_or_undefined(this, Label::kDeferred);
+
+    GotoIf(IsNullOrUndefined(spread), &if_iterator_is_null_or_undefined);
+
     TNode<Object> iterator_fn =
         GetProperty(context, spread, IteratorSymbolConstant());
     GotoIfNot(TaggedIsCallable(iterator_fn), &if_iterator_fn_not_callable);
@@ -333,6 +337,10 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
     BIND(&if_iterator_fn_not_callable);
     ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
+
+    BIND(&if_iterator_is_null_or_undefined);
+    CallRuntime(Runtime::kThrowSpreadArgIsNullOrUndefined, context, spread);
+    Unreachable();
   }
 
   BIND(&if_smiorobject);
@@ -342,12 +350,12 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     CSA_ASSERT(this, Int32LessThanOrEqual(
                          length, Int32Constant(FixedArray::kMaxLength)));
 
-    if (new_target == nullptr) {
+    if (!new_target) {
       Callable callable = CodeFactory::CallVarargs(isolate());
       TailCallStub(callable, context, target, args_count, length, elements);
     } else {
       Callable callable = CodeFactory::ConstructVarargs(isolate());
-      TailCallStub(callable, context, target, new_target, args_count, length,
+      TailCallStub(callable, context, target, *new_target, args_count, length,
                    elements);
     }
   }
@@ -363,7 +371,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
 TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  SloppyTNode<Object> new_target = nullptr;
+  base::Optional<TNode<Object>> new_target = base::nullopt;
   TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
@@ -371,7 +379,7 @@ TF_BUILTIN(CallWithArrayLike, CallOrConstructBuiltinsAssembler) {
 
 TF_BUILTIN(CallWithSpread, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  SloppyTNode<Object> new_target = nullptr;
+  base::Optional<TNode<Object>> new_target = base::nullopt;
   TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
   TNode<Int32T> args_count =
       UncheckedCast<Int32T>(Parameter(Descriptor::kArgumentsCount));

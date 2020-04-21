@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "src/utils/utils.h"
+#include "testing/gmock-support.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -32,11 +35,11 @@ TEST(VectorTest, Factories) {
 TEST(VectorTest, Equals) {
   auto foo1 = CStrVector("foo");
   auto foo2 = ArrayVector("ffoo") + 1;
-  CHECK_EQ(4, foo2.size());  // Includes trailing '\0'.
+  EXPECT_EQ(4u, foo2.size());  // Includes trailing '\0'.
   foo2.Truncate(foo2.size() - 1);
   // This is a requirement for the test.
-  CHECK_NE(foo1.begin(), foo2.begin());
-  CHECK_EQ(foo1, foo2);
+  EXPECT_NE(foo1.begin(), foo2.begin());
+  EXPECT_EQ(foo1, foo2);
 
   // Compare Vector<char> against Vector<const char>.
   char arr1[] = {'a', 'b', 'c'};
@@ -46,31 +49,48 @@ TEST(VectorTest, Equals) {
   Vector<const char> vec1_const_char = vec1_char;
   Vector<char> vec2_char = ArrayVector(arr2);
   Vector<char> vec3_char = ArrayVector(arr3);
-  CHECK_NE(vec1_char.begin(), vec2_char.begin());
-  // Note: We directly call operator== and operator!= here (without CHECK_EQ or
-  // CHECK_NE) to have full control over the arguments.
-  CHECK(vec1_char == vec1_const_char);
-  CHECK(vec1_char == vec2_char);
-  CHECK(vec1_const_char == vec2_char);
-  CHECK(vec1_const_char != vec3_char);
-  CHECK(vec3_char != vec2_char);
-  CHECK(vec3_char != vec1_const_char);
+  EXPECT_NE(vec1_char.begin(), vec2_char.begin());
+  // Note: We directly call operator== and operator!= here (without EXPECT_EQ or
+  // EXPECT_NE) to have full control over the arguments.
+  EXPECT_TRUE(vec1_char == vec1_const_char);
+  EXPECT_TRUE(vec1_char == vec2_char);
+  EXPECT_TRUE(vec1_const_char == vec2_char);
+  EXPECT_TRUE(vec1_const_char != vec3_char);
+  EXPECT_TRUE(vec3_char != vec2_char);
+  EXPECT_TRUE(vec3_char != vec1_const_char);
 }
 
 TEST(OwnedVectorConstruction, Equals) {
   auto int_vec = OwnedVector<int>::New(4);
-  CHECK_EQ(4, int_vec.size());
+  EXPECT_EQ(4u, int_vec.size());
   auto find_non_zero = [](int i) { return i != 0; };
-  CHECK_EQ(int_vec.end(),
-           std::find_if(int_vec.begin(), int_vec.end(), find_non_zero));
+  EXPECT_EQ(int_vec.end(),
+            std::find_if(int_vec.begin(), int_vec.end(), find_non_zero));
 
   constexpr int kInit[] = {4, 11, 3};
   auto init_vec1 = OwnedVector<int>::Of(kInit);
   // Note: {const int} should also work: We initialize the owned vector, but
   // afterwards it's non-modifyable.
   auto init_vec2 = OwnedVector<const int>::Of(ArrayVector(kInit));
-  CHECK_EQ(init_vec1.as_vector(), ArrayVector(kInit));
-  CHECK_EQ(init_vec1.as_vector(), init_vec2.as_vector());
+  EXPECT_EQ(init_vec1.as_vector(), ArrayVector(kInit));
+  EXPECT_EQ(init_vec1.as_vector(), init_vec2.as_vector());
+}
+
+// Test that the constexpr factory methods work.
+TEST(VectorTest, ConstexprFactories) {
+  static constexpr int kInit1[] = {4, 11, 3};
+  static constexpr auto kVec1 = ArrayVector(kInit1);
+  STATIC_ASSERT(kVec1.size() == 3);
+  EXPECT_THAT(kVec1, testing::ElementsAreArray(kInit1));
+
+  static constexpr auto kVec2 = VectorOf(kInit1, 2);
+  STATIC_ASSERT(kVec2.size() == 2);
+  EXPECT_THAT(kVec2, testing::ElementsAre(4, 11));
+
+  static constexpr const char kInit3[] = "foobar";
+  static constexpr auto kVec3 = StaticCharVector(kInit3);
+  STATIC_ASSERT(kVec3.size() == 6);
+  EXPECT_THAT(kVec3, testing::ElementsAreArray(kInit3, kInit3 + 6));
 }
 
 }  // namespace internal

@@ -99,9 +99,10 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   V(FalseConstant)                                \
   V(NullConstant)                                 \
   V(ZeroConstant)                                 \
+  V(MinusZeroConstant)                            \
   V(OneConstant)                                  \
-  V(NaNConstant)                                  \
   V(MinusOneConstant)                             \
+  V(NaNConstant)                                  \
   V(EmptyStateValues)                             \
   V(SingleDeadTypedStateValues)
 

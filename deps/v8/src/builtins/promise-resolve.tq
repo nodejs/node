@@ -85,10 +85,11 @@ namespace promise {
 
   const kThenString: String = ThenStringConstant();
 
+  // https://tc39.es/ecma262/#sec-promise-resolve-functions
   transitioning builtin
   ResolvePromise(implicit context:
                      Context)(promise: JSPromise, resolution: JSAny): JSAny {
-    // 6. If SameValue(resolution, promise) is true, then
+    // 7. If SameValue(resolution, promise) is true, then
     // If promise hook is enabled or the debugger is active, let
     // the runtime handle this operation, which greatly reduces
     // the complexity here and also avoids a couple of back and
@@ -104,8 +105,8 @@ namespace promise {
 
     let then: Object = Undefined;
     try {
-      // 7. If Type(resolution) is not Object, then
-      // 7.b Return FulfillPromise(promise, resolution).
+      // 8. If Type(resolution) is not Object, then
+      // 8.a Return FulfillPromise(promise, resolution).
       if (TaggedIsSmi(resolution)) {
         return FulfillPromise(promise, resolution);
       }
@@ -155,33 +156,33 @@ namespace promise {
       goto Slow;
     }
     label Slow deferred {
-      // 8. Let then be Get(resolution, "then").
-      // 9. If then is an abrupt completion, then
-      // 9.a Return RejectPromise(promise, then.[[Value]]).
+      // 9. Let then be Get(resolution, "then").
+      // 10. If then is an abrupt completion, then
       try {
         then = GetProperty(resolution, kThenString);
       } catch (e) {
+        // a. Return RejectPromise(promise, then.[[Value]]).
         return RejectPromise(promise, e, False);
       }
 
-      // 11. If IsCallable(thenAction) is false, then
-      if (TaggedIsSmi(then)) {
-        return FulfillPromise(promise, resolution);
-      }
-
-      if (!IsCallable(UnsafeCast<HeapObject>(then))) {
+      // 11. Let thenAction be then.[[Value]].
+      // 12. If IsCallable(thenAction) is false, then
+      if (!Is<Callable>(then)) {
+        // a. Return FulfillPromise(promise, resolution).
         return FulfillPromise(promise, resolution);
       }
       goto Enqueue;
     }
     label Enqueue {
-      // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
-      //                        «promise, resolution, thenAction»).
-      const nativeContext = LoadNativeContext(context);
+      // 13. Let job be NewPromiseResolveThenableJob(promise, resolution,
+      //                                             thenAction).
       const task = NewPromiseResolveThenableJobTask(
-          promise, UnsafeCast<JSReceiver>(then),
-          UnsafeCast<JSReceiver>(resolution), nativeContext);
-      return EnqueueMicrotask(nativeContext, task);
+          promise, UnsafeCast<JSReceiver>(resolution),
+          UnsafeCast<Callable>(then));
+
+      // 14. Perform HostEnqueuePromiseJob(job.[[Job]], job.[[Realm]]).
+      // 15. Return undefined.
+      return EnqueueMicrotask(task.context, task);
     }
   }
 }

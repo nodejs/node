@@ -59,6 +59,8 @@ enum class FeedbackSlotKind {
   kKindsNumber  // Last value indicating number of kinds.
 };
 
+using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
+
 inline bool IsCallICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kCall;
 }
@@ -232,7 +234,7 @@ class FeedbackVector : public HeapObject {
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }
 
   // Conversion from an integer index to the underlying array to a slot.
-  static inline FeedbackSlot ToSlot(int index);
+  static inline FeedbackSlot ToSlot(intptr_t index);
   inline MaybeObject Get(FeedbackSlot slot) const;
   inline MaybeObject Get(const Isolate* isolate, FeedbackSlot slot) const;
   inline MaybeObject get(int index) const;
@@ -510,8 +512,9 @@ class FeedbackMetadata : public HeapObject {
   V8_EXPORT_PRIVATE FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   // If {spec} is null, then it is considered empty.
+  template <typename LocalIsolate>
   V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
-      Isolate* isolate, const FeedbackVectorSpec* spec = nullptr);
+      LocalIsolate* isolate, const FeedbackVectorSpec* spec = nullptr);
 
   DECL_PRINTER(FeedbackMetadata)
   DECL_VERIFIER(FeedbackMetadata)
@@ -563,7 +566,7 @@ class FeedbackMetadata : public HeapObject {
 // possibly be confused with a pointer.
 // NOLINTNEXTLINE(runtime/references) (false positive)
 STATIC_ASSERT((Name::kEmptyHashField & kHeapObjectTag) == kHeapObjectTag);
-STATIC_ASSERT(Name::kEmptyHashField == 0x7);
+STATIC_ASSERT(Name::kEmptyHashField == 0x3);
 // Verify that a set hash field will not look like a tagged object.
 STATIC_ASSERT(Name::kHashNotComputedMask == kHeapObjectTag);
 
@@ -647,8 +650,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   Map GetFirstMap() const;
 
   int ExtractMaps(MapHandles* maps) const;
-  int ExtractMapsAndHandlers(MapHandles* maps,
-                             MaybeObjectHandles* handlers) const;
+  int ExtractMapsAndHandlers(std::vector<MapAndHandler>* maps_and_handlers,
+                             bool try_update_deprecated = false) const;
   MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
 
   bool IsCleared() const {
@@ -672,8 +675,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
                             const MaybeObjectHandle& handler);
 
-  void ConfigurePolymorphic(Handle<Name> name, MapHandles const& maps,
-                            MaybeObjectHandles* handlers);
+  void ConfigurePolymorphic(
+      Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;

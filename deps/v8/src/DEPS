@@ -16,10 +16,12 @@ include_rules = [
   "+src/heap/heap-inl.h",
   "+src/heap/heap-write-barrier-inl.h",
   "+src/heap/heap-write-barrier.h",
+  "+src/heap/local-heap.h",
   "+src/heap/off-thread-factory-inl.h",
   "+src/heap/off-thread-factory.h",
   "+src/heap/read-only-heap-inl.h",
   "+src/heap/read-only-heap.h",
+  "+src/heap/safepoint.h",
   "-src/inspector",
   "-src/interpreter",
   "+src/interpreter/bytecode-array-accessor.h",
@@ -52,5 +54,8 @@ specific_include_rules = {
     "+include/libplatform/libplatform.h",
     "+include/libplatform/v8-tracing.h",
     "+perfetto/tracing.h"
+  ],
+  "builtins-trace\.cc": [
+    "+protos/perfetto",
   ],
 }

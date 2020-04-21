@@ -5,7 +5,7 @@
 #include "debug-helper-internal.h"
 #include "torque-generated/class-debug-readers-tq.h"
 
-namespace di = v8_debug_helper_internal;
+namespace di = v8::internal::debug_helper_internal;
 
 extern "C" {
 V8_DEBUG_HELPER_EXPORT const d::ClassList*

@@ -6,17 +6,15 @@
 
 let cleanup_call_count = 0;
 let cleanup_holdings_count = 0;
-let cleanup = function(iter) {
-  for (holdings of iter) {
-    ++cleanup_holdings_count;
-  }
+let cleanup = function(holdings) {
+  ++cleanup_holdings_count;
   ++cleanup_call_count;
 }
 
-let fg1 = new FinalizationGroup(cleanup);
-let fg2 = new FinalizationGroup(cleanup);
+let fg1 = new FinalizationRegistry(cleanup);
+let fg2 = new FinalizationRegistry(cleanup);
 
-// Create two objects and register them in FinalizationGroups. The objects need
+// Create two objects and register them in FinalizationRegistries. The objects need
 // to be inside a closure so that we can reliably kill them!
 
 (function() {
@@ -33,7 +31,7 @@ let fg2 = new FinalizationGroup(cleanup);
 gc();
 assertEquals(0, cleanup_call_count);
 
-// Assert that the cleanup function was called and iterated the holdings.
+// Assert that the cleanup function was called.
 let timeout_func = function() {
   assertEquals(2, cleanup_call_count);
   assertEquals(2, cleanup_holdings_count);

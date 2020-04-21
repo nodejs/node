@@ -146,7 +146,7 @@ void Processor::VisitBlock(Block* node) {
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
   if (!node->ignore_completion_value()) {
-    BreakableScope scope(this, node->labels() != nullptr);
+    BreakableScope scope(this, node->is_breakable());
     Process(node->statements());
   }
   replacement_ = node;

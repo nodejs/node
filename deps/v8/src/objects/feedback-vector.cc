@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/objects/feedback-vector.h"
+#include "src/diagnostics/code-tracer.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects/data-handler-inl.h"
@@ -73,9 +75,10 @@ void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
 }
 
 // static
-Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
+template <typename LocalIsolate>
+Handle<FeedbackMetadata> FeedbackMetadata::New(LocalIsolate* isolate,
                                                const FeedbackVectorSpec* spec) {
-  Factory* factory = isolate->factory();
+  auto* factory = isolate->factory();
 
   const int slot_count = spec == nullptr ? 0 : spec->slots();
   const int closure_feedback_cell_count =
@@ -110,6 +113,11 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
 
   return metadata;
 }
+
+template Handle<FeedbackMetadata> FeedbackMetadata::New(
+    Isolate* isolate, const FeedbackVectorSpec* spec);
+template Handle<FeedbackMetadata> FeedbackMetadata::New(
+    OffThreadIsolate* isolate, const FeedbackVectorSpec* spec);
 
 bool FeedbackMetadata::SpecDiffersFrom(
     const FeedbackVectorSpec* other_spec) const {
@@ -360,10 +368,12 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
   Code code = Code::cast(slot->GetHeapObject());
   if (code.marked_for_deoptimization()) {
     if (FLAG_trace_deopt) {
-      PrintF("[evicting optimizing code marked for deoptimization (%s) for ",
+      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
+      PrintF(scope.file(),
+             "[evicting optimizing code marked for deoptimization (%s) for ",
              reason);
-      shared.ShortPrint();
-      PrintF("]\n");
+      shared.ShortPrint(scope.file());
+      PrintF(scope.file(), "]\n");
     }
     if (!code.deopt_already_counted()) {
       code.set_deopt_already_counted(true);
@@ -631,9 +641,16 @@ InlineCacheState FeedbackNexus::ic_state() const {
       if (feedback == MaybeObject::FromObject(
                           *FeedbackVector::MegamorphicSentinel(isolate))) {
         return GENERIC;
-      } else if (feedback->IsWeakOrCleared() ||
-                 (feedback->GetHeapObjectIfStrong(&heap_object) &&
-                  heap_object.IsAllocationSite())) {
+      } else if (feedback->IsWeakOrCleared()) {
+        if (feedback->GetHeapObjectIfWeak(&heap_object)) {
+          if (heap_object.IsFeedbackCell()) {
+            return POLYMORPHIC;
+          }
+          CHECK(heap_object.IsJSFunction() || heap_object.IsJSBoundFunction());
+        }
+        return MONOMORPHIC;
+      } else if (feedback->GetHeapObjectIfStrong(&heap_object) &&
+                 heap_object.IsAllocationSite()) {
         return MONOMORPHIC;
       }
 
@@ -899,11 +916,9 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
   }
 }
 
-void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
-                                         MapHandles const& maps,
-                                         MaybeObjectHandles* handlers) {
-  DCHECK_EQ(handlers->size(), maps.size());
-  int receiver_count = static_cast<int>(maps.size());
+void FeedbackNexus::ConfigurePolymorphic(
+    Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers) {
+  int receiver_count = static_cast<int>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
   Handle<WeakFixedArray> array;
   if (name.is_null()) {
@@ -916,10 +931,11 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
   }
 
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = maps[current];
+    Handle<Map> map = maps_and_handlers[current].first;
     array->Set(current * 2, HeapObjectReference::Weak(*map));
-    DCHECK(IC::IsHandler(*handlers->at(current)));
-    array->Set(current * 2 + 1, *handlers->at(current));
+    MaybeObjectHandle handler = maps_and_handlers[current].second;
+    DCHECK(IC::IsHandler(*handler));
+    array->Set(current * 2 + 1, *handler);
   }
 }
 
@@ -965,11 +981,13 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   return 0;
 }
 
-int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
-                                          MaybeObjectHandles* handlers) const {
-  DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
-         IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
+int FeedbackNexus::ExtractMapsAndHandlers(
+    std::vector<std::pair<Handle<Map>, MaybeObjectHandle>>* maps_and_handlers,
+    bool try_update_deprecated) const {
+  DCHECK(IsLoadICKind(kind()) ||
+         IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
+         IsKeyedStoreICKind(kind()) || IsStoreOwnICKind(kind()) ||
+         IsStoreDataPropertyInLiteralKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
 
   DisallowHeapAllocation no_gc;
@@ -990,15 +1008,20 @@ int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
     }
     const int increment = 2;
     HeapObject heap_object;
+    maps_and_handlers->reserve(array.length() / increment);
     for (int i = 0; i < array.length(); i += increment) {
       DCHECK(array.Get(i)->IsWeakOrCleared());
       if (array.Get(i)->GetHeapObjectIfWeak(&heap_object)) {
         MaybeObject handler = array.Get(i + 1);
         if (!handler->IsCleared()) {
           DCHECK(IC::IsHandler(handler));
-          Map map = Map::cast(heap_object);
-          maps->push_back(handle(map, isolate));
-          handlers->push_back(handle(handler, isolate));
+          Handle<Map> map(Map::cast(heap_object), isolate);
+          if (try_update_deprecated &&
+              !Map::TryUpdate(isolate, map).ToHandle(&map)) {
+            continue;
+          }
+          maps_and_handlers->push_back(
+              MapAndHandler(map, handle(handler, isolate)));
           found++;
         }
       }
@@ -1008,9 +1031,13 @@ int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
     MaybeObject handler = GetFeedbackExtra();
     if (!handler->IsCleared()) {
       DCHECK(IC::IsHandler(handler));
-      Map map = Map::cast(heap_object);
-      maps->push_back(handle(map, isolate));
-      handlers->push_back(handle(handler, isolate));
+      Handle<Map> map = handle(Map::cast(heap_object), isolate);
+      if (try_update_deprecated &&
+          !Map::TryUpdate(isolate, map).ToHandle(&map)) {
+        return 0;
+      }
+      maps_and_handlers->push_back(
+          MapAndHandler(map, handle(handler, isolate)));
       return 1;
     }
   }
@@ -1082,14 +1109,14 @@ Name FeedbackNexus::GetName() const {
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedHasICKind(kind()));
-  MapHandles maps;
-  MaybeObjectHandles handlers;
 
   if (GetKeyType() == PROPERTY) return STANDARD_LOAD;
 
-  ExtractMapsAndHandlers(&maps, &handlers);
-  for (MaybeObjectHandle const& handler : handlers) {
-    KeyedAccessLoadMode mode = LoadHandler::GetKeyedAccessLoadMode(*handler);
+  std::vector<MapAndHandler> maps_and_handlers;
+  ExtractMapsAndHandlers(&maps_and_handlers);
+  for (MapAndHandler map_and_handler : maps_and_handlers) {
+    KeyedAccessLoadMode mode =
+        LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second);
     if (mode != STANDARD_LOAD) return mode;
   }
 
@@ -1150,13 +1177,13 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()) ||
          IsStoreDataPropertyInLiteralKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
-  MapHandles maps;
-  MaybeObjectHandles handlers;
 
   if (GetKeyType() == PROPERTY) return mode;
 
-  ExtractMapsAndHandlers(&maps, &handlers);
-  for (const MaybeObjectHandle& maybe_code_handler : handlers) {
+  std::vector<MapAndHandler> maps_and_handlers;
+  ExtractMapsAndHandlers(&maps_and_handlers);
+  for (const MapAndHandler& map_and_handler : maps_and_handlers) {
+    const MaybeObjectHandle maybe_code_handler = map_and_handler.second;
     // The first handler that isn't the slow handler will have the bits we need.
     Handle<Code> handler;
     if (maybe_code_handler.object()->IsStoreHandler()) {

@@ -224,6 +224,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
+    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_REG_EXP_TYPE:
@@ -239,8 +240,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
-    case JS_FINALIZATION_GROUP_TYPE:
-    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+    case JS_FINALIZATION_REGISTRY_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
@@ -322,6 +322,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
+    case COVERAGE_INFO_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -350,6 +351,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case TUPLE2_TYPE:
     case BREAK_POINT_TYPE:
     case BREAK_POINT_INFO_TYPE:
+    case WASM_VALUE_TYPE:
     case CACHED_TEMPLATE_OBJECT_TYPE:
     case ENUM_CACHE_TYPE:
     case WASM_CAPI_FUNCTION_DATA_TYPE:
@@ -367,8 +369,8 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case PROMISE_FULFILL_REACTION_JOB_TASK_TYPE:
     case PROMISE_REJECT_REACTION_JOB_TASK_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE:
-#define MAKE_TORQUE_CLASS_TYPE(V) case V:
-      TORQUE_INTERNAL_INSTANCE_TYPES(MAKE_TORQUE_CLASS_TYPE)
+#define MAKE_TORQUE_CLASS_TYPE(INSTANCE_TYPE, Name, name) case INSTANCE_TYPE:
+      TORQUE_INTERNAL_INSTANCE_TYPE_LIST(MAKE_TORQUE_CLASS_TYPE)
 #undef MAKE_TORQUE_CLASS_TYPE
       UNREACHABLE();
   }
@@ -563,7 +565,7 @@ bool Type::SlowIs(Type that) const {
   }
 
   if (that.IsRange()) {
-    return (this->IsRange() && Contains(that.AsRange(), this->AsRange()));
+    return this->IsRange() && Contains(that.AsRange(), this->AsRange());
   }
   if (this->IsRange()) return false;
 
@@ -840,7 +842,7 @@ Type Type::NormalizeRangeAndBitset(Type range, bitset* bits, Zone* zone) {
   return Type::Range(range_min, range_max, zone);
 }
 
-Type Type::NewConstant(double value, Zone* zone) {
+Type Type::Constant(double value, Zone* zone) {
   if (RangeType::IsInteger(value)) {
     return Range(value, value, zone);
   } else if (IsMinusZero(value)) {
@@ -853,14 +855,13 @@ Type Type::NewConstant(double value, Zone* zone) {
   return OtherNumberConstant(value, zone);
 }
 
-Type Type::NewConstant(JSHeapBroker* broker, Handle<i::Object> value,
-                       Zone* zone) {
+Type Type::Constant(JSHeapBroker* broker, Handle<i::Object> value, Zone* zone) {
   ObjectRef ref(broker, value);
   if (ref.IsSmi()) {
-    return NewConstant(static_cast<double>(ref.AsSmi()), zone);
+    return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
   if (ref.IsHeapNumber()) {
-    return NewConstant(ref.AsHeapNumber().value(), zone);
+    return Constant(ref.AsHeapNumber().value(), zone);
   }
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
@@ -1093,15 +1094,12 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 }
 
 // static
-Type Type::HeapConstant(JSHeapBroker* broker, Handle<i::Object> value,
-                        Zone* zone) {
-  return FromTypeBase(
-      HeapConstantType::New(HeapObjectRef(broker, value), zone));
-}
-
-// static
 Type Type::HeapConstant(const HeapObjectRef& value, Zone* zone) {
-  return HeapConstantType::New(value, zone);
+  DCHECK(!value.IsHeapNumber());
+  DCHECK_IMPLIES(value.IsString(), value.IsInternalizedString());
+  BitsetType::bitset bitset = BitsetType::Lub(value.GetHeapObjectType());
+  if (Type(bitset).IsSingleton()) return Type(bitset);
+  return HeapConstantType::New(value, bitset, zone);
 }
 
 // static
@@ -1112,11 +1110,6 @@ Type Type::Range(double min, double max, Zone* zone) {
 // static
 Type Type::Range(RangeType::Limits lims, Zone* zone) {
   return FromTypeBase(RangeType::New(lims, zone));
-}
-
-// static
-Type Type::Union(int length, Zone* zone) {
-  return FromTypeBase(UnionType::New(length, zone));
 }
 
 const HeapConstantType* Type::AsHeapConstant() const {

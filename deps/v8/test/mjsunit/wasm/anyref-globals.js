@@ -568,7 +568,7 @@ function dummy_func() {
   const f_func = builder.addFunction('get_anyfunc_global', kSig_a_v)
                      .addBody([kExprGlobalGet, g_func.index])
                      .exportAs('get_anyfunc_global');
-
+  builder.addDeclarativeElementSegment([f_ref.index, f_func.index]);
   g_ref.function_index = f_ref.index;
   g_func.function_index = f_func.index;
 
@@ -580,6 +580,18 @@ function dummy_func() {
       instance.exports.get_anyfunc_global());
 })();
 
+(function TestRefFuncGlobalInitUndeclared() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const global_func = builder.addGlobal(kWasmAnyFunc, true);
+  const func = builder.addFunction('get_anyfunc_global', kSig_v_v).addBody([]);
+  global_func.function_index = func.index;
+
+  assertThrows(
+      () => builder.toModule(), WebAssembly.CompileError,
+      /undeclared reference to function/);
+})();
+
 (function TestRefFuncGlobalInitWithImport() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -588,6 +600,7 @@ function dummy_func() {
   const import_js = builder.addImport('m', 'js', sig_index);
   const g_wasm = builder.addGlobal(kWasmAnyFunc, true);
   const g_js = builder.addGlobal(kWasmAnyFunc, true);
+  builder.addDeclarativeElementSegment([import_wasm, import_js]);
   g_wasm.function_index = import_wasm;
   g_js.function_index = import_js;
   builder.addFunction('get_global_wasm', kSig_a_v)

@@ -2,82 +2,76 @@ Tests breakable locations in wasm
 Running testFunction...
 Script nr 0 parsed. URL: v8://test/setup
 Script nr 1 parsed. URL: v8://test/runTestFunction
-Script nr 2 parsed. URL: wasm://wasm/6a95b41e
+Script nr 2 parsed. URL: wasm://wasm/354ada0e
 This is a wasm script (nr 0).
 Querying breakable locations for all wasm scripts now...
 Requesting all breakable locations in wasm script 0
 Bytecode matches!
-11 breakable location(s):
+10 breakable location(s):
 [0] 0:40 || byte=1
 [1] 0:41 || byte=65
 [2] 0:43 || byte=33
 [3] 0:45 || byte=11
 [4] 0:48 || byte=32
 [5] 0:50 || byte=4
-[6] 0:52 || byte=2
-[7] 0:54 || byte=16
-[8] 0:56 || byte=11
-[9] 0:57 || byte=11
-[10] 0:58 || byte=11
+[6] 0:54 || byte=16
+[7] 0:56 || byte=11
+[8] 0:57 || byte=11
+[9] 0:58 || byte=11
 Requesting breakable locations in offsets [0,45)
 3 breakable location(s):
 [0] 0:40 || byte=1
 [1] 0:41 || byte=65
 [2] 0:43 || byte=33
 Requesting breakable locations in offsets [50,60)
-6 breakable location(s):
+5 breakable location(s):
 [0] 0:50 || byte=4
-[1] 0:52 || byte=2
-[2] 0:54 || byte=16
-[3] 0:56 || byte=11
-[4] 0:57 || byte=11
-[5] 0:58 || byte=11
+[1] 0:54 || byte=16
+[2] 0:56 || byte=11
+[3] 0:57 || byte=11
+[4] 0:58 || byte=11
 Setting a breakpoint on each breakable location...
-Setting at wasm://wasm/6a95b41e:0:40
+Setting at wasm://wasm/354ada0e:0:40
 Success!
-Setting at wasm://wasm/6a95b41e:0:41
+Setting at wasm://wasm/354ada0e:0:41
 Success!
-Setting at wasm://wasm/6a95b41e:0:43
+Setting at wasm://wasm/354ada0e:0:43
 Success!
-Setting at wasm://wasm/6a95b41e:0:45
+Setting at wasm://wasm/354ada0e:0:45
 Success!
-Setting at wasm://wasm/6a95b41e:0:48
+Setting at wasm://wasm/354ada0e:0:48
 Success!
-Setting at wasm://wasm/6a95b41e:0:50
+Setting at wasm://wasm/354ada0e:0:50
 Success!
-Setting at wasm://wasm/6a95b41e:0:52
+Setting at wasm://wasm/354ada0e:0:54
 Success!
-Setting at wasm://wasm/6a95b41e:0:54
+Setting at wasm://wasm/354ada0e:0:56
 Success!
-Setting at wasm://wasm/6a95b41e:0:56
+Setting at wasm://wasm/354ada0e:0:57
 Success!
-Setting at wasm://wasm/6a95b41e:0:57
-Success!
-Setting at wasm://wasm/6a95b41e:0:58
+Setting at wasm://wasm/354ada0e:0:58
 Success!
 Running wasm code...
-Missing breakpoints: 11
-Script nr 3 parsed. URL: v8://test/runWasm
-Stopped at wasm://wasm/6a95b41e:0:48
 Missing breakpoints: 10
-Stopped at wasm://wasm/6a95b41e:0:50
+Script nr 3 parsed. URL: v8://test/runWasm
+Stopped at wasm://wasm/354ada0e:0:48
 Missing breakpoints: 9
-Stopped at wasm://wasm/6a95b41e:0:52
+Stopped at wasm://wasm/354ada0e:0:50
 Missing breakpoints: 8
-Stopped at wasm://wasm/6a95b41e:0:54
+Stopped at wasm://wasm/354ada0e:0:54
 Missing breakpoints: 7
-Stopped at wasm://wasm/6a95b41e:0:40
+Stopped at wasm://wasm/354ada0e:0:40
 Missing breakpoints: 6
-Stopped at wasm://wasm/6a95b41e:0:41
+Stopped at wasm://wasm/354ada0e:0:41
 Missing breakpoints: 5
-Stopped at wasm://wasm/6a95b41e:0:43
+Stopped at wasm://wasm/354ada0e:0:43
 Missing breakpoints: 4
-Stopped at wasm://wasm/6a95b41e:0:45
+Stopped at wasm://wasm/354ada0e:0:45
 Missing breakpoints: 3
-Stopped at wasm://wasm/6a95b41e:0:56
+Stopped at wasm://wasm/354ada0e:0:56
 Missing breakpoints: 2
-Stopped at wasm://wasm/6a95b41e:0:57
+Stopped at wasm://wasm/354ada0e:0:57
 Missing breakpoints: 1
-Stopped at wasm://wasm/6a95b41e:0:58
+Stopped at wasm://wasm/354ada0e:0:58
 Missing breakpoints: 0
 Finished!

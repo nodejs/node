@@ -121,14 +121,14 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
   wasm::FunctionSig::Builder builder(zone, return_count, param_count);
   for (size_t i = 0; i < param_count; i++) {
     MachineType type = RandomType(input);
-    builder.AddParam(wasm::ValueTypes::ValueTypeFor(type));
+    builder.AddParam(wasm::ValueType::For(type));
   }
   // Read the end byte of the parameters.
   input->NextInt8(1);
 
   for (size_t i = 0; i < return_count; i++) {
     MachineType type = RandomType(input);
-    builder.AddReturn(wasm::ValueTypes::ValueTypeFor(type));
+    builder.AddReturn(wasm::ValueType::For(type));
   }
 
   return compiler::GetWasmCallDescriptor(zone, builder.Build());

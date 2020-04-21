@@ -12,6 +12,8 @@ namespace internal {
 
 using compiler::Node;
 
+class GrowableFixedArray;
+
 class IteratorBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IteratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -24,14 +26,9 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
 
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
-  IteratorRecord GetIterator(SloppyTNode<Context> context,
-                             SloppyTNode<Object> object,
-                             Label* if_exception = nullptr,
-                             TVariable<Object>* exception = nullptr);
+  IteratorRecord GetIterator(TNode<Context> context, TNode<Object> object);
   IteratorRecord GetIterator(TNode<Context> context, TNode<Object> object,
-                             TNode<Object> method,
-                             Label* if_exception = nullptr,
-                             TVariable<Object>* exception = nullptr);
+                             TNode<Object> method);
 
   // https://tc39.github.io/ecma262/#sec-iteratorstep
   // If the iterator is done, goto {if_done}, otherwise returns an iterator
@@ -40,9 +37,7 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // object, loaded from the native context.
   TNode<JSReceiver> IteratorStep(
       TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
-      base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt,
-      Label* if_exception = nullptr, TVariable<Object>* exception = nullptr);
-
+      base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt);
   TNode<JSReceiver> IteratorStep(
       TNode<Context> context, const IteratorRecord& iterator,
       base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_done) {
@@ -55,8 +50,7 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // object, loaded from the native context.
   TNode<Object> IteratorValue(
       TNode<Context> context, TNode<JSReceiver> result,
-      base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt,
-      Label* if_exception = nullptr, TVariable<Object>* exception = nullptr);
+      base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt);
 
   // https://tc39.github.io/ecma262/#sec-iteratorclose
   void IteratorCloseOnException(TNode<Context> context,
@@ -72,6 +66,11 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // following the ECMAscript operation with the same name.
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
                                 TNode<Object> iterator_fn);
+
+  void FillFixedArrayFromIterable(TNode<Context> context,
+                                  TNode<Object> iterable,
+                                  TNode<Object> iterator_fn,
+                                  GrowableFixedArray* values);
 
   // Currently at https://tc39.github.io/proposal-intl-list-format/
   // #sec-createstringlistfromiterable

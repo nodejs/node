@@ -901,6 +901,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE_INSTRUCTION_LIST_SS(DECLARE_SSE2_INSTRUCTION)
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_INSTRUCTION)
   SSE2_INSTRUCTION_LIST_SD(DECLARE_SSE2_INSTRUCTION)
+  SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE2_INSTRUCTION)
 #undef DECLARE_SSE2_INSTRUCTION
 
   void sse2_instr(XMMRegister reg, byte imm8, byte prefix, byte escape,
@@ -928,6 +929,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE2_INSTRUCTION_LIST(DECLARE_SSE2_AVX_INSTRUCTION)
 #undef DECLARE_SSE2_AVX_INSTRUCTION
 
+#define DECLARE_SSE2_UNOP_AVX_INSTRUCTION(instruction, prefix, escape, opcode) \
+  void v##instruction(XMMRegister dst, XMMRegister src) {                      \
+    vpd(0x##opcode, dst, xmm0, src);                                           \
+  }                                                                            \
+  void v##instruction(XMMRegister dst, Operand src) {                          \
+    vpd(0x##opcode, dst, xmm0, src);                                           \
+  }
+
+  SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE2_UNOP_AVX_INSTRUCTION)
+#undef DECLARE_SSE2_UNOP_AVX_INSTRUCTION
+
   // SSE3
   void lddqu(XMMRegister dst, Operand src);
   void movddup(XMMRegister dst, Operand src);
@@ -949,6 +961,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   SSSE3_INSTRUCTION_LIST(DECLARE_SSSE3_INSTRUCTION)
+  SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSSE3_INSTRUCTION)
 #undef DECLARE_SSSE3_INSTRUCTION
 
   // SSE4
@@ -972,7 +985,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   SSE4_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
-  SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
+  SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_INSTRUCTION)
   DECLARE_SSE4_INSTRUCTION(blendvpd, 66, 0F, 38, 15)
 #undef DECLARE_SSE4_INSTRUCTION
 
@@ -1021,6 +1034,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   SSE4_2_INSTRUCTION_LIST(DECLARE_SSE34_AVX_INSTRUCTION)
 #undef DECLARE_SSE34_AVX_INSTRUCTION
 
+#define DECLARE_SSSE3_UNOP_AVX_INSTRUCTION(instruction, prefix, escape1,     \
+                                           escape2, opcode)                  \
+  void v##instruction(XMMRegister dst, XMMRegister src) {                    \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }                                                                          \
+  void v##instruction(XMMRegister dst, Operand src) {                        \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }
+
+  SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSSE3_UNOP_AVX_INSTRUCTION)
+#undef DECLARE_SSSE3_UNOP_AVX_INSTRUCTION
+
   void vblendvpd(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                  XMMRegister mask) {
     vinstr(0x4B, dst, src1, src2, k66, k0F3A, kW0);
@@ -1036,7 +1061,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void v##instruction(XMMRegister dst, Operand src) {                        \
     vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
   }
-  SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE4_PMOV_AVX_INSTRUCTION)
+  SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_PMOV_AVX_INSTRUCTION)
 #undef DECLARE_SSE4_PMOV_AVX_INSTRUCTION
 
   void movd(XMMRegister dst, Register src);
@@ -1086,18 +1111,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void cvtss2sd(XMMRegister dst, XMMRegister src);
   void cvtss2sd(XMMRegister dst, Operand src);
-  void cvtsd2ss(XMMRegister dst, XMMRegister src);
-  void cvtsd2ss(XMMRegister dst, Operand src);
 
   void cvtsd2si(Register dst, XMMRegister src);
   void cvtsd2siq(Register dst, XMMRegister src);
-
-  void andpd(XMMRegister dst, XMMRegister src);
-  void andpd(XMMRegister dst, Operand src);
-  void orpd(XMMRegister dst, XMMRegister src);
-  void orpd(XMMRegister dst, Operand src);
-  void xorpd(XMMRegister dst, XMMRegister src);
-  void xorpd(XMMRegister dst, Operand src);
 
   void haddps(XMMRegister dst, XMMRegister src);
   void haddps(XMMRegister dst, Operand src);
@@ -1107,6 +1123,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
   void movmskpd(Register dst, XMMRegister src);
+
+  void pmovmskb(Register dst, XMMRegister src);
 
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
@@ -1224,10 +1242,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                  \
   }
 
-  AVX_3(vandpd, 0x54, vpd)
-  AVX_3(vorpd, 0x56, vpd)
-  AVX_3(vxorpd, 0x57, vpd)
-  AVX_3(vcvtsd2ss, 0x5a, vsd)
   AVX_3(vhaddps, 0x7c, vsd)
 
 #define AVX_SCALAR(instr, prefix, escape, opcode)                      \
@@ -1260,6 +1274,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
   void vcvtss2sd(XMMRegister dst, XMMRegister src1, Operand src2) {
     vinstr(0x5a, dst, src1, src2, kF3, k0F, kWIG);
+  }
+  void vcvttps2dq(XMMRegister dst, XMMRegister src) {
+    vinstr(0x5b, dst, xmm0, src, kF3, k0F, kWIG);
   }
   void vcvtlsi2sd(XMMRegister dst, XMMRegister src1, Register src2) {
     XMMRegister isrc2 = XMMRegister::from_code(src2.code());
@@ -1378,6 +1395,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vpd(0x50, idst, xmm0, src);
   }
+  void vpmovmskb(Register dst, XMMRegister src);
   void vcmpps(XMMRegister dst, XMMRegister src1, XMMRegister src2, int8_t cmp) {
     vps(0xC2, dst, src1, src2);
     emit(cmp);
@@ -1508,11 +1526,23 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
     emit(imm8);
   }
+  void vpshufd(XMMRegister dst, Operand src, uint8_t imm8) {
+    vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
+    emit(imm8);
+  }
   void vpshuflw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, kF2, k0F, kWIG);
     emit(imm8);
   }
   void vpshuflw(XMMRegister dst, Operand src, uint8_t imm8) {
+    vinstr(0x70, dst, xmm0, src, kF2, k0F, kWIG);
+    emit(imm8);
+  }
+  void vpshufhw(XMMRegister dst, XMMRegister src, uint8_t imm8) {
+    vinstr(0x70, dst, xmm0, src, kF3, k0F, kWIG);
+    emit(imm8);
+  }
+  void vpshufhw(XMMRegister dst, Operand src, uint8_t imm8) {
     vinstr(0x70, dst, xmm0, src, kF2, k0F, kWIG);
     emit(imm8);
   }

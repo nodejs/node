@@ -18,12 +18,27 @@ extern class BreakPointInfo extends Struct {
   break_points: FixedArray|BreakPoint|Undefined;
 }
 
-type CoverageInfo extends FixedArray;
+bitfield struct DebugInfoFlags extends uint31 {
+  has_break_info: bool: 1 bit;
+  prepared_for_debug_execution: bool: 1 bit;
+  has_coverage_info: bool: 1 bit;
+  break_at_entry: bool: 1 bit;
+  can_break_at_entry: bool: 1 bit;
+  debug_execution_mode: bool: 1 bit;
+}
+
+bitfield struct DebuggerHints extends uint31 {
+  side_effect_state: int32: 2 bit;
+  debug_is_blackboxed: bool: 1 bit;
+  computed_debug_is_blackboxed: bool: 1 bit;
+  debugging_id: int32: 20 bit;
+}
 
 @generateCppClass
 extern class DebugInfo extends Struct {
   shared: SharedFunctionInfo;
-  debugger_hints: Smi;
+  // Bit field containing various information collected for debugging.
+  debugger_hints: SmiTagged<DebuggerHints>;
   // Script field from shared function info.
   script: Undefined|Script;
   // The original uninstrumented bytecode array for functions with break
@@ -34,6 +49,33 @@ extern class DebugInfo extends Struct {
   debug_bytecode_array: Undefined|BytecodeArray;
   // Fixed array holding status information for each active break point.
   break_points: FixedArray;
-  flags: Smi;
+  // A bitfield that lists uses of the current instance.
+  flags: SmiTagged<DebugInfoFlags>;
   coverage_info: CoverageInfo|Undefined;
+}
+
+@export
+struct CoverageInfoSlot {
+  start_source_position: int32;
+  end_source_position: int32;
+  block_count: int32;
+  padding: int32;  // Padding to make the index count 4.
+}
+
+// CoverageInfo's visitor is included in DATA_ONLY_VISITOR_ID_LIST, so it must
+// not contain any HeapObject fields.
+@generateCppClass
+extern class CoverageInfo extends HeapObject {
+  const slot_count: int32;
+  slots[slot_count]: CoverageInfoSlot;
+}
+
+@generateCppClass
+extern class WasmValue extends Struct {
+  // The type, should map to ValueType::Kind values in value-type.h.
+  value_type: Smi;
+  // Holds the actual value. For example, if this holds a Wasm i32, this will
+  // be of length 4, for s128, it will have length 16. These values are
+  // represented by the respective C++ types, and memcpy-ed in.
+  bytes: ByteArray;
 }

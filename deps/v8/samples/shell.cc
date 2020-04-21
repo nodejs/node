@@ -108,27 +108,20 @@ v8::Local<v8::Context> CreateShellContext(v8::Isolate* isolate) {
   // Create a template for the global object.
   v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate);
   // Bind the global 'print' function to the C++ Print callback.
-  global->Set(
-      v8::String::NewFromUtf8(isolate, "print", v8::NewStringType::kNormal)
-          .ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, Print));
+  global->Set(v8::String::NewFromUtf8Literal(isolate, "print"),
+              v8::FunctionTemplate::New(isolate, Print));
   // Bind the global 'read' function to the C++ Read callback.
-  global->Set(v8::String::NewFromUtf8(
-                  isolate, "read", v8::NewStringType::kNormal).ToLocalChecked(),
+  global->Set(v8::String::NewFromUtf8Literal(isolate, "read"),
               v8::FunctionTemplate::New(isolate, Read));
   // Bind the global 'load' function to the C++ Load callback.
-  global->Set(v8::String::NewFromUtf8(
-                  isolate, "load", v8::NewStringType::kNormal).ToLocalChecked(),
+  global->Set(v8::String::NewFromUtf8Literal(isolate, "load"),
               v8::FunctionTemplate::New(isolate, Load));
   // Bind the 'quit' function
-  global->Set(v8::String::NewFromUtf8(
-                  isolate, "quit", v8::NewStringType::kNormal).ToLocalChecked(),
+  global->Set(v8::String::NewFromUtf8Literal(isolate, "quit"),
               v8::FunctionTemplate::New(isolate, Quit));
   // Bind the 'version' function
-  global->Set(
-      v8::String::NewFromUtf8(isolate, "version", v8::NewStringType::kNormal)
-          .ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, Version));
+  global->Set(v8::String::NewFromUtf8Literal(isolate, "version"),
+              v8::FunctionTemplate::New(isolate, Version));
 
   return v8::Context::New(isolate, NULL, global);
 }
@@ -161,22 +154,19 @@ void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() != 1) {
     args.GetIsolate()->ThrowException(
-        v8::String::NewFromUtf8(args.GetIsolate(), "Bad parameters",
-                                v8::NewStringType::kNormal).ToLocalChecked());
+        v8::String::NewFromUtf8Literal(args.GetIsolate(), "Bad parameters"));
     return;
   }
   v8::String::Utf8Value file(args.GetIsolate(), args[0]);
   if (*file == NULL) {
-    args.GetIsolate()->ThrowException(
-        v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file",
-                                v8::NewStringType::kNormal).ToLocalChecked());
+    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
+        args.GetIsolate(), "Error loading file"));
     return;
   }
   v8::Local<v8::String> source;
   if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-    args.GetIsolate()->ThrowException(
-        v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file",
-                                v8::NewStringType::kNormal).ToLocalChecked());
+    args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
+        args.GetIsolate(), "Error loading file"));
     return;
   }
 
@@ -191,22 +181,19 @@ void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::HandleScope handle_scope(args.GetIsolate());
     v8::String::Utf8Value file(args.GetIsolate(), args[i]);
     if (*file == NULL) {
-      args.GetIsolate()->ThrowException(
-          v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file",
-                                  v8::NewStringType::kNormal).ToLocalChecked());
+      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
+          args.GetIsolate(), "Error loading file"));
       return;
     }
     v8::Local<v8::String> source;
     if (!ReadFile(args.GetIsolate(), *file).ToLocal(&source)) {
-      args.GetIsolate()->ThrowException(
-          v8::String::NewFromUtf8(args.GetIsolate(), "Error loading file",
-                                  v8::NewStringType::kNormal).ToLocalChecked());
+      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
+          args.GetIsolate(), "Error loading file"));
       return;
     }
     if (!ExecuteString(args.GetIsolate(), source, args[i], false, false)) {
-      args.GetIsolate()->ThrowException(
-          v8::String::NewFromUtf8(args.GetIsolate(), "Error executing file",
-                                  v8::NewStringType::kNormal).ToLocalChecked());
+      args.GetIsolate()->ThrowException(v8::String::NewFromUtf8Literal(
+          args.GetIsolate(), "Error executing file"));
       return;
     }
   }
@@ -228,8 +215,8 @@ void Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void Version(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(
-      v8::String::NewFromUtf8(args.GetIsolate(), v8::V8::GetVersion(),
-                              v8::NewStringType::kNormal).ToLocalChecked());
+      v8::String::NewFromUtf8(args.GetIsolate(), v8::V8::GetVersion())
+          .ToLocalChecked());
 }
 
 
@@ -276,12 +263,9 @@ int RunMain(v8::Isolate* isolate, v8::Platform* platform, int argc,
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       // Execute argument given to -e option directly.
       v8::Local<v8::String> file_name =
-          v8::String::NewFromUtf8(isolate, "unnamed",
-                                  v8::NewStringType::kNormal).ToLocalChecked();
+          v8::String::NewFromUtf8Literal(isolate, "unnamed");
       v8::Local<v8::String> source;
-      if (!v8::String::NewFromUtf8(isolate, argv[++i],
-                                   v8::NewStringType::kNormal)
-               .ToLocal(&source)) {
+      if (!v8::String::NewFromUtf8(isolate, argv[++i]).ToLocal(&source)) {
         return 1;
       }
       bool success = ExecuteString(isolate, source, file_name, false, true);
@@ -290,8 +274,7 @@ int RunMain(v8::Isolate* isolate, v8::Platform* platform, int argc,
     } else {
       // Use all other arguments as names of files to load and run.
       v8::Local<v8::String> file_name =
-          v8::String::NewFromUtf8(isolate, str, v8::NewStringType::kNormal)
-              .ToLocalChecked();
+          v8::String::NewFromUtf8(isolate, str).ToLocalChecked();
       v8::Local<v8::String> source;
       if (!ReadFile(isolate, str).ToLocal(&source)) {
         fprintf(stderr, "Error reading '%s'\n", str);
@@ -313,8 +296,7 @@ void RunShell(v8::Local<v8::Context> context, v8::Platform* platform) {
   // Enter the execution environment before evaluating any code.
   v8::Context::Scope context_scope(context);
   v8::Local<v8::String> name(
-      v8::String::NewFromUtf8(context->GetIsolate(), "(shell)",
-                              v8::NewStringType::kNormal).ToLocalChecked());
+      v8::String::NewFromUtf8Literal(context->GetIsolate(), "(shell)"));
   while (true) {
     char buffer[kBufferSize];
     fprintf(stderr, "> ");
@@ -323,8 +305,7 @@ void RunShell(v8::Local<v8::Context> context, v8::Platform* platform) {
     v8::HandleScope handle_scope(context->GetIsolate());
     ExecuteString(
         context->GetIsolate(),
-        v8::String::NewFromUtf8(context->GetIsolate(), str,
-                                v8::NewStringType::kNormal).ToLocalChecked(),
+        v8::String::NewFromUtf8(context->GetIsolate(), str).ToLocalChecked(),
         name, true, true);
     while (v8::platform::PumpMessageLoop(platform, context->GetIsolate()))
       continue;

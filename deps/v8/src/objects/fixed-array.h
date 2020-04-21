@@ -8,7 +8,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/smi.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -69,18 +69,13 @@ enum FixedArraySubInstanceType {
 
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.
-class FixedArrayBase : public HeapObject {
+class FixedArrayBase
+    : public TorqueGeneratedFixedArrayBase<FixedArrayBase, HeapObject> {
  public:
-  // [length]: length of the array.
-  DECL_INT_ACCESSORS(length)
-
   // Get and set the length using acquire loads and release stores.
   DECL_SYNCHRONIZED_INT_ACCESSORS(length)
 
   inline Object unchecked_synchronized_length() const;
-
-  DECL_CAST(FixedArrayBase)
-  DECL_VERIFIER(FixedArrayBase)
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -95,20 +90,15 @@ class FixedArrayBase : public HeapObject {
   static const int kMaxSize = 128 * kTaggedSize * MB - kTaggedSize;
   STATIC_ASSERT(Smi::IsValid(kMaxSize));
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_FIXED_ARRAY_BASE_FIELDS)
-
  protected:
-  // Special-purpose constructor for subclasses that have fast paths where
-  // their ptr() is a Smi.
-  inline FixedArrayBase(Address ptr, AllowInlineSmiStorage allow_smi);
-
-  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(FixedArrayBase)
+  inline FixedArrayBase(Address ptr,
+                        HeapObject::AllowInlineSmiStorage allow_smi);
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
-class FixedArray : public FixedArrayBase {
+class FixedArray
+    : public TorqueGeneratedFixedArray<FixedArray, FixedArrayBase> {
  public:
   // Setter and getter for elements.
   inline Object get(int index) const;
@@ -171,12 +161,14 @@ class FixedArray : public FixedArrayBase {
   }
 
   // Code Generation support.
-  static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
+  static constexpr int OffsetOfElementAt(int index) {
+    STATIC_ASSERT(kObjectsOffset == SizeFor(0));
+    return SizeFor(index);
+  }
 
   // Garbage collection support.
   inline ObjectSlot RawFieldOfElementAt(int index);
 
-  DECL_CAST(FixedArray)
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
@@ -189,7 +181,6 @@ class FixedArray : public FixedArrayBase {
 
   // Dispatched behavior.
   DECL_PRINTER(FixedArray)
-  DECL_VERIFIER(FixedArray)
 
   using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
 
@@ -208,7 +199,7 @@ class FixedArray : public FixedArrayBase {
   inline void set_null(ReadOnlyRoots ro_roots, int index);
   inline void set_the_hole(ReadOnlyRoots ro_roots, int index);
 
-  OBJECT_CONSTRUCTORS(FixedArray, FixedArrayBase);
+  TQ_OBJECT_CONSTRUCTORS(FixedArray)
 };
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
@@ -217,7 +208,8 @@ class FixedArray : public FixedArrayBase {
 class FixedArrayExact final : public FixedArray {};
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
-class FixedDoubleArray : public FixedArrayBase {
+class FixedDoubleArray
+    : public TorqueGeneratedFixedDoubleArray<FixedDoubleArray, FixedArrayBase> {
  public:
   // Setter and getter for elements.
   inline double get_scalar(int index);
@@ -245,8 +237,6 @@ class FixedDoubleArray : public FixedArrayBase {
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  DECL_CAST(FixedDoubleArray)
-
   // Start offset of elements.
   static constexpr int kFloatsOffset = kHeaderSize;
 
@@ -261,29 +251,20 @@ class FixedDoubleArray : public FixedArrayBase {
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(FixedDoubleArray, FixedArrayBase);
+  TQ_OBJECT_CONSTRUCTORS(FixedDoubleArray)
 };
 
 // WeakFixedArray describes fixed-sized arrays with element type
 // MaybeObject.
-class WeakFixedArray : public HeapObject {
+class WeakFixedArray
+    : public TorqueGeneratedWeakFixedArray<WeakFixedArray, HeapObject> {
  public:
-  DECL_CAST(WeakFixedArray)
-
   inline MaybeObject Get(int index) const;
   inline MaybeObject Get(const Isolate* isolate, int index) const;
 
-  // Setter that uses write barrier.
-  inline void Set(int index, MaybeObject value);
-
-  // Setter with explicit barrier mode.
-  inline void Set(int index, MaybeObject value, WriteBarrierMode mode);
-
-  static constexpr int SizeFor(int length) {
-    return kHeaderSize + length * kTaggedSize;
-  }
-
-  DECL_INT_ACCESSORS(length)
+  inline void Set(
+      int index, MaybeObject value,
+      WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Get and set the length using acquire loads and release stores.
   DECL_SYNCHRONIZED_INT_ACCESSORS(length)
@@ -301,9 +282,6 @@ class WeakFixedArray : public HeapObject {
 
   using BodyDescriptor = WeakArrayBodyDescriptor;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WEAK_FIXED_ARRAY_FIELDS)
-
   static const int kMaxLength =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
@@ -319,7 +297,7 @@ class WeakFixedArray : public HeapObject {
 
   static const int kFirstIndex = 1;
 
-  OBJECT_CONSTRUCTORS(WeakFixedArray, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(WeakFixedArray)
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
@@ -327,11 +305,10 @@ class WeakFixedArray : public HeapObject {
 // capacity() returns the allocated size. The number of elements is stored at
 // kLengthOffset and is updated with every insertion. The array grows
 // dynamically with O(1) amortized insertion.
-class WeakArrayList : public HeapObject {
+class WeakArrayList
+    : public TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_CAST(WeakArrayList)
-  DECL_VERIFIER(WeakArrayList)
   DECL_PRINTER(WeakArrayList)
 
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
@@ -365,7 +342,7 @@ class WeakArrayList : public HeapObject {
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static constexpr int SizeForCapacity(int capacity) {
-    return kHeaderSize + capacity * kTaggedSize;
+    return SizeFor(capacity);
   }
 
   static constexpr int CapacityForLength(int length) {
@@ -380,15 +357,9 @@ class WeakArrayList : public HeapObject {
 
   V8_EXPORT_PRIVATE bool IsFull();
 
-  DECL_INT_ACCESSORS(capacity)
-  DECL_INT_ACCESSORS(length)
-
   // Get and set the capacity using acquire loads and release stores.
   DECL_SYNCHRONIZED_INT_ACCESSORS(capacity)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_WEAK_ARRAY_LIST_FIELDS)
 
   using BodyDescriptor = WeakArrayBodyDescriptor;
 
@@ -418,7 +389,7 @@ class WeakArrayList : public HeapObject {
     return kHeaderSize + index * kTaggedSize;
   }
 
-  OBJECT_CONSTRUCTORS(WeakArrayList, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(WeakArrayList)
 };
 
 class WeakArrayList::Iterator {
@@ -494,7 +465,7 @@ inline int Search(T* array, Name name, int valid_entries = 0,
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info
 // that is attached to code objects.
-class ByteArray : public FixedArrayBase {
+class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
  public:
   inline int Size();
 
@@ -543,12 +514,9 @@ class ByteArray : public FixedArrayBase {
   // Returns a pointer to the ByteArray object for a given data start address.
   static inline ByteArray FromDataStartAddress(Address address);
 
-  DECL_CAST(ByteArray)
-
   // Dispatched behavior.
   inline int ByteArraySize();
   DECL_PRINTER(ByteArray)
-  DECL_VERIFIER(ByteArray)
 
   // Layout description.
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
@@ -561,11 +529,8 @@ class ByteArray : public FixedArrayBase {
   class BodyDescriptor;
 
  protected:
-  // Special-purpose constructor for subclasses that have fast paths where
-  // their ptr() is a Smi.
-  inline ByteArray(Address ptr, AllowInlineSmiStorage allow_smi);
-
-  OBJECT_CONSTRUCTORS(ByteArray, FixedArrayBase);
+  TQ_OBJECT_CONSTRUCTORS(ByteArray)
+  inline ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);
 };
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long

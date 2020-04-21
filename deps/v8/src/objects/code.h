@@ -138,6 +138,9 @@ class Code : public HeapObject {
   inline void set_builtin_index(int id);
   inline bool is_builtin() const;
 
+  inline unsigned inlined_bytecode_size() const;
+  inline void set_inlined_bytecode_size(unsigned size);
+
   inline bool has_safepoint_info() const;
 
   // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
@@ -397,6 +400,7 @@ class Code : public HeapObject {
     FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
   V(kCodeCommentsOffsetOffset, kIntSize)                                  \
   V(kBuiltinIndexOffset, kIntSize)                                        \
+  V(kInlinedBytecodeSizeOffset, kIntSize)                                 \
   V(kUnalignedHeaderSize, 0)                                              \
   /* Add padding to align the instruction start following right after */  \
   /* the Code object header. */                                           \
@@ -409,22 +413,22 @@ class Code : public HeapObject {
   // This documents the amount of free space we have in each Code object header
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
 #elif V8_TARGET_ARCH_MIPS64
-  static constexpr int kHeaderPaddingSize = 0;
+  static constexpr int kHeaderPaddingSize = 28;
 #elif V8_TARGET_ARCH_X64
-  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 20 : 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
 #elif V8_TARGET_ARCH_ARM
-  static constexpr int kHeaderPaddingSize = 20;
+  static constexpr int kHeaderPaddingSize = 16;
 #elif V8_TARGET_ARCH_IA32
-  static constexpr int kHeaderPaddingSize = 20;
+  static constexpr int kHeaderPaddingSize = 16;
 #elif V8_TARGET_ARCH_MIPS
-  static constexpr int kHeaderPaddingSize = 20;
+  static constexpr int kHeaderPaddingSize = 16;
 #elif V8_TARGET_ARCH_PPC64
   static constexpr int kHeaderPaddingSize =
-      FLAG_enable_embedded_constant_pool ? 28 : 0;
+      FLAG_enable_embedded_constant_pool ? 24 : 28;
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kHeaderPaddingSize = 0;
+  static constexpr int kHeaderPaddingSize = COMPRESS_POINTERS_BOOL ? 16 : 28;
 #else
 #error Unknown architecture.
 #endif
@@ -659,9 +663,9 @@ class DependentCode : public WeakFixedArray {
                                                   Handle<HeapObject> object,
                                                   DependencyGroup group);
 
-  void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroup group);
+  void DeoptimizeDependentCodeGroup(DependencyGroup group);
 
-  bool MarkCodeForDeoptimization(Isolate* isolate, DependencyGroup group);
+  bool MarkCodeForDeoptimization(DependencyGroup group);
 
   // The following low-level accessors are exposed only for tests.
   inline DependencyGroup group();
@@ -864,7 +868,8 @@ class DeoptimizationData : public FixedArray {
   static const int kSharedFunctionInfoIndex = 6;
   static const int kInliningPositionsIndex = 7;
   static const int kDeoptExitStartIndex = 8;
-  static const int kFirstDeoptEntryIndex = 9;
+  static const int kNonLazyDeoptCountIndex = 9;
+  static const int kFirstDeoptEntryIndex = 10;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
@@ -886,6 +891,7 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
   DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
   DECL_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
+  DECL_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
 
 #undef DECL_ELEMENT_ACCESSORS
 

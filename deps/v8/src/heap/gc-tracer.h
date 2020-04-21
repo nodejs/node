@@ -25,19 +25,20 @@ inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
+#define TRACE_GC_CATEGORIES \
+  TRACE_DISABLED_BY_DEFAULT("v8.gc") ",devtools.timeline"
+
 #define TRACE_GC(tracer, scope_id)                             \
   GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \
   GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id); \
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),             \
-               GCTracer::Scope::Name(gc_tracer_scope_id))
+  TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::Scope::Name(gc_tracer_scope_id))
 
 #define TRACE_BACKGROUND_GC(tracer, scope_id)                                 \
   WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(                 \
       tracer->worker_thread_runtime_call_stats());                            \
   GCTracer::BackgroundScope background_scope(tracer, scope_id,                \
                                              runtime_call_stats_scope.Get()); \
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),                            \
-               GCTracer::BackgroundScope::Name(scope_id))
+  TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::BackgroundScope::Name(scope_id))
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
@@ -353,6 +354,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void RecordEmbedderSpeed(size_t bytes, double duration);
 
+  // Returns the average time between scheduling and invocation of an
+  // incremental marking task.
+  double AverageTimeToIncrementalMarkingTask() const;
+  void RecordTimeToIncrementalMarkingTask(double time_to_task);
+
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
 
  private:
@@ -445,6 +451,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   double incremental_marking_start_time_;
 
   double recorded_incremental_marking_speed_;
+
+  double average_time_to_incremental_marking_task_ = 0.0;
 
   double recorded_embedder_speed_ = 0.0;
 

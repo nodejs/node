@@ -161,6 +161,11 @@ class String : public TorqueGeneratedString<String, Name> {
   template <typename Char>
   inline const Char* GetChars(const DisallowHeapAllocation& no_gc);
 
+  // Returns the address of the character at an offset into this string.
+  // Requires: this->IsFlat()
+  const byte* AddressOfCharacterAt(int start_index,
+                                   const DisallowHeapAllocation& no_gc);
+
   // Get and set the length of the string using acquire loads and release
   // stores.
   DECL_SYNCHRONIZED_INT_ACCESSORS(length)
@@ -202,6 +207,9 @@ class String : public TorqueGeneratedString<String, Name> {
 
   static inline Handle<String> Flatten(
       Isolate* isolate, Handle<String> string,
+      AllocationType allocation = AllocationType::kYoung);
+  static inline Handle<String> Flatten(
+      OffThreadIsolate* isolate, Handle<String> string,
       AllocationType allocation = AllocationType::kYoung);
 
   // Tries to return the content of a flat string as a structure holding either
@@ -454,7 +462,8 @@ class String : public TorqueGeneratedString<String, Name> {
   static inline ConsString VisitFlat(Visitor* visitor, String string,
                                      int offset = 0);
 
-  static Handle<FixedArray> CalculateLineEnds(Isolate* isolate,
+  template <typename LocalIsolate>
+  static Handle<FixedArray> CalculateLineEnds(LocalIsolate* isolate,
                                               Handle<String> string,
                                               bool include_ending_line);
 
@@ -673,7 +682,6 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
  public:
   inline void set_parent(String parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  DECL_INT_ACCESSORS(offset)
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t Get(int index);
 

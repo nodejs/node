@@ -4,5 +4,6 @@
 
 @generateCppClass
 extern class EmbedderDataArray extends HeapObject {
+  // length of the array in an embedder data slots.
   length: Smi;
 }

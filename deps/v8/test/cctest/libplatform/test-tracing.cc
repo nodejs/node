@@ -11,23 +11,9 @@
 
 #ifdef V8_USE_PERFETTO
 #include "perfetto/tracing.h"
-#include "protos/perfetto/trace/chrome/chrome_trace_event.pb.h"
-#include "protos/perfetto/trace/chrome/chrome_trace_event.pbzero.h"
-#include "protos/perfetto/trace/chrome/chrome_trace_packet.pb.h"
 #include "protos/perfetto/trace/trace.pb.h"
-#include "src/libplatform/tracing/json-trace-event-listener.h"
 #include "src/libplatform/tracing/trace-event-listener.h"
-#endif  // V8_USE_PERFETTO
-
-#ifdef V8_USE_PERFETTO
-class TestDataSource : public perfetto::DataSource<TestDataSource> {
- public:
-  void OnSetup(const SetupArgs&) override {}
-  void OnStart(const StartArgs&) override {}
-  void OnStop(const StopArgs&) override {}
-};
-
-PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(TestDataSource);
+#include "src/tracing/traced-value.h"
 #endif  // V8_USE_PERFETTO
 
 namespace v8 {
@@ -59,6 +45,8 @@ TEST(TestTraceConfig) {
   delete trace_config;
 }
 
+// Perfetto doesn't use TraceObject.
+#if !defined(V8_USE_PERFETTO)
 TEST(TestTraceObject) {
   TraceObject trace_object;
   uint8_t category_enabled_flag = 41;
@@ -101,7 +89,10 @@ class MockTraceWriter : public TraceWriter {
  private:
   std::vector<std::string> events_;
 };
+#endif  // !defined(V8_USE_PERFETTO)
 
+// Perfetto doesn't use the ring buffer.
+#if !defined(V8_USE_PERFETTO)
 TEST(TestTraceBufferRingBuffer) {
   // We should be able to add kChunkSize * 2 + 1 trace events.
   const int HANDLES_COUNT = TraceBufferChunk::kChunkSize * 2 + 1;
@@ -151,7 +142,10 @@ TEST(TestTraceBufferRingBuffer) {
   }
   delete ring_buffer;
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
+// Perfetto has an internal JSON exporter.
+#if !defined(V8_USE_PERFETTO)
 void PopulateJSONWriter(TraceWriter* writer) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   std::unique_ptr<v8::Platform> default_platform(
@@ -165,10 +159,6 @@ void PopulateJSONWriter(TraceWriter* writer) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
-#ifdef V8_USE_PERFETTO
-  std::ostringstream sstream;
-  tracing_controller->InitializeForPerfetto(&sstream);
-#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8-cat");
   tracing_controller->StartTracing(trace_config);
@@ -220,6 +210,7 @@ TEST(TestJSONTraceWriterWithCustomtag) {
 
   CHECK_EQ(expected_trace_str, trace_str);
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 void GetJSONStrings(std::vector<std::string>* ret, const std::string& str,
                     const std::string& param, const std::string& start_delim,
@@ -235,7 +226,8 @@ void GetJSONStrings(std::vector<std::string>* ret, const std::string& str,
   }
 }
 
-#ifndef V8_USE_PERFETTO
+// With Perfetto the tracing controller doesn't observe events.
+#if !defined(V8_USE_PERFETTO)
 TEST(TestTracingController) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   std::unique_ptr<v8::Platform> default_platform(
@@ -251,10 +243,6 @@ TEST(TestTracingController) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
-#ifdef V8_USE_PERFETTO
-  std::ostringstream sstream;
-  tracing_controller->InitializeForPerfetto(&sstream);
-#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
   tracing_controller->StartTracing(trace_config);
@@ -311,9 +299,6 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
     TraceBuffer* ring_buffer =
         TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
     tracing_controller->Initialize(ring_buffer);
-#ifdef V8_USE_PERFETTO
-    tracing_controller->InitializeForPerfetto(&perfetto_stream);
-#endif
     TraceConfig* trace_config = new TraceConfig();
     trace_config->AddIncludedCategory("v8");
     tracing_controller->StartTracing(trace_config);
@@ -402,7 +387,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   CHECK_EQ(all_args[22], "\"a1\":[42,42]");
   CHECK_EQ(all_args[23], "\"a1\":[42,42],\"a2\":[123,123]");
 }
-#endif  // !V8_USE_PERFETTO
+#endif  // !defined(V8_USE_PERFETTO)
 
 namespace {
 
@@ -427,14 +412,15 @@ TEST(TracingObservers) {
   v8::platform::tracing::TracingController* tracing_controller = tracing.get();
   static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
       ->SetTracingController(std::move(tracing));
+#ifdef V8_USE_PERFETTO
+  std::ostringstream sstream;
+  tracing_controller->InitializeForPerfetto(&sstream);
+#else
   MockTraceWriter* writer = new MockTraceWriter();
   v8::platform::tracing::TraceBuffer* ring_buffer =
       v8::platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(1,
                                                                       writer);
   tracing_controller->Initialize(ring_buffer);
-#ifdef V8_USE_PERFETTO
-  std::ostringstream sstream;
-  tracing_controller->InitializeForPerfetto(&sstream);
 #endif
   v8::platform::tracing::TraceConfig* trace_config =
       new v8::platform::tracing::TraceConfig();
@@ -484,6 +470,8 @@ TEST(TracingObservers) {
   i::V8::SetPlatformForTesting(old_platform);
 }
 
+// With Perfetto the tracing controller doesn't observe events.
+#if !defined(V8_USE_PERFETTO)
 class TraceWritingThread : public base::Thread {
  public:
   TraceWritingThread(
@@ -525,10 +513,6 @@ TEST(AddTraceEventMultiThreaded) {
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, writer);
   tracing_controller->Initialize(ring_buffer);
-#ifdef V8_USE_PERFETTO
-  std::ostringstream sstream;
-  tracing_controller->InitializeForPerfetto(&sstream);
-#endif
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory("v8");
   tracing_controller->StartTracing(trace_config);
@@ -546,26 +530,110 @@ TEST(AddTraceEventMultiThreaded) {
 
   i::V8::SetPlatformForTesting(old_platform);
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 #ifdef V8_USE_PERFETTO
 
-using TraceEvent = ::perfetto::protos::ChromeTraceEvent;
+using TrackEvent = ::perfetto::protos::TrackEvent;
 
 class TestListener : public TraceEventListener {
  public:
   void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
-    for (const ::perfetto::protos::ChromeTraceEvent& event :
-         packet.chrome_events().trace_events()) {
-      events_.push_back(event);
+    if (packet.incremental_state_cleared()) {
+      categories_.clear();
+      event_names_.clear();
+      debug_annotation_names_.clear();
     }
+
+    if (!packet.has_track_event()) return;
+
+    // Update incremental state.
+    if (packet.has_interned_data()) {
+      const auto& interned_data = packet.interned_data();
+      for (const auto& it : interned_data.event_categories()) {
+        CHECK_EQ(categories_.find(it.iid()), categories_.end());
+        categories_[it.iid()] = it.name();
+      }
+      for (const auto& it : interned_data.event_names()) {
+        CHECK_EQ(event_names_.find(it.iid()), event_names_.end());
+        event_names_[it.iid()] = it.name();
+      }
+      for (const auto& it : interned_data.debug_annotation_names()) {
+        CHECK_EQ(debug_annotation_names_.find(it.iid()),
+                 debug_annotation_names_.end());
+        debug_annotation_names_[it.iid()] = it.name();
+      }
+    }
+    const auto& track_event = packet.track_event();
+    std::string slice;
+    switch (track_event.type()) {
+      case perfetto::protos::TrackEvent::TYPE_SLICE_BEGIN:
+        slice += "B";
+        break;
+      case perfetto::protos::TrackEvent::TYPE_SLICE_END:
+        slice += "E";
+        break;
+      case perfetto::protos::TrackEvent::TYPE_INSTANT:
+        slice += "I";
+        break;
+      default:
+      case perfetto::protos::TrackEvent::TYPE_UNSPECIFIED:
+        CHECK(false);
+    }
+    slice += ":" +
+             (track_event.category_iids_size()
+                  ? categories_[track_event.category_iids().Get(0)]
+                  : "") +
+             ".";
+    if (track_event.name_iid()) {
+      slice += event_names_[track_event.name_iid()];
+    } else {
+      slice += track_event.name();
+    }
+
+    if (track_event.debug_annotations_size()) {
+      slice += "(";
+      bool first_annotation = true;
+      for (const auto& it : track_event.debug_annotations()) {
+        if (!first_annotation) {
+          slice += ",";
+        }
+        slice += debug_annotation_names_[it.name_iid()] + "=";
+        std::stringstream value;
+        if (it.has_bool_value()) {
+          value << "(bool)" << it.bool_value();
+        } else if (it.has_uint_value()) {
+          value << "(uint)" << it.uint_value();
+        } else if (it.has_int_value()) {
+          value << "(int)" << it.int_value();
+        } else if (it.has_double_value()) {
+          value << "(double)" << it.double_value();
+        } else if (it.has_string_value()) {
+          value << "(string)" << it.string_value();
+        } else if (it.has_pointer_value()) {
+          value << "(pointer)0x" << std::hex << it.pointer_value();
+        } else if (it.has_legacy_json_value()) {
+          value << "(json)" << it.legacy_json_value();
+        } else if (it.has_nested_value()) {
+          value << "(nested)" << it.nested_value().string_value();
+        }
+        slice += value.str();
+        first_annotation = false;
+      }
+      slice += ")";
+    }
+    events_.push_back(slice);
   }
 
-  TraceEvent* get_event(size_t index) { return &events_.at(index); }
+  const std::string& get_event(size_t index) { return events_.at(index); }
 
   size_t events_size() const { return events_.size(); }
 
  private:
-  std::vector<TraceEvent> events_;
+  std::vector<std::string> events_;
+  std::map<uint64_t, std::string> categories_;
+  std::map<uint64_t, std::string> event_names_;
+  std::map<uint64_t, std::string> debug_annotation_names_;
 };
 
 class TracingTestHarness {
@@ -592,9 +660,14 @@ class TracingTestHarness {
     tracing_controller_->StartTracing(trace_config);
   }
 
-  void StopTracing() { tracing_controller_->StopTracing(); }
+  void StopTracing() {
+    v8::TrackEvent::Flush();
+    tracing_controller_->StopTracing();
+  }
 
-  TraceEvent* get_event(size_t index) { return listener_.get_event(index); }
+  const std::string& get_event(size_t index) {
+    return listener_.get_event(index);
+  }
   size_t events_size() const { return listener_.events_size(); }
 
   std::string perfetto_json_stream() { return perfetto_json_stream_.str(); }
@@ -622,49 +695,13 @@ TEST(Perfetto) {
 
   harness.StopTracing();
 
-  TraceEvent* event = harness.get_event(0);
-  int32_t thread_id = event->thread_id();
-  int32_t process_id = event->process_id();
-  CHECK_EQ("test1", event->name());
-  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase());
-  int64_t timestamp = event->timestamp();
-
-  event = harness.get_event(1);
-  CHECK_EQ("test2", event->name());
-  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase());
-  CHECK_EQ(thread_id, event->thread_id());
-  CHECK_EQ(process_id, event->process_id());
-  CHECK_GE(event->timestamp(), timestamp);
-  timestamp = event->timestamp();
-
-  event = harness.get_event(2);
-  CHECK_EQ("test3", event->name());
-  CHECK_EQ(TRACE_EVENT_PHASE_BEGIN, event->phase());
-  CHECK_EQ(thread_id, event->thread_id());
-  CHECK_EQ(process_id, event->process_id());
-  CHECK_GE(event->timestamp(), timestamp);
-  timestamp = event->timestamp();
-
-  event = harness.get_event(3);
-  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase());
-  CHECK_EQ(thread_id, event->thread_id());
-  CHECK_EQ(process_id, event->process_id());
-  CHECK_GE(event->timestamp(), timestamp);
-  timestamp = event->timestamp();
-
-  event = harness.get_event(4);
-  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase());
-  CHECK_EQ(thread_id, event->thread_id());
-  CHECK_EQ(process_id, event->process_id());
-  CHECK_GE(event->timestamp(), timestamp);
-  timestamp = event->timestamp();
-
-  event = harness.get_event(5);
-  CHECK_EQ(TRACE_EVENT_PHASE_END, event->phase());
-  CHECK_EQ(thread_id, event->thread_id());
-  CHECK_EQ(process_id, event->process_id());
-  CHECK_GE(event->timestamp(), timestamp);
-  timestamp = event->timestamp();
+  CHECK_EQ("B:v8.test1", harness.get_event(0));
+  CHECK_EQ("B:v8.test2(arg1=(uint)1024)", harness.get_event(1));
+  CHECK_EQ("B:v8.test3(arg1=(uint)1024,arg2=(string)str_arg)",
+           harness.get_event(2));
+  CHECK_EQ("E:.", harness.get_event(3));
+  CHECK_EQ("E:.", harness.get_event(4));
+  CHECK_EQ("E:.", harness.get_event(5));
 
   CHECK_EQ(6, harness.events_size());
 }
@@ -684,10 +721,10 @@ TEST(Categories) {
   harness.StopTracing();
 
   CHECK_EQ(4, harness.events_size());
-  TraceEvent* event = harness.get_event(0);
-  CHECK_EQ("v8.Test", event->name());
-  event = harness.get_event(1);
-  CHECK_EQ("v8.Test3", event->name());
+  CHECK_EQ("B:v8.v8.Test", harness.get_event(0));
+  CHECK_EQ("B:v8.v8.Test3", harness.get_event(1));
+  CHECK_EQ("E:.", harness.get_event(2));
+  CHECK_EQ("E:.", harness.get_event(3));
 }
 
 // Replacement for 'TestTracingControllerMultipleArgsAndCopy'
@@ -747,123 +784,57 @@ TEST(MultipleArgsAndCopy) {
     mm = "CHANGED";
     mmm = "CHANGED";
 
+    auto arg = v8::tracing::TracedValue::Create();
+    arg->SetInteger("value", 42);
     TRACE_EVENT_INSTANT1("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         new ConvertableToTraceFormatMock(42));
-    std::unique_ptr<ConvertableToTraceFormatMock> trace_event_arg(
-        new ConvertableToTraceFormatMock(42));
+                         std::move(arg));
+
+    arg = v8::tracing::TracedValue::Create();
+    arg->SetString("value", "string");
+    auto arg2 = v8::tracing::TracedValue::Create();
+    arg2->SetDouble("value", 1.23);
     TRACE_EVENT_INSTANT2("v8", "v8.Test", TRACE_EVENT_SCOPE_THREAD, "a1",
-                         std::move(trace_event_arg), "a2",
-                         new ConvertableToTraceFormatMock(123));
+                         std::move(arg), "a2", std::move(arg2));
   }
 
   harness.StopTracing();
 
-  // 20 START/END events, 4 INSTANT events.
-  CHECK_EQ(44, harness.events_size());
-  TraceEvent* event = harness.get_event(0);
-  CHECK_EQ("aa", event->args()[0].name());
-  CHECK_EQ(aa, event->args()[0].uint_value());
+  CHECK_EQ("B:v8.v8.Test.aa(aa=(uint)11)", harness.get_event(0));
+  CHECK_EQ("B:v8.v8.Test.bb(bb=(uint)22)", harness.get_event(1));
+  CHECK_EQ("B:v8.v8.Test.cc(cc=(uint)33)", harness.get_event(2));
+  CHECK_EQ("B:v8.v8.Test.dd(dd=(uint)44)", harness.get_event(3));
+  CHECK_EQ("B:v8.v8.Test.ee(ee=(int)-55)", harness.get_event(4));
+  CHECK_EQ("B:v8.v8.Test.ff(ff=(int)-66)", harness.get_event(5));
+  CHECK_EQ("B:v8.v8.Test.gg(gg=(int)-77)", harness.get_event(6));
+  CHECK_EQ("B:v8.v8.Test.hh(hh=(int)-88)", harness.get_event(7));
+  CHECK_EQ("B:v8.v8.Test.ii(ii1=(bool)1)", harness.get_event(8));
+  CHECK_EQ("B:v8.v8.Test.ii(ii2=(bool)0)", harness.get_event(9));
+  CHECK_EQ("B:v8.v8.Test.jj1(jj1=(double)99)", harness.get_event(10));
+  CHECK_EQ("B:v8.v8.Test.jj2(jj2=(double)1e+100)", harness.get_event(11));
+  CHECK_EQ("B:v8.v8.Test.jj3(jj3=(double)nan)", harness.get_event(12));
+  CHECK_EQ("B:v8.v8.Test.jj4(jj4=(double)inf)", harness.get_event(13));
+  CHECK_EQ("B:v8.v8.Test.jj5(jj5=(double)-inf)", harness.get_event(14));
 
-  event = harness.get_event(1);
-  CHECK_EQ("bb", event->args()[0].name());
-  CHECK_EQ(bb, event->args()[0].uint_value());
+  std::ostringstream pointer_stream;
+  pointer_stream << "B:v8.v8.Test.kk(kk=(pointer)" << &aa << ")";
+  CHECK_EQ(pointer_stream.str().c_str(), harness.get_event(15));
 
-  event = harness.get_event(2);
-  CHECK_EQ("cc", event->args()[0].name());
-  CHECK_EQ(cc, event->args()[0].uint_value());
+  CHECK_EQ("B:v8.v8.Test.ll(ll=(string)100)", harness.get_event(16));
+  CHECK_EQ("B:v8.v8.Test.mm(mm=(string)\"INIT\")", harness.get_event(17));
+  CHECK_EQ("B:v8.v8.Test2.1(aa=(uint)11,ll=(string)100)",
+           harness.get_event(18));
+  CHECK_EQ("B:v8.v8.Test2.2(mm1=(string)INIT,mm2=(string)\"INIT\")",
+           harness.get_event(19));
+  CHECK_EQ("I:v8.INIT", harness.get_event(20));
+  CHECK_EQ("I:v8.INIT(mm1=(string)INIT,mm2=(string)\"INIT\")",
+           harness.get_event(21));
+  CHECK_EQ("I:v8.v8.Test(a1=(json){\"value\":42})", harness.get_event(22));
+  CHECK_EQ(
+      "I:v8.v8.Test(a1=(json){\"value\":\"string\"},a2=(json){\"value\":1.23})",
+      harness.get_event(23));
 
-  event = harness.get_event(3);
-  CHECK_EQ("dd", event->args()[0].name());
-  CHECK_EQ(dd, event->args()[0].uint_value());
-
-  event = harness.get_event(4);
-  CHECK_EQ("ee", event->args()[0].name());
-  CHECK_EQ(ee, event->args()[0].int_value());
-
-  event = harness.get_event(5);
-  CHECK_EQ("ff", event->args()[0].name());
-  CHECK_EQ(ff, event->args()[0].int_value());
-
-  event = harness.get_event(6);
-  CHECK_EQ("gg", event->args()[0].name());
-  CHECK_EQ(gg, event->args()[0].int_value());
-
-  event = harness.get_event(7);
-  CHECK_EQ("hh", event->args()[0].name());
-  CHECK_EQ(hh, event->args()[0].int_value());
-
-  event = harness.get_event(8);
-  CHECK_EQ("ii1", event->args()[0].name());
-  CHECK_EQ(ii1, event->args()[0].bool_value());
-
-  event = harness.get_event(9);
-  CHECK_EQ("ii2", event->args()[0].name());
-  CHECK_EQ(ii2, event->args()[0].bool_value());
-
-  event = harness.get_event(10);
-  CHECK_EQ("jj1", event->args()[0].name());
-  CHECK_EQ(jj1, event->args()[0].double_value());
-
-  event = harness.get_event(11);
-  CHECK_EQ("jj2", event->args()[0].name());
-  CHECK_EQ(jj2, event->args()[0].double_value());
-
-  event = harness.get_event(12);
-  CHECK_EQ("jj3", event->args()[0].name());
-  CHECK(std::isnan(event->args()[0].double_value()));
-
-  event = harness.get_event(13);
-  CHECK_EQ("jj4", event->args()[0].name());
-  CHECK_EQ(jj4, event->args()[0].double_value());
-
-  event = harness.get_event(14);
-  CHECK_EQ("jj5", event->args()[0].name());
-  CHECK_EQ(jj5, event->args()[0].double_value());
-
-  event = harness.get_event(15);
-  CHECK_EQ("kk", event->args()[0].name());
-  CHECK_EQ(kk, reinterpret_cast<void*>(event->args()[0].pointer_value()));
-
-  event = harness.get_event(16);
-  CHECK_EQ("ll", event->args()[0].name());
-  CHECK_EQ(ll, event->args()[0].string_value());
-
-  event = harness.get_event(17);
-  CHECK_EQ("mm", event->args()[0].name());
-  CHECK_EQ("\"INIT\"", event->args()[0].string_value());
-
-  event = harness.get_event(18);
-  CHECK_EQ("v8.Test2.1", event->name());
-  CHECK_EQ("aa", event->args()[0].name());
-  CHECK_EQ(aa, event->args()[0].uint_value());
-  CHECK_EQ("ll", event->args()[1].name());
-  CHECK_EQ(ll, event->args()[1].string_value());
-
-  event = harness.get_event(19);
-  CHECK_EQ("mm1", event->args()[0].name());
-  CHECK_EQ("INIT", event->args()[0].string_value());
-  CHECK_EQ("mm2", event->args()[1].name());
-  CHECK_EQ("\"INIT\"", event->args()[1].string_value());
-
-  event = harness.get_event(20);
-  CHECK_EQ("INIT", event->name());
-
-  event = harness.get_event(21);
-  CHECK_EQ("INIT", event->name());
-  CHECK_EQ("mm1", event->args()[0].name());
-  CHECK_EQ("INIT", event->args()[0].string_value());
-  CHECK_EQ("mm2", event->args()[1].name());
-  CHECK_EQ("\"INIT\"", event->args()[1].string_value());
-
-  event = harness.get_event(22);
-  CHECK_EQ("a1", event->args()[0].name());
-  CHECK_EQ("[42,42]", event->args()[0].json_value());
-
-  event = harness.get_event(23);
-  CHECK_EQ("a1", event->args()[0].name());
-  CHECK_EQ("[42,42]", event->args()[0].json_value());
-  CHECK_EQ("a2", event->args()[1].name());
-  CHECK_EQ("[123,123]", event->args()[1].json_value());
+  // Check the terminating end events.
+  for (size_t i = 0; i < 20; i++) CHECK_EQ("E:.", harness.get_event(24 + i));
 }
 
 TEST(JsonIntegrationTest) {
@@ -893,84 +864,6 @@ TEST(JsonIntegrationTest) {
   CHECK_EQ("\"2\":\"NaN\"", all_args[1]);
   CHECK_EQ("\"3\":\"Infinity\"", all_args[2]);
   CHECK_EQ("\"4\":\"-Infinity\"", all_args[3]);
-}
-
-TEST(TracingPerfetto) {
-  ::perfetto::TraceConfig perfetto_trace_config;
-  perfetto_trace_config.add_buffers()->set_size_kb(4096);
-  auto* ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
-  ds_config->set_name("v8.trace_events");
-
-  perfetto::DataSourceDescriptor dsd;
-  dsd.set_name("v8.trace_events");
-  TestDataSource::Register(dsd);
-
-  auto tracing_session_ =
-      perfetto::Tracing::NewTrace(perfetto::BackendType::kInProcessBackend);
-  tracing_session_->Setup(perfetto_trace_config);
-  tracing_session_->StartBlocking();
-
-  for (int i = 0; i < 15; i++) {
-    TestDataSource::Trace([&](TestDataSource::TraceContext ctx) {
-      auto packet = ctx.NewTracePacket();
-      auto* trace_event_bundle = packet->set_chrome_events();
-      auto* trace_event = trace_event_bundle->add_trace_events();
-
-      trace_event->set_phase('c');
-      trace_event->set_thread_id(v8::base::OS::GetCurrentThreadId());
-      trace_event->set_timestamp(123);
-      trace_event->set_process_id(v8::base::OS::GetCurrentProcessId());
-      trace_event->set_thread_timestamp(123);
-    });
-  }
-  tracing_session_->StopBlocking();
-
-  std::ostringstream perfetto_json_stream_;
-
-  {
-    v8::platform::tracing::JSONTraceEventListener json_listener_(
-        &perfetto_json_stream_);
-
-    std::vector<char> trace = tracing_session_->ReadTraceBlocking();
-    json_listener_.ParseFromArray(trace);
-  }
-
-  printf("%s\n", perfetto_json_stream_.str().c_str());
-  CHECK_GT(perfetto_json_stream_.str().length(), 0);
-}
-
-TEST(StartAndStopRepeated) {
-  for (int i = 0; i < 3; i++) {
-    ::perfetto::TraceConfig perfetto_trace_config;
-    perfetto_trace_config.add_buffers()->set_size_kb(4096);
-    auto* ds_config =
-        perfetto_trace_config.add_data_sources()->mutable_config();
-    ds_config->set_name("v8.trace_events");
-
-    perfetto::DataSourceDescriptor dsd;
-    dsd.set_name("v8.trace_events");
-    TestDataSource::Register(dsd);
-
-    auto tracing_session_ =
-        perfetto::Tracing::NewTrace(perfetto::BackendType::kInProcessBackend);
-    tracing_session_->Setup(perfetto_trace_config);
-    tracing_session_->StartBlocking();
-
-    for (int i = 0; i < 15; i++) {
-      TestDataSource::Trace([&](TestDataSource::TraceContext ctx) {
-        auto packet = ctx.NewTracePacket();
-        auto* trace_event_bundle = packet->set_chrome_events();
-        auto* trace_event = trace_event_bundle->add_trace_events();
-
-        trace_event->set_phase('c');
-        trace_event->set_thread_id(v8::base::OS::GetCurrentThreadId());
-        trace_event->set_timestamp(123);
-        trace_event->set_process_id(v8::base::OS::GetCurrentProcessId());
-        trace_event->set_thread_timestamp(123);
-      });
-    }
-    tracing_session_->StopBlocking();
-  }
 }
 
 #endif  // V8_USE_PERFETTO

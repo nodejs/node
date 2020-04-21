@@ -178,4 +178,31 @@ namespace object {
       }
     }
   }
+
+  // ES #sec-object.prototype.tostring
+  transitioning javascript builtin ObjectPrototypeToString(
+      js-implicit context: Context, receiver: JSAny)(): String {
+    return ObjectToString(context, receiver);
+  }
+
+  // ES #sec-object.prototype.valueof
+  transitioning javascript builtin ObjectPrototypeValueOf(
+      js-implicit context: Context, receiver: JSAny)(): JSReceiver {
+    // 1. Return ? ToObject(this value).
+    return ToObject_Inline(context, receiver);
+  }
+
+  // ES #sec-object.prototype.tolocalestring
+  transitioning javascript builtin ObjectPrototypeToLocaleString(
+      js-implicit context: Context, receiver: JSAny)(): JSAny {
+    // 1. Let O be the this value.
+    // 2. Return ? Invoke(O, "toString").
+    if (receiver == Null || receiver == Undefined) deferred {
+        ThrowTypeError(
+            MessageTemplate::kCalledOnNullOrUndefined,
+            'Object.prototype.toLocaleString');
+      }
+    const method = GetProperty(receiver, 'toString');
+    return Call(context, method, receiver);
+  }
 }  // namespace object

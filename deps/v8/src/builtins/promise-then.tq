@@ -60,15 +60,11 @@ namespace promise {
 
     // 3. If IsCallable(onFulfilled) is false, then
     //    a. Set onFulfilled to undefined.
-    const onFulfilled = TaggedIsCallable(onFulfilled) ?
-        UnsafeCast<Callable>(onFulfilled) :
-        Undefined;
+    const onFulfilled = CastOrDefault<Callable>(onFulfilled, Undefined);
 
     // 4. If IsCallable(onRejected) is false, then
     //    a. Set onRejected to undefined.
-    const onRejected = TaggedIsCallable(onRejected) ?
-        UnsafeCast<Callable>(onRejected) :
-        Undefined;
+    const onRejected = CastOrDefault<Callable>(onRejected, Undefined);
 
     // 5. Return PerformPromiseThen(promise, onFulfilled, onRejected,
     //    resultCapability).

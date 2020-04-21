@@ -150,6 +150,12 @@
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached-prototype': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-start-detached': [FAIL],
   'built-ins/TypedArray/prototype/copyWithin/coerced-values-end-detached': [FAIL],
+  # fill should also throw on detached buffers
+  'built-ins/TypedArray/prototype/fill/coerced-value-detach': [FAIL],
+  'built-ins/TypedArray/prototype/fill/coerced-end-detach': [FAIL],
+  'built-ins/TypedArray/prototype/fill/coerced-start-detach': [FAIL],
+  # includes should also throw on detached buffers
+  'built-ins/TypedArray/prototype/includes/detached-buffer-tointeger': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
@@ -362,7 +368,6 @@
   'language/literals/regexp/named-groups/invalid-u-escape-in-groupspecifier-2': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier-u': [FAIL_PHASE_ONLY],
-  'language/literals/regexp/u-dec-esc': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-invalid-class-escape': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-invalid-extended-pattern-char': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-invalid-identity-escape': [FAIL_PHASE_ONLY],
@@ -383,6 +388,105 @@
   'language/literals/regexp/u-unicode-esc-bounds': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-unicode-esc-non-hex': [FAIL_PHASE_ONLY],
   'language/literals/regexp/unicode-escape-nls-err': [FAIL_PHASE_ONLY],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10379
+  'built-ins/RegExp/property-escapes/generated/Alphabetic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Assigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Case_Ignorable': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Cased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Casemapped': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Lowercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_NFKC_Casefolded': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Titlecased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Changes_When_Uppercased': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Dash': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Diacritic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji_Modifier_Base': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Emoji_Presentation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Extended_Pictographic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Extender': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Cased_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Dash_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Decimal_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Lowercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Modifier_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Modifier_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Nonspacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Number': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Spacing_Mark': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Symbol': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Uppercase_Letter': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Base': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Grapheme_Extend': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/ID_Start': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Ideographic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Lowercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Armenian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Bopomofo': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Chakma': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Chorasmian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Dives_Akuru': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Han': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Other': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/General_Category_-_Unassigned': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Inherited': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Khitan_Small_Script': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Lisu': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Malayalam': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Newa': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Oriya': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Sharada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Sinhala': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Syloti_Nagri': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Tangut': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_-_Yezidi': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Arabic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Bopomofo': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Chakma': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Chorasmian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Common': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Cyrillic': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Dives_Akuru': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Georgian': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Inherited': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Khitan_Small_Script': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Latin': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Lisu': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Malayalam': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Newa': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Oriya': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sharada': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Sinhala': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Syloti_Nagri': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Syriac': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Tangut': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Yezidi': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Sentence_Terminal': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Terminal_Punctuation': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Unified_Ideograph': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/Uppercase': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Continue': [FAIL],
+  'built-ins/RegExp/property-escapes/generated/XID_Start': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10380
+  'language/identifiers/part-unicode-13.0.0': [FAIL],
+  'language/identifiers/part-unicode-13.0.0-escaped': [FAIL],
+  'language/identifiers/start-unicode-13.0.0': [FAIL],
+  'language/identifiers/start-unicode-13.0.0-escaped': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
@@ -495,19 +599,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  # Temporarily removed pending https://github.com/tc39/test262/issues/2339
-  #
-  # These tests require exception handling support which is currently
-  #  blocked on landing https://chromium-review.googlesource.com/c/v8/v8/+/1655655
-  'built-ins/FinalizationGroup/FinalizationGroupCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
-  'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
-  # 'built-ins/FinalizationGroup/prototype/cleanupSome/poisoned-cleanup-callback-throws': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9612
-  'intl402/DateTimeFormat/prototype/formatRange/fractionalSecondDigits': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
@@ -531,11 +622,11 @@
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9808
-  'built-ins/AggregateError/*': [FAIL],
+  'built-ins/Promise/any/*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10111
   # super() should evaluate arguments before checking IsConstructable
-  'language/expressions/class/super-evaluation-order': [FAIL],
+  'language/expressions/super/call-proto-not-ctor': [FAIL],
 
   # Intl.NumberFormat(..., {signDisplay:'exceptZero'}).format(0.0001)
   # produce +0 due to rounding
@@ -552,10 +643,63 @@
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR': [FAIL],
   'intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW': [FAIL],
 
-  # Intl.NumberFormat constructor should throw RangeError
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10112
-  'intl402/NumberFormat/constructor-order': [FAIL],
-  'intl402/NumberFormat/constructor-unit': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10381
+  'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10382
+  'built-ins/Proxy/create-handler-is-revoked-proxy': [FAIL],
+  'built-ins/Proxy/create-target-is-revoked-function-proxy': [FAIL],
+  'built-ins/Proxy/create-target-is-revoked-proxy': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10383
+  'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10395
+  'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
+  'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/absent-value-not-passed': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10394
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-bigint': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-lhs-before-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-no-set': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-no-set-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-extensible': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-writeable': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-writeable-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-unresolved-rhs-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-whitespace': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-bigint': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-lhs-before-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-no-set': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-no-set-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-extensible': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-writeable': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-writeable-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-unresolved-rhs-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-whitespace': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-bigint': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-lhs-before-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-no-set': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-no-set-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-extensible': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-writeable': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-writeable-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-rhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-unresolved-rhs-put': [FAIL],
+  'language/expressions/logical-assignment/lgcl-or-whitespace': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10397
+  'language/statements/for-await-of/iterator-close-throw-get-method-abrupt': [FAIL],
+  'language/statements/for-of/iterator-close-throw-get-method-abrupt': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -657,6 +801,16 @@
   'built-ins/RegExp/property-escapes/*': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
   'built-ins/RegExp/match-indices/indices-array-unicode-property-names': [SKIP],
+
+  # Unicode in identifiers
+  'language/identifiers/part-unicode-*': [FAIL],
+  'language/identifiers/start-unicode-1*': [FAIL],
+  'language/identifiers/start-unicode-5*': [FAIL],
+  'language/identifiers/start-unicode-6*': [FAIL],
+  'language/identifiers/start-unicode-7*': [FAIL],
+  'language/identifiers/start-unicode-8*': [FAIL],
+  'language/identifiers/start-unicode-9*': [FAIL],
+
 }],  # no_i18n == True
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {

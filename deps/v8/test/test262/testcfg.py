@@ -53,17 +53,16 @@ FEATURE_FLAGS = {
   'Symbol.prototype.description': '--harmony-symbol-description',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Promise.allSettled': '--harmony-promise-all-settled',
-  'FinalizationGroup': '--harmony-weak-refs',
-  'WeakRef': '--harmony-weak-refs',
+  'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
+  'WeakRef': '--harmony-weak-refs-with-cleanup-some',
   'host-gc-required': '--expose-gc-as=v8GC',
-  'optional-chaining': '--harmony-optional-chaining',
   'top-level-await': '--harmony-top-level-await',
   'regexp-match-indices': '--harmony-regexp-match-indices',
   # https://github.com/tc39/test262/pull/2395
   'regexp-named-groups': '--harmony-regexp-match-indices',
   'class-methods-private': '--harmony-private-methods',
   'class-static-methods-private': '--harmony-private-methods',
-  'coalesce-expression': '--harmony-nullish',
+  'AggregateError': '--harmony-promise-any',
 }
 
 SKIPPED_FEATURES = set([])

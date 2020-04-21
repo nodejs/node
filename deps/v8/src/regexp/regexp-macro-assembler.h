@@ -87,7 +87,7 @@ class RegExpMacroAssembler {
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
                                      Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward, bool unicode,
+                                               bool read_backward,
                                                Label* on_no_match) = 0;
   // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always
@@ -122,6 +122,11 @@ class RegExpMacroAssembler {
   // not have custom support.
   // May clobber the current loaded character.
   virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match);
+
+  // Control-flow integrity:
+  // Define a jump target and bind a label.
+  virtual void BindJumpTarget(Label* label) { Bind(label); }
+
   virtual void Fail() = 0;
   virtual Handle<HeapObject> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;
@@ -245,9 +250,6 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   // This function must not trigger a garbage collection.
   static Address GrowStack(Address stack_pointer, Address* stack_top,
                            Isolate* isolate);
-
-  static const byte* StringCharacterPosition(
-      String subject, int start_index, const DisallowHeapAllocation& no_gc);
 
   static int CheckStackGuardState(Isolate* isolate, int start_index,
                                   RegExp::CallOrigin call_origin,

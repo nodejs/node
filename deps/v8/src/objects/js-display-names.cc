@@ -31,6 +31,7 @@
 namespace v8 {
 namespace internal {
 
+namespace {
 // Type: identifying the types of the display names.
 //
 // ecma402/#sec-properties-of-intl-displaynames-instances
@@ -70,6 +71,8 @@ UDisplayContext ToUDisplayContext(JSDisplayNames::Style style) {
   }
 }
 
+}  // anonymous namespace
+
 // Abstract class for all different types.
 class DisplayNamesInternal {
  public:
@@ -81,6 +84,8 @@ class DisplayNamesInternal {
                                        const char* code) const = 0;
   virtual const char* calendar() const { return nullptr; }
 };
+
+namespace {
 
 class LocaleDisplayNamesCommon : public DisplayNamesInternal {
  public:
@@ -474,6 +479,9 @@ DisplayNamesInternal* CreateInternal(const icu::Locale& locale,
       UNREACHABLE();
   }
 }
+
+}  // anonymous namespace
+
 // ecma402 #sec-Intl.DisplayNames
 MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
                                                 Handle<Map> map,
@@ -548,11 +556,16 @@ MaybeHandle<JSDisplayNames> JSDisplayNames::New(Isolate* isolate,
   std::set<std::string> relevant_extension_keys = {};
   // 13. Let r be ResolveLocale(%DisplayNames%.[[AvailableLocales]],
   //     requestedLocales, opt, %DisplayNames%.[[RelevantExtensionKeys]]).
-  Intl::ResolvedLocale r = Intl::ResolveLocale(
+  Maybe<Intl::ResolvedLocale> maybe_resolve_locale = Intl::ResolveLocale(
       isolate, JSDisplayNames::GetAvailableLocales(), requested_locales,
       matcher,
       FLAG_harmony_intl_displaynames_date_types ? relevant_extension_keys_ca
                                                 : relevant_extension_keys);
+  if (maybe_resolve_locale.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
+                    JSDisplayNames);
+  }
+  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
@@ -737,8 +750,7 @@ struct CheckCalendar {
 }  // namespace
 
 const std::set<std::string>& JSDisplayNames::GetAvailableLocales() {
-  static base::LazyInstance<
-      Intl::AvailableLocales<icu::Locale, CheckCalendar>>::type
+  static base::LazyInstance<Intl::AvailableLocales<CheckCalendar>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

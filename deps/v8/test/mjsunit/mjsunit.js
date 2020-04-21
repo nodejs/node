@@ -548,13 +548,14 @@ var prettyPrinted;
   assertInstanceof = function assertInstanceof(obj, type) {
     if (!(obj instanceof type)) {
       var actualTypeName = null;
-      var actualConstructor = Object.getPrototypeOf(obj).constructor;
-      if (typeof actualConstructor === "function") {
+      var actualConstructor = obj && Object.getPrototypeOf(obj).constructor;
+      if (typeof actualConstructor === 'function') {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      failWithMessage("Object <" + prettyPrinted(obj) + "> is not an instance of <" +
-               (type.name || type) + ">" +
-               (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
+      failWithMessage(
+          'Object <' + prettyPrinted(obj) + '> is not an instance of <' +
+          (type.name || type) + '>' +
+          (actualTypeName ? ' but of <' + actualTypeName + '>' : ''));
     }
   };
 

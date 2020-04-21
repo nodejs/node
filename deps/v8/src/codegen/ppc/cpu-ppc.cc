@@ -4,7 +4,7 @@
 
 // CPU specific code for ppc independent of OS goes here.
 
-#if V8_TARGET_ARCH_PPC
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/codegen/cpu-features.h"
 
@@ -47,4 +47,4 @@ void CpuFeatures::FlushICache(void* buffer, size_t size) {
 }  // namespace v8
 
 #undef INSTR_AND_DATA_CACHE_COHERENCY
-#endif  // V8_TARGET_ARCH_PPC
+#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64

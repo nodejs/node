@@ -301,8 +301,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     }
   } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
-    buffer.set_extension(nullptr);
-    // Only fixup for the off-heap case. This may trigger GC.
+    // Postpone allocation of backing store to avoid triggering the GC.
     if (buffer.backing_store() != nullptr) {
       new_off_heap_array_buffers_.push_back(handle(buffer, isolate_));
     }
@@ -668,6 +667,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       }
 
       case kOffHeapBackingStore: {
+        AlwaysAllocateScope scope(isolate->heap());
         int byte_length = source_.GetInt();
         std::unique_ptr<BackingStore> backing_store =
             BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
@@ -751,13 +751,17 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
         break;
       }
 
-      // Deserialize raw data of fixed length from 1 to 32 words.
+      // Deserialize raw data of fixed length from 1 to 32 times kTaggedSize.
       STATIC_ASSERT(kNumberOfFixedRawData == 32);
       SIXTEEN_CASES(kFixedRawData)
       SIXTEEN_CASES(kFixedRawData + 16) {
         int size_in_tagged = data - kFixedRawDataStart;
         source_.CopyRaw(current.ToVoidPtr(), size_in_tagged * kTaggedSize);
-        current += size_in_tagged;
+
+        int size_in_bytes = size_in_tagged * kTaggedSize;
+        int size_in_slots = size_in_bytes / TSlot::kSlotDataSize;
+        DCHECK(IsAligned(size_in_bytes, TSlot::kSlotDataSize));
+        current += size_in_slots;
         break;
       }
 

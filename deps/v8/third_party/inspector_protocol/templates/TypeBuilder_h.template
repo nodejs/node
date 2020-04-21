@@ -239,7 +239,7 @@ public:
   {% if protocol.generate_disable(domain) %}
     virtual DispatchResponse {{"disable" | to_method_case}}()
     {
-        return DispatchResponse::OK();
+        return DispatchResponse::Success();
     }
   {% endif %}
 };
@@ -248,7 +248,7 @@ public:
 
 class {{config.protocol.export_macro}} Frontend {
 public:
-    explicit Frontend(FrontendChannel* frontendChannel) : m_frontendChannel(frontendChannel) { }
+  explicit Frontend(FrontendChannel* frontend_channel) : frontend_channel_(frontend_channel) {}
   {% for event in domain.events %}
     {% if not protocol.generate_event(domain.domain, event.name) %}{% continue %}{% endif %}
     void {{event.name | to_method_case}}(
@@ -262,10 +262,10 @@ public:
     );
   {% endfor %}
 
-    void flush();
-    void sendRawCBORNotification(std::vector<uint8_t>);
-private:
-    FrontendChannel* m_frontendChannel;
+  void flush();
+  void sendRawNotification(std::unique_ptr<Serializable>);
+ private:
+  FrontendChannel* frontend_channel_;
 };
 
 // ------------- Dispatcher.

@@ -988,7 +988,9 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   Status FinalizeJobImpl(Isolate* isolate) final;
 
   // Registers weak object to optimized code dependencies.
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code, Isolate* isolate);
+  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
+                                          Handle<NativeContext> context,
+                                          Handle<Code> code);
 
  private:
   Zone zone_;
@@ -1167,13 +1169,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   }
 
   compilation_info()->SetCode(code);
-  compilation_info()->native_context().AddOptimizedCode(*code);
-  RegisterWeakObjectsInOptimizedCode(code, isolate);
+  Handle<NativeContext> context(compilation_info()->native_context(), isolate);
+  context->AddOptimizedCode(*code);
+  RegisterWeakObjectsInOptimizedCode(isolate, context, code);
   return SUCCEEDED;
 }
 
 void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
-    Handle<Code> code, Isolate* isolate) {
+    Isolate* isolate, Handle<NativeContext> context, Handle<Code> code) {
   std::vector<Handle<Map>> maps;
   DCHECK(code->is_optimized_code());
   {
@@ -1191,7 +1194,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
     }
   }
   for (Handle<Map> map : maps) {
-    isolate->heap()->AddRetainedMap(map);
+    isolate->heap()->AddRetainedMap(context, map);
   }
   code->set_can_have_weak_objects(true);
 }
@@ -1409,6 +1412,7 @@ struct InliningPhase {
       AddReducer(data, &graph_reducer, &inlining);
     }
     graph_reducer.ReduceGraph();
+    info->set_inlined_bytecode_size(inlining.total_inlined_bytecode_size());
   }
 };
 
@@ -2621,6 +2625,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
                     jsgraph, nullptr, source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options);
+  PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
+  RuntimeCallTimerScope timer_scope(isolate,
+                                    RuntimeCallCounterId::kOptimizeCode);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
@@ -2672,6 +2679,8 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                            data.graph(), data.jsgraph(), data.schedule(),
                            data.source_positions(), data.node_origins(),
                            data.jump_optimization_info(), options);
+  PipelineJobScope second_scope(&second_data,
+                                isolate->counters()->runtime_call_stats());
   second_data.set_verify_graph(FLAG_verify_csa);
   PipelineImpl second_pipeline(&second_data);
   second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
@@ -2765,7 +2774,8 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
       static_cast<int>(code_generator->GetHandlerTableOffset()));
   result.instr_buffer = instruction_buffer->ReleaseBuffer();
   result.source_positions = code_generator->GetSourcePositionTable();
-  result.protected_instructions = code_generator->GetProtectedInstructions();
+  result.protected_instructions_data =
+      code_generator->GetProtectedInstructionsData();
   result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.result_tier = wasm::ExecutionTier::kTurbofan;
@@ -2972,7 +2982,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result->source_positions = code_generator->GetSourcePositionTable();
-  result->protected_instructions = code_generator->GetProtectedInstructions();
+  result->protected_instructions_data =
+      code_generator->GetProtectedInstructionsData();
   result->result_tier = wasm::ExecutionTier::kTurbofan;
 
   if (data.info()->trace_turbo_json_enabled()) {

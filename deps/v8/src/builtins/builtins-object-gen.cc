@@ -350,22 +350,6 @@ ObjectEntriesValuesBuiltinsAssembler::FinalizeValuesOrEntriesJSArray(
   return TNode<JSArray>::UncheckedCast(array);
 }
 
-TF_BUILTIN(ObjectPrototypeToLocaleString, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-
-  Label if_null_or_undefined(this, Label::kDeferred);
-  GotoIf(IsNullOrUndefined(receiver), &if_null_or_undefined);
-
-  TNode<Object> method =
-      GetProperty(context, receiver, factory()->toString_string());
-  Return(CallJS(CodeFactory::Call(isolate()), context, method, receiver));
-
-  BIND(&if_null_or_undefined);
-  ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,
-                 "Object.prototype.toLocaleString");
-}
-
 TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   TNode<Object> object = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> key = CAST(Parameter(Descriptor::kKey));
@@ -380,7 +364,9 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Branch(TaggedIsSmi(object), &to_primitive, &if_objectisnotsmi);
   BIND(&if_objectisnotsmi);
 
-  TNode<Map> map = LoadMap(CAST(object));
+  TNode<HeapObject> heap_object = CAST(object);
+
+  TNode<Map> map = LoadMap(heap_object);
   TNode<Uint16T> instance_type = LoadMapInstanceType(map);
 
   {
@@ -393,12 +379,12 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
               &call_runtime, &if_notunique_name);
 
     BIND(&if_unique_name);
-    TryHasOwnProperty(object, map, instance_type, var_unique.value(),
+    TryHasOwnProperty(heap_object, map, instance_type, var_unique.value(),
                       &return_true, &return_false, &call_runtime);
 
     BIND(&if_index);
     {
-      TryLookupElement(CAST(object), map, instance_type, var_index.value(),
+      TryLookupElement(heap_object, map, instance_type, var_index.value(),
                        &return_true, &return_false, &return_false,
                        &call_runtime);
     }
@@ -435,8 +421,8 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
 
 // ES #sec-object.assign
 TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
 
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -502,8 +488,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     TNode<DescriptorArray> object_descriptors = LoadMapDescriptors(object_map);
     TNode<EnumCache> object_enum_cache = LoadObjectField<EnumCache>(
         object_descriptors, DescriptorArray::kEnumCacheOffset);
-    TNode<Object> object_enum_keys =
-        LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
+    auto object_enum_keys = LoadObjectField<FixedArrayBase>(
+        object_enum_cache, EnumCache::kKeysOffset);
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     TNode<JSArray> array;
@@ -598,8 +584,8 @@ TF_BUILTIN(ObjectGetOwnPropertyNames, ObjectBuiltinsAssembler) {
     TNode<DescriptorArray> object_descriptors = LoadMapDescriptors(object_map);
     TNode<EnumCache> object_enum_cache = CAST(
         LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset));
-    TNode<Object> object_enum_keys =
-        LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
+    auto object_enum_keys = LoadObjectField<FixedArrayBase>(
+        object_enum_cache, EnumCache::kKeysOffset);
 
     // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     TNode<NativeContext> native_context = LoadNativeContext(context);
@@ -720,13 +706,6 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
 
   BIND(&if_valueisnotreceiver);
   Return(FalseConstant());
-}
-
-// ES #sec-object.prototype.tostring
-TF_BUILTIN(ObjectPrototypeToString, CodeStubAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  Return(CallBuiltin(Builtins::kObjectToString, context, receiver));
 }
 
 TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
@@ -1051,21 +1030,13 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   }
 }
 
-// ES6 #sec-object.prototype.valueof
-TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  Return(ToObject_Inline(context, receiver));
-}
-
 // ES #sec-object.create
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   int const kPrototypeArg = 0;
   int const kPropertiesArg = 1;
 
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
 
   TNode<Object> prototype = args.GetOptionalArgumentValue(kPrototypeArg);

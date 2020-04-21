@@ -20,9 +20,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 12
 bytecodes: [
-  /*   97 E> */ B(StackCheck),
   /*  102 S> */ B(LdaImmutableContextSlot), R(context), U8(2), U8(1),
                 B(Star), R(0),
                 B(LdaImmutableCurrentContextSlot), U8(2),
@@ -48,9 +47,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 8
 bytecodes: [
-  /*   97 E> */ B(StackCheck),
   /*  102 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
   /*  111 E> */ B(StaContextSlot), R(context), U8(2), U8(1),
                 B(LdaUndefined),

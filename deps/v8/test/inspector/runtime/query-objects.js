@@ -147,6 +147,34 @@ InspectorTest.runAsyncTestSuite([
     session.disconnect();
   },
 
+  async function testQueryObjectsWithArrayBuffer() {
+    let contextGroup = new InspectorTest.ContextGroup();
+    let session = contextGroup.connect();
+    let Protocol = session.Protocol;
+
+    await Protocol.Runtime.evaluate({
+      expression: 'new Int8Array(32)',
+    });
+    let {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({
+      expression: 'ArrayBuffer.prototype'
+    });
+    let {result:{objects}} = await session.Protocol.Runtime.queryObjects({
+      prototypeObjectId: objectId
+    });
+    let {result:{result: properties}} = await session.Protocol.Runtime.getProperties({
+      objectId: objects.objectId,
+      ownProperties: true,
+      generatePreview: true
+    });
+    await session.Protocol.Runtime.getProperties({
+      objectId: properties[0].value.objectId,
+      ownProperties: true,
+      generatePreview: true
+    });
+    InspectorTest.log('Test that queryObjects does not crash for on-heap TypedArrays');
+    session.disconnect();
+  },
+
   async function testWithObjectGroup() {
     let contextGroup = new InspectorTest.ContextGroup();
     let session = contextGroup.connect();

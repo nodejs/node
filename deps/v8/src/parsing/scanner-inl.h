@@ -366,11 +366,11 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
         case Token::CONDITIONAL:
           // ? ?. ??
           Advance();
-          if (V8_UNLIKELY(allow_harmony_optional_chaining() && c0_ == '.')) {
+          if (c0_ == '.') {
             Advance();
             if (!IsDecimalDigit(c0_)) return Token::QUESTION_PERIOD;
             PushBack('.');
-          } else if (V8_UNLIKELY(allow_harmony_nullish() && c0_ == '?')) {
+          } else if (c0_ == '?') {
             return Select(Token::NULLISH);
           }
           return Token::CONDITIONAL;

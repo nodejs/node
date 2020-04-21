@@ -8,7 +8,9 @@
 
 namespace i = v8::internal;
 
-namespace v8_debug_helper_internal {
+namespace v8 {
+namespace internal {
+namespace debug_helper_internal {
 
 bool IsPointerCompressed(uintptr_t address) {
 #if COMPRESS_POINTERS_BOOL
@@ -58,4 +60,6 @@ bool TqObject::IsSuperclassOf(const TqObject* other) const {
   return GetName() != other->GetName();
 }
 
-}  // namespace v8_debug_helper_internal
+}  // namespace debug_helper_internal
+}  // namespace internal
+}  // namespace v8

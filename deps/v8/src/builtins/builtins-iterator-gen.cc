@@ -23,53 +23,38 @@ TNode<Object> IteratorBuiltinsAssembler::GetIteratorMethod(
   return GetProperty(context, object, factory()->iterator_symbol());
 }
 
-IteratorRecord IteratorBuiltinsAssembler::GetIterator(
-    SloppyTNode<Context> context, SloppyTNode<Object> object,
-    Label* if_exception, TVariable<Object>* exception) {
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
+                                                      TNode<Object> object) {
   TNode<Object> method = GetIteratorMethod(context, object);
-  return GetIterator(context, object, method, if_exception, exception);
+  return GetIterator(context, object, method);
 }
 
-IteratorRecord IteratorBuiltinsAssembler::GetIterator(
-    TNode<Context> context, TNode<Object> object, TNode<Object> method,
-    Label* if_exception, TVariable<Object>* exception) {
-  GotoIfException(method, if_exception, exception);
-
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(TNode<Context> context,
+                                                      TNode<Object> object,
+                                                      TNode<Object> method) {
   Label if_not_callable(this, Label::kDeferred), if_callable(this);
   GotoIf(TaggedIsSmi(method), &if_not_callable);
   Branch(IsCallable(CAST(method)), &if_callable, &if_not_callable);
 
   BIND(&if_not_callable);
-  {
-    TNode<Object> ret =
-        CallRuntime(Runtime::kThrowIteratorError, context, object);
-    GotoIfException(ret, if_exception, exception);
-    Unreachable();
-  }
+  CallRuntime(Runtime::kThrowIteratorError, context, object);
+  Unreachable();
 
   BIND(&if_callable);
   {
-    Callable callable = CodeFactory::Call(isolate());
-    TNode<Object> iterator = CallJS(callable, context, method, object);
-    GotoIfException(iterator, if_exception, exception);
+    TNode<Object> iterator = Call(context, method, object);
 
     Label get_next(this), if_notobject(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(iterator), &if_notobject);
     Branch(IsJSReceiver(CAST(iterator)), &get_next, &if_notobject);
 
     BIND(&if_notobject);
-    {
-      TNode<Object> ret =
-          CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
-      GotoIfException(ret, if_exception, exception);
-      Unreachable();
-    }
+    CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
+    Unreachable();
 
     BIND(&get_next);
-    const TNode<Object> next =
+    TNode<Object> next =
         GetProperty(context, iterator, factory()->next_string());
-    GotoIfException(next, if_exception, exception);
-
     return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
                           TNode<Object>::UncheckedCast(next)};
   }
@@ -77,14 +62,10 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(
 
 TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     TNode<Context> context, const IteratorRecord& iterator, Label* if_done,
-    base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_exception,
-    TVariable<Object>* exception) {
+    base::Optional<TNode<Map>> fast_iterator_result_map) {
   DCHECK_NOT_NULL(if_done);
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
-  Callable callable = CodeFactory::Call(isolate());
-  TNode<Object> result =
-      CallJS(callable, context, iterator.next, iterator.object);
-  GotoIfException(result, if_exception, exception);
+  TNode<Object> result = Call(context, iterator.next, iterator.object);
 
   // 3. If Type(result) is not Object, throw a TypeError exception.
   Label if_notobject(this, Label::kDeferred), return_result(this);
@@ -117,17 +98,12 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
     // 2. Return ToBoolean(? Get(iterResult, "done")).
     TNode<Object> done =
         GetProperty(context, heap_object_result, factory()->done_string());
-    GotoIfException(done, if_exception, exception);
     BranchIfToBooleanIsTrue(done, if_done, &return_result);
   }
 
   BIND(&if_notobject);
-  {
-    TNode<Object> ret =
-        CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
-    GotoIfException(ret, if_exception, exception);
-    Unreachable();
-  }
+  CallRuntime(Runtime::kThrowIteratorResultNotAnObject, context, result);
+  Unreachable();
 
   BIND(&return_result);
   return CAST(heap_object_result);
@@ -135,8 +111,7 @@ TNode<JSReceiver> IteratorBuiltinsAssembler::IteratorStep(
 
 TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
     TNode<Context> context, TNode<JSReceiver> result,
-    base::Optional<TNode<Map>> fast_iterator_result_map, Label* if_exception,
-    TVariable<Object>* exception) {
+    base::Optional<TNode<Map>> fast_iterator_result_map) {
   Label exit(this);
   TVARIABLE(Object, var_value);
   if (fast_iterator_result_map) {
@@ -151,13 +126,8 @@ TNode<Object> IteratorBuiltinsAssembler::IteratorValue(
   }
 
   // Generic iterator result case:
-  {
-    TNode<Object> value =
-        GetProperty(context, result, factory()->value_string());
-    GotoIfException(value, if_exception, exception);
-    var_value = value;
-    Goto(&exit);
-  }
+  var_value = GetProperty(context, result, factory()->value_string());
+  Goto(&exit);
 
   BIND(&exit);
   return var_value.value();
@@ -174,23 +144,24 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   CSA_ASSERT(this, IsJSReceiver(iterator.object));
 
   // Let return be ? GetMethod(iterator, "return").
-  TNode<Object> method =
-      GetProperty(context, iterator.object, factory()->return_string());
-  GotoIfException(method, if_exception, exception);
+  TNode<Object> method;
+  {
+    compiler::ScopedExceptionHandler handler(this, if_exception, exception);
+    method = GetProperty(context, iterator.object, factory()->return_string());
+  }
 
   // If return is undefined, return Completion(completion).
   GotoIf(Word32Or(IsUndefined(method), IsNull(method)), if_exception);
 
   {
     // Let innerResult be Call(return, iterator, « »).
-    // If an exception occurs, the original exception remains bound
-    TNode<Object> inner_result =
-        CallJS(CodeFactory::Call(isolate()), context, method, iterator.object);
-    GotoIfException(inner_result, if_exception, nullptr);
-
-    // (If completion.[[Type]] is throw) return Completion(completion).
-    Goto(if_exception);
+    // If an exception occurs, the original exception remains bound.
+    compiler::ScopedExceptionHandler handler(this, if_exception, nullptr);
+    Call(context, method, iterator.object);
   }
+
+  // (If completion.[[Type]] is throw) return Completion(completion).
+  Goto(if_exception);
 }
 
 void IteratorBuiltinsAssembler::IteratorCloseOnException(
@@ -207,14 +178,24 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
 
 TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
     TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn) {
+  GrowableFixedArray values(state());
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+  return values.ToJSArray(context);
+}
+
+void IteratorBuiltinsAssembler::FillFixedArrayFromIterable(
+    TNode<Context> context, TNode<Object> iterable, TNode<Object> iterator_fn,
+    GrowableFixedArray* values) {
   // 1. Let iteratorRecord be ? GetIterator(items, method).
   IteratorRecord iterator_record = GetIterator(context, iterable, iterator_fn);
 
   // 2. Let values be a new empty List.
-  GrowableFixedArray values(state());
 
-  Label loop_start(
-      this, {values.var_array(), values.var_length(), values.var_capacity()}),
+  // The GrowableFixedArray has already been created. It's ok if we do this step
+  // out of order, since creating an empty List is not observable.
+
+  Label loop_start(this, {values->var_array(), values->var_length(),
+                          values->var_capacity()}),
       done(this);
   Goto(&loop_start);
   // 3. Let next be true.
@@ -227,12 +208,11 @@ TNode<JSArray> IteratorBuiltinsAssembler::IterableToList(
     //   i. Let nextValue be ? IteratorValue(next).
     TNode<Object> next_value = IteratorValue(context, next);
     //   ii. Append nextValue to the end of the List values.
-    values.Push(next_value);
+    values->Push(next_value);
     Goto(&loop_start);
   }
 
   BIND(&done);
-  return values.ToJSArray(context);
 }
 
 TF_BUILTIN(IterableToList, IteratorBuiltinsAssembler) {
@@ -249,25 +229,12 @@ TF_BUILTIN(IterableToFixedArrayForWasm, IteratorBuiltinsAssembler) {
   TNode<Smi> expected_length = CAST(Parameter(Descriptor::kExpectedLength));
 
   TNode<Object> iterator_fn = GetIteratorMethod(context, iterable);
-
-  IteratorRecord iterator_record = GetIterator(context, iterable, iterator_fn);
-
   GrowableFixedArray values(state());
 
-  Label loop_start(
-      this, {values.var_array(), values.var_length(), values.var_capacity()}),
-      compare_length(this), done(this);
-  Goto(&loop_start);
-  BIND(&loop_start);
-  {
-    TNode<JSReceiver> next =
-        IteratorStep(context, iterator_record, &compare_length);
-    TNode<Object> next_value = IteratorValue(context, next);
-    values.Push(next_value);
-    Goto(&loop_start);
-  }
+  Label done(this);
 
-  BIND(&compare_length);
+  FillFixedArrayFromIterable(context, iterable, iterator_fn, &values);
+
   GotoIf(WordEqual(SmiUntag(expected_length), values.var_length()->value()),
          &done);
   Return(CallRuntime(
@@ -317,10 +284,13 @@ TNode<JSArray> IteratorBuiltinsAssembler::StringListFromIterable(
     {
       // 1. Let error be ThrowCompletion(a newly created TypeError object).
       TVARIABLE(Object, var_exception);
-      TNode<Object> ret = CallRuntime(
-          Runtime::kThrowTypeError, context,
-          SmiConstant(MessageTemplate::kIterableYieldedNonString), next_value);
-      GotoIfException(ret, &if_exception, &var_exception);
+      {
+        compiler::ScopedExceptionHandler handler(this, &if_exception,
+                                                 &var_exception);
+        CallRuntime(Runtime::kThrowTypeError, context,
+                    SmiConstant(MessageTemplate::kIterableYieldedNonString),
+                    next_value);
+      }
       Unreachable();
 
       // 2. Return ? IteratorClose(iteratorRecord, error).
@@ -466,13 +436,15 @@ TF_BUILTIN(GetIteratorWithFeedbackLazyDeoptContinuation,
            IteratorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-  TNode<Smi> callSlot = CAST(Parameter(Descriptor::kCallSlot));
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  TNode<Smi> call_slot_smi = CAST(Parameter(Descriptor::kCallSlot));
+  TNode<TaggedIndex> call_slot = SmiToTaggedIndex(call_slot_smi);
   TNode<FeedbackVector> feedback = CAST(Parameter(Descriptor::kFeedback));
-  TNode<Object> iteratorMethod = CAST(Parameter(Descriptor::kResult));
+  TNode<Object> iterator_method = CAST(Parameter(Descriptor::kResult));
 
   TNode<Object> result =
       CallBuiltin(Builtins::kCallIteratorWithFeedback, context, receiver,
-                  iteratorMethod, callSlot, feedback);
+                  iterator_method, call_slot, feedback);
   Return(result);
 }
 

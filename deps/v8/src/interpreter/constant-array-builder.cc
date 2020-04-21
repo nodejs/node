@@ -13,6 +13,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/functional.h"
 #include "src/execution/isolate.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -64,8 +65,9 @@ const ConstantArrayBuilder::Entry& ConstantArrayBuilder::ConstantArraySlice::At(
 }
 
 #if DEBUG
+template <typename LocalIsolate>
 void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
-    Isolate* isolate) const {
+    LocalIsolate* isolate) const {
   std::set<Smi> smis;
   std::set<double> heap_numbers;
   std::set<const AstRawString*> strings;
@@ -166,8 +168,9 @@ ConstantArrayBuilder::ConstantArraySlice* ConstantArrayBuilder::IndexToSlice(
   UNREACHABLE();
 }
 
+template <typename LocalIsolate>
 MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
-                                             Isolate* isolate) const {
+                                             LocalIsolate* isolate) const {
   const ConstantArraySlice* slice = IndexToSlice(index);
   DCHECK_LT(index, slice->capacity());
   if (index < slice->start_index() + slice->size()) {
@@ -177,7 +180,15 @@ MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
   return MaybeHandle<Object>();
 }
 
-Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    MaybeHandle<Object> ConstantArrayBuilder::At(size_t index,
+                                                 Isolate* isolate) const;
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    MaybeHandle<Object> ConstantArrayBuilder::At(
+        size_t index, OffThreadIsolate* isolate) const;
+
+template <typename LocalIsolate>
+Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(LocalIsolate* isolate) {
   Handle<FixedArray> fixed_array = isolate->factory()->NewFixedArrayWithHoles(
       static_cast<int>(size()), AllocationType::kOld);
   int array_index = 0;
@@ -206,6 +217,12 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
   DCHECK_GE(array_index, fixed_array->length());
   return fixed_array;
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(
+        OffThreadIsolate* isolate);
 
 size_t ConstantArrayBuilder::Insert(Smi smi) {
   auto entry = smi_map_.find(smi);
@@ -362,7 +379,9 @@ void ConstantArrayBuilder::DiscardReservedEntry(OperandSize operand_size) {
   OperandSizeToSlice(operand_size)->Unreserve();
 }
 
-Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
+template <typename LocalIsolate>
+Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
+    LocalIsolate* isolate) const {
   switch (tag_) {
     case Tag::kDeferred:
       // We shouldn't have any deferred entries by now.
@@ -376,9 +395,10 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
       // TODO(leszeks): There's probably a better value we could use here.
       return isolate->factory()->the_hole_value();
     case Tag::kRawString:
-      return raw_string_->string().get<Factory>();
+      return raw_string_->string();
     case Tag::kHeapNumber:
-      return isolate->factory()->NewNumber<AllocationType::kOld>(heap_number_);
+      return isolate->factory()->template NewNumber<AllocationType::kOld>(
+          heap_number_);
     case Tag::kBigInt:
       // This should never fail: the parser will never create a BigInt
       // literal that cannot be allocated.
@@ -393,6 +413,11 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
   }
   UNREACHABLE();
 }
+
+template Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
+    Isolate* isolate) const;
+template Handle<Object> ConstantArrayBuilder::Entry::ToHandle(
+    OffThreadIsolate* isolate) const;
 
 }  // namespace interpreter
 }  // namespace internal

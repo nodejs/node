@@ -37,9 +37,7 @@ int main(int argc, char* argv[]) {
     {
       // Create a string containing the JavaScript source code.
       v8::Local<v8::String> source =
-          v8::String::NewFromUtf8(isolate, "'Hello' + ', World!'",
-                                  v8::NewStringType::kNormal)
-              .ToLocalChecked();
+          v8::String::NewFromUtf8Literal(isolate, "'Hello' + ', World!'");
 
       // Compile the source code.
       v8::Local<v8::Script> script =
@@ -63,7 +61,7 @@ int main(int argc, char* argv[]) {
       //       get_local 1
       //       i32.add)
       //
-      const char* csource = R"(
+      const char csource[] = R"(
         let bytes = new Uint8Array([
           0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
           0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
@@ -77,8 +75,7 @@ int main(int argc, char* argv[]) {
 
       // Create a string containing the JavaScript source code.
       v8::Local<v8::String> source =
-          v8::String::NewFromUtf8(isolate, csource, v8::NewStringType::kNormal)
-              .ToLocalChecked();
+          v8::String::NewFromUtf8Literal(isolate, csource);
 
       // Compile the source code.
       v8::Local<v8::Script> script =

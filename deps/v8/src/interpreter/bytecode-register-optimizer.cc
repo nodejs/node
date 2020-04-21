@@ -233,8 +233,13 @@ BytecodeRegisterOptimizer::BytecodeRegisterOptimizer(
   // a vector of register metadata.
   // There is at least one parameter, which is the JS receiver.
   DCHECK_NE(parameter_count, 0);
+#ifdef V8_REVERSE_JSARGS
+  int first_slot_index = parameter_count - 1;
+#else
+  int first_slot_index = 0;
+#endif
   register_info_table_offset_ =
-      -Register::FromParameterIndex(0, parameter_count).index();
+      -Register::FromParameterIndex(first_slot_index, parameter_count).index();
 
   // Initialize register map for parameters, locals, and the
   // accumulator.

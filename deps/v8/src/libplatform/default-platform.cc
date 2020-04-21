@@ -76,7 +76,9 @@ DefaultPlatform::DefaultPlatform(
       time_function_for_testing_(nullptr) {
   if (!tracing_controller_) {
     tracing::TracingController* controller = new tracing::TracingController();
+#if !defined(V8_USE_PERFETTO)
     controller->Initialize(nullptr);
+#endif
     tracing_controller_.reset(controller);
   }
 }
@@ -84,7 +86,7 @@ DefaultPlatform::DefaultPlatform(
 DefaultPlatform::~DefaultPlatform() {
   base::MutexGuard guard(&lock_);
   if (worker_threads_task_runner_) worker_threads_task_runner_->Terminate();
-  for (auto it : foreground_task_runner_map_) {
+  for (const auto& it : foreground_task_runner_map_) {
     it.second->Terminate();
   }
 }

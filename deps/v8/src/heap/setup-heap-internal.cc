@@ -67,6 +67,10 @@ bool Heap::CreateHeapObjects() {
 
   set_native_contexts_list(ReadOnlyRoots(this).undefined_value());
   set_allocation_sites_list(ReadOnlyRoots(this).undefined_value());
+  set_dirty_js_finalization_registries_list(
+      ReadOnlyRoots(this).undefined_value());
+  set_dirty_js_finalization_registries_list_tail(
+      ReadOnlyRoots(this).undefined_value());
 
   return true;
 }
@@ -399,6 +403,16 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(SMALL_ORDERED_NAME_DICTIONARY_TYPE,
                          small_ordered_name_dictionary)
 
+#define TORQUE_ALLOCATE_MAP(NAME, Name, name) \
+  ALLOCATE_MAP(NAME, Name::kSize, name)
+    TORQUE_INTERNAL_FIXED_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_MAP);
+#undef TORQUE_ALLOCATE_MAP
+
+#define TORQUE_ALLOCATE_VARSIZE_MAP(NAME, Name, name) \
+  ALLOCATE_VARSIZE_MAP(NAME, name)
+    TORQUE_INTERNAL_VARSIZE_INSTANCE_TYPE_LIST(TORQUE_ALLOCATE_VARSIZE_MAP);
+#undef TORQUE_ALLOCATE_VARSIZE_MAP
+
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, sloppy_arguments_elements)
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
@@ -451,6 +465,8 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
                          object_boilerplate_description)
+
+    ALLOCATE_VARSIZE_MAP(COVERAGE_INFO_TYPE, coverage_info);
 
     ALLOCATE_MAP(CALL_HANDLER_INFO_TYPE, CallHandlerInfo::kSize,
                  side_effect_call_handler_info)
@@ -618,7 +634,6 @@ void Heap::CreateInitialObjects() {
   // There's no "current microtask" in the beginning.
   set_current_microtask(roots.undefined_value());
 
-  set_dirty_js_finalization_groups(roots.undefined_value());
   set_weak_refs_keep_during_job(roots.undefined_value());
 
   // Allocate cache for single character one byte strings.
@@ -759,7 +774,6 @@ void Heap::CreateInitialObjects() {
   }
 
   set_detached_contexts(roots.empty_weak_array_list());
-  set_retained_maps(roots.empty_weak_array_list());
   set_retaining_path_targets(roots.empty_weak_array_list());
 
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());

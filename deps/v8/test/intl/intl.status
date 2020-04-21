@@ -34,9 +34,6 @@
   'collator/check-kf-option': [FAIL],
   'collator/check-kn-option': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=9312
-  'regress-9312': [FAIL],
-
   # http://crbug/v8/9930
   'date-format/format_range_hour_cycle': [FAIL],
 }],  # ALWAYS
@@ -67,8 +64,6 @@
   'default_locale': [SKIP],
   # Unable to change locale and TZ on Android:
   'regress-7770': [SKIP],
-  # 'bn' locale is not included in Android.
-  'relative-time-format/resolved-options-nu-extended': [FAIL],
 }],  # 'system == android'
 
 ]

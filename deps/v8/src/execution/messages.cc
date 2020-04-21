@@ -87,7 +87,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   int bytecode_offset = -1;
   Handle<Script> script_handle = isolate->factory()->empty_script();
   Handle<SharedFunctionInfo> shared_info;
-  if (location != nullptr) {
+  if (location != nullptr && !FLAG_correctness_fuzzer_suppressions) {
     start = location->start_pos();
     end = location->end_pos();
     script_handle = location->script();
@@ -581,6 +581,12 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
   return name;
 }
 
+Handle<Object> WasmStackFrame::GetScriptNameOrSourceUrl() {
+  Handle<Script> script = GetScript();
+  DCHECK_EQ(Script::TYPE_WASM, script->type());
+  return ScriptNameOrSourceUrl(script, isolate_);
+}
+
 Handle<Object> WasmStackFrame::GetWasmModuleName() {
   Handle<Object> module_name;
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
@@ -595,10 +601,7 @@ Handle<Object> WasmStackFrame::GetWasmModuleName() {
 Handle<Object> WasmStackFrame::GetWasmInstance() { return wasm_instance_; }
 
 int WasmStackFrame::GetPosition() const {
-  return IsInterpreted()
-             ? offset_
-             : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-                   code_, offset_);
+  return IsInterpreted() ? offset_ : code_->GetSourcePositionBefore(offset_);
 }
 
 int WasmStackFrame::GetColumnNumber() { return GetModuleOffset(); }
@@ -651,9 +654,7 @@ Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
 
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
-  int byte_offset =
-      FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code_,
-                                                                    offset_);
+  int byte_offset = code_->GetSourcePositionBefore(offset_);
   const wasm::WasmModule* module = wasm_instance_->module();
   return GetSourcePosition(module, wasm_func_index_, byte_offset,
                            is_at_number_conversion_);
@@ -990,13 +991,44 @@ MaybeHandle<String> MessageFormatter::Format(Isolate* isolate,
   return builder.Finish();
 }
 
+MaybeHandle<JSObject> ErrorUtils::Construct(Isolate* isolate,
+                                            Handle<JSFunction> target,
+                                            Handle<Object> new_target,
+                                            Handle<Object> message) {
+  FrameSkipMode mode = SKIP_FIRST;
+  Handle<Object> caller;
+
+  // When we're passed a JSFunction as new target, we can skip frames until that
+  // specific function is seen instead of unconditionally skipping the first
+  // frame.
+  if (new_target->IsJSFunction()) {
+    mode = SKIP_UNTIL_SEEN;
+    caller = new_target;
+  }
+
+  return ErrorUtils::Construct(isolate, target, new_target, message, mode,
+                               caller,
+                               ErrorUtils::StackTraceCollection::kDetailed);
+}
+
 MaybeHandle<JSObject> ErrorUtils::Construct(
     Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
     Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
     StackTraceCollection stack_trace_collection) {
+  if (FLAG_correctness_fuzzer_suppressions) {
+    // Abort range errors in correctness fuzzing, as their causes differ
+    // accross correctness-fuzzing scenarios.
+    if (target.is_identical_to(isolate->range_error_function())) {
+      FATAL("Aborting on range error");
+    }
+    // Ignore error messages in correctness fuzzing, because the spec leaves
+    // room for undefined behavior.
+    message = isolate->factory()->InternalizeUtf8String(
+        "Message suppressed for fuzzers (--correctness-fuzzer-suppressions)");
+  }
+
   // 1. If NewTarget is undefined, let newTarget be the active function object,
   // else let newTarget be NewTarget.
-
   Handle<JSReceiver> new_target_recv =
       new_target->IsJSReceiver() ? Handle<JSReceiver>::cast(new_target)
                                  : Handle<JSReceiver>::cast(target);
@@ -1154,15 +1186,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
     // pending exceptions would be cleared. Preserve this behavior.
     isolate->clear_pending_exception();
   }
-  Handle<String> msg;
-  if (FLAG_correctness_fuzzer_suppressions) {
-    // Ignore error messages in correctness fuzzing, because the spec leaves
-    // room for undefined behavior.
-    msg = isolate->factory()->InternalizeUtf8String(
-        "Message suppressed for fuzzers (--correctness-fuzzer-suppressions)");
-  } else {
-    msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
-  }
+  Handle<String> msg = DoFormatMessage(isolate, index, arg0, arg1, arg2);
 
   DCHECK(mode != SKIP_UNTIL_SEEN);
 
@@ -1230,7 +1254,7 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object,
   if (ComputeLocation(isolate, location)) {
     ParseInfo info(isolate, *location->shared());
     if (parsing::ParseAny(&info, location->shared(), isolate)) {
-      info.ast_value_factory()->Internalize(isolate->factory());
+      info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location->shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location->start_pos());
       *hint = printer.GetErrorHint();
@@ -1279,6 +1303,38 @@ Handle<Object> ErrorUtils::NewIteratorError(Isolate* isolate,
 
   id = UpdateErrorTemplate(hint, id);
   return isolate->factory()->NewTypeError(id, callsite);
+}
+
+Object ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
+                                                        Handle<Object> object) {
+  MessageLocation location;
+  Handle<String> callsite;
+  if (ComputeLocation(isolate, &location)) {
+    ParseInfo info(isolate, *location.shared());
+    if (parsing::ParseAny(&info, location.shared(), isolate)) {
+      info.ast_value_factory()->Internalize(isolate);
+      CallPrinter printer(isolate, location.shared()->IsUserJavaScript(),
+                          CallPrinter::SpreadErrorInArgsHint::kErrorInArgs);
+      Handle<String> str = printer.Print(info.literal(), location.start_pos());
+      callsite =
+          str->length() > 0 ? str : BuildDefaultCallSite(isolate, object);
+
+      if (printer.spread_arg() != nullptr) {
+        // Change the message location to point at the property name.
+        int pos = printer.spread_arg()->position();
+        location =
+            MessageLocation(location.script(), pos, pos + 1, location.shared());
+      }
+    } else {
+      isolate->clear_pending_exception();
+      callsite = BuildDefaultCallSite(isolate, object);
+    }
+  }
+
+  MessageTemplate id = MessageTemplate::kNotIterableNoSymbolLoad;
+  Handle<Object> exception =
+      isolate->factory()->NewTypeError(id, callsite, object);
+  return isolate->Throw(*exception, &location);
 }
 
 Handle<Object> ErrorUtils::NewCalledNonCallableError(Isolate* isolate,
@@ -1331,7 +1387,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
 
     ParseInfo info(isolate, *location.shared());
     if (parsing::ParseAny(&info, location.shared(), isolate)) {
-      info.ast_value_factory()->Internalize(isolate->factory());
+      info.ast_value_factory()->Internalize(isolate);
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info.literal(), location.start_pos());
 
@@ -1348,8 +1404,7 @@ Object ErrorUtils::ThrowLoadFromNullOrUndefined(Isolate* isolate,
           maybe_property_name = destructuring_prop->key()
                                     ->AsLiteral()
                                     ->AsRawPropertyName()
-                                    ->string()
-                                    .get<Factory>();
+                                    ->string();
           // Change the message location to point at the property name.
           pos = destructuring_prop->key()->position();
         }

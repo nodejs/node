@@ -35,6 +35,10 @@
 #include "src/base/qnx-math.h"
 #endif
 
+#ifdef V8_USE_ADDRESS_SANITIZER
+#include <sanitizer/asan_interface.h>
+#endif  // V8_USE_ADDRESS_SANITIZER
+
 namespace v8 {
 
 namespace base {
@@ -405,6 +409,38 @@ class V8_BASE_EXPORT Thread {
   Semaphore* start_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
+};
+
+// TODO(v8:10354): Make use of the stack utilities here in V8.
+class V8_BASE_EXPORT Stack {
+ public:
+  // Gets the start of the stack of the current thread.
+  static void* GetStackStart();
+
+  // Returns the current stack top. Works correctly with ASAN and SafeStack.
+  // GetCurrentStackPosition() should not be inlined, because it works on stack
+  // frames if it were inlined into a function with a huge stack frame it would
+  // return an address significantly above the actual current stack position.
+  static V8_NOINLINE void* GetCurrentStackPosition();
+
+  // Translates an ASAN-based slot to a real stack slot if necessary.
+  static void* GetStackSlot(void* slot) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+    void* fake_stack = __asan_get_current_fake_stack();
+    if (fake_stack) {
+      void* fake_frame_start;
+      void* real_frame = __asan_addr_is_in_fake_stack(
+          fake_stack, slot, &fake_frame_start, nullptr);
+      if (real_frame) {
+        return reinterpret_cast<void*>(
+            reinterpret_cast<uintptr_t>(real_frame) +
+            (reinterpret_cast<uintptr_t>(slot) -
+             reinterpret_cast<uintptr_t>(fake_frame_start)));
+      }
+    }
+#endif  // V8_USE_ADDRESS_SANITIZER
+    return slot;
+  }
 };
 
 }  // namespace base

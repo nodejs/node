@@ -781,6 +781,7 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     break;                                                                     \
   }
 
+        SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSE_AVX_RM_DIS_CASE)
         SSE4_RM_INSTRUCTION_LIST(DECLARE_SSE_AVX_RM_DIS_CASE)
 #undef DECLARE_SSE_AVX_RM_DIS_CASE
       default:
@@ -1065,6 +1066,11 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer("vmovaps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x50:
+        AppendToBuffer("vmovmskps %s,%s", NameOfCPURegister(regop),
+                       NameOfXMMRegister(rm));
+        current++;
+        break;
       case 0x51:
         AppendToBuffer("vsqrtps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
@@ -1263,6 +1269,11 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",%d", Imm8(current));
+        current++;
+        break;
+      case 0xD7:
+        AppendToBuffer("vpmovmskb %s,%s", NameOfCPURegister(regop),
+                       NameOfXMMRegister(rm));
         current++;
         break;
 #define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
@@ -2100,6 +2111,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   }
 
               SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
+              SSSE3_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
               SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
               SSE4_RM_INSTRUCTION_LIST(SSE34_DIS_CASE)
 #undef SSE34_DIS_CASE
@@ -2345,6 +2357,13 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           } else if (*data == 0xB1) {
             data++;
             data += PrintOperands("cmpxchg_w", OPER_REG_OP_ORDER, data);
+          } else if (*data == 0xD7) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("pmovmskb %s,%s", NameOfCPURegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else {
             byte op = *data;
             data++;

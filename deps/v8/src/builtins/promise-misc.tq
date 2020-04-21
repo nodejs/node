@@ -16,10 +16,6 @@ namespace promise_internal {
       void;
 
   extern macro PromiseBuiltinsAssembler::AllocateJSPromise(Context): HeapObject;
-
-  extern macro PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-      Context): HeapObject;
-
 }
 
 namespace promise {
@@ -45,7 +41,7 @@ namespace promise {
     assert(IsFunctionWithPrototypeSlotMap(promiseFun.map));
     const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
     const promiseHeapObject = promise_internal::AllocateJSPromise(context);
-    promiseHeapObject.map = promiseMap;
+    * UnsafeConstCast(& promiseHeapObject.map) = promiseMap;
     const promise = UnsafeCast<JSPromise>(promiseHeapObject);
     promise.properties_or_hash = kEmptyFixedArray;
     promise.elements = kEmptyFixedArray;
@@ -54,20 +50,36 @@ namespace promise {
     return promise;
   }
 
-  macro NewPromiseReactionJobTask(implicit context: Context)(
-      map: Map, handlerContext: Context, argument: Object,
-      handler: Callable|Undefined,
+  macro NewPromiseFulfillReactionJobTask(implicit context: Context)(
+      handlerContext: Context, argument: Object, handler: Callable|Undefined,
       promiseOrCapability: JSPromise|PromiseCapability|
-      Undefined): PromiseReactionJobTask {
-    const taskHeapObject =
-        promise_internal::AllocatePromiseReactionJobTask(context);
-    taskHeapObject.map = map;
-    const jobTask = UnsafeCast<PromiseReactionJobTask>(taskHeapObject);
-    jobTask.argument = argument;
-    jobTask.context = handlerContext;
-    jobTask.handler = handler;
-    jobTask.promise_or_capability = promiseOrCapability;
-    return jobTask;
+      Undefined): PromiseFulfillReactionJobTask {
+    const nativeContext = LoadNativeContext(handlerContext);
+    return new PromiseFulfillReactionJobTask{
+      map: PromiseFulfillReactionJobTaskMapConstant(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability,
+      continuation_preserved_embedder_data: nativeContext
+          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+    };
+  }
+
+  macro NewPromiseRejectReactionJobTask(implicit context: Context)(
+      handlerContext: Context, argument: Object, handler: Callable|Undefined,
+      promiseOrCapability: JSPromise|PromiseCapability|
+      Undefined): PromiseRejectReactionJobTask {
+    const nativeContext = LoadNativeContext(handlerContext);
+    return new PromiseRejectReactionJobTask{
+      map: PromiseRejectReactionJobTaskMapConstant(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability,
+      continuation_preserved_embedder_data: nativeContext
+          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+    };
   }
 
   // These allocate and initialize a promise with pending state and
@@ -113,30 +125,49 @@ namespace promise {
   }
 
   macro NewPromiseReaction(implicit context: Context)(
-      next: Zero|PromiseReaction,
+      handlerContext: Context, next: Zero|PromiseReaction,
       promiseOrCapability: JSPromise|PromiseCapability|Undefined,
       fulfillHandler: Callable|Undefined,
       rejectHandler: Callable|Undefined): PromiseReaction {
+    const nativeContext = LoadNativeContext(handlerContext);
     return new PromiseReaction{
       map: PromiseReactionMapConstant(),
       next: next,
       reject_handler: rejectHandler,
       fulfill_handler: fulfillHandler,
-      promise_or_capability: promiseOrCapability
+      promise_or_capability: promiseOrCapability,
+      continuation_preserved_embedder_data: nativeContext
+          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
     };
   }
 
   extern macro PromiseResolveThenableJobTaskMapConstant(): Map;
 
+  // https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
   macro NewPromiseResolveThenableJobTask(implicit context: Context)(
-      promiseToResolve: JSPromise, then: JSReceiver, thenable: JSReceiver,
-      thenableContext: Context): PromiseResolveThenableJobTask {
+      promiseToResolve: JSPromise, thenable: JSReceiver,
+      then: Callable): PromiseResolveThenableJobTask {
+    // 2. Let getThenRealmResult be GetFunctionRealm(then).
+    // 3. If getThenRealmResult is a normal completion, then let thenRealm be
+    //    getThenRealmResult.[[Value]].
+    // 4. Otherwise, let thenRealm be null.
+    //
+    // The only cases where |thenRealm| can be null is when |then| is a revoked
+    // Proxy object, which would throw when it is called anyway. So instead of
+    // setting the context to null as the spec does, we just use the current
+    // realm.
+    const thenContext: Context = ExtractHandlerContext(then);
+    const nativeContext = LoadNativeContext(thenContext);
+
+    // 1. Let job be a new Job abstract closure with no parameters that
+    //    captures promiseToResolve, thenable, and then...
+    // 5. Return { [[Job]]: job, [[Realm]]: thenRealm }.
     return new PromiseResolveThenableJobTask{
       map: PromiseResolveThenableJobTaskMapConstant(),
-      context: thenableContext,
+      context: nativeContext,
       promise_to_resolve: promiseToResolve,
-      then: then,
-      thenable: thenable
+      thenable,
+      then
     };
   }
 

@@ -1489,6 +1489,18 @@ Matcher<Node*> IsDead() {
   return MakeMatcher(new TestNodeMatcher(IrOpcode::kDead));
 }
 
+Matcher<Node*> IsUnreachable() {
+  return MakeMatcher(new TestNodeMatcher(IrOpcode::kUnreachable));
+}
+
+Matcher<Node*> IsThrow() {
+  return MakeMatcher(new TestNodeMatcher(IrOpcode::kThrow));
+}
+
+Matcher<Node*> IsStart() {
+  return MakeMatcher(new TestNodeMatcher(IrOpcode::kStart));
+}
+
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher) {
   return MakeMatcher(new IsControl1Matcher(IrOpcode::kEnd, control0_matcher));
 }

@@ -50,6 +50,9 @@ VARIANT_ALIASES = {
             'instruction_scheduling'],
 }
 
+# Extra flags passed to all tests using the standard test runner.
+EXTRA_DEFAULT_FLAGS = ['--testing-d8-test-runner']
+
 GC_STRESS_FLAGS = ['--gc-interval=500', '--stress-compaction',
                    '--concurrent-recompilation-queue-length=64',
                    '--concurrent-recompilation-delay=500',
@@ -239,6 +242,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           prefix="v8-test-runner-")
       options.json_test_results = self._temporary_json_output_file.name
 
+  def _runner_flags(self):
+    return EXTRA_DEFAULT_FLAGS
+
   def _parse_variants(self, aliases_str):
     # Use developer defaults if no variant was specified.
     aliases_str = aliases_str or 'dev'
@@ -253,6 +259,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     for v in user_variants:
       if v not in ALL_VARIANTS:
         print('Unknown variant: %s' % v)
+        print('    Available variants: %s' % ALL_VARIANTS)
+        print('    Available variant aliases: %s' % VARIANT_ALIASES.keys());
         raise base_runner.TestRunnerError()
     assert False, 'Unreachable'
 

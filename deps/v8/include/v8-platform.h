@@ -138,6 +138,10 @@ class TracingController {
  public:
   virtual ~TracingController() = default;
 
+  // In Perfetto mode, trace events are written using Perfetto's Track Event
+  // API directly without going through the embedder. However, it is still
+  // possible to observe tracing being enabled and disabled.
+#if !defined(V8_USE_PERFETTO)
   /**
    * Called by TRACE_EVENT* macros, don't call this directly.
    * The name parameter is a category group for example:
@@ -183,6 +187,7 @@ class TracingController {
    **/
   virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                         const char* name, uint64_t handle) {}
+#endif  // !defined(V8_USE_PERFETTO)
 
   class TraceStateObserver {
    public:

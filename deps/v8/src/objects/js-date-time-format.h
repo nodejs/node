@@ -48,11 +48,6 @@ class JSDateTimeFormat : public JSObject {
   static Maybe<std::string> OptionsToSkeleton(Isolate* isolate,
                                               Handle<JSReceiver> options);
 
-  // Return the time zone id which match ICU's expectation of title casing
-  // return empty string when error.
-  static std::string CanonicalizeTimeZoneID(Isolate* isolate,
-                                            const std::string& input);
-
   // ecma402/#sec-datetime-format-functions
   // DateTime Format Functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> DateTimeFormat(
@@ -98,8 +93,11 @@ class JSDateTimeFormat : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 TORQUE_GENERATED_JS_DATE_TIME_FORMAT_FIELDS)
 
-  inline void set_hour_cycle(Intl::HourCycle hour_cycle);
-  inline Intl::HourCycle hour_cycle() const;
+  // enum for "hourCycle" option.
+  enum class HourCycle { kUndefined, kH11, kH12, kH23, kH24 };
+
+  inline void set_hour_cycle(HourCycle hour_cycle);
+  inline HourCycle hour_cycle() const;
 
   inline void set_date_style(DateTimeStyle date_style);
   inline DateTimeStyle date_style() const;
@@ -107,20 +105,14 @@ class JSDateTimeFormat : public JSObject {
   inline void set_time_style(DateTimeStyle time_style);
   inline DateTimeStyle time_style() const;
 
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _)            \
-  V(HourCycleBits, Intl::HourCycle, 3, _) \
-  V(DateStyleBits, DateTimeStyle, 3, _)   \
-  V(TimeStyleBits, DateTimeStyle, 3, _)
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_JS_DATE_TIME_FORMAT_FLAGS()
 
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
-
-  STATIC_ASSERT(Intl::HourCycle::kUndefined <= HourCycleBits::kMax);
-  STATIC_ASSERT(Intl::HourCycle::kH11 <= HourCycleBits::kMax);
-  STATIC_ASSERT(Intl::HourCycle::kH12 <= HourCycleBits::kMax);
-  STATIC_ASSERT(Intl::HourCycle::kH23 <= HourCycleBits::kMax);
-  STATIC_ASSERT(Intl::HourCycle::kH24 <= HourCycleBits::kMax);
+  STATIC_ASSERT(HourCycle::kUndefined <= HourCycleBits::kMax);
+  STATIC_ASSERT(HourCycle::kH11 <= HourCycleBits::kMax);
+  STATIC_ASSERT(HourCycle::kH12 <= HourCycleBits::kMax);
+  STATIC_ASSERT(HourCycle::kH23 <= HourCycleBits::kMax);
+  STATIC_ASSERT(HourCycle::kH24 <= HourCycleBits::kMax);
 
   STATIC_ASSERT(DateTimeStyle::kUndefined <= DateStyleBits::kMax);
   STATIC_ASSERT(DateTimeStyle::kFull <= DateStyleBits::kMax);

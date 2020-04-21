@@ -9,6 +9,7 @@
 import argparse
 import csv
 import json
+import glob
 import os
 import pathlib
 import re
@@ -18,10 +19,11 @@ import statistics
 import subprocess
 import sys
 import tempfile
-import gzip
 
 from callstats_groups import RUNTIME_CALL_STATS_GROUPS
 
+
+JSON_FILE_EXTENSION=".pb_converted.json"
 
 def parse_args():
   parser = argparse.ArgumentParser(
@@ -375,23 +377,19 @@ def collect_buckets(story, group=True, repeats=1, output_dir="."):
     story_dir = f"{story.replace(':', '_')}_{i + 1}"
     trace_dir = os.path.join(output_dir, "artifacts", story_dir, "trace",
                              "traceEvents")
-    trace_file = os.path.join(trace_dir, "results.json")
 
-    # this script always unzips the json file and stores the output in
-    # results.json so just re-use that if it already exists, otherwise unzip the
-    # one file found in the traceEvents directory.
-    if not os.path.isfile(trace_file):
-      trace_files = os.listdir(trace_dir)
-      if len(trace_files) != 1:
-        print("Expecting just one file but got: %s" % trace_files)
-        sys.exit(1)
+    # run_benchmark now dumps two files: a .pb.gz file and a .pb_converted.json
+    # file. We only need the latter.
+    trace_file_glob = os.path.join(trace_dir, "*" + JSON_FILE_EXTENSION)
+    trace_files = glob.glob(trace_file_glob)
+    if not trace_files:
+      print("Could not find *%s file in %s" % (JSON_FILE_EXTENSION, trace_dir))
+      sys.exit(1)
+    if len(trace_files) > 1:
+      print("Expecting one file but got: %s" % trace_files)
+      sys.exit(1)
 
-      gz_trace_file = os.path.join(trace_dir, trace_files[0])
-      trace_file = os.path.join(trace_dir, "results.json")
-
-      with gzip.open(gz_trace_file, "rb") as f_in:
-        with open(trace_file, "wb") as f_out:
-          shutil.copyfileobj(f_in, f_out)
+    trace_file = trace_files[0]
 
     output = process_trace(trace_file)
     for name in output:
@@ -474,12 +472,12 @@ def main():
     if retain == "none":
       shutil.rmtree(output_dir)
     elif retain == "json":
-      # Delete all files bottom up except .json.gz files and attempt to delete
-      # subdirectories (ignoring errors).
+      # Delete all files bottom up except ones ending in JSON_FILE_EXTENSION and
+      # attempt to delete subdirectories (ignoring errors).
       for dir_name, subdir_list, file_list in os.walk(
           output_dir, topdown=False):
         for file_name in file_list:
-          if not file_name.endswith(".json.gz"):
+          if not file_name.endswith(JSON_FILE_EXTENSION):
             os.remove(os.path.join(dir_name, file_name))
         for subdir in subdir_list:
           try:

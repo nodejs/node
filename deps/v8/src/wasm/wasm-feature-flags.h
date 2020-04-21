@@ -27,7 +27,13 @@
                                                                                \
   /* No official proposal (yet?). */                                           \
   /* V8 side owner: clemensb */                                                \
-  V(compilation_hints, "compilation hints section", false)
+  V(compilation_hints, "compilation hints section", false)                     \
+                                                                               \
+  /* GC proposal (early prototype, might change dramatically) */               \
+  /* Official proposal: https://github.com/WebAssembly/gc */                   \
+  /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
+  /* V8 side owner: jkummerow */                                               \
+  V(gc, "garbage collection", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

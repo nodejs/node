@@ -38,6 +38,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the smi index immediate for bytecode operand |operand_index|
   // in the current bytecode.
   TNode<Smi> BytecodeOperandIdxSmi(int operand_index);
+  // Returns the TaggedIndex immediate for bytecode operand |operand_index|
+  // in the current bytecode.
+  TNode<TaggedIndex> BytecodeOperandIdxTaggedIndex(int operand_index);
   // Returns the 32-bit unsigned immediate for bytecode operand |operand_index|
   // in the current bytecode.
   TNode<Uint32T> BytecodeOperandUImm(int operand_index);

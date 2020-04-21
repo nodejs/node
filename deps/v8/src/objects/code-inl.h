@@ -454,6 +454,17 @@ void Code::set_builtin_index(int index) {
 
 bool Code::is_builtin() const { return builtin_index() != -1; }
 
+unsigned Code::inlined_bytecode_size() const {
+  DCHECK(kind() == OPTIMIZED_FUNCTION ||
+         ReadField<unsigned>(kInlinedBytecodeSizeOffset) == 0);
+  return ReadField<unsigned>(kInlinedBytecodeSizeOffset);
+}
+
+void Code::set_inlined_bytecode_size(unsigned size) {
+  DCHECK(kind() == OPTIMIZED_FUNCTION || size == 0);
+  WriteField<unsigned>(kInlinedBytecodeSizeOffset, size);
+}
+
 bool Code::has_safepoint_info() const {
   return is_turbofanned() || is_wasm_code();
 }
@@ -733,6 +744,7 @@ DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(DeoptExitStart, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(NonLazyDeoptCount, Smi)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)

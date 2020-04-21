@@ -30,16 +30,37 @@ namespace wasm {
 // static
 const uint32_t WasmElemSegment::kNullIndex;
 
-WireBytesRef DecodedFunctionNames::Lookup(const ModuleWireBytes& wire_bytes,
-                                          uint32_t function_index) const {
+WireBytesRef LazilyGeneratedNames::LookupFunctionName(
+    const ModuleWireBytes& wire_bytes, uint32_t function_index,
+    Vector<const WasmExport> export_table) const {
   base::MutexGuard lock(&mutex_);
   if (!function_names_) {
     function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
     DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                        function_names_.get());
+                        function_names_.get(), export_table);
   }
   auto it = function_names_->find(function_index);
   if (it == function_names_->end()) return WireBytesRef();
+  return it->second;
+}
+
+std::pair<WireBytesRef, WireBytesRef>
+LazilyGeneratedNames::LookupNameFromImportsAndExports(
+    ImportExportKindCode kind, uint32_t index,
+    Vector<const WasmImport> import_table,
+    Vector<const WasmExport> export_table) const {
+  base::MutexGuard lock(&mutex_);
+  DCHECK(kind == kExternalGlobal || kind == kExternalMemory);
+  auto& names = kind == kExternalGlobal ? global_names_ : memory_names_;
+  if (!names) {
+    names.reset(
+        new std::unordered_map<uint32_t,
+                               std::pair<WireBytesRef, WireBytesRef>>());
+    GenerateNamesFromImportsAndExports(kind, import_table, export_table,
+                                       names.get());
+  }
+  auto it = names->find(index);
+  if (it == names->end()) return {};
   return it->second;
 }
 
@@ -102,7 +123,7 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
   return func_index;
 }
 
-void DecodedFunctionNames::AddForTesting(int function_index,
+void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);
   if (!function_names_) {
@@ -113,7 +134,7 @@ void DecodedFunctionNames::AddForTesting(int function_index,
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
     Vector<const byte> encoded_offsets)
-    : encoded_offsets_(OwnedVector<uint8_t>::Of(encoded_offsets)) {}
+    : encoded_offsets_(OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 
@@ -176,8 +197,8 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
                                         const WasmModule* module) const {
-  return GetNameOrNull(
-      module->function_names.Lookup(*this, function->func_index));
+  return GetNameOrNull(module->lazily_generated_names.LookupFunctionName(
+      *this, function->func_index, VectorOf(module->export_table)));
 }
 
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
@@ -218,38 +239,41 @@ namespace {
 // Converts the given {type} into a string representation that can be used in
 // reflective functions. Should be kept in sync with the {GetValueType} helper.
 Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
+  // TODO(ahaas/jkummerow): This could be as simple as:
+  // return isolate->factory()->InternalizeUtf8String(type.type_name());
+  // if we clean up all occurrences of "anyfunc" in favor of "funcref".
   Factory* factory = isolate->factory();
   Handle<String> string;
-  switch (type) {
-    case i::wasm::kWasmI32: {
+  switch (type.kind()) {
+    case i::wasm::ValueType::kI32: {
       string = factory->InternalizeUtf8String("i32");
       break;
     }
-    case i::wasm::kWasmI64: {
+    case i::wasm::ValueType::kI64: {
       string = factory->InternalizeUtf8String("i64");
       break;
     }
-    case i::wasm::kWasmF32: {
+    case i::wasm::ValueType::kF32: {
       string = factory->InternalizeUtf8String("f32");
       break;
     }
-    case i::wasm::kWasmF64: {
+    case i::wasm::ValueType::kF64: {
       string = factory->InternalizeUtf8String("f64");
       break;
     }
-    case i::wasm::kWasmAnyRef: {
+    case i::wasm::ValueType::kAnyRef: {
       string = factory->InternalizeUtf8String("anyref");
       break;
     }
-    case i::wasm::kWasmFuncRef: {
+    case i::wasm::ValueType::kFuncRef: {
       string = factory->InternalizeUtf8String("anyfunc");
       break;
     }
-    case i::wasm::kWasmNullRef: {
+    case i::wasm::ValueType::kNullRef: {
       string = factory->InternalizeUtf8String("nullref");
       break;
     }
-    case i::wasm::kWasmExnRef: {
+    case i::wasm::ValueType::kExnRef: {
       string = factory->InternalizeUtf8String("exnref");
       break;
     }
@@ -261,7 +285,7 @@ Handle<String> ToValueTypeString(Isolate* isolate, ValueType type) {
 
 }  // namespace
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, FunctionSig* sig) {
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig) {
   Factory* factory = isolate->factory();
 
   // Extract values for the {ValueType[]} arrays.
@@ -333,13 +357,12 @@ Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
   Factory* factory = isolate->factory();
 
   Handle<String> element;
-  if (type == ValueType::kWasmFuncRef) {
+  if (type == kWasmFuncRef) {
     // TODO(wasm): We should define the "anyfunc" string in one central place
     // and then use that constant everywhere.
     element = factory->InternalizeUtf8String("anyfunc");
   } else {
-    DCHECK(WasmFeatures::FromFlags().has_anyref() &&
-           type == ValueType::kWasmAnyRef);
+    DCHECK(WasmFeatures::FromFlags().has_anyref() && type == kWasmAnyRef);
     element = factory->InternalizeUtf8String("anyref");
   }
 
@@ -634,14 +657,14 @@ size_t EstimateStoredSize(const WasmModule* module) {
   return sizeof(WasmModule) + VectorSize(module->globals) +
          (module->signature_zone ? module->signature_zone->allocation_size()
                                  : 0) +
-         VectorSize(module->signatures) + VectorSize(module->signature_ids) +
-         VectorSize(module->functions) + VectorSize(module->data_segments) +
-         VectorSize(module->tables) + VectorSize(module->import_table) +
-         VectorSize(module->export_table) + VectorSize(module->exceptions) +
-         VectorSize(module->elem_segments);
+         VectorSize(module->types) + VectorSize(module->type_kinds) +
+         VectorSize(module->signature_ids) + VectorSize(module->functions) +
+         VectorSize(module->data_segments) + VectorSize(module->tables) +
+         VectorSize(module->import_table) + VectorSize(module->export_table) +
+         VectorSize(module->exceptions) + VectorSize(module->elem_segments);
 }
 
-size_t PrintSignature(Vector<char> buffer, wasm::FunctionSig* sig) {
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig) {
   if (buffer.empty()) return 0;
   size_t old_size = buffer.size();
   auto append_char = [&buffer](char c) {
@@ -650,11 +673,11 @@ size_t PrintSignature(Vector<char> buffer, wasm::FunctionSig* sig) {
     buffer += 1;
   };
   for (wasm::ValueType t : sig->parameters()) {
-    append_char(wasm::ValueTypes::ShortNameOf(t));
+    append_char(t.short_name());
   }
   append_char(':');
   for (wasm::ValueType t : sig->returns()) {
-    append_char(wasm::ValueTypes::ShortNameOf(t));
+    append_char(t.short_name());
   }
   buffer[0] = '\0';
   return old_size - buffer.size();

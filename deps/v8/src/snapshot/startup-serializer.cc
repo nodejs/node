@@ -23,6 +23,7 @@ StartupSerializer::StartupSerializer(Isolate* isolate,
                                      ReadOnlySerializer* read_only_serializer)
     : RootsSerializer(isolate, RootIndex::kFirstStrongRoot),
       read_only_serializer_(read_only_serializer) {
+  allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
   InitializeCodeAddressMap();
 }
 
@@ -169,6 +170,15 @@ void StartupSerializer::SerializeUsingPartialSnapshotCache(
   sink->PutInt(cache_index, "partial_snapshot_cache_index");
 }
 
+void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
+  Isolate* isolate = this->isolate();
+  CHECK(isolate->heap()->dirty_js_finalization_registries_list().IsUndefined(
+      isolate));
+  CHECK(
+      isolate->heap()->dirty_js_finalization_registries_list_tail().IsUndefined(
+          isolate));
+}
+
 void SerializedHandleChecker::AddToSet(FixedArray serialized) {
   int length = serialized.length();
   for (int i = 0; i < length; i++) serialized_.insert(serialized.get(i));
@@ -183,6 +193,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");
     (*p).Print();
+    PrintF("\n");
     ok_ = false;
   }
 }

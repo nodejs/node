@@ -889,12 +889,12 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
         use_info.type_check() == TypeCheckKind::kSigned32 ||
         use_info.type_check() == TypeCheckKind::kArrayIndex) {
-      bool indentify_zeros = use_info.truncation().IdentifiesZeroAndMinusZero();
+      bool identify_zeros = use_info.truncation().IdentifiesZeroAndMinusZero();
       if (output_type.Is(Type::Signed32()) ||
-          (indentify_zeros && output_type.Is(Type::Signed32OrMinusZero()))) {
+          (identify_zeros && output_type.Is(Type::Signed32OrMinusZero()))) {
         return node;
       } else if (output_type.Is(Type::Unsigned32()) ||
-                 (indentify_zeros &&
+                 (identify_zeros &&
                   output_type.Is(Type::Unsigned32OrMinusZero()))) {
         op = simplified()->CheckedUint32ToInt32(use_info.feedback());
       } else {

@@ -188,17 +188,18 @@ namespace promise {
     //   slots to onFinally.
     let thenFinally: JSAny;
     let catchFinally: JSAny;
-    if (!TaggedIsSmi(onFinally) &&
-        IsCallable(UnsafeCast<HeapObject>(onFinally))) {
-      const pair = CreatePromiseFinallyFunctions(
-          nativeContext, UnsafeCast<Callable>(onFinally), constructor);
-      thenFinally = pair.then_finally;
-      catchFinally = pair.catch_finally;
-    } else
-      deferred {
+    typeswitch (onFinally) {
+      case (onFinally: Callable): {
+        const pair = CreatePromiseFinallyFunctions(
+            nativeContext, onFinally, constructor);
+        thenFinally = pair.then_finally;
+        catchFinally = pair.catch_finally;
+      }
+      case (JSAny): deferred {
         thenFinally = onFinally;
         catchFinally = onFinally;
       }
+    }
 
     // 7. Return ? Invoke(promise, "then", « thenFinally, catchFinally »).
     return UnsafeCast<JSAny>(

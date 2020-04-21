@@ -104,6 +104,7 @@ TEST(TestLinkageRuntimeCall) {
 
 
 TEST(TestLinkageStubCall) {
+  // TODO(bbudge) Add tests for FP registers.
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);

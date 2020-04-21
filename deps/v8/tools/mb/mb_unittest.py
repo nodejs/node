@@ -533,16 +533,11 @@ class UnitTest(unittest.TestCase):
       '/fake_src/out/Default/base_unittests.runtime_deps': (
           "base_unittests\n"
       ),
+      'out/Default/base_unittests.archive.json':
+        ("{\"base_unittests\":\"fake_hash\"}"),
     }
 
-    def run_stub(cmd, **_kwargs):
-      if 'isolate.py' in cmd[1]:
-        return 0, 'fake_hash base_unittests', ''
-      else:
-        return 0, '', ''
-
     mbw = self.fake_mbw(files=files)
-    mbw.Run = run_stub
     self.check(['run', '-s', '-c', 'debug_goma', '//out/Default',
                 'base_unittests'], mbw=mbw, ret=0)
     self.check(['run', '-s', '-c', 'debug_goma', '-d', 'os', 'Win7',

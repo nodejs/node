@@ -9,6 +9,7 @@
 #include "src/base/ieee754.h"
 #include "src/builtins/accessors.h"
 #include "src/codegen/compiler.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/microtask-queue.h"
@@ -32,6 +33,7 @@
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-aggregate-error.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -443,6 +445,7 @@ V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
                                                     Builtins::Name call,
                                                     int len, bool adapt) {
   DCHECK(Builtins::HasJSLinkage(call));
+  name = String::Flatten(isolate, name, AllocationType::kOld);
   NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
       name, call, LanguageMode::kStrict);
   Handle<JSFunction> fun = isolate->factory()->NewFunction(args);
@@ -1332,21 +1335,24 @@ static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
   isolate->native_context()->set(context_index, *function);
 }
 
-static void InstallError(Isolate* isolate, Handle<JSObject> global,
-                         Handle<String> name, int context_index) {
+static void InstallError(
+    Isolate* isolate, Handle<JSObject> global, Handle<String> name,
+    int context_index,
+    Builtins::Name error_constructor = Builtins::kErrorConstructor,
+    InstanceType error_type = JS_ERROR_TYPE, int error_function_length = 1,
+    int header_size = JSObject::kHeaderSize) {
   Factory* factory = isolate->factory();
 
   // Most Error objects consist of a message and a stack trace.
   // Reserve two in-object properties for these.
   const int kInObjectPropertiesCount = 2;
   const int kErrorObjectSize =
-      JSObject::kHeaderSize + kInObjectPropertiesCount * kTaggedSize;
-  Handle<JSFunction> error_fun =
-      InstallFunction(isolate, global, name, JS_ERROR_TYPE, kErrorObjectSize,
-                      kInObjectPropertiesCount, factory->the_hole_value(),
-                      Builtins::kErrorConstructor);
+      header_size + kInObjectPropertiesCount * kTaggedSize;
+  Handle<JSFunction> error_fun = InstallFunction(
+      isolate, global, name, error_type, kErrorObjectSize,
+      kInObjectPropertiesCount, factory->the_hole_value(), error_constructor);
   error_fun->shared().DontAdaptArguments();
-  error_fun->shared().set_length(1);
+  error_fun->shared().set_length(error_function_length);
 
   if (context_index == Context::ERROR_FUNCTION_INDEX) {
     SimpleInstallFunction(isolate, error_fun, "captureStackTrace",
@@ -1393,20 +1399,6 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
     initial_map->AppendDescriptor(isolate, &d);
   }
 }
-
-namespace {
-
-void InstallMakeError(Isolate* isolate, int builtin_id, int context_index) {
-  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
-      isolate->factory()->empty_string(), isolate->factory()->the_hole_value(),
-      JS_OBJECT_TYPE, JSObject::kHeaderSize, 0, builtin_id, MUTABLE);
-
-  Handle<JSFunction> function = isolate->factory()->NewFunction(args);
-  function->shared().DontAdaptArguments();
-  isolate->native_context()->set(context_index, *function);
-}
-
-}  // namespace
 
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
@@ -1551,9 +1543,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate_, isolate_->initial_object_prototype(), "toString",
         Builtins::kObjectPrototypeToString, 0, true);
     native_context()->set_object_to_string(*object_to_string);
-    SimpleInstallFunction(isolate_, isolate_->initial_object_prototype(),
-                          "valueOf", Builtins::kObjectPrototypeValueOf, 0,
-                          true);
+    Handle<JSFunction> object_value_of = SimpleInstallFunction(
+        isolate_, isolate_->initial_object_prototype(), "valueOf",
+        Builtins::kObjectPrototypeValueOf, 0, true);
+    native_context()->set_object_value_of_function(*object_value_of);
 
     SimpleInstallGetterSetter(
         isolate_, isolate_->initial_object_prototype(), factory->proto_string(),
@@ -2438,12 +2431,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<Map> prototype_map(prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate_);
 
-    {  // Internal: IsPromise
-      Handle<JSFunction> function = SimpleCreateFunction(
-          isolate_, factory->empty_string(), Builtins::kIsPromise, 1, false);
-      native_context()->set_is_promise(*function);
-    }
-
     {
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
           isolate_, Builtins::kPromiseCapabilityDefaultResolve,
@@ -2706,49 +2693,33 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         regexp_string_iterator_function->initial_map());
   }
 
-  {  // -- E r r o r
-    InstallError(isolate_, global, factory->Error_string(),
-                 Context::ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeError, Context::MAKE_ERROR_INDEX);
-  }
+  // -- E r r o r
+  InstallError(isolate_, global, factory->Error_string(),
+               Context::ERROR_FUNCTION_INDEX);
 
-  {  // -- E v a l E r r o r
-    InstallError(isolate_, global, factory->EvalError_string(),
-                 Context::EVAL_ERROR_FUNCTION_INDEX);
-  }
+  // -- E v a l E r r o r
+  InstallError(isolate_, global, factory->EvalError_string(),
+               Context::EVAL_ERROR_FUNCTION_INDEX);
 
-  {  // -- R a n g e E r r o r
-    InstallError(isolate_, global, factory->RangeError_string(),
-                 Context::RANGE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeRangeError,
-                     Context::MAKE_RANGE_ERROR_INDEX);
-  }
+  // -- R a n g e E r r o r
+  InstallError(isolate_, global, factory->RangeError_string(),
+               Context::RANGE_ERROR_FUNCTION_INDEX);
 
-  {  // -- R e f e r e n c e E r r o r
-    InstallError(isolate_, global, factory->ReferenceError_string(),
-                 Context::REFERENCE_ERROR_FUNCTION_INDEX);
-  }
+  // -- R e f e r e n c e E r r o r
+  InstallError(isolate_, global, factory->ReferenceError_string(),
+               Context::REFERENCE_ERROR_FUNCTION_INDEX);
 
-  {  // -- S y n t a x E r r o r
-    InstallError(isolate_, global, factory->SyntaxError_string(),
-                 Context::SYNTAX_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeSyntaxError,
-                     Context::MAKE_SYNTAX_ERROR_INDEX);
-  }
+  // -- S y n t a x E r r o r
+  InstallError(isolate_, global, factory->SyntaxError_string(),
+               Context::SYNTAX_ERROR_FUNCTION_INDEX);
 
-  {  // -- T y p e E r r o r
-    InstallError(isolate_, global, factory->TypeError_string(),
-                 Context::TYPE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeTypeError,
-                     Context::MAKE_TYPE_ERROR_INDEX);
-  }
+  // -- T y p e E r r o r
+  InstallError(isolate_, global, factory->TypeError_string(),
+               Context::TYPE_ERROR_FUNCTION_INDEX);
 
-  {  // -- U R I E r r o r
-    InstallError(isolate_, global, factory->URIError_string(),
-                 Context::URI_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate_, Builtins::kMakeURIError,
-                     Context::MAKE_URI_ERROR_INDEX);
-  }
+  // -- U R I E r r o r
+  InstallError(isolate_, global, factory->URIError_string(),
+               Context::URI_ERROR_FUNCTION_INDEX);
 
   {  // -- C o m p i l e E r r o r
     Handle<JSObject> dummy = factory->NewJSObject(isolate_->object_function());
@@ -4270,8 +4241,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_methods)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_meta)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_sequence)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_optional_chaining)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_nullish)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_top_level_await)
 
 #ifdef V8_INTL_SUPPORT
@@ -4305,44 +4274,51 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 
   {
-    // Create %FinalizationGroupPrototype%
-    Handle<String> finalization_group_name =
-        factory->NewStringFromStaticChars("FinalizationGroup");
-    Handle<JSObject> finalization_group_prototype = factory->NewJSObject(
+    // Create %FinalizationRegistryPrototype%
+    Handle<String> finalization_registry_name =
+        factory->NewStringFromStaticChars("FinalizationRegistry");
+    Handle<JSObject> finalization_registry_prototype = factory->NewJSObject(
         isolate()->object_function(), AllocationType::kOld);
 
-    // Create %FinalizationGroup%
-    Handle<JSFunction> finalization_group_fun = CreateFunction(
-        isolate(), finalization_group_name, JS_FINALIZATION_GROUP_TYPE,
-        JSFinalizationGroup::kHeaderSize, 0, finalization_group_prototype,
-        Builtins::kFinalizationGroupConstructor);
+    // Create %FinalizationRegistry%
+    Handle<JSFunction> finalization_registry_fun = CreateFunction(
+        isolate(), finalization_registry_name, JS_FINALIZATION_REGISTRY_TYPE,
+        JSFinalizationRegistry::kHeaderSize, 0, finalization_registry_prototype,
+        Builtins::kFinalizationRegistryConstructor);
     InstallWithIntrinsicDefaultProto(
-        isolate(), finalization_group_fun,
-        Context::JS_FINALIZATION_GROUP_FUNCTION_INDEX);
+        isolate(), finalization_registry_fun,
+        Context::JS_FINALIZATION_REGISTRY_FUNCTION_INDEX);
 
-    finalization_group_fun->shared().DontAdaptArguments();
-    finalization_group_fun->shared().set_length(1);
+    finalization_registry_fun->shared().DontAdaptArguments();
+    finalization_registry_fun->shared().set_length(1);
 
     // Install the "constructor" property on the prototype.
-    JSObject::AddProperty(isolate(), finalization_group_prototype,
-                          factory->constructor_string(), finalization_group_fun,
-                          DONT_ENUM);
+    JSObject::AddProperty(isolate(), finalization_registry_prototype,
+                          factory->constructor_string(),
+                          finalization_registry_fun, DONT_ENUM);
 
-    InstallToStringTag(isolate(), finalization_group_prototype,
-                       finalization_group_name);
+    InstallToStringTag(isolate(), finalization_registry_prototype,
+                       finalization_registry_name);
 
-    JSObject::AddProperty(isolate(), global, finalization_group_name,
-                          finalization_group_fun, DONT_ENUM);
+    JSObject::AddProperty(isolate(), global, finalization_registry_name,
+                          finalization_registry_fun, DONT_ENUM);
 
-    SimpleInstallFunction(isolate(), finalization_group_prototype, "register",
-                          Builtins::kFinalizationGroupRegister, 2, false);
+    SimpleInstallFunction(isolate(), finalization_registry_prototype,
+                          "register", Builtins::kFinalizationRegistryRegister,
+                          2, false);
 
-    SimpleInstallFunction(isolate(), finalization_group_prototype, "unregister",
-                          Builtins::kFinalizationGroupUnregister, 1, false);
+    SimpleInstallFunction(isolate(), finalization_registry_prototype,
+                          "unregister",
+                          Builtins::kFinalizationRegistryUnregister, 1, false);
 
-    SimpleInstallFunction(isolate(), finalization_group_prototype,
-                          "cleanupSome",
-                          Builtins::kFinalizationGroupCleanupSome, 0, false);
+    // The cleanupSome function is created but not exposed, as it is used
+    // internally by InvokeFinalizationRegistryCleanupFromTask.
+    //
+    // It is exposed by FLAG_harmony_weak_refs_with_cleanup_some.
+    Handle<JSFunction> cleanup_some_fun = SimpleCreateFunction(
+        isolate(), factory->InternalizeUtf8String("cleanupSome"),
+        Builtins::kFinalizationRegistryPrototypeCleanupSome, 0, false);
+    native_context()->set_finalization_registry_cleanup_some(*cleanup_some_fun);
   }
   {
     // Create %WeakRefPrototype%
@@ -4379,30 +4355,55 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::AddProperty(isolate(), global, weak_ref_name, weak_ref_fun,
                           DONT_ENUM);
   }
+}
 
-  {
-    // Create cleanup iterator for JSFinalizationGroup.
-    Handle<JSObject> iterator_prototype(
-        native_context()->initial_iterator_prototype(), isolate());
+void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
+  if (!FLAG_harmony_weak_refs_with_cleanup_some) return;
+  DCHECK(FLAG_harmony_weak_refs);
 
-    Handle<JSObject> cleanup_iterator_prototype = factory->NewJSObject(
-        isolate()->object_function(), AllocationType::kOld);
-    JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
+  Handle<JSFunction> finalization_registry_fun =
+      isolate()->js_finalization_registry_fun();
+  Handle<JSObject> finalization_registry_prototype(
+      JSObject::cast(finalization_registry_fun->instance_prototype()),
+      isolate());
 
-    InstallToStringTag(isolate(), cleanup_iterator_prototype,
-                       "FinalizationGroup Cleanup Iterator");
+  JSObject::AddProperty(isolate(), finalization_registry_prototype,
+                        factory()->InternalizeUtf8String("cleanupSome"),
+                        isolate()->finalization_registry_cleanup_some(),
+                        DONT_ENUM);
+}
 
-    SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
-                          Builtins::kFinalizationGroupCleanupIteratorNext, 0,
-                          true);
-    Handle<Map> cleanup_iterator_map =
-        factory->NewMap(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE,
-                        JSFinalizationGroupCleanupIterator::kHeaderSize);
-    Map::SetPrototype(isolate(), cleanup_iterator_map,
-                      cleanup_iterator_prototype);
-    native_context()->set_js_finalization_group_cleanup_iterator_map(
-        *cleanup_iterator_map);
+void Genesis::InitializeGlobal_harmony_promise_any() {
+  if (!FLAG_harmony_promise_any) {
+    return;
   }
+
+  Factory* factory = isolate()->factory();
+  Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
+
+  InstallError(isolate_, global, factory->AggregateError_string(),
+               Context::AGGREGATE_ERROR_FUNCTION_INDEX,
+               Builtins::kAggregateErrorConstructor, JS_AGGREGATE_ERROR_TYPE, 2,
+               JSAggregateError::kHeaderSize);
+
+  // Setup %AggregateErrorPrototype%.
+  Handle<JSFunction> aggregate_error_function(
+      native_context()->aggregate_error_function(), isolate());
+  Handle<JSObject> prototype(
+      JSObject::cast(aggregate_error_function->instance_prototype()),
+      isolate());
+
+  Handle<String> getter_name =
+      Name::ToFunctionName(isolate_, factory->errors_string(),
+                           isolate_->factory()->get_string())
+          .ToHandleChecked();
+
+  Handle<JSFunction> getter = SimpleCreateFunction(
+      isolate(), getter_name, Builtins::kAggregateErrorPrototypeErrorsGetter, 0,
+      true);
+
+  JSObject::DefineAccessor(prototype, factory->errors_string(), getter,
+                           factory->undefined_value(), DONT_ENUM);
 }
 
 void Genesis::InitializeGlobal_harmony_promise_all_settled() {
@@ -4992,7 +4993,7 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
     WasmJs::Install(isolate, true);
   } else if (FLAG_validate_asm) {
     // Install the internal data structures only; these are needed for asm.js
-    // translated to WASM to work correctly.
+    // translated to Wasm to work correctly.
     WasmJs::Install(isolate, false);
   }
 

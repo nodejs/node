@@ -74,14 +74,12 @@ SamplingHeapProfiler::~SamplingHeapProfiler() {
 void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   DisallowHeapAllocation no_allocation;
 
+  // Check if the area is iterable by confirming that it starts with a map.
+  DCHECK((*ObjectSlot(soon_object)).IsMap());
+
   HandleScope scope(isolate_);
   HeapObject heap_object = HeapObject::FromAddress(soon_object);
   Handle<Object> obj(heap_object, isolate_);
-
-  // Mark the new block as FreeSpace to make sure the heap is iterable while we
-  // are taking the sample.
-  heap_->CreateFillerObjectAt(soon_object, static_cast<int>(size),
-                              ClearRecordedSlots::kNo);
 
   Local<v8::Value> loc = v8::Utils::ToLocal(obj);
 
@@ -178,6 +176,9 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       case IDLE:
         name = "(IDLE)";
         break;
+      // Treat atomics wait as a normal JS event; we don't care about the
+      // difference for allocations.
+      case ATOMICS_WAIT:
       case JS:
         name = "(JS)";
         break;

@@ -37,7 +37,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
                                      Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward, bool unicode,
+                                               bool read_backward,
                                                Label* on_no_match);
   virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(unsigned c,

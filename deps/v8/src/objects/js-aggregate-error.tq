@@ -1,0 +1,73 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/objects/js-aggregate-error.h'
+
+@generateCppClass
+extern class JSAggregateError extends JSObject {
+  // Only Undefined during AggregateError object creation.
+  errors: JSAny|Undefined;
+}
+
+namespace error {
+
+  transitioning javascript builtin AggregateErrorConstructor(
+      js-implicit context: NativeContext, target: JSFunction,
+      newTarget: JSAny)(...arguments): JSAny {
+    // This function is implementing the spec as suggested by
+    // https://github.com/tc39/proposal-promise-any/pull/59 . FIXME(marja):
+    // change this if the PR is declined.
+
+    // 1. If NewTarget is undefined, let newTarget be the active function
+    // object, else let newTarget be NewTarget.
+    // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget,
+    // "%AggregateError.prototype%", « [[ErrorData]], [[AggregateErrors]] »).
+    // 3. If _message_ is not _undefined_, then
+    //   a. Let msg be ? ToString(_message_).
+    //   b. Let msgDesc be the PropertyDescriptor { [[Value]]: _msg_,
+    //   [[Writable]]: *true*, [[Enumerable]]: *false*, [[Configurable]]: *true*
+    //   c. Perform ! DefinePropertyOrThrow(_O_, *"message"*, _msgDesc_).
+    const message: JSAny = arguments.length > 0 ? arguments[1] : Undefined;
+    const obj: JSAggregateError =
+        ConstructAggregateErrorHelper(context, target, newTarget, message);
+
+    // 4. Let errorsList be ? IterableToList(errors).
+    const errors: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
+    const errorsArray = iterator::IterableToListWithSymbolLookup(errors);
+
+    // 5. Set O.[[AggregateErrors]] to errorsList.
+    obj.errors = errorsArray;
+
+    // 6. Return O.
+    return obj;
+  }
+
+  transitioning javascript builtin AggregateErrorPrototypeErrorsGetter(
+      js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+    // 1. Let E be the this value.
+    // 2. If Type(E) is not Object, throw a TypeError exception.
+    // 3. If E does not have an [[ErrorData]] internal slot, throw a TypeError
+    // exception.
+    // 4. If E does not have an [[AggregateErrors]] internal slot, throw a
+    // TypeError exception.
+    // 5. Return ! CreateArrayFromList(E.[[AggregateErrors]]).
+    typeswitch (receiver) {
+      case (receiver: JSAggregateError): {
+        return CloneFastJSArrayFillingHoles(
+            context, UnsafeCast<JSArray>(receiver.errors));
+      }
+      case (Object): {
+        ThrowTypeError(
+            MessageTemplate::kNotGeneric,
+            'JSAggregateError.prototype.errors.get', 'AggregateError');
+      }
+    }
+  }
+
+  extern runtime ConstructAggregateErrorHelper(
+      Context, JSFunction, JSAny, JSAny): JSAggregateError;
+
+  extern transitioning builtin CloneFastJSArrayFillingHoles(Context, JSArray):
+      JSArray;
+}

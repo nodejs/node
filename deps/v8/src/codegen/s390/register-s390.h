@@ -38,7 +38,6 @@ namespace internal {
 
 // Register list in load/store instructions
 // Note that the bit values must match those used in actual instruction encoding
-const int kNumRegs = 16;
 
 // Caller-saved/arguments registers
 const RegList kJSCallerSaved = 1 << 1 | 1 << 2 |  // r2  a1
@@ -86,17 +85,6 @@ const RegList kCalleeSavedDoubles = 1 << 8 |   // d8
                                     1 << 15;   // d13
 
 const int kNumCalleeSavedDoubles = 8;
-
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of 8.
-// TODO(regis): Only 8 registers may actually be sufficient. Revisit.
-const int kNumSafepointRegisters = 16;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 // The following constants describe the stack frame linkage area as
 // defined by the ABI.
@@ -274,6 +262,8 @@ constexpr Register kRuntimeCallArgCountRegister = r2;
 constexpr Register kRuntimeCallArgvRegister = r4;
 constexpr Register kWasmInstanceRegister = r6;
 constexpr Register kWasmCompileLazyFuncIndexRegister = r7;
+
+constexpr DoubleRegister kFPReturnRegister0 = d0;
 
 }  // namespace internal
 }  // namespace v8

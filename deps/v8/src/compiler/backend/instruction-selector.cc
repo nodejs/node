@@ -574,11 +574,7 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
     StateValueList* values, InstructionOperandVector* inputs,
     OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* input,
     MachineType type, FrameStateInputKind kind, Zone* zone) {
-  if (input == nullptr) {
-    values->PushOptimizedOut();
-    return 0;
-  }
-
+  DCHECK_NOT_NULL(input);
   switch (input->opcode()) {
     case IrOpcode::kArgumentsElementsState: {
       values->PushArgumentsElements(ArgumentsStateTypeOf(input->op()));
@@ -636,6 +632,26 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
   }
 }
 
+size_t InstructionSelector::AddInputsToFrameStateDescriptor(
+    StateValueList* values, InstructionOperandVector* inputs,
+    OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* node,
+    FrameStateInputKind kind, Zone* zone) {
+  size_t entries = 0;
+  StateValuesAccess::iterator it = StateValuesAccess(node).begin();
+  // Take advantage of sparse nature of StateValuesAccess to skip over multiple
+  // empty nodes at once pushing repeated OptimizedOuts all in one go.
+  while (!it.done()) {
+    values->PushOptimizedOut(it.AdvanceTillNotEmpty());
+    if (it.done()) break;
+    StateValuesAccess::TypedNode input_node = *it;
+    entries += AddOperandToStateValueDescriptor(values, inputs, g, deduplicator,
+                                                input_node.node,
+                                                input_node.type, kind, zone);
+    ++it;
+  }
+  return entries;
+}
+
 // Returns the number of instruction operands added to inputs.
 size_t InstructionSelector::AddInputsToFrameStateDescriptor(
     FrameStateDescriptor* descriptor, Node* state, OperandGenerator* g,
@@ -669,30 +685,25 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
   DCHECK_EQ(values_descriptor->size(), 0u);
   values_descriptor->ReserveSize(descriptor->GetSize());
 
+  DCHECK_NOT_NULL(function);
   entries += AddOperandToStateValueDescriptor(
       values_descriptor, inputs, g, deduplicator, function,
       MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
-  for (StateValuesAccess::TypedNode input_node :
-       StateValuesAccess(parameters)) {
-    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
-                                                deduplicator, input_node.node,
-                                                input_node.type, kind, zone);
-  }
+
+  entries += AddInputsToFrameStateDescriptor(
+      values_descriptor, inputs, g, deduplicator, parameters, kind, zone);
+
   if (descriptor->HasContext()) {
+    DCHECK_NOT_NULL(context);
     entries += AddOperandToStateValueDescriptor(
         values_descriptor, inputs, g, deduplicator, context,
         MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
   }
-  for (StateValuesAccess::TypedNode input_node : StateValuesAccess(locals)) {
-    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
-                                                deduplicator, input_node.node,
-                                                input_node.type, kind, zone);
-  }
-  for (StateValuesAccess::TypedNode input_node : StateValuesAccess(stack)) {
-    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
-                                                deduplicator, input_node.node,
-                                                input_node.type, kind, zone);
-  }
+
+  entries += AddInputsToFrameStateDescriptor(values_descriptor, inputs, g,
+                                             deduplicator, locals, kind, zone);
+  entries += AddInputsToFrameStateDescriptor(values_descriptor, inputs, g,
+                                             deduplicator, stack, kind, zone);
   DCHECK_EQ(initial_size + entries, inputs->size());
   return entries;
 }
@@ -796,21 +807,6 @@ void InstructionSelector::AppendDeoptimizeArguments(
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
                                   args, FrameStateInputKind::kAny,
                                   instruction_zone());
-}
-
-Instruction* InstructionSelector::EmitDeoptimize(
-    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
-    size_t input_count, InstructionOperand* inputs, DeoptimizeKind kind,
-    DeoptimizeReason reason, FeedbackSource const& feedback,
-    Node* frame_state) {
-  InstructionOperandVector args(instruction_zone());
-  for (size_t i = 0; i < input_count; ++i) {
-    args.push_back(inputs[i]);
-  }
-  opcode |= MiscField::encode(static_cast<int>(input_count));
-  AppendDeoptimizeArguments(&args, kind, reason, feedback, frame_state);
-  return Emit(opcode, output_count, outputs, args.size(), &args.front(), 0,
-              nullptr);
 }
 
 // An internal helper class for generating the operands to calls.
@@ -1335,6 +1331,7 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitProjection(node);
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
+    case IrOpcode::kTaggedIndexConstant:
     case IrOpcode::kExternalConstant:
     case IrOpcode::kRelocatableInt32Constant:
     case IrOpcode::kRelocatableInt64Constant:
@@ -2026,6 +2023,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI32x4GtU(node);
     case IrOpcode::kI32x4GeU:
       return MarkAsSimd128(node), VisitI32x4GeU(node);
+    case IrOpcode::kI32x4Abs:
+      return MarkAsSimd128(node), VisitI32x4Abs(node);
+    case IrOpcode::kI32x4BitMask:
+      return MarkAsWord32(node), VisitI32x4BitMask(node);
     case IrOpcode::kI16x8Splat:
       return MarkAsSimd128(node), VisitI16x8Splat(node);
     case IrOpcode::kI16x8ExtractLaneU:
@@ -2092,6 +2093,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI16x8GeU(node);
     case IrOpcode::kI16x8RoundingAverageU:
       return MarkAsSimd128(node), VisitI16x8RoundingAverageU(node);
+    case IrOpcode::kI16x8Abs:
+      return MarkAsSimd128(node), VisitI16x8Abs(node);
+    case IrOpcode::kI16x8BitMask:
+      return MarkAsWord32(node), VisitI16x8BitMask(node);
     case IrOpcode::kI8x16Splat:
       return MarkAsSimd128(node), VisitI8x16Splat(node);
     case IrOpcode::kI8x16ExtractLaneU:
@@ -2148,6 +2153,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitI8x16GeU(node);
     case IrOpcode::kI8x16RoundingAverageU:
       return MarkAsSimd128(node), VisitI8x16RoundingAverageU(node);
+    case IrOpcode::kI8x16Abs:
+      return MarkAsSimd128(node), VisitI8x16Abs(node);
+    case IrOpcode::kI8x16BitMask:
+      return MarkAsWord32(node), VisitI8x16BitMask(node);
     case IrOpcode::kS128Zero:
       return MarkAsSimd128(node), VisitS128Zero(node);
     case IrOpcode::kS128And:
@@ -2336,23 +2345,6 @@ void InstructionSelector::EmitTableSwitch(
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
-void InstructionSelector::EmitLookupSwitch(
-    const SwitchInfo& sw, InstructionOperand const& value_operand) {
-  OperandGenerator g(this);
-  std::vector<CaseInfo> cases = sw.CasesSortedByOriginalOrder();
-  size_t input_count = 2 + sw.case_count() * 2;
-  DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
-  auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
-  inputs[0] = value_operand;
-  inputs[1] = g.Label(sw.default_branch());
-  for (size_t index = 0; index < cases.size(); ++index) {
-    const CaseInfo& c = cases[index];
-    inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
-    inputs[index * 2 + 2 + 1] = g.Label(c.branch);
-  }
-  Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
-}
-
 void InstructionSelector::EmitBinarySearchSwitch(
     const SwitchInfo& sw, InstructionOperand const& value_operand) {
   OperandGenerator g(this);
@@ -2362,8 +2354,6 @@ void InstructionSelector::EmitBinarySearchSwitch(
   inputs[0] = value_operand;
   inputs[1] = g.Label(sw.default_branch());
   std::vector<CaseInfo> cases = sw.CasesSortedByValue();
-  std::stable_sort(cases.begin(), cases.end(),
-                   [](CaseInfo a, CaseInfo b) { return a.value < b.value; });
   for (size_t index = 0; index < cases.size(); ++index) {
     const CaseInfo& c = cases[index];
     inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
@@ -2583,7 +2573,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
 #endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS64 && \
-    !V8_TARGET_ARCH_S390 && !V8_TARGET_ARCH_PPC
+    !V8_TARGET_ARCH_S390 && !V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitWord64AtomicLoad(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
@@ -2607,7 +2597,7 @@ void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
 void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
   UNIMPLEMENTED();
 }
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_PPC
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_PPC64
         // !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_S390
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
@@ -2620,7 +2610,7 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_IA32
 
-#if !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 #if !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
@@ -2642,7 +2632,17 @@ void InstructionSelector::VisitI64x2MinS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
+
+// TODO(v8:10308) Bitmask operations are in prototype now, we can remove these
+// guards when they go into the proposal.
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32 && \
+    !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32
+        // && !V8_TARGET_ARCH_X64
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -2990,9 +2990,10 @@ void InstructionSelector::EmitIdentity(Node* node) {
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
                                           DeoptimizeReason reason,
                                           FeedbackSource const& feedback,
-                                          Node* value) {
-  EmitDeoptimize(kArchDeoptimize, 0, nullptr, 0, nullptr, kind, reason,
-                 feedback, value);
+                                          Node* frame_state) {
+  InstructionOperandVector args(instruction_zone());
+  AppendDeoptimizeArguments(&args, kind, reason, feedback, frame_state);
+  Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 
 void InstructionSelector::VisitThrow(Node* node) {
@@ -3055,17 +3056,10 @@ namespace {
 FrameStateDescriptor* GetFrameStateDescriptorInternal(Zone* zone, Node* state) {
   DCHECK_EQ(IrOpcode::kFrameState, state->opcode());
   DCHECK_EQ(kFrameStateInputCount, state->InputCount());
-  FrameStateInfo state_info = FrameStateInfoOf(state->op());
-
-  int parameters = static_cast<int>(
-      StateValuesAccess(state->InputAt(kFrameStateParametersInput)).size());
-  int locals = static_cast<int>(
-      StateValuesAccess(state->InputAt(kFrameStateLocalsInput)).size());
-  int stack = static_cast<int>(
-      StateValuesAccess(state->InputAt(kFrameStateStackInput)).size());
-
-  DCHECK_EQ(parameters, state_info.parameter_count());
-  DCHECK_EQ(locals, state_info.local_count());
+  const FrameStateInfo& state_info = FrameStateInfoOf(state->op());
+  int parameters = state_info.parameter_count();
+  int locals = state_info.local_count();
+  int stack = state_info.type() == FrameStateType::kInterpretedFunction ? 1 : 0;
 
   FrameStateDescriptor* outer_state = nullptr;
   Node* outer_node = state->InputAt(kFrameStateOuterStateInput);
@@ -3242,7 +3236,6 @@ bool InstructionSelector::NeedsPoisoning(IsSafetyCheck safety_check) const {
   }
   UNREACHABLE();
 }
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

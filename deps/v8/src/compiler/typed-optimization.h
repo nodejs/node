@@ -37,6 +37,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
 
  private:
   Reduction ReduceConvertReceiver(Node* node);
+  Reduction ReduceMaybeGrowFastElements(Node* node);
   Reduction ReduceCheckHeapObject(Node* node);
   Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceCheckNumber(Node* node);

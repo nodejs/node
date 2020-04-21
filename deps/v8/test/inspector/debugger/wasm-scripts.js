@@ -35,6 +35,15 @@ function testFunction(bytes) {
   new WebAssembly.Module(new Uint8Array(bytes));
 }
 
+// Generate stable IDs.
+let scriptIds = {};
+function nextStableId(id) {
+  if (!(id in scriptIds)) {
+    scriptIds[id] = Object.keys(scriptIds).length;
+  }
+  return scriptIds[id];
+}
+
 contextGroup.addScript(testFunction.toString(), 0, 0, 'v8://test/testFunction');
 
 InspectorTest.log(
@@ -53,6 +62,9 @@ sessions[0].Protocol.Runtime
       'expression': `//# sourceURL=v8://test/runTestRunction
 
       // no debug info
+      testFunction([${createModule()}]);
+
+      // shared script for identical modules
       testFunction([${createModule()}]);
 
       // DWARF
@@ -85,9 +97,14 @@ function trackScripts(debuggerParams) {
   Protocol.Debugger.enable(debuggerParams);
   Protocol.Debugger.onScriptParsed(handleScriptParsed);
 
-  async function loadScript({url, scriptId, sourceMapURL}) {
-    InspectorTest.log(`Session #${sessionId}: Script #${scripts.length} parsed. URL: ${url}. Source map URL: ${sourceMapURL}`);
-    let {result: {scriptSource, bytecode}} = await Protocol.Debugger.getScriptSource({scriptId});
+  async function loadScript(
+      {url, scriptId, sourceMapURL, startColumn, endColumn, codeOffset}) {
+    let stableId = nextStableId(scriptId);
+    InspectorTest.log(`Session #${sessionId}: Script #${
+        scripts.length} parsed. URL: ${url}. Script ID: ${stableId}, Source map URL: ${
+        sourceMapURL}, module begin: ${startColumn}, module end: ${endColumn}, code offset: ${codeOffset}`);
+    let {result: {scriptSource, bytecode}} =
+        await Protocol.Debugger.getScriptSource({scriptId});
     if (bytecode) {
       if (scriptSource) {
         InspectorTest.log('Unexpected scriptSource with bytecode: ');

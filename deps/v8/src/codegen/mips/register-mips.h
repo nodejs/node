@@ -376,6 +376,8 @@ constexpr Register kRuntimeCallArgvRegister = a2;
 constexpr Register kWasmInstanceRegister = a0;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 
+constexpr DoubleRegister kFPReturnRegister0 = f0;
+
 }  // namespace internal
 }  // namespace v8
 

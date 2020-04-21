@@ -245,9 +245,9 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     }
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
     // Host is isolate-independent, try wasm native module instead.
-    const char* runtime_stub_name =
-        host.as_wasm_code()->native_module()->GetRuntimeStubName(
-            relocinfo->wasm_stub_call_address());
+    const char* runtime_stub_name = GetRuntimeStubName(
+        host.as_wasm_code()->native_module()->GetRuntimeStubId(
+            relocinfo->wasm_stub_call_address()));
     out->AddFormatted("    ;; wasm stub: %s", runtime_stub_name);
   } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
              isolate->deoptimizer_data() != nullptr) {
