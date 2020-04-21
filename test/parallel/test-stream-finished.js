@@ -368,3 +368,19 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   d.end();
   d.resume();
 }
+
+{
+  const d = new Duplex({
+    final(cb) { }, // Never close writable side for test purpose
+    read() {
+      this.push(null);
+    }
+  });
+
+  d.on('end', common.mustCall());
+
+  d.end();
+  finished(d, { readable: true, writable: false }, common.mustCall());
+
+  d.resume();
+}
