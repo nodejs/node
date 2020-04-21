@@ -315,7 +315,7 @@ changes:
 
 * `...label` {any}
 
-Increases indentation of subsequent lines by spacesfor `groupIndentation`
+Increases indentation of subsequent lines by spaces for `groupIndentation`
 length.
 
 If one or more `label`s are provided, those are printed first without the
