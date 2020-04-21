@@ -1422,7 +1422,7 @@ _shaext_shortcut:
 	movdqu	%xmm0,(%rdi)
 	movd	%xmm1,16(%rdi)
 	.byte	0xf3,0xc3
-.cfi_endproc
+.cfi_endproc	
 .size	sha1_block_data_order_shaext,.-sha1_block_data_order_shaext
 .type	sha1_block_data_order_ssse3,@function
 .align	16
