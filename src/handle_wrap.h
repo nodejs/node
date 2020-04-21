@@ -32,6 +32,7 @@
 namespace node {
 
 class Environment;
+class ExternalReferenceRegistry;
 
 // Rules:
 //
@@ -77,6 +78,7 @@ class HandleWrap : public AsyncWrap {
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
  protected:
   HandleWrap(Environment* env,

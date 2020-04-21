@@ -1,5 +1,6 @@
 #include "env-inl.h"
 #include "node.h"
+#include "node_external_reference.h"
 
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -77,6 +78,16 @@ void InitializeTypes(Local<Object> target,
 }
 
 }  // anonymous namespace
+
+void RegisterTypesExternalReferences(ExternalReferenceRegistry* registry) {
+#define V(type) registry->Register(Is##type);
+  VALUE_METHOD_MAP(V)
+#undef V
+
+  registry->Register(IsAnyArrayBuffer);
+  registry->Register(IsBoxedPrimitive);
+}
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(types, node::InitializeTypes)
+NODE_MODULE_EXTERNAL_REFERENCE(types, node::RegisterTypesExternalReferences)

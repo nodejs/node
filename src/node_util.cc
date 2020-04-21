@@ -1,6 +1,7 @@
-#include "node_errors.h"
-#include "util-inl.h"
 #include "base_object-inl.h"
+#include "node_errors.h"
+#include "node_external_reference.h"
+#include "util-inl.h"
 
 namespace node {
 namespace util {
@@ -262,6 +263,23 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), type));
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(GetHiddenValue);
+  registry->Register(SetHiddenValue);
+  registry->Register(GetPromiseDetails);
+  registry->Register(GetProxyDetails);
+  registry->Register(PreviewEntries);
+  registry->Register(GetOwnNonIndexProperties);
+  registry->Register(GetConstructorName);
+  registry->Register(Sleep);
+  registry->Register(ArrayBufferViewHasBuffer);
+  registry->Register(WeakReference::New);
+  registry->Register(WeakReference::Get);
+  registry->Register(WeakReference::IncRef);
+  registry->Register(WeakReference::DecRef);
+  registry->Register(GuessHandleType);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -339,3 +357,4 @@ void Initialize(Local<Object> target,
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(util, node::util::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(util, node::util::RegisterExternalReferences)

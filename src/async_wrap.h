@@ -106,6 +106,7 @@ namespace node {
 
 class Environment;
 class DestroyParam;
+class ExternalReferenceRegistry;
 
 class AsyncWrap : public BaseObject {
  public:
@@ -135,6 +136,7 @@ class AsyncWrap : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
 
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
                          v8::Local<v8::Context> context,

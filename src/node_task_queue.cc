@@ -1,6 +1,7 @@
 #include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process.h"
 #include "util-inl.h"
@@ -145,7 +146,16 @@ static void Initialize(Local<Object> target,
                  SetPromiseRejectCallback);
 }
 
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(EnqueueMicrotask);
+  registry->Register(SetTickCallback);
+  registry->Register(RunMicrotasks);
+  registry->Register(SetPromiseRejectCallback);
+}
+
 }  // namespace task_queue
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(task_queue, node::task_queue::Initialize)
+NODE_MODULE_EXTERNAL_REFERENCE(task_queue,
+                               node::task_queue::RegisterExternalReferences)

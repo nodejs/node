@@ -3,9 +3,10 @@
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_contextify.h"
 #include "node_buffer.h"
+#include "node_contextify.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_process.h"
 #include "util-inl.h"
 
@@ -1352,9 +1353,24 @@ static void InitMessaging(Local<Object> target,
   }
 }
 
+static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(MessageChannel);
+  registry->Register(JSTransferable::New);
+  registry->Register(MessagePort::New);
+  registry->Register(MessagePort::PostMessage);
+  registry->Register(MessagePort::Start);
+  registry->Register(MessagePort::Stop);
+  registry->Register(MessagePort::Drain);
+  registry->Register(MessagePort::ReceiveMessage);
+  registry->Register(MessagePort::MoveToContext);
+  registry->Register(SetDeserializerCreateObjectFunction);
+}
+
 }  // anonymous namespace
 
 }  // namespace worker
 }  // namespace node
 
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(messaging, node::worker::InitMessaging)
+NODE_MODULE_EXTERNAL_REFERENCE(messaging,
+                               node::worker::RegisterExternalReferences)
