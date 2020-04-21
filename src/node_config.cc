@@ -84,9 +84,6 @@ static void Initialize(Local<Object> target,
 #if defined HAVE_DTRACE || defined HAVE_ETW
   READONLY_TRUE_PROPERTY(target, "hasDtrace");
 #endif
-
-  READONLY_PROPERTY(target, "hasCachedBuiltins",
-     v8::Boolean::New(isolate, native_module::has_code_cache));
 }  // InitConfig
 
 }  // namespace node
