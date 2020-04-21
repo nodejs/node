@@ -209,6 +209,16 @@ void V8CoverageConnection::WriteProfile(Local<String> message) {
   HandleScope handle_scope(isolate);
   Context::Scope context_scope(context);
 
+  // This is only set up during pre-execution (when the environment variables
+  // becomes available in the JS land). If it's empty, we don't have coverage
+  // directory path (which is resolved in JS land at the moment) either, so
+  // the best we could to is to just discard the profile and do nothing.
+  // This should only happen in half-baked Environments created using the
+  // embedder API.
+  if (env_->source_map_cache_getter().IsEmpty()) {
+    return;
+  }
+
   // Get message.result from the response.
   Local<Object> result;
   if (!ParseProfile(env_, message, type()).ToLocal(&result)) {
