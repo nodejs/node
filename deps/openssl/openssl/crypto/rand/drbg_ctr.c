@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,28 +12,25 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#include "internal/thread_once.h"
+#include "modes_local.h"
 #include "internal/thread_once.h"
 #include "rand_local.h"
+
 /*
  * Implementation of NIST SP 800-90A CTR DRBG.
  */
 
 static void inc_128(RAND_DRBG_CTR *ctr)
 {
-    int i;
-    unsigned char c;
-    unsigned char *p = &ctr->V[15];
+    unsigned char *p = &ctr->V[0];
+    u32 n = 16, c = 1;
 
-    for (i = 0; i < 16; i++, p--) {
-        c = *p;
-        c++;
-        *p = c;
-        if (c != 0) {
-            /* If we didn't wrap around, we're done. */
-            break;
-        }
-    }
+    do {
+        --n;
+        c += p[n];
+        p[n] = (u8)c;
+        c >>= 8;
+    } while (n);
 }
 
 static void ctr_XOR(RAND_DRBG_CTR *ctr, const unsigned char *in, size_t inlen)

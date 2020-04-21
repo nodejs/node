@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,25 +8,21 @@
  */
 
 #include <openssl/opensslconf.h>
-#if defined(OPENSSL_NO_DES)
-NON_EMPTY_TRANSLATION_UNIT
-#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "apps.h"
+#include "progs.h"
+#include <openssl/crypto.h>
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/pkcs12.h>
 
-# include <stdio.h>
-# include <stdlib.h>
-# include <string.h>
-# include "apps.h"
-# include "progs.h"
-# include <openssl/crypto.h>
-# include <openssl/err.h>
-# include <openssl/pem.h>
-# include <openssl/pkcs12.h>
-
-# define NOKEYS          0x1
-# define NOCERTS         0x2
-# define INFO            0x4
-# define CLCERTS         0x8
-# define CACERTS         0x10
+#define NOKEYS          0x1
+#define NOCERTS         0x2
+#define INFO            0x4
+#define CLCERTS         0x8
+#define CACERTS         0x10
 
 #define PASSWD_BUF_SIZE 2048
 
@@ -74,15 +70,15 @@ const OPTIONS pkcs12_options[] = {
     {"chain", OPT_CHAIN, '-', "Add certificate chain"},
     {"twopass", OPT_TWOPASS, '-', "Separate MAC, encryption passwords"},
     {"nomacver", OPT_NOMACVER, '-', "Don't verify MAC"},
-# ifndef OPENSSL_NO_RC2
+#ifndef OPENSSL_NO_RC2
     {"descert", OPT_DESCERT, '-',
      "Encrypt output with 3DES (default RC2-40)"},
     {"certpbe", OPT_CERTPBE, 's',
      "Certificate PBE algorithm (default RC2-40)"},
-# else
+#else
     {"descert", OPT_DESCERT, '-', "Encrypt output with 3DES (the default)"},
     {"certpbe", OPT_CERTPBE, 's', "Certificate PBE algorithm (default 3DES)"},
-# endif
+#endif
     {"export", OPT_EXPORT, '-', "Output PKCS12 file"},
     {"noiter", OPT_NOITER, '-', "Don't use encryption iteration"},
     {"maciter", OPT_MACITER, '-', "Use MAC iteration"},
@@ -113,9 +109,9 @@ const OPTIONS pkcs12_options[] = {
     {"no-CApath", OPT_NOCAPATH, '-',
      "Do not load certificates from the default certificates directory"},
     {"", OPT_CIPHER, '-', "Any supported cipher"},
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine, possibly a hardware device"},
-# endif
+#endif
     {NULL}
 };
 
@@ -126,11 +122,11 @@ int pkcs12_main(int argc, char **argv)
     char pass[PASSWD_BUF_SIZE] = "", macpass[PASSWD_BUF_SIZE] = "";
     int export_cert = 0, options = 0, chain = 0, twopass = 0, keytype = 0;
     int iter = PKCS12_DEFAULT_ITER, maciter = PKCS12_DEFAULT_ITER;
-# ifndef OPENSSL_NO_RC2
+#ifndef OPENSSL_NO_RC2
     int cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
-# else
+#else
     int cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
-# endif
+#endif
     int key_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
     int ret = 1, macver = 1, add_lmk = 0, private = 0;
     int noprompt = 0;
@@ -976,5 +972,3 @@ static int set_pbe(int *ppbe, const char *str)
     }
     return 1;
 }
-
-#endif

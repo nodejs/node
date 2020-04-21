@@ -14,7 +14,7 @@ B<openssl> B<s_time>
 [B<-cert filename>]
 [B<-key filename>]
 [B<-CApath directory>]
-[B<-cafile filename>]
+[B<-CAfile filename>]
 [B<-no-CAfile>]
 [B<-no-CApath>]
 [B<-reuse>]
@@ -202,7 +202,7 @@ L<s_client(1)>, L<s_server(1)>, L<ciphers(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2004-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2004-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

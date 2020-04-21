@@ -160,6 +160,13 @@ In particular, XTS-AES-128 (B<EVP_aes_128_xts>) takes input of a 256-bit key to
 achieve AES 128-bit security, and XTS-AES-256 (B<EVP_aes_256_xts>) takes input
 of a 512-bit key to achieve AES 256-bit security.
 
+The XTS implementation in OpenSSL does not support streaming. That is there must
+only be one L<EVP_EncryptUpdate(3)> call per L<EVP_EncryptInit_ex(3)> call (and
+similarly with the "Decrypt" functions).
+
+The I<iv> parameter to L<EVP_EncryptInit_ex(3)> or L<EVP_DecryptInit_ex(3)> is
+the XTS "tweak" value.
+
 =back
 
 =head1 RETURN VALUES
@@ -176,7 +183,7 @@ L<EVP_CIPHER_meth_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the OpenSSL license (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
