@@ -44,7 +44,9 @@ use constant {
     COMPAT_SIGALGS => 6,
     SIGALGS_CERT_ALL => 7,
     SIGALGS_CERT_PKCS => 8,
-    SIGALGS_CERT_INVALID => 9
+    SIGALGS_CERT_INVALID => 9,
+    UNRECOGNIZED_SIGALGS_CERT => 10,
+    UNRECOGNIZED_SIGALG => 11
 };
 
 #Note: Throughout this test we override the default ciphersuites where TLSv1.2
@@ -53,7 +55,7 @@ use constant {
 
 #Test 1: Default sig algs should succeed
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
-plan tests => 24;
+plan tests => 26;
 ok(TLSProxy::Message->success, "Default sigalgs");
 my $testtype;
 
@@ -282,6 +284,39 @@ SKIP: {
     ok(TLSProxy::Message->fail, "No matching certificate for sigalgs_cert");
 }
 
+SKIP: {
+    skip "TLS 1.3 disabled", 2 if disabled("tls1_3");
+    #Test 25: Send an unrecognized signature_algorithms_cert
+    #        We should be able to skip over the unrecognized value and use a
+    #        valid one that appears later in the list.
+    $proxy->clear();
+    $proxy->filter(\&inject_unrecognized_sigalg);
+    $proxy->clientflags("-tls1_3");
+    # Use -xcert to get SSL_check_chain() to run in the cert_cb.  This is
+    # needed to trigger (e.g.) CVE-2020-1967
+    $proxy->serverflags("" .
+            " -xcert " . srctop_file("test", "certs", "servercert.pem") .
+            " -xkey " . srctop_file("test", "certs", "serverkey.pem") .
+            " -xchain " . srctop_file("test", "certs", "rootcert.pem"));
+    $testtype = UNRECOGNIZED_SIGALGS_CERT;
+    $proxy->start();
+    ok(TLSProxy::Message->success(), "Unrecognized sigalg_cert in ClientHello");
+
+    #Test 26: Send an unrecognized signature_algorithms
+    #        We should be able to skip over the unrecognized value and use a
+    #        valid one that appears later in the list.
+    $proxy->clear();
+    $proxy->filter(\&inject_unrecognized_sigalg);
+    $proxy->clientflags("-tls1_3");
+    $proxy->serverflags("" .
+            " -xcert " . srctop_file("test", "certs", "servercert.pem") .
+            " -xkey " . srctop_file("test", "certs", "serverkey.pem") .
+            " -xchain " . srctop_file("test", "certs", "rootcert.pem"));
+    $testtype = UNRECOGNIZED_SIGALG;
+    $proxy->start();
+    ok(TLSProxy::Message->success(), "Unrecognized sigalg in ClientHello");
+}
+
 
 
 sub sigalgs_filter
@@ -426,4 +461,31 @@ sub modify_cert_verify_sigalg
             $message->repack();
         }
     }
+}
+
+sub inject_unrecognized_sigalg
+{
+    my $proxy = shift;
+    my $type;
+
+    # We're only interested in the initial ClientHello
+    if ($proxy->flight != 0) {
+        return;
+    }
+    if ($testtype == UNRECOGNIZED_SIGALGS_CERT) {
+        $type = TLSProxy::Message::EXT_SIG_ALGS_CERT;
+    } elsif ($testtype == UNRECOGNIZED_SIGALG) {
+        $type = TLSProxy::Message::EXT_SIG_ALGS;
+    } else {
+        return;
+    }
+
+    my $ext = pack "C8",
+        0x00, 0x06, #Extension length
+        0xfe, 0x18, #private use
+        0x04, 0x01, #rsa_pkcs1_sha256
+        0x08, 0x04; #rsa_pss_rsae_sha256;
+    my $message = ${$proxy->message_list}[0];
+    $message->set_extension($type, $ext);
+    $message->repack;
 }

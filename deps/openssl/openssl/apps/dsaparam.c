@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,22 +8,18 @@
  */
 
 #include <openssl/opensslconf.h>
-#ifdef OPENSSL_NO_DSA
-NON_EMPTY_TRANSLATION_UNIT
-#else
-
-# include <stdio.h>
-# include <stdlib.h>
-# include <time.h>
-# include <string.h>
-# include "apps.h"
-# include "progs.h"
-# include <openssl/bio.h>
-# include <openssl/err.h>
-# include <openssl/bn.h>
-# include <openssl/dsa.h>
-# include <openssl/x509.h>
-# include <openssl/pem.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+#include "apps.h"
+#include "progs.h"
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/bn.h>
+#include <openssl/dsa.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
 
 static int dsa_cb(int p, int n, BN_GENCB *cb);
 
@@ -44,9 +40,9 @@ const OPTIONS dsaparam_options[] = {
     {"noout", OPT_NOOUT, '-', "No output"},
     {"genkey", OPT_GENKEY, '-', "Generate a DSA key"},
     OPT_R_OPTIONS,
-# ifndef OPENSSL_NO_ENGINE
+#ifndef OPENSSL_NO_ENGINE
     {"engine", OPT_ENGINE, 's', "Use engine e, possibly a hardware device"},
-# endif
+#endif
     {NULL}
 };
 
@@ -255,4 +251,3 @@ static int dsa_cb(int p, int n, BN_GENCB *cb)
     (void)BIO_flush(BN_GENCB_get_arg(cb));
     return 1;
 }
-#endif

@@ -7,6 +7,27 @@
  https://github.com/openssl/openssl/commits/ and pick the appropriate
  release branch.
 
+ Changes between 1.1.1f and 1.1.1g [21 Apr 2020]
+
+  *) Fixed segmentation fault in SSL_check_chain()
+     Server or client applications that call the SSL_check_chain() function
+     during or after a TLS 1.3 handshake may crash due to a NULL pointer
+     dereference as a result of incorrect handling of the
+     "signature_algorithms_cert" TLS extension. The crash occurs if an invalid
+     or unrecognised signature algorithm is received from the peer. This could
+     be exploited by a malicious peer in a Denial of Service attack.
+     (CVE-2020-1967)
+     [Benjamin Kaduk]
+
+  *) Added AES consttime code for no-asm configurations
+     an optional constant time support for AES was added
+     when building openssl for no-asm.
+     Enable with: ./config no-asm -DOPENSSL_AES_CONST_TIME
+     Disable with: ./config no-asm -DOPENSSL_NO_AES_CONST_TIME
+     At this time this feature is by default disabled.
+     It will be enabled by default in 3.0.
+     [Bernd Edlinger]
+
  Changes between 1.1.1e and 1.1.1f [31 Mar 2020]
 
   *) Revert the change of EOF detection while reading in libssl to avoid
