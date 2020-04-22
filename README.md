@@ -80,7 +80,7 @@ contains the latest Carbon (Node.js 8) release.
 #### Nightly Releases
 <https://nodejs.org/download/nightly/>
 
-Each directory name and filename contains a date (in UTC time) and the commit
+Each directory name and filename contains a date (in UTC) and the commit
 SHA at the HEAD of the release.
 
 #### API Documentation
