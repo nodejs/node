@@ -53,6 +53,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::MeasureMemoryExecution;
 using v8::MeasureMemoryMode;
 using v8::Name;
 using v8::NamedPropertyHandlerConfiguration;
@@ -1211,29 +1212,22 @@ static void WatchdogHasPendingSigint(const FunctionCallbackInfo<Value>& args) {
 
 static void MeasureMemory(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
+  CHECK(args[1]->IsInt32());
   int32_t mode = args[0].As<v8::Int32>()->Value();
+  int32_t execution = args[1].As<v8::Int32>()->Value();
   Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context;
-  if (args[1]->IsUndefined()) {
-    context = isolate->GetCurrentContext();
-  } else {
-    CHECK(args[1]->IsObject());
-    ContextifyContext* sandbox =
-        ContextifyContext::ContextFromContextifiedSandbox(env,
-                                                          args[1].As<Object>());
-    CHECK_NOT_NULL(sandbox);
-    context = sandbox->context();
-    if (context.IsEmpty()) {  // Not yet fully initialized
-      return;
-    }
-  }
+
+  Local<Context> current_context = isolate->GetCurrentContext();
   Local<Promise::Resolver> resolver;
-  if (!Promise::Resolver::New(context).ToLocal(&resolver)) return;
-  std::unique_ptr<v8::MeasureMemoryDelegate> i =
+  if (!Promise::Resolver::New(current_context).ToLocal(&resolver)) return;
+  std::unique_ptr<v8::MeasureMemoryDelegate> delegate =
       v8::MeasureMemoryDelegate::Default(
-          isolate, context, resolver, static_cast<v8::MeasureMemoryMode>(mode));
-  CHECK_NOT_NULL(i);
+          isolate,
+          current_context,
+          resolver,
+          static_cast<v8::MeasureMemoryMode>(mode));
+  isolate->MeasureMemory(std::move(delegate),
+                         static_cast<v8::MeasureMemoryExecution>(execution));
   v8::Local<v8::Promise> promise = resolver->GetPromise();
 
   args.GetReturnValue().Set(promise);
@@ -1265,13 +1259,27 @@ void Initialize(Local<Object> target,
 
   Local<Object> constants = Object::New(env->isolate());
   Local<Object> measure_memory = Object::New(env->isolate());
-  Local<Object> memory_mode = Object::New(env->isolate());
-  MeasureMemoryMode SUMMARY = MeasureMemoryMode::kSummary;
-  MeasureMemoryMode DETAILED = MeasureMemoryMode::kDetailed;
-  NODE_DEFINE_CONSTANT(memory_mode, SUMMARY);
-  NODE_DEFINE_CONSTANT(memory_mode, DETAILED);
-  READONLY_PROPERTY(measure_memory, "mode", memory_mode);
+  Local<Object> memory_execution = Object::New(env->isolate());
+
+  {
+    Local<Object> memory_mode = Object::New(env->isolate());
+    MeasureMemoryMode SUMMARY = MeasureMemoryMode::kSummary;
+    MeasureMemoryMode DETAILED = MeasureMemoryMode::kDetailed;
+    NODE_DEFINE_CONSTANT(memory_mode, SUMMARY);
+    NODE_DEFINE_CONSTANT(memory_mode, DETAILED);
+    READONLY_PROPERTY(measure_memory, "mode", memory_mode);
+  }
+
+  {
+    MeasureMemoryExecution DEFAULT = MeasureMemoryExecution::kDefault;
+    MeasureMemoryExecution EAGER = MeasureMemoryExecution::kEager;
+    NODE_DEFINE_CONSTANT(memory_execution, DEFAULT);
+    NODE_DEFINE_CONSTANT(memory_execution, EAGER);
+    READONLY_PROPERTY(measure_memory, "execution", memory_execution);
+  }
+
   READONLY_PROPERTY(constants, "measureMemory", measure_memory);
+
   target->Set(context, env->constants_string(), constants).Check();
 
   env->SetMethod(target, "measureMemory", MeasureMemory);
