@@ -189,7 +189,8 @@ added: REPLACEME
 
 The wrapper function is expected to be called exactly `exact` times. If the
 function has not been called exactly `exact` times when
-[`tracker.verify()`][] is called, then [`tracker.verify()`][] will throw an error.
+[`tracker.verify()`][] is called, then [`tracker.verify()`][] will throw an
+error.
 
 ```js
 const assert = require('assert');
