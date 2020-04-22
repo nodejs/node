@@ -60,7 +60,7 @@ to mark specific significant moments in the Performance Timeline.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v12.16.3
     pr-url: https://github.com/nodejs/node/pull/32651
     description: Make `startMark` and `endMark` parameters optional.
 -->
