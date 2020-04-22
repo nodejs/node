@@ -27,6 +27,7 @@ function findMarkdownFilesRecursively(dirPath) {
     if (
       entry.isDirectory() &&
       entry.name !== 'api' &&
+      entry.name !== 'tmp' &&
       entry.name !== 'fixtures' &&
       entry.name !== 'changelogs' &&
       entry.name !== 'deps' &&
