@@ -1715,7 +1715,7 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 added: v8.4.0
 -->
 
-> Stability: 1 - Experimental. Use [`'aborted'`][].
+> Stability: 0 - Deprecated. Use [`'aborted'`][].
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2Server`.
@@ -1878,7 +1878,7 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 added: v8.4.0
 -->
 
-> Stability: 1 - Experimental. Use [`'aborted'`][].
+> Stability: 0 - Deprecated. Use [`'aborted'`][].
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2SecureServer`.
@@ -3583,9 +3583,9 @@ following additional properties:
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
 [`'checkContinue'`]: #http2_event_checkcontinue
+[`'aborted'`]: #http2_event_aborted
 [`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
-[`'aborted'`]: #http2_event_aborted
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
 [`ClientHttp2Stream`]: #http2_class_clienthttp2stream
 [`Duplex`]: stream.html#stream_class_stream_duplex
