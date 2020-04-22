@@ -1316,7 +1316,8 @@ int tls_parse_ctos_quic_transport_params(SSL *s, PACKET *pkt, unsigned int conte
                        &s->ext.peer_quic_transport_params,
                        &s->ext.peer_quic_transport_params_len)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                 SSL_F_TLS_PARSE_CTOS_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
+                 SSL_F_TLS_PARSE_CTOS_QUIC_TRANSPORT_PARAMS,
+                 ERR_R_INTERNAL_ERROR);
         return 0;
     }
     return 1;
@@ -1952,7 +1953,7 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
             return EXT_RETURN_NOT_SENT;
 
 #ifndef OPENSSL_NO_QUIC
-        /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-24 S4.5 */
+        /* QUIC server must always send 0xFFFFFFFF, per draft-ietf-quic-tls-27 S4.5 */
         if (s->quic_method != NULL)
             max_early_data = 0xFFFFFFFF;
 #endif
@@ -2016,7 +2017,8 @@ EXT_RETURN tls_construct_stoc_quic_transport_params(SSL *s, WPACKET *pkt,
         || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
                                    s->ext.quic_transport_params_len)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                 SSL_F_TLS_CONSTRUCT_STOC_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
+                 SSL_F_TLS_CONSTRUCT_STOC_QUIC_TRANSPORT_PARAMS,
+                 ERR_R_INTERNAL_ERROR);
         return EXT_RETURN_FAIL;
     }
 

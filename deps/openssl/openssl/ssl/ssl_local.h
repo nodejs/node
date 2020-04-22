@@ -1086,6 +1086,7 @@ struct quic_data_st {
     OSSL_ENCRYPTION_LEVEL level;
     size_t offset;
     size_t length;
+    /* char data[]; should be here but C90 VLAs not allowed here */
 };
 typedef struct quic_data_st QUIC_DATA;
 int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level);
@@ -1560,8 +1561,6 @@ typedef struct tls_group_info_st {
 # define TLS_CURVE_PRIME         0x0
 # define TLS_CURVE_CHAR2         0x1
 # define TLS_CURVE_CUSTOM        0x2
-
-typedef struct cert_pkey_st CERT_PKEY;
 
 /*
  * Structure containing table entry of certificate info corresponding to

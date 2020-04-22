@@ -1936,7 +1936,7 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
 #ifndef OPENSSL_NO_QUIC
         /*
          * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
-         * per draft-ietf-quic-tls-24 S4.5
+         * per draft-ietf-quic-tls-27 S4.5
          */
         if (s->quic_method != NULL && max_early_data != 0xFFFFFFFF) {
             SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_F_TLS_PARSE_STOC_EARLY_DATA,
@@ -2045,7 +2045,8 @@ int tls_parse_stoc_quic_transport_params(SSL *s, PACKET *pkt, unsigned int conte
                        &s->ext.peer_quic_transport_params,
                        &s->ext.peer_quic_transport_params_len)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR,
-                 SSL_F_TLS_PARSE_STOC_QUIC_TRANSPORT_PARAMS, ERR_R_INTERNAL_ERROR);
+                 SSL_F_TLS_PARSE_STOC_QUIC_TRANSPORT_PARAMS,
+                 ERR_R_INTERNAL_ERROR);
         return 0;
     }
     return 1;

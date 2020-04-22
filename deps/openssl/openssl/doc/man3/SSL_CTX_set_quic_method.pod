@@ -63,22 +63,25 @@ SSL_quic_max_handshake_flight_len() returns the maximum number of bytes
 that may be received at the given encryption level. This function should be
 used to limit buffering in the QUIC implementation.
 
-See https://tools.ietf.org/html/draft-ietf-quic-transport-16#section-4.4.
+See https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-4.
 
 SSL_quic_read_level() returns the current read encryption level.
 
 SSL_quic_write_level() returns the current write encryption level.
 
-SSL_provide_quic_data() provides data from QUIC at a particular encryption
-level B<level>. It is an error to call this function outside of the handshake
-or with an encryption level other than the current read level. It returns one
-on success and zero on error.
+SSL_provide_quic_data() is used to provide data from QUIC CRYPTO frames to the
+state machine, at a particular encryption level B<level>. It is an error to
+call this function outside of the handshake or with an encryption level other
+than the current read level. The application must buffer and consolidate any
+frames with less than four bytes of content.  It returns one on success and
+zero on error.
 
 SSL_process_quic_post_handshake() processes any data that QUIC has provided
 after the handshake has completed. This includes NewSessionTicket messages
 sent by the server.
 
-SSL_is_quic() indicates whether a connection uses QUIC.
+SSL_is_quic() indicates whether a connection uses QUIC.  A given B<SSL>
+or B<SSL_CTX> can only be used with QUIC or TLS, but not both.
 
 =head1 NOTES
 
@@ -89,11 +92,11 @@ functions allow a QUIC implementation to serve as the underlying transport as
 described in draft-ietf-quic-tls.
 
 When configured for QUIC, SSL_do_handshake() will drive the handshake as
-before, but it will not use the configured B<BIO>. It will call functions on
-B<SSL_QUIC_METHOD> to configure secrets and send data. If data is needed from
-the peer, it will return B<SSL_ERROR_WANT_READ>. When received, the caller
-should call SSL_provide_quic_data() and then SSL_do_handshake() to continue
-the handshake. After the handshake is complete, the caller should call
+before, but it will not use the configured B<BIO>. It will call functions from
+the configured B<SSL_QUIC_METHOD> to configure secrets and send data. If data
+is needed from the peer, it will return B<SSL_ERROR_WANT_READ>. When received,
+the caller should call SSL_provide_quic_data() and then SSL_do_handshake() to
+continue the handshake. After the handshake is complete, the caller should call
 SSL_provide_quic_data() for any post-handshake data, followed by
 SSL_process_quic_post_handshake() to process it. It is an error to call
 SSL_read()/SSL_read_ex() and SSL_write()/SSL_write_ex() in QUIC.
@@ -105,7 +108,7 @@ pass the active write level to add_handshake_data() when writing data. Callers
 can use SSL_quic_write_level() to query the active write level when
 generating their own errors.
 
-See https://tools.ietf.org/html/draft-ietf-quic-tls-15#section-4.1 for more
+See https://tools.ietf.org/html/draft-ietf-quic-tls-27#section-4.1 for more
 details.
 
 To avoid DoS attacks, the QUIC implementation must limit the amount of data
@@ -113,11 +116,12 @@ being queued up. The implementation can call
 SSL_quic_max_handshake_flight_len() to get the maximum buffer length at each
 encryption level.
 
-draft-ietf-quic-tls defines a new TLS extension quic_transport_parameters
+draft-ietf-quic-tls defines a new TLS extension "quic_transport_parameters"
 used by QUIC for each endpoint to unilaterally declare its supported
-transport parameters. draft-ietf-quic-transport (section 7.4) defines the
-contents of that extension (a TransportParameters struct) and describes how
-to handle it and its semantic meaning.
+transport parameters. The contents of the extension are specified in
+https://tools.ietf.org/html/draft-ietf-quic-transport-27#section-18 (as
+a sequence of tag/length/value parameters) along with the interpretation of the
+various parameters and the rules for their processing.
 
 OpenSSL handles this extension as an opaque byte string. The caller is
 responsible for serializing and parsing it.
@@ -205,10 +209,11 @@ SSL_process_quic_post_handshake()
 return 1 on success, and 0 on error.
 
 SSL_quic_read_level() and SSL_quic_write_level() return the current
-encryption  level as B<OSSL_ENCRYPTION_LEVEL> (B<enum ssl_encryption_level_t>).
+encryption level as an B<OSSL_ENCRYPTION_LEVEL>
+(B<enum ssl_encryption_level_t>).
 
-SSL_quic_max_handshake_flight_len() returns the maximum length of a flight
-for a given encryption level.
+SSL_quic_max_handshake_flight_len() returns the maximum length in bytes of a
+flight for a given encryption level.
 
 SSL_is_quic() returns 1 if QUIC is being used, 0 if not.
 

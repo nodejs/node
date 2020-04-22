@@ -11,10 +11,6 @@
 #include "statem_local.h"
 #include "internal/cryptlib.h"
 
-#ifdef OPENSSL_NO_QUIC
-NON_EMPTY_TRANSLATION_UNIT
-#else
-
 int quic_get_message(SSL *s, int *mt, size_t *len)
 {
     size_t l;
@@ -23,7 +19,14 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
 
     if (qd == NULL || (qd->length - qd->offset) != 0) {
         s->rwstate = SSL_READING;
-        *len = 0;
+        *mt = *len = 0;
+        return 0;
+    }
+
+    if (!ossl_assert(qd->length >= SSL3_HM_HEADER_LENGTH)) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_GET_MESSAGE,
+                 SSL_R_BAD_LENGTH);
+        *mt = *len = 0;
         return 0;
     }
 
@@ -31,14 +34,14 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
     if (qd->level != s->quic_read_level) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_GET_MESSAGE,
                  SSL_R_WRONG_ENCRYPTION_LEVEL_RECEIVED);
-        *len = 0;
+        *mt = *len = 0;
         return 0;
     }
 
     if (!BUF_MEM_grow_clean(s->init_buf, (int)qd->length)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_QUIC_GET_MESSAGE,
                  ERR_R_BUF_LIB);
-        *len = 0;
+        *mt = *len = 0;
         return 0;
     }
 
@@ -83,8 +86,8 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
      */
 #define SERVER_HELLO_RANDOM_OFFSET  (SSL3_HM_HEADER_LENGTH + 2)
     /* KeyUpdate and NewSessionTicket do not need to be added */
-    if (!SSL_IS_TLS13(s) || (s->s3->tmp.message_type != SSL3_MT_NEWSESSION_TICKET
-                             && s->s3->tmp.message_type != SSL3_MT_KEY_UPDATE)) {
+    if (s->s3->tmp.message_type != SSL3_MT_NEWSESSION_TICKET
+            && s->s3->tmp.message_type != SSL3_MT_KEY_UPDATE) {
         if (s->s3->tmp.message_type != SSL3_MT_SERVER_HELLO
             || s->init_num < SERVER_HELLO_RANDOM_OFFSET + SSL3_RANDOM_SIZE
             || memcmp(hrrrandom,
@@ -105,5 +108,3 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
 
     return 1;
 }
-
-#endif

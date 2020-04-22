@@ -577,6 +577,7 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
                 ret = dtls_get_message(s, &mt, &len);
 #ifndef OPENSSL_NO_QUIC
             } else if (SSL_IS_QUIC(s)) {
+                /* QUIC behaves like DTLS -- all in one go. */
                 ret = quic_get_message(s, &mt, &len);
 #endif
             } else {
@@ -907,7 +908,6 @@ int statem_flush(SSL *s)
 #ifndef OPENSSL_NO_QUIC
     if (SSL_IS_QUIC(s)) {
         if (!s->quic_method->flush_flight(s)) {
-            /* NOTE: BIO_flush() does not generate an error */
             SSLerr(SSL_F_STATEM_FLUSH, ERR_R_INTERNAL_ERROR);
             return 0;
         }

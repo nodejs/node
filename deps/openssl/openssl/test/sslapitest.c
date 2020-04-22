@@ -6473,9 +6473,11 @@ static int test_servername(int tst)
 
 #ifndef OPENSSL_NO_QUIC
 
-static int test_quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
+static int test_quic_set_encryption_secrets(SSL *ssl,
+                                            OSSL_ENCRYPTION_LEVEL level,
                                             const uint8_t *read_secret,
-                                            const uint8_t *write_secret, size_t secret_len)
+                                            const uint8_t *write_secret,
+                                            size_t secret_len)
 {
     test_printf_stderr("quic_set_encryption_secrets() %s, lvl=%d, len=%zd\n",
                        ssl->server ? "server" : "client", level, secret_len);
@@ -6486,11 +6488,12 @@ static int test_quic_add_handshake_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
 {
     SSL *peer = (SSL*)SSL_get_app_data(ssl);
 
-    test_printf_stderr("quic_add_handshake_data() %s, lvl=%d, *data=0x%02X, len=%zd\n",
-                       ssl->server ? "server" : "client", level, (int)*data, len);
+    TEST_info("quic_add_handshake_data() %s, lvl=%d, *data=0x%02X, len=%zd\n",
+              ssl->server ? "server" : "client", level, (int)*data, len);
     if (!TEST_ptr(peer))
         return 0;
 
+    /* We're called with what is locally written; this gives it to the peer */
     if (!TEST_true(SSL_provide_quic_data(peer, level, data, len))) {
         ERR_print_errors_fp(stderr);
         return 0;

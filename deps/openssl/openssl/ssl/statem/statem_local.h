@@ -93,7 +93,9 @@ WORK_STATE ossl_statem_server_post_process_message(SSL *s, WORK_STATE wst);
 __owur int tls_get_message_header(SSL *s, int *mt);
 __owur int tls_get_message_body(SSL *s, size_t *len);
 __owur int dtls_get_message(SSL *s, int *mt, size_t *len);
+#ifndef OPENSSL_NO_QUIC
 __owur int quic_get_message(SSL *s, int *mt, size_t *len);
+#endif
 
 /* Message construction and processing functions */
 __owur int tls_process_initial_server_flight(SSL *s);
