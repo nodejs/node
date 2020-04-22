@@ -446,6 +446,7 @@ static const unsigned char exporter_master_secret[] = "exp master";
 static const unsigned char resumption_master_secret[] = "res master";
 static const unsigned char early_exporter_master_secret[] = "e exp master";
 #endif
+
 #ifndef OPENSSL_NO_QUIC
 static int quic_change_cipher_state(SSL *s, int which)
 {
@@ -454,7 +455,7 @@ static int quic_change_cipher_state(SSL *s, int which)
     int hashleni;
     int ret = 0;
     const EVP_MD *md = NULL;
-    OSSL_ENCRYPTION_LEVEL level = ssl_encryption_initial;
+    OSSL_ENCRYPTION_LEVEL level;
     int is_handshake = ((which & SSL3_CC_HANDSHAKE) == SSL3_CC_HANDSHAKE);
     int is_client_read = ((which & SSL3_CHANGE_CIPHER_CLIENT_READ) == SSL3_CHANGE_CIPHER_CLIENT_READ);
     int is_server_write = ((which & SSL3_CHANGE_CIPHER_SERVER_WRITE) == SSL3_CHANGE_CIPHER_SERVER_WRITE);
@@ -478,34 +479,62 @@ static int quic_change_cipher_state(SSL *s, int which)
 
     if (is_client_read || is_server_write) {
         if (is_handshake) {
+            /*
+             * This looks a bit weird, since the condition is basically "the
+             * server is writing" but we set both the server *and* client
+             * handshake traffic keys here.  That's because there's only a fixed
+             * number of change-cipher-state events in the TLS 1.3 handshake,
+             * and in particular there's not an event in between when the server
+             * writes encrypted handshake messages and when the client writes
+             * encrypted handshake messages, so we generate both here.
+             */
             level = ssl_encryption_handshake;
 
-            if (!tls13_hkdf_expand(s, md, s->handshake_secret, client_handshake_traffic,
-                                   sizeof(client_handshake_traffic)-1, hash, hashlen,
-                                   s->client_hand_traffic_secret, hashlen, 1)
-                || !ssl_log_secret(s, CLIENT_HANDSHAKE_LABEL, s->client_hand_traffic_secret, hashlen)
-                || !tls13_derive_finishedkey(s, md, s->client_hand_traffic_secret,
+            if (!tls13_hkdf_expand(s, md, s->handshake_secret,
+                                   client_handshake_traffic,
+                                   sizeof(client_handshake_traffic)-1, hash,
+                                   hashlen, s->client_hand_traffic_secret,
+                                   hashlen, 1)
+                || !ssl_log_secret(s, CLIENT_HANDSHAKE_LABEL,
+                                   s->client_hand_traffic_secret, hashlen)
+                || !tls13_derive_finishedkey(s, md,
+                                             s->client_hand_traffic_secret,
                                              s->client_finished_secret, hashlen)
-                || !tls13_hkdf_expand(s, md, s->handshake_secret, server_handshake_traffic,
-                                      sizeof(server_handshake_traffic)-1, hash, hashlen,
-                                      s->server_hand_traffic_secret, hashlen, 1)
-                || !ssl_log_secret(s, SERVER_HANDSHAKE_LABEL, s->server_hand_traffic_secret, hashlen)
-                || !tls13_derive_finishedkey(s, md, s->server_hand_traffic_secret,
-                                             s->server_finished_secret, hashlen)) {
+                || !tls13_hkdf_expand(s, md, s->handshake_secret,
+                                      server_handshake_traffic,
+                                      sizeof(server_handshake_traffic)-1, hash,
+                                      hashlen, s->server_hand_traffic_secret,
+                                      hashlen, 1)
+                || !ssl_log_secret(s, SERVER_HANDSHAKE_LABEL,
+                                   s->server_hand_traffic_secret, hashlen)
+                || !tls13_derive_finishedkey(s, md,
+                                             s->server_hand_traffic_secret,
+                                             s->server_finished_secret,
+                                             hashlen)) {
                 /* SSLfatal() already called */
                 goto err;
             }
         } else {
+            /*
+             * As above, we generate both sets of application traffic keys at
+             * the same time.
+             */
             level = ssl_encryption_application;
 
-            if (!tls13_hkdf_expand(s, md, s->master_secret, client_application_traffic,
-                                   sizeof(client_application_traffic)-1, hash, hashlen,
-                                   s->client_app_traffic_secret, hashlen, 1)
-                || !ssl_log_secret(s, CLIENT_APPLICATION_LABEL, s->client_app_traffic_secret, hashlen)
-                || !tls13_hkdf_expand(s, md, s->master_secret, server_application_traffic,
-                                      sizeof(server_application_traffic)-1, hash, hashlen,
+            if (!tls13_hkdf_expand(s, md, s->master_secret,
+                                   client_application_traffic,
+                                   sizeof(client_application_traffic)-1, hash,
+                                   hashlen, s->client_app_traffic_secret,
+                                   hashlen, 1)
+                || !ssl_log_secret(s, CLIENT_APPLICATION_LABEL,
+                                   s->client_app_traffic_secret, hashlen)
+                || !tls13_hkdf_expand(s, md, s->master_secret,
+                                      server_application_traffic,
+                                      sizeof(server_application_traffic)-1,
+                                      hash, hashlen,
                                       s->server_app_traffic_secret, hashlen, 1)
-                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL, s->server_app_traffic_secret, hashlen)) {
+                || !ssl_log_secret(s, SERVER_APPLICATION_LABEL,
+                                   s->server_app_traffic_secret, hashlen)) {
                 /* SSLfatal() already called */
                 goto err;
             }
@@ -525,9 +554,11 @@ static int quic_change_cipher_state(SSL *s, int which)
             level = ssl_encryption_early_data;
 
             if (!tls13_hkdf_expand(s, md, s->early_secret, client_early_traffic,
-                                   sizeof(client_early_traffic)-1, hash, hashlen,
-                                   s->client_early_traffic_secret, hashlen, 1)
-                || !ssl_log_secret(s, CLIENT_EARLY_LABEL, s->client_early_traffic_secret, hashlen)
+                                   sizeof(client_early_traffic)-1, hash,
+                                   hashlen, s->client_early_traffic_secret,
+                                   hashlen, 1)
+                || !ssl_log_secret(s, CLIENT_EARLY_LABEL,
+                                   s->client_early_traffic_secret, hashlen)
                 || !quic_set_encryption_secrets(s, level)) {
                 /* SSLfatal() already called */
                 goto err;
@@ -540,9 +571,11 @@ static int quic_change_cipher_state(SSL *s, int which)
              * We also create the resumption master secret, but this time use the
              * hash for the whole handshake including the Client Finished
              */
-            if (!tls13_hkdf_expand(s, md, s->master_secret, resumption_master_secret,
-                                   sizeof(resumption_master_secret)-1, hash, hashlen,
-                                   s->resumption_master_secret, hashlen, 1)) {
+            if (!tls13_hkdf_expand(s, md, s->master_secret,
+                                   resumption_master_secret,
+                                   sizeof(resumption_master_secret)-1, hash,
+                                   hashlen, s->resumption_master_secret,
+                                   hashlen, 1)) {
                 /* SSLfatal() already called */
                 goto err;
             }
@@ -559,6 +592,7 @@ static int quic_change_cipher_state(SSL *s, int which)
     return ret;
 }
 #endif /* OPENSSL_NO_QUIC */
+
 int tls13_change_cipher_state(SSL *s, int which)
 {
     unsigned char *iv;
@@ -825,7 +859,6 @@ int tls13_change_cipher_state(SSL *s, int which)
         s->statem.enc_write_state = ENC_WRITE_STATE_WRITE_PLAIN_ALERTS;
     else
         s->statem.enc_write_state = ENC_WRITE_STATE_VALID;
-
     ret = 1;
  err:
     OPENSSL_cleanse(secret, sizeof(secret));

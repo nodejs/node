@@ -11,10 +11,6 @@
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
 
-#ifdef OPENSSL_NO_QUIC
-NON_EMPTY_TRANSLATION_UNIT
-#else
-
 int SSL_set_quic_transport_params(SSL *ssl, const uint8_t *params,
                                   size_t params_len)
 {
@@ -109,10 +105,10 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
         return 0;
     }
 
-    /* Split the QUIC messages up, if necessary */
+    /* Split on handshake message boundaries, if necessary */
     while (len > 0) {
         QUIC_DATA *qd;
-        const uint8_t *p = data + 1;
+        const uint8_t *p;
 
         /* Check for an incomplete block */
         qd = ssl->quic_input_data_tail;
@@ -130,6 +126,12 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
             }
         }
 
+        if (len < SSL3_HM_HEADER_LENGTH) {
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_BAD_LENGTH);
+            return 0;
+        }
+        /* TLS Handshake message header has 1-byte type and 3-byte length */
+        p = data + 1;
         n2l3(p, l);
         l += SSL3_HM_HEADER_LENGTH;
 
@@ -163,15 +165,8 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
 
 int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method)
 {
-    switch (ctx->method->version) {
-    case DTLS1_VERSION:
-    case DTLS1_2_VERSION:
-    case DTLS_ANY_VERSION:
-    case DTLS1_BAD_VER:
+    if (ctx->method->version != TLS_ANY_VERSION)
         return 0;
-    default:
-        break;
-    }
     ctx->quic_method = quic_method;
     ctx->options &= ~SSL_OP_ENABLE_MIDDLEBOX_COMPAT;
     return 1;
@@ -179,15 +174,8 @@ int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method)
 
 int SSL_set_quic_method(SSL *ssl, const SSL_QUIC_METHOD *quic_method)
 {
-    switch (ssl->method->version) {
-    case DTLS1_VERSION:
-    case DTLS1_2_VERSION:
-    case DTLS_ANY_VERSION:
-    case DTLS1_BAD_VER:
+    if (ssl->method->version != TLS_ANY_VERSION)
         return 0;
-    default:
-        break;
-    }
     ssl->quic_method = quic_method;
     ssl->options &= ~SSL_OP_ENABLE_MIDDLEBOX_COMPAT;
     return 1;
@@ -225,6 +213,12 @@ int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level)
         /* May not have selected cipher, yet */
         const SSL_CIPHER *c = NULL;
 
+        /*
+         * It probably doesn't make sense to use an (external) PSK session,
+         * but in theory some kinds of external session caches could be
+         * implemented using it, so allow psksession to be used as well as
+         * the regular session.
+         */
         if (ssl->session != NULL)
             c = SSL_SESSION_get0_cipher(ssl->session);
         else if (ssl->psksession != NULL)
@@ -268,6 +262,11 @@ int SSL_process_quic_post_handshake(SSL *ssl)
         return 0;
     }
 
+    /*
+     * This is always safe (we are sure to be at a record boundary) because
+     * SSL_read()/SSL_write() are never used for QUIC connections -- the
+     * application data is handled at the QUIC layer instead.
+     */
     ossl_statem_set_in_init(ssl, 1);
     ret = ssl->handshake_func(ssl);
     ossl_statem_set_in_init(ssl, 0);
@@ -281,5 +280,3 @@ int SSL_is_quic(SSL* ssl)
 {
     return SSL_IS_QUIC(ssl);
 }
-
-#endif
