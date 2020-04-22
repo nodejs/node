@@ -27,7 +27,7 @@ const { Writable } = require('stream');
     }
   });
 
+  w.on('finish', common.mustNotCall());
   w.write('asd');
   w.destroy();
-  w.on('finish', common.mustNotCall());
 }
