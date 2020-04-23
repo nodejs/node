@@ -29,7 +29,7 @@ properties of a WHATWG `URL` object.
 WHATWG URL's `origin` property includes `protocol` and `host`, but not
 `username` or `password`.
 
-```txt
+```text
 ┌────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                              href                                              │
 ├──────────┬──┬─────────────────────┬────────────────────────┬───────────────────────────┬───────┤
@@ -1263,7 +1263,7 @@ located within the structure of the URL.
 Within the Legacy API, spaces (`' '`) and the following characters will be
 automatically escaped in the properties of URL objects:
 
-```txt
+```text
 < > " ` \r \n \t { } | \ ^ '
 ```
 

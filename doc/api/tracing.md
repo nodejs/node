@@ -36,7 +36,7 @@ The available categories are:
 
 By default the `node`, `node.async_hooks`, and `v8` categories are enabled.
 
-```txt
+```text
 node --trace-event-categories v8,node,node.async_hooks server.js
 ```
 
@@ -45,7 +45,7 @@ flag to enable trace events. This requirement has been removed. However, the
 `--trace-events-enabled` flag *may* still be used and will enable the
 `node`, `node.async_hooks`, and `v8` trace event categories by default.
 
-```txt
+```text
 node --trace-events-enabled
 
 // is equivalent to
@@ -74,7 +74,7 @@ The logging file is by default called `node_trace.${rotation}.log`, where
 be specified with `--trace-event-file-pattern` that accepts a template
 string that supports `${rotation}` and `${pid}`:
 
-```txt
+```text
 node --trace-event-categories v8 --trace-event-file-pattern '${pid}-${rotation}.log' server.js
 ```
 

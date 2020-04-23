@@ -272,7 +272,7 @@ Reused, TLSv1.2, Cipher is ECDHE-RSA-AES128-GCM-SHA256
 Node.js is built with a default suite of enabled and disabled TLS ciphers.
 Currently, the default cipher suite is:
 
-```txt
+```text
 TLS_AES_256_GCM_SHA384:
 TLS_CHACHA20_POLY1305_SHA256:
 TLS_AES_128_GCM_SHA256:
