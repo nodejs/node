@@ -1229,6 +1229,13 @@ time.
 The `--input-type` flag was used to attempt to execute a file. This flag can
 only be used with input via `--eval`, `--print` or `STDIN`.
 
+<a id="ERR_INSPECTOR_ALREADY_ACTIVATED"></a>
+### `ERR_INSPECTOR_ALREADY_ACTIVATED`
+
+While using the `inspector` module, an attempt was made to activate the
+inspector when it already started to listen on a port. Use `inspector.close()`
+before activating it on a different address.
+
 <a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
 ### `ERR_INSPECTOR_ALREADY_CONNECTED`
 
