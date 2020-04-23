@@ -1,7 +1,9 @@
 // Flags: --unhandled-rejections=strict
 'use strict';
 
-require('../common');
+const common = require('../common');
+
+common.disableCrashOnUnhandledRejection();
 
 // Check that the process will exit on the first unhandled rejection in case the
 // unhandled rejections mode is set to `'strict'`.

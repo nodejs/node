@@ -890,12 +890,20 @@ for the very first unhandled rejection in case no [`unhandledRejection`][] hook
 is used.
 
 Using this flag allows to change what should happen when an unhandled rejection
-occurs. One of three modes can be chosen:
+occurs and the [`unhandledRejection`][] hook is unset.
 
-* `strict`: Raise the unhandled rejection as an uncaught exception.
-* `warn`: Always trigger a warning, no matter if the [`unhandledRejection`][]
-  hook is set or not but do not print the deprecation warning.
-* `none`: Silence all warnings.
+One of three modes can be chosen:
+
+* `strict`: Emit [`unhandledRejection`][]. If this hook is not set, raise the
+  unhandled rejection as an uncaught exception.
+* `warn`: Emit [`unhandledRejection`][]. If this hook is not set, trigger a
+  warning. This is the default.
+* `none`: Emit [`unhandledRejection`][] and do nothing further.
+
+In all three modes, setting the [`unhandledRejection`][] hook will suppress
+the exception/warning. The hook implementation can raise an exception (as in
+`strict` mode), log a warning (as in `warn` mode), or do nothing (as in `none`
+mode).
 
 ### `--use-bundled-ca`, `--use-openssl-ca`
 <!-- YAML

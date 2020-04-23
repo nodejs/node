@@ -34,7 +34,6 @@ const ref = new Promise(() => {
 Promise.reject(null);
 
 process.on('warning', common.mustNotCall('warning'));
-process.on('unhandledRejection', common.mustCall(2));
 process.on('rejectionHandled', common.mustNotCall('rejectionHandled'));
 process.on('exit', assert.strictEqual.bind(null, 0));
 
