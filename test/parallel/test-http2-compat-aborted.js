@@ -14,7 +14,16 @@ const server = h2.createServer(common.mustCall(function(req, res) {
   }));
   assert.strictEqual(req.aborted, false);
   assert.strictEqual(req.complete, false);
-  res.write('hello');
+  
+  res.on('aborted', common.mustCall(function() {
+    assert.strictEqual(this.aborted, true);
+    assert.strictEqual(this.complete, true);
+  }));
+  assert.strictEqual(res.aborted, false);
+  assert.strictEqual(res.complete, false);
+  
+  res.write('hello');  
+
   server.close();
 }));
 

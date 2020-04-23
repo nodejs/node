@@ -15,7 +15,7 @@ const server = h2.createServer(common.mustCall(function(req, res) {
   req.on('error', common.mustNotCall());
   res.on('error', common.mustNotCall());
   req.on('aborted', common.mustCall());
-  res.on('aborted', common.mustNotCall());
+  res.on('aborted', common.mustCall());
 
   res.write('hello');
 

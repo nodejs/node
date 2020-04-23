@@ -1669,11 +1669,6 @@ Instances of `Http2Server` are created using the `http2.createServer()`
 function. The `Http2Server` class is not exported directly by the `http2`
 module.
 
-#### Event: `'aborted'`
-
-The `'aborted'` event is emitted when an `'error'` event is emitted by
-an `Http2Session` object associated with the `Http2Server`.
-
 #### Event: `'checkContinue'`
 <!-- YAML
 added: v8.5.0
@@ -1719,8 +1714,6 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 <!-- YAML
 added: v8.4.0
 -->
-
-> Stability: 0 - Deprecated. Use [`'aborted'`][`'aborted_http2server'`].
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2Server`.
@@ -1837,11 +1830,6 @@ Instances of `Http2SecureServer` are created using the
 `http2.createSecureServer()` function. The `Http2SecureServer` class is not
 exported directly by the `http2` module.
 
-#### Event: `'aborted'`
-
-The `'aborted'` event is emitted when an `'error'` event is emitted by
-an `Http2Session` object associated with the `Http2Server`.
-
 #### Event: `'checkContinue'`
 <!-- YAML
 added: v8.5.0
@@ -1887,8 +1875,6 @@ The `'session'` event is emitted when a new `Http2Session` is created by the
 <!-- YAML
 added: v8.4.0
 -->
-
-> Stability: 0 - Deprecated. Use [`'aborted'`][`'aborted_http2secureserver'`].
 
 The `'sessionError'` event is emitted when an `'error'` event is emitted by
 an `Http2Session` object associated with the `Http2SecureServer`.
@@ -2751,11 +2737,11 @@ data.
 added: v8.4.0
 -->
 
-The `'aborted'` event is emitted whenever a `Http2ServerRequest` instance is
-abnormally aborted in mid-communication.
+The `'aborted'` event is emitted whenever a `Http2ServerRequest` or
+`Http2ServerResponse` instance is abnormally aborted in mid-communication.
 
-The `'aborted'` event will only be emitted if the `Http2ServerRequest` writable
-side has not been ended.
+The `'aborted'` event will only be emitted if the `Http2ServerRequest` or
+`Http2ServerResponse` writable side has not been ended.
 
 #### Event: `'close'`
 <!-- YAML
@@ -3593,8 +3579,6 @@ following additional properties:
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
 [`'checkContinue'`]: #http2_event_checkcontinue
-[`'aborted_http2server'`]: #http2_event_aborted_1
-[`'aborted_http2secureserver'`]: #http2_event_aborted_2
 [`'connect'`]: #http2_event_connect
 [`'request'`]: #http2_event_request
 [`'unknownProtocol'`]: #http2_event_unknownprotocol
