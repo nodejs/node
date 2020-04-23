@@ -3479,7 +3479,7 @@ is recommended.
 
 For example, given the following directory structure:
 
-```fundamental
+```text
 - txtDir
 -- file.txt
 - app.js

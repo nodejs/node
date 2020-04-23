@@ -15,7 +15,7 @@ the project's root.
 When running `make`, you will see output similar to the following
 if the build has succeeded:
 
-```txt
+```console
 ninja: Entering directory `out/Release`
 [4/4] LINK node, POSTBUILDS
 ```
