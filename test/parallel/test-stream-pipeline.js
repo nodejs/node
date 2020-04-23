@@ -982,7 +982,7 @@ const net = require('net');
   dst.readable = false;
   pipeline(src, dst, common.mustCall((err) => {
     assert(!err);
-    assert.strictEqual(dst.destroyed, true);
+    assert.strictEqual(dst.destroyed, false);
   }));
   src.end();
 }
