@@ -991,7 +991,6 @@ int Http2Session::OnStreamClose(nghttp2_session* handle,
   MaybeLocal<Value> answer =
     stream->MakeCallback(env->http2session_on_stream_close_function(),
                           1, &arg);
-  Local<Value> def = v8::False(env->isolate());
   if (answer.IsEmpty() || answer.ToLocalChecked()->IsFalse()) {
     // Skip to destroy
     stream->Destroy();
@@ -2752,7 +2751,6 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
 
 // Submits a PING frame to be sent to the connected peer.
 void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
 
@@ -2771,7 +2769,6 @@ void Http2Session::Ping(const FunctionCallbackInfo<Value>& args) {
 
 // Submits a SETTINGS frame for the Http2Session
 void Http2Session::Settings(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   CHECK(args[0]->IsFunction());
