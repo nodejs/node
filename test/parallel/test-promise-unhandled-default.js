@@ -1,4 +1,3 @@
-// Flags: --unhandled-rejections=throw
 'use strict';
 
 const common = require('../common');

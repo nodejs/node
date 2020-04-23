@@ -599,11 +599,8 @@ function getBufferSources(buf) {
   return [...getArrayBufferViews(buf), new Uint8Array(buf).buffer];
 }
 
-// Crash the process on unhandled rejections.
-const crashOnUnhandledRejection = (err) => { throw err; };
-process.on('unhandledRejection', crashOnUnhandledRejection);
 function disableCrashOnUnhandledRejection() {
-  process.removeListener('unhandledRejection', crashOnUnhandledRejection);
+  process.on('unhandledRejection', () => {});
 }
 
 function getTTYfd() {
