@@ -155,11 +155,13 @@ constexpr size_t kFsStatsBufferLength =
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
 #define PER_ISOLATE_SYMBOL_PROPERTIES(V)                                       \
+  V(async_id_symbol, "async_id_symbol")                                        \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
   V(oninit_symbol, "oninit")                                                   \
   V(owner_symbol, "owner")                                                     \
   V(onpskexchange_symbol, "onpskexchange")                                     \
+  V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
 
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
