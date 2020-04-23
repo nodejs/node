@@ -31,7 +31,7 @@ if (process.argv[2] === 'child') {
   const options = { encoding: 'utf8' };
   const proc = spawnSync(
     process.execPath, ['--expose-internals', __filename, 'child'], options);
-  strictEqual(proc.status, 0);
+  strictEqual(proc.status, 66);
   strictEqual(proc.signal, null);
   strictEqual(proc.stderr.includes(eyecatcher), true);
 }

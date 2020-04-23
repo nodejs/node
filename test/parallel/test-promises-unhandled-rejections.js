@@ -1,3 +1,4 @@
+// Flags: --unhandled-rejections=warn
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -714,7 +715,7 @@ asyncTest(
         done();
       }
       emitWarning(...args);
-    }, 2);
+    }, 4);
 
     let timer = setTimeout(common.mustNotCall(), 10000);
   },

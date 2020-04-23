@@ -7,4 +7,4 @@ const assert = require('assert');
 common.disableCrashOnUnhandledRejection();
 
 Promise.reject(new Error('alas'));
-process.on('exit', assert.strictEqual.bind(null, 1));
+process.on('exit', assert.strictEqual.bind(null, 66));

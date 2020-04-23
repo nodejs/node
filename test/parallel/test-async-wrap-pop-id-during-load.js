@@ -19,7 +19,7 @@ const ret = spawnSync(
   ['--stack_size=150', __filename, 'async'],
   { maxBuffer: Infinity }
 );
-assert.strictEqual(ret.status, 0,
+assert.strictEqual(ret.status, 66,
                    `EXIT CODE: ${ret.status}, STDERR:\n${ret.stderr}`);
 const stderr = ret.stderr.toString('utf8', 0, 2048);
 assert.ok(!/async.*hook/i.test(stderr));

@@ -17,6 +17,7 @@ const expectedNote = 'To load an ES module, ' +
 'or use the .mjs extension.';
 
 const expectedCode = 1;
+const expectedUnhandledRejectionCode = 66;
 
 const pExport1 = spawn(process.execPath, [Export1]);
 let pExport1Stderr = '';
@@ -63,8 +64,7 @@ pImport2.stderr.on('data', (data) => {
   pImport2Stderr += data;
 });
 pImport2.on('close', mustCall((code) => {
-  // As this exits normally we expect 0
-  assert.strictEqual(code, 0);
+  assert.strictEqual(code, expectedUnhandledRejectionCode);
   assert.ok(!pImport2Stderr.includes(expectedNote),
             `${expectedNote} must not be included in ${pImport2Stderr}`);
 }));
@@ -94,7 +94,7 @@ pImport4.on('close', mustCall((code) => {
             `${expectedNote} not found in ${pImport4Stderr}`);
 }));
 
-// Must exit with zero and show note
+// Must exit with 66 and show note
 const pImport5 = spawn(process.execPath, [Import5]);
 let pImport5Stderr = '';
 pImport5.stderr.setEncoding('utf8');
@@ -102,7 +102,7 @@ pImport5.stderr.on('data', (data) => {
   pImport5Stderr += data;
 });
 pImport5.on('close', mustCall((code) => {
-  assert.strictEqual(code, 0);
+  assert.strictEqual(code, expectedUnhandledRejectionCode);
   assert.ok(!pImport5Stderr.includes(expectedNote),
             `${expectedNote} must not be included in ${pImport5Stderr}`);
 }));

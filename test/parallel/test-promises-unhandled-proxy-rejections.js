@@ -1,13 +1,9 @@
+// Flags: --unhandled-rejections=warn
 'use strict';
 const common = require('../common');
 
 common.disableCrashOnUnhandledRejection();
 
-const expectedDeprecationWarning = ['Unhandled promise rejections are ' +
-                                   'deprecated. In the future, promise ' +
-                                   'rejections that are not handled will ' +
-                                   'terminate the Node.js process with a ' +
-                                   'non-zero exit code.', 'DEP0018'];
 const expectedPromiseWarning = ['Unhandled promise rejection. ' +
   'This error originated either by throwing ' +
   'inside of an async function without a catch ' +
@@ -39,7 +35,6 @@ const thorny = new Proxy({}, {
 });
 
 common.expectWarning({
-  DeprecationWarning: expectedDeprecationWarning,
   UnhandledPromiseRejectionWarning: expectedPromiseWarning,
 });
 
