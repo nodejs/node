@@ -149,7 +149,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
-```txt
+```text
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
@@ -409,7 +409,7 @@ example, then `require('./some-library')` would attempt to load:
 If these attempts fail, then Node.js will report the entire module as missing
 with the default error:
 
-```txt
+```console
 Error: Cannot find module 'some-library'
 ```
 
