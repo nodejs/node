@@ -285,7 +285,7 @@ console.error(err.message);
 The `error.stack` property is a string describing the point in the code at which
 the `Error` was instantiated.
 
-```txt
+```console
 Error: Things keep happening!
    at /home/gbusey/file.js:525:2
    at Frobnicator.refrobulate (/home/gbusey/business-logic.js:424:21)
