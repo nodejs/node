@@ -668,6 +668,7 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
           ' unhandledException, and does not cause .catch() to throw an ' +
           'exception', function(done) {
   clean();
+  common.disableCrashOnUnhandledRejection();
   const e = new Error();
   const e2 = new Error();
   const tearDownException = setupException(function(err) {
@@ -702,19 +703,17 @@ asyncTest('Rejected promise inside unhandledRejection allows nextTick loop' +
 });
 
 asyncTest(
-  'Unhandled promise rejection emits a warning immediately',
+  'Promise rejection triggers unhandledRejection immediately',
   function(done) {
     clean();
     Promise.reject(0);
-    const { emitWarning } = process;
-    process.emitWarning = common.mustCall((...args) => {
+    process.on('unhandledRejection', common.mustCall((err) => {
       if (timer) {
         clearTimeout(timer);
         timer = null;
         done();
       }
-      emitWarning(...args);
-    }, 2);
+    }));
 
     let timer = setTimeout(common.mustNotCall(), 10000);
   },
