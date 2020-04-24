@@ -4,6 +4,7 @@
 
 {
   'variables': {
+    'ZLIB_ROOT': '.',
     'use_system_zlib%': 0,
     'arm_fpu%': '',
     'llvm_version%': '0.0',
@@ -12,44 +13,148 @@
     ['use_system_zlib==0', {
       'targets': [
         {
+          'target_name': 'zlib_adler32_simd',
+          'type': 'static_library',
+          'conditions': [
+            ['(target_arch in "ia32 x64 x32" and OS!="ios") or arm_fpu=="neon"', {
+              'defines': [ 'ADLER32_SIMD_SSSE3' ],
+              'conditions': [
+                ['OS=="win"', {
+                  'defines': [ 'X86_WINDOWS' ],
+                },{
+                  'defines': [ 'X86_NOT_WINDOWS' ],
+                }],
+                ['OS!="win" or llvm_version!="0.0"', {
+                  'cflags': [ '-mssse3' ],
+                }],
+              ],
+            }],
+            ['arm_fpu=="neon"', {
+              'defines': [ 'ADLER32_SIMD_NEON' ],
+            }],
+          ],
+          'include_dirs': [ '<(ZLIB_ROOT)' ],
+          'defines': [ 'ZLIB_IMPLEMENTATION' ],
+          'direct_dependent_settings': {
+            'include_dirs': [ '<(ZLIB_ROOT)' ],
+          },
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_adler32_simd\\".*?sources = ")',
+          ],
+        }, # zlib_adler32_simd
+        {
+          'target_name': 'zlib_arm_crc32',
+          'type': 'static_library',
+          'conditions': [
+            ['OS!="ios"', {
+              'conditions': [
+                ['OS!="win" and llvm_version!="0.0"', {
+                  'cflags': [ '-march=armv8-a+crc' ],
+                }],
+                ['OS=="android"', {
+                  'defines': [ 'ARMV8_OS_ANDROID' ],
+                }],
+                ['OS=="linux"', {
+                  'defines': [ 'ARMV8_OS_LINUX' ],
+                }],
+                ['OS=="win"', {
+                  'defines': [ 'ARMV8_OS_WINDOWS' ],
+                }],
+              ],
+              'defines': [ 'CRC32_ARMV8_CRC32' ],
+              'include_dirs': [ '<(ZLIB_ROOT)' ],
+              'direct_dependent_settings': {
+                'include_dirs': [ '<(ZLIB_ROOT)' ],
+              },
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_arm_crc32\\".*?sources = ")',
+              ],
+            }],
+          ],
+          'defines': [ 'ZLIB_IMPLEMENTATION' ],
+        }, # zlib_arm_crc32
+        {
+          'target_name': 'zlib_inflate_chunk_simd',
+          'type': 'static_library',
+          'conditions': [
+            ['(target_arch in "ia32 x64 x32" and OS!="ios")', {
+              'defines': [ 'INFLATE_CHUNK_SIMD_SSE2' ],
+              'conditions': [
+                ['target_arch=="x64"', {
+                  'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
+                }],
+              ],
+            }],
+            ['arm_fpu=="neon"', {
+              'defines': [ 'INFLATE_CHUNK_SIMD_NEON' ],
+              'conditions': [
+                ['target_arch=="arm64"', {
+                  'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
+                }],
+              ],
+            }]
+          ],
+          'include_dirs': [ '<(ZLIB_ROOT)' ],
+          'defines': [ 'ZLIB_IMPLEMENTATION' ],
+          'direct_dependent_settings': {
+            'include_dirs': [ '<(ZLIB_ROOT)' ],
+          },
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_inflate_chunk_simd\\".*?sources = ")',
+          ],
+        }, # zlib_inflate_chunk_simd
+        {
+          'target_name': 'zlib_crc32_simd',
+          'type': 'static_library',
+          'conditions': [
+            ['OS!="win" or llvm_version!="0.0"', {
+              'cflags': [
+                '-msse4.2',
+                '-mpclmul',
+              ],
+            }]
+          ],
+          'defines': [
+            'CRC32_SIMD_SSE42_PCLMUL',
+            'ZLIB_IMPLEMENTATION',
+          ],
+          'include_dirs': [ '<(ZLIB_ROOT)' ],
+          'direct_dependent_settings': {
+            'include_dirs': [ '<(ZLIB_ROOT)' ],
+          },
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_crc32_simd\\".*?sources = ")',
+          ],
+        }, # zlib_crc32_simd
+        {
+          'target_name': 'zlib_x86_simd',
+          'type': 'static_library',
+          'conditions': [
+            ['OS!="win" or llvm_version!="0.0"', {
+              'cflags': [
+                '-msse4.2',
+                '-mpclmul',
+              ],
+            }]
+          ],
+          'include_dirs': [ '<(ZLIB_ROOT)' ],
+          'defines': [ 'ZLIB_IMPLEMENTATION' ],
+          'direct_dependent_settings': {
+            'include_dirs': [ '<(ZLIB_ROOT)' ],
+          },
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_x86_simd\\".*?sources = ")',
+          ],
+        }, # zlib_x86_simd
+        {
           'target_name': 'zlib',
           'type': 'static_library',
           'sources': [
-            'adler32.c',
-            'compress.c',
-            'contrib/optimizations/insert_string.h',
-            'crc32.c',
-            'crc32.h',
-            'deflate.c',
-            'deflate.h',
-            'gzclose.c',
-            'gzguts.h',
-            'gzlib.c',
-            'gzread.c',
-            'gzwrite.c',
-            'infback.c',
-            'inffast.c',
-            'inffast.h',
-            'inffixed.h',
-            'inflate.h',
-            'inftrees.c',
-            'inftrees.h',
-            'trees.c',
-            'trees.h',
-            'uncompr.c',
-            'x86.h',
-            'zconf.h',
-            'zlib.h',
-            'zutil.c',
-            'zutil.h',
+            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib\\".*?sources = ")',
           ],
-          'include_dirs': [
-            '.',
-          ],
+          'include_dirs': [ '<(ZLIB_ROOT)' ],
           'direct_dependent_settings': {
-            'include_dirs': [
-              '.',
-            ],
+            'include_dirs': [ '<(ZLIB_ROOT)' ],
           },
           'conditions': [
             ['OS!="win"', {
@@ -64,45 +169,31 @@
                 'USE_FILE32API'
               ],
             }],
-            ['(target_arch in "ia32 x64 x32" and OS!="ios") or arm_fpu=="neon"', {
-              'sources': [
-                'adler32_simd.c',
-                'adler32_simd.h',
-                'contrib/optimizations/chunkcopy.h',
-                'contrib/optimizations/inffast_chunk.c',
-                'contrib/optimizations/inffast_chunk.h',
-                'contrib/optimizations/inflate.c',
+            # Incorporate optimizations where possible.
+            # Optimizations not enabled for x86 as problems were reported,
+            # https://github.com/nodejs/node/issues/33019.
+            ['(target_arch in "x64 x32" and OS!="ios") or arm_fpu=="neon"', {
+              'dependencies': [
+                'zlib_adler32_simd',
+                'zlib_inflate_chunk_simd',
               ],
             }, {
-              'sources': [ 'inflate.c', ],
+              'defines': [ 'CPU_NO_SIMD' ],
+              'sources': [ '<(ZLIB_ROOT)/inflate.c', ],
             }],
-            # Incorporate optimizations where possible
             ['target_arch in "ia32 x64 x32" and OS!="ios"', {
-              'defines': [
-                'ADLER32_SIMD_SSSE3',
-                'INFLATE_CHUNK_SIMD_SSE2',
-                'CRC32_SIMD_SSE42_PCLMUL',
+              'dependencies': [
+                'zlib_crc32_simd',
+                'zlib_x86_simd',
               ],
               'sources': [
-                'crc32_simd.c',
-                'crc32_simd.h',
-                'crc_folding.c',
-                'fill_window_sse.c',
-                'x86.c',
+                '<(ZLIB_ROOT)/x86.c',
               ],
-              'conditions': [
-                ['target_arch=="x64"', {
-                  'defines': [ 'INFLATE_CHUNK_READ_64LE' ],
-                }],
-              ],
-            }, {
-              'sources': [ 'simd_stub.c', ],
+            },{
+              'sources': [ '<(ZLIB_ROOT)/simd_stub.c' ],
             }],
             ['arm_fpu=="neon"', {
-              'defines': [
-                'ADLER32_SIMD_NEON',
-                'INFLATE_CHUNK_SIMD_NEON',
-              ],
+              'dependencies': [ 'zlib_arm_crc32' ],
               'sources': [
                 'contrib/optimizations/slide_hash_neon.h',
               ],
@@ -138,6 +229,7 @@
               ],
             }],
           ],
+          'defines': [ 'ZLIB_IMPLEMENTATION' ],
         },
       ],
     }, {
