@@ -9,10 +9,10 @@ Update zlib:
 
 ```bash
 git clone https://chromium.googlesource.com/chromium/src/third_party/zlib
-cp deps/zlib/zlib.gyp deps/zlib/win32/zlib.def deps
+cp deps/zlib/zlib.gyp deps/zlib/GN-scraper.py deps/zlib/win32/zlib.def deps
 rm -rf deps/zlib zlib/.git
 mv zlib deps/
-mv deps/zlib.gyp deps/zlib/
+mv deps/zlib.gyp deps/GN-scraper.py deps/zlib/
 mkdir deps/zlib/win32
 mv deps/zlib.def deps/zlib/win32
 sed -i -- 's_^#include "chromeconf.h"_//#include "chromeconf.h"_' deps/zlib/zconf.h
