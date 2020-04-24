@@ -392,10 +392,12 @@ class ArrayBufferReference final : public Reference {
   inline void Finalize(bool is_env_teardown) override {
     if (is_env_teardown) {
       v8::HandleScope handle_scope(_env->isolate);
-      v8::Local<v8::Value> ab = Get();
-      CHECK(!ab.IsEmpty());
-      CHECK(ab->IsArrayBuffer());
-      ab.As<v8::ArrayBuffer>()->Detach();
+      v8::Local<v8::Value> obj = Get();
+      CHECK(!obj.IsEmpty());
+      CHECK(obj->IsArrayBuffer());
+      v8::Local<v8::ArrayBuffer> ab = obj.As<v8::ArrayBuffer>();
+      if (ab->IsDetachable())
+        ab->Detach();
     }
 
     Reference::Finalize(is_env_teardown);
