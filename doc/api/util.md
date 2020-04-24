@@ -236,6 +236,7 @@ corresponding argument. Supported specifiers are:
 * `%f`: `parseFloat(value)` is used for all values expect `Symbol`.
 * `%j`: JSON. Replaced with the string `'[Circular]'` if the argument contains
   circular references.
+* `%J`: Indented version of %j.
 * `%o`: `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` with options
   `{ showHidden: true, showProxy: true }`. This will show the full object

@@ -44,6 +44,7 @@ assert.strictEqual(util.format(symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('foo', symbol), 'foo Symbol(foo)');
 assert.strictEqual(util.format('%s', symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('%j', symbol), 'undefined');
+assert.strictEqual(util.format('%J', symbol), 'undefined');
 
 // Number format specifier
 assert.strictEqual(util.format('%d'), '%d');
@@ -236,6 +237,16 @@ assert.strictEqual(util.format('%j', 42), '42');
 assert.strictEqual(util.format('%j', '42'), '"42"');
 assert.strictEqual(util.format('%j %j', 42, 43), '42 43');
 assert.strictEqual(util.format('%j %j', 42), '42 %j');
+
+// Indented JSON format specifier
+assert.strictEqual(util.format('%J'), '%J');
+assert.strictEqual(util.format('%J', 42), '42');
+assert.strictEqual(util.format('%J', '42'), '"42"');
+assert.strictEqual(util.format('%J %J', 42, 43), '42 43');
+assert.strictEqual(util.format('%J %J', 42), '42 %J');
+assert.strictEqual(
+  util.format('%J', { foo: { bar: 42 } })
+  , '{\n  "foo": {\n    "bar": 42\n  }\n}');
 
 // Object format specifier
 const obj = {
