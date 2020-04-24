@@ -220,8 +220,9 @@
     # simply not feasible to squelch all warnings, never mind that the
     # libraries in deps/ are not under our control.
     'conditions': [
-      [ 'error_on_warn=="true" and '
-        '(_target_name!="<(node_lib_target_name)" or '
+      [ 'error_on_warn=="false"', {
+        'cflags!': ['-Werror'],
+      }, '(_target_name!="<(node_lib_target_name)" or '
           '_target_name!="<(node_core_target_name)")', {
         'cflags!': ['-Werror'],
       }],
