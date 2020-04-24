@@ -8401,12 +8401,10 @@ class FuchsiaDeathTest : public DeathTestImpl {
       : DeathTestImpl(a_statement, std::move(matcher)),
         file_(file),
         line_(line) {}
-
   // All of these virtual functions are inherited from DeathTest.
   int Wait() override;
   TestRole AssumeRole() override;
   std::string GetErrorLogs() override;
-
  private:
   // The name of the file in which the death test is located.
   const char* const file_;
@@ -8414,17 +8412,14 @@ class FuchsiaDeathTest : public DeathTestImpl {
   const int line_;
   // The stderr data captured by the child process.
   std::string captured_stderr_;
-
   zx::process child_process_;
-  zx::port port_;
+  zx::channel exception_channel_;
   zx::socket stderr_socket_;
 };
-
 // Utility class for accumulating command-line arguments.
 class Arguments {
  public:
   Arguments() { args_.push_back(nullptr); }
-
   ~Arguments() {
     for (std::vector<char*>::iterator i = args_.begin(); i != args_.end();
          ++i) {
@@ -8434,7 +8429,6 @@ class Arguments {
   void AddArgument(const char* argument) {
     args_.insert(args_.end() - 1, posix::StrDup(argument));
   }
-
   template <typename Str>
   void AddArguments(const ::std::vector<Str>& arguments) {
     for (typename ::std::vector<Str>::const_iterator i = arguments.begin();
@@ -8446,58 +8440,58 @@ class Arguments {
   char* const* Argv() {
     return &args_[0];
   }
-
   int size() {
     return args_.size() - 1;
   }
-
  private:
   std::vector<char*> args_;
 };
-
 // Waits for the child in a death test to exit, returning its exit
 // status, or 0 if no child process exists.  As a side effect, sets the
 // outcome data member.
 int FuchsiaDeathTest::Wait() {
   const int kProcessKey = 0;
   const int kSocketKey = 1;
-
+  const int kExceptionKey = 2;
   if (!spawned())
     return 0;
-
-  // Register to wait for the child process to terminate.
+  // Create a port to wait for socket/task/exception events.
   zx_status_t status_zx;
+  zx::port port;
+  status_zx = zx::port::create(0, &port);
+  GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
+  // Register to wait for the child process to terminate.
   status_zx = child_process_.wait_async(
-      port_, kProcessKey, ZX_PROCESS_TERMINATED, ZX_WAIT_ASYNC_ONCE);
+      port, kProcessKey, ZX_PROCESS_TERMINATED, ZX_WAIT_ASYNC_ONCE);
   GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
   // Register to wait for the socket to be readable or closed.
   status_zx = stderr_socket_.wait_async(
-      port_, kSocketKey, ZX_SOCKET_READABLE | ZX_SOCKET_PEER_CLOSED,
-      ZX_WAIT_ASYNC_REPEATING);
+      port, kSocketKey, ZX_SOCKET_READABLE | ZX_SOCKET_PEER_CLOSED,
+      ZX_WAIT_ASYNC_ONCE);
   GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
-
+  // Register to wait for an exception.
+  status_zx = exception_channel_.wait_async(
+      port, kExceptionKey, ZX_CHANNEL_READABLE, ZX_WAIT_ASYNC_ONCE);
+  GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
   bool process_terminated = false;
   bool socket_closed = false;
   do {
     zx_port_packet_t packet = {};
-    status_zx = port_.wait(zx::time::infinite(), &packet);
+    status_zx = port.wait(zx::time::infinite(), &packet);
     GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
-
-    if (packet.key == kProcessKey) {
-      if (ZX_PKT_IS_EXCEPTION(packet.type)) {
-        // Process encountered an exception. Kill it directly rather than
-        // letting other handlers process the event. We will get a second
-        // kProcessKey event when the process actually terminates.
-        status_zx = child_process_.kill();
-        GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
-      } else {
-        // Process terminated.
-        GTEST_DEATH_TEST_CHECK_(ZX_PKT_IS_SIGNAL_ONE(packet.type));
-        GTEST_DEATH_TEST_CHECK_(packet.signal.observed & ZX_PROCESS_TERMINATED);
-        process_terminated = true;
-      }
+    if (packet.key == kExceptionKey) {
+      // Process encountered an exception. Kill it directly rather than
+      // letting other handlers process the event. We will get a kProcessKey
+      // event when the process actually terminates.
+      status_zx = child_process_.kill();
+      GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
+    } else if (packet.key == kProcessKey) {
+      // Process terminated.
+      GTEST_DEATH_TEST_CHECK_(ZX_PKT_IS_SIGNAL_ONE(packet.type));
+      GTEST_DEATH_TEST_CHECK_(packet.signal.observed & ZX_PROCESS_TERMINATED);
+      process_terminated = true;
     } else if (packet.key == kSocketKey) {
-      GTEST_DEATH_TEST_CHECK_(ZX_PKT_IS_SIGNAL_REP(packet.type));
+      GTEST_DEATH_TEST_CHECK_(ZX_PKT_IS_SIGNAL_ONE(packet.type));
       if (packet.signal.observed & ZX_SOCKET_READABLE) {
         // Read data from the socket.
         constexpr size_t kBufferSize = 1024;
@@ -8514,6 +8508,10 @@ int FuchsiaDeathTest::Wait() {
           socket_closed = true;
         } else {
           GTEST_DEATH_TEST_CHECK_(status_zx == ZX_ERR_SHOULD_WAIT);
+          status_zx = stderr_socket_.wait_async(
+              port, kSocketKey, ZX_SOCKET_READABLE | ZX_SOCKET_PEER_CLOSED,
+              ZX_WAIT_ASYNC_ONCE);
+          GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
         }
       } else {
         GTEST_DEATH_TEST_CHECK_(packet.signal.observed & ZX_SOCKET_PEER_CLOSED);
@@ -8521,19 +8519,15 @@ int FuchsiaDeathTest::Wait() {
       }
     }
   } while (!process_terminated && !socket_closed);
-
   ReadAndInterpretStatusByte();
-
   zx_info_process_t buffer;
   status_zx = child_process_.get_info(
       ZX_INFO_PROCESS, &buffer, sizeof(buffer), nullptr, nullptr);
   GTEST_DEATH_TEST_CHECK_(status_zx == ZX_OK);
-
   GTEST_DEATH_TEST_CHECK_(buffer.exited);
   set_status(buffer.return_code);
   return status();
 }
-
 // The AssumeRole process for a Fuchsia death test.  It creates a child
 // process with the same executable as the current process to run the
 // death test.  The child process is given the --gtest_filter and
@@ -8545,17 +8539,14 @@ DeathTest::TestRole FuchsiaDeathTest::AssumeRole() {
       impl->internal_run_death_test_flag();
   const TestInfo* const info = impl->current_test_info();
   const int death_test_index = info->result()->death_test_count();
-
   if (flag != nullptr) {
     // ParseInternalRunDeathTestFlag() has performed all the necessary
     // processing.
     set_write_fd(kFuchsiaReadPipeFd);
     return EXECUTE_TEST;
   }
-
   // Flush the log buffers since the log streams are shared with the child.
   FlushInfoLog();
-
   // Build the child process command line.
   const std::string filter_flag = std::string("--") + GTEST_FLAG_PREFIX_ +
                                   kFilterFlag + "=" + info->test_suite_name() +
@@ -8569,22 +8560,19 @@ DeathTest::TestRole FuchsiaDeathTest::AssumeRole() {
   args.AddArguments(GetInjectableArgvs());
   args.AddArgument(filter_flag.c_str());
   args.AddArgument(internal_flag.c_str());
-
   // Build the pipe for communication with the child.
   zx_status_t status;
   zx_handle_t child_pipe_handle;
   int child_pipe_fd;
-  status = fdio_pipe_half2(&child_pipe_fd, &child_pipe_handle);
-  GTEST_DEATH_TEST_CHECK_(status != ZX_OK);
+  status = fdio_pipe_half(&child_pipe_fd, &child_pipe_handle);
+  GTEST_DEATH_TEST_CHECK_(status == ZX_OK);
   set_read_fd(child_pipe_fd);
-
   // Set the pipe handle for the child.
   fdio_spawn_action_t spawn_actions[2] = {};
   fdio_spawn_action_t* add_handle_action = &spawn_actions[0];
   add_handle_action->action = FDIO_SPAWN_ACTION_ADD_HANDLE;
   add_handle_action->h.id = PA_HND(PA_FD, kFuchsiaReadPipeFd);
   add_handle_action->h.handle = child_pipe_handle;
-
   // Create a socket pair will be used to receive the child process' stderr.
   zx::socket stderr_producer_socket;
   status =
@@ -8594,15 +8582,12 @@ DeathTest::TestRole FuchsiaDeathTest::AssumeRole() {
   status =
       fdio_fd_create(stderr_producer_socket.release(), &stderr_producer_fd);
   GTEST_DEATH_TEST_CHECK_(status >= 0);
-
   // Make the stderr socket nonblocking.
   GTEST_DEATH_TEST_CHECK_(fcntl(stderr_producer_fd, F_SETFL, 0) == 0);
-
   fdio_spawn_action_t* add_stderr_action = &spawn_actions[1];
   add_stderr_action->action = FDIO_SPAWN_ACTION_CLONE_FD;
   add_stderr_action->fd.local_fd = stderr_producer_fd;
   add_stderr_action->fd.target_fd = STDERR_FILENO;
-
   // Create a child job.
   zx_handle_t child_job = ZX_HANDLE_INVALID;
   status = zx_job_create(zx_job_default(), 0, & child_job);
@@ -8613,25 +8598,20 @@ DeathTest::TestRole FuchsiaDeathTest::AssumeRole() {
   status = zx_job_set_policy(
       child_job, ZX_JOB_POL_RELATIVE, ZX_JOB_POL_BASIC, &policy, 1);
   GTEST_DEATH_TEST_CHECK_(status == ZX_OK);
-
-  // Create an exception port and attach it to the |child_job|, to allow
+  // Create an exception channel attached to the |child_job|, to allow
   // us to suppress the system default exception handler from firing.
-  status = zx::port::create(0, &port_);
+  status =
+      zx_task_create_exception_channel(
+          child_job, 0, exception_channel_.reset_and_get_address());
   GTEST_DEATH_TEST_CHECK_(status == ZX_OK);
-  status = zx_task_bind_exception_port(
-      child_job, port_.get(), 0 /* key */, 0 /*options */);
-  GTEST_DEATH_TEST_CHECK_(status == ZX_OK);
-
   // Spawn the child process.
   status = fdio_spawn_etc(
       child_job, FDIO_SPAWN_CLONE_ALL, args.Argv()[0], args.Argv(), nullptr,
       2, spawn_actions, child_process_.reset_and_get_address(), nullptr);
   GTEST_DEATH_TEST_CHECK_(status == ZX_OK);
-
   set_spawned(true);
   return OVERSEE_TEST;
 }
-
 std::string FuchsiaDeathTest::GetErrorLogs() {
   return captured_stderr_;
 }

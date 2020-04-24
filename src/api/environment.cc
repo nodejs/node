@@ -201,6 +201,7 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
 }
 
 void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
+#ifndef __Fuchsia__
   const uint64_t constrained_memory = uv_get_constrained_memory();
   const uint64_t total_memory = constrained_memory > 0 ?
       std::min(uv_get_total_memory(), constrained_memory) :
@@ -213,6 +214,7 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   }
   params->embedder_wrapper_object_index = BaseObject::InternalFields::kSlot;
   params->embedder_wrapper_type_index = std::numeric_limits<int>::max();
+#endif
 }
 
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {

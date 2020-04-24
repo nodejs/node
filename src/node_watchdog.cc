@@ -297,6 +297,7 @@ int SigintWatchdogHelper::Start() {
     return 0;
   }
 
+#ifndef __Fuchsia__
 #ifdef __POSIX__
   CHECK_EQ(has_running_thread_, false);
   has_pending_signal_ = false;
@@ -321,6 +322,7 @@ int SigintWatchdogHelper::Start() {
   } else {
     SetConsoleCtrlHandler(WinCtrlCHandlerRoutine, TRUE);
   }
+#endif
 #endif
 
   return 0;
@@ -349,6 +351,7 @@ bool SigintWatchdogHelper::Stop() {
     watchdogs_.clear();
   }
 
+#ifndef __Fuchsia__
 #ifdef __POSIX__
   if (!has_running_thread_) {
     has_pending_signal_ = false;
@@ -369,7 +372,7 @@ bool SigintWatchdogHelper::Stop() {
 
   had_pending_signal = has_pending_signal_;
   has_pending_signal_ = false;
-
+#endif
   return had_pending_signal;
 }
 
