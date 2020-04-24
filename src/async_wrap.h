@@ -209,6 +209,11 @@ class AsyncWrap : public BaseObject {
             ProviderType provider,
             double execution_async_id,
             bool silent);
+  AsyncWrap(Environment* env,
+            v8::Local<v8::Object> promise,
+            ProviderType provider,
+            double execution_async_id,
+            double trigger_async_id);
   ProviderType provider_type_ = PROVIDER_NONE;
   bool init_hook_ran_ = false;
   // Because the values may be Reset(), cannot be made const.
