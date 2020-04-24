@@ -165,7 +165,9 @@ When this function is used, no `'message'` event will be emitted and the
 
 ## `worker.resourceLimits`
 <!-- YAML
-added: v13.2.0
+added:
+ - v13.2.0
+ - v12.16.0
 -->
 
 * {Object}
@@ -520,10 +522,14 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/31664
     description: The `filename` parameter can be a WHATWG `URL` object using
                  `file:` protocol.
-  - version: v13.2.0
+  - version:
+     - v13.2.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/26628
     description: The `resourceLimits` option was introduced.
-  - version: v13.4.0
+  - version:
+     - v13.4.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30559
     description: The `argv` option was introduced.
 -->
@@ -664,7 +670,9 @@ no effect.
 
 ### `worker.resourceLimits`
 <!-- YAML
-added: v13.2.0
+added:
+ - v13.2.0
+ - v12.16.0
 -->
 
 * {Object}

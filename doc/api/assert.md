@@ -11,7 +11,9 @@ invariants.
 <!-- YAML
 added: v9.9.0
 changes:
-  - version: v13.9.0
+  - version:
+      - v13.9.0
+      - v12.16.2
     description: Changed "strict mode" to "strict assertion mode" and "legacy
                  mode" to "legacy assertion mode" to avoid confusion with the
                  more usual meaining of "strict mode".
@@ -564,7 +566,9 @@ parameter is an instance of an [`Error`][] then it will be thrown instead of the
 
 ## `assert.doesNotMatch(string, regexp[, message])`
 <!-- YAML
-added: v13.6.0
+added:
+  - v13.6.0
+  - v12.16.0
 -->
 
 * `string` {string}
@@ -911,7 +915,9 @@ let err;
 
 ## `assert.match(string, regexp[, message])`
 <!-- YAML
-added: v13.6.0
+added:
+  - v13.6.0
+  - v12.16.0
 -->
 
 * `string` {string}

@@ -1,6 +1,6 @@
 # WebAssembly System Interface (WASI)
 
-<!--introduced_in=v13.3.0-->
+<!--introduced_in=v12.16.0-->
 
 > Stability: 1 - Experimental
 
@@ -34,7 +34,9 @@ CLI arguments are needed for the previous example to run.
 
 ## Class: `WASI`
 <!-- YAML
-added: v13.3.0
+added:
+ - v13.3.0
+ - v12.16.0
 -->
 
 The `WASI` class provides the WASI system call API and additional convenience
@@ -45,7 +47,9 @@ sandbox directory structure configured explicitly.
 
 ### `new WASI([options])`
 <!-- YAML
-added: v13.3.0
+added:
+ - v13.3.0
+ - v12.16.0
 -->
 
 * `options` {Object}
@@ -65,7 +69,9 @@ added: v13.3.0
 
 ### `wasi.start(instance)`
 <!-- YAML
-added: v13.3.0
+added:
+ - v13.3.0
+ - v12.16.0
 -->
 
 * `instance` {WebAssembly.Instance}
@@ -80,7 +86,9 @@ is present on `instance`, then `start()` does nothing.
 
 ### `wasi.wasiImport`
 <!-- YAML
-added: v13.3.0
+added:
+ - v13.3.0
+ - v12.16.0
 -->
 
 * {Object}

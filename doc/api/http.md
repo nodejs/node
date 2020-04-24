@@ -652,7 +652,9 @@ See [`writable.destroyed`][] for further details.
 ### `request.finished`
 <!-- YAML
 added: v0.0.1
-deprecated: v13.4.0
+deprecated:
+ - v13.4.0
+ - v12.16.0
 -->
 
 > Stability: 0 - Deprecated. Use [`request.writableEnded`][].
@@ -729,9 +731,10 @@ request.removeHeader('Content-Type');
 ```
 
 ### `request.reusedSocket`
-
 <!-- YAML
-added: v13.0.0
+added:
+ - v13.0.0
+ - v12.16.0
 -->
 
 * {boolean} Whether the request is send through a reused socket.
@@ -1133,7 +1136,9 @@ Stops the server from accepting new connections. See [`net.Server.close()`][].
 
 ### `server.headersTimeout`
 <!-- YAML
-added: v11.3.0
+added:
+ - v11.3.0
+ - v10.14.0
 -->
 
 * {number} **Default:** `60000`
@@ -1305,7 +1310,9 @@ See [`response.socket`][].
 
 ### `response.cork()`
 <!-- YAML
-added: v13.2.0
+added:
+ - v13.2.0
+ - v12.16.0
 -->
 
 See [`writable.cork()`][].
@@ -1337,7 +1344,9 @@ is finished.
 ### `response.finished`
 <!-- YAML
 added: v0.0.2
-deprecated: v13.4.0
+deprecated:
+ - v13.4.0
+ - v12.16.0
 -->
 
 > Stability: 0 - Deprecated. Use [`response.writableEnded`][].
@@ -1604,7 +1613,9 @@ status message which was sent out.
 
 ### `response.uncork()`
 <!-- YAML
-added: v13.2.0
+added:
+ - v13.2.0
+ - v12.16.0
 -->
 
 See [`writable.uncork()`][].
@@ -1680,7 +1691,9 @@ the request body should be sent. See the [`'checkContinue'`][] event on
 <!-- YAML
 added: v0.1.30
 changes:
-  - version: v11.10.0
+  - version:
+     - v11.10.0
+     - v10.17.0
     pr-url: https://github.com/nodejs/node/pull/25974
     description: Return `this` from `writeHead()` to allow chaining with
                  `end()`.
@@ -1759,7 +1772,9 @@ the request body should be sent.
 <!-- YAML
 added: v0.1.17
 changes:
-  - version: v13.1.0
+  - version:
+     - v13.1.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30135
     description: The `readableHighWaterMark` value mirrors that of the socket.
 -->
@@ -2058,7 +2073,10 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: v13.8.0
+  - version:
+     - v13.8.0
+     - v12.15.0
+     - v10.19.0
     pr-url: https://github.com/nodejs/node/pull/31448
     description: The `insecureHTTPParser` option is supported now.
   - version: v13.3.0
@@ -2173,7 +2191,9 @@ requests.
 
 ## `http.maxHeaderSize`
 <!-- YAML
-added: v11.6.0
+added:
+ - v11.6.0
+ - v10.15.0
 -->
 
 * {number}
@@ -2189,7 +2209,10 @@ This can be overridden for servers and client requests by passing the
 <!-- YAML
 added: v0.3.6
 changes:
-  - version: v13.8.0
+  - version:
+     - v13.8.0
+     - v12.15.0
+     - v10.19.0
     pr-url: https://github.com/nodejs/node/pull/31448
     description: The `insecureHTTPParser` option is supported now.
   - version: v13.3.0

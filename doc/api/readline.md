@@ -315,9 +315,13 @@ The `rl.write()` method will write the data to the `readline` `Interface`'s
 
 ### `rl[Symbol.asyncIterator]()`
 <!-- YAML
-added: v11.4.0
+added:
+ - v11.4.0
+ - v10.16.0
 changes:
-  - version: v11.14.0
+  - version:
+     - v11.14.0
+     - v10.17.0
     pr-url: https://github.com/nodejs/node/pull/26989
     description: Symbol.asyncIterator support is no longer experimental.
 -->
@@ -401,7 +405,9 @@ as well as the column where the terminal caret will be rendered.
 
 ### `rl.getCursorPos()`
 <!-- YAML
-added: v13.5.0
+added:
+ - v13.5.0
+ - v12.16.0
 -->
 
 * Returns: {Object}
