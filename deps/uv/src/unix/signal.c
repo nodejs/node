@@ -63,6 +63,8 @@ RB_GENERATE_STATIC(uv__signal_tree_s,
 static void uv__signal_global_reinit(void);
 
 static void uv__signal_global_init(void) {
+// TODO(victor): not sure if I can skip the lock here for fuchsia
+#ifndef __Fuchsia__
   if (uv__signal_lock_pipefd[0] == -1)
     /* pthread_atfork can register before and after handlers, one
      * for each child. This only registers one for the child. That
@@ -72,6 +74,7 @@ static void uv__signal_global_init(void) {
      */
     if (pthread_atfork(NULL, NULL, &uv__signal_global_reinit))
       abort();
+#endif
 
   uv__signal_global_reinit();
 }
