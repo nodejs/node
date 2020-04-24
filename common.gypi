@@ -26,7 +26,7 @@
     'uv_library%': 'static_library',
 
     'clang%': 0,
-    'error_on_warn%': '0',
+    'error_on_warn%': 'false',
 
     'openssl_fips%': '',
     'openssl_no_asm%': 0,
