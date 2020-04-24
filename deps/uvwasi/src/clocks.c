@@ -1,9 +1,9 @@
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__Fuchsia__)
 # include <errno.h>
 # include <sys/time.h>
 # include <sys/resource.h>
 # include <time.h>
-#endif /* _WIN32 */
+#endif /* _WIN32 && __Fuchsia */
 
 #include "uv.h"
 #include "clocks.h"
