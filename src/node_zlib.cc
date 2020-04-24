@@ -111,7 +111,12 @@ enum node_zlib_mode {
 
 struct CompressionError {
   CompressionError(const char* message, const char* code, int err)
-    : message(message), code(code), err(err) {}
+      : message(message),
+        code(code),
+        err(err) {
+    CHECK_NOT_NULL(message);
+  }
+
   CompressionError() = default;
 
   const char* message = nullptr;
@@ -997,7 +1002,7 @@ CompressionError ZlibContext::Init(
   if (err_ != Z_OK) {
     dictionary_.clear();
     mode_ = NONE;
-    return ErrorForMessage(nullptr);
+    return ErrorForMessage("zlib error");
   }
 
   return SetDictionary();
