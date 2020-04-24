@@ -2999,7 +2999,7 @@ Then `request.url` will be:
 To parse the url into its parts `require('url').parse(request.url)`
 can be used:
 
-```text
+```console
 $ node
 > require('url').parse('/status?name=ryan')
 Url {
