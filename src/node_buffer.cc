@@ -152,7 +152,8 @@ void CallbackInfo::CleanupHook(void* data) {
     HandleScope handle_scope(self->env_->isolate());
     Local<ArrayBuffer> ab = self->persistent_.Get(self->env_->isolate());
     CHECK(!ab.IsEmpty());
-    ab->Detach();
+    if (ab->IsDetachable())
+      ab->Detach();
   }
 
   self->WeakCallback(self->env_->isolate());
