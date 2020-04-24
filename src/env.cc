@@ -43,6 +43,7 @@ using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Private;
+using v8::PromiseHookType;
 using v8::Script;
 using v8::SnapshotCreator;
 using v8::StackTrace;
@@ -198,12 +199,12 @@ void IsolateData::CreateProperties() {
   // an array so the array index matches the type id offset. This way the
   // strings can be retrieved quickly.
 #define PROMISE_HOOK_TYPES(V)                                                 \
-  V(0, init)                                                                  \
-  V(1, promiseResolve)                                                        \
-  V(2, before)                                                                \
-  V(3, after)
+  V(PromiseHookType::kInit, init)                                             \
+  V(PromiseHookType::kResolve, promiseResolve)                                \
+  V(PromiseHookType::kBefore, before)                                         \
+  V(PromiseHookType::kAfter, after)
 #define V(index, name)                                                        \
-  promise_hook_types_[index].Set(                                             \
+  promise_hook_types_[static_cast<uint8_t>(index)].Set(                       \
       isolate_,                                                               \
       v8::String::NewFromOneByte(                                             \
         isolate_,                                                             \

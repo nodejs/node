@@ -28,6 +28,10 @@ let pwrap = null;
 const hook1 = async_hooks.createHook({
   init(id, type, tid, resource) {
     pwrap = resource;
+  },
+
+  destroy() {
+
   }
 }).enable();
 

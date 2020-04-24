@@ -31,7 +31,7 @@ const vm = require('vm');
   d.run(common.mustCall(() => {
     vm.runInNewContext(`
       const promise = Promise.resolve();
-      assert.strictEqual(promise.domain, d);
+      assert.strictEqual(promise.domain, undefined);
       promise.then(common.mustCall(() => {
         assert.strictEqual(process.domain, d);
       }));
