@@ -21,7 +21,7 @@ assert.throws(
     code: 'ERR_OUT_OF_RANGE',
     name: 'RangeError',
     message: 'The value of "options.windowBits" is out of range. It must ' +
-             'be >= 8 and <= 15. Received 0'
+             'be >= 9 and <= 15. Received 0'
   }
 );
 
