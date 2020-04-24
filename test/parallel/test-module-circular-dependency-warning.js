@@ -31,3 +31,10 @@ assert.strictEqual(Object.getPrototypeOf(classExport).name, 'Parent');
 const esmTranspiledExport =
   require(fixtures.path('cycles', 'warning-esm-transpiled-a.js'));
 assert.strictEqual(esmTranspiledExport.__esModule, true);
+
+// If module.exports.__esModule is being accessed but is not present, e.g.
+// because only the one of the files is a transpiled ES module, no warning
+// should be emitted.
+const halfTranspiledExport =
+  require(fixtures.path('cycles', 'warning-esm-half-transpiled-a.js'));
+assert.strictEqual(halfTranspiledExport.__esModule, undefined);
