@@ -128,7 +128,9 @@ if (cluster.isMaster) {
 
 ### `socket.addSourceSpecificMembership(sourceAddress, groupAddress[, multicastInterface])`
 <!-- YAML
-added: v13.1.0
+added:
+ - v13.1.0
+ - v12.16.0
 -->
 * `sourceAddress` {string}
 * `groupAddress` {string}
@@ -317,7 +319,9 @@ drop membership on all valid interfaces.
 
 ### `socket.dropSourceSpecificMembership(sourceAddress, groupAddress[, multicastInterface])`
 <!-- YAML
-added: v13.1.0
+added:
+ - v13.1.0
+ - v12.16.0
 -->
 
 * `sourceAddress` {string}

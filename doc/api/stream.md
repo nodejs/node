@@ -519,7 +519,9 @@ does not indicate whether the data has been flushed, for this use
 
 ##### `writable.writableCorked`
 <!-- YAML
-added: v13.2.0
+added:
+ - v13.2.0
+ - v12.16.0
 -->
 
 * {integer}
@@ -1809,17 +1811,19 @@ method.
 #### Constructor: `new stream.Writable([options])`
 <!-- YAML
 changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/30623
+    description: Change `autoDestroy` option default to `true`.
+  - version:
+     - v11.2.0
+     - v10.16.0
+    pr-url: https://github.com/nodejs/node/pull/22795
+    description: Add `autoDestroy` option to automatically `destroy()` the
+                 stream when it emits `'finish'` or errors.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18438
     description: Add `emitClose` option to specify if `'close'` is emitted on
                  destroy.
-  - version: v11.2.0
-    pr-url: https://github.com/nodejs/node/pull/22795
-    description: Add `autoDestroy` option to automatically `destroy()` the
-                 stream when it emits `'finish'` or errors.
-  - version: v14.0.0
-    pr-url: https://github.com/nodejs/node/pull/30623
-    description: Change `autoDestroy` option default to `true`.
 -->
 
 * `options` {Object}
@@ -2093,7 +2097,9 @@ constructor and implement the `readable._read()` method.
 #### `new stream.Readable([options])`
 <!-- YAML
 changes:
-  - version: v11.2.0
+  - version:
+     - v11.2.0
+     - v10.16.0
     pr-url: https://github.com/nodejs/node/pull/22795
     description: Add `autoDestroy` option to automatically `destroy()` the
                  stream when it emits `'end'` or errors.

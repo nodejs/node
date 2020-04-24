@@ -2569,7 +2569,9 @@ and [`fs.createReadStream()`][]) or by passing a file descriptor in options.
 ### DEP0136: `http` `finished`
 <!-- YAML
 changes:
-  - version: v13.4.0
+  - version:
+     - v13.4.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/28679
     description: Documentation-only deprecation.
 -->

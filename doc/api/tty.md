@@ -216,7 +216,9 @@ of columns and rows in the corresponding [TTY](tty.html).
 
 ### `writeStream.hasColors([count][, env])`
 <!-- YAML
-added: v11.13.0
+added:
+ - v11.13.0
+ - v10.16.0
 -->
 
 * `count` {integer} The number of colors that are requested (minimum 2).
