@@ -224,7 +224,9 @@ recommendation is to **not use `async` functions as `'error'` event handlers**.
 <!-- YAML
 added: v0.1.26
 changes:
-  - version: v13.4.0
+  - version:
+     - v13.4.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/27867
     description: Added captureRejections option.
 -->
@@ -362,7 +364,9 @@ Its `name` property is set to `'MaxListenersExceededWarning'`.
 
 ### `EventEmitter.errorMonitor`
 <!-- YAML
-added: v13.6.0
+added:
+ - v13.6.0
+ - v12.16.0
 -->
 
 This symbol shall be used to install a listener for only monitoring `'error'`
@@ -783,7 +787,9 @@ emitter.emit('log');
 
 ### `emitter[Symbol.for('nodejs.rejection')](err, eventName[, ...args])`
 <!-- YAML
-added: v13.4.0
+added:
+ - v13.4.0
+ - v12.16.0
 -->
 
 > Stability: 1 - captureRejections is experimental.
@@ -819,7 +825,9 @@ class MyClass extends EventEmitter {
 
 ## `events.once(emitter, name)`
 <!-- YAML
-added: v11.13.0
+added:
+ - v11.13.0
+ - v10.16.0
 -->
 
 * `emitter` {EventEmitter}
@@ -865,7 +873,9 @@ run();
 
 ## `events.captureRejections`
 <!-- YAML
-added: v13.4.0
+added:
+ - v13.4.0
+ - v12.16.0
 -->
 
 > Stability: 1 - captureRejections is experimental.
@@ -876,7 +886,9 @@ Change the default `captureRejections` option on all new `EventEmitter` objects.
 
 ## `events.captureRejectionSymbol`
 <!-- YAML
-added: v13.4.0
+added:
+ - v13.4.0
+ - v12.16.0
 -->
 
 > Stability: 1 - captureRejections is experimental.
@@ -887,7 +899,9 @@ See how to write a custom [rejection handler][rejection].
 
 ## `events.on(emitter, eventName)`
 <!-- YAML
-added: v13.6.0
+added:
+ - v13.6.0
+ - v12.16.0
 -->
 
 * `emitter` {EventEmitter}

@@ -411,7 +411,9 @@ Compression strategy.
 
 ### Brotli constants
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 There are several options and other constants available for Brotli-based
@@ -545,14 +547,18 @@ const stream = zlib.createBrotliCompress({
 
 ## Class: `zlib.BrotliCompress`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 Compress data using the Brotli algorithm.
 
 ## Class: `zlib.BrotliDecompress`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 Decompress data using the Brotli algorithm.
@@ -633,7 +639,9 @@ the header.
 <!-- YAML
 added: v0.5.8
 changes:
-  - version: v11.7.0
+  - version:
+     - v11.7.0
+     - v10.16.0
     pr-url: https://github.com/nodejs/node/pull/24939
     description: This class was renamed from `Zlib` to `ZlibBase`.
 -->
@@ -727,7 +735,9 @@ Provides an object enumerating Zlib-related constants.
 
 ## `zlib.createBrotliCompress([options])`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 * `options` {brotli options}
@@ -736,7 +746,9 @@ Creates and returns a new [`BrotliCompress`][] object.
 
 ## `zlib.createBrotliDecompress([options])`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 * `options` {brotli options}
@@ -828,7 +840,9 @@ without a callback.
 
 ### `zlib.brotliCompress(buffer[, options], callback)`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -837,7 +851,9 @@ added: v11.7.0
 
 ### `zlib.brotliCompressSync(buffer[, options])`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -847,7 +863,9 @@ Compress a chunk of data with [`BrotliCompress`][].
 
 ### `zlib.brotliDecompress(buffer[, options], callback)`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -856,7 +874,9 @@ added: v11.7.0
 
 ### `zlib.brotliDecompressSync(buffer[, options])`
 <!-- YAML
-added: v11.7.0
+added:
+ - v11.7.0
+ - v10.16.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}

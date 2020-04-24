@@ -347,7 +347,9 @@ vm.measureMemory({ mode: 'detailed' }, context)
 
 ## Class: `vm.Module`
 <!-- YAML
-added: v13.0.0
+added:
+ - v13.0.0
+ - v12.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -696,7 +698,9 @@ const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 
 ## Class: `vm.SyntheticModule`
 <!-- YAML
-added: v13.0.0
+added:
+ - v13.0.0
+ - v12.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -725,7 +729,9 @@ const module = new vm.SyntheticModule(['default'], function() {
 
 ### Constructor: `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
 <!-- YAML
-added: v13.0.0
+added:
+ - v13.0.0
+ - v12.16.0
 -->
 
 * `exportNames` {string[]} Array of names that will be exported from the module.
@@ -745,7 +751,9 @@ the module to access information outside the specified `context`. Use
 
 ### `syntheticModule.setExport(name, value)`
 <!-- YAML
-added: v13.0.0
+added:
+ - v13.0.0
+ - v12.16.0
 -->
 
 * `name` {string} Name of the export to set.

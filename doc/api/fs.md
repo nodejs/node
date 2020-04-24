@@ -637,7 +637,9 @@ argument to `fs.createReadStream()`. If `path` is passed as a string, then
 
 ### `readStream.pending`
 <!-- YAML
-added: v11.2.0
+added:
+ - v11.2.0
+ - v10.16.0
 -->
 
 * {boolean}
@@ -2653,7 +2655,9 @@ Functions based on `fs.open()` exhibit this behavior as well:
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: v13.1.0
+  - version:
+     - v13.1.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30114
     description: The `bufferSize` option was introduced.
 -->
@@ -2680,7 +2684,9 @@ directory and subsequent read operations.
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: v13.1.0
+  - version:
+     - v13.1.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30114
     description: The `bufferSize` option was introduced.
 -->
@@ -3332,7 +3338,9 @@ Synchronous rename(2). Returns `undefined`.
 <!-- YAML
 added: v0.0.2
 changes:
-  - version: v13.3.0
+  - version:
+     - v13.3.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30644
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and
@@ -3385,7 +3393,9 @@ Windows and an `ENOTDIR` error on POSIX.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v13.3.0
+  - version:
+     - v13.3.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30644
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and
@@ -5042,7 +5052,9 @@ a colon, Node.js will open a file system stream, as described by
 <!-- YAML
 added: v12.12.0
 changes:
-  - version: v13.1.0
+  - version:
+     - v13.1.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30114
     description: The `bufferSize` option was introduced.
 -->
@@ -5200,7 +5212,9 @@ upon success.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v13.3.0
+  - version:
+     - v13.3.0
+     - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30644
     description: The `maxBusyTries` option is renamed to `maxRetries`, and its
                  default is 0. The `emfileWait` option has been removed, and

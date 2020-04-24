@@ -374,7 +374,9 @@ tied to the life cycle of the Agent.
 
 ### napi_set_instance_data
 <!-- YAML
-added: v12.8.0
+added:
+ - v12.8.0
+ - v10.20.0
 napiVersion: 6
 -->
 
@@ -402,7 +404,9 @@ by the previous call, it will not be called.
 
 ### napi_get_instance_data
 <!-- YAML
-added: v12.8.0
+added:
+ - v12.8.0
+ - v10.20.0
 napiVersion: 6
 -->
 
@@ -1665,7 +1669,9 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 ### Enum types
 #### napi_key_collection_mode
 <!-- YAML
-added: v13.7.0
+added:
+ - v13.7.0
+ - v10.20.0
 napiVersion: 6
 -->
 
@@ -1686,7 +1692,9 @@ of the objects's prototype chain as well.
 
 #### napi_key_filter
 <!-- YAML
-added: v13.7.0
+added:
+ - v13.7.0
+ - v10.20.0
 napiVersion: 6
 -->
 
@@ -1705,7 +1713,9 @@ Property filter bits. They can be or'ed to build a composite filter.
 
 #### napi_key_conversion
 <!-- YAML
-added: v13.7.0
+added:
+ - v13.7.0
+ - v10.20.0
 napiVersion: 6
 -->
 
@@ -1902,7 +1912,9 @@ structure, in most cases using a `TypedArray` will suffice.
 
 #### napi_create_date
 <!-- YAML
-added: v11.11.0
+added:
+ - v11.11.0
+ - v10.17.0
 napiVersion: 5
 -->
 
@@ -2583,7 +2595,9 @@ This API returns various properties of a `DataView`.
 
 #### napi_get_date_value
 <!-- YAML
-added: v11.11.0
+added:
+ - v11.11.0
+ - v10.17.0
 napiVersion: 5
 -->
 
@@ -3201,7 +3215,9 @@ This API checks if the `Object` passed in is a buffer.
 
 ### napi_is_date
 <!-- YAML
-added: v11.11.0
+added:
+ - v11.11.0
+ - v10.17.0
 napiVersion: 5
 -->
 
@@ -3297,7 +3313,9 @@ defined in [Section 7.2.14][] of the ECMAScript Language Specification.
 
 ### napi_detach_arraybuffer
 <!-- YAML
-added: v13.0.0
+added:
+ - v13.0.0
+ - v12.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -3323,7 +3341,9 @@ defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
 
 ### napi_is_detached_arraybuffer
 <!-- YAML
-added: v13.3.0
+added:
+ - v13.3.0
+ - v12.16.0
 -->
 
 > Stability: 1 - Experimental
@@ -3592,7 +3612,9 @@ included.
 
 #### napi_get_all_property_names
 <!-- YAML
-added: v13.7.0
+added:
+ - v13.7.0
+ - v10.20.0
 napiVersion: 6
 -->
 
@@ -5181,7 +5203,9 @@ prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 added: v10.6.0
 napiVersion: 4
 changes:
-  - version: v12.6.0
+  - version:
+     - v12.6.0
+     - v10.17.0
     pr-url: https://github.com/nodejs/node/pull/27791
     description: Made `func` parameter optional with custom `call_js_cb`.
 -->
