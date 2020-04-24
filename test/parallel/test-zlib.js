@@ -27,6 +27,13 @@ const stream = require('stream');
 const fs = require('fs');
 const fixtures = require('../common/fixtures');
 
+// Should not segfault.
+assert.throws(() => zlib.gzipSync(Buffer.alloc(0), { windowBits: 8 }), {
+  code: 'ERR_ZLIB_INITIALIZATION_FAILED',
+  name: 'Error',
+  message: 'Initialization failed',
+});
+
 let zlibPairs = [
   [zlib.Deflate, zlib.Inflate],
   [zlib.Gzip, zlib.Gunzip],
