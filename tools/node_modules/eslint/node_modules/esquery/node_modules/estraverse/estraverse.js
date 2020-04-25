@@ -388,6 +388,15 @@
     function isProperty(nodeType, key) {
         return (nodeType === Syntax.ObjectExpression || nodeType === Syntax.ObjectPattern) && 'properties' === key;
     }
+  
+    function candidateExistsInLeaveList(leavelist, candidate) {
+        for (var i = leavelist.length - 1; i >= 0; --i) {
+            if (leavelist[i].node === candidate) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     Controller.prototype.traverse = function traverse(root, visitor) {
         var worklist,
@@ -469,6 +478,11 @@
                             if (!candidate[current2]) {
                                 continue;
                             }
+
+                            if (candidateExistsInLeaveList(leavelist, candidate[current2])) {
+                              continue;
+                            }
+
                             if (isProperty(nodeType, candidates[current])) {
                                 element = new Element(candidate[current2], [key, current2], 'Property', null);
                             } else if (isNode(candidate[current2])) {
@@ -479,6 +493,10 @@
                             worklist.push(element);
                         }
                     } else if (isNode(candidate)) {
+                        if (candidateExistsInLeaveList(leavelist, candidate)) {
+                          continue;
+                        }
+
                         worklist.push(new Element(candidate, key, null, null));
                     }
                 }

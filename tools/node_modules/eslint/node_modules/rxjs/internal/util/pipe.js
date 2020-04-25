@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-var noop_1 = require("./noop");
+var identity_1 = require("./identity");
 function pipe() {
     var fns = [];
     for (var _i = 0; _i < arguments.length; _i++) {
@@ -10,8 +10,8 @@ function pipe() {
 }
 exports.pipe = pipe;
 function pipeFromArray(fns) {
-    if (!fns) {
-        return noop_1.noop;
+    if (fns.length === 0) {
+        return identity_1.identity;
     }
     if (fns.length === 1) {
         return fns[0];

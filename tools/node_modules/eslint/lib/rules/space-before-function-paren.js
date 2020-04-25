@@ -127,7 +127,10 @@ module.exports = {
             if (hasSpacing && functionConfig === "never") {
                 context.report({
                     node,
-                    loc: leftToken.loc.end,
+                    loc: {
+                        start: leftToken.loc.end,
+                        end: rightToken.loc.start
+                    },
                     messageId: "unexpectedSpace",
                     fix(fixer) {
                         const comments = sourceCode.getCommentsBefore(rightToken);
@@ -145,7 +148,7 @@ module.exports = {
             } else if (!hasSpacing && functionConfig === "always") {
                 context.report({
                     node,
-                    loc: leftToken.loc.end,
+                    loc: rightToken.loc,
                     messageId: "missingSpace",
                     fix: fixer => fixer.insertTextAfter(leftToken, " ")
                 });

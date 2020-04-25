@@ -563,7 +563,12 @@ class RuleTester {
                 output = SourceCodeFixer.applyFixes(code, messages).output;
                 const errorMessageInFix = linter.verify(output, config, filename).find(m => m.fatal);
 
-                assert(!errorMessageInFix, `A fatal parsing error occurred in autofix: ${errorMessageInFix && errorMessageInFix.message}`);
+                assert(!errorMessageInFix, [
+                    "A fatal parsing error occurred in autofix.",
+                    `Error: ${errorMessageInFix && errorMessageInFix.message}`,
+                    "Autofix output:",
+                    output
+                ].join("\n"));
             } else {
                 output = code;
             }

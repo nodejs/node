@@ -11,15 +11,15 @@ function normalizeOpts(options) {
 
   if (!options) {
     return defaultOpts;
-  } else {
-    Object.keys(defaultOpts).forEach(function (key) {
-      if (!options[key]) {
-        options[key] = defaultOpts[key];
-      }
-    });
-
-    return options;
   }
+
+  Object.keys(defaultOpts).forEach(function (key) {
+    if (!options[key]) {
+      options[key] = defaultOpts[key];
+    }
+  });
+
+  return options;
 }
 
 function cliWidth(options) {
@@ -27,23 +27,23 @@ function cliWidth(options) {
 
   if (opts.output.getWindowSize) {
     return opts.output.getWindowSize()[0] || opts.defaultWidth;
-  } else {
-    if (opts.tty.getWindowSize) {
-      return opts.tty.getWindowSize()[1] || opts.defaultWidth;
-    } else {
-      if (opts.output.columns) {
-        return opts.output.columns;
-      } else {
-        if (process.env.CLI_WIDTH) {
-          var width = parseInt(process.env.CLI_WIDTH, 10);
+  }
 
-          if (!isNaN(width) && width !== 0) {
-            return width;
-          }
-        }
-      }
+  if (opts.tty.getWindowSize) {
+    return opts.tty.getWindowSize()[1] || opts.defaultWidth;
+  }
 
-      return opts.defaultWidth;
+  if (opts.output.columns) {
+    return opts.output.columns;
+  }
+
+  if (process.env.CLI_WIDTH) {
+    var width = parseInt(process.env.CLI_WIDTH, 10);
+
+    if (!isNaN(width) && width !== 0) {
+      return width;
     }
   }
+
+  return opts.defaultWidth;
 };

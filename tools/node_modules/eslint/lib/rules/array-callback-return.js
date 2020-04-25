@@ -30,22 +30,6 @@ function isReachable(segment) {
 }
 
 /**
- * Gets a readable location.
- *
- * - FunctionExpression -> the function name or `function` keyword.
- * - ArrowFunctionExpression -> `=>` token.
- * @param {ASTNode} node A function node to get.
- * @param {SourceCode} sourceCode A source code to get tokens.
- * @returns {ASTNode|Token} The node or the token of a location.
- */
-function getLocation(node, sourceCode) {
-    if (node.type === "ArrowFunctionExpression") {
-        return sourceCode.getTokenBefore(node.body);
-    }
-    return node.id || node;
-}
-
-/**
  * Checks a given node is a MemberExpression node which has the specified name's
  * property.
  * @param {ASTNode} node A node to check.
@@ -179,6 +163,7 @@ module.exports = {
     create(context) {
 
         const options = context.options[0] || { allowImplicit: false, checkForEach: false };
+        const sourceCode = context.getSourceCode();
 
         let funcInfo = {
             arrayMethodName: null,
@@ -217,12 +202,12 @@ module.exports = {
             }
 
             if (messageId) {
-                let name = astUtils.getFunctionNameWithKind(funcInfo.node);
+                let name = astUtils.getFunctionNameWithKind(node);
 
                 name = messageId === "expectedNoReturnValue" ? lodash.upperFirst(name) : name;
                 context.report({
                     node,
-                    loc: getLocation(node, context.getSourceCode()).loc.start,
+                    loc: astUtils.getFunctionHeadLoc(node, sourceCode),
                     messageId,
                     data: { name }
                 });

@@ -280,6 +280,18 @@ class CascadingConfigArrayFactory {
     }
 
     /**
+     * Set the config data to override all configs.
+     * Require to call `clearCache()` method after this method is called.
+     * @param {ConfigData} configData The config data to override all configs.
+     * @returns {void}
+     */
+    setOverrideConfig(configData) {
+        const slots = internalSlotsMap.get(this);
+
+        slots.cliConfigData = configData;
+    }
+
+    /**
      * Clear config cache.
      * @returns {void}
      */

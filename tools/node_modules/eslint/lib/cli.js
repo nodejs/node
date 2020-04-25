@@ -17,105 +17,176 @@
 
 const fs = require("fs"),
     path = require("path"),
-    { CLIEngine } = require("./cli-engine"),
-    options = require("./options"),
+    { promisify } = require("util"),
+    { ESLint } = require("./eslint"),
+    CLIOptions = require("./options"),
     log = require("./shared/logging"),
     RuntimeInfo = require("./shared/runtime-info");
 
 const debug = require("debug")("eslint:cli");
 
 //------------------------------------------------------------------------------
+// Types
+//------------------------------------------------------------------------------
+
+/** @typedef {import("./eslint/eslint").ESLintOptions} ESLintOptions */
+/** @typedef {import("./eslint/eslint").LintMessage} LintMessage */
+/** @typedef {import("./eslint/eslint").LintResult} LintResult */
+
+//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
+
+const mkdir = promisify(fs.mkdir);
+const stat = promisify(fs.stat);
+const writeFile = promisify(fs.writeFile);
 
 /**
  * Predicate function for whether or not to apply fixes in quiet mode.
  * If a message is a warning, do not apply a fix.
- * @param {LintResult} lintResult The lint result.
+ * @param {LintMessage} message The lint result.
  * @returns {boolean} True if the lint message is an error (and thus should be
  * autofixed), false otherwise.
  */
-function quietFixPredicate(lintResult) {
-    return lintResult.severity === 2;
+function quietFixPredicate(message) {
+    return message.severity === 2;
 }
 
 /**
  * Translates the CLI options into the options expected by the CLIEngine.
  * @param {Object} cliOptions The CLI options to translate.
- * @returns {CLIEngineOptions} The options object for the CLIEngine.
+ * @returns {ESLintOptions} The options object for the CLIEngine.
  * @private
  */
-function translateOptions(cliOptions) {
+function translateOptions({
+    cache,
+    cacheFile,
+    cacheLocation,
+    config,
+    env,
+    errorOnUnmatchedPattern,
+    eslintrc,
+    ext,
+    fix,
+    fixDryRun,
+    fixType,
+    global,
+    ignore,
+    ignorePath,
+    ignorePattern,
+    inlineConfig,
+    parser,
+    parserOptions,
+    plugin,
+    quiet,
+    reportUnusedDisableDirectives,
+    resolvePluginsRelativeTo,
+    rule,
+    rulesdir
+}) {
     return {
-        envs: cliOptions.env,
-        extensions: cliOptions.ext,
-        rules: cliOptions.rule,
-        plugins: cliOptions.plugin,
-        globals: cliOptions.global,
-        ignore: cliOptions.ignore,
-        ignorePath: cliOptions.ignorePath,
-        ignorePattern: cliOptions.ignorePattern,
-        configFile: cliOptions.config,
-        rulePaths: cliOptions.rulesdir,
-        useEslintrc: cliOptions.eslintrc,
-        parser: cliOptions.parser,
-        parserOptions: cliOptions.parserOptions,
-        cache: cliOptions.cache,
-        cacheFile: cliOptions.cacheFile,
-        cacheLocation: cliOptions.cacheLocation,
-        fix: (cliOptions.fix || cliOptions.fixDryRun) && (cliOptions.quiet ? quietFixPredicate : true),
-        fixTypes: cliOptions.fixType,
-        allowInlineConfig: cliOptions.inlineConfig,
-        reportUnusedDisableDirectives: cliOptions.reportUnusedDisableDirectives,
-        resolvePluginsRelativeTo: cliOptions.resolvePluginsRelativeTo,
-        errorOnUnmatchedPattern: cliOptions.errorOnUnmatchedPattern
+        allowInlineConfig: inlineConfig,
+        cache,
+        cacheLocation: cacheLocation || cacheFile,
+        errorOnUnmatchedPattern,
+        extensions: ext,
+        fix: (fix || fixDryRun) && (quiet ? quietFixPredicate : true),
+        fixTypes: fixType,
+        ignore,
+        ignorePath,
+        overrideConfig: {
+            env: env && env.reduce((obj, name) => {
+                obj[name] = true;
+                return obj;
+            }, {}),
+            globals: global && global.reduce((obj, name) => {
+                if (name.endsWith(":true")) {
+                    obj[name.slice(0, -5)] = "writable";
+                } else {
+                    obj[name] = "readonly";
+                }
+                return obj;
+            }, {}),
+            ignorePatterns: ignorePattern,
+            parser,
+            parserOptions,
+            plugins: plugin,
+            rules: rule
+        },
+        overrideConfigFile: config,
+        reportUnusedDisableDirectives: reportUnusedDisableDirectives ? "error" : void 0,
+        resolvePluginsRelativeTo,
+        rulePaths: rulesdir,
+        useEslintrc: eslintrc
     };
 }
 
 /**
+ * Count error messages.
+ * @param {LintResult[]} results The lint results.
+ * @returns {{errorCount:number;warningCount:number}} The number of error messages.
+ */
+function countErrors(results) {
+    let errorCount = 0;
+    let warningCount = 0;
+
+    for (const result of results) {
+        errorCount += result.errorCount;
+        warningCount += result.warningCount;
+    }
+
+    return { errorCount, warningCount };
+}
+
+/**
+ * Check if a given file path is a directory or not.
+ * @param {string} filePath The path to a file to check.
+ * @returns {Promise<boolean>} `true` if the given path is a directory.
+ */
+async function isDirectory(filePath) {
+    try {
+        return (await stat(filePath)).isDirectory();
+    } catch (error) {
+        if (error.code === "ENOENT" || error.code === "ENOTDIR") {
+            return false;
+        }
+        throw error;
+    }
+}
+
+/**
  * Outputs the results of the linting.
- * @param {CLIEngine} engine The CLIEngine to use.
+ * @param {ESLint} engine The ESLint instance to use.
  * @param {LintResult[]} results The results to print.
  * @param {string} format The name of the formatter to use or the path to the formatter.
  * @param {string} outputFile The path for the output file.
- * @returns {boolean} True if the printing succeeds, false if not.
+ * @returns {Promise<boolean>} True if the printing succeeds, false if not.
  * @private
  */
-function printResults(engine, results, format, outputFile) {
+async function printResults(engine, results, format, outputFile) {
     let formatter;
-    let rulesMeta;
 
     try {
-        formatter = engine.getFormatter(format);
+        formatter = await engine.loadFormatter(format);
     } catch (e) {
         log.error(e.message);
         return false;
     }
 
-    const output = formatter(results, {
-        get rulesMeta() {
-            if (!rulesMeta) {
-                rulesMeta = {};
-                for (const [ruleId, rule] of engine.getRules()) {
-                    rulesMeta[ruleId] = rule.meta;
-                }
-            }
-            return rulesMeta;
-        }
-    });
+    const output = formatter.format(results);
 
     if (output) {
         if (outputFile) {
             const filePath = path.resolve(process.cwd(), outputFile);
 
-            if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+            if (await isDirectory(filePath)) {
                 log.error("Cannot write to output file path, it is a directory: %s", outputFile);
                 return false;
             }
 
             try {
-                fs.mkdirSync(path.dirname(filePath), { recursive: true });
-                fs.writeFileSync(filePath, output);
+                await mkdir(path.dirname(filePath), { recursive: true });
+                await writeFile(filePath, output);
             } catch (ex) {
                 log.error("There was a problem writing the output file:\n%s", ex);
                 return false;
@@ -126,7 +197,6 @@ function printResults(engine, results, format, outputFile) {
     }
 
     return true;
-
 }
 
 //------------------------------------------------------------------------------
@@ -143,28 +213,33 @@ const cli = {
      * Executes the CLI based on an array of arguments that is passed in.
      * @param {string|Array|Object} args The arguments to process.
      * @param {string} [text] The text to lint (used for TTY).
-     * @returns {int} The exit code for the operation.
+     * @returns {Promise<number>} The exit code for the operation.
      */
-    execute(args, text) {
+    async execute(args, text) {
         if (Array.isArray(args)) {
             debug("CLI args: %o", args.slice(2));
         }
-
-        let currentOptions;
+        let options;
 
         try {
-            currentOptions = options.parse(args);
+            options = CLIOptions.parse(args);
         } catch (error) {
             log.error(error.message);
             return 2;
         }
 
-        const files = currentOptions._;
+        const files = options._;
         const useStdin = typeof text === "string";
 
-        if (currentOptions.version) {
+        if (options.help) {
+            log.info(CLIOptions.generateHelp());
+            return 0;
+        }
+        if (options.version) {
             log.info(RuntimeInfo.version());
-        } else if (currentOptions.envInfo) {
+            return 0;
+        }
+        if (options.envInfo) {
             try {
                 log.info(RuntimeInfo.environment());
                 return 0;
@@ -172,7 +247,9 @@ const cli = {
                 log.error(err.message);
                 return 2;
             }
-        } else if (currentOptions.printConfig) {
+        }
+
+        if (options.printConfig) {
             if (files.length) {
                 log.error("The --print-config option must be used with exactly one file name.");
                 return 2;
@@ -182,58 +259,67 @@ const cli = {
                 return 2;
             }
 
-            const engine = new CLIEngine(translateOptions(currentOptions));
-            const fileConfig = engine.getConfigForFile(currentOptions.printConfig);
+            const engine = new ESLint(translateOptions(options));
+            const fileConfig =
+                await engine.calculateConfigForFile(options.printConfig);
 
             log.info(JSON.stringify(fileConfig, null, "  "));
             return 0;
-        } else if (currentOptions.help || (!files.length && !useStdin)) {
-            log.info(options.generateHelp());
-        } else {
-            debug(`Running on ${useStdin ? "text" : "files"}`);
+        }
 
-            if (currentOptions.fix && currentOptions.fixDryRun) {
-                log.error("The --fix option and the --fix-dry-run option cannot be used together.");
-                return 2;
-            }
+        debug(`Running on ${useStdin ? "text" : "files"}`);
 
-            if (useStdin && currentOptions.fix) {
-                log.error("The --fix option is not available for piped-in code; use --fix-dry-run instead.");
-                return 2;
-            }
-
-            if (currentOptions.fixType && !currentOptions.fix && !currentOptions.fixDryRun) {
-                log.error("The --fix-type option requires either --fix or --fix-dry-run.");
-                return 2;
-            }
-
-            const engine = new CLIEngine(translateOptions(currentOptions));
-            const report = useStdin ? engine.executeOnText(text, currentOptions.stdinFilename, true) : engine.executeOnFiles(files);
-
-            if (currentOptions.fix) {
-                debug("Fix mode enabled - applying fixes");
-                CLIEngine.outputFixes(report);
-            }
-
-            if (currentOptions.quiet) {
-                debug("Quiet mode enabled - filtering out warnings");
-                report.results = CLIEngine.getErrorResults(report.results);
-            }
-
-            if (printResults(engine, report.results, currentOptions.format, currentOptions.outputFile)) {
-                const tooManyWarnings = currentOptions.maxWarnings >= 0 && report.warningCount > currentOptions.maxWarnings;
-
-                if (!report.errorCount && tooManyWarnings) {
-                    log.error("ESLint found too many warnings (maximum: %s).", currentOptions.maxWarnings);
-                }
-
-                return (report.errorCount || tooManyWarnings) ? 1 : 0;
-            }
-
+        if (options.fix && options.fixDryRun) {
+            log.error("The --fix option and the --fix-dry-run option cannot be used together.");
+            return 2;
+        }
+        if (useStdin && options.fix) {
+            log.error("The --fix option is not available for piped-in code; use --fix-dry-run instead.");
+            return 2;
+        }
+        if (options.fixType && !options.fix && !options.fixDryRun) {
+            log.error("The --fix-type option requires either --fix or --fix-dry-run.");
             return 2;
         }
 
-        return 0;
+        const engine = new ESLint(translateOptions(options));
+        let results;
+
+        if (useStdin) {
+            results = await engine.lintText(text, {
+                filePath: options.stdinFilename,
+                warnIgnored: true
+            });
+        } else {
+            results = await engine.lintFiles(files);
+        }
+
+        if (options.fix) {
+            debug("Fix mode enabled - applying fixes");
+            await ESLint.outputFixes(results);
+        }
+
+        if (options.quiet) {
+            debug("Quiet mode enabled - filtering out warnings");
+            results = ESLint.getErrorResults(results);
+        }
+
+        if (await printResults(engine, results, options.format, options.outputFile)) {
+            const { errorCount, warningCount } = countErrors(results);
+            const tooManyWarnings =
+                options.maxWarnings >= 0 && warningCount > options.maxWarnings;
+
+            if (!errorCount && tooManyWarnings) {
+                log.error(
+                    "ESLint found too many warnings (maximum: %s).",
+                    options.maxWarnings
+                );
+            }
+
+            return (errorCount || tooManyWarnings) ? 1 : 0;
+        }
+
+        return 2;
     }
 };
 

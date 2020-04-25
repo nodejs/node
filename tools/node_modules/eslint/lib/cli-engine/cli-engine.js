@@ -39,6 +39,7 @@ const validFixTypes = new Set(["problem", "suggestion", "layout"]);
 
 // For VSCode IntelliSense
 /** @typedef {import("../shared/types").ConfigData} ConfigData */
+/** @typedef {import("../shared/types").DeprecatedRuleInfo} DeprecatedRuleInfo */
 /** @typedef {import("../shared/types").LintMessage} LintMessage */
 /** @typedef {import("../shared/types").ParserOptions} ParserOptions */
 /** @typedef {import("../shared/types").Plugin} Plugin */
@@ -50,29 +51,29 @@ const validFixTypes = new Set(["problem", "suggestion", "layout"]);
 /**
  * The options to configure a CLI engine with.
  * @typedef {Object} CLIEngineOptions
- * @property {boolean} allowInlineConfig Enable or disable inline configuration comments.
- * @property {ConfigData} baseConfig Base config object, extended by all configs used with this CLIEngine instance
- * @property {boolean} cache Enable result caching.
- * @property {string} cacheLocation The cache file to use instead of .eslintcache.
- * @property {string} configFile The configuration file to use.
- * @property {string} cwd The value to use for the current working directory.
- * @property {string[]} envs An array of environments to load.
- * @property {string[]|null} extensions An array of file extensions to check.
- * @property {boolean|Function} fix Execute in autofix mode. If a function, should return a boolean.
- * @property {string[]} fixTypes Array of rule types to apply fixes for.
- * @property {string[]} globals An array of global variables to declare.
- * @property {boolean} ignore False disables use of .eslintignore.
- * @property {string} ignorePath The ignore file to use instead of .eslintignore.
- * @property {string|string[]} ignorePattern One or more glob patterns to ignore.
- * @property {boolean} useEslintrc False disables looking for .eslintrc
- * @property {string} parser The name of the parser to use.
- * @property {ParserOptions} parserOptions An object of parserOption settings to use.
- * @property {string[]} plugins An array of plugins to load.
- * @property {Record<string,RuleConf>} rules An object of rules to use.
- * @property {string[]} rulePaths An array of directories to load custom rules from.
- * @property {boolean} reportUnusedDisableDirectives `true` adds reports for unused eslint-disable directives
- * @property {boolean} globInputPaths Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
- * @property {string} resolvePluginsRelativeTo The folder where plugins should be resolved from, defaulting to the CWD
+ * @property {boolean} [allowInlineConfig] Enable or disable inline configuration comments.
+ * @property {ConfigData} [baseConfig] Base config object, extended by all configs used with this CLIEngine instance
+ * @property {boolean} [cache] Enable result caching.
+ * @property {string} [cacheLocation] The cache file to use instead of .eslintcache.
+ * @property {string} [configFile] The configuration file to use.
+ * @property {string} [cwd] The value to use for the current working directory.
+ * @property {string[]} [envs] An array of environments to load.
+ * @property {string[]|null} [extensions] An array of file extensions to check.
+ * @property {boolean|Function} [fix] Execute in autofix mode. If a function, should return a boolean.
+ * @property {string[]} [fixTypes] Array of rule types to apply fixes for.
+ * @property {string[]} [globals] An array of global variables to declare.
+ * @property {boolean} [ignore] False disables use of .eslintignore.
+ * @property {string} [ignorePath] The ignore file to use instead of .eslintignore.
+ * @property {string|string[]} [ignorePattern] One or more glob patterns to ignore.
+ * @property {boolean} [useEslintrc] False disables looking for .eslintrc
+ * @property {string} [parser] The name of the parser to use.
+ * @property {ParserOptions} [parserOptions] An object of parserOption settings to use.
+ * @property {string[]} [plugins] An array of plugins to load.
+ * @property {Record<string,RuleConf>} [rules] An object of rules to use.
+ * @property {string[]} [rulePaths] An array of directories to load custom rules from.
+ * @property {boolean} [reportUnusedDisableDirectives] `true` adds reports for unused eslint-disable directives
+ * @property {boolean} [globInputPaths] Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
+ * @property {string} [resolvePluginsRelativeTo] The folder where plugins should be resolved from, defaulting to the CWD
  */
 
 /**
@@ -86,13 +87,6 @@ const validFixTypes = new Set(["problem", "suggestion", "layout"]);
  * @property {number} fixableWarningCount Number of fixable warnings for the result.
  * @property {string} [source] The source code of the file that was linted.
  * @property {string} [output] The source code of the file that was linted, with as many fixes applied as possible.
- */
-
-/**
- * Information of deprecated rules.
- * @typedef {Object} DeprecatedRuleInfo
- * @property {string} ruleId The rule ID.
- * @property {string[]} replacedBy The rule IDs that replace this deprecated rule.
  */
 
 /**
@@ -821,16 +815,22 @@ class CLIEngine {
             lintResultCache.reconcile();
         }
 
-        // Collect used deprecated rules.
-        const usedDeprecatedRules = Array.from(
-            iterateRuleDeprecationWarnings(lastConfigArrays)
-        );
-
         debug(`Linting complete in: ${Date.now() - startTime}ms`);
+        let usedDeprecatedRules;
+
         return {
             results,
             ...calculateStatsPerRun(results),
-            usedDeprecatedRules
+
+            // Initialize it lazily because CLI and `ESLint` API don't use it.
+            get usedDeprecatedRules() {
+                if (!usedDeprecatedRules) {
+                    usedDeprecatedRules = Array.from(
+                        iterateRuleDeprecationWarnings(lastConfigArrays)
+                    );
+                }
+                return usedDeprecatedRules;
+            }
         };
     }
 
@@ -858,9 +858,9 @@ class CLIEngine {
         const startTime = Date.now();
         const resolvedFilename = filename && path.resolve(cwd, filename);
 
+
         // Clear the last used config arrays.
         lastConfigArrays.length = 0;
-
         if (resolvedFilename && this.isPathIgnored(resolvedFilename)) {
             if (warnIgnored) {
                 results.push(createIgnoreResult(resolvedFilename, cwd));
@@ -892,16 +892,22 @@ class CLIEngine {
             }));
         }
 
-        // Collect used deprecated rules.
-        const usedDeprecatedRules = Array.from(
-            iterateRuleDeprecationWarnings(lastConfigArrays)
-        );
-
         debug(`Linting complete in: ${Date.now() - startTime}ms`);
+        let usedDeprecatedRules;
+
         return {
             results,
             ...calculateStatsPerRun(results),
-            usedDeprecatedRules
+
+            // Initialize it lazily because CLI and `ESLint` API don't use it.
+            get usedDeprecatedRules() {
+                if (!usedDeprecatedRules) {
+                    usedDeprecatedRules = Array.from(
+                        iterateRuleDeprecationWarnings(lastConfigArrays)
+                    );
+                }
+                return usedDeprecatedRules;
+            }
         };
     }
 
@@ -955,11 +961,10 @@ class CLIEngine {
     }
 
     /**
-     * Returns the formatter representing the given format or null if no formatter
-     * with the given name can be found.
+     * Returns the formatter representing the given format or null if the `format` is not a string.
      * @param {string} [format] The name of the format to load or the path to a
      *      custom formatter.
-     * @returns {Function} The formatter function or null if not found.
+     * @returns {(Function|null)} The formatter function or null if the `format` is not a string.
      */
     getFormatter(format) {
 

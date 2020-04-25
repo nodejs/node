@@ -48,6 +48,10 @@ function isShadowed(scope, node) {
 
 module.exports = {
     meta: {
+        deprecated: true,
+
+        replacedBy: ["node/global-require"],
+
         type: "suggestion",
 
         docs: {
