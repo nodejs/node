@@ -10,6 +10,10 @@
 
 module.exports = {
     meta: {
+        deprecated: true,
+
+        replacedBy: ["node/callback-return"],
+
         type: "suggestion",
 
         docs: {

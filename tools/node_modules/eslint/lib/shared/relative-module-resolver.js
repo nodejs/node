@@ -11,6 +11,7 @@ const Module = require("module");
  * `Module.createRequire` is added in v12.2.0. It supports URL as well.
  * We only support the case where the argument is a filepath, not a URL.
  */
+// eslint-disable-next-line node/no-unsupported-features/node-builtins, node/no-deprecated-api
 const createRequire = Module.createRequire || Module.createRequireFromPath;
 
 module.exports = {

@@ -10,6 +10,10 @@
 
 module.exports = {
     meta: {
+        deprecated: true,
+
+        replacedBy: ["node/no-deprecated-api"],
+
         type: "problem",
 
         docs: {

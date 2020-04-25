@@ -107,7 +107,7 @@ function getMatchedIndices(elements, filePath) {
     for (let i = elements.length - 1; i >= 0; --i) {
         const element = elements[i];
 
-        if (!element.criteria || element.criteria.test(filePath)) {
+        if (!element.criteria || (filePath && element.criteria.test(filePath))) {
             indices.push(i);
         }
     }

@@ -71,7 +71,13 @@ function getCommonAncestorPath(sourcePaths) {
         }
     }
 
-    return result || path.sep;
+    let resolvedResult = result || path.sep;
+
+    // if Windows common ancestor is root of drive must have trailing slash to be absolute.
+    if (resolvedResult && resolvedResult.endsWith(":") && process.platform === "win32") {
+        resolvedResult += path.sep;
+    }
+    return resolvedResult;
 }
 
 /**

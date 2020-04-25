@@ -105,7 +105,7 @@ module.exports = {
 
                     context.report({
                         node,
-                        loc: operatorToken.loc.start,
+                        loc: operatorToken.loc,
                         messageId: "unexpectedConcat"
                     });
                 }

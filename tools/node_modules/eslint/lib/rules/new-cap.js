@@ -235,7 +235,7 @@ module.exports = {
                 callee = callee.property;
             }
 
-            context.report({ node, loc: callee.loc.start, messageId });
+            context.report({ node, loc: callee.loc, messageId });
         }
 
         //--------------------------------------------------------------------------

@@ -560,7 +560,11 @@ module.exports = {
                 tokensToIgnore.add(secondToken);
             }
 
-            if (hasExcessParens(node)) {
+            const hasExtraParens = node.parent.type === "ExportDefaultDeclaration"
+                ? hasExcessParensWithPrecedence(node, PRECEDENCE_OF_ASSIGNMENT_EXPR)
+                : hasExcessParens(node);
+
+            if (hasExtraParens) {
                 report(node);
             }
         }
