@@ -45,7 +45,7 @@ function isSingleLine(node) {
 /**
  * Checks whether the properties on a single line.
  * @param {ASTNode[]} properties List of Property AST nodes.
- * @returns {boolean} True if all properies is on a single line.
+ * @returns {boolean} True if all properties is on a single line.
  */
 function isSingleLineProperties(properties) {
     const [firstProp] = properties,

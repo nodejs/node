@@ -1,6 +1,4 @@
-<img src="doc/asset/Rx_Logo_S.png" alt="RxJS Logo" width="86" height="86"> RxJS: Reactive Extensions For JavaScript
-======================================
-
+# <img src="docs_app/assets/Rx_Logo_S.png" alt="RxJS Logo" width="86" height="86"> RxJS: Reactive Extensions For JavaScript
 
 [![CircleCI](https://circleci.com/gh/ReactiveX/rxjs/tree/6.x.svg?style=svg)](https://circleci.com/gh/ReactiveX/rxjs/tree/6.x)
 [![npm version](https://badge.fury.io/js/%40reactivex%2Frxjs.svg)](http://badge.fury.io/js/%40reactivex%2Frxjs)
@@ -22,9 +20,8 @@ Reactive Extensions Library for JavaScript. This is a rewrite of [Reactive-Exten
 
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Contribution Guidelines](CONTRIBUTING.md)
-- [Maintainer Guidelines](doc/maintainer-guidelines.md)
-- [Creating Operators](doc/operator-creation.md)
-- [API Documentation (WIP)](https://rxjs.dev/)
+- [Maintainer Guidelines](doc_app/content/maintainer-guidelines.md)
+- [API Documentation](https://rxjs.dev/)
 
 ## Versions In This Repository
 
@@ -45,14 +42,16 @@ npm install rxjs
 
 It's recommended to pull in the Observable creation methods you need directly from `'rxjs'` as shown below with `range`. And you can pull in any operator you need from one spot, under `'rxjs/operators'`.
 
-```js
-import { range } from 'rxjs';
-import { map, filter } from 'rxjs/operators';
+```ts
+import { range } from "rxjs";
+import { map, filter } from "rxjs/operators";
 
-range(1, 200).pipe(
-  filter(x => x % 2 === 1),
-  map(x => x + x)
-).subscribe(x => console.log(x));
+range(1, 200)
+  .pipe(
+    filter(x => x % 2 === 1),
+    map(x => x + x)
+  )
+  .subscribe(x => console.log(x));
 ```
 
 Here, we're using the built-in `pipe` method on Observables to combine operators. See [pipeable operators](https://github.com/ReactiveX/rxjs/blob/master/doc/pipeable-operators.md) for more information.
@@ -89,10 +88,12 @@ The global namespace for rxjs is `rxjs`:
 const { range } = rxjs;
 const { map, filter } = rxjs.operators;
 
-range(1, 200).pipe(
-  filter(x => x % 2 === 1),
-  map(x => x + x)
-).subscribe(x => console.log(x));
+range(1, 200)
+  .pipe(
+    filter(x => x % 2 === 1),
+    map(x => x + x)
+  )
+  .subscribe(x => console.log(x));
 ```
 
 ## Goals
@@ -116,6 +117,7 @@ Run `npm run build_perf` or `npm run perf` to run the performance tests with `pr
 Run `npm run perf_micro [operator]` to run micro performance test benchmarking operator.
 
 ## Adding documentation
+
 We appreciate all contributions to the documentation of any type. All of the information needed to get the docs app up and running locally as well as how to contribute can be found in the [documentation directory](./docs_app).
 
 ## Generating PNG marble diagrams

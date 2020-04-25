@@ -902,7 +902,9 @@
 
     var observable = (function () { return typeof Symbol === 'function' && Symbol.observable || '@@observable'; })();
 
-    function noop() { }
+    function identity(x) {
+        return x;
+    }
 
     function pipe() {
         var fns = [];
@@ -912,8 +914,8 @@
         return pipeFromArray(fns);
     }
     function pipeFromArray(fns) {
-        if (!fns) {
-            return noop;
+        if (fns.length === 0) {
+            return identity;
         }
         if (fns.length === 1) {
             return fns[0];
@@ -2393,9 +2395,7 @@
         return VirtualAction;
     }(AsyncAction));
 
-    function identity(x) {
-        return x;
-    }
+    function noop() { }
 
     function isObservable(obj) {
         return !!obj && (obj instanceof Observable || (typeof obj.lift === 'function' && typeof obj.subscribe === 'function'));
@@ -9170,29 +9170,38 @@
         return new Observable(function (subscriber) {
             var controller = new AbortController();
             var signal = controller.signal;
-            var outerSignalHandler;
             var abortable = true;
             var unsubscribed = false;
+            var subscription = new Subscription();
+            subscription.add(function () {
+                unsubscribed = true;
+                if (abortable) {
+                    controller.abort();
+                }
+            });
+            var perSubscriberInit;
             if (init) {
                 if (init.signal) {
                     if (init.signal.aborted) {
                         controller.abort();
                     }
                     else {
-                        outerSignalHandler = function () {
+                        var outerSignal_1 = init.signal;
+                        var outerSignalHandler_1 = function () {
                             if (!signal.aborted) {
                                 controller.abort();
                             }
                         };
-                        init.signal.addEventListener('abort', outerSignalHandler);
+                        outerSignal_1.addEventListener('abort', outerSignalHandler_1);
+                        subscription.add(function () { return outerSignal_1.removeEventListener('abort', outerSignalHandler_1); });
                     }
                 }
-                init = __assign({}, init, { signal: signal });
+                perSubscriberInit = __assign({}, init, { signal: signal });
             }
             else {
-                init = { signal: signal };
+                perSubscriberInit = { signal: signal };
             }
-            fetch(input, init).then(function (response) {
+            fetch(input, perSubscriberInit).then(function (response) {
                 abortable = false;
                 subscriber.next(response);
                 subscriber.complete();
@@ -9202,12 +9211,7 @@
                     subscriber.error(err);
                 }
             });
-            return function () {
-                unsubscribed = true;
-                if (abortable) {
-                    controller.abort();
-                }
-            };
+            return subscription;
         });
     }
 

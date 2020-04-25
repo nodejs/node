@@ -817,7 +817,7 @@ class ConfigArrayFactory {
         if (configData) {
             return this._normalizeConfigData(configData, {
                 ...ctx,
-                filePath: plugin.filePath,
+                filePath: plugin.filePath || ctx.filePath,
                 name: `${ctx.name} » plugin:${plugin.id}/${configName}`
             });
         }
@@ -978,7 +978,7 @@ class ConfigArrayFactory {
         if (plugin) {
             return new ConfigDependency({
                 definition: normalizePlugin(plugin),
-                filePath: ctx.filePath,
+                filePath: "", // It's unknown where the plugin came from.
                 id,
                 importerName: ctx.name,
                 importerPath: ctx.filePath

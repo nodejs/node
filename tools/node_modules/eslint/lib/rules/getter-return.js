@@ -25,17 +25,6 @@ function isReachable(segment) {
     return segment.reachable;
 }
 
-/**
- * Gets a readable location.
- *
- * - FunctionExpression -> the function name or `function` keyword.
- * @param {ASTNode} node A function node to get.
- * @returns {ASTNode|Token} The node or the token of a location.
- */
-function getId(node) {
-    return node.id || node;
-}
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -75,6 +64,7 @@ module.exports = {
     create(context) {
 
         const options = context.options[0] || { allowImplicit: false };
+        const sourceCode = context.getSourceCode();
 
         let funcInfo = {
             upper: null,
@@ -99,7 +89,7 @@ module.exports = {
             ) {
                 context.report({
                     node,
-                    loc: getId(node).loc.start,
+                    loc: astUtils.getFunctionHeadLoc(node, sourceCode),
                     messageId: funcInfo.hasReturn ? "expectedAlways" : "expected",
                     data: {
                         name: astUtils.getFunctionNameWithKind(funcInfo.node)

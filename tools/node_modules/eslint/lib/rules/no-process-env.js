@@ -10,6 +10,10 @@
 
 module.exports = {
     meta: {
+        deprecated: true,
+
+        replacedBy: ["node/no-process-env"],
+
         type: "suggestion",
 
         docs: {

@@ -46,8 +46,6 @@ var Flatted = (function (Primitive, primitive) {
           if (firstRun) {
             firstRun = !firstRun;
             return value;
-            // this was invoking twice each root object
-            // return i < 1 ? value : $.call(this, key, value);
           }
           var after = $.call(this, key, value);
           switch (typeof after) {

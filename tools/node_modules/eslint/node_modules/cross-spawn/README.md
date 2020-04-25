@@ -3,10 +3,10 @@
 [![NPM version][npm-image]][npm-url] [![Downloads][downloads-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Build status][appveyor-image]][appveyor-url] [![Coverage Status][codecov-image]][codecov-url] [![Dependency status][david-dm-image]][david-dm-url] [![Dev Dependency status][david-dm-dev-image]][david-dm-dev-url]
 
 [npm-url]:https://npmjs.org/package/cross-spawn
-[downloads-image]:http://img.shields.io/npm/dm/cross-spawn.svg
-[npm-image]:http://img.shields.io/npm/v/cross-spawn.svg
+[downloads-image]:https://img.shields.io/npm/dm/cross-spawn.svg
+[npm-image]:https://img.shields.io/npm/v/cross-spawn.svg
 [travis-url]:https://travis-ci.org/moxystudio/node-cross-spawn
-[travis-image]:http://img.shields.io/travis/moxystudio/node-cross-spawn/master.svg
+[travis-image]:https://img.shields.io/travis/moxystudio/node-cross-spawn/master.svg
 [appveyor-url]:https://ci.appveyor.com/project/satazor/node-cross-spawn
 [appveyor-image]:https://img.shields.io/appveyor/ci/satazor/node-cross-spawn/master.svg
 [codecov-url]:https://codecov.io/gh/moxystudio/node-cross-spawn
@@ -93,4 +93,4 @@ Remember to always test your code on Windows!
 
 ## License
 
-Released under the [MIT License](http://www.opensource.org/licenses/mit-license.php).
+Released under the [MIT License](https://www.opensource.org/licenses/mit-license.php).
