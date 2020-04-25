@@ -6,6 +6,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -28,10 +34,17 @@ module.exports = {
     },
 
     create(context) {
-
         return {
-
             NewExpression(node) {
+                const variable = astUtils.getVariableByName(
+                    context.getScope(),
+                    node.callee.name
+                );
+
+                if (variable && variable.identifiers.length > 0) {
+                    return;
+                }
+
                 if (node.callee.name === "Object") {
                     context.report({
                         node,
@@ -40,6 +53,5 @@ module.exports = {
                 }
             }
         };
-
     }
 };

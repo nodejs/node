@@ -146,10 +146,7 @@ module.exports = {
                 // lone comma
                 context.report({
                     node: reportItem,
-                    loc: {
-                        line: commaToken.loc.end.line,
-                        column: commaToken.loc.start.column
-                    },
+                    loc: commaToken.loc,
                     messageId: "unexpectedLineBeforeAndAfterComma",
                     fix: getFixerFunction(styleType, previousItemToken, commaToken, currentItemToken)
                 });
@@ -158,6 +155,7 @@ module.exports = {
 
                 context.report({
                     node: reportItem,
+                    loc: commaToken.loc,
                     messageId: "expectedCommaFirst",
                     fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
                 });
@@ -166,10 +164,7 @@ module.exports = {
 
                 context.report({
                     node: reportItem,
-                    loc: {
-                        line: commaToken.loc.end.line,
-                        column: commaToken.loc.end.column
-                    },
+                    loc: commaToken.loc,
                     messageId: "expectedCommaLast",
                     fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
                 });

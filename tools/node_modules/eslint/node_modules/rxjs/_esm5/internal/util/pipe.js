@@ -1,5 +1,5 @@
-/** PURE_IMPORTS_START _noop PURE_IMPORTS_END */
-import { noop } from './noop';
+/** PURE_IMPORTS_START _identity PURE_IMPORTS_END */
+import { identity } from './identity';
 export function pipe() {
     var fns = [];
     for (var _i = 0; _i < arguments.length; _i++) {
@@ -8,8 +8,8 @@ export function pipe() {
     return pipeFromArray(fns);
 }
 export function pipeFromArray(fns) {
-    if (!fns) {
-        return noop;
+    if (fns.length === 0) {
+        return identity;
     }
     if (fns.length === 1) {
         return fns[0];

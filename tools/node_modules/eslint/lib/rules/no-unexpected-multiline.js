@@ -53,7 +53,11 @@ module.exports = {
             const nodeExpressionEnd = sourceCode.getTokenBefore(openParen);
 
             if (openParen.loc.start.line !== nodeExpressionEnd.loc.end.line) {
-                context.report({ node, loc: openParen.loc.start, messageId, data: { char: openParen.value } });
+                context.report({
+                    node,
+                    loc: openParen.loc,
+                    messageId
+                });
             }
         }
 
@@ -71,18 +75,24 @@ module.exports = {
             },
 
             TaggedTemplateExpression(node) {
-                if (node.tag.loc.end.line === node.quasi.loc.start.line) {
-                    return;
+                const { quasi } = node;
+
+                // handles common tags, parenthesized tags, and typescript's generic type arguments
+                const tokenBefore = sourceCode.getTokenBefore(quasi);
+
+                if (tokenBefore.loc.end.line !== quasi.loc.start.line) {
+                    context.report({
+                        node,
+                        loc: {
+                            start: quasi.loc.start,
+                            end: {
+                                line: quasi.loc.start.line,
+                                column: quasi.loc.start.column + 1
+                            }
+                        },
+                        messageId: "taggedTemplate"
+                    });
                 }
-
-                // handle generics type parameters on template tags
-                const tokenBefore = sourceCode.getTokenBefore(node.quasi);
-
-                if (tokenBefore.loc.end.line === node.quasi.loc.start.line) {
-                    return;
-                }
-
-                context.report({ node, loc: node.loc.start, messageId: "taggedTemplate" });
             },
 
             CallExpression(node) {

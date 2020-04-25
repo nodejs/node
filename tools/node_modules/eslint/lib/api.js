@@ -6,6 +6,7 @@
 "use strict";
 
 const { CLIEngine } = require("./cli-engine");
+const { ESLint } = require("./eslint");
 const { Linter } = require("./linter");
 const { RuleTester } = require("./rule-tester");
 const { SourceCode } = require("./source-code");
@@ -13,6 +14,7 @@ const { SourceCode } = require("./source-code");
 module.exports = {
     Linter,
     CLIEngine,
+    ESLint,
     RuleTester,
     SourceCode
 };

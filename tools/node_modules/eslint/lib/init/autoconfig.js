@@ -301,7 +301,7 @@ class Registry {
                 ruleSetIdx += 1;
 
                 if (cb) {
-                    cb(totalFilesLinting); // eslint-disable-line callback-return
+                    cb(totalFilesLinting); // eslint-disable-line node/callback-return
                 }
             });
 
@@ -316,10 +316,10 @@ class Registry {
 /**
  * Extract rule configuration into eslint:recommended where possible.
  *
- * This will return a new config with `"extends": "eslint:recommended"` and
+ * This will return a new config with `["extends": [ ..., "eslint:recommended"]` and
  * only the rules which have configurations different from the recommended config.
  * @param   {Object} config config object
- * @returns {Object}        config object using `"extends": "eslint:recommended"`
+ * @returns {Object}        config object using `"extends": ["eslint:recommended"]`
  */
 function extendFromRecommended(config) {
     const newConfig = Object.assign({}, config);
@@ -333,7 +333,7 @@ function extendFromRecommended(config) {
             delete newConfig.rules[ruleId];
         }
     });
-    newConfig.extends = RECOMMENDED_CONFIG_NAME;
+    newConfig.extends.unshift(RECOMMENDED_CONFIG_NAME);
     return newConfig;
 }
 

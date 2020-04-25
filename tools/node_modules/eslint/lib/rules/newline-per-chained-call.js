@@ -90,16 +90,19 @@ module.exports = {
                 }
 
                 if (depth > ignoreChainWithDepth && astUtils.isTokenOnSameLine(callee.object, callee.property)) {
+                    const firstTokenAfterObject = sourceCode.getTokenAfter(callee.object, astUtils.isNotClosingParenToken);
+
                     context.report({
                         node: callee.property,
-                        loc: callee.property.loc.start,
+                        loc: {
+                            start: firstTokenAfterObject.loc.start,
+                            end: callee.loc.end
+                        },
                         messageId: "expected",
                         data: {
                             callee: getPropertyText(callee)
                         },
                         fix(fixer) {
-                            const firstTokenAfterObject = sourceCode.getTokenAfter(callee.object, astUtils.isNotClosingParenToken);
-
                             return fixer.insertTextBefore(firstTokenAfterObject, "\n");
                         }
                     });

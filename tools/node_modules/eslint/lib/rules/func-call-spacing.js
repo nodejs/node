@@ -63,7 +63,8 @@ module.exports = {
         },
 
         messages: {
-            unexpected: "Unexpected newline between function name and paren.",
+            unexpectedWhitespace: "Unexpected whitespace between function name and paren.",
+            unexpectedNewline: "Unexpected newline between function name and paren.",
             missing: "Missing space between function name and paren."
         }
     },
@@ -116,7 +117,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: leftToken.loc.start,
-                    messageId: "unexpected",
+                    messageId: "unexpectedWhitespace",
                     fix(fixer) {
 
                         /*
@@ -143,7 +144,7 @@ module.exports = {
                 context.report({
                     node,
                     loc: leftToken.loc.start,
-                    messageId: "unexpected",
+                    messageId: "unexpectedNewline",
                     fix(fixer) {
                         return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ");
                     }
