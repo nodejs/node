@@ -1503,6 +1503,21 @@ further errors except from `_destroy` may be emitted as `'error'`.
 ### `stream.finished(stream[, options], callback)`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/32158
+    description: The `finished(stream, cb)` will wait for the `'close'` event
+                 before invoking the callback. The implementation tries to
+                 detect legacy streams and only apply this behavior to streams
+                 which are expected to emit `'close'`.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/31545
+    description: Emitting `'close'` before `'end'` on a `Readable` stream
+                 will cause an `ERR_STREAM_PREMATURE_CLOSE` error.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/31509
+    description: Callback will be invoked on streams which have already
+                 finished before the call to `finished(stream, cb)`.
 -->
 
 * `stream` {Stream} A readable and/or writable stream.
@@ -1580,6 +1595,12 @@ changes:
   - version: v13.10.0
     pr-url: https://github.com/nodejs/node/pull/31223
     description: Add support for async generators.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/32158
+    description: The `pipeline(..., cb)` will wait for the `'close'` event
+                 before invoking the callback. The implementation tries to
+                 detect legacy streams and only apply this behavior to streams
+                 which are expected to emit `'close'`.
 -->
 
 * `source` {Stream|Iterable|AsyncIterable|Function}
