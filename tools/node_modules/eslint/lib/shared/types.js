@@ -141,3 +141,10 @@ module.exports = {};
  * @property {Record<string, Processor>} [processors] The definition of plugin processors.
  * @property {Record<string, Function | Rule>} [rules] The definition of plugin rules.
  */
+
+/**
+ * Information of deprecated rules.
+ * @typedef {Object} DeprecatedRuleInfo
+ * @property {string} ruleId The rule ID.
+ * @property {string[]} replacedBy The rule IDs that replace this deprecated rule.
+ */

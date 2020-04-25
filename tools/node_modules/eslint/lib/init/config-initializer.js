@@ -15,6 +15,7 @@ const util = require("util"),
     inquirer = require("inquirer"),
     ProgressBar = require("progress"),
     semver = require("semver"),
+    espree = require("espree"),
     recConfig = require("../../conf/eslint-recommended"),
     ConfigOps = require("../shared/config-ops"),
     log = require("../shared/logging"),
@@ -30,8 +31,6 @@ const debug = require("debug")("eslint:config-initializer");
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
-
-const DEFAULT_ECMA_VERSION = 2018;
 
 /* istanbul ignore next: hard to test fs function */
 /**
@@ -265,8 +264,7 @@ function processAnswers(answers) {
         extends: []
     };
 
-    // set the latest ECMAScript version
-    config.parserOptions.ecmaVersion = DEFAULT_ECMA_VERSION;
+    config.parserOptions.ecmaVersion = espree.latestEcmaVersion;
     config.env.es6 = true;
     config.globals = {
         Atomics: "readonly",

@@ -1,10 +1,10 @@
-import { noop } from './noop';
+import { identity } from './identity';
 export function pipe(...fns) {
     return pipeFromArray(fns);
 }
 export function pipeFromArray(fns) {
-    if (!fns) {
-        return noop;
+    if (fns.length === 0) {
+        return identity;
     }
     if (fns.length === 1) {
         return fns[0];

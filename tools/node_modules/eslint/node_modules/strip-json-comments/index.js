@@ -17,6 +17,10 @@ const isEscaped = (jsonString, quotePosition) => {
 };
 
 module.exports = (jsonString, options = {}) => {
+	if (typeof jsonString !== 'string') {
+		throw new TypeError(`Expected argument \`jsonString\` to be a \`string\`, got \`${typeof jsonString}\``);
+	}
+
 	const strip = options.whitespace === false ? stripWithoutWhitespace : stripWithWhitespace;
 
 	let insideString = false;

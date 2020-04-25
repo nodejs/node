@@ -20,7 +20,7 @@ const astUtils = require("./utils/ast-utils");
  * @returns {boolean} Whether or not it is a comparison operator.
  */
 function isComparisonOperator(operator) {
-    return (/^(==|===|!=|!==|<|>|<=|>=)$/u).test(operator);
+    return /^(==|===|!=|!==|<|>|<=|>=)$/u.test(operator);
 }
 
 /**
@@ -29,7 +29,7 @@ function isComparisonOperator(operator) {
  * @returns {boolean} Whether or not it is an equality operator.
  */
 function isEqualityOperator(operator) {
-    return (/^(==|===)$/u).test(operator);
+    return /^(==|===)$/u.test(operator);
 }
 
 /**
@@ -50,10 +50,12 @@ function isRangeTestOperator(operator) {
  *                    real literal and should be treated as such.
  */
 function isNegativeNumericLiteral(node) {
-    return (node.type === "UnaryExpression" &&
+    return (
+        node.type === "UnaryExpression" &&
         node.operator === "-" &&
         node.prefix &&
-        astUtils.isNumericLiteral(node.argument));
+        astUtils.isNumericLiteral(node.argument)
+    );
 }
 
 /**
@@ -71,25 +73,21 @@ function isStaticTemplateLiteral(node) {
  * @returns {boolean} True if the node should be treated as a single Literal node.
  */
 function looksLikeLiteral(node) {
-    return isNegativeNumericLiteral(node) ||
-        isStaticTemplateLiteral(node);
+    return isNegativeNumericLiteral(node) || isStaticTemplateLiteral(node);
 }
 
 /**
  * Attempts to derive a Literal node from nodes that are treated like literals.
  * @param {ASTNode} node Node to normalize.
- * @param {number} [defaultValue] The default value to be returned if the node
- *                                is not a Literal.
  * @returns {ASTNode} One of the following options.
  *  1. The original node if the node is already a Literal
  *  2. A normalized Literal node with the negative number as the value if the
  *     node represents a negative number literal.
  *  3. A normalized Literal node with the string as the value if the node is
  *     a Template Literal without expression.
- *  4. The Literal node which has the `defaultValue` argument if it exists.
- *  5. Otherwise `null`.
+ *  4. Otherwise `null`.
  */
-function getNormalizedLiteral(node, defaultValue) {
+function getNormalizedLiteral(node) {
     if (node.type === "Literal") {
         return node;
     }
@@ -107,14 +105,6 @@ function getNormalizedLiteral(node, defaultValue) {
             type: "Literal",
             value: node.quasis[0].value.cooked,
             raw: node.quasis[0].value.raw
-        };
-    }
-
-    if (defaultValue) {
-        return {
-            type: "Literal",
-            value: defaultValue,
-            raw: String(defaultValue)
         };
     }
 
@@ -183,7 +173,7 @@ module.exports = {
         type: "suggestion",
 
         docs: {
-            description: "require or disallow \"Yoda\" conditions",
+            description: 'require or disallow "Yoda" conditions',
             category: "Best Practices",
             recommended: false,
             url: "https://eslint.org/docs/rules/yoda"
@@ -211,16 +201,19 @@ module.exports = {
 
         fixable: "code",
         messages: {
-            expected: "Expected literal to be on the {{expectedSide}} side of {{operator}}."
+            expected:
+                "Expected literal to be on the {{expectedSide}} side of {{operator}}."
         }
     },
 
     create(context) {
 
         // Default to "never" (!always) if no option
-        const always = (context.options[0] === "always");
-        const exceptRange = (context.options[1] && context.options[1].exceptRange);
-        const onlyEquality = (context.options[1] && context.options[1].onlyEquality);
+        const always = context.options[0] === "always";
+        const exceptRange =
+            context.options[1] && context.options[1].exceptRange;
+        const onlyEquality =
+            context.options[1] && context.options[1].onlyEquality;
 
         const sourceCode = context.getSourceCode();
 
@@ -243,13 +236,23 @@ module.exports = {
              * @returns {boolean} Whether node is a "between" range test.
              */
             function isBetweenTest() {
-                let leftLiteral, rightLiteral;
+                if (node.operator === "&&" && same(left.right, right.left)) {
+                    const leftLiteral = getNormalizedLiteral(left.left);
+                    const rightLiteral = getNormalizedLiteral(right.right);
 
-                return (node.operator === "&&" &&
-                    (leftLiteral = getNormalizedLiteral(left.left)) &&
-                    (rightLiteral = getNormalizedLiteral(right.right, Number.POSITIVE_INFINITY)) &&
-                    leftLiteral.value <= rightLiteral.value &&
-                    same(left.right, right.left));
+                    if (leftLiteral === null && rightLiteral === null) {
+                        return false;
+                    }
+
+                    if (rightLiteral === null || leftLiteral === null) {
+                        return true;
+                    }
+
+                    if (leftLiteral.value <= rightLiteral.value) {
+                        return true;
+                    }
+                }
+                return false;
             }
 
             /**
@@ -257,13 +260,24 @@ module.exports = {
              * @returns {boolean} Whether node is an "outside" range test.
              */
             function isOutsideTest() {
-                let leftLiteral, rightLiteral;
+                if (node.operator === "||" && same(left.left, right.right)) {
+                    const leftLiteral = getNormalizedLiteral(left.right);
+                    const rightLiteral = getNormalizedLiteral(right.left);
 
-                return (node.operator === "||" &&
-                    (leftLiteral = getNormalizedLiteral(left.right, Number.NEGATIVE_INFINITY)) &&
-                    (rightLiteral = getNormalizedLiteral(right.left)) &&
-                    leftLiteral.value <= rightLiteral.value &&
-                    same(left.left, right.right));
+                    if (leftLiteral === null && rightLiteral === null) {
+                        return false;
+                    }
+
+                    if (rightLiteral === null || leftLiteral === null) {
+                        return true;
+                    }
+
+                    if (leftLiteral.value <= rightLiteral.value) {
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             /**
@@ -276,13 +290,15 @@ module.exports = {
                 return astUtils.isParenthesised(sourceCode, node);
             }
 
-            return (node.type === "LogicalExpression" &&
+            return (
+                node.type === "LogicalExpression" &&
                 left.type === "BinaryExpression" &&
                 right.type === "BinaryExpression" &&
                 isRangeTestOperator(left.operator) &&
                 isRangeTestOperator(right.operator) &&
                 (isBetweenTest() || isOutsideTest()) &&
-                isParenWrapped());
+                isParenWrapped()
+            );
         }
 
         const OPERATOR_FLIP_MAP = {
@@ -303,21 +319,52 @@ module.exports = {
          */
         function getFlippedString(node) {
             const tokenBefore = sourceCode.getTokenBefore(node);
-            const operatorToken = sourceCode.getFirstTokenBetween(node.left, node.right, token => token.value === node.operator);
-            const textBeforeOperator = sourceCode.getText().slice(sourceCode.getTokenBefore(operatorToken).range[1], operatorToken.range[0]);
-            const textAfterOperator = sourceCode.getText().slice(operatorToken.range[1], sourceCode.getTokenAfter(operatorToken).range[0]);
-            const leftText = sourceCode.getText().slice(node.range[0], sourceCode.getTokenBefore(operatorToken).range[1]);
+            const operatorToken = sourceCode.getFirstTokenBetween(
+                node.left,
+                node.right,
+                token => token.value === node.operator
+            );
+            const textBeforeOperator = sourceCode
+                .getText()
+                .slice(
+                    sourceCode.getTokenBefore(operatorToken).range[1],
+                    operatorToken.range[0]
+                );
+            const textAfterOperator = sourceCode
+                .getText()
+                .slice(
+                    operatorToken.range[1],
+                    sourceCode.getTokenAfter(operatorToken).range[0]
+                );
+            const leftText = sourceCode
+                .getText()
+                .slice(
+                    node.range[0],
+                    sourceCode.getTokenBefore(operatorToken).range[1]
+                );
             const firstRightToken = sourceCode.getTokenAfter(operatorToken);
-            const rightText = sourceCode.getText().slice(firstRightToken.range[0], node.range[1]);
+            const rightText = sourceCode
+                .getText()
+                .slice(firstRightToken.range[0], node.range[1]);
 
             let prefix = "";
 
-            if (tokenBefore && tokenBefore.range[1] === node.range[0] &&
-                    !astUtils.canTokensBeAdjacent(tokenBefore, firstRightToken)) {
+            if (
+                tokenBefore &&
+                tokenBefore.range[1] === node.range[0] &&
+                !astUtils.canTokensBeAdjacent(tokenBefore, firstRightToken)
+            ) {
                 prefix = " ";
             }
 
-            return prefix + rightText + textBeforeOperator + OPERATOR_FLIP_MAP[operatorToken.value] + textAfterOperator + leftText;
+            return (
+                prefix +
+                rightText +
+                textBeforeOperator +
+                OPERATOR_FLIP_MAP[operatorToken.value] +
+                textAfterOperator +
+                leftText
+            );
         }
 
         //--------------------------------------------------------------------------
@@ -331,8 +378,12 @@ module.exports = {
 
                 // If `expectedLiteral` is not a literal, and `expectedNonLiteral` is a literal, raise an error.
                 if (
-                    (expectedNonLiteral.type === "Literal" || looksLikeLiteral(expectedNonLiteral)) &&
-                    !(expectedLiteral.type === "Literal" || looksLikeLiteral(expectedLiteral)) &&
+                    (expectedNonLiteral.type === "Literal" ||
+                        looksLikeLiteral(expectedNonLiteral)) &&
+                    !(
+                        expectedLiteral.type === "Literal" ||
+                        looksLikeLiteral(expectedLiteral)
+                    ) &&
                     !(!isEqualityOperator(node.operator) && onlyEquality) &&
                     isComparisonOperator(node.operator) &&
                     !(exceptRange && isRangeTest(context.getAncestors().pop()))
@@ -344,12 +395,11 @@ module.exports = {
                             operator: node.operator,
                             expectedSide: always ? "left" : "right"
                         },
-                        fix: fixer => fixer.replaceText(node, getFlippedString(node))
+                        fix: fixer =>
+                            fixer.replaceText(node, getFlippedString(node))
                     });
                 }
-
             }
         };
-
     }
 };

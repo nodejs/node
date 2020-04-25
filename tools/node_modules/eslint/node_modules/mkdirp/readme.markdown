@@ -37,7 +37,7 @@ Create a new directory and any necessary subdirectories at `dir` with octal
 permission string `opts.mode`. If `opts` is a non-object, it will be treated as
 the `opts.mode`.
 
-If `opts.mode` isn't specified, it defaults to `0777 & (~process.umask())`.
+If `opts.mode` isn't specified, it defaults to `0777`.
 
 `cb(err, made)` fires with the error or the first directory `made`
 that had to be created, if any.
@@ -52,7 +52,7 @@ Synchronously create a new directory and any necessary subdirectories at `dir`
 with octal permission string `opts.mode`. If `opts` is a non-object, it will be
 treated as the `opts.mode`.
 
-If `opts.mode` isn't specified, it defaults to `0777 & (~process.umask())`.
+If `opts.mode` isn't specified, it defaults to `0777`.
 
 Returns the first directory that had to be created, if any.
 

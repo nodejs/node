@@ -11,6 +11,10 @@
 
 module.exports = {
     meta: {
+        deprecated: true,
+
+        replacedBy: ["node/no-mixed-requires"],
+
         type: "suggestion",
 
         docs: {

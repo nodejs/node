@@ -49,7 +49,7 @@ module.exports = {
         }
 
         /**
-         * Checks for any ocurrence of a BlockStatement in a place where lists of statements can appear
+         * Checks for any occurrence of a BlockStatement in a place where lists of statements can appear
          * @param {ASTNode} node The node to check
          * @returns {boolean} True if the node is a lone block.
          */

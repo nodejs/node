@@ -2,7 +2,7 @@
 const TEMPLATE_REGEX = /(?:\\(u(?:[a-f\d]{4}|\{[a-f\d]{1,6}\})|x[a-f\d]{2}|.))|(?:\{(~)?(\w+(?:\([^)]*\))?(?:\.\w+(?:\([^)]*\))?)*)(?:[ \t]|(?=\r?\n)))|(\})|((?:.|[\r\n\f])+?)/gi;
 const STYLE_REGEX = /(?:^|\.)(\w+)(?:\(([^)]*)\))?/g;
 const STRING_REGEX = /^(['"])((?:\\.|(?!\1)[^\\])*)\1$/;
-const ESCAPE_REGEX = /\\(u(?:[a-f\d]{4}|\{[a-f\d]{1,6}\})|x[a-f\d]{2}|.)|([^\\])/gi;
+const ESCAPE_REGEX = /\\(u(?:[a-f\d]{4}|{[a-f\d]{1,6}})|x[a-f\d]{2}|.)|([^\\])/gi;
 
 const ESCAPES = new Map([
 	['n', '\n'],
@@ -126,8 +126,8 @@ module.exports = (chalk, temporary) => {
 	chunks.push(chunk.join(''));
 
 	if (styles.length > 0) {
-		const errMsg = `Chalk template literal is missing ${styles.length} closing bracket${styles.length === 1 ? '' : 's'} (\`}\`)`;
-		throw new Error(errMsg);
+		const errMessage = `Chalk template literal is missing ${styles.length} closing bracket${styles.length === 1 ? '' : 's'} (\`}\`)`;
+		throw new Error(errMessage);
 	}
 
 	return chunks.join('');

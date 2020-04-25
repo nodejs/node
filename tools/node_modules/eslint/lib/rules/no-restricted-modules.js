@@ -40,6 +40,10 @@ const arrayOfStringsOrObjects = {
 
 module.exports = {
     meta: {
+        deprecated: true,
+
+        replacedBy: ["node/no-restricted-require"],
+
         type: "suggestion",
 
         docs: {

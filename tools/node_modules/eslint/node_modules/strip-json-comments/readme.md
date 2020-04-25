@@ -38,7 +38,7 @@ JSON.parse(stripJsonComments(json));
 
 ## API
 
-### stripJsonComments(jsonString, [options])
+### stripJsonComments(jsonString, options?)
 
 #### jsonString
 
@@ -71,6 +71,14 @@ $ npm run bench
 - [strip-css-comments](https://github.com/sindresorhus/strip-css-comments) - Strip comments from CSS
 
 
-## License
+---
 
-MIT © [Sindre Sorhus](https://sindresorhus.com)
+<div align="center">
+	<b>
+		<a href="https://tidelift.com/subscription/pkg/npm-strip-json-comments?utm_source=npm-strip-json-comments&utm_medium=referral&utm_campaign=readme">Get professional support for this package with a Tidelift subscription</a>
+	</b>
+	<br>
+	<sub>
+		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
+	</sub>
+</div>
