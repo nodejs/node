@@ -87,3 +87,12 @@ for (let i = 0; i < 256; i++) {
     assert.strictEqual(getStringWidth(char), 1);
   }
 }
+
+{
+  const a = '한글'.normalize('NFD'); // 한글
+  const b = '한글'.normalize('NFC'); // 한글
+  assert.strictEqual(a.length, 6);
+  assert.strictEqual(b.length, 2);
+  assert.strictEqual(getStringWidth(a), 4);
+  assert.strictEqual(getStringWidth(b), 4);
+}
