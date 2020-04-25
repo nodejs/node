@@ -5,20 +5,17 @@
 require('../common');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
-const non_function = 10;
+const nonFunctionArray = [null, -1, 1, {}, []];
 
-typeErrorForFunction('init');
-typeErrorForFunction('before');
-typeErrorForFunction('after');
-typeErrorForFunction('destroy');
-typeErrorForFunction('promiseResolve');
-
-function typeErrorForFunction(functionName) {
-  assert.throws(() => {
-    async_hooks.createHook({ [functionName]: non_function });
-  }, {
-    code: 'ERR_ASYNC_CALLBACK',
-    name: 'TypeError',
-    message: `hook.${functionName} must be a function`
+['init', 'before', 'after', 'destroy', 'promiseResolve'].forEach(
+  (functionName) => {
+    nonFunctionArray.forEach((nonFunction) => {
+      assert.throws(() => {
+        async_hooks.createHook({ [functionName]: nonFunction });
+      }, {
+        code: 'ERR_ASYNC_CALLBACK',
+        name: 'TypeError',
+        message: `hook.${functionName} must be a function`,
+      });
+    });
   });
-}
