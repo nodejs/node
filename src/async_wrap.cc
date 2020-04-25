@@ -80,6 +80,20 @@ struct AsyncWrapObject : public AsyncWrap {
   inline AsyncWrapObject(Environment* env, Local<Object> object,
                          ProviderType type) : AsyncWrap(env, object, type) {}
 
+  static Local<FunctionTemplate> GetConstructorTemplate(Environment* env) {
+    Local<FunctionTemplate> tmpl = env->async_wrap_object_ctor_template();
+    if (tmpl.IsEmpty()) {
+      tmpl = env->NewFunctionTemplate(AsyncWrapObject::New);
+      tmpl->SetClassName(
+          FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"));
+      tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+      tmpl->InstanceTemplate()->SetInternalFieldCount(
+          AsyncWrapObject::kInternalFieldCount);
+      env->set_async_wrap_object_ctor_template(tmpl);
+    }
+    return tmpl;
+  }
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(AsyncWrapObject)
   SET_SELF_SIZE(AsyncWrapObject)
@@ -559,21 +573,10 @@ void AsyncWrap::Initialize(Local<Object> target,
   env->set_async_hooks_promise_resolve_function(Local<Function>());
   env->set_async_hooks_binding(target);
 
-  // TODO(addaleax): This block might better work as a
-  // AsyncWrapObject::Initialize() or AsyncWrapObject::GetConstructorTemplate()
-  // function.
-  {
-    auto class_name = FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap");
-    auto function_template = env->NewFunctionTemplate(AsyncWrapObject::New);
-    function_template->SetClassName(class_name);
-    function_template->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    auto instance_template = function_template->InstanceTemplate();
-    instance_template->SetInternalFieldCount(AsyncWrap::kInternalFieldCount);
-    auto function =
-        function_template->GetFunction(env->context()).ToLocalChecked();
-    target->Set(env->context(), class_name, function).Check();
-    env->set_async_wrap_object_ctor_template(function_template);
-  }
+  target->Set(env->context(),
+      FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"),
+      AsyncWrapObject::GetConstructorTemplate(env)
+          ->GetFunction(env->context()).ToLocalChecked()).Check();
 }
 
 
