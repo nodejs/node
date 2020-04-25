@@ -108,7 +108,7 @@ const myURL = new URL('/foo', 'https://example.org/');
 The URL constructor is accessible as a property on the global object.
 It can also be imported from the built-in url module:
 
-```
+```js
 console.log(URL === require('url').URL); // Prints 'true'.
 ```
 
