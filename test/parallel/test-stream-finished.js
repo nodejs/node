@@ -384,3 +384,15 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
 
   d.resume();
 }
+
+{
+  // Test for compat for e.g. fd-slicer which implements
+  // non standard destroy behavior which might not emit
+  // 'close'.
+  const r = new Readable();
+  finished(r, common.mustCall());
+  r.resume();
+  r.push('asd');
+  r.destroyed = true;
+  r.push(null);
+}
