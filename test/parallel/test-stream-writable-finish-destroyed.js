@@ -5,11 +5,11 @@ const { Writable } = require('stream');
 
 {
   const w = new Writable({
-    write(chunk, encoding, cb) {
-      w.on('close', () => {
+    write: common.mustCall((chunk, encoding, cb) => {
+      w.on('close', common.mustCall(() => {
         cb();
-      });
-    }
+      }));
+    })
   });
 
   w.end('asd');
@@ -19,12 +19,12 @@ const { Writable } = require('stream');
 
 {
   const w = new Writable({
-    write(chunk, encoding, cb) {
-      w.on('close', () => {
+    write: common.mustCall((chunk, encoding, cb) => {
+      w.on('close', common.mustCall(() => {
         cb();
         w.end();
-      });
-    }
+      }));
+    })
   });
 
   w.on('finish', common.mustNotCall());
