@@ -747,6 +747,13 @@ napi_get_all_property_names(napi_env env,
 
 #endif  // NAPI_VERSION >= 6
 
+#ifdef NAPI_EXPERIMENTAL
+// ArrayBuffer detaching
+NAPI_EXTERN napi_status
+napi_detach_arraybuffer(napi_env env,
+                        napi_value arraybuffer);
+#endif  // NAPI_EXPERIMENTAL
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_
