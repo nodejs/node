@@ -4,17 +4,17 @@ const assert = require('assert');
 
 const { Writable } = require('stream');
 
-function expectError(w, arg, code, sync) {
+function expectError(w, args, code, sync) {
   if (sync) {
     if (code) {
-      assert.throws(() => w.write(arg), { code });
+      assert.throws(() => w.write(...args), { code });
     } else {
-      w.write(arg);
+      w.write(...args);
     }
   } else {
     let errorCalled = false;
     let ticked = false;
-    w.write(arg, common.mustCall((err) => {
+    w.write(...args, common.mustCall((err) => {
       assert.strictEqual(ticked, true);
       assert.strictEqual(errorCalled, false);
       assert.strictEqual(err.code, code);
@@ -34,7 +34,7 @@ function test(autoDestroy) {
       _write() {}
     });
     w.end();
-    expectError(w, 'asd', 'ERR_STREAM_WRITE_AFTER_END');
+    expectError(w, ['asd'], 'ERR_STREAM_WRITE_AFTER_END');
   }
 
   {
@@ -50,7 +50,7 @@ function test(autoDestroy) {
       autoDestroy,
       _write() {}
     });
-    expectError(w, null, 'ERR_STREAM_NULL_VALUES', true);
+    expectError(w, [null], 'ERR_STREAM_NULL_VALUES', true);
   }
 
   {
@@ -58,7 +58,16 @@ function test(autoDestroy) {
       autoDestroy,
       _write() {}
     });
-    expectError(w, {}, 'ERR_INVALID_ARG_TYPE', true);
+    expectError(w, [{}], 'ERR_INVALID_ARG_TYPE', true);
+  }
+
+  {
+    const w = new Writable({
+      decodeStrings: false,
+      autoDestroy,
+      _write() {}
+    });
+    expectError(w, ['asd', 'noencoding'], 'ERR_UNKNOWN_ENCODING', true);
   }
 }
 
