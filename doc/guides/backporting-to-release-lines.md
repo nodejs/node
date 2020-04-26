@@ -31,9 +31,9 @@ release line. All commands will use the `v10.x-staging` branch as the target
 branch. In order to submit a backport pull request to another branch, simply
 replace that with the staging branch for the targeted release line.
 
-1. Checkout the staging branch for the targeted release line
-2. Make sure that the local staging branch is up to date with the remote
-3. Create a new branch off of the staging branch
+1. Checkout the staging branch for the targeted release line.
+2. Make sure that the local staging branch is up to date with the remote.
+3. Create a new branch off of the staging branch, as shown below.
 
     ```shell
     # Assuming your fork of Node.js is checked out in $NODE_DIR,
@@ -68,17 +68,17 @@ replace that with the staging branch for the targeted release line.
    using `git add`, and then commit the changes. That can be done with
    `git cherry-pick --continue`.
 6. Leave the commit message as is. If you think it should be modified, comment
-   in the Pull Request. The `Backport-PR-URL` metadata does need to be added to
+   in the pull request. The `Backport-PR-URL` metadata does need to be added to
    the commit, but this will be done later.
 7. Make sure `make -j4 test` passes.
-8. Push the changes to your fork
+8. Push the changes to your fork.
 9. Open a pull request:
    1. Be sure to target the `v10.x-staging` branch in the pull request.
    1. Include the backport target in the pull request title in the following
       format: `[v10.x backport] <commit title>`.
       Example: `[v10.x backport] process: improve performance of nextTick`
    1. Check the checkbox labeled "Allow edits from maintainers".
-   1. In the description add a reference to the original PR.
+   1. In the description add a reference to the original pull request.
    1. Amend the commit message and include a `Backport-PR-URL:` metadata and
       re-push the change to your fork.
    1. Run a [`node-test-pull-request`][] CI job (with `REBASE_ONTO` set to the
@@ -86,8 +86,8 @@ replace that with the staging branch for the targeted release line.
 10. If during the review process conflicts arise, use the following to rebase:
     `git pull --rebase upstream v10.x-staging`
 
-After the PR lands replace the `backport-requested-v10.x` label on the original
-PR with `backported-to-v10.x`.
+After the pull request lands, replace the `backport-requested-v10.x` label
+on the original pull request with `backported-to-v10.x`.
 
 [Release Schedule]: https://github.com/nodejs/Release#release-schedule1
 [Release Plan]: https://github.com/nodejs/Release#release-plan
