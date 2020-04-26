@@ -59,6 +59,8 @@ enum class FeedbackSlotKind {
   kKindsNumber  // Last value indicating number of kinds.
 };
 
+using MapAndHandler = std::pair<Handle<Map>, MaybeObjectHandle>;
+
 inline bool IsCallICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kCall;
 }
@@ -647,8 +649,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   Map GetFirstMap() const;
 
   int ExtractMaps(MapHandles* maps) const;
-  int ExtractMapsAndHandlers(MapHandles* maps,
-                             MaybeObjectHandles* handlers) const;
+  int ExtractMapsAndHandlers(std::vector<MapAndHandler>* maps_and_handlers,
+                             bool drop_deprecated = false) const;
   MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
 
   bool IsCleared() const {
@@ -672,8 +674,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
                             const MaybeObjectHandle& handler);
 
-  void ConfigurePolymorphic(Handle<Name> name, MapHandles const& maps,
-                            MaybeObjectHandles* handlers);
+  void ConfigurePolymorphic(
+      Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
 
   BinaryOperationHint GetBinaryOperationFeedback() const;
   CompareOperationHint GetCompareOperationFeedback() const;
