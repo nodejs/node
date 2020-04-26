@@ -33,9 +33,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include <cassert>
-#include <climits>  // PATH_MAX
-#include <csignal>
+#include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
