@@ -113,7 +113,7 @@ const assert = require('assert');
   read.destroy();
 
   read.removeListener('end', fail);
-  read.on('end', common.mustCall());
+  read.on('end', common.mustNotCall());
   assert.strictEqual(read.destroyed, true);
 }
 
