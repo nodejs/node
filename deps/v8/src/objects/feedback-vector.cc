@@ -899,11 +899,9 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
   }
 }
 
-void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
-                                         MapHandles const& maps,
-                                         MaybeObjectHandles* handlers) {
-  DCHECK_EQ(handlers->size(), maps.size());
-  int receiver_count = static_cast<int>(maps.size());
+void FeedbackNexus::ConfigurePolymorphic(
+    Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers) {
+  int receiver_count = static_cast<int>(maps_and_handlers.size());
   DCHECK_GT(receiver_count, 1);
   Handle<WeakFixedArray> array;
   if (name.is_null()) {
@@ -916,10 +914,11 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
   }
 
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map = maps[current];
+    Handle<Map> map = maps_and_handlers[current].first;
     array->Set(current * 2, HeapObjectReference::Weak(*map));
-    DCHECK(IC::IsHandler(*handlers->at(current)));
-    array->Set(current * 2 + 1, *handlers->at(current));
+    MaybeObjectHandle handler = maps_and_handlers[current].second;
+    DCHECK(IC::IsHandler(*handler));
+    array->Set(current * 2 + 1, *handler);
   }
 }
 
@@ -965,11 +964,13 @@ int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   return 0;
 }
 
-int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
-                                          MaybeObjectHandles* handlers) const {
-  DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
-         IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
+int FeedbackNexus::ExtractMapsAndHandlers(
+    std::vector<std::pair<Handle<Map>, MaybeObjectHandle>>* maps_and_handlers,
+    bool drop_deprecated) const {
+  DCHECK(IsLoadICKind(kind()) ||
+         IsStoreICKind(kind()) | IsKeyedLoadICKind(kind()) ||
+         IsKeyedStoreICKind(kind()) || IsStoreOwnICKind(kind()) ||
+         IsStoreDataPropertyInLiteralKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()));
 
   DisallowHeapAllocation no_gc;
@@ -990,6 +991,7 @@ int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
     }
     const int increment = 2;
     HeapObject heap_object;
+    maps_and_handlers->reserve(array.length() / increment);
     for (int i = 0; i < array.length(); i += increment) {
       DCHECK(array.Get(i)->IsWeakOrCleared());
       if (array.Get(i)->GetHeapObjectIfWeak(&heap_object)) {
@@ -997,8 +999,9 @@ int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
         if (!handler->IsCleared()) {
           DCHECK(IC::IsHandler(handler));
           Map map = Map::cast(heap_object);
-          maps->push_back(handle(map, isolate));
-          handlers->push_back(handle(handler, isolate));
+          if (drop_deprecated && map.is_deprecated()) continue;
+          maps_and_handlers->push_back(
+              MapAndHandler(handle(map, isolate), handle(handler, isolate)));
           found++;
         }
       }
@@ -1009,8 +1012,9 @@ int FeedbackNexus::ExtractMapsAndHandlers(MapHandles* maps,
     if (!handler->IsCleared()) {
       DCHECK(IC::IsHandler(handler));
       Map map = Map::cast(heap_object);
-      maps->push_back(handle(map, isolate));
-      handlers->push_back(handle(handler, isolate));
+      if (drop_deprecated && map.is_deprecated()) return 0;
+      maps_and_handlers->push_back(
+          MapAndHandler(handle(map, isolate), handle(handler, isolate)));
       return 1;
     }
   }
@@ -1082,14 +1086,14 @@ Name FeedbackNexus::GetName() const {
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedHasICKind(kind()));
-  MapHandles maps;
-  MaybeObjectHandles handlers;
 
   if (GetKeyType() == PROPERTY) return STANDARD_LOAD;
 
-  ExtractMapsAndHandlers(&maps, &handlers);
-  for (MaybeObjectHandle const& handler : handlers) {
-    KeyedAccessLoadMode mode = LoadHandler::GetKeyedAccessLoadMode(*handler);
+  std::vector<MapAndHandler> maps_and_handlers;
+  ExtractMapsAndHandlers(&maps_and_handlers);
+  for (MapAndHandler map_and_handler : maps_and_handlers) {
+    KeyedAccessLoadMode mode =
+        LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second);
     if (mode != STANDARD_LOAD) return mode;
   }
 
@@ -1150,13 +1154,13 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()) ||
          IsStoreDataPropertyInLiteralKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
-  MapHandles maps;
-  MaybeObjectHandles handlers;
 
   if (GetKeyType() == PROPERTY) return mode;
 
-  ExtractMapsAndHandlers(&maps, &handlers);
-  for (const MaybeObjectHandle& maybe_code_handler : handlers) {
+  std::vector<MapAndHandler> maps_and_handlers;
+  ExtractMapsAndHandlers(&maps_and_handlers);
+  for (const MapAndHandler& map_and_handler : maps_and_handlers) {
+    const MaybeObjectHandle maybe_code_handler = map_and_handler.second;
     // The first handler that isn't the slow handler will have the bits we need.
     Handle<Code> handler;
     if (maybe_code_handler.object()->IsStoreHandler()) {
