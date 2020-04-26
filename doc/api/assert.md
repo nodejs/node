@@ -635,7 +635,7 @@ changes:
 If `message` is falsy, the error message is set as the values of `actual` and
 `expected` separated by the provided `operator`. If `operator` is falsy and no
 message is set, it will default to `'!='`. If `message` is truthy, the `operator`
-will default to `'fail'` and `message` will be used as error message. Other
+will default to `'fail'` and `message` will be used for the error message. Other
 arguments will be stored as properties on the thrown object. If `stackStartFn`
 is provided, all stack frames above that function will be removed from
 stacktrace (see [`Error.captureStackTrace`]).
