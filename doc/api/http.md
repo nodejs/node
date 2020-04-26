@@ -626,7 +626,7 @@ is finished.
 
 ### `request.destroy([error])`
 <!-- YAML
-added: REPLACEME
+added: v0.3.0
 -->
 
 * `error` {Error} Optional, an error to emit with `'error'` event.
