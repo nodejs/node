@@ -638,7 +638,7 @@ message is set, it will default to `'!='`. If `message` is truthy, the `operator
 will default to `'fail'` and `message` will be used for the error message. Other
 arguments will be stored as properties on the thrown object. If `stackStartFn`
 is provided, all stack frames above that function will be removed from
-stacktrace (see [`Error.captureStackTrace`]).
+stacktrace (see [`Error.captureStackTrace`][]).
 
 ```js
 const assert = require('assert').strict;
