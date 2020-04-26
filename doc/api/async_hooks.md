@@ -817,6 +817,7 @@ class WorkerPool extends EventEmitter {
       // current one.
       this.workers.splice(this.workers.indexOf(worker), 1);
       this.addNewWorker();
+      this.emit(kWorkerFreedEvent);
     });
     this.workers.push(worker);
     this.freeWorkers.push(worker);
