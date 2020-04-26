@@ -153,7 +153,7 @@ uvwasi_errno_t uvwasi__clock_gettime_thread_cputime(uvwasi_timestamp_t* time) {
   UVWASI__WIN_TIME_AND_RETURN(GetCurrentThread(), *time);
 #elif defined(__APPLE__)
   UVWASI__OSX_THREADTIME_AND_RETURN(*time);
-#elif defined(CLOCK_THREAD_CPUTIME_ID) && !defined(__sun)
+#elif defined(CLOCK_THREAD_CPUTIME_ID) && !defined(__sun) && !defined(__PASE__)
   UVWASI__CLOCK_GETTIME_AND_RETURN(CLOCK_THREAD_CPUTIME_ID, *time);
 #else
 # if defined(RUSAGE_LWP)
@@ -185,7 +185,7 @@ uvwasi_errno_t uvwasi__clock_getres_thread_cputime(uvwasi_timestamp_t* time) {
   UVWASI__WIN_GETRES_AND_RETURN(*time);
 #elif defined(__APPLE__)
   UVWASI__SLOW_GETRES_AND_RETURN(*time);
-#elif defined(CLOCK_THREAD_CPUTIME_ID) && !defined(__sun)
+#elif defined(CLOCK_THREAD_CPUTIME_ID) && !defined(__sun) && !defined(__PASE__)
   UVWASI__CLOCK_GETTIME_AND_RETURN(CLOCK_THREAD_CPUTIME_ID, *time);
 #elif defined(RUSAGE_THREAD) || defined(RUSAGE_LWP)
   UVWASI__SLOW_GETRES_AND_RETURN(*time);
