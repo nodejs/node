@@ -237,7 +237,7 @@ class HeapSnapshotStream : public AsyncWrap,
   HeapSnapshotStream(
       Environment* env,
       HeapSnapshotPointer&& snapshot,
-      v8::Local<v8::Object> obj) :
+      Local<Object> obj) :
       AsyncWrap(env, obj, AsyncWrap::PROVIDER_HEAPSNAPSHOT),
       StreamBase(env),
       snapshot_(std::move(snapshot)) {
