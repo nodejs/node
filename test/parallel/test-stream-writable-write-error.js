@@ -63,6 +63,7 @@ function test(autoDestroy) {
 
   {
     const w = new Writable({
+      decodeStrings: false,
       autoDestroy,
       _write() {}
     });
