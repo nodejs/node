@@ -195,6 +195,8 @@ function trough() {
   }
 }
 
+var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
 function commonjsRequire () {
 	throw new Error('Dynamic requires are not currently supported by @rollup/plugin-commonjs');
 }
@@ -5894,7 +5896,7 @@ var deepExtend = module.exports = function (/*obj_1, [obj_2], [obj_N]*/) {
 
 var minimist = function (args, opts) {
     if (!opts) opts = {};
-
+    
     var flags = { bools : {}, strings : {}, unknownFn: null };
 
     if (typeof opts['unknown'] === 'function') {
@@ -5908,7 +5910,7 @@ var minimist = function (args, opts) {
           flags.bools[key] = true;
       });
     }
-
+    
     var aliases = {};
     Object.keys(opts.alias || {}).forEach(function (key) {
         aliases[key] = [].concat(opts.alias[key]);
@@ -5927,12 +5929,12 @@ var minimist = function (args, opts) {
      });
 
     var defaults = opts['default'] || {};
-
+    
     var argv = { _ : [] };
     Object.keys(flags.bools).forEach(function (key) {
         setArg(key, defaults[key] === undefined ? false : defaults[key]);
     });
-
+    
     var notFlags = [];
 
     if (args.indexOf('--') !== -1) {
@@ -5954,7 +5956,7 @@ var minimist = function (args, opts) {
             ? Number(val) : val
         ;
         setKey(argv, key.split('.'), value);
-
+        
         (aliases[key] || []).forEach(function (x) {
             setKey(argv, x.split('.'), value);
         });
@@ -5987,7 +5989,7 @@ var minimist = function (args, opts) {
             o[key] = [ o[key], value ];
         }
     }
-
+    
     function aliasIsBoolean(key) {
       return aliases[key].some(function (x) {
           return flags.bools[x];
@@ -5996,7 +5998,7 @@ var minimist = function (args, opts) {
 
     for (var i = 0; i < args.length; i++) {
         var arg = args[i];
-
+        
         if (/^--.+=/.test(arg)) {
             // Using [\s\S] instead of . because js doesn't support the
             // 'dotall' regex modifier. See:
@@ -6033,29 +6035,29 @@ var minimist = function (args, opts) {
         }
         else if (/^-[^-]+/.test(arg)) {
             var letters = arg.slice(1,-1).split('');
-
+            
             var broken = false;
             for (var j = 0; j < letters.length; j++) {
                 var next = arg.slice(j+2);
-
+                
                 if (next === '-') {
                     setArg(letters[j], next, arg);
                     continue;
                 }
-
+                
                 if (/[A-Za-z]/.test(letters[j]) && /=/.test(next)) {
                     setArg(letters[j], next.split('=')[1], arg);
                     broken = true;
                     break;
                 }
-
+                
                 if (/[A-Za-z]/.test(letters[j])
                 && /-?\d+(\.\d*)?(e-?\d+)?$/.test(next)) {
                     setArg(letters[j], next, arg);
                     broken = true;
                     break;
                 }
-
+                
                 if (letters[j+1] && letters[j+1].match(/\W/)) {
                     setArg(letters[j], arg.slice(j+2), arg);
                     broken = true;
@@ -6065,7 +6067,7 @@ var minimist = function (args, opts) {
                     setArg(letters[j], flags.strings[letters[j]] ? '' : true, arg);
                 }
             }
-
+            
             var key = arg.slice(-1)[0];
             if (!broken && key !== '-') {
                 if (args[i+1] && !/^(-|--)[^-]/.test(args[i+1])
@@ -6095,17 +6097,17 @@ var minimist = function (args, opts) {
             }
         }
     }
-
+    
     Object.keys(defaults).forEach(function (key) {
         if (!hasKey(argv, key.split('.'))) {
             setKey(argv, key.split('.'), defaults[key]);
-
+            
             (aliases[key] || []).forEach(function (x) {
                 setKey(argv, x.split('.'), defaults[key]);
             });
         }
     });
-
+    
     if (opts['--']) {
         argv['--'] = new Array();
         notFlags.forEach(function(key) {
@@ -22580,7 +22582,7 @@ var textTable = function (rows_, opts) {
     var stringLength = opts.stringLength
         || function (s) { return String(s).length; }
     ;
-
+    
     var dotsizes = reduce(rows_, function (acc, row) {
         forEach(row, function (c, ix) {
             var n = dotindex(c);
@@ -22588,7 +22590,7 @@ var textTable = function (rows_, opts) {
         });
         return acc;
     }, []);
-
+    
     var rows = map$1(rows_, function (row) {
         return map$1(row, function (c_, ix) {
             var c = String(c_);
@@ -22602,7 +22604,7 @@ var textTable = function (rows_, opts) {
             else return c;
         });
     });
-
+    
     var sizes = reduce(rows, function (acc, row) {
         forEach(row, function (c, ix) {
             var n = stringLength(c);
@@ -22610,7 +22612,7 @@ var textTable = function (rows_, opts) {
         });
         return acc;
     }, []);
-
+    
     return map$1(rows, function (row) {
         return map$1(row, function (c, ix) {
             var n = (sizes[ix] - stringLength(c)) || 0;
@@ -22623,7 +22625,7 @@ var textTable = function (rows_, opts) {
                     + c + Array(Math.floor(n / 2 + 1)).join(' ')
                 ;
             }
-
+            
             return c + s;
         }).join(hsep).replace(/\s+$/, '');
     }).join('\n');
@@ -40953,7 +40955,7 @@ const dependencies$1 = {
 	"markdown-extensions": "^1.1.1",
 	remark: "^11.0.2",
 	"remark-lint": "^6.0.5",
-	"remark-preset-lint-node": "^1.13.0",
+	"remark-preset-lint-node": "^1.14.0",
 	"unified-args": "^7.1.0"
 };
 const main = "dist/index.js";
@@ -40983,42 +40985,290 @@ var _package$3 = /*#__PURE__*/Object.freeze({
   'default': _package$2
 });
 
-/* Map of allowed verbs. */
-var ALLOWED_VERBS = {
-  enable: true,
-  disable: true,
-  ignore: true
-};
+var vfileLocation$1 = factory$7;
+
+function factory$7(file) {
+  var contents = indices$1(String(file));
+
+  return {
+    toPosition: offsetToPositionFactory$1(contents),
+    toOffset: positionToOffsetFactory$1(contents)
+  }
+}
+
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
+function offsetToPositionFactory$1(indices) {
+  return offsetToPosition
+
+  // Get the line and column-based `position` for `offset` in the bound indices.
+  function offsetToPosition(offset) {
+    var index = -1;
+    var length = indices.length;
+
+    if (offset < 0) {
+      return {}
+    }
+
+    while (++index < length) {
+      if (indices[index] > offset) {
+        return {
+          line: index + 1,
+          column: offset - (indices[index - 1] || 0) + 1,
+          offset: offset
+        }
+      }
+    }
+
+    return {}
+  }
+}
+
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
+function positionToOffsetFactory$1(indices) {
+  return positionToOffset
+
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
+  function positionToOffset(position) {
+    var line = position && position.line;
+    var column = position && position.column;
+
+    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
+      return (indices[line - 2] || 0) + column - 1 || 0
+    }
+
+    return -1
+  }
+}
+
+// Get indices of line-breaks in `value`.
+function indices$1(value) {
+  var result = [];
+  var index = value.indexOf('\n');
+
+  while (index !== -1) {
+    result.push(index + 1);
+    index = value.indexOf('\n', index + 1);
+  }
+
+  result.push(value.length + 1);
+
+  return result
+}
+
+var convert_1$1 = convert$2;
+
+function convert$2(test) {
+  if (typeof test === 'string') {
+    return typeFactory$1(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$2
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$1 : matchesFactory$1)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$1(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$2(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$1(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$1(tests) {
+  var checks = convertAll$1(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$1(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$2() {
+  return true
+}
+
+var unistUtilVisitParents$1 = visitParents$1;
+
+
+
+var CONTINUE$2 = true;
+var SKIP$2 = 'skip';
+var EXIT$2 = false;
+
+visitParents$1.CONTINUE = CONTINUE$2;
+visitParents$1.SKIP = SKIP$2;
+visitParents$1.EXIT = EXIT$2;
+
+function visitParents$1(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$1(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$1(visitor(node, parents));
+
+      if (result[0] === EXIT$2) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$2) {
+      subresult = toResult$1(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$2 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$2) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$1(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$2, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$1 = visit$1;
+
+
+
+var CONTINUE$3 = unistUtilVisitParents$1.CONTINUE;
+var SKIP$3 = unistUtilVisitParents$1.SKIP;
+var EXIT$3 = unistUtilVisitParents$1.EXIT;
+
+visit$1.CONTINUE = CONTINUE$3;
+visit$1.SKIP = SKIP$3;
+visit$1.EXIT = EXIT$3;
+
+function visit$1(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$1(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
 
 var unifiedMessageControl = messageControl;
 
 function messageControl(options) {
-  var name = options && options.name;
-  var marker = options && options.marker;
-  var test = options && options.test;
-  var sources;
-  var known;
-  var reset;
-  var enable;
-  var disable;
+  var settings = options || {};
+  var name = settings.name;
+  var marker = settings.marker;
+  var test = settings.test;
+  var sources = settings.source;
+  var known = settings.known;
+  var reset = settings.reset;
+  var enable = settings.enable || [];
+  var disable = settings.disable || [];
 
   if (!name) {
     throw new Error('Expected `name` in `options`, got `' + name + '`')
   }
 
   if (!marker) {
-    throw new Error('Expected `name` in `options`, got `' + name + '`')
+    throw new Error('Expected `marker` in `options`, got `' + marker + '`')
   }
-
-  if (!test) {
-    throw new Error('Expected `test` in `options`, got `' + test + '`')
-  }
-
-  known = options.known;
-  reset = options.reset;
-  enable = options.enable || [];
-  disable = options.disable || [];
-  sources = options.source;
 
   if (!sources) {
     sources = [name];
@@ -41029,13 +41279,13 @@ function messageControl(options) {
   return transformer
 
   function transformer(tree, file) {
-    var toOffset = vfileLocation(file).toOffset;
+    var toOffset = vfileLocation$1(file).toOffset;
     var initial = !reset;
     var gaps = detectGaps(tree, file);
     var scope = {};
     var globals = [];
 
-    unistUtilVisit(tree, test, visitor);
+    unistUtilVisit$1(tree, test, visitor);
 
     file.messages = file.messages.filter(filter);
 
@@ -41050,7 +41300,7 @@ function messageControl(options) {
       var pos;
       var tail;
 
-      if (!mark || mark.name !== options.name) {
+      if (!mark || mark.name !== name) {
         return
       }
 
@@ -41060,7 +41310,7 @@ function messageControl(options) {
       pos = mark.node.position && mark.node.position.start;
       tail = next && next.position && next.position.end;
 
-      if (!verb || !ALLOWED_VERBS[verb] === true) {
+      if (verb !== 'enable' && verb !== 'disable' && verb !== 'ignore') {
         file.fail(
           'Unknown keyword `' +
             verb +
@@ -41073,26 +41323,26 @@ function messageControl(options) {
       length = ruleIds.length;
       index = -1;
 
-      while (++index < length) {
-        ruleId = ruleIds[index];
-
-        if (isKnown(ruleId, verb, mark.node)) {
-          toggle(pos, verb === 'enable', ruleId);
-
-          if (verb === 'ignore') {
-            toggle(tail, true, ruleId);
-          }
-        }
-      }
-
-      /* Apply to all rules. */
-      if (!length) {
+      // Apply to all rules.
+      if (length === 0) {
         if (verb === 'ignore') {
           toggle(pos, false);
           toggle(tail, true);
         } else {
           toggle(pos, verb === 'enable');
           reset = verb !== 'enable';
+        }
+      } else {
+        while (++index < length) {
+          ruleId = ruleIds[index];
+
+          if (isKnown(ruleId, verb, mark.node)) {
+            toggle(pos, verb === 'enable', ruleId);
+
+            if (verb === 'ignore') {
+              toggle(tail, true, ruleId);
+            }
+          }
         }
       }
     }
@@ -41103,13 +41353,13 @@ function messageControl(options) {
       var ranges = scope[ruleId];
       var pos;
 
-      /* Keep messages from a different source. */
+      // Keep messages from a different source.
       if (!message.source || sources.indexOf(message.source) === -1) {
         return true
       }
 
-      /* We only ignore messages if they‘re disabled,
-       * *not* when they’re not in the document. */
+      // We only ignore messages if they‘re disabled, *not* when they’re not in
+      // the document.
       if (!message.line) {
         message.line = 1;
       }
@@ -41118,7 +41368,7 @@ function messageControl(options) {
         message.column = 1;
       }
 
-      /* Check whether the warning is inside a gap. */
+      // Check whether the warning is inside a gap.
       pos = toOffset(message);
 
       while (gapIndex--) {
@@ -41127,22 +41377,26 @@ function messageControl(options) {
         }
       }
 
-      /* Check whether allowed by specific and global states. */
+      // Check whether allowed by specific and global states.
       return check(message, ranges, ruleId) && check(message, globals)
     }
 
-    /* Helper to check (and possibly warn) if a ruleId is unknown. */
+    // Helper to check (and possibly warn) if a `ruleId` is unknown.
     function isKnown(ruleId, verb, pos) {
       var result = known ? known.indexOf(ruleId) !== -1 : true;
 
       if (!result) {
-        file.warn('Unknown rule: cannot ' + verb + " `'" + ruleId + "'`", pos);
+        file.message(
+          'Unknown rule: cannot ' + verb + " `'" + ruleId + "'`",
+          pos
+        );
       }
 
       return result
     }
 
-    /* Get the latest state of a rule. When without `ruleId`, gets global state. */
+    // Get the latest state of a rule.
+    // When without `ruleId`, gets global state.
     function getState(ruleId) {
       var ranges = ruleId ? scope[ruleId] : globals;
 
@@ -41161,10 +41415,9 @@ function messageControl(options) {
       return disable.indexOf(ruleId) === -1
     }
 
-    /* Handle a rule. */
+    // Handle a rule.
     function toggle(pos, state, ruleId) {
       var markers = ruleId ? scope[ruleId] : globals;
-      var currentState;
       var previousState;
 
       if (!markers) {
@@ -41173,13 +41426,12 @@ function messageControl(options) {
       }
 
       previousState = getState(ruleId);
-      currentState = state;
 
-      if (currentState !== previousState) {
-        markers.push({state: currentState, position: pos});
+      if (state !== previousState) {
+        markers.push({state: state, position: pos});
       }
 
-      /* Toggle all known rules. */
+      // Toggle all known rules.
       if (!ruleId) {
         for (ruleId in scope) {
           toggle(pos, state, ruleId);
@@ -41187,9 +41439,9 @@ function messageControl(options) {
       }
     }
 
-    /* Check all `ranges` for `message`. */
+    // Check all `ranges` for `message`.
     function check(message, ranges, id) {
-      /* Check the state at the message's position. */
+      // Check the state at the message’s position.
       var index = ranges && ranges.length;
       var length = -1;
       var range;
@@ -41197,7 +41449,7 @@ function messageControl(options) {
       while (--index > length) {
         range = ranges[index];
 
-        /* istanbul ignore if - generated marker. */
+        /* istanbul ignore if - Generated marker. */
         if (!range.position || !range.position.line || !range.position.column) {
           continue
         }
@@ -41205,14 +41457,14 @@ function messageControl(options) {
         if (
           range.position.line < message.line ||
           (range.position.line === message.line &&
-            range.position.column < message.column)
+            range.position.column <= message.column)
         ) {
           return range.state === true
         }
       }
 
-      /* The first marker ocurred after the first
-       * message, so we check the initial state. */
+      // The first marker ocurred after the first message, so we check the
+      // initial state.
       if (!id) {
         return initial || reset
       }
@@ -41222,26 +41474,26 @@ function messageControl(options) {
   }
 }
 
-/* Detect gaps in `ast`. */
+// Detect gaps in `tree`.
 function detectGaps(tree, file) {
   var lastNode = tree.children[tree.children.length - 1];
   var offset = 0;
   var isGap = false;
   var gaps = [];
 
-  /* Find all gaps. */
-  unistUtilVisit(tree, one);
+  // Find all gaps.
+  unistUtilVisit$1(tree, one);
 
-  /* Get the end of the document.
-   * This detects if the last node was the last node.
-   * If not, there’s an extra gap between the last node
-   * and the end of the document. */
+  // Get the end of the document.
+  // This detects if the last node was the last node.
+  // If not, there’s an extra gap between the last node and the end of the
+  // document.
   if (
     lastNode &&
     lastNode.position &&
     lastNode.position.end &&
     offset === lastNode.position.end.offset &&
-    trim_1(file.toString().slice(offset)) !== ''
+    trim(file.toString().slice(offset)) !== ''
   ) {
     update();
 
@@ -41262,7 +41514,7 @@ function detectGaps(tree, file) {
     }
   }
 
-  /* Detect a new position. */
+  // Detect a new position.
   function update(latest) {
     if (latest === null || latest === undefined) {
       isGap = true;
@@ -41280,6 +41532,10 @@ function detectGaps(tree, file) {
 
     offset = latest;
   }
+}
+
+function trim(value) {
+  return value.replace(/^\s*|\s*$/g, '')
 }
 
 var mdastCommentMarker = marker$1;
@@ -41367,7 +41623,7 @@ var test = [
 ];
 
 function messageControl$1(options) {
-  return unifiedMessageControl(immutable({marker: mdastCommentMarker, test: test}, options))
+  return unifiedMessageControl(Object.assign({marker: mdastCommentMarker, test: test}, options))
 }
 
 var remarkLint = lint;
@@ -41381,6 +41637,583 @@ function lint() {
 
 function lintMessageControl() {
   return remarkMessageControl({name: 'lint', source: 'remark-lint'})
+}
+
+var vfileLocation$2 = factory$8;
+
+function factory$8(file) {
+  var contents = indices$2(String(file));
+
+  return {
+    toPosition: offsetToPositionFactory$2(contents),
+    toOffset: positionToOffsetFactory$2(contents)
+  }
+}
+
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
+function offsetToPositionFactory$2(indices) {
+  return offsetToPosition
+
+  // Get the line and column-based `position` for `offset` in the bound indices.
+  function offsetToPosition(offset) {
+    var index = -1;
+    var length = indices.length;
+
+    if (offset < 0) {
+      return {}
+    }
+
+    while (++index < length) {
+      if (indices[index] > offset) {
+        return {
+          line: index + 1,
+          column: offset - (indices[index - 1] || 0) + 1,
+          offset: offset
+        }
+      }
+    }
+
+    return {}
+  }
+}
+
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
+function positionToOffsetFactory$2(indices) {
+  return positionToOffset
+
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
+  function positionToOffset(position) {
+    var line = position && position.line;
+    var column = position && position.column;
+
+    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
+      return (indices[line - 2] || 0) + column - 1 || 0
+    }
+
+    return -1
+  }
+}
+
+// Get indices of line-breaks in `value`.
+function indices$2(value) {
+  var result = [];
+  var index = value.indexOf('\n');
+
+  while (index !== -1) {
+    result.push(index + 1);
+    index = value.indexOf('\n', index + 1);
+  }
+
+  result.push(value.length + 1);
+
+  return result
+}
+
+var convert_1$2 = convert$3;
+
+function convert$3(test) {
+  if (typeof test === 'string') {
+    return typeFactory$2(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$3
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$2 : matchesFactory$2)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$2(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$3(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$2(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$2(tests) {
+  var checks = convertAll$2(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$2(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$3() {
+  return true
+}
+
+var unistUtilVisitParents$2 = visitParents$2;
+
+
+
+var CONTINUE$4 = true;
+var SKIP$4 = 'skip';
+var EXIT$4 = false;
+
+visitParents$2.CONTINUE = CONTINUE$4;
+visitParents$2.SKIP = SKIP$4;
+visitParents$2.EXIT = EXIT$4;
+
+function visitParents$2(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$2(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$2(visitor(node, parents));
+
+      if (result[0] === EXIT$4) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$4) {
+      subresult = toResult$2(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$4 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$4) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$2(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$4, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$2 = visit$2;
+
+
+
+var CONTINUE$5 = unistUtilVisitParents$2.CONTINUE;
+var SKIP$5 = unistUtilVisitParents$2.SKIP;
+var EXIT$5 = unistUtilVisitParents$2.EXIT;
+
+visit$2.CONTINUE = CONTINUE$5;
+visit$2.SKIP = SKIP$5;
+visit$2.EXIT = EXIT$5;
+
+function visit$2(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$2(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
+var unifiedMessageControl$1 = messageControl$2;
+
+function messageControl$2(options) {
+  var settings = options || {};
+  var name = settings.name;
+  var marker = settings.marker;
+  var test = settings.test;
+  var sources = settings.source;
+  var known = settings.known;
+  var reset = settings.reset;
+  var enable = settings.enable || [];
+  var disable = settings.disable || [];
+
+  if (!name) {
+    throw new Error('Expected `name` in `options`, got `' + name + '`')
+  }
+
+  if (!marker) {
+    throw new Error('Expected `marker` in `options`, got `' + marker + '`')
+  }
+
+  if (!sources) {
+    sources = [name];
+  } else if (typeof sources === 'string') {
+    sources = [sources];
+  }
+
+  return transformer
+
+  function transformer(tree, file) {
+    var toOffset = vfileLocation$2(file).toOffset;
+    var initial = !reset;
+    var gaps = detectGaps$1(tree, file);
+    var scope = {};
+    var globals = [];
+
+    unistUtilVisit$2(tree, test, visitor);
+
+    file.messages = file.messages.filter(filter);
+
+    function visitor(node, position, parent) {
+      var mark = marker(node);
+      var ruleIds;
+      var ruleId;
+      var verb;
+      var index;
+      var length;
+      var next;
+      var pos;
+      var tail;
+
+      if (!mark || mark.name !== name) {
+        return
+      }
+
+      ruleIds = mark.attributes.split(/\s/g);
+      verb = ruleIds.shift();
+      next = parent.children[position + 1];
+      pos = mark.node.position && mark.node.position.start;
+      tail = next && next.position && next.position.end;
+
+      if (verb !== 'enable' && verb !== 'disable' && verb !== 'ignore') {
+        file.fail(
+          'Unknown keyword `' +
+            verb +
+            '`: expected ' +
+            "`'enable'`, `'disable'`, or `'ignore'`",
+          mark.node
+        );
+      }
+
+      length = ruleIds.length;
+      index = -1;
+
+      // Apply to all rules.
+      if (length === 0) {
+        if (verb === 'ignore') {
+          toggle(pos, false);
+          toggle(tail, true);
+        } else {
+          toggle(pos, verb === 'enable');
+          reset = verb !== 'enable';
+        }
+      } else {
+        while (++index < length) {
+          ruleId = ruleIds[index];
+
+          if (isKnown(ruleId, verb, mark.node)) {
+            toggle(pos, verb === 'enable', ruleId);
+
+            if (verb === 'ignore') {
+              toggle(tail, true, ruleId);
+            }
+          }
+        }
+      }
+    }
+
+    function filter(message) {
+      var gapIndex = gaps.length;
+      var ruleId = message.ruleId;
+      var ranges = scope[ruleId];
+      var pos;
+
+      // Keep messages from a different source.
+      if (!message.source || sources.indexOf(message.source) === -1) {
+        return true
+      }
+
+      // We only ignore messages if they‘re disabled, *not* when they’re not in
+      // the document.
+      if (!message.line) {
+        message.line = 1;
+      }
+
+      if (!message.column) {
+        message.column = 1;
+      }
+
+      // Check whether the warning is inside a gap.
+      pos = toOffset(message);
+
+      while (gapIndex--) {
+        if (gaps[gapIndex].start <= pos && gaps[gapIndex].end > pos) {
+          return false
+        }
+      }
+
+      // Check whether allowed by specific and global states.
+      return check(message, ranges, ruleId) && check(message, globals)
+    }
+
+    // Helper to check (and possibly warn) if a `ruleId` is unknown.
+    function isKnown(ruleId, verb, pos) {
+      var result = known ? known.indexOf(ruleId) !== -1 : true;
+
+      if (!result) {
+        file.message(
+          'Unknown rule: cannot ' + verb + " `'" + ruleId + "'`",
+          pos
+        );
+      }
+
+      return result
+    }
+
+    // Get the latest state of a rule.
+    // When without `ruleId`, gets global state.
+    function getState(ruleId) {
+      var ranges = ruleId ? scope[ruleId] : globals;
+
+      if (ranges && ranges.length !== 0) {
+        return ranges[ranges.length - 1].state
+      }
+
+      if (!ruleId) {
+        return !reset
+      }
+
+      if (reset) {
+        return enable.indexOf(ruleId) !== -1
+      }
+
+      return disable.indexOf(ruleId) === -1
+    }
+
+    // Handle a rule.
+    function toggle(pos, state, ruleId) {
+      var markers = ruleId ? scope[ruleId] : globals;
+      var previousState;
+
+      if (!markers) {
+        markers = [];
+        scope[ruleId] = markers;
+      }
+
+      previousState = getState(ruleId);
+
+      if (state !== previousState) {
+        markers.push({state: state, position: pos});
+      }
+
+      // Toggle all known rules.
+      if (!ruleId) {
+        for (ruleId in scope) {
+          toggle(pos, state, ruleId);
+        }
+      }
+    }
+
+    // Check all `ranges` for `message`.
+    function check(message, ranges, id) {
+      // Check the state at the message’s position.
+      var index = ranges && ranges.length;
+      var length = -1;
+      var range;
+
+      while (--index > length) {
+        range = ranges[index];
+
+        /* istanbul ignore if - Generated marker. */
+        if (!range.position || !range.position.line || !range.position.column) {
+          continue
+        }
+
+        if (
+          range.position.line < message.line ||
+          (range.position.line === message.line &&
+            range.position.column <= message.column)
+        ) {
+          return range.state === true
+        }
+      }
+
+      // The first marker ocurred after the first message, so we check the
+      // initial state.
+      if (!id) {
+        return initial || reset
+      }
+
+      return reset ? enable.indexOf(id) !== -1 : disable.indexOf(id) === -1
+    }
+  }
+}
+
+// Detect gaps in `tree`.
+function detectGaps$1(tree, file) {
+  var lastNode = tree.children[tree.children.length - 1];
+  var offset = 0;
+  var isGap = false;
+  var gaps = [];
+
+  // Find all gaps.
+  unistUtilVisit$2(tree, one);
+
+  // Get the end of the document.
+  // This detects if the last node was the last node.
+  // If not, there’s an extra gap between the last node and the end of the
+  // document.
+  if (
+    lastNode &&
+    lastNode.position &&
+    lastNode.position.end &&
+    offset === lastNode.position.end.offset &&
+    trim$1(file.toString().slice(offset)) !== ''
+  ) {
+    update();
+
+    update(
+      tree && tree.position && tree.position.end && tree.position.end.offset - 1
+    );
+  }
+
+  return gaps
+
+  function one(node) {
+    var pos = node.position;
+
+    update(pos && pos.start && pos.start.offset);
+
+    if (!node.children) {
+      update(pos && pos.end && pos.end.offset);
+    }
+  }
+
+  // Detect a new position.
+  function update(latest) {
+    if (latest === null || latest === undefined) {
+      isGap = true;
+      return
+    }
+
+    if (offset >= latest) {
+      return
+    }
+
+    if (isGap) {
+      gaps.push({start: offset, end: latest});
+      isGap = false;
+    }
+
+    offset = latest;
+  }
+}
+
+function trim$1(value) {
+  return value.replace(/^\s*|\s*$/g, '')
+}
+
+var remarkMessageControl$1 = messageControl$3;
+
+var test$1 = [
+  'html', // Comments are `html` nodes in mdast.
+  'comment' // In MDX, comments have their own node.
+];
+
+function messageControl$3(options) {
+  return unifiedMessageControl$1(Object.assign({marker: mdastCommentMarker, test: test$1}, options))
+}
+
+var remarkLint$1 = lint$1;
+
+// `remark-lint`.
+// This adds support for ignoring stuff from messages (`<!--lint ignore-->`).
+// All rules are in their own packages and presets.
+function lint$1() {
+  this.use(lintMessageControl$1);
+}
+
+function lintMessageControl$1() {
+  return remarkMessageControl$1({name: 'lint', source: 'remark-lint'})
 }
 
 /**
@@ -41822,9 +42655,9 @@ function promise(value) {
   return value && 'function' == typeof value.then;
 }
 
-var unifiedLintRule = factory$7;
+var unifiedLintRule = factory$9;
 
-function factory$7(id, rule) {
+function factory$9(id, rule) {
   var parts = id.split(':');
   var source = parts[0];
   var ruleId = parts[1];
@@ -41862,7 +42695,7 @@ function factory$7(id, rule) {
         if (err && messages.indexOf(err) === -1) {
           try {
             file.fail(err);
-          } catch (error) {}
+          } catch (_) {}
         }
 
         while (index < messages.length) {
@@ -41921,7 +42754,7 @@ function coerce(name, value) {
 
   if (level < 0 || level > 2) {
     throw new Error(
-      'Invalid severity `' +
+      'Incorrect severity `' +
         level +
         '` for `' +
         name +
@@ -41946,490 +42779,700 @@ function finalNewline(tree, file) {
   }
 }
 
-const addendum = "addenda";
-const aircraft = "aircraft";
-const alga = "algae";
-const alumna = "alumnae";
-const alumnus = "alumni";
-const amoeba = "amoebae";
-const analysis = "analyses";
-const antenna = "antennae";
-const antithesis = "antitheses";
-const apex = "apices";
-const appendix = "appendices";
-const automaton = "automata";
-const axis = "axes";
-const bacillus = "bacilli";
-const bacterium = "bacteria";
-const barracks = "barracks";
-const basis = "bases";
-const beau = "beaux";
-const bison = "bison";
-const buffalo = "buffalo";
-const bureau = "bureaus";
-const cactus = "cacti";
-const calf = "calves";
-const carp = "carp";
-const census = "censuses";
-const chassis = "chassis";
-const cherub = "cherubim";
-const child = "children";
-const cod = "cod";
-const codex = "codices";
-const concerto = "concerti";
-const corpus = "corpora";
-const crisis = "crises";
-const criterion = "criteria";
-const curriculum = "curricula";
-const datum = "data";
-const deer = "deer";
-const diagnosis = "diagnoses";
-const die$1 = "dice";
-const dwarf = "dwarfs";
-const echo = "echoes";
-const elf = "elves";
-const elk = "elk";
-const ellipsis = "ellipses";
-const embargo = "embargoes";
-const emphasis$3 = "emphases";
-const erratum = "errata";
-const fez = "fezes";
-const firmware = "firmware";
-const fish = "fish";
-const focus = "foci";
-const foot = "feet";
-const formula = "formulae";
-const fungus = "fungi";
-const gallows = "gallows";
-const genus = "genera";
-const goose = "geese";
-const graffito = "graffiti";
-const grouse = "grouse";
-const half$1 = "halves";
-const hero = "heroes";
-const hoof = "hooves";
-const hovercraft = "hovercraft";
-const hypothesis = "hypotheses";
-const index$5 = "indices";
-const kakapo = "kakapo";
-const knife = "knives";
-const larva = "larvae";
-const leaf = "leaves";
-const libretto = "libretti";
-const life = "lives";
-const loaf = "loaves";
-const locus = "loci";
-const louse = "lice";
-const man = "men";
-const matrix = "matrices";
-const means = "means";
-const medium = "media";
-const memorandum = "memoranda";
-const millennium = "millennia";
-const minutia = "minutiae";
-const moose = "moose";
-const mouse = "mice";
-const nebula = "nebulae";
-const nemesis = "nemeses";
-const neurosis = "neuroses";
-const news = "news";
-const nucleus = "nuclei";
-const oasis = "oases";
-const offspring = "offspring";
-const opus = "opera";
-const ovum = "ova";
-const ox = "oxen";
-const paralysis = "paralyses";
-const parenthesis = "parentheses";
-const person = "people";
-const phenomenon = "phenomena";
-const phylum = "phyla";
-const pike = "pike";
-const polyhedron = "polyhedra";
-const potato = "potatoes";
-const prognosis = "prognoses";
-const quiz = "quizzes";
-const radius = "radii";
-const referendum = "referenda";
-const salmon = "salmon";
-const scarf = "scarves";
-const self = "selves";
-const series = "series";
-const sheep = "sheep";
-const shelf = "shelves";
-const shrimp = "shrimp";
-const spacecraft = "spacecraft";
-const species = "species";
-const spectrum = "spectra";
-const squid = "squid";
-const stimulus = "stimuli";
-const stratum = "strata";
-const swine = "swine";
-const syllabus = "syllabi";
-const symposium = "symposia";
-const synopsis = "synopses";
-const synthesis = "syntheses";
-const tableau = "tableaus";
-const that = "those";
-const thesis = "theses";
-const thief = "thieves";
-const tomato = "tomatoes";
-const tooth = "teeth";
-const trout = "trout";
-const tuna = "tuna";
-const vertebra = "vertebrae";
-const vertex = "vertices";
-const veto = "vetoes";
-const vita = "vitae";
-const vortex = "vortices";
-const watercraft = "watercraft";
-const wharf = "wharves";
-const wife = "wives";
-const wolf = "wolves";
-const woman = "women";
-var irregularPlurals = {
-	addendum: addendum,
-	aircraft: aircraft,
-	alga: alga,
-	alumna: alumna,
-	alumnus: alumnus,
-	amoeba: amoeba,
-	analysis: analysis,
-	antenna: antenna,
-	antithesis: antithesis,
-	apex: apex,
-	appendix: appendix,
-	automaton: automaton,
-	axis: axis,
-	bacillus: bacillus,
-	bacterium: bacterium,
-	barracks: barracks,
-	basis: basis,
-	beau: beau,
-	bison: bison,
-	buffalo: buffalo,
-	bureau: bureau,
-	cactus: cactus,
-	calf: calf,
-	carp: carp,
-	census: census,
-	chassis: chassis,
-	cherub: cherub,
-	child: child,
-	"château": "châteaus",
-	cod: cod,
-	codex: codex,
-	concerto: concerto,
-	corpus: corpus,
-	crisis: crisis,
-	criterion: criterion,
-	curriculum: curriculum,
-	datum: datum,
-	deer: deer,
-	diagnosis: diagnosis,
-	die: die$1,
-	dwarf: dwarf,
-	echo: echo,
-	elf: elf,
-	elk: elk,
-	ellipsis: ellipsis,
-	embargo: embargo,
-	emphasis: emphasis$3,
-	erratum: erratum,
-	"faux pas": "faux pas",
-	fez: fez,
-	firmware: firmware,
-	fish: fish,
-	focus: focus,
-	foot: foot,
-	formula: formula,
-	fungus: fungus,
-	gallows: gallows,
-	genus: genus,
-	goose: goose,
-	graffito: graffito,
-	grouse: grouse,
-	half: half$1,
-	hero: hero,
-	hoof: hoof,
-	hovercraft: hovercraft,
-	hypothesis: hypothesis,
-	index: index$5,
-	kakapo: kakapo,
-	knife: knife,
-	larva: larva,
-	leaf: leaf,
-	libretto: libretto,
-	life: life,
-	loaf: loaf,
-	locus: locus,
-	louse: louse,
-	man: man,
-	matrix: matrix,
-	means: means,
-	medium: medium,
-	memorandum: memorandum,
-	millennium: millennium,
-	minutia: minutia,
-	moose: moose,
-	mouse: mouse,
-	nebula: nebula,
-	nemesis: nemesis,
-	neurosis: neurosis,
-	news: news,
-	nucleus: nucleus,
-	oasis: oasis,
-	offspring: offspring,
-	opus: opus,
-	ovum: ovum,
-	ox: ox,
-	paralysis: paralysis,
-	parenthesis: parenthesis,
-	person: person,
-	phenomenon: phenomenon,
-	phylum: phylum,
-	pike: pike,
-	polyhedron: polyhedron,
-	potato: potato,
-	prognosis: prognosis,
-	quiz: quiz,
-	radius: radius,
-	referendum: referendum,
-	salmon: salmon,
-	scarf: scarf,
-	self: self,
-	series: series,
-	sheep: sheep,
-	shelf: shelf,
-	shrimp: shrimp,
-	spacecraft: spacecraft,
-	species: species,
-	spectrum: spectrum,
-	squid: squid,
-	stimulus: stimulus,
-	stratum: stratum,
-	swine: swine,
-	syllabus: syllabus,
-	symposium: symposium,
-	synopsis: synopsis,
-	synthesis: synthesis,
-	tableau: tableau,
-	that: that,
-	thesis: thesis,
-	thief: thief,
-	"this": "these",
-	tomato: tomato,
-	tooth: tooth,
-	trout: trout,
-	tuna: tuna,
-	vertebra: vertebra,
-	vertex: vertex,
-	veto: veto,
-	vita: vita,
-	vortex: vortex,
-	watercraft: watercraft,
-	wharf: wharf,
-	wife: wife,
-	wolf: wolf,
-	woman: woman
-};
+var pluralize = createCommonjsModule(function (module, exports) {
+/* global define */
 
-var irregularPlurals$1 = /*#__PURE__*/Object.freeze({
-  __proto__: null,
-  addendum: addendum,
-  aircraft: aircraft,
-  alga: alga,
-  alumna: alumna,
-  alumnus: alumnus,
-  amoeba: amoeba,
-  analysis: analysis,
-  antenna: antenna,
-  antithesis: antithesis,
-  apex: apex,
-  appendix: appendix,
-  automaton: automaton,
-  axis: axis,
-  bacillus: bacillus,
-  bacterium: bacterium,
-  barracks: barracks,
-  basis: basis,
-  beau: beau,
-  bison: bison,
-  buffalo: buffalo,
-  bureau: bureau,
-  cactus: cactus,
-  calf: calf,
-  carp: carp,
-  census: census,
-  chassis: chassis,
-  cherub: cherub,
-  child: child,
-  cod: cod,
-  codex: codex,
-  concerto: concerto,
-  corpus: corpus,
-  crisis: crisis,
-  criterion: criterion,
-  curriculum: curriculum,
-  datum: datum,
-  deer: deer,
-  diagnosis: diagnosis,
-  die: die$1,
-  dwarf: dwarf,
-  echo: echo,
-  elf: elf,
-  elk: elk,
-  ellipsis: ellipsis,
-  embargo: embargo,
-  emphasis: emphasis$3,
-  erratum: erratum,
-  fez: fez,
-  firmware: firmware,
-  fish: fish,
-  focus: focus,
-  foot: foot,
-  formula: formula,
-  fungus: fungus,
-  gallows: gallows,
-  genus: genus,
-  goose: goose,
-  graffito: graffito,
-  grouse: grouse,
-  half: half$1,
-  hero: hero,
-  hoof: hoof,
-  hovercraft: hovercraft,
-  hypothesis: hypothesis,
-  index: index$5,
-  kakapo: kakapo,
-  knife: knife,
-  larva: larva,
-  leaf: leaf,
-  libretto: libretto,
-  life: life,
-  loaf: loaf,
-  locus: locus,
-  louse: louse,
-  man: man,
-  matrix: matrix,
-  means: means,
-  medium: medium,
-  memorandum: memorandum,
-  millennium: millennium,
-  minutia: minutia,
-  moose: moose,
-  mouse: mouse,
-  nebula: nebula,
-  nemesis: nemesis,
-  neurosis: neurosis,
-  news: news,
-  nucleus: nucleus,
-  oasis: oasis,
-  offspring: offspring,
-  opus: opus,
-  ovum: ovum,
-  ox: ox,
-  paralysis: paralysis,
-  parenthesis: parenthesis,
-  person: person,
-  phenomenon: phenomenon,
-  phylum: phylum,
-  pike: pike,
-  polyhedron: polyhedron,
-  potato: potato,
-  prognosis: prognosis,
-  quiz: quiz,
-  radius: radius,
-  referendum: referendum,
-  salmon: salmon,
-  scarf: scarf,
-  self: self,
-  series: series,
-  sheep: sheep,
-  shelf: shelf,
-  shrimp: shrimp,
-  spacecraft: spacecraft,
-  species: species,
-  spectrum: spectrum,
-  squid: squid,
-  stimulus: stimulus,
-  stratum: stratum,
-  swine: swine,
-  syllabus: syllabus,
-  symposium: symposium,
-  synopsis: synopsis,
-  synthesis: synthesis,
-  tableau: tableau,
-  that: that,
-  thesis: thesis,
-  thief: thief,
-  tomato: tomato,
-  tooth: tooth,
-  trout: trout,
-  tuna: tuna,
-  vertebra: vertebra,
-  vertex: vertex,
-  veto: veto,
-  vita: vita,
-  vortex: vortex,
-  watercraft: watercraft,
-  wharf: wharf,
-  wife: wife,
-  wolf: wolf,
-  woman: woman,
-  'default': irregularPlurals
+(function (root, pluralize) {
+  /* istanbul ignore else */
+  if (typeof commonjsRequire === 'function' && 'object' === 'object' && 'object' === 'object') {
+    // Node.
+    module.exports = pluralize();
+  } else {
+    // Browser global.
+    root.pluralize = pluralize();
+  }
+})(commonjsGlobal, function () {
+  // Rule storage - pluralize and singularize need to be run sequentially,
+  // while other rules can be optimized using an object for instant lookups.
+  var pluralRules = [];
+  var singularRules = [];
+  var uncountables = {};
+  var irregularPlurals = {};
+  var irregularSingles = {};
+
+  /**
+   * Sanitize a pluralization rule to a usable regular expression.
+   *
+   * @param  {(RegExp|string)} rule
+   * @return {RegExp}
+   */
+  function sanitizeRule (rule) {
+    if (typeof rule === 'string') {
+      return new RegExp('^' + rule + '$', 'i');
+    }
+
+    return rule;
+  }
+
+  /**
+   * Pass in a word token to produce a function that can replicate the case on
+   * another word.
+   *
+   * @param  {string}   word
+   * @param  {string}   token
+   * @return {Function}
+   */
+  function restoreCase (word, token) {
+    // Tokens are an exact match.
+    if (word === token) return token;
+
+    // Lower cased words. E.g. "hello".
+    if (word === word.toLowerCase()) return token.toLowerCase();
+
+    // Upper cased words. E.g. "WHISKY".
+    if (word === word.toUpperCase()) return token.toUpperCase();
+
+    // Title cased words. E.g. "Title".
+    if (word[0] === word[0].toUpperCase()) {
+      return token.charAt(0).toUpperCase() + token.substr(1).toLowerCase();
+    }
+
+    // Lower cased words. E.g. "test".
+    return token.toLowerCase();
+  }
+
+  /**
+   * Interpolate a regexp string.
+   *
+   * @param  {string} str
+   * @param  {Array}  args
+   * @return {string}
+   */
+  function interpolate (str, args) {
+    return str.replace(/\$(\d{1,2})/g, function (match, index) {
+      return args[index] || '';
+    });
+  }
+
+  /**
+   * Replace a word using a rule.
+   *
+   * @param  {string} word
+   * @param  {Array}  rule
+   * @return {string}
+   */
+  function replace (word, rule) {
+    return word.replace(rule[0], function (match, index) {
+      var result = interpolate(rule[1], arguments);
+
+      if (match === '') {
+        return restoreCase(word[index - 1], result);
+      }
+
+      return restoreCase(match, result);
+    });
+  }
+
+  /**
+   * Sanitize a word by passing in the word and sanitization rules.
+   *
+   * @param  {string}   token
+   * @param  {string}   word
+   * @param  {Array}    rules
+   * @return {string}
+   */
+  function sanitizeWord (token, word, rules) {
+    // Empty string or doesn't need fixing.
+    if (!token.length || uncountables.hasOwnProperty(token)) {
+      return word;
+    }
+
+    var len = rules.length;
+
+    // Iterate over the sanitization rules and use the first one to match.
+    while (len--) {
+      var rule = rules[len];
+
+      if (rule[0].test(word)) return replace(word, rule);
+    }
+
+    return word;
+  }
+
+  /**
+   * Replace a word with the updated word.
+   *
+   * @param  {Object}   replaceMap
+   * @param  {Object}   keepMap
+   * @param  {Array}    rules
+   * @return {Function}
+   */
+  function replaceWord (replaceMap, keepMap, rules) {
+    return function (word) {
+      // Get the correct token and case restoration functions.
+      var token = word.toLowerCase();
+
+      // Check against the keep object map.
+      if (keepMap.hasOwnProperty(token)) {
+        return restoreCase(word, token);
+      }
+
+      // Check against the replacement map for a direct word replacement.
+      if (replaceMap.hasOwnProperty(token)) {
+        return restoreCase(word, replaceMap[token]);
+      }
+
+      // Run all the rules against the word.
+      return sanitizeWord(token, word, rules);
+    };
+  }
+
+  /**
+   * Check if a word is part of the map.
+   */
+  function checkWord (replaceMap, keepMap, rules, bool) {
+    return function (word) {
+      var token = word.toLowerCase();
+
+      if (keepMap.hasOwnProperty(token)) return true;
+      if (replaceMap.hasOwnProperty(token)) return false;
+
+      return sanitizeWord(token, token, rules) === token;
+    };
+  }
+
+  /**
+   * Pluralize or singularize a word based on the passed in count.
+   *
+   * @param  {string}  word      The word to pluralize
+   * @param  {number}  count     How many of the word exist
+   * @param  {boolean} inclusive Whether to prefix with the number (e.g. 3 ducks)
+   * @return {string}
+   */
+  function pluralize (word, count, inclusive) {
+    var pluralized = count === 1
+      ? pluralize.singular(word) : pluralize.plural(word);
+
+    return (inclusive ? count + ' ' : '') + pluralized;
+  }
+
+  /**
+   * Pluralize a word.
+   *
+   * @type {Function}
+   */
+  pluralize.plural = replaceWord(
+    irregularSingles, irregularPlurals, pluralRules
+  );
+
+  /**
+   * Check if a word is plural.
+   *
+   * @type {Function}
+   */
+  pluralize.isPlural = checkWord(
+    irregularSingles, irregularPlurals, pluralRules
+  );
+
+  /**
+   * Singularize a word.
+   *
+   * @type {Function}
+   */
+  pluralize.singular = replaceWord(
+    irregularPlurals, irregularSingles, singularRules
+  );
+
+  /**
+   * Check if a word is singular.
+   *
+   * @type {Function}
+   */
+  pluralize.isSingular = checkWord(
+    irregularPlurals, irregularSingles, singularRules
+  );
+
+  /**
+   * Add a pluralization rule to the collection.
+   *
+   * @param {(string|RegExp)} rule
+   * @param {string}          replacement
+   */
+  pluralize.addPluralRule = function (rule, replacement) {
+    pluralRules.push([sanitizeRule(rule), replacement]);
+  };
+
+  /**
+   * Add a singularization rule to the collection.
+   *
+   * @param {(string|RegExp)} rule
+   * @param {string}          replacement
+   */
+  pluralize.addSingularRule = function (rule, replacement) {
+    singularRules.push([sanitizeRule(rule), replacement]);
+  };
+
+  /**
+   * Add an uncountable word rule.
+   *
+   * @param {(string|RegExp)} word
+   */
+  pluralize.addUncountableRule = function (word) {
+    if (typeof word === 'string') {
+      uncountables[word.toLowerCase()] = true;
+      return;
+    }
+
+    // Set singular and plural references for the word.
+    pluralize.addPluralRule(word, '$0');
+    pluralize.addSingularRule(word, '$0');
+  };
+
+  /**
+   * Add an irregular word definition.
+   *
+   * @param {string} single
+   * @param {string} plural
+   */
+  pluralize.addIrregularRule = function (single, plural) {
+    plural = plural.toLowerCase();
+    single = single.toLowerCase();
+
+    irregularSingles[single] = plural;
+    irregularPlurals[plural] = single;
+  };
+
+  /**
+   * Irregular rules.
+   */
+  [
+    // Pronouns.
+    ['I', 'we'],
+    ['me', 'us'],
+    ['he', 'they'],
+    ['she', 'they'],
+    ['them', 'them'],
+    ['myself', 'ourselves'],
+    ['yourself', 'yourselves'],
+    ['itself', 'themselves'],
+    ['herself', 'themselves'],
+    ['himself', 'themselves'],
+    ['themself', 'themselves'],
+    ['is', 'are'],
+    ['was', 'were'],
+    ['has', 'have'],
+    ['this', 'these'],
+    ['that', 'those'],
+    // Words ending in with a consonant and `o`.
+    ['echo', 'echoes'],
+    ['dingo', 'dingoes'],
+    ['volcano', 'volcanoes'],
+    ['tornado', 'tornadoes'],
+    ['torpedo', 'torpedoes'],
+    // Ends with `us`.
+    ['genus', 'genera'],
+    ['viscus', 'viscera'],
+    // Ends with `ma`.
+    ['stigma', 'stigmata'],
+    ['stoma', 'stomata'],
+    ['dogma', 'dogmata'],
+    ['lemma', 'lemmata'],
+    ['schema', 'schemata'],
+    ['anathema', 'anathemata'],
+    // Other irregular rules.
+    ['ox', 'oxen'],
+    ['axe', 'axes'],
+    ['die', 'dice'],
+    ['yes', 'yeses'],
+    ['foot', 'feet'],
+    ['eave', 'eaves'],
+    ['goose', 'geese'],
+    ['tooth', 'teeth'],
+    ['quiz', 'quizzes'],
+    ['human', 'humans'],
+    ['proof', 'proofs'],
+    ['carve', 'carves'],
+    ['valve', 'valves'],
+    ['looey', 'looies'],
+    ['thief', 'thieves'],
+    ['groove', 'grooves'],
+    ['pickaxe', 'pickaxes'],
+    ['passerby', 'passersby']
+  ].forEach(function (rule) {
+    return pluralize.addIrregularRule(rule[0], rule[1]);
+  });
+
+  /**
+   * Pluralization rules.
+   */
+  [
+    [/s?$/i, 's'],
+    [/[^\u0000-\u007F]$/i, '$0'],
+    [/([^aeiou]ese)$/i, '$1'],
+    [/(ax|test)is$/i, '$1es'],
+    [/(alias|[^aou]us|t[lm]as|gas|ris)$/i, '$1es'],
+    [/(e[mn]u)s?$/i, '$1s'],
+    [/([^l]ias|[aeiou]las|[ejzr]as|[iu]am)$/i, '$1'],
+    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1i'],
+    [/(alumn|alg|vertebr)(?:a|ae)$/i, '$1ae'],
+    [/(seraph|cherub)(?:im)?$/i, '$1im'],
+    [/(her|at|gr)o$/i, '$1oes'],
+    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|automat|quor)(?:a|um)$/i, '$1a'],
+    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)(?:a|on)$/i, '$1a'],
+    [/sis$/i, 'ses'],
+    [/(?:(kni|wi|li)fe|(ar|l|ea|eo|oa|hoo)f)$/i, '$1$2ves'],
+    [/([^aeiouy]|qu)y$/i, '$1ies'],
+    [/([^ch][ieo][ln])ey$/i, '$1ies'],
+    [/(x|ch|ss|sh|zz)$/i, '$1es'],
+    [/(matr|cod|mur|sil|vert|ind|append)(?:ix|ex)$/i, '$1ices'],
+    [/\b((?:tit)?m|l)(?:ice|ouse)$/i, '$1ice'],
+    [/(pe)(?:rson|ople)$/i, '$1ople'],
+    [/(child)(?:ren)?$/i, '$1ren'],
+    [/eaux$/i, '$0'],
+    [/m[ae]n$/i, 'men'],
+    ['thou', 'you']
+  ].forEach(function (rule) {
+    return pluralize.addPluralRule(rule[0], rule[1]);
+  });
+
+  /**
+   * Singularization rules.
+   */
+  [
+    [/s$/i, ''],
+    [/(ss)$/i, '$1'],
+    [/(wi|kni|(?:after|half|high|low|mid|non|night|[^\w]|^)li)ves$/i, '$1fe'],
+    [/(ar|(?:wo|[ae])l|[eo][ao])ves$/i, '$1f'],
+    [/ies$/i, 'y'],
+    [/\b([pl]|zomb|(?:neck|cross)?t|coll|faer|food|gen|goon|group|lass|talk|goal|cut)ies$/i, '$1ie'],
+    [/\b(mon|smil)ies$/i, '$1ey'],
+    [/\b((?:tit)?m|l)ice$/i, '$1ouse'],
+    [/(seraph|cherub)im$/i, '$1'],
+    [/(x|ch|ss|sh|zz|tto|go|cho|alias|[^aou]us|t[lm]as|gas|(?:her|at|gr)o|[aeiou]ris)(?:es)?$/i, '$1'],
+    [/(analy|diagno|parenthe|progno|synop|the|empha|cri|ne)(?:sis|ses)$/i, '$1sis'],
+    [/(movie|twelve|abuse|e[mn]u)s$/i, '$1'],
+    [/(test)(?:is|es)$/i, '$1is'],
+    [/(alumn|syllab|vir|radi|nucle|fung|cact|stimul|termin|bacill|foc|uter|loc|strat)(?:us|i)$/i, '$1us'],
+    [/(agend|addend|millenni|dat|extrem|bacteri|desiderat|strat|candelabr|errat|ov|symposi|curricul|quor)a$/i, '$1um'],
+    [/(apheli|hyperbat|periheli|asyndet|noumen|phenomen|criteri|organ|prolegomen|hedr|automat)a$/i, '$1on'],
+    [/(alumn|alg|vertebr)ae$/i, '$1a'],
+    [/(cod|mur|sil|vert|ind)ices$/i, '$1ex'],
+    [/(matr|append)ices$/i, '$1ix'],
+    [/(pe)(rson|ople)$/i, '$1rson'],
+    [/(child)ren$/i, '$1'],
+    [/(eau)x?$/i, '$1'],
+    [/men$/i, 'man']
+  ].forEach(function (rule) {
+    return pluralize.addSingularRule(rule[0], rule[1]);
+  });
+
+  /**
+   * Uncountable rules.
+   */
+  [
+    // Singular words with no plurals.
+    'adulthood',
+    'advice',
+    'agenda',
+    'aid',
+    'aircraft',
+    'alcohol',
+    'ammo',
+    'analytics',
+    'anime',
+    'athletics',
+    'audio',
+    'bison',
+    'blood',
+    'bream',
+    'buffalo',
+    'butter',
+    'carp',
+    'cash',
+    'chassis',
+    'chess',
+    'clothing',
+    'cod',
+    'commerce',
+    'cooperation',
+    'corps',
+    'debris',
+    'diabetes',
+    'digestion',
+    'elk',
+    'energy',
+    'equipment',
+    'excretion',
+    'expertise',
+    'firmware',
+    'flounder',
+    'fun',
+    'gallows',
+    'garbage',
+    'graffiti',
+    'hardware',
+    'headquarters',
+    'health',
+    'herpes',
+    'highjinks',
+    'homework',
+    'housework',
+    'information',
+    'jeans',
+    'justice',
+    'kudos',
+    'labour',
+    'literature',
+    'machinery',
+    'mackerel',
+    'mail',
+    'media',
+    'mews',
+    'moose',
+    'music',
+    'mud',
+    'manga',
+    'news',
+    'only',
+    'personnel',
+    'pike',
+    'plankton',
+    'pliers',
+    'police',
+    'pollution',
+    'premises',
+    'rain',
+    'research',
+    'rice',
+    'salmon',
+    'scissors',
+    'series',
+    'sewage',
+    'shambles',
+    'shrimp',
+    'software',
+    'species',
+    'staff',
+    'swine',
+    'tennis',
+    'traffic',
+    'transportation',
+    'trout',
+    'tuna',
+    'wealth',
+    'welfare',
+    'whiting',
+    'wildebeest',
+    'wildlife',
+    'you',
+    /pok[eé]mon$/i,
+    // Regexes.
+    /[^aeiou]ese$/i, // "chinese", "japanese"
+    /deer$/i, // "deer", "reindeer"
+    /fish$/i, // "fish", "blowfish", "angelfish"
+    /measles$/i,
+    /o[iu]s$/i, // "carnivorous"
+    /pox$/i, // "chickpox", "smallpox"
+    /sheep$/i
+  ].forEach(pluralize.addUncountableRule);
+
+  return pluralize;
+});
 });
 
-var irregularPlurals$2 = getCjsExportFromNamespace(irregularPlurals$1);
+var convert_1$3 = convert$4;
 
-var irregularPlurals_1 = createCommonjsModule(function (module) {
+function convert$4(test) {
+  if (typeof test === 'string') {
+    return typeFactory$3(test)
+  }
 
+  if (test === null || test === undefined) {
+    return ok$4
+  }
 
-const map = new Map();
-// TODO: Use Object.entries when targeting Node.js 8
-for (const key of Object.keys(irregularPlurals$2)) {
-	map.set(key, irregularPlurals$2[key]);
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$3 : matchesFactory$3)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
 }
 
-// Ensure nobody can modify each others Map
-Object.defineProperty(module, 'exports', {
-	get() {
-		return map;
-	}
-});
-});
+function convertAll$3(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
 
-var plur = (word, plural, count) => {
-	if (typeof plural === 'number') {
-		count = plural;
-	}
+  while (++index < length) {
+    results[index] = convert$4(tests[index]);
+  }
 
-	if (irregularPlurals_1.has(word.toLowerCase())) {
-		plural = irregularPlurals_1.get(word.toLowerCase());
+  return results
+}
 
-		const firstLetter = word.charAt(0);
-		const isFirstLetterUpperCase = firstLetter === firstLetter.toUpperCase();
-		if (isFirstLetterUpperCase) {
-			plural = firstLetter.toUpperCase() + plural.slice(1);
-		}
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$3(test) {
+  return matches
 
-		const isWholeWordUpperCase = word === word.toUpperCase();
-		if (isWholeWordUpperCase) {
-			plural = plural.toUpperCase();
-		}
-	} else if (typeof plural !== 'string') {
-		plural = (word.replace(/(?:s|x|z|ch|sh)$/i, '$&e').replace(/([^aeiou])y$/i, '$1ie') + 's')
-			.replace(/i?e?s$/i, match => {
-				const isTailLowerCase = word.slice(-1) === word.slice(-1).toLowerCase();
-				return isTailLowerCase ? match.toLowerCase() : match.toUpperCase();
-			});
-	}
+  function matches(node) {
+    var key;
 
-	return Math.abs(count) === 1 ? word : plural;
-};
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
 
-var start$1 = factory$8('start');
-var end = factory$8('end');
+    return true
+  }
+}
+
+function anyFactory$3(tests) {
+  var checks = convertAll$3(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$3(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$4() {
+  return true
+}
+
+var unistUtilVisitParents$3 = visitParents$3;
+
+
+
+var CONTINUE$6 = true;
+var SKIP$6 = 'skip';
+var EXIT$6 = false;
+
+visitParents$3.CONTINUE = CONTINUE$6;
+visitParents$3.SKIP = SKIP$6;
+visitParents$3.EXIT = EXIT$6;
+
+function visitParents$3(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$3(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$3(visitor(node, parents));
+
+      if (result[0] === EXIT$6) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$6) {
+      subresult = toResult$3(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$6 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$6) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$3(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$6, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$3 = visit$3;
+
+
+
+var CONTINUE$7 = unistUtilVisitParents$3.CONTINUE;
+var SKIP$7 = unistUtilVisitParents$3.SKIP;
+var EXIT$7 = unistUtilVisitParents$3.EXIT;
+
+visit$3.CONTINUE = CONTINUE$7;
+visit$3.SKIP = SKIP$7;
+visit$3.EXIT = EXIT$7;
+
+function visit$3(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$3(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
+var start$1 = factory$a('start');
+var end = factory$a('end');
 
 var unistUtilPosition = position$1;
 
@@ -42440,7 +43483,7 @@ function position$1(node) {
   return {start: start$1(node), end: end(node)}
 }
 
-function factory$8(type) {
+function factory$a(type) {
   point.displayName = type;
 
   return point
@@ -42480,7 +43523,7 @@ var start$2 = unistUtilPosition.start;
 function listItemBulletIndent(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit(tree, 'list', visitor);
+  unistUtilVisit$3(tree, 'list', visitor);
 
   function visitor(node) {
     node.children.forEach(visitItems);
@@ -42501,7 +43544,7 @@ function listItemBulletIndent(tree, file) {
           'Incorrect indentation before bullet: remove ' +
           indent +
           ' ' +
-          plur('space', indent);
+          pluralize('space', indent);
 
         file.message(reason, {
           line: final.line,
@@ -42512,26 +43555,216 @@ function listItemBulletIndent(tree, file) {
   }
 }
 
+var convert_1$4 = convert$5;
+
+function convert$5(test) {
+  if (typeof test === 'string') {
+    return typeFactory$4(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$5
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$4 : matchesFactory$4)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$4(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$5(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$4(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$4(tests) {
+  var checks = convertAll$4(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$4(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$5() {
+  return true
+}
+
+var unistUtilVisitParents$4 = visitParents$4;
+
+
+
+var CONTINUE$8 = true;
+var SKIP$8 = 'skip';
+var EXIT$8 = false;
+
+visitParents$4.CONTINUE = CONTINUE$8;
+visitParents$4.SKIP = SKIP$8;
+visitParents$4.EXIT = EXIT$8;
+
+function visitParents$4(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$4(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$4(visitor(node, parents));
+
+      if (result[0] === EXIT$8) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$8) {
+      subresult = toResult$4(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$8 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$8) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$4(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$8, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$4 = visit$4;
+
+
+
+var CONTINUE$9 = unistUtilVisitParents$4.CONTINUE;
+var SKIP$9 = unistUtilVisitParents$4.SKIP;
+var EXIT$9 = unistUtilVisitParents$4.EXIT;
+
+visit$4.CONTINUE = CONTINUE$9;
+visit$4.SKIP = SKIP$9;
+visit$4.EXIT = EXIT$9;
+
+function visit$4(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$4(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintListItemIndent = unifiedLintRule('remark-lint:list-item-indent', listItemIndent);
 
 var start$3 = unistUtilPosition.start;
 
 var styles = {'tab-size': true, mixed: true, space: true};
 
-function listItemIndent(tree, file, pref) {
+function listItemIndent(tree, file, option) {
   var contents = String(file);
+  var preferred = typeof option === 'string' ? option : 'tab-size';
 
-  pref = typeof pref === 'string' ? pref : 'tab-size';
-
-  if (styles[pref] !== true) {
+  if (styles[preferred] !== true) {
     file.fail(
-      'Invalid list-item indent style `' +
-        pref +
+      'Incorrect list-item indent style `' +
+        preferred +
         "`: use either `'tab-size'`, `'space'`, or `'mixed'`"
     );
   }
 
-  unistUtilVisit(tree, 'list', visitor);
+  unistUtilVisit$4(tree, 'list', visitor);
 
   function visitor(node) {
     var spread = node.spread || node.loose;
@@ -42548,28 +43781,30 @@ function listItemIndent(tree, file, pref) {
       var style;
       var diff;
       var reason;
+      var abs;
 
       marker = contents
         .slice(start$3(item).offset, final.offset)
         .replace(/\[[x ]?]\s*$/i, '');
 
-      bulletSize = marker.trimRight().length;
+      bulletSize = marker.replace(/\s+$/, '').length;
 
       style =
-        pref === 'tab-size' || (pref === 'mixed' && spread)
+        preferred === 'tab-size' || (preferred === 'mixed' && spread)
           ? Math.ceil(bulletSize / 4) * 4
           : bulletSize + 1;
 
       if (marker.length !== style) {
         diff = style - marker.length;
+        abs = Math.abs(diff);
 
         reason =
           'Incorrect list-item indent: ' +
           (diff > 0 ? 'add' : 'remove') +
           ' ' +
-          Math.abs(diff) +
+          abs +
           ' ' +
-          plur('space', diff);
+          pluralize('space', abs);
 
         file.message(reason, final);
       }
@@ -42577,23 +43812,224 @@ function listItemIndent(tree, file, pref) {
   }
 }
 
+var convert_1$5 = convert$6;
+
+function convert$6(test) {
+  if (typeof test === 'string') {
+    return typeFactory$5(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$6
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$5 : matchesFactory$5)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$5(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$6(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$5(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$5(tests) {
+  var checks = convertAll$5(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$5(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$6() {
+  return true
+}
+
+var unistUtilVisitParents$5 = visitParents$5;
+
+
+
+var CONTINUE$a = true;
+var SKIP$a = 'skip';
+var EXIT$a = false;
+
+visitParents$5.CONTINUE = CONTINUE$a;
+visitParents$5.SKIP = SKIP$a;
+visitParents$5.EXIT = EXIT$a;
+
+function visitParents$5(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$5(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$5(visitor(node, parents));
+
+      if (result[0] === EXIT$a) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$a) {
+      subresult = toResult$5(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$a ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$a) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$5(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$a, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$5 = visit$5;
+
+
+
+var CONTINUE$b = unistUtilVisitParents$5.CONTINUE;
+var SKIP$b = unistUtilVisitParents$5.SKIP;
+var EXIT$b = unistUtilVisitParents$5.EXIT;
+
+visit$5.CONTINUE = CONTINUE$b;
+visit$5.SKIP = SKIP$b;
+visit$5.EXIT = EXIT$b;
+
+function visit$5(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$5(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var mdastUtilToString = toString$4;
 
-// Get the text content of a node.  If the node itself does not expose
-// plain-text fields, `toString` will recursivly try its children.
+// Get the text content of a node.
+// Prefer the node’s plain-text fields, otherwise serialize its children,
+// and if the given value is an array, serialize the nodes in it.
 function toString$4(node) {
   return (
-    valueOf$1(node) ||
-    (node.children && node.children.map(toString$4).join('')) ||
+    (node &&
+      (node.value ||
+        node.alt ||
+        node.title ||
+        ('children' in node && all$1(node.children)) ||
+        ('length' in node && all$1(node)))) ||
     ''
   )
 }
 
-// Get the value of `node`.  Checks, `value`, `alt`, and `title`, in that order.
-function valueOf$1(node) {
-  return (
-    (node && node.value ? node.value : node.alt ? node.alt : node.title) || ''
-  )
+function all$1(values) {
+  var result = [];
+  var length = values.length;
+  var index = -1;
+
+  while (++index < length) {
+    result[index] = toString$4(values[index]);
+  }
+
+  return result.join('')
 }
 
 var remarkLintNoAutoLinkWithoutProtocol = unifiedLintRule(
@@ -42611,7 +44047,7 @@ var protocol$2 = /^[a-z][a-z+.-]+:\/?/i;
 var reason = 'All automatic links must start with a protocol';
 
 function noAutoLinkWithoutProtocol(tree, file) {
-  unistUtilVisit(tree, 'link', visitor);
+  unistUtilVisit$5(tree, 'link', visitor);
 
   function visitor(node) {
     var children;
@@ -42630,19 +44066,283 @@ function noAutoLinkWithoutProtocol(tree, file) {
   }
 }
 
+var vfileLocation$3 = factory$b;
+
+function factory$b(file) {
+  var contents = indices$3(String(file));
+
+  return {
+    toPosition: offsetToPositionFactory$3(contents),
+    toOffset: positionToOffsetFactory$3(contents)
+  }
+}
+
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
+function offsetToPositionFactory$3(indices) {
+  return offsetToPosition
+
+  // Get the line and column-based `position` for `offset` in the bound indices.
+  function offsetToPosition(offset) {
+    var index = -1;
+    var length = indices.length;
+
+    if (offset < 0) {
+      return {}
+    }
+
+    while (++index < length) {
+      if (indices[index] > offset) {
+        return {
+          line: index + 1,
+          column: offset - (indices[index - 1] || 0) + 1,
+          offset: offset
+        }
+      }
+    }
+
+    return {}
+  }
+}
+
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
+function positionToOffsetFactory$3(indices) {
+  return positionToOffset
+
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
+  function positionToOffset(position) {
+    var line = position && position.line;
+    var column = position && position.column;
+
+    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
+      return (indices[line - 2] || 0) + column - 1 || 0
+    }
+
+    return -1
+  }
+}
+
+// Get indices of line-breaks in `value`.
+function indices$3(value) {
+  var result = [];
+  var index = value.indexOf('\n');
+
+  while (index !== -1) {
+    result.push(index + 1);
+    index = value.indexOf('\n', index + 1);
+  }
+
+  result.push(value.length + 1);
+
+  return result
+}
+
+var convert_1$6 = convert$7;
+
+function convert$7(test) {
+  if (typeof test === 'string') {
+    return typeFactory$6(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$7
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$6 : matchesFactory$6)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$6(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$7(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$6(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$6(tests) {
+  var checks = convertAll$6(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$6(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$7() {
+  return true
+}
+
+var unistUtilVisitParents$6 = visitParents$6;
+
+
+
+var CONTINUE$c = true;
+var SKIP$c = 'skip';
+var EXIT$c = false;
+
+visitParents$6.CONTINUE = CONTINUE$c;
+visitParents$6.SKIP = SKIP$c;
+visitParents$6.EXIT = EXIT$c;
+
+function visitParents$6(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$6(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$6(visitor(node, parents));
+
+      if (result[0] === EXIT$c) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$c) {
+      subresult = toResult$6(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$c ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$c) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$6(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$c, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$6 = visit$6;
+
+
+
+var CONTINUE$d = unistUtilVisitParents$6.CONTINUE;
+var SKIP$d = unistUtilVisitParents$6.SKIP;
+var EXIT$d = unistUtilVisitParents$6.EXIT;
+
+visit$6.CONTINUE = CONTINUE$d;
+visit$6.SKIP = SKIP$d;
+visit$6.EXIT = EXIT$d;
+
+function visit$6(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$6(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoBlockquoteWithoutMarker = unifiedLintRule(
   'remark-lint:no-blockquote-without-marker',
   noBlockquoteWithoutMarker
 );
 
-var reason$1 = 'Missing marker in blockquote';
+var reason$1 = 'Missing marker in block quote';
 
 function noBlockquoteWithoutMarker(tree, file) {
   var contents = String(file);
-  var location = vfileLocation(file);
+  var location = vfileLocation$3(file);
   var last = contents.length;
 
-  unistUtilVisit(tree, 'blockquote', visitor);
+  unistUtilVisit$6(tree, 'blockquote', visitor);
 
   function visitor(node) {
     var indent = node.position && node.position.indent;
@@ -42684,6 +44384,197 @@ function noBlockquoteWithoutMarker(tree, file) {
   }
 }
 
+var convert_1$7 = convert$8;
+
+function convert$8(test) {
+  if (typeof test === 'string') {
+    return typeFactory$7(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$8
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$7 : matchesFactory$7)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$7(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$8(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$7(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$7(tests) {
+  var checks = convertAll$7(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$7(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$8() {
+  return true
+}
+
+var unistUtilVisitParents$7 = visitParents$7;
+
+
+
+var CONTINUE$e = true;
+var SKIP$e = 'skip';
+var EXIT$e = false;
+
+visitParents$7.CONTINUE = CONTINUE$e;
+visitParents$7.SKIP = SKIP$e;
+visitParents$7.EXIT = EXIT$e;
+
+function visitParents$7(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$7(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$7(visitor(node, parents));
+
+      if (result[0] === EXIT$e) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$e) {
+      subresult = toResult$7(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$e ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$e) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$7(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$e, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$7 = visit$7;
+
+
+
+var CONTINUE$f = unistUtilVisitParents$7.CONTINUE;
+var SKIP$f = unistUtilVisitParents$7.SKIP;
+var EXIT$f = unistUtilVisitParents$7.EXIT;
+
+visit$7.CONTINUE = CONTINUE$f;
+visit$7.SKIP = SKIP$f;
+visit$7.EXIT = EXIT$f;
+
+function visit$7(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$7(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoLiteralUrls = unifiedLintRule('remark-lint:no-literal-urls', noLiteralURLs);
 
 var start$5 = unistUtilPosition.start;
@@ -42692,7 +44583,7 @@ var mailto$3 = 'mailto:';
 var reason$2 = 'Don’t use literal URLs without angle brackets';
 
 function noLiteralURLs(tree, file) {
-  unistUtilVisit(tree, 'link', visitor);
+  unistUtilVisit$7(tree, 'link', visitor);
 
   function visitor(node) {
     var children = node.children;
@@ -42709,6 +44600,197 @@ function noLiteralURLs(tree, file) {
   }
 }
 
+var convert_1$8 = convert$9;
+
+function convert$9(test) {
+  if (typeof test === 'string') {
+    return typeFactory$8(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$9
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$8 : matchesFactory$8)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$8(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$9(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$8(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$8(tests) {
+  var checks = convertAll$8(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$8(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$9() {
+  return true
+}
+
+var unistUtilVisitParents$8 = visitParents$8;
+
+
+
+var CONTINUE$g = true;
+var SKIP$g = 'skip';
+var EXIT$g = false;
+
+visitParents$8.CONTINUE = CONTINUE$g;
+visitParents$8.SKIP = SKIP$g;
+visitParents$8.EXIT = EXIT$g;
+
+function visitParents$8(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$8(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$8(visitor(node, parents));
+
+      if (result[0] === EXIT$g) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$g) {
+      subresult = toResult$8(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$g ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$g) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$8(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$g, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$8 = visit$8;
+
+
+
+var CONTINUE$h = unistUtilVisitParents$8.CONTINUE;
+var SKIP$h = unistUtilVisitParents$8.SKIP;
+var EXIT$h = unistUtilVisitParents$8.EXIT;
+
+visit$8.CONTINUE = CONTINUE$h;
+visit$8.SKIP = SKIP$h;
+visit$8.EXIT = EXIT$h;
+
+function visit$8(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$8(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintOrderedListMarkerStyle = unifiedLintRule(
   'remark-lint:ordered-list-marker-style',
   orderedListMarkerStyle
@@ -42722,20 +44804,20 @@ var styles$1 = {
   null: true
 };
 
-function orderedListMarkerStyle(tree, file, pref) {
+function orderedListMarkerStyle(tree, file, option) {
   var contents = String(file);
+  var preferred =
+    typeof option !== 'string' || option === 'consistent' ? null : option;
 
-  pref = typeof pref !== 'string' || pref === 'consistent' ? null : pref;
-
-  if (styles$1[pref] !== true) {
+  if (styles$1[preferred] !== true) {
     file.fail(
-      'Invalid ordered list-item marker style `' +
-        pref +
+      'Incorrect ordered list item marker style `' +
+        preferred +
         "`: use either `'.'` or `')'`"
     );
   }
 
-  unistUtilVisit(tree, 'list', visitor);
+  unistUtilVisit$8(tree, 'list', visitor);
 
   function visitor(node) {
     var children = node.children;
@@ -42753,15 +44835,206 @@ function orderedListMarkerStyle(tree, file, pref) {
           .replace(/\s|\d/g, '')
           .replace(/\[[x ]?]\s*$/i, '');
 
-        if (pref) {
-          if (marker !== pref) {
-            file.message('Marker style should be `' + pref + '`', child);
+        if (preferred) {
+          if (marker !== preferred) {
+            file.message('Marker style should be `' + preferred + '`', child);
           }
         } else {
-          pref = marker;
+          preferred = marker;
         }
       }
     }
+  }
+}
+
+var convert_1$9 = convert$a;
+
+function convert$a(test) {
+  if (typeof test === 'string') {
+    return typeFactory$9(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$a
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$9 : matchesFactory$9)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$9(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$a(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$9(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$9(tests) {
+  var checks = convertAll$9(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$9(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$a() {
+  return true
+}
+
+var unistUtilVisitParents$9 = visitParents$9;
+
+
+
+var CONTINUE$i = true;
+var SKIP$i = 'skip';
+var EXIT$i = false;
+
+visitParents$9.CONTINUE = CONTINUE$i;
+visitParents$9.SKIP = SKIP$i;
+visitParents$9.EXIT = EXIT$i;
+
+function visitParents$9(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$9(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$9(visitor(node, parents));
+
+      if (result[0] === EXIT$i) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$i) {
+      subresult = toResult$9(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$i ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$i) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$9(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$i, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$9 = visit$9;
+
+
+
+var CONTINUE$j = unistUtilVisitParents$9.CONTINUE;
+var SKIP$j = unistUtilVisitParents$9.SKIP;
+var EXIT$j = unistUtilVisitParents$9.EXIT;
+
+visit$9.CONTINUE = CONTINUE$j;
+visit$9.SKIP = SKIP$j;
+visit$9.EXIT = EXIT$j;
+
+function visit$9(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$9(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -42772,7 +45045,7 @@ var reason$3 = 'Use two spaces for hard line breaks';
 function hardBreakSpaces(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit(tree, 'break', visitor);
+  unistUtilVisit$9(tree, 'break', visitor);
 
   function visitor(node) {
     var value;
@@ -42790,6 +45063,197 @@ function hardBreakSpaces(tree, file) {
   }
 }
 
+var convert_1$a = convert$b;
+
+function convert$b(test) {
+  if (typeof test === 'string') {
+    return typeFactory$a(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$b
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$a : matchesFactory$a)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$a(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$b(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$a(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$a(tests) {
+  var checks = convertAll$a(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$a(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$b() {
+  return true
+}
+
+var unistUtilVisitParents$a = visitParents$a;
+
+
+
+var CONTINUE$k = true;
+var SKIP$k = 'skip';
+var EXIT$k = false;
+
+visitParents$a.CONTINUE = CONTINUE$k;
+visitParents$a.SKIP = SKIP$k;
+visitParents$a.EXIT = EXIT$k;
+
+function visitParents$a(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$a(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$a(visitor(node, parents));
+
+      if (result[0] === EXIT$k) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$k) {
+      subresult = toResult$a(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$k ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$k) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$a(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$k, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$a = visit$a;
+
+
+
+var CONTINUE$l = unistUtilVisitParents$a.CONTINUE;
+var SKIP$l = unistUtilVisitParents$a.SKIP;
+var EXIT$l = unistUtilVisitParents$a.EXIT;
+
+visit$a.CONTINUE = CONTINUE$l;
+visit$a.SKIP = SKIP$l;
+visit$a.EXIT = EXIT$l;
+
+function visit$a(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$a(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoDuplicateDefinitions = unifiedLintRule(
   'remark-lint:no-duplicate-definitions',
   noDuplicateDefinitions
@@ -42800,9 +45264,9 @@ var reason$4 = 'Do not use definitions with the same identifier';
 function noDuplicateDefinitions(tree, file) {
   var map = {};
 
-  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], validate);
+  unistUtilVisit$a(tree, ['definition', 'footnoteDefinition'], check);
 
-  function validate(node) {
+  function check(node) {
     var identifier;
     var duplicate;
 
@@ -42819,6 +45283,197 @@ function noDuplicateDefinitions(tree, file) {
 
       map[identifier] = node;
     }
+  }
+}
+
+var convert_1$b = convert$c;
+
+function convert$c(test) {
+  if (typeof test === 'string') {
+    return typeFactory$b(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$c
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$b : matchesFactory$b)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$b(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$c(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$b(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$b(tests) {
+  var checks = convertAll$b(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$b(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$c() {
+  return true
+}
+
+var unistUtilVisitParents$b = visitParents$b;
+
+
+
+var CONTINUE$m = true;
+var SKIP$m = 'skip';
+var EXIT$m = false;
+
+visitParents$b.CONTINUE = CONTINUE$m;
+visitParents$b.SKIP = SKIP$m;
+visitParents$b.EXIT = EXIT$m;
+
+function visitParents$b(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$b(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$b(visitor(node, parents));
+
+      if (result[0] === EXIT$m) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$m) {
+      subresult = toResult$b(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$m ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$m) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$b(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$m, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$b = visit$b;
+
+
+
+var CONTINUE$n = unistUtilVisitParents$b.CONTINUE;
+var SKIP$n = unistUtilVisitParents$b.SKIP;
+var EXIT$n = unistUtilVisitParents$b.EXIT;
+
+visit$b.CONTINUE = CONTINUE$n;
+visit$b.SKIP = SKIP$n;
+visit$b.EXIT = EXIT$n;
+
+function visit$b(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$b(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -42876,7 +45531,7 @@ var end$3 = unistUtilPosition.end;
 function noHeadingContentIndent(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit(tree, 'heading', visitor);
+  unistUtilVisit$b(tree, 'heading', visitor);
 
   function visitor(node) {
     var depth;
@@ -42889,6 +45544,7 @@ function noHeadingContentIndent(tree, file) {
     var index;
     var char;
     var reason;
+    var abs;
 
     if (unistUtilGenerated(node)) {
       return
@@ -42923,20 +45579,22 @@ function noHeadingContentIndent(tree, file) {
       diff = head - initial.column - 1 - index;
 
       if (diff) {
+        abs = Math.abs(diff);
+
         reason =
           (diff > 0 ? 'Remove' : 'Add') +
           ' ' +
-          Math.abs(diff) +
+          abs +
           ' ' +
-          plur('space', diff) +
+          pluralize('space', abs) +
           ' before this heading’s content';
 
         file.message(reason, start$7(children[0]));
       }
     }
 
-    // Closed ATX-heading always must have a space between their content and the
-    // final hashes, thus, there is no `add x spaces`.
+    // Closed ATX headings always must have a space between their content and
+    // the final hashes, thus, there is no `add x spaces`.
     if (type === 'atx-closed') {
       final = end$3(children[children.length - 1]);
       diff = end$3(node).column - final.column - 1 - depth;
@@ -42946,7 +45604,7 @@ function noHeadingContentIndent(tree, file) {
           'Remove ' +
           diff +
           ' ' +
-          plur('space', diff) +
+          pluralize('space', diff) +
           ' after this heading’s content';
 
         file.message(reason, final);
@@ -42955,10 +45613,201 @@ function noHeadingContentIndent(tree, file) {
   }
 }
 
+var convert_1$c = convert$d;
+
+function convert$d(test) {
+  if (typeof test === 'string') {
+    return typeFactory$c(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$d
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$c : matchesFactory$c)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$c(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$d(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$c(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$c(tests) {
+  var checks = convertAll$c(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$c(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$d() {
+  return true
+}
+
+var unistUtilVisitParents$c = visitParents$c;
+
+
+
+var CONTINUE$o = true;
+var SKIP$o = 'skip';
+var EXIT$o = false;
+
+visitParents$c.CONTINUE = CONTINUE$o;
+visitParents$c.SKIP = SKIP$o;
+visitParents$c.EXIT = EXIT$o;
+
+function visitParents$c(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$c(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$c(visitor(node, parents));
+
+      if (result[0] === EXIT$o) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$o) {
+      subresult = toResult$c(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$o ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$o) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$c(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$o, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$c = visit$c;
+
+
+
+var CONTINUE$p = unistUtilVisitParents$c.CONTINUE;
+var SKIP$p = unistUtilVisitParents$c.SKIP;
+var EXIT$p = unistUtilVisitParents$c.EXIT;
+
+visit$c.CONTINUE = CONTINUE$p;
+visit$c.SKIP = SKIP$p;
+visit$c.EXIT = EXIT$p;
+
+function visit$c(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$c(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoInlinePadding = unifiedLintRule('remark-lint:no-inline-padding', noInlinePadding);
 
 function noInlinePadding(tree, file) {
-  unistUtilVisit(tree, ['emphasis', 'strong', 'delete', 'image', 'link'], visitor);
+  unistUtilVisit$c(tree, ['emphasis', 'strong', 'delete', 'image', 'link'], visitor);
 
   function visitor(node) {
     var contents;
@@ -42976,6 +45825,197 @@ function noInlinePadding(tree, file) {
   }
 }
 
+var convert_1$d = convert$e;
+
+function convert$e(test) {
+  if (typeof test === 'string') {
+    return typeFactory$d(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$e
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$d : matchesFactory$d)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$d(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$e(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$d(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$d(tests) {
+  var checks = convertAll$d(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$d(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$e() {
+  return true
+}
+
+var unistUtilVisitParents$d = visitParents$d;
+
+
+
+var CONTINUE$q = true;
+var SKIP$q = 'skip';
+var EXIT$q = false;
+
+visitParents$d.CONTINUE = CONTINUE$q;
+visitParents$d.SKIP = SKIP$q;
+visitParents$d.EXIT = EXIT$q;
+
+function visitParents$d(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$d(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$d(visitor(node, parents));
+
+      if (result[0] === EXIT$q) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$q) {
+      subresult = toResult$d(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$q ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$q) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$d(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$q, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$d = visit$d;
+
+
+
+var CONTINUE$r = unistUtilVisitParents$d.CONTINUE;
+var SKIP$r = unistUtilVisitParents$d.SKIP;
+var EXIT$r = unistUtilVisitParents$d.EXIT;
+
+visit$d.CONTINUE = CONTINUE$r;
+visit$d.SKIP = SKIP$r;
+visit$d.EXIT = EXIT$r;
+
+function visit$d(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$d(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoShortcutReferenceImage = unifiedLintRule(
   'remark-lint:no-shortcut-reference-image',
   noShortcutReferenceImage
@@ -42984,7 +46024,7 @@ var remarkLintNoShortcutReferenceImage = unifiedLintRule(
 var reason$5 = 'Use the trailing [] on reference images';
 
 function noShortcutReferenceImage(tree, file) {
-  unistUtilVisit(tree, 'imageReference', visitor);
+  unistUtilVisit$d(tree, 'imageReference', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node) && node.referenceType === 'shortcut') {
@@ -42993,20 +46033,402 @@ function noShortcutReferenceImage(tree, file) {
   }
 }
 
+var convert_1$e = convert$f;
+
+function convert$f(test) {
+  if (typeof test === 'string') {
+    return typeFactory$e(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$f
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$e : matchesFactory$e)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$e(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$f(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$e(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$e(tests) {
+  var checks = convertAll$e(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$e(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$f() {
+  return true
+}
+
+var unistUtilVisitParents$e = visitParents$e;
+
+
+
+var CONTINUE$s = true;
+var SKIP$s = 'skip';
+var EXIT$s = false;
+
+visitParents$e.CONTINUE = CONTINUE$s;
+visitParents$e.SKIP = SKIP$s;
+visitParents$e.EXIT = EXIT$s;
+
+function visitParents$e(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$e(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$e(visitor(node, parents));
+
+      if (result[0] === EXIT$s) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$s) {
+      subresult = toResult$e(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$s ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$s) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$e(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$s, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$e = visit$e;
+
+
+
+var CONTINUE$t = unistUtilVisitParents$e.CONTINUE;
+var SKIP$t = unistUtilVisitParents$e.SKIP;
+var EXIT$t = unistUtilVisitParents$e.EXIT;
+
+visit$e.CONTINUE = CONTINUE$t;
+visit$e.SKIP = SKIP$t;
+visit$e.EXIT = EXIT$t;
+
+function visit$e(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$e(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoShortcutReferenceLink = unifiedLintRule(
   'remark-lint:no-shortcut-reference-link',
   noShortcutReferenceLink
 );
 
-var reason$6 = 'Use the trailing [] on reference links';
+var reason$6 = 'Use the trailing `[]` on reference links';
 
 function noShortcutReferenceLink(tree, file) {
-  unistUtilVisit(tree, 'linkReference', visitor);
+  unistUtilVisit$e(tree, 'linkReference', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node) && node.referenceType === 'shortcut') {
       file.message(reason$6, node);
     }
+  }
+}
+
+var convert_1$f = convert$g;
+
+function convert$g(test) {
+  if (typeof test === 'string') {
+    return typeFactory$f(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$g
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$f : matchesFactory$f)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$f(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$g(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$f(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$f(tests) {
+  var checks = convertAll$f(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$f(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$g() {
+  return true
+}
+
+var unistUtilVisitParents$f = visitParents$f;
+
+
+
+var CONTINUE$u = true;
+var SKIP$u = 'skip';
+var EXIT$u = false;
+
+visitParents$f.CONTINUE = CONTINUE$u;
+visitParents$f.SKIP = SKIP$u;
+visitParents$f.EXIT = EXIT$u;
+
+function visitParents$f(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$f(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$f(visitor(node, parents));
+
+      if (result[0] === EXIT$u) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$u) {
+      subresult = toResult$f(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$u ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$u) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$f(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$u, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$f = visit$f;
+
+
+
+var CONTINUE$v = unistUtilVisitParents$f.CONTINUE;
+var SKIP$v = unistUtilVisitParents$f.SKIP;
+var EXIT$v = unistUtilVisitParents$f.EXIT;
+
+visit$f.CONTINUE = CONTINUE$v;
+visit$f.SKIP = SKIP$v;
+visit$f.EXIT = EXIT$v;
+
+function visit$f(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$f(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -43017,21 +46439,20 @@ var remarkLintNoUndefinedReferences = unifiedLintRule(
 
 var reason$7 = 'Found reference to undefined definition';
 
-//  The identifier is upcased to avoid naming collisions with properties
-//  inherited from `Object.prototype`. Were `Object.create(null)` to be
-//  used in place of `{}`, downcasing would work equally well.
+// The identifier is upcased to avoid naming collisions with fields inherited
+// from `Object.prototype`.
+// If `Object.create(null)` was used in place of `{}`, downcasing would work
+// equally well.
 function normalize$3(s) {
   return collapseWhiteSpace(s.toUpperCase())
 }
 
-function noUndefinedReferences(tree, file, pref) {
-  var allow =
-    pref != null && Array.isArray(pref.allow) ? pref.allow.map(normalize$3) : [];
-
+function noUndefinedReferences(tree, file, option) {
+  var allow = ((option || {}).allow || []).map(normalize$3);
   var map = {};
 
-  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], mark);
-  unistUtilVisit(tree, ['imageReference', 'linkReference', 'footnoteReference'], find);
+  unistUtilVisit$f(tree, ['definition', 'footnoteDefinition'], mark);
+  unistUtilVisit$f(tree, ['imageReference', 'linkReference', 'footnoteReference'], find);
 
   function mark(node) {
     if (!unistUtilGenerated(node)) {
@@ -43041,14 +46462,203 @@ function noUndefinedReferences(tree, file, pref) {
 
   function find(node) {
     if (
-      !(
-        unistUtilGenerated(node) ||
-        allow.includes(normalize$3(node.identifier)) ||
-        normalize$3(node.identifier) in map
-      )
+      !unistUtilGenerated(node) &&
+      !(normalize$3(node.identifier) in map) &&
+      allow.indexOf(normalize$3(node.identifier)) === -1
     ) {
       file.message(reason$7, node);
     }
+  }
+}
+
+var convert_1$g = convert$h;
+
+function convert$h(test) {
+  if (typeof test === 'string') {
+    return typeFactory$g(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$h
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$g : matchesFactory$g)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$g(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$h(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$g(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$g(tests) {
+  var checks = convertAll$g(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$g(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$h() {
+  return true
+}
+
+var unistUtilVisitParents$g = visitParents$g;
+
+
+
+var CONTINUE$w = true;
+var SKIP$w = 'skip';
+var EXIT$w = false;
+
+visitParents$g.CONTINUE = CONTINUE$w;
+visitParents$g.SKIP = SKIP$w;
+visitParents$g.EXIT = EXIT$w;
+
+function visitParents$g(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$g(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$g(visitor(node, parents));
+
+      if (result[0] === EXIT$w) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$w) {
+      subresult = toResult$g(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$w ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$w) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$g(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$w, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$g = visit$g;
+
+
+
+var CONTINUE$x = unistUtilVisitParents$g.CONTINUE;
+var SKIP$x = unistUtilVisitParents$g.SKIP;
+var EXIT$x = unistUtilVisitParents$g.EXIT;
+
+visit$g.CONTINUE = CONTINUE$x;
+visit$g.SKIP = SKIP$x;
+visit$g.EXIT = EXIT$x;
+
+function visit$g(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$g(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -43061,8 +46671,8 @@ function noUnusedDefinitions(tree, file) {
   var identifier;
   var entry;
 
-  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], find);
-  unistUtilVisit(tree, ['imageReference', 'linkReference', 'footnoteReference'], mark);
+  unistUtilVisit$g(tree, ['definition', 'footnoteDefinition'], find);
+  unistUtilVisit$g(tree, ['imageReference', 'linkReference', 'footnoteReference'], mark);
 
   for (identifier in map) {
     entry = map[identifier];
@@ -43088,7 +46698,7 @@ function noUnusedDefinitions(tree, file) {
 }
 
 var plugins$1 = [
-  remarkLint,
+  remarkLint$1,
   // Unix compatibility.
   remarkLintFinalNewline,
   // Rendering across vendors differs greatly if using other styles.
@@ -43114,17 +46724,209 @@ var remarkPresetLintRecommended = {
 	plugins: plugins$1
 };
 
+var convert_1$h = convert$i;
+
+function convert$i(test) {
+  if (typeof test === 'string') {
+    return typeFactory$h(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$i
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$h : matchesFactory$h)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$h(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$i(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$h(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$h(tests) {
+  var checks = convertAll$h(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$h(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$i() {
+  return true
+}
+
+var unistUtilVisitParents$h = visitParents$h;
+
+
+
+var CONTINUE$y = true;
+var SKIP$y = 'skip';
+var EXIT$y = false;
+
+visitParents$h.CONTINUE = CONTINUE$y;
+visitParents$h.SKIP = SKIP$y;
+visitParents$h.EXIT = EXIT$y;
+
+function visitParents$h(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$h(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$h(visitor(node, parents));
+
+      if (result[0] === EXIT$y) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$y) {
+      subresult = toResult$h(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$y ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$y) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$h(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$y, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$h = visit$h;
+
+
+
+var CONTINUE$z = unistUtilVisitParents$h.CONTINUE;
+var SKIP$z = unistUtilVisitParents$h.SKIP;
+var EXIT$z = unistUtilVisitParents$h.EXIT;
+
+visit$h.CONTINUE = CONTINUE$z;
+visit$h.SKIP = SKIP$z;
+visit$h.EXIT = EXIT$z;
+
+function visit$h(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$h(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintBlockquoteIndentation = unifiedLintRule(
   'remark-lint:blockquote-indentation',
   blockquoteIndentation
 );
 
-function blockquoteIndentation(tree, file, pref) {
-  pref = typeof pref === 'number' && !isNaN(pref) ? pref : null;
+function blockquoteIndentation(tree, file, option) {
+  var preferred = typeof option === 'number' && !isNaN(option) ? option : null;
 
-  unistUtilVisit(tree, 'blockquote', visitor);
+  unistUtilVisit$h(tree, 'blockquote', visitor);
 
   function visitor(node) {
+    var abs;
     var diff;
     var reason;
 
@@ -43132,22 +46934,23 @@ function blockquoteIndentation(tree, file, pref) {
       return
     }
 
-    if (pref) {
-      diff = pref - check$3(node);
+    if (preferred) {
+      diff = preferred - check$3(node);
 
       if (diff !== 0) {
+        abs = Math.abs(diff);
         reason =
           (diff > 0 ? 'Add' : 'Remove') +
           ' ' +
-          Math.abs(diff) +
+          abs +
           ' ' +
-          plur('space', diff) +
-          ' between blockquote and content';
+          pluralize('space', abs) +
+          ' between block quote and content';
 
         file.message(reason, unistUtilPosition.start(node.children[0]));
       }
     } else {
-      pref = check$3(node);
+      preferred = check$3(node);
     }
   }
 }
@@ -43164,6 +46967,270 @@ function check$3(node) {
   return indentation
 }
 
+var vfileLocation$4 = factory$c;
+
+function factory$c(file) {
+  var contents = indices$4(String(file));
+
+  return {
+    toPosition: offsetToPositionFactory$4(contents),
+    toOffset: positionToOffsetFactory$4(contents)
+  }
+}
+
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
+function offsetToPositionFactory$4(indices) {
+  return offsetToPosition
+
+  // Get the line and column-based `position` for `offset` in the bound indices.
+  function offsetToPosition(offset) {
+    var index = -1;
+    var length = indices.length;
+
+    if (offset < 0) {
+      return {}
+    }
+
+    while (++index < length) {
+      if (indices[index] > offset) {
+        return {
+          line: index + 1,
+          column: offset - (indices[index - 1] || 0) + 1,
+          offset: offset
+        }
+      }
+    }
+
+    return {}
+  }
+}
+
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
+function positionToOffsetFactory$4(indices) {
+  return positionToOffset
+
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
+  function positionToOffset(position) {
+    var line = position && position.line;
+    var column = position && position.column;
+
+    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
+      return (indices[line - 2] || 0) + column - 1 || 0
+    }
+
+    return -1
+  }
+}
+
+// Get indices of line-breaks in `value`.
+function indices$4(value) {
+  var result = [];
+  var index = value.indexOf('\n');
+
+  while (index !== -1) {
+    result.push(index + 1);
+    index = value.indexOf('\n', index + 1);
+  }
+
+  result.push(value.length + 1);
+
+  return result
+}
+
+var convert_1$i = convert$j;
+
+function convert$j(test) {
+  if (typeof test === 'string') {
+    return typeFactory$i(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$j
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$i : matchesFactory$i)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$i(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$j(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$i(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$i(tests) {
+  var checks = convertAll$i(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$i(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$j() {
+  return true
+}
+
+var unistUtilVisitParents$i = visitParents$i;
+
+
+
+var CONTINUE$A = true;
+var SKIP$A = 'skip';
+var EXIT$A = false;
+
+visitParents$i.CONTINUE = CONTINUE$A;
+visitParents$i.SKIP = SKIP$A;
+visitParents$i.EXIT = EXIT$A;
+
+function visitParents$i(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$i(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$i(visitor(node, parents));
+
+      if (result[0] === EXIT$A) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$A) {
+      subresult = toResult$i(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$A ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$A) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$i(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$A, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$i = visit$i;
+
+
+
+var CONTINUE$B = unistUtilVisitParents$i.CONTINUE;
+var SKIP$B = unistUtilVisitParents$i.SKIP;
+var EXIT$B = unistUtilVisitParents$i.EXIT;
+
+visit$i.CONTINUE = CONTINUE$B;
+visit$i.SKIP = SKIP$B;
+visit$i.EXIT = EXIT$B;
+
+function visit$i(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$i(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintCheckboxCharacterStyle = unifiedLintRule(
   'remark-lint:checkbox-character-style',
   checkboxCharacterStyle
@@ -43176,29 +47243,28 @@ var checked = {x: true, X: true};
 var unchecked = {' ': true, '\t': true};
 var types$1 = {true: 'checked', false: 'unchecked'};
 
-function checkboxCharacterStyle(tree, file, pref) {
+function checkboxCharacterStyle(tree, file, option) {
   var contents = String(file);
-  var location = vfileLocation(file);
+  var location = vfileLocation$4(file);
+  var preferred = typeof option === 'object' ? option : {};
 
-  pref = typeof pref === 'object' ? pref : {};
-
-  if (pref.unchecked && unchecked[pref.unchecked] !== true) {
+  if (preferred.unchecked && unchecked[preferred.unchecked] !== true) {
     file.fail(
-      'Invalid unchecked checkbox marker `' +
-        pref.unchecked +
+      'Incorrect unchecked checkbox marker `' +
+        preferred.unchecked +
         "`: use either `'\\t'`, or `' '`"
     );
   }
 
-  if (pref.checked && checked[pref.checked] !== true) {
+  if (preferred.checked && checked[preferred.checked] !== true) {
     file.fail(
-      'Invalid checked checkbox marker `' +
-        pref.checked +
+      'Incorrect checked checkbox marker `' +
+        preferred.checked +
         "`: use either `'x'`, or `'X'`"
     );
   }
 
-  unistUtilVisit(tree, 'listItem', visitor);
+  unistUtilVisit$i(tree, 'listItem', visitor);
 
   function visitor(node) {
     var type;
@@ -43220,14 +47286,11 @@ function checkboxCharacterStyle(tree, file, pref) {
       .offset;
 
     // For a checkbox to be parsed, it must be followed by a whitespace.
-    value = contents
-      .slice(initial, final)
-      .trimRight()
-      .slice(0, -1);
+    value = contents.slice(initial, final).replace(/\s+$/, '').slice(0, -1);
 
     // The checkbox character is behind a square bracket.
     character = value.charAt(value.length - 1);
-    style = pref[type];
+    style = preferred[type];
 
     if (style) {
       if (character !== style) {
@@ -43244,8 +47307,272 @@ function checkboxCharacterStyle(tree, file, pref) {
         });
       }
     } else {
-      pref[type] = character;
+      preferred[type] = character;
     }
+  }
+}
+
+var vfileLocation$5 = factory$d;
+
+function factory$d(file) {
+  var contents = indices$5(String(file));
+
+  return {
+    toPosition: offsetToPositionFactory$5(contents),
+    toOffset: positionToOffsetFactory$5(contents)
+  }
+}
+
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
+function offsetToPositionFactory$5(indices) {
+  return offsetToPosition
+
+  // Get the line and column-based `position` for `offset` in the bound indices.
+  function offsetToPosition(offset) {
+    var index = -1;
+    var length = indices.length;
+
+    if (offset < 0) {
+      return {}
+    }
+
+    while (++index < length) {
+      if (indices[index] > offset) {
+        return {
+          line: index + 1,
+          column: offset - (indices[index - 1] || 0) + 1,
+          offset: offset
+        }
+      }
+    }
+
+    return {}
+  }
+}
+
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
+function positionToOffsetFactory$5(indices) {
+  return positionToOffset
+
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
+  function positionToOffset(position) {
+    var line = position && position.line;
+    var column = position && position.column;
+
+    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
+      return (indices[line - 2] || 0) + column - 1 || 0
+    }
+
+    return -1
+  }
+}
+
+// Get indices of line-breaks in `value`.
+function indices$5(value) {
+  var result = [];
+  var index = value.indexOf('\n');
+
+  while (index !== -1) {
+    result.push(index + 1);
+    index = value.indexOf('\n', index + 1);
+  }
+
+  result.push(value.length + 1);
+
+  return result
+}
+
+var convert_1$j = convert$k;
+
+function convert$k(test) {
+  if (typeof test === 'string') {
+    return typeFactory$j(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$k
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$j : matchesFactory$j)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$j(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$k(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$j(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$j(tests) {
+  var checks = convertAll$j(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$j(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$k() {
+  return true
+}
+
+var unistUtilVisitParents$j = visitParents$j;
+
+
+
+var CONTINUE$C = true;
+var SKIP$C = 'skip';
+var EXIT$C = false;
+
+visitParents$j.CONTINUE = CONTINUE$C;
+visitParents$j.SKIP = SKIP$C;
+visitParents$j.EXIT = EXIT$C;
+
+function visitParents$j(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$j(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$j(visitor(node, parents));
+
+      if (result[0] === EXIT$C) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$C) {
+      subresult = toResult$j(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$C ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$C) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$j(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$C, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$j = visit$j;
+
+
+
+var CONTINUE$D = unistUtilVisitParents$j.CONTINUE;
+var SKIP$D = unistUtilVisitParents$j.SKIP;
+var EXIT$D = unistUtilVisitParents$j.EXIT;
+
+visit$j.CONTINUE = CONTINUE$D;
+visit$j.SKIP = SKIP$D;
+visit$j.EXIT = EXIT$D;
+
+function visit$j(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$j(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -43261,9 +47588,9 @@ var reason$9 = 'Checkboxes should be followed by a single character';
 
 function checkboxContentIndent(tree, file) {
   var contents = String(file);
-  var location = vfileLocation(file);
+  var location = vfileLocation$5(file);
 
-  unistUtilVisit(tree, 'listItem', visitor);
+  unistUtilVisit$j(tree, 'listItem', visitor);
 
   function visitor(node) {
     var initial;
@@ -43297,6 +47624,197 @@ function checkboxContentIndent(tree, file) {
   }
 }
 
+var convert_1$k = convert$l;
+
+function convert$l(test) {
+  if (typeof test === 'string') {
+    return typeFactory$k(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$l
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$k : matchesFactory$k)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$k(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$l(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$k(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$k(tests) {
+  var checks = convertAll$k(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$k(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$l() {
+  return true
+}
+
+var unistUtilVisitParents$k = visitParents$k;
+
+
+
+var CONTINUE$E = true;
+var SKIP$E = 'skip';
+var EXIT$E = false;
+
+visitParents$k.CONTINUE = CONTINUE$E;
+visitParents$k.SKIP = SKIP$E;
+visitParents$k.EXIT = EXIT$E;
+
+function visitParents$k(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$k(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$k(visitor(node, parents));
+
+      if (result[0] === EXIT$E) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$E) {
+      subresult = toResult$k(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$E ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$E) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$k(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$E, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$k = visit$k;
+
+
+
+var CONTINUE$F = unistUtilVisitParents$k.CONTINUE;
+var SKIP$F = unistUtilVisitParents$k.SKIP;
+var EXIT$F = unistUtilVisitParents$k.EXIT;
+
+visit$k.CONTINUE = CONTINUE$F;
+visit$k.SKIP = SKIP$F;
+visit$k.EXIT = EXIT$F;
+
+function visit$k(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$k(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintCodeBlockStyle = unifiedLintRule('remark-lint:code-block-style', codeBlockStyle);
 
 var start$a = unistUtilPosition.start;
@@ -43304,59 +47822,250 @@ var end$6 = unistUtilPosition.end;
 
 var styles$2 = {null: true, fenced: true, indented: true};
 
-function codeBlockStyle(tree, file, pref) {
+function codeBlockStyle(tree, file, option) {
   var contents = String(file);
+  var preferred =
+    typeof option === 'string' && option !== 'consistent' ? option : null;
 
-  pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
-
-  if (styles$2[pref] !== true) {
+  if (styles$2[preferred] !== true) {
     file.fail(
-      'Invalid code block style `' +
-        pref +
+      'Incorrect code block style `' +
+        preferred +
         "`: use either `'consistent'`, `'fenced'`, or `'indented'`"
     );
   }
 
-  unistUtilVisit(tree, 'code', visitor);
+  unistUtilVisit$k(tree, 'code', visitor);
 
   function visitor(node) {
-    var current = check(node);
-
-    if (current) {
-      if (!pref) {
-        pref = current;
-      } else if (pref !== current) {
-        file.message('Code blocks should be ' + pref, node);
-      }
-    }
-  }
-
-  // Get the style of `node`.
-  function check(node) {
-    var initial = start$a(node).offset;
-    var final = end$6(node).offset;
+    var initial;
+    var final;
+    var current;
 
     if (unistUtilGenerated(node)) {
       return null
     }
 
-    return node.lang || /^\s*([~`])\1{2,}/.test(contents.slice(initial, final))
-      ? 'fenced'
-      : 'indented'
+    initial = start$a(node).offset;
+    final = end$6(node).offset;
+
+    current =
+      node.lang || /^\s*([~`])\1{2,}/.test(contents.slice(initial, final))
+        ? 'fenced'
+        : 'indented';
+
+    if (preferred) {
+      if (preferred !== current) {
+        file.message('Code blocks should be ' + preferred, node);
+      }
+    } else {
+      preferred = current;
+    }
+  }
+}
+
+var convert_1$l = convert$m;
+
+function convert$m(test) {
+  if (typeof test === 'string') {
+    return typeFactory$l(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$m
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$l : matchesFactory$l)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$l(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$m(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$l(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$l(tests) {
+  var checks = convertAll$l(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$l(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$m() {
+  return true
+}
+
+var unistUtilVisitParents$l = visitParents$l;
+
+
+
+var CONTINUE$G = true;
+var SKIP$G = 'skip';
+var EXIT$G = false;
+
+visitParents$l.CONTINUE = CONTINUE$G;
+visitParents$l.SKIP = SKIP$G;
+visitParents$l.EXIT = EXIT$G;
+
+function visitParents$l(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$l(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$l(visitor(node, parents));
+
+      if (result[0] === EXIT$G) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$G) {
+      subresult = toResult$l(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$G ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$G) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$l(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$G, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$l = visit$l;
+
+
+
+var CONTINUE$H = unistUtilVisitParents$l.CONTINUE;
+var SKIP$H = unistUtilVisitParents$l.SKIP;
+var EXIT$H = unistUtilVisitParents$l.EXIT;
+
+visit$l.CONTINUE = CONTINUE$H;
+visit$l.SKIP = SKIP$H;
+visit$l.EXIT = EXIT$H;
+
+function visit$l(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$l(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
 var remarkLintDefinitionSpacing = unifiedLintRule('remark-lint:definition-spacing', definitionSpacing);
 
 var label$1 = /^\s*\[((?:\\[\s\S]|[^[\]])+)]/;
-var reason$a = 'Do not use consecutive white-space in definition labels';
+var reason$a = 'Do not use consecutive whitespace in definition labels';
 
 function definitionSpacing(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit(tree, ['definition', 'footnoteDefinition'], validate);
+  unistUtilVisit$l(tree, ['definition', 'footnoteDefinition'], check);
 
-  function validate(node) {
+  function check(node) {
     var start = unistUtilPosition.start(node).offset;
     var end = unistUtilPosition.end(node).offset;
 
@@ -43369,38 +48078,230 @@ function definitionSpacing(tree, file) {
   }
 }
 
+var convert_1$m = convert$n;
+
+function convert$n(test) {
+  if (typeof test === 'string') {
+    return typeFactory$m(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$n
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$m : matchesFactory$m)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$m(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$n(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$m(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$m(tests) {
+  var checks = convertAll$m(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$m(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$n() {
+  return true
+}
+
+var unistUtilVisitParents$m = visitParents$m;
+
+
+
+var CONTINUE$I = true;
+var SKIP$I = 'skip';
+var EXIT$I = false;
+
+visitParents$m.CONTINUE = CONTINUE$I;
+visitParents$m.SKIP = SKIP$I;
+visitParents$m.EXIT = EXIT$I;
+
+function visitParents$m(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$m(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$m(visitor(node, parents));
+
+      if (result[0] === EXIT$I) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$I) {
+      subresult = toResult$m(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$I ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$I) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$m(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$I, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$m = visit$m;
+
+
+
+var CONTINUE$J = unistUtilVisitParents$m.CONTINUE;
+var SKIP$J = unistUtilVisitParents$m.SKIP;
+var EXIT$J = unistUtilVisitParents$m.EXIT;
+
+visit$m.CONTINUE = CONTINUE$J;
+visit$m.SKIP = SKIP$J;
+visit$m.EXIT = EXIT$J;
+
+function visit$m(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$m(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintFencedCodeFlag = unifiedLintRule('remark-lint:fenced-code-flag', fencedCodeFlag);
 
 var start$b = unistUtilPosition.start;
 var end$7 = unistUtilPosition.end;
 
 var fence$2 = /^ {0,3}([~`])\1{2,}/;
-var reasonInvalid = 'Invalid code-language flag';
-var reasonMissing = 'Missing code-language flag';
+var reasonIncorrect = 'Incorrect code language flag';
+var reasonMissing = 'Missing code language flag';
 
-function fencedCodeFlag(tree, file, pref) {
+function fencedCodeFlag(tree, file, option) {
   var contents = String(file);
   var allowEmpty = false;
-  var flags = [];
+  var allowed = [];
+  var flags = option;
 
-  if (typeof pref === 'object' && !('length' in pref)) {
-    allowEmpty = Boolean(pref.allowEmpty);
-    pref = pref.flags;
+  if (typeof flags === 'object' && !('length' in flags)) {
+    allowEmpty = Boolean(flags.allowEmpty);
+    flags = flags.flags;
   }
 
-  if (typeof pref === 'object' && 'length' in pref) {
-    flags = String(pref).split(',');
+  if (typeof flags === 'object' && 'length' in flags) {
+    allowed = String(flags).split(',');
   }
 
-  unistUtilVisit(tree, 'code', visitor);
+  unistUtilVisit$m(tree, 'code', visitor);
 
   function visitor(node) {
     var value;
 
     if (!unistUtilGenerated(node)) {
       if (node.lang) {
-        if (flags.length !== 0 && flags.indexOf(node.lang) === -1) {
-          file.message(reasonInvalid, node);
+        if (allowed.length !== 0 && allowed.indexOf(node.lang) === -1) {
+          file.message(reasonIncorrect, node);
         }
       } else {
         value = contents.slice(start$b(node).offset, end$7(node).offset);
@@ -43413,6 +48314,197 @@ function fencedCodeFlag(tree, file, pref) {
   }
 }
 
+var convert_1$n = convert$o;
+
+function convert$o(test) {
+  if (typeof test === 'string') {
+    return typeFactory$n(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$o
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$n : matchesFactory$n)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$n(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$o(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$n(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$n(tests) {
+  var checks = convertAll$n(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$n(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$o() {
+  return true
+}
+
+var unistUtilVisitParents$n = visitParents$n;
+
+
+
+var CONTINUE$K = true;
+var SKIP$K = 'skip';
+var EXIT$K = false;
+
+visitParents$n.CONTINUE = CONTINUE$K;
+visitParents$n.SKIP = SKIP$K;
+visitParents$n.EXIT = EXIT$K;
+
+function visitParents$n(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$n(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$n(visitor(node, parents));
+
+      if (result[0] === EXIT$K) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$K) {
+      subresult = toResult$n(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$K ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$K) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$n(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$K, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$n = visit$n;
+
+
+
+var CONTINUE$L = unistUtilVisitParents$n.CONTINUE;
+var SKIP$L = unistUtilVisitParents$n.SKIP;
+var EXIT$L = unistUtilVisitParents$n.EXIT;
+
+visit$n.CONTINUE = CONTINUE$L;
+visit$n.SKIP = SKIP$L;
+visit$n.EXIT = EXIT$L;
+
+function visit$n(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$n(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintFencedCodeMarker = unifiedLintRule('remark-lint:fenced-code-marker', fencedCodeMarker);
 
 var markers = {
@@ -43421,41 +48513,45 @@ var markers = {
   null: true
 };
 
-function fencedCodeMarker(tree, file, pref) {
+function fencedCodeMarker(tree, file, option) {
   var contents = String(file);
+  var preferred =
+    typeof option === 'string' && option !== 'consistent' ? option : null;
 
-  pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
-
-  if (markers[pref] !== true) {
+  if (markers[preferred] !== true) {
     file.fail(
-      'Invalid fenced code marker `' +
-        pref +
+      'Incorrect fenced code marker `' +
+        preferred +
         "`: use either `'consistent'`, `` '`' ``, or `'~'`"
     );
   }
 
-  unistUtilVisit(tree, 'code', visitor);
+  unistUtilVisit$n(tree, 'code', visitor);
 
   function visitor(node) {
+    var start;
     var marker;
+    var label;
 
     if (!unistUtilGenerated(node)) {
+      start = unistUtilPosition.start(node).offset;
       marker = contents
-        .substr(unistUtilPosition.start(node).offset, 4)
-        .trimLeft()
+        .slice(start, start + 4)
+        .replace(/^\s+/, '')
         .charAt(0);
 
       // Ignore unfenced code blocks.
       if (markers[marker] === true) {
-        if (pref) {
-          if (marker !== pref) {
+        if (preferred) {
+          if (marker !== preferred) {
+            label = preferred === '~' ? preferred : '` ` `';
             file.message(
-              'Fenced code should use ' + pref + ' as a marker',
+              'Fenced code should use `' + label + '` as a marker',
               node
             );
           }
         } else {
-          pref = marker;
+          preferred = marker;
         }
       }
     }
@@ -43464,13 +48560,203 @@ function fencedCodeMarker(tree, file, pref) {
 
 var remarkLintFileExtension = unifiedLintRule('remark-lint:file-extension', fileExtension);
 
-function fileExtension(tree, file, pref) {
+function fileExtension(tree, file, option) {
   var ext = file.extname;
+  var preferred = typeof option === 'string' ? option : 'md';
 
-  pref = typeof pref === 'string' ? pref : 'md';
+  if (ext && ext.slice(1) !== preferred) {
+    file.message('Incorrect extension: use `' + preferred + '`');
+  }
+}
 
-  if (ext && ext.slice(1) !== pref) {
-    file.message('Invalid extension: use `' + pref + '`');
+var convert_1$o = convert$p;
+
+function convert$p(test) {
+  if (typeof test === 'string') {
+    return typeFactory$o(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$p
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$o : matchesFactory$o)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$o(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$p(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$o(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$o(tests) {
+  var checks = convertAll$o(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$o(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$p() {
+  return true
+}
+
+var unistUtilVisitParents$o = visitParents$o;
+
+
+
+var CONTINUE$M = true;
+var SKIP$M = 'skip';
+var EXIT$M = false;
+
+visitParents$o.CONTINUE = CONTINUE$M;
+visitParents$o.SKIP = SKIP$M;
+visitParents$o.EXIT = EXIT$M;
+
+function visitParents$o(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$o(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$o(visitor(node, parents));
+
+      if (result[0] === EXIT$M) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$M) {
+      subresult = toResult$o(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$M ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$M) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$o(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$M, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$o = visit$o;
+
+
+
+var CONTINUE$N = unistUtilVisitParents$o.CONTINUE;
+var SKIP$N = unistUtilVisitParents$o.SKIP;
+var EXIT$N = unistUtilVisitParents$o.EXIT;
+
+visit$o.CONTINUE = CONTINUE$N;
+visit$o.SKIP = SKIP$N;
+visit$o.EXIT = EXIT$N;
+
+function visit$o(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$o(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -43481,7 +48767,7 @@ var start$c = unistUtilPosition.start;
 function finalDefinition(tree, file) {
   var last = null;
 
-  unistUtilVisit(tree, visitor, true);
+  unistUtilVisit$o(tree, visitor, true);
 
   function visitor(node) {
     var line = start$c(node).line;
@@ -43506,31 +48792,225 @@ function finalDefinition(tree, file) {
   }
 }
 
+var convert_1$p = convert$q;
+
+function convert$q(test) {
+  if (typeof test === 'string') {
+    return typeFactory$p(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$q
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$p : matchesFactory$p)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$p(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$q(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$p(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$p(tests) {
+  var checks = convertAll$p(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$p(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$q() {
+  return true
+}
+
+var unistUtilVisitParents$p = visitParents$p;
+
+
+
+var CONTINUE$O = true;
+var SKIP$O = 'skip';
+var EXIT$O = false;
+
+visitParents$p.CONTINUE = CONTINUE$O;
+visitParents$p.SKIP = SKIP$O;
+visitParents$p.EXIT = EXIT$O;
+
+function visitParents$p(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$p(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$p(visitor(node, parents));
+
+      if (result[0] === EXIT$O) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$O) {
+      subresult = toResult$p(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$O ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$O) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$p(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$O, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$p = visit$p;
+
+
+
+var CONTINUE$P = unistUtilVisitParents$p.CONTINUE;
+var SKIP$P = unistUtilVisitParents$p.SKIP;
+var EXIT$P = unistUtilVisitParents$p.EXIT;
+
+visit$p.CONTINUE = CONTINUE$P;
+visit$p.SKIP = SKIP$P;
+visit$p.EXIT = EXIT$P;
+
+function visit$p(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$p(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintFirstHeadingLevel = unifiedLintRule('remark-lint:first-heading-level', firstHeadingLevel);
 
 var re$3 = /<h([1-6])/;
 
-function firstHeadingLevel(tree, file, pref) {
-  var style = pref && pref !== true ? pref : 1;
+function firstHeadingLevel(tree, file, option) {
+  var preferred = option && option !== true ? option : 1;
 
-  unistUtilVisit(tree, visitor);
+  unistUtilVisit$p(tree, visitor);
 
   function visitor(node) {
-    var depth;
+    var rank;
 
     if (!unistUtilGenerated(node)) {
       if (node.type === 'heading') {
-        depth = node.depth;
+        rank = node.depth;
       } else if (node.type === 'html') {
-        depth = infer(node);
+        rank = infer(node);
       }
 
-      if (depth !== undefined) {
-        if (depth !== style) {
-          file.message('First heading level should be `' + style + '`', node);
+      if (rank !== undefined) {
+        if (rank !== preferred) {
+          file.message(
+            'First heading level should be `' + preferred + '`',
+            node
+          );
         }
 
-        return unistUtilVisit.EXIT
+        return unistUtilVisit$p.EXIT
       }
     }
   }
@@ -43541,25 +49021,407 @@ function infer(node) {
   return results ? Number(results[1]) : undefined
 }
 
+var convert_1$q = convert$r;
+
+function convert$r(test) {
+  if (typeof test === 'string') {
+    return typeFactory$q(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$r
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$q : matchesFactory$q)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$q(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$r(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$q(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$q(tests) {
+  var checks = convertAll$q(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$q(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$r() {
+  return true
+}
+
+var unistUtilVisitParents$q = visitParents$q;
+
+
+
+var CONTINUE$Q = true;
+var SKIP$Q = 'skip';
+var EXIT$Q = false;
+
+visitParents$q.CONTINUE = CONTINUE$Q;
+visitParents$q.SKIP = SKIP$Q;
+visitParents$q.EXIT = EXIT$Q;
+
+function visitParents$q(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$q(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$q(visitor(node, parents));
+
+      if (result[0] === EXIT$Q) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$Q) {
+      subresult = toResult$q(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$Q ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$Q) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$q(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$Q, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$q = visit$q;
+
+
+
+var CONTINUE$R = unistUtilVisitParents$q.CONTINUE;
+var SKIP$R = unistUtilVisitParents$q.SKIP;
+var EXIT$R = unistUtilVisitParents$q.EXIT;
+
+visit$q.CONTINUE = CONTINUE$R;
+visit$q.SKIP = SKIP$R;
+visit$q.EXIT = EXIT$R;
+
+function visit$q(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$q(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintHeadingStyle = unifiedLintRule('remark-lint:heading-style', headingStyle);
 
 var types$2 = ['atx', 'atx-closed', 'setext'];
 
-function headingStyle(tree, file, pref) {
-  pref = types$2.indexOf(pref) === -1 ? null : pref;
+function headingStyle(tree, file, option) {
+  var preferred = types$2.indexOf(option) === -1 ? null : option;
 
-  unistUtilVisit(tree, 'heading', visitor);
+  unistUtilVisit$q(tree, 'heading', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node)) {
-      if (pref) {
-        if (mdastUtilHeadingStyle(node, pref) !== pref) {
-          file.message('Headings should use ' + pref, node);
+      if (preferred) {
+        if (mdastUtilHeadingStyle(node, preferred) !== preferred) {
+          file.message('Headings should use ' + preferred, node);
         }
       } else {
-        pref = mdastUtilHeadingStyle(node, pref);
+        preferred = mdastUtilHeadingStyle(node, preferred);
       }
     }
+  }
+}
+
+var convert_1$r = convert$s;
+
+function convert$s(test) {
+  if (typeof test === 'string') {
+    return typeFactory$r(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$s
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$r : matchesFactory$r)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$r(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$s(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$r(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$r(tests) {
+  var checks = convertAll$r(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$r(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$s() {
+  return true
+}
+
+var unistUtilVisitParents$r = visitParents$r;
+
+
+
+var CONTINUE$S = true;
+var SKIP$S = 'skip';
+var EXIT$S = false;
+
+visitParents$r.CONTINUE = CONTINUE$S;
+visitParents$r.SKIP = SKIP$S;
+visitParents$r.EXIT = EXIT$S;
+
+function visitParents$r(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$r(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$r(visitor(node, parents));
+
+      if (result[0] === EXIT$S) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$S) {
+      subresult = toResult$r(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$S ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$S) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$r(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$S, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$r = visit$r;
+
+
+
+var CONTINUE$T = unistUtilVisitParents$r.CONTINUE;
+var SKIP$T = unistUtilVisitParents$r.SKIP;
+var EXIT$T = unistUtilVisitParents$r.EXIT;
+
+visit$r.CONTINUE = CONTINUE$T;
+visit$r.SKIP = SKIP$T;
+visit$r.EXIT = EXIT$T;
+
+function visit$r(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$r(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -43568,8 +49430,8 @@ var remarkLintMaximumLineLength = unifiedLintRule('remark-lint:maximum-line-leng
 var start$d = unistUtilPosition.start;
 var end$8 = unistUtilPosition.end;
 
-function maximumLineLength(tree, file, pref) {
-  var style = typeof pref === 'number' && !isNaN(pref) ? pref : 80;
+function maximumLineLength(tree, file, option) {
+  var preferred = typeof option === 'number' && !isNaN(option) ? option : 80;
   var content = String(file);
   var lines = content.split(/\r?\n/);
   var length = lines.length;
@@ -43577,15 +49439,15 @@ function maximumLineLength(tree, file, pref) {
   var lineLength;
 
   // Note: JSX is from MDX: <https://github.com/mdx-js/specification>.
-  unistUtilVisit(tree, ['heading', 'table', 'code', 'definition', 'html', 'jsx'], ignore);
-  unistUtilVisit(tree, ['link', 'image', 'inlineCode'], inline);
+  unistUtilVisit$r(tree, ['heading', 'table', 'code', 'definition', 'html', 'jsx'], ignore);
+  unistUtilVisit$r(tree, ['link', 'image', 'inlineCode'], inline);
 
   // Iterate over every line, and warn for violating lines.
   while (++index < length) {
     lineLength = lines[index].length;
 
-    if (lineLength > style) {
-      file.message('Line must be at most ' + style + ' characters', {
+    if (lineLength > preferred) {
+      file.message('Line must be at most ' + preferred + ' characters', {
         line: index + 1,
         column: lineLength + 1
       });
@@ -43610,7 +49472,7 @@ function maximumLineLength(tree, file, pref) {
     final = end$8(node);
 
     // No whitelisting when starting after the border, or ending before it.
-    if (initial.column > style || final.column < style) {
+    if (initial.column > preferred || final.column < preferred) {
       return
     }
 
@@ -43641,13 +49503,204 @@ function maximumLineLength(tree, file, pref) {
   }
 }
 
+var convert_1$s = convert$t;
+
+function convert$t(test) {
+  if (typeof test === 'string') {
+    return typeFactory$s(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$t
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$s : matchesFactory$s)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$s(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$t(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$s(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$s(tests) {
+  var checks = convertAll$s(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$s(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$t() {
+  return true
+}
+
+var unistUtilVisitParents$s = visitParents$s;
+
+
+
+var CONTINUE$U = true;
+var SKIP$U = 'skip';
+var EXIT$U = false;
+
+visitParents$s.CONTINUE = CONTINUE$U;
+visitParents$s.SKIP = SKIP$U;
+visitParents$s.EXIT = EXIT$U;
+
+function visitParents$s(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$s(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$s(visitor(node, parents));
+
+      if (result[0] === EXIT$U) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$U) {
+      subresult = toResult$s(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$U ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$U) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$s(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$U, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$s = visit$s;
+
+
+
+var CONTINUE$V = unistUtilVisitParents$s.CONTINUE;
+var SKIP$V = unistUtilVisitParents$s.SKIP;
+var EXIT$V = unistUtilVisitParents$s.EXIT;
+
+visit$s.CONTINUE = CONTINUE$V;
+visit$s.SKIP = SKIP$V;
+visit$s.EXIT = EXIT$V;
+
+function visit$s(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$s(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoConsecutiveBlankLines = unifiedLintRule(
   'remark-lint:no-consecutive-blank-lines',
   noConsecutiveBlankLines
 );
 
 function noConsecutiveBlankLines(tree, file) {
-  unistUtilVisit(tree, visitor);
+  unistUtilVisit$s(tree, visitor);
 
   function visitor(node) {
     var children = node.children;
@@ -43686,7 +49739,7 @@ function noConsecutiveBlankLines(tree, file) {
         'Remove ' +
         lines +
         ' ' +
-        plur('line', lines) +
+        pluralize('line', Math.abs(lines)) +
         ' ' +
         (diff > 0 ? 'before' : 'after') +
         ' node';
@@ -43696,18 +49749,18 @@ function noConsecutiveBlankLines(tree, file) {
   }
 
   function visitChild(child, index, all) {
-    var prev = all[index - 1];
+    var previous = all[index - 1];
     var max = 2;
 
-    if (prev && !unistUtilGenerated(prev) && !unistUtilGenerated(child)) {
+    if (previous && !unistUtilGenerated(previous) && !unistUtilGenerated(child)) {
       if (
-        (prev.type === 'list' && child.type === 'list') ||
-        (child.type === 'code' && prev.type === 'list' && !child.lang)
+        (previous.type === 'list' && child.type === 'list') ||
+        (child.type === 'code' && previous.type === 'list' && !child.lang)
       ) {
         max++;
       }
 
-      compare(unistUtilPosition.end(prev), unistUtilPosition.start(child), max);
+      compare(unistUtilPosition.end(previous), unistUtilPosition.start(child), max);
     }
   }
 }
@@ -43748,6 +49801,197 @@ function noFileNameOuterDashes(tree, file) {
   }
 }
 
+var convert_1$t = convert$u;
+
+function convert$u(test) {
+  if (typeof test === 'string') {
+    return typeFactory$t(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$u
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$t : matchesFactory$t)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$t(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$u(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$t(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$t(tests) {
+  var checks = convertAll$t(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$t(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$u() {
+  return true
+}
+
+var unistUtilVisitParents$t = visitParents$t;
+
+
+
+var CONTINUE$W = true;
+var SKIP$W = 'skip';
+var EXIT$W = false;
+
+visitParents$t.CONTINUE = CONTINUE$W;
+visitParents$t.SKIP = SKIP$W;
+visitParents$t.EXIT = EXIT$W;
+
+function visitParents$t(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$t(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$t(visitor(node, parents));
+
+      if (result[0] === EXIT$W) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$W) {
+      subresult = toResult$t(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$W ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$W) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$t(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$W, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$t = visit$t;
+
+
+
+var CONTINUE$X = unistUtilVisitParents$t.CONTINUE;
+var SKIP$X = unistUtilVisitParents$t.SKIP;
+var EXIT$X = unistUtilVisitParents$t.EXIT;
+
+visit$t.CONTINUE = CONTINUE$X;
+visit$t.SKIP = SKIP$X;
+visit$t.EXIT = EXIT$X;
+
+function visit$t(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$t(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoHeadingIndent = unifiedLintRule('remark-lint:no-heading-indent', noHeadingIndent);
 
 var start$e = unistUtilPosition.start;
@@ -43756,7 +50000,7 @@ function noHeadingIndent(tree, file) {
   var contents = String(file);
   var length = contents.length;
 
-  unistUtilVisit(tree, 'heading', visitor);
+  unistUtilVisit$t(tree, 'heading', visitor);
 
   function visitor(node) {
     var initial;
@@ -43785,13 +50029,204 @@ function noHeadingIndent(tree, file) {
 
     if (diff) {
       file.message(
-        'Remove ' + diff + ' ' + plur('space', diff) + ' before this heading',
+        'Remove ' + diff + ' ' + pluralize('space', diff) + ' before this heading',
         {
           line: initial.line,
           column: initial.column + diff
         }
       );
     }
+  }
+}
+
+var convert_1$u = convert$v;
+
+function convert$v(test) {
+  if (typeof test === 'string') {
+    return typeFactory$u(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$v
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$u : matchesFactory$u)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$u(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$v(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$u(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$u(tests) {
+  var checks = convertAll$u(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$u(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$v() {
+  return true
+}
+
+var unistUtilVisitParents$u = visitParents$u;
+
+
+
+var CONTINUE$Y = true;
+var SKIP$Y = 'skip';
+var EXIT$Y = false;
+
+visitParents$u.CONTINUE = CONTINUE$Y;
+visitParents$u.SKIP = SKIP$Y;
+visitParents$u.EXIT = EXIT$Y;
+
+function visitParents$u(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$u(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$u(visitor(node, parents));
+
+      if (result[0] === EXIT$Y) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$Y) {
+      subresult = toResult$u(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$Y ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$Y) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$u(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$Y, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$u = visit$u;
+
+
+
+var CONTINUE$Z = unistUtilVisitParents$u.CONTINUE;
+var SKIP$Z = unistUtilVisitParents$u.SKIP;
+var EXIT$Z = unistUtilVisitParents$u.EXIT;
+
+visit$u.CONTINUE = CONTINUE$Z;
+visit$u.SKIP = SKIP$Z;
+visit$u.EXIT = EXIT$Z;
+
+function visit$u(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$u(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -43804,14 +50239,14 @@ var remarkLintNoMultipleToplevelHeadings = unifiedLintRule(
   noMultipleToplevelHeadings
 );
 
-function noMultipleToplevelHeadings(tree, file, pref) {
-  var style = pref ? pref : 1;
+function noMultipleToplevelHeadings(tree, file, option) {
+  var preferred = option || 1;
   var duplicate;
 
-  unistUtilVisit(tree, 'heading', visitor);
+  unistUtilVisit$u(tree, 'heading', visitor);
 
   function visitor(node) {
-    if (!unistUtilGenerated(node) && node.depth === style) {
+    if (!unistUtilGenerated(node) && node.depth === preferred) {
       if (duplicate) {
         file.message(
           'Don’t use multiple top level headings (' + duplicate + ')',
@@ -43824,13 +50259,204 @@ function noMultipleToplevelHeadings(tree, file, pref) {
   }
 }
 
+var convert_1$v = convert$w;
+
+function convert$w(test) {
+  if (typeof test === 'string') {
+    return typeFactory$v(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$w
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$v : matchesFactory$v)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$v(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$w(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$v(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$v(tests) {
+  var checks = convertAll$v(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$v(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$w() {
+  return true
+}
+
+var unistUtilVisitParents$v = visitParents$v;
+
+
+
+var CONTINUE$_ = true;
+var SKIP$_ = 'skip';
+var EXIT$_ = false;
+
+visitParents$v.CONTINUE = CONTINUE$_;
+visitParents$v.SKIP = SKIP$_;
+visitParents$v.EXIT = EXIT$_;
+
+function visitParents$v(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$v(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$v(visitor(node, parents));
+
+      if (result[0] === EXIT$_) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$_) {
+      subresult = toResult$v(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$_ ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$_) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$v(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$_, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$v = visit$v;
+
+
+
+var CONTINUE$$ = unistUtilVisitParents$v.CONTINUE;
+var SKIP$$ = unistUtilVisitParents$v.SKIP;
+var EXIT$$ = unistUtilVisitParents$v.EXIT;
+
+visit$v.CONTINUE = CONTINUE$$;
+visit$v.SKIP = SKIP$$;
+visit$v.EXIT = EXIT$$;
+
+function visit$v(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$v(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoShellDollars = unifiedLintRule('remark-lint:no-shell-dollars', noShellDollars);
 
-var reason$d = 'Do not use dollar signs before shell-commands';
+var reason$d = 'Do not use dollar signs before shell commands';
 
 // List of shell script file extensions (also used as code flags for syntax
 // highlighting on GitHub):
-// See: <https://github.com/github/linguist/blob/5bf8cf5/lib/linguist/languages.yml#L3002>
+// See: <https://github.com/github/linguist/blob/40992ba/lib/linguist/languages.yml#L4984>
 var flags = [
   'sh',
   'bash',
@@ -43845,7 +50471,7 @@ var flags = [
 ];
 
 function noShellDollars(tree, file) {
-  unistUtilVisit(tree, 'code', visitor);
+  unistUtilVisit$v(tree, 'code', visitor);
 
   function visitor(node) {
     var lines;
@@ -43876,6 +50502,197 @@ function noShellDollars(tree, file) {
   }
 }
 
+var convert_1$w = convert$x;
+
+function convert$x(test) {
+  if (typeof test === 'string') {
+    return typeFactory$w(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$x
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$w : matchesFactory$w)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$w(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$x(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$w(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$w(tests) {
+  var checks = convertAll$w(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$w(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$x() {
+  return true
+}
+
+var unistUtilVisitParents$w = visitParents$w;
+
+
+
+var CONTINUE$10 = true;
+var SKIP$10 = 'skip';
+var EXIT$10 = false;
+
+visitParents$w.CONTINUE = CONTINUE$10;
+visitParents$w.SKIP = SKIP$10;
+visitParents$w.EXIT = EXIT$10;
+
+function visitParents$w(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$w(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$w(visitor(node, parents));
+
+      if (result[0] === EXIT$10) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$10) {
+      subresult = toResult$w(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$10 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$10) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$w(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$10, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$w = visit$w;
+
+
+
+var CONTINUE$11 = unistUtilVisitParents$w.CONTINUE;
+var SKIP$11 = unistUtilVisitParents$w.SKIP;
+var EXIT$11 = unistUtilVisitParents$w.EXIT;
+
+visit$w.CONTINUE = CONTINUE$11;
+visit$w.SKIP = SKIP$11;
+visit$w.EXIT = EXIT$11;
+
+function visit$w(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$w(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintNoTableIndentation = unifiedLintRule('remark-lint:no-table-indentation', noTableIndentation);
 
 var reason$e = 'Do not indent table rows';
@@ -43883,14 +50700,14 @@ var reason$e = 'Do not indent table rows';
 function noTableIndentation(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit(tree, 'table', visitor);
+  unistUtilVisit$w(tree, 'table', visitor);
 
   function visitor(node) {
     if (!unistUtilGenerated(node)) {
       node.children.forEach(each);
     }
 
-    return unistUtilVisit.SKIP
+    return unistUtilVisit$w.SKIP
   }
 
   function each(row) {
@@ -43905,13 +50722,86 @@ function noTableIndentation(tree, file) {
   }
 }
 
+var vfileLocation$6 = factory$e;
+
+function factory$e(file) {
+  var contents = indices$6(String(file));
+
+  return {
+    toPosition: offsetToPositionFactory$6(contents),
+    toOffset: positionToOffsetFactory$6(contents)
+  }
+}
+
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
+function offsetToPositionFactory$6(indices) {
+  return offsetToPosition
+
+  // Get the line and column-based `position` for `offset` in the bound indices.
+  function offsetToPosition(offset) {
+    var index = -1;
+    var length = indices.length;
+
+    if (offset < 0) {
+      return {}
+    }
+
+    while (++index < length) {
+      if (indices[index] > offset) {
+        return {
+          line: index + 1,
+          column: offset - (indices[index - 1] || 0) + 1,
+          offset: offset
+        }
+      }
+    }
+
+    return {}
+  }
+}
+
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
+function positionToOffsetFactory$6(indices) {
+  return positionToOffset
+
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
+  function positionToOffset(position) {
+    var line = position && position.line;
+    var column = position && position.column;
+
+    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
+      return (indices[line - 2] || 0) + column - 1 || 0
+    }
+
+    return -1
+  }
+}
+
+// Get indices of line-breaks in `value`.
+function indices$6(value) {
+  var result = [];
+  var index = value.indexOf('\n');
+
+  while (index !== -1) {
+    result.push(index + 1);
+    index = value.indexOf('\n', index + 1);
+  }
+
+  result.push(value.length + 1);
+
+  return result
+}
+
 var remarkLintNoTabs = unifiedLintRule('remark-lint:no-tabs', noTabs);
 
-var reason$f = 'Use spaces instead of hard-tabs';
+var reason$f = 'Use spaces instead of tabs';
 
 function noTabs(tree, file) {
   var content = String(file);
-  var position = vfileLocation(file).toPosition;
+  var position = vfileLocation$6(file).toPosition;
   var index = content.indexOf('\t');
 
   while (index !== -1) {
@@ -43943,19 +50833,31 @@ function noTrailingSpaces(ast, file) {
   }
 }
 
-var convert_1$1 = convert$2;
+var escapeStringRegexp$1 = string => {
+	if (typeof string !== 'string') {
+		throw new TypeError('Expected a string');
+	}
 
-function convert$2(test) {
+	// Escape characters with special meaning either inside or outside character sets.
+	// Use a simple backslash escape when it’s always valid, and a \unnnn escape when the simpler form would be disallowed by Unicode patterns’ stricter grammar.
+	return string
+		.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&')
+		.replace(/-/g, '\\x2d');
+};
+
+var convert_1$x = convert$y;
+
+function convert$y(test) {
   if (typeof test === 'string') {
-    return typeFactory$1(test)
+    return typeFactory$x(test)
   }
 
   if (test === null || test === undefined) {
-    return ok$2
+    return ok$y
   }
 
   if (typeof test === 'object') {
-    return ('length' in test ? anyFactory$1 : matchesFactory$1)(test)
+    return ('length' in test ? anyFactory$x : matchesFactory$x)(test)
   }
 
   if (typeof test === 'function') {
@@ -43965,13 +50867,13 @@ function convert$2(test) {
   throw new Error('Expected function, string, or object as test')
 }
 
-function convertAll$1(tests) {
+function convertAll$x(tests) {
   var results = [];
   var length = tests.length;
   var index = -1;
 
   while (++index < length) {
-    results[index] = convert$2(tests[index]);
+    results[index] = convert$y(tests[index]);
   }
 
   return results
@@ -43979,7 +50881,7 @@ function convertAll$1(tests) {
 
 // Utility assert each property in `test` is represented in `node`, and each
 // values are strictly equal.
-function matchesFactory$1(test) {
+function matchesFactory$x(test) {
   return matches
 
   function matches(node) {
@@ -43995,8 +50897,8 @@ function matchesFactory$1(test) {
   }
 }
 
-function anyFactory$1(tests) {
-  var checks = convertAll$1(tests);
+function anyFactory$x(tests) {
+  var checks = convertAll$x(tests);
   var length = checks.length;
 
   return matches
@@ -44016,7 +50918,7 @@ function anyFactory$1(tests) {
 
 // Utility to convert a string into a function which checks a given node’s type
 // for said string.
-function typeFactory$1(test) {
+function typeFactory$x(test) {
   return type
 
   function type(node) {
@@ -44025,23 +50927,23 @@ function typeFactory$1(test) {
 }
 
 // Utility to return true.
-function ok$2() {
+function ok$y() {
   return true
 }
 
-var unistUtilVisitParents$1 = visitParents$1;
+var unistUtilVisitParents$x = visitParents$x;
 
 
 
-var CONTINUE$2 = true;
-var SKIP$2 = 'skip';
-var EXIT$2 = false;
+var CONTINUE$12 = true;
+var SKIP$12 = 'skip';
+var EXIT$12 = false;
 
-visitParents$1.CONTINUE = CONTINUE$2;
-visitParents$1.SKIP = SKIP$2;
-visitParents$1.EXIT = EXIT$2;
+visitParents$x.CONTINUE = CONTINUE$12;
+visitParents$x.SKIP = SKIP$12;
+visitParents$x.EXIT = EXIT$12;
 
-function visitParents$1(tree, test, visitor, reverse) {
+function visitParents$x(tree, test, visitor, reverse) {
   var is;
 
   if (typeof test === 'function' && typeof visitor !== 'function') {
@@ -44050,7 +50952,7 @@ function visitParents$1(tree, test, visitor, reverse) {
     test = null;
   }
 
-  is = convert_1$1(test);
+  is = convert_1$x(test);
 
   one(tree, null, []);
 
@@ -44060,16 +50962,16 @@ function visitParents$1(tree, test, visitor, reverse) {
     var subresult;
 
     if (!test || is(node, index, parents[parents.length - 1] || null)) {
-      result = toResult$1(visitor(node, parents));
+      result = toResult$x(visitor(node, parents));
 
-      if (result[0] === EXIT$2) {
+      if (result[0] === EXIT$12) {
         return result
       }
     }
 
-    if (node.children && result[0] !== SKIP$2) {
-      subresult = toResult$1(all(node.children, parents.concat(node)));
-      return subresult[0] === EXIT$2 ? subresult : result
+    if (node.children && result[0] !== SKIP$12) {
+      subresult = toResult$x(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$12 ? subresult : result
     }
 
     return result
@@ -44085,7 +50987,7 @@ function visitParents$1(tree, test, visitor, reverse) {
     while (index > min && index < children.length) {
       result = one(children[index], index, parents);
 
-      if (result[0] === EXIT$2) {
+      if (result[0] === EXIT$12) {
         return result
       }
 
@@ -44094,38 +50996,38 @@ function visitParents$1(tree, test, visitor, reverse) {
   }
 }
 
-function toResult$1(value) {
+function toResult$x(value) {
   if (value !== null && typeof value === 'object' && 'length' in value) {
     return value
   }
 
   if (typeof value === 'number') {
-    return [CONTINUE$2, value]
+    return [CONTINUE$12, value]
   }
 
   return [value]
 }
 
-var unistUtilVisit$1 = visit$1;
+var unistUtilVisit$x = visit$x;
 
 
 
-var CONTINUE$3 = unistUtilVisitParents$1.CONTINUE;
-var SKIP$3 = unistUtilVisitParents$1.SKIP;
-var EXIT$3 = unistUtilVisitParents$1.EXIT;
+var CONTINUE$13 = unistUtilVisitParents$x.CONTINUE;
+var SKIP$13 = unistUtilVisitParents$x.SKIP;
+var EXIT$13 = unistUtilVisitParents$x.EXIT;
 
-visit$1.CONTINUE = CONTINUE$3;
-visit$1.SKIP = SKIP$3;
-visit$1.EXIT = EXIT$3;
+visit$x.CONTINUE = CONTINUE$13;
+visit$x.SKIP = SKIP$13;
+visit$x.EXIT = EXIT$13;
 
-function visit$1(tree, test, visitor, reverse) {
+function visit$x(tree, test, visitor, reverse) {
   if (typeof test === 'function' && typeof visitor !== 'function') {
     reverse = visitor;
     visitor = test;
     test = null;
   }
 
-  unistUtilVisitParents$1(tree, test, overload, reverse);
+  unistUtilVisitParents$x(tree, test, overload, reverse);
 
   function overload(node, parents) {
     var parent = parents[parents.length - 1];
@@ -44134,46 +51036,340 @@ function visit$1(tree, test, visitor, reverse) {
   }
 }
 
+var vfileLocation$7 = factory$f;
+
+function factory$f(file) {
+  var contents = indices$7(String(file));
+
+  return {
+    toPosition: offsetToPositionFactory$7(contents),
+    toOffset: positionToOffsetFactory$7(contents)
+  }
+}
+
+// Factory to get the line and column-based `position` for `offset` in the bound
+// indices.
+function offsetToPositionFactory$7(indices) {
+  return offsetToPosition
+
+  // Get the line and column-based `position` for `offset` in the bound indices.
+  function offsetToPosition(offset) {
+    var index = -1;
+    var length = indices.length;
+
+    if (offset < 0) {
+      return {}
+    }
+
+    while (++index < length) {
+      if (indices[index] > offset) {
+        return {
+          line: index + 1,
+          column: offset - (indices[index - 1] || 0) + 1,
+          offset: offset
+        }
+      }
+    }
+
+    return {}
+  }
+}
+
+// Factory to get the `offset` for a line and column-based `position` in the
+// bound indices.
+function positionToOffsetFactory$7(indices) {
+  return positionToOffset
+
+  // Get the `offset` for a line and column-based `position` in the bound
+  // indices.
+  function positionToOffset(position) {
+    var line = position && position.line;
+    var column = position && position.column;
+
+    if (!isNaN(line) && !isNaN(column) && line - 1 in indices) {
+      return (indices[line - 2] || 0) + column - 1 || 0
+    }
+
+    return -1
+  }
+}
+
+// Get indices of line-breaks in `value`.
+function indices$7(value) {
+  var result = [];
+  var index = value.indexOf('\n');
+
+  while (index !== -1) {
+    result.push(index + 1);
+    index = value.indexOf('\n', index + 1);
+  }
+
+  result.push(value.length + 1);
+
+  return result
+}
+
+const start$g = unistUtilPosition.start;
+
 var remarkLintProhibitedStrings = unifiedLintRule('remark-lint:prohibited-strings', prohibitedStrings);
 
-function testProhibited(val, content) {
-  let regexpString = '(\\.|@[a-z0-9/-]*)?';
+function testProhibited (val, content) {
+  let regexpFlags = 'g';
+
+  if (!val.no) {
+    val.no = escapeStringRegexp$1(val.yes);
+    regexpFlags += 'i';
+  }
+
+  let regexpString = '(?<!\\.|@[a-zA-Z0-9/-]*)';
+
+  const ignoreNextTo = val.ignoreNextTo ? escapeStringRegexp$1(val.ignoreNextTo) : '';
 
   // If it starts with a letter, make sure it is a word break.
   if (/^\b/.test(val.no)) {
     regexpString += '\\b';
   }
+  if (ignoreNextTo) {
+    regexpString += `(?<!${ignoreNextTo})`;
+  }
+
   regexpString += `(${val.no})`;
+
+  if (ignoreNextTo) {
+    regexpString += `(?!${ignoreNextTo})`;
+  }
 
   // If it ends with a letter, make sure it is a word break.
   if (/\b$/.test(val.no)) {
     regexpString += '\\b';
   }
-  regexpString += '(\\.\\w)?';
-  const re = new RegExp(regexpString, 'g');
+  regexpString += '(?!\\.\\w)';
+  const re = new RegExp(regexpString, regexpFlags);
 
-  let result = null;
-  while (result = re.exec(content)) {
-    if (!result[1] && !result[3]) {
-      return result[2];
+  const results = [];
+  let result = re.exec(content);
+  while (result) {
+    if (result[1] !== val.yes) {
+      results.push({ result: result[1], index: result.index });
     }
+    result = re.exec(content);
   }
 
-  return false;
+  return results
 }
 
-function prohibitedStrings(ast, file, strings) {
-  unistUtilVisit$1(ast, 'text', checkText);
+function prohibitedStrings (ast, file, strings) {
+  const location = vfileLocation$7(file);
 
-  function checkText(node) {
+  unistUtilVisit$x(ast, 'text', checkText);
+
+  function checkText (node) {
     const content = node.value;
+    const initial = start$g(node).offset;
 
     strings.forEach((val) => {
-      const result = testProhibited(val, content);
-      if (result) {
-        file.message(`Use "${val.yes}" instead of "${result}"`, node);
+      const results = testProhibited(val, content);
+      if (results.length) {
+        results.forEach(({ result, index }) => {
+          const message = val.yes ? `Use "${val.yes}" instead of "${result}"` : `Do not use "${result}"`;
+          file.message(message, {
+            start: location.toPosition(initial + index),
+            end: location.toPosition(initial + index + [...result].length)
+          });
+        });
       }
     });
+  }
+}
+
+var convert_1$y = convert$z;
+
+function convert$z(test) {
+  if (typeof test === 'string') {
+    return typeFactory$y(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$z
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$y : matchesFactory$y)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$y(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$z(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$y(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$y(tests) {
+  var checks = convertAll$y(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$y(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$z() {
+  return true
+}
+
+var unistUtilVisitParents$y = visitParents$y;
+
+
+
+var CONTINUE$14 = true;
+var SKIP$14 = 'skip';
+var EXIT$14 = false;
+
+visitParents$y.CONTINUE = CONTINUE$14;
+visitParents$y.SKIP = SKIP$14;
+visitParents$y.EXIT = EXIT$14;
+
+function visitParents$y(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$y(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$y(visitor(node, parents));
+
+      if (result[0] === EXIT$14) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$14) {
+      subresult = toResult$y(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$14 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$14) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$y(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$14, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$y = visit$y;
+
+
+
+var CONTINUE$15 = unistUtilVisitParents$y.CONTINUE;
+var SKIP$15 = unistUtilVisitParents$y.SKIP;
+var EXIT$15 = unistUtilVisitParents$y.EXIT;
+
+visit$y.CONTINUE = CONTINUE$15;
+visit$y.SKIP = SKIP$15;
+visit$y.EXIT = EXIT$15;
+
+function visit$y(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$y(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -44184,38 +51380,229 @@ var rule = unifiedLintRule;
 
 var remarkLintRuleStyle = rule('remark-lint:rule-style', ruleStyle);
 
-var start$g = unistUtilPosition.start;
+var start$h = unistUtilPosition.start;
 var end$9 = unistUtilPosition.end;
 
-function ruleStyle(tree, file, pref) {
+function ruleStyle(tree, file, option) {
   var contents = String(file);
+  var preferred =
+    typeof option === 'string' && option !== 'consistent' ? option : null;
 
-  pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
-
-  if (pref !== null && /[^-_* ]/.test(pref)) {
+  if (preferred !== null && /[^-_* ]/.test(preferred)) {
     file.fail(
-      "Invalid preferred rule-style: provide a valid markdown rule, or `'consistent'`"
+      "Incorrect preferred rule style: provide a correct markdown rule or `'consistent'`"
     );
   }
 
-  unistUtilVisit(tree, 'thematicBreak', visitor);
+  unistUtilVisit$y(tree, 'thematicBreak', visitor);
 
   function visitor(node) {
-    var initial = start$g(node).offset;
+    var initial = start$h(node).offset;
     var final = end$9(node).offset;
     var rule;
 
     if (!unistUtilGenerated(node)) {
       rule = contents.slice(initial, final);
 
-      if (pref) {
-        if (rule !== pref) {
-          file.message('Rules should use `' + pref + '`', node);
+      if (preferred) {
+        if (rule !== preferred) {
+          file.message('Rules should use `' + preferred + '`', node);
         }
       } else {
-        pref = rule;
+        preferred = rule;
       }
     }
+  }
+}
+
+var convert_1$z = convert$A;
+
+function convert$A(test) {
+  if (typeof test === 'string') {
+    return typeFactory$z(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$A
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$z : matchesFactory$z)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$z(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$A(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$z(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$z(tests) {
+  var checks = convertAll$z(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$z(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$A() {
+  return true
+}
+
+var unistUtilVisitParents$z = visitParents$z;
+
+
+
+var CONTINUE$16 = true;
+var SKIP$16 = 'skip';
+var EXIT$16 = false;
+
+visitParents$z.CONTINUE = CONTINUE$16;
+visitParents$z.SKIP = SKIP$16;
+visitParents$z.EXIT = EXIT$16;
+
+function visitParents$z(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$z(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$z(visitor(node, parents));
+
+      if (result[0] === EXIT$16) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$16) {
+      subresult = toResult$z(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$16 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$16) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$z(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$16, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$z = visit$z;
+
+
+
+var CONTINUE$17 = unistUtilVisitParents$z.CONTINUE;
+var SKIP$17 = unistUtilVisitParents$z.SKIP;
+var EXIT$17 = unistUtilVisitParents$z.EXIT;
+
+visit$z.CONTINUE = CONTINUE$17;
+visit$z.SKIP = SKIP$17;
+visit$z.EXIT = EXIT$17;
+
+function visit$z(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$z(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
   }
 }
 
@@ -44223,53 +51610,251 @@ var remarkLintStrongMarker = unifiedLintRule('remark-lint:strong-marker', strong
 
 var markers$1 = {'*': true, _: true, null: true};
 
-function strongMarker(tree, file, pref) {
+function strongMarker(tree, file, option) {
   var contents = String(file);
+  var preferred =
+    typeof option === 'string' && option !== 'consistent' ? option : null;
 
-  pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
-
-  if (markers$1[pref] !== true) {
+  if (markers$1[preferred] !== true) {
     file.fail(
-      'Invalid strong marker `' +
-        pref +
+      'Incorrect strong marker `' +
+        preferred +
         "`: use either `'consistent'`, `'*'`, or `'_'`"
     );
   }
 
-  unistUtilVisit(tree, 'strong', visitor);
+  unistUtilVisit$z(tree, 'strong', visitor);
 
   function visitor(node) {
     var marker = contents.charAt(unistUtilPosition.start(node).offset);
 
     if (!unistUtilGenerated(node)) {
-      if (pref) {
-        if (marker !== pref) {
-          file.message('Strong should use `' + pref + '` as a marker', node);
+      if (preferred) {
+        if (marker !== preferred) {
+          file.message(
+            'Strong should use `' + preferred + '` as a marker',
+            node
+          );
         }
       } else {
-        pref = marker;
+        preferred = marker;
       }
     }
   }
 }
 
+var convert_1$A = convert$B;
+
+function convert$B(test) {
+  if (typeof test === 'string') {
+    return typeFactory$A(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$B
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$A : matchesFactory$A)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$A(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$B(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$A(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$A(tests) {
+  var checks = convertAll$A(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$A(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$B() {
+  return true
+}
+
+var unistUtilVisitParents$A = visitParents$A;
+
+
+
+var CONTINUE$18 = true;
+var SKIP$18 = 'skip';
+var EXIT$18 = false;
+
+visitParents$A.CONTINUE = CONTINUE$18;
+visitParents$A.SKIP = SKIP$18;
+visitParents$A.EXIT = EXIT$18;
+
+function visitParents$A(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$A(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$A(visitor(node, parents));
+
+      if (result[0] === EXIT$18) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$18) {
+      subresult = toResult$A(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$18 ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$18) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$A(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$18, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$A = visit$A;
+
+
+
+var CONTINUE$19 = unistUtilVisitParents$A.CONTINUE;
+var SKIP$19 = unistUtilVisitParents$A.SKIP;
+var EXIT$19 = unistUtilVisitParents$A.EXIT;
+
+visit$A.CONTINUE = CONTINUE$19;
+visit$A.SKIP = SKIP$19;
+visit$A.EXIT = EXIT$19;
+
+function visit$A(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$A(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintTableCellPadding = unifiedLintRule('remark-lint:table-cell-padding', tableCellPadding);
 
-var start$h = unistUtilPosition.start;
+var start$i = unistUtilPosition.start;
 var end$a = unistUtilPosition.end;
 
 var styles$3 = {null: true, padded: true, compact: true};
 
-function tableCellPadding(tree, file, pref) {
+function tableCellPadding(tree, file, option) {
   var contents = String(file);
+  var preferred =
+    typeof option === 'string' && option !== 'consistent' ? option : null;
 
-  pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
-
-  if (styles$3[pref] !== true) {
-    file.fail('Invalid table-cell-padding style `' + pref + '`');
+  if (styles$3[preferred] !== true) {
+    file.fail(
+      'Incorrect table cell padding style `' +
+        preferred +
+        "`, expected `'padded'`, `'compact'`, or `'consistent'`"
+    );
   }
 
-  unistUtilVisit(tree, 'table', visitor);
+  unistUtilVisit$A(tree, 'table', visitor);
 
   function visitor(node) {
     var rows = node.children;
@@ -44304,8 +51889,8 @@ function tableCellPadding(tree, file, pref) {
         next = cells[column + 1];
 
         fence = contents.slice(
-          cell ? end$a(cell).offset : start$h(row).offset,
-          next ? start$h(next).offset : end$a(row).offset
+          cell ? end$a(cell).offset : start$i(row).offset,
+          next ? start$i(next).offset : end$a(row).offset
         );
 
         pos = fence.indexOf('|');
@@ -44327,8 +51912,8 @@ function tableCellPadding(tree, file, pref) {
       }
     }
 
-    if (pref) {
-      style = pref === 'padded' ? 1 : 0;
+    if (preferred) {
+      style = preferred === 'padded' ? 1 : 0;
     } else {
       style = entries[0] && (!entries[0].start || !entries[0].end) ? 0 : 1;
     }
@@ -44342,7 +51927,7 @@ function tableCellPadding(tree, file, pref) {
       checkSide('end', entry, style, sizes);
     }
 
-    return unistUtilVisit.SKIP
+    return unistUtilVisit$A.SKIP
   }
 
   function checkSide(side, entry, style, sizes) {
@@ -44382,12 +51967,203 @@ function tableCellPadding(tree, file, pref) {
 }
 
 function size(node) {
-  return end$a(node).offset - start$h(node).offset
+  return end$a(node).offset - start$i(node).offset
+}
+
+var convert_1$B = convert$C;
+
+function convert$C(test) {
+  if (typeof test === 'string') {
+    return typeFactory$B(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$C
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$B : matchesFactory$B)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$B(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$C(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$B(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$B(tests) {
+  var checks = convertAll$B(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$B(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$C() {
+  return true
+}
+
+var unistUtilVisitParents$B = visitParents$B;
+
+
+
+var CONTINUE$1a = true;
+var SKIP$1a = 'skip';
+var EXIT$1a = false;
+
+visitParents$B.CONTINUE = CONTINUE$1a;
+visitParents$B.SKIP = SKIP$1a;
+visitParents$B.EXIT = EXIT$1a;
+
+function visitParents$B(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$B(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$B(visitor(node, parents));
+
+      if (result[0] === EXIT$1a) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$1a) {
+      subresult = toResult$B(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$1a ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$1a) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$B(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$1a, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$B = visit$B;
+
+
+
+var CONTINUE$1b = unistUtilVisitParents$B.CONTINUE;
+var SKIP$1b = unistUtilVisitParents$B.SKIP;
+var EXIT$1b = unistUtilVisitParents$B.EXIT;
+
+visit$B.CONTINUE = CONTINUE$1b;
+visit$B.SKIP = SKIP$1b;
+visit$B.EXIT = EXIT$1b;
+
+function visit$B(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$B(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
 }
 
 var remarkLintTablePipes = unifiedLintRule('remark-lint:table-pipes', tablePipes);
 
-var start$i = unistUtilPosition.start;
+var start$j = unistUtilPosition.start;
 var end$b = unistUtilPosition.end;
 
 var reasonStart = 'Missing initial pipe in table fence';
@@ -44396,7 +52172,7 @@ var reasonEnd = 'Missing final pipe in table fence';
 function tablePipes(tree, file) {
   var contents = String(file);
 
-  unistUtilVisit(tree, 'table', visitor);
+  unistUtilVisit$B(tree, 'table', visitor);
 
   function visitor(node) {
     var rows = node.children;
@@ -44416,11 +52192,11 @@ function tablePipes(tree, file) {
         cells = row.children;
         head = cells[0];
         tail = cells[cells.length - 1];
-        initial = contents.slice(start$i(row).offset, start$i(head).offset);
+        initial = contents.slice(start$j(row).offset, start$j(head).offset);
         final = contents.slice(end$b(tail).offset, end$b(row).offset);
 
         if (initial.indexOf('|') === -1) {
-          file.message(reasonStart, start$i(row));
+          file.message(reasonStart, start$j(row));
         }
 
         if (final.indexOf('|') === -1) {
@@ -44431,12 +52207,203 @@ function tablePipes(tree, file) {
   }
 }
 
+var convert_1$C = convert$D;
+
+function convert$D(test) {
+  if (typeof test === 'string') {
+    return typeFactory$C(test)
+  }
+
+  if (test === null || test === undefined) {
+    return ok$D
+  }
+
+  if (typeof test === 'object') {
+    return ('length' in test ? anyFactory$C : matchesFactory$C)(test)
+  }
+
+  if (typeof test === 'function') {
+    return test
+  }
+
+  throw new Error('Expected function, string, or object as test')
+}
+
+function convertAll$C(tests) {
+  var results = [];
+  var length = tests.length;
+  var index = -1;
+
+  while (++index < length) {
+    results[index] = convert$D(tests[index]);
+  }
+
+  return results
+}
+
+// Utility assert each property in `test` is represented in `node`, and each
+// values are strictly equal.
+function matchesFactory$C(test) {
+  return matches
+
+  function matches(node) {
+    var key;
+
+    for (key in test) {
+      if (node[key] !== test[key]) {
+        return false
+      }
+    }
+
+    return true
+  }
+}
+
+function anyFactory$C(tests) {
+  var checks = convertAll$C(tests);
+  var length = checks.length;
+
+  return matches
+
+  function matches() {
+    var index = -1;
+
+    while (++index < length) {
+      if (checks[index].apply(this, arguments)) {
+        return true
+      }
+    }
+
+    return false
+  }
+}
+
+// Utility to convert a string into a function which checks a given node’s type
+// for said string.
+function typeFactory$C(test) {
+  return type
+
+  function type(node) {
+    return Boolean(node && node.type === test)
+  }
+}
+
+// Utility to return true.
+function ok$D() {
+  return true
+}
+
+var unistUtilVisitParents$C = visitParents$C;
+
+
+
+var CONTINUE$1c = true;
+var SKIP$1c = 'skip';
+var EXIT$1c = false;
+
+visitParents$C.CONTINUE = CONTINUE$1c;
+visitParents$C.SKIP = SKIP$1c;
+visitParents$C.EXIT = EXIT$1c;
+
+function visitParents$C(tree, test, visitor, reverse) {
+  var is;
+
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  is = convert_1$C(test);
+
+  one(tree, null, []);
+
+  // Visit a single node.
+  function one(node, index, parents) {
+    var result = [];
+    var subresult;
+
+    if (!test || is(node, index, parents[parents.length - 1] || null)) {
+      result = toResult$C(visitor(node, parents));
+
+      if (result[0] === EXIT$1c) {
+        return result
+      }
+    }
+
+    if (node.children && result[0] !== SKIP$1c) {
+      subresult = toResult$C(all(node.children, parents.concat(node)));
+      return subresult[0] === EXIT$1c ? subresult : result
+    }
+
+    return result
+  }
+
+  // Visit children in `parent`.
+  function all(children, parents) {
+    var min = -1;
+    var step = reverse ? -1 : 1;
+    var index = (reverse ? children.length : min) + step;
+    var result;
+
+    while (index > min && index < children.length) {
+      result = one(children[index], index, parents);
+
+      if (result[0] === EXIT$1c) {
+        return result
+      }
+
+      index = typeof result[1] === 'number' ? result[1] : index + step;
+    }
+  }
+}
+
+function toResult$C(value) {
+  if (value !== null && typeof value === 'object' && 'length' in value) {
+    return value
+  }
+
+  if (typeof value === 'number') {
+    return [CONTINUE$1c, value]
+  }
+
+  return [value]
+}
+
+var unistUtilVisit$C = visit$C;
+
+
+
+var CONTINUE$1d = unistUtilVisitParents$C.CONTINUE;
+var SKIP$1d = unistUtilVisitParents$C.SKIP;
+var EXIT$1d = unistUtilVisitParents$C.EXIT;
+
+visit$C.CONTINUE = CONTINUE$1d;
+visit$C.SKIP = SKIP$1d;
+visit$C.EXIT = EXIT$1d;
+
+function visit$C(tree, test, visitor, reverse) {
+  if (typeof test === 'function' && typeof visitor !== 'function') {
+    reverse = visitor;
+    visitor = test;
+    test = null;
+  }
+
+  unistUtilVisitParents$C(tree, test, overload, reverse);
+
+  function overload(node, parents) {
+    var parent = parents[parents.length - 1];
+    var index = parent ? parent.children.indexOf(node) : null;
+    return visitor(node, index, parent)
+  }
+}
+
 var remarkLintUnorderedListMarkerStyle = unifiedLintRule(
   'remark-lint:unordered-list-marker-style',
   unorderedListMarkerStyle
 );
 
-var start$j = unistUtilPosition.start;
+var start$k = unistUtilPosition.start;
 
 var styles$4 = {
   '-': true,
@@ -44445,20 +52412,20 @@ var styles$4 = {
   null: true
 };
 
-function unorderedListMarkerStyle(tree, file, pref) {
+function unorderedListMarkerStyle(tree, file, option) {
   var contents = String(file);
+  var preferred =
+    typeof option === 'string' && option !== 'consistent' ? option : null;
 
-  pref = typeof pref === 'string' && pref !== 'consistent' ? pref : null;
-
-  if (styles$4[pref] !== true) {
+  if (styles$4[preferred] !== true) {
     file.fail(
-      'Invalid unordered list-item marker style `' +
-        pref +
+      'Incorrect unordered list item marker style `' +
+        preferred +
         "`: use either `'-'`, `'*'`, or `'+'`"
     );
   }
 
-  unistUtilVisit(tree, 'list', visitor);
+  unistUtilVisit$C(tree, 'list', visitor);
 
   function visitor(node) {
     var children = node.children;
@@ -44472,16 +52439,16 @@ function unorderedListMarkerStyle(tree, file, pref) {
 
       if (!unistUtilGenerated(child)) {
         marker = contents
-          .slice(start$j(child).offset, start$j(child.children[0]).offset)
+          .slice(start$k(child).offset, start$k(child.children[0]).offset)
           .replace(/\[[x ]?]\s*$/i, '')
           .replace(/\s/g, '');
 
-        if (pref) {
-          if (marker !== pref) {
-            file.message('Marker style should be `' + pref + '`', child);
+        if (preferred) {
+          if (marker !== preferred) {
+            file.message('Marker style should be `' + preferred + '`', child);
           }
         } else {
-          pref = marker;
+          preferred = marker;
         }
       }
     }
@@ -44498,8 +52465,8 @@ var plugins$2 = [
     remarkLintCheckboxCharacterStyle,
     {
       checked: "x",
-      unchecked: " "
-    }
+      unchecked: " ",
+    },
   ],
   remarkLintCheckboxContentIndent,
   [remarkLintCodeBlockStyle, "fenced"],
@@ -44517,7 +52484,6 @@ var plugins$2 = [
   remarkLintNoFileNameConsecutiveDashes,
   remarkLintNoFileNameOuterDashes,
   remarkLintNoHeadingIndent,
-  [remarkLintNoLiteralUrls, false],
   remarkLintNoMultipleToplevelHeadings,
   remarkLintNoShellDollars,
   remarkLintNoTableIndentation,
@@ -44526,29 +52492,25 @@ var plugins$2 = [
   [
     remarkLintProhibitedStrings,
     [
-      { no: "End-Of-Life", yes: "End-of-Life" },
-      { no: "End-of-life", yes: "End-of-Life" },
-      { no: "Github", yes: "GitHub" },
+      { yes: "End-of-Life" },
+      { yes: "GitHub" },
       { no: "hostname", yes: "host name" },
-      { no: "[Jj]avascript", yes: "JavaScript" },
+      { yes: "JavaScript" },
       { no: "Node", yes: "Node.js" },
-      { no: "Node\\.JS", yes: "Node.js" },
-      { no: "node\\.js", yes: "Node.js" },
+      { yes: "Node.js" },
       { no: "Node\\.js's?", yes: "the Node.js" },
       { no: "[Nn]ote that", yes: "<nothing>" },
-      { no: "Rfc", yes: "RFC" },
+      { yes: "RFC" },
       { no: "[Rr][Ff][Cc]\\d+", yes: "RFC <number>" },
-      { no: "rfc", yes: "RFC" },
-      { no: "UNIX", yes: "Unix" },
-      { no: "unix", yes: "Unix" },
-      { no: "v8", yes: "V8" }
-    ]
+      { yes: "Unix" },
+      { yes: "V8" },
+    ],
   ],
   remarkLintRuleStyle,
   [remarkLintStrongMarker, "*"],
   [remarkLintTableCellPadding, "padded"],
   remarkLintTablePipes,
-  [remarkLintUnorderedListMarkerStyle, "*"]
+  [remarkLintUnorderedListMarkerStyle, "*"],
 ];
 
 var remarkPresetLintNode = {
