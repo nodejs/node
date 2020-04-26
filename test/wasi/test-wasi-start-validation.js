@@ -83,7 +83,7 @@ const bufferSource = fixtures.readSync('simple.wasm');
     get() {
       return {
         memory: new WebAssembly.Memory({ initial: 1 }),
-        __wasi_unstable_reactor_start: common.mustCall()
+        _initialize: common.mustCall()
       };
     }
   });
