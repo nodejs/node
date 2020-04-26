@@ -200,11 +200,14 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
 // static
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
-    KeyedAccessStoreMode store_mode) {
+    KeyedAccessStoreMode store_mode, MaybeHandle<Object> prev_validity_cell) {
   Handle<Code> stub =
       CodeFactory::ElementsTransitionAndStore(isolate, store_mode).code();
-  Handle<Object> validity_cell =
-      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
+  Handle<Object> validity_cell;
+  if (!prev_validity_cell.ToHandle(&validity_cell)) {
+    validity_cell =
+        Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
+  }
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);
   handler->set_smi_handler(*stub);
   handler->set_validity_cell(*validity_cell);
