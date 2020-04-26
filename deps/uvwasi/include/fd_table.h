@@ -13,6 +13,7 @@ struct uvwasi_fd_wrap_t {
   uv_file fd;
   char* path;
   char* real_path;
+  char* normalized_path;
   uvwasi_filetype_t type;
   uvwasi_rights_t rights_base;
   uvwasi_rights_t rights_inheriting;

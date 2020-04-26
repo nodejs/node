@@ -8,6 +8,7 @@
 
 #include "uv.h"
 #include "fd_table.h"
+#include "path_resolver.h"
 #include "wasi_types.h"
 #include "wasi_rights.h"
 #include "uv_mapping.h"
@@ -75,19 +76,32 @@ uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
   char* mp_copy;
   size_t rp_len;
   char* rp_copy;
+  char* np_copy;
 
   mp_len = strlen(mapped_path);
   rp_len = strlen(real_path);
+  /* Reserve room for the mapped path, real path, and normalized mapped path. */
   entry = (struct uvwasi_fd_wrap_t*)
-    uvwasi__malloc(uvwasi, sizeof(*entry) + mp_len + rp_len + 2);
-  if (entry == NULL) return UVWASI_ENOMEM;
+    uvwasi__malloc(uvwasi, sizeof(*entry) + mp_len + mp_len + rp_len + 3);
+  if (entry == NULL)
+    return UVWASI_ENOMEM;
 
   mp_copy = (char*)(entry + 1);
   rp_copy = mp_copy + mp_len + 1;
+  np_copy = rp_copy + rp_len + 1;
   memcpy(mp_copy, mapped_path, mp_len);
   mp_copy[mp_len] = '\0';
   memcpy(rp_copy, real_path, rp_len);
   rp_copy[rp_len] = '\0';
+
+  /* Calculate the normalized version of the mapped path, as it will be used for
+     any path calculations on this fd. Use the length of the mapped path as an
+     upper bound for the normalized path length. */
+  err = uvwasi__normalize_path(mp_copy, mp_len, np_copy, mp_len);
+  if (err) {
+    uvwasi__free(uvwasi, entry);
+    goto exit;
+  }
 
   uv_rwlock_wrlock(&table->rwlock);
 
@@ -138,6 +152,7 @@ uvwasi_errno_t uvwasi_fd_table_insert(uvwasi_t* uvwasi,
   entry->fd = fd;
   entry->path = mp_copy;
   entry->real_path = rp_copy;
+  entry->normalized_path = np_copy;
   entry->type = type;
   entry->rights_base = rights_base;
   entry->rights_inheriting = rights_inheriting;

@@ -11,7 +11,7 @@ extern "C" {
 
 #define UVWASI_VERSION_MAJOR 0
 #define UVWASI_VERSION_MINOR 0
-#define UVWASI_VERSION_PATCH 6
+#define UVWASI_VERSION_PATCH 8
 #define UVWASI_VERSION_HEX ((UVWASI_VERSION_MAJOR << 16) | \
                             (UVWASI_VERSION_MINOR <<  8) | \
                             (UVWASI_VERSION_PATCH))
@@ -66,7 +66,7 @@ typedef struct uvwasi_options_s {
   const uvwasi_mem_t* allocator;
 } uvwasi_options_t;
 
-// Embedder API.
+/* Embedder API. */
 uvwasi_errno_t uvwasi_init(uvwasi_t* uvwasi, uvwasi_options_t* options);
 void uvwasi_destroy(uvwasi_t* uvwasi);
 uvwasi_errno_t uvwasi_embedder_remap_fd(uvwasi_t* uvwasi,
@@ -75,7 +75,7 @@ uvwasi_errno_t uvwasi_embedder_remap_fd(uvwasi_t* uvwasi,
 const char* uvwasi_embedder_err_code_to_string(uvwasi_errno_t code);
 
 
-// WASI system call API.
+/* WASI system call API. */
 uvwasi_errno_t uvwasi_args_get(uvwasi_t* uvwasi, char** argv, char* argv_buf);
 uvwasi_errno_t uvwasi_args_sizes_get(uvwasi_t* uvwasi,
                                      size_t* argc,
