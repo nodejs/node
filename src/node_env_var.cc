@@ -227,7 +227,7 @@ void MapKVStore::Set(Isolate* isolate, Local<String> key, Local<String> value) {
   Mutex::ScopedLock lock(mutex_);
   Utf8Value key_str(isolate, key);
   Utf8Value value_str(isolate, value);
-  if (*key_str != nullptr && *value_str != nullptr) {
+  if (*key_str != nullptr && key_str.length() > 0 && *value_str != nullptr) {
     map_[std::string(*key_str, key_str.length())] =
         std::string(*value_str, value_str.length());
   }
