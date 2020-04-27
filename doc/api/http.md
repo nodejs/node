@@ -568,7 +568,7 @@ server.listen(1337, '127.0.0.1', () => {
 ### `request.abort()`
 <!-- YAML
 added: v0.3.8
-deprecated: REPLACEME
+deprecated: v14.1.0
 -->
 
 Marks the request as aborting. Calling this will cause remaining data
@@ -640,7 +640,7 @@ See [`writable.destroy()`][] for further details.
 
 #### `request.destroyed`
 <!-- YAML
-added: REPLACEME
+added: v14.1.0
 -->
 
 * {boolean}
