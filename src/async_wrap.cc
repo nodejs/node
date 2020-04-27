@@ -214,8 +214,6 @@ class PromiseWrap : public AsyncWrap {
                           Local<Promise> promise,
                           PromiseWrap* parent_wrap,
                           bool silent);
-  static void getIsChainedPromise(Local<String> property,
-                                  const PropertyCallbackInfo<Value>& info);
   static void getAsyncId(Local<Name> property,
                          const PropertyCallbackInfo<Value>& args);
   static void getTriggerAsyncId(Local<Name> property,
@@ -259,12 +257,6 @@ PromiseWrap* PromiseWrap::New(Environment* env,
   return new PromiseWrap(env, obj, silent);
 }
 
-void PromiseWrap::getIsChainedPromise(Local<String> property,
-                                      const PropertyCallbackInfo<Value>& info) {
-  info.GetReturnValue().Set(
-      info.Holder()->GetInternalField(PromiseWrap::kIsChainedPromiseField));
-}
-
 void PromiseWrap::getAsyncId(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
@@ -299,10 +291,6 @@ void PromiseWrap::Initialize(Environment* env) {
 
   promise_wrap_template->SetInternalFieldCount(
       PromiseWrap::kInternalFieldCount);
-
-  promise_wrap_template->SetAccessor(
-      FIXED_ONE_BYTE_STRING(isolate, "isChainedPromise"),
-      PromiseWrap::getIsChainedPromise);
 
   promise_wrap_template->SetAccessor(
       env->async_id_symbol(),
