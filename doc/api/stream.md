@@ -1507,9 +1507,9 @@ changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32158
     description: `finished(stream, cb)` will wait for the `'close'` event
-                  before invoking the callback. The implementation tries to
-                  detect legacy streams and only apply this behavior to streams
-                  which are expected to emit `'close'`.
+                 before invoking the callback. The implementation tries to
+                 detect legacy streams and only apply this behavior to streams
+                 which are expected to emit `'close'`.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31545
     description: Emitting `'close'` before `'end'` on a `Readable` stream
@@ -1598,9 +1598,9 @@ changes:
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32158
     description: `pipeline(..., cb)` will wait for the `'close'` event
-                  before invoking the callback. The implementation tries to
-                  detect legacy streams and only apply this behavior to streams
-                  which are expected to emit `'close'`.
+                 before invoking the callback. The implementation tries to
+                 detect legacy streams and only apply this behavior to streams
+                 which are expected to emit `'close'`.
 -->
 
 * `source` {Stream|Iterable|AsyncIterable|Function}
