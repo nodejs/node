@@ -322,6 +322,15 @@ static PromiseWrap* extractPromiseWrap(Local<Promise> promise) {
   return obj->IsObject() ? Unwrap<PromiseWrap>(obj.As<Object>()) : nullptr;
 }
 
+static uint16_t ToAsyncHooksType(PromiseHookType type) {
+  switch (type) {
+    case PromiseHookType::kInit:    return AsyncHooks::kInit;
+    case PromiseHookType::kBefore:  return AsyncHooks::kBefore;
+    case PromiseHookType::kAfter:   return AsyncHooks::kAfter;
+    case PromiseHookType::kResolve: return AsyncHooks::kPromiseResolve;
+  }
+}
+
 // Simplified JavaScript hook fast-path for when there is no destroy hook
 static void FastPromiseHook(PromiseHookType type, Local<Promise> promise,
                             Local<Value> parent) {
@@ -333,7 +342,7 @@ static void FastPromiseHook(PromiseHookType type, Local<Promise> promise,
                               "EnvPromiseHook", env);
 
   Local<Value> argv[] = {
-    env->isolate_data()->promise_hook_type(static_cast<int>(type)),
+    Number::New(env->isolate(), ToAsyncHooksType(type)),
     promise,
     parent
   };

@@ -43,7 +43,6 @@ using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::Private;
-using v8::PromiseHookType;
 using v8::Script;
 using v8::SnapshotCreator;
 using v8::StackTrace;
@@ -83,9 +82,6 @@ std::vector<size_t> IsolateData::Serialize(SnapshotCreator* creator) {
   for (size_t i = 0; i < AsyncWrap::PROVIDERS_LENGTH; i++)
     indexes.push_back(creator->AddData(async_wrap_provider(i)));
 
-  for (size_t i = 0; i < 4; i++)
-    indexes.push_back(creator->AddData(promise_hook_type(i)));
-
   return indexes;
 }
 
@@ -120,15 +116,6 @@ void IsolateData::DeserializeProperties(const std::vector<size_t>* indexes) {
       fprintf(stderr, "Failed to deserialize AsyncWrap provider %zu\n", j);
     }
     async_wrap_providers_[j].Set(isolate_, field.ToLocalChecked());
-  }
-
-  for (size_t j = 0; j < 4; j++) {
-    MaybeLocal<String> field =
-        isolate_->GetDataFromSnapshotOnce<String>((*indexes)[i++]);
-    if (field.IsEmpty()) {
-      fprintf(stderr, "Failed to deserialize PromiseHook type %zu\n", j);
-    }
-    promise_hook_types_[j].Set(isolate_, field.ToLocalChecked());
   }
 }
 
@@ -194,26 +181,6 @@ void IsolateData::CreateProperties() {
         sizeof(#Provider) - 1).ToLocalChecked());
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
-
-  // Create all the hook type strings that will be passed to JS. Place them in
-  // an array so the array index matches the type id offset. This way the
-  // strings can be retrieved quickly.
-#define PROMISE_HOOK_TYPES(V)                                                 \
-  V(PromiseHookType::kInit, init)                                             \
-  V(PromiseHookType::kResolve, promiseResolve)                                \
-  V(PromiseHookType::kBefore, before)                                         \
-  V(PromiseHookType::kAfter, after)
-#define V(index, name)                                                        \
-  promise_hook_types_[static_cast<uint8_t>(index)].Set(                       \
-      isolate_,                                                               \
-      v8::String::NewFromOneByte(                                             \
-        isolate_,                                                             \
-        reinterpret_cast<const uint8_t*>(#name),                              \
-        v8::NewStringType::kInternalized,                                     \
-        sizeof(#name) - 1).ToLocalChecked());
-  PROMISE_HOOK_TYPES(V)
-#undef V
-#undef PROMISE_HOOK_TYPES
 }
 
 IsolateData::IsolateData(Isolate* isolate,
@@ -252,7 +219,6 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
 #undef V
 
   tracker->TrackField("async_wrap_providers", async_wrap_providers_);
-  tracker->TrackField("promise_hook_types", promise_hook_types_);
 
   if (node_allocator_ != nullptr) {
     tracker->TrackFieldWithSize(

@@ -77,10 +77,6 @@ inline v8::Local<v8::String> IsolateData::async_wrap_provider(int index) const {
   return async_wrap_providers_[index].Get(isolate_);
 }
 
-inline v8::Local<v8::String> IsolateData::promise_hook_type(int index) const {
-  return promise_hook_types_[index].Get(isolate_);
-}
-
 inline AsyncHooks::AsyncHooks()
     : async_ids_stack_(env()->isolate(), 16 * 2),
       fields_(env()->isolate(), kFieldsCount),

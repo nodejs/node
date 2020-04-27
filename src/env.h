@@ -510,7 +510,6 @@ class IsolateData : public MemoryRetainer {
 #undef VS
 #undef VP
   inline v8::Local<v8::String> async_wrap_provider(int index) const;
-  inline v8::Local<v8::String> promise_hook_type(int index) const;
 
   std::unordered_map<const char*, v8::Eternal<v8::String>> static_str_map;
 
@@ -539,10 +538,6 @@ class IsolateData : public MemoryRetainer {
   // Keep a list of all Persistent strings used for AsyncWrap Provider types.
   std::array<v8::Eternal<v8::String>, AsyncWrap::PROVIDERS_LENGTH>
       async_wrap_providers_;
-
-  // Keep a list of all Persistent strings used for PromiseHook types.
-  std::array<v8::Eternal<v8::String>, 4>
-      promise_hook_types_;
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
