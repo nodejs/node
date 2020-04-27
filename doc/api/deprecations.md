@@ -2569,8 +2569,8 @@ accordingly instead to avoid the ambigiuty.
 To maintain existing behaviour `response.finished` should be replaced with
 `response.writableEnded`.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: Use `request.destroy()` instead of `request.abort()`
+<a id="DEP0140"></a>
+### DEP0140: Use `request.destroy()` instead of `request.abort()`
 <!-- YAML
 changes:
   - version: REPLACEME
