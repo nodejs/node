@@ -34,6 +34,7 @@ using v8::NewStringType;
 using v8::Null;
 using v8::Object;
 using v8::String;
+using v8::Undefined;
 using v8::Value;
 
 namespace crypto {
@@ -330,11 +331,15 @@ const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
 }
 
 MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
+  if (err == 0)
+    return Undefined(env->isolate());
   const char* reason = X509_verify_cert_error_string(err);
   return OneByteString(env->isolate(), reason);
 }
 
 MaybeLocal<Value> GetValidationErrorCode(Environment* env, int err) {
+  if (err == 0)
+    return Undefined(env->isolate());
   return OneByteString(env->isolate(), X509ErrorCode(err));
 }
 
