@@ -28,7 +28,8 @@
 #include <WinError.h>
 
 int wmain(int argc, wchar_t* wargv[]) {
-  // Display deprecation banner without exiting application for unsupported versions.
+  // Display deprecation banner without exiting
+  // the application for unsupported versions of Windows.
   if (!IsWindows8Point1OrGreater() &&
       !(IsWindowsServer() && IsWindows8OrGreater())) {
     fprintf(stderr, "This application is only supported on Windows 8.1, "
