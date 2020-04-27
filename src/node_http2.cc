@@ -203,6 +203,12 @@ Http2Options::Http2Options(Environment* env, nghttp2_session_type type) {
   if (flags & (1 << IDX_OPTIONS_MAX_SESSION_MEMORY)) {
     SetMaxSessionMemory(buffer[IDX_OPTIONS_MAX_SESSION_MEMORY] * 1e6);
   }
+
+  if (flags & (1 << IDX_OPTIONS_MAX_SETTINGS)) {
+    nghttp2_option_set_max_settings(
+        options_,
+        static_cast<size_t>(buffer[IDX_OPTIONS_MAX_SETTINGS]));
+  }
 }
 
 void Http2Session::Http2Settings::Init() {
