@@ -2486,7 +2486,7 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
     // Store the SNI context for later use.
     w->sni_context_ = BaseObjectPtr<SecureContext>(sc);
 
-    if (UseSNIContext(w->ssl_, sc) && !w->SetCACerts(sc)) {
+    if (UseSNIContext(w->ssl_, w->sni_context_) && !w->SetCACerts(sc)) {
       // Not clear why sometimes we throw error, and sometimes we call
       // onerror(). Both cause .destroy(), but onerror does a bit more.
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)

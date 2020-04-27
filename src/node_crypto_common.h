@@ -71,7 +71,7 @@ long VerifyPeerCertificate(  // NOLINT(runtime/int)
     const SSLPointer& ssl,
     long def = X509_V_ERR_UNSPECIFIED);  // NOLINT(runtime/int)
 
-int UseSNIContext(const SSLPointer& ssl, SecureContext* context);
+int UseSNIContext(const SSLPointer& ssl, BaseObjectPtr<SecureContext> context);
 
 const char* GetClientHelloALPN(const SSLPointer& ssl);
 
