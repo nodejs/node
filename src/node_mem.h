@@ -13,8 +13,12 @@ namespace mem {
 // use different struct names. To allow for code re-use,
 // the NgLibMemoryManager template class can be used for both.
 
+struct NgLibMemoryManagerBase {
+  virtual void StopTrackingMemory(void* ptr) = 0;
+};
+
 template <typename Class, typename AllocatorStructName>
-class NgLibMemoryManager {
+class NgLibMemoryManager : public NgLibMemoryManagerBase {
  public:
   // Class needs to provide these methods:
   // void CheckAllocatedSize(size_t previous_size) const;
@@ -24,7 +28,7 @@ class NgLibMemoryManager {
 
   AllocatorStructName MakeAllocator();
 
-  void StopTrackingMemory(void* ptr);
+  void StopTrackingMemory(void* ptr) override;
 
  private:
   static void* ReallocImpl(void* ptr, size_t size, void* user_data);
