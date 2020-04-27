@@ -177,8 +177,10 @@ All pull requests must pass continuous integration tests. Code changes must pass
 on [project CI server](https://ci.nodejs.org/). Pull requests that only change
 documentation and comments can use GitHub Actions results.
 
-Do not land any pull requests without passing (green or yellow) CI runs. If
-there are CI failures unrelated to the change in the pull request, try "Resume
+Do not land any pull requests without a passing (green or yellow) CI run.
+For documentation-only changes, GitHub Actions CI is sufficient.
+For all other code changes, Jenkins CI must pass as well. If there are
+Jenkins CI failures unrelated to the change in the pull request, try "Resume
 Build". It is in the left navigation of the relevant `node-test-pull-request`
 job. It will preserve all the green results from the current job but re-run
 everything else. Start a fresh CI if more than seven days have elapsed since
