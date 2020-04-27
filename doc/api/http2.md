@@ -2737,10 +2737,10 @@ data.
 added: v8.4.0
 -->
 
-The `'aborted'` event is emitted whenever a `Http2ServerRequest` instance is 
+The `'aborted'` event is emitted whenever a `Http2ServerRequest` instance is
 abnormally aborted in mid-communication.
 
-The `'aborted'` event will only be emitted if the `Http2ServerRequest` 
+The `'aborted'` event will only be emitted if the `Http2ServerRequest`
 writable side has not been ended.
 
 #### Event: `'close'`
@@ -3054,10 +3054,10 @@ passed as the second parameter to the [`'request'`][] event.
 added: v8.4.0
 -->
 
-The `'aborted'` event is emitted whenever a `Http2ServerResponse` instance is 
+The `'aborted'` event is emitted whenever a `Http2ServerResponse` instance is
 abnormally aborted in mid-communication.
 
-The `'aborted'` event will only be emitted if the `Http2ServerResponse` or 
+The `'aborted'` event will only be emitted if the `Http2ServerResponse` or
 writable side has not been ended.
 
 #### Event: `'close'`
