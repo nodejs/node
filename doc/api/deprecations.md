@@ -2651,8 +2651,8 @@ written twice. This introduces a race condition between threads, and is a
 potential security vulnerability. There is no safe, cross-platform alternative
 API.
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: Use `request.destroy()` instead of `request.abort()`
+<a id="DEP0140"></a>
+### DEP0140: Use `request.destroy()` instead of `request.abort()`
 <!-- YAML
 changes:
   - version: REPLACEME
