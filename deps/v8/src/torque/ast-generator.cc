@@ -120,7 +120,7 @@ Statement* AstGenerator::GetOptionalHelperBody(
 
 antlrcpp::Any AstGenerator::visitParameterList(
     TorqueParser::ParameterListContext* context) {
-  ParameterList result{{}, {}, context->VARARGS(), {}};
+  ParameterList result{{}, {}, context->VARARGS() != nullptr, {}};
   if (context->VARARGS()) {
     result.arguments_variable = context->IDENTIFIER()->getSymbol()->getText();
   }
@@ -141,7 +141,7 @@ antlrcpp::Any AstGenerator::visitTypeList(
 
 antlrcpp::Any AstGenerator::visitTypeListMaybeVarArgs(
     TorqueParser::TypeListMaybeVarArgsContext* context) {
-  ParameterList result{{}, {}, context->VARARGS(), {}};
+  ParameterList result{{}, {}, context->VARARGS() != nullptr, {}};
   result.types.reserve(context->type().size());
   for (auto* type : context->type()) {
     result.types.push_back(GetType(type));
