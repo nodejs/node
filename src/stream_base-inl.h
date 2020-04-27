@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "async_wrap-inl.h"
+#include "base_object-inl.h"
 #include "node.h"
 #include "stream_base.h"
 #include "v8.h"
@@ -36,9 +37,10 @@ inline StreamReq* StreamReq::FromObject(v8::Local<v8::Object> req_wrap_obj) {
 }
 
 inline void StreamReq::Dispose() {
+  BaseObjectPtr<AsyncWrap> destroy_me{GetAsyncWrap()};
   object()->SetAlignedPointerInInternalField(
       StreamReq::kStreamReqField, nullptr);
-  delete this;
+  destroy_me->Detach();
 }
 
 inline v8::Local<v8::Object> StreamReq::object() {
