@@ -32,9 +32,9 @@ int wmain(int argc, wchar_t* wargv[]) {
   if (!IsWindows8Point1OrGreater() &&
       !(IsWindowsServer() && IsWindows8OrGreater())) {
     fprintf(stderr, "This application is only supported on Windows 8.1, "
-                    "Windows Server 2012 R2, or higher. Node.js will not"
-                    "accept bug reports or patches while using unsupported"
-                    "versions of Windows.");
+                    "Windows Server 2012 R2, or higher. Node.js will not "
+                    "accept bug reports or patches while using unsupported "
+                    "versions of Windows.\n\n\n");
   }
 
   // Convert argv to UTF8
