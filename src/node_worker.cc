@@ -131,9 +131,7 @@ class WorkerThreadData {
     if (ret != 0) {
       char err_buf[128];
       uv_err_name_r(ret, err_buf, sizeof(err_buf));
-      w->custom_error_ = "ERR_WORKER_INIT_FAILED";
-      w->custom_error_str_ = err_buf;
-      w->stopped_ = true;
+      w->Exit(1, "ERR_WORKER_INIT_FAILED", err_buf);
       return;
     }
     loop_init_failed_ = false;
@@ -148,9 +146,9 @@ class WorkerThreadData {
 
     Isolate* isolate = Isolate::Allocate();
     if (isolate == nullptr) {
-      w->custom_error_ = "ERR_WORKER_OUT_OF_MEMORY";
-      w->custom_error_str_ = "Failed to create new Isolate";
-      w->stopped_ = true;
+      // TODO(addaleax): This should be ERR_WORKER_INIT_FAILED,
+      // ERR_WORKER_OUT_OF_MEMORY is for reaching the per-Worker heap limit.
+      w->Exit(1, "ERR_WORKER_OUT_OF_MEMORY", "Failed to create new Isolate");
       return;
     }
 
@@ -233,9 +231,7 @@ class WorkerThreadData {
 size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
                              size_t initial_heap_limit) {
   Worker* worker = static_cast<Worker*>(data);
-  worker->custom_error_ = "ERR_WORKER_OUT_OF_MEMORY";
-  worker->custom_error_str_ = "JS heap out of memory";
-  worker->Exit(1);
+  worker->Exit(1, "ERR_WORKER_OUT_OF_MEMORY", "JS heap out of memory");
   // Give the current GC some extra leeway to let it finish rather than
   // crash hard. We are not going to perform further allocations anyway.
   constexpr size_t kExtraHeapAllowance = 16 * 1024 * 1024;
@@ -292,8 +288,9 @@ void Worker::Run() {
         TryCatch try_catch(isolate_);
         context = NewContext(isolate_);
         if (context.IsEmpty()) {
-          custom_error_ = "ERR_WORKER_OUT_OF_MEMORY";
-          custom_error_str_ = "Failed to create new Context";
+          // TODO(addaleax): This should be ERR_WORKER_INIT_FAILED,
+          // ERR_WORKER_OUT_OF_MEMORY is for reaching the per-Worker heap limit.
+          Exit(1, "ERR_WORKER_OUT_OF_MEMORY", "Failed to create new Context");
           return;
         }
       }
@@ -682,9 +679,16 @@ Local<Float64Array> Worker::GetResourceLimits(Isolate* isolate) const {
   return Float64Array::New(ab, 0, kTotalResourceLimitCount);
 }
 
-void Worker::Exit(int code) {
+void Worker::Exit(int code, const char* error_code, const char* error_message) {
   Mutex::ScopedLock lock(mutex_);
-  Debug(this, "Worker %llu called Exit(%d)", thread_id_.id, code);
+  Debug(this, "Worker %llu called Exit(%d, %s, %s)",
+        thread_id_.id, code, error_code, error_message);
+
+  if (error_code != nullptr) {
+    custom_error_ = error_code;
+    custom_error_str_ = error_message;
+  }
+
   if (env_ != nullptr) {
     exit_code_ = code;
     Stop(env_);
