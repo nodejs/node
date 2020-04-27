@@ -2309,7 +2309,7 @@ ssize_t Http2Stream::Provider::Stream::OnRead(nghttp2_session* handle,
     return NGHTTP2_ERR_DEFERRED;
   }
 
-  if (stream->queue_.empty() && !stream->is_writable()) {
+  if (stream->available_outbound_length_ == 0 && !stream->is_writable()) {
     Debug(session, "no more data for stream %d", id);
     *flags |= NGHTTP2_DATA_FLAG_EOF;
     if (stream->has_trailers()) {

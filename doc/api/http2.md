@@ -913,8 +913,9 @@ the value is `undefined`, the stream is not yet ready for use.
 All [`Http2Stream`][] instances are destroyed either when:
 
 * An `RST_STREAM` frame for the stream is received by the connected peer,
-  and pending data has been read.
-* The `http2stream.close()` method is called, and pending data has been read.
+  and (for client streams only) pending data has been read.
+* The `http2stream.close()` method is called, and (for client streams only)
+  pending data has been read.
 * The `http2stream.destroy()` or `http2session.destroy()` methods are called.
 
 When an `Http2Stream` instance is destroyed, an attempt will be made to send an
