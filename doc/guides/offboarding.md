@@ -13,4 +13,4 @@ Emeritus or leaves the project.
   * Some teams may also require a pull request to remove the Collaborator from
     a team listing. For example, if someone is removed from @nodejs/build,
     they should also be removed from the Build WG README.md file in the
-    https://github.com/nodejs/build repository.
+    <https://github.com/nodejs/build> repository.

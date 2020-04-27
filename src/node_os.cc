@@ -193,7 +193,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     // they name the interface from any input that uses UTF-8, which should be
     // the most frequent case by far these days.)
     name = String::NewFromUtf8(isolate, raw_name,
-        v8::NewStringType::kNormal).ToLocalChecked();
+        NewStringType::kNormal).ToLocalChecked();
 
     snprintf(mac.data(),
              mac.size(),
@@ -253,7 +253,7 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> home = String::NewFromUtf8(env->isolate(),
                                            buf,
-                                           v8::NewStringType::kNormal,
+                                           NewStringType::kNormal,
                                            len).ToLocalChecked();
   args.GetReturnValue().Set(home);
 }

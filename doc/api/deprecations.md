@@ -44,7 +44,7 @@ However, the deprecation identifier will not be modified.
 ### DEP0001: `http.OutgoingMessage.prototype.flush`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31164
     description: End-of-Life.
   - version:
@@ -85,7 +85,7 @@ The `_linklist` module is deprecated. Please use a userland alternative.
 ### DEP0003: `_writableState.buffer`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31165
     description: End-of-Life
   - version:
@@ -239,7 +239,7 @@ to the `constants` property exposed by the relevant module. For instance,
 ### DEP0009: `crypto.pbkdf2` without digest
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31166
     description: End-of-Life (for `digest === null`)
   - version: v11.0.0
@@ -407,7 +407,7 @@ The [`fs.readSync()`][] legacy `String` interface is deprecated. Use the
 ### DEP0016: `GLOBAL`/`root`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31167
     description: End-of-Life
   - version: v6.12.0
@@ -522,7 +522,7 @@ The `Server.listenFD()` method was deprecated and removed. Please use
 ### DEP0022: `os.tmpDir()`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/31169
     description: End-of-Life.
   - version: v7.0.0
@@ -2352,7 +2352,7 @@ The undocumented `net._setSimultaneousAccepts()` function was originally
 intended for debugging and performance tuning when using the `child_process`
 and `cluster` modules on Windows. The function is not generally useful and
 is being removed. See discussion here:
-https://github.com/nodejs/node/issues/18391
+<https://github.com/nodejs/node/issues/18391>
 
 <a id="DEP0122"></a>
 ### DEP0122: `tls` `Server.prototype.setOptions()`
@@ -2590,7 +2590,7 @@ To maintain existing behaviour `response.finished` should be replaced with
 ### DEP0137: Closing fs.FileHandle on garbage collection
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/28396
     description: Runtime deprecation.
 -->
@@ -2621,7 +2621,7 @@ async function openAndClose() {
 ### DEP0138: `process.mainModule`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32232
     description: Documentation-only deprecation.
 -->
@@ -2639,7 +2639,7 @@ purpose and is only available on CommonJS environment.
 ### DEP0139: `process.umask()` with no arguments
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32499
     description: Runtime deprecation.
 -->
@@ -2650,6 +2650,19 @@ Calling `process.umask()` with no argument causes the process-wide umask to be
 written twice. This introduces a race condition between threads, and is a
 potential security vulnerability. There is no safe, cross-platform alternative
 API.
+
+<a id="DEP0XXX"></a>
+### DEP0XXX: Use `request.destroy()` instead of `request.abort()`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32807
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Use [`request.destroy()`][] instead of [`request.abort()`][].
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
@@ -2712,8 +2725,10 @@ API.
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
 [`require.main`]: modules.html#modules_accessing_the_main_module
+[`request.abort()`]: http.html#http_request_abort
 [`request.socket`]: http.html#http_request_socket
 [`request.connection`]: http.html#http_request_connection
+[`request.destroy()`]: http.html#http_request_destroy_error
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
 [`response.end()`]: http.html#http_response_end_data_encoding_callback

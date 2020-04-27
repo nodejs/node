@@ -30,7 +30,7 @@ const assert = require('assert');
     captureRejections: true,
     highWaterMark: 1,
     write(chunk, enc, cb) {
-      cb();
+      process.nextTick(cb);
     }
   });
 

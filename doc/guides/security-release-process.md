@@ -2,7 +2,7 @@
 
 The security release process covers the steps required to plan/implement a
 security release. This document is copied into the description of the Next
-Security Release, and used to track progess on the release. It contains ***TEXT
+Security Release, and used to track progress on the release. It contains ***TEXT
 LIKE THIS*** which will be replaced during the release process with the
 information described.
 
@@ -88,6 +88,6 @@ information described.
 * [ ] Make sure the PRs for the vulnerabilities are closed.
 
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
-[docker-node]: https://github.com/nodejs/docker-node/issues)
-[nodejs/build]: https://github.com/nodejs/build/issues)
+[docker-node]: https://github.com/nodejs/docker-node/issues
+[nodejs/build]: https://github.com/nodejs/build/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec

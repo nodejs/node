@@ -1194,7 +1194,7 @@ is set for the `Http2Stream`.
 ### `ERR_INTERNAL_ASSERTION`
 
 There was a bug in Node.js or incorrect usage of Node.js internals.
-To fix the error, open an issue at https://github.com/nodejs/node/issues.
+To fix the error, open an issue at <https://github.com/nodejs/node/issues>.
 
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 ### `ERR_INCOMPATIBLE_OPTION_PAIR`
@@ -1967,6 +1967,12 @@ A `Transform` stream finished with data still in the write buffer.
 
 The initialization of a TTY failed due to a system error.
 
+<a id="ERR_UNAVAILABLE_DURING_EXIT"></a>
+### `ERR_UNAVAILABLE_DURING_EXIT`
+
+Function was called within a [`process.on('exit')`][] handler that shouldn't be
+called within [`process.on('exit')`][] handler.
+
 <a id="ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET"></a>
 ### `ERR_UNCAUGHT_EXCEPTION_CAPTURE_ALREADY_SET`
 
@@ -2307,10 +2313,10 @@ The `repl` module was unable to parse data from the REPL history file.
 ### `ERR_SOCKET_CANNOT_SEND`
 <!-- YAML
 added: v9.0.0
-removed: REPLACEME
+removed: v14.0.0
 -->
 
-Data could be sent on a socket.
+Data could not be sent on a socket.
 
 <a id="ERR_STDERR_CLOSE"></a>
 ### `ERR_STDERR_CLOSE`
@@ -2543,6 +2549,7 @@ such as `process.stdout.on('data')`.
 [`net`]: net.html
 [`new URL(input)`]: url.html#url_constructor_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
+[`process.on('exit')`]: process.html#Event:-`'exit'`
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`readable._read()`]: stream.html#stream_readable_read_size_1

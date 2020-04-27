@@ -5,7 +5,7 @@ This document describes how to update `deps/openssl/`.
 ## Requirements
 * Linux environment
 * `perl` Only Perl version 5 is tested.
-* `nasm` (http://www.nasm.us/)  The version of 2.11 or higher is needed.
+* `nasm` (<http://www.nasm.us/>)  The version of 2.11 or higher is needed.
 * GNU `as` in binutils. The version of 2.26 or higher is needed.
 
 ## 0. Check Requirements
@@ -27,7 +27,7 @@ NASM version 2.11.08
 
 ## 1. Obtain and extract new OpenSSL sources
 
-Get a new source from  https://www.openssl.org/source/ and extract
+Get a new source from  <https://www.openssl.org/source/> and extract
 all files into `deps/openssl/openssl`. Then add all files and commit
 them.
 ```sh

@@ -227,15 +227,14 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env);
 
-// TODO(addaleax): Officially deprecate this and replace it with something
-// better suited for a public embedder API.
 // It is recommended to use InitializeNodeWithArgs() instead as an embedder.
 // Init() calls InitializeNodeWithArgs() and exits the process with the exit
 // code returned from it.
-NODE_EXTERN void Init(int* argc,
-                      const char** argv,
-                      int* exec_argc,
-                      const char*** exec_argv);
+NODE_DEPRECATED("Use InitializeNodeWithArgs() instead",
+    NODE_EXTERN void Init(int* argc,
+                          const char** argv,
+                          int* exec_argc,
+                          const char*** exec_argv));
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from argv, fill exec_argv, and possibly add errors resulting from parsing
 // the arguments to `errors`. The return value is a suggested exit code for the
@@ -295,11 +294,6 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   // flushing.
   virtual bool FlushForegroundTasks(v8::Isolate* isolate) = 0;
   virtual void DrainTasks(v8::Isolate* isolate) = 0;
-
-  // TODO(addaleax): Remove this, it is unnecessary.
-  // This would currently be called before `UnregisterIsolate()` but will be
-  // folded into it in the future.
-  virtual void CancelPendingDelayedTasks(v8::Isolate* isolate);
 
   // This needs to be called between the calls to `Isolate::Allocate()` and
   // `Isolate::Initialize()`, so that initialization can already start
@@ -428,12 +422,13 @@ struct InspectorParentHandle {
 // Returns nullptr when the Environment cannot be created e.g. there are
 // pending JavaScript exceptions.
 // It is recommended to use the second variant taking a flags argument.
-NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
-                                           v8::Local<v8::Context> context,
-                                           int argc,
-                                           const char* const* argv,
-                                           int exec_argc,
-                                           const char* const* exec_argv);
+NODE_DEPRECATED("Use overload taking a flags argument",
+    NODE_EXTERN Environment* CreateEnvironment(IsolateData* isolate_data,
+                                               v8::Local<v8::Context> context,
+                                               int argc,
+                                               const char* const* argv,
+                                               int exec_argc,
+                                               const char* const* exec_argv));
 NODE_EXTERN Environment* CreateEnvironment(
     IsolateData* isolate_data,
     v8::Local<v8::Context> context,
@@ -463,8 +458,8 @@ struct StartExecutionCallbackInfo {
 using StartExecutionCallback =
     std::function<v8::MaybeLocal<v8::Value>(const StartExecutionCallbackInfo&)>;
 
-// TODO(addaleax): Deprecate this in favour of the MaybeLocal<> overload.
-NODE_EXTERN void LoadEnvironment(Environment* env);
+NODE_DEPRECATED("Use variants returning MaybeLocal<> instead",
+    NODE_EXTERN void LoadEnvironment(Environment* env));
 // The `InspectorParentHandle` arguments here are ignored and not used.
 // For passing `InspectorParentHandle`, use `CreateEnvironment()`.
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
@@ -495,18 +490,18 @@ NODE_EXTERN Environment* GetCurrentEnvironment(v8::Local<v8::Context> context);
 // This returns the MultiIsolatePlatform used in the main thread of Node.js.
 // If NODE_USE_V8_PLATFORM has not been defined when Node.js was built,
 // it returns nullptr.
-// TODO(addaleax): Deprecate in favour of GetMultiIsolatePlatform().
-NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform();
+NODE_DEPRECATED("Use GetMultiIsolatePlatform(env) instead",
+    NODE_EXTERN MultiIsolatePlatform* GetMainThreadMultiIsolatePlatform());
 // This returns the MultiIsolatePlatform used for an Environment or IsolateData
 // instance, if one exists.
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
 // Legacy variants of MultiIsolatePlatform::Create().
-// TODO(addaleax): Deprecate in favour of the v8::TracingController variant.
-NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    node::tracing::TracingController* tracing_controller);
+NODE_DEPRECATED("Use variant taking a v8::TracingController* pointer instead",
+    NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
+        int thread_pool_size,
+        node::tracing::TracingController* tracing_controller));
 NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
     int thread_pool_size,
     v8::TracingController* tracing_controller);

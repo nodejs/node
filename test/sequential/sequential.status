@@ -17,8 +17,6 @@ test-worker-prof: PASS, FLAKY
 [$system==linux]
 
 [$system==macos]
-# https://github.com/nodejs/node/issues/21781
-test-timers-blocking-callback: PASS, FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
