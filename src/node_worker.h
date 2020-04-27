@@ -34,8 +34,11 @@ class Worker : public AsyncWrap {
   void Run();
 
   // Forcibly exit the thread with a specified exit code. This may be called
-  // from any thread.
-  void Exit(int code);
+  // from any thread. `error_code` and `error_message` can be used to create
+  // a custom `'error'` event before emitting `'exit'`.
+  void Exit(int code,
+            const char* error_code = nullptr,
+            const char* error_message = nullptr);
 
   // Wait for the worker thread to stop (in a blocking manner).
   void JoinThread();
