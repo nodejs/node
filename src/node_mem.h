@@ -14,7 +14,7 @@ namespace mem {
 // the NgLibMemoryManager template class can be used for both.
 
 struct NgLibMemoryManagerBase {
- virtual void StopTrackingMemory(void* ptr) = 0;
+  virtual void StopTrackingMemory(void* ptr) = 0;
 };
 
 template <typename Class, typename AllocatorStructName>
