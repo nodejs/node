@@ -5271,7 +5271,7 @@ This API may be called from any thread which makes use of `func`.
 added: v10.6.0
 napiVersion: 4
 changes:
-  - version: REPLACEME
+  - version: v14.1.0
     pr-url: https://github.com/nodejs/node/pull/32689
     description: >
       Return `napi_would_deadlock` when called with `napi_tsfn_blocking` from
