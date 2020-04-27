@@ -174,6 +174,7 @@ added:
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
+  * `stackSizeMb` {number}
 
 Provides the set of JS engine resource constraints inside this Worker thread.
 If the `resourceLimits` option was passed to the [`Worker`][] constructor,
@@ -584,6 +585,8 @@ changes:
       recently created objects.
     * `codeRangeSizeMb` {number} The size of a pre-allocated memory range
       used for generated code.
+    * `stackSizeMb` {number} The default maximum stack size for the thread.
+      Small values may lead to unusable Worker instances. **Default:** `4`.
 
 ### Event: `'error'`
 <!-- YAML
@@ -679,6 +682,7 @@ added:
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
+  * `stackSizeMb` {number}
 
 Provides the set of JS engine resource constraints for this Worker thread.
 If the `resourceLimits` option was passed to the [`Worker`][] constructor,

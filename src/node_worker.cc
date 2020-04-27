@@ -39,6 +39,8 @@ using v8::Value;
 namespace node {
 namespace worker {
 
+constexpr double kMB = 1024 * 1024;
+
 Worker::Worker(Environment* env,
                Local<Object> wrap,
                const std::string& url,
@@ -92,8 +94,6 @@ bool Worker::is_stopped() const {
 
 void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
   constraints->set_stack_limit(reinterpret_cast<uint32_t*>(stack_base_));
-
-  constexpr double kMB = 1024 * 1024;
 
   if (resource_limits_[kMaxYoungGenerationSizeMb] > 0) {
     constraints->set_max_young_generation_size_in_bytes(
@@ -589,9 +589,20 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
 
   w->stopped_ = false;
 
+  if (w->resource_limits_[kStackSizeMb] > 0) {
+    if (w->resource_limits_[kStackSizeMb] * kMB < kStackBufferSize) {
+      w->resource_limits_[kStackSizeMb] = kStackBufferSize / kMB;
+      w->stack_size_ = kStackBufferSize;
+    } else {
+      w->stack_size_ = w->resource_limits_[kStackSizeMb] * kMB;
+    }
+  } else {
+    w->resource_limits_[kStackSizeMb] = w->stack_size_ / kMB;
+  }
+
   uv_thread_options_t thread_options;
   thread_options.flags = UV_THREAD_HAS_STACK_SIZE;
-  thread_options.stack_size = kStackSize;
+  thread_options.stack_size = w->stack_size_;
   int ret = uv_thread_create_ex(&w->tid_, &thread_options, [](void* arg) {
     // XXX: This could become a std::unique_ptr, but that makes at least
     // gcc 6.3 detect undefined behaviour when there shouldn't be any.
@@ -601,7 +612,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
 
     // Leave a few kilobytes just to make sure we're within limits and have
     // some space to do work in C++ land.
-    w->stack_base_ = stack_top - (kStackSize - kStackBufferSize);
+    w->stack_base_ = stack_top - (w->stack_size_ - kStackBufferSize);
 
     w->Run();
 
@@ -834,6 +845,7 @@ void InitWorker(Local<Object> target,
   NODE_DEFINE_CONSTANT(target, kMaxYoungGenerationSizeMb);
   NODE_DEFINE_CONSTANT(target, kMaxOldGenerationSizeMb);
   NODE_DEFINE_CONSTANT(target, kCodeRangeSizeMb);
+  NODE_DEFINE_CONSTANT(target, kStackSizeMb);
   NODE_DEFINE_CONSTANT(target, kTotalResourceLimitCount);
 }
 
