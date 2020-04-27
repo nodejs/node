@@ -192,7 +192,7 @@ environment, including whether the package is referenced via `require` or via
 `import`.
 
 ***Warning***: Introducing the exports field prevents consumers of a package
-for using any entry points that is not defined, including the `package.json`.
+from using any entry points that are not defined, including the `package.json`.
 This is a Semver-Major change. To make the introduction of `"exports"`
 Semver-Minor either ensure that every previously supported entry point is
 exported or include a export of the root of the package `"./"; "./"`.
