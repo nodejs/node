@@ -493,7 +493,7 @@ _additional authenticated data_ (AAD) input parameter.
 
 The `options` argument is optional for `GCM`. When using `CCM`, the
 `plaintextLength` option must be specified and its value must match the length
-of the plaintext in bytes. See [CCM mode][].
+of the ciphertext in bytes. See [CCM mode][].
 
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
@@ -3104,7 +3104,12 @@ mode must adhere to certain restrictions when using the cipher API:
   mode might fail as CCM cannot handle more than one chunk of data per instance.
 * When passing additional authenticated data (AAD), the length of the actual
   message in bytes must be passed to `setAAD()` via the `plaintextLength`
-  option. This is not necessary if no AAD is used.
+  option.
+  Many crypto libraries include the authentication tag in the ciphertext,
+  which means that they produce ciphertexts of the length
+  `plaintextLength + authTagLength`. Node.js does not include the authentication
+  tag, so the ciphertext length is always `plaintextLength`.
+  This is not necessary if no AAD is used.
 * As CCM processes the whole message at once, `update()` can only be called
   once.
 * Even though calling `update()` is sufficient to encrypt/decrypt the message,
