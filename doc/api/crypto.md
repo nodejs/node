@@ -493,7 +493,7 @@ _additional authenticated data_ (AAD) input parameter.
 
 The `options` argument is optional for `GCM`. When using `CCM`, the
 `plaintextLength` option must be specified and its value must match the length
-of the plaintext in bytes. See [CCM mode][].
+of the ciphertext in bytes. See [CCM mode][].
 
 The `decipher.setAAD()` method must be called before [`decipher.update()`][].
 
