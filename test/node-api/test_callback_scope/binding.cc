@@ -47,6 +47,7 @@ napi_value RunInCallbackScope(napi_env env, napi_callback_info info) {
   }
 
   NAPI_CALL(env, napi_close_callback_scope(env, scope));
+  NAPI_CALL(env, napi_async_destroy(env, context));
 
   return result;
 }
@@ -85,6 +86,7 @@ static void Callback(uv_work_t* req, int ignored) {
   NAPI_CALL_RETURN_VOID(env, napi_close_callback_scope(env, scope));
 
   NAPI_CALL_RETURN_VOID(env, napi_close_handle_scope(env, handle_scope));
+  NAPI_CALL_RETURN_VOID(env, napi_async_destroy(env, context));
   delete req;
 }
 
