@@ -451,8 +451,6 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   instance.end();
 
   (async () => {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
     instance.setEncoding('utf8');
 
     let res = '';
@@ -461,7 +459,7 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
     }
 
     assert.strictEqual(res, 'chunk 1chunk 2chunk 3');
-  })();
+  })().then(common.mustCall());
 }
 
 {
