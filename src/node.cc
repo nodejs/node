@@ -750,7 +750,7 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
   }
 
 #ifdef _WIN32
-  // Displace warning while using unsupported version of Windows.
+  // Display a warning while using an unsupported version of Windows.
   // Hide with --no-warnings options.
   if (!per_process::cli_options->per_isolate->per_env->no_warnings) {
     if (!IsWindows8Point1OrGreater() &&
