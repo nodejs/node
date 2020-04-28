@@ -25,13 +25,11 @@
 //
 // 1: Find the Node.js binary's `.text` section in memory. This is done below in
 //    `FindNodeTextRegion`. It is accomplished in a platform-specific way. On
-//    Linux and FreeBSD, `dl_iterate_phdr(3)` is used. When the region is found,
-//    it is "trimmed" as follows:
-//    * Modify the start to point to the very beginning of the Node.js `.text`
-//      section (from symbol `__node_text_start` declared in node_text_start.S).
-//    * Possibly modify the end to account for the `lpstub` section which
-//      contains `MoveTextRegionToLargePages`, the function we do not wish to
-//      move (see below).
+//    Linux and FreeBSD, `dl_iterate_phdr(3)` is used to find the in-memory base
+//    address of the executable, which is then opened and the ELF section header
+//    for the `.text` section is retrieved in order to find the offset of the
+//    `.text` section wrt. the base address and its size. When the region is
+//    found, it is trimmed as follows:
 //    * Align the address of the start to its nearest higher large page
 //      boundary.
 //    * Align the address of the end to its nearest lower large page boundary.
@@ -64,6 +62,7 @@
 #include "debug_utils-inl.h"
 
 #if defined(__linux__) || defined(__FreeBSD__)
+#include <unistd.h>  // close
 #if defined(__linux__)
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -89,16 +88,6 @@
 #include <string>
 #include <fstream>
 
-#if defined(__linux__) || defined(__FreeBSD__)
-extern "C" {
-// This symbol must be declared weak because this file becomes part of all
-// Node.js targets (like node_mksnapshot, node_mkcodecache, and cctest) and
-// those files do not supply the symbol.
-extern char __attribute__((weak)) __node_text_start;
-extern char __start_lpstub;
-}  // extern "C"
-#endif  // defined(__linux__) || defined(__FreeBSD__)
-
 #endif  // defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 namespace node {
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
@@ -108,8 +97,7 @@ namespace {
 struct text_region {
   char* from;
   char* to;
-  int   total_hugepages;
-  bool  found_text_region;
+  bool found_text_region;
 };
 
 static const size_t hps = 2L * 1024 * 1024;
@@ -144,43 +132,120 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
 #endif  // ifndef ElfW
 #endif  // defined(__FreeBSD__)
 
+#define CONSTRUCT_ONLY(class_name)              \
+  class_name(const class_name&) = delete;       \
+  class_name(class_name&&) = delete;            \
+  void operator= (const class_name&) = delete;  \
+  void operator= (const class_name&&) = delete
+
+// Functions in this class must always be inlined because they must end up in
+// the `lpstub` section rather than the `.text` section.
+class MemoryMapPointer {
+ public:
+  CONSTRUCT_ONLY(MemoryMapPointer);
+  FORCE_INLINE explicit MemoryMapPointer() {}
+  FORCE_INLINE bool operator==(void* rhs) const { return mem_ == rhs; }
+  FORCE_INLINE void* mem() const { return mem_; }
+  FORCE_INLINE void Reset(void* start,
+                          size_t size,
+                          int prot,
+                          int flags,
+                          int fd = -1,
+                          size_t offset = 0) {
+    Reset(mmap(start, size, prot, flags, fd, offset), size);
+  }
+  FORCE_INLINE void Reset() { Reset(nullptr, 0); }
+  FORCE_INLINE ~MemoryMapPointer() {
+    if (mem_ == nullptr) return;
+    if (mem_ == MAP_FAILED) return;
+    if (munmap(mem_, size_) == 0) return;
+    PrintSystemError(errno);
+  }
+
+ protected:
+  FORCE_INLINE void Reset(void* data, size_t size) {
+    mem_ = data;
+    size_ = size;
+  }
+
+ private:
+  size_t size_ = 0;
+  void* mem_ = nullptr;
+};
+
+class MappedFilePointer: public MemoryMapPointer {
+ public:
+  CONSTRUCT_ONLY(MappedFilePointer);
+  FORCE_INLINE explicit MappedFilePointer() {}
+  FORCE_INLINE void Reset(void* start,
+                          const char* fname,
+                          int prot,
+                          int flags,
+                          size_t offset = 0) {
+    struct stat file_info;
+    if (stat(fname, &file_info) == -1) goto fail;
+
+    fd_ = open(fname, O_RDONLY);
+    if (fd_ == -1) goto fail;
+
+    MemoryMapPointer::Reset(start, file_info.st_size, prot, flags, fd_, offset);
+    return;
+fail:
+    MemoryMapPointer::Reset(MAP_FAILED, 0);
+  }
+
+  FORCE_INLINE ~MappedFilePointer() {
+    if (fd_ == -1) return;
+    if (close(fd_) == 0) return;
+    PrintSystemError(errno);
+  }
+
+ private:
+  int fd_ = -1;
+};
+
 struct dl_iterate_params {
-  uintptr_t start;
-  uintptr_t end;
-  uintptr_t reference_sym;
+  uintptr_t base_address;
   std::string exename;
 };
 
-int FindMapping(struct dl_phdr_info* info, size_t, void* data) {
+int FindBaseAddress(struct dl_phdr_info* info, size_t, void* data) {
   auto dl_params = static_cast<dl_iterate_params*>(data);
   if (dl_params->exename == std::string(info->dlpi_name)) {
-    for (int idx = 0; idx < info->dlpi_phnum; idx++) {
-      const ElfW(Phdr)* phdr = &info->dlpi_phdr[idx];
-      if (phdr->p_type == PT_LOAD && (phdr->p_flags & PF_X)) {
-        uintptr_t start = info->dlpi_addr + phdr->p_vaddr;
-        uintptr_t end = start + phdr->p_memsz;
-
-        if (dl_params->reference_sym >= start &&
-            dl_params->reference_sym <= end) {
-          dl_params->start = start;
-          dl_params->end = end;
-          return 1;
-        }
-      }
-    }
+    dl_params->base_address = info->dlpi_addr;
+    return 1;
   }
   return 0;
 }
 #endif  // defined(__linux__) || defined(__FreeBSD__)
 
+bool FindTextSection(const std::string& exename, ElfW(Shdr)* text_section) {
+  MappedFilePointer exe;
+  exe.Reset(nullptr, exename.c_str(), PROT_READ, MAP_PRIVATE);
+  if (exe.mem() == MAP_FAILED) return false;
+
+  const char* exe_start = static_cast<char*>(exe.mem());
+  const ElfW(Ehdr)* ehdr = reinterpret_cast<const ElfW(Ehdr)*>(exe_start);
+  const ElfW(Shdr)* shdrs =
+      reinterpret_cast<const ElfW(Shdr)*>(exe_start + ehdr->e_shoff);
+  const char* snames = exe_start + shdrs[ehdr->e_shstrndx].sh_offset;
+
+  for (uint32_t idx = 0; idx < ehdr->e_shnum; idx++) {
+    const ElfW(Shdr)* sh = &shdrs[idx];
+    const char* section_name = static_cast<const char*>(&snames[sh->sh_name]);
+    if (std::string(section_name) == ".text") {
+      *text_section = *sh;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 struct text_region FindNodeTextRegion() {
-  struct text_region nregion;
-  nregion.found_text_region = false;
+  struct text_region nregion = { nullptr, nullptr, false };
 #if defined(__linux__) || defined(__FreeBSD__)
-  dl_iterate_params dl_params = {
-    0, 0, reinterpret_cast<uintptr_t>(&__node_text_start), ""
-  };
-  uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
+  dl_iterate_params dl_params = { 0, "" };
 
 #if defined(__FreeBSD__)
   // On FreeBSD we need the name of the binary, because `dl_iterate_phdr` does
@@ -195,33 +260,28 @@ struct text_region FindNodeTextRegion() {
   }
 #endif  // defined(__FreeBSD__)
 
-  if (dl_iterate_phdr(FindMapping, &dl_params) == 1) {
-    Debug("Hugepages info: start: %p - sym: %p - end: %p\n",
-          reinterpret_cast<void*>(dl_params.start),
-          reinterpret_cast<void*>(dl_params.reference_sym),
-          reinterpret_cast<void*>(dl_params.end));
+  if (dl_iterate_phdr(FindBaseAddress, &dl_params) == 0) return nregion;
 
-    dl_params.start = dl_params.reference_sym;
-    if (lpstub_start > dl_params.start && lpstub_start <= dl_params.end) {
-      Debug("Hugepages info: Trimming end for lpstub: %p\n",
-            reinterpret_cast<void*>(lpstub_start));
-      dl_params.end = lpstub_start;
-    }
+  ElfW(Shdr) text_section;
+#if defined(__linux__)
+  dl_params.exename = "/proc/self/exe";
+#endif  // define(__linux__)
+  if (!FindTextSection(dl_params.exename, &text_section)) return nregion;
 
-    if (dl_params.start < dl_params.end) {
-      char* from = reinterpret_cast<char*>(hugepage_align_up(dl_params.start));
-      char* to = reinterpret_cast<char*>(hugepage_align_down(dl_params.end));
-      Debug("Hugepages info: Aligned range is %p - %p\n", from, to);
-      if (from < to) {
-        size_t pagecount = (to - from) / hps;
-        if (pagecount > 0) {
-          nregion.found_text_region = true;
-          nregion.from = from;
-          nregion.to = to;
-          nregion.total_hugepages = pagecount;
-        }
-      }
-    }
+  uintptr_t start = dl_params.base_address + text_section.sh_addr;
+  uintptr_t end = start + text_section.sh_size;
+  Debug("Hugepages info: start: %p - end: %p\n",
+        reinterpret_cast<void*>(start),
+        reinterpret_cast<void*>(end));
+
+  char* from = reinterpret_cast<char*>(hugepage_align_up(start));
+  char* to = reinterpret_cast<char*>(hugepage_align_down(end));
+  Debug("Hugepages info: Aligned range is %p - %p\n", from, to);
+
+  if (from < to && ((to - from) / hps) > 0) {
+    nregion.from = from;
+    nregion.to = to;
+    nregion.found_text_region = true;
   }
 #elif defined(__APPLE__)
   struct vm_region_submap_info_64 map;
@@ -249,7 +309,6 @@ struct text_region FindNodeTextRegion() {
         nregion.found_text_region = true;
         nregion.from = start;
         nregion.to = end;
-        nregion.total_hugepages = esize / hps;
         break;
       }
 
@@ -258,7 +317,8 @@ struct text_region FindNodeTextRegion() {
     }
   }
 #endif
-  Debug("Hugepages info: Found %d huge pages\n", nregion.total_hugepages);
+  Debug("Hugepages info: Found %d huge pages\n",
+        (nregion.to - nregion.from) / hps);
   return nregion;
 }
 
@@ -293,42 +353,6 @@ bool IsSuperPagesEnabled() {
          super_pages >= 1;
 }
 #endif
-
-// Functions in this class must always be inlined because they must end up in
-// the `lpstub` section rather than the `.text` section.
-class MemoryMapPointer {
- public:
-  FORCE_INLINE explicit MemoryMapPointer() {}
-  FORCE_INLINE bool operator==(void* rhs) const { return mem_ == rhs; }
-  FORCE_INLINE void* mem() const { return mem_; }
-  MemoryMapPointer(const MemoryMapPointer&) = delete;
-  MemoryMapPointer(MemoryMapPointer&&) = delete;
-  void operator= (const MemoryMapPointer&) = delete;
-  void operator= (const MemoryMapPointer&&) = delete;
-  FORCE_INLINE void Reset(void* start,
-                          size_t size,
-                          int prot,
-                          int flags,
-                          int fd = -1,
-                          size_t offset = 0) {
-    mem_ = mmap(start, size, prot, flags, fd, offset);
-    size_ = size;
-  }
-  FORCE_INLINE void Reset() {
-    mem_ = nullptr;
-    size_ = 0;
-  }
-  FORCE_INLINE ~MemoryMapPointer() {
-    if (mem_ == nullptr) return;
-    if (mem_ == MAP_FAILED) return;
-    if (munmap(mem_, size_) == 0) return;
-    PrintSystemError(errno);
-  }
-
- private:
-  size_t size_ = 0;
-  void* mem_ = nullptr;
-};
 
 }  // End of anonymous namespace
 
