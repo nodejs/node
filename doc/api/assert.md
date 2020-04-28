@@ -150,6 +150,13 @@ try {
 ```
 
 ## Class: `assert.CallTracker`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+This feature is currently experimental and behavior might still change.
 
 ### `new assert.CallTracker()`
 <!-- YAML
