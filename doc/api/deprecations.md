@@ -2695,6 +2695,18 @@ The `repl` module exports a `_builtinLibs` property that contains an array with
 native modules. It was incomplete so far and instead it's better to rely upon
 `require('module').builtinModules`.
 
+<a id="DEP0143"></a>
+### DEP0143: `Transform._transformState`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33126
+    description: Runtime deprecation.
+-->
+Type: Runtime
+`Transform._transformState` will be removed in future versions where it is
+no longer required due to simplification of the implementation.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
