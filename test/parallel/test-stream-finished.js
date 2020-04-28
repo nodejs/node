@@ -1,7 +1,14 @@
 'use strict';
 
 const common = require('../common');
-const { Writable, Readable, Transform, finished, Duplex } = require('stream');
+const {
+  Writable,
+  Readable,
+  Transform,
+  finished,
+  Duplex,
+  PassThrough
+} = require('stream');
 const assert = require('assert');
 const EE = require('events');
 const fs = require('fs');
@@ -395,4 +402,81 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   r.push('asd');
   r.destroyed = true;
   r.push(null);
+}
+
+{
+  // Regression https://github.com/nodejs/node/issues/33130
+  const response = new PassThrough();
+
+  class HelloWorld extends Duplex {
+    constructor(response) {
+      super({
+        autoDestroy: false
+      });
+
+      this.response = response;
+      this.readMore = false;
+
+      response.once('end', () => {
+        this.push(null);
+      });
+
+      response.on('readable', () => {
+        if (this.readMore) {
+          this._read();
+        }
+      });
+    }
+
+    _read() {
+      const { response } = this;
+
+      this.readMore = true;
+
+      if (response.readableLength) {
+        this.readMore = false;
+      }
+
+      let data;
+      while ((data = response.read()) !== null) {
+        this.push(data);
+      }
+    }
+  }
+
+  const instance = new HelloWorld(response);
+  instance.setEncoding('utf8');
+  instance.end();
+
+  (async () => {
+    await EE.once(instance, 'finish');
+
+    setImmediate(() => {
+      response.write('chunk 1');
+      response.write('chunk 2');
+      response.write('chunk 3');
+      response.end();
+    });
+
+    let res = '';
+    for await (const data of instance) {
+      res += data;
+    }
+
+    assert.strictEqual(res, 'chunk 1chunk 2chunk 3');
+  })().then(common.mustCall());
+}
+
+{
+  const p = new PassThrough();
+  p.end();
+  finished(p, common.mustNotCall());
+}
+
+{
+  const p = new PassThrough();
+  p.end();
+  p.on('finish', common.mustCall(() => {
+    finished(p, common.mustNotCall());
+  }));
 }
