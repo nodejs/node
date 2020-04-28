@@ -408,10 +408,10 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   // Regression https://github.com/nodejs/node/issues/33130
 
   const response = new PassThrough();
-  setTimeout(() => response.write('chunk 1'), 500);
-  setTimeout(() => response.write('chunk 2'), 1000);
-  setTimeout(() => response.write('chunk 3'), 1500);
-  setTimeout(() => response.end(), 2000);
+  response.write('chunk 1');
+  response.write('chunk 2');
+  response.write('chunk 3');
+  response.end();
 
   class HelloWorld extends Duplex {
     constructor(response) {
@@ -453,9 +453,11 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   (async () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
+    instance.setEncoding('utf8');
+
     let res = '';
     for await (const data of instance) {
-      res += data.toString();
+      res += data;
     }
 
     assert.strictEqual(res, 'chunk 1chunk 2chunk 3');
