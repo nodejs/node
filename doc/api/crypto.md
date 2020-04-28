@@ -521,7 +521,9 @@ is invalid according to [NIST SP 800-38D][] or does not match the value of the
 `authTagLength` option, `decipher.setAuthTag()` will throw an error.
 
 The `decipher.setAuthTag()` method must be called before
-[`decipher.update()`][] and can only be called once.
+[`decipher.final()`][] and can only be called once.
+When using `CCM` mode, the `decipher.setAuthTag()` method must be called before
+[`decipher.update()`][].
 
 ### `decipher.setAutoPadding([autoPadding])`
 <!-- YAML
