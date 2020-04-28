@@ -750,7 +750,7 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
                 "--abort_on_uncaught_exception") != v8_args.end()) {
     env_opts->abort_on_uncaught_exception = true;
   }
-  
+
 #ifdef _WIN32
   // Displace warning while using unsupported version of Windows.
   // Hide with --no-warnings options.
