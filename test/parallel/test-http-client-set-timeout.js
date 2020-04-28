@@ -38,6 +38,7 @@ server.listen(0, mustCall(() => {
   }));
 
   req.on('close', mustCall(() => {
+    strictEqual(req.destroyed, true);
     server.close();
   }));
 

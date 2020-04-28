@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const http = require('http');
 
 const server = http.createServer(common.mustCall((req, res) => {
@@ -18,6 +19,7 @@ server.listen(0, common.mustCall(() => {
     .on('response', common.mustCall((res) => {
       res
         .on('close', common.mustCall(() => {
+          assert.strictEqual(req.destroyed, true);
           server.close();
           keepAliveAgent.destroy();
         }))
