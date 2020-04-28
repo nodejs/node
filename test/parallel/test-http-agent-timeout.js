@@ -92,3 +92,43 @@ const http = require('http');
       }));
   }));
 }
+
+{
+  // Ensure custom keepSocketAlive timeout is respected
+
+  const CUSTOM_TIMEOUT = 60;
+  const AGENT_TIMEOUT = 50;
+
+  class CustomAgent extends http.Agent {
+    keepSocketAlive(socket) {
+      if (!super.keepSocketAlive(socket)) {
+        return false;
+      }
+
+      socket.setTimeout(CUSTOM_TIMEOUT);
+      return true;
+    }
+  }
+
+  const agent = new CustomAgent({ keepAlive: true, timeout: AGENT_TIMEOUT });
+
+  const server = http.createServer((req, res) => {
+    res.end();
+  });
+
+  server.listen(0, common.mustCall(() => {
+    http.get({ port: server.address().port, agent })
+      .on('response', common.mustCall((res) => {
+        const socket = res.socket;
+        assert(socket);
+        res.resume();
+        socket.on('free', common.mustCall(() => {
+          socket.on('timeout', common.mustCall(() => {
+            assert.strictEqual(socket.timeout, CUSTOM_TIMEOUT);
+            agent.destroy();
+            server.close();
+          }));
+        }));
+      }));
+  }));
+}
