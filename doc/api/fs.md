@@ -579,6 +579,29 @@ added: v0.5.8
 Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
 `fs.FSWatcher` object is no longer usable.
 
+### `watcher.ref()`
+<!-- YAML
+added: REPLACEME
+-->
+
+When called, requests that the Node.js event loop *not* exit so long as the
+`FSWatcher` is active. Calling `watcher.ref()` multiple times will have
+no effect.
+
+By default, all `FSWatcher` objects are "ref'ed", making it normally
+unnecessary to call `watcher.ref()` unless `watcher.unref()` had been
+called previously.
+
+### `watcher.unref()`
+<!-- YAML
+added: REPLACEME
+-->
+When called, the active `FSWatcher` object will not require the Node.js
+event loop to remain active. If there is no other activity keeping the
+event loop running, the process may exit before the `FSWatcher` object's
+callback is invoked. Calling `watcher.unref()` multiple times will have
+no effect.
+
 ## Class: `fs.ReadStream`
 <!-- YAML
 added: v0.1.93
