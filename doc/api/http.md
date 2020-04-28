@@ -2469,6 +2469,76 @@ events will be emitted in the following order:
 Setting the `timeout` option or using the `setTimeout()` function will
 not abort the request or do anything besides add a `'timeout'` event.
 
+## `http.validateHeaderName(name)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+
+Performs the low-level validations on the provided `name` that are done when
+`res.setHeader(name, value)` is called.
+
+Passing illegal value as `name` will result in a [`TypeError`][] being thrown,
+identified by `code: 'ERR_INVALID_HTTP_TOKEN'`.
+
+It is not necessary to use this method before passing headers to an HTTP request
+or response. The HTTP module will automatically validate such headers.
+Examples:
+
+Example:
+```js
+const { validateHeaderName } = require('http');
+
+try {
+  validateHeaderName('');
+} catch (err) {
+  err instanceof TypeError; // --> true
+  err.code; // --> 'ERR_INVALID_HTTP_TOKEN'
+  err.message; // --> 'Header name must be a valid HTTP token [""]'
+}
+```
+
+## `http.validateHeaderValue(name, value)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* `value` {any}
+
+Performs the low-level validations on the provided `value` that are done when
+`res.setHeader(name, value)` is called.
+
+Passing illegal value as `value` will result in a [`TypeError`][] being thrown.
+* Undefined value error is identified by `code: 'ERR_HTTP_INVALID_HEADER_VALUE'`.
+* Invalid value character error is identified by `code: 'ERR_INVALID_CHAR'`.
+
+It is not necessary to use this method before passing headers to an HTTP request
+or response. The HTTP module will automatically validate such headers.
+
+Examples:
+
+```js
+const { validateHeaderValue } = require('http');
+
+try {
+  validateHeaderValue('x-my-header', undefined);
+} catch (err) {
+  err instanceof TypeError; // --> true
+  err.code === 'ERR_HTTP_INVALID_HEADER_VALUE'; // --> true
+  err.message; // --> 'Invalid value "undefined" for header "x-my-header"'
+}
+
+try {
+  validateHeaderValue('x-my-header', 'oʊmɪɡə');
+} catch (err) {
+  err instanceof TypeError; // --> true
+  err.code === 'ERR_INVALID_CHAR'; // --> true
+  err.message; // --> 'Invalid character in header content ["x-my-header"]'
+}
+```
+
 [`--insecure-http-parser`]: cli.html#cli_insecure_http_parser
 [`--max-http-header-size`]: cli.html#cli_max_http_header_size_size
 [`'checkContinue'`]: #http_event_checkcontinue
