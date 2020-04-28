@@ -764,8 +764,8 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
         env->cached_data_rejected_string(),
         Boolean::New(isolate, source.GetCachedData()->rejected)).Check();
   } else if (produce_cached_data) {
-    const ScriptCompiler::CachedData* cached_data =
-      ScriptCompiler::CreateCodeCache(v8_script.ToLocalChecked());
+    std::unique_ptr<ScriptCompiler::CachedData> cached_data {
+      ScriptCompiler::CreateCodeCache(v8_script.ToLocalChecked()) };
     bool cached_data_produced = cached_data != nullptr;
     if (cached_data_produced) {
       MaybeLocal<Object> buf = Buffer::Copy(
