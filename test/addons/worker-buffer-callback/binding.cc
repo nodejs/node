@@ -28,7 +28,7 @@ void Initialize(Local<Object> exports,
                node::Buffer::New(
                    isolate,
                    data,
-                   sizeof(data),
+                   sizeof(char),
                    [](char* data, void* hint) {
                      free_call_count++;
                    },
