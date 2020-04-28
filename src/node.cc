@@ -117,8 +117,6 @@
 #include <string>
 #include <vector>
 
-// =========== windows headers ============
-
 #ifdef _WIN32
 #include <windows.h>
 #include <VersionHelpers.h>
