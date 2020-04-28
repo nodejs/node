@@ -1796,6 +1796,10 @@ if options.prefix:
 if options.use_ninja:
   config['BUILD_WITH'] = 'ninja'
 
+# On Windows there is another find.exe in C:\Windows\System32
+if sys.platform == 'win32':
+  config['FIND'] = '/usr/bin/find'
+
 config_lines = ['='.join((k,v)) for k,v in config.items()]
 # Add a blank string to get a blank line at the end.
 config_lines += ['']
