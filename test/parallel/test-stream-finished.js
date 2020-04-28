@@ -468,3 +468,11 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   p.end();
   finished(p, common.mustNotCall());
 }
+
+{
+  const p = new PassThrough();
+  p.end();
+  p.on('finish', common.mustCall(() => {
+    finished(p, common.mustNotCall());
+  }));
+}
