@@ -117,6 +117,14 @@
 #include <string>
 #include <vector>
 
+// =========== windows headers ============
+
+#ifdef _WIN32
+#include <windows.h>
+#include <VersionHelpers.h>
+#include <WinError.h>
+#endif
+
 namespace node {
 
 using native_module::NativeModuleEnv;
@@ -742,6 +750,21 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
                 "--abort_on_uncaught_exception") != v8_args.end()) {
     env_opts->abort_on_uncaught_exception = true;
   }
+  
+#ifdef _WIN32
+  // Displace warning while using unsupported version of Windows.
+  // Hide with --no-warnings options.
+  if (!per_process::cli_options->per_isolate->per_env->no_warnings) {
+    if (!IsWindows8Point1OrGreater() &&
+        !(IsWindowsServer() && IsWindows8OrGreater())) {
+      fprintf(stderr, "Node.js is only supported on Windows 8.1, "
+                      "Windows Server 2012 R2, or higher. "
+                      "Node.js will not accept bug reports "
+                      "or patches while using unsupported "
+                      "versions of Windows.\n\n");
+    }
+  }
+#endif
 
   // TODO(bnoordhuis) Intercept --prof arguments and start the CPU profiler
   // manually?  That would give us a little more control over its runtime

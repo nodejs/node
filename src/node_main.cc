@@ -24,20 +24,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <VersionHelpers.h>
 #include <WinError.h>
 
 int wmain(int argc, wchar_t* wargv[]) {
-  // Display deprecation banner without exiting
-  // the application for unsupported versions of Windows.
-  if (!IsWindows8Point1OrGreater() &&
-      !(IsWindowsServer() && IsWindows8OrGreater())) {
-    fprintf(stderr, "This application is only supported on Windows 8.1, "
-                    "Windows Server 2012 R2, or higher. Node.js will not "
-                    "accept bug reports or patches while using unsupported "
-                    "versions of Windows.\n\n\n");
-  }
-
   // Convert argv to UTF8
   char** argv = new char*[argc + 1];
   for (int i = 0; i < argc; i++) {
