@@ -132,17 +132,14 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
 #endif  // ifndef ElfW
 #endif  // defined(__FreeBSD__)
 
-#define CONSTRUCT_ONLY(class_name)              \
-  class_name(const class_name&) = delete;       \
-  class_name(class_name&&) = delete;            \
-  void operator= (const class_name&) = delete;  \
-  void operator= (const class_name&&) = delete
-
 // Functions in this class must always be inlined because they must end up in
 // the `lpstub` section rather than the `.text` section.
 class MemoryMapPointer {
  public:
-  CONSTRUCT_ONLY(MemoryMapPointer);
+  MemoryMapPointer(const MemoryMapPointer&) = delete;
+  MemoryMapPointer(MemoryMapPointer&&) = delete;
+  void operator= (const MemoryMapPointer&) = delete;
+  void operator= (const MemoryMapPointer&&) = delete;
   FORCE_INLINE explicit MemoryMapPointer() {}
   FORCE_INLINE bool operator==(void* rhs) const { return mem_ == rhs; }
   FORCE_INLINE void* mem() const { return mem_; }
@@ -175,18 +172,25 @@ class MemoryMapPointer {
 
 class MappedFilePointer: public MemoryMapPointer {
  public:
-  CONSTRUCT_ONLY(MappedFilePointer);
+  MappedFilePointer(const MappedFilePointer&) = delete;
+  MappedFilePointer(MappedFilePointer&&) = delete;
+  void operator= (const MappedFilePointer&) = delete;
+  void operator= (const MappedFilePointer&&) = delete;
   FORCE_INLINE explicit MappedFilePointer() {}
   FORCE_INLINE void Reset(void* start,
                           const char* fname,
                           int prot,
                           int flags,
                           size_t offset = 0) {
-    struct stat file_info;
-    if (stat(fname, &file_info) == -1) goto fail;
+    Debug("Hugepages info: attempting to open %s\n", fname);
 
-    fd_ = open(fname, O_RDONLY);
+    do
+      fd_ = open(fname, O_RDONLY);
+    while (fd_ == -1 && errno == EINTR);
     if (fd_ == -1) goto fail;
+
+    struct stat file_info;
+    if (fstat(fd_, &file_info) == -1) goto fail;
 
     MemoryMapPointer::Reset(start, file_info.st_size, prot, flags, fd_, offset);
     return;
@@ -197,6 +201,7 @@ fail:
   FORCE_INLINE ~MappedFilePointer() {
     if (fd_ == -1) return;
     if (close(fd_) == 0) return;
+    if (errno == EINTR || errno == EINPROGRESS) return;
     PrintSystemError(errno);
   }
 
@@ -233,7 +238,7 @@ bool FindTextSection(const std::string& exename, ElfW(Shdr)* text_section) {
   for (uint32_t idx = 0; idx < ehdr->e_shnum; idx++) {
     const ElfW(Shdr)* sh = &shdrs[idx];
     const char* section_name = static_cast<const char*>(&snames[sh->sh_name]);
-    if (std::string(section_name) == ".text") {
+    if (!strcmp(section_name, ".text")) {
       *text_section = *sh;
       return true;
     }
