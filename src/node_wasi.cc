@@ -235,7 +235,7 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
       free(options.preopens[i].real_path);
     }
 
-    delete[] options.preopens;
+    free(options.preopens);
   }
 }
 
