@@ -164,7 +164,10 @@ void BackingStore::Clear() {
 BackingStore::~BackingStore() {
   GlobalBackingStoreRegistry::Unregister(this);
 
-  if (buffer_start_ == nullptr) return;  // nothing to deallocate
+  if (buffer_start_ == nullptr) {
+    Clear();
+    return;
+  }
 
   if (is_wasm_memory_) {
     DCHECK(free_on_destruct_);
