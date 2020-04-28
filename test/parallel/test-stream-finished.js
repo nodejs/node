@@ -448,10 +448,10 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   }
 
   const instance = new HelloWorld(response);
+  instance.setEncoding('utf8');
   instance.end();
 
   (async () => {
-    instance.setEncoding('utf8');
 
     let res = '';
     for await (const data of instance) {
