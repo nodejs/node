@@ -35,7 +35,7 @@ NAPI_MODULE_INIT() {
   NAPI_CALL(env, napi_create_external_arraybuffer(
       env,
       data,
-      sizeof(data),
+      sizeof(char),
       finalize_cb,
       NULL,
       &buffer));
