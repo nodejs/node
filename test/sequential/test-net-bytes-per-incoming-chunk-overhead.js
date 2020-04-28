@@ -2,6 +2,9 @@
 'use strict';
 
 const common = require('../common');
+if (process.config.variables.asan)
+  common.skip('ASAN messes with memory measurements');
+
 const assert = require('assert');
 const net = require('net');
 
