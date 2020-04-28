@@ -451,15 +451,17 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   instance.setEncoding('utf8');
   instance.end();
 
-  instance.on('finish', common.mustCall(async () => {
-    assert.strictEqual(instance.writableFinished, true);
+  instance.on('finish', common.mustCall(() => {
+    (async () => {
+      assert.strictEqual(instance.writableFinished, true);
 
-    let res = '';
-    for await (const data of instance) {
-      res += data;
-    }
+      let res = '';
+      for await (const data of instance) {
+        res += data;
+      }
 
-    assert.strictEqual(res, 'chunk 1chunk 2chunk 3');
+      assert.strictEqual(res, 'chunk 1chunk 2chunk 3');
+    })().then(common.mustCall());
   }));
 }
 
