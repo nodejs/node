@@ -184,9 +184,9 @@ class MappedFilePointer: public MemoryMapPointer {
                           size_t offset = 0) {
     Debug("Hugepages info: attempting to open %s\n", fname);
 
-    do
+    do {
       fd_ = open(fname, O_RDONLY);
-    while (fd_ == -1 && errno == EINTR);
+    } while (fd_ == -1 && errno == EINTR);
     if (fd_ == -1) goto fail;
 
     struct stat file_info;
