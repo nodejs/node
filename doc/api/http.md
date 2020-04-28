@@ -860,6 +860,9 @@ changes:
 Once a socket is assigned to this request and is connected
 [`socket.setTimeout()`][] will be called.
 
+If no `'timeout'` listener is registered the request will error
+with `ERR_HTTP_SOCKET_TIMEOUT`.
+
 ### `request.socket`
 <!-- YAML
 added: v0.3.0
