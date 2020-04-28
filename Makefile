@@ -17,6 +17,7 @@ GNUMAKEFLAGS += --no-print-directory
 GCOV ?= gcov
 PWD = $(CURDIR)
 BUILD_WITH ?= make
+FIND ?= find
 
 ifdef JOBS
 	PARALLEL_ARGS = -j $(JOBS)
@@ -168,7 +169,7 @@ uninstall: ## Uninstalls node from $PREFIX (default=/usr/local).
 clean: ## Remove build artifacts.
 	$(RM) -r out/Makefile $(NODE_EXE) $(NODE_G_EXE) out/$(BUILDTYPE)/$(NODE_EXE) \
 		out/$(BUILDTYPE)/node.exp
-	@if [ -d out ]; then find out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs $(RM) -r; fi
+	@if [ -d out ]; then $(FIND) out/ -name '*.o' -o -name '*.a' -o -name '*.d' | xargs $(RM) -r; fi
 	$(RM) -r node_modules
 	@if [ -d deps/icu ]; then echo deleting deps/icu; $(RM) -r deps/icu; fi
 	$(RM) test.tap
@@ -1204,7 +1205,7 @@ LINT_MD_NEWER = -newer tools/.mdlintstamp
 endif
 
 LINT_MD_TARGETS = doc src lib benchmark test tools/doc tools/icu $(wildcard *.md)
-LINT_MD_FILES = $(shell find $(LINT_MD_TARGETS) -type f \
+LINT_MD_FILES = $(shell $(FIND) $(LINT_MD_TARGETS) -type f \
 	! -path '*node_modules*' ! -path 'test/fixtures/*' -name '*.md' \
 	$(LINT_MD_NEWER))
 run-lint-md = tools/lint-md.js -q -f --no-stdout $(LINT_MD_FILES)
@@ -1383,7 +1384,7 @@ CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
 # Related CI job: node-test-linter
 lint-ci: lint-js-ci lint-cpp lint-py lint-md lint-addon-docs
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
-		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
+		&& ! ( $(FIND) . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \
 	else \
 		echo "" >&2 ; \
