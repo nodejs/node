@@ -323,14 +323,11 @@ static uint16_t ToAsyncHooksType(PromiseHookType type) {
 static void FastPromiseHook(PromiseHookType type, Local<Promise> promise,
                             Local<Value> parent) {
   Local<Context> context = promise->CreationContext();
-
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return;
-  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
-                              "EnvPromiseHook", env);
 
   Local<Value> argv[] = {
-    Number::New(env->isolate(), ToAsyncHooksType(type)),
+    Integer::New(env->isolate(), ToAsyncHooksType(type)),
     promise,
     parent
   };
@@ -423,8 +420,6 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   SET_HOOK_FN(destroy);
   SET_HOOK_FN(promise_resolve);
 #undef SET_HOOK_FN
-
-  PromiseWrap::Initialize(env);
 }
 
 static void EnablePromiseHook(const FunctionCallbackInfo<Value>& args) {
@@ -672,6 +667,9 @@ void AsyncWrap::Initialize(Local<Object> target,
       FIXED_ONE_BYTE_STRING(env->isolate(), "AsyncWrap"),
       AsyncWrapObject::GetConstructorTemplate(env)
           ->GetFunction(env->context()).ToLocalChecked()).Check();
+
+  // TODO(qard): maybe this should be GetConstructorTemplate instead?
+  PromiseWrap::Initialize(env);
 }
 
 
