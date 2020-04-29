@@ -183,34 +183,48 @@ versions of Node.js, but its capabilities are limited: it only defines the main
 entry point of the package.
 
 The `"exports"` field provides an alternative to `"main"` where the package
-main entry point can be defined while also encapsulating the package, preventing
-any other entry points besides those defined in `"exports"`. If package entry
-points are defined in both `"main"` and `"exports"`, the latter takes precedence
-in versions of Node.js that support `"exports"`. [Conditional Exports][] can
-also be used within `"exports"` to define different package entry points per
-environment, including whether the package is referenced via `require` or via
-`import`.
+main entry point can be defined while also encapsulating the package,
+**preventing any other entry points besides those defined in `"exports"`**.
+This encapsulation allows module authors to define a public interface for
+their package 
+
+If both `"exports"` and `"main"` are defined, the `"exports"` field takes
+precedence over `"main"`. It is important to note that `"exports"` are not
+specific to ES modules or CommonJS; `"main"` will be overridden by `"exports"`
+if it exists. As such `"main"` cannot be used as a fallback for `"Common.js"`
+but it can be used as a fallback for legacy versions of Node.js that do not
+support ES Modules.
+
+[Conditional Exports][] can be used within `"exports"` to define different
+package entry points per environment, including whether the package is
+referenced via `require` or via `import`. For more information about supporting
+both Common.js and ES Modules in a single package please consult
+[the dual CommonJS/ES module packages section][]. 
 
 **Warning**: Introducing the `"exports"` field prevents consumers of a package
 from using any entry points that are not defined, including the `package.json`.
 This will likely be a breaking change. To make the introduction of `"exports"`
 non-breaking, ensure that every previously supported entry point is exported.
 It is best to explicitly specify entry points so that the package's public API
-is well-defined. As a last resort, package encapsulation can be disabled
-entirely by creating an export for the root of the package `"./": "./"` that
-will expose every file.
+is well-defined. For example, a project that previous exported `main`, `lib`,
+`feature`, and the `package.json` could use the following `package.exports`
 
-If both `"exports"` and `"main"` are defined, the `"exports"` field takes
-precedence over `"main"`.
+```json
+{
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib": "./lib/index.js",
+    "./lib/index.js": "./lib/index.js",
+    "./feature": "./feature/index.js",
+    "./feature/index.js": "./feature/index.js",
+    "./package.json": "./package.json"
+  }
+}
+```
 
-Both `"main"` and `"exports"` entry points are not specific to ES modules or
-CommonJS; `"main"` will be overridden by `"exports"` in a `require` so it is
-not a CommonJS fallback.
-
-This is important with regard to `require`, since `require` of ES module files
-throws an error in all versions of Node.js. To create a package that works both
-in modern Node.js via `import` and `require` and also legacy Node.js versions,
-see [the dual CommonJS/ES module packages section][].
+As a last resort, package encapsulation can be disabled entirely by creating an
+export for the root of the package `"./": "./"`. This will expose every file in
+the package at the cost of disabling encapsulation.
 
 #### Main Entry Point Export
 
