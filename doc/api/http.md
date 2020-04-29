@@ -1122,6 +1122,8 @@ event is emitted on the server object, and (by default) the socket is destroyed.
 See [`server.timeout`][] for more information on how timeout behavior can be
 customized.
 
+A value of `0` will disable the HTTP headers timeout check.
+
 ### `server.listen()`
 
 Starts the HTTP server listening for connections.
