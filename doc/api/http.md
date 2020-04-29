@@ -943,7 +943,7 @@ added: v0.1.90
 
 Stops the server from accepting new connections. See [`net.Server.close()`][].
 
-### server.listen()
+### `server.listen()`
 
 Starts the HTTP server listening for connections.
 This method is identical to [`server.listen()`][] from [`net.Server`][].
@@ -983,6 +983,8 @@ passed since the connection was established. If the check fails, a `'timeout'`
 event is emitted on the server object, and (by default) the socket is destroyed.
 See [server.timeout][] for more information on how timeout behaviour can be
 customised.
+
+A value of `0` will disable the HTTP headers timeout check.
 
 ### server.setTimeout([msecs][, callback])
 <!-- YAML
