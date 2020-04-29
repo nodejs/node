@@ -504,7 +504,7 @@ Environment::~Environment() {
   CHECK_EQ(base_object_count_, 0);
 }
 
-void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
+void Environment::InitializeLibuv() {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
@@ -557,9 +557,7 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   // FreeEnvironment.
   RegisterHandleCleanups();
 
-  if (start_profiler_idle_notifier) {
-    StartProfilerIdleNotifier();
-  }
+  StartProfilerIdleNotifier();
 }
 
 void Environment::ExitEnv() {
@@ -636,11 +634,6 @@ void Environment::CleanupHandles() {
 }
 
 void Environment::StartProfilerIdleNotifier() {
-  if (profiler_idle_notifier_started_)
-    return;
-
-  profiler_idle_notifier_started_ = true;
-
   uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
     Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
     env->isolate()->SetIdle(true);
@@ -650,12 +643,6 @@ void Environment::StartProfilerIdleNotifier() {
     Environment* env = ContainerOf(&Environment::idle_check_handle_, handle);
     env->isolate()->SetIdle(false);
   });
-}
-
-void Environment::StopProfilerIdleNotifier() {
-  profiler_idle_notifier_started_ = false;
-  uv_prepare_stop(&idle_prepare_handle_);
-  uv_check_stop(&idle_check_handle_);
 }
 
 void Environment::PrintSyncTrace() const {
