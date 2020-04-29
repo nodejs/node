@@ -40,13 +40,13 @@ runtime features.
 
 Coding guidelines are based on the following guides (highest priority first):
 
-1. This document
-2. The [Google C++ Style Guide][]
-3. The ISO [C++ Core Guidelines][]
+1. This document.
+2. The [Google C++ Style Guide][].
+3. The ISO [C++ Core Guidelines][].
 
-In general code should follow the C++ Core Guidelines, unless overridden by the
+In general, code should follow the C++ Core Guidelines, unless overridden by the
 Google C++ Style Guide or this document. At the moment these guidelines are
-checked manually by reviewers, with the goal to validate this with automatic
+checked manually by reviewers with the goal to validate this with automatic
 tools.
 
 ## Formatting
@@ -282,11 +282,11 @@ data[0] = 12345;
 
 ### Type casting
 
-* Use `static_cast<T>` if casting is required, and it is valid
-* Use `reinterpret_cast` only when it is necessary
-* Avoid C-style casts (`(type)value`)
+* Use `static_cast<T>` if casting is required, and it is valid.
+* Use `reinterpret_cast` only when it is necessary.
+* Avoid C-style casts (`(type)value`).
 * `dynamic_cast` does not work because Node.js is built without
-  [Run Time Type Information][]
+  [Run Time Type Information][].
 
 Further reading:
 
@@ -313,13 +313,13 @@ for (const auto& item : some_map) {
 
 ### Do not include `*.h` if `*-inl.h` has already been included
 
-Do
+Do:
 
 ```cpp
 #include "util-inl.h"  // already includes util.h
 ```
 
-instead of
+Instead of:
 
 ```cpp
 #include "util.h"
@@ -383,9 +383,9 @@ exports.foo = function(str) {
 #### Avoid throwing JavaScript errors in nested C++ methods
 
 When you need to throw a JavaScript exception from C++ (i.e.
-`isolate()->ThrowException()`) prefer to do it as close to the return to JS as
-possible, and not inside of nested C++ calls. Since this changes the JS
-execution state doing it closest to where it is consumed reduces the chances of
+`isolate()->ThrowException()`), do it as close to the return to JavaScript as
+possible, and not inside of nested C++ calls. Since this changes the JavaScript
+execution state, doing it closest to where it is consumed reduces the chances of
 side effects.
 
 Node.js is built [without C++ exception handling][], so code using `throw` or
