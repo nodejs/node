@@ -109,8 +109,8 @@ review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 If you are the first Collaborator to approve a pull request that has no CI yet,
-please [start one](#testing-and-ci). Please also start a new CI if the PR
-creator pushed new code since the last CI run.
+please [start one](#testing-and-ci). Please also start a new CI if the
+pull request creator pushed new code since the last CI run.
 
 ### Consensus Seeking
 
@@ -269,22 +269,22 @@ master branch.
 
 Examples of breaking changes include:
 
-* removal or redefinition of existing API arguments
-* changing return values
-* removing or modifying existing properties on an options argument
-* adding or removing errors
-* altering expected timing of an event
-* changing the side effects of using a particular API
+* Removal or redefinition of existing API arguments.
+* Changing return values.
+* Removing or modifying existing properties on an options argument.
+* Adding or removing errors.
+* Altering expected timing of an event.
+* Changing the side effects of using a particular API.
 
 #### Breaking Changes and Deprecations
 
 Existing stable public APIs that change in a backward-incompatible way must
 undergo deprecation. The exceptions to this rule are:
 
-* Adding or removing errors thrown or reported by a public API;
-* Changing error messages for errors without error code;
-* Altering the timing and non-internal side effects of the public API;
-* Changes to errors thrown by dependencies of Node.js, such as V8;
+* Adding or removing errors thrown or reported by a public API.
+* Changing error messages for errors without error code.
+* Altering the timing and non-internal side effects of the public API.
+* Changes to errors thrown by dependencies of Node.js, such as V8.
 * One-time exceptions granted by the TSC.
 
 For more information, see [Deprecations](#deprecations).
@@ -310,7 +310,7 @@ after-the-fact.
 Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
 generated commit message will not have a subsystem and may violate line length
 rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
-metadata. Raise a Pull Request like any other change.
+metadata. Raise a pull request like any other change.
 
 ### Introducing New Modules
 
@@ -400,10 +400,10 @@ deprecation level of an API.
 Collaborators may opt to elevate pull requests or issues to the [TSC][].
 Do this if a pull request or issue:
 
-* is labeled `semver-major`, or
-* has a significant impact on the codebase, or
-* is controversial, or
-* is at an impasse among Collaborators who are participating in the discussion.
+* Is labeled `semver-major`, or
+* Has a significant impact on the codebase, or
+* Is controversial, or
+* Is at an impasse among Collaborators who are participating in the discussion.
 
 @-mention the `@nodejs/tsc` GitHub team if you want to elevate an issue to the
 [TSC][]. Do not use the GitHub UI on the right-hand side to assign to
@@ -573,7 +573,7 @@ for that commit. This is an opportunity to fix commit messages.
 * The commit message text must conform to the [commit message guidelines][].
 * <a name="metadata"></a>Change the original commit message to include metadata. (The
   [`git node metadata`][git-node-metadata] command can generate the metadata
-  for you.)
+  for you).
 
   * Required: A `PR-URL:` line that references the full GitHub URL of the pull
     request. This makes it easy to trace a commit back to the conversation that
@@ -584,7 +584,8 @@ for that commit. This is an opportunity to fix commit messages.
     background.
   * Required: A `Reviewed-By: Name <email>` line for each Collaborator who
     reviewed the change.
-    * Useful for @mentions / contact list if something goes wrong in the PR.
+    * Useful for @mentions / contact list if something goes wrong in the
+      pull request.
     * Protects against the assumption that GitHub will be around forever.
 
 Other changes may have landed on master since the successful CI run. As a
@@ -599,12 +600,13 @@ $ git rev-list upstream/master...HEAD | xargs core-validate-commit
 
 Optional: For your own commits, force push the amended commit to the pull
 request branch. If your branch name is `bugfix`, then: `git push
---force-with-lease origin master:bugfix`. Don't close the PR. It will close
-after you push it upstream. It will have the purple merged status rather than
-the red closed status. If you close the PR before GitHub adjusts its status, it
-will show up as a 0 commit PR with no changed files. The order of operations is
-important. If you push upstream before you push to your branch, GitHub will
-close the issue with the red closed status.
+--force-with-lease origin master:bugfix`. Don't close the pull request.
+It will close after you push it upstream. It will have the purple merged
+status rather than the red closed status. If you close the pull request
+before GitHub adjusts its status, it will show up as a 0 commit pull
+request with no changed files. The order of operations is important.
+If you push upstream before you push to your branch, GitHub will close
+the issue with the red closed status.
 
 Time to push it:
 
@@ -645,7 +647,7 @@ git push upstream master
 ### I Made a Mistake
 
 * Ping a TSC member.
-* `#node-dev` on freenode
+* `#node-dev` on freenode.
 * With `git`, there's a way to override remote trees by force pushing
   (`git push -f`). This is generally forbidden as it creates conflicts in other
   people's forks. It is permissible for simpler slip-ups such as typos in commit
@@ -701,8 +703,8 @@ land on the staging branches, the backporter removes the `lts-watch-` label.
 Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
 label.
 
-Attach the appropriate `lts-watch-` label to any PR that may impact an LTS
-release.
+Attach the appropriate `lts-watch-` label to any pull request that
+may impact an LTS release.
 
 ## Who to CC in the issue tracker
 
