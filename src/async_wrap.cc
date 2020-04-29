@@ -212,7 +212,6 @@ class PromiseWrap : public AsyncWrap {
 
   static PromiseWrap* New(Environment* env,
                           Local<Promise> promise,
-                          PromiseWrap* parent_wrap,
                           bool silent);
   static void getAsyncId(Local<Name> property,
                          const PropertyCallbackInfo<Value>& args);
@@ -224,7 +223,6 @@ class PromiseWrap : public AsyncWrap {
 
 PromiseWrap* PromiseWrap::New(Environment* env,
                               Local<Promise> promise,
-                              PromiseWrap* parent_wrap,
                               bool silent) {
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
@@ -233,25 +231,25 @@ PromiseWrap* PromiseWrap::New(Environment* env,
   if (!env->promise_wrap_template()->NewInstance(context).ToLocal(&obj))
     return nullptr;
 
-  obj->SetInternalField(PromiseWrap::kIsChainedPromiseField,
-                        parent_wrap != nullptr ? v8::True(isolate)
-                                               : v8::False(isolate));
   CHECK_NULL(promise->GetAlignedPointerFromInternalField(0));
   promise->SetInternalField(0, obj);
 
-  Local<Value> maybeAsyncId = promise
-      ->Get(context, env->async_id_symbol())
-      .ToLocalChecked();
+  // Skip for init events
+  if (silent) {
+    Local<Value> maybeAsyncId = promise
+        ->Get(context, env->async_id_symbol())
+        .ToLocalChecked();
 
-  Local<Value> maybeTriggerAsyncId = promise
-      ->Get(context, env->trigger_async_id_symbol())
-      .ToLocalChecked();
+    Local<Value> maybeTriggerAsyncId = promise
+        ->Get(context, env->trigger_async_id_symbol())
+        .ToLocalChecked();
 
-  if (maybeAsyncId->IsNumber() && maybeTriggerAsyncId->IsNumber()) {
-    double asyncId = maybeAsyncId->NumberValue(context).ToChecked();
-    double triggerAsyncId = maybeTriggerAsyncId->NumberValue(context)
-        .ToChecked();
-    return new PromiseWrap(env, obj, asyncId, triggerAsyncId);
+    if (maybeAsyncId->IsNumber() && maybeTriggerAsyncId->IsNumber()) {
+      double asyncId = maybeAsyncId->NumberValue(context).ToChecked();
+      double triggerAsyncId = maybeTriggerAsyncId->NumberValue(context)
+          .ToChecked();
+      return new PromiseWrap(env, obj, asyncId, triggerAsyncId);
+    }
   }
 
   return new PromiseWrap(env, obj, silent);
@@ -358,14 +356,14 @@ static void FullPromiseHook(PromiseHookType type, Local<Promise> promise,
       Local<Promise> parent_promise = parent.As<Promise>();
       PromiseWrap* parent_wrap = extractPromiseWrap(parent_promise);
       if (parent_wrap == nullptr) {
-        parent_wrap = PromiseWrap::New(env, parent_promise, nullptr, true);
+        parent_wrap = PromiseWrap::New(env, parent_promise, true);
         if (parent_wrap == nullptr) return;
       }
 
       AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent_wrap);
-      wrap = PromiseWrap::New(env, promise, parent_wrap, silent);
+      wrap = PromiseWrap::New(env, promise, silent);
     } else {
-      wrap = PromiseWrap::New(env, promise, nullptr, silent);
+      wrap = PromiseWrap::New(env, promise, silent);
     }
   }
 
