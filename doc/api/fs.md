@@ -596,9 +596,44 @@ called previously.
 <!-- YAML
 added: REPLACEME
 -->
+
 When called, the active `FSWatcher` object will not require the Node.js
 event loop to remain active. If there is no other activity keeping the
 event loop running, the process may exit before the `FSWatcher` object's
+callback is invoked. Calling `watcher.unref()` multiple times will have
+no effect.
+
+## Class: `fs.StatWatcher`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends {EventEmitter}
+
+A successful call to `fs.watchFile()` method will return a new `fs.StatWatcher`
+object.
+
+### `watcher.ref()`
+<!-- YAML
+added: REPLACEME
+-->
+
+When called, requests that the Node.js event loop *not* exit so long as the
+`StatWatcher` is active. Calling `watcher.ref()` multiple times will have
+no effect.
+
+By default, all `StatWatcher` objects are "ref'ed", making it normally
+unnecessary to call `watcher.ref()` unless `watcher.unref()` had been
+called previously.
+
+### `watcher.unref()`
+<!-- YAML
+added: REPLACEME
+-->
+
+When called, the active `StatWatcher` object will not require the Node.js
+event loop to remain active. If there is no other activity keeping the
+event loop running, the process may exit before the `StatWatcher` object's
 callback is invoked. Calling `watcher.unref()` multiple times will have
 no effect.
 
@@ -3981,6 +4016,7 @@ changes:
 * `listener` {Function}
   * `current` {fs.Stats}
   * `previous` {fs.Stats}
+* Returns: {fs.StatWatcher}
 
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.

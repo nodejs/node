@@ -5,32 +5,31 @@ const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
 
-let refCount = 0;
+const uncalledListener = common.mustNotCall();
+const uncalledListener2 = common.mustNotCall();
+const watcher = fs.watchFile(__filename, uncalledListener);
 
-const watcher = fs.watchFile(__filename, common.mustNotCall());
+watcher.unref();
+watcher.unref();
+watcher.ref();
+watcher.unref();
+watcher.ref();
+watcher.ref();
+watcher.unref();
 
-function unref() {
-  watcher.unref();
-  refCount--;
-  assert.strictEqual(refCount, -1);
-}
+fs.unwatchFile(__filename, uncalledListener);
 
-function ref() {
-  watcher.ref();
-  refCount++;
-  assert.strictEqual(refCount, 0);
-}
-
-unref();
+// Watch the file with two different listeners.
+fs.watchFile(__filename, uncalledListener);
+const watcher2 = fs.watchFile(__filename, uncalledListener2);
 
 setTimeout(
   common.mustCall(() => {
-    ref();
-    unref();
-    watcher.unref();
-    watcher.ref();
-    watcher.ref();
-    watcher.unref();
+    fs.unwatchFile(__filename, common.mustNotCall());
+    assert.strictEqual(watcher2.listenerCount('change'), 2);
+    fs.unwatchFile(__filename, uncalledListener);
+    assert.strictEqual(watcher2.listenerCount('change'), 1);
+    watcher2.unref();
   }),
   common.platformTimeout(100)
 );
