@@ -72,9 +72,9 @@ class PerformanceState {
       milestones[i] = -1.;
   }
 
-  AliasedUint8Array root;
-  AliasedFloat64Array milestones;
-  AliasedUint32Array observers;
+  OwningAliasedUint8Array root;
+  AliasedFloat64ArrayView milestones;
+  AliasedUint32ArrayView observers;
 
   uint64_t performance_last_gc_start_mark = 0;
 

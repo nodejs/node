@@ -20,8 +20,8 @@ class BindingData : public BaseObject {
       stats_field_array(env->isolate(), kFsStatsBufferLength),
       stats_field_bigint_array(env->isolate(), kFsStatsBufferLength) {}
 
-  AliasedFloat64Array stats_field_array;
-  AliasedBigUint64Array stats_field_bigint_array;
+  OwningAliasedFloat64Array stats_field_array;
+  OwningAliasedBigUint64Array stats_field_bigint_array;
 
   std::vector<BaseObjectPtr<FileHandleReadWrap>>
       file_handle_read_wrap_freelist;

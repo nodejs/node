@@ -10,6 +10,8 @@
 #include "node_test_fixture.h"
 
 using node::AliasedBufferBase;
+using node::AliasedBufferViewBase;
+using node::OwningAliasedBufferBase;
 
 class AliasBufferTest : public NodeTestFixture {};
 
@@ -82,19 +84,13 @@ void ReadWriteTest(v8::Isolate* isolate) {
   v8::Context::Scope context_scope(context);
 
   const size_t size = 100;
-  AliasedBufferBase<NativeT, V8T> ab(isolate, size);
+  OwningAliasedBufferBase<NativeT, V8T> ab(isolate, size);
   std::vector<NativeT> oracle(size);
   CreateOracleValues(&oracle);
   WriteViaOperator(&ab, oracle);
   ReadAndValidate(isolate, context, &ab, oracle);
 
   WriteViaSetValue(&ab, oracle);
-
-  // validate copy constructor
-  {
-    AliasedBufferBase<NativeT, V8T> ab2(ab);
-    ReadAndValidate(isolate, context, &ab2, oracle);
-  }
   ReadAndValidate(isolate, context, &ab, oracle);
 }
 
@@ -116,12 +112,12 @@ void SharedBufferTest(
   size_t sizeInBytes_B = count_B * sizeof(NativeT_B);
   size_t sizeInBytes_C = count_C * sizeof(NativeT_C);
 
-  AliasedBufferBase<uint8_t, v8::Uint8Array> rootBuffer(
+  OwningAliasedBufferBase<uint8_t, v8::Uint8Array> rootBuffer(
       isolate, sizeInBytes_A + sizeInBytes_B + sizeInBytes_C);
-  AliasedBufferBase<NativeT_A, V8T_A> ab_A(isolate, 0, count_A, rootBuffer);
-  AliasedBufferBase<NativeT_B, V8T_B> ab_B(
+  AliasedBufferViewBase<NativeT_A, V8T_A> ab_A(isolate, 0, count_A, rootBuffer);
+  AliasedBufferViewBase<NativeT_B, V8T_B> ab_B(
       isolate, sizeInBytes_A, count_B, rootBuffer);
-  AliasedBufferBase<NativeT_C, V8T_C> ab_C(
+  AliasedBufferViewBase<NativeT_C, V8T_C> ab_C(
       isolate, sizeInBytes_A + sizeInBytes_B, count_C, rootBuffer);
 
   std::vector<NativeT_A> oracle_A(count_A);
@@ -214,7 +210,7 @@ TEST_F(AliasBufferTest, OperatorOverloads) {
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
   v8::Context::Scope context_scope(context);
   const size_t size = 10;
-  AliasedBufferBase<uint32_t, v8::Uint32Array> ab{isolate_, size};
+  OwningAliasedBufferBase<uint32_t, v8::Uint32Array> ab{isolate_, size};
 
   EXPECT_EQ(static_cast<uint32_t>(1), ab[0] = 1);
   EXPECT_EQ(static_cast<uint32_t>(4), ab[0] += 3);
@@ -227,8 +223,9 @@ TEST_F(AliasBufferTest, OperatorOverloadsRefs) {
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = v8::Context::New(isolate_);
   v8::Context::Scope context_scope(context);
-  AliasedBufferBase<uint32_t, v8::Uint32Array> ab{isolate_, 2};
-  using Reference = AliasedBufferBase<uint32_t, v8::Uint32Array>::Reference;
+  OwningAliasedBufferBase<uint32_t, v8::Uint32Array> ab{isolate_, 2};
+  using Reference =
+      OwningAliasedBufferBase<uint32_t, v8::Uint32Array>::Reference;
   Reference ref = ab[0];
   Reference ref_value = ab[1] = 2;
 

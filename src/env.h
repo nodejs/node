@@ -647,9 +647,9 @@ class AsyncHooks : public MemoryRetainer {
     kUidFieldsCount,
   };
 
-  inline AliasedUint32Array& fields();
-  inline AliasedFloat64Array& async_id_fields();
-  inline AliasedFloat64Array& async_ids_stack();
+  inline OwningAliasedUint32Array& fields();
+  inline OwningAliasedFloat64Array& async_id_fields();
+  inline OwningAliasedFloat64Array& async_ids_stack();
   inline v8::Local<v8::Array> execution_async_resources();
 
   inline v8::Local<v8::String> provider_string(int idx);
@@ -694,12 +694,12 @@ class AsyncHooks : public MemoryRetainer {
   friend class Environment;  // So we can call the constructor.
   inline AsyncHooks();
   // Stores the ids of the current execution context stack.
-  AliasedFloat64Array async_ids_stack_;
+  OwningAliasedFloat64Array async_ids_stack_;
   // Attached to a Uint32Array that tracks the number of active hooks for
   // each type.
-  AliasedUint32Array fields_;
+  OwningAliasedUint32Array fields_;
   // Attached to a Float64Array that tracks the state of async resources.
-  AliasedFloat64Array async_id_fields_;
+  OwningAliasedFloat64Array async_id_fields_;
 
   void grow_async_ids_stack();
 
@@ -708,7 +708,7 @@ class AsyncHooks : public MemoryRetainer {
 
 class ImmediateInfo : public MemoryRetainer {
  public:
-  inline AliasedUint32Array& fields();
+  inline OwningAliasedUint32Array& fields();
   inline uint32_t count() const;
   inline uint32_t ref_count() const;
   inline bool has_outstanding() const;
@@ -731,12 +731,12 @@ class ImmediateInfo : public MemoryRetainer {
 
   enum Fields { kCount, kRefCount, kHasOutstanding, kFieldsCount };
 
-  AliasedUint32Array fields_;
+  OwningAliasedUint32Array fields_;
 };
 
 class TickInfo : public MemoryRetainer {
  public:
-  inline AliasedUint8Array& fields();
+  inline OwningAliasedUint8Array& fields();
   inline bool has_tick_scheduled() const;
   inline bool has_rejection_to_warn() const;
 
@@ -756,7 +756,7 @@ class TickInfo : public MemoryRetainer {
 
   enum Fields { kHasTickScheduled = 0, kHasRejectionToWarn, kFieldsCount };
 
-  AliasedUint8Array fields_;
+  OwningAliasedUint8Array fields_;
 };
 
 class TrackingTraceStateObserver :
@@ -977,9 +977,9 @@ class Environment : public MemoryRetainer {
   // This is a pseudo-boolean that keeps track of whether an uncaught exception
   // should abort the process or not if --abort-on-uncaught-exception was
   // passed to Node. If the flag was not passed, it is ignored.
-  inline AliasedUint32Array& should_abort_on_uncaught_toggle();
+  inline OwningAliasedUint32Array& should_abort_on_uncaught_toggle();
 
-  inline AliasedInt32Array& stream_base_state();
+  inline OwningAliasedInt32Array& stream_base_state();
 
   // The necessary API for async_hooks.
   inline double new_async_id();
@@ -1315,12 +1315,12 @@ class Environment : public MemoryRetainer {
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
 
-  AliasedUint32Array should_abort_on_uncaught_toggle_;
+  OwningAliasedUint32Array should_abort_on_uncaught_toggle_;
   int should_not_abort_scope_counter_ = 0;
 
   std::unique_ptr<TrackingTraceStateObserver> trace_state_observer_;
 
-  AliasedInt32Array stream_base_state_;
+  OwningAliasedInt32Array stream_base_state_;
 
   std::unique_ptr<performance::PerformanceState> performance_state_;
   std::unordered_map<std::string, uint64_t> performance_marks_;

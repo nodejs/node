@@ -231,9 +231,11 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
   Environment* env = binding_data->env();
   if (value->StrictEquals(env->fs_use_promises_symbol())) {
     if (use_bigint) {
-      return FSReqPromise<AliasedBigUint64Array>::New(binding_data, use_bigint);
+      return FSReqPromise<OwningAliasedBigUint64Array>::New(binding_data,
+                                                            use_bigint);
     } else {
-      return FSReqPromise<AliasedFloat64Array>::New(binding_data, use_bigint);
+      return FSReqPromise<OwningAliasedFloat64Array>::New(binding_data,
+                                                          use_bigint);
     }
   }
   return nullptr;

@@ -49,7 +49,7 @@ namespace {
 const char zero_bytes_256[256] = {};
 
 bool HasHttp2Observer(Environment* env) {
-  AliasedUint32Array& observers = env->performance_state()->observers;
+  AliasedUint32ArrayView& observers = env->performance_state()->observers;
   return observers[performance::NODE_PERFORMANCE_ENTRY_TYPE_HTTP2] != 0;
 }
 
@@ -122,7 +122,7 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
     nghttp2_option_set_builtin_recv_extension_type(option, NGHTTP2_ORIGIN);
   }
 
-  AliasedUint32Array& buffer = http2_state->options_buffer;
+  AliasedUint32ArrayView& buffer = http2_state->options_buffer;
   uint32_t flags = buffer[IDX_OPTIONS_FLAGS];
 
   if (flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE)) {
@@ -208,7 +208,7 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
 size_t Http2Settings::Init(
     Http2State* http2_state,
     nghttp2_settings_entry* entries) {
-  AliasedUint32Array& buffer = http2_state->settings_buffer;
+  AliasedUint32ArrayView& buffer = http2_state->settings_buffer;
   uint32_t flags = buffer[IDX_SETTINGS_COUNT];
 
   size_t count = 0;
@@ -277,7 +277,7 @@ Local<Value> Http2Settings::Pack(
 // Updates the shared TypedArray with the current remote or local settings for
 // the session.
 void Http2Settings::Update(Http2Session* session, get_setting fn) {
-  AliasedUint32Array& buffer = session->http2_state()->settings_buffer;
+  AliasedUint32ArrayView& buffer = session->http2_state()->settings_buffer;
 
 #define V(name)                                                                \
   buffer[IDX_SETTINGS_ ## name] =                                              \
@@ -288,7 +288,7 @@ void Http2Settings::Update(Http2Session* session, get_setting fn) {
 
 // Initializes the shared TypedArray with the default settings values.
 void Http2Settings::RefreshDefaults(Http2State* http2_state) {
-  AliasedUint32Array& buffer = http2_state->settings_buffer;
+  AliasedUint32ArrayView& buffer = http2_state->settings_buffer;
   uint32_t flags = 0;
 
 #define V(name)                                                            \
@@ -546,7 +546,7 @@ void Http2Stream::EmitStatistics() {
     if (!HasHttp2Observer(env))
       return;
     HandleScope handle_scope(env->isolate());
-    AliasedFloat64Array& buffer = entry->http2_state()->stream_stats_buffer;
+    AliasedFloat64ArrayView& buffer = entry->http2_state()->stream_stats_buffer;
     buffer[IDX_STREAM_STATS_ID] = entry->id();
     if (entry->first_byte() != 0) {
       buffer[IDX_STREAM_STATS_TIMETOFIRSTBYTE] =
@@ -584,7 +584,8 @@ void Http2Session::EmitStatistics() {
     if (!HasHttp2Observer(env))
       return;
     HandleScope handle_scope(env->isolate());
-    AliasedFloat64Array& buffer = entry->http2_state()->session_stats_buffer;
+    AliasedFloat64ArrayView& buffer =
+        entry->http2_state()->session_stats_buffer;
     buffer[IDX_SESSION_STATS_TYPE] = entry->type();
     buffer[IDX_SESSION_STATS_PINGRTT] = entry->ping_rtt() / 1e6;
     buffer[IDX_SESSION_STATS_FRAMESRECEIVED] = entry->frame_count();
@@ -2396,7 +2397,8 @@ void Http2Session::RefreshState(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   Debug(session, "refreshing state");
 
-  AliasedFloat64Array& buffer = session->http2_state()->session_state_buffer;
+  AliasedFloat64ArrayView& buffer =
+      session->http2_state()->session_state_buffer;
 
   nghttp2_session* s = session->session();
 
@@ -2658,7 +2660,7 @@ void Http2Stream::RefreshState(const FunctionCallbackInfo<Value>& args) {
   Debug(stream, "refreshing state");
 
   CHECK_NOT_NULL(stream->session());
-  AliasedFloat64Array& buffer =
+  AliasedFloat64ArrayView& buffer =
       stream->session()->http2_state()->stream_state_buffer;
 
   nghttp2_stream* str = stream->stream();

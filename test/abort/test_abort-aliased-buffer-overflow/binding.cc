@@ -10,7 +10,7 @@ void AllocateAndResizeBuffer(
     v8::Isolate* isolate = args.GetIsolate();
     int64_t length = args[0].As<v8::BigInt>()->Int64Value();
 
-     node::AliasedBigUint64Array array{isolate, 0};
+    node::OwningAliasedBigUint64Array array{isolate, 0};
 
     array.reserve(length);
     assert(false);

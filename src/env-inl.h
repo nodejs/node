@@ -100,15 +100,15 @@ inline AsyncHooks::AsyncHooks()
   // context during bootstrap (code that runs before entering uv_run()).
   async_id_fields_[AsyncHooks::kAsyncIdCounter] = 1;
 }
-inline AliasedUint32Array& AsyncHooks::fields() {
+inline OwningAliasedUint32Array& AsyncHooks::fields() {
   return fields_;
 }
 
-inline AliasedFloat64Array& AsyncHooks::async_id_fields() {
+inline OwningAliasedFloat64Array& AsyncHooks::async_id_fields() {
   return async_id_fields_;
 }
 
-inline AliasedFloat64Array& AsyncHooks::async_ids_stack() {
+inline OwningAliasedFloat64Array& AsyncHooks::async_ids_stack() {
   return async_ids_stack_;
 }
 
@@ -241,7 +241,7 @@ inline void Environment::PopAsyncCallbackScope() {
 inline ImmediateInfo::ImmediateInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
-inline AliasedUint32Array& ImmediateInfo::fields() {
+inline OwningAliasedUint32Array& ImmediateInfo::fields() {
   return fields_;
 }
 
@@ -268,7 +268,7 @@ inline void ImmediateInfo::ref_count_dec(uint32_t decrement) {
 inline TickInfo::TickInfo(v8::Isolate* isolate)
     : fields_(isolate, kFieldsCount) {}
 
-inline AliasedUint8Array& TickInfo::fields() {
+inline OwningAliasedUint8Array& TickInfo::fields() {
   return fields_;
 }
 
@@ -507,11 +507,12 @@ inline void Environment::set_abort_on_uncaught_exception(bool value) {
   options_->abort_on_uncaught_exception = value;
 }
 
-inline AliasedUint32Array& Environment::should_abort_on_uncaught_toggle() {
+inline OwningAliasedUint32Array&
+Environment::should_abort_on_uncaught_toggle() {
   return should_abort_on_uncaught_toggle_;
 }
 
-inline AliasedInt32Array& Environment::stream_base_state() {
+inline OwningAliasedInt32Array& Environment::stream_base_state() {
   return stream_base_state_;
 }
 

@@ -96,9 +96,9 @@ class BindingData : public BaseObject {
         heap_code_statistics_buffer(env->isolate(),
                                     kHeapCodeStatisticsPropertiesCount) {}
 
-  AliasedFloat64Array heap_statistics_buffer;
-  AliasedFloat64Array heap_space_statistics_buffer;
-  AliasedFloat64Array heap_code_statistics_buffer;
+  OwningAliasedFloat64Array heap_statistics_buffer;
+  OwningAliasedFloat64Array heap_space_statistics_buffer;
+  OwningAliasedFloat64Array heap_code_statistics_buffer;
 
   void MemoryInfo(MemoryTracker* tracker) const override {
     tracker->TrackField("heap_statistics_buffer", heap_statistics_buffer);
@@ -124,7 +124,7 @@ void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Unwrap<BindingData>(args.Data());
   HeapStatistics s;
   args.GetIsolate()->GetHeapStatistics(&s);
-  AliasedFloat64Array& buffer = data->heap_statistics_buffer;
+  OwningAliasedFloat64Array& buffer = data->heap_statistics_buffer;
 #define V(index, name, _) buffer[index] = static_cast<double>(s.name());
   HEAP_STATISTICS_PROPERTIES(V)
 #undef V
@@ -139,7 +139,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   size_t space_index = static_cast<size_t>(args[0].As<v8::Uint32>()->Value());
   isolate->GetHeapSpaceStatistics(&s, space_index);
 
-  AliasedFloat64Array& buffer = data->heap_space_statistics_buffer;
+  OwningAliasedFloat64Array& buffer = data->heap_space_statistics_buffer;
 
 #define V(index, name, _) buffer[index] = static_cast<double>(s.name());
   HEAP_SPACE_STATISTICS_PROPERTIES(V)
@@ -150,7 +150,7 @@ void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   BindingData* data = Unwrap<BindingData>(args.Data());
   HeapCodeStatistics s;
   args.GetIsolate()->GetHeapCodeAndMetadataStatistics(&s);
-  AliasedFloat64Array& buffer = data->heap_code_statistics_buffer;
+  OwningAliasedFloat64Array& buffer = data->heap_code_statistics_buffer;
 
 #define V(index, name, _) buffer[index] = static_cast<double>(s.name());
   HEAP_CODE_STATISTICS_PROPERTIES(V)

@@ -116,7 +116,7 @@ void PerformanceEntry::Notify(Environment* env,
                               PerformanceEntryType type,
                               Local<Value> object) {
   Context::Scope scope(env->context());
-  AliasedUint32Array& observers = env->performance_state()->observers;
+  AliasedUint32ArrayView& observers = env->performance_state()->observers;
   if (type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
       observers[type]) {
     node::MakeCallback(env->isolate(),
@@ -173,7 +173,7 @@ void Measure(const FunctionCallbackInfo<Value>& args) {
   Utf8Value name(env->isolate(), args[0]);
   Utf8Value startMark(env->isolate(), args[1]);
 
-  AliasedFloat64Array& milestones = env->performance_state()->milestones;
+  AliasedFloat64ArrayView& milestones = env->performance_state()->milestones;
 
   uint64_t startTimestamp = timeOrigin;
   uint64_t start = GetPerformanceMark(env, *startMark);
@@ -239,7 +239,7 @@ void PerformanceGCCallback(Environment* env,
   HandleScope scope(env->isolate());
   Local<Context> context = env->context();
 
-  AliasedUint32Array& observers = env->performance_state()->observers;
+  AliasedUint32ArrayView& observers = env->performance_state()->observers;
   if (observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) {
     Local<Object> obj;
     if (!entry->ToObject().ToLocal(&obj)) return;
@@ -361,7 +361,7 @@ void TimerFunctionCall(const FunctionCallbackInfo<Value>& args) {
     return;
   args.GetReturnValue().Set(ret.ToLocalChecked());
 
-  AliasedUint32Array& observers = env->performance_state()->observers;
+  AliasedUint32ArrayView& observers = env->performance_state()->observers;
   if (!observers[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION])
     return;
 
@@ -392,7 +392,7 @@ void Notify(const FunctionCallbackInfo<Value>& args) {
   Utf8Value type(env->isolate(), args[0]);
   Local<Value> entry = args[1];
   PerformanceEntryType entry_type = ToPerformanceEntryTypeEnum(*type);
-  AliasedUint32Array& observers = env->performance_state()->observers;
+  AliasedUint32ArrayView& observers = env->performance_state()->observers;
   if (entry_type != NODE_PERFORMANCE_ENTRY_TYPE_INVALID &&
       observers[entry_type]) {
     USE(env->performance_entry_callback()->
