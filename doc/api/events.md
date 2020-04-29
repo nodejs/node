@@ -672,9 +672,7 @@ called multiple times to remove each instance.
 
 Once an event has been emitted, all listeners attached to it at the
 time of emitting will be called in order. This implies that any
-`removeListener()` or `removeAllListeners()` calls *after* emitting and
-*before* the last listener finishes execution will not remove them from
-`emit()` in progress. Subsequent events will behave as expected.
+`removeListener()` or `removeAllListeners()` will not remove listners from currently executing `emit()`'s list of listners, on subsequent calls to `emit()` the listeners marked for removal will not be called.
 
 ```js
 const myEmitter = new MyEmitter();
