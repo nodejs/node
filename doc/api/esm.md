@@ -195,9 +195,10 @@ environment, including whether the package is referenced via `require` or via
 from using any entry points that are not defined, including the `package.json`.
 This will likely be a breaking change. To make the introduction of `"exports"`
 non-breaking, ensure that every previously supported entry point is exported.
-It is best to explicitly specify entry points so that the package's public API is
-well-defined. As a last resort, package encapsulation can be disabled entirely by
-creating an export for the root of the package `"./": "./"` that will expose every file.
+It is best to explicitly specify entry points so that the package's public API
+is well-defined. As a last resort, package encapsulation can be disabled
+entirely by creating an export for the root of the package `"./": "./"` that
+will expose every file.
 
 If both `"exports"` and `"main"` are defined, the `"exports"` field takes
 precedence over `"main"`.
