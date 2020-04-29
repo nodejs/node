@@ -34,7 +34,7 @@ enum ContextEmbedderIndex {
   kSandboxObject = NODE_CONTEXT_SANDBOX_OBJECT_INDEX,
   kAllowWasmCodeGeneration = NODE_CONTEXT_ALLOW_WASM_CODE_GENERATION_INDEX,
   kContextTag = NODE_CONTEXT_TAG,
-  KBindingListIndex = NODE_BINDING_LIST_INDEX
+  kBindingListIndex = NODE_BINDING_LIST_INDEX
 };
 
 }  // namespace node

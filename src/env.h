@@ -419,10 +419,6 @@ constexpr size_t kFsStatsBufferLength =
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)
 
-#define ENVIRONMENT_CALLBACK_DATA(V)                                           \
-  V(default_callback_data, v8::Uint32)                                         \
-  V(current_callback_data, v8::Uint32)
-
 #define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                                \
   V(async_hooks_after_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                 \
@@ -826,28 +822,6 @@ class CleanupHookCallback {
   uint64_t insertion_order_counter_;
 };
 
-class BindingDataBase : public BaseObject {
- public:
-  // Exposed for subclasses
-  inline BindingDataBase(Environment* env, v8::Local<v8::Object> target);
-  // Unwrap a subclass T object from a v8::Value which needs to be an
-  // v8::Uint32
-  template <typename T, typename U>
-  static inline T* Unwrap(const v8::PropertyCallbackInfo<U>& info);
-  template <typename T>
-  static inline T* Unwrap(const v8::FunctionCallbackInfo<v8::Value>& info);
-
-  template <typename T>
-  static inline T* Unwrap(v8::Local<v8::Context> context,
-                          v8::Local<v8::Value> val);
-  // Create a BindingData of subclass T, put it into the context binding list,
-  // return the index as v8::Integer
-  template <typename T>
-  static inline v8::Local<v8::Uint32> New(Environment* env,
-                                          v8::Local<v8::Context> context,
-                                          v8::Local<v8::Object> target);
-};
-
 class Environment : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;
@@ -890,11 +864,10 @@ class Environment : public MemoryRetainer {
 
   // Methods created using SetMethod(), SetPrototypeMethod(), etc. inside
   // this scope can access the created T* object using
-  // Unwrap<T>(args.Data()) later.
+  // GetBindingData<T>(args.Data()) later.
   template <typename T>
   struct BindingScope {
-    explicit inline BindingScope(Environment* env,
-                                 v8::Local<v8::Context> context,
+    explicit inline BindingScope(v8::Local<v8::Context> context,
                                  v8::Local<v8::Object> target);
     inline ~BindingScope();
 
@@ -904,6 +877,25 @@ class Environment : public MemoryRetainer {
     inline operator bool() const { return data != nullptr; }
     inline bool operator !() const { return data == nullptr; }
   };
+
+  template <typename T, typename U>
+  static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
+  template <typename T>
+  static inline T* GetBindingData(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+
+  // Unwrap a subclass T object from a v8::Value which needs to be an
+  // v8::Uint32
+  template <typename T>
+  static inline T* GetBindingData(v8::Local<v8::Context> context,
+                                  v8::Local<v8::Value> val);
+  // Create a BindingData of subclass T, put it into the context binding list,
+  // return the index as an integer
+  template <typename T>
+  inline std::pair<T*, uint32_t> NewBindingData(v8::Local<v8::Context> context,
+                                                v8::Local<v8::Object> target);
+
+  typedef std::vector<BaseObjectPtr<BaseObject>> BindingDataList;
 
   static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();
@@ -1149,12 +1141,13 @@ class Environment : public MemoryRetainer {
 #define V(PropertyName, TypeName)                                             \
   inline v8::Local<TypeName> PropertyName() const;                            \
   inline void set_ ## PropertyName(v8::Local<TypeName> value);
-  ENVIRONMENT_CALLBACK_DATA(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
 
   inline v8::Local<v8::Context> context() const;
+  inline v8::Local<v8::Value> as_callback_data() const;
+  inline v8::Local<v8::Value> current_callback_data() const;
 
 #if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() const {
@@ -1450,7 +1443,7 @@ class Environment : public MemoryRetainer {
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
 
-  std::vector<BindingDataBase*> bindings_;
+  BindingDataList bindings_;
 
   // Use an unordered_set, so that we have efficient insertion and removal.
   std::unordered_set<CleanupHookCallback,
@@ -1470,12 +1463,14 @@ class Environment : public MemoryRetainer {
   void ForEachBaseObject(T&& iterator);
 
 #define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName ## _;
-  ENVIRONMENT_CALLBACK_DATA(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
 #undef V
 
   v8::Global<v8::Context> context_;
+
+  uint32_t default_callback_data_;
+  uint32_t current_callback_data_;
 
   // Keeps the main script source alive is one was passed to LoadEnvironment().
   // We should probably find a way to just use plain `v8::String`s created from

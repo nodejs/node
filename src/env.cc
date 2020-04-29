@@ -50,7 +50,6 @@ using v8::String;
 using v8::Symbol;
 using v8::TracingController;
 using v8::TryCatch;
-using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 using worker::Worker;
@@ -262,10 +261,10 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
 }
 
-class NoBindingData : public BindingDataBase {
+class NoBindingData : public BaseObject {
  public:
   NoBindingData(Environment* env, Local<Object> obj)
-      : BindingDataBase(env, obj) {}
+      : BaseObject(env, obj) {}
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(NoBindingData)
@@ -285,9 +284,9 @@ void Environment::CreateProperties() {
     set_binding_data_ctor_template(templ);
     Local<Function> ctor = templ->GetFunction(ctx).ToLocalChecked();
     Local<Object> obj = ctor->NewInstance(ctx).ToLocalChecked();
-    Local<Uint32> index = BindingDataBase::New<NoBindingData>(this, ctx, obj);
-    set_default_callback_data(index);
-    set_current_callback_data(index);
+    uint32_t index = NewBindingData<NoBindingData>(ctx, obj).second;
+    default_callback_data_ = index;
+    current_callback_data_ = index;
   }
 
   // Store primordials setup by the per-context script in the environment.
@@ -678,6 +677,8 @@ void Environment::RunCleanup() {
   started_cleanup_ = true;
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunCleanup", this);
+  bindings_.clear();
+  initial_base_object_count_ = 0;
   CleanupHandles();
 
   while (!cleanup_hooks_.empty()) {
@@ -1137,7 +1138,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
 #define V(PropertyName, TypeName)                                              \
   tracker->TrackField(#PropertyName, PropertyName());
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_CALLBACK_DATA(V)
 #undef V
 
   // FIXME(joyeecheung): track other fields in Environment.

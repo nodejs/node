@@ -86,10 +86,10 @@ static const size_t kHeapCodeStatisticsPropertiesCount =
     HEAP_CODE_STATISTICS_PROPERTIES(V);
 #undef V
 
-class BindingData : public BindingDataBase {
+class BindingData : public BaseObject {
  public:
   BindingData(Environment* env, Local<Object> obj)
-      : BindingDataBase(env, obj),
+      : BaseObject(env, obj),
         heap_statistics_buffer(env->isolate(), kHeapStatisticsPropertiesCount),
         heap_space_statistics_buffer(env->isolate(),
                                      kHeapSpaceStatisticsPropertiesCount),
@@ -121,7 +121,7 @@ void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = BindingDataBase::Unwrap<BindingData>(args);
+  BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapStatistics s;
   args.GetIsolate()->GetHeapStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_statistics_buffer;
@@ -132,7 +132,7 @@ void UpdateHeapStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 
 
 void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = BindingDataBase::Unwrap<BindingData>(args);
+  BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapSpaceStatistics s;
   Isolate* const isolate = args.GetIsolate();
   CHECK(args[0]->IsUint32());
@@ -147,7 +147,7 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
 }
 
 void UpdateHeapCodeStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
-  BindingData* data = BindingDataBase::Unwrap<BindingData>(args);
+  BindingData* data = Environment::GetBindingData<BindingData>(args);
   HeapCodeStatistics s;
   args.GetIsolate()->GetHeapCodeAndMetadataStatistics(&s);
   AliasedFloat64Array& buffer = data->heap_code_statistics_buffer;
@@ -170,7 +170,7 @@ void Initialize(Local<Object> target,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Environment::BindingScope<BindingData> binding_scope(env, context, target);
+  Environment::BindingScope<BindingData> binding_scope(context, target);
   if (!binding_scope) return;
   BindingData* binding_data = binding_scope.data;
 

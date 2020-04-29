@@ -289,7 +289,7 @@ inline void Environment::AssignToContext(v8::Local<v8::Context> context,
     ContextEmbedderIndex::kContextTag, Environment::kNodeContextTagPtr);
   // Used to retrieve bindings
   context->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::KBindingListIndex, &(this->bindings_));
+      ContextEmbedderIndex::kBindingListIndex, &(this->bindings_));
 
 #if HAVE_INSPECTOR
   inspector_agent()->ContextCreated(context, info);
@@ -322,74 +322,69 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
 
 inline Environment* Environment::GetCurrent(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  return BindingDataBase::Unwrap<BindingDataBase>(info)->env();
+  return GetCurrent(info.GetIsolate()->GetCurrentContext());
 }
 
 template <typename T>
 inline Environment* Environment::GetCurrent(
     const v8::PropertyCallbackInfo<T>& info) {
-  return BindingDataBase::Unwrap<BindingDataBase>(info)->env();
+  return GetCurrent(info.GetIsolate()->GetCurrentContext());
 }
-
-inline BindingDataBase::BindingDataBase(Environment* env,
-                                        v8::Local<v8::Object> target)
-    : BaseObject(env, target) {}
 
 template <typename T, typename U>
-inline T* BindingDataBase::Unwrap(const v8::PropertyCallbackInfo<U>& info) {
-  return Unwrap<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
+inline T* Environment::GetBindingData(const v8::PropertyCallbackInfo<U>& info) {
+  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
 }
 
 template <typename T>
-inline T* BindingDataBase::Unwrap(
+inline T* Environment::GetBindingData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  return Unwrap<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
+  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
 }
 
 template <typename T>
-inline T* BindingDataBase::Unwrap(v8::Local<v8::Context> context,
-                                  v8::Local<v8::Value> val) {
-  CHECK(val->IsUint32());
+inline T* Environment::GetBindingData(v8::Local<v8::Context> context,
+                                      v8::Local<v8::Value> val) {
+  DCHECK(val->IsUint32());
   uint32_t index = val.As<v8::Uint32>()->Value();
-  std::vector<BindingDataBase*>* list =
-      static_cast<std::vector<BindingDataBase*>*>(
-          context->GetAlignedPointerFromEmbedderData(
-              ContextEmbedderIndex::KBindingListIndex));
-  CHECK_GT(list->size(), index);
-  T* result = static_cast<T*>(list->at(index));
+  BindingDataList* list = static_cast<BindingDataList*>(
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kBindingListIndex));
+  DCHECK_NOT_NULL(list);
+  DCHECK_GT(list->size(), index);
+  T* result = static_cast<T*>(list->at(index).get());
+  DCHECK_NOT_NULL(result);
+  DCHECK_EQ(result->env(), GetCurrent(context));
   return result;
 }
 
 template <typename T>
-inline v8::Local<v8::Uint32> BindingDataBase::New(
-    Environment* env,
+inline std::pair<T*, uint32_t> Environment::NewBindingData(
     v8::Local<v8::Context> context,
     v8::Local<v8::Object> target) {
-  T* data = new T(env, target);
-  // This won't compile if T is not a BindingDataBase subclass.
-  BindingDataBase* item = static_cast<BindingDataBase*>(data);
-  std::vector<BindingDataBase*>* list =
-      static_cast<std::vector<BindingDataBase*>*>(
-          context->GetAlignedPointerFromEmbedderData(
-              ContextEmbedderIndex::KBindingListIndex));
+  DCHECK_EQ(GetCurrent(context), this);
+  // This won't compile if T is not a BaseObject subclass.
+  BaseObjectPtr<T> item = MakeDetachedBaseObject<T>(this, target);
+  BindingDataList* list = static_cast<BindingDataList*>(
+      context->GetAlignedPointerFromEmbedderData(
+          ContextEmbedderIndex::kBindingListIndex));
+  DCHECK_NOT_NULL(list);
   size_t index = list->size();
-  list->push_back(item);
-  return v8::Integer::NewFromUnsigned(env->isolate(), index).As<v8::Uint32>();
+  list->emplace_back(item);
+  return std::make_pair(item.get(), index);
 }
 
 template <typename T>
-Environment::BindingScope<T>::BindingScope(Environment* env,
-                                           v8::Local<v8::Context> context,
+Environment::BindingScope<T>::BindingScope(v8::Local<v8::Context> context,
                                            v8::Local<v8::Object> target)
-    : env(env) {
-  v8::Local<v8::Uint32> index = BindingDataBase::New<T>(env, context, target);
-  data = BindingDataBase::Unwrap<T>(context, index);
-  env->set_current_callback_data(index);
+    : env(Environment::GetCurrent(context)) {
+  std::tie(data, env->current_callback_data_) =
+      env->NewBindingData<T>(context, target);
 }
 
 template <typename T>
 Environment::BindingScope<T>::~BindingScope() {
-  env->set_current_callback_data(env->default_callback_data());
+  env->current_callback_data_ = env->default_callback_data_;
 }
 
 inline Environment* Environment::GetThreadLocalEnv() {
@@ -1299,12 +1294,20 @@ void Environment::set_process_exit_handler(
   }
   ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
-  ENVIRONMENT_CALLBACK_DATA(V)
 #undef V
 
-  inline v8::Local<v8::Context> Environment::context() const {
-    return PersistentToLocal::Strong(context_);
-  }
+v8::Local<v8::Context> Environment::context() const {
+  return PersistentToLocal::Strong(context_);
+}
+
+v8::Local<v8::Value> Environment::as_callback_data() const {
+  return v8::Integer::NewFromUnsigned(isolate(), default_callback_data_);
+}
+
+v8::Local<v8::Value> Environment::current_callback_data() const {
+  return v8::Integer::NewFromUnsigned(isolate(), current_callback_data_);
+}
+
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this
