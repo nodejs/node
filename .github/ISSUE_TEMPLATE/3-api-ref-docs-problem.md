@@ -34,34 +34,16 @@ Subsystem: if known, please specify affected core module name
 
 ## Location
 
-_Section of the site where the content exists (or should)_
+_Section of the site where the content exists_
 
 Affected URL(s):
 - https://nodejs.org/api/✍️
 
-## Reproduction procedure
+## Problem description
 
-_Steps to reproduce the problem_
+_Concise explanation of what you found to be problematic_
 
-✍️
-
-## Expected behavior/code
-
-_What your expectation was_
-
-✍️
-
-## Actual behavior/code
-
-_What you found to be problematic_
-
-✍️
-
-## Additional information
-
-_Anything else (e.g., screenshots, etc.) that may help solve the problem_
-
-<!-- Enter “n/a” if enough detail exists elsewhere in this template. -->
+<!-- If applicable, include any screenshots that may help solve the problem. -->
 
 ✍️
 
