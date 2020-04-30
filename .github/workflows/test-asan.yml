@@ -1,6 +1,12 @@
 name: test-asan
 
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+    - 'doc/**'
+  pull_request:
+    paths-ignore:
+    - 'doc/**'
 
 env:
   PYTHON_VERSION: 3.8
@@ -24,5 +30,5 @@ jobs:
         run: npx envinfo
       - name: Build
         run: make build-ci -j2 V=1
-      - name: Test cctest
-        run: make cctest -j2 V=1
+      - name: Test
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p dots"
