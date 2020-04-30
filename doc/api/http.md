@@ -333,9 +333,8 @@ Until the data is consumed, the `'end'` event will not fire. Also, until
 the data is read it will consume memory that can eventually lead to a
 'process out of memory' error.
 
-Unlike the `request` object, if the response closes prematurely, the
-`response` object does not emit an `'error'` event but instead emits the
-`'aborted'` event.
+For backward compatibility, `res` will only emit `'error'` if there is an
+`'error'` listener registered.
 
 Node.js does not check whether Content-Length and the length of the
 body which has been transmitted are equal or not.
@@ -2417,6 +2416,8 @@ the following events will be emitted in the following order:
   * `'data'` any number of times, on the `res` object
 * (connection closed here)
 * `'aborted'` on the `res` object
+* `'error'` on the `res` object with an error with message
+  `'Error: aborted'` and code `'ECONNRESET'`.
 * `'close'`
 * `'close'` on the `res` object
 
@@ -2445,6 +2446,8 @@ events will be emitted in the following order:
   * `'data'` any number of times, on the `res` object
 * (`req.destroy()` called here)
 * `'aborted'` on the `res` object
+* `'error'` on the `res` object with an error with message
+  `'Error: aborted'` and code `'ECONNRESET'`.
 * `'close'`
 * `'close'` on the `res` object
 
@@ -2474,6 +2477,8 @@ events will be emitted in the following order:
 * (`req.abort()` called here)
 * `'abort'`
 * `'aborted'` on the `res` object
+* `'error'` on the `res` object with an error with message
+  `'Error: aborted'` and code `'ECONNRESET'`.
 * `'close'`
 * `'close'` on the `res` object
 
