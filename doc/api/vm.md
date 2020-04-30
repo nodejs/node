@@ -304,7 +304,7 @@ added: v13.10.0
 > Stability: 1 - Experimental
 
 Measure the memory known to V8 and used by all contexts known to the
-current v8 isolate, or the main context.
+current V8 isolate, or the main context.
 
 * `options` {Object} Optional.
   * `mode` {string} Either `'summary'` or `'detailed'`. In summary mode,
@@ -327,7 +327,7 @@ specific to the V8 engine and may change from one version of V8 to the next.
 The returned result is different from the statistics returned by
 `v8.getHeapSpaceStatistics()` in that `vm.measureMemory()` measure the
 memory reachable by each V8 specific contexts in the current instance of
-the v8 engine, while the result of `v8.getHeapSpaceStatistics()` measure
+the V8 engine, while the result of `v8.getHeapSpaceStatistics()` measure
 the memory occupied by each heap space in the current V8 instance.
 
 ```js
