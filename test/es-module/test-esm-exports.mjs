@@ -81,10 +81,8 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     ['pkgexports/belowfile', './belowfile'],
     // Invalid targets
     ['pkgexports/invalid2', './invalid2'],
+    // Empty string is invalid
     ['pkgexports/invalid3', './invalid3'],
-    ['pkgexports/invalid5', 'invalid5'],
-    // Missing / invalid fallbacks
-    ['pkgexports/nofallback2', './nofallback2'],
     // Reaching into nested node_modules
     ['pkgexports/nodemodules', './nodemodules'],
     // Self resolve invalid
@@ -135,7 +133,10 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   const notFoundExports = new Map([
     // Non-existing file
+    ['pkgexports/invalid5', 'pkgexports/invalid5'],
     ['pkgexports/sub/not-a-file.js', 'pkgexports/sub/not-a-file.js'],
+    // Fallback builtin
+    ['pkgexports/nofallback2', 'pkgexports/nofallback2'],
     // No extension lookups
     ['pkgexports/no-ext', 'pkgexports/no-ext'],
   ]);

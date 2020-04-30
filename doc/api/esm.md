@@ -1629,8 +1629,8 @@ The resolver can throw the following errors:
 **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _env_)
 
 > 1. If _target_ is a String, then
->    1. If _target_ does not start with _"./"_ or contains any _"node_modules"_
->       segments including _"node_modules"_ percent-encoding, throw an
+>    1. If _target_ is an empty string or contains any _"node_modules"_ segments
+>       including _"node_modules"_ percent-encoding, throw an
 >       _Invalid Package Target_ error.
 >    1. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
