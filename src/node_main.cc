@@ -27,13 +27,19 @@
 #include <VersionHelpers.h>
 #include <WinError.h>
 
+#define SKIP_CHECK_VAR "NODE_SKIP_PLATFORM_CHECK"
+
 int wmain(int argc, wchar_t* wargv[]) {
   // Windows Server 2012 (not R2) is supported until 10/10/2023, so we allow it
   // to run in the experimental support tier.
   if (!IsWindows8Point1OrGreater() &&
-      !(IsWindowsServer() && IsWindows8OrGreater())) {
+      !(IsWindowsServer() && IsWindows8OrGreater()) &&
+      GetEnvironmentVariableA(SKIP_CHECK_VAR, nullptr, 0) == 0) {
     fprintf(stderr, "This application is only supported on Windows 8.1, "
-                    "Windows Server 2012 R2, or higher.");
+                    "Windows Server 2012 R2, or higher.\n"
+                    "If the environment varaible " SKIP_CHECK_VAR
+                    " is defined this check is skipped, but Node.js might "
+                    "not execute correctly.");
     exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
   }
 
