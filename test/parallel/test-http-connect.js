@@ -62,7 +62,10 @@ server.listen(0, common.mustCall(() => {
     assert.strictEqual(socket._httpMessage, req);
   }));
 
-  req.on('close', common.mustCall());
+  assert.strictEqual(req.destroyed, false);
+  req.on('close', common.mustCall(() => {
+    assert.strictEqual(req.destroyed, true);
+  }));
 
   req.on('connect', common.mustCall((res, socket, firstBodyChunk) => {
     // Make sure this request got removed from the pool.
