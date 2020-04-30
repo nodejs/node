@@ -21,6 +21,7 @@
 
 'use strict';
 const common = require('../common');
+const assert = require('assert');
 const http = require('http');
 
 let serverRes;
@@ -41,6 +42,9 @@ server.listen(0, common.mustCall(() => {
     res.resume();
     res.on('end', common.mustNotCall());
     res.on('aborted', common.mustCall());
+    res.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ECONNRESET');
+    }));
     res.on('close', common.mustCall());
     res.socket.on('close', common.mustCall());
   }));

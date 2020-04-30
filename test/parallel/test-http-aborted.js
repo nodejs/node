@@ -25,6 +25,9 @@ const assert = require('assert');
       res.on('aborted', common.mustCall(() => {
         assert.strictEqual(res.aborted, true);
       }));
+      res.on('error', common.mustCall((err) => {
+        assert.strictEqual(err.code, 'ECONNRESET');
+      }));
       req.abort();
     }));
   }));
@@ -36,6 +39,7 @@ const assert = require('assert');
   const server = http.createServer(common.mustCall(function(req, res) {
     req.on('aborted', common.mustCall(function() {
       assert.strictEqual(this.aborted, true);
+      server.close();
     }));
     assert.strictEqual(req.aborted, false);
     res.write('hello');
