@@ -112,6 +112,8 @@ const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isOSX = process.platform === 'darwin';
 
+const isDumbTerminal = process.env.TERM === 'dumb';
+
 const rootDir = isWindows ? 'c:\\' : '/';
 
 const buildType = process.config.target_defaults ?
@@ -653,6 +655,12 @@ function invalidArgTypeHelper(input) {
   return ` Received type ${typeof input} (${inspected})`;
 }
 
+function skipIfDumbTerminal() {
+  if (isDumbTerminal) {
+    skip('skipping - dumb terminal');
+  }
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -672,6 +680,7 @@ const common = {
   invalidArgTypeHelper,
   isAIX,
   isAlive,
+  isDumbTerminal,
   isFreeBSD,
   isLinux,
   isMainThread,
@@ -692,6 +701,7 @@ const common = {
   runWithInvalidFD,
   skip,
   skipIf32Bits,
+  skipIfDumbTerminal,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
   skipIfWorker,

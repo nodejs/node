@@ -7,6 +7,7 @@ const { Stream } = require('stream');
 const { inspect } = require('util');
 
 common.skipIfInspectorDisabled();
+common.skipIfDumbTerminal();
 
 const PROMPT = 'repl > ';
 

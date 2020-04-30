@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const stdoutWrite = process.stdout.write;
@@ -18,5 +18,7 @@ function doTest(isTTY, check) {
 }
 
 // Fake TTY
-doTest(true, check);
+if (!common.isDumbTerminal) {
+  doTest(true, check);
+}
 doTest(false, '');

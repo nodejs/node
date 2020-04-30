@@ -8,6 +8,8 @@ const assert = require('assert');
 const EventEmitter = require('events').EventEmitter;
 const { getStringWidth } = require('internal/util/inspect');
 
+common.skipIfDumbTerminal();
+
 // This test verifies that the tab completion supports unicode and the writes
 // are limited to the minimum.
 [
