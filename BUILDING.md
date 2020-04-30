@@ -249,6 +249,8 @@ Installation via Linux package manager can be achieved with:
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
+Python 3 users may also need to install `python3-distutils`.
+
 #### macOS prerequisites
 
 * Xcode Command Line Tools >= 10 for macOS
