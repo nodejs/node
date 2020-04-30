@@ -1366,6 +1366,15 @@ added:
 Path to a Node.js module which will be loaded in place of the built-in REPL.
 Overriding this value to an empty string (`''`) will use the built-in REPL.
 
+### `NODE_SKIP_PLATFORM_CHECK=value`
+<!-- YAML
+added: REPLACEME
+-->
+
+If `value` equals `'1'`, the check for a supported platform is skipped during
+Node.js startup. Node.js might not execute correctly. Any issues encountered
+on unsupported platforms will not be fixed.
+
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
 If `value` equals `'0'`, certificate validation is disabled for TLS connections.
