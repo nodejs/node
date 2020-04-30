@@ -344,8 +344,8 @@ added: v11.4.0
 
 Chooses an HTTP parser library. Available values are:
 
-* `llhttp` for https://llhttp.org/
-* `legacy` for https://github.com/nodejs/http-parser
+* `llhttp` for <https://llhttp.org/>
+* `legacy` for <https://github.com/nodejs/http-parser>
 
 The default is `llhttp`, unless otherwise specified when building Node.js.
 

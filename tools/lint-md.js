@@ -40955,7 +40955,7 @@ const dependencies$1 = {
 	"markdown-extensions": "^1.1.1",
 	remark: "^11.0.2",
 	"remark-lint": "^6.0.5",
-	"remark-preset-lint-node": "^1.14.0",
+	"remark-preset-lint-node": "^1.15.0",
 	"unified-args": "^7.1.0"
 };
 const main = "dist/index.js";
@@ -52498,6 +52498,7 @@ var plugins$2 = [
       { yes: "JavaScript" },
       { no: "Node", yes: "Node.js" },
       { yes: "Node.js" },
+      { no: "Node[Jj][Ss]", yes: "Node.js" },
       { no: "Node\\.js's?", yes: "the Node.js" },
       { no: "[Nn]ote that", yes: "<nothing>" },
       { yes: "RFC" },

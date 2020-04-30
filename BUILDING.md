@@ -226,7 +226,7 @@ The Node.js project uses Python as part of its build process and has
 historically only been Python 2 compatible.
 
 Python 2 will reach its _end-of-life_ at the end of 2019 at which point the
-interpreter will cease receiving updates. See https://python3statement.org/
+interpreter will cease receiving updates. See <https://python3statement.org/>
 for more information.
 
 The Node.js project is in the process of transitioning its Python code to
