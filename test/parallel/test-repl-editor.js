@@ -1,9 +1,11 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 const ArrayStream = require('../common/arraystream');
+
+common.skipIfDumbTerminal();
 
 // \u001b[nG - Moves the cursor to n st column
 // \u001b[0J - Clear screen
