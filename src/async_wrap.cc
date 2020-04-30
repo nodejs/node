@@ -213,9 +213,9 @@ class PromiseWrap : public AsyncWrap {
   static PromiseWrap* New(Environment* env,
                           Local<Promise> promise,
                           bool silent);
-  static void getAsyncId(Local<Name> property,
+  static void GetAsyncId(Local<Name> property,
                          const PropertyCallbackInfo<Value>& args);
-  static void getTriggerAsyncId(Local<Name> property,
+  static void GetTriggerAsyncId(Local<Name> property,
                                 const PropertyCallbackInfo<Value>& args);
 
   static void Initialize(Environment* env);
@@ -255,7 +255,7 @@ PromiseWrap* PromiseWrap::New(Environment* env,
   return new PromiseWrap(env, obj, silent);
 }
 
-void PromiseWrap::getAsyncId(Local<Name> property,
+void PromiseWrap::GetAsyncId(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
@@ -266,7 +266,7 @@ void PromiseWrap::getAsyncId(Local<Name> property,
   info.GetReturnValue().Set(Number::New(isolate, value));
 }
 
-void PromiseWrap::getTriggerAsyncId(Local<Name> property,
+void PromiseWrap::GetTriggerAsyncId(Local<Name> property,
                                     const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
@@ -292,11 +292,11 @@ void PromiseWrap::Initialize(Environment* env) {
 
   promise_wrap_template->SetAccessor(
       env->async_id_symbol(),
-      PromiseWrap::getAsyncId);
+      PromiseWrap::GetAsyncId);
 
   promise_wrap_template->SetAccessor(
       env->trigger_async_id_symbol(),
-      PromiseWrap::getTriggerAsyncId);
+      PromiseWrap::GetTriggerAsyncId);
 }
 
 static PromiseWrap* extractPromiseWrap(Local<Promise> promise) {
