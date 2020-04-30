@@ -1,17 +1,12 @@
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
-import { strictEqual } from 'assert';
+import { strictEqual, AssertionError } from 'assert';
 
 const require = createRequire(fileURLToPath(import.meta.url));
-
-const expectValue =
-    process.env.NODE_ENV === 'development' ? 'development' : 'production';
-
-strictEqual(require('pkgexports-dev'), expectValue);
+const requireVal = require('pkgexports-dev');
 
 (async () => {
-  const { default: value } = await import('pkgexports-dev');
-  strictEqual(value, expectValue);
-
-  console.log(expectValue);
+  const { default: importVal } = await import('pkgexports-dev');
+  strictEqual(requireVal, importVal);
+  console.log(importVal);
 })();

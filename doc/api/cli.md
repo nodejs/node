@@ -134,8 +134,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Enables the `"development"` [conditional export][] in package resolution,
-while also setting `process.env.NODE_ENV` to `"development"`.
+Enables the `"development"` [conditional export][] in package resolution.
 
 ### `--disable-proto=mode`
 <!--YAML
