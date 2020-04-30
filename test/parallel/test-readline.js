@@ -4,6 +4,8 @@ const { PassThrough } = require('stream');
 const readline = require('readline');
 const assert = require('assert');
 
+common.skipIfDumbTerminal();
+
 {
   const input = new PassThrough();
   const rl = readline.createInterface({

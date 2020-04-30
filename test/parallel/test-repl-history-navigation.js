@@ -10,6 +10,8 @@ const fs = require('fs');
 const path = require('path');
 const { inspect } = require('util');
 
+common.skipIfDumbTerminal();
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 

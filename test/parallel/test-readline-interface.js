@@ -22,6 +22,7 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
+common.skipIfDumbTerminal();
 
 const assert = require('assert');
 const readline = require('readline');
