@@ -221,7 +221,6 @@ PromiseWrap* PromiseWrap::New(Environment* env,
                               Local<Promise> promise,
                               bool silent) {
   Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
 
   Local<Object> obj;
   if (!env->promise_wrap_template()->NewInstance(context).ToLocal(&obj))
