@@ -191,10 +191,6 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
 
 class PromiseWrap : public AsyncWrap {
  public:
-  enum InternalFields {
-    kIsChainedPromiseField = AsyncWrap::kInternalFieldCount,
-    kInternalFieldCount
-  };
   PromiseWrap(Environment* env, Local<Object> object, bool silent)
       : AsyncWrap(env, object, PROVIDER_PROMISE, kInvalidAsyncId, silent) {
     MakeWeak();
