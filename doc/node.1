@@ -565,6 +565,13 @@ The default path is
 which is overridden by this variable.
 Setting the value to an empty string ("" or " ") will disable persistent REPL history.
 .
+.It Ev NODE_SKIP_PLATFORM_CHECK
+When set to
+.Ar 1 ,
+the check for a supported platform is skipped during Node.js startup.
+Node.js might not execute correctly.
+Any issues encountered on unsupported platforms will not be fixed.
+.
 .It Ev NODE_TLS_REJECT_UNAUTHORIZED
 When set to
 .Ar 0 ,
