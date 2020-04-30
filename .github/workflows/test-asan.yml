@@ -4,7 +4,7 @@ on:
   push:
     paths-ignore:
     - 'doc/**'
-  pull-request:
+  pull_request:
     paths-ignore:
     - 'doc/**'
 
