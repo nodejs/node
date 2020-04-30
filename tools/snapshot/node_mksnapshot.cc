@@ -33,12 +33,18 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+// Windows needs conversion from wchar_t to char. See node_main.cc
+#ifdef _WIN32
   int node_argc = 1;
   char argv0[] = "node";
   char* node_argv[] = {argv0, nullptr};
-
   node::InitializationResult result =
       node::InitializeOncePerProcess(node_argc, node_argv);
+#else
+  node::InitializationResult result =
+      node::InitializeOncePerProcess(argc, argv);
+#endif
+
   CHECK(!result.early_return);
   CHECK_EQ(result.exit_code, 0);
 
