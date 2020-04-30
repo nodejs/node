@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { inspect } = require('util');
 
+common.skipIfDumbTerminal();
 common.allowGlobals('aaaa');
 
 const tmpdir = require('../common/tmpdir');

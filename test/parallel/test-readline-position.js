@@ -1,12 +1,14 @@
 // Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
 const { internalBinding } = require('internal/test/binding');
 const { PassThrough } = require('stream');
 const readline = require('readline');
 const assert = require('assert');
 
 const ctrlU = { ctrl: true, name: 'u' };
+
+common.skipIfDumbTerminal();
 
 {
   const input = new PassThrough();

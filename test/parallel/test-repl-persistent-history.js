@@ -12,6 +12,8 @@ const path = require('path');
 const os = require('os');
 const util = require('util');
 
+common.skipIfDumbTerminal();
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 

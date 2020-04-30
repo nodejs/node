@@ -223,6 +223,10 @@ Platform check for Advanced Interactive eXecutive (AIX).
 
 Attempts to 'kill' `pid`
 
+### `isDumbTerminal`
+
+* [&lt;boolean>][]
+
 ### `isFreeBSD`
 
 * [&lt;boolean>][]
@@ -384,6 +388,10 @@ will not be run.
 * `msg` [&lt;string>][]
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
+
+### `skipIfDumbTerminal()`
+
+Skip the rest of the tests if the current terminal is a dumb terminal
 
 ### `skipIfEslintMissing()`
 
