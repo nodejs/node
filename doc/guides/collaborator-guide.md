@@ -109,8 +109,8 @@ review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 If you are the first Collaborator to approve a pull request that has no CI yet,
-please [start one](#testing-and-ci). Please also start a new CI if the pull request
-creator pushed new code since the last CI run.
+please [start one](#testing-and-ci). Please also start a new CI if the
+pull request creator pushed new code since the last CI run.
 
 ### Consensus Seeking
 
@@ -582,7 +582,8 @@ for that commit. This is an opportunity to fix commit messages.
     background.
   * Required: A `Reviewed-By: Name <email>` line for each Collaborator who
     reviewed the change.
-    * Useful for @mentions / contact list if something goes wrong in the pull request.
+    * Useful for @mentions / contact list if something goes wrong in the
+      pull request.
     * Protects against the assumption that GitHub will be around forever.
 
 Other changes may have landed on master since the successful CI run. As a
@@ -597,12 +598,13 @@ $ git rev-list upstream/master...HEAD | xargs core-validate-commit
 
 Optional: For your own commits, force push the amended commit to the pull
 request branch. If your branch name is `bugfix`, then: `git push
---force-with-lease origin master:bugfix`. Don't close the pull request. It will close
-after you push it upstream. It will have the purple merged status rather than
-the red closed status. If you close the pull request before GitHub adjusts its
-status, it will show up as a 0 commit pull request with no changed files.
-The order of operations is important. If you push upstream before you push to
-your branch, GitHub will close the issue with the red closed status.
+--force-with-lease origin master:bugfix`. Don't close the pull request.
+It will close after you push it upstream. It will have the purple merged
+status rather than the red closed status. If you close the pull request
+before GitHub adjusts its status, it will show up as a 0 commit pull
+request with no changed files. The order of operations is important.
+If you push upstream before you push to your branch, GitHub will close
+the issue with the red closed status.
 
 Time to push it:
 
@@ -699,8 +701,8 @@ land on the staging branches, the backporter removes the `lts-watch-` label.
 Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
 label.
 
-Attach the appropriate `lts-watch-` label to any pull request that may impact an LTS
-release.
+Attach the appropriate `lts-watch-` label to any pull request that
+may impact an LTS release.
 
 ## Who to CC in the issue tracker
 

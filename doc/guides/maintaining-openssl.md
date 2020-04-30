@@ -39,7 +39,8 @@ them.
 % git commit openssl
 ````
 
-The commit message can be written as (with the openssl version set to the relevant value):
+The commit message can be written as (with the openssl version set
+to the relevant value):
 ```text
 deps: upgrade openssl sources to 1.1.0h
 
@@ -88,7 +89,8 @@ files if they are changed before committing:
 % git commit
 ```
 
-The commit message can be written as (with the openssl version set to the relevant value):
+The commit message can be written as (with the openssl version set
+to the relevant value):
 ```text
  deps: update archs files for OpenSSL-1.1.0
 
