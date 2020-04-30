@@ -358,6 +358,8 @@ Node.js supports the following conditions:
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file. _This condition should always come after `"import"` or
    `"require"`._
+* `"development"` - enabled by the `--dev` flag in Node.js, this allows code
+   paths to be loaded that provide additional debugging information.
 * `"default"` - the generic fallback that will always match. Can be a CommonJS
    or ES module file. _This condition should always come last._
 
@@ -383,6 +385,10 @@ Conditional exports can also be extended to exports subpaths, for example:
   "exports": {
     ".": "./main.js",
     "./feature": {
+      "development": {
+        "browser": "./feature-browser-dev.js",
+        "default": "./feature-dev.js"
+      },
       "browser": "./feature-browser.js",
       "default": "./feature.js"
     }
@@ -392,7 +398,8 @@ Conditional exports can also be extended to exports subpaths, for example:
 
 Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
 could provide different implementations between the browser and Node.js,
-given third-party tool support for a `"browser"` condition.
+given third-party tool support for a `"browser"` condition, as well as
+loading different code between development and production environments.
 
 #### Nested conditions
 
@@ -1471,8 +1478,8 @@ future updates.
 In the following algorithms, all subroutine errors are propagated as errors
 of these top-level routines unless stated otherwise.
 
-_defaultEnv_ is the conditional environment name priority array,
-`["node", "import"]`.
+_defaultEnv_ is the conditional environment array, `["node", "import"]`,
+including the `"development"` condition if the `--dev` flag is set.
 
 The resolver can throw the following errors:
 * _Invalid Module Specifier_: Module specifier is an invalid URL, package name
