@@ -186,7 +186,7 @@ The `"exports"` field provides an alternative to `"main"` where the package
 main entry point can be defined while also encapsulating the package,
 **preventing any other entry points besides those defined in `"exports"`**.
 This encapsulation allows module authors to define a public interface for
-their package 
+their package.
 
 If both `"exports"` and `"main"` are defined, the `"exports"` field takes
 precedence over `"main"`. It is important to note that `"exports"` are not
