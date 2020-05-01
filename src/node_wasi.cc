@@ -1791,11 +1791,11 @@ uvwasi_errno_t WASI::backingStore(char** store, size_t* byte_length) {
   Local<Object> memory = PersistentToLocal::Strong(this->memory_);
   Local<Value> prop;
 
-  if (!memory->Get(env->context(), env->buffer_string()).ToLocal(&prop))
+  if (this->memory_.IsEmpty() ||
+      !memory->Get(env->context(), env->buffer_string()).ToLocal(&prop) ||
+      !prop->IsArrayBuffer()) {
     return UVWASI_EINVAL;
-
-  if (!prop->IsArrayBuffer())
-    return UVWASI_EINVAL;
+  }
 
   Local<ArrayBuffer> ab = prop.As<ArrayBuffer>();
   std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
