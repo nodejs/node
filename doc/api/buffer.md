@@ -2529,9 +2529,7 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`.
 
 See [`Buffer.alloc()`][] and [`Buffer.allocUnsafe()`][]. This variant of the
-constructor is equivalent to [`Buffer.allocUnsafe()`][], although using
-[`Buffer.alloc()`][] is recommended in code paths that are not critical to
-performance.
+constructor is equivalent to [`Buffer.alloc()`][].
 
 ### `new Buffer(string[, encoding])`
 <!-- YAML
