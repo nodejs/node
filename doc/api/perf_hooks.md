@@ -234,7 +234,9 @@ The value may be one of:
 
 ### performanceEntry.flags
 <!-- YAML
-added: v13.9.0
+added:
+ - v13.9.0
+ - v12.17.0
 -->
 
 * {number}

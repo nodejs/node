@@ -366,7 +366,7 @@ Its `name` property is set to `'MaxListenersExceededWarning'`.
 <!-- YAML
 added:
  - v13.6.0
- - v12.16.0
+ - v12.17.0
 -->
 
 This symbol shall be used to install a listener for only monitoring `'error'`

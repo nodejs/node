@@ -248,7 +248,7 @@ listed as supporting a later version.
 | v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |          |           |           |
 | v10.x | v10.0.0 | v10.0.0  | v10.0.0  | v10.16.0 | v10.17.0  | v10.20.0  |
 | v11.x | v11.0.0 | v11.0.0  | v11.0.0  | v11.8.0  |           |           |
-| v12.x | v12.0.0 | v12.0.0  | v12.0.0  | v12.0.0  | v12.11.0  |           |
+| v12.x | v12.0.0 | v12.0.0  | v12.0.0  | v12.0.0  | v12.11.0  | v12.17.0  |
 | v13.x | v13.0.0 | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0   |           |
 | v14.x | v14.0.0 | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0   | v14.0.0   |
 
@@ -1671,6 +1671,7 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 <!-- YAML
 added:
  - v13.7.0
+ - v12.17.0
  - v10.20.0
 napiVersion: 6
 -->
@@ -1694,6 +1695,7 @@ of the objects's prototype chain as well.
 <!-- YAML
 added:
  - v13.7.0
+ - v12.17.0
  - v10.20.0
 napiVersion: 6
 -->
@@ -1715,6 +1717,7 @@ Property filter bits. They can be or'ed to build a composite filter.
 <!-- YAML
 added:
  - v13.7.0
+ - v12.17.0
  - v10.20.0
 napiVersion: 6
 -->
@@ -3614,6 +3617,7 @@ included.
 <!-- YAML
 added:
  - v13.7.0
+ - v12.17.0
  - v10.20.0
 napiVersion: 6
 -->

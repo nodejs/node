@@ -696,7 +696,9 @@ const contextifiedObject = vm.createContext({ secret: 42 });
 
 ### `sourceTextModule.createCachedData()`
 <!-- YAML
-added: v13.7.0
+added:
+ - v13.7.0
+ - v12.17.0
 -->
 
 * Returns: {Buffer}
