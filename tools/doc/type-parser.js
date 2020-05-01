@@ -126,7 +126,7 @@ const customTypesMap = {
   'PerformanceNodeTiming':
     'perf_hooks.html#perf_hooks_class_performancenodetiming_extends_performanceentry', // eslint-disable-line max-len
   'PerformanceObserver':
-    'perf_hooks.html#perf_hooks_class_performanceobserver',
+    'perf_hooks.html#perf_hooks_class_perf_hooks_performanceobserver',
   'PerformanceObserverEntryList':
     'perf_hooks.html#perf_hooks_class_performanceobserverentrylist',
 
