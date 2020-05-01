@@ -2668,6 +2668,22 @@ Type: Documentation-only
 
 Use [`request.destroy()`][] instead of [`request.abort()`][].
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: Use `net.connect()` instead of re-using sockets through
+`socket.connect()`
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33204
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Use [`net.connect()`][] instead of re-using sockets through
+[`socket.connect()`][].
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2722,6 +2738,7 @@ Use [`request.destroy()`][] instead of [`request.abort()`][].
 [`https.get()`]: https.html#https_https_get_options_callback
 [`https.request()`]: https.html#https_https_request_options_callback
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
+[`net.connect()`]: net.html#net_net_connect
 [`os.networkInterfaces()`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
@@ -2742,6 +2759,7 @@ Use [`request.destroy()`][] instead of [`request.abort()`][].
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
+[`socket.connect()`]: net.html#net_socket_connect
 [`timeout.ref()`]: timers.html#timers_timeout_ref
 [`timeout.refresh()`]: timers.html#timers_timeout_refresh
 [`timeout.unref()`]: timers.html#timers_timeout_unref

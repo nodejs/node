@@ -581,6 +581,11 @@ added: v0.5.3
 The amount of bytes sent.
 
 ### `socket.connect()`
+<!-- YAML
+deprecated: REPLACEME
+-->
+
+> Stability: 0 - Deprecated: Use [`net.connect()`][] instead.
 
 Initiate a connection on a given socket.
 
