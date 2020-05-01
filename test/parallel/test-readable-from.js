@@ -159,6 +159,29 @@ async function asTransformStream() {
   }
 }
 
+async function endWithError() {
+  async function* generate() {
+    yield 1;
+    yield 2;
+    yield Promise.reject('Boum');
+  }
+
+  const stream = Readable.from(generate());
+
+  const expected = [1, 2];
+
+  try {
+    for await (const chunk of stream) {
+      strictEqual(chunk, expected.shift());
+    }
+    throw new Error();
+  } catch (err) {
+    strictEqual(expected.length, 0);
+    strictEqual(err, 'Boum');
+  }
+}
+
+
 Promise.all([
   toReadableBasicSupport(),
   toReadableSyncIterator(),
@@ -168,5 +191,6 @@ Promise.all([
   toReadableOnData(),
   toReadableOnDataNonObject(),
   destroysTheStreamWhenThrowing(),
-  asTransformStream()
+  asTransformStream(),
+  endWithError()
 ]).then(mustCall());
