@@ -202,7 +202,7 @@ is not set to `true`, it returns a `Promise` for an `Object` with `address` and
 ### Supported getaddrinfo flags
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32183
     description: Added support for the `dns.ALL` flag.
 -->

@@ -1868,7 +1868,7 @@ The context must be a `SecureContext`.
 <a id="ERR_TLS_INVALID_STATE"></a>
 ### `ERR_TLS_INVALID_STATE`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 The TLS socket must be connected and securily established. Ensure the 'secure'

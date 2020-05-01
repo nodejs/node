@@ -1232,7 +1232,7 @@ passing keys as strings or `Buffer`s due to improved security features.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31178
     description: Added support for `'dh'`.
   - version: v12.0.0
@@ -2091,7 +2091,7 @@ algorithm names.
 
 ### `crypto.diffieHellman(options)`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `options`: {Object}
@@ -2107,7 +2107,7 @@ Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31178
     description: Add support for Diffie-Hellman.
   - version: v12.0.0
@@ -2180,7 +2180,7 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31178
     description: Add support for Diffie-Hellman.
   - version: v12.0.0

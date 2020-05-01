@@ -1675,7 +1675,7 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/29083
     description: The `fs` options allow overriding the used `fs`
                  implementation.
@@ -1778,8 +1778,8 @@ changes:
   - version: v2.3.0
     pr-url: https://github.com/nodejs/node/pull/1845
     description: The passed `options` object can be a string now.
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+  - version: v12.17.0
+    pr-url: https://github.com/nodejs/node/pull/v12.17.0
     description: The `fs` options allow overriding the used `fs`
                  implementation.
 -->
@@ -2439,7 +2439,7 @@ Synchronous lstat(2).
 <!-- YAML
 added: v0.1.8
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31530
     description: In `recursive` mode, the callback now receives the first
                  created path as an argument.
@@ -2501,7 +2501,7 @@ See also: mkdir(2).
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31530
     description: In `recursive` mode, the first created path is returned now.
   - version: v10.12.0
@@ -2785,9 +2785,9 @@ a `Promise` for an `Object` with `bytesRead` and `buffer` properties.
 
 ## `fs.read(fd, [options,] callback)`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31402
     description: Options object can be passed in
                  to make Buffer, offset, length and position optional
@@ -3083,9 +3083,9 @@ this API: [`fs.read()`][].
 
 ## `fs.readSync(fd, buffer, [options])`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32460
     description: Options object can be passed in
                  to make offset, length and position optional
@@ -3109,7 +3109,7 @@ this API: [`fs.read()`][].
 
 ## `fs.readv(fd, buffers[, position], callback)`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `fd` {integer}
@@ -3132,7 +3132,7 @@ The callback will be given three arguments: `err`, `bytesRead`, and
 
 ## `fs.readvSync(fd, buffers[, position])`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `fd` {integer}
@@ -4460,7 +4460,7 @@ property that is a reference to the passed in `buffer` argument.
 
 #### `filehandle.read(options)`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 * `options` {Object}
   * `buffer` {Buffer|Uint8Array} **Default:** `Buffer.alloc(16384)`
@@ -4495,7 +4495,7 @@ of the file.
 
 #### `filehandle.readv(buffers[, position])`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `buffers` {ArrayBufferView[]}

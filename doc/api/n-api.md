@@ -248,7 +248,7 @@ listed as supporting a later version.
 | v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |          |           |           |
 | v10.x | v10.0.0 | v10.0.0  | v10.0.0  | v10.16.0 | v10.17.0  | v10.20.0  |
 | v11.x | v11.0.0 | v11.0.0  | v11.0.0  | v11.8.0  |           |           |
-| v12.x | v12.0.0 | v12.0.0  | v12.0.0  | v12.0.0  | v12.11.0  | REPLACEME  |
+| v12.x | v12.0.0 | v12.0.0  | v12.0.0  | v12.0.0  | v12.11.0  | v12.17.0  |
 | v13.x | v13.0.0 | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0   |           |
 | v14.x | v14.0.0 | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0   | v14.0.0   |
 
@@ -1664,7 +1664,7 @@ the `napi_value` in question is of the JavaScript type expected by the API.
 ### Enum types
 #### napi_key_collection_mode
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 napiVersion: 6
 -->
 
@@ -1685,7 +1685,7 @@ of the objects's prototype chain as well.
 
 #### napi_key_filter
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 napiVersion: 6
 -->
 
@@ -1704,7 +1704,7 @@ Property filter bits. They can be or'ed to build a composite filter.
 
 #### napi_key_conversion
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 napiVersion: 6
 -->
 
@@ -3591,7 +3591,7 @@ included.
 
 #### napi_get_all_property_names
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 napiVersion: 6
 -->
 

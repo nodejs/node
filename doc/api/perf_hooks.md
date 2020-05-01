@@ -211,7 +211,7 @@ The value may be one of:
 
 ### performanceEntry.flags
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * {number}

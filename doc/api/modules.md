@@ -1026,7 +1026,7 @@ import('fs').then((esmFS) => {
 
 ## Source Map V3 Support
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 > Stability: 1 - Experimental
@@ -1045,7 +1045,7 @@ const { findSourceMap, SourceMap } = require('module');
 
 ### `module.findSourceMap(path[, error])`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `path` {string}
@@ -1063,7 +1063,7 @@ will be associated with the `error` instance along with the `path`.
 
 ### Class: `module.SourceMap`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 #### `new SourceMap(payload)`

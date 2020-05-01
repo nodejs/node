@@ -513,10 +513,10 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32278
     description: The `transferList` option was introduced.
-  - version: REPLACEME
+  - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/31664
     description: The `filename` parameter can be a WHATWG `URL` object using
                  `file:` protocol.
@@ -627,7 +627,7 @@ JavaScript code.
 
 ### `worker.getHeapSnapshot()`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * Returns: {Promise} A promise for a Readable Stream containing

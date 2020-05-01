@@ -467,7 +467,7 @@ init for PROMISE with id 6, trigger id: 5  # the Promise returned by then()
 #### `async_hooks.executionAsyncResource()`
 
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * Returns: {Object} The resource representing the current execution.
@@ -869,7 +869,7 @@ for (let i = 0; i < 10; i++) {
 
 ## Class: `AsyncLocalStorage`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 This class is used to create asynchronous state within callbacks and promise
@@ -918,7 +918,7 @@ from each other. It is safe to instantiate this class multiple times.
 
 ### `new AsyncLocalStorage()`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
@@ -926,7 +926,7 @@ Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 
 ### `asyncLocalStorage.disable()`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 This method disables the instance of `AsyncLocalStorage`. All subsequent calls
@@ -946,7 +946,7 @@ in the current process.
 
 ### `asyncLocalStorage.getStore()`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * Returns: {any}
@@ -957,7 +957,7 @@ calling `asyncLocalStorage.run`, it will return `undefined`.
 
 ### `asyncLocalStorage.enterWith(store)`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `store` {any}
@@ -999,7 +999,7 @@ asyncLocalStorage.getStore(); // Returns the same object
 
 ### `asyncLocalStorage.run(store, callback[, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `store` {any}
@@ -1034,7 +1034,7 @@ try {
 
 ### `asyncLocalStorage.exit(callback[, ...args])`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `callback` {Function}

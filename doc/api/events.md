@@ -362,7 +362,7 @@ Its `name` property is set to `'MaxListenersExceededWarning'`.
 
 ### `EventEmitter.errorMonitor`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 This symbol shall be used to install a listener for only monitoring `'error'`

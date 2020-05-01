@@ -1096,7 +1096,7 @@ for more information.
 
 ### `tlsSocket.exportKeyingMaterial(length, label[, context])`
 <!-- YAML
-added: REPLACEME
+added: v12.17.0
 -->
 
 * `length` {number} number of bytes to retrieve from keying material
