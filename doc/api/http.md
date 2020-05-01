@@ -2404,7 +2404,7 @@ the following events will be emitted in the following order:
 * (connection closed here)
 * `'aborted'` on the `res` object
 * `'error'` on the `res` object with an error with message
-  `'Error: socket hang up'` and code `'ECONNRESET'`.
+  `'Error: aborted'` and code `'ECONNRESET'`.
 * `'close'`
 * `'close'` on the `res` object
 
@@ -2434,7 +2434,7 @@ events will be emitted in the following order:
 * (`req.destroy()` called here)
 * `'aborted'` on the `res` object
 * `'error'` on the `res` object with an error with message
-  `'Error: socket hang up'` and code `'ECONNRESET'`.
+  `'Error: aborted'` and code `'ECONNRESET'`.
 * `'close'`
 * `'close'` on the `res` object
 
@@ -2465,7 +2465,7 @@ events will be emitted in the following order:
 * `'abort'`
 * `'aborted'` on the `res` object
 * `'error'` on the `res` object with an error with message
-  `'Error: socket hang up'` and code `'ECONNRESET'`.
+  `'Error: aborted'` and code `'ECONNRESET'`.
 * `'close'`
 * `'close'` on the `res` object
 
