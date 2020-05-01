@@ -39,6 +39,7 @@
       'lib/internal/per_context/domexception.js',
       'lib/internal/per_context/messageport.js',
       'lib/async_hooks.js',
+      'lib/async_local_storage.js',
       'lib/assert.js',
       'lib/buffer.js',
       'lib/child_process.js',
