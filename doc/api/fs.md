@@ -584,6 +584,8 @@ Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
 added: REPLACEME
 -->
 
+* Returns: {fs.FSWatcher}
+
 When called, requests that the Node.js event loop *not* exit so long as the
 `FSWatcher` is active. Calling `watcher.ref()` multiple times will have
 no effect.
@@ -596,6 +598,8 @@ called previously.
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {fs.FSWatcher}
 
 When called, the active `FSWatcher` object will not require the Node.js
 event loop to remain active. If there is no other activity keeping the
@@ -618,6 +622,8 @@ object.
 added: REPLACEME
 -->
 
+* Returns: {fs.StatWatcher}
+
 When called, requests that the Node.js event loop *not* exit so long as the
 `StatWatcher` is active. Calling `watcher.ref()` multiple times will have
 no effect.
@@ -630,6 +636,8 @@ called previously.
 <!-- YAML
 added: REPLACEME
 -->
+
+* Returns: {fs.StatWatcher}
 
 When called, the active `StatWatcher` object will not require the Node.js
 event loop to remain active. If there is no other activity keeping the
