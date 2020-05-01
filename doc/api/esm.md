@@ -202,11 +202,14 @@ both Common.js and ES Modules in a single package please consult
 [the dual CommonJS/ES module packages section][]. 
 
 **Warning**: Introducing the `"exports"` field prevents consumers of a package
-from using any entry points that are not defined, including the `package.json`.
-This will likely be a breaking change. To make the introduction of `"exports"`
-non-breaking, ensure that every previously supported entry point is exported.
-It is best to explicitly specify entry points so that the package's public API
-is well-defined. For example, a project that previous exported `main`, `lib`,
+from using any entry points that are not defined, including the `package.json`
+(e.g. `require('your-package/package.json')`. **This will likely be a breaking
+change.**
+
+To make the introduction of `"exports"` non-breaking, ensure that every
+previously supported entry point is exported. It is best to explicitly specify
+entry points so that the package’s public API is well-defined. For example,
+a project that previous exported `main`, `lib`,
 `feature`, and the `package.json` could use the following `package.exports`:
 
 ```json
