@@ -569,7 +569,7 @@ Array entries outside that range will be truncated to fit into it.
 const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
-A `TypeError` will be thrown if `array` is not an `Array` or other type
+A `TypeError` will be thrown if `array` is not an `Array` or another type
 appropriate for `Buffer.from()` variants.
 
 `Buffer.from(array)` and [`Buffer.from(string)`][] may also use the internal
@@ -623,7 +623,8 @@ console.log(buf.length);
 ```
 
 A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`][] or a
-[`SharedArrayBuffer`][] or other type appropriate for `Buffer.from()` variants.
+[`SharedArrayBuffer`][] or another type appropriate for `Buffer.from()`
+variants.
 
 ### Class Method: `Buffer.from(buffer)`
 <!-- YAML
@@ -647,7 +648,7 @@ console.log(buf2.toString());
 // Prints: buffer
 ```
 
-A `TypeError` will be thrown if `buffer` is not a `Buffer` or other type
+A `TypeError` will be thrown if `buffer` is not a `Buffer` or another type
 appropriate for `Buffer.from()` variants.
 
 ### Class Method: `Buffer.from(object[, offsetOrEncoding[, length]])`
@@ -684,8 +685,8 @@ const buf = Buffer.from(new Foo(), 'utf8');
 // Prints: <Buffer 74 68 69 73 20 69 73 20 61 20 74 65 73 74>
 ```
 
-A `TypeError` will be thrown if `object` has not mentioned methods or is not of
-other type appropriate for `Buffer.from()` variants.
+A `TypeError` will be thrown if `object` does not have the mentioned methods or
+is not of another type appropriate for `Buffer.from()` variants.
 
 ### Class Method: `Buffer.from(string[, encoding])`
 <!-- YAML
@@ -710,7 +711,7 @@ console.log(buf1.toString('latin1'));
 // Prints: this is a tÃ©st
 ```
 
-A `TypeError` will be thrown if `string` is not a string or other type
+A `TypeError` will be thrown if `string` is not a string or another type
 appropriate for `Buffer.from()` variants.
 
 ### Class Method: `Buffer.isBuffer(obj)`
