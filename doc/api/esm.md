@@ -224,7 +224,8 @@ is well-defined. For example, a project that previous exported `main`, `lib`,
 
 As a last resort, package encapsulation can be disabled entirely by creating an
 export for the root of the package `"./": "./"`. This will expose every file in
-the package at the cost of disabling encapsulation.
+the package at the cost of disabling encapsulation and the tooling and optimization
+benefits that come with it.
 
 #### Main Entry Point Export
 
