@@ -16,11 +16,11 @@ if /i "%1"=="/?" goto help
 cd %~dp0
 
 @rem CI_* variables should be kept synchronized with the ones in Makefile
-set CI_NATIVE_SUITES=addons js-native-api node-api abort
+set CI_NATIVE_SUITES=addons js-native-api node-api
 set CI_JS_SUITES=default
 set CI_DOC=doctool
 @rem Same as the test-ci target in Makefile
-set "common_test_suites=%CI_JS_SUITES% %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set build_aborts_tests=1"
+set "common_test_suites=%CI_JS_SUITES% %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
 
 @rem Process arguments.
 set config=Release
@@ -68,7 +68,6 @@ set openssl_no_asm=
 set doc=
 set extra_msbuild_args=
 set exit_code=0
-set build_aborts_tests=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -97,8 +96,6 @@ if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -J -p tap -
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
 if /i "%1"=="build-js-native-api-tests"   set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="build-node-api-tests"   set build_node_api_tests=1&goto arg-ok
-if /i "%1"=="build-abort-tests"   set build_abort_tests=1&goto arg-ok
-if /i "%1"=="test-abort"   set test_args=%test_args% abort&set build_abort_tests=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-js-native-api"   set test_args=%test_args% js-native-api&set build_js_native_api_tests=1&goto arg-ok
 if /i "%1"=="test-node-api"   set test_args=%test_args% node-api&set build_node_api_tests=1&goto arg-ok
@@ -588,10 +585,10 @@ endlocal
 goto build-node-api-tests
 
 :build-node-api-tests
-if not defined build_node_api_tests goto build-abort-tests
+if not defined build_node_api_tests goto run-tests
 if not exist "%node_exe%" (
   echo Failed to find node.exe
-  goto build-abort-tests
+  goto run-tests
 )
 echo Building node-api
 :: clear
@@ -602,25 +599,6 @@ for /d %%F in (test\node-api\??_*) do (
 setlocal
 set npm_config_nodedir=%~dp0
 "%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\node-api"
-if errorlevel 1 exit /b 1
-endlocal
-goto build-abort-tests
-
-:build-abort-tests
-if not defined build_abort_tests goto run-tests
-if not exist "%node_exe%" (
-  echo Failed to find node.exe
-  goto run-tests
-)
-echo Building abort
-:: clear
-for /d %%F in (test\abort\??_*) do (
-  rd /s /q %%F
-)
-:: building abort
-setlocal
-set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.js" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\abort"
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
