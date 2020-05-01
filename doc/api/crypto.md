@@ -2222,8 +2222,8 @@ behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
 the respective part of the key is returned as a [`KeyObject`][].
 
 When encoding public keys, it is recommended to use `'spki'`. When encoding
-private keys, it is recommended to use `'pks8'` with a strong passphrase, and to
-keep the passphrase confidential.
+private keys, it is recommended to use `'pkcs8'` with a strong passphrase,
+and to keep the passphrase confidential.
 
 ```js
 const { generateKeyPairSync } = require('crypto');
