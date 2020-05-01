@@ -191,7 +191,7 @@ their package
 If both `"exports"` and `"main"` are defined, the `"exports"` field takes
 precedence over `"main"`. It is important to note that `"exports"` are not
 specific to ES modules or CommonJS; `"main"` will be overridden by `"exports"`
-if it exists. As such `"main"` cannot be used as a fallback for `"Common.js"`
+if it exists. As such `"main"` cannot be used as a fallback for CommonJS
 but it can be used as a fallback for legacy versions of Node.js that do not
 support ES Modules.
 
