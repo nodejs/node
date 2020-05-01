@@ -207,7 +207,7 @@ This will likely be a breaking change. To make the introduction of `"exports"`
 non-breaking, ensure that every previously supported entry point is exported.
 It is best to explicitly specify entry points so that the package's public API
 is well-defined. For example, a project that previous exported `main`, `lib`,
-`feature`, and the `package.json` could use the following `package.exports`
+`feature`, and the `package.json` could use the following `package.exports`:
 
 ```json
 {
