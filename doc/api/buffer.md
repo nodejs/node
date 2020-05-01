@@ -623,7 +623,8 @@ console.log(buf.length);
 ```
 
 A `TypeError` will be thrown if `arrayBuffer` is not an [`ArrayBuffer`][] or a
-[`SharedArrayBuffer`][] or another type appropriate for `Buffer.from()` variants.
+[`SharedArrayBuffer`][] or another type appropriate for `Buffer.from()`
+variants.
 
 ### Class Method: `Buffer.from(buffer)`
 <!-- YAML
