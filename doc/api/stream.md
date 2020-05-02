@@ -801,7 +801,7 @@ created with the `emitClose` option.
 added: v0.9.4
 -->
 
-* `chunk` {Buffer|string|any} The chunk of data. For streams that are not
+* `chunk` {string|Buffer|Uint8Array|any} The chunk of data. For streams that are not
   operating in object mode, the chunk will be either a string or `Buffer`.
   For streams that are in object mode, the chunk can be any JavaScript value
   other than `null`.
