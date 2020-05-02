@@ -10,7 +10,7 @@ server1.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server1.address().port}`);
   session.request({ 'no underscore': 123 });
   session.on('error', common.mustCall((e) => {
-    assert.strictEqual(e.code, 'ERR_HTTP2_INVALID_TOKEN');
+    assert.strictEqual(e.code, 'ERR_INVALID_HTTP_TOKEN');
     server1.close();
   }));
 }));

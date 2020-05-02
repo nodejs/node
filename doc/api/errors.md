@@ -1047,11 +1047,6 @@ An invalid value has been specified for an HTTP/2 setting.
 
 An operation was performed on a stream that had already been destroyed.
 
-<a id="ERR_HTTP2_INVALID_TOKEN"></a>
-### `ERR_HTTP2_INVALID_TOKEN`
-
-An invalid HTTP/2 header was specified.
-
 <a id="ERR_HTTP2_MAX_PENDING_SETTINGS_ACK"></a>
 ### `ERR_HTTP2_MAX_PENDING_SETTINGS_ACK`
 
