@@ -801,10 +801,10 @@ created with the `emitClose` option.
 added: v0.9.4
 -->
 
-* `chunk` {string|Buffer|Uint8Array|any} The chunk of data. For streams that are not
-  operating in object mode, the chunk will be either a string or `Buffer`.
-  For streams that are in object mode, the chunk can be any JavaScript value
-  other than `null`.
+* `chunk` {string|Buffer|Uint8Array|any} The chunk of data. For streams that
+  are not operating in object mode, the chunk will be either a string or
+  `Buffer`. For streams that are in object mode, the chunk can be any
+  JavaScript value other than `null`.
 
 The `'data'` event is emitted whenever the stream is relinquishing ownership of
 a chunk of data to a consumer. This may occur whenever the stream is switched
