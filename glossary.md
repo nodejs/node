@@ -2,58 +2,57 @@ You may also need to check https://chromium.googlesource.com/chromiumos/docs/+/m
 
 * ABI: [Application Binary Interface](https://en.wikipedia.org/wiki/Application_binary_interface)
 * ASAP: As Soon As Possible.
-* ASYNC: Asynchronous
 * BE: Big Endian - Byte order style in a multibyte data.
   (Opposite of LE, Little Endian)
-* CI: Continuous Integration.
+* CI: [Continuous Integration](https://en.wikipedia.org/wiki/Continuous_integration).
 * CITGM: Canary In The Gold Mine - a smoke test unit in the repo that
   contain popular npm modules.
 * CJS: Common JS.
-* CLDR: Common Locale Data Repository.
-* CLI: [Command Line Interface](https://en.wikipedia.org/wiki/Command-line_interface)
-* CMD: Command.
+* CLDR: [Common Locale Data Repository](https://en.wikipedia.org/wiki/Common_Locale_Data_Repository).
+* CLI: [Command Line Interface](https://en.wikipedia.org/wiki/Command-line_interface).
 * CVE: Common Vulnerebilities and Exposures - A database that
   maintains reported security exposures.
 * ECMA: European Computer Manufacturers Association - A body that
   governs JS spec among other things.
-* ENV: Environment - General term for execution environment.
 * EOF: [End Of File](https://en.wikipedia.org/wiki/End-of-file)
 * EOL: End Of Line (when used within a program), End of Life
   (when used within project documents).
 * ESM: ECMA Script Module.
 * ETW: Event Tracing for Windows.
-* FD: File Descriptor.
 * FFDC: First Failure Data Capture - Common terms for logs, traces
   and dumps that are produced by default on program error.
 * FIPS:  Federal Information Processing Standards.
 * FS: File System.
 * ICU: International Components for Unicode.
 * IPC: Inter Process Communication.
-* JIT: Just In Time - General term for dynamic compiler in
-  managed runtimes.
-* JS/C++ boundary: A layer that bridges between JS APIs and the C++
-  helpers that implements / abstracts platform capabilities.
+* JIT: [Just In Time](https://en.wikipedia.org/wiki/Just-in-time_compilation)
+  Is a way of executing computer code that involves compilation during execution
+  of a program `at run time` rather than before execution.
+* JS/C++ boundary: It refers  to the boundary between V8's runtime and the
+  JS code execution which are commonly crossed when invoking JS functions with
+  C++ linkage (e.g. interceptors). The boundary could very well exist when we
+  are reaching into the C++ to do something that has nothing to do with the
+  platform, e.g. URL parsing.
 * LGTM: Looks good to me - commonly used to approve a code review.
 * LTS: Long Term Support.
-* MDN: Mozila Development Network - A vast and authentic
-  documentation on JavaScript.
-* OOB: Out Of Bounds - Used in the context of TCP data transport.
+* MDN: [Mozila Development Network](https://developer.mozilla.org/en-US).
+* OOB: Out Of Bounds - Used in the context of array(memory) access.
 * OOM: Out Of Memory.
-* OSX: Mac OS.
 * PPC: Power PC.
 * PTAL: Please Take A Look.
 * RAII: [Resource Aquisition Is Intialization](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization)
-* REPL: Read Evaluate Print Loop.
+* REPL: Read Evaluate Print Loop. REPL is available as a standalone program
+  (invoke node without arguments), used for developing / testing small programs.
 * RFC: Request For Comments.
 * RSLGTM: Rubber-Stamp Looks Good To Me. The reviewer approving without doing
   a full code review.
-* RSS: Resident Set Size.
+* RSS: [Resident Set Size](https://en.wikipedia.org/wiki/Resident_set_size).
 * SMP: Symmetric Multi Processor.
 * TSC: Technical Steering Committee. Detailed info see
   [TSC](./GOVERNANCE.md#technical-steering-committee).
-* V8: JavaScript engine that is embedded in Node.js.
-* VM: Virtual Machine, in the context of abstracting instructions,
-  not to be confused with H/W level or O/S level Virtual machines.
+* V8: JavaScript engine that powers Node.js and chrome browser.
+* VM: The [VM module](https://nodejs.org/api/vm.html) provides a way of
+  executing JavaScript on a virtual machine.
 * WASI: [Web Assemby System Interface]( https://github.com/WebAssembly/WASI)
 * WASM: Web Assembly.
 * WG: Working Group - autonomous teams in the project with specific
