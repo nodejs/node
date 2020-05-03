@@ -1581,8 +1581,9 @@ The resolver can throw the following errors:
 > 1. If _resolvedURL_ contains any percent encodings of _"/"_ or _"\\"_ (_"%2f"_
 >    and _"%5C"_ respectively), then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 1. If _resolvedURL_ does not end with a trailing _"/"_ and the file at
->    _resolvedURL_ does not exist, then
+> 1. If the file at _resolvedURL_ is a directory, then
+>    1. Throw an _Unsupported Directory Import_ error.
+> 1. If the file at _resolvedURL_ does not exist, then
 >    1. Throw a _Module Not Found_ error.
 > 1. Set _resolvedURL_ to the real path of _resolvedURL_.
 > 1. Let _format_ be the result of **ESM_FORMAT**(_resolvedURL_).

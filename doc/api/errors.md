@@ -2023,6 +2023,20 @@ An attempt was made to load a module with an unknown or unsupported format.
 An invalid or unknown process signal was passed to an API expecting a valid
 signal (such as [`subprocess.kill()`][]).
 
+<a id="ERR_UNSUPPORTED_DIR_IMPORT"></a>
+### `ERR_UNSUPPORTED_DIR_IMPORT`
+
+`import` a directory URL is unsupported. Instead, you can
+[self-reference a package using its name][] and [define a custom subpath][] in
+the `"exports"` field of the `package.json` file.
+
+<!-- eslint-skip -->
+```js
+import './'; // unsupported
+import './index.js'; // supported
+import 'package-name'; // supported
+```
+
 <a id="ERR_UNSUPPORTED_ESM_URL_SCHEME"></a>
 ### `ERR_UNSUPPORTED_ESM_URL_SCHEME`
 
@@ -2563,3 +2577,5 @@ such as `process.stdout.on('data')`.
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
+[self-reference a package using its name]: esm.html#esm_self_referencing_a_package_using_its_name
+[define a custom subpath]: esm.html#esm_subpath_exports
