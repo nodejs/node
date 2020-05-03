@@ -142,8 +142,6 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   if (!isRequire) {
     notFoundExports.set('pkgexports/subpath/file', 'pkgexports/subpath/file');
-    notFoundExports.set('pkgexports/subpath/dir1', 'pkgexports/subpath/dir1');
-    notFoundExports.set('pkgexports/subpath/dir2', 'pkgexports/subpath/dir2');
   }
 
   for (const [specifier, request] of notFoundExports) {
