@@ -31,7 +31,7 @@ server.listen(0, common.mustCall(() => {
 
   req.on('socket', common.mustCall((socket) => {
     socket.on('timeout', common.mustCall(() => {
-      // free socket should be destroyed
+      // Free socket should be destroyed
       assert.strictEqual(socket.writable, false);
       // Sending new requests will fail
       clearTimeout(timer);
@@ -40,7 +40,7 @@ server.listen(0, common.mustCall(() => {
         port: server.address().port,
         agent
       }, common.mustCall((res) => {
-        // agent must create a new socket to handle request
+        // Agent must create a new socket to handle request
         assert.notStrictEqual(newReq.socket, socket);
         assert.strictEqual(res.statusCode, 200);
         res.resume();
