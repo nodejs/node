@@ -395,7 +395,7 @@ void Initialize(Local<Object> target,
 NODE_MODULE_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
 
-<a id="per-binding-state">
+<a id="per-binding-state"></a>
 #### Per-binding state
 
 Some internal bindings, such as the HTTP parser, maintain internal state that
