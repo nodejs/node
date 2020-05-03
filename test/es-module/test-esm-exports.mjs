@@ -141,9 +141,13 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   ]);
 
   if (!isRequire) {
+    const onDirectoryImport = (err) => {
+      strictEqual(err.code, 'ERR_UNSUPPORTED_DIR_IMPORT');
+      assertStartsWith(err.message, 'Directory import');
+    };
     notFoundExports.set('pkgexports/subpath/file', 'pkgexports/subpath/file');
-    notFoundExports.set('pkgexports/subpath/dir1', 'pkgexports/subpath/dir1');
-    notFoundExports.set('pkgexports/subpath/dir2', 'pkgexports/subpath/dir2');
+    loadFixture('pkgexports/subpath/dir1').catch(mustCall(onDirectoryImport));
+    loadFixture('pkgexports/subpath/dir2').catch(mustCall(onDirectoryImport));
   }
 
   for (const [specifier, request] of notFoundExports) {

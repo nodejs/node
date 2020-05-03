@@ -6,7 +6,7 @@ async function main() {
   try {
     mod = await import('../fixtures/es-modules/pjson-main');
   } catch (e) {
-    assert.strictEqual(e.code, 'ERR_MODULE_NOT_FOUND');
+    assert.strictEqual(e.code, 'ERR_UNSUPPORTED_DIR_IMPORT');
   }
 
   assert.strictEqual(mod, undefined);
