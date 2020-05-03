@@ -26,9 +26,9 @@ const assert = require('assert');
       res.on('aborted', common.mustCall(() => {
         assert.strictEqual(res.aborted, true);
       }));
-      res.on('error', common.mustCall((err) => {
-        assert.strictEqual(err.code, 'ECONNRESET');
-        assert.strictEqual(err.message, 'aborted');
+      res.on('error', common.expectsError({
+        code: 'ECONNRESET',
+        message: 'aborted'
       }));
       req.abort();
     }));

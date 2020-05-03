@@ -18,8 +18,8 @@ const assert = require('assert');
       server.close();
       serverRes.destroy();
       res.on('aborted', common.mustCall());
-      res.on('error', common.mustCall((err) => {
-        assert.strictEqual(err.code, 'ECONNRESET');
+      res.on('error', common.expectsError({
+        code: 'ECONNRESET'
       }));
     }));
   }));

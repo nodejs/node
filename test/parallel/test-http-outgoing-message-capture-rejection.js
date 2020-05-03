@@ -33,8 +33,8 @@ events.captureRejections = true;
 
     req.on('response', common.mustCall((res) => {
       res.on('aborted', common.mustCall());
-      res.on('error', common.mustCall((err) => {
-        assert.strictEqual(err.code, 'ECONNRESET');
+      res.on('error', common.expectsError({
+        code: 'ECONNRESET'
       }));
       res.resume();
       server.close();

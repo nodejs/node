@@ -67,8 +67,8 @@ function download() {
         reqCountdown.dec();
         writable.end();
       }));
-      res.on('error', common.mustCall((err) => {
-        assert.strictEqual(err.code, 'ECONNRESET');
+      res.on('error', common.expectsError({
+        code: 'ECONNRESET'
       }));
     }
 
