@@ -5,7 +5,8 @@ const http = require('http');
 
 const server = http.createServer(common.mustCall((req, res) => {
   server.close();
-  // do nothing, wait client socket timeout and close
+  // Do nothing, just wait for the client socket timeout and close the
+  // connection.
 }));
 
 server.listen(0, common.mustCall(() => {
@@ -16,9 +17,9 @@ server.listen(0, common.mustCall(() => {
     timeout: 50,
     agent
   }, common.mustNotCall())
-  .on('error', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'socket hang up');
-    assert.strictEqual(err.code, 'ECONNRESET');
+  .on('error', common.expectsError({
+    message: 'socket hang up',
+    code: 'ECONNRESET'
   }));
   req.on('timeout', common.mustCall(() => {
     req.abort();

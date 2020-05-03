@@ -30,11 +30,10 @@ server.listen(0, common.mustCall(() => {
   }, 1000);
 
   req.on('socket', common.mustCall((socket) => {
-    // wait free socket become free and timeout
     socket.on('timeout', common.mustCall(() => {
       // free socket should be destroyed
       assert.strictEqual(socket.writable, false);
-      // send new request will be fails
+      // Sending new requests will fail
       clearTimeout(timer);
       const newReq = http.get({
         path: '/',

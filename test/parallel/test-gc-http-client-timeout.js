@@ -39,11 +39,11 @@ function getall() {
   req.setTimeout(10, function() {
     console.log('timeout (expected)');
   });
-  req.on('error', (err) => {
-    // only allow Socket timeout error
-    assert.strictEqual(err.code, 'ERR_SOCKET_TIMEOUT');
-    assert.strictEqual(err.message, 'Socket timeout');
-  });
+  req.on('error', common.expectsError({
+    // Only allow Socket timeout error
+    code: 'ERR_SOCKET_TIMEOUT',
+    message: 'Socket timeout'
+  }));
 
   count++;
   onGC(req, { ongc });

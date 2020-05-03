@@ -5,7 +5,8 @@ const http = require('http');
 
 const server = http.createServer(common.mustCall((req, res) => {
   server.close();
-  // do nothing, wait client socket timeout and close
+  // Do nothing, just wait for the client socket timeout and close the
+  // connection.
 }));
 
 server.listen(0, common.mustCall(() => {
