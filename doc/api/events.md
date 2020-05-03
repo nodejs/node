@@ -674,7 +674,7 @@ Once an event has been emitted, all listeners attached to it at the
 time of emitting will be called in order. This implies that any
 `removeListener()` or `removeAllListeners()` will not remove listeners from
 currently executing `emit()`'s list of listeners. On subsequent calls to
-`emit()` the listeners marked for removal will not be called.
+`emit()`, the listeners marked for removal will not be called.
 
 ```js
 const myEmitter = new MyEmitter();
