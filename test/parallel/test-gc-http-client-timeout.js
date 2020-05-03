@@ -5,7 +5,6 @@
 
 const common = require('../common');
 const onGC = require('../common/ongc');
-const assert = require('assert');
 
 function serverHandler(req, res) {
   setTimeout(function() {
