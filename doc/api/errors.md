@@ -929,6 +929,11 @@ An invalid HTTP header value was specified.
 
 Status code was outside the regular status code range (100-999).
 
+<a id="ERR_HTTP_SOCKET_TIMEOUT"></a>
+### `ERR_HTTP_SOCKET_TIMEOUT`
+
+The request timed out due to inactivity.
+
 <a id="ERR_HTTP_TRAILER_INVALID"></a>
 ### `ERR_HTTP_TRAILER_INVALID`
 
