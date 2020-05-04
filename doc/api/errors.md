@@ -2099,6 +2099,11 @@ meaning of the error depends on the specific function.
 
 The WASI instance has already started.
 
+<a id="ERR_WASI_NOT_STARTED"></a>
+### `ERR_WASI_NOT_STARTED`
+
+The WASI instance has not been started.
+
 <a id="ERR_WORKER_INIT_FAILED"></a>
 ### `ERR_WORKER_INIT_FAILED`
 
