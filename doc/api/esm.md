@@ -193,7 +193,7 @@ precedence over `"main"`. It is important to note that `"exports"` are not
 specific to ES modules or CommonJS; `"main"` will be overridden by `"exports"`
 if it exists. As such `"main"` cannot be used as a fallback for CommonJS
 but it can be used as a fallback for legacy versions of Node.js that do not
-support the exports field.
+support the `"exports"` field.
 
 [Conditional Exports][] can be used within `"exports"` to define different
 package entry points per environment, including whether the package is
