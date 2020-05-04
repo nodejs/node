@@ -1,3 +1,18 @@
+## 6.14.5 (2020-05-01)
+
+### BUG FIXES
+
+* [`33ec41f18`](https://github.com/npm/cli/commit/33ec41f18f557146607cb14a7a38c707fce6d42c) [#758](https://github.com/npm/cli/pull/758) fix: relativize file links when inflating shrinkwrap ([@jsnajdr](https://github.com/jsnajdr))
+* [`94ed456df`](https://github.com/npm/cli/commit/94ed456dfb0b122fd4192429024f034d06c3c454) [#1162](https://github.com/npm/cli/pull/1162) fix: npm init help output ([@mum-never-proud](https://github.com/mum-never-proud))
+
+### DEPENDENCIES
+
+* [`5587ac01f`](https://github.com/npm/cli/commit/5587ac01ffd0d2ea830a6bbb67bb34a611ffc409) `npm-registry-fetch@4.0.4`
+  * [`fc5d94c39`](https://github.com/npm/npm-registry-fetch/commit/fc5d94c39ca218d78df77249ab3a6bf1d9ed9db1) fix: removed default timeout
+* [`07a4d8884`](https://github.com/npm/cli/commit/07a4d8884448359bac485a49c05fd2d23d06834b) `graceful-fs@4.2.4`
+* [`8228d1f2e`](https://github.com/npm/cli/commit/8228d1f2e427ad9adee617266108acd1ee39b4a5) `mkdirp@0.5.5`
+* [`e6d208317`](https://github.com/npm/cli/commit/e6d20831740a84aea766da2a2913cf82a4d56ada) `nopt@4.0.3`
+
 ## 6.14.4 (2020-03-24)
 
 ### DEPENDENCIES

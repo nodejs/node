@@ -74,7 +74,10 @@ function doesChildVersionMatch (child, requested, requestor) {
     var childReq = child.package._requested
     if (childReq) {
       if (childReq.rawSpec === requested.rawSpec) return true
-      if (childReq.type === requested.type && childReq.saveSpec === requested.saveSpec) return true
+      if (childReq.type === requested.type) {
+        if (childReq.saveSpec === requested.saveSpec) return true
+        if (childReq.fetchSpec === requested.fetchSpec) return true
+      }
     }
     // If _requested didn't exist OR if it didn't match then we'll try using
     // _from. We pass it through npa to normalize the specifier.
@@ -200,6 +203,7 @@ function removeObsoleteDep (child, log) {
   })
 }
 
+exports.packageRelativePath = packageRelativePath
 function packageRelativePath (tree) {
   if (!tree) return ''
   var requested = tree.package._requested || {}
@@ -570,7 +574,7 @@ function addDependency (name, versionSpec, tree, log, done) {
   try {
     var req = childDependencySpecifier(tree, name, versionSpec)
     if (tree.swRequires && tree.swRequires[name]) {
-      var swReq = childDependencySpecifier(tree, name, tree.swRequires[name], tree.package._where)
+      var swReq = childDependencySpecifier(tree, name, tree.swRequires[name])
     }
   } catch (err) {
     return done(err)
