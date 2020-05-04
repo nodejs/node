@@ -12,9 +12,6 @@ node_js:
 
 env: "DEPLOY_VERSION=testing"
 
-notifications:
-    slack: npm-inc:kRqQjto7YbINqHPb1X6nS3g8
-
 install:
   - "node . install"
 

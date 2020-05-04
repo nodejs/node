@@ -73,7 +73,7 @@ All interactions in the npm repository are covered by the [npm Code of Conduct](
 # Make sure you install the dependencies first before running tests.
 $ npm install
 
-# Run tests for the CLI (it could take awhile).
+# Run tests for the CLI (it could take a while).
 $ npm run test
 ```
 
@@ -97,7 +97,7 @@ $ make link
 #################
 # ALTERNATIVELY
 #################
-# If ou're working on a feature or bug, you can run the same command on your
+# If you're working on a feature or bug, you can run the same command on your
 # working branch and link that code.
 
 # Create new branch to work from (there are many ways)
@@ -130,7 +130,7 @@ let you know that it's sent the request to start the benchmark suite.
 
 ![image](https://user-images.githubusercontent.com/2818462/72312698-e2e57f80-3656-11ea-9fcf-4a8f6b97b0d1.png)
 
-If you've updated your pull-reuqest and you'd like to run the the benchmark suite again, simple update your original comment, by adding `test this please ✅` again, or simply just adding another emoji to the **end**. _(The trigger is the phrase "test this please ✅" at the beginning of a comment. Updates will trigger as well, so long as the phrase stays at the beginning.)_.
+If you've updated your pull-request and you'd like to run the the benchmark suite again, simple update your original comment, by adding `test this please ✅` again, or simply just adding another emoji to the **end**. _(The trigger is the phrase "test this please ✅" at the beginning of a comment. Updates will trigger as well, so long as the phrase stays at the beginning.)_.
 
 ![image](https://user-images.githubusercontent.com/2818462/72313006-ec231c00-3657-11ea-9bd9-227634d67362.png)
 
