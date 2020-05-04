@@ -198,7 +198,7 @@ support the `"exports"` field.
 [Conditional Exports][] can be used within `"exports"` to define different
 package entry points per environment, including whether the package is
 referenced via `require` or via `import`. For more information about supporting
-both Common.js and ES Modules in a single package please consult
+both CommonJS and ES Modules in a single package please consult
 [the dual CommonJS/ES module packages section][]. 
 
 **Warning**: Introducing the `"exports"` field prevents consumers of a package
