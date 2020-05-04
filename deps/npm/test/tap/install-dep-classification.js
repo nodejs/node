@@ -126,7 +126,7 @@ test('optional dependency identification', function (t) {
           optional: true
         },
         example: {
-          version: '1.0.0',
+          version: 'file:../example-1.0.0.tgz',
           optional: true
         }
       }
@@ -150,7 +150,7 @@ test('development dependency identification', function (t) {
           dev: true
         },
         example: {
-          version: '1.0.0',
+          version: 'file:../example-1.0.0.tgz',
           dev: true
         }
       }
@@ -173,7 +173,7 @@ test('default dependency identification', function (t) {
           optional: true
         },
         example: {
-          version: '1.0.0',
+          version: 'file:../example-1.0.0.tgz',
           optional: true
         }
       }

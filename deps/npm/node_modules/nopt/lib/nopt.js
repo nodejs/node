@@ -113,7 +113,12 @@ function clean (data, types, typeDefs) {
       return d[k]
     }).filter(function (val) { return val !== remove })
 
-    if (!val.length) delete data[k]
+    // if we allow Array specifically, then an empty array is how we
+    // express 'no value here', not null.  Allow it.
+    if (!val.length && type.indexOf(Array) === -1) {
+      debug('VAL HAS NO LENGTH, DELETE IT', val, k, type.indexOf(Array))
+      delete data[k]
+    }
     else if (isArray) {
       debug(isArray, data[k], val)
       data[k] = val
