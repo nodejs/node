@@ -91,7 +91,11 @@ async function tests(options) {
     input: 'koo',
     noPreview: '[Function: koo]',
     preview: [
-      'k\x1B[90moo\x1B[39m\x1B[9G\x1B[0Ko\x1B[90mo\x1B[39m\x1B[10G\x1B[0Ko',
+      'k\x1B[90moo\x1B[39m\x1B[9G',
+      '\x1B[90m[Function: koo]\x1B[39m\x1B[9G\x1B[1A\x1B[1B\x1B[2K\x1B[1A' +
+        '\x1B[0Ko\x1B[90mo\x1B[39m\x1B[10G',
+      '\x1B[90m[Function: koo]\x1B[39m\x1B[10G\x1B[1A\x1B[1B\x1B[2K\x1B[1A' +
+        '\x1B[0Ko',
       '\x1B[90m[Function: koo]\x1B[39m\x1B[11G\x1B[1A\x1B[1B\x1B[2K\x1B[1A\r',
       '\x1B[36m[Function: koo]\x1B[39m'
     ]
