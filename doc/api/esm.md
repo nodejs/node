@@ -214,6 +214,7 @@ a project that previous exported `main`, `lib`,
 
 ```json
 {
+  "name": "my-mod",
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
@@ -230,6 +231,7 @@ Alternatively a project could choose to export entire folders:
 
 ```json
 {
+  "name": "my-mod",
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
@@ -243,7 +245,7 @@ Alternatively a project could choose to export entire folders:
 
 As a last resort, package encapsulation can be disabled entirely by creating an
 export for the root of the package `"./": "./"`. This will expose every file in
-the package at the cost of disabling encapsulation.
+the package at the cost of disabling encapsulation. As the ES Module loader in Node.js will not resolve file extensions or an `index.js` exporting the root is less expressive than either of the above examples as individuals will be unable to `import feature from 'my-mod/feature'`.
 
 #### Main Entry Point Export
 
