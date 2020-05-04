@@ -16,3 +16,12 @@ const URLSearchParams = require('url').URLSearchParams;
     message: 'Value of "this" must be of type URLSearchParams'
   });
 }
+
+// The URLSearchParams stringifier mutates the base URL using
+// different percent-encoding rules than the URL itself.
+{
+  const myUrl = new URL('https://example.org?foo=~bar');
+  assert.strictEqual(myUrl.search, '?foo=~bar');
+  myUrl.searchParams.sort();
+  assert.strictEqual(myUrl.search, '?foo=%7Ebar');
+}
