@@ -798,6 +798,19 @@ indexes (e.g. `'./startup/index.js'`) must also be fully specified.
 This behavior matches how `import` behaves in browser environments, assuming a
 typically configured server.
 
+### No folder imports
+
+Folders cannot be imported using ES modules.
+
+Previously it was possible to `require` a folder if it contained either an
+`index.js` file or a `package.json` file. This is no longer supported. Instead
+the desired entry file can be referenced directly.
+
+```js
+import './folder-with-index-file/index.js';
+import './folder-with-package-json-file/main.js';
+```
+
 ### No `NODE_PATH`
 
 `NODE_PATH` is not part of resolving `import` specifiers. Please use symlinks
