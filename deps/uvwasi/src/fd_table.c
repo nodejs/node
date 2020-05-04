@@ -181,26 +181,25 @@ uvwasi_errno_t uvwasi_fd_table_init(uvwasi_t* uvwasi,
   if (uvwasi == NULL || options == NULL || options->fd_table_size < 3)
     return UVWASI_EINVAL;
 
-  table = &uvwasi->fds;
-  table->fds = NULL;
+  table = uvwasi__malloc(uvwasi, sizeof(*table));
+  if (table == NULL)
+    return UVWASI_ENOMEM;
+
   table->used = 0;
   table->size = options->fd_table_size;
   table->fds = uvwasi__calloc(uvwasi,
                               options->fd_table_size,
                               sizeof(struct uvwasi_fd_wrap_t*));
-
-  if (table->fds == NULL)
+  if (table->fds == NULL) {
+    uvwasi__free(uvwasi, table);
     return UVWASI_ENOMEM;
+  }
 
   r = uv_rwlock_init(&table->rwlock);
   if (r != 0) {
     err = uvwasi__translate_uv_error(r);
-    /* Free table->fds and set it to NULL here. This is done explicitly instead
-       of jumping to error_exit because uvwasi_fd_table_free() relies on fds
-       being NULL to know whether or not to destroy the rwlock.
-    */
     uvwasi__free(uvwasi, table->fds);
-    table->fds = NULL;
+    uvwasi__free(uvwasi, table);
     return err;
   }
 
@@ -217,6 +216,7 @@ uvwasi_errno_t uvwasi_fd_table_init(uvwasi_t* uvwasi,
   if (err != UVWASI_ESUCCESS)
     goto error_exit;
 
+  uvwasi->fds = table;
   return UVWASI_ESUCCESS;
 error_exit:
   uvwasi_fd_table_free(uvwasi, table);
@@ -228,12 +228,14 @@ void uvwasi_fd_table_free(uvwasi_t* uvwasi, struct uvwasi_fd_table_t* table) {
   struct uvwasi_fd_wrap_t* entry;
   uint32_t i;
 
-  if (table == NULL)
+  if (uvwasi == NULL || table == NULL)
     return;
 
   for (i = 0; i < table->size; i++) {
     entry = table->fds[i];
-    if (entry == NULL) continue;
+
+    if (entry == NULL)
+      continue;
 
     uv_mutex_destroy(&entry->mutex);
     uvwasi__free(uvwasi, entry);
@@ -246,6 +248,8 @@ void uvwasi_fd_table_free(uvwasi_t* uvwasi, struct uvwasi_fd_table_t* table) {
     table->used = 0;
     uv_rwlock_destroy(&table->rwlock);
   }
+
+  uvwasi__free(uvwasi, table);
 }
 
 
