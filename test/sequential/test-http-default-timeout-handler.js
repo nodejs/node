@@ -14,7 +14,7 @@ server.listen(0, common.mustCall(() => {
   const timer = setTimeout(() => {
     req.abort();
     assert.fail('should not timeout here');
-  }, 100);
+  }, 1000);
 
   const agent = new http.Agent({ timeout: 50 });
   req = http.get({

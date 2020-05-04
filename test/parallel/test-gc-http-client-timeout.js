@@ -40,7 +40,7 @@ function getall() {
   });
   req.on('error', common.expectsError({
     // Only allow Socket timeout error
-    code: 'ERR_SOCKET_TIMEOUT',
+    code: 'ERR_HTTP_SOCKET_TIMEOUT',
     message: 'Socket timeout'
   }));
 
