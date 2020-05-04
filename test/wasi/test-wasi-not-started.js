@@ -21,7 +21,7 @@ if (process.argv[2] === 'wasi-child') {
   }, {
     name: 'Error',
     code: 'ERR_WASI_NOT_STARTED',
-    message: 'wasi.start has not been called'
+    message: 'wasi.start() has not been called'
   });
 } else {
   const assert = require('assert');
