@@ -81,7 +81,7 @@ const { Console } = console;
 ### `new Console(options)`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.2.0
     pr-url: https://github.com/nodejs/node/pull/32964
     description: The `groupIndentation` option was introduced.
   - version: v11.7.0

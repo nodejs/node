@@ -151,7 +151,7 @@ try {
 
 ## Class: `assert.CallTracker`
 <!-- YAML
-added: REPLACEME
+added: v14.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -160,7 +160,7 @@ This feature is currently experimental and behavior might still change.
 
 ### `new assert.CallTracker()`
 <!-- YAML
-added: REPLACEME
+added: v14.2.0
 -->
 
 Creates a new [`CallTracker`][] object which can be used to track if functions
@@ -189,7 +189,7 @@ process.on('exit', () => {
 
 ### `tracker.calls([fn][, exact])`
 <!-- YAML
-added: REPLACEME
+added: v14.2.0
 -->
 
 * `fn` {Function} **Default** A no-op function.
@@ -216,7 +216,7 @@ const callsfunc = tracker.calls(func);
 
 ### `tracker.report()`
 <!-- YAML
-added: REPLACEME
+added: v14.2.0
 -->
 
 * Returns: {Array} of objects containing information about the wrapper functions
@@ -262,7 +262,7 @@ tracker.report();
 
 ### `tracker.verify()`
 <!-- YAML
-added: REPLACEME
+added: v14.2.0
 -->
 
 Iterates through the list of functions passed to
