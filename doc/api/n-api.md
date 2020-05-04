@@ -4684,7 +4684,7 @@ Returns `napi_ok` if the API succeeded.
 In order to retain ABI compatibility with previous versions,
 passing `NULL` for `async_resource` will not result in an error, however,
 this will result incorrect operation of async hooks for the
-napi_async_context created. Potential issues include include
+napi_async_context created. Potential issues include
 loss of async context when using the AsyncLocalStorage API.
 
 ### napi_async_destroy
