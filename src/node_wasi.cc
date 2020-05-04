@@ -5,6 +5,7 @@
 #include "node_mem-inl.h"
 #include "util-inl.h"
 #include "node.h"
+#include "node_errors.h"
 #include "uv.h"
 #include "uvwasi.h"
 #include "node_wasi.h"
@@ -22,6 +23,15 @@ template <typename... Args>
 inline void Debug(WASI* wasi, Args&&... args) {
   Debug(wasi->env(), DebugCategory::WASI, std::forward<Args>(args)...);
 }
+
+#define ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(ptr, obj)                          \
+  do {                                                                         \
+    ASSIGN_OR_RETURN_UNWRAP(ptr, obj);                                         \
+    if ((*(ptr))->memory_.IsEmpty()) {                                         \
+      THROW_ERR_WASI_NOT_STARTED(Environment::GetCurrent(args));               \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
 
 #define RETURN_IF_BAD_ARG_COUNT(args, expected)                               \
   do {                                                                        \
@@ -249,7 +259,7 @@ void WASI::ArgsGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, argv_offset);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, argv_buf_offset);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "args_get(%d, %d)\n", argv_offset, argv_buf_offset);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args,
@@ -281,7 +291,7 @@ void WASI::ArgsSizesGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, argc_offset);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, argv_buf_offset);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "args_sizes_get(%d, %d)\n", argc_offset, argv_buf_offset);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, argc_offset, 4);
@@ -309,7 +319,7 @@ void WASI::ClockResGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, clock_id);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, resolution_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "clock_res_get(%d, %d)\n", clock_id, resolution_ptr);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, resolution_ptr, 8);
@@ -335,7 +345,7 @@ void WASI::ClockTimeGet(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, clock_id);
   UNWRAP_BIGINT_OR_RETURN(args, args[1], Uint64, precision);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, time_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "clock_time_get(%d, %d, %d)\n", clock_id, precision, time_ptr);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, time_ptr, 8);
@@ -360,7 +370,7 @@ void WASI::EnvironGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, environ_offset);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, environ_buf_offset);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "environ_get(%d, %d)\n", environ_offset, environ_buf_offset);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args,
@@ -394,7 +404,7 @@ void WASI::EnvironSizesGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, envc_offset);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, env_buf_offset);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "environ_sizes_get(%d, %d)\n", envc_offset, env_buf_offset);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, envc_offset, 4);
@@ -424,7 +434,7 @@ void WASI::FdAdvise(const FunctionCallbackInfo<Value>& args) {
   UNWRAP_BIGINT_OR_RETURN(args, args[1], Uint64, offset);
   UNWRAP_BIGINT_OR_RETURN(args, args[2], Uint64, len);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, advice);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_advise(%d, %d, %d, %d)\n", fd, offset, len, advice);
   uvwasi_errno_t err = uvwasi_fd_advise(&wasi->uvw_, fd, offset, len, advice);
   args.GetReturnValue().Set(err);
@@ -440,7 +450,7 @@ void WASI::FdAllocate(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   UNWRAP_BIGINT_OR_RETURN(args, args[1], Uint64, offset);
   UNWRAP_BIGINT_OR_RETURN(args, args[2], Uint64, len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_allocate(%d, %d, %d)\n", fd, offset, len);
   uvwasi_errno_t err = uvwasi_fd_allocate(&wasi->uvw_, fd, offset, len);
   args.GetReturnValue().Set(err);
@@ -452,7 +462,7 @@ void WASI::FdClose(const FunctionCallbackInfo<Value>& args) {
   uint32_t fd;
   RETURN_IF_BAD_ARG_COUNT(args, 1);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_close(%d)\n", fd);
   uvwasi_errno_t err = uvwasi_fd_close(&wasi->uvw_, fd);
   args.GetReturnValue().Set(err);
@@ -464,7 +474,7 @@ void WASI::FdDatasync(const FunctionCallbackInfo<Value>& args) {
   uint32_t fd;
   RETURN_IF_BAD_ARG_COUNT(args, 1);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_datasync(%d)\n", fd);
   uvwasi_errno_t err = uvwasi_fd_datasync(&wasi->uvw_, fd);
   args.GetReturnValue().Set(err);
@@ -480,7 +490,7 @@ void WASI::FdFdstatGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, buf);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_fdstat_get(%d, %d)\n", fd, buf);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, buf, 24);
@@ -505,7 +515,7 @@ void WASI::FdFdstatSetFlags(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, flags);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_fdstat_set_flags(%d, %d)\n", fd, flags);
   uvwasi_errno_t err = uvwasi_fd_fdstat_set_flags(&wasi->uvw_, fd, flags);
   args.GetReturnValue().Set(err);
@@ -521,7 +531,7 @@ void WASI::FdFdstatSetRights(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   UNWRAP_BIGINT_OR_RETURN(args, args[1], Uint64, fs_rights_base);
   UNWRAP_BIGINT_OR_RETURN(args, args[2], Uint64, fs_rights_inheriting);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "fd_fdstat_set_rights(%d, %d, %d)\n",
         fd,
@@ -544,7 +554,7 @@ void WASI::FdFilestatGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, buf);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_filestat_get(%d, %d)\n", fd, buf);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, buf, 64);
@@ -573,7 +583,7 @@ void WASI::FdFilestatSetSize(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   UNWRAP_BIGINT_OR_RETURN(args, args[1], Uint64, st_size);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_filestat_set_size(%d, %d)\n", fd, st_size);
   uvwasi_errno_t err = uvwasi_fd_filestat_set_size(&wasi->uvw_, fd, st_size);
   args.GetReturnValue().Set(err);
@@ -591,7 +601,7 @@ void WASI::FdFilestatSetTimes(const FunctionCallbackInfo<Value>& args) {
   UNWRAP_BIGINT_OR_RETURN(args, args[1], Uint64, st_atim);
   UNWRAP_BIGINT_OR_RETURN(args, args[2], Uint64, st_mtim);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, fst_flags);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "fd_filestat_set_times(%d, %d, %d, %d)\n",
         fd,
@@ -622,7 +632,7 @@ void WASI::FdPread(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, iovs_len);
   UNWRAP_BIGINT_OR_RETURN(args, args[3], Uint64, offset);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, nread_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "uvwasi_fd_pread(%d, %d, %d, %d, %d)\n",
         fd,
@@ -682,7 +692,7 @@ void WASI::FdPrestatGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, buf);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_prestat_get(%d, %d)\n", fd, buf);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, buf, 8);
@@ -709,7 +719,7 @@ void WASI::FdPrestatDirName(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, path_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_prestat_dir_name(%d, %d, %d)\n", fd, path_ptr, path_len);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, path_ptr, path_len);
@@ -736,7 +746,7 @@ void WASI::FdPwrite(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, iovs_len);
   UNWRAP_BIGINT_OR_RETURN(args, args[3], Uint64, offset);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, nwritten_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "uvwasi_fd_pwrite(%d, %d, %d, %d, %d)\n",
         fd,
@@ -800,7 +810,7 @@ void WASI::FdRead(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, iovs_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, iovs_len);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, nread_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_read(%d, %d, %d, %d)\n", fd, iovs_ptr, iovs_len, nread_ptr);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, iovs_ptr, iovs_len * 8);
@@ -859,7 +869,7 @@ void WASI::FdReaddir(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, buf_len);
   UNWRAP_BIGINT_OR_RETURN(args, args[3], Uint64, cookie);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, bufused_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "uvwasi_fd_readdir(%d, %d, %d, %d, %d)\n",
         fd,
@@ -891,7 +901,7 @@ void WASI::FdRenumber(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, from);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, to);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_renumber(%d, %d)\n", from, to);
   uvwasi_errno_t err = uvwasi_fd_renumber(&wasi->uvw_, from, to);
   args.GetReturnValue().Set(err);
@@ -911,7 +921,7 @@ void WASI::FdSeek(const FunctionCallbackInfo<Value>& args) {
   UNWRAP_BIGINT_OR_RETURN(args, args[1], Int64, offset);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, whence);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, newoffset_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_seek(%d, %d, %d, %d)\n", fd, offset, whence, newoffset_ptr);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, newoffset_ptr, 8);
@@ -933,7 +943,7 @@ void WASI::FdSync(const FunctionCallbackInfo<Value>& args) {
   uint32_t fd;
   RETURN_IF_BAD_ARG_COUNT(args, 1);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_sync(%d)\n", fd);
   uvwasi_errno_t err = uvwasi_fd_sync(&wasi->uvw_, fd);
   args.GetReturnValue().Set(err);
@@ -949,7 +959,7 @@ void WASI::FdTell(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, offset_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "fd_tell(%d, %d)\n", fd, offset_ptr);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, offset_ptr, 8);
@@ -976,7 +986,7 @@ void WASI::FdWrite(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, iovs_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, iovs_len);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, nwritten_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "fd_write(%d, %d, %d, %d)\n",
         fd,
@@ -1036,7 +1046,7 @@ void WASI::PathCreateDirectory(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, path_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "path_create_directory(%d, %d, %d)\n", fd, path_ptr, path_len);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, path_ptr, path_len);
@@ -1063,7 +1073,7 @@ void WASI::PathFilestatGet(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, path_len);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, buf_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "path_filestat_get(%d, %d, %d)\n",
         fd,
@@ -1113,7 +1123,7 @@ void WASI::PathFilestatSetTimes(const FunctionCallbackInfo<Value>& args) {
   UNWRAP_BIGINT_OR_RETURN(args, args[4], Uint64, st_atim);
   UNWRAP_BIGINT_OR_RETURN(args, args[5], Uint64, st_mtim);
   CHECK_TO_TYPE_OR_RETURN(args, args[6], Uint32, fst_flags);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "path_filestat_set_times(%d, %d, %d, %d, %d, %d, %d)\n",
         fd,
@@ -1156,7 +1166,7 @@ void WASI::PathLink(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, new_fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[5], Uint32, new_path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[6], Uint32, new_path_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "path_link(%d, %d, %d, %d, %d, %d, %d)\n",
         old_fd,
@@ -1204,7 +1214,7 @@ void WASI::PathOpen(const FunctionCallbackInfo<Value>& args) {
   UNWRAP_BIGINT_OR_RETURN(args, args[6], Uint64, fs_rights_inheriting);
   CHECK_TO_TYPE_OR_RETURN(args, args[7], Uint32, fs_flags);
   CHECK_TO_TYPE_OR_RETURN(args, args[8], Uint32, fd_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "path_open(%d, %d, %d, %d, %d, %d, %d, %d, %d)\n",
         dirfd,
@@ -1254,7 +1264,7 @@ void WASI::PathReadlink(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, buf_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, buf_len);
   CHECK_TO_TYPE_OR_RETURN(args, args[5], Uint32, bufused_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "path_readlink(%d, %d, %d, %d, %d, %d)\n",
         fd,
@@ -1293,7 +1303,7 @@ void WASI::PathRemoveDirectory(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, path_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "path_remove_directory(%d, %d, %d)\n", fd, path_ptr, path_len);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, path_ptr, path_len);
@@ -1322,7 +1332,7 @@ void WASI::PathRename(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, new_fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, new_path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[5], Uint32, new_path_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "path_rename(%d, %d, %d, %d, %d, %d)\n",
         old_fd,
@@ -1360,7 +1370,7 @@ void WASI::PathSymlink(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, new_path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, new_path_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "path_symlink(%d, %d, %d, %d, %d)\n",
         old_path_ptr,
@@ -1392,7 +1402,7 @@ void WASI::PathUnlinkFile(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, fd);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, path_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, path_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "path_unlink_file(%d, %d, %d)\n", fd, path_ptr, path_len);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, path_ptr, path_len);
@@ -1417,7 +1427,7 @@ void WASI::PollOneoff(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, out_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, nsubscriptions);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, nevents_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "poll_oneoff(%d, %d, %d, %d)\n",
         in_ptr,
@@ -1499,7 +1509,7 @@ void WASI::ProcExit(const FunctionCallbackInfo<Value>& args) {
   uint32_t code;
   RETURN_IF_BAD_ARG_COUNT(args, 1);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, code);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "proc_exit(%d)\n", code);
   args.GetReturnValue().Set(uvwasi_proc_exit(&wasi->uvw_, code));
 }
@@ -1510,7 +1520,7 @@ void WASI::ProcRaise(const FunctionCallbackInfo<Value>& args) {
   uint32_t sig;
   RETURN_IF_BAD_ARG_COUNT(args, 1);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, sig);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "proc_raise(%d)\n", sig);
   uvwasi_errno_t err = uvwasi_proc_raise(&wasi->uvw_, sig);
   args.GetReturnValue().Set(err);
@@ -1526,7 +1536,7 @@ void WASI::RandomGet(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, buf_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, buf_len);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "random_get(%d, %d)\n", buf_ptr, buf_len);
   GET_BACKING_STORE_OR_RETURN(wasi, args, &memory, &mem_size);
   CHECK_BOUNDS_OR_RETURN(args, mem_size, buf_ptr, buf_len);
@@ -1540,7 +1550,7 @@ void WASI::RandomGet(const FunctionCallbackInfo<Value>& args) {
 void WASI::SchedYield(const FunctionCallbackInfo<Value>& args) {
   WASI* wasi;
   RETURN_IF_BAD_ARG_COUNT(args, 0);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "sched_yield()\n");
   uvwasi_errno_t err = uvwasi_sched_yield(&wasi->uvw_);
   args.GetReturnValue().Set(err);
@@ -1564,7 +1574,7 @@ void WASI::SockRecv(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, ri_flags);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, ro_datalen_ptr);
   CHECK_TO_TYPE_OR_RETURN(args, args[5], Uint32, ro_flags_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "sock_recv(%d, %d, %d, %d, %d, %d)\n",
         sock,
@@ -1636,7 +1646,7 @@ void WASI::SockSend(const FunctionCallbackInfo<Value>& args) {
   CHECK_TO_TYPE_OR_RETURN(args, args[2], Uint32, si_data_len);
   CHECK_TO_TYPE_OR_RETURN(args, args[3], Uint32, si_flags);
   CHECK_TO_TYPE_OR_RETURN(args, args[4], Uint32, so_datalen_ptr);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi,
         "sock_send(%d, %d, %d, %d, %d)\n",
         sock,
@@ -1694,7 +1704,7 @@ void WASI::SockShutdown(const FunctionCallbackInfo<Value>& args) {
   RETURN_IF_BAD_ARG_COUNT(args, 2);
   CHECK_TO_TYPE_OR_RETURN(args, args[0], Uint32, sock);
   CHECK_TO_TYPE_OR_RETURN(args, args[1], Uint32, how);
-  ASSIGN_OR_RETURN_UNWRAP(&wasi, args.This());
+  ASSIGN_INITIALIZED_OR_RETURN_UNWRAP(&wasi, args.This());
   Debug(wasi, "sock_shutdown(%d, %d)\n", sock, how);
   uvwasi_errno_t err = uvwasi_sock_shutdown(&wasi->uvw_, sock, how);
   args.GetReturnValue().Set(err);
