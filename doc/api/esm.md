@@ -217,6 +217,7 @@ a project that previous exported `main`, `lib`,
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
+    "./lib/index": "./lib/index.js",
     "./lib/index.js": "./lib/index.js",
     "./feature": "./feature/index.js",
     "./feature/index.js": "./feature/index.js",
