@@ -226,6 +226,21 @@ a project that previous exported `main`, `lib`,
 }
 ```
 
+Alternatively a project could choose to export entire folders:
+
+```json
+{
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib": "./lib/index.js",
+    "./lib/": "./lib/",
+    "./feature": "./feature/index.js",
+    "./feature/": "./feature/",
+    "./package.json": "./package.json"
+  }
+}
+```
+
 As a last resort, package encapsulation can be disabled entirely by creating an
 export for the root of the package `"./": "./"`. This will expose every file in
 the package at the cost of disabling encapsulation.
