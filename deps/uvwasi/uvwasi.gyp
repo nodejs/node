@@ -12,9 +12,11 @@
         'src/clocks.c',
         'src/fd_table.c',
         'src/path_resolver.c',
+        'src/poll_oneoff.c',
         'src/uv_mapping.c',
         'src/uvwasi.c',
         'src/wasi_rights.c',
+        'src/wasi_serdes.c',
       ],
       'dependencies': [
         '../uv/uv.gyp:libuv',
