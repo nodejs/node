@@ -189,17 +189,17 @@ This encapsulation allows module authors to define a public interface for
 their package.
 
 If both `"exports"` and `"main"` are defined, the `"exports"` field takes
-precedence over `"main"`. It is important to note that `"exports"` are not
-specific to ES modules or CommonJS; `"main"` will be overridden by `"exports"`
-if it exists. As such `"main"` cannot be used as a fallback for CommonJS
-but it can be used as a fallback for legacy versions of Node.js that do not
-support the `"exports"` field.
+precedence over `"main"`. `"exports"` are not specific to ES modules or
+CommonJS; `"main"` will be overridden by `"exports"` if it exists. As such
+`"main"` cannot be used as a fallback for CommonJS but it can be used as a
+fallback for legacy versions of Node.js that do not support the `"exports"`
+field.
 
 [Conditional Exports][] can be used within `"exports"` to define different
 package entry points per environment, including whether the package is
 referenced via `require` or via `import`. For more information about supporting
 both CommonJS and ES Modules in a single package please consult
-[the dual CommonJS/ES module packages section][]. 
+[the dual CommonJS/ES module packages section][].
 
 **Warning**: Introducing the `"exports"` field prevents consumers of a package
 from using any entry points that are not defined, including the `package.json`
@@ -245,7 +245,10 @@ Alternatively a project could choose to export entire folders:
 
 As a last resort, package encapsulation can be disabled entirely by creating an
 export for the root of the package `"./": "./"`. This will expose every file in
-the package at the cost of disabling encapsulation. As the ES Module loader in Node.js will not resolve file extensions or an `index.js` exporting the root is less expressive than either of the above examples as individuals will be unable to `import feature from 'my-mod/feature'`.
+the package at the cost of disabling encapsulation. As the ES Module loader in
+Node.js will not resolve file extensions or an `index.js` exporting the root is
+less expressive than either of the above examples as individuals will be unable
+to `import feature from 'my-mod/feature'`.
 
 #### Main Entry Point Export
 
