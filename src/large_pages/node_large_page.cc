@@ -106,18 +106,18 @@ namespace node {
 namespace {
 
 struct text_region {
-  char* from;
-  char* to;
-  int   total_hugepages;
-  bool  found_text_region;
+  char* from = nullptr;
+  char* to = nullptr;
+  bool found_text_region = false;
 };
 
 static const size_t hps = 2L * 1024 * 1024;
 
 template <typename... Args>
-inline void Debug(Args&&... args) {
+inline void Debug(std::string fmt, Args&&... args) {
   node::Debug(&per_process::enabled_debug_list,
               DebugCategory::HUGEPAGES,
+              (std::string("Hugepages info: ") + fmt).c_str(),
               std::forward<Args>(args)...);
 }
 
@@ -145,9 +145,9 @@ inline uintptr_t hugepage_align_down(uintptr_t addr) {
 #endif  // defined(__FreeBSD__)
 
 struct dl_iterate_params {
-  uintptr_t start;
-  uintptr_t end;
-  uintptr_t reference_sym;
+  uintptr_t start = 0;
+  uintptr_t end = 0;
+  uintptr_t reference_sym = reinterpret_cast<uintptr_t>(&__node_text_start);
   std::string exename;
 };
 
@@ -175,11 +175,8 @@ int FindMapping(struct dl_phdr_info* info, size_t, void* data) {
 
 struct text_region FindNodeTextRegion() {
   struct text_region nregion;
-  nregion.found_text_region = false;
 #if defined(__linux__) || defined(__FreeBSD__)
-  dl_iterate_params dl_params = {
-    0, 0, reinterpret_cast<uintptr_t>(&__node_text_start), ""
-  };
+  dl_iterate_params dl_params;
   uintptr_t lpstub_start = reinterpret_cast<uintptr_t>(&__start_lpstub);
 
 #if defined(__FreeBSD__)
@@ -196,14 +193,14 @@ struct text_region FindNodeTextRegion() {
 #endif  // defined(__FreeBSD__)
 
   if (dl_iterate_phdr(FindMapping, &dl_params) == 1) {
-    Debug("Hugepages info: start: %p - sym: %p - end: %p\n",
+    Debug("start: %p - sym: %p - end: %p\n",
           reinterpret_cast<void*>(dl_params.start),
           reinterpret_cast<void*>(dl_params.reference_sym),
           reinterpret_cast<void*>(dl_params.end));
 
     dl_params.start = dl_params.reference_sym;
     if (lpstub_start > dl_params.start && lpstub_start <= dl_params.end) {
-      Debug("Hugepages info: Trimming end for lpstub: %p\n",
+      Debug("Trimming end for lpstub: %p\n",
             reinterpret_cast<void*>(lpstub_start));
       dl_params.end = lpstub_start;
     }
@@ -211,14 +208,13 @@ struct text_region FindNodeTextRegion() {
     if (dl_params.start < dl_params.end) {
       char* from = reinterpret_cast<char*>(hugepage_align_up(dl_params.start));
       char* to = reinterpret_cast<char*>(hugepage_align_down(dl_params.end));
-      Debug("Hugepages info: Aligned range is %p - %p\n", from, to);
+      Debug("Aligned range is %p - %p\n", from, to);
       if (from < to) {
         size_t pagecount = (to - from) / hps;
         if (pagecount > 0) {
           nregion.found_text_region = true;
           nregion.from = from;
           nregion.to = to;
-          nregion.total_hugepages = pagecount;
         }
       }
     }
@@ -249,7 +245,6 @@ struct text_region FindNodeTextRegion() {
         nregion.found_text_region = true;
         nregion.from = start;
         nregion.to = end;
-        nregion.total_hugepages = esize / hps;
         break;
       }
 
@@ -258,7 +253,7 @@ struct text_region FindNodeTextRegion() {
     }
   }
 #endif
-  Debug("Hugepages info: Found %d huge pages\n", nregion.total_hugepages);
+  Debug("Found %d huge pages\n", (nregion.to - nregion.from) / hps);
   return nregion;
 }
 
