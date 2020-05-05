@@ -2941,6 +2941,9 @@ void Http2State::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("root_buffer", root_buffer);
 }
 
+// TODO(addaleax): Remove once we're on C++17.
+constexpr FastStringKey Http2State::binding_data_name;
+
 // Set up the process.binding('http2') binding.
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -2950,9 +2953,8 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
 
-  Environment::BindingScope<Http2State> binding_scope(context, target);
-  if (!binding_scope) return;
-  Http2State* state = binding_scope.data;
+  Http2State* const state = env->AddBindingData<Http2State>(context, target);
+  if (state == nullptr) return;
 
 #define SET_STATE_TYPEDARRAY(name, field)             \
   target->Set(context,                                \

@@ -261,16 +261,6 @@ void TrackingTraceStateObserver::UpdateTraceCategoryState() {
   USE(cb->Call(env_->context(), Undefined(isolate), arraysize(args), args));
 }
 
-class NoBindingData : public BaseObject {
- public:
-  NoBindingData(Environment* env, Local<Object> obj)
-      : BaseObject(env, obj) {}
-
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(NoBindingData)
-  SET_SELF_SIZE(NoBindingData)
-};
-
 void Environment::CreateProperties() {
   HandleScope handle_scope(isolate_);
   Local<Context> ctx = context();
@@ -282,11 +272,6 @@ void Environment::CreateProperties() {
         BaseObject::kInternalFieldCount);
 
     set_binding_data_ctor_template(templ);
-    Local<Function> ctor = templ->GetFunction(ctx).ToLocalChecked();
-    Local<Object> obj = ctor->NewInstance(ctx).ToLocalChecked();
-    uint32_t index = NewBindingData<NoBindingData>(ctx, obj).second;
-    default_callback_data_ = index;
-    current_callback_data_ = index;
   }
 
   // Store primordials setup by the per-context script in the environment.

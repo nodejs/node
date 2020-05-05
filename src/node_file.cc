@@ -2303,15 +2303,18 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
                       file_handle_read_wrap_freelist);
 }
 
+// TODO(addaleax): Remove once we're on C++17.
+constexpr FastStringKey BindingData::binding_data_name;
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   Isolate* isolate = env->isolate();
-  Environment::BindingScope<BindingData> binding_scope(context, target);
-  if (!binding_scope) return;
-  BindingData* binding_data = binding_scope.data;
+  BindingData* const binding_data =
+      env->AddBindingData<BindingData>(context, target);
+  if (binding_data == nullptr) return;
 
   env->SetMethod(target, "access", Access);
   env->SetMethod(target, "close", Close);

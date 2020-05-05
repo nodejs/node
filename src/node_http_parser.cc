@@ -87,6 +87,8 @@ class BindingData : public BaseObject {
   BindingData(Environment* env, Local<Object> obj)
       : BaseObject(env, obj) {}
 
+  static constexpr FastStringKey binding_data_name { "http_parser" };
+
   std::vector<char> parser_buffer;
   bool parser_buffer_in_use = false;
 
@@ -96,6 +98,9 @@ class BindingData : public BaseObject {
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
 };
+
+// TODO(addaleax): Remove once we're on C++17.
+constexpr FastStringKey BindingData::binding_data_name;
 
 // helper class for the Parser
 struct StringPtr {
@@ -921,8 +926,9 @@ void InitializeHttpParser(Local<Object> target,
                           Local<Context> context,
                           void* priv) {
   Environment* env = Environment::GetCurrent(context);
-  Environment::BindingScope<BindingData> binding_scope(context, target);
-  if (!binding_scope) return;
+  BindingData* const binding_data =
+      env->AddBindingData<BindingData>(context, target);
+  if (binding_data == nullptr) return;
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(Parser::kInternalFieldCount);

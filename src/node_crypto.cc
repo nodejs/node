@@ -505,7 +505,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> ctx_getter_templ =
       FunctionTemplate::New(env->isolate(),
                             CtxGetter,
-                            env->current_callback_data(),
+                            Local<Value>(),
                             Signature::New(env->isolate(), t));
 
 
@@ -5103,7 +5103,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
     Local<FunctionTemplate> verify_error_getter_templ =
         FunctionTemplate::New(env->isolate(),
                               DiffieHellman::VerifyErrorGetter,
-                              env->current_callback_data(),
+                              Local<Value>(),
                               Signature::New(env->isolate(), t),
                               /* length */ 0,
                               ConstructorBehavior::kThrow,

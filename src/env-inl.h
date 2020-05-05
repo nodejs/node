@@ -333,58 +333,43 @@ inline Environment* Environment::GetCurrent(
 
 template <typename T, typename U>
 inline T* Environment::GetBindingData(const v8::PropertyCallbackInfo<U>& info) {
-  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
+  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext());
 }
 
 template <typename T>
 inline T* Environment::GetBindingData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext(), info.Data());
+  return GetBindingData<T>(info.GetIsolate()->GetCurrentContext());
 }
 
 template <typename T>
-inline T* Environment::GetBindingData(v8::Local<v8::Context> context,
-                                      v8::Local<v8::Value> val) {
-  DCHECK(val->IsUint32());
-  uint32_t index = val.As<v8::Uint32>()->Value();
-  BindingDataList* list = static_cast<BindingDataList*>(
+inline T* Environment::GetBindingData(v8::Local<v8::Context> context) {
+  BindingDataStore* list = static_cast<BindingDataStore*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingListIndex));
   DCHECK_NOT_NULL(list);
-  DCHECK_GT(list->size(), index);
-  T* result = static_cast<T*>(list->at(index).get());
+  auto it = list->find(T::binding_data_name);
+  DCHECK_NE(it, list->end());
+  T* result = static_cast<T*>(it->second.get());
   DCHECK_NOT_NULL(result);
   DCHECK_EQ(result->env(), GetCurrent(context));
   return result;
 }
 
 template <typename T>
-inline std::pair<T*, uint32_t> Environment::NewBindingData(
+inline T* Environment::AddBindingData(
     v8::Local<v8::Context> context,
     v8::Local<v8::Object> target) {
   DCHECK_EQ(GetCurrent(context), this);
   // This won't compile if T is not a BaseObject subclass.
   BaseObjectPtr<T> item = MakeDetachedBaseObject<T>(this, target);
-  BindingDataList* list = static_cast<BindingDataList*>(
+  BindingDataStore* list = static_cast<BindingDataStore*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingListIndex));
   DCHECK_NOT_NULL(list);
-  size_t index = list->size();
-  list->emplace_back(item);
-  return std::make_pair(item.get(), index);
-}
-
-template <typename T>
-Environment::BindingScope<T>::BindingScope(v8::Local<v8::Context> context,
-                                           v8::Local<v8::Object> target)
-    : env(Environment::GetCurrent(context)) {
-  std::tie(data, env->current_callback_data_) =
-      env->NewBindingData<T>(context, target);
-}
-
-template <typename T>
-Environment::BindingScope<T>::~BindingScope() {
-  env->current_callback_data_ = env->default_callback_data_;
+  auto result = list->emplace(T::binding_data_name, item);
+  CHECK(result.second);
+  return item.get();
 }
 
 inline Environment* Environment::GetThreadLocalEnv() {
@@ -1103,8 +1088,7 @@ inline v8::Local<v8::FunctionTemplate>
                                      v8::Local<v8::Signature> signature,
                                      v8::ConstructorBehavior behavior,
                                      v8::SideEffectType side_effect_type) {
-  v8::Local<v8::Value> external = current_callback_data();
-  return v8::FunctionTemplate::New(isolate(), callback, external,
+  return v8::FunctionTemplate::New(isolate(), callback, v8::Local<v8::Value>(),
                                    signature, 0, behavior, side_effect_type);
 }
 
@@ -1298,14 +1282,6 @@ void Environment::set_process_exit_handler(
 
 v8::Local<v8::Context> Environment::context() const {
   return PersistentToLocal::Strong(context_);
-}
-
-v8::Local<v8::Value> Environment::as_callback_data() const {
-  return v8::Integer::NewFromUnsigned(isolate(), default_callback_data_);
-}
-
-v8::Local<v8::Value> Environment::current_callback_data() const {
-  return v8::Integer::NewFromUnsigned(isolate(), current_callback_data_);
 }
 
 }  // namespace node

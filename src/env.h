@@ -864,38 +864,22 @@ class Environment : public MemoryRetainer {
 
   // Methods created using SetMethod(), SetPrototypeMethod(), etc. inside
   // this scope can access the created T* object using
-  // GetBindingData<T>(args.Data()) later.
+  // GetBindingData<T>(args) later.
   template <typename T>
-  struct BindingScope {
-    explicit inline BindingScope(v8::Local<v8::Context> context,
-                                 v8::Local<v8::Object> target);
-    inline ~BindingScope();
-
-    T* data = nullptr;
-    Environment* env;
-
-    inline operator bool() const { return data != nullptr; }
-    inline bool operator !() const { return data == nullptr; }
-  };
-
+  T* AddBindingData(v8::Local<v8::Context> context,
+                    v8::Local<v8::Object> target);
   template <typename T, typename U>
   static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
   template <typename T>
   static inline T* GetBindingData(
       const v8::FunctionCallbackInfo<v8::Value>& info);
-
-  // Unwrap a subclass T object from a v8::Value which needs to be an
-  // v8::Uint32
   template <typename T>
-  static inline T* GetBindingData(v8::Local<v8::Context> context,
-                                  v8::Local<v8::Value> val);
-  // Create a BindingData of subclass T, put it into the context binding list,
-  // return the index as an integer
-  template <typename T>
-  inline std::pair<T*, uint32_t> NewBindingData(v8::Local<v8::Context> context,
-                                                v8::Local<v8::Object> target);
+  static inline T* GetBindingData(v8::Local<v8::Context> context);
 
-  typedef std::vector<BaseObjectPtr<BaseObject>> BindingDataList;
+  typedef std::unordered_map<
+      FastStringKey,
+      BaseObjectPtr<BaseObject>,
+      FastStringKey::Hash> BindingDataStore;
 
   static uv_key_t thread_local_env;
   static inline Environment* GetThreadLocalEnv();
@@ -1146,8 +1130,6 @@ class Environment : public MemoryRetainer {
 #undef V
 
   inline v8::Local<v8::Context> context() const;
-  inline v8::Local<v8::Value> as_callback_data() const;
-  inline v8::Local<v8::Value> current_callback_data() const;
 
 #if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() const {
@@ -1443,7 +1425,7 @@ class Environment : public MemoryRetainer {
   void RequestInterruptFromV8();
   static void CheckImmediate(uv_check_t* handle);
 
-  BindingDataList bindings_;
+  BindingDataStore bindings_;
 
   // Use an unordered_set, so that we have efficient insertion and removal.
   std::unordered_set<CleanupHookCallback,
@@ -1468,9 +1450,6 @@ class Environment : public MemoryRetainer {
 #undef V
 
   v8::Global<v8::Context> context_;
-
-  uint32_t default_callback_data_;
-  uint32_t current_callback_data_;
 
   // Keeps the main script source alive is one was passed to LoadEnvironment().
   // We should probably find a way to just use plain `v8::String`s created from
