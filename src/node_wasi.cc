@@ -1446,21 +1446,21 @@ void WASI::PollOneoff(const FunctionCallbackInfo<Value>& args) {
   }
 
   for (uint32_t i = 0; i < nsubscriptions; ++i) {
-    uvwasi_subscription_t sub = in[i];
-    wasi->readUInt64(memory, &sub.userdata, in_ptr);
-    wasi->readUInt8(memory, &sub.type, in_ptr + 8);
+    uvwasi_subscription_t* sub = &in[i];
+    wasi->readUInt64(memory, &sub->userdata, in_ptr);
+    wasi->readUInt8(memory, &sub->type, in_ptr + 8);
 
-    if (sub.type == UVWASI_EVENTTYPE_CLOCK) {
-      wasi->readUInt32(memory, &sub.u.clock.clock_id, in_ptr + 16);
-      wasi->readUInt64(memory, &sub.u.clock.timeout, in_ptr + 24);
-      wasi->readUInt64(memory, &sub.u.clock.precision, in_ptr + 32);
-      wasi->readUInt16(memory, &sub.u.clock.flags, in_ptr + 40);
-    } else if (sub.type == UVWASI_EVENTTYPE_FD_READ ||
-               sub.type == UVWASI_EVENTTYPE_FD_WRITE) {
-      wasi->readUInt32(memory, &sub.u.fd_readwrite.fd, in_ptr + 16);
+    if (sub->type == UVWASI_EVENTTYPE_CLOCK) {
+      wasi->readUInt32(memory, &sub->u.clock.clock_id, in_ptr + 16);
+      wasi->readUInt64(memory, &sub->u.clock.timeout, in_ptr + 24);
+      wasi->readUInt64(memory, &sub->u.clock.precision, in_ptr + 32);
+      wasi->readUInt16(memory, &sub->u.clock.flags, in_ptr + 40);
+    } else if (sub->type == UVWASI_EVENTTYPE_FD_READ ||
+               sub->type == UVWASI_EVENTTYPE_FD_WRITE) {
+      wasi->readUInt32(memory, &sub->u.fd_readwrite.fd, in_ptr + 16);
     }
 
-    in_ptr += 56;
+    in_ptr += 48;
   }
 
   size_t nevents;
