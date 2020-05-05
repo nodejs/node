@@ -479,7 +479,7 @@ parameters of the URL, use the [`url.search`][] setter. See
 
 Care must be taken when using `.searchParams` to modify the `URL` because,
 per the WHATWG specification, the `URLSearchParams` object uses slightly
-different rules to determine which characters should be percent-encoded. For
+different rules to determine which characters to percent-encode. For
 instance, the `URL` object will not percent encode the ASCII tilde (`~`)
 character, while `URLSearchParams` will always encode it:
 
