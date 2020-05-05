@@ -600,6 +600,10 @@ the error passed to the [`'error'`][] listener.
 The last parameter `connectListener`, if supplied, will be added as a listener
 for the [`'connect'`][] event **once**.
 
+This function should only be used for reconnecting a socket after
+`'close'` has been emitted or otherwise it may lead to undefined
+behavior.
+
 #### `socket.connect(options[, connectListener])`
 <!-- YAML
 added: v0.1.90
