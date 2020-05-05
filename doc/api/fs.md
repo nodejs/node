@@ -438,6 +438,18 @@ Additionally, when [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with
 the `withFileTypes` option set to `true`, the resulting array is filled with
 `fs.Dirent` objects, rather than strings or `Buffers`.
 
+
+### `new fs.Dirent(name, type)`
+<!-- YAML
+added: v10.10.0
+-->
+
+* `name` {string|Buffer} The file name that this `fs.Dirent` object refers to.
+* `type` {integer} The type of directory entry. See [Dirent constants][] for possible values.
+
+Creates a new `fs.Dirent` object and sets the `dirent.name` property to the
+provided name. The `type` argument determines which of the class methods will return `true`.
+
 ### `dirent.isBlockDevice()`
 <!-- YAML
 added: v10.10.0
@@ -5625,6 +5637,50 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
 </table>
 
+### Dirent Constants
+
+The following constants are meant for use with the [`fs.Dirent`][] class'
+`type` argument for determining the type of entity being represented.
+
+<table>
+  <tr>
+    <th>Constant</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_UNKNOWN</code></td>
+    <td>An unknown entity type.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_FILE</code></td>
+    <td>Entity is a regular file.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_DIR</code></td>
+    <td>Entity is a directory.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_LINK</code></td>
+    <td>Entity is a symbolic link.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_FIFO</code></td>
+    <td>Entity is a FIFO or pipe.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_SOCKET</code></td>
+    <td>Entity is a socket.</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_BLOCK</code></td>
+    <td>Entity is a block-oriented device file (a device like a disk).</td>
+  </tr>
+  <tr>
+    <td><code>UV_DIRENT_CHAR</code></td>
+    <td>Entity is a character-oriented device file.</td>
+  </tr>
+</table>
+
 ## File System Flags
 
 The following flags are available wherever the `flag` option takes a
@@ -5773,6 +5829,7 @@ the file contents.
 [Common System Errors]: errors.html#errors_common_system_errors
 [FS Constants]: #fs_fs_constants_1
 [File Access Constants]: #fs_file_access_constants
+[Dirent Constants]: #fs_dirent_constants
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
