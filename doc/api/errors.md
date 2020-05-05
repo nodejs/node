@@ -2035,7 +2035,8 @@ signal (such as [`subprocess.kill()`][]).
 ### `ERR_UNSUPPORTED_DIR_IMPORT`
 
 `import` a directory URL is unsupported. Instead, you can
-[self-reference a package using its name][].
+[self-reference a package using its name][] and [define a custom subpath][] in
+the `"exports"` field of the `package.json` file.
 
 <!-- eslint-skip -->
 ```js
@@ -2599,3 +2600,4 @@ such as `process.stdout.on('data')`.
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
 [self-reference a package using its name]: esm.html#esm_self_referencing_a_package_using_its_name
+[define a custom subpath]: esm.html#esm_subpath_exports
