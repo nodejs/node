@@ -68,7 +68,7 @@ function before(asyncId) { }
 // After is called just after the resource's callback has finished.
 function after(asyncId) { }
 
-// Destroy is called when an AsyncWrap instance is destroyed.
+// Destroy is called when the resource is destroyed.
 function destroy(asyncId) { }
 
 // promiseResolve is called only for promise resources, when the
@@ -635,7 +635,7 @@ see the details of the V8 [PromiseHooks][] API.
 
 Library developers that handle their own asynchronous resources performing tasks
 like I/O, connection pooling, or managing callback queues may use the
-`AsyncWrap` JavaScript API so that all the appropriate callbacks are called.
+`AsyncResource` JavaScript API so that all the appropriate callbacks are called.
 
 ### Class: `AsyncResource`
 
