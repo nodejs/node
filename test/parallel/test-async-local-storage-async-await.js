@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const { AsyncLocalStorage } = require('async_hooks');
 
-const store = new AsyncLocalStorage();
+const store = new AsyncLocalStorage({ trackAsyncAwait: true });
 let checked = 0;
 
 function thenable(expected, count) {
