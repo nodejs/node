@@ -799,6 +799,46 @@ TEST(BackingStore_HoldAllocatorAlive_AfterIsolateShutdown) {
   CHECK(allocator_weak.expired());
 }
 
+class NullptrAllocator final : public v8::ArrayBuffer::Allocator {
+ public:
+  void* Allocate(size_t length) override {
+    CHECK_EQ(length, 0);
+    return nullptr;
+  }
+  void* AllocateUninitialized(size_t length) override {
+    CHECK_EQ(length, 0);
+    return nullptr;
+  }
+  void Free(void* data, size_t length) override { CHECK_EQ(data, nullptr); }
+};
+
+TEST(BackingStore_ReleaseAllocator_NullptrBackingStore) {
+  std::shared_ptr<NullptrAllocator> allocator =
+      std::make_shared<NullptrAllocator>();
+  std::weak_ptr<NullptrAllocator> allocator_weak(allocator);
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator_shared = allocator;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+
+  allocator.reset();
+  create_params.array_buffer_allocator_shared.reset();
+  CHECK(!allocator_weak.expired());
+
+  {
+    std::shared_ptr<v8::BackingStore> backing_store =
+        v8::ArrayBuffer::NewBackingStore(isolate, 0);
+    // This should release a reference to the allocator, even though the
+    // buffer is empty/nullptr.
+    backing_store.reset();
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
+  CHECK(allocator_weak.expired());
+}
+
 TEST(BackingStore_ReallocateExpand) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
