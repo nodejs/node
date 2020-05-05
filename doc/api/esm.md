@@ -246,10 +246,12 @@ Alternatively a project could choose to export entire folders:
 As a last resort, package encapsulation can be disabled entirely by creating an
 export for the root of the package `"./": "./"`. This will expose every file in
 the package at the cost of disabling the encapsulation and potential tooling
-benefits this provides. As the ES Module loader in Node.js will not resolve file
-extensions or an `index.js` exporting the root is less expressive than either of
-the above examples as individuals will sill be unable to
-`import feature from 'my-mod/feature'`.
+benefits this provides. As the ES Module loader in Node.js enforces the use of
+[the full specifier path][], exporting the root rather than being explicit
+about entry is less expressive than either of the prior examples. Not only
+will encapsulation be lost but module consumers will be unable to
+`import feature from 'my-mod/feature'` as they will need to provide the full
+path `import feature from 'my-mod/feature/index.js`.
 
 #### Main Entry Point Export
 
@@ -1801,6 +1803,7 @@ success!
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
+[the full specifier path]: #esm_mandatory_file_extensions
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [the dual CommonJS/ES module packages section]: #esm_dual_commonjs_es_module_packages
 [transpiler loader example]: #esm_transpiler_loader
