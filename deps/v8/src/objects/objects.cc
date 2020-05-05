@@ -28,13 +28,17 @@
 #include "src/common/message-template.h"
 #include "src/date/date.h"
 #include "src/debug/debug.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/microtask-queue.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/execution/protectors-inl.h"
+#include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/off-thread-factory-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
@@ -122,6 +126,7 @@
 
 #include "torque-generated/class-definitions-tq-inl.h"
 #include "torque-generated/internal-class-definitions-tq-inl.h"
+#include "torque-generated/objects-body-descriptors-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -581,7 +586,7 @@ MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
   if (input->IsUndefined(isolate)) return handle(Smi::zero(), isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
-  double len = DoubleToInteger(input->Number()) + 0.0;
+  double len = DoubleToInteger(input->Number());
   auto js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
     THROW_NEW_ERROR(isolate, NewRangeError(error_index, js_len), Object);
@@ -1317,6 +1322,8 @@ FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
       FUNCTION_TEMPLATE_RARE_DATA_TYPE, AllocationType::kOld);
   Handle<FunctionTemplateRareData> rare_data =
       i::Handle<FunctionTemplateRareData>::cast(struct_obj);
+  rare_data->set_c_function(Smi(0));
+  rare_data->set_c_signature(Smi(0));
   function_template_info->set_rare_data(*rare_data);
   return *rare_data;
 }
@@ -2152,7 +2159,8 @@ void ClassPositions::BriefPrintDetails(std::ostream& os) {
 }
 
 void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
-  os << " " << elements_kind() << ", " << Brief(constant_elements());
+  os << " " << ElementsKindToString(elements_kind()) << ", "
+     << Brief(constant_elements());
 }
 
 void CallableTask::BriefPrintDetails(std::ostream& os) {
@@ -2270,8 +2278,20 @@ int HeapObject::SizeFromMap(Map map) const {
     PreparseData data = PreparseData::unchecked_cast(*this);
     return PreparseData::SizeFor(data.data_length(), data.children_length());
   }
+#define MAKE_TORQUE_SIZE_FOR(TYPE, TypeName)             \
+  if (instance_type == TYPE) {                           \
+    TypeName instance = TypeName::unchecked_cast(*this); \
+    return TypeName::SizeFor(instance);                  \
+  }
+  TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_SIZE_FOR)
+#undef MAKE_TORQUE_SIZE_FOR
+
   if (instance_type == CODE_TYPE) {
     return Code::unchecked_cast(*this).CodeSize();
+  }
+  if (instance_type == COVERAGE_INFO_TYPE) {
+    return CoverageInfo::SizeFor(
+        CoverageInfo::unchecked_cast(*this).slot_count());
   }
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
   return EmbedderDataArray::SizeFor(
@@ -4262,13 +4282,22 @@ Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
       EnsureSpaceInFixedArray(isolate, array, length));
 }
 
-Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
+template <typename LocalIsolate>
+Handle<DescriptorArray> DescriptorArray::Allocate(LocalIsolate* isolate,
                                                   int nof_descriptors,
-                                                  int slack) {
+                                                  int slack,
+                                                  AllocationType allocation) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
-             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack);
+             : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
+                                                      allocation);
 }
+template Handle<DescriptorArray> DescriptorArray::Allocate(
+    Isolate* isolate, int nof_descriptors, int slack,
+    AllocationType allocation);
+template Handle<DescriptorArray> DescriptorArray::Allocate(
+    OffThreadIsolate* isolate, int nof_descriptors, int slack,
+    AllocationType allocation);
 
 void DescriptorArray::Initialize(EnumCache enum_cache,
                                  HeapObject undefined_value,
@@ -4622,7 +4651,6 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   value <<= String::ArrayIndexValueBits::kShift;
   value |= length << String::ArrayIndexLengthBits::kShift;
 
-  DCHECK_EQ(value & String::kIsNotArrayIndexMask, 0);
   DCHECK_EQ(value & String::kIsNotIntegerIndexMask, 0);
   DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
             Name::ContainsCachedArrayIndex(value));
@@ -4700,8 +4728,9 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
   return position;
 }
 
-void Script::InitLineEnds(Handle<Script> script) {
-  Isolate* isolate = script->GetIsolate();
+template <typename LocalIsolate>
+// static
+void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
   if (!script->line_ends().IsUndefined(isolate)) return;
   DCHECK(script->type() != Script::TYPE_WASM ||
          script->source_mapping_url().IsString());
@@ -4720,11 +4749,17 @@ void Script::InitLineEnds(Handle<Script> script) {
   DCHECK(script->line_ends().IsFixedArray());
 }
 
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
+    Isolate* isolate, Handle<Script> script);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void Script::InitLineEnds(
+    OffThreadIsolate* isolate, Handle<Script> script);
+
 bool Script::GetPositionInfo(Handle<Script> script, int position,
                              PositionInfo* info, OffsetFlag offset_flag) {
   // For wasm, we do not create an artificial line_ends array, but do the
   // translation directly.
-  if (script->type() != Script::TYPE_WASM) InitLineEnds(script);
+  if (script->type() != Script::TYPE_WASM)
+    InitLineEnds(script->GetIsolate(), script);
   return script->GetPositionInfo(position, info, offset_flag);
 }
 
@@ -4882,8 +4917,9 @@ Object Script::GetNameOrSourceURL() {
   return name();
 }
 
+template <typename LocalIsolate>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    Isolate* isolate, const FunctionLiteral* fun) {
+    LocalIsolate* isolate, const FunctionLiteral* fun) {
   CHECK_NE(fun->function_literal_id(), kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
@@ -4898,6 +4934,10 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   }
   return handle(SharedFunctionInfo::cast(heap_object), isolate);
 }
+template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+    Isolate* isolate, const FunctionLiteral* fun);
+template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
+    OffThreadIsolate* isolate, const FunctionLiteral* fun);
 
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}
@@ -4951,6 +4991,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   // All flags default to false or 0, except ConstructAsBuiltinBit just because
   // we're using the kIllegal builtin.
   set_flags(ConstructAsBuiltinBit::encode(true));
+  set_flags2(0);
 
   UpdateFunctionMapIndex();
 
@@ -5316,15 +5357,17 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
           CodeDisableOptEvent(handle(abstract_code(), GetIsolate()),
                               handle(*this, GetIsolate())));
   if (FLAG_trace_opt) {
-    PrintF("[disabled optimization for ");
-    ShortPrint();
-    PrintF(", reason: %s]\n", GetBailoutReason(reason));
+    CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
+    PrintF(scope.file(), "[disabled optimization for ");
+    ShortPrint(scope.file());
+    PrintF(scope.file(), ", reason: %s]\n", GetBailoutReason(reason));
   }
 }
 
 // static
+template <typename LocalIsolate>
 void SharedFunctionInfo::InitFromFunctionLiteral(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    LocalIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
     FunctionLiteral* lit, bool is_toplevel) {
   DCHECK(!shared_info->name_or_scope_info().IsScopeInfo());
 
@@ -5344,6 +5387,14 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
                  IsClassConstructor(lit->kind()));
   shared_info->set_requires_instance_members_initializer(
       lit->requires_instance_members_initializer());
+  DCHECK_IMPLIES(lit->class_scope_has_private_brand(),
+                 IsClassConstructor(lit->kind()));
+  shared_info->set_class_scope_has_private_brand(
+      lit->class_scope_has_private_brand());
+  DCHECK_IMPLIES(lit->has_static_private_methods_or_accessors(),
+                 IsClassConstructor(lit->kind()));
+  shared_info->set_has_static_private_methods_or_accessors(
+      lit->has_static_private_methods_or_accessors());
 
   shared_info->set_is_toplevel(is_toplevel);
   DCHECK(shared_info->outer_scope_info().IsTheHole());
@@ -5381,19 +5432,28 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
   ProducedPreparseData* scope_data = lit->produced_preparse_data();
   if (scope_data != nullptr) {
-    Handle<PreparseData> preparse_data =
-        scope_data->Serialize(shared_info->GetIsolate());
+    Handle<PreparseData> preparse_data = scope_data->Serialize(isolate);
 
     data = isolate->factory()->NewUncompiledDataWithPreparseData(
-        lit->inferred_name(), lit->start_position(), lit->end_position(),
-        preparse_data);
+        lit->GetInferredName(isolate), lit->start_position(),
+        lit->end_position(), preparse_data);
   } else {
     data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
-        lit->inferred_name(), lit->start_position(), lit->end_position());
+        lit->GetInferredName(isolate), lit->start_position(),
+        lit->end_position());
   }
 
   shared_info->set_uncompiled_data(*data);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
+    InitFromFunctionLiteral<Isolate>(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> shared_info,
+                                     FunctionLiteral* lit, bool is_toplevel);
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void SharedFunctionInfo::
+    InitFromFunctionLiteral<OffThreadIsolate>(
+        OffThreadIsolate* isolate, Handle<SharedFunctionInfo> shared_info,
+        FunctionLiteral* lit, bool is_toplevel);
 
 uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
     FunctionLiteral* literal) {
@@ -5408,7 +5468,11 @@ uint16_t SharedFunctionInfo::get_property_estimate_from_literal(
 
 void SharedFunctionInfo::UpdateExpectedNofPropertiesFromEstimate(
     FunctionLiteral* literal) {
-  set_expected_nof_properties(get_property_estimate_from_literal(literal));
+  // Limit actual estimate to fit in a 8 bit field, we will never allocate
+  // more than this in any case.
+  STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
+  int estimate = get_property_estimate_from_literal(literal);
+  set_expected_nof_properties(std::min(estimate, kMaxUInt8));
 }
 
 void SharedFunctionInfo::UpdateAndFinalizeExpectedNofPropertiesFromEstimate(
@@ -5983,10 +6047,20 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
 
   // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
   //                        «promise, resolution, thenAction»).
+
+  // According to HTML, we use the context of the then function (|thenAction|)
+  // as the context of the microtask. See step 3 of HTML's EnqueueJob:
+  // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
+  Handle<NativeContext> then_context;
+  if (!JSReceiver::GetContextForMicrotask(Handle<JSReceiver>::cast(then_action))
+           .ToHandle(&then_context)) {
+    then_context = isolate->native_context();
+  }
+
   Handle<PromiseResolveThenableJobTask> task =
       isolate->factory()->NewPromiseResolveThenableJobTask(
           promise, Handle<JSReceiver>::cast(then_action),
-          Handle<JSReceiver>::cast(resolution), isolate->native_context());
+          Handle<JSReceiver>::cast(resolution), then_context);
   if (isolate->debug()->is_active() && resolution->IsJSPromise()) {
     // Mark the dependency of the new {promise} on the {resolution}.
     Object::SetProperty(isolate, resolution,
@@ -5994,8 +6068,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                         promise)
         .Check();
   }
-  MicrotaskQueue* microtask_queue =
-      isolate->native_context()->microtask_queue();
+  MicrotaskQueue* microtask_queue = then_context->microtask_queue();
   if (microtask_queue) microtask_queue->EnqueueMicrotask(*task);
 
   // 13. Return undefined.
@@ -6031,6 +6104,9 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
     Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(task);
     reactions = handle(reaction->next(), isolate);
 
+    // According to HTML, we use the context of the appropriate handler as the
+    // context of the microtask. See step 3 of HTML's EnqueueJob:
+    // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
     Handle<NativeContext> handler_context;
 
     Handle<HeapObject> primary_handler;
@@ -6043,17 +6119,18 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
       secondary_handler = handle(reaction->fulfill_handler(), isolate);
     }
 
+    bool has_handler_context = false;
     if (primary_handler->IsJSReceiver()) {
-      JSReceiver::GetContextForMicrotask(
-          Handle<JSReceiver>::cast(primary_handler))
-          .ToHandle(&handler_context);
+      has_handler_context = JSReceiver::GetContextForMicrotask(
+                                Handle<JSReceiver>::cast(primary_handler))
+                                .ToHandle(&handler_context);
     }
-    if (handler_context.is_null() && secondary_handler->IsJSReceiver()) {
-      JSReceiver::GetContextForMicrotask(
-          Handle<JSReceiver>::cast(secondary_handler))
-          .ToHandle(&handler_context);
+    if (!has_handler_context && secondary_handler->IsJSReceiver()) {
+      has_handler_context = JSReceiver::GetContextForMicrotask(
+                                Handle<JSReceiver>::cast(secondary_handler))
+                                .ToHandle(&handler_context);
     }
-    if (handler_context.is_null()) handler_context = isolate->native_context();
+    if (!has_handler_context) handler_context = isolate->native_context();
 
     STATIC_ASSERT(
         static_cast<int>(PromiseReaction::kSize) ==
@@ -6073,6 +6150,11 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
           static_cast<int>(
               PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset));
+      STATIC_ASSERT(
+          static_cast<int>(
+              PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
+          static_cast<int>(PromiseFulfillReactionJobTask::
+                               kContinuationPreservedEmbedderDataOffset));
     } else {
       DisallowHeapAllocation no_gc;
       task->synchronized_set_map(
@@ -6086,6 +6168,11 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
           static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
           static_cast<int>(
               PromiseRejectReactionJobTask::kPromiseOrCapabilityOffset));
+      STATIC_ASSERT(
+          static_cast<int>(
+              PromiseReaction::kContinuationPreservedEmbedderDataOffset) ==
+          static_cast<int>(PromiseRejectReactionJobTask::
+                               kContinuationPreservedEmbedderDataOffset));
     }
 
     MicrotaskQueue* microtask_queue = handler_context->microtask_queue();
@@ -6213,37 +6300,59 @@ void JSRegExp::MarkTierUpForNextExec() {
 
 namespace {
 
+bool IsLineTerminator(int c) {
+  // Expected to return true for '\n', '\r', 0x2028, and 0x2029.
+  return unibrow::IsLineTerminator(static_cast<unibrow::uchar>(c));
+}
+
+// TODO(jgruber): Consider merging CountAdditionalEscapeChars and
+// WriteEscapedRegExpSource into a single function to deduplicate dispatch logic
+// and move related code closer to each other.
 template <typename Char>
-int CountRequiredEscapes(Handle<String> source) {
+int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
   DisallowHeapAllocation no_gc;
   int escapes = 0;
+  bool needs_escapes = false;
   bool in_char_class = false;
   Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   for (int i = 0; i < src.length(); i++) {
     const Char c = src[i];
     if (c == '\\') {
-      // Escape. Skip next character;
-      i++;
+      if (i + 1 < src.length() && IsLineTerminator(src[i + 1])) {
+        // This '\' is ignored since the next character itself will be escaped.
+        escapes--;
+      } else {
+        // Escape. Skip next character, which will be copied verbatim;
+        i++;
+      }
     } else if (c == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
+      needs_escapes = true;
       escapes++;
     } else if (c == '[') {
       in_char_class = true;
     } else if (c == ']') {
       in_char_class = false;
     } else if (c == '\n') {
+      needs_escapes = true;
       escapes++;
     } else if (c == '\r') {
+      needs_escapes = true;
       escapes++;
     } else if (static_cast<int>(c) == 0x2028) {
+      needs_escapes = true;
       escapes += std::strlen("\\u2028") - 1;
     } else if (static_cast<int>(c) == 0x2029) {
+      needs_escapes = true;
       escapes += std::strlen("\\u2029") - 1;
     } else {
-      DCHECK(!unibrow::IsLineTerminator(static_cast<unibrow::uchar>(c)));
+      DCHECK(!IsLineTerminator(c));
     }
   }
   DCHECK(!in_char_class);
+  DCHECK_GE(escapes, 0);
+  DCHECK_IMPLIES(escapes != 0, needs_escapes);
+  *needs_escapes_out = needs_escapes;
   return escapes;
 }
 
@@ -6263,33 +6372,42 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   int d = 0;
   bool in_char_class = false;
   while (s < src.length()) {
-    if (src[s] == '\\') {
-      // Escape. Copy this and next character.
-      dst[d++] = src[s++];
+    const Char c = src[s];
+    if (c == '\\') {
+      if (s + 1 < src.length() && IsLineTerminator(src[s + 1])) {
+        // This '\' is ignored since the next character itself will be escaped.
+        s++;
+        continue;
+      } else {
+        // Escape. Copy this and next character.
+        dst[d++] = src[s++];
+      }
       if (s == src.length()) break;
-    } else if (src[s] == '/' && !in_char_class) {
+    } else if (c == '/' && !in_char_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
-    } else if (src[s] == '[') {
+    } else if (c == '[') {
       in_char_class = true;
-    } else if (src[s] == ']') {
+    } else if (c == ']') {
       in_char_class = false;
-    } else if (src[s] == '\n') {
+    } else if (c == '\n') {
       WriteStringToCharVector(dst, &d, "\\n");
       s++;
       continue;
-    } else if (src[s] == '\r') {
+    } else if (c == '\r') {
       WriteStringToCharVector(dst, &d, "\\r");
       s++;
       continue;
-    } else if (static_cast<int>(src[s]) == 0x2028) {
+    } else if (static_cast<int>(c) == 0x2028) {
       WriteStringToCharVector(dst, &d, "\\u2028");
       s++;
       continue;
-    } else if (static_cast<int>(src[s]) == 0x2029) {
+    } else if (static_cast<int>(c) == 0x2029) {
       WriteStringToCharVector(dst, &d, "\\u2029");
       s++;
       continue;
+    } else {
+      DCHECK(!IsLineTerminator(c));
     }
     dst[d++] = src[s++];
   }
@@ -6303,10 +6421,12 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
   DCHECK(source->IsFlat());
   if (source->length() == 0) return isolate->factory()->query_colon_string();
   bool one_byte = String::IsOneByteRepresentationUnderneath(*source);
-  int escapes = one_byte ? CountRequiredEscapes<uint8_t>(source)
-                         : CountRequiredEscapes<uc16>(source);
-  if (escapes == 0) return source;
-  int length = source->length() + escapes;
+  bool needs_escapes = false;
+  int additional_escape_chars =
+      one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)
+               : CountAdditionalEscapeChars<uc16>(source, &needs_escapes);
+  if (!needs_escapes) return source;
+  int length = source->length() + additional_escape_chars;
   if (one_byte) {
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
@@ -6461,8 +6581,9 @@ void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> HashTable<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, AllocationType allocation,
+    LocalIsolate* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
@@ -6472,19 +6593,19 @@ Handle<Derived> HashTable<Derived, Shape>::New(
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
-    isolate->heap()->FatalProcessOutOfMemory("invalid table size");
+    isolate->FatalProcessOutOfHeapMemory("invalid table size");
   }
   return NewInternal(isolate, capacity, allocation);
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> HashTable<Derived, Shape>::NewInternal(
-    Isolate* isolate, int capacity, AllocationType allocation) {
-  Factory* factory = isolate->factory();
+    LocalIsolate* isolate, int capacity, AllocationType allocation) {
+  auto* factory = isolate->factory();
   int length = EntryToIndex(InternalIndex(capacity));
-  RootIndex map_root_index = Shape::GetMapRootIndex();
-  Handle<FixedArray> array =
-      factory->NewFixedArrayWithMap(map_root_index, length, allocation);
+  Handle<FixedArray> array = factory->NewFixedArrayWithMap(
+      Shape::GetMap(ReadOnlyRoots(isolate)), length, allocation);
   Handle<Derived> table = Handle<Derived>::cast(array);
 
   table->SetNumberOfElements(0);
@@ -6606,8 +6727,10 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots) {
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
-    Isolate* isolate, Handle<Derived> table, int n, AllocationType allocation) {
+    LocalIsolate* isolate, Handle<Derived> table, int n,
+    AllocationType allocation) {
   if (table->HasSufficientCapacityToAdd(n)) return table;
 
   int capacity = table->Capacity();
@@ -6624,9 +6747,6 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   table->Rehash(ReadOnlyRoots(isolate), *new_table);
   return new_table;
 }
-
-template bool
-HashTable<NameDictionary, NameDictionaryShape>::HasSufficientCapacityToAdd(int);
 
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
@@ -6824,8 +6944,8 @@ Address LookupString(Isolate* isolate, String string, String source,
     return Smi::FromInt(String::ArrayIndexValueBits::decode(hash_field)).ptr();
   }
 
-  if ((hash_field & Name::kIsNotArrayIndexMask) == 0) {
-    // It is an indexed, but it's not cached.
+  if ((hash_field & Name::kIsNotIntegerIndexMask) == 0) {
+    // It is an index, but it's not cached.
     return Smi::FromInt(ResultSentinel::kUnsupported).ptr();
   }
 
@@ -6888,7 +7008,7 @@ Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
                                  Handle<String> name) {
   if (!stringset->Has(isolate, name)) {
     stringset = EnsureCapacity(isolate, stringset);
-    uint32_t hash = ShapeT::Hash(isolate, *name);
+    uint32_t hash = ShapeT::Hash(ReadOnlyRoots(isolate), *name);
     InternalIndex entry = stringset->FindInsertionEntry(hash);
     stringset->set(EntryToIndex(entry), *name);
     stringset->ElementAdded();
@@ -7202,8 +7322,9 @@ void CompilationCacheTable::Remove(Object value) {
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, AllocationType allocation,
+    LocalIsolate* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   Handle<Derived> dict = Dictionary<Derived, Shape>::New(
@@ -7235,7 +7356,7 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
 
       PropertyDetails details = dictionary->DetailsAt(index);
       PropertyDetails new_details = details.set_index(enum_index);
-      dictionary->DetailsAtPut(isolate, index, new_details);
+      dictionary->DetailsAtPut(index, new_details);
     }
 
     index = PropertyDetails::kInitialIndex + length;
@@ -7251,7 +7372,7 @@ Handle<Derived> Dictionary<Derived, Shape>::DeleteEntry(
     Isolate* isolate, Handle<Derived> dictionary, InternalIndex entry) {
   DCHECK(Shape::kEntrySize != 3 ||
          dictionary->DetailsAt(entry).IsConfigurable());
-  dictionary->ClearEntry(isolate, entry);
+  dictionary->ClearEntry(entry);
   dictionary->ElementRemoved();
   return Shrink(isolate, dictionary);
 }
@@ -7270,15 +7391,16 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
 
   // We don't need to copy over the enumeration index.
   dictionary->ValueAtPut(entry, *value);
-  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(isolate, entry, details);
+  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
   return dictionary;
 }
 
 template <typename Derived, typename Shape>
+template <typename LocalIsolate>
 Handle<Derived>
 BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
-    Isolate* isolate, Handle<Derived> dictionary, Key key, Handle<Object> value,
-    PropertyDetails details, InternalIndex* entry_out) {
+    LocalIsolate* isolate, Handle<Derived> dictionary, Key key,
+    Handle<Object> value, PropertyDetails details, InternalIndex* entry_out) {
   // Insert element at empty or deleted entry.
   return Dictionary<Derived, Shape>::Add(isolate, dictionary, key, value,
                                          details, entry_out);
@@ -7303,14 +7425,16 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
+template <typename LocalIsolate>
+Handle<Derived> Dictionary<Derived, Shape>::Add(LocalIsolate* isolate,
                                                 Handle<Derived> dictionary,
                                                 Key key, Handle<Object> value,
                                                 PropertyDetails details,
                                                 InternalIndex* entry_out) {
-  uint32_t hash = Shape::Hash(isolate, key);
+  uint32_t hash = Shape::Hash(ReadOnlyRoots(isolate), key);
   // Validate that the key is absent.
-  SLOW_DCHECK(dictionary->FindEntry(isolate, key).is_not_found());
+  SLOW_DCHECK(
+      dictionary->FindEntry(ReadOnlyRoots(isolate), key).is_not_found());
   // Check whether the dictionary should be extended.
   dictionary = Derived::EnsureCapacity(isolate, dictionary);
 
@@ -7318,7 +7442,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Isolate* isolate,
   Handle<Object> k = Shape::AsHandle(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(hash);
-  dictionary->SetEntry(isolate, entry, *k, *value, details);
+  dictionary->SetEntry(entry, *k, *value, details);
   DCHECK(dictionary->KeyAt(entry).IsNumber() ||
          Shape::Unwrap(dictionary->KeyAt(entry)).IsUniqueName());
   dictionary->ElementAdded();
@@ -7853,7 +7977,7 @@ Handle<PropertyCell> PropertyCell::InvalidateEntry(
   details = details.set_cell_type(PropertyCellType::kInvalidated);
   cell->set_property_details(details);
   cell->dependent_code().DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kPropertyCellChangedGroup);
+      DependentCode::kPropertyCellChangedGroup);
   return new_cell;
 }
 
@@ -7954,7 +8078,7 @@ Handle<PropertyCell> PropertyCell::PrepareForValue(
   if (!invalidate && (old_type != new_type ||
                       original_details.IsReadOnly() != details.IsReadOnly())) {
     cell->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
+        DependentCode::kPropertyCellChangedGroup);
   }
   return cell;
 }
@@ -7967,7 +8091,7 @@ void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
   if (cell->value() != *new_value) {
     cell->set_value(*new_value);
     cell->dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
+        DependentCode::kPropertyCellChangedGroup);
   }
 }
 
@@ -8109,92 +8233,112 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
 // Please note this list is compiler dependent.
 // Keep this at the end of this file
 
-template class HashTable<StringTable, StringTableShape>;
+#define EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                            \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                  \
+      HashTable<DERIVED, SHAPE>;                                            \
+                                                                            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,             \
+                                 MinimumCapacity);                          \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::New(OffThreadIsolate*, int, AllocationType,    \
+                                 MinimumCapacity);                          \
+                                                                            \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int, \
+                                            AllocationType);                \
+  template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) Handle<DERIVED>        \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(                                \
+      OffThreadIsolate*, Handle<DERIVED>, int, AllocationType);
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<CompilationCacheTable, CompilationCacheShape>;
+#define EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE) \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                   \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)   \
+      ObjectHashTableBase<DERIVED, SHAPE>;
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashTable, ObjectHashTableShape>;
+#define EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                               \
+  EXTERN_DEFINE_HASH_TABLE(DERIVED, SHAPE)                                     \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
+      Dictionary<DERIVED, SHAPE>;                                              \
+                                                                               \
+  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
+      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
+      InternalIndex*);                                                         \
+  template V8_EXPORT_PRIVATE Handle<DERIVED> Dictionary<DERIVED, SHAPE>::Add(  \
+      OffThreadIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,         \
+      PropertyDetails, InternalIndex*);
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashSet, ObjectHashSetShape>;
+#define EXTERN_DEFINE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)                     \
+  EXTERN_DEFINE_DICTIONARY(DERIVED, SHAPE)                                     \
+  template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)                     \
+      BaseNameDictionary<DERIVED, SHAPE>;                                      \
+                                                                               \
+  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
+  BaseNameDictionary<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,       \
+                                          MinimumCapacity);                    \
+  template V8_EXPORT_PRIVATE Handle<DERIVED>                                   \
+  BaseNameDictionary<DERIVED, SHAPE>::New(OffThreadIsolate*, int,              \
+                                          AllocationType, MinimumCapacity);    \
+                                                                               \
+  template Handle<DERIVED>                                                     \
+  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
+      Isolate* isolate, Handle<DERIVED>, Key, Handle<Object>, PropertyDetails, \
+      InternalIndex*);                                                         \
+  template Handle<DERIVED>                                                     \
+  BaseNameDictionary<DERIVED, SHAPE>::AddNoUpdateNextEnumerationIndex(         \
+      OffThreadIsolate* isolate, Handle<DERIVED>, Key, Handle<Object>,         \
+      PropertyDetails, InternalIndex*);
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+EXTERN_DEFINE_HASH_TABLE(StringTable, StringTableShape)
+EXTERN_DEFINE_HASH_TABLE(StringSet, StringSetShape)
+EXTERN_DEFINE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
+EXTERN_DEFINE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
+EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
+                                     EphemeronHashTableShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
+EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<NameDictionary, NameDictionaryShape>;
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(NameDictionary, NameDictionaryShape)
+EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>;
+#undef EXTERN_DEFINE_HASH_TABLE
+#undef EXTERN_DEFINE_OBJECT_BASE_HASH_TABLE
+#undef EXTERN_DEFINE_DICTIONARY
+#undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<NameDictionary, NameDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<GlobalDictionary, GlobalDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(
-    V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<NumberDictionary, NumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    HashTable<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>;
-
-template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
-                                                    AllocationType,
-                                                    MinimumCapacity);
-
-template V8_EXPORT_PRIVATE Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape>::Shrink(Isolate* isolate,
-                                                       Handle<NameDictionary>,
-                                                       int additionalCapacity);
-
-template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash(
-    ReadOnlyRoots roots);
-
-Maybe<bool> JSFinalizationGroup::Cleanup(
-    Isolate* isolate, Handle<JSFinalizationGroup> finalization_group,
+Maybe<bool> JSFinalizationRegistry::Cleanup(
+    Isolate* isolate, Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> cleanup) {
   DCHECK(cleanup->IsCallable());
   // Attempt to shrink key_map now, as unregister tokens are held weakly and the
   // map is not shrinkable when sweeping dead tokens during GC itself.
-  if (!finalization_group->key_map().IsUndefined(isolate)) {
-    Handle<SimpleNumberDictionary> key_map = handle(
-        SimpleNumberDictionary::cast(finalization_group->key_map()), isolate);
+  if (!finalization_registry->key_map().IsUndefined(isolate)) {
+    Handle<SimpleNumberDictionary> key_map =
+        handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
+               isolate);
     key_map = SimpleNumberDictionary::Shrink(isolate, key_map);
-    finalization_group->set_key_map(*key_map);
+    finalization_registry->set_key_map(*key_map);
   }
 
   // It's possible that the cleared_cells list is empty, since
-  // FinalizationGroup.unregister() removed all its elements before this task
+  // FinalizationRegistry.unregister() removed all its elements before this task
   // ran. In that case, don't call the cleanup function.
-  if (!finalization_group->cleared_cells().IsUndefined(isolate)) {
+  if (!finalization_registry->cleared_cells().IsUndefined(isolate)) {
     // Construct the iterator.
-    Handle<JSFinalizationGroupCleanupIterator> iterator;
+    Handle<JSFinalizationRegistryCleanupIterator> iterator;
     {
       Handle<Map> cleanup_iterator_map(
           isolate->native_context()
-              ->js_finalization_group_cleanup_iterator_map(),
+              ->js_finalization_registry_cleanup_iterator_map(),
           isolate);
-      iterator = Handle<JSFinalizationGroupCleanupIterator>::cast(
+      iterator = Handle<JSFinalizationRegistryCleanupIterator>::cast(
           isolate->factory()->NewJSObjectFromMap(
               cleanup_iterator_map, AllocationType::kYoung,
               Handle<AllocationSite>::null()));
-      iterator->set_finalization_group(*finalization_group);
+      iterator->set_finalization_registry(*finalization_registry);
     }
     Handle<Object> args[] = {iterator};
     if (Execution::Call(

@@ -2808,9 +2808,9 @@ bool LiveRangeBundle::TryMerge(LiveRangeBundle* other, bool trace_alloc) {
   auto iter2 = other->uses_.begin();
 
   while (iter1 != uses_.end() && iter2 != other->uses_.end()) {
-    if (iter1->start > iter2->end) {
+    if (iter1->start >= iter2->end) {
       ++iter2;
-    } else if (iter2->start > iter1->end) {
+    } else if (iter2->start >= iter1->end) {
       ++iter1;
     } else {
       TRACE_COND(trace_alloc, "No merge %d:%d %d:%d\n", iter1->start,
@@ -3016,13 +3016,14 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
         LiveRange* check_use = live_at_header;
         for (; check_use != nullptr && check_use->Start() < pos;
              check_use = check_use->next()) {
-          UsePosition* next_use =
-              check_use->NextUsePositionRegisterIsBeneficial(loop_start);
-          if (next_use != nullptr && next_use->pos() < pos) {
+          UsePosition* next_use = check_use->NextRegisterPosition(loop_start);
+          // UsePosition at the end of a UseInterval may
+          // have the same value as the start of next range.
+          if (next_use != nullptr && next_use->pos() <= pos) {
             return pos;
           }
         }
-        // No register beneficial use inside the loop before the pos.
+        // No register use inside the loop before the pos.
         *begin_spill_out = live_at_header;
         pos = loop_start;
         break;
@@ -4323,6 +4324,10 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
   if (register_use == nullptr) {
     // There is no use in the current live range that requires a register.
     // We can just spill it.
+    LiveRange* begin_spill = nullptr;
+    LifetimePosition spill_pos = FindOptimalSpillingPos(
+        current, current->Start(), spill_mode, &begin_spill);
+    MaybeSpillPreviousRanges(begin_spill, spill_pos, current);
     Spill(current, spill_mode);
     return;
   }

@@ -25,6 +25,8 @@ from collections import namedtuple
 import v8_commands
 import v8_suppressions
 
+PYTHON3 = sys.version_info >= (3, 0)
+
 CONFIGS = dict(
   default=[],
   ignition=[
@@ -60,13 +62,11 @@ CONFIGS = dict(
   ignition_turbo_opt=[
     '--always-opt',
     '--no-liftoff',
-    '--no-lazy-feedback-allocation'
   ],
   ignition_turbo_opt_eager=[
     '--always-opt',
     '--no-lazy',
     '--no-lazy-inner-functions',
-    '--no-lazy-feedback-allocation',
   ],
   jitless=[
     '--jitless',
@@ -77,7 +77,6 @@ CONFIGS = dict(
   slow_path_opt=[
     '--always-opt',
     '--force-slow-path',
-    '--no-lazy-feedback-allocation',
   ],
   trusted=[
     '--no-untrusted-code-mitigations',
@@ -85,7 +84,6 @@ CONFIGS = dict(
   trusted_opt=[
     '--always-opt',
     '--no-untrusted-code-mitigations',
-    '--no-lazy-feedback-allocation',
   ],
 )
 
@@ -212,6 +210,9 @@ def parse_args():
   parser.add_argument(
       '--skip-sanity-checks', default=False, action='store_true',
       help='skip sanity checks for testing purposes')
+  parser.add_argument(
+      '--skip-suppressions', default=False, action='store_true',
+      help='skip suppressions to reproduce known issues')
 
   # Add arguments for each run configuration.
   first_config_arguments.add_arguments(parser, 'ignition')
@@ -256,15 +257,12 @@ def content_bailout(content, ignore_fun):
   return False
 
 
-def pass_bailout(output, step_number):
-  """Print info and return if in timeout or crash pass states."""
+def timeout_bailout(output, step_number):
+  """Print info and return if in timeout pass state."""
   if output.HasTimedOut():
     # Dashed output, so that no other clusterfuzz tools can match the
     # words timeout or crash.
     print('# V8 correctness - T-I-M-E-O-U-T %d' % step_number)
-    return True
-  if output.HasCrashed():
-    print('# V8 correctness - C-R-A-S-H %d' % step_number)
     return True
   return False
 
@@ -287,7 +285,15 @@ def print_difference(
   first_config_label = '%s,%s' % (options.first.arch, options.first.config)
   second_config_label = '%s,%s' % (options.second.arch, options.second.config)
   source_file_text = SOURCE_FILE_TEMPLATE % source if source else ''
-  print((FAILURE_TEMPLATE % dict(
+
+  if PYTHON3:
+    first_stdout = first_config_output.stdout
+    second_stdout = second_config_output.stdout
+  else:
+    first_stdout = first_config_output.stdout.decode('utf-8', 'replace')
+    second_stdout = second_config_output.stdout.decode('utf-8', 'replace')
+
+  text = (FAILURE_TEMPLATE % dict(
       configs='%s:%s' % (first_config_label, second_config_label),
       source_file_text=source_file_text,
       source_key=source_key,
@@ -296,13 +302,15 @@ def print_difference(
       second_config_label=second_config_label,
       first_config_flags=' '.join(first_command.flags),
       second_config_flags=' '.join(second_command.flags),
-      first_config_output=
-          first_config_output.stdout.decode('utf-8', 'replace'),
-      second_config_output=
-          second_config_output.stdout.decode('utf-8', 'replace'),
+      first_config_output=first_stdout,
+      second_config_output=second_stdout,
       source=source,
-      difference=difference.decode('utf-8', 'replace'),
-  )).encode('utf-8', 'replace'))
+      difference=difference,
+  ))
+  if PYTHON3:
+    print(text)
+  else:
+    print(text.encode('utf-8', 'replace'))
 
 
 def main():
@@ -312,10 +320,14 @@ def main():
   suppress = v8_suppressions.get_suppression(
       options.first.arch, options.first.config,
       options.second.arch, options.second.config,
+      options.skip_suppressions,
   )
 
   # Static bailout based on test case content or metadata.
-  with open(options.testcase) as f:
+  kwargs = {}
+  if PYTHON3:
+    kwargs['encoding'] = 'utf-8'
+  with open(options.testcase, 'r', **kwargs) as f:
     content = f.read()
   if content_bailout(get_meta_data(content), suppress.ignore_by_metadata):
     return RETURN_FAIL
@@ -332,8 +344,7 @@ def main():
   if not options.skip_sanity_checks:
     first_config_output = first_cmd.run(SANITY_CHECKS)
     second_config_output = second_cmd.run(SANITY_CHECKS)
-    difference, _ = suppress.diff(
-        first_config_output.stdout, second_config_output.stdout)
+    difference, _ = suppress.diff(first_config_output, second_config_output)
     if difference:
       # Special source key for sanity checks so that clusterfuzz dedupes all
       # cases on this in case it's hit.
@@ -345,21 +356,21 @@ def main():
 
   first_config_output = first_cmd.run(options.testcase, verbose=True)
 
-  # Early bailout based on first run's output.
-  if pass_bailout(first_config_output, 1):
+  # Early bailout if first run was a timeout.
+  if timeout_bailout(first_config_output, 1):
     return RETURN_PASS
 
   second_config_output = second_cmd.run(options.testcase, verbose=True)
 
-  # Bailout based on second run's output.
-  if pass_bailout(second_config_output, 2):
+  # Bailout if second run was a timeout.
+  if timeout_bailout(second_config_output, 2):
     return RETURN_PASS
 
-  difference, source = suppress.diff(
-      first_config_output.stdout, second_config_output.stdout)
+  difference, source = suppress.diff(first_config_output, second_config_output)
 
   if source:
-    source_key = hashlib.sha1(source).hexdigest()[:ORIGINAL_SOURCE_HASH_LENGTH]
+    long_key = hashlib.sha1(source.encode('utf-8')).hexdigest()
+    source_key = long_key[:ORIGINAL_SOURCE_HASH_LENGTH]
   else:
     source_key = ORIGINAL_SOURCE_DEFAULT
 
@@ -377,11 +388,18 @@ def main():
         first_config_output, second_config_output, difference, source)
     return RETURN_FAIL
 
-  # TODO(machenbach): Figure out if we could also return a bug in case there's
-  # no difference, but one of the line suppressions has matched - and without
-  # the match there would be a difference.
+  # Show if a crash has happened in one of the runs and no difference was
+  # detected.
+  if first_config_output.HasCrashed():
+    print('# V8 correctness - C-R-A-S-H 1')
+  elif second_config_output.HasCrashed():
+    print('# V8 correctness - C-R-A-S-H 2')
+  else:
+    # TODO(machenbach): Figure out if we could also return a bug in case
+    # there's no difference, but one of the line suppressions has matched -
+    # and without the match there would be a difference.
+    print('# V8 correctness - pass')
 
-  print('# V8 correctness - pass')
   return RETURN_PASS
 
 

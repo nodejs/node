@@ -85,6 +85,110 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertEquals(42, instance.exports.simple_throw_catch_to_0_1(1));
 })();
 
+(function TestTrapNotCaught() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction('unreachable_in_try', kSig_v_v)
+      .addBody([
+        kExprTry, kWasmStmt,
+          kExprUnreachable,
+        kExprCatch,
+          kExprDrop,
+        kExprEnd
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapUnreachable, () => instance.exports.unreachable_in_try());
+})();
+
+(function TestTrapInCalleeNotCaught() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let func_div = builder.addFunction('div', kSig_i_ii).addBody([
+    kExprLocalGet, 0,
+    kExprLocalGet, 1,
+    kExprI32DivU
+  ]);
+  builder.addFunction('trap_in_callee', kSig_i_ii)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprLocalGet, 0,
+          kExprLocalGet, 1,
+          kExprCallFunction, func_div.index,
+        kExprCatch,
+          kExprDrop,
+          kExprI32Const, 11,
+        kExprEnd
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertEquals(3, instance.exports.trap_in_callee(7, 2));
+  assertTraps(kTrapDivByZero, () => instance.exports.trap_in_callee(1, 0));
+})();
+
+(function TestTrapViaJSNotCaught() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let imp = builder.addImport('imp', 'ort', kSig_i_v);
+  builder.addFunction('div', kSig_i_ii)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprI32DivU
+      ]).exportFunc();
+  builder.addFunction('call_import', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprCallFunction, imp,
+        kExprCatch,
+          kExprDrop,
+          kExprI32Const, 11,
+        kExprEnd
+      ]).exportFunc();
+  let exception = undefined;
+  let instance;
+  function js_import() {
+    try {
+      instance.exports.div(1, 0);
+    } catch (e) {
+      exception = e;
+    }
+    throw exception;
+  }
+  instance = builder.instantiate({imp: {ort: js_import}});
+  let caught = undefined;
+  try {
+    let res = instance.exports.call_import();
+    assertUnreachable('call_import should trap, but returned with ' + res);
+  } catch (e) {
+    caught = e;
+  }
+  assertSame(exception, caught);
+  assertInstanceof(exception, WebAssembly.RuntimeError);
+  assertEquals(exception.message, kTrapMsgs[kTrapDivByZero]);
+})();
+
+(function TestManuallyThrownRuntimeErrorCaught() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let imp = builder.addImport('imp', 'ort', kSig_i_v);
+  builder.addFunction('call_import', kSig_i_v)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprCallFunction, imp,
+        kExprCatch,
+          kExprDrop,
+          kExprI32Const, 11,
+        kExprEnd
+      ]).exportFunc();
+  function throw_exc() {
+    throw exception = new WebAssembly.RuntimeError('My user text');
+  }
+  let instance = builder.instantiate({imp: {ort: throw_exc}});
+
+  assertEquals(11, instance.exports.call_import());
+})();
+
 // Test that we can distinguish which exception was thrown by using a cascaded
 // sequence of nested try blocks with a single handler in each catch block.
 (function TestCatchComplex1() {

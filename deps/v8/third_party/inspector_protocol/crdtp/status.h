@@ -18,7 +18,9 @@ namespace v8_crdtp {
 
 enum class Error {
   OK = 0,
-  // JSON parsing errors - json_parser.{h,cc}.
+
+  // JSON parsing errors; checked when parsing / converting from JSON.
+  // See json.{h,cc}.
   JSON_PARSER_UNPROCESSED_INPUT_REMAINS = 0x01,
   JSON_PARSER_STACK_LIMIT_EXCEEDED = 0x02,
   JSON_PARSER_NO_INPUT = 0x03,
@@ -33,6 +35,7 @@ enum class Error {
   JSON_PARSER_COMMA_OR_MAP_END_EXPECTED = 0x0c,
   JSON_PARSER_VALUE_EXPECTED = 0x0d,
 
+  // CBOR parsing errors; checked when parsing / converting from CBOR.
   CBOR_INVALID_INT32 = 0x0e,
   CBOR_INVALID_DOUBLE = 0x0f,
   CBOR_INVALID_ENVELOPE = 0x10,
@@ -48,20 +51,31 @@ enum class Error {
   CBOR_UNEXPECTED_EOF_IN_ARRAY = 0x1a,
   CBOR_UNEXPECTED_EOF_IN_MAP = 0x1b,
   CBOR_INVALID_MAP_KEY = 0x1c,
-  CBOR_STACK_LIMIT_EXCEEDED = 0x1d,
-  CBOR_TRAILING_JUNK = 0x1e,
-  CBOR_MAP_START_EXPECTED = 0x1f,
-  CBOR_MAP_STOP_EXPECTED = 0x20,
-  CBOR_ARRAY_START_EXPECTED = 0x21,
-  CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED = 0x22,
+  CBOR_DUPLICATE_MAP_KEY = 0x1d,
+  CBOR_STACK_LIMIT_EXCEEDED = 0x1e,
+  CBOR_TRAILING_JUNK = 0x1f,
+  CBOR_MAP_START_EXPECTED = 0x20,
+  CBOR_MAP_STOP_EXPECTED = 0x21,
+  CBOR_ARRAY_START_EXPECTED = 0x22,
+  CBOR_ENVELOPE_SIZE_LIMIT_EXCEEDED = 0x23,
 
-  BINDINGS_MANDATORY_FIELD_MISSING = 0x23,
-  BINDINGS_BOOL_VALUE_EXPECTED = 0x24,
-  BINDINGS_INT32_VALUE_EXPECTED = 0x25,
-  BINDINGS_DOUBLE_VALUE_EXPECTED = 0x26,
-  BINDINGS_STRING_VALUE_EXPECTED = 0x27,
-  BINDINGS_STRING8_VALUE_EXPECTED = 0x28,
-  BINDINGS_BINARY_VALUE_EXPECTED = 0x29,
+  // Message errors are constraints we place on protocol messages coming
+  // from a protocol client; these are checked in crdtp::Dispatchable
+  // (see dispatch.h) as it performs a shallow parse.
+  MESSAGE_MUST_BE_AN_OBJECT = 0x24,
+  MESSAGE_MUST_HAVE_INTEGER_ID_PROPERTY = 0x25,
+  MESSAGE_MUST_HAVE_STRING_METHOD_PROPERTY = 0x26,
+  MESSAGE_MAY_HAVE_STRING_SESSION_ID_PROPERTY = 0x27,
+  MESSAGE_MAY_HAVE_OBJECT_PARAMS_PROPERTY = 0x28,
+  MESSAGE_HAS_UNKNOWN_PROPERTY = 0x29,
+
+  BINDINGS_MANDATORY_FIELD_MISSING = 0x30,
+  BINDINGS_BOOL_VALUE_EXPECTED = 0x31,
+  BINDINGS_INT32_VALUE_EXPECTED = 0x32,
+  BINDINGS_DOUBLE_VALUE_EXPECTED = 0x33,
+  BINDINGS_STRING_VALUE_EXPECTED = 0x34,
+  BINDINGS_STRING8_VALUE_EXPECTED = 0x35,
+  BINDINGS_BINARY_VALUE_EXPECTED = 0x36,
 };
 
 // A status value with position that can be copied. The default status
@@ -76,12 +90,18 @@ struct Status {
   Status(Error error, size_t pos) : error(error), pos(pos) {}
   Status() = default;
 
-  // Returns a 7 bit US-ASCII string, either "OK" or an error message
-  // that includes the position.
-  std::string ToASCIIString() const;
+  bool IsMessageError() const {
+    return error >= Error::MESSAGE_MUST_BE_AN_OBJECT &&
+           error <= Error::MESSAGE_HAS_UNKNOWN_PROPERTY;
+  }
 
- private:
-  std::string ToASCIIString(const char* msg) const;
+  // Returns 7 bit US-ASCII string, either "OK" or an error message without
+  // position.
+  std::string Message() const;
+
+  // Returns a 7 bit US-ASCII string, either "OK" or an error message that
+  // includes the position.
+  std::string ToASCIIString() const;
 };
 }  // namespace v8_crdtp
 

@@ -25,6 +25,9 @@ namespace torque_internal {
     const object: HeapObject;
     const offset: intptr;
   }
+  type ConstReference<T : type> extends Reference<T>;
+  type MutableReference<T : type> extends ConstReference<T>;
+
   type UninitializedHeapObject extends HeapObject;
 }
 
@@ -42,6 +45,7 @@ extern class HeapObject extends StrongTagged {
 }
 type Map extends HeapObject generates 'TNode<Map>';
 type Object = Smi | HeapObject;
+type Number = Smi|HeapNumber;
 type JSReceiver extends HeapObject generates 'TNode<JSReceiver>';
 type JSObject extends JSReceiver generates 'TNode<JSObject>';
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
@@ -70,11 +74,17 @@ type Code extends HeapObject generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context;
+type SmiTagged<T : type extends uint31> extends Smi;
+type String extends HeapObject;
+type HeapNumber extends HeapObject;
+type FixedArrayBase extends HeapObject;
 
 struct float64_or_hole {
   is_hole: bool;
   value: float64;
 }
+
+extern operator '+' macro IntPtrAdd(intptr, intptr): intptr;
 
 intrinsic %FromConstexpr<To: type, From: type>(b: From): To;
 intrinsic %RawDownCast<To: type, From: type>(x: From): To;
@@ -84,6 +94,7 @@ extern macro TaggedToSmi(Object): Smi
     labels CastError;
 extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
+extern macro Float64SilenceNaN(float64): float64;
 
 extern macro IntPtrConstant(constexpr int31): intptr;
 
@@ -96,6 +107,9 @@ FromConstexpr<Smi, constexpr int31>(s: constexpr int31): Smi {
 }
 FromConstexpr<intptr, constexpr int31>(i: constexpr int31): intptr {
   return IntPtrConstant(i);
+}
+FromConstexpr<intptr, constexpr intptr>(i: constexpr intptr): intptr {
+  return %FromConstexpr<intptr>(i);
 }
 
 macro Cast<A : type extends Object>(implicit context: Context)(o: Object): A
@@ -611,6 +625,134 @@ TEST(Torque, EnumInTypeswitch) {
       }
     }
   )");
+}
+
+TEST(Torque, ConstClassFields) {
+  ExpectSuccessfulCompilation(R"(
+    class Foo extends HeapObject {
+      const x: int32;
+      y: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo, n: int32) {
+      const _x: int32 = o.x;
+      o.y = n;
+    }
+  )");
+
+  ExpectFailingCompilation(R"(
+    class Foo extends HeapObject {
+      const x: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo, n: int32) {
+      o.x = n;
+    }
+  )",
+                           HasSubstr("cannot assign to const value"));
+
+  ExpectSuccessfulCompilation(R"(
+    class Foo extends HeapObject {
+      s: Bar;
+    }
+    struct Bar {
+      const x: int32;
+      y: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo, n: int32) {
+      const _x: int32 = o.s.x;
+      // Assigning a struct as a value is OK, even when the struct contains
+      // const fields.
+      o.s = Bar{x: n, y: n};
+      o.s.y = n;
+    }
+  )");
+
+  ExpectFailingCompilation(R"(
+    class Foo extends HeapObject {
+      const s: Bar;
+    }
+    struct Bar {
+      const x: int32;
+      y: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo, n: int32) {
+      o.s.y = n;
+    }
+  )",
+                           HasSubstr("cannot assign to const value"));
+
+  ExpectFailingCompilation(R"(
+    class Foo extends HeapObject {
+      s: Bar;
+    }
+    struct Bar {
+      const x: int32;
+      y: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo, n: int32) {
+      o.s.x = n;
+    }
+  )",
+                           HasSubstr("cannot assign to const value"));
+}
+
+TEST(Torque, References) {
+  ExpectSuccessfulCompilation(R"(
+    class Foo extends HeapObject {
+      const x: int32;
+      y: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo, n: int32) {
+      const constRefX: const &int32 = &o.x;
+      const refY: &int32 = &o.y;
+      const constRefY: const &int32 = refY;
+      const _x: int32 = *constRefX;
+      const _y1: int32 = *refY;
+      const _y2: int32 = *constRefY;
+      *refY = n;
+      let r: const &int32 = constRefX;
+      r = constRefY;
+    }
+  )");
+
+  ExpectFailingCompilation(R"(
+    class Foo extends HeapObject {
+      const x: int32;
+      y: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo) {
+      const _refX: &int32 = &o.x;
+    }
+  )",
+                           HasSubstr("cannot use expression of type const "
+                                     "&int32 as a value of type &int32"));
+
+  ExpectFailingCompilation(R"(
+    class Foo extends HeapObject {
+      const x: int32;
+      y: int32;
+    }
+
+    @export
+    macro Test(implicit context: Context)(o: Foo, n: int32) {
+      const constRefX: const &int32 = &o.x;
+      *constRefX = n;
+    }
+  )",
+                           HasSubstr("cannot assign to const value"));
 }
 
 }  // namespace torque

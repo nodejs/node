@@ -36,9 +36,19 @@ namespace internal {
 
 // Cast the given argument to a Smi and store its value in an int variable
 // with the given name.  If the argument is not a Smi we crash safely.
-#define CONVERT_SMI_ARG_CHECKED(name, index) \
-  CHECK(args[index].IsSmi());                \
-  int name = args.smi_at(index);
+#define CONVERT_SMI_ARG_CHECKED(name, index)       \
+  CHECK(args[index].IsSmi());                      \
+  int name = args.smi_at(index);                   \
+  /* Ensure we have a Smi and not a TaggedIndex */ \
+  DCHECK_IMPLIES(args[index].IsTaggedIndex(),      \
+                 name == TaggedIndex(args[index].ptr()).value());
+
+// Cast the given argument to a TaggedIndex and store its value in an int
+// variable with the given name.  If the argument is not a TaggedIndex we crash
+// safely.
+#define CONVERT_TAGGED_INDEX_ARG_CHECKED(name, index) \
+  CHECK(args[index].IsTaggedIndex());                 \
+  int name = args.tagged_index_at(index);
 
 // Cast the given argument to a double and store it in a variable with
 // the given name.  If the argument is not a number (as opposed to

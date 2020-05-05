@@ -27,6 +27,13 @@ to silence a particular class of problems.
 import itertools
 import re
 
+try:
+  # Python 3
+  from itertools import zip_longest
+except ImportError:
+  # Python 2
+  from itertools import izip_longest as zip_longest
+
 # Max line length for regular experessions checking for lines to ignore.
 MAX_LINE_LENGTH = 512
 
@@ -37,32 +44,6 @@ CARET_RE = re.compile(r'^\s*\^\s*$')
 # V8, e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
 # be suppressed if one of the files below was used to mutate the test.
 IGNORE_SOURCES = {
-  # This contains a usage of f.arguments that often fires.
-  'crbug.com/662424': [
-    '/v8/test/mjsunit/bugs/bug-222.js',
-    '/v8/test/mjsunit/bugs/bug-941049.js',
-    '/v8/test/mjsunit/regress/regress-crbug-668795.js',
-    '/v8/test/mjsunit/regress/regress-1079.js',
-    '/v8/test/mjsunit/regress/regress-2989.js',
-  ],
-
-  'crbug.com/688159': [
-    '/v8/test/mjsunit/es7/exponentiation-operator.js',
-  ],
-
-  # TODO(machenbach): Implement blacklisting files for particular configs only,
-  # here ignition_eager.
-  'crbug.com/691589': [
-    '/v8/test/mjsunit/regress/regress-1200351.js',
-  ],
-
-  'crbug.com/691587': [
-    '/v8/test/mjsunit/asm/regress-674089.js',
-  ],
-
-  'crbug.com/774805': [
-    '/v8/test/mjsunit/console.js',
-  ],
 }
 
 # Ignore by test case pattern. Map from config->bug->regexp. Config '' is used
@@ -81,10 +62,6 @@ IGNORE_TEST_CASES = {
 # Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_OUTPUT = {
   '': {
-    'crbug.com/664068':
-        re.compile(r'RangeError(?!: byte length)', re.S),
-    'crbug.com/667678':
-        re.compile(r'\[native code\]', re.S),
     'crbug.com/689877':
         re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
   },
@@ -116,9 +93,6 @@ ALLOWED_LINE_DIFFS = [
 
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
-
-  # crbug.com/664068
-  r'^(.*)(?:Array buffer allocation failed|Invalid array buffer length)(.*)$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
@@ -142,8 +116,33 @@ IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 
 ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
+
+def get_output_capped(output1, output2):
+  """Returns a pair of stdout strings.
+
+  The strings are safely capped if at least one run has crashed.
+  """
+
+  # No length difference or no crash -> no capping.
+  if (len(output1.stdout) == len(output2.stdout) or
+      (not output1.HasCrashed() and not output2.HasCrashed())):
+    return output1.stdout, output2.stdout
+
+  # Both runs have crashed, cap by the shorter output.
+  if output1.HasCrashed() and output2.HasCrashed():
+    cap = min(len(output1.stdout), len(output2.stdout))
+  # Only the first run has crashed, cap by its output length.
+  elif output1.HasCrashed():
+    cap = len(output1.stdout)
+  # Similar if only the second run has crashed.
+  else:
+    cap = len(output2.stdout)
+
+  return output1.stdout[0:cap], output2.stdout[0:cap]
+
+
 def line_pairs(lines):
-  return itertools.izip_longest(
+  return zip_longest(
       lines, itertools.islice(lines, 1, None), fillvalue=None)
 
 
@@ -191,14 +190,14 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
       return all(not e.match(line) for e in ignore)
     return fun
 
-  lines1 = filter(useful_line(ignore1), output1)
-  lines2 = filter(useful_line(ignore2), output2)
+  lines1 = list(filter(useful_line(ignore1), output1))
+  lines2 = list(filter(useful_line(ignore2), output2))
 
   # This keeps track where we are in the original source file of the fuzz
   # test case.
   source = None
 
-  for ((line1, lookahead1), (line2, lookahead2)) in itertools.izip_longest(
+  for ((line1, lookahead1), (line2, lookahead2)) in zip_longest(
       line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
 
     # Only one of the two iterators should run out.
@@ -237,8 +236,8 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
   return None, source
 
 
-def get_suppression(arch1, config1, arch2, config2):
-  return V8Suppression(arch1, config1, arch2, config2)
+def get_suppression(arch1, config1, arch2, config2, skip=False):
+  return V8Suppression(arch1, config1, arch2, config2, skip)
 
 
 class Suppression(object):
@@ -259,17 +258,30 @@ class Suppression(object):
 
 
 class V8Suppression(Suppression):
-  def __init__(self, arch1, config1, arch2, config2):
+  def __init__(self, arch1, config1, arch2, config2, skip):
     self.arch1 = arch1
     self.config1 = config1
     self.arch2 = arch2
     self.config2 = config2
+    if skip:
+      self.allowed_line_diffs = []
+      self.ignore_output = {}
+      self.ignore_sources = {}
+    else:
+      self.allowed_line_diffs = ALLOWED_LINE_DIFFS
+      self.ignore_output = IGNORE_OUTPUT
+      self.ignore_sources = IGNORE_SOURCES
 
   def diff(self, output1, output2):
+    # Diff capped lines in the presence of crashes.
+    return self.diff_lines(
+        *map(str.splitlines, get_output_capped(output1, output2)))
+
+  def diff_lines(self, output1_lines, output2_lines):
     return diff_output(
-        output1.splitlines(),
-        output2.splitlines(),
-        ALLOWED_LINE_DIFFS,
+        output1_lines,
+        output2_lines,
+        self.allowed_line_diffs,
         IGNORE_LINES,
         IGNORE_LINES,
     )
@@ -286,13 +298,13 @@ class V8Suppression(Suppression):
       # already minimized test cases might have dropped the delimiter line.
       content = testcase
     for key in ['', self.arch1, self.arch2, self.config1, self.config2]:
-      for bug, exp in IGNORE_TEST_CASES.get(key, {}).iteritems():
+      for bug, exp in IGNORE_TEST_CASES.get(key, {}).items():
         if exp.search(content):
           return bug
     return None
 
   def ignore_by_metadata(self, metadata):
-    for bug, sources in IGNORE_SOURCES.iteritems():
+    for bug, sources in self.ignore_sources.items():
       for source in sources:
         if source in metadata['sources']:
           return bug
@@ -306,12 +318,12 @@ class V8Suppression(Suppression):
 
   def ignore_by_output(self, output, arch, config):
     def check(mapping):
-      for bug, exp in mapping.iteritems():
+      for bug, exp in mapping.items():
         if exp.search(output):
           return bug
       return None
     for key in ['', arch, config]:
-      bug = check(IGNORE_OUTPUT.get(key, {}))
+      bug = check(self.ignore_output.get(key, {}))
       if bug:
         return bug
     return None

@@ -200,6 +200,7 @@ class StatsCounter;
   V(wasm_word64_ror, "wasm::word64_ror")                                      \
   V(wasm_word64_ctz, "wasm::word64_ctz")                                      \
   V(wasm_word64_popcnt, "wasm::word64_popcnt")                                \
+  V(wasm_memory_init, "wasm::memory_init")                                    \
   V(wasm_memory_copy, "wasm::memory_copy")                                    \
   V(wasm_memory_fill, "wasm::memory_fill")                                    \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")  \

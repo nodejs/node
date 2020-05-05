@@ -46,9 +46,54 @@ void JSArrayBuffer::set_backing_store(void* value) {
 
 ArrayBufferExtension* JSArrayBuffer::extension() const {
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+#if V8_COMPRESS_POINTERS
+    // With pointer compression the extension-field might not be
+    // pointer-aligned. However on ARM64 this field needs to be aligned to
+    // perform atomic operations on it. Therefore we split the pointer into two
+    // 32-bit words that we update atomically. We don't have an ABA problem here
+    // since there can never be an Attach() after Detach() (transitions only
+    // from NULL --> some ptr --> NULL).
+
+    // Synchronize with publishing release store of non-null extension
+    uint32_t lo = base::AsAtomic32::Acquire_Load(extension_lo());
+    if (lo & kUninitializedTagMask) return nullptr;
+
+    // Synchronize with release store of null extension
+    uint32_t hi = base::AsAtomic32::Acquire_Load(extension_hi());
+    uint32_t verify_lo = base::AsAtomic32::Relaxed_Load(extension_lo());
+    if (lo != verify_lo) return nullptr;
+
+    uintptr_t address = static_cast<uintptr_t>(lo);
+    address |= static_cast<uintptr_t>(hi) << 32;
+    return reinterpret_cast<ArrayBufferExtension*>(address);
+#else
     return base::AsAtomicPointer::Acquire_Load(extension_location());
+#endif
   } else {
     return nullptr;
+  }
+}
+
+void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
+  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
+#if V8_COMPRESS_POINTERS
+    if (extension != nullptr) {
+      uintptr_t address = reinterpret_cast<uintptr_t>(extension);
+      base::AsAtomic32::Relaxed_Store(extension_hi(),
+                                      static_cast<uint32_t>(address >> 32));
+      base::AsAtomic32::Release_Store(extension_lo(),
+                                      static_cast<uint32_t>(address));
+    } else {
+      base::AsAtomic32::Relaxed_Store(extension_lo(),
+                                      0 | kUninitializedTagMask);
+      base::AsAtomic32::Release_Store(extension_hi(), 0);
+    }
+#else
+    base::AsAtomicPointer::Release_Store(extension_location(), extension);
+#endif
+    MarkingBarrierForArrayBufferExtension(*this, extension);
+  } else {
+    CHECK_EQ(extension, nullptr);
   }
 }
 
@@ -57,14 +102,17 @@ ArrayBufferExtension** JSArrayBuffer::extension_location() const {
   return reinterpret_cast<ArrayBufferExtension**>(location);
 }
 
-void JSArrayBuffer::set_extension(ArrayBufferExtension* value) {
-  if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
-    base::AsAtomicPointer::Release_Store(extension_location(), value);
-    MarkingBarrierForArrayBufferExtension(*this, value);
-  } else {
-    CHECK_EQ(value, nullptr);
-  }
+#if V8_COMPRESS_POINTERS
+uint32_t* JSArrayBuffer::extension_lo() const {
+  Address location = field_address(kExtensionOffset);
+  return reinterpret_cast<uint32_t*>(location);
 }
+
+uint32_t* JSArrayBuffer::extension_hi() const {
+  Address location = field_address(kExtensionOffset) + sizeof(uint32_t);
+  return reinterpret_cast<uint32_t*>(location);
+}
+#endif
 
 size_t JSArrayBuffer::allocation_length() const {
   if (backing_store() == nullptr) {
@@ -107,6 +155,7 @@ BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_asmjs_memory,
                     JSArrayBuffer::IsAsmJsMemoryBit)
 BIT_FIELD_ACCESSORS(JSArrayBuffer, bit_field, is_shared,
                     JSArrayBuffer::IsSharedBit)
+
 
 size_t JSArrayBufferView::byte_offset() const {
   return ReadField<size_t>(kByteOffsetOffset);

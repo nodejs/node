@@ -24,8 +24,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(AliasedArgumentsEntry)
 
 CAST_ACCESSOR(SloppyArgumentsElements)
 
-TQ_SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot)
-
 DEF_GETTER(SloppyArgumentsElements, context, Context) {
   return TaggedField<Context>::load(isolate, *this,
                                     OffsetOfElementAt(kContextIndex));

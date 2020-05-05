@@ -35,6 +35,13 @@ class V8_EXPORT_PRIVATE StringsStorage {
   // Appends string resulting from name to prefix, then returns the stored
   // result.
   const char* GetConsName(const char* prefix, Name name);
+  // Reduces the refcount of the given string, freeing it if no other
+  // references are made to it.
+  // Returns true if the string was successfully unref'd.
+  bool Release(const char* str);
+
+  // Returns the number of strings in the store.
+  size_t GetStringCountForTesting() const;
 
  private:
   static bool StringsMatch(void* key1, void* key2);

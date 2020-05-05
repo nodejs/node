@@ -929,15 +929,16 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         SSE4_2_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
 #undef DECLARE_SSE_AVX_DIS_CASE
 
-#define DECLARE_SSE_PMOV_AVX_DIS_CASE(instruction, notUsed1, notUsed2, \
+#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, notUsed1, notUsed2, \
                                       notUsed3, opcode)                \
   case 0x##opcode: {                                                   \
     AppendToBuffer("v" #instruction " %s,", NameOfXMMRegister(regop)); \
     current += PrintRightXMMOperand(current);                          \
     break;                                                             \
   }
-        SSE4_PMOV_INSTRUCTION_LIST(DECLARE_SSE_PMOV_AVX_DIS_CASE)
-#undef DECLARE_SSE_PMOV_AVX_DIS_CASE
+        SSSE3_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+        SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+#undef DECLARE_SSE_UNOP_AVX_DIS_CASE
 
       default:
         UnimplementedInstruction();
@@ -1067,6 +1068,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfXMMRegister(vvvv));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x5B:
+        AppendToBuffer("vcvttps2dq %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x5C:
         AppendToBuffer("vsubss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1090,6 +1095,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
       case 0x6F:
         AppendToBuffer("vmovdqu %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
+        break;
+      case 0x70:
+        AppendToBuffer("vpshufhw %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",0x%x", *current++);
         break;
       case 0x7F:
         AppendToBuffer("vmovdqu ");
@@ -1426,21 +1436,6 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vmovmskpd %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
         break;
-      case 0x54:
-        AppendToBuffer("vandpd %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0x56:
-        AppendToBuffer("vorpd %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
-      case 0x57:
-        AppendToBuffer("vxorpd %s,%s,", NameOfXMMRegister(regop),
-                       NameOfXMMRegister(vvvv));
-        current += PrintRightXMMOperand(current);
-        break;
       case 0x6E:
         AppendToBuffer("vmov%c %s,", vex_w() ? 'q' : 'd',
                        NameOfXMMRegister(regop));
@@ -1505,6 +1500,15 @@ int DisassemblerX64::AVXInstruction(byte* data) {
 
         SSE2_INSTRUCTION_LIST(DECLARE_SSE_AVX_DIS_CASE)
 #undef DECLARE_SSE_AVX_DIS_CASE
+#define DECLARE_SSE_UNOP_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
+  case 0x##opcode: {                                                           \
+    AppendToBuffer("v" #instruction " %s,", NameOfXMMRegister(regop));         \
+    current += PrintRightXMMOperand(current);                                  \
+    break;                                                                     \
+  }
+
+        SSE2_UNOP_INSTRUCTION_LIST(DECLARE_SSE_UNOP_AVX_DIS_CASE)
+#undef DECLARE_SSE_UNOP_AVX_DIS_CASE
       default:
         UnimplementedInstruction();
     }
@@ -1815,8 +1819,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
   }
 
         SSSE3_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSSE3_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
         SSE4_INSTRUCTION_LIST(SSE34_DIS_CASE)
-        SSE4_PMOV_INSTRUCTION_LIST(SSE34_DIS_CASE)
+        SSE4_UNOP_INSTRUCTION_LIST(SSE34_DIS_CASE)
         SSE4_2_INSTRUCTION_LIST(SSE34_DIS_CASE)
 #undef SSE34_DIS_CASE
         default:
@@ -2049,7 +2054,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         } else if (opcode == 0xD2) {
           mnemonic = "psrld";
         } else if (opcode == 0xD3) {
-          mnemonic = "psrld";
+          mnemonic = "psrlq";
         } else if (opcode == 0xD4) {
           mnemonic = "paddq";
         } else if (opcode == 0xD5) {

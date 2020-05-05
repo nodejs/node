@@ -95,75 +95,43 @@ bool stringViewStartsWith(const StringView& string, const char* prefix) {
   return true;
 }
 
-namespace protocol {
-
-// static
-double StringUtil::toDouble(const char* s, size_t len, bool* isOk) {
-  int flags = v8::internal::ALLOW_HEX | v8::internal::ALLOW_OCTAL |
-              v8::internal::ALLOW_BINARY;
-  double result = v8::internal::StringToDouble(s, flags);
-  *isOk = !std::isnan(result);
-  return result;
-}
-
-std::unique_ptr<protocol::Value> StringUtil::parseJSON(
-    const StringView& string) {
-  if (!string.length()) return nullptr;
-  if (string.is8Bit()) {
-    return parseJSONCharacters(string.characters8(),
-                               static_cast<int>(string.length()));
-  }
-  return parseJSONCharacters(string.characters16(),
-                             static_cast<int>(string.length()));
-}
-
-std::unique_ptr<protocol::Value> StringUtil::parseJSON(const String16& string) {
-  if (!string.length()) return nullptr;
-  return parseJSONCharacters(string.characters16(),
-                             static_cast<int>(string.length()));
-}
-}  // namespace protocol
-
 namespace {
 // An empty string buffer doesn't own any string data; its ::string() returns a
 // default-constructed StringView instance.
 class EmptyStringBuffer : public StringBuffer {
  public:
-  const StringView& string() override { return string_; }
-
- private:
-  StringView string_;
+  StringView string() const override { return StringView(); }
 };
 
 // Contains LATIN1 text data or CBOR encoded binary data in a vector.
 class StringBuffer8 : public StringBuffer {
  public:
-  explicit StringBuffer8(std::vector<uint8_t> data)
-      : data_(std::move(data)), string_(data_.data(), data_.size()) {}
+  explicit StringBuffer8(std::vector<uint8_t> data) : data_(std::move(data)) {}
 
-  const StringView& string() override { return string_; }
+  StringView string() const override {
+    return StringView(data_.data(), data_.size());
+  }
 
  private:
   std::vector<uint8_t> data_;
-  StringView string_;
 };
 
 // Contains a 16 bit string (String16).
 class StringBuffer16 : public StringBuffer {
  public:
-  explicit StringBuffer16(String16 data)
-      : data_(std::move(data)), string_(data_.characters16(), data_.length()) {}
+  explicit StringBuffer16(String16 data) : data_(std::move(data)) {}
 
-  const StringView& string() override { return string_; }
+  StringView string() const override {
+    return StringView(data_.characters16(), data_.length());
+  }
 
  private:
   String16 data_;
-  StringView string_;
 };
 }  // namespace
 
 // static
-std::unique_ptr<StringBuffer> StringBuffer::create(const StringView& string) {
+std::unique_ptr<StringBuffer> StringBuffer::create(StringView string) {
   if (string.length() == 0) return std::make_unique<EmptyStringBuffer>();
   if (string.is8Bit()) {
     return std::make_unique<StringBuffer8>(std::vector<uint8_t>(
@@ -190,3 +158,10 @@ String16 stackTraceIdToString(uintptr_t id) {
 }
 
 }  // namespace v8_inspector
+
+namespace v8_crdtp {
+void SerializerTraits<v8_inspector::protocol::Binary>::Serialize(
+    const v8_inspector::protocol::Binary& binary, std::vector<uint8_t>* out) {
+  cbor::EncodeBinary(span<uint8_t>(binary.data(), binary.size()), out);
+}
+}  // namespace v8_crdtp

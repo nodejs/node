@@ -7,7 +7,9 @@
 
 namespace d = v8::debug_helper;
 
-namespace v8_debug_helper_internal {
+namespace v8 {
+namespace internal {
+namespace debug_helper_internal {
 
 std::string FindKnownObject(uintptr_t address,
                             const d::HeapAddresses& heap_addresses) {
@@ -82,4 +84,6 @@ KnownInstanceType FindKnownMapInstanceTypes(
   return result;
 }
 
-}  // namespace v8_debug_helper_internal
+}  // namespace debug_helper_internal
+}  // namespace internal
+}  // namespace v8

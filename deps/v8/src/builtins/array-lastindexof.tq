@@ -61,9 +61,8 @@ namespace array {
   GetFromIndex(context: Context, length: Number, arguments: Arguments): Number {
     // 4. If fromIndex is present, let n be ? ToInteger(fromIndex);
     //    else let n be len - 1.
-    const n: Number = arguments.length < 2 ?
-        length - 1 :
-        ToInteger_Inline(arguments[1], kTruncateMinusZero);
+    const n: Number =
+        arguments.length < 2 ? length - 1 : ToInteger_Inline(arguments[1]);
 
     // 5. If n >= 0, then.
     let k: Number = SmiConstant(0);

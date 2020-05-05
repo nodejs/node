@@ -24,12 +24,12 @@ struct WasmModule;  // forward declaration of module interface.
 
 // A wrapper around the signature and bytes of a function.
 struct FunctionBody {
-  FunctionSig* sig;   // function signature
-  uint32_t offset;    // offset in the module bytes, for error reporting
-  const byte* start;  // start of the function body
-  const byte* end;    // end of the function body
+  const FunctionSig* sig;  // function signature
+  uint32_t offset;         // offset in the module bytes, for error reporting
+  const byte* start;       // start of the function body
+  const byte* end;         // end of the function body
 
-  FunctionBody(FunctionSig* sig, uint32_t offset, const byte* start,
+  FunctionBody(const FunctionSig* sig, uint32_t offset, const byte* start,
                const byte* end)
       : sig(sig), offset(offset), start(start), end(end) {}
 };
@@ -81,8 +81,8 @@ V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
 // local stack effect (e.g. BrIf pops 1, Br pops 0). Those opcodes can have
 // non-local stack effect though, which are not covered here.
 std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
-                                          FunctionSig* sig, const byte* pc,
-                                          const byte* end);
+                                          const FunctionSig* sig,
+                                          const byte* pc, const byte* end);
 
 // A simple forward iterator for bytecodes.
 class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {

@@ -32,6 +32,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
 #include "src/objects/objects-inl.h"
+#include "src/roots/roots.h"
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/js-break-iterator-inl.h"
 #include "src/objects/js-collator-inl.h"
@@ -138,6 +139,10 @@ void Smi::SmiVerify(Isolate* isolate) {
   CHECK(!IsConstructor());
 }
 
+void TaggedIndex::TaggedIndexVerify(Isolate* isolate) {
+  CHECK(IsTaggedIndex());
+}
+
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::HeapObjectVerify(*this, isolate);
 
@@ -242,6 +247,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.
       TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
+      TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
 
     case ALLOCATION_SITE_TYPE:
@@ -812,12 +818,20 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
+  // TODO(leszeks): Add a TorqueGeneratedClassVerifier for OffThreadIsolate.
   TorqueGeneratedClassVerifiers::SharedFunctionInfoVerify(*this, isolate);
+  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+}
 
+void SharedFunctionInfo::SharedFunctionInfoVerify(OffThreadIsolate* isolate) {
+  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+}
+
+void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
   Object value = name_or_scope_info();
   if (value.IsScopeInfo()) {
     CHECK_LT(0, ScopeInfo::cast(value).length());
-    CHECK_NE(value, ReadOnlyRoots(isolate).empty_scope_info());
+    CHECK_NE(value, roots.empty_scope_info());
   }
 
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
@@ -826,13 +840,13 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
         HasUncompiledDataWithoutPreparseData() || HasWasmJSFunctionData() ||
         HasWasmCapiFunctionData());
 
-  CHECK(script_or_debug_info().IsUndefined(isolate) ||
+  CHECK(script_or_debug_info().IsUndefined(roots) ||
         script_or_debug_info().IsScript() || HasDebugInfo());
 
   if (!is_compiled()) {
     CHECK(!HasFeedbackMetadata());
     CHECK(outer_scope_info().IsScopeInfo() ||
-          outer_scope_info().IsTheHole(isolate));
+          outer_scope_info().IsTheHole(roots));
   } else if (HasBytecodeArray() && HasFeedbackMetadata()) {
     CHECK(feedback_metadata().IsFeedbackMetadata());
   }
@@ -1057,8 +1071,8 @@ void WeakCell::WeakCellVerify(Isolate* isolate) {
 
   CHECK(key_list_next().IsWeakCell() || key_list_next().IsUndefined(isolate));
 
-  CHECK(finalization_group().IsUndefined(isolate) ||
-        finalization_group().IsJSFinalizationGroup());
+  CHECK(finalization_registry().IsUndefined(isolate) ||
+        finalization_registry().IsJSFinalizationRegistry());
 }
 
 void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
@@ -1067,8 +1081,8 @@ void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
   CHECK(target().IsUndefined(isolate) || target().IsJSReceiver());
 }
 
-void JSFinalizationGroup::JSFinalizationGroupVerify(Isolate* isolate) {
-  CHECK(IsJSFinalizationGroup());
+void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
+  CHECK(IsJSFinalizationRegistry());
   JSObjectVerify(isolate);
   VerifyHeapPointer(isolate, cleanup());
   CHECK(active_cells().IsUndefined(isolate) || active_cells().IsWeakCell());
@@ -1079,14 +1093,15 @@ void JSFinalizationGroup::JSFinalizationGroupVerify(Isolate* isolate) {
   if (cleared_cells().IsWeakCell()) {
     CHECK(WeakCell::cast(cleared_cells()).prev().IsUndefined(isolate));
   }
-  CHECK(next().IsUndefined(isolate) || next().IsJSFinalizationGroup());
+  CHECK(next_dirty().IsUndefined(isolate) ||
+        next_dirty().IsJSFinalizationRegistry());
 }
 
-void JSFinalizationGroupCleanupIterator::
-    JSFinalizationGroupCleanupIteratorVerify(Isolate* isolate) {
-  CHECK(IsJSFinalizationGroupCleanupIterator());
+void JSFinalizationRegistryCleanupIterator::
+    JSFinalizationRegistryCleanupIteratorVerify(Isolate* isolate) {
+  CHECK(IsJSFinalizationRegistryCleanupIterator());
   JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, finalization_group());
+  VerifyHeapPointer(isolate, finalization_registry());
 }
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {

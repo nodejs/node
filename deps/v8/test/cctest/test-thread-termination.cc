@@ -492,10 +492,11 @@ TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
   isolate->EnqueueMicrotask(
       v8::Function::New(isolate->GetCurrentContext(), MicrotaskShouldNotRun)
           .ToLocalChecked());
-  isolate->RunMicrotasks();
+  isolate->PerformMicrotaskCheckpoint();
 
   isolate->CancelTerminateExecution();
-  isolate->RunMicrotasks();  // should not run MicrotaskShouldNotRun
+  // Should not run MicrotaskShouldNotRun.
+  isolate->PerformMicrotaskCheckpoint();
 
   thread.Join();
   delete semaphore;
@@ -913,7 +914,7 @@ TEST(TerminateInMicrotask) {
       CHECK(context2 == isolate->GetCurrentContext());
       CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
       CHECK(!isolate->IsExecutionTerminating());
-      isolate->RunMicrotasks();
+      isolate->PerformMicrotaskCheckpoint();
       CHECK(context2 == isolate->GetCurrentContext());
       CHECK(context2 == isolate->GetEnteredOrMicrotaskContext());
       CHECK(try_catch.HasCaught());
@@ -948,7 +949,7 @@ TEST(TerminateInApiMicrotask) {
     CHECK(!isolate->IsExecutionTerminating());
     isolate->EnqueueMicrotask(TerminationMicrotask);
     isolate->EnqueueMicrotask(UnreachableMicrotask);
-    isolate->RunMicrotasks();
+    isolate->PerformMicrotaskCheckpoint();
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.HasTerminated());
     CHECK(isolate->IsExecutionTerminating());

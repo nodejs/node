@@ -113,7 +113,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     ManuallyExternalizedBuffer external2(
         handle(memory_object->array_buffer(), isolate));
 
-    // Grow using an internal WASM bytecode.
+    // Grow using an internal Wasm bytecode.
     result = testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
     CHECK_EQ(26, result);
     CHECK(external2.buffer_->was_detached());  // growing always detaches

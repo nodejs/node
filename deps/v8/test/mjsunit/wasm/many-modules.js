@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // No reason to stress-opt this; save some time.
-// Flags: --wasm-far-jump-table --no-stress-opt
+// Flags: --no-stress-opt
 
 load('test/mjsunit/wasm/wasm-module-builder.js');
 

@@ -257,6 +257,11 @@ TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
   return UncheckedCast<IntPtrT>(jsgraph()->IntPtrConstant(value));
 }
 
+TNode<TaggedIndex> CodeAssembler::TaggedIndexConstant(intptr_t value) {
+  DCHECK(TaggedIndex::IsValid(value));
+  return UncheckedCast<TaggedIndex>(raw_assembler()->IntPtrConstant(value));
+}
+
 TNode<Number> CodeAssembler::NumberConstant(double value) {
   int smi_value;
   if (DoubleToSmiInteger(value, &smi_value)) {
@@ -446,7 +451,7 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
   return raw_assembler()->PopAndReturn(pop, value);
 }
 
-void CodeAssembler::ReturnIf(Node* condition, TNode<Object> value) {
+void CodeAssembler::ReturnIf(TNode<BoolT> condition, TNode<Object> value) {
   Label if_return(this), if_continue(this);
   Branch(condition, &if_return, &if_continue);
   Bind(&if_return);
@@ -494,13 +499,12 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
-TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(
-    SloppyTNode<Object> value) {
+TNode<Object> CodeAssembler::TaggedPoisonOnSpeculation(TNode<Object> value) {
   return UncheckedCast<Object>(
       raw_assembler()->TaggedPoisonOnSpeculation(value));
 }
 
-TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(SloppyTNode<WordT> value) {
+TNode<WordT> CodeAssembler::WordPoisonOnSpeculation(TNode<WordT> value) {
   return UncheckedCast<WordT>(raw_assembler()->WordPoisonOnSpeculation(value));
 }
 
@@ -550,7 +554,7 @@ CODE_ASSEMBLER_COMPARE(Word64Equal, Word64T, int64_t, ToInt64Constant, ==)
 CODE_ASSEMBLER_COMPARE(Word64NotEqual, Word64T, int64_t, ToInt64Constant, !=)
 #undef CODE_ASSEMBLER_COMPARE
 
-TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
+TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(TNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
     return UncheckedCast<UintPtrT>(
         raw_assembler()->ChangeUint32ToUint64(value));
@@ -558,47 +562,43 @@ TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
   return ReinterpretCast<UintPtrT>(value);
 }
 
-TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(SloppyTNode<Word32T> value) {
+TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(TNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
+    return UncheckedCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
   }
   return ReinterpretCast<IntPtrT>(value);
 }
 
 TNode<IntPtrT> CodeAssembler::ChangeFloat64ToIntPtr(TNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return ReinterpretCast<IntPtrT>(
-        raw_assembler()->ChangeFloat64ToInt64(value));
+    return UncheckedCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt64(value));
   }
-  return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt32(value));
+  return UncheckedCast<IntPtrT>(raw_assembler()->ChangeFloat64ToInt32(value));
 }
 
-TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
-    SloppyTNode<Float64T> value) {
+TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(TNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return ReinterpretCast<UintPtrT>(
+    return UncheckedCast<UintPtrT>(
         raw_assembler()->ChangeFloat64ToUint64(value));
   }
-  return ReinterpretCast<UintPtrT>(
-      raw_assembler()->ChangeFloat64ToUint32(value));
+  return UncheckedCast<UintPtrT>(raw_assembler()->ChangeFloat64ToUint32(value));
 }
 
 TNode<Float64T> CodeAssembler::ChangeUintPtrToFloat64(TNode<UintPtrT> value) {
   if (raw_assembler()->machine()->Is64()) {
     // TODO(turbofan): Maybe we should introduce a ChangeUint64ToFloat64
     // machine operator to TurboFan here?
-    return ReinterpretCast<Float64T>(
+    return UncheckedCast<Float64T>(
         raw_assembler()->RoundUint64ToFloat64(value));
   }
-  return ReinterpretCast<Float64T>(
-      raw_assembler()->ChangeUint32ToFloat64(value));
+  return UncheckedCast<Float64T>(raw_assembler()->ChangeUint32ToFloat64(value));
 }
 
-Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
+TNode<Float64T> CodeAssembler::RoundIntPtrToFloat64(Node* value) {
   if (raw_assembler()->machine()->Is64()) {
-    return raw_assembler()->RoundInt64ToFloat64(value);
+    return UncheckedCast<Float64T>(raw_assembler()->RoundInt64ToFloat64(value));
   }
-  return raw_assembler()->ChangeInt32ToFloat64(value);
+  return UncheckedCast<Float64T>(raw_assembler()->ChangeInt32ToFloat64(value));
 }
 
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
@@ -808,35 +808,6 @@ Node* CodeAssembler::Projection(int index, Node* value) {
   return raw_assembler()->Projection(index, value);
 }
 
-void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
-                                    Variable* exception_var) {
-  if (if_exception == nullptr) {
-    // If no handler is supplied, don't add continuations
-    return;
-  }
-
-  // No catch handlers should be active if we're using catch labels
-  DCHECK_EQ(state()->exception_handler_labels_.size(), 0);
-  DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
-
-  Label success(this), exception(this, Label::kDeferred);
-  success.MergeVariables();
-  exception.MergeVariables();
-
-  raw_assembler()->Continuations(node, success.label_, exception.label_);
-
-  Bind(&exception);
-  const Operator* op = raw_assembler()->common()->IfException();
-  Node* exception_value = raw_assembler()->AddNode(op, node, node);
-  if (exception_var != nullptr) {
-    exception_var->Bind(exception_value);
-  }
-  Goto(if_exception);
-
-  Bind(&success);
-  raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
-}
-
 TNode<HeapObject> CodeAssembler::OptimizedAllocate(
     TNode<IntPtrT> size, AllocationType allocation,
     AllowLargeObjects allow_large_objects) {
@@ -1023,6 +994,33 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
                    inputs.data());
 }
 
+Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
+                                    TNode<Object> target, TNode<Object> context,
+                                    TNode<Object> function,
+                                    TNode<Object> new_target,
+                                    TNode<Int32T> arity,
+                                    std::initializer_list<Node*> args) {
+  constexpr size_t kMaxNumArgs = 10;
+  DCHECK_GE(kMaxNumArgs, args.size());
+  NodeArray<kMaxNumArgs + 5> inputs;
+  inputs.Add(target);
+  inputs.Add(function);
+  if (!new_target.is_null()) {
+    inputs.Add(new_target);
+  }
+  inputs.Add(arity);
+#ifdef V8_REVERSE_JSARGS
+  for (auto arg : base::Reversed(args)) inputs.Add(arg);
+#else
+  for (auto arg : args) inputs.Add(arg);
+#endif
+  if (descriptor.HasContextParameter()) {
+    inputs.Add(context);
+  }
+  return CallStubN(StubCallMode::kCallCodeObject, descriptor, 1, inputs.size(),
+                   inputs.data());
+}
+
 void CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
     const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
     std::initializer_list<Node*> args) {
@@ -1112,21 +1110,19 @@ void CodeAssembler::Goto(Label* label) {
   raw_assembler()->Goto(label->label_);
 }
 
-void CodeAssembler::GotoIf(SloppyTNode<IntegralT> condition,
-                           Label* true_label) {
+void CodeAssembler::GotoIf(TNode<IntegralT> condition, Label* true_label) {
   Label false_label(this);
   Branch(condition, true_label, &false_label);
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoIfNot(SloppyTNode<IntegralT> condition,
-                              Label* false_label) {
+void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label) {
   Label true_label(this);
   Branch(condition, &true_label, false_label);
   Bind(&true_label);
 }
 
-void CodeAssembler::Branch(SloppyTNode<IntegralT> condition, Label* true_label,
+void CodeAssembler::Branch(TNode<IntegralT> condition, Label* true_label,
                            Label* false_label) {
   int32_t constant;
   if (ToInt32Constant(condition, &constant)) {
@@ -1557,7 +1553,7 @@ void CodeAssemblerState::PopExceptionHandler() {
   exception_handler_labels_.pop_back();
 }
 
-CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
+ScopedExceptionHandler::ScopedExceptionHandler(
     CodeAssembler* assembler, CodeAssemblerExceptionHandlerLabel* label)
     : has_handler_(label != nullptr),
       assembler_(assembler),
@@ -1568,7 +1564,7 @@ CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
   }
 }
 
-CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
+ScopedExceptionHandler::ScopedExceptionHandler(
     CodeAssembler* assembler, CodeAssemblerLabel* label,
     TypedCodeAssemblerVariable<Object>* exception)
     : has_handler_(label != nullptr),
@@ -1582,7 +1578,7 @@ CodeAssemblerScopedExceptionHandler::CodeAssemblerScopedExceptionHandler(
   }
 }
 
-CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
+ScopedExceptionHandler::~ScopedExceptionHandler() {
   if (has_handler_) {
     assembler_->state()->PopExceptionHandler();
   }
@@ -1594,7 +1590,7 @@ CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
     }
     TNode<Object> e;
     assembler_->Bind(label_.get(), &e);
-    *exception_ = e;
+    if (exception_ != nullptr) *exception_ = e;
     assembler_->Goto(compatibility_label_);
     if (inside_block) {
       assembler_->Bind(&skip);
@@ -1625,6 +1621,7 @@ Address CheckObjectType(Address raw_value, Address raw_type,
 
     TYPE_CASE(Object)
     TYPE_CASE(Smi)
+    TYPE_CASE(TaggedIndex)
     TYPE_CASE(HeapObject)
     OBJECT_TYPE_LIST(TYPE_CASE)
     HEAP_OBJECT_TYPE_LIST(TYPE_CASE)

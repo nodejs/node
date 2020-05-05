@@ -32,8 +32,6 @@ class JSPromise : public TorqueGeneratedJSPromise<JSPromise, JSObject> {
   // [reactions]: Checks that the promise is pending and returns the reactions.
   inline Object reactions() const;
 
-  DECL_INT_ACCESSORS(flags)
-
   // [has_handler]: Whether this promise has a reject handler or not.
   DECL_BOOLEAN_ACCESSORS(has_handler)
 

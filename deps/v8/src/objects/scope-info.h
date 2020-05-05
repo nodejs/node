@@ -36,8 +36,10 @@ class Zone;
 
 // This object provides quick access to scope info details for runtime
 // routines.
-class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
+class ScopeInfo : public FixedArray {
  public:
+  DEFINE_TORQUE_GENERATED_SCOPE_FLAGS()
+
   DECL_CAST(ScopeInfo)
   DECL_PRINTER(ScopeInfo)
 
@@ -218,7 +220,9 @@ class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
   bool Equals(ScopeInfo other) const;
 #endif
 
-  static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope,
+  template <typename LocalIsolate>
+  static Handle<ScopeInfo> Create(LocalIsolate* isolate, Zone* zone,
+                                  Scope* scope,
                                   MaybeHandle<ScopeInfo> outer_scope);
   static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);

@@ -38,7 +38,7 @@ namespace internal {
 //     // Tells whether key matches other.
 //     static bool IsMatch(Key key, Object other);
 //     // Returns the hash value for key.
-//     static uint32_t Hash(Isolate* isolate, Key key);
+//     static uint32_t Hash(ReadOnlyRoots roots, Key key);
 //     // Returns the hash value for object.
 //     static uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 //     // Convert key to an object.
@@ -60,7 +60,7 @@ template <typename KeyT>
 class V8_EXPORT_PRIVATE BaseShape {
  public:
   using Key = KeyT;
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
   static const bool kNeedsHoleCheck = true;
   static Object Unwrap(Object key) { return key; }
   static inline bool IsKey(ReadOnlyRoots roots, Object key);
@@ -129,8 +129,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   using Key = typename Shape::Key;
 
   // Returns a new HashTable object.
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
-      Isolate* isolate, int at_least_space_for,
+      LocalIsolate* isolate, int at_least_space_for,
       AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
@@ -140,6 +141,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
 
   // Find entry for key otherwise return kNotFound.
   inline InternalIndex FindEntry(ReadOnlyRoots roots, Key key, int32_t hash);
+  inline InternalIndex FindEntry(ReadOnlyRoots roots, Key key);
   inline InternalIndex FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
@@ -191,8 +193,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   }
 
   // Ensure enough space for n additional elements.
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
-      Isolate* isolate, Handle<Derived> table, int n = 1,
+      LocalIsolate* isolate, Handle<Derived> table, int n = 1,
       AllocationType allocation = AllocationType::kYoung);
 
   // Returns true if this table has sufficient capacity for adding n elements.
@@ -201,8 +204,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
  protected:
   friend class ObjectHashTable;
 
+  template <typename LocalIsolate>
   V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
-      Isolate* isolate, int capacity, AllocationType allocation);
+      LocalIsolate* isolate, int capacity, AllocationType allocation);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
@@ -243,6 +247,24 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };
 
+#define EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                            \
+  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)           \
+      HashTable<class DERIVED, SHAPE>;                                       \
+                                                                             \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::New(Isolate*, int, AllocationType,              \
+                                 MinimumCapacity);                           \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::New(OffThreadIsolate*, int, AllocationType,     \
+                                 MinimumCapacity);                           \
+                                                                             \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(Isolate*, Handle<DERIVED>, int,  \
+                                            AllocationType);                 \
+  extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Handle<DERIVED> \
+  HashTable<DERIVED, SHAPE>::EnsureCapacity(                                 \
+      OffThreadIsolate*, Handle<DERIVED>, int, AllocationType);
+
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {
  public:
@@ -269,7 +291,7 @@ class HashTableKey {
 class ObjectHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object other);
-  static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Handle<Object> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Handle<Object> key);
   static const int kPrefixSize = 0;
@@ -321,12 +343,12 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) ObjectHashTableBase
   OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>);
 };
 
-class ObjectHashTable;
+#define EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(DERIVED, SHAPE)      \
+  EXTERN_DECLARE_HASH_TABLE(DERIVED, SHAPE)                        \
+  extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) \
+      ObjectHashTableBase<class DERIVED, SHAPE>;
 
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashTable, ObjectHashTableShape>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>;
+EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(ObjectHashTable, ObjectHashTableShape)
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
@@ -343,15 +365,11 @@ class V8_EXPORT_PRIVATE ObjectHashTable
 
 class EphemeronHashTableShape : public ObjectHashTableShape {
  public:
-  static inline RootIndex GetMapRootIndex();
+  static inline Handle<Map> GetMap(ReadOnlyRoots roots);
 };
 
-class EphemeronHashTable;
-
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<EphemeronHashTable, EphemeronHashTableShape>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+EXTERN_DECLARE_OBJECT_BASE_HASH_TABLE(EphemeronHashTable,
+                                      EphemeronHashTableShape)
 
 // EphemeronHashTable is similar to ObjectHashTable but gets special treatment
 // by the GC. The GC treats its entries as ephemerons: both key and value are
@@ -383,9 +401,7 @@ class ObjectHashSetShape : public ObjectHashTableShape {
   static const int kEntrySize = 1;
 };
 
-class ObjectHashSet;
-extern template class EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) HashTable<ObjectHashSet, ObjectHashSetShape>;
+EXTERN_DECLARE_HASH_TABLE(ObjectHashSet, ObjectHashSetShape)
 
 class V8_EXPORT_PRIVATE ObjectHashSet
     : public HashTable<ObjectHashSet, ObjectHashSetShape> {

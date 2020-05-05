@@ -1,0 +1,140 @@
+<!-- Copyright 2018 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+<style>
+#dataSelectionSection {
+  display: none;
+}
+
+.box {
+  border-left: dashed 1px #666666;
+  border-right: dashed 1px #666666;
+  border-bottom: dashed 1px #666666;
+  padding: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.box:nth-of-type(1) {
+  border-top: dashed 1px #666666;
+  border-radius: 5px 5px 0px 0px;
+}
+
+.box:last-of-type {
+    border-radius: 0px 0px 5px 5px;
+}
+
+.box > ul {
+  margin: 0px;
+  padding: 0px;
+}
+
+.box > ul > li {
+  display: inline-block;
+}
+
+.box > ul > li:not(:first-child) {
+  margin-left: 10px;
+}
+
+.box > ul > li:first-child {
+  font-weight: bold;
+}
+
+.instanceTypeSelectBox {
+  position: relative;
+  overflow: hidden;
+  float: left;
+  padding: 0px 5px 2px 0px;
+  margin: 3px;
+  border-radius: 3px;
+}
+
+.instanceTypeSelectBox > label {
+  font-size: xx-small;
+}
+
+.instanceTypeSelectBox > input {
+  vertical-align: middle;
+}
+
+.percentBackground {
+  position: absolute;
+  width: 200%;
+  height: 100%;
+  left: 0%;
+  top: 0px;
+  margin-left: -100%;
+  transition: all 1s ease-in-out;
+}
+
+.instanceTypeSelectBox > .percentBackground  {
+  background: linear-gradient(90deg, #68b0f7 50%, #b3d9ff 50%);
+  z-index: -1;
+}
+.box > .percentBackground  {
+  background: linear-gradient(90deg, #e0edfe 50%, #fff 50%);
+  z-index: -2;
+}
+
+#categories {
+  margin-top: 10px;
+}
+
+#category-filter {
+  text-align: right;
+  width: 50px;
+}
+
+</style>
+<section id="dataSelectionSection">
+  <h2>Data selection</h2>
+  <ul>
+    <li>
+      <label for="isolate-select">
+        Isolate
+      </label>
+      <select id="isolate-select">
+        <option>No data</option>
+      </select>
+    </li>
+    <li>
+      <label for="data-view-select">
+        Data view
+      </label>
+      <select id="data-view-select">
+        <option>No data</option>
+      </select>
+    </li>
+    <li>
+      <label for="dataset-select">
+        Data set
+      </label>
+      <select id="dataset-select">
+        <option>No data</option>
+      </select>
+    </li>
+    <li>
+      <label for="gc-select">
+        Garbage collection (at a specific time in ms)
+      </label>
+      <select id="gc-select">
+        <option>No data</option>
+      </select>
+    </li>
+    <li>
+      <input id="category-filter" type="text" value="0" disabled="disabled" />KB
+      <button id="category-filter-btn" disabled="disabled">
+        Filter categories with less memory
+      </button>
+      <button id="category-auto-filter-btn" disabled="disabled">
+        Show top 20 categories only
+      </button>
+    </li>
+    <li>
+      <button id="csv-export-btn" disabled="disabled">Export selection as CSV</button>
+    </li>
+  </ul>
+
+  <div id="categories"></div>
+</section>

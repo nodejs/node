@@ -225,7 +225,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
         }
         JSObject::TransitionElementsKind(boilerplate, to_kind);
         site->dependent_code().DeoptimizeDependentCodeGroup(
-            isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+            DependentCode::kAllocationSiteTransitionChangedGroup);
         result = true;
       }
     }
@@ -245,7 +245,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       }
       site->SetElementsKind(to_kind);
       site->dependent_code().DeoptimizeDependentCodeGroup(
-          isolate, DependentCode::kAllocationSiteTransitionChangedGroup);
+          DependentCode::kAllocationSiteTransitionChangedGroup);
       result = true;
     }
   }

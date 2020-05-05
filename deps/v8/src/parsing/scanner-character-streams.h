@@ -31,6 +31,8 @@ class V8_EXPORT_PRIVATE ScannerStream {
   static std::unique_ptr<Utf16CharacterStream> ForTesting(const char* data);
   static std::unique_ptr<Utf16CharacterStream> ForTesting(const char* data,
                                                           size_t length);
+  static std::unique_ptr<Utf16CharacterStream> ForTesting(const uint16_t* data,
+                                                          size_t length);
 };
 
 }  // namespace internal

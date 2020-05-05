@@ -53,10 +53,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadLiteral(zero)
       .StoreAccumulatorInRegister(reg_0)
       .LoadLiteral(smi_0)
-      .StackCheck(0)
       .StoreAccumulatorInRegister(reg_0)
       .LoadLiteral(smi_1)
-      .StackCheck(1)
       .StoreAccumulatorInRegister(reg_1)
       .LoadAccumulatorWithRegister(reg_0)
       .BinaryOperation(Token::Value::ADD, reg_0, 2)
@@ -73,7 +71,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .Return();
 
   // Test iterator sees the expected output from the builder.
-  ast_factory.Internalize(isolate()->factory());
+  ast_factory.Internalize(isolate());
   BytecodeArrayIterator iterator(builder.ToBytecodeArray(isolate()));
   const int kPrefixByteSize = 1;
   int offset = 0;
@@ -138,14 +136,6 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   offset += Bytecodes::Size(Bytecode::kLdaSmi, OperandScale::kSingle);
   iterator.Advance();
 
-  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kStackCheck);
-  EXPECT_EQ(iterator.current_offset(), offset);
-  EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(Bytecodes::NumberOfOperands(iterator.current_bytecode()), 0);
-  CHECK(!iterator.done());
-  offset += Bytecodes::Size(Bytecode::kStackCheck, OperandScale::kSingle);
-  iterator.Advance();
-
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kStar);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
@@ -162,14 +152,6 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdaSmi, OperandScale::kQuadruple) +
             kPrefixByteSize;
-  iterator.Advance();
-
-  EXPECT_EQ(iterator.current_bytecode(), Bytecode::kStackCheck);
-  EXPECT_EQ(iterator.current_offset(), offset);
-  EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_EQ(Bytecodes::NumberOfOperands(iterator.current_bytecode()), 0);
-  CHECK(!iterator.done());
-  offset += Bytecodes::Size(Bytecode::kStackCheck, OperandScale::kSingle);
   iterator.Advance();
 
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kStar);

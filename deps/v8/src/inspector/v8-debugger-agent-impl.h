@@ -98,7 +98,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response getWasmBytecode(const String16& scriptId,
                            protocol::Binary* bytecode) override;
   Response pause() override;
-  Response resume() override;
+  Response resume(Maybe<bool> terminateOnResume) override;
   Response stepOver() override;
   Response stepInto(Maybe<bool> inBreakOnAsyncCall) override;
   Response stepOut() override;

@@ -20,15 +20,10 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPoint)
 TQ_OBJECT_CONSTRUCTORS_IMPL(BreakPointInfo)
-OBJECT_CONSTRUCTORS_IMPL(CoverageInfo, FixedArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(CoverageInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(DebugInfo)
 
 NEVER_READ_ONLY_SPACE_IMPL(DebugInfo)
-
-CAST_ACCESSOR(CoverageInfo)
-
-TQ_SMI_ACCESSORS(DebugInfo, flags)
-TQ_SMI_ACCESSORS(DebugInfo, debugger_hints)
 
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, side_effect_state,
                     DebugInfo::SideEffectStateBits)
@@ -38,10 +33,6 @@ BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, computed_debug_is_blackboxed,
                     DebugInfo::ComputedDebugIsBlackboxedBit)
 BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
                     DebugInfo::DebuggingIdBits)
-
-TQ_SMI_ACCESSORS(BreakPointInfo, source_position)
-
-TQ_SMI_ACCESSORS(BreakPoint, id)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
   DCHECK_EQ(debug_bytecode_array().IsBytecodeArray(),

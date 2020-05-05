@@ -1,305 +1,352 @@
 Tests stepping through wasm scripts with source maps
 Installing code an global variable and instantiate.
-Got wasm script: wasm://wasm/3697f0fe
+Got wasm script: wasm://wasm/9b4bf87e
 Script sourceMapURL: abc
-Requesting source for wasm://wasm/3697f0fe...
+Requesting source for wasm://wasm/9b4bf87e...
 Source retrieved without error: true
-Setting breakpoint on offset 54 (on the setlocal before the call), url wasm://wasm/3697f0fe
+Setting breakpoint on offset 54 (on the setlocal before the call), url wasm://wasm/9b4bf87e
 {
     columnNumber : 54
     lineNumber : 0
     scriptId : <scriptId>
 }
-Paused at wasm://wasm/3697f0fe:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":4}
+   locals: {"var0":4}
    stack: {"0":3}
+ - scope (wasm-expression-stack):
+   {"0":3}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3}
+   locals: {"var0":3}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:38
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01
 at wasm_A (0:38):
  - scope (global):
    -- skipped
  - scope (local):
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3}
+   locals: {"var0":3}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/3697f0fe:0:39
+Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01
 at wasm_A (0:39):
  - scope (global):
    -- skipped
  - scope (local):
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3}
+   locals: {"var0":3}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/3697f0fe:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
 at wasm_B (0:58):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3}
+   locals: {"var0":3}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/3697f0fe:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":3}
+   locals: {"var0":3}
    stack: {"0":2}
+ - scope (wasm-expression-stack):
+   {"0":2}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/3697f0fe:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":2}
+   locals: {"var0":2}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOver called
-Paused at wasm://wasm/3697f0fe:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
 at wasm_B (0:58):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":2}
+   locals: {"var0":2}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.resume called
-Paused at wasm://wasm/3697f0fe:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":2}
+   locals: {"var0":2}
    stack: {"0":1}
+ - scope (wasm-expression-stack):
+   {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:38
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01
 at wasm_A (0:38):
  - scope (global):
    -- skipped
  - scope (local):
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepOut called
-Paused at wasm://wasm/3697f0fe:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
 at wasm_B (0:58):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:43
-at wasm_B (0:43):
- - scope (global):
-   -- skipped
- - scope (local):
-   locals: {"arg#0":1}
-   stack: {}
-at (anonymous) (0:17):
- - scope (global):
-   -- skipped
-Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:45
+Script wasm://wasm/9b4bf87e byte offset 45: Wasm opcode 0x20
 at wasm_B (0:45):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:47
+Script wasm://wasm/9b4bf87e byte offset 47: Wasm opcode 0x04
 at wasm_B (0:47):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {"0":1}
+ - scope (wasm-expression-stack):
+   {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:49
+Script wasm://wasm/9b4bf87e byte offset 49: Wasm opcode 0x20
 at wasm_B (0:49):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:51
+Script wasm://wasm/9b4bf87e byte offset 51: Wasm opcode 0x41
 at wasm_B (0:51):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {"0":1}
+ - scope (wasm-expression-stack):
+   {"0":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:53
+Script wasm://wasm/9b4bf87e byte offset 53: Wasm opcode 0x6b
 at wasm_B (0:53):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {"0":1,"1":1}
+ - scope (wasm-expression-stack):
+   {"0":1,"1":1}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:54
+Script wasm://wasm/9b4bf87e byte offset 54: Wasm opcode 0x21
 at wasm_B (0:54):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":1}
+   locals: {"var0":1}
    stack: {"0":0}
+ - scope (wasm-expression-stack):
+   {"0":0}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:56
+Script wasm://wasm/9b4bf87e byte offset 56: Wasm opcode 0x10
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0}
+   locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:38
+Script wasm://wasm/9b4bf87e byte offset 38: Wasm opcode 0x01
 at wasm_A (0:38):
  - scope (global):
    -- skipped
  - scope (local):
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0}
+   locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:39
+Script wasm://wasm/9b4bf87e byte offset 39: Wasm opcode 0x01
 at wasm_A (0:39):
  - scope (global):
    -- skipped
  - scope (local):
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0}
+   locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:40
+Script wasm://wasm/9b4bf87e byte offset 40: Wasm opcode 0x0b
 at wasm_A (0:40):
  - scope (global):
    -- skipped
  - scope (local):
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at wasm_B (0:56):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0}
+   locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped
 Debugger.stepInto called
-Paused at wasm://wasm/3697f0fe:0:58
+Script wasm://wasm/9b4bf87e byte offset 58: Wasm opcode 0x0c
 at wasm_B (0:58):
  - scope (global):
    -- skipped
  - scope (local):
-   locals: {"arg#0":0}
+   locals: {"var0":0}
    stack: {}
+ - scope (wasm-expression-stack):
+   {}
 at (anonymous) (0:17):
  - scope (global):
    -- skipped

@@ -387,8 +387,9 @@ int NumberOfAvailableCores() {
 
 int MarkCompactCollectorBase::NumberOfParallelCompactionTasks(int pages) {
   DCHECK_GT(pages, 0);
-  int tasks =
-      FLAG_parallel_compaction ? Min(NumberOfAvailableCores(), pages) : 1;
+  int tasks = FLAG_parallel_compaction ? Min(NumberOfAvailableCores(),
+                                             pages / (MB / Page::kPageSize) + 1)
+                                       : 1;
   if (!heap_->CanExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
@@ -2217,7 +2218,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Initialize the uncompiled data.
   UncompiledData uncompiled_data = UncompiledData::cast(compiled_data);
-  uncompiled_data.Init(
+  uncompiled_data.InitAfterBytecodeFlush(
       inferred_name, start_position, end_position,
       [](HeapObject object, ObjectSlot slot, HeapObject target) {
         RecordSlot(object, slot, target);
@@ -2493,18 +2494,18 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
       DCHECK(!target.IsUndefined());
       // The value of the WeakCell is dead.
-      JSFinalizationGroup finalization_group =
-          JSFinalizationGroup::cast(weak_cell.finalization_group());
-      if (!finalization_group.scheduled_for_cleanup()) {
-        heap()->AddDirtyJSFinalizationGroup(finalization_group,
-                                            gc_notify_updated_slot);
+      JSFinalizationRegistry finalization_registry =
+          JSFinalizationRegistry::cast(weak_cell.finalization_registry());
+      if (!finalization_registry.scheduled_for_cleanup()) {
+        heap()->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
+                                                   gc_notify_updated_slot);
       }
-      // We're modifying the pointers in WeakCell and JSFinalizationGroup during
-      // GC; thus we need to record the slots it writes. The normal write
+      // We're modifying the pointers in WeakCell and JSFinalizationRegistry
+      // during GC; thus we need to record the slots it writes. The normal write
       // barrier is not enough, since it's disabled before GC.
       weak_cell.Nullify(isolate(), gc_notify_updated_slot);
-      DCHECK(finalization_group.NeedsCleanup());
-      DCHECK(finalization_group.scheduled_for_cleanup());
+      DCHECK(finalization_registry.NeedsCleanup());
+      DCHECK(finalization_registry.scheduled_for_cleanup());
     } else {
       // The value of the WeakCell is alive.
       ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
@@ -2520,9 +2521,9 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       // WeakCell. Like above, we're modifying pointers during GC, so record the
       // slots.
       HeapObject undefined = ReadOnlyRoots(isolate()).undefined_value();
-      JSFinalizationGroup finalization_group =
-          JSFinalizationGroup::cast(weak_cell.finalization_group());
-      finalization_group.RemoveUnregisterToken(
+      JSFinalizationRegistry finalization_registry =
+          JSFinalizationRegistry::cast(weak_cell.finalization_registry());
+      finalization_registry.RemoveUnregisterToken(
           JSReceiver::cast(unregister_token), isolate(),
           [undefined](WeakCell matched_cell) {
             matched_cell.set_unregister_token(undefined);
@@ -2533,6 +2534,9 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       ObjectSlot slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
+  }
+  if (!isolate()->host_cleanup_finalization_group_callback()) {
+    heap()->PostFinalizationRegistryCleanupTaskIfNeeded();
   }
 }
 
@@ -2936,7 +2940,7 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
   intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
   {
-    AlwaysAllocateScope always_allocate(heap()->isolate());
+    AlwaysAllocateScope always_allocate(heap());
     TimedScope timed_scope(&evacuation_time);
     RawEvacuatePage(chunk, &saved_live_bytes);
   }

@@ -71,23 +71,6 @@ namespace internal {
 
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
 
-const int kNumRegs = kNumberOfRegisters;
-// Registers x0-x17 are caller-saved.
-const int kNumJSCallerSaved = 18;
-const RegList kJSCallerSaved = 0x3ffff;
-
-// Number of registers for which space is reserved in safepoints. Must be a
-// multiple of eight.
-// TODO(all): Refine this number.
-const int kNumSafepointRegisters = 32;
-
-// Define the list of registers actually saved at safepoints.
-// Note that the number of saved registers may be smaller than the reserved
-// space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-#define kSafepointSavedRegisters CPURegList::GetSafepointSavedRegisters().list()
-#define kNumSafepointSavedRegisters \
-  CPURegList::GetSafepointSavedRegisters().Count()
-
 // Some CPURegister methods can return Register and VRegister types, so we
 // need to declare them in advance.
 class Register;
@@ -539,8 +522,6 @@ using Simd128Register = VRegister;
 // Lists of registers.
 class V8_EXPORT_PRIVATE CPURegList {
  public:
-  CPURegList() = default;
-
   template <typename... CPURegisters>
   explicit CPURegList(CPURegister reg0, CPURegisters... regs)
       : list_(CPURegister::ListOf(reg0, regs...)),
@@ -602,10 +583,6 @@ class V8_EXPORT_PRIVATE CPURegList {
   void Combine(int code);
   void Remove(int code);
 
-  // Remove all callee-saved registers from the list. This can be useful when
-  // preparing registers for an AAPCS64 function call, for example.
-  void RemoveCalleeSaved();
-
   // Align the list to 16 bytes.
   void Align();
 
@@ -621,9 +598,6 @@ class V8_EXPORT_PRIVATE CPURegList {
   // 64-bits being caller-saved.
   static CPURegList GetCallerSaved(int size = kXRegSizeInBits);
   static CPURegList GetCallerSavedV(int size = kDRegSizeInBits);
-
-  // Registers saved as safepoints.
-  static CPURegList GetSafepointSavedRegisters();
 
   bool IsEmpty() const {
     return list_ == 0;

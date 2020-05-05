@@ -28,11 +28,17 @@ extern class SourceTextModule extends Module {
   // Lazily initialized on first access. It's the hole before first access and
   // a JSObject afterwards.
   import_meta: TheHole|JSObject;
+
   async_parent_modules: ArrayList;
   top_level_capability: JSPromise|Undefined;
+
+  // TODO(neis): Don't store those in the module object?
   dfs_index: Smi;
   dfs_ancestor_index: Smi;
+
+  // The number of currently evaluating async dependencies of this module.
   pending_async_dependencies: Smi;
+
   flags: Smi;
 }
 

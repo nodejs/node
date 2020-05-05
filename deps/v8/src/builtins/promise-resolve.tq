@@ -177,7 +177,14 @@ namespace promise {
     label Enqueue {
       // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
       //                        «promise, resolution, thenAction»).
-      const nativeContext = LoadNativeContext(context);
+
+      // According to HTML, we use the context of the then function
+      // (|thenAction|) as the context of the microtask. See step 3 of HTML's
+      // EnqueueJob:
+      // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
+      const thenContext: Context =
+          ExtractHandlerContext(UnsafeCast<Callable>(then));
+      const nativeContext = LoadNativeContext(thenContext);
       const task = NewPromiseResolveThenableJobTask(
           promise, UnsafeCast<JSReceiver>(then),
           UnsafeCast<JSReceiver>(resolution), nativeContext);

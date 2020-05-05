@@ -12,6 +12,9 @@ group("v8_mjsunit") {
 
   data = [
     "./",
+    "../../tools/clusterfuzz/v8_mock.js",
+    "../../tools/clusterfuzz/v8_mock_archs.js",
+    "../../tools/clusterfuzz/v8_mock_webassembly.js",
     "../../tools/codemap.js",
     "../../tools/consarray.js",
     "../../tools/csvparser.js",

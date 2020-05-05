@@ -81,7 +81,7 @@ class ConstantPoolEntry {
   enum { SHARING_PROHIBITED = -2, SHARING_ALLOWED = -1 };
 };
 
-#if defined(V8_TARGET_ARCH_PPC)
+#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
 
 // -----------------------------------------------------------------------------
 // Embedded constant pool support
@@ -161,7 +161,7 @@ class ConstantPoolBuilder {
   PerTypeEntryInfo info_[ConstantPoolEntry::NUMBER_OF_TYPES];
 };
 
-#endif  // defined(V8_TARGET_ARCH_PPC)
+#endif  // defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_PPC64)
 
 #if defined(V8_TARGET_ARCH_ARM64)
 

@@ -1,0 +1,12 @@
+*%(basename)s:{NUMBER}: Error: callback
+  throw new Error('callback');
+  ^
+Error: callback
+    at callback (*%(basename)s:{NUMBER}:{NUMBER})
+
+*%(basename)s:{NUMBER}: Error: callback
+  throw new Error('callback');
+  ^
+Error: callback
+    at callback (*%(basename)s:{NUMBER}:{NUMBER})
+

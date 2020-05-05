@@ -81,10 +81,21 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   static const Type* GetGenericTypeInstance(GenericType* generic_type,
                                             TypeVector arg_types);
 
-  static GenericType* GetReferenceGeneric() {
-    return Declarations::LookupUniqueGenericType(QualifiedName(
-        {TORQUE_INTERNAL_NAMESPACE_STRING}, REFERENCE_TYPE_STRING));
+  static GenericType* GetReferenceGeneric(bool is_const) {
+    return Declarations::LookupUniqueGenericType(
+        QualifiedName({TORQUE_INTERNAL_NAMESPACE_STRING},
+                      is_const ? CONST_REFERENCE_TYPE_STRING
+                               : MUTABLE_REFERENCE_TYPE_STRING));
   }
+  static GenericType* GetConstReferenceGeneric() {
+    return GetReferenceGeneric(true);
+  }
+  static GenericType* GetMutableReferenceGeneric() {
+    return GetReferenceGeneric(false);
+  }
+
+  static base::Optional<const Type*> MatchReferenceGeneric(
+      const Type* reference_type, bool* is_const = nullptr);
 
   static GenericType* GetSliceGeneric() {
     return Declarations::LookupUniqueGenericType(
@@ -95,8 +106,20 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Declarations::LookupGlobalUniqueGenericType(WEAK_TYPE_STRING);
   }
 
-  static const Type* GetReferenceType(const Type* referenced_type) {
-    return GetGenericTypeInstance(GetReferenceGeneric(), {referenced_type});
+  static GenericType* GetSmiTaggedGeneric() {
+    return Declarations::LookupGlobalUniqueGenericType(SMI_TAGGED_TYPE_STRING);
+  }
+
+  static const Type* GetReferenceType(const Type* referenced_type,
+                                      bool is_const) {
+    return GetGenericTypeInstance(GetReferenceGeneric(is_const),
+                                  {referenced_type});
+  }
+  static const Type* GetConstReferenceType(const Type* referenced_type) {
+    return GetReferenceType(referenced_type, true);
+  }
+  static const Type* GetMutableReferenceType(const Type* referenced_type) {
+    return GetReferenceType(referenced_type, false);
   }
 
   static const Type* GetSliceType(const Type* referenced_type) {
@@ -229,6 +252,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UINT32_TYPE_STRING);
   }
 
+  static const Type* GetUint31Type() {
+    return Get().GetBuiltinType(UINT31_TYPE_STRING);
+  }
+
   static const Type* GetInt16Type() {
     return Get().GetBuiltinType(INT16_TYPE_STRING);
   }
@@ -285,6 +312,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UNINITIALIZED_ITERATOR_TYPE_STRING);
   }
 
+  static const Type* GetFixedArrayBaseType() {
+    return Get().GetBuiltinType(FIXED_ARRAY_BASE_TYPE_STRING);
+  }
+
   static base::Optional<const Type*> ImplicitlyConvertableFrom(
       const Type* to, const Type* from) {
     while (from != nullptr) {
@@ -306,6 +337,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();
   static const std::vector<std::unique_ptr<BitFieldStructType>>&
   GetBitFieldStructTypes();
+
+  // By construction, this list of all classes is topologically sorted w.r.t.
+  // inheritance.
+  static std::vector<const ClassType*> GetClasses();
 
   static void FinalizeAggregateTypes();
 

@@ -4,6 +4,7 @@
 
 #include "src/objects/string.h"
 
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"  // For LooksValid implementation.
 #include "src/heap/read-only-heap.h"
@@ -688,7 +689,7 @@ void String::WriteToFlat(String src, sinkchar* sink, int f, int t) {
 }
 
 template <typename SourceChar>
-static void CalculateLineEndsImpl(Isolate* isolate, std::vector<int>* line_ends,
+static void CalculateLineEndsImpl(std::vector<int>* line_ends,
                                   Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
@@ -708,7 +709,8 @@ static void CalculateLineEndsImpl(Isolate* isolate, std::vector<int>* line_ends,
   }
 }
 
-Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
+template <typename LocalIsolate>
+Handle<FixedArray> String::CalculateLineEnds(LocalIsolate* isolate,
                                              Handle<String> src,
                                              bool include_ending_line) {
   src = Flatten(isolate, src);
@@ -723,20 +725,28 @@ Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
     String::FlatContent content = src->GetFlatContent(no_allocation);
     DCHECK(content.IsFlat());
     if (content.IsOneByte()) {
-      CalculateLineEndsImpl(isolate, &line_ends, content.ToOneByteVector(),
+      CalculateLineEndsImpl(&line_ends, content.ToOneByteVector(),
                             include_ending_line);
     } else {
-      CalculateLineEndsImpl(isolate, &line_ends, content.ToUC16Vector(),
+      CalculateLineEndsImpl(&line_ends, content.ToUC16Vector(),
                             include_ending_line);
     }
   }
   int line_count = static_cast<int>(line_ends.size());
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(line_count);
+  Handle<FixedArray> array =
+      isolate->factory()->NewFixedArray(line_count, AllocationType::kOld);
   for (int i = 0; i < line_count; i++) {
     array->set(i, Smi::FromInt(line_ends[i]));
   }
   return array;
 }
+
+template Handle<FixedArray> String::CalculateLineEnds(Isolate* isolate,
+                                                      Handle<String> src,
+                                                      bool include_ending_line);
+template Handle<FixedArray> String::CalculateLineEnds(OffThreadIsolate* isolate,
+                                                      Handle<String> src,
+                                                      bool include_ending_line);
 
 bool String::SlowEquals(String other) {
   DisallowHeapAllocation no_gc;
@@ -1371,7 +1381,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     Hash();  // Force computation of hash code.
     uint32_t field = hash_field();
-    if ((field & kIsNotArrayIndexMask) != 0) return false;
+    if ((field & kIsNotIntegerIndexMask) != 0) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
@@ -1386,12 +1396,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   if (length <= kMaxCachedArrayIndexLength) {
     Hash();  // Force computation of hash code.
     uint32_t field = hash_field();
-    if ((field & kIsNotArrayIndexMask) != 0) {
-      // If it was short but it's not an array index, then it can't be an
-      // integer index either.
-      DCHECK_NE(0, field & kIsNotIntegerIndexMask);
-      return false;
-    }
+    if ((field & kIsNotIntegerIndexMask) != 0) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
@@ -1650,6 +1655,37 @@ String ConsStringIterator::NextLeaf(bool* blew_stack) {
     }
   }
   UNREACHABLE();
+}
+
+const byte* String::AddressOfCharacterAt(int start_index,
+                                         const DisallowHeapAllocation& no_gc) {
+  DCHECK(IsFlat());
+  String subject = *this;
+  if (subject.IsConsString()) {
+    subject = ConsString::cast(subject).first();
+  } else if (subject.IsSlicedString()) {
+    start_index += SlicedString::cast(subject).offset();
+    subject = SlicedString::cast(subject).parent();
+  }
+  if (subject.IsThinString()) {
+    subject = ThinString::cast(subject).actual();
+  }
+  CHECK_LE(0, start_index);
+  CHECK_LE(start_index, subject.length());
+  if (subject.IsSeqOneByteString()) {
+    return reinterpret_cast<const byte*>(
+        SeqOneByteString::cast(subject).GetChars(no_gc) + start_index);
+  } else if (subject.IsSeqTwoByteString()) {
+    return reinterpret_cast<const byte*>(
+        SeqTwoByteString::cast(subject).GetChars(no_gc) + start_index);
+  } else if (subject.IsExternalOneByteString()) {
+    return reinterpret_cast<const byte*>(
+        ExternalOneByteString::cast(subject).GetChars() + start_index);
+  } else {
+    DCHECK(subject.IsExternalTwoByteString());
+    return reinterpret_cast<const byte*>(
+        ExternalTwoByteString::cast(subject).GetChars() + start_index);
+  }
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) void String::WriteToFlat(

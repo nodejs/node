@@ -32,9 +32,7 @@
 
 #include "src/base/hashmap.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
 #include "src/heap/factory.h"
-#include "src/heap/off-thread-factory.h"
 #include "src/numbers/conversions.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
@@ -44,6 +42,9 @@
 // heap).
 namespace v8 {
 namespace internal {
+
+class Isolate;
+class OffThreadIsolate;
 
 class AstRawString final : public ZoneObject {
  public:
@@ -57,8 +58,8 @@ class AstRawString final : public ZoneObject {
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
   uint16_t FirstCharacter() const;
 
-  void Internalize(Factory* factory);
-  void Internalize(OffThreadFactory* factory);
+  void Internalize(Isolate* isolate);
+  void Internalize(OffThreadIsolate* isolate);
 
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
@@ -70,7 +71,7 @@ class AstRawString final : public ZoneObject {
   uint32_t Hash() const { return hash_field_ >> Name::kHashShift; }
 
   // This function can be called after internalizing.
-  V8_INLINE HandleOrOffThreadHandle<String> string() const {
+  V8_INLINE Handle<String> string() const {
     DCHECK(has_string_);
     return string_;
   }
@@ -97,7 +98,7 @@ class AstRawString final : public ZoneObject {
     return &next_;
   }
 
-  void set_string(HandleOrOffThreadHandle<String> string) {
+  void set_string(Handle<String> string) {
     DCHECK(!string.is_null());
     DCHECK(!has_string_);
     string_ = string;
@@ -108,7 +109,7 @@ class AstRawString final : public ZoneObject {
 
   union {
     AstRawString* next_;
-    HandleOrOffThreadHandle<String> string_;
+    Handle<String> string_;
   };
 
   Vector<const byte> literal_bytes_;  // Memory owned by Zone.
@@ -143,53 +144,42 @@ class AstConsString final : public ZoneObject {
     return segment_.string == nullptr;
   }
 
-  template <typename Factory>
-  void Internalize(Factory* factory);
-
-  // This function can be called after internalizing.
-  V8_INLINE HandleOrOffThreadHandle<String> string() const {
-    DCHECK(has_string_);
+  template <typename LocalIsolate>
+  Handle<String> GetString(LocalIsolate* isolate) {
+    if (string_.is_null()) {
+      string_ = Allocate(isolate);
+    }
     return string_;
   }
+
+  template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<String> AllocateFlat(LocalIsolate* isolate) const;
 
   std::forward_list<const AstRawString*> ToRawStrings() const;
 
  private:
   friend class AstValueFactory;
 
-  AstConsString() : next_(nullptr), segment_({nullptr, nullptr}) {}
+  AstConsString() : string_(), segment_({nullptr, nullptr}) {}
 
-  AstConsString* next() const { return next_; }
-  AstConsString** next_location() { return &next_; }
+  template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<String> Allocate(LocalIsolate* isolate) const;
 
-  void set_string(HandleOrOffThreadHandle<String> string) {
-    DCHECK(!string.is_null());
-    DCHECK(!has_string_);
-    string_ = string;
-#ifdef DEBUG
-    has_string_ = true;
-#endif
-  }
+  Handle<String> string_;
 
-  // {string_} is stored as Address* instead of a Handle<String> so it can be
-  // stored in a union with {next_}.
-  union {
-    AstConsString* next_;
-    HandleOrOffThreadHandle<String> string_;
-  };
-
+  // A linked list of AstRawStrings of the contents of this AstConsString.
+  // This list has several properties:
+  //
+  //   * For empty strings the string pointer is null,
+  //   * Appended raw strings are added to the head of the list, so they are in
+  //     reverse order
   struct Segment {
     const AstRawString* string;
     AstConsString::Segment* next;
   };
   Segment segment_;
-
-#ifdef DEBUG
-  // (Debug-only:) Verify the object life-cylce: Some functions may only be
-  // called after internalization (that is, after a v8::internal::String has
-  // been set); some only before.
-  bool has_string_ = false;
-#endif
 };
 
 enum class AstSymbol : uint8_t { kHomeObjectSymbol };
@@ -294,8 +284,6 @@ class AstValueFactory {
       : string_table_(string_constants->string_table()),
         strings_(nullptr),
         strings_end_(&strings_),
-        cons_strings_(nullptr),
-        cons_strings_end_(&cons_strings_),
         string_constants_(string_constants),
         empty_cons_string_(nullptr),
         zone_(zone),
@@ -329,8 +317,8 @@ class AstValueFactory {
   V8_EXPORT_PRIVATE AstConsString* NewConsString(const AstRawString* str1,
                                                  const AstRawString* str2);
 
-  template <typename Factory>
-  void Internalize(Factory* factory);
+  template <typename LocalIsolate>
+  void Internalize(LocalIsolate* isolate);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() const {  \
@@ -338,7 +326,7 @@ class AstValueFactory {
   }
   AST_STRING_CONSTANTS(F)
 #undef F
-  const AstConsString* empty_cons_string() const { return empty_cons_string_; }
+  AstConsString* empty_cons_string() const { return empty_cons_string_; }
 
  private:
   AstRawString* AddString(AstRawString* string) {
@@ -346,16 +334,9 @@ class AstValueFactory {
     strings_end_ = string->next_location();
     return string;
   }
-  AstConsString* AddConsString(AstConsString* string) {
-    *cons_strings_end_ = string;
-    cons_strings_end_ = string->next_location();
-    return string;
-  }
   void ResetStrings() {
     strings_ = nullptr;
     strings_end_ = &strings_;
-    cons_strings_ = nullptr;
-    cons_strings_end_ = &cons_strings_;
   }
   V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
       Vector<const uint8_t> literal);
@@ -366,16 +347,13 @@ class AstValueFactory {
   // All strings are copied here, one after another (no zeroes inbetween).
   base::CustomMatcherHashMap string_table_;
 
-  // We need to keep track of strings_ in order since cons strings require their
-  // members to be internalized first.
   AstRawString* strings_;
   AstRawString** strings_end_;
-  AstConsString* cons_strings_;
-  AstConsString** cons_strings_end_;
 
   // Holds constant string values which are shared across the isolate.
   const AstStringConstants* string_constants_;
-  const AstConsString* empty_cons_string_;
+
+  AstConsString* empty_cons_string_;
 
   // Caches one character lowercase strings (for minified code).
   static const int kMaxOneCharStringValue = 128;
@@ -387,12 +365,12 @@ class AstValueFactory {
 };
 
 extern template EXPORT_TEMPLATE_DECLARE(
-    V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Factory>(Factory*
-                                                                      factory);
+    V8_EXPORT_PRIVATE) void AstValueFactory::Internalize<Isolate>(Isolate*
+                                                                      isolate);
 
 extern template EXPORT_TEMPLATE_DECLARE(
     V8_EXPORT_PRIVATE) void AstValueFactory::
-    Internalize<OffThreadFactory>(OffThreadFactory* factory);
+    Internalize<OffThreadIsolate>(OffThreadIsolate* isolate);
 
 }  // namespace internal
 }  // namespace v8

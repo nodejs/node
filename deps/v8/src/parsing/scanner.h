@@ -403,8 +403,10 @@ class V8_EXPORT_PRIVATE Scanner {
     return ScanTemplateSpan();
   }
 
-  Handle<String> SourceUrl(Isolate* isolate) const;
-  Handle<String> SourceMappingUrl(Isolate* isolate) const;
+  template <typename LocalIsolate>
+  Handle<String> SourceUrl(LocalIsolate* isolate) const;
+  template <typename LocalIsolate>
+  Handle<String> SourceMappingUrl(LocalIsolate* isolate) const;
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 

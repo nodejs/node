@@ -306,9 +306,7 @@ TEST(Issue23768) {
           .ToLocalChecked();
   // Script needs to have a name in order to trigger InitLineEnds execution.
   v8::Local<v8::String> origin =
-      v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test",
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked();
+      v8::String::NewFromUtf8Literal(CcTest::isolate(), "issue-23768-test");
   v8::Local<v8::Script> evil_script =
       CompileWithOrigin(source, origin, v8_bool(false));
   CHECK(!evil_script.IsEmpty());
@@ -567,7 +565,7 @@ UNINITIALIZED_TEST(LogAll) {
   isolate->Dispose();
 }
 
-#ifndef V8_TARGET_ARCH_ARM
+#if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_S390X)
 UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
@@ -652,7 +650,7 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
   } while (!has_cache);
   delete cache;
 }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_S390X
 
 UNINITIALIZED_TEST(ExternalCodeEventListener) {
   i::FLAG_log = false;
@@ -755,7 +753,7 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
   isolate2->Dispose();
 }
 
-#ifndef V8_TARGET_ARCH_ARM
+#if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_S390X)
 UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
@@ -805,7 +803,7 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   }
   isolate->Dispose();
 }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_S390X
 
 UNINITIALIZED_TEST(TraceMaps) {
   SETUP_FLAGS();

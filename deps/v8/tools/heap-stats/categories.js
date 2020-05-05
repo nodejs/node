@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Categories for instance types.
-const CATEGORIES = new Map([
+export const CATEGORIES = new Map([
   [
     'user', new Set([
       'CONS_ONE_BYTE_STRING_TYPE',
@@ -204,7 +204,7 @@ const CATEGORIES = new Map([
 ]);
 
 // Maps category to description text that is shown in html.
-const CATEGORY_NAMES = new Map([
+export const CATEGORY_NAMES = new Map([
   ['user', 'JS'],
   ['system', 'Metadata'],
   ['code', 'Code'],

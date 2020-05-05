@@ -181,9 +181,8 @@ class WithContextMixin : public TMixin {
   const Local<Context>& v8_context() const { return context_; }
 
   Local<Value> RunJS(const char* source) {
-    return RunJS(v8::String::NewFromUtf8(v8_isolate(), source,
-                                         v8::NewStringType::kNormal)
-                     .ToLocalChecked());
+    return RunJS(
+        v8::String::NewFromUtf8(v8_isolate(), source).ToLocalChecked());
   }
 
   Local<Value> RunJS(v8::String::ExternalOneByteStringResource* source) {
@@ -192,9 +191,7 @@ class WithContextMixin : public TMixin {
   }
 
   v8::Local<v8::String> NewString(const char* string) {
-    return v8::String::NewFromUtf8(v8_isolate(), string,
-                                   v8::NewStringType::kNormal)
-        .ToLocalChecked();
+    return v8::String::NewFromUtf8(v8_isolate(), string).ToLocalChecked();
   }
 
   void SetGlobalProperty(const char* name, v8::Local<v8::Value> value) {

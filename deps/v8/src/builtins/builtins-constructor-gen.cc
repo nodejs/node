@@ -38,7 +38,7 @@ void Builtins::Generate_ConstructFunctionForwardVarargs(MacroAssembler* masm) {
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  SloppyTNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<Object> arguments_list = CAST(Parameter(Descriptor::kArgumentsList));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
@@ -46,7 +46,7 @@ TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
   TNode<Object> target = CAST(Parameter(Descriptor::kTarget));
-  SloppyTNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
+  TNode<Object> new_target = CAST(Parameter(Descriptor::kNewTarget));
   TNode<Object> spread = CAST(Parameter(Descriptor::kSpread));
   TNode<Int32T> args_count =
       UncheckedCast<Int32T>(Parameter(Descriptor::kActualArgumentsCount));
@@ -160,8 +160,8 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
 }
 
 TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
-    SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
-    SloppyTNode<JSReceiver> new_target) {
+    TNode<Context> context, TNode<JSFunction> target,
+    TNode<JSReceiver> new_target) {
   TVARIABLE(JSObject, var_obj);
   Label call_runtime(this), end(this);
 
@@ -177,8 +177,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
 }
 
 TNode<JSObject> ConstructorBuiltinsAssembler::EmitFastNewObject(
-    SloppyTNode<Context> context, SloppyTNode<JSFunction> target,
-    SloppyTNode<JSReceiver> new_target, Label* call_runtime) {
+    TNode<Context> context, TNode<JSFunction> target,
+    TNode<JSReceiver> new_target, Label* call_runtime) {
   // Verify that the new target is a JSFunction.
   Label end(this);
   TNode<JSFunction> new_target_func =
@@ -284,7 +284,7 @@ TF_BUILTIN(FastNewFunctionContextFunction, ConstructorBuiltinsAssembler) {
 }
 
 TNode<JSRegExp> ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
-    TNode<HeapObject> maybe_feedback_vector, TNode<UintPtrT> slot,
+    TNode<HeapObject> maybe_feedback_vector, TNode<TaggedIndex> slot,
     TNode<Object> pattern, TNode<Smi> flags, TNode<Context> context) {
   Label call_runtime(this, Label::kDeferred), end(this);
 
@@ -311,8 +311,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
   BIND(&call_runtime);
   {
     result = CAST(CallRuntime(Runtime::kCreateRegExpLiteral, context,
-                              maybe_feedback_vector, SmiTag(Signed(slot)),
-                              pattern, flags));
+                              maybe_feedback_vector, slot, pattern, flags));
     Goto(&end);
   }
 
@@ -323,7 +322,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
 TF_BUILTIN(CreateRegExpLiteral, ConstructorBuiltinsAssembler) {
   TNode<HeapObject> maybe_feedback_vector =
       CAST(Parameter(Descriptor::kFeedbackVector));
-  TNode<UintPtrT> slot = Unsigned(SmiUntag(Parameter(Descriptor::kSlot)));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Object> pattern = CAST(Parameter(Descriptor::kPattern));
   TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -333,7 +332,7 @@ TF_BUILTIN(CreateRegExpLiteral, ConstructorBuiltinsAssembler) {
 }
 
 TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
-    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+    TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
     TNode<Context> context, Label* call_runtime,
     AllocationSiteMode allocation_site_mode) {
   Label zero_capacity(this), cow_elements(this), fast_elements(this),
@@ -356,7 +355,7 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
 TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
   TNode<FeedbackVector> feedback_vector =
       CAST(Parameter(Descriptor::kFeedbackVector));
-  TNode<UintPtrT> slot = Unsigned(SmiUntag(Parameter(Descriptor::kSlot)));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<ArrayBoilerplateDescription> constant_elements =
       CAST(Parameter(Descriptor::kConstantElements));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
@@ -371,13 +370,12 @@ TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
     int const flags =
         AggregateLiteral::kDisableMementos | AggregateLiteral::kIsShallow;
     Return(CallRuntime(Runtime::kCreateArrayLiteral, context, feedback_vector,
-                       SmiTag(Signed(slot)), constant_elements,
-                       SmiConstant(flags)));
+                       slot, constant_elements, SmiConstant(flags)));
   }
 }
 
 TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
-    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+    TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
     TNode<Context> context) {
   // Array literals always have a valid AllocationSite to properly track
   // elements transitions.
@@ -395,8 +393,10 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   // TODO(cbruni): create the AllocationSite in CSA.
   BIND(&initialize_allocation_site);
   {
-    allocation_site =
-        CreateAllocationSiteInFeedbackVector(feedback_vector, slot);
+    allocation_site = CreateAllocationSiteInFeedbackVector(
+        feedback_vector,
+        // TODO(v8:10047): pass slot as TaggedIndex here
+        Unsigned(TaggedIndexToIntPtr(slot)));
     Goto(&create_empty_array);
   }
 
@@ -421,7 +421,7 @@ TNode<JSArray> ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
   TNode<FeedbackVector> feedback_vector =
       CAST(Parameter(Descriptor::kFeedbackVector));
-  TNode<UintPtrT> slot = Unsigned(SmiUntag(Parameter(Descriptor::kSlot)));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<JSArray> result =
       EmitCreateEmptyArrayLiteral(feedback_vector, slot, context);
@@ -429,7 +429,7 @@ TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
 }
 
 TNode<HeapObject> ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
-    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+    TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
     Label* call_runtime) {
   TNode<Object> maybe_allocation_site =
       CAST(LoadFeedbackVectorSlot(feedback_vector, slot));
@@ -609,7 +609,7 @@ TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
   Label call_runtime(this);
   TNode<FeedbackVector> feedback_vector =
       CAST(Parameter(Descriptor::kFeedbackVector));
-  TNode<UintPtrT> slot = Unsigned(SmiUntag(Parameter(Descriptor::kSlot)));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<HeapObject> copy =
       EmitCreateShallowObjectLiteral(feedback_vector, slot, &call_runtime);
   Return(copy);
@@ -619,8 +619,8 @@ TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
       CAST(Parameter(Descriptor::kObjectBoilerplateDescription));
   TNode<Smi> flags = CAST(Parameter(Descriptor::kFlags));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TailCallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector,
-                  SmiTag(Signed(slot)), object_boilerplate_description, flags);
+  TailCallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector, slot,
+                  object_boilerplate_description, flags);
 }
 
 // Used by the CreateEmptyObjectLiteral bytecode and the Object constructor.
@@ -644,8 +644,8 @@ TNode<JSObject> ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
 // ES #sec-object-constructor
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   int const kValueArg = 0;
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> new_target = CAST(Parameter(Descriptor::kJSNewTarget));
@@ -694,8 +694,8 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
 // ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  TNode<IntPtrT> argc = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(Descriptor::kJSActualArgumentsCount)));
   CodeStubArguments args(this, argc);
 
   // 1. If no arguments were passed to this function invocation, let n be +0.

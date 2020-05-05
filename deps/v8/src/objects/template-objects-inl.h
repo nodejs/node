@@ -18,8 +18,6 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription)
 TQ_OBJECT_CONSTRUCTORS_IMPL(CachedTemplateObject)
 
-TQ_SMI_ACCESSORS(CachedTemplateObject, slot_id)
-
 }  // namespace internal
 }  // namespace v8
 

@@ -298,13 +298,10 @@ static void HandleAllocatingGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();
   for (int i = 0; i < C; i++) {
-    v8::String::NewFromUtf8(info.GetIsolate(), "foo",
-                            v8::NewStringType::kNormal)
-        .ToLocalChecked();
+    USE(v8::String::NewFromUtf8Literal(info.GetIsolate(), "foo"));
   }
-  info.GetReturnValue().Set(v8::String::NewFromUtf8(info.GetIsolate(), "foo",
-                                                    v8::NewStringType::kNormal)
-                                .ToLocalChecked());
+  info.GetReturnValue().Set(
+      v8::String::NewFromUtf8Literal(info.GetIsolate(), "foo"));
 }
 
 

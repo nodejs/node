@@ -75,6 +75,7 @@ class EffectControlLinearizer {
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
+  Node* LowerCheckClosure(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckReceiverOrNullOrUndefined(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
@@ -198,6 +199,7 @@ class EffectControlLinearizer {
   void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
   Node* LowerAssertType(Node* node);
+  Node* LowerFoldConstant(Node* node);
   Node* LowerConvertReceiver(Node* node);
   Node* LowerDateNow(Node* node);
 
@@ -234,6 +236,10 @@ class EffectControlLinearizer {
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
   Node* BuildTypedArrayDataPointer(Node* base, Node* external);
+
+  template <typename... Args>
+  Node* CallBuiltin(Builtins::Name builtin, Operator::Properties properties,
+                    Args...);
 
   Node* ChangeInt32ToSmi(Node* value);
   // In pointer compression, we smi-corrupt. This means the upper bits of a Smi
@@ -903,6 +909,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kPoisonIndex:
       result = LowerPoisonIndex(node);
       break;
+    case IrOpcode::kCheckClosure:
+      result = LowerCheckClosure(node, frame_state);
+      break;
     case IrOpcode::kCheckMaps:
       LowerCheckMaps(node, frame_state);
       break;
@@ -1298,6 +1307,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kDateNow:
       result = LowerDateNow(node);
+      break;
+    case IrOpcode::kFoldConstant:
+      result = LowerFoldConstant(node);
       break;
     default:
       return false;
@@ -1700,6 +1712,30 @@ Node* EffectControlLinearizer::LowerPoisonIndex(Node* node) {
     index = __ Word32PoisonOnSpeculation(index);
   }
   return index;
+}
+
+Node* EffectControlLinearizer::LowerCheckClosure(Node* node,
+                                                 Node* frame_state) {
+  Handle<FeedbackCell> feedback_cell = FeedbackCellOf(node->op());
+  Node* value = node->InputAt(0);
+
+  // Check that {value} is actually a JSFunction.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  Node* check_instance_type =
+      __ Word32Equal(value_instance_type, __ Int32Constant(JS_FUNCTION_TYPE));
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongCallTarget, FeedbackSource(),
+                     check_instance_type, frame_state);
+
+  // Check that the {value}s feedback vector cell matches the one
+  // we recorded before.
+  Node* value_cell =
+      __ LoadField(AccessBuilder::ForJSFunctionFeedbackCell(), value);
+  Node* check_cell = __ WordEqual(value_cell, __ HeapConstant(feedback_cell));
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongFeedbackCell, FeedbackSource(),
+                     check_cell, frame_state);
+  return value;
 }
 
 void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
@@ -2380,13 +2416,31 @@ Node* EffectControlLinearizer::LowerCheckedUint32ToTaggedSigned(
 
 Node* EffectControlLinearizer::LowerCheckedUint64Bounds(Node* node,
                                                         Node* frame_state) {
-  CheckParameters const& params = CheckParametersOf(node->op());
   Node* const index = node->InputAt(0);
   Node* const limit = node->InputAt(1);
+  const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
 
   Node* check = __ Uint64LessThan(index, limit);
-  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
-                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  switch (params.mode()) {
+    case CheckBoundsParameters::kDeoptOnOutOfBounds:
+      __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
+                         params.check_parameters().feedback(), check,
+                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+      break;
+    case CheckBoundsParameters::kAbortOnOutOfBounds: {
+      auto if_abort = __ MakeDeferredLabel();
+      auto done = __ MakeLabel();
+
+      __ Branch(check, &done, &if_abort);
+
+      __ Bind(&if_abort);
+      __ Unreachable();
+      __ Goto(&done);
+
+      __ Bind(&done);
+      break;
+    }
+  }
   return index;
 }
 
@@ -3432,9 +3486,9 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
     __ Goto(&if_adaptor_frame);
 
     __ Bind(&if_adaptor_frame);
-    Node* arguments_length = __ Load(
-        MachineType::TaggedSigned(), arguments_frame,
-        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
+    Node* arguments_length = __ BitcastWordToTaggedSigned(__ Load(
+        MachineType::Pointer(), arguments_frame,
+        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset)));
 
     Node* rest_length =
         __ SmiSub(arguments_length, __ SmiConstant(formal_parameter_count));
@@ -3457,9 +3511,9 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
     __ Goto(&if_adaptor_frame);
 
     __ Bind(&if_adaptor_frame);
-    Node* arguments_length = __ Load(
-        MachineType::TaggedSigned(), arguments_frame,
-        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
+    Node* arguments_length = __ BitcastWordToTaggedSigned(__ Load(
+        MachineType::Pointer(), arguments_frame,
+        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset)));
     __ Goto(&done, arguments_length);
 
     __ Bind(&done);
@@ -5421,28 +5475,39 @@ void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
           __ Int32Constant(1), __ NoContextConstant());
 }
 
+template <typename... Args>
+Node* EffectControlLinearizer::CallBuiltin(Builtins::Name builtin,
+                                           Operator::Properties properties,
+                                           Args... args) {
+  Callable const callable = Builtins::CallableFor(isolate(), builtin);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      properties);
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), args...,
+                 __ NoContextConstant());
+}
+
 Node* EffectControlLinearizer::LowerAssertType(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAssertType);
   Type type = OpParameter<Type>(node->op());
   DCHECK(type.IsRange());
   auto range = type.AsRange();
-
   Node* const input = node->InputAt(0);
   Node* const min = __ NumberConstant(range->Min());
   Node* const max = __ NumberConstant(range->Max());
+  CallBuiltin(Builtins::kCheckNumberInRange, node->op()->properties(), input,
+              min, max);
+  return input;
+}
 
-  {
-    Callable const callable =
-        Builtins::CallableFor(isolate(), Builtins::kCheckNumberInRange);
-    Operator::Properties const properties = node->op()->properties();
-    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-    auto call_descriptor = Linkage::GetStubCallDescriptor(
-        graph()->zone(), callable.descriptor(),
-        callable.descriptor().GetStackParameterCount(), flags, properties);
-    __ Call(call_descriptor, __ HeapConstant(callable.code()), input, min, max,
-            __ NoContextConstant());
-    return input;
-  }
+Node* EffectControlLinearizer::LowerFoldConstant(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kFoldConstant);
+  Node* original = node->InputAt(0);
+  Node* constant = node->InputAt(1);
+  CallBuiltin(Builtins::kCheckSameObject, node->op()->properties(), original,
+              constant);
+  return constant;
 }
 
 Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {

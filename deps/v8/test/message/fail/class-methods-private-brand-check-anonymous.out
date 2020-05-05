@@ -1,0 +1,9 @@
+# Copyright 2020 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+*%(basename)s:9: TypeError: Object must be an instance of class anonymous
+  test(obj) { obj.#a(); }
+                  ^
+TypeError: Object must be an instance of class anonymous
+    at C.test (*%(basename)s:9:19)
+    at *%(basename)s:11:9

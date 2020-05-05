@@ -21,30 +21,30 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
                                             ScopeType scope_type);
 
   TNode<JSRegExp> EmitCreateRegExpLiteral(
-      TNode<HeapObject> maybe_feedback_vector, TNode<UintPtrT> slot,
+      TNode<HeapObject> maybe_feedback_vector, TNode<TaggedIndex> slot,
       TNode<Object> pattern, TNode<Smi> flags, TNode<Context> context);
 
   TNode<JSArray> EmitCreateShallowArrayLiteral(
-      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
       TNode<Context> context, Label* call_runtime,
       AllocationSiteMode allocation_site_mode);
 
   TNode<JSArray> EmitCreateEmptyArrayLiteral(
-      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
       TNode<Context> context);
 
   TNode<HeapObject> EmitCreateShallowObjectLiteral(
-      TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
+      TNode<FeedbackVector> feedback_vector, TNode<TaggedIndex> slot,
       Label* call_runtime);
   TNode<JSObject> EmitCreateEmptyObjectLiteral(TNode<Context> context);
 
-  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
-                                    SloppyTNode<JSFunction> target,
-                                    SloppyTNode<JSReceiver> new_target);
+  TNode<JSObject> EmitFastNewObject(TNode<Context> context,
+                                    TNode<JSFunction> target,
+                                    TNode<JSReceiver> new_target);
 
-  TNode<JSObject> EmitFastNewObject(SloppyTNode<Context> context,
-                                    SloppyTNode<JSFunction> target,
-                                    SloppyTNode<JSReceiver> new_target,
+  TNode<JSObject> EmitFastNewObject(TNode<Context> context,
+                                    TNode<JSFunction> target,
+                                    TNode<JSReceiver> new_target,
                                     Label* call_runtime);
 };
 

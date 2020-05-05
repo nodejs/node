@@ -18,7 +18,6 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSPromise)
 
-TQ_SMI_ACCESSORS(JSPromise, flags)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
 BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
 

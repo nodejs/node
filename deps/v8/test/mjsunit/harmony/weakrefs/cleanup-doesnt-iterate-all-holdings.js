@@ -39,8 +39,8 @@ let cleanup = function(iter) {
   }
 }
 
-let fg = new FinalizationGroup(cleanup);
-// Create 3 objects and register them in the FinalizationGroup. The objects need
+let fg = new FinalizationRegistry(cleanup);
+// Create 3 objects and register them in the FinalizationRegistry. The objects need
 // to be inside a closure so that we can reliably kill them!
 
 (function() {

@@ -76,7 +76,7 @@ static void CheckParseEq(const char* input, const char* expected,
   CHECK(v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
                                                 &reader, flags, &result));
   CHECK_NOT_NULL(result.tree);
-  CHECK(result.error.is_null());
+  CHECK(result.error == RegExpError::kNone);
   std::ostringstream os;
   result.tree->Print(os, &zone);
   if (strcmp(expected, os.str().c_str()) != 0) {
@@ -94,7 +94,7 @@ static bool CheckSimple(const char* input) {
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
   CHECK_NOT_NULL(result.tree);
-  CHECK(result.error.is_null());
+  CHECK(result.error == RegExpError::kNone);
   return result.simple;
 }
 
@@ -112,7 +112,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
   CHECK_NOT_NULL(result.tree);
-  CHECK(result.error.is_null());
+  CHECK(result.error == RegExpError::kNone);
   int min_match = result.tree->min_match();
   int max_match = result.tree->max_match();
   MinMaxPair pair = { min_match, max_match };
@@ -428,9 +428,8 @@ static void ExpectError(const char* input, const char* expected,
   CHECK(!v8::internal::RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
                                                  &result));
   CHECK_NULL(result.tree);
-  CHECK(!result.error.is_null());
-  std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
-  CHECK_EQ(0, strcmp(expected, str.get()));
+  CHECK(result.error != RegExpError::kNone);
+  CHECK_EQ(0, strcmp(expected, RegExpErrorString(result.error)));
 }
 
 
@@ -468,7 +467,7 @@ TEST(Errors) {
   ExpectError("\\k<a", kInvalidCaptureName, true);
   const char* kDuplicateCaptureName = "Duplicate capture group name";
   ExpectError("(?<a>.)(?<a>.)", kDuplicateCaptureName, true);
-  const char* kInvalidUnicodeEscape = "Invalid Unicode escape sequence";
+  const char* kInvalidUnicodeEscape = "Invalid Unicode escape";
   ExpectError("(?<\\u{FISK}", kInvalidUnicodeEscape, true);
   const char* kInvalidCaptureReferenced = "Invalid named capture referenced";
   ExpectError("\\k<a>", kInvalidCaptureReferenced, true);
@@ -607,7 +606,7 @@ using ArchRegExpMacroAssembler = RegExpMacroAssemblerARM;
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerARM64;
 #elif V8_TARGET_ARCH_S390
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerS390;
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerPPC;
 #elif V8_TARGET_ARCH_MIPS
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
@@ -721,9 +720,9 @@ TEST(MacroAssemblerNativeSimple) {
   m.AdvanceCurrentPosition(3);
   m.PushBacktrack(&backtrack);
   m.Succeed();
-  m.Bind(&backtrack);
+  m.BindJumpTarget(&backtrack);
   m.Backtrack();
-  m.Bind(&fail);
+  m.BindJumpTarget(&fail);
   m.Fail();
 
   Handle<String> source = factory->NewStringFromStaticChars("^foo");
@@ -780,9 +779,9 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   m.AdvanceCurrentPosition(3);
   m.PushBacktrack(&backtrack);
   m.Succeed();
-  m.Bind(&backtrack);
+  m.BindJumpTarget(&backtrack);
   m.Backtrack();
-  m.Bind(&fail);
+  m.BindJumpTarget(&fail);
   m.Fail();
 
   Handle<String> source = factory->NewStringFromStaticChars("^foo");
@@ -835,11 +834,11 @@ TEST(MacroAssemblerNativeBacktrack) {
   Label backtrack;
   m.LoadCurrentCharacter(10, &fail);
   m.Succeed();
-  m.Bind(&fail);
+  m.BindJumpTarget(&fail);
   m.PushBacktrack(&backtrack);
   m.LoadCurrentCharacter(10, nullptr);
   m.Succeed();
-  m.Bind(&backtrack);
+  m.BindJumpTarget(&backtrack);
   m.Fail();
 
   Handle<String> source = factory->NewStringFromStaticChars("..........");
@@ -967,7 +966,7 @@ TEST(MacroAssemblernativeAtStart) {
   m.CheckNotAtStart(0, &not_at_start);
   // Check that prevchar = '\n' and current = 'f'.
   m.CheckCharacter('\n', &newline);
-  m.Bind(&fail);
+  m.BindJumpTarget(&fail);
   m.Fail();
   m.Bind(&newline);
   m.LoadCurrentCharacter(0, &fail);
@@ -1021,16 +1020,16 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(3);
   m.WriteCurrentPositionToRegister(3, 0);
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &fail);  // Match "AbC".
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &fail);  // Match "ABC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "AbC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "ABC".
   Label expected_fail;
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &expected_fail);
-  m.Bind(&fail);
+  m.CheckNotBackReferenceIgnoreCase(2, false, &expected_fail);
+  m.BindJumpTarget(&fail);
   m.Fail();
 
   m.Bind(&expected_fail);
   m.AdvanceCurrentPosition(3);  // Skip "xYz"
-  m.CheckNotBackReferenceIgnoreCase(2, false, false, &succ);
+  m.CheckNotBackReferenceIgnoreCase(2, false, &succ);
   m.Fail();
 
   m.Bind(&succ);
@@ -1094,7 +1093,7 @@ TEST(MacroAssemblerNativeRegisters) {
   m.AdvanceCurrentPosition(2);
   m.PopCurrentPosition();
 
-  m.Bind(&backtrack);
+  m.BindJumpTarget(&backtrack);
   m.PopRegister(out1);
   m.ReadCurrentPositionFromRegister(out1);
   m.AdvanceCurrentPosition(3);
@@ -1131,7 +1130,7 @@ TEST(MacroAssemblerNativeRegisters) {
 
   m.Succeed();
 
-  m.Bind(&fail);
+  m.BindJumpTarget(&fail);
   m.Fail();
 
   Handle<String> source = factory->NewStringFromStaticChars("<loop test>");
@@ -1265,10 +1264,10 @@ TEST(MacroAssembler) {
   m.AdvanceCurrentPosition(3);
   m.PushBacktrack(&backtrack);
   m.Succeed();
-  m.Bind(&backtrack);
+  m.BindJumpTarget(&backtrack);
   m.ClearRegisters(2, 3);
   m.Backtrack();
-  m.Bind(&fail);
+  m.BindJumpTarget(&fail);
   m.PopRegister(0);
   m.Fail();
 

@@ -11,7 +11,7 @@
 
 #include "src/execution/execution.h"
 #include "src/handles/global-handles.h"
-#include "src/heap/factory.h"
+#include "src/heap/factory-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-number-inl.h"

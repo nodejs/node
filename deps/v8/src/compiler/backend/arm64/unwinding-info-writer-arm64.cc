@@ -9,6 +9,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(v8:10026): When using CFI, we need to generate unwinding info to tell
+// the unwinder that return addresses are signed.
+
 void UnwindingInfoWriter::BeginInstructionBlock(int pc_offset,
                                                 const InstructionBlock* block) {
   if (!enabled()) return;

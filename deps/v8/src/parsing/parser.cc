@@ -356,6 +356,11 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
   const Runtime::Function* function =
       Runtime::FunctionForName(name->raw_data(), name->length());
 
+  // Be more premissive when fuzzing. Intrinsics are not supported.
+  if (FLAG_allow_natives_for_fuzzing) {
+    return NewV8RuntimeFunctionForFuzzing(function, args, pos);
+  }
+
   if (function != nullptr) {
     // Check for possible name clash.
     DCHECK_EQ(Context::kNotFound,
@@ -382,6 +387,34 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
   return factory()->NewCallRuntime(context_index, args, pos);
 }
 
+// More permissive runtime-function creation on fuzzers.
+Expression* Parser::NewV8RuntimeFunctionForFuzzing(
+    const Runtime::Function* function, const ScopedPtrList<Expression>& args,
+    int pos) {
+  CHECK(FLAG_allow_natives_for_fuzzing);
+
+  // Intrinsics are not supported for fuzzing. Only allow whitelisted runtime
+  // functions. Also prevent later errors due to too few arguments and just
+  // ignore this call.
+  if (function == nullptr ||
+      !Runtime::IsWhitelistedForFuzzing(function->function_id) ||
+      function->nargs > args.length()) {
+    return factory()->NewUndefinedLiteral(kNoSourcePosition);
+  }
+
+  // Flexible number of arguments permitted.
+  if (function->nargs == -1) {
+    return factory()->NewCallRuntime(function, args, pos);
+  }
+
+  // Otherwise ignore superfluous arguments.
+  ScopedPtrList<Expression> permissive_args(pointer_buffer());
+  for (int i = 0; i < function->nargs; i++) {
+    permissive_args.Add(args.at(i));
+  }
+  return factory()->NewCallRuntime(function, permissive_args, pos);
+}
+
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->GetOrCreateAstValueFactory(),
@@ -394,7 +427,6 @@ Parser::Parser(ParseInfo* info)
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
-      target_stack_(nullptr),
       total_preparse_skipped_(0),
       consumed_preparse_data_(info->consumed_preparse_data()),
       preparse_data_buffer_(),
@@ -483,8 +515,9 @@ void MaybeProcessSourceRanges(ParseInfo* parse_info, Expression* root,
 
 }  // namespace
 
-FunctionLiteral* Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
-                                      ParseInfo* info) {
+FunctionLiteral* Parser::ParseProgram(
+    Isolate* isolate, Handle<Script> script, ParseInfo* info,
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
   DCHECK_EQ(script->id(), script_id());
@@ -501,8 +534,13 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
   // Initialize parser state.
-  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info(),
+  DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
                         Scope::DeserializationMode::kIncludingVariables);
+
+  DCHECK_EQ(script->is_wrapped(), info->is_wrapped_as_function());
+  if (script->is_wrapped()) {
+    maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
+  }
 
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
@@ -533,7 +571,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   // isolate will be nullptr.
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
-  DCHECK_NULL(target_stack_);
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetFunctionLiteralId();
@@ -559,18 +596,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     int beg_pos = scanner()->location().beg_pos;
     if (parsing_module_) {
       DCHECK(info->is_module());
-      // Declare the special module parameter.
-      auto name = ast_value_factory()->empty_string();
-      bool is_rest = false;
-      bool is_optional = false;
-      VariableMode mode = VariableMode::kVar;
-      bool was_added;
-      scope->DeclareLocal(name, mode, PARAMETER_VARIABLE, &was_added,
-                          Variable::DefaultInitializationFlag(mode));
-      DCHECK(was_added);
-      auto var = scope->DeclareParameter(name, VariableMode::kVar, is_optional,
-                                         is_rest, ast_value_factory(), beg_pos);
-      var->AllocateTo(VariableLocation::PARAMETER, 0);
 
       PrepareGeneratorVariables();
       Expression* initial_yield =
@@ -638,7 +663,7 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     // conflicting var declarations with outer scope-info-backed scopes.
     if (info->is_eval()) {
       DCHECK(parsing_on_main_thread_);
-      info->ast_value_factory()->Internalize(isolate->factory());
+      info->ast_value_factory()->Internalize(isolate);
     }
     CheckConflictingVarDeclarations(scope);
 
@@ -652,16 +677,13 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       }
     }
 
-    int parameter_count = parsing_module_ ? 1 : 0;
+    int parameter_count = 0;
     result = factory()->NewScriptOrEvalFunctionLiteral(
         scope, body, function_state.expected_property_count(), parameter_count);
     result->set_suspend_count(function_state.suspend_count());
   }
 
   info->set_max_function_literal_id(GetLastFunctionLiteralId());
-
-  // Make sure the target stack is empty.
-  DCHECK_NULL(target_stack_);
 
   if (has_error()) return nullptr;
 
@@ -674,7 +696,7 @@ ZonePtrList<const AstRawString>* Parser::PrepareWrappedArguments(
     Isolate* isolate, ParseInfo* info, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
   DCHECK_NOT_NULL(isolate);
-  Handle<FixedArray> arguments = info->wrapped_arguments();
+  Handle<FixedArray> arguments = maybe_wrapped_arguments_.ToHandleChecked();
   int arguments_length = arguments->length();
   ZonePtrList<const AstRawString>* arguments_for_wrapped_function =
       new (zone) ZonePtrList<const AstRawString>(arguments_length, zone);
@@ -780,9 +802,18 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info(),
+  MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+  if (shared_info->HasOuterScopeInfo()) {
+    maybe_outer_scope_info = handle(shared_info->GetOuterScopeInfo(), isolate);
+  }
+  DeserializeScopeChain(isolate, info, maybe_outer_scope_info,
                         Scope::DeserializationMode::kIncludingVariables);
   DCHECK_EQ(factory()->zone(), info->zone());
+
+  if (shared_info->is_wrapped()) {
+    maybe_wrapped_arguments_ = handle(
+        Script::cast(shared_info->script()).wrapped_arguments(), isolate);
+  }
 
   // Initialize parser state.
   Handle<String> name(shared_info->Name(), isolate);
@@ -810,7 +841,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     // We need to make sure that the debug-name is available.
-    ast_value_factory()->Internalize(isolate->factory());
+    ast_value_factory()->Internalize(isolate);
     DeclarationScope* function_scope = result->scope();
     std::unique_ptr<char[]> function_name = result->GetDebugName();
     LOG(isolate,
@@ -827,7 +858,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
-  DCHECK_NULL(target_stack_);
 
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
@@ -946,13 +976,15 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     if (has_error()) return nullptr;
     result->set_requires_instance_members_initializer(
         info->requires_instance_members_initializer());
+    result->set_class_scope_has_private_brand(
+        info->class_scope_has_private_brand());
+    result->set_has_static_private_methods_or_accessors(
+        info->has_static_private_methods_or_accessors());
     if (info->is_oneshot_iife()) {
       result->mark_as_oneshot_iife();
     }
   }
 
-  // Make sure the target stack is empty.
-  DCHECK_NULL(target_stack_);
   DCHECK_IMPLIES(result,
                  info->function_literal_id() == result->function_literal_id());
   return result;
@@ -1580,43 +1612,6 @@ Statement* Parser::DeclareNative(const AstRawString* name, int pos) {
       pos);
 }
 
-void Parser::DeclareLabel(ZonePtrList<const AstRawString>** labels,
-                          ZonePtrList<const AstRawString>** own_labels,
-                          const AstRawString* label) {
-  // TODO(1240780): We don't check for redeclaration of labels during preparsing
-  // since keeping track of the set of active labels requires nontrivial changes
-  // to the way scopes are structured.  However, these are probably changes we
-  // want to make later anyway so we should go back and fix this then.
-  if (ContainsLabel(*labels, label) || TargetStackContainsLabel(label)) {
-    ReportMessage(MessageTemplate::kLabelRedeclaration, label);
-    return;
-  }
-
-  // Add {label} to both {labels} and {own_labels}.
-  if (*labels == nullptr) {
-    DCHECK_NULL(*own_labels);
-    *labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
-    *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
-  } else {
-    if (*own_labels == nullptr) {
-      *own_labels = new (zone()) ZonePtrList<const AstRawString>(1, zone());
-    }
-  }
-  (*labels)->Add(label, zone());
-  (*own_labels)->Add(label, zone());
-}
-
-bool Parser::ContainsLabel(ZonePtrList<const AstRawString>* labels,
-                           const AstRawString* label) {
-  DCHECK_NOT_NULL(label);
-  if (labels != nullptr) {
-    for (int i = labels->length(); i-- > 0;) {
-      if (labels->at(i) == label) return true;
-    }
-  }
-  return false;
-}
-
 Block* Parser::IgnoreCompletion(Statement* statement) {
   Block* block = factory()->NewBlock(1, true);
   block->statements()->Add(statement, zone());
@@ -1812,6 +1807,11 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
     statements.Add(
         factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
     ParseStatementList(&statements, Token::RBRACE);
+    // Since the whole body is wrapped in a try-catch, make the implicit
+    // end-of-function return explicit to ensure BytecodeGenerator's special
+    // handling for ReturnStatements in async generators applies.
+    statements.Add(factory()->NewSyntheticAsyncReturnStatement(
+        factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition));
 
     // Don't create iterator result for async generators, as the resume methods
     // will create it.
@@ -2052,8 +2052,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   // explicit break target, instead handing it directly to those nodes that
   // need to know about it. This should be safe because we don't run any code
   // in this function that looks up break targets.
-  ForStatement* outer_loop =
-      factory()->NewForStatement(nullptr, nullptr, kNoSourcePosition);
+  ForStatement* outer_loop = factory()->NewForStatement(kNoSourcePosition);
   outer_block->statements()->Add(outer_loop, zone());
   outer_block->set_scope(scope());
 
@@ -2992,6 +2991,12 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
         class_info->instance_fields->length());
   }
 
+  if (class_info->requires_brand) {
+    class_info->constructor->set_class_scope_has_private_brand(true);
+  }
+  if (class_info->has_static_private_methods) {
+    class_info->constructor->set_has_static_private_methods_or_accessors(true);
+  }
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->extends, class_info->constructor,
       class_info->public_members, class_info->private_members,
@@ -3044,41 +3049,9 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // ----------------------------------------------------------------------------
 // Parser support
 
-bool Parser::TargetStackContainsLabel(const AstRawString* label) {
-  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
-    if (ContainsLabel(t->statement()->labels(), label)) return true;
-  }
-  return false;
-}
-
-BreakableStatement* Parser::LookupBreakTarget(const AstRawString* label) {
-  bool anonymous = label == nullptr;
-  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
-    BreakableStatement* stat = t->statement();
-    if ((anonymous && stat->is_target_for_anonymous()) ||
-        (!anonymous && ContainsLabel(stat->labels(), label))) {
-      return stat;
-    }
-  }
-  return nullptr;
-}
-
-IterationStatement* Parser::LookupContinueTarget(const AstRawString* label) {
-  bool anonymous = label == nullptr;
-  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
-    IterationStatement* stat = t->statement()->AsIterationStatement();
-    if (stat == nullptr) continue;
-
-    DCHECK(stat->is_target_for_anonymous());
-    if (anonymous || ContainsLabel(stat->own_labels(), label)) {
-      return stat;
-    }
-    if (ContainsLabel(stat->labels(), label)) break;
-  }
-  return nullptr;
-}
-
-void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
+template <typename LocalIsolate>
+void Parser::HandleSourceURLComments(LocalIsolate* isolate,
+                                     Handle<Script> script) {
   Handle<String> source_url = scanner_.SourceUrl(isolate);
   if (!source_url.is_null()) {
     script->set_source_url(*source_url);
@@ -3088,6 +3061,11 @@ void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 }
+
+template void Parser::HandleSourceURLComments(Isolate* isolate,
+                                              Handle<Script> script);
+template void Parser::HandleSourceURLComments(OffThreadIsolate* isolate,
+                                              Handle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
   // Move statistics to Isolate.
@@ -3117,7 +3095,6 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   FunctionLiteral* result = nullptr;
 
   scanner_.Initialize();
-  DCHECK(info->maybe_outer_scope_info().is_null());
 
   DCHECK(original_scope_);
 
@@ -3134,6 +3111,7 @@ void Parser::ParseOnBackground(ParseInfo* info) {
         DoParseFunction(/* isolate = */ nullptr, info, info->function_name());
   }
   MaybeResetCharacterStream(info, result);
+  MaybeProcessSourceRanges(info, result, stack_limit_);
 
   info->set_literal(result);
 

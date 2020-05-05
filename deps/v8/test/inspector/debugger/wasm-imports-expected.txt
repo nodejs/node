@@ -4,16 +4,16 @@ Calling instantiate function for module A.
 Waiting for wasm script to be parsed.
 Got wasm script!
 Setting breakpoint in line 1:
-Script wasm://wasm/1871020e byte offset 33: Wasm opcode 0x1
+Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01
 Calling instantiate function for module B.
 Calling main function on module B.
 Paused at 0:33.
-Script wasm://wasm/1871020e byte offset 33: Wasm opcode 0x1
+Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01
 Getting current stack trace via "new Error().stack".
 Error
     at v8://test/getStack:1:1
-    at func (wasm-function[0]:0x21)
-    at main (wasm-function[1]:0x2f)
+    at func (<anonymous>:wasm-function[0]:0x21)
+    at main (<anonymous>:wasm-function[1]:0x2f)
     at v8://test/runWasm:1:22
 exports.main returned.
 Finished.

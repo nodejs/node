@@ -6,6 +6,7 @@
 
 #include "src/base/memory.h"
 #include "src/inspector/inspected-context.h"
+#include "src/inspector/protocol/Debugger.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-inspector-impl.h"
@@ -120,10 +121,16 @@ class ActualScript : public V8DebuggerScript {
     if (!script->IsWasm()) return v8::Nothing<v8::MemorySpan<const uint8_t>>();
     return v8::Just(v8::debug::WasmScript::Cast(*script)->Bytecode());
   }
+  Language getLanguage() const override { return m_language; }
   int startLine() const override { return m_startLine; }
   int startColumn() const override { return m_startColumn; }
   int endLine() const override { return m_endLine; }
   int endColumn() const override { return m_endColumn; }
+  int codeOffset() const override {
+    auto script = this->script();
+    if (!script->IsWasm()) return 0;
+    return v8::debug::WasmScript::Cast(*script)->CodeOffset();
+  }
   bool isSourceLoadedLazily() const override { return false; }
   int length() const override {
     v8::HandleScope scope(m_isolate);
@@ -274,6 +281,11 @@ class ActualScript : public V8DebuggerScript {
     }
 
     USE(script->ContextId().To(&m_executionContextId));
+    if (script->IsWasm()) {
+      m_language = V8DebuggerScript::Language::WebAssembly;
+    } else {
+      m_language = V8DebuggerScript::Language::JavaScript;
+    }
 
     m_isModule = script->IsModule();
 
@@ -297,6 +309,7 @@ class ActualScript : public V8DebuggerScript {
 
   V8DebuggerAgentImpl* m_agent;
   String16 m_sourceMappingURL;
+  Language m_language;
   bool m_isLiveEdit = false;
   bool m_isModule = false;
   mutable String16 m_hash;

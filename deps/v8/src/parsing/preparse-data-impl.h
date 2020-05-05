@@ -199,6 +199,7 @@ class ZonePreparseData : public ZoneObject {
                                      int child_length);
 
   Handle<PreparseData> Serialize(Isolate* isolate);
+  Handle<PreparseData> Serialize(OffThreadIsolate* isolate);
 
   int children_length() const { return static_cast<int>(children_.size()); }
 

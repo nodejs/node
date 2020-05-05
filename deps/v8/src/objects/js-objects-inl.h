@@ -7,6 +7,7 @@
 
 #include "src/objects/js-objects.h"
 
+#include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/elements.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -573,10 +574,12 @@ void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
 void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
   if (has_feedback_vector() && feedback_vector().has_optimized_code()) {
     if (FLAG_trace_opt) {
-      PrintF("[evicting entry from optimizing code feedback slot (%s) for ",
+      CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
+      PrintF(scope.file(),
+             "[evicting entry from optimizing code feedback slot (%s) for ",
              reason);
-      ShortPrint();
-      PrintF("]\n");
+      ShortPrint(scope.file());
+      PrintF(scope.file(), "]\n");
     }
     feedback_vector().ClearOptimizedCode();
   }
@@ -1022,8 +1025,6 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
 
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
-
-TQ_SMI_ACCESSORS(JSStringIterator, index)
 
 // If the fast-case backing storage takes up much more memory than a dictionary
 // backing storage would, the object should have slow elements.
