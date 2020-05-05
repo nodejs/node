@@ -1085,6 +1085,21 @@ In this example, the store is only available in the callback function and the
 functions called by `foo`. Outside of `run`, calling `getStore` will return
 `undefined`.
 
+### Troubleshooting
+
+In most cases your application or library code should have no issues with
+`AsyncLocalStorage`. But in rare cases you may face situations when the
+current store is lost in one of asynchronous operations. Then you should
+consider the following options.
+
+If your code is callback-based, it is enough to promisify it with
+[`util.promisify()`][], so it starts working with native promises.
+
+If you need to keep using callback-based API, or your code assumes
+a custom thenable implementation, you should use [`AsyncResource`][] class
+to associate the asynchronous operation with the correct execution context.
+
+[`AsyncResource`]: #async_hooks_class_asyncresource
 [`after` callback]: #async_hooks_after_asyncid
 [`before` callback]: #async_hooks_before_asyncid
 [`destroy` callback]: #async_hooks_destroy_asyncid
@@ -1094,3 +1109,4 @@ functions called by `foo`. Outside of `run`, calling `getStore` will return
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking
+[`util.promisify()`]: util.html#util_util_promisify_original
