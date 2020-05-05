@@ -115,28 +115,24 @@ void BytecodeArrayWriterUnittest::WriteJumpLoop(Bytecode bytecode,
 TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
   CHECK_EQ(bytecodes()->size(), 0u);
 
-  Write(Bytecode::kStackCheck, {10, false});
-  CHECK_EQ(bytecodes()->size(), 1u);
-
   Write(Bytecode::kLdaSmi, 127, {55, true});
-  CHECK_EQ(bytecodes()->size(), 3u);
+  CHECK_EQ(bytecodes()->size(), 2u);
 
   Write(Bytecode::kStar, Register(20).ToOperand());
-  CHECK_EQ(bytecodes()->size(), 5u);
+  CHECK_EQ(bytecodes()->size(), 4u);
 
   Write(Bytecode::kLdar, Register(200).ToOperand());
-  CHECK_EQ(bytecodes()->size(), 9u);
+  CHECK_EQ(bytecodes()->size(), 8u);
 
   Write(Bytecode::kReturn, {70, true});
-  CHECK_EQ(bytecodes()->size(), 10u);
+  CHECK_EQ(bytecodes()->size(), 9u);
 
   static const uint8_t expected_bytes[] = {
       // clang-format off
-      /*  0 10 E> */ B(StackCheck),
-      /*  1 55 S> */ B(LdaSmi), U8(127),
-      /*  3       */ B(Star), R8(20),
-      /*  5       */ B(Wide), B(Ldar), R16(200),
-      /*  9 70 S> */ B(Return),
+      /*  0 55 S> */ B(LdaSmi), U8(127),
+      /*  2       */ B(Star), R8(20),
+      /*  4       */ B(Wide), B(Ldar), R16(200),
+      /*  8 70 S> */ B(Return),
       // clang-format on
   };
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
@@ -150,8 +146,7 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
       *writer()->ToSourcePositionTable(isolate()));
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
 
-  PositionTableEntry expected_positions[] = {
-      {0, 10, false}, {1, 55, true}, {9, 70, true}};
+  PositionTableEntry expected_positions[] = {{0, 55, true}, {8, 70, true}};
   SourcePositionTableIterator source_iterator(
       bytecode_array->SourcePositionTable());
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
@@ -168,40 +163,37 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
 TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   static const uint8_t expected_bytes[] = {
       // clang-format off
-      /*  0 30 E> */ B(StackCheck),
-      /*  1 42 S> */ B(LdaConstant), U8(0),
-      /*  3 42 E> */ B(Add), R8(1), U8(1),
-      /*  5 68 S> */ B(JumpIfUndefined), U8(39),
-      /*  7       */ B(JumpIfNull), U8(37),
-      /*  9       */ B(ToObject), R8(3),
-      /* 11       */ B(ForInPrepare), R8(3), U8(4),
-      /* 14       */ B(LdaZero),
-      /* 15       */ B(Star), R8(7),
-      /* 17 63 S> */ B(ForInContinue), R8(7), R8(6),
-      /* 20       */ B(JumpIfFalse), U8(24),
-      /* 22       */ B(ForInNext), R8(3), R8(7), R8(4), U8(1),
-      /* 27       */ B(JumpIfUndefined), U8(10),
-      /* 29       */ B(Star), R8(0),
-      /* 31 54 E> */ B(StackCheck),
-      /* 32       */ B(Ldar), R8(0),
-      /* 34       */ B(Star), R8(2),
-      /* 36 85 S> */ B(Return),
-      /* 37       */ B(ForInStep), R8(7),
-      /* 39       */ B(Star), R8(7),
-      /* 41       */ B(JumpLoop), U8(24), U8(0),
-      /* 44       */ B(LdaUndefined),
-      /* 45 85 S> */ B(Return),
+      /*  0 42 S> */ B(LdaConstant), U8(0),
+      /*  2 42 E> */ B(Add), R8(1), U8(1),
+      /*  4 68 S> */ B(JumpIfUndefined), U8(38),
+      /*  6       */ B(JumpIfNull), U8(36),
+      /*  8       */ B(ToObject), R8(3),
+      /* 10       */ B(ForInPrepare), R8(3), U8(4),
+      /* 13       */ B(LdaZero),
+      /* 14       */ B(Star), R8(7),
+      /* 16 63 S> */ B(ForInContinue), R8(7), R8(6),
+      /* 19       */ B(JumpIfFalse), U8(23),
+      /* 21       */ B(ForInNext), R8(3), R8(7), R8(4), U8(1),
+      /* 26       */ B(JumpIfUndefined), U8(9),
+      /* 28       */ B(Star), R8(0),
+      /* 30       */ B(Ldar), R8(0),
+      /* 32       */ B(Star), R8(2),
+      /* 34 85 S> */ B(Return),
+      /* 35       */ B(ForInStep), R8(7),
+      /* 37       */ B(Star), R8(7),
+      /* 39       */ B(JumpLoop), U8(23), U8(0),
+      /* 42       */ B(LdaUndefined),
+      /* 43 85 S> */ B(Return),
       // clang-format on
   };
 
   static const PositionTableEntry expected_positions[] = {
-      {0, 30, false}, {1, 42, true},   {3, 42, false}, {6, 68, true},
-      {18, 63, true}, {32, 54, false}, {37, 85, true}, {46, 85, true}};
+      {0, 42, true},  {2, 42, false}, {5, 68, true},
+      {17, 63, true}, {35, 85, true}, {44, 85, true}};
 
   BytecodeLoopHeader loop_header;
   BytecodeLabel jump_for_in, jump_end_1, jump_end_2, jump_end_3;
 
-  Write(Bytecode::kStackCheck, {30, false});
   Write(Bytecode::kLdaConstant, U8(0), {42, true});
   Write(Bytecode::kAdd, R(1), U8(1), {42, false});
   WriteJump(Bytecode::kJumpIfUndefined, &jump_end_1, {68, true});
@@ -216,7 +208,6 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   Write(Bytecode::kForInNext, R(3), R(7), R(4), U8(1));
   WriteJump(Bytecode::kJumpIfUndefined, &jump_for_in);
   Write(Bytecode::kStar, R(0));
-  Write(Bytecode::kStackCheck, {54, false});
   Write(Bytecode::kLdar, R(0));
   Write(Bytecode::kStar, R(2));
   Write(Bytecode::kReturn, {85, true});
@@ -258,23 +249,18 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
 
   static const uint8_t expected_bytes[] = {
       // clang-format off
-      /*  0  10 E> */ B(StackCheck),
-      /*  1  55 S> */ B(Ldar), R8(20),
-      /*  3        */ B(Star), R8(20),
-      /*  5        */ B(CreateMappedArguments),
-      /*  6  60 S> */ B(LdaSmi), U8(127),
-      /*  8  70 S> */ B(Ldar), R8(20),
-      /*  10 75 S> */ B(Return),
+      /*  0  55 S> */ B(Ldar), R8(20),
+      /*  2        */ B(Star), R8(20),
+      /*  4        */ B(CreateMappedArguments),
+      /*  5  60 S> */ B(LdaSmi), U8(127),
+      /*  7  70 S> */ B(Ldar), R8(20),
+      /*  9 75 S> */ B(Return),
       // clang-format on
   };
 
-  static const PositionTableEntry expected_positions[] = {{0, 10, false},
-                                                          {1, 55, true},
-                                                          {6, 60, false},
-                                                          {8, 70, true},
-                                                          {10, 75, true}};
+  static const PositionTableEntry expected_positions[] = {
+      {0, 55, true}, {5, 60, false}, {7, 70, true}, {9, 75, true}};
 
-  Write(Bytecode::kStackCheck, {10, false});
   Write(Bytecode::kLdaSmi, 127, {55, true});  // Should be elided.
   Write(Bytecode::kLdar, Register(20).ToOperand());
   Write(Bytecode::kStar, Register(20).ToOperand());
@@ -310,27 +296,25 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
 TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
   static const uint8_t expected_bytes[] = {
       // clang-format off
-      /*  0  10 E> */ B(StackCheck),
-      /*  1  55 S> */ B(LdaSmi), U8(127),
-      /*  3        */ B(Jump), U8(2),
-      /*  5  65 S> */ B(LdaSmi), U8(127),
-      /*  7        */ B(JumpIfFalse), U8(3),
-      /*  9  75 S> */ B(Return),
-      /*  10       */ B(JumpIfFalse), U8(3),
-      /*  12       */ B(Throw),
-      /*  13       */ B(JumpIfFalse), U8(3),
-      /*  15       */ B(ReThrow),
-      /*  16       */ B(Return),
+      /*  0  55 S> */ B(LdaSmi), U8(127),
+      /*  2        */ B(Jump), U8(2),
+      /*  4  65 S> */ B(LdaSmi), U8(127),
+      /*  6        */ B(JumpIfFalse), U8(3),
+      /*  8  75 S> */ B(Return),
+      /*  9       */ B(JumpIfFalse), U8(3),
+      /*  11       */ B(Throw),
+      /*  12       */ B(JumpIfFalse), U8(3),
+      /*  14       */ B(ReThrow),
+      /*  15       */ B(Return),
       // clang-format on
   };
 
   static const PositionTableEntry expected_positions[] = {
-      {0, 10, false}, {1, 55, true}, {5, 65, true}, {9, 75, true}};
+      {0, 55, true}, {4, 65, true}, {8, 75, true}};
 
   BytecodeLabel after_jump, after_conditional_jump, after_return, after_throw,
       after_rethrow;
 
-  Write(Bytecode::kStackCheck, {10, false});
   Write(Bytecode::kLdaSmi, 127, {55, true});
   WriteJump(Bytecode::kJump, &after_jump);
   Write(Bytecode::kLdaSmi, 127);                               // Dead code.

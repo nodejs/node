@@ -301,8 +301,7 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
     }
   } else if (obj.IsJSArrayBuffer()) {
     JSArrayBuffer buffer = JSArrayBuffer::cast(obj);
-    buffer.set_extension(nullptr);
-    // Only fixup for the off-heap case. This may trigger GC.
+    // Postpone allocation of backing store to avoid triggering the GC.
     if (buffer.backing_store() != nullptr) {
       new_off_heap_array_buffers_.push_back(handle(buffer, isolate_));
     }
@@ -668,6 +667,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       }
 
       case kOffHeapBackingStore: {
+        AlwaysAllocateScope scope(isolate->heap());
         int byte_length = source_.GetInt();
         std::unique_ptr<BackingStore> backing_store =
             BackingStore::Allocate(isolate, byte_length, SharedFlag::kNotShared,
@@ -755,8 +755,36 @@ bool Deserializer::ReadData(TSlot current, TSlot limit,
       STATIC_ASSERT(kNumberOfFixedRawData == 32);
       SIXTEEN_CASES(kFixedRawData)
       SIXTEEN_CASES(kFixedRawData + 16) {
-        int size_in_tagged = data - kFixedRawDataStart;
-        source_.CopyRaw(current.ToVoidPtr(), size_in_tagged * kTaggedSize);
+        // This bytecode has become very confusing with recent changes due to
+        // pointer compression. From comments and variable names it implies that
+        // the length unit is words/kPointerSize, but the unit is actually
+        // kTaggedSize since https://chromium-review.googlesource.com/c/1388529.
+        //
+        // Also, contents can be (tagged) Smis or just a raw byte sequence. In
+        // the case of Smis we must be careful when deserializing into full
+        // object slots. It is not valid to deserialize a sequence of >1 Smis
+        // into full object slots in compressed pointer builds.
+        //
+        // Likewise one must pay attention to endianness when deserializing a
+        // smi into a full object slot. That is what the code below is trying to
+        // address.
+        //
+        // The solution below works because we currently never deserialize >1
+        // Smi into full object slots, or raw byte sequences into full object
+        // slots. But those assumptions are fragile.
+        //
+        const int size_in_tagged = data - kFixedRawDataStart;
+        const int size_in_bytes = size_in_tagged * kTaggedSize;
+        Address addr = current.address();
+        DCHECK_IMPLIES(kTaggedSize != TSlot::kSlotDataSize,
+                       size_in_tagged == 1);
+#ifdef V8_TARGET_BIG_ENDIAN
+        if (kTaggedSize != TSlot::kSlotDataSize) {
+          // Should only be reached when deserializing a Smi root.
+          addr += kTaggedSize;
+        }
+#endif
+        source_.CopyRaw(reinterpret_cast<void*>(addr), size_in_bytes);
         current += size_in_tagged;
         break;
       }

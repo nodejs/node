@@ -171,7 +171,7 @@ Evaluating private methods in the base class from the subclass
         columnNumber : 4
         exception : {
             className : SyntaxError
-            description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:16:7)     at run (<anonymous>:30:5)     at <anonymous>:1:1
+            description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:20:7)     at run (<anonymous>:34:5)     at <anonymous>:1:1
             objectId : <objectId>
             subtype : error
             type : object
@@ -183,7 +183,7 @@ Evaluating private methods in the base class from the subclass
     }
     result : {
         className : SyntaxError
-        description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:16:7)     at run (<anonymous>:30:5)     at <anonymous>:1:1
+        description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:20:7)     at run (<anonymous>:34:5)     at <anonymous>:1:1
         objectId : <objectId>
         subtype : error
         type : object

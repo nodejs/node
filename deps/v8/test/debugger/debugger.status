@@ -143,9 +143,21 @@
 ['arch in (s390, s390x, ppc, ppc64)', {
   'regress/regress-crbug-1032042': [SKIP],
   'regress/regress-crbug-840288': [SKIP],
-  'debug/wasm/debug-step-into-wasm': [SKIP],
   'debug/wasm/asm-debug': [SKIP],
+  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
+  'debug/wasm/debug-step-into-wasm': [SKIP],
   'debug/wasm/frame-inspection': [SKIP],
 }],
+
+##############################################################################
+['isolates', {
+  # WebAssembly debugging does not work reliably when multiple isolates are
+  # involved (https://crbug.com/v8/10359).
+  # (this list might need to be extended by more debugging tests as they
+  # start flaking)
+  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
+  'debug/wasm/debug-enabled-tier-down-wasm-unsupported-liftoff': [SKIP],
+  'regress/regress-crbug-1032042': [SKIP],
+}],  # 'isolates'
 
 ]

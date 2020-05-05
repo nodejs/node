@@ -12,6 +12,10 @@
 namespace v8 {
 namespace internal {
 
+struct NullMaybeHandleType {};
+
+constexpr NullMaybeHandleType kNullMaybeHandle;
+
 // ----------------------------------------------------------------------------
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
 // into a Handle requires checking that it does not point to nullptr.  This
@@ -24,6 +28,8 @@ template <typename T>
 class MaybeHandle final {
  public:
   V8_INLINE MaybeHandle() = default;
+
+  V8_INLINE MaybeHandle(NullMaybeHandleType) {}
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
@@ -50,7 +56,7 @@ class MaybeHandle final {
 
   // Convert to a Handle with a type that can be upcasted to.
   template <typename S>
-  V8_INLINE bool ToHandle(Handle<S>* out) const {
+  V8_WARN_UNUSED_RESULT V8_INLINE bool ToHandle(Handle<S>* out) const {
     if (location_ == nullptr) {
       *out = Handle<T>::null();
       return false;

@@ -436,7 +436,6 @@ BytecodeArgumentMapping BytecodeSequenceNode::ArgumentMapping(
     size_t index) const {
   DCHECK(IsSequence());
   DCHECK(argument_mapping_ != nullptr);
-  DCHECK_GE(index, 0);
   DCHECK_LT(index, argument_mapping_->size());
 
   return argument_mapping_->at(index);

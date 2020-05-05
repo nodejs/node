@@ -6,10 +6,10 @@
 #define V8_TORQUE_UTILS_H_
 
 #include <ostream>
+#include <queue>
 #include <streambuf>
 #include <string>
 #include <unordered_set>
-#include <vector>
 
 #include "src/base/functional.h"
 #include "src/base/optional.h"
@@ -172,6 +172,13 @@ void PrintCommaSeparatedList(std::ostream& os, const T& list) {
 
 struct BottomOffset {
   size_t offset;
+  BottomOffset(std::nullptr_t zero = 0)  // NOLINT(runtime/explicit)
+      : offset(0) {}
+  explicit BottomOffset(std::size_t offset) : offset(offset) {}
+  BottomOffset& operator=(std::size_t offset) {
+    this->offset = offset;
+    return *this;
+  }
   BottomOffset& operator++() {
     ++offset;
     return *this;
@@ -486,6 +493,36 @@ class ResidueClass {
   // size_t values are modulo 2^kMaxModulusLog2, so we don't consider larger
   // modulus.
   static const size_t kMaxModulusLog2 = 8 * sizeof(size_t);
+};
+
+template <typename T>
+class Worklist {
+ public:
+  bool IsEmpty() const {
+    DCHECK_EQ(queue_.size(), contained_.size());
+    return queue_.empty();
+  }
+
+  bool Enqueue(T value) {
+    if (contained_.find(value) != contained_.end()) return false;
+    queue_.push(value);
+    contained_.insert(value);
+    DCHECK_EQ(queue_.size(), contained_.size());
+    return true;
+  }
+
+  T Dequeue() {
+    DCHECK(!IsEmpty());
+    T value = queue_.front();
+    queue_.pop();
+    contained_.erase(value);
+    DCHECK_EQ(queue_.size(), contained_.size());
+    return value;
+  }
+
+ private:
+  std::queue<T> queue_;
+  std::unordered_set<T> contained_;
 };
 
 }  // namespace torque

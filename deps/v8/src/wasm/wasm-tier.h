@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// All the tiers of WASM execution.
+// All the tiers of Wasm execution.
 enum class ExecutionTier : int8_t {
   kNone,
   kInterpreter,

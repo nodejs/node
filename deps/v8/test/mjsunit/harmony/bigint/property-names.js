@@ -3,5 +3,7 @@
 // found in the LICENSE file.
 
 var { 9007199254740991n: it } = { 9007199254740991n: 1 };
+assertEquals(it, 1);
 
+var { 999999999999999999n: it } = { 999999999999999999n: 1 }; // greater than max safe integer
 assertEquals(it, 1);

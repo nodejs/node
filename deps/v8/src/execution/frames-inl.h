@@ -9,6 +9,7 @@
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
+#include "src/execution/pointer-authentication.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -69,6 +70,16 @@ inline StackHandler* StackFrame::top_handler() const {
   return iterator_->handler();
 }
 
+inline Address StackFrame::callee_pc() const {
+  return state_.callee_pc_address ? ReadPC(state_.callee_pc_address)
+                                  : kNullAddress;
+}
+
+inline Address StackFrame::pc() const { return ReadPC(pc_address()); }
+
+inline Address StackFrame::ReadPC(Address* pc_address) {
+  return PointerAuthentication::AuthenticatePC(pc_address, kSystemPointerSize);
+}
 
 inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
   if (return_address_location_resolver_ == nullptr) {
@@ -179,11 +190,15 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
-  int param_count = ComputeParametersCount();
   DCHECK(-1 <= index &&
-         (index < param_count ||
-          param_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+         (index < ComputeParametersCount() ||
+          ComputeParametersCount() == kDontAdaptArgumentsSentinel));
+#ifdef V8_REVERSE_JSARGS
+  int parameter_offset = (index + 1) * kSystemPointerSize;
+#else
+  int param_count = ComputeParametersCount();
   int parameter_offset = (param_count - index - 1) * kSystemPointerSize;
+#endif
   return caller_sp() + parameter_offset;
 }
 
@@ -228,6 +243,10 @@ inline WasmExitFrame::WasmExitFrame(StackFrameIteratorBase* iterator)
     : WasmCompiledFrame(iterator) {}
 
 inline WasmInterpreterEntryFrame::WasmInterpreterEntryFrame(
+    StackFrameIteratorBase* iterator)
+    : StandardFrame(iterator) {}
+
+inline WasmDebugBreakFrame::WasmDebugBreakFrame(
     StackFrameIteratorBase* iterator)
     : StandardFrame(iterator) {}
 

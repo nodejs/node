@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Disable Liftoff to get deterministic (non-existing) scope information for
-// compiled frames.
-// Flags: --no-liftoff
+// Flags: --debug-in-liftoff
 
 let {session, contextGroup, Protocol} = InspectorTest.start(
     'Test retrieving scope information when pausing in wasm functions');
@@ -147,17 +145,15 @@ async function waitForWasmScripts() {
 }
 
 async function getScopeValues(value) {
-  if (value.type != 'object') {
-    InspectorTest.log('Expected object. Found:');
-    InspectorTest.logObject(value);
-    return;
+  if (value.type == 'object') {
+    let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
+    printIfFailure(msg);
+    const printProperty = function(elem) {
+      return `"${elem.name}": ${elem.value.value} (${elem.value.type})`;
+    }
+    return msg.result.result.map(printProperty).join(', ');
   }
-
-  let msg = await Protocol.Runtime.getProperties({objectId: value.objectId});
-  printIfFailure(msg);
-  let printProperty = elem => '"' + elem.name + '"' +
-      ': ' + elem.value.value + ' (' + elem.value.type + ')';
-  return msg.result.result.map(printProperty).join(', ');
+  return value.value + ' (' + value.type + ')';
 }
 
 async function dumpScopeProperties(message) {

@@ -5,9 +5,13 @@
 #include "src/objects/literal-objects.h"
 
 #include "src/ast/ast.h"
+#include "src/base/logging.h"
 #include "src/builtins/accessors.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/heap/off-thread-factory-inl.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/objects-inl.h"
@@ -27,8 +31,9 @@ inline int EncodeComputedEntry(ClassBoilerplate::ValueKind value_kind,
   return flags;
 }
 
+template <typename LocalIsolate>
 void AddToDescriptorArrayTemplate(
-    Isolate* isolate, Handle<DescriptorArray> descriptor_array_template,
+    LocalIsolate* isolate, Handle<DescriptorArray> descriptor_array_template,
     Handle<Name> name, ClassBoilerplate::ValueKind value_kind,
     Handle<Object> value) {
   InternalIndex entry = descriptor_array_template->Search(
@@ -79,17 +84,19 @@ void AddToDescriptorArrayTemplate(
   }
 }
 
+template <typename LocalIsolate>
 Handle<NameDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
-    Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
+    LocalIsolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
     Handle<Object> value, PropertyDetails details,
     InternalIndex* entry_out = nullptr) {
   return NameDictionary::AddNoUpdateNextEnumerationIndex(
       isolate, dictionary, name, value, details, entry_out);
 }
 
+template <typename LocalIsolate>
 Handle<NumberDictionary> DictionaryAddNoUpdateNextEnumerationIndex(
-    Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t element,
-    Handle<Object> value, PropertyDetails details,
+    LocalIsolate* isolate, Handle<NumberDictionary> dictionary,
+    uint32_t element, Handle<Object> value, PropertyDetails details,
     InternalIndex* entry_out = nullptr) {
   // NumberDictionary does not maintain the enumeration order, so it's
   // a normal Add().
@@ -120,12 +127,13 @@ inline int GetExistingValueIndex(Object value) {
   return value.IsSmi() ? Smi::ToInt(value) : -1;
 }
 
-template <typename Dictionary, typename Key>
-void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
-                             Key key, int key_index,
+template <typename LocalIsolate, typename Dictionary, typename Key>
+void AddToDictionaryTemplate(LocalIsolate* isolate,
+                             Handle<Dictionary> dictionary, Key key,
+                             int key_index,
                              ClassBoilerplate::ValueKind value_kind,
                              Smi value) {
-  InternalIndex entry = dictionary->FindEntry(isolate, key);
+  InternalIndex entry = dictionary->FindEntry(ReadOnlyRoots(isolate), key);
 
   if (entry.is_not_found()) {
     // Entry not found, add new one.
@@ -183,7 +191,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
           // was not defined yet, so overwrite property to kData.
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(isolate, entry, details);
+          dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
 
         } else {
@@ -217,7 +225,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
         if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
           PropertyDetails details(kData, DONT_ENUM, PropertyCellType::kNoCell,
                                   enum_order);
-          dictionary->DetailsAtPut(isolate, entry, details);
+          dictionary->DetailsAtPut(entry, details);
           dictionary->ValueAtPut(entry, value);
         }
       }
@@ -241,7 +249,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
         pair->set(component, value);
         PropertyDetails details(kAccessor, DONT_ENUM, PropertyCellType::kNoCell,
                                 enum_order);
-        dictionary->DetailsAtPut(isolate, entry, details);
+        dictionary->DetailsAtPut(entry, details);
         dictionary->ValueAtPut(entry, *pair);
       }
     }
@@ -252,6 +260,7 @@ void AddToDictionaryTemplate(Isolate* isolate, Handle<Dictionary> dictionary,
 
 // Helper class that eases building of a properties, elements and computed
 // properties templates.
+template <typename LocalIsolate>
 class ObjectDescriptor {
  public:
   void IncComputedCount() { ++computed_count_; }
@@ -280,35 +289,38 @@ class ObjectDescriptor {
     return computed_properties_;
   }
 
-  void CreateTemplates(Isolate* isolate) {
-    Factory* factory = isolate->factory();
+  void CreateTemplates(LocalIsolate* isolate) {
+    auto* factory = isolate->factory();
     descriptor_array_template_ = factory->empty_descriptor_array();
-    properties_dictionary_template_ = factory->empty_property_dictionary();
+    properties_dictionary_template_ =
+        Handle<NameDictionary>::cast(factory->empty_property_dictionary());
     if (property_count_ || computed_count_ || property_slack_) {
       if (HasDictionaryProperties()) {
         properties_dictionary_template_ = NameDictionary::New(
-            isolate, property_count_ + computed_count_ + property_slack_);
+            isolate, property_count_ + computed_count_ + property_slack_,
+            AllocationType::kOld);
       } else {
         descriptor_array_template_ = DescriptorArray::Allocate(
-            isolate, 0, property_count_ + property_slack_);
+            isolate, 0, property_count_ + property_slack_,
+            AllocationType::kOld);
       }
     }
     elements_dictionary_template_ =
         element_count_ || computed_count_
-            ? NumberDictionary::New(isolate, element_count_ + computed_count_)
+            ? NumberDictionary::New(isolate, element_count_ + computed_count_,
+                                    AllocationType::kOld)
             : factory->empty_slow_element_dictionary();
 
     computed_properties_ =
         computed_count_
-            ? factory->NewFixedArray(computed_count_ *
-                                     ClassBoilerplate::kFullComputedEntrySize)
+            ? factory->NewFixedArray(computed_count_, AllocationType::kOld)
             : factory->empty_fixed_array();
 
     temp_handle_ = handle(Smi::zero(), isolate);
   }
 
-  void AddConstant(Isolate* isolate, Handle<Name> name, Handle<Object> value,
-                   PropertyAttributes attribs) {
+  void AddConstant(LocalIsolate* isolate, Handle<Name> name,
+                   Handle<Object> value, PropertyAttributes attribs) {
     bool is_accessor = value->IsAccessorInfo();
     DCHECK(!value->IsAccessorPair());
     if (HasDictionaryProperties()) {
@@ -326,7 +338,7 @@ class ObjectDescriptor {
     }
   }
 
-  void AddNamedProperty(Isolate* isolate, Handle<Name> name,
+  void AddNamedProperty(LocalIsolate* isolate, Handle<Name> name,
                         ClassBoilerplate::ValueKind value_kind,
                         int value_index) {
     Smi value = Smi::FromInt(value_index);
@@ -341,7 +353,7 @@ class ObjectDescriptor {
     }
   }
 
-  void AddIndexedProperty(Isolate* isolate, uint32_t element,
+  void AddIndexedProperty(LocalIsolate* isolate, uint32_t element,
                           ClassBoilerplate::ValueKind value_kind,
                           int value_index) {
     Smi value = Smi::FromInt(value_index);
@@ -363,12 +375,11 @@ class ObjectDescriptor {
     next_enumeration_index_ = next_index;
   }
 
-  void Finalize(Isolate* isolate) {
+  void Finalize(LocalIsolate* isolate) {
     if (HasDictionaryProperties()) {
+      DCHECK_EQ(current_computed_index_, computed_properties_->length());
       properties_dictionary_template_->set_next_enumeration_index(
           next_enumeration_index_);
-      computed_properties_ = FixedArray::ShrinkOrEmpty(
-          isolate, computed_properties_, current_computed_index_);
     } else {
       DCHECK(descriptor_array_template_->IsSortedNoDuplicates());
     }
@@ -390,36 +401,56 @@ class ObjectDescriptor {
   Handle<Object> temp_handle_;
 };
 
+template <typename LocalIsolate>
 void ClassBoilerplate::AddToPropertiesTemplate(
-    Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
+    LocalIsolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
     int key_index, ClassBoilerplate::ValueKind value_kind, Smi value) {
   AddToDictionaryTemplate(isolate, dictionary, name, key_index, value_kind,
                           value);
 }
+template void ClassBoilerplate::AddToPropertiesTemplate(
+    Isolate* isolate, Handle<NameDictionary> dictionary, Handle<Name> name,
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
+template void ClassBoilerplate::AddToPropertiesTemplate(
+    OffThreadIsolate* isolate, Handle<NameDictionary> dictionary,
+    Handle<Name> name, int key_index, ClassBoilerplate::ValueKind value_kind,
+    Smi value);
 
+template <typename LocalIsolate>
 void ClassBoilerplate::AddToElementsTemplate(
-    Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
+    LocalIsolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
     int key_index, ClassBoilerplate::ValueKind value_kind, Smi value) {
   AddToDictionaryTemplate(isolate, dictionary, key, key_index, value_kind,
                           value);
 }
+template void ClassBoilerplate::AddToElementsTemplate(
+    Isolate* isolate, Handle<NumberDictionary> dictionary, uint32_t key,
+    int key_index, ClassBoilerplate::ValueKind value_kind, Smi value);
+template void ClassBoilerplate::AddToElementsTemplate(
+    OffThreadIsolate* isolate, Handle<NumberDictionary> dictionary,
+    uint32_t key, int key_index, ClassBoilerplate::ValueKind value_kind,
+    Smi value);
 
+template <typename LocalIsolate>
 Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
-    Isolate* isolate, ClassLiteral* expr) {
+    LocalIsolate* isolate, ClassLiteral* expr) {
   // Create a non-caching handle scope to ensure that the temporary handle used
   // by ObjectDescriptor for passing Smis around does not corrupt handle cache
   // in CanonicalHandleScope.
-  HandleScope scope(isolate);
-  Factory* factory = isolate->factory();
-  ObjectDescriptor static_desc(kMinimumClassPropertiesCount);
-  ObjectDescriptor instance_desc(kMinimumPrototypePropertiesCount);
+  typename LocalIsolate::HandleScopeType scope(isolate);
+  auto* factory = isolate->factory();
+  ObjectDescriptor<LocalIsolate> static_desc(kMinimumClassPropertiesCount);
+  ObjectDescriptor<LocalIsolate> instance_desc(
+      kMinimumPrototypePropertiesCount);
 
   for (int i = 0; i < expr->public_members()->length(); i++) {
     ClassLiteral::Property* property = expr->public_members()->at(i);
-    ObjectDescriptor& desc =
+    ObjectDescriptor<LocalIsolate>& desc =
         property->is_static() ? static_desc : instance_desc;
     if (property->is_computed_name()) {
-      desc.IncComputedCount();
+      if (property->kind() != ClassLiteral::Property::FIELD) {
+        desc.IncComputedCount();
+      }
     } else {
       if (property->key()->AsLiteral()->IsPropertyName()) {
         desc.IncPropertiesCount();
@@ -500,7 +531,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
         continue;
     }
 
-    ObjectDescriptor& desc =
+    ObjectDescriptor<LocalIsolate>& desc =
         property->is_static() ? static_desc : instance_desc;
     if (property->is_computed_name()) {
       int computed_name_index = dynamic_argument_index;
@@ -516,8 +547,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       desc.AddIndexedProperty(isolate, index, value_kind, value_index);
 
     } else {
-      Handle<String> name =
-          key_literal->AsRawPropertyName()->string().get<Factory>();
+      Handle<String> name = key_literal->AsRawPropertyName()->string();
       DCHECK(name->IsInternalizedString());
       desc.AddNamedProperty(isolate, name, value_kind, value_index);
     }
@@ -543,8 +573,8 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
-  Handle<ClassBoilerplate> class_boilerplate =
-      Handle<ClassBoilerplate>::cast(factory->NewFixedArray(kBoileplateLength));
+  Handle<ClassBoilerplate> class_boilerplate = Handle<ClassBoilerplate>::cast(
+      factory->NewFixedArray(kBoileplateLength, AllocationType::kOld));
 
   class_boilerplate->set_flags(0);
   class_boilerplate->set_install_class_name_accessor(
@@ -567,6 +597,11 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
 
   return scope.CloseAndEscape(class_boilerplate);
 }
+
+template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
+    Isolate* isolate, ClassLiteral* expr);
+template Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
+    OffThreadIsolate* isolate, ClassLiteral* expr);
 
 }  // namespace internal
 }  // namespace v8

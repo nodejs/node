@@ -18,6 +18,7 @@
 #include "src/objects/promise.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
 
 #include "torque-generated/exported-macros-assembler-tq.h"
@@ -52,6 +53,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(TypedArraySpeciesProtector, typed_array_species_protector,                \
     TypedArraySpeciesProtector)
 
+#define TORQUE_INTERNAL_CLASS_LIST_CSA_ADAPTER(V, NAME, Name, name) \
+  V(Name##Map, name##_map, Name##Map)
+
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                       \
   V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                       \
@@ -71,6 +75,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ConsOneByteStringMap, cons_one_byte_string_map, ConsOneByteStringMap)      \
   V(ConsStringMap, cons_string_map, ConsStringMap)                             \
   V(constructor_string, constructor_string, ConstructorString)                 \
+  V(CoverageInfoMap, coverage_info_map, CoverageInfoMap)                       \
   V(date_to_string, date_to_string, DateToString)                              \
   V(default_string, default_string, DefaultString)                             \
   V(EmptyByteArray, empty_byte_array, EmptyByteArray)                          \
@@ -172,7 +177,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(UndefinedValue, undefined_value, Undefined)                                \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)           \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)                \
-  V(zero_string, zero_string, ZeroString)
+  V(zero_string, zero_string, ZeroString)                                      \
+  TORQUE_INTERNAL_CLASS_LIST_GENERATOR(TORQUE_INTERNAL_CLASS_LIST_CSA_ADAPTER, \
+                                       V)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V) \
@@ -273,6 +280,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       public TorqueGeneratedExportedMacrosAssembler {
  public:
   using Node = compiler::Node;
+  using ScopedExceptionHandler = compiler::ScopedExceptionHandler;
 
   template <typename T>
   using LazyNode = std::function<TNode<T>()>;
@@ -383,6 +391,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #else
 #error Unknown architecture.
 #endif
+
+  TNode<IntPtrT> TaggedIndexToIntPtr(TNode<TaggedIndex> value);
+  TNode<TaggedIndex> IntPtrToTaggedIndex(TNode<IntPtrT> value);
+  // TODO(v8:10047): Get rid of these convertions eventually.
+  TNode<Smi> TaggedIndexToSmi(TNode<TaggedIndex> value);
+  TNode<TaggedIndex> SmiToTaggedIndex(TNode<Smi> value);
 
   // Pointer compression specific. Returns true if the upper 32 bits of a Smi
   // contain the sign of a lower 32 bits (i.e. not corrupted) so that the Smi
@@ -878,6 +892,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         callable, receiver, args...));
   }
 
+  TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
+                                TNode<IntPtrT> argc, TNode<Object> data,
+                                TNode<Object> holder, TNode<Object> receiver);
+
+  TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
+                                TNode<IntPtrT> argc, TNode<Object> data,
+                                TNode<Object> holder, TNode<Object> receiver,
+                                TNode<Object> value);
+
+  TNode<Object> CallRuntimeNewArray(TNode<Context> context,
+                                    TNode<Object> receiver,
+                                    TNode<Object> length,
+                                    TNode<Object> new_target,
+                                    TNode<Object> allocation_site);
+
+  void TailCallRuntimeNewArray(TNode<Context> context, TNode<Object> receiver,
+                               TNode<Object> length, TNode<Object> new_target,
+                               TNode<Object> allocation_site);
+
   template <class... TArgs>
   TNode<JSReceiver> ConstructWithTarget(TNode<Context> context,
                                         TNode<JSReceiver> target,
@@ -1036,9 +1069,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadFromParentFrame(int offset);
 
   // Load an object pointer from a buffer that isn't in the heap.
-  template <typename T = Object>
-  TNode<T> LoadBufferObject(TNode<RawPtrT> buffer, int offset) {
-    return CAST(Load(MachineTypeOf<T>::value, buffer, IntPtrConstant(offset)));
+  TNode<Object> LoadBufferObject(TNode<RawPtrT> buffer, int offset) {
+    return LoadFullTagged(buffer, IntPtrConstant(offset));
   }
   template <typename T>
   TNode<T> LoadBufferData(TNode<RawPtrT> buffer, int offset) {
@@ -1049,7 +1081,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadBufferData<RawPtrT>(buffer, offset);
   }
   TNode<Smi> LoadBufferSmi(TNode<RawPtrT> buffer, int offset) {
-    return LoadBufferObject<Smi>(buffer, offset);
+    return CAST(LoadBufferObject(buffer, offset));
   }
   // Load a field from an object on the heap.
   template <class T, typename std::enable_if<
@@ -1625,12 +1657,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   CheckBounds::kDebugOnly);
   }
 
-  void StoreFixedArrayOrPropertyArrayElement(
-      Node* array, Node* index, Node* value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
-
   void StoreFixedArrayElement(
       TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
@@ -1741,8 +1767,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* bailout);
 
   void TryStoreArrayElement(ElementsKind kind, ParameterMode mode,
-                            Label* bailout, Node* elements, Node* index,
-                            Node* value);
+                            Label* bailout, TNode<FixedArrayBase> elements,
+                            Node* index, TNode<Object> value);
   // Consumes args into the array, and returns tagged new length.
   TNode<Smi> BuildAppendJSArray(ElementsKind kind, TNode<JSArray> array,
                                 CodeStubArguments* args,
@@ -1939,7 +1965,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           Label* if_bailout);
   TNode<Object> GetConstructor(TNode<Map> map);
 
-  TNode<Map> GetStructMap(InstanceType instance_type);
+  TNode<Map> GetInstanceTypeMap(InstanceType instance_type);
 
   TNode<FixedArray> AllocateUninitializedFixedArray(intptr_t capacity) {
     return UncheckedCast<FixedArray>(AllocateFixedArray(
@@ -1981,9 +2007,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return result;
   }
 
-  Node* AllocatePropertyArray(Node* capacity,
-                              ParameterMode mode = INTPTR_PARAMETERS,
-                              AllocationFlags flags = kNone);
+  TNode<PropertyArray> AllocatePropertyArray(
+      Node* capacity, ParameterMode mode = INTPTR_PARAMETERS,
+      AllocationFlags flags = kNone);
 
   // Perform CreateArrayIterator (ES #sec-createarrayiterator).
   TNode<JSArrayIterator> CreateArrayIterator(TNode<Context> context,
@@ -2004,8 +2030,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                        TNode<Object> originalArray,
                                        TNode<Number> len);
 
-  void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
-                               Node* to_index, RootIndex value_root_index,
+  void FillFixedArrayWithValue(ElementsKind kind, TNode<FixedArrayBase> array,
+                               Node* from_index, Node* to_index,
+                               RootIndex value_root_index,
                                ParameterMode mode = INTPTR_PARAMETERS);
 
   // Uses memset to effectively initialize the given FixedArray with zeroes.
@@ -2014,18 +2041,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void FillFixedDoubleArrayWithZero(TNode<FixedDoubleArray> array,
                                     TNode<IntPtrT> length);
 
-  void FillPropertyArrayWithUndefined(Node* array, Node* from_index,
-                                      Node* to_index,
+  void FillPropertyArrayWithUndefined(TNode<PropertyArray> array,
+                                      Node* from_index, Node* to_index,
                                       ParameterMode mode = INTPTR_PARAMETERS);
 
   enum class DestroySource { kNo, kYes };
 
   // Collect the callable |maybe_target| feedback for either a CALL_IC or
-  // an INSTANCEOF_IC in the |feedback_vector| at |slot_id|.
+  // an INSTANCEOF_IC in the |feedback_vector| at |slot_id|. There are
+  // two modes for feedback collection:
+  //
+  //   kCollectFeedbackCell -     collect JSFunctions, but devolve to the
+  //                              FeedbackCell as long as all JSFunctions
+  //                              seen share the same one.
+  //   kDontCollectFeedbackCell - collect JSFunctions without devolving
+  //                              to the FeedbackCell in case a
+  //                              different JSFunction appears. Go directly
+  //                              to the Megamorphic sentinel value in this
+  //                              case.
+  enum class CallableFeedbackMode {
+    kCollectFeedbackCell,
+    kDontCollectFeedbackCell
+  };
   void CollectCallableFeedback(TNode<Object> maybe_target,
                                TNode<Context> context,
                                TNode<FeedbackVector> feedback_vector,
-                               TNode<UintPtrT> slot_id);
+                               TNode<UintPtrT> slot_id,
+                               CallableFeedbackMode mode);
 
   // Collect CALL_IC feedback for |maybe_target| function in the
   // |feedback_vector| at |slot_id|, and the call counts in
@@ -2046,7 +2088,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Otherwise, specify DestroySource::kNo for operations where an Object is
   // being cloned, to ensure that mutable HeapNumbers are unique between the
   // source and cloned object.
-  void CopyPropertyArrayValues(Node* from_array, Node* to_array, Node* length,
+  void CopyPropertyArrayValues(TNode<HeapObject> from_array,
+                               TNode<PropertyArray> to_array, Node* length,
                                WriteBarrierMode barrier_mode,
                                ParameterMode mode,
                                DestroySource destroy_source);
@@ -2054,7 +2097,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Copies all elements from |from_array| of |length| size to
   // |to_array| of the same size respecting the elements kind.
   void CopyFixedArrayElements(
-      ElementsKind kind, Node* from_array, Node* to_array, Node* length,
+      ElementsKind kind, TNode<FixedArrayBase> from_array,
+      TNode<FixedArrayBase> to_array, Node* length,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTPTR_PARAMETERS) {
     CopyFixedArrayElements(kind, from_array, kind, to_array,
@@ -2066,9 +2110,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // zero to |to_array| of |capacity| size respecting both array's elements
   // kinds.
   void CopyFixedArrayElements(
-      ElementsKind from_kind, TNode<Object> from_array, ElementsKind to_kind,
-      TNode<Object> to_array, TNode<IntPtrT> element_count,
-      TNode<IntPtrT> capacity,
+      ElementsKind from_kind, TNode<FixedArrayBase> from_array,
+      ElementsKind to_kind, TNode<FixedArrayBase> to_array,
+      TNode<IntPtrT> element_count, TNode<IntPtrT> capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTPTR_PARAMETERS) {
     CopyFixedArrayElements(from_kind, from_array, to_kind, to_array,
@@ -2085,8 +2129,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // HoleConversionMode::kConvertToUndefined, then it must not be the case that
   // IsDoubleElementsKind(to_kind).
   void CopyFixedArrayElements(
-      ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
-      Node* to_array, Node* first_element, Node* element_count, Node* capacity,
+      ElementsKind from_kind, TNode<FixedArrayBase> from_array,
+      ElementsKind to_kind, TNode<FixedArrayBase> to_array, Node* first_element,
+      Node* element_count, Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTPTR_PARAMETERS,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
@@ -2187,13 +2232,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // runtime elements kind of source to make copy faster. More specifically, it
   // can skip write barriers.
   TNode<FixedArrayBase> ExtractFixedArray(
-      Node* source, Node* first, Node* count = nullptr,
+      TNode<FixedArrayBase> source, Node* first, Node* count = nullptr,
       Node* capacity = nullptr,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       TVariable<BoolT>* var_holes_converted = nullptr,
-      Node* source_elements_kind = nullptr);
+      base::Optional<TNode<Int32T>> source_elements_kind = base::nullopt);
 
   TNode<FixedArrayBase> ExtractFixedArray(
       TNode<FixedArrayBase> source, TNode<Smi> first, TNode<Smi> count,
@@ -2250,7 +2295,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
       TVariable<BoolT>* var_holes_converted = nullptr,
-      Node* source_runtime_kind = nullptr);
+      base::Optional<TNode<Int32T>> source_runtime_kind = base::nullopt);
 
   // Attempt to copy a FixedDoubleArray to another FixedDoubleArray. In the case
   // where the source array has a hole, produce a FixedArray instead where holes
@@ -2271,8 +2316,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // * |parameter_mode| determines the parameter mode of |first|, |count| and
   // |capacity|.
   TNode<FixedArrayBase> ExtractFixedDoubleArrayFillingHoles(
-      Node* source, Node* first, Node* count, Node* capacity, Node* source_map,
-      TVariable<BoolT>* var_holes_converted, AllocationFlags allocation_flags,
+      TNode<FixedArrayBase> source, Node* first, Node* count, Node* capacity,
+      TNode<Map> source_map, TVariable<BoolT>* var_holes_converted,
+      AllocationFlags allocation_flags,
       ExtractFixedArrayFlags extract_flags =
           ExtractFixedArrayFlag::kAllFixedArrays,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
@@ -2318,34 +2364,34 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Tries to grow the |elements| array of given |object| to store the |key|
   // or bails out if the growing gap is too big. Returns new elements.
-  TNode<FixedArrayBase> TryGrowElementsCapacity(Node* object, Node* elements,
-                                                ElementsKind kind, Node* key,
-                                                Label* bailout);
+  TNode<FixedArrayBase> TryGrowElementsCapacity(TNode<HeapObject> object,
+                                                TNode<FixedArrayBase> elements,
+                                                ElementsKind kind,
+                                                TNode<Smi> key, Label* bailout);
 
   // Tries to grow the |capacity|-length |elements| array of given |object|
   // to store the |key| or bails out if the growing gap is too big. Returns
   // new elements.
-  TNode<FixedArrayBase> TryGrowElementsCapacity(Node* object, Node* elements,
+  TNode<FixedArrayBase> TryGrowElementsCapacity(TNode<HeapObject> object,
+                                                TNode<FixedArrayBase> elements,
                                                 ElementsKind kind, Node* key,
                                                 Node* capacity,
                                                 ParameterMode mode,
                                                 Label* bailout);
 
   // Grows elements capacity of given object. Returns new elements.
-  TNode<FixedArrayBase> GrowElementsCapacity(Node* object, Node* elements,
-                                             ElementsKind from_kind,
-                                             ElementsKind to_kind,
-                                             Node* capacity, Node* new_capacity,
-                                             ParameterMode mode,
-                                             Label* bailout);
+  TNode<FixedArrayBase> GrowElementsCapacity(
+      TNode<HeapObject> object, TNode<FixedArrayBase> elements,
+      ElementsKind from_kind, ElementsKind to_kind, Node* capacity,
+      Node* new_capacity, ParameterMode mode, Label* bailout);
 
   // Given a need to grow by |growth|, allocate an appropriate new capacity
   // if necessary, and return a new elements FixedArray object. Label |bailout|
   // is followed for allocation failure.
   void PossiblyGrowElementsCapacity(ParameterMode mode, ElementsKind kind,
-                                    Node* array, Node* length,
-                                    Variable* var_elements, Node* growth,
-                                    Label* bailout);
+                                    TNode<HeapObject> array, Node* length,
+                                    TVariable<FixedArrayBase>* var_elements,
+                                    Node* growth, Label* bailout);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(TNode<HeapObject> base,
@@ -2474,6 +2520,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsConsStringInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsConstructorMap(SloppyTNode<Map> map);
   TNode<BoolT> IsConstructor(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsCoverageInfo(TNode<HeapObject> object);
   TNode<BoolT> IsDebugInfo(TNode<HeapObject> object);
   TNode<BoolT> IsDeprecatedMap(SloppyTNode<Map> map);
   TNode<BoolT> IsNameDictionary(SloppyTNode<HeapObject> object);
@@ -2488,7 +2535,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFixedArrayWithKind(SloppyTNode<HeapObject> object,
                                     ElementsKind kind);
-  TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<HeapObject> object,
+  TNode<BoolT> IsFixedArrayWithKindOrEmpty(SloppyTNode<FixedArrayBase> object,
                                            ElementsKind kind);
   TNode<BoolT> IsFixedDoubleArray(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsFunctionWithPrototypeSlotMap(SloppyTNode<Map> map);
@@ -2583,6 +2630,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
   TNode<BoolT> IsUniqueNameNoIndex(TNode<HeapObject> object);
+  TNode<BoolT> IsUniqueNameNoCachedIndex(TNode<HeapObject> object);
   TNode<BoolT> IsUndetectableMap(SloppyTNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
@@ -2637,7 +2685,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // [0, 2^32-1).
   TNode<BoolT> IsNumberArrayIndex(TNode<Number> number);
 
-  Node* FixedArraySizeDoesntFitInNewSpace(
+  TNode<BoolT> FixedArraySizeDoesntFitInNewSpace(
       Node* element_count, int base_size = FixedArray::kHeaderSize,
       ParameterMode mode = INTPTR_PARAMETERS);
 
@@ -2725,22 +2773,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<JSReceiver> ToObject_Inline(TNode<Context> context,
                                     TNode<Object> input);
 
-  enum ToIntegerTruncationMode {
-    kNoTruncation,
-    kTruncateMinusZero,
-  };
-
   // ES6 7.1.15 ToLength, but with inlined fast path.
   TNode<Number> ToLength_Inline(SloppyTNode<Context> context,
                                 SloppyTNode<Object> input);
-
-  // ES6 7.1.4 ToInteger ( argument )
-  TNode<Number> ToInteger_Inline(SloppyTNode<Context> context,
-                                 SloppyTNode<Object> input,
-                                 ToIntegerTruncationMode mode = kNoTruncation);
-  TNode<Number> ToInteger(SloppyTNode<Context> context,
-                          SloppyTNode<Object> input,
-                          ToIntegerTruncationMode mode = kNoTruncation);
 
   // Returns a node that contains a decoded (unsigned!) value of a bit
   // field |BitField| in |word32|. Returns result as an uint32 node.
@@ -3091,9 +3126,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
            Label* bailout);
 
   // Tries to check if {object} has own {unique_name} property.
-  void TryHasOwnProperty(Node* object, Node* map, Node* instance_type,
-                         Node* unique_name, Label* if_found,
-                         Label* if_not_found, Label* if_bailout);
+  void TryHasOwnProperty(TNode<HeapObject> object, TNode<Map> map,
+                         TNode<Int32T> instance_type, TNode<Name> unique_name,
+                         Label* if_found, Label* if_not_found,
+                         Label* if_bailout);
 
   // Operating mode for TryGetOwnProperty and CallGetterIfAccessor
   // kReturnAccessorPair is used when we're only getting the property descriptor
@@ -3192,7 +3228,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
   // Note: this code does not check if the global dictionary points to deleted
   // entry! This has to be done by the caller.
-  void TryLookupProperty(SloppyTNode<JSReceiver> object, SloppyTNode<Map> map,
+  void TryLookupProperty(SloppyTNode<HeapObject> object, SloppyTNode<Map> map,
                          SloppyTNode<Int32T> instance_type,
                          SloppyTNode<Name> unique_name, Label* if_found_fast,
                          Label* if_found_dict, Label* if_found_global,
@@ -3350,8 +3386,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                              TNode<UintPtrT> length, TNode<IntPtrT> key,
                              Label* bailout);
 
-  Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
-                            Node* length, ParameterMode mode, Label* bailout);
+  TNode<FixedArrayBase> CopyElementsOnWrite(TNode<HeapObject> object,
+                                            TNode<FixedArrayBase> elements,
+                                            ElementsKind kind, Node* length,
+                                            ParameterMode mode, Label* bailout);
 
   void TransitionElementsKind(TNode<JSObject> object, TNode<Map> map,
                               ElementsKind from_kind, ElementsKind to_kind,
@@ -3558,7 +3596,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> LoadJSArrayBufferBitField(TNode<JSArrayBuffer> array_buffer);
   TNode<RawPtrT> LoadJSArrayBufferBackingStore(
       TNode<JSArrayBuffer> array_buffer);
-  TNode<BoolT> IsDetachedBuffer(TNode<JSArrayBuffer> buffer);
   void ThrowIfArrayBufferIsDetached(SloppyTNode<Context> context,
                                     TNode<JSArrayBuffer> array_buffer,
                                     const char* method_name);
@@ -3611,9 +3648,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate();
 
   // for..in helpers
-  void CheckPrototypeEnumCache(Node* receiver, Node* receiver_map,
-                               Label* if_fast, Label* if_slow);
-  TNode<Map> CheckEnumCache(TNode<HeapObject> receiver, Label* if_empty,
+  void CheckPrototypeEnumCache(TNode<JSReceiver> receiver,
+                               TNode<Map> receiver_map, Label* if_fast,
+                               Label* if_slow);
+  TNode<Map> CheckEnumCache(TNode<JSReceiver> receiver, Label* if_empty,
                             Label* if_runtime);
 
   TNode<Object> GetArgumentValue(TorqueStructArguments args,
@@ -3635,8 +3673,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
     const TNode<Object> make_type_error = LoadContextElement(
         LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
-    return CAST(CallJS(CodeFactory::Call(isolate()), context, make_type_error,
-                       UndefinedConstant(), SmiConstant(message), args...));
+    return CAST(Call(context, make_type_error, UndefinedConstant(),
+                     SmiConstant(message), args...));
   }
 
   void Abort(AbortReason reason) {
@@ -3649,6 +3687,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool ConstexprInt31Equal(int31_t a, int31_t b) { return a == b; }
   bool ConstexprInt31NotEqual(int31_t a, int31_t b) { return a != b; }
   bool ConstexprInt31GreaterThanEqual(int31_t a, int31_t b) { return a >= b; }
+  bool ConstexprInt32Equal(int32_t a, int32_t b) { return a == b; }
+  bool ConstexprInt32NotEqual(int32_t a, int32_t b) { return a != b; }
   bool ConstexprInt32GreaterThanEqual(int32_t a, int32_t b) { return a >= b; }
   uint32_t ConstexprUint32Add(uint32_t a, uint32_t b) { return a + b; }
   int31_t ConstexprInt31Add(int31_t a, int31_t b) {
@@ -3892,6 +3932,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadRoot(RootIndex root_index) {
     return CodeAssembler::LoadRoot(root_index);
   }
+
+  void StoreFixedArrayOrPropertyArrayElement(
+      TNode<UnionT<FixedArray, PropertyArray>> array, Node* index,
+      TNode<Object> value, WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
 };
 
 // template <typename TIndex>

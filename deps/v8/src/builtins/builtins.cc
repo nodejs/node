@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-descriptors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
@@ -319,6 +320,7 @@ class OffHeapTrampolineGenerator {
     {
       FrameScope scope(&masm_, StackFrame::NONE);
       if (type == TrampolineType::kJump) {
+        masm_.CodeEntry();
         masm_.JumpToInstructionStream(off_heap_entry);
       } else {
         masm_.Trap();

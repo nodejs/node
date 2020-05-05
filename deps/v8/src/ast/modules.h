@@ -107,7 +107,8 @@ class SourceTextModuleDescriptor : public ZoneObject {
           module_request(-1),
           cell_index(0) {}
 
-    Handle<SourceTextModuleInfoEntry> Serialize(Isolate* isolate) const;
+    template <typename LocalIsolate>
+    Handle<SourceTextModuleInfoEntry> Serialize(LocalIsolate* isolate) const;
   };
 
   enum CellIndexKind { kInvalid, kExport, kImport };
@@ -184,7 +185,8 @@ class SourceTextModuleDescriptor : public ZoneObject {
     namespace_imports_.push_back(entry);
   }
 
-  Handle<FixedArray> SerializeRegularExports(Isolate* isolate,
+  template <typename LocalIsolate>
+  Handle<FixedArray> SerializeRegularExports(LocalIsolate* isolate,
                                              Zone* zone) const;
 
  private:

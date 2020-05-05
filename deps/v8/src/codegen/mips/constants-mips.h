@@ -89,15 +89,18 @@ const uint32_t kHoleNanLower32Offset = 4;
 #error Unknown endianness
 #endif
 
-#define IsFp64Mode() (kFpuMode == kFP64)
-#define IsFp32Mode() (kFpuMode == kFP32)
-#define IsFpxxMode() (kFpuMode == kFPXX)
+constexpr bool IsFp64Mode() { return kFpuMode == kFP64; }
+constexpr bool IsFp32Mode() { return kFpuMode == kFP32; }
+constexpr bool IsFpxxMode() { return kFpuMode == kFPXX; }
 
 #ifndef _MIPS_ARCH_MIPS32RX
-#define IsMipsArchVariant(check) (kArchVariant == check)
+constexpr bool IsMipsArchVariant(const ArchVariants check) {
+  return kArchVariant == check;
+}
 #else
-#define IsMipsArchVariant(check) \
-  (CpuFeatures::IsSupported(static_cast<CpuFeature>(check)))
+bool IsMipsArchVariant(const ArchVariants check) {
+  return CpuFeatures::IsSupported(static_cast<CpuFeature>(check));
+}
 #endif
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)

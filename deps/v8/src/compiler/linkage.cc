@@ -401,7 +401,9 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       // The rest of the parameters go on the stack.
       int stack_slot = i - register_parameter_count - stack_parameter_count;
       locations.AddParam(LinkageLocation::ForCallerFrameSlot(
-          stack_slot, MachineType::AnyTagged()));
+          stack_slot, i < descriptor.GetParameterCount()
+                          ? descriptor.GetParameterType(i)
+                          : MachineType::AnyTagged()));
     }
   }
   // Add context.

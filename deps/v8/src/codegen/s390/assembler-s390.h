@@ -266,27 +266,30 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Otherwise, returns the current pc_offset().
   int link(Label* L);
 
-  // Determines if Label is bound and near enough so that a single
-  // branch instruction can be used to reach it.
-  bool is_near(Label* L, Condition cond);
-
   // Returns the branch offset to the given label from the current code position
   // Links the label to the current position if it is still unbound
   int branch_offset(Label* L) { return link(L) - pc_offset(); }
 
-  // Puts a labels target address at the given position.
-  // The high 8 bits are set to zero.
-  void label_at_put(Label* L, int at_offset);
   void load_label_offset(Register r1, Label* L);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   V8_INLINE static Address target_address_at(Address pc, Address constant_pool);
+
+  // Read/Modify the code target address in the branch/call instruction at pc.
+  inline static Tagged_t target_compressed_address_at(Address pc,
+                                                      Address constant_pool);
   V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
+  inline static void set_target_compressed_address_at(
+      Address pc, Address constant_pool, Tagged_t target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   inline Handle<Object> code_target_object_handle_at(Address pc);
+  inline Handle<HeapObject> compressed_embedded_object_handle_at(
+      Address pc, Address constant_pool);
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(

@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-new BenchmarkSuite( 'With', [1000], [
-  new Benchmark('AccessOnSameLevel', false, false, 0,
-                AccessOnSameLevel, AccessOnSameLevelSetup,
-                AccessOnSameLevelTearDown),
-  new Benchmark('SetOnSameLevel', false, false, 0,
-                SetOnSameLevel, SetOnSameLevelSetup,
-                SetOnSameLevelTearDown),
-  new Benchmark('AccessOverPrototypeChain', false, false, 0,
-                AccessOverPrototypeChainSetup, AccessOverPrototypeChainSetup,
-                AccessOverPrototypeChainTearDown),
-  new Benchmark('CompetingScope', false, false, 0,
-                CompetingScope, CompetingScopeSetup, CompetingScopeTearDown)
+new BenchmarkSuite('With', [1000], [
+  new Benchmark(
+      'AccessOnSameLevel', false, false, 0, AccessOnSameLevel,
+      AccessOnSameLevelSetup, AccessOnSameLevelTearDown),
+  new Benchmark(
+      'SetOnSameLevel', false, false, 0, SetOnSameLevel, SetOnSameLevelSetup,
+      SetOnSameLevelTearDown),
+  new Benchmark(
+      'AccessOverPrototypeChain', false, false, 0, AccessOverPrototypeChain,
+      AccessOverPrototypeChainSetup, AccessOverPrototypeChainTearDown),
+  new Benchmark(
+      'CompetingScope', false, false, 0, CompetingScope, CompetingScopeSetup,
+      CompetingScopeTearDown)
 ]);
 
 var objectUnderTest;

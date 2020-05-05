@@ -645,22 +645,22 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  uint32_t Push(Handle<JSArray> receiver, Arguments* args,
+  uint32_t Push(Handle<JSArray> receiver, BuiltinArguments* args,
                 uint32_t push_size) final {
     return Subclass::PushImpl(receiver, args, push_size);
   }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_sized) {
     UNREACHABLE();
   }
 
-  uint32_t Unshift(Handle<JSArray> receiver, Arguments* args,
+  uint32_t Unshift(Handle<JSArray> receiver, BuiltinArguments* args,
                    uint32_t unshift_size) final {
     return Subclass::UnshiftImpl(receiver, args, unshift_size);
   }
 
-  static uint32_t UnshiftImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                               uint32_t unshift_size) {
     UNREACHABLE();
   }
@@ -1383,7 +1383,7 @@ class DictionaryElementsAccessor
             if (dict->IsKey(roots, index)) {
               uint32_t number = static_cast<uint32_t>(index.Number());
               if (length <= number && number < old_length) {
-                dict->ClearEntry(isolate, entry);
+                dict->ClearEntry(entry);
                 removed_entries++;
               }
             }
@@ -1460,7 +1460,7 @@ class DictionaryElementsAccessor
     details = PropertyDetails(kData, attributes, PropertyCellType::kNoCell,
                               details.dictionary_index());
 
-    dictionary.DetailsAtPut(object->GetIsolate(), entry, details);
+    dictionary.DetailsAtPut(entry, details);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,
@@ -2091,7 +2091,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return Subclass::RemoveElement(receiver, AT_START);
   }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
@@ -2099,7 +2099,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                                   AT_END);
   }
 
-  static uint32_t UnshiftImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t UnshiftImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                               uint32_t unshift_size) {
     Handle<FixedArrayBase> backing_store(receiver->elements(),
                                          receiver->GetIsolate());
@@ -2347,7 +2347,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
   static uint32_t AddArguments(Handle<JSArray> receiver,
                                Handle<FixedArrayBase> backing_store,
-                               Arguments* args, uint32_t add_size,
+                               BuiltinArguments* args, uint32_t add_size,
                                Where add_position) {
     uint32_t length = Smi::ToInt(receiver->length());
     DCHECK_LT(0, add_size);
@@ -2382,7 +2382,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     return new_length;
   }
 
-  static void CopyArguments(Arguments* args, Handle<FixedArrayBase> dst_store,
+  static void CopyArguments(BuiltinArguments* args,
+                            Handle<FixedArrayBase> dst_store,
                             uint32_t copy_size, uint32_t src_index,
                             uint32_t dst_index) {
     // Add the provided values.
@@ -2564,7 +2565,7 @@ class FastNonextensibleObjectElementsAccessor
  public:
   using BackingStore = typename KindTraits::BackingStore;
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -2659,7 +2660,7 @@ class FastSealedObjectElementsAccessor
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -2720,14 +2721,12 @@ class FastSealedObjectElementsAccessor
 class FastPackedSealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastPackedSealedObjectElementsAccessor,
-          ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {
-};
+          ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {};
 
 class FastHoleySealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastHoleySealedObjectElementsAccessor,
-          ElementsKindTraits<HOLEY_SEALED_ELEMENTS>> {
-};
+          ElementsKindTraits<HOLEY_SEALED_ELEMENTS>> {};
 
 template <typename Subclass, typename KindTraits>
 class FastFrozenObjectElementsAccessor
@@ -2771,7 +2770,7 @@ class FastFrozenObjectElementsAccessor
 
   static Handle<Object> PopImpl(Handle<JSArray> receiver) { UNREACHABLE(); }
 
-  static uint32_t PushImpl(Handle<JSArray> receiver, Arguments* args,
+  static uint32_t PushImpl(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t push_size) {
     UNREACHABLE();
   }
@@ -2799,14 +2798,12 @@ class FastFrozenObjectElementsAccessor
 class FastPackedFrozenObjectElementsAccessor
     : public FastFrozenObjectElementsAccessor<
           FastPackedFrozenObjectElementsAccessor,
-          ElementsKindTraits<PACKED_FROZEN_ELEMENTS>> {
-};
+          ElementsKindTraits<PACKED_FROZEN_ELEMENTS>> {};
 
 class FastHoleyFrozenObjectElementsAccessor
     : public FastFrozenObjectElementsAccessor<
           FastHoleyFrozenObjectElementsAccessor,
-          ElementsKindTraits<HOLEY_FROZEN_ELEMENTS>> {
-};
+          ElementsKindTraits<HOLEY_FROZEN_ELEMENTS>> {};
 
 class FastHoleyObjectElementsAccessor
     : public FastSmiOrObjectElementsAccessor<
@@ -4632,8 +4629,8 @@ class SlowStringWrapperElementsAccessor
 
 }  // namespace
 
-MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
-                                                     Arguments* args) {
+MaybeHandle<Object> ArrayConstructInitializeElements(
+    Handle<JSArray> array, JavaScriptArguments* args) {
   if (args->length() == 0) {
     // Optimize the case where there are no parameters passed.
     JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
@@ -4669,7 +4666,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
 
   // Set length and elements on the array.
   int number_of_elements = args->length();
-  JSObject::EnsureCanContainElements(array, args, 0, number_of_elements,
+  JSObject::EnsureCanContainElements(array, args, number_of_elements,
                                      ALLOW_CONVERTED_DOUBLE_ELEMENTS);
 
   // Allocate an appropriately typed elements array.
@@ -4792,7 +4789,8 @@ void ElementsAccessor::TearDown() {
   elements_accessors_ = nullptr;
 }
 
-Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
+Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate,
+                                         BuiltinArguments* args,
                                          uint32_t concat_size,
                                          uint32_t result_len) {
   ElementsKind result_elements_kind = GetInitialFastElementsKind();

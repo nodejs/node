@@ -68,9 +68,6 @@ class AccessorPair : public TorqueGeneratedAccessorPair<AccessorPair, Struct> {
 class ClassPositions
     : public TorqueGeneratedClassPositions<ClassPositions, Struct> {
  public:
-  DECL_INT_ACCESSORS(start)
-  DECL_INT_ACCESSORS(end)
-
   // Dispatched behavior.
   DECL_PRINTER(ClassPositions)
   void BriefPrintDetails(std::ostream& os);

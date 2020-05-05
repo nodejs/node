@@ -66,7 +66,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   static std::unique_ptr<BackingStore> WrapAllocation(
       void* allocation_base, size_t allocation_length,
-      v8::BackingStoreDeleterCallback deleter, void* deleter_data,
+      v8::BackingStore::DeleterCallback deleter, void* deleter_data,
       SharedFlag shared);
 
   // Create an empty backing store.
@@ -86,6 +86,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Attempt to grow this backing store in place.
   bool GrowWasmMemoryInPlace(Isolate* isolate, size_t delta_pages,
                              size_t max_pages);
+
+  // Wrapper around ArrayBuffer::Allocator::Reallocate.
+  bool Reallocate(Isolate* isolate, size_t new_byte_length);
 
   // Allocate a new, larger, backing store for this Wasm memory and copy the
   // contents of this backing store into it.
@@ -117,12 +120,31 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Update all shared memory objects in this isolate (after a grow operation).
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);
 
+  // Returns the size of the external memory owned by this backing store.
+  // It is used for triggering GCs based on the external memory pressure.
+  size_t PerIsolateAccountingLength() {
+    if (is_shared_) {
+      // TODO(titzer): SharedArrayBuffers and shared WasmMemorys cause problems
+      // with accounting for per-isolate external memory. In particular, sharing
+      // the same array buffer or memory multiple times, which happens in stress
+      // tests, can cause overcounting, leading to GC thrashing. Fix with global
+      // accounting?
+      return 0;
+    }
+    if (empty_deleter_) {
+      // The backing store has an empty deleter. Even if the backing store is
+      // freed after GC, it would not free the memory block.
+      return 0;
+    }
+    return byte_length();
+  }
+
  private:
   friend class GlobalBackingStoreRegistry;
 
   BackingStore(void* buffer_start, size_t byte_length, size_t byte_capacity,
                SharedFlag shared, bool is_wasm_memory, bool free_on_destruct,
-               bool has_guard_regions, bool custom_deleter)
+               bool has_guard_regions, bool custom_deleter, bool empty_deleter)
       : buffer_start_(buffer_start),
         byte_length_(byte_length),
         byte_capacity_(byte_capacity),
@@ -132,7 +154,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
         free_on_destruct_(free_on_destruct),
         has_guard_regions_(has_guard_regions),
         globally_registered_(false),
-        custom_deleter_(custom_deleter) {}
+        custom_deleter_(custom_deleter),
+        empty_deleter_(empty_deleter) {}
   void SetAllocatorFromIsolate(Isolate* isolate);
 
   void* buffer_start_ = nullptr;
@@ -140,7 +163,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   size_t byte_capacity_ = 0;
 
   struct DeleterInfo {
-    v8::BackingStoreDeleterCallback callback;
+    v8::BackingStore::DeleterCallback callback;
     void* data;
   };
 
@@ -175,6 +198,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool has_guard_regions_ : 1;
   bool globally_registered_ : 1;
   bool custom_deleter_ : 1;
+  bool empty_deleter_ : 1;
 
   // Accessors for type-specific data.
   v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();

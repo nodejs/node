@@ -7,17 +7,28 @@
 
 #include "src/heap/off-thread-factory.h"
 
+#include "src/heap/factory-base-inl.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                \
-  OffThreadHandle<Type> OffThreadFactory::name() {          \
-    return OffThreadHandle<Type>(read_only_roots().name()); \
+#define ROOT_ACCESSOR(Type, name, CamelName)  \
+  Handle<Type> OffThreadFactory::name() {     \
+    return read_only_roots().name##_handle(); \
   }
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+#define ACCESSOR_INFO_ACCESSOR(Type, name, CamelName)                          \
+  Handle<Type> OffThreadFactory::name() {                                      \
+    /* Do a bit of handle location magic to cast the Handle without having */  \
+    /* to pull in Type::cast. We know the type is right by construction.   */  \
+    return Handle<Type>(                                                       \
+        isolate()->isolate_->root_handle(RootIndex::k##CamelName).location()); \
+  }
+ACCESSOR_INFO_ROOT_LIST(ACCESSOR_INFO_ACCESSOR)
+#undef ACCESSOR_INFO_ACCESSOR
 
 #endif  // V8_HEAP_OFF_THREAD_FACTORY_INL_H_
 

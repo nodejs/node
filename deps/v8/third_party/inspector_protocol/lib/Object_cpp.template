@@ -14,7 +14,7 @@ std::unique_ptr<Object> Object::fromValue(protocol::Value* value, ErrorSupport* 
 {
     protocol::DictionaryValue* dictionary = DictionaryValue::cast(value);
     if (!dictionary) {
-        errors->addError("object expected");
+        errors->AddError("object expected");
         return nullptr;
     }
     dictionary = static_cast<protocol::DictionaryValue*>(dictionary->clone().release());

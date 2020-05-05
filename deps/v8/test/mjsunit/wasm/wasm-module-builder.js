@@ -45,7 +45,7 @@ var kWasmV3 = 0;
 
 var kHeaderSize = 8;
 var kPageSize = 65536;
-var kSpecMaxPages = 65535;
+var kSpecMaxPages = 65536;
 var kMaxVarInt32Size = 5;
 var kMaxVarInt64Size = 10;
 
@@ -65,7 +65,7 @@ let kElementSectionCode = 9;     // Elements section
 let kCodeSectionCode = 10;       // Function code
 let kDataSectionCode = 11;       // Data segments
 let kDataCountSectionCode = 12;  // Data segment count (between Element & Code)
-let kExceptionSectionCode = 13;  // Exception section (between Global & Export)
+let kExceptionSectionCode = 13;  // Exception section (between Memory & Global)
 
 // Name section types
 let kModuleNameCode = 0;
@@ -82,7 +82,9 @@ let kSharedHasMaximumFlag = 3;
 let kActiveNoIndex = 0;
 let kPassive = 1;
 let kActiveWithIndex = 2;
+let kDeclarative = 3;
 let kPassiveWithElements = 5;
+let kDeclarativeWithElements = 7;
 
 // Function declaration flags
 let kDeclFunctionName   = 0x01;
@@ -468,9 +470,13 @@ let kExprI64AtomicCompareExchange32U = 0x4e;
 let kExprS128LoadMem = 0x00;
 let kExprS128StoreMem = 0x01;
 let kExprI32x4Splat = 0x0c;
+let kExprF32x4Splat = 0x12;
 let kExprI32x4Eq = 0x2c;
+let kExprS1x8AnyTrue = 0x63;
 let kExprS1x4AllTrue = 0x75;
+let kExprI32x4Add = 0x79;
 let kExprF32x4Min = 0x9e;
+let kExprS8x16LoadSplat = 0xc2;
 
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
@@ -495,6 +501,8 @@ let kTrapUnalignedAccess      = 9;
 let kTrapDataSegmentDropped   = 10;
 let kTrapElemSegmentDropped   = 11;
 let kTrapTableOutOfBounds     = 12;
+let kTrapBrOnExnNullRef       = 13;
+let kTrapRethrowNullRef       = 14;
 
 let kTrapMsgs = [
   "unreachable",
@@ -509,7 +517,9 @@ let kTrapMsgs = [
   "operation does not support unaligned accesses",
   "data segment has been dropped",
   "element segment has been dropped",
-  "table access out of bounds"
+  "table access out of bounds",
+  "br_on_exn on nullref value",
+  "rethrowing nullref value"
 ];
 
 function assertTraps(trap, code) {
@@ -906,13 +916,26 @@ class WasmModuleBuilder {
   }
 
   addElementSegment(table, base, is_global, array) {
-    this.element_segments.push({table: table, base: base, is_global: is_global,
-                                    array: array, is_active: true});
+    this.element_segments.push({
+      table: table,
+      base: base,
+      is_global: is_global,
+      array: array,
+      is_active: true,
+      is_declarative: false
+    });
     return this;
   }
 
   addPassiveElementSegment(array, is_import = false) {
-    this.element_segments.push({array: array, is_active: false});
+    this.element_segments.push(
+        {array: array, is_active: false, is_declarative: false});
+    return this;
+  }
+
+  addDeclarativeElementSegment(array, is_import = false) {
+    this.element_segments.push(
+        {array: array, is_active: false, is_declarative: true});
     return this;
   }
 
@@ -1057,6 +1080,18 @@ class WasmModuleBuilder {
       });
     }
 
+    // Add event section.
+    if (wasm.exceptions.length > 0) {
+      if (debug) print("emitting events @ " + binary.length);
+      binary.emit_section(kExceptionSectionCode, section => {
+        section.emit_u32v(wasm.exceptions.length);
+        for (let type of wasm.exceptions) {
+          section.emit_u32v(kExceptionAttribute);
+          section.emit_u32v(type);
+        }
+      });
+    }
+
     // Add global section.
     if (wasm.globals.length > 0) {
       if (debug) print ("emitting globals @ " + binary.length);
@@ -1106,18 +1141,6 @@ class WasmModuleBuilder {
             section.emit_u32v(global.init_index);
           }
           section.emit_u8(kExprEnd);  // end of init expression
-        }
-      });
-    }
-
-    // Add exceptions.
-    if (wasm.exceptions.length > 0) {
-      if (debug) print("emitting exceptions @ " + binary.length);
-      binary.emit_section(kExceptionSectionCode, section => {
-        section.emit_u32v(wasm.exceptions.length);
-        for (let type of wasm.exceptions) {
-          section.emit_u32v(kExceptionAttribute);
-          section.emit_u32v(type);
         }
       });
     }
@@ -1180,9 +1203,20 @@ class WasmModuleBuilder {
             for (let index of init.array) {
               section.emit_u32v(index);
             }
+          } else if (
+              init.is_declarative &&
+              init.array.every(index => index !== null)) {
+            section.emit_u8(kDeclarative);
+            section.emit_u8(kExternalFunction);
+            section.emit_u32v(init.array.length);
+            for (let index of init.array) {
+              section.emit_u32v(index);
+            }
           } else {
-            // Passive segment.
-            section.emit_u8(kPassiveWithElements);  // flags
+            // Passive or declarative segment with elements.
+            section.emit_u8(
+                init.is_declarative ? kDeclarativeWithElements :
+                                      kPassiveWithElements);  // flags
             section.emit_u8(kWasmAnyFunc);
             section.emit_u32v(init.array.length);
             for (let index of init.array) {

@@ -13,8 +13,6 @@ namespace typed_array {
   extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
   extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
       implicit context: Context)(JSTypedArray): JSFunction;
-  extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
-      bool;
   extern macro TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
       JSTypedArray): void;
 

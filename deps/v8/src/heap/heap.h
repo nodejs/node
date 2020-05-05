@@ -70,8 +70,9 @@ class HeapObjectAllocationTracker;
 class HeapObjectsFilter;
 class HeapStats;
 class Isolate;
-class JSFinalizationGroup;
+class JSFinalizationRegistry;
 class LocalEmbedderHeapTracer;
+class LocalHeap;
 class MemoryAllocator;
 class MemoryMeasurement;
 class MemoryReducer;
@@ -82,6 +83,7 @@ class Page;
 class PagedSpace;
 class ReadOnlyHeap;
 class RootVisitor;
+class Safepoint;
 class ScavengeJob;
 class Scavenger;
 class ScavengerCollector;
@@ -127,7 +129,7 @@ enum class GarbageCollectionReason {
   kFinalizeMarkingViaTask = 9,
   kFullHashtable = 10,
   kHeapProfiler = 11,
-  kIdleTask = 12,
+  kTask = 12,
   kLastResort = 13,
   kLowMemoryNotification = 14,
   kMakeHeapIterable = 15,
@@ -502,6 +504,19 @@ class Heap {
   }
   Object allocation_sites_list() { return allocation_sites_list_; }
 
+  void set_dirty_js_finalization_registries_list(Object object) {
+    dirty_js_finalization_registries_list_ = object;
+  }
+  Object dirty_js_finalization_registries_list() {
+    return dirty_js_finalization_registries_list_;
+  }
+  void set_dirty_js_finalization_registries_list_tail(Object object) {
+    dirty_js_finalization_registries_list_tail_ = object;
+  }
+  Object dirty_js_finalization_registries_list_tail() {
+    return dirty_js_finalization_registries_list_tail_;
+  }
+
   // Used in CreateAllocationSiteStub and the (de)serializer.
   Address allocation_sites_list_address() {
     return reinterpret_cast<Address>(&allocation_sites_list_);
@@ -605,6 +620,8 @@ class Heap {
   void AppendArrayBufferExtension(JSArrayBuffer object,
                                   ArrayBufferExtension* extension);
 
+  Safepoint* safepoint() { return safepoint_.get(); }
+
   V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
@@ -643,6 +660,9 @@ class Heap {
   V8_INLINE void update_external_memory(int64_t delta);
   V8_INLINE void update_external_memory_concurrently_freed(uintptr_t freed);
   V8_INLINE void account_external_memory_concurrently_freed();
+
+  V8_EXPORT_PRIVATE size_t YoungArrayBufferBytes();
+  V8_EXPORT_PRIVATE size_t OldArrayBufferBytes();
 
   size_t backing_store_bytes() const { return backing_store_bytes_; }
 
@@ -763,6 +783,8 @@ class Heap {
     return array_buffer_sweeper_.get();
   }
 
+  const base::AddressRegion& code_range();
+
   // ===========================================================================
   // Root set access. ==========================================================
   // ===========================================================================
@@ -795,11 +817,30 @@ class Heap {
   // See also: FLAG_interpreted_frames_native_stack.
   void SetInterpreterEntryTrampolineForProfiling(Code code);
 
-  // Add finalization_group into the dirty_js_finalization_groups list.
-  void AddDirtyJSFinalizationGroup(
-      JSFinalizationGroup finalization_group,
+  void EnqueueDirtyJSFinalizationRegistry(
+      JSFinalizationRegistry finalization_registry,
       std::function<void(HeapObject object, ObjectSlot slot, Object target)>
           gc_notify_updated_slot);
+
+  MaybeHandle<JSFinalizationRegistry> DequeueDirtyJSFinalizationRegistry();
+
+  // Called from Heap::NotifyContextDisposed to remove all
+  // FinalizationRegistries with {context} from the dirty list when the context
+  // e.g. navigates away or is detached. If the dirty list is empty afterwards,
+  // the cleanup task is aborted if needed.
+  void RemoveDirtyFinalizationRegistriesOnContext(NativeContext context);
+
+  inline bool HasDirtyJSFinalizationRegistries();
+
+  void PostFinalizationRegistryCleanupTaskIfNeeded();
+
+  void set_is_finalization_registry_cleanup_task_posted(bool posted) {
+    is_finalization_registry_cleanup_task_posted_ = posted;
+  }
+
+  bool is_finalization_registry_cleanup_task_posted() {
+    return is_finalization_registry_cleanup_task_posted_;
+  }
 
   V8_EXPORT_PRIVATE void KeepDuringJob(Handle<JSReceiver> target);
   void ClearKeptObjects();
@@ -1043,6 +1084,8 @@ class Heap {
   static inline bool InToPage(MaybeObject object);
   static inline bool InToPage(HeapObject heap_object);
 
+  V8_EXPORT_PRIVATE static bool InOffThreadSpace(HeapObject heap_object);
+
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
 
@@ -1156,8 +1199,14 @@ class Heap {
   // all available bytes. Check MaxHeapObjectSize() instead.
   size_t Available();
 
-  // Returns of size of all objects residing in the heap.
+  // Returns size of all objects residing in the heap.
   V8_EXPORT_PRIVATE size_t SizeOfObjects();
+
+  // Returns size of all global handles in the heap.
+  V8_EXPORT_PRIVATE size_t TotalGlobalHandlesSize();
+
+  // Returns size of all allocated/used global handles in the heap.
+  V8_EXPORT_PRIVATE size_t UsedGlobalHandlesSize();
 
   void UpdateSurvivalStatistics(int start_new_space_size);
 
@@ -1518,7 +1567,6 @@ class Heap {
   static const int kOldSurvivalRateLowThreshold = 10;
 
   static const int kMaxMarkCompactsInIdleRound = 7;
-  static const int kIdleScavengeThreshold = 5;
 
   static const int kInitialFeedbackCapacity = 256;
 
@@ -1709,6 +1757,7 @@ class Heap {
   void ProcessYoungWeakReferences(WeakObjectRetainer* retainer);
   void ProcessNativeContexts(WeakObjectRetainer* retainer);
   void ProcessAllocationSites(WeakObjectRetainer* retainer);
+  void ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer);
   void ProcessWeakListRoots(WeakObjectRetainer* retainer);
 
   // ===========================================================================
@@ -1783,7 +1832,12 @@ class Heap {
   // ===========================================================================
 
   bool RecentIdleNotificationHappened();
-  void ScheduleIdleScavengeIfNeeded(int bytes_allocated);
+
+  // ===========================================================================
+  // GC Tasks. =================================================================
+  // ===========================================================================
+
+  void ScheduleScavengeTaskIfNeeded();
 
   // ===========================================================================
   // Allocation methods. =======================================================
@@ -2013,6 +2067,9 @@ class Heap {
   // List heads are initialized lazily and contain the undefined_value at start.
   Object native_contexts_list_;
   Object allocation_sites_list_;
+  Object dirty_js_finalization_registries_list_;
+  // Weak list tails.
+  Object dirty_js_finalization_registries_list_tail_;
 
   std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
   std::vector<GCCallbackTuple> gc_prologue_callbacks_;
@@ -2062,7 +2119,7 @@ class Heap {
   std::unique_ptr<ObjectStats> live_object_stats_;
   std::unique_ptr<ObjectStats> dead_object_stats_;
   std::unique_ptr<ScavengeJob> scavenge_job_;
-  std::unique_ptr<AllocationObserver> idle_scavenge_observer_;
+  std::unique_ptr<AllocationObserver> scavenge_task_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   StrongRootsList* strong_roots_list_ = nullptr;
 
@@ -2109,6 +2166,8 @@ class Heap {
   GCCallbackFlags current_gc_callback_flags_ =
       GCCallbackFlags::kNoGCCallbackFlags;
 
+  std::unique_ptr<Safepoint> safepoint_;
+
   bool is_current_gc_forced_ = false;
 
   ExternalStringTable external_string_table_;
@@ -2149,6 +2208,8 @@ class Heap {
 
   std::vector<HeapObjectAllocationTracker*> allocation_trackers_;
 
+  bool is_finalization_registry_cleanup_task_posted_ = false;
+
   std::unique_ptr<third_party_heap::Heap> tp_heap_;
 
   // Classes in "heap" can be friends.
@@ -2159,7 +2220,7 @@ class Heap {
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapObjectIterator;
-  friend class IdleScavengeObserver;
+  friend class ScavengeTaskObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
   friend class OldLargeObjectSpace;
@@ -2227,14 +2288,31 @@ class HeapStats {
   intptr_t* end_marker;                    // 27
 };
 
+// Disables GC for all allocations. It should not be used
+// outside heap, deserializer, and isolate bootstrap.
+// Use AlwaysAllocateScopeForTesting in tests.
 class AlwaysAllocateScope {
  public:
-  explicit inline AlwaysAllocateScope(Heap* heap);
-  explicit inline AlwaysAllocateScope(Isolate* isolate);
   inline ~AlwaysAllocateScope();
 
  private:
+  friend class AlwaysAllocateScopeForTesting;
+  friend class Deserializer;
+  friend class DeserializerAllocator;
+  friend class Evacuator;
+  friend class Heap;
+  friend class Isolate;
+
+  explicit inline AlwaysAllocateScope(Heap* heap);
   Heap* heap_;
+};
+
+class AlwaysAllocateScopeForTesting {
+ public:
+  explicit inline AlwaysAllocateScopeForTesting(Heap* heap);
+
+ private:
+  AlwaysAllocateScope scope_;
 };
 
 // The CodeSpaceMemoryModificationScope can only be used by the main thread.

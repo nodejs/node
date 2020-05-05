@@ -16,37 +16,6 @@
 #error "Unsupported OS"
 #endif  // V8_OS_WIN_X64
 
-// Forward declaration to keep this independent of Win8
-NTSYSAPI
-DWORD
-NTAPI
-RtlAddGrowableFunctionTable(
-    _Out_ PVOID* DynamicTable,
-    _In_reads_(MaximumEntryCount) PRUNTIME_FUNCTION FunctionTable,
-    _In_ DWORD EntryCount,
-    _In_ DWORD MaximumEntryCount,
-    _In_ ULONG_PTR RangeBase,
-    _In_ ULONG_PTR RangeEnd
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlGrowFunctionTable(
-    _Inout_ PVOID DynamicTable,
-    _In_ DWORD NewEntryCount
-    );
-
-
-NTSYSAPI
-void
-NTAPI
-RtlDeleteGrowableFunctionTable(
-    _In_ PVOID DynamicTable
-    );
-
-
 namespace v8 {
 namespace internal {
 namespace win64_unwindinfo {
@@ -548,7 +517,7 @@ void RegisterNonABICompliantCodeRange(void* start, size_t size_in_bytes) {
 
   // When the --win64-unwinding-info flag is set, we call
   // RtlAddGrowableFunctionTable to register unwinding info for the whole code
-  // range of an isolate or WASM module. This enables the Windows OS stack
+  // range of an isolate or Wasm module. This enables the Windows OS stack
   // unwinder to work correctly with V8-generated code, enabling stack walking
   // in Windows debuggers and performance tools. However, the
   // RtlAddGrowableFunctionTable API is only supported on Windows 8 and above.

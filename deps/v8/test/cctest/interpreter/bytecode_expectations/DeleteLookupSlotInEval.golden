@@ -19,9 +19,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 12
+bytecode array length: 11
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
                 B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),
@@ -47,9 +46,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 3
+bytecode array length: 2
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdaFalse),
   /*   31 S> */ B(Return),
 ]
@@ -71,9 +69,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
-  /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdaConstant), U8(0),
                 B(Star), R(0),
                 B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),

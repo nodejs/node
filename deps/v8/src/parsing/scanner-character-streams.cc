@@ -792,10 +792,35 @@ std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
 
 std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
     const char* data, size_t length) {
+  if (data == nullptr) {
+    DCHECK_EQ(length, 0);
+
+    // We don't want to pass in a null pointer into the the character stream,
+    // because then the one-past-the-end pointer is undefined, so instead pass
+    // through this static array.
+    static const char non_null_empty_string[1] = {0};
+    data = non_null_empty_string;
+  }
+
   return std::unique_ptr<Utf16CharacterStream>(
       new BufferedCharacterStream<TestingStream>(
-          static_cast<size_t>(0), reinterpret_cast<const uint8_t*>(data),
-          static_cast<size_t>(length)));
+          0, reinterpret_cast<const uint8_t*>(data), length));
+}
+
+std::unique_ptr<Utf16CharacterStream> ScannerStream::ForTesting(
+    const uint16_t* data, size_t length) {
+  if (data == nullptr) {
+    DCHECK_EQ(length, 0);
+
+    // We don't want to pass in a null pointer into the the character stream,
+    // because then the one-past-the-end pointer is undefined, so instead pass
+    // through this static array.
+    static const uint16_t non_null_empty_uint16_t_string[1] = {0};
+    data = non_null_empty_uint16_t_string;
+  }
+
+  return std::unique_ptr<Utf16CharacterStream>(
+      new UnbufferedCharacterStream<TestingStream>(0, data, length));
 }
 
 Utf16CharacterStream* ScannerStream::For(

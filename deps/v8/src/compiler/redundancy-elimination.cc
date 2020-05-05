@@ -21,6 +21,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kCheckBigInt:
     case IrOpcode::kCheckBounds:
+    case IrOpcode::kCheckClosure:
     case IrOpcode::kCheckEqualsInternalizedString:
     case IrOpcode::kCheckEqualsSymbol:
     case IrOpcode::kCheckFloat64Hole:

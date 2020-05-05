@@ -10,126 +10,233 @@ Setting breakpoint on line 2 (first instruction) of third function
     scriptId : <scriptId>
 }
 Paused:
-Script wasm://wasm/89d60696 byte offset 85: Wasm opcode 0x20
+Script wasm://wasm/c4eb034a byte offset 85: Wasm opcode 0x20
 Scope:
 at C (interpreted) (0:85):
  - scope (global):
-   globals: "global#0": 0 (number)
+   globals: "global0": 0 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
    stack: 
+ - scope (wasm-expression-stack):
 at B (liftoff) (0:76):
  - scope (global):
-   globals: "global#0": 0 (number)
+   globals: "global0": 0 (number)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
    stack: "0": 42 (number), "1": 3 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
+   1: 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
-   globals: "global#0": 0 (number)
+   globals: "global0": 0 (number)
  - scope (local):
-   locals: "arg#0": 42 (number)
+   locals: "var0": 42 (number)
    stack: 
+ - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/89d60696 byte offset 87: Wasm opcode 0x24
+Script wasm://wasm/c4eb034a byte offset 87: Wasm opcode 0x24
 Scope:
 at C (interpreted) (0:87):
  - scope (global):
-   globals: "global#0": 0 (number)
+   globals: "global0": 0 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
    stack: "0": 42 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
 at B (liftoff) (0:76):
  - scope (global):
-   globals: "global#0": 0 (number)
+   globals: "global0": 0 (number)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
    stack: "0": 42 (number), "1": 3 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
+   1: 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
-   globals: "global#0": 0 (number)
+   globals: "global0": 0 (number)
  - scope (local):
-   locals: "arg#0": 42 (number)
+   locals: "var0": 42 (number)
    stack: 
+ - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/89d60696 byte offset 89: Wasm opcode 0x41
+Script wasm://wasm/c4eb034a byte offset 89: Wasm opcode 0x41
 Scope:
 at C (interpreted) (0:89):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
    stack: 
+ - scope (wasm-expression-stack):
 at B (liftoff) (0:76):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
    stack: "0": 42 (number), "1": 3 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
+   1: 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
-   locals: "arg#0": 42 (number)
+   locals: "var0": 42 (number)
    stack: 
+ - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/89d60696 byte offset 91: Wasm opcode 0x21
+Script wasm://wasm/c4eb034a byte offset 91: Wasm opcode 0x21
 Scope:
 at C (interpreted) (0:91):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 0 (number)
    stack: "0": 47 (number)
+ - scope (wasm-expression-stack):
+   0: 47 (number)
 at B (liftoff) (0:76):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
    stack: "0": 42 (number), "1": 3 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
+   1: 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
-   locals: "arg#0": 42 (number)
+   locals: "var0": 42 (number)
    stack: 
+ - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals
 
 Paused:
-Script wasm://wasm/89d60696 byte offset 93: Wasm opcode 0xb
+Script wasm://wasm/c4eb034a byte offset 93: Wasm opcode 0x0b
 Scope:
 at C (interpreted) (0:93):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
    locals: "i32_arg": 42 (number), "i32_local": 47 (number)
    stack: 
+ - scope (wasm-expression-stack):
 at B (liftoff) (0:76):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
-   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "local#5": 0 (number)
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
    stack: "0": 42 (number), "1": 3 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
+   1: 3 (number)
 at A (liftoff) (0:54):
  - scope (global):
-   globals: "global#0": 42 (number)
+   globals: "global0": 42 (number)
  - scope (local):
-   locals: "arg#0": 42 (number)
+   locals: "var0": 42 (number)
    stack: 
+ - scope (wasm-expression-stack):
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/c4eb034a byte offset 78: Wasm opcode 0x1a
+Scope:
+at B (liftoff) (0:78):
+ - scope (global):
+   globals: "global0": 42 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   stack: "0": 42 (number), "1": 3 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
+   1: 3 (number)
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global0": 42 (number)
+ - scope (local):
+   locals: "var0": 42 (number)
+   stack: 
+ - scope (wasm-expression-stack):
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/c4eb034a byte offset 79: Wasm opcode 0x1a
+Scope:
+at B (liftoff) (0:79):
+ - scope (global):
+   globals: "global0": 42 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   stack: "0": 42 (number)
+ - scope (wasm-expression-stack):
+   0: 42 (number)
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global0": 42 (number)
+ - scope (local):
+   locals: "var0": 42 (number)
+   stack: 
+ - scope (wasm-expression-stack):
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/c4eb034a byte offset 80: Wasm opcode 0x0b
+Scope:
+at B (liftoff) (0:80):
+ - scope (global):
+   globals: "global0": 42 (number)
+ - scope (local):
+   locals: "0": 0 (number), "i32_arg": 42 (number), "i32_local": 0 (number), "f32_local": 7.199999809265137 (number), "var5": 0 (number)
+   stack: 
+ - scope (wasm-expression-stack):
+at A (liftoff) (0:54):
+ - scope (global):
+   globals: "global0": 42 (number)
+ - scope (local):
+   locals: "var0": 42 (number)
+   stack: 
+ - scope (wasm-expression-stack):
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/c4eb034a byte offset 56: Wasm opcode 0x0b
+Scope:
+at A (liftoff) (0:56):
+ - scope (global):
+   globals: "global0": 42 (number)
+ - scope (local):
+   locals: "var0": 42 (number)
+   stack: 
+ - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
    -- skipped globals

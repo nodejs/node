@@ -6,46 +6,20 @@
 
 namespace internal_coverage {
 
-  const kHasCoverageInfo:
-      constexpr int31 generates 'DebugInfo::kHasCoverageInfo';
-
-  const kFirstSlotIndex:
-      constexpr int31 generates 'CoverageInfo::kFirstSlotIndex';
-  const kSlotBlockCountIndex:
-      constexpr int31 generates 'CoverageInfo::kSlotBlockCountIndex';
-  const kSlotIndexCountLog2:
-      constexpr int31 generates 'CoverageInfo::kSlotIndexCountLog2';
-  const kSlotIndexCountMask:
-      constexpr int31 generates 'CoverageInfo::kSlotIndexCountMask';
-
   macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
       CoverageInfo labels IfNoCoverageInfo {
     const shared: SharedFunctionInfo = function.shared_function_info;
     const debugInfo = Cast<DebugInfo>(shared.script_or_debug_info)
         otherwise goto IfNoCoverageInfo;
 
-    if ((debugInfo.flags & kHasCoverageInfo) == 0) goto IfNoCoverageInfo;
+    if (!SmiUntag(debugInfo.flags).has_coverage_info) goto IfNoCoverageInfo;
     return UnsafeCast<CoverageInfo>(debugInfo.coverage_info);
-  }
-
-  macro SlotCount(coverageInfo: CoverageInfo): Smi {
-    assert(kFirstSlotIndex == 0);  // Otherwise we'd have to consider it below.
-    assert(kFirstSlotIndex == (coverageInfo.length & kSlotIndexCountMask));
-    return coverageInfo.length >> kSlotIndexCountLog2;
-  }
-
-  macro FirstIndexForSlot(implicit context: Context)(slot: Smi): Smi {
-    assert(kFirstSlotIndex == 0);  // Otherwise we'd have to consider it below.
-    return slot << kSlotIndexCountLog2;
   }
 
   macro IncrementBlockCount(implicit context: Context)(
       coverageInfo: CoverageInfo, slot: Smi) {
-    assert(slot < SlotCount(coverageInfo));
-    const slotStart: Smi = FirstIndexForSlot(slot);
-    const index: Smi = slotStart + kSlotBlockCountIndex;
-    coverageInfo.objects[index] =
-        UnsafeCast<Smi>(coverageInfo.objects[index]) + 1;
+    assert(Convert<int32>(slot) < coverageInfo.slot_count);
+    ++coverageInfo.slots[slot].block_count;
   }
 
   builtin IncBlockCounter(implicit context: Context)(

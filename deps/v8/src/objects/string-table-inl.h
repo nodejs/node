@@ -32,7 +32,7 @@ bool StringSetShape::IsMatch(String key, Object value) {
   return key.Equals(String::cast(value));
 }
 
-uint32_t StringSetShape::Hash(Isolate* isolate, String key) {
+uint32_t StringSetShape::Hash(ReadOnlyRoots roots, String key) {
   return key.Hash();
 }
 
@@ -59,7 +59,7 @@ uint32_t StringTableKey::hash() const {
 }
 
 // static
-uint32_t StringTableShape::Hash(Isolate* isolate, Key key) {
+uint32_t StringTableShape::Hash(ReadOnlyRoots roots, Key key) {
   return key->hash();
 }
 
@@ -72,8 +72,8 @@ uint32_t StringTableShape::HashForObject(ReadOnlyRoots roots, Object object) {
   return String::cast(object).Hash();
 }
 
-RootIndex StringTableShape::GetMapRootIndex() {
-  return RootIndex::kStringTableMap;
+Handle<Map> StringTableShape::GetMap(ReadOnlyRoots roots) {
+  return roots.string_table_map_handle();
 }
 
 }  // namespace internal

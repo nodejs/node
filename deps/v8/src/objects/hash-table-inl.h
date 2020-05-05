@@ -123,17 +123,23 @@ void HashTableBase::SetNumberOfDeletedElements(int nod) {
 }
 
 template <typename Key>
-RootIndex BaseShape<Key>::GetMapRootIndex() {
-  return RootIndex::kHashTableMap;
+Handle<Map> BaseShape<Key>::GetMap(ReadOnlyRoots roots) {
+  return roots.hash_table_map_handle();
 }
 
-RootIndex EphemeronHashTableShape::GetMapRootIndex() {
-  return RootIndex::kEphemeronHashTableMap;
+Handle<Map> EphemeronHashTableShape::GetMap(ReadOnlyRoots roots) {
+  return roots.ephemeron_hash_table_map_handle();
 }
 
 template <typename Derived, typename Shape>
 InternalIndex HashTable<Derived, Shape>::FindEntry(Isolate* isolate, Key key) {
-  return FindEntry(ReadOnlyRoots(isolate), key, Shape::Hash(isolate, key));
+  return FindEntry(ReadOnlyRoots(isolate), key);
+}
+
+template <typename Derived, typename Shape>
+InternalIndex HashTable<Derived, Shape>::FindEntry(ReadOnlyRoots roots,
+                                                   Key key) {
+  return FindEntry(roots, key, Shape::Hash(roots, key));
 }
 
 // Find entry for key otherwise return kNotFound.
@@ -237,7 +243,7 @@ bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
   return key->SameValue(other);
 }
 
-uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
+uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots, Handle<Object> key) {
   return Smi::ToInt(key->GetHash());
 }
 

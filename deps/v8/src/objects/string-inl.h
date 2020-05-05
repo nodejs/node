@@ -397,6 +397,13 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
   return string;
 }
 
+Handle<String> String::Flatten(OffThreadIsolate* isolate, Handle<String> string,
+                               AllocationType allocation) {
+  // We should never pass non-flat strings to String::Flatten when off-thread.
+  DCHECK(string->IsFlat());
+  return string;
+}
+
 uint16_t String::Get(int index) {
   DCHECK(index >= 0 && index < length());
 
@@ -574,8 +581,6 @@ void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
   DCHECK(parent.IsSeqString() || parent.IsExternalString());
   TorqueGeneratedSlicedString<SlicedString, Super>::set_parent(parent, mode);
 }
-
-TQ_SMI_ACCESSORS(SlicedString, offset)
 
 Object ConsString::unchecked_first() {
   return TaggedField<Object, kFirstOffset>::load(*this);
@@ -773,15 +778,11 @@ void StringCharacterStream::VisitTwoByteString(const uint16_t* chars,
 bool String::AsArrayIndex(uint32_t* index) {
   DisallowHeapAllocation no_gc;
   uint32_t field = hash_field();
-  // The {IsHashFieldComputed} check is not functionally necessary as the
-  // subsequent mask includes it; it's here to make the logic more obvious,
-  // and the compile will fold it away so it doesn't hurt performance.
-  if (IsHashFieldComputed(field) &&
-      (field & kDoesNotContainCachedArrayIndexMask) == 0) {
+  if (ContainsCachedArrayIndex(field)) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }
-  if (IsHashFieldComputed(field) && (field & kIsNotArrayIndexMask)) {
+  if (IsHashFieldComputed(field) && (field & kIsNotIntegerIndexMask)) {
     return false;
   }
   return SlowAsArrayIndex(index);
@@ -789,11 +790,7 @@ bool String::AsArrayIndex(uint32_t* index) {
 
 bool String::AsIntegerIndex(size_t* index) {
   uint32_t field = hash_field();
-  // The {IsHashFieldComputed} check is not functionally necessary as the
-  // subsequent mask includes it; it's here to make the logic more obvious,
-  // and the compile will fold it away so it doesn't hurt performance.
-  if (IsHashFieldComputed(field) &&
-      (field & kDoesNotContainCachedArrayIndexMask) == 0) {
+  if (ContainsCachedArrayIndex(field)) {
     *index = ArrayIndexValueBits::decode(field);
     return true;
   }

@@ -7,7 +7,7 @@ import("../../gni/v8.gni")
 if (is_fuchsia) {
   import("//build/config/fuchsia/rules.gni")
 
-  fuchsia_package("v8_unittests_pkg") {
+  cr_fuchsia_package("v8_unittests_pkg") {
     testonly = true
     binary = ":unittests"
     package_name_override = "v8_unittests"
@@ -20,6 +20,52 @@ if (is_fuchsia) {
   }
 }
 
+# Stand-alone target for C++ GC unittests. This is used to ensure that it
+# builds without V8 as well. They are also included in the regular unittests
+# target for simplicity.
+v8_executable("cppgc_unittests") {
+  testonly = true
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  sources = [ "heap/cppgc/run-all-unittests.cc" ]
+
+  deps = [
+    ":cppgc_unittests_sources",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+v8_source_set("cppgc_unittests_sources") {
+  testonly = true
+
+  sources = [
+    "heap/cppgc/allocation_unittest.cc",
+    "heap/cppgc/finalizer-trait_unittest.cc",
+    "heap/cppgc/garbage-collected_unittest.cc",
+    "heap/cppgc/gc-info_unittest.cc",
+    "heap/cppgc/heap-object-header_unittest.cc",
+    "heap/cppgc/stack_unittest.cc",
+    "heap/cppgc/tests.cc",
+    "heap/cppgc/tests.h",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:cppgc_for_testing",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
 v8_executable("unittests") {
   testonly = true
 
@@ -29,6 +75,7 @@ v8_executable("unittests") {
   #}],
 
   deps = [
+    ":cppgc_unittests_sources",
     ":unittests_sources",
     "../..:v8_for_testing",
     "../..:v8_libbase",
@@ -170,12 +217,13 @@ v8_source_set("unittests_sources") {
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
     "heap/item-parallel-job-unittest.cc",
+    "heap/local-heap-unittest.cc",
     "heap/marking-unittest.cc",
     "heap/marking-worklist-unittest.cc",
     "heap/memory-reducer-unittest.cc",
     "heap/object-stats-unittest.cc",
     "heap/off-thread-factory-unittest.cc",
-    "heap/scavenge-job-unittest.cc",
+    "heap/safepoint-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
     "heap/unmapper-unittest.cc",

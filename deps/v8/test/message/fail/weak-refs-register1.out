@@ -1,6 +1,6 @@
-*%(basename)s:8: TypeError: FinalizationGroup.prototype.register: target must be an object
+*%(basename)s:8: TypeError: FinalizationRegistry.prototype.register: target must be an object
 fg.register(1);
    ^
-TypeError: FinalizationGroup.prototype.register: target must be an object
-    at FinalizationGroup.register (<anonymous>)
+TypeError: FinalizationRegistry.prototype.register: target must be an object
+    at FinalizationRegistry.register (<anonymous>)
     at *%(basename)s:8:4

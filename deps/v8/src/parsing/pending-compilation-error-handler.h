@@ -52,6 +52,7 @@ class PendingCompilationErrorHandler {
 
   // Handle warnings detected during compilation.
   void ReportWarnings(Isolate* isolate, Handle<Script> script);
+  void ReportWarnings(OffThreadIsolate* isolate, Handle<Script> script);
 
   V8_EXPORT_PRIVATE Handle<String> FormatErrorMessageForTest(
       Isolate* isolate) const;

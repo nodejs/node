@@ -32,9 +32,11 @@ using protocol::Response;
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
  public:
-  static std::unique_ptr<V8InspectorSessionImpl> create(
-      V8InspectorImpl*, int contextGroupId, int sessionId,
-      V8Inspector::Channel*, const StringView& state);
+  static std::unique_ptr<V8InspectorSessionImpl> create(V8InspectorImpl*,
+                                                        int contextGroupId,
+                                                        int sessionId,
+                                                        V8Inspector::Channel*,
+                                                        StringView state);
   ~V8InspectorSessionImpl() override;
 
   V8InspectorImpl* inspector() const { return m_inspector; }
@@ -64,49 +66,48 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   void releaseObjectGroup(const String16& objectGroup);
 
   // V8InspectorSession implementation.
-  void dispatchProtocolMessage(const StringView& message) override;
+  void dispatchProtocolMessage(StringView message) override;
   std::vector<uint8_t> state() override;
   std::vector<std::unique_ptr<protocol::Schema::API::Domain>> supportedDomains()
       override;
   void addInspectedObject(
       std::unique_ptr<V8InspectorSession::Inspectable>) override;
-  void schedulePauseOnNextStatement(const StringView& breakReason,
-                                    const StringView& breakDetails) override;
+  void schedulePauseOnNextStatement(StringView breakReason,
+                                    StringView breakDetails) override;
   void cancelPauseOnNextStatement() override;
-  void breakProgram(const StringView& breakReason,
-                    const StringView& breakDetails) override;
+  void breakProgram(StringView breakReason, StringView breakDetails) override;
   void setSkipAllPauses(bool) override;
-  void resume() override;
+  void resume(bool terminateOnResume = false) override;
   void stepOver() override;
   std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
-  searchInTextByLines(const StringView& text, const StringView& query,
-                      bool caseSensitive, bool isRegex) override;
-  void releaseObjectGroup(const StringView& objectGroup) override;
-  bool unwrapObject(std::unique_ptr<StringBuffer>*, const StringView& objectId,
+  searchInTextByLines(StringView text, StringView query, bool caseSensitive,
+                      bool isRegex) override;
+  void releaseObjectGroup(StringView objectGroup) override;
+  bool unwrapObject(std::unique_ptr<StringBuffer>*, StringView objectId,
                     v8::Local<v8::Value>*, v8::Local<v8::Context>*,
                     std::unique_ptr<StringBuffer>* objectGroup) override;
   std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
-      v8::Local<v8::Context>, v8::Local<v8::Value>, const StringView& groupName,
+      v8::Local<v8::Context>, v8::Local<v8::Value>, StringView groupName,
       bool generatePreview) override;
 
   V8InspectorSession::Inspectable* inspectedObject(unsigned num);
   static const unsigned kInspectedObjectBufferSize = 5;
 
-  void triggerPreciseCoverageDeltaUpdate(const StringView& occassion) override;
+  void triggerPreciseCoverageDeltaUpdate(StringView occassion) override;
 
  private:
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
-                         V8Inspector::Channel*, const StringView& state);
+                         V8Inspector::Channel*, StringView state);
   protocol::DictionaryValue* agentState(const String16& name);
 
   // protocol::FrontendChannel implementation.
-  void sendProtocolResponse(
+  void SendProtocolResponse(
       int callId, std::unique_ptr<protocol::Serializable> message) override;
-  void sendProtocolNotification(
+  void SendProtocolNotification(
       std::unique_ptr<protocol::Serializable> message) override;
-  void fallThrough(int callId, const String16& method,
+  void FallThrough(int callId, v8_crdtp::span<uint8_t> method,
                    v8_crdtp::span<uint8_t> message) override;
-  void flushProtocolNotifications() override;
+  void FlushProtocolNotifications() override;
 
   std::unique_ptr<StringBuffer> serializeForFrontend(
       std::unique_ptr<protocol::Serializable> message);

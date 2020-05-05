@@ -22,7 +22,7 @@ StringsStorage::StringsStorage() : names_(StringsMatch) {}
 StringsStorage::~StringsStorage() {
   for (base::HashMap::Entry* p = names_.Start(); p != nullptr;
        p = names_.Next(p)) {
-    DeleteArray(reinterpret_cast<const char*>(p->value));
+    DeleteArray(reinterpret_cast<const char*>(p->key));
   }
 }
 
@@ -34,9 +34,10 @@ const char* StringsStorage::GetCopy(const char* src) {
     StrNCpy(dst, src, len);
     dst[len] = '\0';
     entry->key = dst.begin();
-    entry->value = entry->key;
   }
-  return reinterpret_cast<const char*>(entry->value);
+  entry->value =
+      reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) + 1);
+  return reinterpret_cast<const char*>(entry->key);
 }
 
 const char* StringsStorage::GetFormatted(const char* format, ...) {
@@ -52,11 +53,12 @@ const char* StringsStorage::AddOrDisposeString(char* str, int len) {
   if (entry->value == nullptr) {
     // New entry added.
     entry->key = str;
-    entry->value = str;
   } else {
     DeleteArray(str);
   }
-  return reinterpret_cast<const char*>(entry->value);
+  entry->value =
+      reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) + 1);
+  return reinterpret_cast<const char*>(entry->key);
 }
 
 const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
@@ -104,6 +106,30 @@ const char* StringsStorage::GetConsName(const char* prefix, Name name) {
     return "<symbol>";
   }
   return "";
+}
+
+bool StringsStorage::Release(const char* str) {
+  int len = static_cast<int>(strlen(str));
+  uint32_t hash = StringHasher::HashSequentialString(str, len, kZeroHashSeed);
+  base::HashMap::Entry* entry = names_.Lookup(const_cast<char*>(str), hash);
+  DCHECK(entry);
+  if (!entry) {
+    return false;
+  }
+
+  DCHECK(entry->value);
+  entry->value =
+      reinterpret_cast<void*>(reinterpret_cast<size_t>(entry->value) - 1);
+
+  if (entry->value == 0) {
+    names_.Remove(const_cast<char*>(str), hash);
+    DeleteArray(str);
+  }
+  return true;
+}
+
+size_t StringsStorage::GetStringCountForTesting() const {
+  return names_.occupancy();
 }
 
 base::HashMap::Entry* StringsStorage::GetEntry(const char* str, int len) {

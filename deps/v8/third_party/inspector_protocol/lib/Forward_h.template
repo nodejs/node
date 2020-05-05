@@ -18,6 +18,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "{{config.crdtp.dir}}/error_support.h"
+#include "{{config.crdtp.dir}}/dispatch.h"
+#include "{{config.crdtp.dir}}/frontend_channel.h"
 #include "{{config.crdtp.dir}}/glue.h"
 
 {% for namespace in config.protocol.namespace %}
@@ -25,15 +28,18 @@ namespace {{namespace}} {
 {% endfor %}
 
 class DictionaryValue;
-class DispatchResponse;
-class ErrorSupport;
+using DispatchResponse = {{config.crdtp.namespace}}::DispatchResponse;
+using ErrorSupport = {{config.crdtp.namespace}}::ErrorSupport;
+using Serializable = {{config.crdtp.namespace}}::Serializable;
+using FrontendChannel = {{config.crdtp.namespace}}::FrontendChannel;
+using DomainDispatcher = {{config.crdtp.namespace}}::DomainDispatcher;
+using UberDispatcher = {{config.crdtp.namespace}}::UberDispatcher;
 class FundamentalValue;
 class ListValue;
 class Object;
 using Response = DispatchResponse;
 class SerializedValue;
 class StringValue;
-class UberDispatcher;
 class Value;
 
 namespace detail {

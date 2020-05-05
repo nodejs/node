@@ -264,15 +264,17 @@ void RunLoadImmIndex(MachineType type, TestAlignment t) {
   for (int offset = -1; offset <= 200000; offset *= -5) {
     for (int i = 0; i < kNumElems; i++) {
       BufferedRawMachineAssemblerTester<CType> m;
-      void* base_pointer = ComputeOffset(&buffer[0], offset * sizeof(CType));
+      CType* base_pointer = reinterpret_cast<CType*>(
+          ComputeOffset(&buffer[0], offset * sizeof(CType)));
 #ifdef V8_COMPRESS_POINTERS
       if (type.IsTagged()) {
         // When pointer compression is enabled then we need to access only
         // the lower 32-bit of the tagged value while the buffer contains
         // full 64-bit values.
-        base_pointer = LSB(base_pointer, kTaggedSize);
+        base_pointer = reinterpret_cast<CType*>(LSB(base_pointer, kTaggedSize));
       }
 #endif
+
       Node* base = m.PointerConstant(base_pointer);
       Node* index = m.Int32Constant((offset + i) * sizeof(buffer[0]));
       if (t == TestAlignment::kAligned) {
@@ -300,15 +302,21 @@ void RunLoadStore(MachineType type, TestAlignment t) {
   MemCopy(&zap_value, &zap_data, sizeof(CType));
   InitBuffer(in_buffer, kNumElems, type);
 
+#ifdef V8_TARGET_BIG_ENDIAN
+  int offset = sizeof(CType) - ElementSizeInBytes(type.representation());
+#else
+  int offset = 0;
+#endif
+
   for (int32_t x = 0; x < kNumElems; x++) {
     int32_t y = kNumElems - x - 1;
 
     RawMachineAssemblerTester<int32_t> m;
     int32_t OK = 0x29000 + x;
     Node* in_base = m.PointerConstant(in_buffer);
-    Node* in_index = m.IntPtrConstant(x * sizeof(CType));
+    Node* in_index = m.IntPtrConstant(x * sizeof(CType) + offset);
     Node* out_base = m.PointerConstant(out_buffer);
-    Node* out_index = m.IntPtrConstant(y * sizeof(CType));
+    Node* out_index = m.IntPtrConstant(y * sizeof(CType) + offset);
     if (t == TestAlignment::kAligned) {
       Node* load = m.Load(type, in_base, in_index);
       m.Store(type.representation(), out_base, out_index, load,

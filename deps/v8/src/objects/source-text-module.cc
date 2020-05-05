@@ -369,9 +369,14 @@ bool SourceTextModule::RunInitializationCode(Isolate* isolate,
   Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
   DCHECK_EQ(MODULE_SCOPE, function->shared().scope_info().scope_type());
   Handle<Object> receiver = isolate->factory()->undefined_value();
-  Handle<Object> argv[] = {module};
+
+  Handle<ScopeInfo> scope_info(function->shared().scope_info(), isolate);
+  Handle<Context> context = isolate->factory()->NewModuleContext(
+      module, isolate->native_context(), scope_info);
+  function->set_context(*context);
+
   MaybeHandle<Object> maybe_generator =
-      Execution::Call(isolate, function, receiver, arraysize(argv), argv);
+      Execution::Call(isolate, function, receiver, 0, {});
   Handle<Object> generator;
   if (!maybe_generator.ToHandle(&generator)) {
     DCHECK(isolate->has_pending_exception());
@@ -1054,7 +1059,7 @@ MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
         module->IncrementPendingAsyncDependencies();
 
         //      2. Append module to requiredModule.[[AsyncParentModules]].
-        required_module->AddAsyncParentModule(isolate, module);
+        AddAsyncParentModule(isolate, required_module, module);
       }
     } else {
       RETURN_ON_EXCEPTION(isolate, Module::Evaluate(isolate, requested_module),

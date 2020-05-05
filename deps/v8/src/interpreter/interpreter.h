@@ -38,9 +38,6 @@ class Interpreter {
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() = default;
 
-  // Returns the interrupt budget which should be used for the profiler counter.
-  V8_EXPORT_PRIVATE static int InterruptBudget();
-
   // Creates a compilation job which will generate bytecode for |literal|.
   // Additionally, if |eager_inner_literals| is not null, adds any eagerly
   // compilable inner FunctionLiterals to this list.

@@ -169,8 +169,12 @@ Profile.prototype.addFuncCode = function(
     if (entry.size === size && entry.func === func) {
       // Entry state has changed.
       entry.state = state;
+    } else {
+      this.codeMap_.deleteCode(start);
+      entry = null;
     }
-  } else {
+  }
+  if (!entry) {
     entry = new Profile.DynamicFuncCodeEntry(size, type, func, state);
     this.codeMap_.addCode(start, entry);
   }
@@ -935,14 +939,16 @@ JsonProfile.prototype.addFuncCode = function(
   // TODO(jarin): Insert the code object into the SFI's code list.
   var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
   if (entry) {
-    // TODO(jarin) This does not look correct, we should really
-    // update the code object (remove the old one and insert this one).
     if (entry.size === size && entry.func === func) {
       // Entry state has changed.
       entry.state = state;
+    } else {
+      this.codeMap_.deleteCode(start);
+      entry = null;
     }
-  } else {
-    var entry = new CodeMap.CodeEntry(size, name, 'JS');
+  }
+  if (!entry) {
+    entry = new CodeMap.CodeEntry(size, name, 'JS');
     this.codeMap_.addCode(start, entry);
 
     entry.codeId = this.codeEntries_.length;

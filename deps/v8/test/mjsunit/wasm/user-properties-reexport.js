@@ -23,7 +23,7 @@ load("test/mjsunit/wasm/user-properties-common.js");
     testProperties(g);
     printName(" after", g);
 
-    // The WASM-internal fields of {g} are only inspected when {g} is
+    // The Wasm-internal fields of {g} are only inspected when {g} is
     // used as an import into another instance. Use {g} as the import
     // the next time through the loop.
     f = g;

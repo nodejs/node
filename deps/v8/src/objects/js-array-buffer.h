@@ -5,9 +5,9 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_H_
 
-#include "src/base/bit-field.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/js-objects.h"
+#include "torque-generated/bit-fields-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -51,14 +51,7 @@ class JSArrayBuffer : public JSObject {
   V8_INLINE void clear_padding();
 
 // Bit positions for [bit_field].
-#define JS_ARRAY_BUFFER_BIT_FIELD_FIELDS(V, _) \
-  V(IsExternalBit, bool, 1, _)                 \
-  V(IsDetachableBit, bool, 1, _)               \
-  V(WasDetachedBit, bool, 1, _)                \
-  V(IsAsmJsMemoryBit, bool, 1, _)              \
-  V(IsSharedBit, bool, 1, _)
-  DEFINE_BIT_FIELDS(JS_ARRAY_BUFFER_BIT_FIELD_FIELDS)
-#undef JS_ARRAY_BUFFER_BIT_FIELD_FIELDS
+  DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_FLAGS()
 
   // [is_external]: true indicates that the embedder is in charge of freeing the
   // backing_store, while is_external == false means that v8 will free the
@@ -107,7 +100,7 @@ class JSArrayBuffer : public JSObject {
 
   // Allocates an ArrayBufferExtension for this array buffer, unless it is
   // already associated with an extension.
-  ArrayBufferExtension* EnsureExtension(Heap* heap);
+  ArrayBufferExtension* EnsureExtension();
 
   // Frees the associated ArrayBufferExtension and returns its backing store.
   std::shared_ptr<BackingStore> RemoveExtension();
@@ -121,22 +114,10 @@ class JSArrayBuffer : public JSObject {
   DECL_PRINTER(JSArrayBuffer)
   DECL_VERIFIER(JSArrayBuffer)
 
-// Layout description.
-#define JS_ARRAY_BUFFER_FIELDS(V)                                           \
-  V(kEndOfTaggedFieldsOffset, 0)                                            \
-  /* Raw data fields. */                                                    \
-  V(kByteLengthOffset, kUIntptrSize)                                        \
-  V(kBackingStoreOffset, kSystemPointerSize)                                \
-  V(kExtensionOffset,                                                       \
-    (V8_ARRAY_BUFFER_EXTENSION_BOOL ? kSystemPointerSize : 0))              \
-  V(kBitFieldOffset, kInt32Size)                                            \
-  /* Pads header size to be a multiple of kTaggedSize. */                   \
-  V(kOptionalPaddingOffset, OBJECT_POINTER_PADDING(kOptionalPaddingOffset)) \
-  /* Header size. */                                                        \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_BUFFER_FIELDS)
-#undef JS_ARRAY_BUFFER_FIELDS
+  // Layout description.
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JS_ARRAY_BUFFER_FIELDS)
+  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
 
   static const int kSizeWithEmbedderFields =
       kHeaderSize +
@@ -148,6 +129,13 @@ class JSArrayBuffer : public JSObject {
 
  private:
   inline ArrayBufferExtension** extension_location() const;
+
+#if V8_COMPRESS_POINTERS
+  static const int kUninitializedTagMask = 1;
+
+  inline uint32_t* extension_lo() const;
+  inline uint32_t* extension_hi() const;
+#endif
 };
 
 // Each JSArrayBuffer (with a backing store) has a corresponding native-heap
@@ -163,6 +151,7 @@ class ArrayBufferExtension : public Malloced {
   std::atomic<GcState> young_gc_state_;
   std::shared_ptr<BackingStore> backing_store_;
   ArrayBufferExtension* next_;
+  std::size_t accounting_length_;
 
   GcState young_gc_state() {
     return young_gc_state_.load(std::memory_order_relaxed);
@@ -177,12 +166,14 @@ class ArrayBufferExtension : public Malloced {
       : marked_(false),
         young_gc_state_(GcState::Dead),
         backing_store_(std::shared_ptr<BackingStore>()),
-        next_(nullptr) {}
+        next_(nullptr),
+        accounting_length_(0) {}
   explicit ArrayBufferExtension(std::shared_ptr<BackingStore> backing_store)
       : marked_(false),
         young_gc_state_(GcState::Dead),
         backing_store_(backing_store),
-        next_(nullptr) {}
+        next_(nullptr),
+        accounting_length_(0) {}
 
   void Mark() { marked_.store(true, std::memory_order_relaxed); }
   void Unmark() { marked_.store(false, std::memory_order_relaxed); }
@@ -197,6 +188,12 @@ class ArrayBufferExtension : public Malloced {
 
   std::shared_ptr<BackingStore> backing_store() { return backing_store_; }
   BackingStore* backing_store_raw() { return backing_store_.get(); }
+
+  size_t accounting_length() { return accounting_length_; }
+
+  void set_accounting_length(size_t accounting_length) {
+    accounting_length_ = accounting_length;
+  }
 
   std::shared_ptr<BackingStore> RemoveBackingStore() {
     return std::move(backing_store_);

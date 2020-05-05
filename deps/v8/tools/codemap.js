@@ -140,7 +140,7 @@ CodeMap.prototype.addStaticCode = function(
 CodeMap.prototype.markPages_ = function(start, end) {
   for (var addr = start; addr <= end;
        addr += CodeMap.PAGE_SIZE) {
-    this.pages_[addr >>> CodeMap.PAGE_ALIGNMENT] = 1;
+    this.pages_[(addr / CodeMap.PAGE_SIZE)|0] = 1;
   }
 };
 
@@ -187,7 +187,7 @@ CodeMap.prototype.findInTree_ = function(tree, addr) {
  * @param {number} addr Address.
  */
 CodeMap.prototype.findAddress = function(addr) {
-  var pageAddr = addr >>> CodeMap.PAGE_ALIGNMENT;
+  var pageAddr = (addr / CodeMap.PAGE_SIZE)|0;
   if (pageAddr in this.pages_) {
     // Static code entries can contain "holes" of unnamed code.
     // In this case, the whole library is assigned to this address.

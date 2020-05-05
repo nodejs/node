@@ -209,6 +209,34 @@ void CfgAssembler::OptimizeCfg() {
       [&](Block* b) { return predecessor_count[b->id()] == 0; });
 }
 
+void CfgAssembler::ComputeInputDefinitions() {
+  Worklist<Block*> worklist;
+
+  // Setup start block.
+  Stack<DefinitionLocation> parameter_defs;
+  for (std::size_t i = 0; i < cfg_.ParameterCount(); ++i) {
+    parameter_defs.Push(DefinitionLocation::Parameter(i));
+  }
+  cfg_.start()->MergeInputDefinitions(parameter_defs, &worklist);
+
+  // Run fixpoint algorithm.
+  while (!worklist.IsEmpty()) {
+    Block* block = worklist.Dequeue();
+    Stack<DefinitionLocation> definitions = block->InputDefinitions();
+
+    // Propagate through block's instructions.
+    for (const auto& instruction : block->instructions()) {
+      instruction.RecomputeDefinitionLocations(&definitions, &worklist);
+    }
+  }
+
+  for (Block* block : cfg_.blocks()) {
+    DCHECK_IMPLIES(!block->IsDead(), block->InputDefinitions().Size() ==
+                                         block->InputTypes().Size());
+    USE(block);
+  }
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

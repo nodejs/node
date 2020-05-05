@@ -116,7 +116,7 @@ class V8_EXPORT_PRIVATE TypeCache final {
   Type const kJSArrayBufferViewByteOffsetType = kJSArrayBufferByteLengthType;
 
   // The JSTypedArray::length property always contains an untagged number in
-  // the range [0, kMaxSmiValue].
+  // the range [0, JSTypedArray::kMaxLength].
   Type const kJSTypedArrayLengthType =
       CreateRange(0.0, JSTypedArray::kMaxLength);
 

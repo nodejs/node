@@ -65,15 +65,15 @@ class V8_EXPORT StringView {
 class V8_EXPORT StringBuffer {
  public:
   virtual ~StringBuffer() = default;
-  virtual const StringView& string() = 0;
+  virtual StringView string() const = 0;
   // This method copies contents.
-  static std::unique_ptr<StringBuffer> create(const StringView&);
+  static std::unique_ptr<StringBuffer> create(StringView);
 };
 
 class V8_EXPORT V8ContextInfo {
  public:
   V8ContextInfo(v8::Local<v8::Context> context, int contextGroupId,
-                const StringView& humanReadableName)
+                StringView humanReadableName)
       : context(context),
         contextGroupId(contextGroupId),
         humanReadableName(humanReadableName),
@@ -132,37 +132,36 @@ class V8_EXPORT V8InspectorSession {
   virtual void addInspectedObject(std::unique_ptr<Inspectable>) = 0;
 
   // Dispatching protocol messages.
-  static bool canDispatchMethod(const StringView& method);
-  virtual void dispatchProtocolMessage(const StringView& message) = 0;
+  static bool canDispatchMethod(StringView method);
+  virtual void dispatchProtocolMessage(StringView message) = 0;
   virtual std::vector<uint8_t> state() = 0;
   virtual std::vector<std::unique_ptr<protocol::Schema::API::Domain>>
   supportedDomains() = 0;
 
   // Debugger actions.
-  virtual void schedulePauseOnNextStatement(const StringView& breakReason,
-                                            const StringView& breakDetails) = 0;
+  virtual void schedulePauseOnNextStatement(StringView breakReason,
+                                            StringView breakDetails) = 0;
   virtual void cancelPauseOnNextStatement() = 0;
-  virtual void breakProgram(const StringView& breakReason,
-                            const StringView& breakDetails) = 0;
+  virtual void breakProgram(StringView breakReason,
+                            StringView breakDetails) = 0;
   virtual void setSkipAllPauses(bool) = 0;
-  virtual void resume() = 0;
+  virtual void resume(bool setTerminateOnResume = false) = 0;
   virtual void stepOver() = 0;
   virtual std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
-  searchInTextByLines(const StringView& text, const StringView& query,
-                      bool caseSensitive, bool isRegex) = 0;
+  searchInTextByLines(StringView text, StringView query, bool caseSensitive,
+                      bool isRegex) = 0;
 
   // Remote objects.
   virtual std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
-      v8::Local<v8::Context>, v8::Local<v8::Value>, const StringView& groupName,
+      v8::Local<v8::Context>, v8::Local<v8::Value>, StringView groupName,
       bool generatePreview) = 0;
 
   virtual bool unwrapObject(std::unique_ptr<StringBuffer>* error,
-                            const StringView& objectId, v8::Local<v8::Value>*,
+                            StringView objectId, v8::Local<v8::Value>*,
                             v8::Local<v8::Context>*,
                             std::unique_ptr<StringBuffer>* objectGroup) = 0;
-  virtual void releaseObjectGroup(const StringView&) = 0;
-  virtual void triggerPreciseCoverageDeltaUpdate(
-      const StringView& occassion) = 0;
+  virtual void releaseObjectGroup(StringView) = 0;
+  virtual void triggerPreciseCoverageDeltaUpdate(StringView occassion) = 0;
 };
 
 class V8_EXPORT V8InspectorClient {
@@ -240,7 +239,7 @@ struct V8_EXPORT V8StackTraceId {
   V8StackTraceId(uintptr_t id, const std::pair<int64_t, int64_t> debugger_id);
   V8StackTraceId(uintptr_t id, const std::pair<int64_t, int64_t> debugger_id,
                  bool should_pause);
-  explicit V8StackTraceId(const StringView&);
+  explicit V8StackTraceId(StringView);
   V8StackTraceId& operator=(const V8StackTraceId&) = default;
   V8StackTraceId& operator=(V8StackTraceId&&) noexcept = default;
   ~V8StackTraceId() = default;
@@ -265,26 +264,26 @@ class V8_EXPORT V8Inspector {
   virtual void idleFinished() = 0;
 
   // Async stack traces instrumentation.
-  virtual void asyncTaskScheduled(const StringView& taskName, void* task,
+  virtual void asyncTaskScheduled(StringView taskName, void* task,
                                   bool recurring) = 0;
   virtual void asyncTaskCanceled(void* task) = 0;
   virtual void asyncTaskStarted(void* task) = 0;
   virtual void asyncTaskFinished(void* task) = 0;
   virtual void allAsyncTasksCanceled() = 0;
 
-  virtual V8StackTraceId storeCurrentStackTrace(
-      const StringView& description) = 0;
+  virtual V8StackTraceId storeCurrentStackTrace(StringView description) = 0;
   virtual void externalAsyncTaskStarted(const V8StackTraceId& parent) = 0;
   virtual void externalAsyncTaskFinished(const V8StackTraceId& parent) = 0;
 
   // Exceptions instrumentation.
-  virtual unsigned exceptionThrown(
-      v8::Local<v8::Context>, const StringView& message,
-      v8::Local<v8::Value> exception, const StringView& detailedMessage,
-      const StringView& url, unsigned lineNumber, unsigned columnNumber,
-      std::unique_ptr<V8StackTrace>, int scriptId) = 0;
+  virtual unsigned exceptionThrown(v8::Local<v8::Context>, StringView message,
+                                   v8::Local<v8::Value> exception,
+                                   StringView detailedMessage, StringView url,
+                                   unsigned lineNumber, unsigned columnNumber,
+                                   std::unique_ptr<V8StackTrace>,
+                                   int scriptId) = 0;
   virtual void exceptionRevoked(v8::Local<v8::Context>, unsigned exceptionId,
-                                const StringView& message) = 0;
+                                StringView message) = 0;
 
   // Connection.
   class V8_EXPORT Channel {
@@ -295,8 +294,9 @@ class V8_EXPORT V8Inspector {
     virtual void sendNotification(std::unique_ptr<StringBuffer> message) = 0;
     virtual void flushProtocolNotifications() = 0;
   };
-  virtual std::unique_ptr<V8InspectorSession> connect(
-      int contextGroupId, Channel*, const StringView& state) = 0;
+  virtual std::unique_ptr<V8InspectorSession> connect(int contextGroupId,
+                                                      Channel*,
+                                                      StringView state) = 0;
 
   // API methods.
   virtual std::unique_ptr<V8StackTrace> createStackTrace(

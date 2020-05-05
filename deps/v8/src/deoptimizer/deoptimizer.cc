@@ -14,6 +14,7 @@
 #include "src/codegen/register-configuration.h"
 #include "src/diagnostics/disasm.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/pointer-authentication.h"
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
@@ -122,7 +123,8 @@ class FrameWriter {
       PrintF(trace_scope_->file(), "    " V8PRIxPTR_FMT ": [top + %3d] <- ",
              output_address(output_offset), output_offset);
       if (obj.IsSmi()) {
-        PrintF(V8PRIxPTR_FMT " <Smi %d>", obj.ptr(), Smi::cast(obj).value());
+        PrintF(trace_scope_->file(), V8PRIxPTR_FMT " <Smi %d>", obj.ptr(),
+               Smi::cast(obj).value());
       } else {
         obj.ShortPrint(trace_scope_->file());
       }
@@ -252,7 +254,10 @@ class ActivationsFinder : public ThreadVisitor {
           int trampoline_pc = safepoint.trampoline_pc();
           DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
           // Replace the current pc on the stack with the trampoline.
-          it.frame()->set_pc(code.raw_instruction_start() + trampoline_pc);
+          // TODO(v8:10026): avoid replacing a signed pointer.
+          Address* pc_addr = it.frame()->pc_address();
+          Address new_pc = code.raw_instruction_start() + trampoline_pc;
+          PointerAuthentication::ReplacePC(pc_addr, new_pc, kSystemPointerSize);
         }
       }
     }
@@ -528,17 +533,37 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
       InternalFormalParameterCountWithReceiver(function.shared());
   input_ = new (size) FrameDescription(size, parameter_count);
 
-  if (kSupportsFixedDeoptExitSize) {
+  if (kSupportsFixedDeoptExitSizes) {
     DCHECK_EQ(bailout_id_, kMaxUInt32);
     // Calculate bailout id from return address.
-    DCHECK_GT(kDeoptExitSize, 0);
+    DCHECK_GT(kNonLazyDeoptExitSize, 0);
+    DCHECK_GT(kLazyDeoptExitSize, 0);
     DeoptimizationData deopt_data =
         DeoptimizationData::cast(compiled_code_.deoptimization_data());
     Address deopt_start = compiled_code_.raw_instruction_start() +
                           deopt_data.DeoptExitStart().value();
-    int offset = static_cast<int>(from_ - kDeoptExitSize - deopt_start);
-    DCHECK_EQ(0, offset % kDeoptExitSize);
-    bailout_id_ = offset / kDeoptExitSize;
+    int non_lazy_deopt_count = deopt_data.NonLazyDeoptCount().value();
+    Address lazy_deopt_start =
+        deopt_start + non_lazy_deopt_count * kNonLazyDeoptExitSize;
+    // The deoptimization exits are sorted so that lazy deopt exits appear last.
+    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kEager,
+                  "lazy deopts are expected to be emitted last");
+    static_assert(DeoptimizeKind::kLazy > DeoptimizeKind::kSoft,
+                  "lazy deopts are expected to be emitted last");
+    // from_ is the value of the link register after the call to the
+    // deoptimizer, so for the last lazy deopt, from_ points to the first
+    // non-lazy deopt, so we use <=.
+    if (from_ <= lazy_deopt_start) {
+      int offset =
+          static_cast<int>(from_ - kNonLazyDeoptExitSize - deopt_start);
+      DCHECK_EQ(0, offset % kNonLazyDeoptExitSize);
+      bailout_id_ = offset / kNonLazyDeoptExitSize;
+    } else {
+      int offset =
+          static_cast<int>(from_ - kLazyDeoptExitSize - lazy_deopt_start);
+      DCHECK_EQ(0, offset % kLazyDeoptExitSize);
+      bailout_id_ = non_lazy_deopt_count + (offset / kLazyDeoptExitSize);
+    }
   }
 }
 
@@ -690,6 +715,13 @@ void Deoptimizer::DoComputeOutputFrames() {
     caller_fp_ = Memory<intptr_t>(fp_address);
     caller_pc_ =
         Memory<intptr_t>(fp_address + CommonFrameConstants::kCallerPCOffset);
+    // Sign caller_pc_ with caller_frame_top_ to be consistent with everything
+    // else here.
+    uint64_t sp = stack_fp_ + StandardFrameConstants::kCallerSPOffset;
+    // TODO(v8:10026): avoid replacing a signed pointer.
+    PointerAuthentication::ReplaceContext(
+        reinterpret_cast<Address*>(&caller_pc_), sp, caller_frame_top_);
+
     input_frame_context_ = Memory<intptr_t>(
         fp_address + CommonFrameConstants::kContextOrFrameTypeOffset);
 
@@ -1717,7 +1749,8 @@ void Deoptimizer::MaterializeHeapObjects() {
     Handle<Object> value = materialization.value_->GetValue();
 
     if (trace_scope_ != nullptr) {
-      PrintF("Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
+      PrintF(trace_scope_->file(),
+             "Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
              static_cast<intptr_t>(materialization.output_slot_address_),
              value->ptr());
       value->ShortPrint(trace_scope_->file());
@@ -3869,7 +3902,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
         if (frames_[i].kind() ==
                 TranslatedFrame::kJavaScriptBuiltinContinuation &&
             frames_[i].shared_info()->internal_formal_parameter_count() ==
-                SharedFunctionInfo::kDontAdaptArgumentsSentinel) {
+                kDontAdaptArgumentsSentinel) {
           DCHECK(frames_[i].shared_info()->IsApiFunction());
 
           // The argument count for this special case is always the second

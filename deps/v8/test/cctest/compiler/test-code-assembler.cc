@@ -34,12 +34,6 @@ Node* UndefinedConstant(CodeAssembler* m) {
   return m->LoadRoot(RootIndex::kUndefinedValue);
 }
 
-TNode<Smi> SmiFromInt32(CodeAssembler* m, Node* value) {
-  value = m->ChangeInt32ToIntPtr(value);
-  return m->BitcastWordToTaggedSigned(
-      m->WordShl(value, kSmiShiftSize + kSmiTagSize));
-}
-
 Node* LoadObjectField(CodeAssembler* m, Node* object, int offset,
                       MachineType type = MachineType::AnyTagged()) {
   return m->Load(type, object, m->IntPtrConstant(offset - kHeapObjectTag));
@@ -87,7 +81,7 @@ TEST(SimpleCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = SmiTag(&m, m.Int32Constant(0));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
@@ -100,7 +94,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* b = SmiTag(&m, m.Int32Constant(0));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK(ft.CallChecked<Oddball>().is_identical_to(
@@ -113,8 +107,8 @@ TEST(SimpleCallRuntime2Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* a = SmiTag(&m, m.Int32Constant(2));
-  Node* b = SmiTag(&m, m.Int32Constant(4));
+  TNode<Smi> a = SmiTag(&m, m.Int32Constant(2));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(4));
   m.Return(m.CallRuntime(Runtime::kAdd, context, a, b));
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());
@@ -126,8 +120,8 @@ TEST(SimpleTailCallRuntime2Arg) {
   CodeAssembler m(asm_tester.state());
   TNode<Context> context =
       m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* a = SmiTag(&m, m.Int32Constant(2));
-  Node* b = SmiTag(&m, m.Int32Constant(4));
+  TNode<Smi> a = SmiTag(&m, m.Int32Constant(2));
+  TNode<Smi> b = SmiTag(&m, m.Int32Constant(4));
   m.TailCallRuntime(Runtime::kAdd, context, a, b);
   FunctionTester ft(asm_tester.GenerateCode());
   CHECK_EQ(6, ft.CallChecked<Smi>()->value());
@@ -446,127 +440,6 @@ TEST(TestOutOfScopeVariable) {
   CHECK(!asm_tester.GenerateCode().is_null());
 }
 
-TEST(GotoIfException) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeAssembler m(asm_tester.state());
-
-  TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
-  TNode<Symbol> to_string_tag =
-      m.HeapConstant(isolate->factory()->to_string_tag_symbol());
-  Variable exception(&m, MachineRepresentation::kTagged);
-
-  CodeAssemblerLabel exception_handler(&m);
-  Callable to_string = Builtins::CallableFor(isolate, Builtins::kToString);
-  TNode<Object> string = m.CallStub(to_string, context, to_string_tag);
-  m.GotoIfException(string, &exception_handler, &exception);
-  m.Return(string);
-
-  m.Bind(&exception_handler);
-  m.Return(m.UncheckedCast<Object>(exception.value()));
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result = ft.Call().ToHandleChecked();
-
-  // Should be a TypeError.
-  CHECK(result->IsJSObject());
-
-  Handle<Object> constructor =
-      Object::GetPropertyOrElement(isolate, result,
-                                   isolate->factory()->constructor_string())
-          .ToHandleChecked();
-  CHECK(constructor->SameValue(*isolate->type_error_function()));
-}
-
-TEST(GotoIfExceptionMultiple) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 4;  // receiver, first, second, third
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeAssembler m(asm_tester.state());
-
-  TNode<Context> context =
-      m.HeapConstant(Handle<Context>(isolate->native_context()));
-  Node* first_value = m.Parameter(0);
-  Node* second_value = m.Parameter(1);
-  Node* third_value = m.Parameter(2);
-
-  CodeAssemblerLabel exception_handler1(&m);
-  CodeAssemblerLabel exception_handler2(&m);
-  CodeAssemblerLabel exception_handler3(&m);
-  Variable return_value(&m, MachineRepresentation::kWord32);
-  Variable error(&m, MachineRepresentation::kTagged);
-
-  return_value.Bind(m.Int32Constant(0));
-
-  // try { return ToString(param1) } catch (e) { ... }
-  Callable to_string = Builtins::CallableFor(isolate, Builtins::kToString);
-  TNode<Object> string = m.CallStub(to_string, context, first_value);
-  m.GotoIfException(string, &exception_handler1, &error);
-  m.Return(string);
-
-  // try { ToString(param2); return 7 } catch (e) { ... }
-  m.Bind(&exception_handler1);
-  return_value.Bind(m.Int32Constant(7));
-  error.Bind(UndefinedConstant(&m));
-  string = m.CallStub(to_string, context, second_value);
-  m.GotoIfException(string, &exception_handler2, &error);
-  m.Return(SmiFromInt32(&m, return_value.value()));
-
-  // try { ToString(param3); return 7 & ~2; } catch (e) { return e; }
-  m.Bind(&exception_handler2);
-  // Return returnValue & ~2
-  error.Bind(UndefinedConstant(&m));
-  string = m.CallStub(to_string, context, third_value);
-  m.GotoIfException(string, &exception_handler3, &error);
-  m.Return(SmiFromInt32(
-      &m, m.Word32And(return_value.value(),
-                      m.Word32Xor(m.Int32Constant(2), m.Int32Constant(-1)))));
-
-  m.Bind(&exception_handler3);
-  m.Return(m.UncheckedCast<Object>(error.value()));
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-
-  Handle<Object> result;
-  // First handler does not throw, returns result of first value.
-  result = ft.Call(isolate->factory()->undefined_value(),
-                   isolate->factory()->to_string_tag_symbol())
-               .ToHandleChecked();
-  CHECK(String::cast(*result).IsOneByteEqualTo(OneByteVector("undefined")));
-
-  // First handler returns a number.
-  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
-                   isolate->factory()->undefined_value())
-               .ToHandleChecked();
-  CHECK_EQ(7, Smi::ToInt(*result));
-
-  // First handler throws, second handler returns a number.
-  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
-                   isolate->factory()->to_primitive_symbol())
-               .ToHandleChecked();
-  CHECK_EQ(7 & ~2, Smi::ToInt(*result));
-
-  // First handler throws, second handler throws, third handler returns thrown
-  // value.
-  result = ft.Call(isolate->factory()->to_string_tag_symbol(),
-                   isolate->factory()->to_primitive_symbol(),
-                   isolate->factory()->unscopables_symbol())
-               .ToHandleChecked();
-
-  // Should be a TypeError.
-  CHECK(result->IsJSObject());
-
-  Handle<Object> constructor =
-      Object::GetPropertyOrElement(isolate, result,
-                                   isolate->factory()->constructor_string())
-          .ToHandleChecked();
-  CHECK(constructor->SameValue(*isolate->type_error_function()));
-}
-
 TEST(ExceptionHandler) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 0;
@@ -576,7 +449,7 @@ TEST(ExceptionHandler) {
   CodeAssembler::TVariable<Object> var(m.SmiConstant(0), &m);
   CodeAssemblerLabel exception(&m, {&var}, CodeAssemblerLabel::kDeferred);
   {
-    CodeAssemblerScopedExceptionHandler handler(&m, &exception, &var);
+    ScopedExceptionHandler handler(&m, &exception, &var);
     TNode<Context> context =
         m.HeapConstant(Handle<Context>(isolate->native_context()));
     m.CallRuntime(Runtime::kThrow, context, m.SmiConstant(2));

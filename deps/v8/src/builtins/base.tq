@@ -29,6 +29,8 @@ type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
     generates 'TNode<Object>' constexpr 'ObjectPtr';
 type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
+type TaggedIndex extends StrongTagged
+    generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
 type WeakHeapObject extends Tagged;
@@ -85,7 +87,7 @@ type uint32 generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int31 extends int32
     generates 'TNode<Int32T>' constexpr 'int31_t';
 type uint31 extends uint32
-    generates 'TNode<Uint32T>' constexpr 'uint31_t';
+    generates 'TNode<Uint32T>' constexpr 'uint32_t';
 type int16 extends int31
     generates 'TNode<Int16T>' constexpr 'int16_t';
 type uint16 extends uint31
@@ -103,6 +105,9 @@ type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
+
+// A Smi value containing a bitfield struct as its integer data.
+type SmiTagged<T : type extends uint31> extends Smi;
 
 // WARNING: The memory representation (i.e., in class fields and arrays) of
 // float64_or_hole is just a float64 that may be the hole-representing
@@ -156,7 +161,7 @@ type LayoutDescriptor extends ByteArray
     generates 'TNode<LayoutDescriptor>';
 extern class TransitionArray extends WeakFixedArray;
 
-type InstanceType extends uint16 constexpr 'v8::internal::InstanceType';
+type InstanceType extends uint16 constexpr 'InstanceType';
 
 type NoSharedNameSentinel extends Smi;
 
@@ -176,9 +181,6 @@ type Callable = JSFunction|JSBoundFunction|CallableJSProxy|CallableApiObject;
 
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
-
-type ToIntegerTruncationMode
-constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 
 extern enum UnicodeEncoding { UTF16, UTF32 }
 
@@ -345,10 +347,6 @@ const kSloppyArgumentsContextIndex: constexpr int31
 const kSloppyArgumentsParameterMapStart: constexpr int31
     generates 'SloppyArgumentsElements::kParameterMapStart';
 
-const kTruncateMinusZero: constexpr ToIntegerTruncationMode
-    generates 'CodeStubAssembler::ToIntegerTruncationMode::kTruncateMinusZero'
-    ;
-
 extern enum PrimitiveType { kString, kBoolean, kSymbol, kNumber }
 
 const kNameDictionaryInitialCapacity:
@@ -433,10 +431,53 @@ extern macro Comment(constexpr string);
 extern macro StaticAssert(bool);
 extern macro Print(Object);
 extern macro DebugBreak();
-extern transitioning macro ToInteger_Inline(implicit context: Context)(JSAny):
-    Number;
-extern transitioning macro ToInteger_Inline(implicit context: Context)(
-    JSAny, constexpr ToIntegerTruncationMode): Number;
+
+// ES6 7.1.4 ToInteger ( argument )
+transitioning macro ToIntegerImpl(implicit context: Context)(input: Object):
+    Number {
+  let input = input;
+
+  while (true) {
+    typeswitch (input) {
+      case (s: Smi): {
+        return s;
+      }
+      case (hn: HeapNumber): {
+        let value = Convert<float64>(hn);
+        if (Float64IsNaN(value)) return SmiConstant(0);
+        value = math::Float64Trunc(value);
+        // ToInteger normalizes -0 to +0.
+        if (value == 0.0) return SmiConstant(0);
+        const result = ChangeFloat64ToTagged(value);
+        assert(IsNumberNormalized(result));
+        return result;
+      }
+      case (ho: HeapObject): {
+        input = math::NonNumberToNumber(ho);
+      }
+    }
+  }
+  unreachable;
+}
+
+transitioning builtin ToInteger(implicit context: Context)(input: Object):
+    Number {
+  return ToIntegerImpl(input);
+}
+
+@export
+transitioning macro ToInteger_Inline(implicit context: Context)(input: Object):
+    Number {
+  typeswitch (input) {
+    case (s: Smi): {
+      return s;
+    }
+    case (ho: HeapObject): {
+      return ToInteger(ho);
+    }
+  }
+}
+
 extern transitioning macro ToLength_Inline(implicit context: Context)(JSAny):
     Number;
 extern transitioning macro ToNumber_Inline(implicit context: Context)(JSAny):
@@ -459,7 +500,8 @@ extern transitioning builtin HasProperty(implicit context: Context)(
     JSAny, JSAny): Boolean;
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, JSAny): Boolean;
-extern builtin LoadIC(Context, JSAny, JSAny, Smi, FeedbackVector): JSAny;
+extern builtin LoadIC(
+    Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
 extern macro CollectCallFeedback(
     JSAny, Context, Undefined | FeedbackVector, uintptr);
 
@@ -514,7 +556,6 @@ extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
 extern macro IsNullOrUndefined(Object): bool;
-extern macro IsTheHole(Object): bool;
 extern macro IsString(HeapObject): bool;
 transitioning builtin ToString(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
@@ -724,6 +765,10 @@ ConstexprInt31NotEqual(constexpr int31, constexpr int31): constexpr bool;
 extern operator '>=' macro
 ConstexprInt31GreaterThanEqual(
     constexpr int31, constexpr int31): constexpr bool;
+extern operator '==' macro ConstexprInt32Equal(
+    constexpr int32, constexpr int32): constexpr bool;
+extern operator '!=' macro ConstexprInt32NotEqual(
+    constexpr int32, constexpr int32): constexpr bool;
 
 extern operator '==' macro Word32Equal(int32, int32): bool;
 extern operator '==' macro Word32Equal(uint32, uint32): bool;
@@ -833,7 +878,14 @@ extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
 extern macro SmiFromUint32(uint32): Smi;
 extern macro SmiUntag(Smi): intptr;
+macro SmiUntag<T: type>(value: SmiTagged<T>): T {
+  return %RawDownCast<T>(Unsigned(SmiToInt32(Convert<Smi>(value))));
+}
 extern macro SmiToInt32(Smi): int32;
+extern macro TaggedIndexToIntPtr(TaggedIndex): intptr;
+extern macro IntPtrToTaggedIndex(intptr): TaggedIndex;
+extern macro TaggedIndexToSmi(TaggedIndex): Smi;
+extern macro SmiToTaggedIndex(Smi): TaggedIndex;
 extern macro RoundIntPtrToFloat64(intptr): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
@@ -886,6 +938,10 @@ macro UnsafeCast<A : type extends Object>(implicit context: Context)(o: Object):
     A {
   assert(Is<A>(o));
   return %RawDownCast<A>(o);
+}
+
+macro UnsafeConstCast<T: type>(r: const &T):&T {
+  return %RawDownCast<&T>(r);
 }
 
 extern macro FixedArrayMapConstant(): Map;
@@ -1206,7 +1262,7 @@ macro ChangeSafeIntegerNumberToUintPtr(value: Number):
 transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
     uintptr labels IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow {
   if (value == Undefined) return 0;
-  const indexNumber = ToInteger_Inline(value, kTruncateMinusZero);
+  const indexNumber = ToInteger_Inline(value);
   return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
       otherwise IfLessThanZero, IfUIntPtrOverflow, IfSafeIntegerOverflow;
 }
@@ -1220,7 +1276,7 @@ transitioning macro ToUintPtr(implicit context: Context)(value: JSAny):
 transitioning macro ToIndex(implicit context: Context)(value: JSAny):
     uintptr labels IfRangeError {
   if (value == Undefined) return 0;
-  const indexNumber = ToInteger_Inline(value, kTruncateMinusZero);
+  const indexNumber = ToInteger_Inline(value);
   // Less than 0 case, uintptr range overflow and safe integer range overflow
   // imply IfRangeError.
   return TryNumberToUintPtr(indexNumber, kModeValueIsAnyNumber)
@@ -1293,7 +1349,7 @@ extern macro IsOneByteStringInstanceType(InstanceType): bool;
 @export
 transitioning macro ConvertToRelativeIndex(implicit context: Context)(
     index: JSAny, length: uintptr): uintptr {
-  const indexNumber: Number = ToInteger_Inline(index, kTruncateMinusZero);
+  const indexNumber: Number = ToInteger_Inline(index);
   return ConvertToRelativeIndex(indexNumber, length);
 }
 
@@ -1340,7 +1396,7 @@ macro ConvertToRelativeIndex(indexNumber: Number, length: uintptr): uintptr {
 @export
 transitioning macro ClampToIndexRange(implicit context: Context)(
     index: JSAny, limit: uintptr): uintptr {
-  const indexNumber: Number = ToInteger_Inline(index, kTruncateMinusZero);
+  const indexNumber: Number = ToInteger_Inline(index);
   return ClampToIndexRange(indexNumber, limit);
 }
 
@@ -1558,6 +1614,29 @@ builtin CheckNumberInRange(implicit context: Context)(
     Print(max);
     unreachable;
   }
+}
+
+// Assert that the objects satisfy SameValue or are both the hole.
+builtin CheckSameObject(implicit context: Context)(
+    lhs: Object, rhs: Object): Undefined {
+  typeswitch (lhs) {
+    case (TheHole): {
+      if (rhs == TheHole) return Undefined;
+    }
+    case (a: JSAny): {
+      typeswitch (rhs) {
+        case (b: JSAny): {
+          if (SameValue(a, b)) return Undefined;
+        }
+        case (Object): {
+        }
+      }
+    }
+    case (Object): {
+    }
+  }
+  Print('Distinct or unexpected values in CheckSameObject');
+  unreachable;
 }
 
 macro ReplaceTheHoleWithUndefined(o: JSAny|TheHole): JSAny {

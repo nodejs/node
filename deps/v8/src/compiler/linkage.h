@@ -18,7 +18,16 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
+#if !defined(__clang__) && defined(_M_ARM64)
+// _M_ARM64 is an MSVC-specific macro that clang-cl emulates.
+#define NO_INLINE_FOR_ARM64_MSVC __declspec(noinline)
+#else
+#define NO_INLINE_FOR_ARM64_MSVC
+#endif
+
 namespace v8 {
+class CFunctionInfo;
+
 namespace internal {
 
 class CallInterfaceDescriptor;
@@ -134,7 +143,9 @@ class LinkageLocation {
            LocationField::kShift;
   }
 
-  bool IsRegister() const { return TypeField::decode(bit_field_) == REGISTER; }
+  NO_INLINE_FOR_ARM64_MSVC bool IsRegister() const {
+    return TypeField::decode(bit_field_) == REGISTER;
+  }
   bool IsAnyRegister() const {
     return IsRegister() && GetLocation() == ANY_REGISTER;
   }
@@ -357,6 +368,13 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return allocatable_registers_ != 0;
   }
 
+  // Stores the signature information for a fast API call - C++ functions
+  // that can be called directly from TurboFan.
+  void SetCFunctionInfo(const CFunctionInfo* c_function_info) {
+    c_function_info_ = c_function_info;
+  }
+  const CFunctionInfo* GetCFunctionInfo() const { return c_function_info_; }
+
  private:
   friend class Linkage;
 
@@ -374,6 +392,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const RegList allocatable_registers_;
   const Flags flags_;
   const char* const debug_name_;
+  const CFunctionInfo* c_function_info_ = nullptr;
 
   DISALLOW_COPY_AND_ASSIGN(CallDescriptor);
 };
@@ -505,5 +524,6 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+#undef NO_INLINE_FOR_ARM64_MSVC
 
 #endif  // V8_COMPILER_LINKAGE_H_

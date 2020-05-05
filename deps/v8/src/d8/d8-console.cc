@@ -44,9 +44,7 @@ void D8Console::Assert(const debug::ConsoleCallArguments& args,
   if (args.Length() > 0 && args[0]->BooleanValue(isolate_)) return;
   WriteToFile("console.assert", stdout, isolate_, args);
   isolate_->ThrowException(v8::Exception::Error(
-      v8::String::NewFromUtf8(isolate_, "console.assert failed",
-                              v8::NewStringType::kNormal)
-          .ToLocalChecked()));
+      v8::String::NewFromUtf8Literal(isolate_, "console.assert failed")));
 }
 
 void D8Console::Log(const debug::ConsoleCallArguments& args,

@@ -216,6 +216,39 @@ TEST(VectorCallFeedback) {
   CHECK_EQ(MONOMORPHIC, nexus.ic_state());
 }
 
+TEST(VectorPolymorphicCallFeedback) {
+  if (!i::FLAG_use_ic) return;
+  if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
+  FLAG_lazy_feedback_allocation = false;
+
+  CcTest::InitializeVM();
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  // Make sure the call feedback of a() in f() becomes polymorphic.
+  CompileRun(
+      "function foo_maker() { return () => { return 17; } }"
+      "a_foo = foo_maker();"
+      "function f(a) { a(); } f(foo_maker());"
+      "f(foo_maker());");
+  Handle<JSFunction> f = GetFunction("f");
+  Handle<JSFunction> a_foo = GetFunction("a_foo");
+  // There should be one IC.
+  Handle<FeedbackVector> feedback_vector =
+      Handle<FeedbackVector>(f->feedback_vector(), isolate);
+  FeedbackSlot slot(0);
+  FeedbackNexus nexus(feedback_vector, slot);
+
+  CHECK_EQ(POLYMORPHIC, nexus.ic_state());
+  HeapObject heap_object;
+  CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
+  CHECK(heap_object.IsFeedbackCell(isolate));
+  // Ensure this is the feedback cell for the closure returned by
+  // foo_maker.
+  CHECK_EQ(heap_object, a_foo->raw_feedback_cell());
+}
+
 TEST(VectorCallFeedbackForArray) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;

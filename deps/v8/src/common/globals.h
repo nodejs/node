@@ -46,6 +46,9 @@ constexpr int GB = MB * 1024;
 #if (V8_TARGET_ARCH_PPC && !V8_HOST_ARCH_PPC)
 #define USE_SIMULATOR 1
 #endif
+#if (V8_TARGET_ARCH_PPC64 && !V8_HOST_ARCH_PPC64)
+#define USE_SIMULATOR 1
+#endif
 #if (V8_TARGET_ARCH_MIPS && !V8_HOST_ARCH_MIPS)
 #define USE_SIMULATOR 1
 #endif
@@ -59,7 +62,7 @@ constexpr int GB = MB * 1024;
 
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
-#if V8_TARGET_ARCH_PPC
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #define V8_EMBEDDED_CONSTANT_POOL true
 #else
 #define V8_EMBEDDED_CONSTANT_POOL false
@@ -191,8 +194,9 @@ constexpr size_t kMaxWasmCodeSpaceSize = kMaxWasmCodeMemory;
 constexpr int kSystemPointerSizeLog2 = 3;
 constexpr intptr_t kIntptrSignBit =
     static_cast<intptr_t>(uintptr_t{0x8000000000000000});
-constexpr bool kRequiresCodeRange = true;
-#if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+constexpr bool kPlatformRequiresCodeRange = true;
+#if (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) && \
+    (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64) && V8_OS_LINUX
 constexpr size_t kMaximalCodeRangeSize = 512 * MB;
 constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_ARM64
@@ -212,18 +216,19 @@ constexpr size_t kReservedCodeRangePages = 0;
 #else
 constexpr int kSystemPointerSizeLog2 = 2;
 constexpr intptr_t kIntptrSignBit = 0x80000000;
-#if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
-constexpr bool kRequiresCodeRange = false;
+#if (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) && \
+    (V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64) && V8_OS_LINUX
+constexpr bool kPlatformRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
 constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_MIPS
-constexpr bool kRequiresCodeRange = false;
+constexpr bool kPlatformRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 2048LL * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
 constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #else
-constexpr bool kRequiresCodeRange = false;
+constexpr bool kPlatformRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
 constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
@@ -342,7 +347,7 @@ F FUNCTION_CAST(Address addr) {
 // Determine whether the architecture uses function descriptors
 // which provide a level of indirection between the function pointer
 // and the function entrypoint.
-#if V8_HOST_ARCH_PPC &&                                            \
+#if (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) &&                    \
     (V8_OS_AIX || (V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && \
                    (!defined(_CALL_ELF) || _CALL_ELF == 1)))
 #define USES_FUNCTION_DESCRIPTORS 1
@@ -417,6 +422,10 @@ enum ArgvMode { kArgvOnStack, kArgvInRegister };
 
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
+
+// This constant is used to signal the function entry implicit stack check
+// bytecode offset.
+constexpr int kFunctionEntryBytecodeOffset = -1;
 
 // This constant is used to indicate missing deoptimization information.
 constexpr int kNoDeoptimizationId = -1;
@@ -577,11 +586,19 @@ enum class HeapObjectReferenceType {
   STRONG,
 };
 
+enum class ArgumentsType {
+  kRuntime,
+  kJS,
+};
+
 // -----------------------------------------------------------------------------
 // Forward declarations for frequently used classes
 
 class AccessorInfo;
+template <ArgumentsType>
 class Arguments;
+using RuntimeArguments = Arguments<ArgumentsType::kRuntime>;
+using JavaScriptArguments = Arguments<ArgumentsType::kJS>;
 class Assembler;
 class ClassScope;
 class Code;
@@ -810,6 +827,10 @@ enum class REPLMode {
   kYes,
   kNo,
 };
+
+inline REPLMode construct_repl_mode(bool is_repl_mode) {
+  return is_repl_mode ? REPLMode::kYes : REPLMode::kNo;
+}
 
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, INSPECTOR_CODE };
@@ -1575,7 +1596,9 @@ enum class LoadSensitivity {
   V(TrapFuncSigMismatch)           \
   V(TrapDataSegmentDropped)        \
   V(TrapElemSegmentDropped)        \
-  V(TrapTableOutOfBounds)
+  V(TrapTableOutOfBounds)          \
+  V(TrapBrOnExnNullRef)            \
+  V(TrapRethrowNullRef)
 
 enum KeyedAccessLoadMode {
   STANDARD_LOAD,
@@ -1621,6 +1644,8 @@ constexpr int kFunctionLiteralIdTopLevel = 0;
 
 constexpr int kSmallOrderedHashSetMinCapacity = 4;
 constexpr int kSmallOrderedHashMapMinCapacity = 4;
+
+static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
 
 // Opaque data type for identifying stack frames. Used extensively
 // by the debugger.

@@ -4,6 +4,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/objects/stack-frame-info-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -149,6 +150,63 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   };
   CheckExceptionInfos(isolate, maybe_exc.ToHandleChecked(),
                       expected_exceptions);
+}
+
+// Trigger a trap in wasm, stack should contain a source url.
+WASM_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
+  // Create a WasmRunner with stack checks and traps enabled.
+  WasmRunner<int> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
+
+  std::vector<byte> code(1, kExprUnreachable);
+  r.Build(code.data(), code.data() + code.size());
+
+  WasmFunctionCompiler& f = r.NewFunction<int>("call_main");
+  BUILD(f, WASM_CALL_FUNCTION0(0));
+  uint32_t wasm_index = f.function_index();
+
+  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
+
+  Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CompileRun("(function callFn(fn) { fn(); })"))));
+
+  Isolate* isolate = js_wasm_wrapper->GetIsolate();
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
+                                                     v8::StackTrace::kOverview);
+
+  // Set the wasm script source url.
+  const char* url = "http://example.com/example.wasm";
+  const Handle<String> source_url =
+      isolate->factory()->InternalizeUtf8String(url);
+  r.builder().instance_object()->module_object().script().set_source_url(
+      *source_url);
+
+  // Run the js wrapper.
+  Handle<Object> global(isolate->context().global_object(), isolate);
+  MaybeHandle<Object> maybe_exc;
+  Handle<Object> args[] = {js_wasm_wrapper};
+  MaybeHandle<Object> maybe_return_obj =
+      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                         Execution::MessageHandling::kReport, &maybe_exc);
+
+  CHECK(maybe_return_obj.is_null());
+  Handle<Object> exception = maybe_exc.ToHandleChecked();
+
+  // Extract stack trace from the exception.
+  Handle<FixedArray> stack_trace_object =
+      isolate->GetDetailedStackTrace(Handle<JSObject>::cast(exception));
+  CHECK(!stack_trace_object.is_null());
+  Handle<StackTraceFrame> stack_frame = Handle<StackTraceFrame>::cast(
+      handle(stack_trace_object->get(0), isolate));
+
+  MaybeHandle<String> maybe_stack_trace_str =
+      SerializeStackTraceFrame(isolate, stack_frame);
+  CHECK(!maybe_stack_trace_str.is_null());
+  Handle<String> stack_trace_str = maybe_stack_trace_str.ToHandleChecked();
+
+  // Check if the source_url is part of the stack trace.
+  CHECK_NE(std::string(stack_trace_str->ToCString().get()).find(url),
+           std::string::npos);
 }
 
 // Trigger a trap in wasm, stack should be JS -> wasm -> wasm.

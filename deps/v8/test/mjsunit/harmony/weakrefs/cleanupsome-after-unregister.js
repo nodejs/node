@@ -13,7 +13,7 @@ let cleanup = function(iter) {
   ++cleanup_count;
 }
 
-let fg = new FinalizationGroup(cleanup);
+let fg = new FinalizationRegistry(cleanup);
 let key = {"k": "this is the key"};
 (function() {
   let o = {};

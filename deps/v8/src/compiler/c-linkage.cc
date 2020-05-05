@@ -68,8 +68,7 @@ namespace {
   (1 << x19.code()) | (1 << x20.code()) | (1 << x21.code()) |     \
       (1 << x22.code()) | (1 << x23.code()) | (1 << x24.code()) | \
       (1 << x25.code()) | (1 << x26.code()) | (1 << x27.code()) | \
-      (1 << x28.code()) | (1 << x29.code()) | (1 << x30.code())
-
+      (1 << x28.code())
 
 #define CALLEE_SAVE_FP_REGISTERS                                  \
   (1 << d8.code()) | (1 << d9.code()) | (1 << d10.code()) |       \

@@ -1016,10 +1016,8 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseBigIntToI64) {
           StubCallMode::kCallCodeObject);  // stub call mode
 
   auto lowering_special_case = std::make_unique<Int64LoweringSpecialCase>();
-  lowering_special_case->bigint_to_i64_call_descriptor =
-      bigint_to_i64_call_descriptor;
-  lowering_special_case->bigint_to_i32_pair_call_descriptor =
-      bigint_to_i32_pair_call_descriptor;
+  lowering_special_case->replacements.insert(
+      {bigint_to_i64_call_descriptor, bigint_to_i32_pair_call_descriptor});
 
   Node* call_node =
       graph()->NewNode(common()->Call(bigint_to_i64_call_descriptor), target,
@@ -1064,10 +1062,8 @@ TEST_F(Int64LoweringTest, WasmBigIntSpecialCaseI64ToBigInt) {
           StubCallMode::kCallCodeObject);  // stub call mode
 
   auto lowering_special_case = std::make_unique<Int64LoweringSpecialCase>();
-  lowering_special_case->i64_to_bigint_call_descriptor =
-      i64_to_bigint_call_descriptor;
-  lowering_special_case->i32_pair_to_bigint_call_descriptor =
-      i32_pair_to_bigint_call_descriptor;
+  lowering_special_case->replacements.insert(
+      {i64_to_bigint_call_descriptor, i32_pair_to_bigint_call_descriptor});
 
   Node* call = graph()->NewNode(common()->Call(i64_to_bigint_call_descriptor),
                                 target, i64, start(), start());

@@ -6,7 +6,7 @@
 @generateCppClass
 @reserveBitsInInstanceType(6)
 extern class String extends Name {
-  length: int32;
+  const length: int32;
 }
 
 @generateCppClass

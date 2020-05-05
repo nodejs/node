@@ -74,9 +74,9 @@ std::vector<CoverageBlock> GetSortedBlockData(SharedFunctionInfo shared) {
       CoverageInfo::cast(shared.GetDebugInfo().coverage_info());
 
   std::vector<CoverageBlock> result;
-  if (coverage_info.SlotCount() == 0) return result;
+  if (coverage_info.slot_count() == 0) return result;
 
-  for (int i = 0; i < coverage_info.SlotCount(); i++) {
+  for (int i = 0; i < coverage_info.slot_count(); i++) {
     const int start_pos = coverage_info.StartSourcePosition(i);
     const int until_pos = coverage_info.EndSourcePosition(i);
     const int count = coverage_info.BlockCount(i);
@@ -385,7 +385,7 @@ void ResetAllBlockCounts(SharedFunctionInfo shared) {
   CoverageInfo coverage_info =
       CoverageInfo::cast(shared.GetDebugInfo().coverage_info());
 
-  for (int i = 0; i < coverage_info.SlotCount(); i++) {
+  for (int i = 0; i < coverage_info.slot_count(); i++) {
     coverage_info.ResetBlockCount(i);
   }
 }
