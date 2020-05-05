@@ -438,17 +438,17 @@ Additionally, when [`fs.readdir()`][] or [`fs.readdirSync()`][] is called with
 the `withFileTypes` option set to `true`, the resulting array is filled with
 `fs.Dirent` objects, rather than strings or `Buffers`.
 
-
 ### `new fs.Dirent(name, type)`
 <!-- YAML
 added: v10.10.0
 -->
 
 * `name` {string|Buffer} The file name that this `fs.Dirent` object refers to.
-* `type` {integer} The type of directory entry. See [Dirent constants][] for possible values.
+* `type` {integer} The type of directory entry. See [Dirent constants][].
 
 Creates a new `fs.Dirent` object and sets the `dirent.name` property to the
-provided name. The `type` argument determines which of the class methods will return `true`.
+provided name. The `type` argument determines which of the class methods will
+return `true`.
 
 ### `dirent.isBlockDevice()`
 <!-- YAML
