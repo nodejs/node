@@ -369,6 +369,7 @@ inline T* Environment::AddBindingData(
   DCHECK_NOT_NULL(list);
   auto result = list->emplace(T::binding_data_name, item);
   CHECK(result.second);
+  DCHECK_EQ(GetBindingData<T>(context), item.get());
   return item.get();
 }
 

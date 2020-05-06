@@ -552,8 +552,8 @@ constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
   const char* p2 = other.name_;
   if (p1 == p2) return true;
   do {
-    if (*p1 != *p2) return false;
-  } while (*(p1++) != '\0');
+    if (*(p1++) != *(p2++)) return false;
+  } while (*p1 != '\0');
   return true;
 }
 
