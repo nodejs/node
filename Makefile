@@ -1328,13 +1328,13 @@ else
 CPPLINT_QUIET = --quiet
 endif
 .PHONY: lint-cpp
-# Lints the C++ code with cpplint.py and check-imports.py.
+# Lints the C++ code with cpplint.py and checkimports.py.
 lint-cpp: tools/.cpplintstamp
 
 tools/.cpplintstamp: $(LINT_CPP_FILES)
 	@echo "Running C++ linter..."
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_QUIET) $?
-	@$(PYTHON) tools/check-imports.py
+	@$(PYTHON) tools/checkimports.py
 	@touch $@
 
 .PHONY: lint-addon-docs
