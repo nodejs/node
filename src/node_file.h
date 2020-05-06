@@ -184,6 +184,7 @@ class FSReqAfterScope final {
  public:
   FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req);
   ~FSReqAfterScope();
+  void Clear();
 
   bool Proceed();
 
@@ -195,7 +196,7 @@ class FSReqAfterScope final {
   FSReqAfterScope& operator=(const FSReqAfterScope&&) = delete;
 
  private:
-  FSReqBase* wrap_ = nullptr;
+  BaseObjectPtr<FSReqBase> wrap_;
   uv_fs_t* req_ = nullptr;
   v8::HandleScope handle_scope_;
   v8::Context::Scope context_scope_;

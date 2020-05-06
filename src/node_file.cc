@@ -556,8 +556,15 @@ FSReqAfterScope::FSReqAfterScope(FSReqBase* wrap, uv_fs_t* req)
 }
 
 FSReqAfterScope::~FSReqAfterScope() {
+  Clear();
+}
+
+void FSReqAfterScope::Clear() {
+  if (!wrap_) return;
+
   uv_fs_req_cleanup(wrap_->req());
-  delete wrap_;
+  wrap_->Detach();
+  wrap_.reset();
 }
 
 // TODO(joyeecheung): create a normal context object, and
@@ -570,12 +577,16 @@ FSReqAfterScope::~FSReqAfterScope() {
 // which is also why the errors should have been constructed
 // in JS for more flexibility.
 void FSReqAfterScope::Reject(uv_fs_t* req) {
-  wrap_->Reject(UVException(wrap_->env()->isolate(),
-                            req->result,
-                            wrap_->syscall(),
-                            nullptr,
-                            req->path,
-                            wrap_->data()));
+  BaseObjectPtr<FSReqBase> wrap { wrap_ };
+  Local<Value> exception =
+      UVException(wrap_->env()->isolate(),
+                  req->result,
+                  wrap_->syscall(),
+                  nullptr,
+                  req->path,
+                  wrap_->data());
+  Clear();
+  wrap->Reject(exception);
 }
 
 bool FSReqAfterScope::Proceed() {
