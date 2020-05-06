@@ -344,12 +344,12 @@ inline T* Environment::GetBindingData(
 
 template <typename T>
 inline T* Environment::GetBindingData(v8::Local<v8::Context> context) {
-  BindingDataStore* list = static_cast<BindingDataStore*>(
+  BindingDataStore* map = static_cast<BindingDataStore*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingListIndex));
-  DCHECK_NOT_NULL(list);
-  auto it = list->find(T::binding_data_name);
-  DCHECK_NE(it, list->end());
+  DCHECK_NOT_NULL(map);
+  auto it = map->find(T::binding_data_name);
+  if (UNLIKELY(it == map->end())) return nullptr;
   T* result = static_cast<T*>(it->second.get());
   DCHECK_NOT_NULL(result);
   DCHECK_EQ(result->env(), GetCurrent(context));
@@ -363,11 +363,11 @@ inline T* Environment::AddBindingData(
   DCHECK_EQ(GetCurrent(context), this);
   // This won't compile if T is not a BaseObject subclass.
   BaseObjectPtr<T> item = MakeDetachedBaseObject<T>(this, target);
-  BindingDataStore* list = static_cast<BindingDataStore*>(
+  BindingDataStore* map = static_cast<BindingDataStore*>(
       context->GetAlignedPointerFromEmbedderData(
           ContextEmbedderIndex::kBindingListIndex));
-  DCHECK_NOT_NULL(list);
-  auto result = list->emplace(T::binding_data_name, item);
+  DCHECK_NOT_NULL(map);
+  auto result = map->emplace(T::binding_data_name, item);
   CHECK(result.second);
   DCHECK_EQ(GetBindingData<T>(context), item.get());
   return item.get();

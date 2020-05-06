@@ -406,7 +406,8 @@ That object is always a [`BaseObject`][].
 
 Its class needs to have a static `binding_data_name` field that based on a
 constant string, in order to disambiguate it from other classes of this type,
-and which could e.g. match the binding’s name.
+and which could e.g. match the binding’s name (in the example above, that would
+be `cares_wrap`).
 
 ```c++
 // In the HTTP parser source code file:
