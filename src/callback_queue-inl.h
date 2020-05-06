@@ -86,7 +86,7 @@ CallbackQueue<R, Args...>::CallbackImpl<Fn>::CallbackImpl(
 
 template <typename R, typename... Args>
 template <typename Fn>
-R CallbackQueue<R, Args...>::CallbackImpl<Fn>::Call(Args&&... args) {
+R CallbackQueue<R, Args...>::CallbackImpl<Fn>::Call(Args... args) {
   return callback_(std::forward<Args>(args)...);
 }
 

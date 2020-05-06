@@ -7,6 +7,12 @@
 
 namespace node {
 
+// A queue of C++ functions that take Args... as arguments and return R
+// (this is similar to the signature of std::function).
+// New entries are added using `CreateCallback()`/`Push()`, and removed using
+// `Shift()`.
+// The `refed` flag is left for easier use in situations in which some of these
+// should be run even if nothing else is keeping the event loop alive.
 template <typename R, typename... Args>
 class CallbackQueue {
  public:
@@ -15,7 +21,7 @@ class CallbackQueue {
     explicit inline Callback(bool refed);
 
     virtual ~Callback() = default;
-    virtual R Call(Args&&... args) = 0;
+    virtual R Call(Args... args) = 0;
 
     inline bool is_refed() const;
 
@@ -46,7 +52,7 @@ class CallbackQueue {
   class CallbackImpl final : public Callback {
    public:
     CallbackImpl(Fn&& callback, bool refed);
-    R Call(Args&&... args) override;
+    R Call(Args... args) override;
 
    private:
     Fn callback_;
