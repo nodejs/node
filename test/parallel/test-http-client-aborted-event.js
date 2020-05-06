@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common');
 const http = require('http');
-const assert = require('assert');
 
 {
   let serverRes;
