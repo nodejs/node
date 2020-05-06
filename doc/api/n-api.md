@@ -1238,7 +1238,7 @@ NAPI_EXTERN napi_status napi_open_handle_scope(napi_env env,
 
 Returns `napi_ok` if the API succeeded.
 
-This API open a new scope.
+This API opens a new scope.
 
 #### napi_close_handle_scope
 <!-- YAML
@@ -1278,7 +1278,7 @@ NAPI_EXTERN napi_status
 
 Returns `napi_ok` if the API succeeded.
 
-This API open a new scope from which one object can be promoted
+This API opens a new scope from which one object can be promoted
 to the outer scope.
 
 #### napi_close_escapable_handle_scope
