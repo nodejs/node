@@ -9,7 +9,7 @@ import sys
 
 def do_exist(file_name, lines, imported):
   if not any(not re.match('using \w+::{0};'.format(imported), line) and
-             re.search(imported, line) for line in lines):
+             re.search('\\b{0}\\b'.format(imported), line) for line in lines):
     print('File "{0}" does not use "{1}"'.format(file_name, imported))
     return False
   return True
@@ -40,4 +40,6 @@ def is_valid(file_name):
   else:
     return valid
 
-sys.exit(0 if all(map(is_valid, glob.iglob('src/*.cc'))) else 1)
+if __name__ == '__main__':
+  files = glob.iglob(sys.argv[1] if len(sys.argv) > 1 else 'src/*.cc')
+  sys.exit(0 if all(map(is_valid, files)) else 1)
