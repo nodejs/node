@@ -197,8 +197,8 @@ static MaybeLocal<Array> DirentListToArray(
 }
 
 static void AfterDirRead(uv_fs_t* req) {
-  FSReqBase* req_wrap = FSReqBase::from_req(req);
-  FSReqAfterScope after(req_wrap, req);
+  BaseObjectPtr<FSReqBase> req_wrap { FSReqBase::from_req(req) };
+  FSReqAfterScope after(req_wrap.get(), req);
 
   if (!after.Proceed()) {
     return;
@@ -210,12 +210,12 @@ static void AfterDirRead(uv_fs_t* req) {
   if (req->result == 0) {
     // Done
     Local<Value> done = Null(isolate);
+    after.Clear();
     req_wrap->Resolve(done);
     return;
   }
 
   uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
-  req->ptr = nullptr;
 
   Local<Value> error;
   Local<Array> js_array;
@@ -224,9 +224,13 @@ static void AfterDirRead(uv_fs_t* req) {
                          req->result,
                          req_wrap->encoding(),
                          &error).ToLocal(&js_array)) {
+    // Clear libuv resources *before* delivering results to JS land because
+    // that can schedule another operation on the same uv_dir_t. Ditto below.
+    after.Clear();
     return req_wrap->Reject(error);
   }
 
+  after.Clear();
   req_wrap->Resolve(js_array);
 }
 
