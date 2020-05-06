@@ -89,14 +89,12 @@ const promiseResolver = new dns.promises.Resolver();
 // This test for 'dns/promises'
 {
   const {
-    setServers,
-    resolve
+    setServers
   } = require('dns/promises');
 
   // This should not throw any error.
   (async () => {
-    const localhost = await resolve('localhost');
-    setServers(localhost);
+    setServers([ '127.0.0.1' ]);
   })();
 
   [
