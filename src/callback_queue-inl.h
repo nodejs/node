@@ -72,7 +72,8 @@ CallbackQueue<R, Args...>::Callback::get_next() {
 }
 
 template <typename R, typename... Args>
-void CallbackQueue<R, Args...>::Callback::set_next(std::unique_ptr<Callback> next) {
+void CallbackQueue<R, Args...>::Callback::set_next(
+    std::unique_ptr<Callback> next) {
   next_ = std::move(next);
 }
 
