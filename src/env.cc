@@ -729,7 +729,7 @@ void Environment::RunAndClearInterrupts() {
     }
     DebugSealHandleScope seal_handle_scope(isolate());
 
-    while (std::unique_ptr<NativeImmediateCallback> head = queue.Shift())
+    while (auto head = queue.Shift())
       head->Call(this);
   }
 }
@@ -755,8 +755,7 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   auto drain_list = [&]() {
     TryCatchScope try_catch(this);
     DebugSealHandleScope seal_handle_scope(isolate());
-    while (std::unique_ptr<NativeImmediateCallback> head =
-               native_immediates_.Shift()) {
+    while (auto head = native_immediates_.Shift()) {
       if (head->is_refed())
         ref_count++;
 

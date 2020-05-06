@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "aliased_buffer.h"
+#include "callback_queue-inl.h"
 #include "env.h"
 #include "node.h"
 #include "util-inl.h"
@@ -705,50 +706,9 @@ inline void IsolateData::set_options(
   options_ = std::move(options);
 }
 
-std::unique_ptr<Environment::NativeImmediateCallback>
-Environment::NativeImmediateQueue::Shift() {
-  std::unique_ptr<Environment::NativeImmediateCallback> ret = std::move(head_);
-  if (ret) {
-    head_ = ret->get_next();
-    if (!head_)
-      tail_ = nullptr;  // The queue is now empty.
-  }
-  size_--;
-  return ret;
-}
-
-void Environment::NativeImmediateQueue::Push(
-    std::unique_ptr<Environment::NativeImmediateCallback> cb) {
-  NativeImmediateCallback* prev_tail = tail_;
-
-  size_++;
-  tail_ = cb.get();
-  if (prev_tail != nullptr)
-    prev_tail->set_next(std::move(cb));
-  else
-    head_ = std::move(cb);
-}
-
-void Environment::NativeImmediateQueue::ConcatMove(
-    NativeImmediateQueue&& other) {
-  size_ += other.size_;
-  if (tail_ != nullptr)
-    tail_->set_next(std::move(other.head_));
-  else
-    head_ = std::move(other.head_);
-  tail_ = other.tail_;
-  other.tail_ = nullptr;
-  other.size_ = 0;
-}
-
-size_t Environment::NativeImmediateQueue::size() const {
-  return size_.load();
-}
-
 template <typename Fn>
 void Environment::CreateImmediate(Fn&& cb, bool ref) {
-  auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
-      std::move(cb), ref);
+  auto callback = native_immediates_.CreateCallback(std::move(cb), ref);
   native_immediates_.Push(std::move(callback));
 }
 
@@ -768,8 +728,8 @@ void Environment::SetUnrefImmediate(Fn&& cb) {
 
 template <typename Fn>
 void Environment::SetImmediateThreadsafe(Fn&& cb) {
-  auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
-      std::move(cb), false);
+  auto callback =
+      native_immediates_threadsafe_.CreateCallback(std::move(cb), false);
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     native_immediates_threadsafe_.Push(std::move(callback));
@@ -780,8 +740,8 @@ void Environment::SetImmediateThreadsafe(Fn&& cb) {
 
 template <typename Fn>
 void Environment::RequestInterrupt(Fn&& cb) {
-  auto callback = std::make_unique<NativeImmediateCallbackImpl<Fn>>(
-      std::move(cb), false);
+  auto callback =
+      native_immediates_interrupts_.CreateCallback(std::move(cb), false);
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     native_immediates_interrupts_.Push(std::move(callback));
@@ -789,34 +749,6 @@ void Environment::RequestInterrupt(Fn&& cb) {
       uv_async_send(&task_queues_async_);
   }
   RequestInterruptFromV8();
-}
-
-Environment::NativeImmediateCallback::NativeImmediateCallback(bool refed)
-  : refed_(refed) {}
-
-bool Environment::NativeImmediateCallback::is_refed() const {
-  return refed_;
-}
-
-std::unique_ptr<Environment::NativeImmediateCallback>
-Environment::NativeImmediateCallback::get_next() {
-  return std::move(next_);
-}
-
-void Environment::NativeImmediateCallback::set_next(
-    std::unique_ptr<NativeImmediateCallback> next) {
-  next_ = std::move(next);
-}
-
-template <typename Fn>
-Environment::NativeImmediateCallbackImpl<Fn>::NativeImmediateCallbackImpl(
-    Fn&& callback, bool refed)
-  : NativeImmediateCallback(refed),
-    callback_(std::move(callback)) {}
-
-template <typename Fn>
-void Environment::NativeImmediateCallbackImpl<Fn>::Call(Environment* env) {
-  callback_(env);
 }
 
 inline bool Environment::can_call_into_js() const {
