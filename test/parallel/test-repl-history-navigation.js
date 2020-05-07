@@ -15,6 +15,8 @@ common.skipIfDumbTerminal();
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
+process.throwDeprecation = true;
+
 const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 
 // Create an input stream specialized for testing an array of actions
