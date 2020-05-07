@@ -30,6 +30,7 @@ const {
 const assert = require('assert');
 const path = require('path');
 const fixtures = require('../common/fixtures');
+const { builtinModules } = require('module');
 const hasInspector = process.features.inspector;
 
 if (!common.isMainThread)
@@ -222,8 +223,9 @@ putIn.run(['.clear']);
 
 testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
-  repl._builtinLibs.forEach(function(lib) {
-    assert(data[0].includes(lib), `${lib} not found`);
+  builtinModules.forEach((lib) => {
+    if (!lib.startsWith('_'))
+      assert(data[0].includes(lib), `${lib} not found`);
   });
 }));
 
