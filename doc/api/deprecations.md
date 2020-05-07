@@ -2682,6 +2682,21 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The `repl` module exported the input and output stream twice. Use `.input`
 instead of `.inputStream` and `.output` instead of `.outputStream`.
 
+<a id="DEP0XX1"></a>
+### DEP0XX1: `repl._builtinLibs`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33294
+    description: Documentation-only (supports [`--pending-deprecation`][]).
+-->
+
+Type: Documentation-only
+
+The `repl` module exports a `_builtinLibs` property that contains an array with
+native modules. It was incomplete so far and instead it's better to rely upon
+`require('module').builtinModules`.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
