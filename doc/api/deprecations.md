@@ -1628,12 +1628,15 @@ supported API.
 ### DEP0078: `REPLServer.turnOffEditorMode()`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33286
+    description: End-of-Life.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15136
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 `REPLServer.turnOffEditorMode()` was removed from userland visibility.
 
