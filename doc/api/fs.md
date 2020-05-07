@@ -5374,9 +5374,13 @@ Example:
 ```js
 const fs = require('fs');
 
-const flags = fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_EXCL;
+const {
+  O_RDWR,
+  O_CREAT,
+  O_EXCL
+} = fs.constants
 
-fs.open('<file>', flags, (err, fd) => {
+fs.open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
   // ...
 });
 ```
