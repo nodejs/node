@@ -77,7 +77,7 @@ size_t GetServerMaxHeaderPairs(size_t max_header_pairs) {
 }
 
 template <typename allocator_t>
-std::string NgHeaderImpl<allocator_t>::ToString() const {
+std::string NgHeaderBase<allocator_t>::ToString() const {
   std::string ret = name();
   ret += " = ";
   ret += value();

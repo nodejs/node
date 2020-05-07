@@ -454,7 +454,7 @@ class NgRcBufPointer : public MemoryRetainer {
 };
 
 template <typename allocator_t>
-struct NgHeaderImpl : public MemoryRetainer {
+struct NgHeaderBase : public MemoryRetainer {
   virtual v8::MaybeLocal<v8::String> GetName(allocator_t* allocator) const = 0;
   virtual v8::MaybeLocal<v8::String> GetValue(allocator_t* allocator) const = 0;
   virtual std::string name() const = 0;
@@ -471,7 +471,7 @@ struct NgHeaderImpl : public MemoryRetainer {
 // memory tracking, and implementation of static utility functions.
 // See Http2HeaderTraits in node_http2.h for an example.
 template <typename T>
-class NgHeader : public NgHeaderImpl<typename T::allocator_t> {
+class NgHeader final : public NgHeaderBase<typename T::allocator_t> {
  public:
   typedef typename T::rcbufferpointer_t rcbufferpointer_t;
   typedef typename T::rcbufferpointer_t::rcbuf_t rcbuf_t;
