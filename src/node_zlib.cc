@@ -111,9 +111,9 @@ enum node_zlib_mode {
 
 struct CompressionError {
   CompressionError(const char* message, const char* code, int err)
-      : message(message)
-      , code(code)
-      , err(err) {
+      : message(message),
+        code(code),
+        err(err) {
     CHECK_NOT_NULL(message);
   }
 
