@@ -269,6 +269,7 @@ our @disablables = (
   "poly1305",
   "posix-io",
   "psk",
+  "quic",
   "rc2",
   "rc4",
   "rc5",
@@ -3160,6 +3161,7 @@ our %unified_info = (
                             "ssl/ssl_init.o",
                             "ssl/ssl_lib.o",
                             "ssl/ssl_mcnf.o",
+                            "ssl/ssl_quic.o",
                             "ssl/ssl_rsa.o",
                             "ssl/ssl_sess.o",
                             "ssl/ssl_stat.o",
@@ -3210,6 +3212,7 @@ our %unified_info = (
                             "ssl/statem/statem_clnt.o",
                             "ssl/statem/statem_dtls.o",
                             "ssl/statem/statem_lib.o",
+                            "ssl/statem/statem_quic.o",
                             "ssl/statem/statem_srvr.o",
                         ],
                     "products" =>
@@ -8467,6 +8470,11 @@ our %unified_info = (
                     ".",
                     "include",
                 ],
+            "ssl/ssl_quic.o" =>
+                [
+                    ".",
+                    "include",
+                ],
             "ssl/ssl_rsa.o" =>
                 [
                     ".",
@@ -8528,6 +8536,11 @@ our %unified_info = (
                     "include",
                 ],
             "ssl/statem/statem_lib.o" =>
+                [
+                    ".",
+                    "include",
+                ],
+            "ssl/statem/statem_quic.o" =>
                 [
                     ".",
                     "include",
@@ -13236,6 +13249,7 @@ our %unified_info = (
                     "ssl/ssl_init.o",
                     "ssl/ssl_lib.o",
                     "ssl/ssl_mcnf.o",
+                    "ssl/ssl_quic.o",
                     "ssl/ssl_rsa.o",
                     "ssl/ssl_sess.o",
                     "ssl/ssl_stat.o",
@@ -13249,6 +13263,7 @@ our %unified_info = (
                     "ssl/statem/statem_clnt.o",
                     "ssl/statem/statem_dtls.o",
                     "ssl/statem/statem_lib.o",
+                    "ssl/statem/statem_quic.o",
                     "ssl/statem/statem_srvr.o",
                     "ssl/t1_enc.o",
                     "ssl/t1_lib.o",
@@ -13356,6 +13371,10 @@ our %unified_info = (
                 [
                     "ssl/ssl_mcnf.c",
                 ],
+            "ssl/ssl_quic.o" =>
+                [
+                    "ssl/ssl_quic.c",
+                ],
             "ssl/ssl_rsa.o" =>
                 [
                     "ssl/ssl_rsa.c",
@@ -13407,6 +13426,10 @@ our %unified_info = (
             "ssl/statem/statem_lib.o" =>
                 [
                     "ssl/statem/statem_lib.c",
+                ],
+            "ssl/statem/statem_quic.o" =>
+                [
+                    "ssl/statem/statem_quic.c",
                 ],
             "ssl/statem/statem_srvr.o" =>
                 [
