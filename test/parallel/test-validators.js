@@ -13,12 +13,7 @@ const {
   validateObject,
   validateString,
 } = require('internal/validators');
-const {
-  MAX_SAFE_INTEGER,
-  MIN_SAFE_INTEGER,
-  NEGATIVE_INFINITY,
-  POSITIVE_INFINITY,
-} = Number;
+const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 const outOfRangeError = {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
