@@ -86,26 +86,28 @@ const expectedModules = new Set([
 ]);
 
 if (!common.isMainThread) {
-  expectedModules.add('Internal Binding messaging');
-  expectedModules.add('Internal Binding symbols');
-  expectedModules.add('Internal Binding worker');
-  expectedModules.add('NativeModule _stream_duplex');
-  expectedModules.add('NativeModule _stream_passthrough');
-  expectedModules.add('NativeModule _stream_readable');
-  expectedModules.add('NativeModule _stream_transform');
-  expectedModules.add('NativeModule _stream_writable');
-  expectedModules.add('NativeModule internal/error-serdes');
-  expectedModules.add('NativeModule internal/process/worker_thread_only');
-  expectedModules.add('NativeModule internal/streams/buffer_list');
-  expectedModules.add('NativeModule internal/streams/destroy');
-  expectedModules.add('NativeModule internal/streams/end-of-stream');
-  expectedModules.add('NativeModule internal/streams/legacy');
-  expectedModules.add('NativeModule internal/streams/pipeline');
-  expectedModules.add('NativeModule internal/streams/state');
-  expectedModules.add('NativeModule internal/worker');
-  expectedModules.add('NativeModule internal/worker/io');
-  expectedModules.add('NativeModule stream');
-  expectedModules.add('NativeModule worker_threads');
+  [
+    'Internal Binding messaging',
+    'Internal Binding symbols',
+    'Internal Binding worker',
+    'NativeModule _stream_duplex',
+    'NativeModule _stream_passthrough',
+    'NativeModule _stream_readable',
+    'NativeModule _stream_transform',
+    'NativeModule _stream_writable',
+    'NativeModule internal/error-serdes',
+    'NativeModule internal/process/worker_thread_only',
+    'NativeModule internal/streams/buffer_list',
+    'NativeModule internal/streams/destroy',
+    'NativeModule internal/streams/end-of-stream',
+    'NativeModule internal/streams/legacy',
+    'NativeModule internal/streams/pipeline',
+    'NativeModule internal/streams/state',
+    'NativeModule internal/worker',
+    'NativeModule internal/worker/io',
+    'NativeModule stream',
+    'NativeModule worker_threads',
+  ].forEach(expectedModules.add.bind(expectedModules));
 }
 
 if (common.hasIntl) {
