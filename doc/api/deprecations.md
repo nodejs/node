@@ -1547,12 +1547,15 @@ code, no replacement API is provided.
 ### DEP0074: `REPLServer.bufferedCommand`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33286
+    description: End-of-Life.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/13687
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `REPLServer.bufferedCommand` property was deprecated in favor of
 [`REPLServer.clearBufferedCommand()`][].
