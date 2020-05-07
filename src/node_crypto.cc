@@ -28,6 +28,7 @@
 #include "node_errors.h"
 #include "node_mutex.h"
 #include "node_process.h"
+#include "allocated_buffer-inl.h"
 #include "tls_wrap.h"  // TLSWrap
 
 #include "async_wrap-inl.h"
@@ -1918,7 +1919,7 @@ void SSLWrap<Base>::GetFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = env->AllocateManaged(len);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
   CHECK_EQ(len, SSL_get_finished(w->ssl_.get(), buf.data(), len));
   args.GetReturnValue().Set(buf.ToBuffer().ToLocalChecked());
 }
@@ -1941,7 +1942,7 @@ void SSLWrap<Base>::GetPeerFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = env->AllocateManaged(len);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
   CHECK_EQ(len, SSL_get_peer_finished(w->ssl_.get(), buf.data(), len));
   args.GetReturnValue().Set(buf.ToBuffer().ToLocalChecked());
 }
@@ -1962,7 +1963,7 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
   if (slen <= 0)
     return;  // Invalid or malformed session.
 
-  AllocatedBuffer sbuf = env->AllocateManaged(slen);
+  AllocatedBuffer sbuf = AllocatedBuffer::AllocateManaged(env, slen);
   unsigned char* p = reinterpret_cast<unsigned char*>(sbuf.data());
   CHECK_LT(0, i2d_SSL_SESSION(sess, &p));
   args.GetReturnValue().Set(sbuf.ToBuffer().ToLocalChecked());
@@ -2272,7 +2273,7 @@ void SSLWrap<Base>::ExportKeyingMaterial(
   uint32_t olen = args[0].As<Uint32>()->Value();
   node::Utf8Value label(env->isolate(), args[1]);
 
-  AllocatedBuffer out = env->AllocateManaged(olen);
+  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, olen);
 
   ByteSource context;
   bool use_context = !args[2]->IsUndefined();
@@ -3950,7 +3951,7 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
     return kErrorState;
   }
 
-  *out = env()->AllocateManaged(buf_len);
+  *out = AllocatedBuffer::AllocateManaged(env(), buf_len);
   int r = EVP_CipherUpdate(ctx_.get(),
                            reinterpret_cast<unsigned char*>(out->data()),
                            &buf_len,
@@ -4014,7 +4015,8 @@ bool CipherBase::Final(AllocatedBuffer* out) {
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
 
-  *out = env()->AllocateManaged(
+  *out = AllocatedBuffer::AllocateManaged(
+      env(),
       static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
 
   if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get())) {
@@ -4535,7 +4537,7 @@ static AllocatedBuffer ConvertSignatureToP1363(Environment* env,
   if (!asn1_sig)
     return AllocatedBuffer();
 
-  AllocatedBuffer buf = env->AllocateManaged(2 * n);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, 2 * n);
   unsigned char* data = reinterpret_cast<unsigned char*>(buf.data());
 
   const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig.get());
@@ -4594,7 +4596,7 @@ static AllocatedBuffer Node_SignFinal(Environment* env,
   int signed_sig_len = EVP_PKEY_size(pkey.get());
   CHECK_GE(signed_sig_len, 0);
   size_t sig_len = static_cast<size_t>(signed_sig_len);
-  AllocatedBuffer sig = env->AllocateManaged(sig_len);
+  AllocatedBuffer sig = AllocatedBuffer::AllocateManaged(env, sig_len);
 
   EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
   if (pkctx &&
@@ -4755,7 +4757,7 @@ void SignOneShot(const FunctionCallbackInfo<Value>& args) {
   if (!EVP_DigestSign(mdctx.get(), nullptr, &sig_len, input, data.length()))
     return CheckThrow(env, SignBase::Error::kSignPrivateKey);
 
-  AllocatedBuffer signature = env->AllocateManaged(sig_len);
+  AllocatedBuffer signature = AllocatedBuffer::AllocateManaged(env, sig_len);
   if (!EVP_DigestSign(mdctx.get(),
                       reinterpret_cast<unsigned char*>(signature.data()),
                       &sig_len,
@@ -5012,7 +5014,7 @@ bool PublicKeyCipher::Cipher(Environment* env,
   if (EVP_PKEY_cipher(ctx.get(), nullptr, &out_len, data, len) <= 0)
     return false;
 
-  *out = env->AllocateManaged(out_len);
+  *out = AllocatedBuffer::AllocateManaged(env, out_len);
 
   if (EVP_PKEY_cipher(ctx.get(),
                       reinterpret_cast<unsigned char*>(out->data()),
@@ -5264,7 +5266,7 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   DH_get0_key(diffieHellman->dh_.get(), &pub_key, nullptr);
   const int size = BN_num_bytes(pub_key);
   CHECK_GE(size, 0);
-  AllocatedBuffer data = env->AllocateManaged(size);
+  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
   CHECK_EQ(size,
            BN_bn2binpad(
                pub_key, reinterpret_cast<unsigned char*>(data.data()), size));
@@ -5285,7 +5287,7 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
 
   const int size = BN_num_bytes(num);
   CHECK_GE(size, 0);
-  AllocatedBuffer data = env->AllocateManaged(size);
+  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
   CHECK_EQ(
       size,
       BN_bn2binpad(num, reinterpret_cast<unsigned char*>(data.data()), size));
@@ -5355,7 +5357,8 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<unsigned char> key_buf(args[0].As<ArrayBufferView>());
   BignumPointer key(BN_bin2bn(key_buf.data(), key_buf.length(), nullptr));
 
-  AllocatedBuffer ret = env->AllocateManaged(DH_size(diffieHellman->dh_.get()));
+  AllocatedBuffer ret =
+      AllocatedBuffer::AllocateManaged(env, DH_size(diffieHellman->dh_.get()));
 
   int size = DH_compute_key(reinterpret_cast<unsigned char*>(ret.data()),
                             key.get(),
@@ -5561,7 +5564,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   // NOTE: field_size is in bits
   int field_size = EC_GROUP_get_degree(ecdh->group_);
   size_t out_len = (field_size + 7) / 8;
-  AllocatedBuffer out = env->AllocateManaged(out_len);
+  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, out_len);
 
   int r = ECDH_compute_key(
       out.data(), out_len, pub.get(), ecdh->key_.get(), nullptr);
@@ -5610,7 +5613,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get ECDH private key");
 
   const int size = BN_num_bytes(b);
-  AllocatedBuffer out = env->AllocateManaged(size);
+  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, size);
   CHECK_EQ(size, BN_bn2binpad(b,
                               reinterpret_cast<unsigned char*>(out.data()),
                               size));
@@ -6595,7 +6598,7 @@ AllocatedBuffer ExportPublicKey(Environment* env,
   BIO_get_mem_ptr(bio.get(), &ptr);
 
   *size = ptr->length;
-  AllocatedBuffer buf = env->AllocateManaged(*size);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, *size);
   memcpy(buf.data(), ptr->data, *size);
 
   return buf;
@@ -6704,7 +6707,7 @@ AllocatedBuffer StatelessDiffieHellman(Environment* env, ManagedEVPPKey our_key,
       EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
     return AllocatedBuffer();
 
-  AllocatedBuffer result = env->AllocateManaged(out_size);
+  AllocatedBuffer result = AllocatedBuffer::AllocateManaged(env, out_size);
   CHECK_NOT_NULL(result.data());
 
   unsigned char* data = reinterpret_cast<unsigned char*>(result.data());

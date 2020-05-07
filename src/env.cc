@@ -1,5 +1,5 @@
 #include "env.h"
-
+#include "allocated_buffer-inl.h"
 #include "async_wrap.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
