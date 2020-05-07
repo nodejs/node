@@ -39,6 +39,10 @@ function testStrictMode() {
 }
 
 function testStrictModeTerminal() {
+  if (!process.features.inspector) {
+    console.warn('Test skipped: V8 inspector is disabled');
+    return;
+  }
   // Verify that ReferenceErrors are reported in strict mode previews.
   const cli = initRepl(repl.REPL_MODE_STRICT, {
     terminal: true
