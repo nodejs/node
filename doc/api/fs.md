@@ -5378,7 +5378,7 @@ const {
   O_RDWR,
   O_CREAT,
   O_EXCL
-} = fs.constants
+} = fs.constants;
 
 fs.open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
   // ...
