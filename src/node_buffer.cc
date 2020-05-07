@@ -1117,6 +1117,34 @@ void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
   env->set_buffer_prototype_object(proto);
 }
 
+void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  NodeArrayBufferAllocator* allocator = env->isolate_data()->node_allocator();
+  Local<ArrayBuffer> ab;
+  // It can be a nullptr when running inside an isolate where we
+  // do not own the ArrayBuffer allocator.
+  if (allocator == nullptr) {
+    // Create a dummy Uint32Array - the JS land can only toggle the C++ land
+    // setting when the allocator uses our toggle. With this the toggle in JS
+    // land results in no-ops.
+    ab = ArrayBuffer::New(env->isolate(), sizeof(uint32_t));
+  } else {
+    uint32_t* zero_fill_field = allocator->zero_fill_field();
+    std::unique_ptr<BackingStore> backing =
+        ArrayBuffer::NewBackingStore(zero_fill_field,
+                                     sizeof(*zero_fill_field),
+                                     [](void*, size_t, void*) {},
+                                     nullptr);
+    ab = ArrayBuffer::New(env->isolate(), std::move(backing));
+  }
+
+  ab->SetPrivate(
+      env->context(),
+      env->untransferable_object_private_symbol(),
+      True(env->isolate())).Check();
+
+  args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -1165,28 +1193,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "ucs2Write", StringWrite<UCS2>);
   env->SetMethod(target, "utf8Write", StringWrite<UTF8>);
 
-  // It can be a nullptr when running inside an isolate where we
-  // do not own the ArrayBuffer allocator.
-  if (NodeArrayBufferAllocator* allocator =
-          env->isolate_data()->node_allocator()) {
-    uint32_t* zero_fill_field = allocator->zero_fill_field();
-    std::unique_ptr<BackingStore> backing =
-      ArrayBuffer::NewBackingStore(zero_fill_field,
-                                   sizeof(*zero_fill_field),
-                                   [](void*, size_t, void*){},
-                                   nullptr);
-    Local<ArrayBuffer> array_buffer =
-        ArrayBuffer::New(env->isolate(), std::move(backing));
-    array_buffer->SetPrivate(
-        env->context(),
-        env->untransferable_object_private_symbol(),
-        True(env->isolate())).Check();
-    CHECK(target
-              ->Set(env->context(),
-                    FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill"),
-                    Uint32Array::New(array_buffer, 0, 1))
-              .FromJust());
-  }
+  env->SetMethod(target, "getZeroFillToggle", GetZeroFillToggle);
 }
 
 }  // anonymous namespace
