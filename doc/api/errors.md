@@ -845,6 +845,15 @@ An unknown Diffie-Hellman group name was given. See
 
 The [`fs.Dir`][] was previously closed.
 
+<a id="ERR_DIR_CONCURRENT_OPERATION"></a>
+### `ERR_DIR_CONCURRENT_OPERATION`
+<!-- YAML
+added: REPLACEME
+-->
+
+A synchronous read or close call was attempted on an [`fs.Dir`][] which has
+ongoing asynchronous operations.
+
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 ### `ERR_DNS_SET_SERVERS_FAILED`
 

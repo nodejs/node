@@ -33,6 +33,10 @@ const dirclosedError = {
   code: 'ERR_DIR_CLOSED'
 };
 
+const dirconcurrentError = {
+  code: 'ERR_DIR_CONCURRENT_OPERATION'
+};
+
 const invalidCallbackObj = {
   code: 'ERR_INVALID_CALLBACK',
   name: 'TypeError'
@@ -230,3 +234,39 @@ async function doAsyncIterDirClosedTest() {
   assert.throws(() => dir.close(), dirclosedError);
 }
 doAsyncIterDirClosedTest().then(common.mustCall());
+
+// Check that readSync() and closeSync() during read() throw exceptions
+async function doConcurrentAsyncAndSyncOps() {
+  const dir = await fs.promises.opendir(testDir);
+  const promise = dir.read();
+
+  assert.throws(() => dir.closeSync(), dirconcurrentError);
+  assert.throws(() => dir.readSync(), dirconcurrentError);
+
+  await promise;
+  dir.closeSync();
+}
+doConcurrentAsyncAndSyncOps().then(common.mustCall());
+
+// Check that concurrent read() operations don't do weird things.
+async function doConcurrentAsyncOps() {
+  const dir = await fs.promises.opendir(testDir);
+  const promise1 = dir.read();
+  const promise2 = dir.read();
+
+  assertDirent(await promise1);
+  assertDirent(await promise2);
+  dir.closeSync();
+}
+doConcurrentAsyncOps().then(common.mustCall());
+
+// Check that concurrent read() + close() operations don't do weird things.
+async function doConcurrentAsyncMixedOps() {
+  const dir = await fs.promises.opendir(testDir);
+  const promise1 = dir.read();
+  const promise2 = dir.close();
+
+  assertDirent(await promise1);
+  await promise2;
+}
+doConcurrentAsyncMixedOps().then(common.mustCall());
