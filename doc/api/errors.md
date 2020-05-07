@@ -1717,6 +1717,125 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_QUIC_CANNOT_SET_GROUPS"></a>
+### `ERR_QUIC_CANNOT_SET_GROUPS`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUIC_ERROR"></a>
+### `ERR_QUIC_ERROR`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUIC_TLS13_REQUIRED"></a>
+### `ERR_QUIC_TLS13_REQUIRED`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICCLIENTSESSION_FAILED"></a>
+### `ERR_QUICCLIENTSESSION_FAILED`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICCLIENTSESSION_FAILED_SETSOCKET"></a>
+### `ERR_QUICCLIENTSESSION_FAILED_SETSOCKET`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSESSION_DESTROYED"></a>
+### `ERR_QUICSESSION_DESTROYED`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSESSION_INVALID_DCID"></a>
+### `ERR_QUICSESSION_INVALID_DCID`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSESSION_UPDATEKEY"></a>
+### `ERR_QUICSESSION_UPDATEKEY`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSESSION_VERSION_NEGOTIATION"></a>
+### `ERR_QUICSESSION_VERSION_NEGOTIATION`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSOCKET_DESTROYED"></a>
+### `ERR_QUICSOCKET_DESTROYED`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSOCKET_INVALID_STATELESS_RESET_SECRET_LENGTH"></a>
+### `ERR_QUICSOCKET_INVALID_STATELESS_RESET_SECRET_LENGTH`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSOCKET_LISTENING"></a>
+### `ERR_QUICSOCKET_LISTENING`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSOCKET_UNBOUND"></a>
+### `ERR_QUICSOCKET_UNBOUND`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSTREAM_DESTROYED"></a>
+### `ERR_QUICSTREAM_DESTROYED`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSTREAM_INVALID_PUSH"></a>
+### `ERR_QUICSTREAM_INVALID_PUSH`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSTREAM_OPEN_FAILED"></a>
+### `ERR_QUICSTREAM_OPEN_FAILED`
+
+> Stability: 1 - Experimental
+
+TBD
+
+<a id="ERR_QUICSTREAM_UNSUPPORTED_PUSH"></a>
+### `ERR_QUICSTREAM_UNSUPPORTED_PUSH`
+
+> Stability: 1 - Experimental
+
+TBD
+
 <a id="ERR_REQUIRE_ESM"></a>
 ### `ERR_REQUIRE_ESM`
 

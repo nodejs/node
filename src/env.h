@@ -172,6 +172,7 @@ constexpr size_t kFsStatsBufferLength =
 // Strings are per-isolate primitives but Environment proxies them
 // for the sake of convenience.  Strings should be ASCII-only.
 #define PER_ISOLATE_STRING_PROPERTIES(V)                                       \
+  V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
   V(args_string, "args")                                                       \
@@ -334,6 +335,8 @@ constexpr size_t kFsStatsBufferLength =
   V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
+  V(quic_alpn_string, "h3-27")                                                 \
+  V(rate_string, "rate")                                                       \
   V(raw_string, "raw")                                                         \
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
@@ -361,6 +364,8 @@ constexpr size_t kFsStatsBufferLength =
   V(stack_string, "stack")                                                     \
   V(standard_name_string, "standardName")                                      \
   V(start_time_string, "startTime")                                            \
+  V(state_string, "state")                                                     \
+  V(stats_string, "stats")                                                     \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
   V(subject_string, "subject")                                                 \
@@ -399,6 +404,16 @@ constexpr size_t kFsStatsBufferLength =
   V(x_forwarded_string, "x-forwarded-for")                                     \
   V(zero_return_string, "ZERO_RETURN")
 
+#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                       \
+  V(quicclientsession_instance_template, v8::ObjectTemplate)                   \
+  V(quicserversession_instance_template, v8::ObjectTemplate)                   \
+  V(quicserverstream_instance_template, v8::ObjectTemplate)                    \
+  V(quicsocketsendwrap_instance_template, v8::ObjectTemplate)
+#else
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+#endif
+
 #define ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)                             \
   V(async_wrap_ctor_template, v8::FunctionTemplate)                            \
   V(async_wrap_object_ctor_template, v8::FunctionTemplate)                     \
@@ -428,7 +443,38 @@ constexpr size_t kFsStatsBufferLength =
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
-  V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)
+  V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
+  QUIC_ENVIRONMENT_STRONG_PERSISTENT_TEMPLATES(V)
+
+#if defined(NODE_EXPERIMENTAL_QUIC) && NODE_EXPERIMENTAL_QUIC
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                          \
+  V(quic_on_socket_close_function, v8::Function)                               \
+  V(quic_on_socket_error_function, v8::Function)                               \
+  V(quic_on_socket_server_busy_function, v8::Function)                         \
+  V(quic_on_session_cert_function, v8::Function)                               \
+  V(quic_on_session_client_hello_function, v8::Function)                       \
+  V(quic_on_session_close_function, v8::Function)                              \
+  V(quic_on_session_destroyed_function, v8::Function)                          \
+  V(quic_on_session_error_function, v8::Function)                              \
+  V(quic_on_session_handshake_function, v8::Function)                          \
+  V(quic_on_session_keylog_function, v8::Function)                             \
+  V(quic_on_session_path_validation_function, v8::Function)                    \
+  V(quic_on_session_use_preferred_address_function, v8::Function)              \
+  V(quic_on_session_qlog_function, v8::Function)                               \
+  V(quic_on_session_ready_function, v8::Function)                              \
+  V(quic_on_session_silent_close_function, v8::Function)                       \
+  V(quic_on_session_status_function, v8::Function)                             \
+  V(quic_on_session_ticket_function, v8::Function)                             \
+  V(quic_on_session_version_negotiation_function, v8::Function)                \
+  V(quic_on_stream_close_function, v8::Function)                               \
+  V(quic_on_stream_error_function, v8::Function)                               \
+  V(quic_on_stream_ready_function, v8::Function)                               \
+  V(quic_on_stream_reset_function, v8::Function)                               \
+  V(quic_on_stream_headers_function, v8::Function)                             \
+  V(quic_on_stream_blocked_function, v8::Function)
+#else
+# define QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
+#endif
 
 #define ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)                                \
   V(async_hooks_after_function, v8::Function)                                  \
@@ -477,7 +523,8 @@ constexpr size_t kFsStatsBufferLength =
   V(tls_wrap_constructor_function, v8::Function)                               \
   V(trace_category_state_function, v8::Function)                               \
   V(udp_constructor_function, v8::Function)                                    \
-  V(url_constructor_function, v8::Function)
+  V(url_constructor_function, v8::Function)                                    \
+  QUIC_ENVIRONMENT_STRONG_PERSISTENT_VALUES(V)
 
 class Environment;
 struct AllocatedBuffer;

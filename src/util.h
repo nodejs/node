@@ -331,6 +331,11 @@ constexpr size_t arraysize(const T (&)[N]) {
   return N;
 }
 
+template <typename T, size_t N>
+constexpr size_t strsize(const T (&)[N]) {
+  return N - 1;
+}
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
@@ -562,6 +567,11 @@ struct MallocedBuffer {
   void Truncate(size_t new_size) {
     CHECK(new_size <= size);
     size = new_size;
+  }
+
+  void Realloc(size_t new_size) {
+    Truncate(new_size);
+    data = UncheckedRealloc(data, new_size);
   }
 
   inline bool is_empty() const { return data == nullptr; }
