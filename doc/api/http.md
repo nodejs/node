@@ -110,6 +110,11 @@ http.get({
 ### `new Agent([options])`
 <!-- YAML
 added: v0.3.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33278
+    description: Add `scheduling` option to specify the free socket
+                 scheduling strategy.
 -->
 
 * `options` {Object} Set of configurable options to set on the agent.
@@ -132,6 +137,18 @@ added: v0.3.4
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
+  * `scheduling` {string} Scheduling strategy to apply when picking
+    the next free socket to use. It can be `'fifo'` or `'lifo'`.
+    The main difference between the two scheduling strategies is that `'lifo'`
+    selects the most recently used socket, while `'fifo'` selects
+    the least recently used socket.
+    In case of a low rate of request per second, the `'lifo'` scheduling
+    will lower the risk of picking a socket that might have been closed
+    by the server due to inactivity.
+    In case of a high rate of request per second,
+    the `'fifo'` scheduling will maximize the number of open sockets,
+    while the `'lifo'` scheduling will keep it as low as possible.
+    **Default:** `'fifo'`.
   * `timeout` {number} Socket timeout in milliseconds.
     This will set the timeout when the socket is created.
 
