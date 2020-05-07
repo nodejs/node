@@ -2668,6 +2668,20 @@ Type: Documentation-only
 
 Use [`request.destroy()`][] instead of [`request.abort()`][].
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: `repl.inputStream` and `repl.outputStream`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33294
+    description: Documentation-only (supports [`--pending-deprecation`][]).
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+The `repl` module exported the input and output stream twice. Use `.input`
+instead of `.inputStream` and `.output` instead of `.outputStream`.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size

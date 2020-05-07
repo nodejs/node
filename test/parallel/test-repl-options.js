@@ -19,6 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Flags: --pending-deprecation
+
 'use strict';
 const common = require('../common');
 const ArrayStream = require('../common/arraystream');
@@ -30,7 +32,9 @@ assert.strictEqual(repl.repl, undefined);
 
 common.expectWarning({
   DeprecationWarning: {
-    DEP0124: 'REPLServer.rli is deprecated'
+    DEP0XXX: 'repl.inputStream and repl.outputStream is deprecated. ' +
+             'Use repl.input and repl.output instead',
+    DEP0124: 'REPLServer.rli is deprecated',
   }
 });
 
