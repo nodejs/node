@@ -1,6 +1,9 @@
 'use strict';
 
 const common = require('../../common');
+if (process.config.variables.is_debug) {
+  common.skip('v8::Isolate::GetCurrent() will abort in debug mode');
+}
 const assert = require('assert');
 const binding = require(`./build/${common.buildType}/binding`);
 const { fork } = require('child_process');
