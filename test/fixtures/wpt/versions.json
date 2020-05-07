@@ -26,5 +26,9 @@
   "html/webappapis/timers": {
     "commit": "ddfe9c089bab565a9d3aa37bdef63d8012c1a94c",
     "path": "html/webappapis/timers"
+  },
+  "hr-time": {
+    "commit": "a5d1774ecf41751d1c9357c27c709ee33bf3e279",
+    "path": "hr-time"
   }
 }

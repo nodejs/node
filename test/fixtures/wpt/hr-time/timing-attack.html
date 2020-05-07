@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>window.performance.now should not enable timing attacks</title>
+<link rel="author" title="W3C" href="http://www.w3.org/" />
+<link rel="help" href="http://w3c.github.io/hr-time/#privacy-security"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(function() {
+  function check_resolutions(times, length) {
+    var end = length - 2;
+
+    // we compare each value with the following ones
+    for (var i = 0; i < end; i++) {
+      var h1 = times[i];
+      for (var j = i+1; j < end; j++) {
+        var h2 = times[j];
+        var diff = h2 - h1;
+        assert_true((diff === 0) || ((diff * 1000) >= 5),
+          "Differences smaller than 5 microseconds: " + diff);
+      }
+    }
+    return true;
+  }
+
+  var times = new Array(10);
+  var index = 0;
+  var hrt1, hrt2, hrt;
+
+  // rapid firing of performance.now
+  hrt1 = performance.now();
+  hrt2 = performance.now();
+  times[index++] = hrt1;
+  times[index++] = hrt2;
+
+  // ensure that we get performance.now() to return a different value
+  do {
+    hrt = performance.now();
+    times[index++] = hrt;
+  } while ((hrt - hrt1) === 0);
+
+  assert_true(check_resolutions(times, index), 'Difference should be at least 5 microseconds.');
+}, 'The recommended minimum resolution of the Performance interface has been set to 5 microseconds');
+</script>
+</head>
+<body>
+<h1>Description</h1>
+<p>The recommended minimum resolution of the Performance interface should be set to 5 microseconds.</p>
+
+<div id="log"></div>
+
+</body>
+</html>
