@@ -2385,12 +2385,15 @@ Setting the TLS ServerName to an IP address is not permitted by
 ### DEP0124: using `REPLServer.rli`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33286
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/26260
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 This property is a reference to the instance itself.
 
