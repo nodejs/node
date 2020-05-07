@@ -5321,6 +5321,24 @@ The following constants are exported by `fs.constants`.
 
 Not every constant will be available on every operating system.
 
+To use more than one constant, use the bitwise OR `|` operator.
+
+Example:
+
+```js
+const fs = require('fs');
+
+const {
+  O_RDWR,
+  O_CREAT,
+  O_EXCL
+} = fs.constants;
+
+fs.open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
+  // ...
+});
+```
+
 ### File Access Constants
 
 The following constants are meant for use with [`fs.access()`][].
