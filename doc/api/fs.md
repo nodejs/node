@@ -5372,13 +5372,13 @@ To use more than one constant, use the bitwise OR `|` operator.
 Example:
 
 ```js
-const fs = require('fs')
+const fs = require('fs');
 
-const flags = fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_EXCL
+const flags = fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_EXCL;
 
-fs.open('<file>', flags, (err, fd) => { 
+fs.open('<file>', flags, (err, fd) => {
   // ...
-})
+});
 ```
 
 ### File Access Constants
