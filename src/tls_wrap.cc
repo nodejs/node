@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "tls_wrap.h"
+#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
@@ -766,7 +767,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
   // and copying it when it could just be used.
 
   if (nonempty_count != 1) {
-    data = env()->AllocateManaged(length);
+    data = AllocatedBuffer::AllocateManaged(env(), length);
     size_t offset = 0;
     for (i = 0; i < count; i++) {
       memcpy(data.data() + offset, bufs[i].base, bufs[i].len);
@@ -782,7 +783,7 @@ int TLSWrap::DoWrite(WriteWrap* w,
     written = SSL_write(ssl_.get(), buf->base, buf->len);
 
     if (written == -1) {
-      data = env()->AllocateManaged(length);
+      data = AllocatedBuffer::AllocateManaged(env(), length);
       memcpy(data.data(), buf->base, buf->len);
     }
   }

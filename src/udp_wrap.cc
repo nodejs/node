@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "udp_wrap.h"
+#include "allocated_buffer-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_sockaddr-inl.h"
@@ -688,7 +689,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
 }
 
 uv_buf_t UDPWrap::OnAlloc(size_t suggested_size) {
-  return env()->AllocateManaged(suggested_size).release();
+  return AllocatedBuffer::AllocateManaged(env(), suggested_size).release();
 }
 
 void UDPWrap::OnRecv(uv_udp_t* handle,

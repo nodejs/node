@@ -26,6 +26,7 @@
 
 #include "node_crypto.h"  // SSLWrap
 
+#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "stream_wrap.h"
 #include "v8.h"
