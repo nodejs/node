@@ -7,6 +7,7 @@
 #include <cstdint>
 #include "nghttp2/nghttp2.h"
 
+#include "allocated_buffer.h"
 #include "aliased_struct.h"
 #include "node_http2_state.h"
 #include "node_http_common.h"

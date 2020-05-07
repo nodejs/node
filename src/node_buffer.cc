@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_buffer.h"
+#include "allocated_buffer-inl.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -350,7 +351,10 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   AllocatedBuffer ret(env);
   if (length > 0) {
-    ret = env->AllocateManaged(length, false);
+    ret = AllocatedBuffer::AllocateManaged(
+        env,
+        length,
+        AllocatedBuffer::ALLOCATE_MANAGED_UNCHECKED);
     if (ret.data() == nullptr) {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
       return Local<Object>();
@@ -387,7 +391,10 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   AllocatedBuffer ret(env);
   if (length > 0) {
     CHECK_NOT_NULL(data);
-    ret = env->AllocateManaged(length, false);
+    ret = AllocatedBuffer::AllocateManaged(
+        env,
+        length,
+        AllocatedBuffer::ALLOCATE_MANAGED_UNCHECKED);
     if (ret.data() == nullptr) {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
       return Local<Object>();
@@ -1107,7 +1114,7 @@ static void EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 
   Local<String> str = args[0].As<String>();
   size_t length = str->Utf8Length(isolate);
-  AllocatedBuffer buf = env->AllocateManaged(length);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, length);
   str->WriteUtf8(isolate,
                  buf.data(),
                  -1,  // We are certain that `data` is sufficiently large

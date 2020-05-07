@@ -1,4 +1,5 @@
 #include "stream_pipe.h"
+#include "allocated_buffer-inl.h"
 #include "stream_base-inl.h"
 #include "node_buffer.h"
 #include "util-inl.h"
@@ -118,7 +119,7 @@ uv_buf_t StreamPipe::ReadableListener::OnStreamAlloc(size_t suggested_size) {
   StreamPipe* pipe = ContainerOf(&StreamPipe::readable_listener_, this);
   size_t size = std::min(suggested_size, pipe->wanted_data_);
   CHECK_GT(size, 0);
-  return pipe->env()->AllocateManaged(size).release();
+  return AllocatedBuffer::AllocateManaged(pipe->env(), size).release();
 }
 
 void StreamPipe::ReadableListener::OnStreamRead(ssize_t nread,

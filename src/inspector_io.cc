@@ -3,6 +3,7 @@
 #include "inspector_socket_server.h"
 #include "inspector/main_thread_interface.h"
 #include "inspector/node_string.h"
+#include "allocated_buffer-inl.h"  // Inlined functions needed by node_crypto.h.
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "node.h"

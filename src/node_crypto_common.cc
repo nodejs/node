@@ -1,3 +1,4 @@
+#include "allocated_buffer-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
@@ -492,7 +493,7 @@ MaybeLocal<Object> GetLastIssuedCert(
 MaybeLocal<Object> GetRawDERCertificate(Environment* env, X509* cert) {
   int size = i2d_X509(cert, nullptr);
 
-  AllocatedBuffer buffer = env->AllocateManaged(size);
+  AllocatedBuffer buffer = AllocatedBuffer::AllocateManaged(env, size);
   unsigned char* serialized =
       reinterpret_cast<unsigned char*>(buffer.data());
   i2d_X509(cert, &serialized);
@@ -669,7 +670,7 @@ MaybeLocal<Object> GetPubKey(Environment* env, const RSAPointer& rsa) {
   int size = i2d_RSA_PUBKEY(rsa.get(), nullptr);
   CHECK_GE(size, 0);
 
-  AllocatedBuffer buffer = env->AllocateManaged(size);
+  AllocatedBuffer buffer = AllocatedBuffer::AllocateManaged(env, size);
   unsigned char* serialized =
       reinterpret_cast<unsigned char*>(buffer.data());
   i2d_RSA_PUBKEY(rsa.get(), &serialized);
@@ -891,7 +892,7 @@ MaybeLocal<Object> ECPointToBuffer(Environment* env,
     if (error != nullptr) *error = "Failed to get public key length";
     return MaybeLocal<Object>();
   }
-  AllocatedBuffer buf = env->AllocateManaged(len);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
   len = EC_POINT_point2oct(group,
                            point,
                            form,

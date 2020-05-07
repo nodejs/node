@@ -1,6 +1,7 @@
 #include "stream_base.h"  // NOLINT(build/include_inline)
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
+#include "allocated_buffer-inl.h"
 
 #include "node.h"
 #include "node_buffer.h"
@@ -132,7 +133,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   AllocatedBuffer storage;
   if (storage_size > 0)
-    storage = env->AllocateManaged(storage_size);
+    storage = AllocatedBuffer::AllocateManaged(env, storage_size);
 
   offset = 0;
   if (!all_buffers) {
@@ -276,12 +277,12 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
   if (try_write) {
     // Copy partial data
-    data = env->AllocateManaged(buf.len);
+    data = AllocatedBuffer::AllocateManaged(env, buf.len);
     memcpy(data.data(), buf.base, buf.len);
     data_size = buf.len;
   } else {
     // Write it
-    data = env->AllocateManaged(storage_size);
+    data = AllocatedBuffer::AllocateManaged(env, storage_size);
     data_size = StringBytes::Write(env->isolate(),
                                    data.data(),
                                    storage_size,
@@ -486,7 +487,7 @@ void StreamResource::ClearError() {
 uv_buf_t EmitToJSStreamListener::OnStreamAlloc(size_t suggested_size) {
   CHECK_NOT_NULL(stream_);
   Environment* env = static_cast<StreamBase*>(stream_)->stream_env();
-  return env->AllocateManaged(suggested_size).release();
+  return AllocatedBuffer::AllocateManaged(env, suggested_size).release();
 }
 
 void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
