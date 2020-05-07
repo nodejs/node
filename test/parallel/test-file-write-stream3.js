@@ -185,7 +185,7 @@ const run_test_4 = common.mustCall(function() {
   const err = {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "start" is out of range. ' +
-             'It must be >= 0 and <= 2 ** 53 - 1. Received -5',
+             'It must be >= 0 && <= 9007199254740991. Received -5',
     name: 'RangeError'
   };
   assert.throws(fn, err);
@@ -200,7 +200,7 @@ const run_test_5 = common.mustCall(function() {
   const err = {
     code: 'ERR_OUT_OF_RANGE',
     message: 'The value of "start" is out of range. It must be ' +
-             '>= 0 and <= 2 ** 53 - 1. Received 9_007_199_254_740_992',
+             '>= 0 && <= 9007199254740991. Received 9_007_199_254_740_992',
     name: 'RangeError'
   };
   assert.throws(fn, err);
