@@ -17,7 +17,6 @@ const expectedModules = new Set([
   'Internal Binding credentials',
   'Internal Binding fs',
   'Internal Binding fs_dir',
-  'Internal Binding inspector',
   'Internal Binding module_wrap',
   'Internal Binding native_module',
   'Internal Binding options',
@@ -116,6 +115,7 @@ if (common.hasIntl) {
 }
 
 if (process.features.inspector) {
+  expectedModules.add('Internal Binding inspector');
   expectedModules.add('NativeModule internal/inspector_async_hook');
   expectedModules.add('NativeModule internal/util/inspector');
 }
