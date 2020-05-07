@@ -3,13 +3,22 @@
 
 require('../common');
 const assert = require('assert');
+const { Buffer } = require('buffer');
 const {
   validateArray,
   validateBoolean,
+  validateBuffer,
   validateInteger,
+  validateNumber,
   validateObject,
+  validateString,
 } = require('internal/validators');
-const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
+const {
+  MAX_SAFE_INTEGER,
+  MIN_SAFE_INTEGER,
+  NEGATIVE_INFINITY,
+  POSITIVE_INFINITY,
+} = Number;
 const outOfRangeError = {
   code: 'ERR_OUT_OF_RANGE',
   name: 'RangeError',
@@ -84,4 +93,36 @@ const invalidArgValueError = {
     });
 
   validateObject(null, 'foo', { nullable: true });
+}
+
+{
+  // validateString tests
+  validateString('hi', 'foo');
+
+  [1, false, [], {}, NaN, 1n, null, undefined].forEach((i) => {
+    assert.throws(() => validateString(i, 'foo'), invalidArgTypeError);
+  });
+}
+
+{
+  // validateBuffer tests
+  validateBuffer(Buffer.from('hi'), 'foo');
+  validateBuffer(Buffer.alloc(10), 'foo');
+  validateBuffer(new Uint8Array(10), 'foo');
+  validateBuffer(new DataView((new Uint8Array(10)).buffer));
+
+  [1, false, '', {}, [], 1n, null, undefined].forEach((i) => {
+    assert.throws(() => validateBuffer(i, 'foo'), invalidArgTypeError);
+  });
+}
+
+{
+  // validateNumber tests
+
+  ['', false, [], {}, 1n, null, undefined].forEach((i) => {
+    assert.throws(() => validateNumber(i, 'foo'), invalidArgTypeError);
+  });
+
+  assert.throws(() => validateNumber(1, 'foo', 2), outOfRangeError);
+  assert.throws(() => validateNumber(3, 'foo', 0, 2), outOfRangeError);
 }
