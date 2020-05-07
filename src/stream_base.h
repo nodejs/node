@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "env.h"
+#include "allocated_buffer.h"
 #include "async_wrap.h"
 #include "node.h"
 #include "util.h"

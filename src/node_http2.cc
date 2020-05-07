@@ -1,4 +1,5 @@
 #include "aliased_buffer.h"
+#include "allocated_buffer-inl.h"
 #include "aliased_struct-inl.h"
 #include "debug_utils-inl.h"
 #include "memory_tracker-inl.h"
@@ -259,7 +260,7 @@ Local<Value> Http2Settings::Pack(
     const nghttp2_settings_entry* entries) {
   EscapableHandleScope scope(env->isolate());
   const size_t size = count * 6;
-  AllocatedBuffer buffer = env->AllocateManaged(size);
+  AllocatedBuffer buffer = AllocatedBuffer::AllocateManaged(env, size);
   ssize_t ret =
       nghttp2_pack_settings_payload(
           reinterpret_cast<uint8_t*>(buffer.data()),
@@ -359,8 +360,10 @@ Origins::Origins(
     return;
   }
 
-  buf_ = env->AllocateManaged((alignof(nghttp2_origin_entry) - 1) +
-                              count_ * sizeof(nghttp2_origin_entry) +
+  buf_ = AllocatedBuffer::AllocateManaged(
+      env,
+      (alignof(nghttp2_origin_entry) - 1) +
+       count_ * sizeof(nghttp2_origin_entry) +
                               origin_string_len);
 
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
@@ -1725,7 +1728,7 @@ Http2Stream* Http2Session::SubmitRequest(
 }
 
 uv_buf_t Http2Session::OnStreamAlloc(size_t suggested_size) {
-  return env()->AllocateManaged(suggested_size).release();
+  return AllocatedBuffer::AllocateManaged(env(), suggested_size).release();
 }
 
 // Callback used to receive inbound data from the i/o stream
@@ -1757,7 +1760,8 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     // happen, we concatenate the data we received with the already-stored
     // pending input data, slicing off the already processed part.
     size_t pending_len = stream_buf_.len - stream_buf_offset_;
-    AllocatedBuffer new_buf = env()->AllocateManaged(pending_len + nread);
+    AllocatedBuffer new_buf =
+        AllocatedBuffer::AllocateManaged(env(), pending_len + nread);
     memcpy(new_buf.data(), stream_buf_.base + stream_buf_offset_, pending_len);
     memcpy(new_buf.data() + pending_len, buf.data(), nread);
 

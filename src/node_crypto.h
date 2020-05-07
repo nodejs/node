@@ -27,6 +27,7 @@
 // ClientHelloParser
 #include "node_crypto_clienthello.h"
 
+#include "allocated_buffer.h"
 #include "env.h"
 #include "base_object.h"
 #include "util.h"
