@@ -1,5 +1,6 @@
 {
   'variables': {
+    'experimental_quic': 'false',
     'v8_use_siphash%': 0,
     'v8_trace_maps%': 0,
     'v8_enable_pointer_compression%': 0,
@@ -19,6 +20,8 @@
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
     'node_shared_nghttp2%': 'false',
+    'node_shared_ngtcp2%': 'false',
+    'node_shared_nghttp3%': 'false',
     'node_use_openssl%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
@@ -190,6 +193,8 @@
       'lib/internal/process/task_queues.js',
       'lib/internal/querystring.js',
       'lib/internal/readline/utils.js',
+      'lib/internal/quic/core.js',
+      'lib/internal/quic/util.js',
       'lib/internal/repl.js',
       'lib/internal/repl/await.js',
       'lib/internal/repl/history.js',
@@ -903,6 +908,38 @@
           'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
         }],
+        [
+          # We can only use QUIC if using our modified, static linked
+          # OpenSSL because we have patched in the QUIC support.
+          'node_use_openssl=="true" and node_shared_openssl=="false" and experimental_quic==1', {
+          'defines': ['NODE_EXPERIMENTAL_QUIC=1'],
+          'sources': [
+            'src/node_bob.h',
+            'src/node_bob-inl.h',
+            'src/quic/node_quic_buffer.h',
+            'src/quic/node_quic_buffer-inl.h',
+            'src/quic/node_quic_crypto.h',
+            'src/quic/node_quic_session.h',
+            'src/quic/node_quic_session-inl.h',
+            'src/quic/node_quic_socket.h',
+            'src/quic/node_quic_socket-inl.h',
+            'src/quic/node_quic_stream.h',
+            'src/quic/node_quic_stream-inl.h',
+            'src/quic/node_quic_util.h',
+            'src/quic/node_quic_util-inl.h',
+            'src/quic/node_quic_state.h',
+            'src/quic/node_quic_default_application.h',
+            'src/quic/node_quic_http3_application.h',
+            'src/quic/node_quic_buffer.cc',
+            'src/quic/node_quic_crypto.cc',
+            'src/quic/node_quic_session.cc',
+            'src/quic/node_quic_socket.cc',
+            'src/quic/node_quic_stream.cc',
+            'src/quic/node_quic.cc',
+            'src/quic/node_quic_default_application.cc',
+            'src/quic/node_quic_http3_application.cc'
+          ]
+        }],
         [ 'use_openssl_def==1', {
           # TODO(bnoordhuis) Make all platforms export the same list of symbols.
           # Teach mkssldef.py to generate linker maps that UNIX linkers understand.
@@ -1187,6 +1224,16 @@
           'defines': [
             'HAVE_OPENSSL=1',
           ],
+        }],
+        [ 'node_use_openssl=="true" and experimental_quic==1', {
+          'defines': [
+            'NODE_EXPERIMENTAL_QUIC=1',
+          ],
+          'sources': [
+            'test/cctest/test_quic_buffer.cc',
+            'test/cctest/test_quic_cid.cc',
+            'test/cctest/test_quic_verifyhostnameidentity.cc'
+          ]
         }],
         ['v8_enable_inspector==1', {
           'sources': [

@@ -50,6 +50,7 @@ const noop = () => {};
 
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
+const hasQuic = hasCrypto && Boolean(process.versions.ngtcp2);
 
 // Check for flags. Skip this for workers (both, the `cluster` module and
 // `worker_threads`) and child processes.
@@ -675,6 +676,7 @@ const common = {
   getTTYfd,
   hasIntl,
   hasCrypto,
+  hasQuic,
   hasMultiLocalhost,
   invalidArgTypeHelper,
   isAIX,

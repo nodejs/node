@@ -59,6 +59,11 @@ namespace node {
   V(PROCESSWRAP)                                                              \
   V(PROMISE)                                                                  \
   V(QUERYWRAP)                                                                \
+  V(QUICCLIENTSESSION)                                                        \
+  V(QUICSERVERSESSION)                                                        \
+  V(QUICSENDWRAP)                                                             \
+  V(QUICSOCKET)                                                               \
+  V(QUICSTREAM)                                                               \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \

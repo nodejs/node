@@ -21,6 +21,7 @@ This directory contains modules used to test the Node.js implementation.
 * [Report module](#report-module)
 * [tick module](#tick-module)
 * [tmpdir module](#tmpdir-module)
+* [UDP pair helper](#udp-pair-helper)
 * [WPT module](#wpt-module)
 
 ## Benchmark Module

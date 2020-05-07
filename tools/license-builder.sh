@@ -88,6 +88,12 @@ addlicense "gtest" "test/cctest/gtest" "$(cat ${rootdir}/test/cctest/gtest/LICEN
 # nghttp2
 addlicense "nghttp2" "deps/nghttp2" "$(cat ${rootdir}/deps/nghttp2/COPYING)"
 
+# ngtcp2
+addlicense "ngtcp2" "deps/ngtcp2" "$(cat ${rootdir}/deps/ngtcp2/COPYING)"
+
+# nghttp3
+addlicense "nghttp3" "deps/nghttp3" "$(cat ${rootdir}/deps/nghttp3/COPYING)"
+
 # node-inspect
 addlicense "node-inspect" "deps/node-inspect" "$(cat ${rootdir}/deps/node-inspect/LICENSE)"
 
