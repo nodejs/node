@@ -245,7 +245,7 @@ class DebugSealHandleScope {
  public:
   explicit inline DebugSealHandleScope(v8::Isolate* isolate)
 #ifdef DEBUG
-    : actual_scope_(isolate)
+    : actual_scope_(isolate != nullptr ? isolate : v8::Isolate::GetCurrent())
 #endif
   {}
 
