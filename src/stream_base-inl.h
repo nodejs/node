@@ -113,29 +113,29 @@ inline void StreamResource::RemoveStreamListener(StreamListener* listener) {
 }
 
 inline uv_buf_t StreamResource::EmitAlloc(size_t suggested_size) {
-  DebugSealHandleScope handle_scope(v8::Isolate::GetCurrent());
+  DebugSealHandleScope seal_handle_scope;
   return listener_->OnStreamAlloc(suggested_size);
 }
 
 inline void StreamResource::EmitRead(ssize_t nread, const uv_buf_t& buf) {
-  DebugSealHandleScope handle_scope(v8::Isolate::GetCurrent());
+  DebugSealHandleScope seal_handle_scope;
   if (nread > 0)
     bytes_read_ += static_cast<uint64_t>(nread);
   listener_->OnStreamRead(nread, buf);
 }
 
 inline void StreamResource::EmitAfterWrite(WriteWrap* w, int status) {
-  DebugSealHandleScope handle_scope(v8::Isolate::GetCurrent());
+  DebugSealHandleScope seal_handle_scope;
   listener_->OnStreamAfterWrite(w, status);
 }
 
 inline void StreamResource::EmitAfterShutdown(ShutdownWrap* w, int status) {
-  DebugSealHandleScope handle_scope(v8::Isolate::GetCurrent());
+  DebugSealHandleScope seal_handle_scope;
   listener_->OnStreamAfterShutdown(w, status);
 }
 
 inline void StreamResource::EmitWantsWrite(size_t suggested_size) {
-  DebugSealHandleScope handle_scope(v8::Isolate::GetCurrent());
+  DebugSealHandleScope seal_handle_scope;
   listener_->OnStreamWantsWrite(suggested_size);
 }
 
