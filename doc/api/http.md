@@ -1048,7 +1048,7 @@ writable.
 
 ```js
 server.on('clientError', (err, socket) => {
-  if (err.code === 'ECONNRESET' || !this.writable) {
+  if (err.code === 'ECONNRESET' || !socket.writable) {
     return;
   }
 
