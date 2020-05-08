@@ -821,7 +821,7 @@ for TLSv1.2, which is not as secure as TLSv1.3.
 added: REPLACEME
 -->
 
-Print short summaries of calls to `Atomics.wait()` to stderr.
+Print short summaries of calls to [`Atomics.wait()`][] to stderr.
 The output could look like this:
 
 ```text
@@ -834,6 +834,14 @@ The output could look like this:
 [Thread 0] Atomics.wait(0x55d134fe4290 + 4, 0, inf) was woken up by another thread
 [Thread 1] Atomics.wait(0x55d134fe4290 + 4, -1, inf) was woken up by another thread
 ```
+
+The fields here correspond to:
+
+- The thread id as given by [`worker_threads.threadId`][]
+- The base address of the `SharedArrayBuffer` in question, as well as the
+  byte offset corresponding to the index passed to `Atomics.wait()`
+- The expected value that was passed to `Atomics.wait()`
+- The timeout passed to `Atomics.wait`
 
 ### `--trace-deprecation`
 <!-- YAML
@@ -1494,12 +1502,14 @@ $ node --max-old-space-size=1536 index.js
 ```
 
 [`--openssl-config`]: #cli_openssl_config_file
+[`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
 [`Buffer`]: buffer.html#buffer_class_buffer
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
 [`tls.DEFAULT_MAX_VERSION`]: tls.html#tls_tls_default_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.html#tls_tls_default_min_version
 [`unhandledRejection`]: process.html#process_event_unhandledrejection
+[`worker_threads.threadId`]: worker_threads.html##worker_threads_worker_threadid
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
