@@ -1,4 +1,5 @@
 'use strict';
+/* global SharedArrayBuffer */
 
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
