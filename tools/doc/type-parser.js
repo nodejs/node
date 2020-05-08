@@ -33,7 +33,7 @@ const customTypesMap = {
 
   'AsyncIterable': 'https://tc39.github.io/ecma262/#sec-asynciterable-interface',
 
-  'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
+  'BigInt': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
 

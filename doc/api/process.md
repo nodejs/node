@@ -1374,7 +1374,7 @@ added: v0.7.6
 * Returns: {integer[]}
 
 This is the legacy version of [`process.hrtime.bigint()`][]
-before `bigint` was introduced in JavaScript.
+before `BigInt` was introduced in JavaScript.
 
 The `process.hrtime()` method returns the current high-resolution real time
 in a `[seconds, nanoseconds]` tuple `Array`, where `nanoseconds` is the
@@ -1409,14 +1409,14 @@ setTimeout(() => {
 added: v10.7.0
 -->
 
-* Returns: {bigint}
+* Returns: {BigInt}
 
-The `bigint` version of the [`process.hrtime()`][] method returning the
-current high-resolution real time in nanoseconds as a `bigint`.
+The `BigInt` version of the [`process.hrtime()`][] method returning the
+current high-resolution real time in nanoseconds as a `BigInt`.
 
 Unlike [`process.hrtime()`][], it does not support an additional `time`
 argument since the difference can just be computed directly
-by subtraction of the two `bigint`s.
+by subtraction of the two `BigInt`s.
 
 ```js
 const start = process.hrtime.bigint();

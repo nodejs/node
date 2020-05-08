@@ -661,7 +661,7 @@ A `fs.Stats` object provides information about a file.
 Objects returned from [`fs.stat()`][], [`fs.lstat()`][] and [`fs.fstat()`][] and
 their synchronous counterparts are of this type.
 If `bigint` in the `options` passed to those methods is true, the numeric values
-will be `bigint` instead of `number`, and the object will contain additional
+will be `BigInt` instead of `number`, and the object will contain additional
 nanosecond-precision properties suffixed with `Ns`.
 
 ```console
@@ -782,61 +782,61 @@ This method is only valid when using [`fs.lstat()`][].
 
 ### `stats.dev`
 
-* {number|bigint}
+* {number|BigInt}
 
 The numeric identifier of the device containing the file.
 
 ### `stats.ino`
 
-* {number|bigint}
+* {number|BigInt}
 
 The file system specific "Inode" number for the file.
 
 ### `stats.mode`
 
-* {number|bigint}
+* {number|BigInt}
 
 A bit-field describing the file type and mode.
 
 ### `stats.nlink`
 
-* {number|bigint}
+* {number|BigInt}
 
 The number of hard-links that exist for the file.
 
 ### `stats.uid`
 
-* {number|bigint}
+* {number|BigInt}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 ### `stats.gid`
 
-* {number|bigint}
+* {number|BigInt}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 ### `stats.rdev`
 
-* {number|bigint}
+* {number|BigInt}
 
 A numeric device identifier if the file is considered "special".
 
 ### `stats.size`
 
-* {number|bigint}
+* {number|BigInt}
 
 The size of the file in bytes.
 
 ### `stats.blksize`
 
-* {number|bigint}
+* {number|BigInt}
 
 The file system block size for i/o operations.
 
 ### `stats.blocks`
 
-* {number|bigint}
+* {number|BigInt}
 
 The number of blocks allocated for this file.
 
@@ -845,7 +845,7 @@ The number of blocks allocated for this file.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* {number|BigInt}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
@@ -855,7 +855,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* {number|BigInt}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
@@ -865,7 +865,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* {number|BigInt}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
@@ -875,7 +875,7 @@ in milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* {number|BigInt}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
@@ -885,7 +885,7 @@ milliseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* {BigInt}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -897,7 +897,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* {BigInt}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -909,7 +909,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* {BigInt}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -921,7 +921,7 @@ in nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* {BigInt}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -969,11 +969,11 @@ The timestamp indicating the creation time of this file.
 The `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` properties are
 numeric values that hold the corresponding times in milliseconds. Their
 precision is platform specific. When `bigint: true` is passed into the
-method that generates the object, the properties will be [bigints][],
+method that generates the object, the properties will be {BigInt}s,
 otherwise they will be [numbers][MDN-Number].
 
 The `atimeNs`, `mtimeNs`, `ctimeNs`, `birthtimeNs` properties are
-[bigints][] that hold the corresponding times in nanoseconds. They are
+{BigInt}s that hold the corresponding times in nanoseconds. They are
 only present when `bigint: true` is passed into the method that generates
 the object. Their precision is platform specific.
 
@@ -2067,13 +2067,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `fd` {integer}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -2089,13 +2089,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `fd` {integer}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * Returns: {fs.Stats}
 
 Synchronous fstat(2).
@@ -2388,13 +2388,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -2415,13 +2415,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * Returns: {fs.Stats}
 
 Synchronous lstat(2).
@@ -3452,13 +3452,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `stats` {fs.Stats}
@@ -3557,13 +3557,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * Returns: {fs.Stats}
 
 Synchronous stat(2).
@@ -3943,7 +3943,7 @@ added: v0.1.31
 changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
-    description: The `bigint` option is now supported.
+    description: The `BigInt` option is now supported.
   - version: v7.6.0
     pr-url: https://github.com/nodejs/node/pull/10739
     description: The `filename` parameter can be a WHATWG `URL` object using
@@ -4544,12 +4544,12 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * Returns: {Promise}
 
 Retrieves the [`fs.Stats`][] for the file.
@@ -4959,13 +4959,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * Returns: {Promise}
 
 Asynchronous lstat(2). The `Promise` is resolved with the [`fs.Stats`][] object
@@ -5258,13 +5258,13 @@ changes:
   - version: v10.5.0
     pr-url: https://github.com/nodejs/node/pull/20220
     description: Accepts an additional `options` object to specify whether
-                 the numeric values returned should be bigint.
+                 the numeric values returned should be BigInt.
 -->
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
-    [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+    [`fs.Stats`][] object should be `BigInt`. **Default:** `false`.
 * Returns: {Promise}
 
 The `Promise` is resolved with the [`fs.Stats`][] object for the given `path`.
@@ -5778,7 +5778,6 @@ the file contents.
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file
-[bigints]: https://tc39.github.io/proposal-bigint
 [chcp]: https://ss64.com/nt/chcp.html
 [inode]: https://en.wikipedia.org/wiki/Inode
 [support of file system `flags`]: #fs_file_system_flags

@@ -1349,7 +1349,7 @@ added:
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {bigint}
+* Returns: {BigInt}
 
 Reads a signed 64-bit integer from `buf` at the specified `offset` with
 the specified [endianness][] (`readBigInt64BE()` reads as big endian,
@@ -1367,7 +1367,7 @@ added:
 
 * `offset` {integer} Number of bytes to skip before starting to read. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {bigint}
+* Returns: {BigInt}
 
 Reads an unsigned 64-bit integer from `buf` at the specified `offset` with
 the specified [endianness][] (`readBigUInt64BE()` reads as big endian,
@@ -2037,7 +2037,7 @@ added:
  - v10.20.0
 -->
 
-* `value` {bigint} Number to be written to `buf`.
+* `value` {BigInt} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
@@ -2065,7 +2065,7 @@ added:
  - v10.20.0
 -->
 
-* `value` {bigint} Number to be written to `buf`.
+* `value` {BigInt} Number to be written to `buf`.
 * `offset` {integer} Number of bytes to skip before starting to write. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {integer} `offset` plus the number of bytes written.
