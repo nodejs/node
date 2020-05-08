@@ -2007,27 +2007,20 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
     util.inspect(clazz),
     ['[class', name, ...rest].join(' ')
   );
+  if (rest.length) {
+    rest[rest.length - 1] = rest[rest.length - 1].slice(0, -1);
+    rest.length = 1;
+  }
   Object.setPrototypeOf(clazz, null);
   assert.strictEqual(
     util.inspect(clazz),
-    ['[class', name, '[null prototype]', ...rest].join(' ')
+    ['[class', name, ...rest, 'extends [null prototype]]'].join(' ')
   );
   Object.defineProperty(clazz, 'name', { value: 'Foo' });
-  const newName = name === '(anonymous)' ? 'Foo' : `${name} [Foo]`;
-  assert.strictEqual(
-    util.inspect(clazz),
-    ['[class', newName, '[null prototype]', ...rest].join(' ')
-  );
-  Object.setPrototypeOf(clazz, Number.prototype);
-  assert.strictEqual(
-    util.inspect(clazz),
-    ['[class', newName, '[Number]', ...rest].join(' ')
-  );
+  const res = ['[class', 'Foo', ...rest, 'extends [null prototype]]'].join(' ');
+  assert.strictEqual(util.inspect(clazz), res);
   clazz.foo = true;
-  assert.strictEqual(
-    util.inspect(clazz),
-    ['[class', newName, '[Number]', ...rest, '{ foo: true }'].join(' ')
-  );
+  assert.strictEqual(util.inspect(clazz), `${res} { foo: true }`);
 });
 
 // "class" properties should not be detected as "class".
@@ -2053,6 +2046,12 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
   assert.strictEqual(
     util.inspect(Foo),
     '[Function: Foo]'
+  );
+  const fn = function() {};
+  Object.defineProperty(fn, 'name', { value: 'class Foo {}' });
+  assert.strictEqual(
+    util.inspect(fn),
+    '[Function: class Foo {}]'
   );
 }
 
