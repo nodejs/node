@@ -34,6 +34,7 @@ assert.strictEqual(proc.status, 0);
 const SABAddress = proc.stderr.match(/Atomics\.wait\((?<SAB>.+) \+/).groups.SAB;
 const actualTimeline = proc.stderr
   .replace(new RegExp(SABAddress, 'g'), '<address>')
+  .replace(new RegExp(`\\(node:${proc.pid}\\) `, 'g'), '')
   .replace(/infinity/g, 'inf')
   .replace(/\r/g, '')
   .trim();

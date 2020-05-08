@@ -825,14 +825,14 @@ Print short summaries of calls to [`Atomics.wait()`][] to stderr.
 The output could look like this:
 
 ```text
-[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 1, inf) started
-[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 1, inf) did not wait because the values mismatched
-[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 0, 10) started
-[Thread 0] Atomics.wait(0x55d134fe4290 + 0, 0, 10) timed out
-[Thread 0] Atomics.wait(0x55d134fe4290 + 4, 0, inf) started
-[Thread 1] Atomics.wait(0x55d134fe4290 + 4, -1, inf) started
-[Thread 0] Atomics.wait(0x55d134fe4290 + 4, 0, inf) was woken up by another thread
-[Thread 1] Atomics.wait(0x55d134fe4290 + 4, -1, inf) was woken up by another thread
+(node:15701) [Thread 0] Atomics.wait(<address> + 0, 1, inf) started
+(node:15701) [Thread 0] Atomics.wait(<address> + 0, 1, inf) did not wait because the values mismatched
+(node:15701) [Thread 0] Atomics.wait(<address> + 0, 0, 10) started
+(node:15701) [Thread 0] Atomics.wait(<address> + 0, 0, 10) timed out
+(node:15701) [Thread 0] Atomics.wait(<address> + 4, 0, inf) started
+(node:15701) [Thread 1] Atomics.wait(<address> + 4, -1, inf) started
+(node:15701) [Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
+(node:15701) [Thread 1] Atomics.wait(<address> + 4, -1, inf) was woken up by another thread
 ```
 
 The fields here correspond to:
