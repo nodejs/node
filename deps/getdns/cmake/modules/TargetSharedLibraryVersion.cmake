@@ -1,0 +1,25 @@
+# Add version to given shared library linkage.
+function(target_shared_library_version lib version_current version_revision version_age)
+  if (APPLE)
+    # Follow libtool. Add one to major version, as version 0 doesn't work.
+    # But tag dynlib name with current-age.
+    math(EXPR major_version "${version_current}+1")
+    math(EXPR dynlib_version "${version_current}-${version_age}")
+    set_target_properties(${lib} PROPERTIES VERSION "${dynlib_version}")
+    target_link_libraries(${lib} PRIVATE "-compatibility_version ${major_version}")
+    target_link_libraries(${lib} PRIVATE "-current_version ${major_version}.${version_revision}")
+  elseif (UNIX OR MINGW OR MSYS OR CYGWIN)
+    # Assume GNU ld, and again follow libtool. Major version is current-age.
+    math(EXPR compat_version "${version_current}-${version_age}")
+    set_target_properties(${lib} PROPERTIES VERSION "${compat_version}.${version_age}.${version_revision}" SOVERSION "${compat_version}")
+  elseif (WIN32)
+    set(rc_template "${CMAKE_CURRENT_SOURCE_DIR}/cmake/include/${lib}_version.rc.in")
+    if (EXISTS ${rc_template})
+      configure_file(${rc_template} ${lib}.rc @ONLY)
+      target_sources(${lib} PRIVATE ${lib}.rc)
+    endif ()
+    target_link_libraries(${lib} PRIVATE "-VERSION:${version_current}.${version_revision}")
+  else ()
+    message(WARNING "Unknown platform, ${lib} will not be versioned.")
+  endif ()
+endfunction ()

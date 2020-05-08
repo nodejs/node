@@ -1,0 +1,7 @@
+
+elemstart a
+attrstart a
+attrval a'b'<&<&
+attrend
+elemend
+ok

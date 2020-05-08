@@ -1,0 +1,4 @@
+language: c
+sudo: false
+script:
+  - make test

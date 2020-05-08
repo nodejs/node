@@ -348,6 +348,48 @@ shared_optgroup.add_option('--shared-cares-libpath',
     dest='shared_cares_libpath',
     help='a directory to search for the shared cares DLL')
 
+shared_optgroup.add_option('--shared-getdns',
+    action='store_true',
+    dest='shared_getdns',
+    help='link to a shared getdns DLL instead of static linking')
+
+shared_optgroup.add_option('--shared-getdns-includes',
+    action='store',
+    dest='shared_getdns_includes',
+    help='directory containing getdns header files')
+
+shared_optgroup.add_option('--shared-getdns-libname',
+    action='store',
+    dest='shared_getdns_libname',
+    default='getdns',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-getdns-libpath',
+    action='store',
+    dest='shared_getdns_libpath',
+    help='a directory to search for the shared getdns DLL')
+
+shared_optgroup.add_option('--shared-getdns-ext-uv',
+    action='store_true',
+    dest='shared_getdns_ext_uv',
+    help='link to a shared getdns_ext_uv DLL instead of static linking')
+
+shared_optgroup.add_option('--shared-getdns-ext-uv-includes',
+    action='store',
+    dest='shared_getdns_ext_uv_includes',
+    help='directory containing getdns_ext_uv header files')
+
+shared_optgroup.add_option('--shared-getdns-ext-uv-libname',
+    action='store',
+    dest='shared_getdns_ext_uv_libname',
+    default='getdns_ext_uv',
+    help='alternative lib name to link to [default: %default]')
+
+shared_optgroup.add_option('--shared-getdns-ext-uv-libpath',
+    action='store',
+    dest='shared_getdns_ext_uv_libpath',
+    help='a directory to search for the shared getdns_ext_uv DLL')
+
 parser.add_option_group(shared_optgroup)
 
 parser.add_option('--systemtap-includes',
@@ -1734,6 +1776,8 @@ configure_library('libuv', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
+configure_library('getdns', output)
+configure_library('getdns_ext_uv', output)
 configure_v8(output)
 configure_openssl(output)
 configure_intl(output)

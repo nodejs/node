@@ -1,0 +1,178 @@
+#  Copyright (c) 2013-2014 Yoran Heling
+#
+#  Permission is hereby granted, free of charge, to any person obtaining
+#  a copy of this software and associated documentation files (the
+#  "Software"), to deal in the Software without restriction, including
+#  without limitation the rights to use, copy, modify, merge, publish,
+#  distribute, sublicense, and/or sell copies of the Software, and to
+#  permit persons to whom the Software is furnished to do so, subject to
+#  the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included
+#  in all copies or substantial portions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+#  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+#  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+#  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+#  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+#  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+#  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+# Format of this file (informal):
+#
+#  Line = State Desc (';' Desc)*
+#  Desc = Cond Act* Next
+#  Cond = FunctionName              # yxml_isFunctionName(char)
+#       | '$' Varname               # match character in Varname
+#       | C-char ('|' C-char)*
+#  Act  = FunctionName              # yxml_FunctionName(x, char)
+#       | '$' Varname               # Store current char into Varname
+#       | '@' State                 # Remember given state as future next state
+#       | "string"                  # consume string before moving to next state
+#  Next = State                     # Go to the given state
+#       | '@'                       # Go to a previously remembered state
+#
+# Basically, it's just a short notation for manually writing a DFA. The script
+# that compiles this to C is pretty simple and stupid, which explains the
+# somewhat crude syntax of this file. It'd probably be more convenient to
+# modify ragel[1] to generate state machine code that can be used in the
+# yxml_parse() API, but I haven't really looked into that yet. I'm also not
+# sure how much control I'd lose over the size of the resulting state machine.
+#
+# 1. http://www.complang.org/ragel/
+#
+# Note that the '@' state remembering functionality and "string" consuming
+# action use the same variable to store the next state. This means that string
+# consuming should not be used when the last @ state still needs to be
+# remembered.
+
+init        '\xef' "\xbb\xbf" misc0; SP misc0; '<' le0
+
+# State numbers for the misc/le/lee/leq states:
+#   0 = before XMLDecl, (prolog)
+#   1 = before first element, (prolog/misc)
+#   2 = inside element (content)
+#   3 = after root element (misc)
+# And naming:
+#   misc = Nothing special seen yet
+#   le   = Seen '<'
+#   lee  = Seen '<!'
+#   leq  = Seen '<?'
+# The 'misc3' state is entered automatically when the root element has been
+# closed, yxml_selfclose() does this.
+misc0      SP misc0; '<' le0
+misc1      SP misc1; '<' le1
+misc2      '<' le2; '&' refstart misc2a; Char datacontent misc2
+misc2a     Ref ref misc2a; '\x3b' refcontent misc2
+misc3      SP misc3; '<' le3
+
+le0        '!' lee1; '?' leq0; NameStart elemstart elem0
+le1        '!' lee1; '?' @misc1 pi0; NameStart elemstart elem0
+le2        '!' lee2; '?' @misc2 pi0; '/' etag0; NameStart elemstart elem0
+le3        '!' @misc3 comment0; '?' @misc3 pi0
+
+lee1       '-' @misc1 comment1; 'D' "OCTYPE" dt0
+lee2       '-' @misc2 comment1; '[' "CDATA[" cd0
+leq0       'x' @misc1 pistart xmldecl0; NameStart @misc1 pistart pi1
+
+
+# XMLDecl, starting from '<?x', returns to misc1.
+# Interleaves some parts with pi because a non-<?xml is just a PI rather than an XMLDecl.
+xmldecl0    'm' piname xmldecl1; Name piname pi1; '?' pinameend pi4; SP pinameend pi2
+xmldecl1    'l' piname xmldecl2; Name piname pi1; '?' pinameend pi4; SP pinameend pi2
+xmldecl2    SP piabort xmldecl3; Name piname pi1
+xmldecl3    SP xmldecl3; 'v' "ersion" ver0
+xmldecl4    SP xmldecl5; '?' xmldecl9
+xmldecl5    SP xmldecl5; '?' xmldecl9; 'e' "ncoding" enc0; 's' "tandalone" std0
+xmldecl6    SP xmldecl7; '?' xmldecl9
+xmldecl7    SP xmldecl7; '?' xmldecl9; 's' "tandalone" std0
+xmldecl8    SP xmldecl8; '?' xmldecl9
+xmldecl9    '>' misc1
+
+# VersionInfo, after 'version', returns to xmldecl4
+ver0       SP ver0; '=' ver1
+ver1       SP ver1; '\''|'"' $quote "1." ver2
+ver2       Num ver3;
+ver3       Num ver3; $quote xmldecl4
+
+# EncodingDecl, after 'e', returns to xmldecl6
+# TODO: Pass the encoding value to the application?
+enc0       SP enc0; '=' enc1
+enc1       SP enc1; '\''|'"' $quote enc2
+enc2       Alpha enc3
+enc3       EncName enc3; $quote xmldecl6
+
+# SDDecl, after 'standalone', returns to xmldecl8
+# TODO: Pass the standalone flag to the application?
+std0       SP std0; '=' std1
+std1       SP std1; '\''|'"' $quote std2
+std2       'y' "es" std3; 'n' "o" std3
+std3       $quote xmldecl8
+
+
+# Comment, after '<!', returns to @
+comment0   '-' comment1
+comment1   '-' comment2
+comment2   '-' comment3; Char comment2
+comment3   '-' comment4; Char comment2
+comment4   '>' @
+
+
+# PI, starting from '<?', returns to @
+pi0        NameStart pistart pi1
+pi1        Name piname pi1; '?' pinameend pi4; SP pinameend pi2
+pi2        '?' pi3; Char datapi1 pi2
+pi3        '>' pivalend @; Char datapi2 pi2
+pi4        '>' pivalend @
+
+
+# CDSect, starting from '<![DATA[', returns to misc2
+cd0        ']' cd1; Char datacontent cd0
+cd1        ']' cd2; Char datacd1 cd0
+cd2        ']' datacontent cd2; '>' misc2; Char datacd2 cd0
+
+
+# Doctype, starting from '<!DOCTYPE', returns to misc1
+# XXX: The state machine below only attempts to figure out where the doctype
+#   declaration ends, its contents are not actually parsed or validated.
+#   Basically, it allows the following nesting of tags/quotes/PIs/comments:
+#
+#     <!DOCTYPE ".." '..' <?PI ..?> <!--..--> <!.. ".." '.."> >
+#
+#   Only the last '>' is correctly recognized as the end of the declaration.
+#   Any other '>' found to end a tag/PI/comment, or found within quotes,
+#   comments or a PI, is ignored.
+# TODO: This still fails on conditional sections, which may nest.
+dt0        '>' misc1; '\''|'"' $quote @dt0 dt1; '<' dt2; Char dt0
+dt1        $quote @; Char dt1
+dt2        '?' @dt0 pi0; '!' dt3
+dt3        '-' @dt0 comment1; Char dt4
+dt4        '\''|'"' $quote @dt4 dt1; '>' dt0; Char dt4
+
+
+# End tag, after '</', returns to misc2
+# XXX: It's not actually necessary to validate the characters, since the
+#   'elemclose' function already verifies (incrementally) that the name is
+#   equivalent to the corresponding <Open ..> tag. The only difference is that
+#   with the code below, </x/z> will result in ESYN, whereas a non-validating
+#   version would give ECLOSE.
+etag0      NameStart elemclose etag1
+etag1      Name elemclose etag1; SP elemcloseend etag2; '>' elemcloseend misc2
+etag2      SP etag2; '>' misc2
+
+
+# Element, after '<X', returns to misc2
+elem0      Name elemname elem0; SP elemnameend elem1; '/' elemnameend elem3; '>' elemnameend misc2
+elem1      SP elem1; '/' elem3; '>' misc2; NameStart attrstart attr0
+elem2      SP elem1; '/' elem3; '>' misc2
+elem3      '>' selfclose misc2
+
+# Attribute, after NameStart, returns to elem2
+attr0      Name attrname attr0; SP attrnameend attr1; '=' attrnameend attr2
+attr1      SP attr1; '=' attr2
+attr2      SP attr2; '\''|'"' $quote attr3
+attr3      AttValue dataattr attr3; '&' refstart attr4; $quote attrvalend elem2
+attr4      Ref ref attr4; '\x3b' refattrval attr3
+

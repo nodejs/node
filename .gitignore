@@ -90,6 +90,7 @@ _UpgradeReport_Files/
 /*.host.mk
 /deps/openssl/openssl.target.mk
 /deps/zlib/zlib.target.mk
+/deps/getdns/build
 
 # === Rules for release artifacts ===
 /*.tar.*
