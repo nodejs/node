@@ -23,14 +23,101 @@ const espree = require("espree");
 const ast = espree.parse(code);
 ```
 
-There is a second argument to `parse()` that allows you to specify various options:
+## API
+
+### `parse()`
+
+`parse` parses the given code and returns a abstract syntax tree (AST). It takes two paramenter.
+
+- `code` [string]() - the code which needs to be parsed. 
+- `options (Optional)` [Object]() - read more about this [here](#options)
 
 ```javascript
 const espree = require("espree");
 
-// Optional second options argument with the following default settings
-const ast = espree.parse(code, {
+const ast = espree.parse(code, options);
+```
 
+**Example :**
+
+```js
+const ast = espree.parse('let foo = "bar"', { ecmaVersion: 6 });
+console.log(ast);
+```
+
+<details><summary>Output</summary>
+<p>
+
+```
+Node {
+  type: 'Program',
+  start: 0,
+  end: 15,
+  body: [
+    Node {
+      type: 'VariableDeclaration',
+      start: 0,
+      end: 15,
+      declarations: [Array],
+      kind: 'let'
+    }
+  ],
+  sourceType: 'script'
+}
+```
+
+</p>
+</details>
+
+### `tokenize()`
+
+`tokenize` returns the tokens of a give code. It takes two paramenter.
+
+- `code` [string]() - the code which needs to be parsed. 
+- `options (Optional)` [Object]() - read more about this [here](#options)
+
+Even if `options` is empty or undefined or `options.tokens` is `false`, it assigns it to `true` in order to get the `tokens` array
+
+**Example :**
+
+```js
+const tokens = espree.tokenize('let foo = "bar"', { ecmaVersion: 6 });
+console.log(tokens);
+```
+
+<details><summary>Output</summary>
+<p>
+
+```
+Token { type: 'Keyword', value: 'let', start: 0, end: 3 },
+Token { type: 'Identifier', value: 'foo', start: 4, end: 7 },
+Token { type: 'Punctuator', value: '=', start: 8, end: 9 },
+Token { type: 'String', value: '"bar"', start: 10, end: 15 }
+```
+
+</p>
+</details>
+
+### `version`
+
+Returns the current `espree` version
+
+### `VisitorKeys`
+
+Returns all visitor keys for traversing the AST from [eslint-visitor-keys](https://github.com/eslint/eslint-visitor-keys)
+
+### `latestEcmaVersion`
+
+Returns the latest ECMAScript supported by `espree`
+
+### `supportedEcmaVersions`
+
+Returns an array of all supported ECMAScript version 
+
+## Options 
+
+```js
+const options = {
     // attach range information to each node
     range: false,
 
@@ -62,7 +149,7 @@ const ast = espree.parse(code, {
         // enable implied strict mode (if ecmaVersion >= 5)
         impliedStrict: false
     }
-});
+}
 ```
 
 ## Esprima Compatibility Going Forward

@@ -4,7 +4,6 @@
         { "name": "Best Practices", "description": "These rules relate to better ways of doing things to help you avoid problems:" },
         { "name": "Strict Mode", "description": "These rules relate to strict mode directives:" },
         { "name": "Variables", "description": "These rules relate to variable declarations:" },
-        { "name": "Node.js and CommonJS", "description": "These rules relate to code running in Node.js, or in browsers with CommonJS:" },
         { "name": "Stylistic Issues", "description": "These rules relate to style guidelines, and are therefore quite subjective:" },
         { "name": "ECMAScript 6", "description": "These rules relate to ES6, also known as ES2015:" }
     ],
