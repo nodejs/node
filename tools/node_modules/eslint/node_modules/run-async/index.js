@@ -1,6 +1,8 @@
 'use strict';
 
-var isPromise = require('is-promise');
+function isPromise(obj) {
+  return !!obj && (typeof obj === 'object' || typeof obj === 'function') && typeof obj.then === 'function';
+}
 
 /**
  * Return a function that will run a function asynchronously or synchronously
