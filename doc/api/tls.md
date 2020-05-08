@@ -1791,8 +1791,10 @@ added: v12.3.0
 * {string[]}
 
 An immutable array of strings representing the root certificates (in PEM format)
-used for verifying peer certificates. This is the default value of the `ca`
-option to [`tls.createSecureContext()`][].
+from the bundled Mozilla CA store as supplied by current Node.js version.
+
+The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
+that is fixed at release time. It is identical on all supported platforms.
 
 ## `tls.DEFAULT_ECDH_CURVE`
 <!-- YAML
