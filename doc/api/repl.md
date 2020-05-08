@@ -540,6 +540,15 @@ by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.
 
+## `repl.builtinModules`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string[]}
+
+A list of the names of all Node.js modules, e.g., `'http'`.
+
 ## `repl.start([options])`
 <!-- YAML
 added: v0.1.91
