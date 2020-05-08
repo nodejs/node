@@ -31,44 +31,48 @@ const proc = child_process.spawnSync(
 if (proc.status !== 0) console.log(proc);
 assert.strictEqual(proc.status, 0);
 
-const expectedLines = [
-  { threadId: 0, offset: 0, value: 1, timeout: 'inf',
-    message: 'started' },
-  { threadId: 0, offset: 0, value: 1, timeout: 'inf',
-    message: 'did not wait because the values mismatched' },
-  { threadId: 0, offset: 0, value: 0, timeout: '10',
-    message: 'started' },
-  { threadId: 0, offset: 0, value: 0, timeout: '10',
-    message: 'timed out' },
-  { threadId: 0, offset: 4, value: 0, timeout: 'inf',
-    message: 'started' },
-  { threadId: 1, offset: 4, value: -1, timeout: 'inf',
-    message: 'started' },
-  { threadId: 0, offset: 4, value: 0, timeout: 'inf',
-    message: 'was woken up by another thread' },
-  { threadId: 1, offset: 4, value: -1, timeout: 'inf',
-    message: 'was woken up by another thread' }
+const SABAddress = proc.stderr.match(/Atomics\.wait\((?<SAB>.+) \+/).groups.SAB;
+const actualTimeline = proc.stderr
+  .replace(new RegExp(SABAddress, 'g'), '<address>')
+  .replace(/infinity/g, 'inf')
+  .replace(/\r/g, '')
+  .trim();
+console.log('+++ normalized stdout +++');
+console.log(actualTimeline);
+console.log('--- normalized stdout ---');
+
+const begin =
+`[Thread 0] Atomics.wait(<address> + 0, 1, inf) started
+[Thread 0] Atomics.wait(<address> + 0, 1, inf) did not wait because the \
+values mismatched
+[Thread 0] Atomics.wait(<address> + 0, 0, 10) started
+[Thread 0] Atomics.wait(<address> + 0, 0, 10) timed out`;
+
+const expectedTimelines = [
+  `${begin}
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) started
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) was woken up by another thread`,
+  `${begin}
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) started
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) did not wait because the \
+values mismatched`,
+  `${begin}
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) started
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) was woken up by another thread
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) did not wait because the \
+values mismatched`,
+  `${begin}
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) started
+[Thread 0] Atomics.wait(<address> + 4, 0, inf) did not wait because the \
+values mismatched
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) started
+[Thread 1] Atomics.wait(<address> + 4, -1, inf) did not wait because the \
+values mismatched`
 ];
 
-let SABAddress;
-const re = /^\[Thread (?<threadId>\d+)\] Atomics\.wait\((?<SAB>(?:0x)?[0-9a-f]+) \+ (?<offset>\d+), (?<value>-?\d+), (?<timeout>inf|infinity|[0-9.]+)\) (?<message>.+)$/;
-for (const line of proc.stderr.split('\n').map((line) => line.trim())) {
-  if (!line) continue;
-  console.log('Matching', { line });
-  const actual = line.match(re).groups;
-  const expected = expectedLines.shift();
-
-  if (SABAddress === undefined)
-    SABAddress = actual.SAB;
-  else
-    assert.strictEqual(actual.SAB, SABAddress);
-
-  assert.strictEqual(+actual.threadId, expected.threadId);
-  assert.strictEqual(+actual.offset, expected.offset);
-  assert.strictEqual(+actual.value, expected.value);
-  assert.strictEqual(actual.message, expected.message);
-  if (expected.timeout === 'inf')
-    assert.match(actual.timeout, /inf(inity)?/);
-  else
-    assert.strictEqual(actual.timeout, expected.timeout);
-}
+assert(expectedTimelines.includes(actualTimeline));

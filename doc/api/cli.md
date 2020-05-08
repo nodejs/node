@@ -837,11 +837,11 @@ The output could look like this:
 
 The fields here correspond to:
 
-- The thread id as given by [`worker_threads.threadId`][]
-- The base address of the `SharedArrayBuffer` in question, as well as the
+* The thread id as given by [`worker_threads.threadId`][]
+* The base address of the `SharedArrayBuffer` in question, as well as the
   byte offset corresponding to the index passed to `Atomics.wait()`
-- The expected value that was passed to `Atomics.wait()`
-- The timeout passed to `Atomics.wait`
+* The expected value that was passed to `Atomics.wait()`
+* The timeout passed to `Atomics.wait`
 
 ### `--trace-deprecation`
 <!-- YAML
