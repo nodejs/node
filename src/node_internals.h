@@ -243,9 +243,9 @@ class InternalCallbackScope {
 
 class DebugSealHandleScope {
  public:
-  explicit inline DebugSealHandleScope(v8::Isolate* isolate)
+  explicit inline DebugSealHandleScope(v8::Isolate* isolate = nullptr)
 #ifdef DEBUG
-    : actual_scope_(isolate)
+    : actual_scope_(isolate != nullptr ? isolate : v8::Isolate::GetCurrent())
 #endif
   {}
 
