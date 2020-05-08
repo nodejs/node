@@ -2047,7 +2047,7 @@ assert.strictEqual(util.inspect('"\'${a}'), "'\"\\'${a}'");
     util.inspect(Foo),
     '[Function: Foo]'
   );
-  const fn = function() {};
+  function fn() {}
   Object.defineProperty(fn, 'name', { value: 'class Foo {}' });
   assert.strictEqual(
     util.inspect(fn),
