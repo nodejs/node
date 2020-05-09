@@ -122,7 +122,7 @@
             "href": "gopher://example.net:1234",
             "new_value": "file",
             "expected": {
-                "href": "gopher://example.net:1234/",
+                "href": "gopher://example.net:1234",
                 "protocol": "gopher:"
             }
         },
@@ -212,7 +212,7 @@
         },
         {
             "href": "ssh://me@example.net",
-            "new_value": "gopher",
+            "new_value": "https",
             "expected": {
                 "href": "ssh://me@example.net",
                 "protocol": "ssh:"
@@ -597,7 +597,7 @@
             }
         },
         {
-            "comment": "Cannot-be-a-base means no password",
+            "comment": "Cannot-be-a-base means no host",
             "href": "data:text/plain,Stuff",
             "new_value": "example.net",
             "expected": {
@@ -1074,7 +1074,7 @@
             }
         },
         {
-            "comment": "Cannot-be-a-base means no password",
+            "comment": "Cannot-be-a-base means no host",
             "href": "data:text/plain,Stuff",
             "new_value": "example.net",
             "expected": {

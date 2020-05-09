@@ -171,11 +171,11 @@ assert.strictEqual(url.searchParams, oldParams);
   { expected: 'https://whatwg.org',
     url: 'blob:https://whatwg.org/d0360e2f-caee-469f-9a2f-87d5b0456f6f' },
   { expected: 'ftp://example.org', url: 'ftp://example.org/foo' },
-  { expected: 'gopher://gopher.quux.org', url: 'gopher://gopher.quux.org/1/' },
   { expected: 'http://example.org', url: 'http://example.org/foo' },
   { expected: 'https://example.org', url: 'https://example.org/foo' },
   { expected: 'ws://example.org', url: 'ws://example.org/foo' },
   { expected: 'wss://example.org', url: 'wss://example.org/foo' },
+  { expected: 'null', url: 'gopher://gopher.quux.org/1/' },
   { expected: 'null', url: 'file:///tmp/mock/path' },
   { expected: 'null', url: 'npm://nodejs/rules' }
 ].forEach((test) => {
