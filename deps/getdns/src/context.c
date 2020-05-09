@@ -926,7 +926,6 @@ upstream_init(getdns_upstream *upstream,
 	/* For sharing a socket to this upstream with TCP  */
 	upstream->fd       = -1;
 	upstream->expires  = 0;
-	upstream->tls_fallback_ok = 0;
 	upstream->tls_obj  = NULL;
 	upstream->tls_session = NULL;
 	upstream->tls_cipher_list = NULL;
@@ -953,12 +952,9 @@ upstream_init(getdns_upstream *upstream,
 	(void) getdns_eventloop_event_init(
 	    &upstream->finished_event, upstream, NULL, NULL, NULL);
 
-	upstream->server_cookie_len = 0;
-	(void) memset(&upstream->server_cookie, 0,
-	        sizeof(upstream->server_cookie));
-	upstream->src_addr_checked = 0;
-	(void) memset(&upstream->src_addr, 0, sizeof(upstream->src_addr));
-	upstream->src_addr_len = 0;
+	upstream->has_client_cookie = 0;
+	upstream->has_prev_client_cookie = 0;
+	upstream->has_server_cookie = 0;
 
 	upstream->tsig_alg  = GETDNS_NO_TSIG;
 	upstream->tsig_dname_len = 0;
@@ -3896,14 +3892,6 @@ _get_context_settings(const getdns_context* context)
 
 	else if (list && _getdns_dict_set_this_list(
 	    result, "dnssec_trust_anchors", list)) {
-		getdns_list_destroy(list);
-		goto error;
-	}
-	if (getdns_context_get_dns_root_servers(context, &list))
-		; /* pass */
-
-	else if (list && _getdns_dict_set_this_list(
-	    result, "dns_root_servers", list)) {
 		getdns_list_destroy(list);
 		goto error;
 	}

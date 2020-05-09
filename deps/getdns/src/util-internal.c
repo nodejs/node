@@ -642,12 +642,6 @@ _getdns_create_reply_dict(getdns_context *context, getdns_network_req *req,
 		    rr_type == GETDNS_RRTYPE_RRSIG && rrsigs_in_answer)
 			*rrsigs_in_answer = 1;
 
-		if (section == SECTION_ADDITIONAL &&
-		    rr_type == GETDNS_RRTYPE_OPT &&
-		    getdns_dict_set_int( result, "/header/extended_rcode"
-		                       , (uint32_t)rr_iter->rr_type[4] << 4
-		                       | GLDNS_RCODE_WIRE(req->response)))
-			goto error;
 		if (section != SECTION_ANSWER) {
 			if (_getdns_list_append_this_dict(
 			    sections[section], rr_dict))

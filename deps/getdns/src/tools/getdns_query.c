@@ -1440,7 +1440,7 @@ static void request_cb(
 	dns_msg *msg = (dns_msg *)userarg;
 	uint32_t qid;
 	getdns_return_t r = GETDNS_RETURN_GOOD;
-	uint32_t n, rcode, dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
+	uint32_t n, rcode, dnssec_status;
 
 #if defined(SERVER_DEBUG) && SERVER_DEBUG
 	getdns_bindata *qname;

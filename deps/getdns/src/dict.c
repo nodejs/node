@@ -892,7 +892,6 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 	struct getdns_bindata *bindata_item;
 	uint32_t int_item;
 	const char *strval;
-	char abuf[80];
 
 	if (list == NULL)
 		return 0;
@@ -934,21 +933,7 @@ getdns_pp_list(gldns_buffer *buf, size_t indent, const getdns_list *list,
 			if (getdns_list_get_bindata(list, i, &bindata_item) !=
 			    GETDNS_RETURN_GOOD)
 				return -1;
-
-			if (for_literals && (bindata_item->size == 4  ||
-			                     bindata_item->size == 16 )) {
-
-				if (gldns_buffer_printf(buf, 
-				    (json ? "\"%s\"" : " <bindata for %s>"),
-				    inet_ntop(( bindata_item->size == 4
-				              ? AF_INET : AF_INET6)
-				              , bindata_item->data
-				              , abuf
-				              , sizeof(abuf) - 1
-				              )) < 0)
-					return -1;
-
-			} else if (getdns_pp_bindata(
+			if (getdns_pp_bindata(
 			    buf, bindata_item, 0, json) < 0)
 				return -1;
 			break;
@@ -1036,21 +1021,21 @@ static int
 _getdns_print_rcode(gldns_buffer *buf, uint32_t rcode)
 {
 	static const char *rcodes[] = {
-		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR"  ,
-		" GETDNS_RCODE_SERVFAIL", " GETDNS_RCODE_NXDOMAIN" ,
-		" GETDNS_RCODE_NOTIMP"  , " GETDNS_RCODE_REFUSED"  ,
-		" GETDNS_RCODE_YXDOMAIN", " GETDNS_RCODE_YXRRSET"  ,
-		" GETDNS_RCODE_NXRRSET" , " GETDNS_RCODE_NOTAUTH"  ,
+		" GETDNS_RCODE_NOERROR" , " GETDNS_RCODE_FORMERR" ,
+		" GETDNS_RCODE_SERVFAIL", " GETDNS_RCODE_NXDOMAIN",
+		" GETDNS_RCODE_NOTIMP"  , " GETDNS_RCODE_REFUSED" ,
+		" GETDNS_RCODE_YXDOMAIN", " GETDNS_RCODE_YXRRSET" ,
+		" GETDNS_RCODE_NXRRSET" , " GETDNS_RCODE_NOTAUTH" ,
 		" GETDNS_RCODE_NOTZONE" ,
-		" GETDNS_RCODE_BADSIG"  , " GETDNS_RCODE_BADKEY"   ,
-		" GETDNS_RCODE_BADTIME" , " GETDNS_RCODE_BADMODE"  ,
-		" GETDNS_RCODE_BADNAME" , " GETDNS_RCODE_BADALG"   ,
-		" GETDNS_RCODE_BADTRUNC", " GETDNS_RCODE_BADCOOKIE"
+		" GETDNS_RCODE_BADSIG"  , " GETDNS_RCODE_BADKEY"  ,
+		" GETDNS_RCODE_BADTIME" , " GETDNS_RCODE_BADMODE" ,
+		" GETDNS_RCODE_BADNAME" , " GETDNS_RCODE_BADALG"  ,
+		" GETDNS_RCODE_BADTRUNC"
 	};
 	if (rcode <= 10)
 		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode]);
-	else if (rcode >= 16 && rcode <= 23)
-		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode-5]);
+	else if (rcode >= 16 && rcode <= 22)
+		(void) gldns_buffer_printf(buf, "%s", rcodes[rcode-6]);
 	else
 		return 0;
 	return 1;
@@ -1156,11 +1141,6 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (!json && strcmp(item->node.key, "rcode") == 0 &&
 			    _getdns_print_rcode(buf, item->i.data.n))
 				break;
-			if (!json &&
-			    strcmp(item->node.key, "extended_rcode") == 0 &&
-			    item->i.data.n >= 16 &&
-			    _getdns_print_rcode(buf, item->i.data.n))
-				break;
 			if (gldns_buffer_printf(
 			    buf,(json < 2 ? " %d" : "%d"), item->i.data.n) < 0)
 				return -1;
@@ -1184,7 +1164,7 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 				              , 40
 				              )) < 0)
 					return -1;
-
+	
 			} else if (!json &&
 			    (strcmp(item->node.key, "pin-sha256") == 0 ||
 			     strcmp(item->node.key, "value") == 0) &&
@@ -1219,9 +1199,8 @@ getdns_pp_dict(gldns_buffer * buf, size_t indent,
 			if (getdns_pp_list(buf, indent, item->i.data.list, 
 			    (strcmp(item->node.key, "namespaces") == 0 ||
 			     strcmp(item->node.key, "dns_transport_list") == 0
-			     || strcmp(item->node.key, "bad_dns") == 0 ||
-			     strcmp(item->node.key, "dns_root_servers") == 0
-			    ), json) < 0)
+			     || strcmp(item->node.key, "bad_dns") == 0),
+			    json) < 0)
 				return -1;
 			break;
 

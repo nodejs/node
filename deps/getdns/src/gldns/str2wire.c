@@ -81,7 +81,7 @@ static int gldns_str2wire_dname_buf_rel(const char* str, uint8_t* buf,
 	for (s = str; *s; s++, q++) {
 		if (q >= buf + *olen)
 			return RET_ERR(GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL, q-buf);
-		if (q >= buf + GLDNS_MAX_DOMAINLEN)
+		if (q > buf + GLDNS_MAX_DOMAINLEN)
 			return RET_ERR(GLDNS_WIREPARSE_ERR_DOMAINNAME_OVERFLOW, q-buf);
 		switch (*s) {
 		case '.':
@@ -118,7 +118,7 @@ static int gldns_str2wire_dname_buf_rel(const char* str, uint8_t* buf,
 		if(rel) *rel = 1;
 		if (q >= buf + *olen)
 			return RET_ERR(GLDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL, q-buf);
-		if (q >= buf + GLDNS_MAX_DOMAINLEN) {
+		if (q > buf + GLDNS_MAX_DOMAINLEN) {
 			return RET_ERR(GLDNS_WIREPARSE_ERR_DOMAINNAME_OVERFLOW, q-buf);
 		}
                 if (label_len > GLDNS_MAX_LABELLEN) {

@@ -1,7 +1,0 @@
-
-pistart XMLData
-picontent <? > <!--abc--> 
-piend
-elemstart a
-elemend
-ok

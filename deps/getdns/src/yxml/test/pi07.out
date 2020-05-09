@@ -1,7 +1,0 @@
-
-pistart xml-stylesheet
-picontent href="mystyle.css" type="text/css"
-piend
-elemstart a
-elemend
-ok

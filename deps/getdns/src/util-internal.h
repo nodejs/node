@@ -213,17 +213,6 @@ INLINE uint64_t _getdns_ms_until_expiry(uint64_t expires)
 	return now_ms >= expires ? 0 : expires - now_ms;
 }
 
-INLINE uint64_t _getdns_get_now_ms2(uint64_t *now_ms)
-{
-	struct timeval tv;
-
-	if (!now_ms)	return _getdns_get_now_ms();
-	if (*now_ms)	return *now_ms;
-
-	(void) gettimeofday(&tv, NULL);
-	return (*now_ms = (uint64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000);
-}
-
 INLINE uint64_t _getdns_ms_until_expiry2(uint64_t expires, uint64_t *now_ms)
 {
 	if (*now_ms == 0) *now_ms = _getdns_get_now_ms();

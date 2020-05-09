@@ -1,7 +1,0 @@
-
-pistart xwhatever
-picontent version="1.0"
-piend
-elemstart a
-elemend
-ok

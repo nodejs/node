@@ -1,10 +1,10 @@
 #!/bin/sh
 
-REPO=https://raw.githubusercontent.com/NLnetLabs/unbound/master
+REPO=http://unbound.net/svn/trunk
 
 wget -O rbtree.c			${REPO}/util/rbtree.c
 wget -O orig-headers/rbtree.h		${REPO}/util/rbtree.h
-wget -O ../tls/val_secalgo.c		${REPO}/validator/val_secalgo.c
+wget -O val_secalgo.c			${REPO}/validator/val_secalgo.c
 wget -O orig-headers/val_secalgo.h	${REPO}/validator/val_secalgo.h
 wget -O lruhash.c			${REPO}/util/storage/lruhash.c
 wget -O orig-headers/lruhash.h		${REPO}/util/storage/lruhash.h

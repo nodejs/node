@@ -147,7 +147,6 @@ netreq_reset(getdns_network_req *net_req)
 	net_req->dnssec_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->tsig_status = GETDNS_DNSSEC_INDETERMINATE;
 	net_req->response_len = 0;
-	net_req->response_opt = NULL;
 	/* Some fields to record info for return_call_reporting */
 	net_req->debug_start_time = 0;
 	net_req->debug_end_time = 0;
@@ -209,9 +208,6 @@ network_req_init(getdns_network_req *net_req, getdns_dns_req *owner,
 	net_req->transport_current = 0;
 	memset(&net_req->event, 0, sizeof(net_req->event));
 	net_req->keepalive_sent = 0;
-	net_req->badcookie_retry = 0;
-	net_req->cookie_sent = 0;
-	memset(&net_req->client_cookie, 0, sizeof(net_req->client_cookie));
 	net_req->write_queue_tail = NULL;
 	/* Some fields to record info for return_call_reporting */
 	net_req->debug_tls_auth_status = GETDNS_AUTH_NONE;
@@ -312,7 +308,6 @@ _getdns_network_req_clear_upstream_options(getdns_network_req * req)
 	  req->response = req->opt + 11 + req->base_query_option_sz;
 	  pktlen = req->response - req->query;
 	  gldns_write_uint16(req->query - 2, (uint16_t) pktlen);
-	  req->response_opt = NULL;
   }
 }
 
@@ -322,9 +317,6 @@ _getdns_netreq_reinit(getdns_network_req *netreq)
 	uint8_t *base_opt_backup;
 	size_t base_opt_rr_sz;
 
-	if (netreq->response && (netreq->response < netreq->wire_data ||
-	    netreq->response > netreq->wire_data+ netreq->wire_data_sz))
-		GETDNS_NULL_FREE(netreq->owner->my_mf, netreq->response);
 	if (!netreq->query) {
 		(void) netreq_reset(netreq);
 		return;

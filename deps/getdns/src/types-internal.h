@@ -233,6 +233,8 @@ typedef struct getdns_network_req
 	int                     edns_maximum_udp_payload_size;
 	uint16_t                max_udp_payload_size;
 
+	size_t                  keepalive_sent;
+
 	/* Network requests scheduled to write after me */
 	struct getdns_network_req *write_queue_tail;
 
@@ -242,13 +244,7 @@ typedef struct getdns_network_req
 	getdns_auth_state_t     debug_tls_auth_status;
 	getdns_bindata          debug_tls_peer_cert;
 	const char             *debug_tls_version;
-
-	/* Some booleans */
-	unsigned                debug_udp      : 1;
-	unsigned                keepalive_sent : 1;
-	unsigned                badcookie_retry: 1;
-	unsigned                cookie_sent    : 1;
-	uint8_t                 client_cookie[8];
+	size_t                  debug_udp;
 
 	/* When more space is needed for the wire_data response than is
 	 * available in wire_data[], it will be allocated separately.
@@ -271,7 +267,6 @@ typedef struct getdns_network_req
 	size_t   base_query_option_sz;
 	size_t   response_len;
 	uint8_t *response;
-	const uint8_t *response_opt; /* offset of OPT RR in response */
 	size_t   wire_data_sz;
 	uint8_t  wire_data[];
 	

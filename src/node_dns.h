@@ -4,7 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <unordered_map>
-#include "../deps/getdns/build/getdns/getdns_ext_libuv.h"
+#include "getdns_ext_libuv.h"
 #include "base_object.h"
 #include "node_mem.h"
 
