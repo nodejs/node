@@ -371,39 +371,6 @@ class Reference : public RefBase {
   v8impl::Persistent<v8::Value> _persistent;
 };
 
-class ArrayBufferReference final : public Reference {
- public:
-  // Same signatures for ctor and New() as Reference, except this only works
-  // with ArrayBuffers:
-  template <typename... Args>
-  explicit ArrayBufferReference(napi_env env,
-                                v8::Local<v8::ArrayBuffer> value,
-                                Args&&... args)
-    : Reference(env, value, std::forward<Args>(args)...) {}
-
-  template <typename... Args>
-  static ArrayBufferReference* New(napi_env env,
-                                   v8::Local<v8::ArrayBuffer> value,
-                                   Args&&... args) {
-    return new ArrayBufferReference(env, value, std::forward<Args>(args)...);
-  }
-
- private:
-  inline void Finalize(bool is_env_teardown) override {
-    if (is_env_teardown) {
-      v8::HandleScope handle_scope(_env->isolate);
-      v8::Local<v8::Value> obj = Get();
-      CHECK(!obj.IsEmpty());
-      CHECK(obj->IsArrayBuffer());
-      v8::Local<v8::ArrayBuffer> ab = obj.As<v8::ArrayBuffer>();
-      if (ab->IsDetachable())
-        ab->Detach();
-    }
-
-    Reference::Finalize(is_env_teardown);
-  }
-};
-
 enum UnwrapAction {
   KeepWrap,
   RemoveWrap
@@ -2710,37 +2677,27 @@ napi_status napi_create_external_arraybuffer(napi_env env,
                                              napi_finalize finalize_cb,
                                              void* finalize_hint,
                                              napi_value* result) {
-  NAPI_PREAMBLE(env);
-  CHECK_ARG(env, result);
-
-  v8::Isolate* isolate = env->isolate;
-  // The buffer will be freed with v8impl::ArrayBufferReference::New()
-  // below, hence this BackingStore does not need to free the buffer.
-  std::unique_ptr<v8::BackingStore> backing =
-      v8::ArrayBuffer::NewBackingStore(external_data,
-                                       byte_length,
-                                       [](void*, size_t, void*){},
-                                       nullptr);
-  v8::Local<v8::ArrayBuffer> buffer =
-      v8::ArrayBuffer::New(isolate, std::move(backing));
-  v8::Maybe<bool> marked = env->mark_arraybuffer_as_untransferable(buffer);
-  CHECK_MAYBE_NOTHING(env, marked, napi_generic_failure);
-
-  if (finalize_cb != nullptr) {
-    // Create a self-deleting weak reference that invokes the finalizer
-    // callback and detaches the ArrayBuffer if it still exists on Environment
-    // teardown.
-    v8impl::ArrayBufferReference::New(env,
-        buffer,
-        0,
-        true,
-        finalize_cb,
-        external_data,
-        finalize_hint);
-  }
-
-  *result = v8impl::JsValueFromV8LocalValue(buffer);
-  return GET_RETURN_STATUS(env);
+  // The API contract here is that the cleanup function runs on the JS thread,
+  // and is able to use napi_env. Implementing that properly is hard, so use the
+  // `Buffer` variant for easier implementation.
+  napi_value buffer;
+  napi_status status;
+  status = napi_create_external_buffer(
+      env,
+      byte_length,
+      external_data,
+      finalize_cb,
+      finalize_hint,
+      &buffer);
+  if (status != napi_ok) return status;
+  return napi_get_typedarray_info(
+      env,
+      buffer,
+      nullptr,
+      nullptr,
+      nullptr,
+      result,
+      nullptr);
 }
 
 napi_status napi_get_arraybuffer_info(napi_env env,
