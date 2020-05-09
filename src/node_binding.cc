@@ -38,7 +38,6 @@
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
   V(async_wrap)                                                                \
   V(buffer)                                                                    \
-  V(cares_wrap)                                                                \
   V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \

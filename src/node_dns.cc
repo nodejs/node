@@ -709,7 +709,7 @@ static void Initialize(Local<Object> target,
             tmpl->GetFunction(context).ToLocalChecked())
       .ToChecked();
 
-  env->SetMethod(target, "canonicalizeIP", CanonicalizeIP);
+  env->SetMethodNoSideEffects(target, "canonicalizeIP", CanonicalizeIP);
 
 #define V(name)                                                                \
   target                                                                       \
