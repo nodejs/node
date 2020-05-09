@@ -23,44 +23,53 @@
 require('../common');
 const assert = require('assert');
 const net = require('net');
+const debuglog = require('util').debuglog('test');
 
-const N = 1024 * 1024;
-const part_N = N / 3;
 let chars_recved = 0;
 let npauses = 0;
-
-console.log('build big string');
-const body = 'C'.repeat(N);
+let totalLength = 0;
 
 const server = net.createServer((connection) => {
-  connection.write(body.slice(0, part_N));
-  connection.write(body.slice(part_N, 2 * part_N));
-  assert.strictEqual(connection.write(body.slice(2 * part_N, N)), false);
-  console.log(`bufferSize: ${connection.bufferSize}`, 'expecting', N);
-  assert.ok(connection.bufferSize >= 0 &&
-            connection.writableLength <= N);
+  const body = 'C'.repeat(1024);
+  let n = 1;
+  debuglog('starting write loop');
+  while (connection.write(body)) {
+    n++;
+  }
+  debuglog('ended write loop');
+  // Now that we're throttled, do some more writes to make sure the data isn't
+  // lost.
+  connection.write(body);
+  connection.write(body);
+  n += 2;
+  totalLength = n * body.length;
+  assert.ok(connection.bufferSize >= 0, `bufferSize: ${connection.bufferSize}`);
+  assert.ok(
+    connection.writableLength <= totalLength,
+    `writableLength: ${connection.writableLength}, totalLength: ${totalLength}`
+  );
   connection.end();
 });
 
 server.listen(0, () => {
   const port = server.address().port;
-  console.log(`server started on port ${port}`);
+  debuglog(`server started on port ${port}`);
   let paused = false;
   const client = net.createConnection(port);
   client.setEncoding('ascii');
   client.on('data', (d) => {
     chars_recved += d.length;
-    console.log(`got ${chars_recved}`);
+    debuglog(`got ${chars_recved}`);
     if (!paused) {
       client.pause();
       npauses += 1;
       paused = true;
-      console.log('pause');
+      debuglog('pause');
       const x = chars_recved;
       setTimeout(() => {
         assert.strictEqual(chars_recved, x);
         client.resume();
-        console.log('resume');
+        debuglog('resume');
         paused = false;
       }, 100);
     }
@@ -74,6 +83,6 @@ server.listen(0, () => {
 
 
 process.on('exit', () => {
-  assert.strictEqual(chars_recved, N);
+  assert.strictEqual(chars_recved, totalLength);
   assert.strictEqual(npauses > 2, true);
 });
