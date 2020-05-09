@@ -2673,7 +2673,7 @@ Use [`request.destroy()`][] instead of [`request.abort()`][].
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33326
     description: Runtime.
 -->
 
