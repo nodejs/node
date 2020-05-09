@@ -2706,6 +2706,18 @@ Accessing several internal, undocumented Stream modules is deprecated.
 | `require("_stream_writable").Writable`       | `require("stream").Writable`    |
 | `require("_stream_transform").Transform`     | `require("stream").Transform`   |
 
+Accessing several internal, undocumented TLS modules is deprecated.
+
+| Deprecated module                                 | Replacement                          |
+| ------------------------------------------------- | ------------------------------------ |
+| `require("_tls_common").SecureContext`            | `require("tls").SecureContext`       |
+| `require("_tls_common").createSecureContext`      | `require("tls").createSecureContext` |
+| `require("_tls_common").translatePeerCertificate` | _No replacement_                     |
+| `require("_tls_wrap").TLSSocket`                  | `require("tls").TLSSocket`           |
+| `require("_tls_wrap").Server`                     | `require("tls").Server`              |
+| `require("_tls_wrap").createServer`               | `require("tls").createServer`        |
+| `require("_tls_wrap").connect`                    | `require("tls").connect`             |
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size

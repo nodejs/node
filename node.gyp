@@ -203,6 +203,8 @@
       'lib/internal/test/binding.js',
       'lib/internal/timers.js',
       'lib/internal/tls.js',
+      'lib/internal/tls/common.js',
+      'lib/internal/tls/wrap.js',
       'lib/internal/trace_events_async_hooks.js',
       'lib/internal/tty.js',
       'lib/internal/url.js',
