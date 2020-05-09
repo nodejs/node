@@ -688,6 +688,7 @@ node entry.js
 ```js
 Module {
   id: '.',
+  path: '/absolute/path/to',
   exports: {},
   parent: null,
   filename: '/absolute/path/to/entry.js',
@@ -898,6 +899,16 @@ added: v0.1.16
 * {module}
 
 The module that first required this one.
+
+### `module.path`
+<!-- YAML
+added: v11.14.0
+-->
+
+* {string}
+
+The directory name of the module. This is usually the same as the
+[`path.dirname()`][] of the [`module.id`][].
 
 ### `module.paths`
 <!-- YAML
@@ -1110,6 +1121,7 @@ consists of the following keys:
 [`__filename`]: #modules_filename
 [`createRequire()`]: #modules_module_createrequire_filename
 [`module` object]: #modules_the_module_object
+[`module.id`]: #modules_module_id
 [`path.dirname()`]: path.html#path_path_dirname_path
 [ECMAScript Modules]: esm.html
 [an error]: errors.html#errors_err_require_esm
