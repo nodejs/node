@@ -32,7 +32,7 @@ rules:
       message: "`setTimeout()` must be invoked with at least two arguments."
     - selector: "CallExpression[callee.name='setInterval'][arguments.length<2]"
       message: "`setInterval()` must be invoked with at least two arguments."
-    - selector: 'ThrowStatement > CallExpression[callee.name=/Error$/]'
+    - selector: "ThrowStatement > CallExpression[callee.name=/Error$/]"
       message: "Use `new` keyword when throwing an `Error`."
     - selector: "CallExpression:matches([callee.name='notDeepStrictEqual'], [callee.property.name='notDeepStrictEqual'])[arguments.0.type='Literal']:not([arguments.1.type='Literal']):not([arguments.1.type='ObjectExpression']):not([arguments.1.type='ArrayExpression']):not([arguments.1.type='UnaryExpression'])"
       message: "The first argument should be the `actual`, not the `expected` value."
@@ -44,8 +44,8 @@ rules:
       message: "The first argument should be the `actual`, not the `expected` value."
     - selector: "CallExpression[callee.name='isNaN']"
       message: "Use Number.isNaN() instead of the global isNaN() function."
-    - selector: "CallExpression:matches([callee.name='debuglog'], [callee.property.name='debuglog']):not([arguments.0.value='test'])"
-      message: "Only use 'test' as debuglog value inside of the tests folder."
+    - selector: "VariableDeclarator > CallExpression:matches([callee.name='debuglog'], [callee.property.name='debuglog']):not([arguments.0.value='test'])"
+      message: "Use 'test' as debuglog value in tests."
 
   # Custom rules in tools/eslint-rules
   node-core/prefer-assert-iferror: error
