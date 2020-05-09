@@ -822,9 +822,6 @@ if (ENABLE_SHARED)
   install(TARGETS getdns_shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
   install(TARGETS getdns_ex_uv_shared LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 endif ()
-if (BUILD_GETDNS_QUERY)
-  install(TARGETS getdns_query RUNTIME DESTINATION bin)
-endif ()
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/getdns DESTINATION include)
 
