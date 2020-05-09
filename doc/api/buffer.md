@@ -657,11 +657,8 @@ added: v8.2.0
 -->
 
 * `object` {Object} An object supporting `Symbol.toPrimitive` or `valueOf()`.
-* `offsetOrEncoding` {integer|string} A byte-offset or encoding, depending on
-  the value returned either by `object.valueOf()` or
-  `object[Symbol.toPrimitive]()`.
-* `length` {integer} A length, depending on the value returned either by
-  `object.valueOf()` or `object[Symbol.toPrimitive]()`.
+* `offsetOrEncoding` {integer|string} A byte-offset or encoding.
+* `length` {integer} A length.
 
 For objects whose `valueOf()` function returns a value not strictly equal to
 `object`, returns `Buffer.from(object.valueOf(), offsetOrEncoding, length)`.
@@ -672,7 +669,7 @@ const buf = Buffer.from(new String('this is a test'));
 ```
 
 For objects that support `Symbol.toPrimitive`, returns
-`Buffer.from(object[Symbol.toPrimitive](), offsetOrEncoding, length)`.
+`Buffer.from(object[Symbol.toPrimitive]('string'), offsetOrEncoding)`.
 
 ```js
 class Foo {
