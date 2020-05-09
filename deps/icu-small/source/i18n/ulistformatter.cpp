@@ -34,6 +34,21 @@ ulistfmt_open(const char*  locale,
 }
 
 
+U_CAPI UListFormatter* U_EXPORT2
+ulistfmt_openForType(const char*  locale, UListFormatterType type,
+                    UListFormatterWidth width, UErrorCode* status)
+{
+    if (U_FAILURE(*status)) {
+        return NULL;
+    }
+    LocalPointer<ListFormatter> listfmt(ListFormatter::createInstance(Locale(locale), type, width, *status));
+    if (U_FAILURE(*status)) {
+        return NULL;
+    }
+    return (UListFormatter*)listfmt.orphan();
+}
+
+
 U_CAPI void U_EXPORT2
 ulistfmt_close(UListFormatter *listfmt)
 {

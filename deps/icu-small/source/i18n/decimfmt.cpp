@@ -519,7 +519,9 @@ UnicodeString& DecimalFormat::format(double number, UnicodeString& appendTo, Fie
         return appendTo;
     }
     UErrorCode localStatus = U_ZERO_ERROR;
-    FormattedNumber output = fields->formatter.formatDouble(number, localStatus);
+    UFormattedNumberData output;
+    output.quantity.setToDouble(number);
+    fields->formatter.formatImpl(&output, localStatus);
     fieldPositionHelper(output, pos, appendTo.length(), localStatus);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, localStatus);
@@ -540,7 +542,9 @@ UnicodeString& DecimalFormat::format(double number, UnicodeString& appendTo, Fie
     if (pos.getField() == FieldPosition::DONT_CARE && fastFormatDouble(number, appendTo)) {
         return appendTo;
     }
-    FormattedNumber output = fields->formatter.formatDouble(number, status);
+    UFormattedNumberData output;
+    output.quantity.setToDouble(number);
+    fields->formatter.formatImpl(&output, status);
     fieldPositionHelper(output, pos, appendTo.length(), status);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, status);
@@ -562,7 +566,9 @@ DecimalFormat::format(double number, UnicodeString& appendTo, FieldPositionItera
     if (posIter == nullptr && fastFormatDouble(number, appendTo)) {
         return appendTo;
     }
-    FormattedNumber output = fields->formatter.formatDouble(number, status);
+    UFormattedNumberData output;
+    output.quantity.setToDouble(number);
+    fields->formatter.formatImpl(&output, status);
     fieldPositionIteratorHelper(output, posIter, appendTo.length(), status);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, status);
@@ -593,7 +599,9 @@ UnicodeString& DecimalFormat::format(int64_t number, UnicodeString& appendTo, Fi
         return appendTo;
     }
     UErrorCode localStatus = U_ZERO_ERROR;
-    FormattedNumber output = fields->formatter.formatInt(number, localStatus);
+    UFormattedNumberData output;
+    output.quantity.setToLong(number);
+    fields->formatter.formatImpl(&output, localStatus);
     fieldPositionHelper(output, pos, appendTo.length(), localStatus);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, localStatus);
@@ -614,7 +622,9 @@ UnicodeString& DecimalFormat::format(int64_t number, UnicodeString& appendTo, Fi
     if (pos.getField() == FieldPosition::DONT_CARE && fastFormatInt64(number, appendTo)) {
         return appendTo;
     }
-    FormattedNumber output = fields->formatter.formatInt(number, status);
+    UFormattedNumberData output;
+    output.quantity.setToLong(number);
+    fields->formatter.formatImpl(&output, status);
     fieldPositionHelper(output, pos, appendTo.length(), status);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, status);
@@ -636,7 +646,9 @@ DecimalFormat::format(int64_t number, UnicodeString& appendTo, FieldPositionIter
     if (posIter == nullptr && fastFormatInt64(number, appendTo)) {
         return appendTo;
     }
-    FormattedNumber output = fields->formatter.formatInt(number, status);
+    UFormattedNumberData output;
+    output.quantity.setToLong(number);
+    fields->formatter.formatImpl(&output, status);
     fieldPositionIteratorHelper(output, posIter, appendTo.length(), status);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, status);
@@ -655,7 +667,9 @@ DecimalFormat::format(StringPiece number, UnicodeString& appendTo, FieldPosition
         appendTo.setToBogus();
         return appendTo;
     }
-    FormattedNumber output = fields->formatter.formatDecimal(number, status);
+    UFormattedNumberData output;
+    output.quantity.setToDecNumber(number, status);
+    fields->formatter.formatImpl(&output, status);
     fieldPositionIteratorHelper(output, posIter, appendTo.length(), status);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, status);
@@ -673,7 +687,9 @@ UnicodeString& DecimalFormat::format(const DecimalQuantity& number, UnicodeStrin
         appendTo.setToBogus();
         return appendTo;
     }
-    FormattedNumber output = fields->formatter.formatDecimalQuantity(number, status);
+    UFormattedNumberData output;
+    output.quantity = number;
+    fields->formatter.formatImpl(&output, status);
     fieldPositionIteratorHelper(output, posIter, appendTo.length(), status);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, status);
@@ -692,7 +708,9 @@ DecimalFormat::format(const DecimalQuantity& number, UnicodeString& appendTo, Fi
         appendTo.setToBogus();
         return appendTo;
     }
-    FormattedNumber output = fields->formatter.formatDecimalQuantity(number, status);
+    UFormattedNumberData output;
+    output.quantity = number;
+    fields->formatter.formatImpl(&output, status);
     fieldPositionHelper(output, pos, appendTo.length(), status);
     auto appendable = UnicodeStringAppendable(appendTo);
     output.appendTo(appendable, status);
@@ -1502,8 +1520,11 @@ void DecimalFormat::setCurrency(const char16_t* theCurrency, UErrorCode& ec) {
     }
     NumberFormat::setCurrency(theCurrency, ec); // to set field for compatibility
     fields->properties.currency = currencyUnit;
-    // TODO: Set values in fields->symbols, too?
-    touchNoError();
+    // In Java, the DecimalFormatSymbols is mutable. Why not in C++?
+    LocalPointer<DecimalFormatSymbols> newSymbols(new DecimalFormatSymbols(*fields->symbols), ec);
+    newSymbols->setCurrency(currencyUnit.getISOCurrency(), ec);
+    fields->symbols.adoptInsteadAndCheckErrorCode(newSymbols.orphan(), ec);
+    touch(ec);
 }
 
 void DecimalFormat::setCurrency(const char16_t* theCurrency) {
@@ -1700,8 +1721,11 @@ const numparse::impl::NumberParserImpl* DecimalFormat::getCurrencyParser(UErrorC
 }
 
 void
-DecimalFormat::fieldPositionHelper(const number::FormattedNumber& formatted, FieldPosition& fieldPosition,
-                                   int32_t offset, UErrorCode& status) {
+DecimalFormat::fieldPositionHelper(
+        const UFormattedNumberData& formatted,
+        FieldPosition& fieldPosition,
+        int32_t offset,
+        UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
     // always return first occurrence:
     fieldPosition.setBeginIndex(0);
@@ -1714,12 +1738,15 @@ DecimalFormat::fieldPositionHelper(const number::FormattedNumber& formatted, Fie
 }
 
 void
-DecimalFormat::fieldPositionIteratorHelper(const number::FormattedNumber& formatted, FieldPositionIterator* fpi,
-                                           int32_t offset, UErrorCode& status) {
+DecimalFormat::fieldPositionIteratorHelper(
+        const UFormattedNumberData& formatted,
+        FieldPositionIterator* fpi,
+        int32_t offset,
+        UErrorCode& status) {
     if (U_SUCCESS(status) && (fpi != nullptr)) {
         FieldPositionIteratorHandler fpih(fpi, status);
         fpih.setShift(offset);
-        formatted.getAllFieldPositionsImpl(fpih, status);
+        formatted.getAllFieldPositions(fpih, status);
     }
 }
 
@@ -1801,7 +1828,7 @@ bool DecimalFormat::fastFormatDouble(double input, UnicodeString& output) const 
         return false;
     }
     if (std::isnan(input)
-            || std::trunc(input) != input
+            || uprv_trunc(input) != input
             || input <= INT32_MIN
             || input > INT32_MAX) {
         return false;
@@ -1834,7 +1861,8 @@ void DecimalFormat::doFastFormatInt32(int32_t input, bool isNegative, UnicodeStr
     char16_t localBuffer[localCapacity];
     char16_t* ptr = localBuffer + localCapacity;
     int8_t group = 0;
-    for (int8_t i = 0; i < fields->fastData.maxInt && (input != 0 || i < fields->fastData.minInt); i++) {
+    int8_t minInt = (fields->fastData.minInt < 1)? 1: fields->fastData.minInt;
+    for (int8_t i = 0; i < fields->fastData.maxInt && (input != 0 || i < minInt); i++) {
         if (group++ == 3 && fields->fastData.cpGroupingSeparator != 0) {
             *(--ptr) = fields->fastData.cpGroupingSeparator;
             group = 1;

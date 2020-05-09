@@ -66,7 +66,7 @@ class  RegexCImpl;
 class  RegexMatcher;
 class  RegexPattern;
 struct REStackFrame;
-class  RuleBasedBreakIterator;
+class  BreakIterator;
 class  UnicodeSet;
 class  UVector;
 class  UVector32;
@@ -611,12 +611,6 @@ private:
 
     UVector32       *fGroupMap;    // Map from capture group number to position of
                                    //   the group's variables in the matcher stack frame.
-
-    UnicodeSet     **fStaticSets;  // Ptr to static (shared) sets for predefined
-                                   //   regex character classes, e.g. Word.
-
-    Regex8BitSet   *fStaticSets8;  // Ptr to the static (shared) latin-1 only
-                                   //  sets for predefined regex classes.
 
     int32_t         fStartType;    // Info on how a match must start.
     int32_t         fInitialStringIdx;     //
@@ -1780,7 +1774,9 @@ private:
     void                 MatchAt(int64_t startIdx, UBool toEnd, UErrorCode &status);
     inline void          backTrack(int64_t &inputIdx, int32_t &patIdx);
     UBool                isWordBoundary(int64_t pos);         // perform Perl-like  \b test
-    UBool                isUWordBoundary(int64_t pos);        // perform RBBI based \b test
+    UBool                isUWordBoundary(int64_t pos, UErrorCode &status);   // perform RBBI based \b test
+    // Find a grapheme cluster boundary using a break iterator. For handling \X in regexes.
+    int64_t              followingGCBoundary(int64_t pos, UErrorCode &status);
     REStackFrame        *resetStack();
     inline REStackFrame *StateSave(REStackFrame *fp, int64_t savePatIdx, UErrorCode &status);
     void                 IncrementTime(UErrorCode &status);
@@ -1874,7 +1870,8 @@ private:
     UErrorCode          fDeferredStatus;   // Save error state that cannot be immediately
                                            //   reported, or that permanently disables this matcher.
 
-    RuleBasedBreakIterator  *fWordBreakItr;
+    BreakIterator       *fWordBreakItr;
+    BreakIterator       *fGCBreakItr;
 };
 
 U_NAMESPACE_END

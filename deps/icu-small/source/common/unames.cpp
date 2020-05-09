@@ -1519,7 +1519,8 @@ U_CAPI UChar32 U_EXPORT2
 u_charFromName(UCharNameChoice nameChoice,
                const char *name,
                UErrorCode *pErrorCode) {
-    char upper[120], lower[120];
+    char upper[120] = {0};
+    char lower[120] = {0};
     FindName findName;
     AlgorithmicRange *algRange;
     uint32_t *p;

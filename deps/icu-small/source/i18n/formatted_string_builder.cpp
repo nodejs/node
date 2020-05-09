@@ -8,6 +8,7 @@
 #include "formatted_string_builder.h"
 #include "unicode/ustring.h"
 #include "unicode/utf16.h"
+#include "unicode/unum.h" // for UNumberFormatFields literals
 
 namespace {
 
@@ -246,7 +247,7 @@ void FormattedStringBuilder::writeTerminator(UErrorCode& status) {
         return;
     }
     getCharPtr()[position] = 0;
-    getFieldPtr()[position] = UNUM_FIELD_COUNT;
+    getFieldPtr()[position] = kUndefinedField;
     fLength--;
 }
 
@@ -360,11 +361,11 @@ UnicodeString FormattedStringBuilder::toDebugString() const {
     sb.append(toUnicodeString());
     sb.append(u"] [", -1);
     for (int i = 0; i < fLength; i++) {
-        if (fieldAt(i) == UNUM_FIELD_COUNT) {
+        if (fieldAt(i) == kUndefinedField) {
             sb.append(u'n');
-        } else {
+        } else if (fieldAt(i).getCategory() == UFIELD_CATEGORY_NUMBER) {
             char16_t c;
-            switch (fieldAt(i)) {
+            switch (fieldAt(i).getField()) {
                 case UNUM_SIGN_FIELD:
                     c = u'-';
                     break;
@@ -399,10 +400,12 @@ UnicodeString FormattedStringBuilder::toDebugString() const {
                     c = u'$';
                     break;
                 default:
-                    c = u'?';
+                    c = u'0' + fieldAt(i).getField();
                     break;
             }
             sb.append(c);
+        } else {
+            sb.append(u'0' + fieldAt(i).getCategory());
         }
     }
     sb.append(u"]>", -1);

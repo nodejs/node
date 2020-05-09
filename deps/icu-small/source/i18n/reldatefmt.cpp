@@ -728,11 +728,11 @@ const RelativeDateTimeCacheData *LocaleCacheKey<RelativeDateTimeCacheData>::crea
 
 
 
-static constexpr number::impl::Field kRDTNumericField
-    = StringBuilderFieldUtils::compress<UFIELD_CATEGORY_RELATIVE_DATETIME, UDAT_REL_NUMERIC_FIELD>();
+static constexpr FormattedStringBuilder::Field kRDTNumericField
+    = {UFIELD_CATEGORY_RELATIVE_DATETIME, UDAT_REL_NUMERIC_FIELD};
 
-static constexpr number::impl::Field kRDTLiteralField
-    = StringBuilderFieldUtils::compress<UFIELD_CATEGORY_RELATIVE_DATETIME, UDAT_REL_LITERAL_FIELD>();
+static constexpr FormattedStringBuilder::Field kRDTLiteralField
+    = {UFIELD_CATEGORY_RELATIVE_DATETIME, UDAT_REL_LITERAL_FIELD};
 
 class FormattedRelativeDateTimeData : public FormattedValueStringBuilderImpl {
 public:

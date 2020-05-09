@@ -19,16 +19,6 @@ UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedNumber)
 
 #define UPRV_NOARG
 
-UBool FormattedNumber::nextFieldPosition(FieldPosition& fieldPosition, UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(FALSE)
-    return fData->nextFieldPosition(fieldPosition, status);
-}
-
-void FormattedNumber::getAllFieldPositions(FieldPositionIterator& iterator, UErrorCode& status) const {
-    FieldPositionIteratorHandler fpih(&iterator, status);
-    getAllFieldPositionsImpl(fpih, status);
-}
-
 void FormattedNumber::toDecimalNumber(ByteSink& sink, UErrorCode& status) const {
     UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)
     impl::DecNum decnum;

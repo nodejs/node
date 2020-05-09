@@ -291,6 +291,17 @@ public:
      */
     void setSymbol(ENumberFormatSymbol symbol, const UnicodeString &value, const UBool propogateDigits);
 
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * Loads symbols for the specified currency into this instance.
+     *
+     * This method is internal. If you think it should be public, file a ticket.
+     *
+     * @internal
+     */
+    void setCurrency(const UChar* currency, UErrorCode& status);
+#endif  // U_HIDE_INTERNAL_API
+
     /**
      * Returns the locale for which this object was constructed.
      * @stable ICU 2.6
@@ -373,8 +384,6 @@ private:
      * Initialize the symbols with default values.
      */
     void initialize();
-
-    void setCurrencyForSymbols();
 
 public:
 

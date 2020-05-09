@@ -83,25 +83,6 @@ umutablecptrie_clone(const UMutableCPTrie *other, UErrorCode *pErrorCode);
 U_CAPI void U_EXPORT2
 umutablecptrie_close(UMutableCPTrie *trie);
 
-#if U_SHOW_CPLUSPLUS_API
-
-U_NAMESPACE_BEGIN
-
-/**
- * \class LocalUMutableCPTriePointer
- * "Smart pointer" class, closes a UMutableCPTrie via umutablecptrie_close().
- * For most methods see the LocalPointerBase base class.
- *
- * @see LocalPointerBase
- * @see LocalPointer
- * @stable ICU 63
- */
-U_DEFINE_LOCAL_OPEN_POINTER(LocalUMutableCPTriePointer, UMutableCPTrie, umutablecptrie_close);
-
-U_NAMESPACE_END
-
-#endif
-
 /**
  * Creates a mutable trie with the same contents as the UCPMap.
  * You must umutablecptrie_close() the mutable trie once you are done using it.
@@ -234,5 +215,24 @@ umutablecptrie_buildImmutable(UMutableCPTrie *trie, UCPTrieType type, UCPTrieVal
                               UErrorCode *pErrorCode);
 
 U_CDECL_END
+
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+/**
+ * \class LocalUMutableCPTriePointer
+ * "Smart pointer" class, closes a UMutableCPTrie via umutablecptrie_close().
+ * For most methods see the LocalPointerBase base class.
+ *
+ * @see LocalPointerBase
+ * @see LocalPointer
+ * @stable ICU 63
+ */
+U_DEFINE_LOCAL_OPEN_POINTER(LocalUMutableCPTriePointer, UMutableCPTrie, umutablecptrie_close);
+
+U_NAMESPACE_END
+
+#endif
 
 #endif

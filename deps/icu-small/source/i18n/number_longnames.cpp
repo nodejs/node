@@ -188,6 +188,12 @@ LongNameHandler*
 LongNameHandler::forMeasureUnit(const Locale &loc, const MeasureUnit &unitRef, const MeasureUnit &perUnit,
                                 const UNumberUnitWidth &width, const PluralRules *rules,
                                 const MicroPropsGenerator *parent, UErrorCode &status) {
+    if (uprv_strlen(unitRef.getType()) == 0 || uprv_strlen(perUnit.getType()) == 0) {
+        // TODO(ICU-20941): Unsanctioned unit. Not yet fully supported. Set an error code.
+        status = U_UNSUPPORTED_ERROR;
+        return nullptr;
+    }
+
     MeasureUnit unit = unitRef;
     if (uprv_strcmp(perUnit.getType(), "none") != 0) {
         // Compound unit: first try to simplify (e.g., meters per second is its own unit).
@@ -209,7 +215,7 @@ LongNameHandler::forMeasureUnit(const Locale &loc, const MeasureUnit &unitRef, c
     UnicodeString simpleFormats[ARRAY_LENGTH];
     getMeasureData(loc, unit, width, simpleFormats, status);
     if (U_FAILURE(status)) { return result; }
-    result->simpleFormatsToModifiers(simpleFormats, UNUM_MEASURE_UNIT_FIELD, status);
+    result->simpleFormatsToModifiers(simpleFormats, {UFIELD_CATEGORY_NUMBER, UNUM_MEASURE_UNIT_FIELD}, status);
     return result;
 }
 
@@ -240,14 +246,15 @@ LongNameHandler::forCompoundUnit(const Locale &loc, const MeasureUnit &unit, con
         if (U_FAILURE(status)) { return result; }
         UnicodeString secondaryFormat = getWithPlural(secondaryData, StandardPlural::Form::ONE, status);
         if (U_FAILURE(status)) { return result; }
-        SimpleFormatter secondaryCompiled(secondaryFormat, 1, 1, status);
+        // Some "one" pattern may not contain "{0}". For example in "ar" or "ne" locale.
+        SimpleFormatter secondaryCompiled(secondaryFormat, 0, 1, status);
         if (U_FAILURE(status)) { return result; }
         UnicodeString secondaryString = secondaryCompiled.getTextWithNoArguments().trim();
         // TODO: Why does UnicodeString need to be explicit in the following line?
         compiled.format(UnicodeString(u"{0}"), secondaryString, perUnitFormat, status);
         if (U_FAILURE(status)) { return result; }
     }
-    result->multiSimpleFormatsToModifiers(primaryData, perUnitFormat, UNUM_MEASURE_UNIT_FIELD, status);
+    result->multiSimpleFormatsToModifiers(primaryData, perUnitFormat, {UFIELD_CATEGORY_NUMBER, UNUM_MEASURE_UNIT_FIELD}, status);
     return result;
 }
 
@@ -296,7 +303,7 @@ LongNameHandler* LongNameHandler::forCurrencyLongNames(const Locale &loc, const 
     UnicodeString simpleFormats[ARRAY_LENGTH];
     getCurrencyLongNameData(loc, currency, simpleFormats, status);
     if (U_FAILURE(status)) { return nullptr; }
-    result->simpleFormatsToModifiers(simpleFormats, UNUM_CURRENCY_FIELD, status);
+    result->simpleFormatsToModifiers(simpleFormats, {UFIELD_CATEGORY_NUMBER, UNUM_CURRENCY_FIELD}, status);
     return result;
 }
 
@@ -308,7 +315,7 @@ void LongNameHandler::simpleFormatsToModifiers(const UnicodeString *simpleFormat
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compiledFormatter(simpleFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        fModifiers[i] = SimpleModifier(compiledFormatter, field, false, {this, SIGNUM_ZERO, plural});
+        fModifiers[i] = SimpleModifier(compiledFormatter, field, false, {this, SIGNUM_POS_ZERO, plural});
     }
 }
 
@@ -325,7 +332,7 @@ void LongNameHandler::multiSimpleFormatsToModifiers(const UnicodeString *leadFor
         if (U_FAILURE(status)) { return; }
         SimpleFormatter compoundCompiled(compoundFormat, 0, 1, status);
         if (U_FAILURE(status)) { return; }
-        fModifiers[i] = SimpleModifier(compoundCompiled, field, false, {this, SIGNUM_ZERO, plural});
+        fModifiers[i] = SimpleModifier(compoundCompiled, field, false, {this, SIGNUM_POS_ZERO, plural});
     }
 }
 
