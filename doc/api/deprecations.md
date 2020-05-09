@@ -2668,6 +2668,34 @@ Type: Documentation-only
 
 Use [`request.destroy()`][] instead of [`request.abort()`][].
 
+<a id="DEPXXXX"></a>
+### DEPXXXX: Several internal modules
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Runtime.
+-->
+
+Type: Runtime
+
+Accessing several internal, undocumented HTTP modules is deprecated.
+
+| Deprecated module                             | Replacement                           |
+| --------------------------------------------- | ------------------------------------- |
+| `require("_http_agent").Agent`                | `require("http").Agent`               |
+| `require("_http_agent").globalAgent`          | _No replacement_                      |
+| `require("_http_client").ClientRequest`       | `require("http").ClientRequest`       |
+| `require("_http_incoming").IncomingMessage`   | `require("http").IncomingMessage`     |
+| `require("_http_incoming").readStart`         | _No replacement_                      |
+| `require("_http_incoming").readStop`          | _No replacement_                      |
+| `require("_http_outgoing").OutgoingMessage`   | `require("http").OutgoingMessage`     |
+| `require("_http_server").STATUS_CODES`        | `require("http").STATUS_CODES`        |
+| `require("_http_server").Server`              | `require("http").Server`              |
+| `require("_http_server").ServerResponse`      | `require("http").ServerResponse`      |
+| `require("_http_server")._connectionListener` | `require("http")._connectionListener` |
+| `require("_http_server").kServerResponse`     | _No replacement_                      |
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
