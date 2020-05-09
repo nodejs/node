@@ -4482,21 +4482,6 @@
     "hash": ""
   },
   {
-    "input": "sc://\u001F!\"$&'()*+,-.;<=>^_`{|}~/",
-    "base": "about:blank",
-    "href": "sc://%1F!\"$&'()*+,-.;<=>^_`{|}~/",
-    "origin": "null",
-    "protocol": "sc:",
-    "username": "",
-    "password": "",
-    "host": "%1F!\"$&'()*+,-.;<=>^_`{|}~",
-    "hostname": "%1F!\"$&'()*+,-.;<=>^_`{|}~",
-    "port": "",
-    "pathname": "/",
-    "search": "",
-    "hash": ""
-  },
-  {
     "input": "sc://\u0000/",
     "base": "about:blank",
     "failure": true
@@ -4646,6 +4631,68 @@
     "hostname": "",
     "port": "",
     "pathname": "%EF%BF%BF",
+    "search": "",
+    "hash": ""
+  },
+  "Forbidden host code points",
+  {
+    "input": "http://a<b",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://a>b",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "http://a^b",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "non-special://a<b",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "non-special://a>b",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "non-special://a^b",
+    "base": "about:blank",
+    "failure": true
+  },
+  "Allowed host code points",
+  {
+    "input": "http://\u001F!\"$&'()*+,-.;=_`{|}~/",
+    "base": "about:blank",
+    "href": "http://\u001F!\"$&'()*+,-.;=_`{|}~/",
+    "origin": "http://\u001F!\"$&'()*+,-.;=_`{|}~",
+    "protocol": "http:",
+    "username": "",
+    "password": "",
+    "host": "\u001F!\"$&'()*+,-.;=_`{|}~",
+    "hostname": "\u001F!\"$&'()*+,-.;=_`{|}~",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "sc://\u001F!\"$&'()*+,-.;=_`{|}~/",
+    "base": "about:blank",
+    "href": "sc://%1F!\"$&'()*+,-.;=_`{|}~/",
+    "origin": "null",
+    "protocol": "sc:",
+    "username": "",
+    "password": "",
+    "host": "%1F!\"$&'()*+,-.;=_`{|}~",
+    "hostname": "%1F!\"$&'()*+,-.;=_`{|}~",
+    "port": "",
+    "pathname": "/",
     "search": "",
     "hash": ""
   },
