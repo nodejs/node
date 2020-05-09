@@ -46,6 +46,7 @@
 #include "flagparser.h"
 #include "filetools.h"
 #include "charstr.h"
+#include "uassert.h"
 
 #if U_HAVE_POPEN
 # include <unistd.h>
@@ -95,7 +96,7 @@ static int32_t pkg_archiveLibrary(const char *targetDir, const char *version, UB
 static void createFileNames(UPKGOptions *o, const char mode, const char *version_major, const char *version, const char *libName, const UBool reverseExt, UBool noVersion);
 static int32_t initializePkgDataFlags(UPKGOptions *o);
 
-static int32_t pkg_getOptionsFromICUConfig(UBool verbose, UOption *option);
+static int32_t pkg_getPkgDataPath(UBool verbose, UOption *option);
 static int runCommand(const char* command, UBool specialHandling=FALSE);
 
 #define IN_COMMON_MODE(mode) (mode == 'a' || mode == 'c')
@@ -309,7 +310,7 @@ main(int argc, char* argv[]) {
 
 #if !defined(WINDOWS_WITH_MSVC) || defined(USING_CYGWIN)
         if(!options[BLDOPT].doesOccur && uprv_strcmp(options[MODE].value, "common") != 0) {
-          if (pkg_getOptionsFromICUConfig(options[VERBOSE].doesOccur, &options[BLDOPT]) != 0) {
+          if (pkg_getPkgDataPath(options[VERBOSE].doesOccur, &options[BLDOPT]) != 0) {
                 fprintf(stderr, " required parameter is missing: -O is required for static and shared builds.\n");
                 fprintf(stderr, "Run '%s --help' for help.\n", progname);
                 return 1;
@@ -775,7 +776,8 @@ static int32_t pkg_executeOptions(UPKGOptions *o) {
                         (optMatchArch[0] == 0 ? NULL : optMatchArch),
                         NULL,
                         gencFilePath,
-                        sizeof(gencFilePath));
+                        sizeof(gencFilePath),
+                        TRUE);
                     pkg_destroyOptMatchArch(optMatchArch);
 #if U_PLATFORM_IS_LINUX_BASED
                     result = pkg_generateLibraryFile(targetDir, mode, gencFilePath);
@@ -1131,12 +1133,15 @@ static int32_t pkg_installLibrary(const char *installDir, const char *targetDir,
     int32_t result = 0;
     char cmd[SMALL_BUFFER_MAX_SIZE];
 
-    sprintf(cmd, "cd %s && %s %s %s%s%s",
+    auto ret = snprintf(cmd,
+            SMALL_BUFFER_MAX_SIZE,
+            "cd %s && %s %s %s%s%s",
             targetDir,
             pkgDataFlags[INSTALL_CMD],
             libFileNames[LIB_FILE_VERSION],
-            installDir, PKGDATA_FILE_SEP_STRING, libFileNames[LIB_FILE_VERSION]
-            );
+            installDir, PKGDATA_FILE_SEP_STRING, libFileNames[LIB_FILE_VERSION]);
+    (void)ret;
+    U_ASSERT(0 <= ret && ret < SMALL_BUFFER_MAX_SIZE);
 
     result = runCommand(cmd);
 
@@ -1254,10 +1259,14 @@ static int32_t pkg_installFileMode(const char *installDir, const char *srcDir, c
                     buffer[bufferLength-1] = 0;
                 }
 
-                sprintf(cmd, "%s %s%s%s %s%s%s",
+                auto ret = snprintf(cmd,
+                        SMALL_BUFFER_MAX_SIZE,
+                        "%s %s%s%s %s%s%s",
                         pkgDataFlags[INSTALL_CMD],
                         srcDir, PKGDATA_FILE_SEP_STRING, buffer,
                         installDir, PKGDATA_FILE_SEP_STRING, buffer);
+                (void)ret;
+                U_ASSERT(0 <= ret && ret < SMALL_BUFFER_MAX_SIZE);
 
                 result = runCommand(cmd);
                 if (result != 0) {
@@ -1689,12 +1698,20 @@ static int32_t pkg_createWithoutAssemblyCode(UPKGOptions *o, const char *targetD
                             break;
                         }
                     }
-                    sprintf(newName, "%s_%s",
+                    auto ret = snprintf(newName,
+                            SMALL_BUFFER_MAX_SIZE,
+                            "%s_%s",
                             DATA_PREFIX[n],
                             newNameTmp);
-                    sprintf(dataName, "%s_%s",
+                    (void)ret;
+                    U_ASSERT(0 <= ret && ret < SMALL_BUFFER_MAX_SIZE);
+                    ret = snprintf(dataName,
+                            SMALL_BUFFER_MAX_SIZE,
+                            "%s_%s",
                             o->shortName,
                             DATA_PREFIX[n]);
+                    (void)ret;
+                    U_ASSERT(0 <= ret && ret < SMALL_BUFFER_MAX_SIZE);
                 }
                 if (newName[0] != 0) {
                     break;
@@ -2158,41 +2175,46 @@ static void loadLists(UPKGOptions *o, UErrorCode *status)
     } /* for each file list file */
 }
 
-/* Try calling icu-config directly to get the option file. */
- static int32_t pkg_getOptionsFromICUConfig(UBool verbose, UOption *option) {
+/* Helper for pkg_getPkgDataPath() */
 #if U_HAVE_POPEN
-    LocalPipeFilePointer p;
-    size_t n;
-    static char buf[512] = "";
+static UBool getPkgDataPath(const char *cmd, UBool verbose, char *buf, size_t items) {
     icu::CharString cmdBuf;
     UErrorCode status = U_ZERO_ERROR;
-    const char cmd[] = "icu-config --incpkgdatafile";
-    char dirBuf[1024] = "";
-    /* #1 try the same path where pkgdata was called from. */
-    findDirname(progname, dirBuf, UPRV_LENGTHOF(dirBuf), &status);
-    if(U_SUCCESS(status)) {
-      cmdBuf.append(dirBuf, status);
-      if (cmdBuf[0] != 0) {
-        cmdBuf.append( U_FILE_SEP_STRING, status );
-      }
-      cmdBuf.append( cmd, status );
+    LocalPipeFilePointer p;
+    size_t n;
 
-      if(verbose) {
-        fprintf(stdout, "# Calling icu-config: %s\n", cmdBuf.data());
-      }
-      p.adoptInstead(popen(cmdBuf.data(), "r"));
+    cmdBuf.append(cmd, status);
+    if (verbose) {
+        fprintf(stdout, "# Calling: %s\n", cmdBuf.data());
+    }
+    p.adoptInstead( popen(cmdBuf.data(), "r") );
+
+    if (p.isNull() || (n = fread(buf, 1, items-1, p.getAlias())) <= 0) {
+        fprintf(stderr, "%s: Error calling '%s'\n", progname, cmd);
+        *buf = 0;
+        return FALSE;
     }
 
-    if(p.isNull() || (n = fread(buf, 1, UPRV_LENGTHOF(buf)-1, p.getAlias())) <= 0) {
-        if(verbose) {
-            fprintf(stdout, "# Calling icu-config: %s\n", cmd);
-        }
+    return TRUE;
+}
+#endif
 
-        p.adoptInstead(popen(cmd, "r"));
-        if(p.isNull() || (n = fread(buf, 1, UPRV_LENGTHOF(buf)-1, p.getAlias())) <= 0) {
-            fprintf(stderr, "%s: icu-config: No icu-config found. (fix PATH or use -O option)\n", progname);
+/* Get path to pkgdata.inc. Try pkg-config first, falling back to icu-config. */
+static int32_t pkg_getPkgDataPath(UBool verbose, UOption *option) {
+#if U_HAVE_POPEN
+    static char buf[512] = "";
+    UBool pkgconfigIsValid = TRUE;
+    const char *pkgconfigCmd = "pkg-config --variable=pkglibdir icu-uc";
+    const char *icuconfigCmd = "icu-config --incpkgdatafile";
+    const char *pkgdata = "pkgdata.inc";
+
+    if (!getPkgDataPath(pkgconfigCmd, verbose, buf, UPRV_LENGTHOF(buf))) {
+        if (!getPkgDataPath(icuconfigCmd, verbose, buf, UPRV_LENGTHOF(buf))) {
+            fprintf(stderr, "%s: icu-config not found. Fix PATH or specify -O option\n", progname);
             return -1;
         }
+
+        pkgconfigIsValid = FALSE;
     }
 
     for (int32_t length = strlen(buf) - 1; length >= 0; length--) {
@@ -2203,20 +2225,17 @@ static void loadLists(UPKGOptions *o, UErrorCode *status)
         }
     }
 
-    if(buf[strlen(buf)-1]=='\n')
-    {
-        buf[strlen(buf)-1]=0;
-    }
-
-    if(buf[0] == 0)
-    {
-        fprintf(stderr, "%s: icu-config: invalid response from icu-config (fix PATH or use -O option)\n", progname);
+    if (!*buf) {
+        fprintf(stderr, "%s: Unable to locate pkgdata.inc. Unable to parse the results of '%s'. Check paths or use the -O option to specify the path to pkgdata.inc.\n", progname, pkgconfigIsValid ? pkgconfigCmd : icuconfigCmd);
         return -1;
     }
 
-    if(verbose) {
-      fprintf(stdout, "# icu-config said: %s\n", buf);
+    if (pkgconfigIsValid) {
+        uprv_strcat(buf, U_FILE_SEP_STRING);
+        uprv_strcat(buf, pkgdata);
     }
+
+    buf[strlen(buf)] = 0;
 
     option->value = buf;
     option->doesOccur = TRUE;

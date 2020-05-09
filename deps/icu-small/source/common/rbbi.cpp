@@ -883,9 +883,15 @@ int32_t RuleBasedBreakIterator::handleNext() {
                 return lookaheadResult;
             }
         }
+
+        // If we are at the position of the '/' in a look-ahead (hard break) rule;
+        // record the current position, to be returned later, if the full rule matches.
+        // TODO: Move this check before the previous check of fAccepting.
+        //       This would enable hard-break rules with no following context.
+        //       But there are line break test failures when trying this. Investigate.
+        //       Issue ICU-20837
         int16_t rule = row->fLookAhead;
         if (rule != 0) {
-            // At the position of a '/' in a look-ahead match. Record it.
             int32_t  pos = (int32_t)UTEXT_GETNATIVEINDEX(&fText);
             lookAheadMatches.setPosition(rule, pos);
         }
@@ -1111,7 +1117,7 @@ static icu::UInitOnce gRBBIInitOnce = U_INITONCE_INITIALIZER;
  * Release all static memory held by breakiterator.
  */
 U_CDECL_BEGIN
-static UBool U_CALLCONV rbbi_cleanup(void) {
+UBool U_CALLCONV rbbi_cleanup(void) {
     delete gLanguageBreakFactories;
     gLanguageBreakFactories = nullptr;
     delete gEmptyString;

@@ -34,11 +34,13 @@ void MutablePatternModifier::setPatternAttributes(UNumberSignDisplay signDisplay
 }
 
 void MutablePatternModifier::setSymbols(const DecimalFormatSymbols* symbols,
-                                        const CurrencySymbols* currencySymbols,
-                                        const UNumberUnitWidth unitWidth, const PluralRules* rules) {
+                                        const CurrencyUnit& currency,
+                                        const UNumberUnitWidth unitWidth,
+                                        const PluralRules* rules,
+                                        UErrorCode& status) {
     U_ASSERT((rules != nullptr) == needsPlurals());
     fSymbols = symbols;
-    fCurrencySymbols = currencySymbols;
+    fCurrencySymbols = {currency, symbols->getLocale(), *symbols, status};
     fUnitWidth = unitWidth;
     fRules = rules;
 }
@@ -55,12 +57,6 @@ bool MutablePatternModifier::needsPlurals() const {
 }
 
 ImmutablePatternModifier* MutablePatternModifier::createImmutable(UErrorCode& status) {
-    return createImmutableAndChain(nullptr, status);
-}
-
-ImmutablePatternModifier*
-MutablePatternModifier::createImmutableAndChain(const MicroPropsGenerator* parent, UErrorCode& status) {
-
     // TODO: Move StandardPlural VALUES to standardplural.h
     static const StandardPlural::Form STANDARD_PLURAL_VALUES[] = {
             StandardPlural::Form::ZERO,
@@ -81,8 +77,10 @@ MutablePatternModifier::createImmutableAndChain(const MicroPropsGenerator* paren
         for (StandardPlural::Form plural : STANDARD_PLURAL_VALUES) {
             setNumberProperties(SIGNUM_POS, plural);
             pm->adoptModifier(SIGNUM_POS, plural, createConstantModifier(status));
-            setNumberProperties(SIGNUM_ZERO, plural);
-            pm->adoptModifier(SIGNUM_ZERO, plural, createConstantModifier(status));
+            setNumberProperties(SIGNUM_NEG_ZERO, plural);
+            pm->adoptModifier(SIGNUM_NEG_ZERO, plural, createConstantModifier(status));
+            setNumberProperties(SIGNUM_POS_ZERO, plural);
+            pm->adoptModifier(SIGNUM_POS_ZERO, plural, createConstantModifier(status));
             setNumberProperties(SIGNUM_NEG, plural);
             pm->adoptModifier(SIGNUM_NEG, plural, createConstantModifier(status));
         }
@@ -90,20 +88,22 @@ MutablePatternModifier::createImmutableAndChain(const MicroPropsGenerator* paren
             delete pm;
             return nullptr;
         }
-        return new ImmutablePatternModifier(pm, fRules, parent);  // adopts pm
+        return new ImmutablePatternModifier(pm, fRules);  // adopts pm
     } else {
         // Faster path when plural keyword is not needed.
         setNumberProperties(SIGNUM_POS, StandardPlural::Form::COUNT);
         pm->adoptModifierWithoutPlural(SIGNUM_POS, createConstantModifier(status));
-        setNumberProperties(SIGNUM_ZERO, StandardPlural::Form::COUNT);
-        pm->adoptModifierWithoutPlural(SIGNUM_ZERO, createConstantModifier(status));
+        setNumberProperties(SIGNUM_NEG_ZERO, StandardPlural::Form::COUNT);
+        pm->adoptModifierWithoutPlural(SIGNUM_NEG_ZERO, createConstantModifier(status));
+        setNumberProperties(SIGNUM_POS_ZERO, StandardPlural::Form::COUNT);
+        pm->adoptModifierWithoutPlural(SIGNUM_POS_ZERO, createConstantModifier(status));
         setNumberProperties(SIGNUM_NEG, StandardPlural::Form::COUNT);
         pm->adoptModifierWithoutPlural(SIGNUM_NEG, createConstantModifier(status));
         if (U_FAILURE(status)) {
             delete pm;
             return nullptr;
         }
-        return new ImmutablePatternModifier(pm, nullptr, parent);  // adopts pm
+        return new ImmutablePatternModifier(pm, nullptr);  // adopts pm
     }
 }
 
@@ -120,13 +120,16 @@ ConstantMultiFieldModifier* MutablePatternModifier::createConstantModifier(UErro
     }
 }
 
-ImmutablePatternModifier::ImmutablePatternModifier(AdoptingModifierStore* pm, const PluralRules* rules,
-                                                   const MicroPropsGenerator* parent)
-        : pm(pm), rules(rules), parent(parent) {}
+ImmutablePatternModifier::ImmutablePatternModifier(AdoptingModifierStore* pm, const PluralRules* rules)
+        : pm(pm), rules(rules), parent(nullptr) {}
 
 void ImmutablePatternModifier::processQuantity(DecimalQuantity& quantity, MicroProps& micros,
                                                UErrorCode& status) const {
     parent->processQuantity(quantity, micros, status);
+    micros.rounder.apply(quantity, status);
+    if (micros.modMiddle != nullptr) {
+        return;
+    }
     applyToMicros(micros, quantity, status);
 }
 
@@ -148,6 +151,10 @@ const Modifier* ImmutablePatternModifier::getModifier(Signum signum, StandardPlu
     }
 }
 
+void ImmutablePatternModifier::addToChain(const MicroPropsGenerator* parent) {
+    this->parent = parent;
+}
+
 
 /** Used by the unsafe code path. */
 MicroPropsGenerator& MutablePatternModifier::addToChain(const MicroPropsGenerator* parent) {
@@ -158,6 +165,10 @@ MicroPropsGenerator& MutablePatternModifier::addToChain(const MicroPropsGenerato
 void MutablePatternModifier::processQuantity(DecimalQuantity& fq, MicroProps& micros,
                                              UErrorCode& status) const {
     fParent->processQuantity(fq, micros, status);
+    micros.rounder.apply(fq, status);
+    if (micros.modMiddle != nullptr) {
+        return;
+    }
     // The unsafe code path performs self-mutation, so we need a const_cast.
     // This method needs to be const because it overrides a const method in the parent class.
     auto nonConstThis = const_cast<MutablePatternModifier*>(this);
@@ -186,7 +197,7 @@ int32_t MutablePatternModifier::apply(FormattedStringBuilder& output, int32_t le
                 UnicodeString(),
                 0,
                 0,
-                UNUM_FIELD_COUNT,
+                kUndefinedField,
                 status);
     }
     CurrencySpacingEnabledModifier::applyCurrencySpacing(
@@ -230,7 +241,7 @@ bool MutablePatternModifier::isStrong() const {
     return fStrong;
 }
 
-bool MutablePatternModifier::containsField(UNumberFormatFields field) const {
+bool MutablePatternModifier::containsField(Field field) const {
     (void)field;
     // This method is not currently used.
     UPRV_UNREACHABLE;
@@ -263,7 +274,12 @@ int32_t MutablePatternModifier::insertSuffix(FormattedStringBuilder& sb, int pos
 /** This method contains the heart of the logic for rendering LDML affix strings. */
 void MutablePatternModifier::prepareAffix(bool isPrefix) {
     PatternStringUtils::patternInfoToStringBuilder(
-            *fPatternInfo, isPrefix, fSignum, fSignDisplay, fPlural, fPerMilleReplacesPercent, currentAffix);
+            *fPatternInfo,
+            isPrefix,
+            PatternStringUtils::resolveSignDisplay(fSignDisplay, fSignum),
+            fPlural,
+            fPerMilleReplacesPercent,
+            currentAffix);
 }
 
 UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
@@ -280,23 +296,23 @@ UnicodeString MutablePatternModifier::getSymbol(AffixPatternType type) const {
         case AffixPatternType::TYPE_CURRENCY_SINGLE: {
             // UnitWidth ISO and HIDDEN overrides the singular currency symbol.
             if (fUnitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_ISO_CODE) {
-                return fCurrencySymbols->getIntlCurrencySymbol(localStatus);
+                return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
             } else if (fUnitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_HIDDEN) {
                 return UnicodeString();
             } else if (fUnitWidth == UNumberUnitWidth::UNUM_UNIT_WIDTH_NARROW) {
-                return fCurrencySymbols->getNarrowCurrencySymbol(localStatus);
+                return fCurrencySymbols.getNarrowCurrencySymbol(localStatus);
             } else {
-                return fCurrencySymbols->getCurrencySymbol(localStatus);
+                return fCurrencySymbols.getCurrencySymbol(localStatus);
             }
         }
         case AffixPatternType::TYPE_CURRENCY_DOUBLE:
-            return fCurrencySymbols->getIntlCurrencySymbol(localStatus);
+            return fCurrencySymbols.getIntlCurrencySymbol(localStatus);
         case AffixPatternType::TYPE_CURRENCY_TRIPLE:
             // NOTE: This is the code path only for patterns containing "¤¤¤".
             // Plural currencies set via the API are formatted in LongNameHandler.
             // This code path is used by DecimalFormat via CurrencyPluralInfo.
             U_ASSERT(fPlural != StandardPlural::Form::COUNT);
-            return fCurrencySymbols->getPluralName(fPlural, localStatus);
+            return fCurrencySymbols.getPluralName(fPlural, localStatus);
         case AffixPatternType::TYPE_CURRENCY_QUAD:
             return UnicodeString(u"\uFFFD");
         case AffixPatternType::TYPE_CURRENCY_QUINT:

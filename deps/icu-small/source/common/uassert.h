@@ -31,6 +31,8 @@
 #if U_DEBUG
 #   include <assert.h>
 #   define U_ASSERT(exp) assert(exp)
+#elif U_CPLUSPLUS_VERSION
+#   define U_ASSERT(exp) void()
 #else
 #   define U_ASSERT(exp)
 #endif

@@ -379,23 +379,6 @@ UPRV_FORMATTED_VALUE_SUBCLASS_AUTO_IMPL(FormattedNumberRange)
 
 #define UPRV_NOARG
 
-UBool FormattedNumberRange::nextFieldPosition(FieldPosition& fieldPosition, UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(FALSE)
-    // NOTE: MSVC sometimes complains when implicitly converting between bool and UBool
-    return fData->nextFieldPosition(fieldPosition, status);
-}
-
-void FormattedNumberRange::getAllFieldPositions(FieldPositionIterator& iterator, UErrorCode& status) const {
-    FieldPositionIteratorHandler fpih(&iterator, status);
-    getAllFieldPositionsImpl(fpih, status);
-}
-
-void FormattedNumberRange::getAllFieldPositionsImpl(
-        FieldPositionIteratorHandler& fpih, UErrorCode& status) const {
-    UPRV_FORMATTED_VALUE_METHOD_GUARD(UPRV_NOARG)
-    fData->getAllFieldPositions(fpih, status);
-}
-
 UnicodeString FormattedNumberRange::getFirstDecimal(UErrorCode& status) const {
     UPRV_FORMATTED_VALUE_METHOD_GUARD(ICU_Utility::makeBogusString())
     return fData->quantity1.toScientificString();

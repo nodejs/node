@@ -148,9 +148,6 @@ void    RegexCompile::compile(
     if (U_FAILURE(*fStatus)) {
         return;
     }
-    fRXPat->fStaticSets     = RegexStaticSets::gStaticSets->fPropSets;
-    fRXPat->fStaticSets8    = RegexStaticSets::gStaticSets->fPropSets8;
-
 
     // Initialize the pattern scanning state machine
     fPatternLength = utext_nativeLength(pat);
@@ -1257,10 +1254,13 @@ UBool RegexCompile::doParseActions(int32_t action)
         break;
 
     case doBackslashX:
+        #if  UCONFIG_NO_BREAK_ITERATION==1
+        // Grapheme Cluster Boundary requires ICU break iteration.
+        error(U_UNSUPPORTED_ERROR);
+        #endif
         fixLiterals(FALSE);
         appendOp(URX_BACKSLASH_X, 0);
         break;
-
 
     case doBackslashZ:
         fixLiterals(FALSE);
@@ -1565,15 +1565,15 @@ UBool RegexCompile::doParseActions(int32_t action)
      case doSetBackslash_s:
         {
          UnicodeSet *set = (UnicodeSet *)fSetStack.peek();
-         set->addAll(*RegexStaticSets::gStaticSets->fPropSets[URX_ISSPACE_SET]);
+         set->addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISSPACE_SET]);
          break;
         }
 
      case doSetBackslash_S:
         {
             UnicodeSet *set = (UnicodeSet *)fSetStack.peek();
-            UnicodeSet SSet(*RegexStaticSets::gStaticSets->fPropSets[URX_ISSPACE_SET]);
-            SSet.complement();
+            UnicodeSet SSet;
+            SSet.addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISSPACE_SET]).complement();
             set->addAll(SSet);
             break;
         }
@@ -1642,15 +1642,15 @@ UBool RegexCompile::doParseActions(int32_t action)
     case doSetBackslash_w:
         {
             UnicodeSet *set = (UnicodeSet *)fSetStack.peek();
-            set->addAll(*RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET]);
+            set->addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET]);
             break;
         }
 
     case doSetBackslash_W:
         {
             UnicodeSet *set = (UnicodeSet *)fSetStack.peek();
-            UnicodeSet SSet(*RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET]);
-            SSet.complement();
+            UnicodeSet SSet;
+            SSet.addAll(RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET]).complement();
             set->addAll(SSet);
             break;
         }
@@ -2425,6 +2425,7 @@ void        RegexCompile::compileSet(UnicodeSet *theSet)
         {
             //  The set contains two or more chars.  (the normal case)
             //  Put it into the compiled pattern as a set.
+            theSet->freeze();
             int32_t setNumber = fRXPat->fSets->size();
             fRXPat->fSets->addElement(theSet, *fStatus);
             appendOp(URX_SETREF, setNumber);
@@ -2818,8 +2819,8 @@ void   RegexCompile::matchStartType() {
             if (currentLen == 0) {
                 int32_t  sn = URX_VAL(op);
                 U_ASSERT(sn>0 && sn<URX_LAST_SET);
-                const UnicodeSet *s = fRXPat->fStaticSets[sn];
-                fRXPat->fInitialChars->addAll(*s);
+                const UnicodeSet &s = RegexStaticSets::gStaticSets->fPropSets[sn];
+                fRXPat->fInitialChars->addAll(s);
                 numInitialStrings += 2;
             }
             currentLen = safeIncrement(currentLen, 1);
@@ -2831,9 +2832,8 @@ void   RegexCompile::matchStartType() {
         case URX_STAT_SETREF_N:
             if (currentLen == 0) {
                 int32_t  sn = URX_VAL(op);
-                const UnicodeSet *s = fRXPat->fStaticSets[sn];
-                UnicodeSet sc(*s);
-                sc.complement();
+                UnicodeSet sc;
+                sc.addAll(RegexStaticSets::gStaticSets->fPropSets[sn]).complement();
                 fRXPat->fInitialChars->addAll(sc);
                 numInitialStrings += 2;
             }
@@ -4420,7 +4420,8 @@ UnicodeSet *RegexCompile::createSetForProperty(const UnicodeString &propName, UB
 
         status = U_ZERO_ERROR;
         if (propName.caseCompare(u"word", -1, 0) == 0) {
-            set.adoptInsteadAndCheckErrorCode(new UnicodeSet(*(fRXPat->fStaticSets[URX_ISWORD_SET])), status);
+            set.adoptInsteadAndCheckErrorCode(
+                RegexStaticSets::gStaticSets->fPropSets[URX_ISWORD_SET].cloneAsThawed(), status);
             break;
         }
         if (propName.compare(u"all", -1) == 0) {

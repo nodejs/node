@@ -74,6 +74,12 @@ public:
     NumberingSystem(const NumberingSystem& other);
 
     /**
+     * Copy assignment.
+     * @stable ICU 4.2
+     */
+    NumberingSystem& operator=(const NumberingSystem& other) = default;
+
+    /**
      * Destructor.
      * @stable ICU 4.2
      */

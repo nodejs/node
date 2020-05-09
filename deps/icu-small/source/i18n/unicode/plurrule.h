@@ -350,7 +350,6 @@ public:
      */
     UnicodeString select(double number) const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Given a formatted number, returns the keyword of the first rule
      * that applies to  the number.  This function can be used with
@@ -364,10 +363,9 @@ public:
      * @param status  Set if an error occurs while selecting plural keyword.
      *                This could happen if the FormattedNumber is invalid.
      * @return        The keyword of the selected rule.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     UnicodeString select(const number::FormattedNumber& number, UErrorCode& status) const;
-#endif  /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_INTERNAL_API
     /**

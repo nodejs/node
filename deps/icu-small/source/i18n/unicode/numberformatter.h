@@ -155,6 +155,8 @@ class DecNum;
 class NumberRangeFormatterImpl;
 struct RangeMacroProps;
 struct UFormattedNumberImpl;
+class MutablePatternModifier;
+class ImmutablePatternModifier;
 
 /**
  * Used for NumberRangeFormatter and implemented in numrange_fluent.cpp.
@@ -980,8 +982,12 @@ class U_I18N_API IntegerWidth : public UMemory {
     friend struct impl::MacroProps;
     friend struct impl::MicroProps;
 
-    // To allow NumberFormatterImpl to access isBogus() and perform other operations:
+    // To allow NumberFormatterImpl to access isBogus():
     friend class impl::NumberFormatterImpl;
+
+    // To allow the use of this class when formatting:
+    friend class impl::MutablePatternModifier;
+    friend class impl::ImmutablePatternModifier;
 
     // So that NumberPropertyMapper can create instances
     friend class impl::NumberPropertyMapper;
@@ -1410,9 +1416,6 @@ struct U_I18N_API MacroProps : public UMemory {
     const PluralRules* rules = nullptr;  // no ownership
 
     /** @internal */
-    const CurrencySymbols* currencySymbols = nullptr;  // no ownership
-
-    /** @internal */
     int32_t threshold = kInternalDefaultThreshold;
 
     /** @internal */
@@ -1432,6 +1435,16 @@ struct U_I18N_API MacroProps : public UMemory {
 };
 
 } // namespace impl
+
+#if (U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN) && defined(_MSC_VER)
+// Ignore MSVC warning 4661. This is generated for NumberFormatterSettings<>::toSkeleton() as this method
+// is defined elsewhere (in number_skeletons.cpp). The compiler is warning that the explicit template instantiation
+// inside this single translation unit (CPP file) is incomplete, and thus it isn't sure if the template class is
+// fully defined. However, since each translation unit explicitly instantiates all the necessary template classes,
+// they will all be passed to the linker, and the linker will still find and export all the class members.
+#pragma warning(push)
+#pragma warning(disable: 4661)
+#endif
 
 /**
  * An abstract base class for specifying settings related to number formatting. This class is implemented by
@@ -2082,7 +2095,6 @@ class U_I18N_API NumberFormatterSettings {
      */
     UnicodeString toSkeleton(UErrorCode& status) const;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns the current (Un)LocalizedNumberFormatter as a LocalPointer
      * wrapping a heap-allocated copy of the current object.
@@ -2092,7 +2104,7 @@ class U_I18N_API NumberFormatterSettings {
      *
      * @return A wrapped (Un)LocalizedNumberFormatter pointer, or a wrapped
      *         nullptr on failure.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     LocalPointer<Derived> clone() const &;
 
@@ -2101,10 +2113,9 @@ class U_I18N_API NumberFormatterSettings {
      *
      * @return A wrapped (Un)LocalizedNumberFormatter pointer, or a wrapped
      *         nullptr on failure.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     LocalPointer<Derived> clone() &&;
-#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Sets the UErrorCode if an error occurred in the fluent chain.
@@ -2399,6 +2410,11 @@ class U_I18N_API LocalizedNumberFormatter
     friend class UnlocalizedNumberFormatter;
 };
 
+#if (U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN) && defined(_MSC_VER)
+// Warning 4661.
+#pragma warning(pop)
+#endif
+
 /**
  * The result of a number formatting operation. This class allows the result to be exported in several data types,
  * including a UnicodeString and a FieldPositionIterator.
@@ -2410,15 +2426,12 @@ class U_I18N_API LocalizedNumberFormatter
 class U_I18N_API FormattedNumber : public UMemory, public FormattedValue {
   public:
 
-    // Default constructor cannot have #ifndef U_HIDE_DRAFT_API
-#ifndef U_FORCE_HIDE_DRAFT_API
     /**
      * Default constructor; makes an empty FormattedNumber.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     FormattedNumber()
         : fData(nullptr), fErrorCode(U_INVALID_STATE_ERROR) {}
-#endif  // U_FORCE_HIDE_DRAFT_API
 
     /**
      * Move constructor: Leaves the source FormattedNumber in an undefined state.
@@ -2471,60 +2484,6 @@ class U_I18N_API FormattedNumber : public UMemory, public FormattedValue {
     // Copydoc: this method is new in ICU 64
     /** @copydoc FormattedValue::nextPosition() */
     UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
-
-#ifndef U_HIDE_DRAFT_API
-    /**
-     * Determines the start (inclusive) and end (exclusive) indices of the next occurrence of the given
-     * <em>field</em> in the output string. This allows you to determine the locations of, for example,
-     * the integer part, fraction part, or symbols.
-     *
-     * This is a simpler but less powerful alternative to {@link #nextPosition}.
-     *
-     * If a field occurs just once, calling this method will find that occurrence and return it. If a
-     * field occurs multiple times, this method may be called repeatedly with the following pattern:
-     *
-     * <pre>
-     * FieldPosition fpos(UNUM_GROUPING_SEPARATOR_FIELD);
-     * while (formattedNumber.nextFieldPosition(fpos, status)) {
-     *   // do something with fpos.
-     * }
-     * </pre>
-     *
-     * This method is useful if you know which field to query. If you want all available field position
-     * information, use {@link #nextPosition} or {@link #getAllFieldPositions}.
-     *
-     * @param fieldPosition
-     *            Input+output variable. On input, the "field" property determines which field to look
-     *            up, and the "beginIndex" and "endIndex" properties determine where to begin the search.
-     *            On output, the "beginIndex" is set to the beginning of the first occurrence of the
-     *            field with either begin or end indices after the input indices; "endIndex" is set to
-     *            the end of that occurrence of the field (exclusive index). If a field position is not
-     *            found, the method returns FALSE and the FieldPosition may or may not be changed.
-     * @param status
-     *            Set if an error occurs while populating the FieldPosition.
-     * @return TRUE if a new occurrence of the field was found; FALSE otherwise.
-     * @draft ICU 62
-     * @see UNumberFormatFields
-     */
-    UBool nextFieldPosition(FieldPosition& fieldPosition, UErrorCode& status) const;
-
-    /**
-     * Export the formatted number to a FieldPositionIterator. This allows you to determine which characters in
-     * the output string correspond to which <em>fields</em>, such as the integer part, fraction part, and sign.
-     *
-     * This is an alternative to the more powerful #nextPosition() API.
-     *
-     * If information on only one field is needed, use #nextPosition() or #nextFieldPosition() instead.
-     *
-     * @param iterator
-     *            The FieldPositionIterator to populate with all of the fields present in the formatted number.
-     * @param status
-     *            Set if an error occurs while populating the FieldPositionIterator.
-     * @draft ICU 62
-     * @see UNumberFormatFields
-     */
-    void getAllFieldPositions(FieldPositionIterator &iterator, UErrorCode &status) const;
-#endif  /* U_HIDE_DRAFT_API */
 
 #ifndef U_HIDE_DRAFT_API
     /**
@@ -2646,7 +2605,6 @@ class U_I18N_API NumberFormatter final {
      */
     static UnlocalizedNumberFormatter forSkeleton(const UnicodeString& skeleton, UErrorCode& status);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Call this method at the beginning of a NumberFormatter fluent chain to create an instance based
      * on a given number skeleton string.
@@ -2662,11 +2620,10 @@ class U_I18N_API NumberFormatter final {
      * @param status
      *            Set to U_NUMBER_SKELETON_SYNTAX_ERROR if the skeleton was invalid.
      * @return An UnlocalizedNumberFormatter, to be used for chaining.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     static UnlocalizedNumberFormatter forSkeleton(const UnicodeString& skeleton,
                                                   UParseError& perror, UErrorCode& status);
-#endif
 
     /**
      * Use factory methods instead of the constructor to create a NumberFormatter.

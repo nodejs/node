@@ -207,6 +207,12 @@ protected:
     BasicTimeZone(const BasicTimeZone& source);
 
     /**
+     * Copy assignment.
+     * @stable ICU 3.8
+     */
+    BasicTimeZone& operator=(const BasicTimeZone&) = default;
+
+    /**
      * Gets the set of TimeZoneRule instances applicable to the specified time and after.
      * @param start     The start date used for extracting time zone rules
      * @param initial   Receives the InitialTimeZone, always not NULL

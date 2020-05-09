@@ -68,4 +68,10 @@
 #   define _STDC_C99
 #endif
 
+#if !defined _POSIX_C_SOURCE && \
+    defined(__APPLE__) && defined(__MACH__) && !defined(__clang__)
+// Needed to prevent EOWNERDEAD issues with GCC on Mac
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #endif  /* __UPOSIXDEFS_H__ */

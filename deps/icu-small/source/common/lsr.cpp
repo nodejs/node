@@ -14,9 +14,10 @@
 
 U_NAMESPACE_BEGIN
 
-LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCode &errorCode) :
+LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, int32_t f,
+         UErrorCode &errorCode) :
         language(nullptr), script(nullptr), region(r),
-        regionIndex(indexForRegion(region)) {
+        regionIndex(indexForRegion(region)), flags(f) {
     if (U_SUCCESS(errorCode)) {
         CharString langScript;
         langScript.append(prefix, errorCode).append(lang, errorCode).append('\0', errorCode);
@@ -32,7 +33,8 @@ LSR::LSR(char prefix, const char *lang, const char *scr, const char *r, UErrorCo
 
 LSR::LSR(LSR &&other) U_NOEXCEPT :
         language(other.language), script(other.script), region(other.region), owned(other.owned),
-        regionIndex(other.regionIndex), hashCode(other.hashCode) {
+        regionIndex(other.regionIndex), flags(other.flags),
+        hashCode(other.hashCode) {
     if (owned != nullptr) {
         other.language = other.script = "";
         other.owned = nullptr;
@@ -50,6 +52,7 @@ LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
     script = other.script;
     region = other.region;
     regionIndex = other.regionIndex;
+    flags = other.flags;
     owned = other.owned;
     hashCode = other.hashCode;
     if (owned != nullptr) {
@@ -60,13 +63,23 @@ LSR &LSR::operator=(LSR &&other) U_NOEXCEPT {
     return *this;
 }
 
-UBool LSR::operator==(const LSR &other) const {
+UBool LSR::isEquivalentTo(const LSR &other) const {
     return
         uprv_strcmp(language, other.language) == 0 &&
         uprv_strcmp(script, other.script) == 0 &&
         regionIndex == other.regionIndex &&
         // Compare regions if both are ill-formed (and their indexes are 0).
         (regionIndex > 0 || uprv_strcmp(region, other.region) == 0);
+}
+
+UBool LSR::operator==(const LSR &other) const {
+    return
+        uprv_strcmp(language, other.language) == 0 &&
+        uprv_strcmp(script, other.script) == 0 &&
+        regionIndex == other.regionIndex &&
+        // Compare regions if both are ill-formed (and their indexes are 0).
+        (regionIndex > 0 || uprv_strcmp(region, other.region) == 0) &&
+        flags == other.flags;
 }
 
 int32_t LSR::indexForRegion(const char *region) {
@@ -90,10 +103,10 @@ int32_t LSR::indexForRegion(const char *region) {
 
 LSR &LSR::setHashCode() {
     if (hashCode == 0) {
-        hashCode =
-            (ustr_hashCharsN(language, static_cast<int32_t>(uprv_strlen(language))) * 37 +
-            ustr_hashCharsN(script, static_cast<int32_t>(uprv_strlen(script)))) * 37 +
-            regionIndex;
+        uint32_t h = ustr_hashCharsN(language, static_cast<int32_t>(uprv_strlen(language)));
+        h = h * 37 + ustr_hashCharsN(script, static_cast<int32_t>(uprv_strlen(script)));
+        h = h * 37 + regionIndex;
+        hashCode = h * 37 + flags;
     }
     return *this;
 }

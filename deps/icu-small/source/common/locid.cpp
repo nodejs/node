@@ -38,6 +38,7 @@
 #include "unicode/strenum.h"
 #include "unicode/stringpiece.h"
 #include "unicode/uloc.h"
+#include "unicode/ures.h"
 
 #include "bytesinkutil.h"
 #include "charstr.h"
@@ -104,7 +105,6 @@ typedef enum ELocalePos {
 U_CFUNC int32_t locale_getKeywords(const char *localeID,
             char prev,
             char *keywords, int32_t keywordCapacity,
-            char *values, int32_t valuesCapacity, int32_t *valLen,
             UBool valuesToo,
             UErrorCode *status);
 
@@ -184,17 +184,16 @@ Locale *locale_set_default_internal(const char *id, UErrorCode& status) {
         canonicalize = TRUE; // always canonicalize host ID
     }
 
-    char localeNameBuf[512];
-
-    if (canonicalize) {
-        uloc_canonicalize(id, localeNameBuf, sizeof(localeNameBuf)-1, &status);
-    } else {
-        uloc_getName(id, localeNameBuf, sizeof(localeNameBuf)-1, &status);
+    CharString localeNameBuf;
+    {
+        CharStringByteSink sink(&localeNameBuf);
+        if (canonicalize) {
+            ulocimp_canonicalize(id, sink, &status);
+        } else {
+            ulocimp_getName(id, sink, &status);
+        }
     }
-    localeNameBuf[sizeof(localeNameBuf)-1] = 0;  // Force null termination in event of
-                                                 //   a long name filling the buffer.
-                                                 //   (long names are truncated.)
-                                                 //
+
     if (U_FAILURE(status)) {
         return gDefaultLocale;
     }
@@ -208,14 +207,14 @@ Locale *locale_set_default_internal(const char *id, UErrorCode& status) {
         ucln_common_registerCleanup(UCLN_COMMON_LOCALE, locale_cleanup);
     }
 
-    Locale *newDefault = (Locale *)uhash_get(gDefaultLocalesHashT, localeNameBuf);
+    Locale *newDefault = (Locale *)uhash_get(gDefaultLocalesHashT, localeNameBuf.data());
     if (newDefault == NULL) {
         newDefault = new Locale(Locale::eBOGUS);
         if (newDefault == NULL) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return gDefaultLocale;
         }
-        newDefault->init(localeNameBuf, FALSE);
+        newDefault->init(localeNameBuf.data(), FALSE);
         uhash_put(gDefaultLocalesHashT, (char*) newDefault->getName(), newDefault, &status);
         if (U_FAILURE(status)) {
             return gDefaultLocale;
@@ -509,6 +508,36 @@ Locale::operator==( const   Locale& other) const
 
 #define ISASCIIALPHA(c) (((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
 
+namespace {
+
+CharString& AppendLSCVE(CharString& out, const char* language, const char* script,
+                 const char* country, const char* variants, const char* extension,
+                 UErrorCode& status) {
+    out.append(language, status);
+    if (script && script[0] != '\0') {
+        out.append('_', status);
+        out.append(script, status);
+    }
+    if (country && country[0] != '\0') {
+        out.append('_', status);
+        out.append(country, status);
+    }
+    if (variants && variants[0] != '\0') {
+        if ((script == nullptr || script[0] == '\0') &&
+            (country == nullptr || country[0] == '\0')) {
+          out.append('_', status);
+        }
+        out.append('_', status);
+        out.append(variants, status);
+    }
+    if (extension && extension[0] != '\0') {
+        out.append(extension, status);
+    }
+    return out;
+}
+
+}  // namespace
+
 /*This function initializes a Locale from a C locale ID*/
 Locale& Locale::init(const char* localeID, UBool canonicalize)
 {
@@ -631,6 +660,195 @@ Locale& Locale::init(const char* localeID, UBool canonicalize)
         if (U_FAILURE(err)) {
             break;
         }
+
+        if (canonicalize) {
+            UErrorCode status = U_ZERO_ERROR;
+            // TODO: Try to use ResourceDataValue and ures_getValueWithFallback() etc.
+            LocalUResourceBundlePointer metadata(ures_openDirect(NULL, "metadata", &status));
+            LocalUResourceBundlePointer metadataAlias(ures_getByKey(metadata.getAlias(), "alias", NULL, &status));
+            // Look up the metadata:alias:language:$key:replacement entries
+            // key could be one of the following:
+            //   language
+            //   language_Script_REGION
+            //   language_REGION
+            //   language_variant
+            do {
+                // The resource structure looks like
+                // metadata {
+                //   alias {
+                //     language {
+                //       art_lojban {
+                //         replacement{"jbo"}
+                //       }
+                //       ...
+                //       ks_Arab_IN {
+                //         replacement{"ks_IN"}
+                //       }
+                //       ...
+                //       no {
+                //         replacement{"nb"}
+                //       }
+                //       ....
+                //       zh_CN {
+                //         replacement{"zh_Hans_CN"}
+                //       }
+                //     }
+                //     ...
+                //   }
+                // }
+                LocalUResourceBundlePointer languageAlias(ures_getByKey(metadataAlias.getAlias(), "language", NULL, &status));
+                if (U_FAILURE(status))
+                    break;
+                CharString temp;
+                // Handle cases of key pattern "language _ variant"
+                // ex: Map "art_lojban" to "jbo"
+                const char* variants = getVariant();
+                if (variants != nullptr && variants[0] != '\0') {
+                    const char* begin = variants;
+                    const char* end = begin;
+                    // We may have multiple variants, need to look at each of
+                    // them.
+                    do {
+                        status = U_ZERO_ERROR;
+                        end = uprv_strchr(begin, '_');
+                        int32_t len = (end == nullptr) ? int32_t(uprv_strlen(begin)) : int32_t(end - begin);
+                        temp.clear().append(getLanguage(), status).append("_", status).append(begin, len, status);
+                        LocalUResourceBundlePointer languageVariantAlias(
+                            ures_getByKey(languageAlias.getAlias(),
+                                          temp.data(),
+                                          NULL, &status));
+                        temp.clear().appendInvariantChars(
+                            UnicodeString(ures_getStringByKey(languageVariantAlias.getAlias(), "replacement", nullptr, &status)), status);
+                        if (U_SUCCESS(status)) {
+                            CharString newVar;
+                            if (begin != variants) {
+                                newVar.append(variants, static_cast<int32_t>(begin - variants - 1), status);
+                            }
+                            if (end != nullptr) {
+                                if (begin != variants) {
+                                    newVar.append("_", status);
+                                }
+                                newVar.append(end + 1, status);
+                            }
+                            Locale l(temp.data());
+                            init(AppendLSCVE(temp.clear(),
+                                             l.getLanguage(),
+                                             (getScript() != nullptr && getScript()[0] != '\0') ? getScript() : l.getScript(),
+                                             (getCountry() != nullptr && getCountry()[0] != '\0') ? getCountry() : l.getCountry(),
+                                             newVar.data(),
+                                             uprv_strchr(fullName, '@'), status).data(), false);
+                            break;
+                        }
+                        begin = end + 1;
+                    } while (end != nullptr);
+                }  // End of handle language _ variant
+                // Handle cases of key pattern "language _ Script _ REGION"
+                // ex: Map "ks_Arab_IN" to "ks_IN"
+                if (getScript() != nullptr && getScript()[0] != '\0' &&
+                        getCountry() != nullptr && getCountry()[0] != '\0') {
+                    status = U_ZERO_ERROR;
+                    LocalUResourceBundlePointer replacedAlias(
+                        ures_getByKey(languageAlias.getAlias(),
+                                      AppendLSCVE(temp.clear(), getLanguage(), getScript(), getCountry(),
+                                                  nullptr, nullptr, status).data(), NULL, &status));
+                    temp.clear().appendInvariantChars(
+                        UnicodeString(ures_getStringByKey(replacedAlias.getAlias(), "replacement", nullptr, &status)), status);
+                    if (U_SUCCESS(status)) {
+                        Locale l(temp.data());
+                        init(AppendLSCVE(temp.clear(),
+                                         l.getLanguage(),
+                                         l.getScript(),
+                                         l.getCountry(),
+                                         getVariant(),
+                                         uprv_strchr(fullName, '@'), status).data(), false);
+                    }
+                }  // End of handle language _ Script _ REGION
+                // Handle cases of key pattern "language _ REGION"
+                // ex: Map "zh_CN" to "zh_Hans_CN"
+                if (getCountry() != nullptr && getCountry()[0] != '\0') {
+                    status = U_ZERO_ERROR;
+                    LocalUResourceBundlePointer replacedAlias(
+                        ures_getByKey(languageAlias.getAlias(),
+                                      AppendLSCVE(temp.clear(), getLanguage(), nullptr, getCountry(),
+                                                  nullptr, nullptr, status).data(), NULL, &status));
+                    temp.clear().appendInvariantChars(
+                        UnicodeString(ures_getStringByKey(replacedAlias.getAlias(), "replacement", nullptr, &status)), status);
+                    if (U_SUCCESS(status)) {
+                        Locale l(temp.data());
+                        init(AppendLSCVE(temp.clear(),
+                                         l.getLanguage(),
+                                         (getScript() != nullptr && getScript()[0] != '\0') ? getScript() : l.getScript(),
+                                         l.getCountry(),
+                                         getVariant(),
+                                         uprv_strchr(fullName, '@'), status).data(), false);
+                    }
+                }  // End of handle "language _ REGION"
+                // Handle cases of key pattern "language"
+                // ex: Map "no" to "nb"
+                {
+                    status = U_ZERO_ERROR;
+                    LocalUResourceBundlePointer replaceLanguageAlias(ures_getByKey(languageAlias.getAlias(), getLanguage(), NULL, &status));
+                    temp.clear().appendInvariantChars(
+                        UnicodeString(ures_getStringByKey(replaceLanguageAlias.getAlias(), "replacement", nullptr, &status)), status);
+                    if (U_SUCCESS(status)) {
+                        Locale l(temp.data());
+                        init(AppendLSCVE(temp.clear(),
+                                         l.getLanguage(),
+                                         (getScript() != nullptr && getScript()[0] != '\0') ? getScript() : l.getScript(),
+                                         (getCountry() != nullptr && getCountry()[0] != '\0') ? getCountry() : l.getCountry(),
+                                         getVariant(),
+                                         uprv_strchr(fullName, '@'), status).data(), false);
+                    }
+                }  // End of handle "language"
+
+                // Look up the metadata:alias:territory:$key:replacement entries
+                // key is region code.
+                if (getCountry() != nullptr) {
+                    status = U_ZERO_ERROR;
+                    // The resource structure looks like
+                    // metadata {
+                    //   alias {
+                    //     ...
+                    //     territory: {
+                    //       172 {
+                    //         replacement{"RU AM AZ BY GE KG KZ MD TJ TM UA UZ"}
+                    //       }
+                    //       ...
+                    //       554 {
+                    //         replacement{"NZ"}
+                    //       }
+                    //     }
+                    //   }
+                    // }
+                    LocalUResourceBundlePointer territoryAlias(ures_getByKey(metadataAlias.getAlias(), "territory", NULL, &status));
+                    LocalUResourceBundlePointer countryAlias(ures_getByKey(territoryAlias.getAlias(), getCountry(), NULL, &status));
+                    UnicodeString replacements(
+                        ures_getStringByKey(countryAlias.getAlias(), "replacement", nullptr, &status));
+                    if (U_SUCCESS(status)) {
+                        CharString replacedCountry;
+                        int32_t delPos = replacements.indexOf(' ');
+                        if (delPos == -1) {
+                            replacedCountry.appendInvariantChars(replacements, status);
+                        } else {
+                            Locale l(AppendLSCVE(temp.clear(), getLanguage(), nullptr, getScript(),
+                                                 nullptr, nullptr, status).data());
+                            l.addLikelySubtags(status);
+                            if (replacements.indexOf(UnicodeString(l.getCountry())) != -1) {
+                                replacedCountry.append(l.getCountry(), status);
+                            } else {
+                                replacedCountry.appendInvariantChars(replacements.getBuffer(), delPos, status);
+                            }
+                        }
+                        init(AppendLSCVE(temp.clear(),
+                                         getLanguage(),
+                                         getScript(),
+                                         replacedCountry.data(),
+                                         getVariant(),
+                                         uprv_strchr(fullName, '@'), status).data(), false);
+                    }
+                }   // End of handle REGION
+            } while (0);
+        }   // if (canonicalize) {
 
         // successful end of init()
         return *this;
@@ -773,6 +991,25 @@ Locale::minimizeSubtags(UErrorCode& status) {
     }
 
     init(minimizedLocaleID.data(), /*canonicalize=*/FALSE);
+    if (isBogus()) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+    }
+}
+
+void
+Locale::canonicalize(UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return;
+    }
+    if (isBogus()) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    CharString uncanonicalized(fullName, status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+    init(uncanonicalized.data(), /*canonicalize=*/TRUE);
     if (isBogus()) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
     }
@@ -1189,7 +1426,7 @@ Locale::createKeywords(UErrorCode &status) const
     const char* assignment = uprv_strchr(fullName, '=');
     if(variantStart) {
         if(assignment > variantStart) {
-            int32_t keyLen = locale_getKeywords(variantStart+1, '@', keywords, keywordCapacity, NULL, 0, NULL, FALSE, &status);
+            int32_t keyLen = locale_getKeywords(variantStart+1, '@', keywords, keywordCapacity, FALSE, &status);
             if(U_SUCCESS(status) && keyLen) {
                 result = new KeywordEnumeration(keywords, keyLen, 0, status);
                 if (!result) {
@@ -1218,7 +1455,7 @@ Locale::createUnicodeKeywords(UErrorCode &status) const
     const char* assignment = uprv_strchr(fullName, '=');
     if(variantStart) {
         if(assignment > variantStart) {
-            int32_t keyLen = locale_getKeywords(variantStart+1, '@', keywords, keywordCapacity, NULL, 0, NULL, FALSE, &status);
+            int32_t keyLen = locale_getKeywords(variantStart+1, '@', keywords, keywordCapacity, FALSE, &status);
             if(U_SUCCESS(status) && keyLen) {
                 result = new UnicodeKeywordEnumeration(keywords, keyLen, 0, status);
                 if (!result) {
