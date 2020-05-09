@@ -2696,6 +2696,16 @@ Accessing several internal, undocumented HTTP modules is deprecated.
 | `require("_http_server")._connectionListener` | `require("http")._connectionListener` |
 | `require("_http_server").kServerResponse`     | _No replacement_                      |
 
+Accessing several internal, undocumented Stream modules is deprecated.
+
+| Deprecated module                            | Replacement                     |
+| -------------------------------------------- | ------------------------------- |
+| `require("_stream_duplex").Duplex`           | `require("stream").Duplex`      |
+| `require("_stream_passthrough").PassThrough` | `require("stream").PassThrough` |
+| `require("_stream_readable").Readable`       | `require("stream").Readable`    |
+| `require("_stream_writable").Writable`       | `require("stream").Writable`    |
+| `require("_stream_transform").Transform`     | `require("stream").Transform`   |
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
