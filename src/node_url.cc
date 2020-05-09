@@ -726,7 +726,6 @@ std::string PercentDecode(const char* input, size_t len) {
 #define SPECIALS(XX)                                                          \
   XX(ftp, 21, "ftp:")                                                         \
   XX(file, -1, "file:")                                                       \
-  XX(gopher, 70, "gopher:")                                                   \
   XX(http, 80, "http:")                                                       \
   XX(https, 443, "https:")                                                    \
   XX(ws, 80, "ws:")                                                           \
