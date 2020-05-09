@@ -369,7 +369,7 @@ Native addons may need to allocate global state of which they make use during
 their entire life cycle such that the state must be unique to each instance of
 the addon.
 
-To this env, N-API provides a way to allocate data such that its life cycle is
+To this end, N-API provides a way to allocate data such that its life cycle is
 tied to the life cycle of the Agent.
 
 ### napi_set_instance_data
