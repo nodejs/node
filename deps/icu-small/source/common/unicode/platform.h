@@ -828,7 +828,7 @@ namespace std {
 #   define U_EXPORT
 #endif
 
-/* U_CALLCONV is releated to U_EXPORT2 */
+/* U_CALLCONV is related to U_EXPORT2 */
 #ifdef U_EXPORT2
     /* Use the predefined value. */
 #elif defined(_MSC_VER)

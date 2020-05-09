@@ -62,6 +62,21 @@ ulocimp_getCountry(const char *localeID,
                    char *country, int32_t countryCapacity,
                    const char **pEnd);
 
+U_STABLE void U_EXPORT2
+ulocimp_getName(const char* localeID,
+                icu::ByteSink& sink,
+                UErrorCode* err);
+
+U_STABLE void U_EXPORT2
+ulocimp_getBaseName(const char* localeID,
+                    icu::ByteSink& sink,
+                    UErrorCode* err);
+
+U_STABLE void U_EXPORT2
+ulocimp_canonicalize(const char* localeID,
+                     icu::ByteSink& sink,
+                     UErrorCode* err);
+
 /**
  * Writes a well-formed language tag for this locale ID.
  *

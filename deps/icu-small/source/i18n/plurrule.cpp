@@ -1693,6 +1693,7 @@ double FixedDecimal::getPluralOperand(PluralOperand operand) const {
         case PLURAL_OPERAND_F: return static_cast<double>(decimalDigits);
         case PLURAL_OPERAND_T: return static_cast<double>(decimalDigitsWithoutTrailingZeros);
         case PLURAL_OPERAND_V: return visibleDecimalDigitCount;
+        case PLURAL_OPERAND_E: return 0;
         default:
              UPRV_UNREACHABLE;  // unexpected.
     }

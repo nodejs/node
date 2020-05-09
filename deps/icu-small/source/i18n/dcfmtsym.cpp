@@ -167,6 +167,7 @@ DecimalFormatSymbols::operator=(const DecimalFormatSymbols& rhs)
         fIsCustomCurrencySymbol = rhs.fIsCustomCurrencySymbol;
         fIsCustomIntlCurrencySymbol = rhs.fIsCustomIntlCurrencySymbol;
         fCodePointZero = rhs.fCodePointZero;
+        currPattern = rhs.currPattern;
     }
     return *this;
 }
@@ -453,58 +454,16 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
     }
     fCodePointZero = tempCodePointZero;
 
-    // Obtain currency data from the currency API.  This is strictly
-    // for backward compatibility; we don't use DecimalFormatSymbols
-    // for currency data anymore.
+    // Get the default currency from the currency API.
     UErrorCode internalStatus = U_ZERO_ERROR; // don't propagate failures out
     UChar curriso[4];
     UnicodeString tempStr;
     int32_t currisoLength = ucurr_forLocale(locStr, curriso, UPRV_LENGTHOF(curriso), &internalStatus);
     if (U_SUCCESS(internalStatus) && currisoLength == 3) {
-        uprv_getStaticCurrencyName(curriso, locStr, tempStr, internalStatus);
-        if (U_SUCCESS(internalStatus)) {
-            fSymbols[kIntlCurrencySymbol].setTo(curriso, currisoLength);
-            fSymbols[kCurrencySymbol] = tempStr;
-        }
+        setCurrency(curriso, status);
+    } else {
+        setCurrency(nullptr, status);
     }
-    /* else use the default values. */
-
-    //load the currency data
-    UChar ucc[4]={0}; //Currency Codes are always 3 chars long
-    int32_t uccLen = 4;
-    const char* locName = loc.getName();
-    UErrorCode localStatus = U_ZERO_ERROR;
-    uccLen = ucurr_forLocale(locName, ucc, uccLen, &localStatus);
-
-    // TODO: Currency pattern data loading is duplicated in number_formatimpl.cpp
-    if(U_SUCCESS(localStatus) && uccLen > 0) {
-        char cc[4]={0};
-        u_UCharsToChars(ucc, cc, uccLen);
-        /* An explicit currency was requested */
-        LocalUResourceBundlePointer currencyResource(ures_open(U_ICUDATA_CURR, locStr, &localStatus));
-        LocalUResourceBundlePointer currency(
-            ures_getByKeyWithFallback(currencyResource.getAlias(), "Currencies", NULL, &localStatus));
-        ures_getByKeyWithFallback(currency.getAlias(), cc, currency.getAlias(), &localStatus);
-        if(U_SUCCESS(localStatus) && ures_getSize(currency.getAlias())>2) { // the length is 3 if more data is present
-            ures_getByIndex(currency.getAlias(), 2, currency.getAlias(), &localStatus);
-            int32_t currPatternLen = 0;
-            currPattern =
-                ures_getStringByIndex(currency.getAlias(), (int32_t)0, &currPatternLen, &localStatus);
-            UnicodeString decimalSep =
-                ures_getUnicodeStringByIndex(currency.getAlias(), (int32_t)1, &localStatus);
-            UnicodeString groupingSep =
-                ures_getUnicodeStringByIndex(currency.getAlias(), (int32_t)2, &localStatus);
-            if(U_SUCCESS(localStatus)){
-                fSymbols[kMonetaryGroupingSeparatorSymbol] = groupingSep;
-                fSymbols[kMonetarySeparatorSymbol] = decimalSep;
-                //pattern.setTo(TRUE, currPattern, currPatternLen);
-                status = localStatus;
-            }
-        }
-        /* else An explicit currency was requested and is unknown or locale data is malformed. */
-        /* ucurr_* API will get the correct value later on. */
-    }
-        // else ignore the error if no currency
 
     // Currency Spacing.
     LocalUResourceBundlePointer currencyResource(ures_open(U_ICUDATA_CURR, locStr, &status));
@@ -553,7 +512,52 @@ DecimalFormatSymbols::initialize() {
     fIsCustomIntlCurrencySymbol = FALSE;
     fCodePointZero = 0x30;
     U_ASSERT(fCodePointZero == fSymbols[kZeroDigitSymbol].char32At(0));
+    currPattern = nullptr;
 
+}
+
+void DecimalFormatSymbols::setCurrency(const UChar* currency, UErrorCode& status) {
+    // TODO: If this method is made public:
+    // - Adopt ICU4J behavior of not allowing currency to be null.
+    // - Also verify that the length of currency is 3.
+    if (!currency) {
+        return;
+    }
+
+    UnicodeString tempStr;
+    uprv_getStaticCurrencyName(currency, locale.getName(), tempStr, status);
+    if (U_SUCCESS(status)) {
+        fSymbols[kIntlCurrencySymbol].setTo(currency, 3);
+        fSymbols[kCurrencySymbol] = tempStr;
+    }
+
+    char cc[4]={0};
+    u_UCharsToChars(currency, cc, 3);
+
+    /* An explicit currency was requested */
+    // TODO(ICU-13297): Move this data loading logic into a centralized place
+    UErrorCode localStatus = U_ZERO_ERROR;
+    LocalUResourceBundlePointer rbTop(ures_open(U_ICUDATA_CURR, locale.getName(), &localStatus));
+    LocalUResourceBundlePointer rb(
+        ures_getByKeyWithFallback(rbTop.getAlias(), "Currencies", NULL, &localStatus));
+    ures_getByKeyWithFallback(rb.getAlias(), cc, rb.getAlias(), &localStatus);
+    if(U_SUCCESS(localStatus) && ures_getSize(rb.getAlias())>2) { // the length is 3 if more data is present
+        ures_getByIndex(rb.getAlias(), 2, rb.getAlias(), &localStatus);
+        int32_t currPatternLen = 0;
+        currPattern =
+            ures_getStringByIndex(rb.getAlias(), (int32_t)0, &currPatternLen, &localStatus);
+        UnicodeString decimalSep =
+            ures_getUnicodeStringByIndex(rb.getAlias(), (int32_t)1, &localStatus);
+        UnicodeString groupingSep =
+            ures_getUnicodeStringByIndex(rb.getAlias(), (int32_t)2, &localStatus);
+        if(U_SUCCESS(localStatus)){
+            fSymbols[kMonetaryGroupingSeparatorSymbol] = groupingSep;
+            fSymbols[kMonetarySeparatorSymbol] = decimalSep;
+            //pattern.setTo(TRUE, currPattern, currPatternLen);
+        }
+    }
+    /* else An explicit currency was requested and is unknown or locale data is malformed. */
+    /* ucurr_* API will get the correct value later on. */
 }
 
 Locale

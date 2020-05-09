@@ -462,11 +462,6 @@ double StringToDoubleConverter::StringToIeee(
     }
   }
 
-  // The longest form of simplified number is: "-<significant digits>.1eXXX\0".
-  const int kBufferSize = kMaxSignificantDigits + 10;
-  char buffer[kBufferSize];  // NOLINT: size is known at compile time.
-  int buffer_pos = 0;
-
   // Exponent will be adjusted if insignificant digits of the integer part
   // or insignificant leading zeros of the fractional part are dropped.
   int exponent = 0;
@@ -501,7 +496,6 @@ double StringToDoubleConverter::StringToIeee(
         return junk_string_value_;
       }
 
-      DOUBLE_CONVERSION_ASSERT(buffer_pos == 0);
       *processed_characters_count = static_cast<int>(current - input);
       return sign ? -Double::Infinity() : Double::Infinity();
     }
@@ -520,7 +514,6 @@ double StringToDoubleConverter::StringToIeee(
         return junk_string_value_;
       }
 
-      DOUBLE_CONVERSION_ASSERT(buffer_pos == 0);
       *processed_characters_count = static_cast<int>(current - input);
       return sign ? -Double::NaN() : Double::NaN();
     }
@@ -576,6 +569,12 @@ double StringToDoubleConverter::StringToIeee(
   }
 
   bool octal = leading_zero && (flags_ & ALLOW_OCTALS) != 0;
+
+  // The longest form of simplified number is: "-<significant digits>.1eXXX\0".
+  const int kBufferSize = kMaxSignificantDigits + 10;
+  DOUBLE_CONVERSION_STACK_UNINITIALIZED char
+      buffer[kBufferSize];  // NOLINT: size is known at compile time.
+  int buffer_pos = 0;
 
   // Copy significant digits of the integer part (if any) to the buffer.
   while (*current >= '0' && *current <= '9') {

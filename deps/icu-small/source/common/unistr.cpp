@@ -1563,7 +1563,11 @@ UnicodeString::doAppend(const UChar *srcChars, int32_t srcStart, int32_t srcLeng
   }
 
   int32_t oldLength = length();
-  int32_t newLength = oldLength + srcLength;
+  int32_t newLength;
+  if (uprv_add32_overflow(oldLength, srcLength, &newLength)) {
+    setToBogus();
+    return *this;
+  }
 
   // Check for append onto ourself
   const UChar* oldArray = getArrayStart();

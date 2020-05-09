@@ -34,37 +34,92 @@
 struct UListFormatter;
 typedef struct UListFormatter UListFormatter;  /**< C typedef for struct UListFormatter. @stable ICU 55 */
 
-#ifndef U_HIDE_DRAFT_API
 struct UFormattedList;
 /**
  * Opaque struct to contain the results of a UListFormatter operation.
- * @draft ICU 64
+ * @stable ICU 64
  */
 typedef struct UFormattedList UFormattedList;
-#endif  /* U_HIDE_DRAFT_API */
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * FieldPosition and UFieldPosition selectors for format fields
  * defined by ListFormatter.
- * @draft ICU 63
+ * @stable ICU 63
  */
 typedef enum UListFormatterField {
     /**
      * The literal text in the result which came from the resources.
-     * @draft ICU 63
+     * @stable ICU 63
      */
     ULISTFMT_LITERAL_FIELD,
     /**
      * The element text in the result which came from the input strings.
-     * @draft ICU 63
+     * @stable ICU 63
      */
     ULISTFMT_ELEMENT_FIELD
 } UListFormatterField;
+
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Type of meaning expressed by the list.
+ *
+ * @draft ICU 67
+ */
+typedef enum UListFormatterType {
+    /**
+     * Conjunction formatting, e.g. "Alice, Bob, Charlie, and Delta".
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_TYPE_AND,
+
+    /**
+     * Disjunction (or alternative, or simply one of) formatting, e.g.
+     * "Alice, Bob, Charlie, or Delta".
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_TYPE_OR,
+
+    /**
+     * Formatting of a list of values with units, e.g. "5 pounds, 12 ounces".
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_TYPE_UNITS
+} UListFormatterType;
+
+/**
+ * Verbosity level of the list patterns.
+ *
+ * @draft ICU 67
+ */
+typedef enum UListFormatterWidth {
+    /**
+     * Use list formatting with full words (no abbreviations) when possible.
+     *
+     * @draft ICU 67
+     */
+    ULISTFMT_WIDTH_WIDE,
+
+    /**
+     * Use list formatting of typical length.
+     * @draft ICU 67
+     */
+    ULISTFMT_WIDTH_SHORT,
+
+    /**
+     * Use list formatting of the shortest possible length.
+     * @draft ICU 67
+     */
+    ULISTFMT_WIDTH_NARROW,
+} UListFormatterWidth;
 #endif /* U_HIDE_DRAFT_API */
 
 /**
  * Open a new UListFormatter object using the rules for a given locale.
+ * The object will be initialized with AND type and WIDE width.
+ *
  * @param locale
  *            The locale whose rules should be used; may be NULL for
  *            default locale.
@@ -83,6 +138,34 @@ U_CAPI UListFormatter* U_EXPORT2
 ulistfmt_open(const char*  locale,
               UErrorCode*  status);
 
+#ifndef U_HIDE_DRAFT_API
+/**
+ * Open a new UListFormatter object appropriate for the given locale, list type,
+ * and style.
+ *
+ * @param locale
+ *            The locale whose rules should be used; may be NULL for
+ *            default locale.
+ * @param type
+ *            The type of list formatting to use.
+ * @param width
+ *            The width of formatting to use.
+ * @param status
+ *            A pointer to a standard ICU UErrorCode (input/output parameter).
+ *            Its input value must pass the U_SUCCESS() test, or else the
+ *            function returns immediately. The caller should check its output
+ *            value with U_FAILURE(), or use with function chaining (see User
+ *            Guide for details).
+ * @return
+ *            A pointer to a UListFormatter object for the specified locale,
+ *            or NULL if an error occurred.
+ * @draft ICU 67
+ */
+U_DRAFT UListFormatter* U_EXPORT2
+ulistfmt_openForType(const char*  locale, UListFormatterType type,
+                     UListFormatterWidth width, UErrorCode*  status);
+#endif /* U_HIDE_DRAFT_API */
+
 /**
  * Close a UListFormatter object. Once closed it may no longer be used.
  * @param listfmt
@@ -92,7 +175,6 @@ ulistfmt_open(const char*  locale,
 U_CAPI void U_EXPORT2
 ulistfmt_close(UListFormatter *listfmt);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Creates an object to hold the result of a UListFormatter
  * operation. The object can be used repeatedly; it is cleared whenever
@@ -100,7 +182,7 @@ ulistfmt_close(UListFormatter *listfmt);
  *
  * @param ec Set if an error occurs.
  * @return A pointer needing ownership.
- * @draft ICU 64
+ * @stable ICU 64
  */
 U_CAPI UFormattedList* U_EXPORT2
 ulistfmt_openResult(UErrorCode* ec);
@@ -124,7 +206,7 @@ ulistfmt_openResult(UErrorCode* ec);
  * @param uresult The object containing the formatted string.
  * @param ec Set if an error occurs.
  * @return A UFormattedValue owned by the input object.
- * @draft ICU 64
+ * @stable ICU 64
  */
 U_CAPI const UFormattedValue* U_EXPORT2
 ulistfmt_resultAsValue(const UFormattedList* uresult, UErrorCode* ec);
@@ -133,11 +215,10 @@ ulistfmt_resultAsValue(const UFormattedList* uresult, UErrorCode* ec);
  * Releases the UFormattedList created by ulistfmt_openResult().
  *
  * @param uresult The object to release.
- * @draft ICU 64
+ * @stable ICU 64
  */
 U_CAPI void U_EXPORT2
 ulistfmt_closeResult(UFormattedList* uresult);
-#endif /* U_HIDE_DRAFT_API */
 
 
 #if U_SHOW_CPLUSPLUS_API
@@ -155,7 +236,6 @@ U_NAMESPACE_BEGIN
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUListFormatterPointer, UListFormatter, ulistfmt_close);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * \class LocalUFormattedListPointer
  * "Smart pointer" class, closes a UFormattedList via ulistfmt_closeResult().
@@ -163,10 +243,9 @@ U_DEFINE_LOCAL_OPEN_POINTER(LocalUListFormatterPointer, UListFormatter, ulistfmt
  *
  * @see LocalPointerBase
  * @see LocalPointer
- * @draft ICU 64
+ * @stable ICU 64
  */
 U_DEFINE_LOCAL_OPEN_POINTER(LocalUFormattedListPointer, UFormattedList, ulistfmt_closeResult);
-#endif /* U_HIDE_DRAFT_API */
 
 U_NAMESPACE_END
 
@@ -215,7 +294,6 @@ ulistfmt_format(const UListFormatter* listfmt,
                 int32_t            resultCapacity,
                 UErrorCode*        status);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Formats a list of strings to a UFormattedList, which exposes more
  * information than the string exported by ulistfmt_format().
@@ -240,7 +318,7 @@ ulistfmt_format(const UListFormatter* listfmt,
  *            operation. See ulistfmt_openResult().
  * @param status
  *            Error code set if an error occurred during formatting.
- * @draft ICU 64
+ * @stable ICU 64
  */
 U_CAPI void U_EXPORT2
 ulistfmt_formatStringsToResult(
@@ -250,7 +328,6 @@ ulistfmt_formatStringsToResult(
                 int32_t            stringCount,
                 UFormattedList*    uresult,
                 UErrorCode*        status);
-#endif /* U_HIDE_DRAFT_API */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 

@@ -28,7 +28,7 @@ using ::icu::number::impl::TokenConsumer;
 using ::icu::number::impl::CurrencySymbols;
 
 
-class CodePointMatcher : public NumberParseMatcher, public UMemory {
+class U_I18N_API CodePointMatcher : public NumberParseMatcher, public UMemory {
   public:
     CodePointMatcher() = default;  // WARNING: Leaves the object in an unusable state
 

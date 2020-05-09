@@ -958,7 +958,7 @@ Calendar::makeInstance(const Locale& aLocale, UErrorCode& success) {
 #endif
         c->setWeekData(aLocale, c->getType(), success);  // set the correct locale (this was an indirected calendar)
 
-        char keyword[ULOC_FULLNAME_CAPACITY];
+        char keyword[ULOC_FULLNAME_CAPACITY] = "";
         UErrorCode tmpStatus = U_ZERO_ERROR;
         l.getKeywordValue("calendar", keyword, ULOC_FULLNAME_CAPACITY, tmpStatus);
         if (U_SUCCESS(tmpStatus) && uprv_strcmp(keyword, "iso8601") == 0) {

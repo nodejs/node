@@ -336,7 +336,7 @@ typedef enum UNumberSignDisplay {
 
     /**
      * Show the minus sign on negative numbers and the plus sign on positive numbers. Do not show a
-     * sign on zero or NaN, unless the sign bit is set (-0.0 gets a sign).
+     * sign on zero, numbers that round to zero, or NaN.
      *
      * @stable ICU 61
      */
@@ -344,9 +344,8 @@ typedef enum UNumberSignDisplay {
 
     /**
      * Use the locale-dependent accounting format on negative numbers, and show the plus sign on
-     * positive numbers. Do not show a sign on zero or NaN, unless the sign bit is set (-0.0 gets a
-     * sign). For more information on the accounting format, see the ACCOUNTING sign display
-     * strategy.
+     * positive numbers. Do not show a sign on zero, numbers that round to zero, or NaN. For more
+     * information on the accounting format, see the ACCOUNTING sign display strategy.
      *
      * @stable ICU 61
      */
@@ -428,7 +427,7 @@ typedef struct UFormattedNumber UFormattedNumber;
  * NOTE: This is a C-compatible API; C++ users should build against numberformatter.h instead.
  *
  * @param skeleton The skeleton string, like u"percent precision-integer"
- * @param skeletonLen The number of UChars in the skeleton string, or -1 it it is NUL-terminated.
+ * @param skeletonLen The number of UChars in the skeleton string, or -1 if it is NUL-terminated.
  * @param locale The NUL-terminated locale ID.
  * @param ec Set if an error occurs.
  * @stable ICU 62
@@ -438,23 +437,21 @@ unumf_openForSkeletonAndLocale(const UChar* skeleton, int32_t skeletonLen, const
                                UErrorCode* ec);
 
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Like unumf_openForSkeletonAndLocale, but accepts a UParseError, which will be populated with the
  * location of a skeleton syntax error if such a syntax error exists.
  *
  * @param skeleton The skeleton string, like u"percent precision-integer"
- * @param skeletonLen The number of UChars in the skeleton string, or -1 it it is NUL-terminated.
+ * @param skeletonLen The number of UChars in the skeleton string, or -1 if it is NUL-terminated.
  * @param locale The NUL-terminated locale ID.
  * @param perror A parse error struct populated if an error occurs when parsing. Can be NULL.
  *               If no error occurs, perror->offset will be set to -1.
  * @param ec Set if an error occurs.
- * @draft ICU 64
+ * @stable ICU 64
  */
-U_DRAFT UNumberFormatter* U_EXPORT2
+U_STABLE UNumberFormatter* U_EXPORT2
 unumf_openForSkeletonAndLocaleWithError(
        const UChar* skeleton, int32_t skeletonLen, const char* locale, UParseError* perror, UErrorCode* ec);
-#endif  // U_HIDE_DRAFT_API
 
 
 /**
@@ -532,7 +529,6 @@ U_STABLE void U_EXPORT2
 unumf_formatDecimal(const UNumberFormatter* uformatter, const char* value, int32_t valueLen,
                     UFormattedNumber* uresult, UErrorCode* ec);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Returns a representation of a UFormattedNumber as a UFormattedValue,
  * which can be subsequently passed to any API requiring that type.
@@ -545,11 +541,10 @@ unumf_formatDecimal(const UNumberFormatter* uformatter, const char* value, int32
  * @param uresult The object containing the formatted string.
  * @param ec Set if an error occurs.
  * @return A UFormattedValue owned by the input object.
- * @draft ICU 64
+ * @stable ICU 64
  */
-U_DRAFT const UFormattedValue* U_EXPORT2
+U_STABLE const UFormattedValue* U_EXPORT2
 unumf_resultAsValue(const UFormattedNumber* uresult, UErrorCode* ec);
-#endif  /* U_HIDE_DRAFT_API */
 
 
 /**

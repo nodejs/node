@@ -133,7 +133,7 @@ LocalePriorityList::LocalePriorityList(StringPiece s, UErrorCode &errorCode) {
         if (U_FAILURE(errorCode)) { return; }
         Locale locale = Locale(tag.data());
         if (locale.isBogus()) {
-            errorCode = U_MEMORY_ALLOCATION_ERROR;
+            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
             return;
         }
         int32_t weight = WEIGHT_ONE;

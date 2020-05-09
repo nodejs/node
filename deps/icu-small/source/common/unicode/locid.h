@@ -448,7 +448,7 @@ public:
 
     /**
      * Creates a locale from the given string after canonicalizing
-     * the string by calling uloc_canonicalize().
+     * the string according to CLDR by calling uloc_canonicalize().
      * @param name the locale ID to create from.  Must not be NULL.
      * @return a new locale object corresponding to the given name
      * @stable ICU 3.0
@@ -566,6 +566,16 @@ public:
      * @stable ICU 63
      */
     void minimizeSubtags(UErrorCode& status);
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Canonicalize the locale ID of this object according to CLDR.
+     * @param status the status code
+     * @draft ICU 67
+     * @see createCanonical
+     */
+    void canonicalize(UErrorCode& status);
+#endif  // U_HIDE_DRAFT_API
 
     /**
      * Gets the list of keywords for the specified locale.

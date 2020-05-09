@@ -92,9 +92,11 @@ enum CompactType {
 };
 
 enum Signum {
-    SIGNUM_NEG = -1,
-    SIGNUM_ZERO = 0,
-    SIGNUM_POS = 1
+    SIGNUM_NEG = 0,
+    SIGNUM_NEG_ZERO = 1,
+    SIGNUM_POS_ZERO = 2,
+    SIGNUM_POS = 3,
+    SIGNUM_COUNT = 4,
 };
 
 
@@ -192,7 +194,7 @@ class U_I18N_API Modifier {
     /**
      * Whether the modifier contains at least one occurrence of the given field.
      */
-    virtual bool containsField(UNumberFormatFields field) const = 0;
+    virtual bool containsField(Field field) const = 0;
 
     /**
      * A fill-in for getParameters(). obj will always be set; if non-null, the other

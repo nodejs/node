@@ -160,7 +160,7 @@ const GenderInfo* GenderInfo::loadInstance(const Locale& locale, UErrorCode& sta
   if (s == NULL) {
     return &gObjs[NEUTRAL];
   }
-  char type_str[256];
+  char type_str[256] = "";
   u_UCharsToChars(s, type_str, resLen + 1);
   if (uprv_strcmp(type_str, gNeutralStr) == 0) {
     return &gObjs[NEUTRAL];

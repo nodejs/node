@@ -30,7 +30,7 @@ class U_I18N_API ScientificModifier : public UMemory, public Modifier {
 
     bool isStrong() const U_OVERRIDE;
 
-    bool containsField(UNumberFormatFields field) const U_OVERRIDE;
+    bool containsField(Field field) const U_OVERRIDE;
 
     void getParameters(Parameters& output) const U_OVERRIDE;
 

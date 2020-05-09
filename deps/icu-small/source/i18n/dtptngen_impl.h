@@ -238,6 +238,7 @@ public:
     int32_t getDistance(const DateTimeMatcher& other, int32_t includeMask, DistanceInfo& distanceInfo) const;
     DateTimeMatcher();
     DateTimeMatcher(const DateTimeMatcher& other);
+    DateTimeMatcher& operator=(const DateTimeMatcher& other);
     virtual ~DateTimeMatcher();
     int32_t getFieldMask() const;
 };

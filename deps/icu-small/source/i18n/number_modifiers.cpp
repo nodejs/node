@@ -89,7 +89,7 @@ bool ConstantAffixModifier::isStrong() const {
     return fStrong;
 }
 
-bool ConstantAffixModifier::containsField(UNumberFormatFields field) const {
+bool ConstantAffixModifier::containsField(Field field) const {
     (void)field;
     // This method is not currently used.
     UPRV_UNREACHABLE;
@@ -151,7 +151,7 @@ SimpleModifier::SimpleModifier(const SimpleFormatter &simpleFormatter, Field fie
 }
 
 SimpleModifier::SimpleModifier()
-        : fField(UNUM_FIELD_COUNT), fStrong(false), fPrefixLength(0), fSuffixLength(0) {
+        : fField(kUndefinedField), fStrong(false), fPrefixLength(0), fSuffixLength(0) {
 }
 
 int32_t SimpleModifier::apply(FormattedStringBuilder &output, int leftIndex, int rightIndex,
@@ -178,7 +178,7 @@ bool SimpleModifier::isStrong() const {
     return fStrong;
 }
 
-bool SimpleModifier::containsField(UNumberFormatFields field) const {
+bool SimpleModifier::containsField(Field field) const {
     (void)field;
     // This method is not currently used.
     UPRV_UNREACHABLE;
@@ -292,7 +292,7 @@ int32_t ConstantMultiFieldModifier::apply(FormattedStringBuilder &output, int le
             leftIndex + length,
             rightIndex + length,
             UnicodeString(), 0, 0,
-            UNUM_FIELD_COUNT, status);
+            kUndefinedField, status);
     }
     length += output.insert(rightIndex + length, fSuffix, status);
     return length;
@@ -310,7 +310,7 @@ bool ConstantMultiFieldModifier::isStrong() const {
     return fStrong;
 }
 
-bool ConstantMultiFieldModifier::containsField(UNumberFormatFields field) const {
+bool ConstantMultiFieldModifier::containsField(Field field) const {
     return fPrefix.containsField(field) || fSuffix.containsField(field);
 }
 
@@ -342,7 +342,7 @@ CurrencySpacingEnabledModifier::CurrencySpacingEnabledModifier(const FormattedSt
         : ConstantMultiFieldModifier(prefix, suffix, overwrite, strong) {
     // Check for currency spacing. Do not build the UnicodeSets unless there is
     // a currency code point at a boundary.
-    if (prefix.length() > 0 && prefix.fieldAt(prefix.length() - 1) == UNUM_CURRENCY_FIELD) {
+    if (prefix.length() > 0 && prefix.fieldAt(prefix.length() - 1) == Field(UFIELD_CATEGORY_NUMBER, UNUM_CURRENCY_FIELD)) {
         int prefixCp = prefix.getLastCodePoint();
         UnicodeSet prefixUnicodeSet = getUnicodeSet(symbols, IN_CURRENCY, PREFIX, status);
         if (prefixUnicodeSet.contains(prefixCp)) {
@@ -357,8 +357,8 @@ CurrencySpacingEnabledModifier::CurrencySpacingEnabledModifier(const FormattedSt
         fAfterPrefixUnicodeSet.setToBogus();
         fAfterPrefixInsert.setToBogus();
     }
-    if (suffix.length() > 0 && suffix.fieldAt(0) == UNUM_CURRENCY_FIELD) {
-        int suffixCp = suffix.getLastCodePoint();
+    if (suffix.length() > 0 && suffix.fieldAt(0) == Field(UFIELD_CATEGORY_NUMBER, UNUM_CURRENCY_FIELD)) {
+        int suffixCp = suffix.getFirstCodePoint();
         UnicodeSet suffixUnicodeSet = getUnicodeSet(symbols, IN_CURRENCY, SUFFIX, status);
         if (suffixUnicodeSet.contains(suffixCp)) {
             fBeforeSuffixUnicodeSet = getUnicodeSet(symbols, IN_NUMBER, SUFFIX, status);
@@ -381,12 +381,20 @@ int32_t CurrencySpacingEnabledModifier::apply(FormattedStringBuilder &output, in
     if (rightIndex - leftIndex > 0 && !fAfterPrefixUnicodeSet.isBogus() &&
         fAfterPrefixUnicodeSet.contains(output.codePointAt(leftIndex))) {
         // TODO: Should we use the CURRENCY field here?
-        length += output.insert(leftIndex, fAfterPrefixInsert, UNUM_FIELD_COUNT, status);
+        length += output.insert(
+            leftIndex,
+            fAfterPrefixInsert,
+            kUndefinedField,
+            status);
     }
     if (rightIndex - leftIndex > 0 && !fBeforeSuffixUnicodeSet.isBogus() &&
         fBeforeSuffixUnicodeSet.contains(output.codePointBefore(rightIndex))) {
         // TODO: Should we use the CURRENCY field here?
-        length += output.insert(rightIndex + length, fBeforeSuffixInsert, UNUM_FIELD_COUNT, status);
+        length += output.insert(
+            rightIndex + length,
+            fBeforeSuffixInsert,
+            kUndefinedField,
+            status);
     }
 
     // Call super for the remaining logic
@@ -422,7 +430,7 @@ CurrencySpacingEnabledModifier::applyCurrencySpacingAffix(FormattedStringBuilder
     // This works even if the last code point in the prefix is 2 code units because the
     // field value gets populated to both indices in the field array.
     Field affixField = (affix == PREFIX) ? output.fieldAt(index - 1) : output.fieldAt(index);
-    if (affixField != UNUM_CURRENCY_FIELD) {
+    if (affixField != Field(UFIELD_CATEGORY_NUMBER, UNUM_CURRENCY_FIELD)) {
         return 0;
     }
     int affixCp = (affix == PREFIX) ? output.codePointBefore(index) : output.codePointAt(index);
@@ -443,7 +451,7 @@ CurrencySpacingEnabledModifier::applyCurrencySpacingAffix(FormattedStringBuilder
     // However, the build code path is more efficient, and this is the most natural
     // place to put currency spacing in the non-build code path.
     // TODO: Should we use the CURRENCY field here?
-    return output.insert(index, spacingString, UNUM_FIELD_COUNT, status);
+    return output.insert(index, spacingString, kUndefinedField, status);
 }
 
 UnicodeSet

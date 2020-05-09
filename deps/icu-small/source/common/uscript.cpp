@@ -58,8 +58,8 @@ static int32_t
 getCodesFromLocale(const char *locale,
                    UScriptCode *scripts, int32_t capacity, UErrorCode *err) {
     UErrorCode internalErrorCode = U_ZERO_ERROR;
-    char lang[8];
-    char script[8];
+    char lang[8] = {0};
+    char script[8] = {0};
     int32_t scriptLength;
     if(U_FAILURE(*err)) { return 0; }
     // Multi-script languages, equivalent to the LocaleScript data
