@@ -1169,7 +1169,7 @@ class Environment : public MemoryRetainer {
   inline void SetUnrefImmediate(Fn&& cb);
   template <typename Fn>
   // This behaves like SetImmediate() but can be called from any thread.
-  inline void SetImmediateThreadsafe(Fn&& cb);
+  inline void SetImmediateThreadsafe(Fn&& cb, bool refed = true);
   // This behaves like V8's Isolate::RequestInterrupt(), but also accounts for
   // the event loop (i.e. combines the V8 function with SetImmediate()).
   // The passed callback may not throw exceptions.
