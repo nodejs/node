@@ -327,27 +327,6 @@ shared_optgroup.add_option('--shared-brotli-libpath',
     dest='shared_brotli_libpath',
     help='a directory to search for the shared brotli DLL')
 
-shared_optgroup.add_option('--shared-cares',
-    action='store_true',
-    dest='shared_cares',
-    help='link to a shared cares DLL instead of static linking')
-
-shared_optgroup.add_option('--shared-cares-includes',
-    action='store',
-    dest='shared_cares_includes',
-    help='directory containing cares header files')
-
-shared_optgroup.add_option('--shared-cares-libname',
-    action='store',
-    dest='shared_cares_libname',
-    default='cares',
-    help='alternative lib name to link to [default: %default]')
-
-shared_optgroup.add_option('--shared-cares-libpath',
-    action='store',
-    dest='shared_cares_libpath',
-    help='a directory to search for the shared cares DLL')
-
 shared_optgroup.add_option('--shared-getdns',
     action='store_true',
     dest='shared_getdns',
@@ -1774,7 +1753,6 @@ configure_library('zlib', output)
 configure_library('http_parser', output)
 configure_library('libuv', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
-configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('getdns', output)
 configure_library('getdns_ext_uv', output)

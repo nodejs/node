@@ -655,29 +655,6 @@ void DNSWrap::SetDNSTransportList(const FunctionCallbackInfo<Value>& args) {
          &transport_list[0]);
 }
 
-void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
-  Isolate* isolate = args.GetIsolate();
-  node::Utf8Value ip(isolate, args[0]);
-
-  char result[sizeof(struct in6_addr)];
-  int rc = 0;
-  if (uv_inet_pton(AF_INET, *ip, result) == 0) {
-    rc = 4;
-  } else if (uv_inet_pton(AF_INET6, *ip, result) == 0) {
-    rc = 6;
-  } else {
-    return;
-  }
-
-  char canonical_ip[INET6_ADDRSTRLEN];
-  const int af = (rc == 4 ? AF_INET : AF_INET6);
-  CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
-  Local<String> val =
-      String::NewFromUtf8(isolate, canonical_ip, NewStringType::kNormal)
-          .ToLocalChecked();
-  args.GetReturnValue().Set(val);
-}
-
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -708,8 +685,6 @@ static void Initialize(Local<Object> target,
             dns_wrap_string,
             tmpl->GetFunction(context).ToLocalChecked())
       .ToChecked();
-
-  env->SetMethodNoSideEffects(target, "canonicalizeIP", CanonicalizeIP);
 
 #define V(name)                                                                \
   target                                                                       \

@@ -49,6 +49,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
@@ -1257,6 +1258,30 @@ void TLSWrap::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 
+void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+
+  char result[sizeof(struct in6_addr)];
+  int rc = 0;
+  if (uv_inet_pton(AF_INET, *ip, result) == 0) {
+    rc = 4;
+  } else if (uv_inet_pton(AF_INET6, *ip, result) == 0) {
+    rc = 6;
+  } else {
+    return;
+  }
+
+  char canonical_ip[INET6_ADDRSTRLEN];
+  const int af = (rc == 4 ? AF_INET : AF_INET6);
+  CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
+  Local<String> val =
+      String::NewFromUtf8(isolate, canonical_ip, NewStringType::kNormal)
+          .ToLocalChecked();
+  args.GetReturnValue().Set(val);
+}
+
+
 void TLSWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
                          Local<Context> context,
@@ -1310,6 +1335,8 @@ void TLSWrap::Initialize(Local<Object> target,
   env->set_tls_wrap_constructor_function(fn);
 
   target->Set(env->context(), tlsWrapString, fn).Check();
+
+  env->SetMethodNoSideEffect(target, "canonicalizeIP", CanonicalizeIP);
 }
 
 }  // namespace node
