@@ -310,6 +310,7 @@ static uint16_t ToAsyncHooksType(PromiseHookType type) {
     case PromiseHookType::kAfter:   return AsyncHooks::kAfter;
     case PromiseHookType::kResolve: return AsyncHooks::kPromiseResolve;
   }
+  UNREACHABLE();
 }
 
 // Simplified JavaScript hook fast-path for when there is no destroy hook
