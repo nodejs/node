@@ -727,9 +727,9 @@ void Environment::SetUnrefImmediate(Fn&& cb) {
 }
 
 template <typename Fn>
-void Environment::SetImmediateThreadsafe(Fn&& cb) {
+void Environment::SetImmediateThreadsafe(Fn&& cb, bool refed) {
   auto callback =
-      native_immediates_threadsafe_.CreateCallback(std::move(cb), false);
+      native_immediates_threadsafe_.CreateCallback(std::move(cb), refed);
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     native_immediates_threadsafe_.Push(std::move(callback));
