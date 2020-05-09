@@ -276,36 +276,6 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  std::vector<Local<Value>> request_v;
-  for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
-    AsyncWrap* w = req_wrap->GetAsyncWrap();
-    if (w->persistent().IsEmpty())
-      continue;
-    request_v.emplace_back(w->GetOwner());
-  }
-
-  args.GetReturnValue().Set(
-      Array::New(env->isolate(), request_v.data(), request_v.size()));
-}
-
-// Non-static, friend of HandleWrap. Could have been a HandleWrap method but
-// implemented here for consistency with GetActiveRequests().
-void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  std::vector<Local<Value>> handle_v;
-  for (auto w : *env->handle_wrap_queue()) {
-    if (!HandleWrap::HasRef(w))
-      continue;
-    handle_v.emplace_back(w->GetOwner());
-  }
-  args.GetReturnValue().Set(
-      Array::New(env->isolate(), handle_v.data(), handle_v.size()));
-}
-
 static void ResourceUsage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -481,8 +451,6 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "hrtimeBigInt", HrtimeBigInt);
   env->SetMethod(target, "resourceUsage", ResourceUsage);
 
-  env->SetMethod(target, "_getActiveRequests", GetActiveRequests);
-  env->SetMethod(target, "_getActiveHandles", GetActiveHandles);
   env->SetMethod(target, "_kill", Kill);
 
   env->SetMethodNoSideEffect(target, "cwd", Cwd);
