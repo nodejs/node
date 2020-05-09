@@ -741,19 +741,10 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
   // exceptions, so we do not need to handle that.
   RunAndClearInterrupts();
 
-  // It is safe to check .size() first, because there is a causal relationship
-  // between pushes to the threadsafe and this function being called.
-  // For the common case, it's worth checking the size first before establishing
-  // a mutex lock.
-  if (native_immediates_threadsafe_.size() > 0) {
-    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
-    native_immediates_.ConcatMove(std::move(native_immediates_threadsafe_));
-  }
-
-  auto drain_list = [&]() {
+  auto drain_list = [&](NativeImmediateQueue* queue) {
     TryCatchScope try_catch(this);
     DebugSealHandleScope seal_handle_scope(isolate());
-    while (auto head = native_immediates_.Shift()) {
+    while (auto head = queue->Shift()) {
       if (head->is_refed())
         ref_count++;
 
@@ -771,12 +762,26 @@ void Environment::RunAndClearNativeImmediates(bool only_refed) {
     }
     return false;
   };
-  while (drain_list()) {}
+  while (drain_list(&native_immediates_)) {}
 
   immediate_info()->ref_count_dec(ref_count);
 
   if (immediate_info()->ref_count() == 0)
     ToggleImmediateRef(false);
+
+  // It is safe to check .size() first, because there is a causal relationship
+  // between pushes to the threadsafe immediate list and this function being
+  // called. For the common case, it's worth checking the size first before
+  // establishing a mutex lock.
+  // This is intentionally placed after the `ref_count` handling, because when
+  // refed threadsafe immediates are created, they are not counted towards the
+  // count in immediate_info() either.
+  NativeImmediateQueue threadsafe_immediates;
+  if (native_immediates_threadsafe_.size() > 0) {
+    Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
+    threadsafe_immediates.ConcatMove(std::move(native_immediates_threadsafe_));
+  }
+  while (drain_list(&threadsafe_immediates)) {}
 }
 
 void Environment::RequestInterruptFromV8() {
