@@ -1737,9 +1737,6 @@ run().catch(console.error);
 ```
 
 The `pipeline` API also supports async generators:
-<!-- YAML
-added: v13.10.0
--->
 
 ```js
 const { pipeline } = require('stream/promises');
