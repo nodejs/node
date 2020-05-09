@@ -1,10 +1,10 @@
 'use strict';
-// Flags: --expose-gc
+// Flags: --expose-gc --no-concurrent-array-buffer-freeing --no-concurrent-array-buffer-sweeping
 
 const common = require('../../common');
 const binding = require(`./build/${common.buildType}/test_buffer`);
 const assert = require('assert');
-const setImmediatePromise = require('util').promisify(setImmediate);
+const tick = require('util').promisify(require('../../common/tick'));
 
 (async function() {
   assert.strictEqual(binding.newBuffer().toString(), binding.theText);
@@ -12,7 +12,7 @@ const setImmediatePromise = require('util').promisify(setImmediate);
   console.log('gc1');
   global.gc();
   assert.strictEqual(binding.getDeleterCallCount(), 0);
-  await setImmediatePromise();
+  await tick(10);
   assert.strictEqual(binding.getDeleterCallCount(), 1);
   assert.strictEqual(binding.copyBuffer().toString(), binding.theText);
 
@@ -22,7 +22,7 @@ const setImmediatePromise = require('util').promisify(setImmediate);
   buffer = null;
   global.gc();
   assert.strictEqual(binding.getDeleterCallCount(), 1);
-  await setImmediatePromise();
+  await tick(10);
   console.log('gc2');
   assert.strictEqual(binding.getDeleterCallCount(), 2);
 })().then(common.mustCall());
