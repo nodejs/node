@@ -35,6 +35,13 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
   V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                          \
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
+  V(ERR_DNS_ERROR, Error)                                                      \
+  V(ERR_DNS_TIMEOUT, Error)                                                    \
+  V(ERR_DNS_CANCEL, Error)                                                     \
+  V(ERR_DNS_NO_NAME, Error)                                                    \
+  V(ERR_DNS_ALL_TIMEOUT, Error)                                                \
+  V(ERR_DNS_NO_SECURE_ANSWERS, Error)                                          \
+  V(ERR_DNS_ALL_BOGUS_ANSWERS, Error)                                          \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \

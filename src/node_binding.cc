@@ -42,6 +42,7 @@
   V(config)                                                                    \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(dns)                                                                       \
   V(domain)                                                                    \
   V(errors)                                                                    \
   V(fs)                                                                        \
