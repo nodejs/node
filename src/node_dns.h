@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <unordered_map>
 #include "../deps/getdns/build/getdns/getdns_ext_libuv.h"
 #include "base_object.h"
 #include "node_mem.h"
@@ -10,9 +11,45 @@
 namespace node {
 namespace dns {
 
-class DNSWrap : public BaseObject {
+struct Allocator {
+  void* data;
+  void* (*malloc)(size_t size, void* data);
+  void (*free)(void* ptr, void* data);
+  void* (*calloc)(size_t num, size_t size, void* data);
+  void* (*realloc)(void* ptr, size_t size, void* data);
+};
+
+class DNSWrap : public BaseObject,
+                public mem::NgLibMemoryManager<DNSWrap, Allocator> {
  public:
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  static void GetAddresses(const v8::FunctionCallbackInfo<v8::Value>&);
+  static void GetServices(const v8::FunctionCallbackInfo<v8::Value>&);
+  static void GetHostnames(const v8::FunctionCallbackInfo<v8::Value>&);
+  static void GetGeneral(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  static void SetUpstreamRecursiveServers(
+      const v8::FunctionCallbackInfo<v8::Value>&);
+  static void GetUpstreamRecursiveServers(
+      const v8::FunctionCallbackInfo<v8::Value>&);
+  static void SetDNSTransportList(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  static void CancelTransaction(const v8::FunctionCallbackInfo<v8::Value>&);
+  static void CancelAllTransactions(const v8::FunctionCallbackInfo<v8::Value>&);
+
+  void MemoryInfo(MemoryTracker*) const override;
+  SET_MEMORY_INFO_NAME(DNSWrap)
+  SET_SELF_SIZE(DNSWrap)
+
+  void CheckAllocatedSize(size_t) const;
+  void IncreaseAllocatedSize(size_t);
+  void DecreaseAllocatedSize(size_t);
+
+ private:
+  v8::Local<v8::Value> RegisterTransaction(getdns_transaction_t);
+  void ResolveTransaction(getdns_transaction_t, v8::Local<v8::Value>);
+  void RejectTransaction(getdns_transaction_t, v8::Local<v8::Value>);
 
   static void Callback(getdns_context*,
                        getdns_callback_type_t,
@@ -20,27 +57,13 @@ class DNSWrap : public BaseObject {
                        void* data,
                        getdns_transaction_t);
 
-  static void GetAddresses(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetServices(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetHostnames(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetGeneral(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  static void SetUpstreamRecursiveServers(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetUpstreamRecursiveServers(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetDNSTransportList(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  void MemoryInfo(MemoryTracker* tracker) const override {}
-
-  SET_MEMORY_INFO_NAME(DNSWrap)
-  SET_SELF_SIZE(DNSWrap)
-
- private:
   DNSWrap(Environment* env, v8::Local<v8::Object> object);
   ~DNSWrap() override;
+  Allocator allocator_;
+  size_t current_getdns_memory_ = 0;
   getdns_context* context_ = nullptr;
+  std::unordered_map<getdns_transaction_t, v8::Global<v8::Promise::Resolver>>
+      transactions_;
 };
 
 }  // namespace dns

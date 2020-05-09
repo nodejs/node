@@ -3,6 +3,7 @@
 #include "env-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_mem-inl.h"
 #include "util-inl.h"
 #include "uv.h"
 
@@ -18,6 +19,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
 using v8::Null;
@@ -26,28 +28,40 @@ using v8::Promise;
 using v8::String;
 using v8::Value;
 
-#define GETDNS(name, isolate, ...)                                             \
+#define GETDNS_BASE(ret, name, isolate, ...)                                   \
   do {                                                                         \
     getdns_return_t r = getdns_##name(__VA_ARGS__);                            \
-    if (r) {                                                                   \
+    if (UNLIKELY(r != GETDNS_RETURN_GOOD)) {                                   \
       THROW_ERR_DNS_ERROR(isolate, getdns_get_errorstr_by_id(r));              \
-      return;                                                                  \
+      return ret;                                                              \
     }                                                                          \
   } while (false);
 
-#define GETDNSV(name, isolate, ...)                                            \
-  do {                                                                         \
-    getdns_return_t r = getdns_##name(__VA_ARGS__);                            \
-    if (r) {                                                                   \
-      THROW_ERR_DNS_ERROR(isolate, getdns_get_errorstr_by_id(r));              \
-      return {};                                                               \
-    }                                                                          \
-  } while (false);
+#define GETDNS(name, isolate, ...)                                             \
+  GETDNS_BASE(/* empty */, name, isolate, __VA_ARGS__)
+#define GETDNSV(name, isolate, ...) GETDNS_BASE({}, name, isolate, __VA_ARGS__)
 
 DNSWrap::DNSWrap(Environment* env, Local<Object> object)
     : BaseObject(env, object) {
   Isolate* isolate = env->isolate();
-  GETDNS(context_create, isolate, &context_, true);
+  allocator_ = MakeAllocator();
+  GETDNS(context_create_with_extended_memory_functions,
+         isolate,
+         &context_,
+         true,
+         reinterpret_cast<void*>(&allocator_),
+         [](void* data, size_t size) -> void* {
+           Allocator* a = reinterpret_cast<Allocator*>(data);
+           return a->malloc(size, a->data);
+         },
+         [](void* data, void* ptr, size_t size) -> void* {
+           Allocator* a = reinterpret_cast<Allocator*>(data);
+           return a->realloc(ptr, size, a->data);
+         },
+         [](void* data, void* ptr) {
+           Allocator* a = reinterpret_cast<Allocator*>(data);
+           a->free(ptr, a->data);
+         });
   GETDNS(extension_set_libuv_loop, isolate, context_, env->event_loop());
   GETDNS(context_set_tls_authentication,
          isolate,
@@ -57,6 +71,23 @@ DNSWrap::DNSWrap(Environment* env, Local<Object> object)
 
 DNSWrap::~DNSWrap() {
   getdns_context_destroy(context_);
+  CHECK_EQ(current_getdns_memory_, 0);
+}
+
+void DNSWrap::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("getdns_memory", current_getdns_memory_);
+}
+
+void DNSWrap::CheckAllocatedSize(size_t previous_size) const {
+  CHECK_GE(current_getdns_memory_, previous_size);
+}
+
+void DNSWrap::IncreaseAllocatedSize(size_t size) {
+  current_getdns_memory_ += size;
+}
+
+void DNSWrap::DecreaseAllocatedSize(size_t size) {
+  current_getdns_memory_ -= size;
 }
 
 void DNSWrap::New(const FunctionCallbackInfo<Value>& args) {
@@ -64,38 +95,6 @@ void DNSWrap::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   new DNSWrap(env, args.This());
 }
-
-class DNSWrapRequest {
- public:
-  explicit DNSWrapRequest(Local<Context> context)
-      : isolate_(context->GetIsolate()) {
-    Local<Promise::Resolver> resolver =
-        Promise::Resolver::New(context).ToLocalChecked();
-    context_.Reset(isolate_, context);
-    resolver_.Reset(isolate_, resolver);
-  }
-
-  ~DNSWrapRequest() { resolver_.Reset(); }
-
-  Local<Promise> promise() { return resolver_.Get(isolate_)->GetPromise(); }
-
-  void resolve(Local<Value> value) {
-    USE(resolver_.Get(isolate_)->Resolve(context(), value));
-  }
-
-  void reject(Local<Value> value) {
-    USE(resolver_.Get(isolate_)->Reject(context(), value));
-  }
-
-  Local<Context> context() { return context_.Get(isolate_); }
-
-  Isolate* isolate() const { return isolate_; }
-
- private:
-  Global<Context> context_;
-  Global<Promise::Resolver> resolver_;
-  Isolate* isolate_;
-};
 
 Local<Value> RRToValue(Local<Context> context, int type, getdns_dict* rdata) {
   Local<Object> o = Object::New(context->GetIsolate());
@@ -254,9 +253,25 @@ Local<Value> RRToValue(Local<Context> context, int type, getdns_dict* rdata) {
     case GETDNS_RRTYPE_DS:
     case GETDNS_RRTYPE_SSHFP:
     case GETDNS_RRTYPE_IPSECKEY:
+      break;
     case GETDNS_RRTYPE_RRSIG:
+      OPEN_INT(type_covered, typeCovered);
+      OPEN_INT(algorithm, algorithm);
+      OPEN_INT(labels, labels);
+      OPEN_INT(original_ttl, originalTTL);
+      OPEN_INT(signature_expiration, signatureExpiration);
+      OPEN_INT(key_tag, keyTag);
+      OPEN_NAME(signers_name, signersName);
+      OPEN_STRING(signature, signature);
+      break;
     case GETDNS_RRTYPE_NSEC:
+      break;
     case GETDNS_RRTYPE_DNSKEY:
+      OPEN_INT(flags, flags);
+      OPEN_INT(protocol, protocol);
+      OPEN_INT(algorithm, algorithm);
+      OPEN_STRING(public_key, publicKey);
+      break;
     case GETDNS_RRTYPE_DHCID:
     case GETDNS_RRTYPE_NSEC3:
     case GETDNS_RRTYPE_NSEC3PARAM:
@@ -315,11 +330,11 @@ void DNSWrap::Callback(getdns_context* getdns_context,
                        getdns_callback_type_t cb_type,
                        getdns_dict* response,
                        void* data,
-                       getdns_transaction_t t_id) {
-  DNSWrapRequest* req = reinterpret_cast<DNSWrapRequest*>(data);
-  Isolate* isolate = req->isolate();
+                       getdns_transaction_t tid) {
+  DNSWrap* dns = reinterpret_cast<DNSWrap*>(data);
+  Isolate* isolate = dns->env()->isolate();
   HandleScope scope(isolate);
-  Local<Context> context = req->context();
+  Local<Context> context = dns->env()->context();
   Context::Scope context_scope(context);
 
   switch (cb_type) {
@@ -327,7 +342,8 @@ void DNSWrap::Callback(getdns_context* getdns_context,
       break;
 #define V(name)                                                                \
   case GETDNS_CALLBACK_##name:                                                 \
-    req->reject(ERR_DNS_##name(isolate, GETDNS_CALLBACK_##name##_TEXT));       \
+    dns->RejectTransaction(                                                    \
+        tid, ERR_DNS_##name(isolate, GETDNS_CALLBACK_##name##_TEXT));          \
     return;
       V(CANCEL)
       V(TIMEOUT)
@@ -345,7 +361,8 @@ void DNSWrap::Callback(getdns_context* getdns_context,
         break;
 #define V(name)                                                                \
   case GETDNS_RESPSTATUS_##name:                                               \
-    req->reject(ERR_DNS_##name(isolate, GETDNS_RESPSTATUS_##name##_TEXT));     \
+    dns->RejectTransaction(                                                    \
+        tid, ERR_DNS_##name(isolate, GETDNS_RESPSTATUS_##name##_TEXT));        \
     return;
         V(NO_NAME)
         V(ALL_TIMEOUT)
@@ -401,89 +418,121 @@ void DNSWrap::Callback(getdns_context* getdns_context,
     }
   }
 
-  {
+  auto get_replies = [&](const char* name) -> Local<Value> {
     getdns_list* answer;
-    // We never ask multiple questions, so there can only be one answer.
-    if (getdns_dict_get_list(response, "/replies_tree/0/answer", &answer) ==
-        GETDNS_RETURN_GOOD) {
+    if (getdns_dict_get_list(response, name, &answer) == GETDNS_RETURN_GOOD) {
       size_t length;
-      GETDNS(list_get_length, isolate, answer, &length);
+      GETDNSV(list_get_length, isolate, answer, &length);
       Local<Value> elements[length];
       for (size_t i = 0; i < length; i += 1) {
         getdns_dict* reply;
-        GETDNS(list_get_dict, isolate, answer, i, &reply);
+        GETDNSV(list_get_dict, isolate, answer, i, &reply);
+
         Local<Object> o = Object::New(isolate);
+
         uint32_t type;
-        GETDNS(dict_get_int, isolate, reply, "type", &type);
+        GETDNSV(dict_get_int, isolate, reply, "type", &type);
         o->Set(context,
                FIXED_ONE_BYTE_STRING(isolate, "type"),
                Integer::New(isolate, type))
             .ToChecked();
+
         getdns_dict* rdata;
-        GETDNS(dict_get_dict, isolate, reply, "rdata", &rdata);
+        GETDNSV(dict_get_dict, isolate, reply, "rdata", &rdata);
         o->Set(context,
                FIXED_ONE_BYTE_STRING(isolate, "rdata"),
                RRToValue(context, type, rdata))
             .ToChecked();
+
+        // ttl is optional for OPT resources
         uint32_t ttl;
-        GETDNS(dict_get_int, isolate, reply, "ttl", &ttl);
-        o->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "ttl"),
-               Integer::New(isolate, ttl))
-            .ToChecked();
+        if (getdns_dict_get_int(reply, "ttl", &ttl) == GETDNS_RETURN_GOOD) {
+          o->Set(context,
+                 FIXED_ONE_BYTE_STRING(isolate, "ttl"),
+                 Integer::New(isolate, ttl))
+              .ToChecked();
+        }
+
         elements[i] = o;
       }
-      result
-          ->Set(context,
-                FIXED_ONE_BYTE_STRING(isolate, "answers"),
-                Array::New(isolate, elements, length))
-          .ToChecked();
+      return Array::New(isolate, elements, length);
     }
-  }
+    return Null(isolate);
+  };
+
+#define V(name)                                                                \
+  do {                                                                         \
+    Local<Value> r = get_replies("/replies_tree/0/" #name);                    \
+    result->Set(context, FIXED_ONE_BYTE_STRING(isolate, #name), r)             \
+        .ToChecked();                                                          \
+  } while (false);
+  V(answer)
+  V(authority)
+  V(additional)
+#undef V
 
   getdns_dict_destroy(response);
 
-  req->resolve(result);
+  dns->ResolveTransaction(tid, result);
+}
+
+Local<Value> DNSWrap::RegisterTransaction(getdns_transaction_t tid) {
+  Local<Promise::Resolver> p =
+      Promise::Resolver::New(env()->context()).ToLocalChecked();
+  transactions_[tid].Reset(env()->isolate(), p);
+  return p->GetPromise();
+}
+
+void DNSWrap::ResolveTransaction(getdns_transaction_t tid, Local<Value> v) {
+  auto it = transactions_.find(tid);
+  it->second.Get(env()->isolate())->Resolve(env()->context(), v).ToChecked();
+  transactions_.erase(it);
+}
+
+void DNSWrap::RejectTransaction(getdns_transaction_t tid, Local<Value> v) {
+  auto it = transactions_.find(tid);
+  it->second.Get(env()->isolate())->Reject(env()->context(), v).ToChecked();
+  transactions_.erase(it);
 }
 
 // static
 void DNSWrap::GetAddresses(const FunctionCallbackInfo<Value>& args) {
   DNSWrap* dns;
   ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  Environment* env = dns->env();
   CHECK(args[0]->IsString());
   String::Utf8Value name(env->isolate(), args[0]);
   getdns_dict* extension = nullptr;
-  DNSWrapRequest* req = new DNSWrapRequest(env->context());
+  getdns_transaction_t tid;
   GETDNS(address,
          env->isolate(),
          dns->context_,
          *name,
          extension,
-         req,
-         nullptr,
+         dns,
+         &tid,
          Callback);
-  args.GetReturnValue().Set(req->promise());
+  args.GetReturnValue().Set(dns->RegisterTransaction(tid));
 }
 
 // static
 void DNSWrap::GetServices(const FunctionCallbackInfo<Value>& args) {
   DNSWrap* dns;
   ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  Environment* env = dns->env();
   CHECK(args[0]->IsString());
   String::Utf8Value name(env->isolate(), args[0]);
   getdns_dict* extension = nullptr;
-  DNSWrapRequest* req = new DNSWrapRequest(env->context());
+  getdns_transaction_t tid;
   GETDNS(service,
          env->isolate(),
          dns->context_,
          *name,
          extension,
-         req,
-         nullptr,
+         dns,
+         &tid,
          Callback);
-  args.GetReturnValue().Set(req->promise());
+  args.GetReturnValue().Set(dns->RegisterTransaction(tid));
 }
 
 static bool ConvertAddress(Isolate* isolate,
@@ -519,7 +568,7 @@ static bool ConvertAddress(Isolate* isolate,
 void DNSWrap::GetHostnames(const FunctionCallbackInfo<Value>& args) {
   DNSWrap* dns;
   ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  Environment* env = dns->env();
 
   CHECK(args[0]->IsString());
   String::Utf8Value name(env->isolate(), args[0]);
@@ -529,39 +578,39 @@ void DNSWrap::GetHostnames(const FunctionCallbackInfo<Value>& args) {
   }
 
   getdns_dict* extension = nullptr;
-  DNSWrapRequest* req = new DNSWrapRequest(env->context());
+  getdns_transaction_t tid;
   GETDNS(hostname,
          env->isolate(),
          dns->context_,
          address,
          extension,
-         req,
-         nullptr,
+         dns,
+         &tid,
          Callback);
-  args.GetReturnValue().Set(req->promise());
+  args.GetReturnValue().Set(dns->RegisterTransaction(tid));
 }
 
 // static
 void DNSWrap::GetGeneral(const FunctionCallbackInfo<Value>& args) {
   DNSWrap* dns;
   ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  Environment* env = dns->env();
   CHECK(args[0]->IsString());
   String::Utf8Value name(env->isolate(), args[0]);
   CHECK(args[1]->IsUint32());
   uint16_t type = args[1]->Uint32Value(env->context()).ToChecked();
   getdns_dict* extension = nullptr;
-  DNSWrapRequest* req = new DNSWrapRequest(env->context());
+  getdns_transaction_t tid;
   GETDNS(general,
          env->isolate(),
          dns->context_,
          *name,
          type,
          extension,
-         req,
-         nullptr,
+         dns,
+         &tid,
          Callback);
-  args.GetReturnValue().Set(req->promise());
+  args.GetReturnValue().Set(dns->RegisterTransaction(tid));
 }
 
 // static
@@ -569,7 +618,7 @@ void DNSWrap::SetUpstreamRecursiveServers(
     const FunctionCallbackInfo<Value>& args) {
   DNSWrap* dns;
   ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  Environment* env = dns->env();
 
   CHECK(args[0]->IsArray());
   Local<Array> a = args[0].As<Array>();
@@ -618,7 +667,7 @@ void DNSWrap::GetUpstreamRecursiveServers(
     const FunctionCallbackInfo<Value>& args) {
   DNSWrap* dns;
   ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  Environment* env = dns->env();
 
   getdns_list* list;
   GETDNS(context_get_upstream_recursive_servers,
@@ -632,7 +681,7 @@ void DNSWrap::GetUpstreamRecursiveServers(
 void DNSWrap::SetDNSTransportList(const FunctionCallbackInfo<Value>& args) {
   DNSWrap* dns;
   ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
-  Environment* env = Environment::GetCurrent(args);
+  Environment* env = dns->env();
 
   CHECK(args[0]->IsArray());
   Local<Array> transports = args[0].As<Array>();
@@ -653,6 +702,27 @@ void DNSWrap::SetDNSTransportList(const FunctionCallbackInfo<Value>& args) {
          dns->context_,
          length,
          &transport_list[0]);
+}
+
+// static
+void DNSWrap::CancelTransaction(const FunctionCallbackInfo<Value>& args) {
+  DNSWrap* dns;
+  ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
+
+  getdns_transaction_t tid;
+  GETDNS(cancel_callback, dns->env()->isolate(), dns->context_, tid);
+  auto it = dns->transactions_.find(tid);
+  dns->transactions_.erase(it);
+}
+
+// static
+void DNSWrap::CancelAllTransactions(const FunctionCallbackInfo<Value>& args) {
+  DNSWrap* dns;
+  ASSIGN_OR_RETURN_UNWRAP(&dns, args.This());
+  for (auto& t : dns->transactions_) {
+    GETDNS(cancel_callback, dns->env()->isolate(), dns->context_, t.first);
+  }
+  dns->transactions_.clear();
 }
 
 static void Initialize(Local<Object> target,
@@ -679,6 +749,10 @@ static void Initialize(Local<Object> target,
                       DNSWrap::GetUpstreamRecursiveServers);
   env->SetProtoMethod(
       tmpl, "setDNSTransportList", DNSWrap::SetDNSTransportList);
+
+  env->SetProtoMethod(tmpl, "cancelTransaction", DNSWrap::CancelTransaction);
+  env->SetProtoMethod(
+      tmpl, "cancelAllTransactions", DNSWrap::CancelAllTransactions);
 
   target
       ->Set(env->context(),
