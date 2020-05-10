@@ -29,8 +29,8 @@ const ws = stream.Writable({
 
     // Should update highwatermark and objectmode
     // after emptying current buffer
-    assert(highWaterMark === currHighWaterMark);
-    assert(objectMode === currObjectMode);
+    assert.strictEqual(highWaterMark, currHighWaterMark);
+    assert.strictEqual(objectMode, currObjectMode);
 
     if (read++ === 30) {
       this.updateWritableHighwaterMark(2048);

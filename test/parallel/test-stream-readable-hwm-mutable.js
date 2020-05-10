@@ -21,16 +21,16 @@ const rs = new stream.Readable({
 
     // Both highwatermark and objectmode should update
     // before it makes next _read request.
-    assert(highWaterMark === currHighWaterMark);
-    assert(objectMode === currObjectMode);
+    assert.strictEqual(highWaterMark, currHighWaterMark);
+    assert.strictEqual(objectMode, currObjectMode);
 
     this.push(Buffer.alloc(1024));
 
     if (pushes === 30) {
-        this.updateReadableHighwaterMark(2048);
-        this.updateReadableObjectMode(false);
-        currHighWaterMark = 2048;
-        currObjectMode = false;
+      this.updateReadableHighwaterMark(2048);
+      this.updateReadableObjectMode(false);
+      currHighWaterMark = 2048;
+      currObjectMode = false;
     }
 
   }, 101)
