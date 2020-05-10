@@ -568,6 +568,24 @@ added: v12.3.0
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
+##### `writable.updateWritableHighwaterMark(highwaterMark)`
+<!-- YAML
+added: v9.3.0
+-->
+
+* `highwaterMark` {number} new highwaterMark
+
+Update the value of `highWaterMark` of a given `Writable` stream.
+
+##### `writable.updateWritableObjectMode(objectMode)`
+<!-- YAML
+added: v12.3.0
+-->
+
+* `objectMode` {boolean} new objectMode
+
+Update the value of `objectMode` of a given `Writable` stream.
+
 ##### `writable.write(chunk[, encoding][, callback])`
 <!-- YAML
 added: v0.9.4
@@ -1210,6 +1228,24 @@ added: v12.3.0
 * {boolean}
 
 Getter for the property `objectMode` of a given `Readable` stream.
+
+##### `readable.updateReadableHighWaterMark(highwaterMark)`
+<!-- YAML
+added: v9.3.0
+-->
+
+* `highwaterMark` {number} new highwaterMark
+
+Update the value of `highWaterMark` of a given `Readable` stream.
+
+##### `readable.updateReadableObjectMode(objectMode)`
+<!-- YAML
+added: v12.3.0
+-->
+
+* `objectMode` {boolean} new objectMode
+
+Update the value of `objectMode` of a given `Readable` stream.
 
 ##### `readable.resume()`
 <!-- YAML
