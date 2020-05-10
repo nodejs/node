@@ -60,7 +60,7 @@ U_CDECL_BEGIN
  * @see u_getUnicodeVersion
  * @stable ICU 2.0
  */
-#define U_UNICODE_VERSION "12.1"
+#define U_UNICODE_VERSION "13.0"
 
 /**
  * \file
@@ -1788,6 +1788,25 @@ enum UBlockCode {
     /** @stable ICU 64 */
     UBLOCK_WANCHO = 300, /*[1E2C0]*/
 
+    // New blocks in Unicode 13.0
+
+    /** @stable ICU 66 */
+    UBLOCK_CHORASMIAN = 301, /*[10FB0]*/
+    /** @stable ICU 66 */
+    UBLOCK_CJK_UNIFIED_IDEOGRAPHS_EXTENSION_G = 302, /*[30000]*/
+    /** @stable ICU 66 */
+    UBLOCK_DIVES_AKURU = 303, /*[11900]*/
+    /** @stable ICU 66 */
+    UBLOCK_KHITAN_SMALL_SCRIPT = 304, /*[18B00]*/
+    /** @stable ICU 66 */
+    UBLOCK_LISU_SUPPLEMENT = 305, /*[11FB0]*/
+    /** @stable ICU 66 */
+    UBLOCK_SYMBOLS_FOR_LEGACY_COMPUTING = 306, /*[1FB00]*/
+    /** @stable ICU 66 */
+    UBLOCK_TANGUT_SUPPLEMENT = 307, /*[18D00]*/
+    /** @stable ICU 66 */
+    UBLOCK_YEZIDI = 308, /*[10E80]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UBlockCode value.
@@ -1795,7 +1814,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 301,
+    UBLOCK_COUNT = 309,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */
@@ -2436,6 +2455,8 @@ typedef enum UIndicPositionalCategory {
     U_INPC_TOP_AND_RIGHT,
     /** @stable ICU 63 */
     U_INPC_VISUAL_ORDER_LEFT,
+    /** @stable ICU 66 */
+    U_INPC_TOP_AND_BOTTOM_AND_LEFT,
 } UIndicPositionalCategory;
 
 /**

@@ -234,7 +234,7 @@ ucnv_safeClone(const UConverter* cnv, void *stackBuffer, int32_t *pBufferSize, U
         ptrdiff_t pointerAdjustment = aligned_p - p;
         if (bufferSizeNeeded + pointerAdjustment <= stackBufferSize) {
             stackBuffer = reinterpret_cast<void *>(aligned_p);
-            stackBufferSize -= pointerAdjustment;
+            stackBufferSize -= static_cast<int32_t>(pointerAdjustment);
         } else {
             /* prevent using the stack buffer but keep the size > 0 so that we do not just preflight */
             stackBufferSize = 1;

@@ -66,12 +66,26 @@ inline void abort_noreturn() { abort(); }
 #endif
 #endif
 
+// Not all compilers support __has_attribute and combining a check for both
+// ifdef and __has_attribute on the same preprocessor line isn't portable.
+#ifdef __has_attribute
+#   define DOUBLE_CONVERSION_HAS_ATTRIBUTE(x) __has_attribute(x)
+#else
+#   define DOUBLE_CONVERSION_HAS_ATTRIBUTE(x) 0
+#endif
+
 #ifndef DOUBLE_CONVERSION_UNUSED
-#ifdef __GNUC__
+#if DOUBLE_CONVERSION_HAS_ATTRIBUTE(unused)
 #define DOUBLE_CONVERSION_UNUSED __attribute__((unused))
 #else
 #define DOUBLE_CONVERSION_UNUSED
 #endif
+#endif
+
+#if DOUBLE_CONVERSION_HAS_ATTRIBUTE(uninitialized)
+#define DOUBLE_CONVERSION_STACK_UNINITIALIZED __attribute__((uninitialized))
+#else
+#define DOUBLE_CONVERSION_STACK_UNINITIALIZED
 #endif
 
 // Double operations detection based on target architecture.
@@ -104,6 +118,7 @@ int main(int argc, char** argv) {
     defined(__ARMEL__) || defined(__avr32__) || defined(_M_ARM) || defined(_M_ARM64) || \
     defined(__hppa__) || defined(__ia64__) || \
     defined(__mips__) || \
+    defined(__nios2__) || \
     defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__) || \
     defined(_POWER) || defined(_ARCH_PPC) || defined(_ARCH_PPC64) || \
     defined(__sparc__) || defined(__sparc) || defined(__s390__) || \
@@ -112,7 +127,8 @@ int main(int argc, char** argv) {
     defined(__AARCH64EL__) || defined(__aarch64__) || defined(__AARCH64EB__) || \
     defined(__riscv) || defined(__e2k__) || \
     defined(__or1k__) || defined(__arc__) || \
-    defined(__EMSCRIPTEN__)
+    defined(__microblaze__) || defined(__XTENSA__) || \
+    defined(__EMSCRIPTEN__) || defined(__wasm32__)
 #define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
 #elif defined(__mc68000__) || \
     defined(__pnacl__) || defined(__native_client__)

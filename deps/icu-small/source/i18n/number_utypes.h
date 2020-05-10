@@ -30,10 +30,12 @@ const DecimalQuantity* validateUFormattedNumberToDecimalQuantity(
  *
  * The DecimalQuantity is not currently being used by FormattedNumber, but at some point it could be used
  * to add a toDecNumber() or similar method.
+ *
+ * Exported as U_I18N_API for tests
  */
-class UFormattedNumberData : public FormattedValueStringBuilderImpl {
+class U_I18N_API UFormattedNumberData : public FormattedValueStringBuilderImpl {
 public:
-    UFormattedNumberData() : FormattedValueStringBuilderImpl(0) {}
+    UFormattedNumberData() : FormattedValueStringBuilderImpl(kUndefinedField) {}
     virtual ~UFormattedNumberData();
 
     DecimalQuantity quantity;

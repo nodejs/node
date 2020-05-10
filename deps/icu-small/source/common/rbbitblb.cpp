@@ -18,6 +18,7 @@
 #include "unicode/unistr.h"
 #include "rbbitblb.h"
 #include "rbbirb.h"
+#include "rbbiscan.h"
 #include "rbbisetb.h"
 #include "rbbidata.h"
 #include "cstring.h"
@@ -52,6 +53,7 @@ RBBITableBuilder::~RBBITableBuilder() {
     }
     delete fDStates;
     delete fSafeTable;
+    delete fLookAheadRuleMap;
 }
 
 
@@ -121,7 +123,7 @@ void  RBBITableBuilder::buildForwardTable() {
     }
     cn->fLeftChild = fTree;
     fTree->fParent = cn;
-    cn->fRightChild = new RBBINode(RBBINode::endMark);
+    RBBINode *endMarkerNode = cn->fRightChild = new RBBINode(RBBINode::endMark);
     // Delete and exit if memory allocation failed.
     if (cn->fRightChild == NULL) {
         *fStatus = U_MEMORY_ALLOCATION_ERROR;
@@ -164,7 +166,7 @@ void  RBBITableBuilder::buildForwardTable() {
     //  For "chained" rules, modify the followPos sets
     //
     if (fRB->fChainRules) {
-        calcChainedFollowPos(fTree);
+        calcChainedFollowPos(fTree, endMarkerNode);
     }
 
     //
@@ -178,6 +180,7 @@ void  RBBITableBuilder::buildForwardTable() {
     // Build the DFA state transition tables.
     //
     buildStateTable();
+    mapLookAheadRules();
     flagAcceptingStates();
     flagLookAheadStates();
     flagTaggedStates();
@@ -401,18 +404,12 @@ void RBBITableBuilder::addRuleRootNodes(UVector *dest, RBBINode *node) {
 //                            to implement rule chaining.  NOT described by Aho
 //
 //-----------------------------------------------------------------------------
-void RBBITableBuilder::calcChainedFollowPos(RBBINode *tree) {
+void RBBITableBuilder::calcChainedFollowPos(RBBINode *tree, RBBINode *endMarkNode) {
 
-    UVector         endMarkerNodes(*fStatus);
     UVector         leafNodes(*fStatus);
-    int32_t         i;
-
     if (U_FAILURE(*fStatus)) {
         return;
     }
-
-    // get a list of all endmarker nodes.
-    tree->findNodes(&endMarkerNodes, RBBINode::endMark, *fStatus);
 
     // get a list all leaf nodes
     tree->findNodes(&leafNodes, RBBINode::leafChar, *fStatus);
@@ -442,28 +439,26 @@ void RBBITableBuilder::calcChainedFollowPos(RBBINode *tree) {
     int32_t  startNodeIx;
 
     for (endNodeIx=0; endNodeIx<leafNodes.size(); endNodeIx++) {
-        RBBINode *tNode   = (RBBINode *)leafNodes.elementAt(endNodeIx);
-        RBBINode *endNode = NULL;
+        RBBINode *endNode   = (RBBINode *)leafNodes.elementAt(endNodeIx);
 
         // Identify leaf nodes that correspond to overall rule match positions.
-        //   These include an endMarkerNode in their followPos sets.
-        for (i=0; i<endMarkerNodes.size(); i++) {
-            if (tNode->fFollowPos->contains(endMarkerNodes.elementAt(i))) {
-                endNode = tNode;
-                break;
-            }
-        }
-        if (endNode == NULL) {
-            // node wasn't an end node.  Try again with the next.
+        // These include the endMarkNode in their followPos sets.
+        //
+        // Note: do not consider other end marker nodes, those that are added to
+        //       look-ahead rules. These can't chain; a match immediately stops
+        //       further matching. This leaves exactly one end marker node, the one
+        //       at the end of the complete tree.
+
+        if (!endNode->fFollowPos->contains(endMarkNode)) {
             continue;
         }
 
         // We've got a node that can end a match.
 
-        // Line Break Specific hack:  If this node's val correspond to the $CM char class,
-        //                            don't chain from it.
-        // TODO:  Add rule syntax for this behavior, get specifics out of here and
-        //        into the rule file.
+        // !!LBCMNoChain implementation:  If this node's val correspond to
+        // the Line Break $CM char class, don't chain from it.
+        // TODO:  Remove this. !!LBCMNoChain is deprecated, and is not used
+        //        by any of the standard ICU rules.
         if (fRB->fLBCMNoChain) {
             UChar32 c = this->fRB->fSetBuilder->getFirstChar(endNode->fVal);
             if (c != -1) {
@@ -474,7 +469,6 @@ void RBBITableBuilder::calcChainedFollowPos(RBBINode *tree) {
                 }
             }
         }
-
 
         // Now iterate over the nodes that can start a match, looking for ones
         //   with the same char class as our ending node.
@@ -705,6 +699,77 @@ ExitBuildSTdeleteall:
 }
 
 
+/**
+ * mapLookAheadRules
+ *
+ */
+void RBBITableBuilder::mapLookAheadRules() {
+    fLookAheadRuleMap =  new UVector32(fRB->fScanner->numRules() + 1, *fStatus);
+    if (fLookAheadRuleMap == nullptr) {
+        *fStatus = U_MEMORY_ALLOCATION_ERROR;
+    }
+    if (U_FAILURE(*fStatus)) {
+        return;
+    }
+    fLookAheadRuleMap->setSize(fRB->fScanner->numRules() + 1);
+    int32_t laSlotsInUse = 0;
+
+    for (int32_t n=0; n<fDStates->size(); n++) {
+        RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(n);
+        int32_t laSlotForState = 0;
+
+        // Establish the look-ahead slot for this state, if the state covers
+        // any look-ahead nodes - corresponding to the '/' in look-ahead rules.
+
+        // If any of the look-ahead nodes already have a slot assigned, use it,
+        // otherwise assign a new one.
+
+        bool sawLookAheadNode = false;
+        for (int32_t ipos=0; ipos<sd->fPositions->size(); ++ipos) {
+            RBBINode *node = static_cast<RBBINode *>(sd->fPositions->elementAt(ipos));
+            if (node->fType != RBBINode::NodeType::lookAhead) {
+                continue;
+            }
+            sawLookAheadNode = true;
+            int32_t ruleNum = node->fVal;     // Set when rule was originally parsed.
+            U_ASSERT(ruleNum < fLookAheadRuleMap->size());
+            U_ASSERT(ruleNum > 0);
+            int32_t laSlot = fLookAheadRuleMap->elementAti(ruleNum);
+            if (laSlot != 0) {
+                if (laSlotForState == 0) {
+                    laSlotForState = laSlot;
+                } else {
+                    // TODO: figure out if this can fail, change to setting an error code if so.
+                    U_ASSERT(laSlot == laSlotForState);
+                }
+            }
+        }
+        if (!sawLookAheadNode) {
+            continue;
+        }
+
+        if (laSlotForState == 0) {
+            laSlotForState = ++laSlotsInUse;
+        }
+
+        // For each look ahead node covered by this state,
+        // set the mapping from the node's rule number to the look ahead slot.
+        // There can be multiple nodes/rule numbers going to the same la slot.
+
+        for (int32_t ipos=0; ipos<sd->fPositions->size(); ++ipos) {
+            RBBINode *node = static_cast<RBBINode *>(sd->fPositions->elementAt(ipos));
+            if (node->fType != RBBINode::NodeType::lookAhead) {
+                continue;
+            }
+            int32_t ruleNum = node->fVal;     // Set when rule was originally parsed.
+            int32_t existingVal = fLookAheadRuleMap->elementAti(ruleNum);
+            (void)existingVal;
+            U_ASSERT(existingVal == 0 || existingVal == laSlotForState);
+            fLookAheadRuleMap->setElementAt(laSlotForState, ruleNum);
+        }
+    }
+
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -744,28 +809,19 @@ void     RBBITableBuilder::flagAcceptingStates() {
 
                 if (sd->fAccepting==0) {
                     // State hasn't been marked as accepting yet.  Do it now.
-                    sd->fAccepting = endMarker->fVal;
+                    sd->fAccepting = fLookAheadRuleMap->elementAti(endMarker->fVal);
                     if (sd->fAccepting == 0) {
                         sd->fAccepting = -1;
                     }
                 }
                 if (sd->fAccepting==-1 && endMarker->fVal != 0) {
                     // Both lookahead and non-lookahead accepting for this state.
-                    // Favor the look-ahead.  Expedient for line break.
-                    // TODO:  need a more elegant resolution for conflicting rules.
-                    sd->fAccepting = endMarker->fVal;
+                    // Favor the look-ahead, because a look-ahead match needs to
+                    // immediately stop the run-time engine. First match, not longest.
+                    sd->fAccepting = fLookAheadRuleMap->elementAti(endMarker->fVal);
                 }
                 // implicit else:
                 // if sd->fAccepting already had a value other than 0 or -1, leave it be.
-
-                // If the end marker node is from a look-ahead rule, set
-                //   the fLookAhead field for this state also.
-                if (endMarker->fLookAheadEnd) {
-                    // TODO:  don't change value if already set?
-                    // TODO:  allow for more than one active look-ahead rule in engine.
-                    //        Make value here an index to a side array in engine?
-                    sd->fLookAhead = sd->fAccepting;
-                }
             }
         }
     }
@@ -792,11 +848,20 @@ void     RBBITableBuilder::flagLookAheadStates() {
     }
     for (i=0; i<lookAheadNodes.size(); i++) {
         lookAheadNode = (RBBINode *)lookAheadNodes.elementAt(i);
+        U_ASSERT(lookAheadNode->fType == RBBINode::NodeType::lookAhead);
 
         for (n=0; n<fDStates->size(); n++) {
             RBBIStateDescriptor *sd = (RBBIStateDescriptor *)fDStates->elementAt(n);
-            if (sd->fPositions->indexOf(lookAheadNode) >= 0) {
-                sd->fLookAhead = lookAheadNode->fVal;
+            int32_t positionsIdx = sd->fPositions->indexOf(lookAheadNode);
+            if (positionsIdx >= 0) {
+                U_ASSERT(lookAheadNode == sd->fPositions->elementAt(positionsIdx));
+                int32_t lookaheadSlot = fLookAheadRuleMap->elementAti(lookAheadNode->fVal);
+                U_ASSERT(sd->fLookAhead == 0 || sd->fLookAhead == lookaheadSlot);
+                // if (sd->fLookAhead != 0 && sd->fLookAhead != lookaheadSlot) {
+                //     printf("%s:%d Bingo. sd->fLookAhead:%d   lookaheadSlot:%d\n",
+                //            __FILE__, __LINE__, sd->fLookAhead, lookaheadSlot);
+                // }
+                sd->fLookAhead = lookaheadSlot;
             }
         }
     }
@@ -1203,16 +1268,6 @@ void RBBITableBuilder::removeState(IntPair duplStates) {
                 newVal = existingVal - 1;
             }
             sd->fDtran->setElementAt(newVal, col);
-        }
-        if (sd->fAccepting == duplState) {
-            sd->fAccepting = keepState;
-        } else if (sd->fAccepting > duplState) {
-            sd->fAccepting--;
-        }
-        if (sd->fLookAhead == duplState) {
-            sd->fLookAhead = keepState;
-        } else if (sd->fLookAhead > duplState) {
-            sd->fLookAhead--;
         }
     }
 }

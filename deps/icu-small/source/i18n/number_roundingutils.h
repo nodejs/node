@@ -150,7 +150,7 @@ digits_t doubleFractionLength(double input, int8_t* singleDigit);
  */
 class RoundingImpl {
   public:
-    RoundingImpl() = default;  // default constructor: leaves object in undefined state
+    RoundingImpl() = default;  // defaults to pass-through rounder
 
     RoundingImpl(const Precision& precision, UNumberFormatRoundingMode roundingMode,
                  const CurrencyUnit& currency, UErrorCode& status);
@@ -186,7 +186,7 @@ class RoundingImpl {
   private:
     Precision fPrecision;
     UNumberFormatRoundingMode fRoundingMode;
-    bool fPassThrough;
+    bool fPassThrough = true;  // default value
 };
 
 

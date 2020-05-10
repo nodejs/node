@@ -1459,6 +1459,11 @@ static void U_CALLCONV TimeZoneDataDirInitFn(UErrorCode &status) {
 
     const char *dir = "";
 
+#if defined(ICU_TIMEZONE_FILES_DIR_PREFIX_ENV_VAR)
+    char timezonefilesdir_path_buffer[PATH_MAX];
+    const char *prefix = getenv(ICU_TIMEZONE_FILES_DIR_PREFIX_ENV_VAR);
+#endif
+
 #if U_PLATFORM_HAS_WINUWP_API == 1
 // The UWP version does not support the environment variable setting.
 
@@ -1484,6 +1489,13 @@ static void U_CALLCONV TimeZoneDataDirInitFn(UErrorCode &status) {
     if (dir == NULL) {
         dir = "";
     }
+
+#if defined(ICU_TIMEZONE_FILES_DIR_PREFIX_ENV_VAR)
+    if (prefix != NULL) {
+        snprintf(timezonefilesdir_path_buffer, PATH_MAX, "%s%s", prefix, dir);
+        dir = timezonefilesdir_path_buffer;
+    }
+#endif
 
     setTimeZoneFilesDir(dir, status);
 }

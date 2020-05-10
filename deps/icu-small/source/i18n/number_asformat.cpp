@@ -102,4 +102,16 @@ const LocalizedNumberFormatter& LocalizedNumberFormatterAsFormat::getNumberForma
     return fFormatter;
 }
 
+
+// Definitions of public API methods (put here for dependency disentanglement)
+
+Format* LocalizedNumberFormatter::toFormat(UErrorCode& status) const {
+    if (U_FAILURE(status)) {
+        return nullptr;
+    }
+    LocalPointer<LocalizedNumberFormatterAsFormat> retval(
+            new LocalizedNumberFormatterAsFormat(*this, fMacros.locale), status);
+    return retval.orphan();
+}
+
 #endif /* #if !UCONFIG_NO_FORMATTING */

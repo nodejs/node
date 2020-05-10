@@ -16,12 +16,12 @@
 
 #include "unicode/currunit.h"
 #include "unicode/ustring.h"
+#include "unicode/uchar.h"
 #include "cstring.h"
 #include "uinvchar.h"
 #include "charstr.h"
-
-static constexpr char16_t kDefaultCurrency[] = u"XXX";
-static constexpr char kDefaultCurrency8[] = "XXX";
+#include "ustr_imp.h"
+#include "measunit_impl.h"
 
 U_NAMESPACE_BEGIN
 
@@ -31,22 +31,25 @@ CurrencyUnit::CurrencyUnit(ConstChar16Ptr _isoCode, UErrorCode& ec) {
     // non-NUL-terminated string to be passed as an argument, so it is not possible to check length.
     // However, we allow a NUL-terminated empty string, which should have the same behavior as nullptr.
     // Consider NUL-terminated strings of length 1 or 2 as invalid.
-    const char16_t* isoCodeToUse;
+    bool useDefault = false;
     if (U_FAILURE(ec) || _isoCode == nullptr || _isoCode[0] == 0) {
-        isoCodeToUse = kDefaultCurrency;
+        useDefault = true;
     } else if (_isoCode[1] == 0 || _isoCode[2] == 0) {
-        isoCodeToUse = kDefaultCurrency;
+        useDefault = true;
         ec = U_ILLEGAL_ARGUMENT_ERROR;
     } else if (!uprv_isInvariantUString(_isoCode, 3)) {
         // TODO: Perform a more strict ASCII check like in ICU4J isAlpha3Code?
-        isoCodeToUse = kDefaultCurrency;
+        useDefault = true;
         ec = U_INVARIANT_CONVERSION_ERROR;
     } else {
-        isoCodeToUse = _isoCode;
+        for (int32_t i=0; i<3; i++) {
+            isoCode[i] = u_asciiToUpper(_isoCode[i]);
+        }
+        isoCode[3] = 0;
     }
-    // TODO: Perform uppercasing here like in ICU4J Currency.getInstance()?
-    uprv_memcpy(isoCode, isoCodeToUse, sizeof(UChar) * 3);
-    isoCode[3] = 0;
+    if (useDefault) {
+        uprv_memcpy(isoCode, kDefaultCurrency, sizeof(UChar) * 4);
+    }
     char simpleIsoCode[4];
     u_UCharsToChars(isoCode, simpleIsoCode, 4);
     initCurrency(simpleIsoCode);
@@ -66,13 +69,13 @@ CurrencyUnit::CurrencyUnit(StringPiece _isoCode, UErrorCode& ec) {
         ec = U_INVARIANT_CONVERSION_ERROR;
     } else {
         // Have to use isoCodeBuffer to ensure the string is NUL-terminated
-        uprv_strncpy(isoCodeBuffer, _isoCode.data(), 3);
+        for (int32_t i=0; i<3; i++) {
+            isoCodeBuffer[i] = uprv_toupper(_isoCode.data()[i]);
+        }
         isoCodeBuffer[3] = 0;
         isoCodeToUse = isoCodeBuffer;
     }
-    // TODO: Perform uppercasing here like in ICU4J Currency.getInstance()?
-    u_charsToUChars(isoCodeToUse, isoCode, 3);
-    isoCode[3] = 0;
+    u_charsToUChars(isoCodeToUse, isoCode, 4);
     initCurrency(isoCodeToUse);
 }
 

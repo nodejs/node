@@ -866,7 +866,7 @@ getCurrencyNameCount(const char* loc, int32_t* total_currency_name_count, int32_
     *total_currency_name_count = 0;
     *total_currency_symbol_count = 0;
     const UChar* s = NULL;
-    char locale[ULOC_FULLNAME_CAPACITY];
+    char locale[ULOC_FULLNAME_CAPACITY] = "";
     uprv_strcpy(locale, loc);
     const icu::Hashtable *currencySymbolsEquiv = getCurrSymbolsEquiv();
     for (;;) {
@@ -941,7 +941,7 @@ collectCurrencyNames(const char* locale,
     // Look up the Currencies resource for the given locale.
     UErrorCode ec2 = U_ZERO_ERROR;
 
-    char loc[ULOC_FULLNAME_CAPACITY];
+    char loc[ULOC_FULLNAME_CAPACITY] = "";
     uloc_getName(locale, loc, sizeof(loc), &ec2);
     if (U_FAILURE(ec2) || ec2 == U_STRING_NOT_TERMINATED_WARNING) {
         ec = U_ILLEGAL_ARGUMENT_ERROR;

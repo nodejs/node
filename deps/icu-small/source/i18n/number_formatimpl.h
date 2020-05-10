@@ -95,7 +95,7 @@ class NumberFormatterImpl : public UMemory {
     LocalPointer<const ParsedPatternInfo> fPatternInfo;
     LocalPointer<const ScientificHandler> fScientificHandler;
     LocalPointer<MutablePatternModifier> fPatternModifier;
-    LocalPointer<const ImmutablePatternModifier> fImmutablePatternModifier;
+    LocalPointer<ImmutablePatternModifier> fImmutablePatternModifier;
     LocalPointer<const LongNameHandler> fLongNameHandler;
     LocalPointer<const CompactHandler> fCompactHandler;
 

@@ -21,7 +21,7 @@ addPaddingHelper(UChar32 paddingCp, int32_t requiredPadding, FormattedStringBuil
                  UErrorCode &status) {
     for (int32_t i = 0; i < requiredPadding; i++) {
         // TODO: If appending to the end, this will cause actual insertion operations. Improve.
-        string.insertCodePoint(index, paddingCp, UNUM_FIELD_COUNT, status);
+        string.insertCodePoint(index, paddingCp, kUndefinedField, status);
     }
     return U16_LENGTH(paddingCp) * requiredPadding;
 }

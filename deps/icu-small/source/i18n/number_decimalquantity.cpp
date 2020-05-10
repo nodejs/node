@@ -120,6 +120,7 @@ void DecimalQuantity::copyFieldsFrom(const DecimalQuantity& other) {
     origDouble = other.origDouble;
     origDelta = other.origDelta;
     isApproximate = other.isApproximate;
+    exponent = other.exponent;
 }
 
 void DecimalQuantity::clear() {
@@ -269,9 +270,19 @@ double DecimalQuantity::getPluralOperand(PluralOperand operand) const {
             return fractionCount();
         case PLURAL_OPERAND_W:
             return fractionCountWithoutTrailingZeros();
+        case PLURAL_OPERAND_E:
+            return static_cast<double>(getExponent());
         default:
             return std::abs(toDouble());
     }
+}
+
+int32_t DecimalQuantity::getExponent() const {
+    return exponent;
+}
+
+void DecimalQuantity::adjustExponent(int delta) {
+    exponent = exponent + delta;
 }
 
 bool DecimalQuantity::hasIntegerValue() const {
@@ -307,11 +318,13 @@ int8_t DecimalQuantity::getDigit(int32_t magnitude) const {
 }
 
 int32_t DecimalQuantity::fractionCount() const {
-    return -getLowerDisplayMagnitude();
+    int32_t fractionCountWithExponent = -getLowerDisplayMagnitude() - exponent;
+    return fractionCountWithExponent > 0 ? fractionCountWithExponent : 0;
 }
 
 int32_t DecimalQuantity::fractionCountWithoutTrailingZeros() const {
-    return -scale > 0 ? -scale : 0;  // max(-scale, 0)
+    int32_t fractionCountWithExponent = -scale - exponent;
+    return fractionCountWithExponent > 0 ? fractionCountWithExponent : 0;  // max(-fractionCountWithExponent, 0)
 }
 
 bool DecimalQuantity::isNegative() const {
@@ -319,10 +332,14 @@ bool DecimalQuantity::isNegative() const {
 }
 
 Signum DecimalQuantity::signum() const {
-    if (isNegative()) {
+    bool isZero = (isZeroish() && !isInfinite());
+    bool isNeg = isNegative();
+    if (isZero && isNeg) {
+        return SIGNUM_NEG_ZERO;
+    } else if (isZero) {
+        return SIGNUM_POS_ZERO;
+    } else if (isNeg) {
         return SIGNUM_NEG;
-    } else if (isZeroish() && !isInfinite()) {
-        return SIGNUM_ZERO;
     } else {
         return SIGNUM_POS;
     }
@@ -422,9 +439,6 @@ void DecimalQuantity::_setToDoubleFast(double n) {
     // TODO: Make a fast path for other types of doubles.
     if (!std::numeric_limits<double>::is_iec559) {
         convertToAccurateDouble();
-        // Turn off the approximate double flag, since the value is now exact.
-        isApproximate = false;
-        origDouble = 0.0;
         return;
     }
 
@@ -439,8 +453,14 @@ void DecimalQuantity::_setToDoubleFast(double n) {
         return;
     }
 
+    if (exponent == -1023 || exponent == 1024) {
+        // The extreme values of exponent are special; use slow path.
+        convertToAccurateDouble();
+        return;
+    }
+
     // 3.3219... is log2(10)
-    auto fracLength = static_cast<int32_t> ((52 - exponent) / 3.32192809489);
+    auto fracLength = static_cast<int32_t> ((52 - exponent) / 3.32192809488736234787031942948939017586);
     if (fracLength >= 0) {
         int32_t i = fracLength;
         // 1e22 is the largest exact double.
@@ -452,7 +472,7 @@ void DecimalQuantity::_setToDoubleFast(double n) {
         for (; i <= -22; i += 22) n /= 1e22;
         n /= DOUBLE_MULTIPLIERS[-i];
     }
-    auto result = static_cast<int64_t>(std::round(n));
+    auto result = static_cast<int64_t>(uprv_round(n));
     if (result != 0) {
         _setToLong(result);
         scale -= fracLength;
@@ -521,12 +541,12 @@ int64_t DecimalQuantity::toLong(bool truncateIfOverflow) const {
     // if (dq.fitsInLong()) { /* use dq.toLong() */ } else { /* use some fallback */ }
     // Fallback behavior upon truncateIfOverflow is to truncate at 17 digits.
     uint64_t result = 0L;
-    int32_t upperMagnitude = scale + precision - 1;
+    int32_t upperMagnitude = exponent + scale + precision - 1;
     if (truncateIfOverflow) {
         upperMagnitude = std::min(upperMagnitude, 17);
     }
     for (int32_t magnitude = upperMagnitude; magnitude >= 0; magnitude--) {
-        result = result * 10 + getDigitPos(magnitude - scale);
+        result = result * 10 + getDigitPos(magnitude - scale - exponent);
     }
     if (isNegative()) {
         return static_cast<int64_t>(0LL - result); // i.e., -result
@@ -536,7 +556,7 @@ int64_t DecimalQuantity::toLong(bool truncateIfOverflow) const {
 
 uint64_t DecimalQuantity::toFractionLong(bool includeTrailingZeros) const {
     uint64_t result = 0L;
-    int32_t magnitude = -1;
+    int32_t magnitude = -1 - exponent;
     int32_t lowerMagnitude = scale;
     if (includeTrailingZeros) {
         lowerMagnitude = std::min(lowerMagnitude, rReqPos);
@@ -560,7 +580,7 @@ bool DecimalQuantity::fitsInLong(bool ignoreFraction) const {
     if (isZeroish()) {
         return true;
     }
-    if (scale < 0 && !ignoreFraction) {
+    if (exponent + scale < 0 && !ignoreFraction) {
         return false;
     }
     int magnitude = getMagnitude();
@@ -877,12 +897,30 @@ UnicodeString DecimalQuantity::toPlainString() const {
     if (isNegative()) {
         sb.append(u'-');
     }
-    if (precision == 0 || getMagnitude() < 0) {
+    if (precision == 0) {
+        sb.append(u'0');
+        return sb;
+    }
+    int32_t upper = scale + precision + exponent - 1;
+    int32_t lower = scale + exponent;
+    if (upper < lReqPos - 1) {
+        upper = lReqPos - 1;
+    }
+    if (lower > rReqPos) {
+        lower = rReqPos;
+    }
+    int32_t p = upper;
+    if (p < 0) {
         sb.append(u'0');
     }
-    for (int m = getUpperDisplayMagnitude(); m >= getLowerDisplayMagnitude(); m--) {
-        if (m == -1) { sb.append(u'.'); }
-        sb.append(getDigit(m) + u'0');
+    for (; p >= 0; p--) {
+        sb.append(u'0' + getDigitPos(p - scale - exponent));
+    }
+    if (lower < 0) {
+        sb.append(u'.');
+    }
+    for(; p >= lower; p--) {
+        sb.append(u'0' + getDigitPos(p - scale - exponent));
     }
     return sb;
 }
@@ -908,7 +946,7 @@ UnicodeString DecimalQuantity::toScientificString() const {
         }
     }
     result.append(u'E');
-    int32_t _scale = upperPos + scale;
+    int32_t _scale = upperPos + scale + exponent;
     if (_scale == INT32_MIN) {
         result.append({u"-2147483648", -1});
         return result;
@@ -1021,6 +1059,7 @@ void DecimalQuantity::setBcdToZero() {
     isApproximate = false;
     origDouble = 0;
     origDelta = 0;
+    exponent = 0;
 }
 
 void DecimalQuantity::readIntToBcd(int32_t n) {
