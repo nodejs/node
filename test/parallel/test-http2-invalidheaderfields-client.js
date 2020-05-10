@@ -8,7 +8,7 @@ const server1 = http2.createServer();
 
 server1.listen(0, common.mustCall(() => {
   const session = http2.connect(`http://localhost:${server1.address().port}`);
-  // check for req headers
+  // Check for req headers
   session.request({ 'no underscore': 123 });
   session.on('error', common.mustCall((e) => {
     assert.strictEqual(e.code, 'ERR_INVALID_HTTP_TOKEN');
@@ -34,7 +34,7 @@ server2.listen(0, common.mustCall(() => {
 
 const server3 = http2.createServer(common.mustCall((req, res) => {
   // check for writeHead
-  assert.throws(common.mustCall(()=>{
+  assert.throws(common.mustCall(() => {
     res.writeHead(200, {
       'an invalid header': 123
     });
