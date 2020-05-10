@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <ostream>
 #include <limits>
+#include <string>
 
 namespace node {
 
