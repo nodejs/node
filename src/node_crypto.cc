@@ -3468,6 +3468,31 @@ MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
   return WritePrivateKey(env(), asymmetric_key_.get(), config);
 }
 
+void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 0);
+}
+
+static void CreateNativeKeyObjectClass(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 1);
+  Local<Value> callback = args[0];
+  CHECK(callback->IsFunction());
+
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(NativeKeyObject::New);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      KeyObjectHandle::kInternalFieldCount);
+
+  Local<Value> ctor = t->GetFunction(env->context()).ToLocalChecked();
+
+  Local<Value> recv = Undefined(env->isolate());
+  Local<Value> ret =
+      callback.As<Function>()->Call(env->context(), recv, 1, &ctor)
+      .ToLocalChecked();
+  args.GetReturnValue().Set(ret);
+}
+
 CipherBase::CipherBase(Environment* env,
                        Local<Object> wrap,
                        CipherKind kind)
@@ -6871,6 +6896,8 @@ void Initialize(Local<Object> target,
   SecureContext::Initialize(env, target);
   env->set_crypto_key_object_handle_constructor(
       KeyObjectHandle::Initialize(env, target));
+  env->SetMethod(target, "createNativeKeyObjectClass",
+                 CreateNativeKeyObjectClass);
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
   ECDH::Initialize(env, target);
