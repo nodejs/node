@@ -85,6 +85,18 @@ public:
     // VisibleForTesting
     LSR makeMaximizedLsrFrom(const Locale &locale, UErrorCode &errorCode) const;
 
+    /**
+     * Tests whether lsr is "more likely" than other.
+     * For example, fr-Latn-FR is more likely than fr-Latn-CH because
+     * FR is the default region for fr-Latn.
+     *
+     * The likelyInfo caches lookup information between calls.
+     * The return value is an updated likelyInfo value,
+     * with bit 0 set if lsr is "more likely".
+     * The initial value of likelyInfo must be negative.
+     */
+    int32_t compareLikely(const LSR &lsr, const LSR &other, int32_t likelyInfo) const;
+
     // TODO(ICU-20777): Switch Locale/uloc_ likely-subtags API from the old code
     // in loclikely.cpp to this new code, including activating this
     // minimizeSubtags() function. The LocaleMatcher does not minimize.
@@ -110,6 +122,8 @@ private:
      * Raw access to addLikelySubtags. Input must be in canonical format, eg "en", not "eng" or "EN".
      */
     LSR maximize(const char *language, const char *script, const char *region) const;
+
+    int32_t getLikelyIndex(const char *language, const char *script) const;
 
     static int32_t trieNext(BytesTrie &iter, const char *s, int32_t i);
 

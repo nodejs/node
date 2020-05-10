@@ -121,12 +121,12 @@ enum {
  * Properties in vector word 0
  * Bits
  * 31..24   DerivedAge version major/minor one nibble each
- * 23..22   3..1: Bits 7..0 = Script_Extensions index
+ * 23..22   3..1: Bits 21..20 & 7..0 = Script_Extensions index
  *             3: Script value from Script_Extensions
  *             2: Script=Inherited
  *             1: Script=Common
- *             0: Script=bits 7..0
- * 21..20   reserved
+ *             0: Script=bits 21..20 & 7..0
+ * 21..20   Bits 9..8 of the UScriptCode, or index to Script_Extensions
  * 19..17   East Asian Width
  * 16.. 8   UBlockCode
  *  7.. 0   UScriptCode, or index to Script_Extensions
@@ -137,8 +137,15 @@ enum {
 #define UPROPS_AGE_SHIFT        24
 
 /* Script_Extensions: mask includes Script */
-#define UPROPS_SCRIPT_X_MASK    0x00c000ff
+#define UPROPS_SCRIPT_X_MASK    0x00f000ff
 #define UPROPS_SCRIPT_X_SHIFT   22
+
+// The UScriptCode or Script_Extensions index is split across two bit fields.
+// (Starting with Unicode 13/ICU 66/2019 due to more varied Script_Extensions.)
+// Shift the high bits right by 12 to assemble the full value.
+#define UPROPS_SCRIPT_HIGH_MASK    0x00300000
+#define UPROPS_SCRIPT_HIGH_SHIFT   12
+#define UPROPS_MAX_SCRIPT          0x3ff
 
 #define UPROPS_EA_MASK          0x000e0000
 #define UPROPS_EA_SHIFT         17
@@ -146,12 +153,26 @@ enum {
 #define UPROPS_BLOCK_MASK       0x0001ff00
 #define UPROPS_BLOCK_SHIFT      8
 
-#define UPROPS_SCRIPT_MASK      0x000000ff
+#define UPROPS_SCRIPT_LOW_MASK  0x000000ff
 
 /* UPROPS_SCRIPT_X_WITH_COMMON must be the lowest value that involves Script_Extensions. */
 #define UPROPS_SCRIPT_X_WITH_COMMON     0x400000
 #define UPROPS_SCRIPT_X_WITH_INHERITED  0x800000
 #define UPROPS_SCRIPT_X_WITH_OTHER      0xc00000
+
+#ifdef __cplusplus
+
+namespace {
+
+inline uint32_t uprops_mergeScriptCodeOrIndex(uint32_t scriptX) {
+    return
+        ((scriptX & UPROPS_SCRIPT_HIGH_MASK) >> UPROPS_SCRIPT_HIGH_SHIFT) |
+        (scriptX & UPROPS_SCRIPT_LOW_MASK);
+}
+
+}  // namespace
+
+#endif  // __cplusplus
 
 /*
  * Properties in vector word 1

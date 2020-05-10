@@ -20,6 +20,10 @@ namespace number {
 namespace impl {
 
 
+class AutoAffixPatternProvider;
+class CurrencyPluralInfoAffixProvider;
+
+
 class PropertiesAffixPatternProvider : public AffixPatternProvider, public UMemory {
   public:
     bool isBogus() const {
@@ -31,12 +35,6 @@ class PropertiesAffixPatternProvider : public AffixPatternProvider, public UMemo
     }
 
     void setTo(const DecimalFormatProperties& properties, UErrorCode& status);
-
-    PropertiesAffixPatternProvider() = default; // puts instance in valid but undefined state
-
-    PropertiesAffixPatternProvider(const DecimalFormatProperties& properties, UErrorCode& status) {
-        setTo(properties, status);
-    }
 
     // AffixPatternProvider Methods:
 
@@ -65,9 +63,14 @@ class PropertiesAffixPatternProvider : public AffixPatternProvider, public UMemo
     UnicodeString negSuffix;
     bool isCurrencyPattern;
 
+    PropertiesAffixPatternProvider() = default; // puts instance in valid but undefined state
+
     const UnicodeString& getStringInternal(int32_t flags) const;
 
     bool fBogus{true};
+
+    friend class AutoAffixPatternProvider;
+    friend class CurrencyPluralInfoAffixProvider;
 };
 
 
@@ -107,7 +110,43 @@ class CurrencyPluralInfoAffixProvider : public AffixPatternProvider, public UMem
   private:
     PropertiesAffixPatternProvider affixesByPlural[StandardPlural::COUNT];
 
+    CurrencyPluralInfoAffixProvider() = default;
+
     bool fBogus{true};
+
+    friend class AutoAffixPatternProvider;
+};
+
+
+class AutoAffixPatternProvider {
+  public:
+    inline AutoAffixPatternProvider() = default;
+
+    inline AutoAffixPatternProvider(const DecimalFormatProperties& properties, UErrorCode& status) {
+        setTo(properties, status);
+    }
+
+    inline void setTo(const DecimalFormatProperties& properties, UErrorCode& status) {
+        if (properties.currencyPluralInfo.fPtr.isNull()) {
+            propertiesAPP.setTo(properties, status);
+            currencyPluralInfoAPP.setToBogus();
+        } else {
+            propertiesAPP.setToBogus();
+            currencyPluralInfoAPP.setTo(*properties.currencyPluralInfo.fPtr, properties, status);
+        }
+    }
+
+    inline const AffixPatternProvider& get() const {
+      if (!currencyPluralInfoAPP.isBogus()) {
+        return currencyPluralInfoAPP;
+      } else {
+        return propertiesAPP;
+      }
+    }
+
+  private:
+    PropertiesAffixPatternProvider propertiesAPP;
+    CurrencyPluralInfoAffixProvider currencyPluralInfoAPP;
 };
 
 
@@ -115,9 +154,8 @@ class CurrencyPluralInfoAffixProvider : public AffixPatternProvider, public UMem
  * A struct for ownership of a few objects needed for formatting.
  */
 struct DecimalFormatWarehouse {
-    PropertiesAffixPatternProvider propertiesAPP;
-    CurrencyPluralInfoAffixProvider currencyPluralInfoAPP;
-    CurrencySymbols currencySymbols;
+    AutoAffixPatternProvider affixProvider;
+
 };
 
 

@@ -687,13 +687,13 @@ void toUpper(uint32_t options,
             if (change) {
                 ByteSinkUtil::appendTwoBytes(upper, sink);
                 if ((data & HAS_EITHER_DIALYTIKA) != 0) {
-                    sink.Append(u8"\u0308", 2);  // restore or add a dialytika
+                    sink.AppendU8(u8"\u0308", 2);  // restore or add a dialytika
                 }
                 if (addTonos) {
-                    sink.Append(u8"\u0301", 2);
+                    sink.AppendU8(u8"\u0301", 2);
                 }
                 while (numYpogegrammeni > 0) {
-                    sink.Append(u8"\u0399", 2);
+                    sink.AppendU8(u8"\u0399", 2);
                     --numYpogegrammeni;
                 }
             }

@@ -215,6 +215,12 @@ enum PluralOperand {
     PLURAL_OPERAND_W,
 
     /**
+     * Suppressed exponent for compact notation (exponent needed in
+     * scientific notation with compact notation to approximate i).
+     */
+    PLURAL_OPERAND_E,
+
+    /**
      * THIS OPERAND IS DEPRECATED AND HAS BEEN REMOVED FROM THE SPEC.
      *
      * <p>Returns the integer value, but will fail if the number has fraction digits.

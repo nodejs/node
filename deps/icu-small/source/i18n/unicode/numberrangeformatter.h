@@ -449,7 +449,6 @@ class U_I18N_API NumberRangeFormatterSettings {
      */
     Derived identityFallback(UNumberRangeIdentityFallback identityFallback) &&;
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns the current (Un)LocalizedNumberRangeFormatter as a LocalPointer
      * wrapping a heap-allocated copy of the current object.
@@ -459,7 +458,7 @@ class U_I18N_API NumberRangeFormatterSettings {
      *
      * @return A wrapped (Un)LocalizedNumberRangeFormatter pointer, or a wrapped
      *         nullptr on failure.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     LocalPointer<Derived> clone() const &;
 
@@ -468,10 +467,9 @@ class U_I18N_API NumberRangeFormatterSettings {
      *
      * @return A wrapped (Un)LocalizedNumberRangeFormatter pointer, or a wrapped
      *         nullptr on failure.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     LocalPointer<Derived> clone() &&;
-#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Sets the UErrorCode if an error occurred in the fluent chain.
@@ -728,52 +726,6 @@ class U_I18N_API FormattedNumberRange : public UMemory, public FormattedValue {
     UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const U_OVERRIDE;
 
 #ifndef U_HIDE_DRAFT_API
-    /**
-     * Determines the start (inclusive) and end (exclusive) indices of the next occurrence of the given
-     * <em>field</em> in the output string. This allows you to determine the locations of, for example,
-     * the integer part, fraction part, or symbols.
-     *
-     * If both sides of the range have the same field, the field will occur twice, once before the
-     * range separator and once after the range separator, if applicable.
-     *
-     * If a field occurs just once, calling this method will find that occurrence and return it. If a
-     * field occurs multiple times, this method may be called repeatedly with the following pattern:
-     *
-     * <pre>
-     * FieldPosition fpos(UNUM_INTEGER_FIELD);
-     * while (formattedNumberRange.nextFieldPosition(fpos, status)) {
-     *   // do something with fpos.
-     * }
-     * </pre>
-     *
-     * This method is useful if you know which field to query. If you want all available field position
-     * information, use #getAllFieldPositions().
-     *
-     * @param fieldPosition
-     *            Input+output variable. See {@link FormattedNumber#nextFieldPosition}.
-     * @param status
-     *            Set if an error occurs while populating the FieldPosition.
-     * @return TRUE if a new occurrence of the field was found; FALSE otherwise.
-     * @draft ICU 63
-     * @see UNumberFormatFields
-     */
-    UBool nextFieldPosition(FieldPosition& fieldPosition, UErrorCode& status) const;
-
-    /**
-     * Export the formatted number range to a FieldPositionIterator. This allows you to determine which characters in
-     * the output string correspond to which <em>fields</em>, such as the integer part, fraction part, and sign.
-     *
-     * If information on only one field is needed, use #nextFieldPosition() instead.
-     *
-     * @param iterator
-     *            The FieldPositionIterator to populate with all of the fields present in the formatted number.
-     * @param status
-     *            Set if an error occurs while populating the FieldPositionIterator.
-     * @draft ICU 63
-     * @see UNumberFormatFields
-     */
-    void getAllFieldPositions(FieldPositionIterator &iterator, UErrorCode &status) const;
-
     /**
      * Export the first formatted number as a decimal number. This endpoint
      * is useful for obtaining the exact number being printed after scaling

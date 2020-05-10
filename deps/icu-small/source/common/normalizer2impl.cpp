@@ -2088,6 +2088,13 @@ uint8_t Normalizer2Impl::getPreviousTrailCC(const uint8_t *start, const uint8_t 
 // minDecompNoCP etc. and smallFCD[] are intended to help with any loss of performance,
 // at least for ASCII & CJK.
 
+// Ticket 20907 - The optimizer in MSVC/Visual Studio versions below 16.4 has trouble with this
+// function on Windows ARM64. As a work-around, we disable optimizations for this function.
+// This work-around could/should be removed once the following versions of Visual Studio are no
+// longer supported: All versions of VS2017, and versions of VS2019 below 16.4.
+#if (defined(_MSC_VER) && (defined(_M_ARM64)) && (_MSC_VER < 1924))
+#pragma optimize( "", off )
+#endif
 // Gets the FCD value from the regular normalization data.
 uint16_t Normalizer2Impl::getFCD16FromNormData(UChar32 c) const {
     uint16_t norm16=getNorm16(c);
@@ -2121,6 +2128,9 @@ uint16_t Normalizer2Impl::getFCD16FromNormData(UChar32 c) const {
     }
     return norm16;
 }
+#if (defined(_MSC_VER) && (defined(_M_ARM64)) && (_MSC_VER < 1924))
+#pragma optimize( "", on )
+#endif
 
 // Dual functionality:
 // buffer!=NULL: normalize

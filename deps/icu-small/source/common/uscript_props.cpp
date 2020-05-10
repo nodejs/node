@@ -233,6 +233,10 @@ const int32_t SCRIPT_PROPS[] = {
     0x1E108 | LIMITED_USE,  // Hmnp
     0x119CE | EXCLUSION,  // Nand
     0x1E2E1 | LIMITED_USE,  // Wcho
+    0x10FBF | EXCLUSION | RTL,  // Chrs
+    0x1190C | EXCLUSION,  // Diak
+    0x18C65 | EXCLUSION | LB_LETTERS,  // Kits
+    0x10E88 | EXCLUSION | RTL,  // Yezi
     // End copy-paste from parsescriptmetadata.py
 };
 

@@ -204,7 +204,8 @@ void QuantityFormatter::formatAndSelect(
         if (U_FAILURE(status)) {
             return;
         }
-        output.append(result, UNUM_FIELD_COUNT, status);
+        // This code path is probably RBNF. Use the generic numeric field.
+        output.append(result, kGeneralNumericField, status);
         if (U_FAILURE(status)) {
             return;
         }

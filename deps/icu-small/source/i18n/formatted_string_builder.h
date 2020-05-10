@@ -9,7 +9,8 @@
 
 
 #include <cstdint>
-#include "unicode/unum.h" // for UNUM_FIELD_COUNT
+#include <type_traits>
+
 #include "cstring.h"
 #include "uassert.h"
 #include "fphdlimp.h"
@@ -55,7 +56,20 @@ class U_I18N_API FormattedStringBuilder : public UMemory {
     // Field category 0 implies the number category so that the number field
     // literals can be directly passed as a Field type.
     // See the helper functions in "StringBuilderFieldUtils" below.
-    typedef uint8_t Field;
+    // Exported as U_I18N_API so it can be used by other exports on Windows.
+    struct U_I18N_API Field {
+        uint8_t bits;
+
+        Field() = default;
+        constexpr Field(uint8_t category, uint8_t field);
+
+        inline UFieldCategory getCategory() const;
+        inline int32_t getField() const;
+        inline bool isNumeric() const;
+        inline bool isUndefined() const;
+        inline bool operator==(const Field& other) const;
+        inline bool operator!=(const Field& other) const;
+    };
 
     FormattedStringBuilder &operator=(const FormattedStringBuilder &other);
 
@@ -204,46 +218,50 @@ class U_I18N_API FormattedStringBuilder : public UMemory {
     friend class FormattedValueStringBuilderImpl;
 };
 
+static_assert(
+    std::is_pod<FormattedStringBuilder::Field>::value,
+    "Field should be a POD type for efficient initialization");
+
+constexpr FormattedStringBuilder::Field::Field(uint8_t category, uint8_t field)
+    : bits((
+        U_ASSERT(category <= 0xf),
+        U_ASSERT(field <= 0xf),
+        static_cast<uint8_t>((category << 4) | field)
+    )) {}
+
 /**
- * Helper functions for dealing with the Field typedef, which stores fields
- * in a compressed format.
+ * Internal constant for the undefined field for use in FormattedStringBuilder.
  */
-class StringBuilderFieldUtils {
-public:
-    struct CategoryFieldPair {
-        int32_t category;
-        int32_t field;
-    };
+constexpr FormattedStringBuilder::Field kUndefinedField = {UFIELD_CATEGORY_UNDEFINED, 0};
 
-    /** Compile-time function to construct a Field from a category and a field */
-    template <int32_t category, int32_t field>
-    static constexpr FormattedStringBuilder::Field compress() {
-        static_assert(category != 0, "cannot use Undefined category in FieldUtils");
-        static_assert(category <= 0xf, "only 4 bits for category");
-        static_assert(field <= 0xf, "only 4 bits for field");
-        return static_cast<int8_t>((category << 4) | field);
-    }
+/**
+ * Internal field to signal "numeric" when fields are not supported in NumberFormat.
+ */
+constexpr FormattedStringBuilder::Field kGeneralNumericField = {UFIELD_CATEGORY_UNDEFINED, 1};
 
-    /** Runtime inline function to unpack the category and field from the Field */
-    static inline CategoryFieldPair expand(FormattedStringBuilder::Field field) {
-        if (field == UNUM_FIELD_COUNT) {
-            return {UFIELD_CATEGORY_UNDEFINED, 0};
-        }
-        CategoryFieldPair ret = {
-            (field >> 4),
-            (field & 0xf)
-        };
-        if (ret.category == 0) {
-            ret.category = UFIELD_CATEGORY_NUMBER;
-        }
-        return ret;
-    }
+inline UFieldCategory FormattedStringBuilder::Field::getCategory() const {
+    return static_cast<UFieldCategory>(bits >> 4);
+}
 
-    static inline bool isNumericField(FormattedStringBuilder::Field field) {
-        int8_t category = field >> 4;
-        return category == 0 || category == UFIELD_CATEGORY_NUMBER;
-    }
-};
+inline int32_t FormattedStringBuilder::Field::getField() const {
+    return bits & 0xf;
+}
+
+inline bool FormattedStringBuilder::Field::isNumeric() const {
+    return getCategory() == UFIELD_CATEGORY_NUMBER || *this == kGeneralNumericField;
+}
+
+inline bool FormattedStringBuilder::Field::isUndefined() const {
+    return getCategory() == UFIELD_CATEGORY_UNDEFINED;
+}
+
+inline bool FormattedStringBuilder::Field::operator==(const Field& other) const {
+    return bits == other.bits;
+}
+
+inline bool FormattedStringBuilder::Field::operator!=(const Field& other) const {
+    return bits != other.bits;
+}
 
 U_NAMESPACE_END
 

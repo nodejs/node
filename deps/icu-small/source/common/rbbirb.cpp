@@ -161,6 +161,19 @@ RBBIDataHeader *RBBIRuleBuilder::flattenData() {
                                 + reverseTableSize
                                 + statusTableSize + trieSize + rulesSize;
 
+#ifdef RBBI_DEBUG
+    if (fDebugEnv && uprv_strstr(fDebugEnv, "size")) {
+        RBBIDebugPrintf("Header Size:        %8d\n", headerSize);
+        RBBIDebugPrintf("Forward Table Size: %8d\n", forwardTableSize);
+        RBBIDebugPrintf("Reverse Table Size: %8d\n", reverseTableSize);
+        RBBIDebugPrintf("Trie Size:          %8d\n", trieSize);
+        RBBIDebugPrintf("Status Table Size:  %8d\n", statusTableSize);
+        RBBIDebugPrintf("Rules Size:         %8d\n", rulesSize);
+        RBBIDebugPrintf("-----------------------------\n");
+        RBBIDebugPrintf("Total Size:         %8d\n", totalSize);
+    }
+#endif
+
     RBBIDataHeader  *data     = (RBBIDataHeader *)uprv_malloc(totalSize);
     if (data == NULL) {
         *fStatus = U_MEMORY_ALLOCATION_ERROR;

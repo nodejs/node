@@ -56,7 +56,6 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
      */
     CurrencyUnit(ConstChar16Ptr isoCode, UErrorCode &ec);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Construct an object with the given ISO currency code.
      *
@@ -64,10 +63,9 @@ class U_I18N_API CurrencyUnit: public MeasureUnit {
      * length 3. If invalid, the currency is initialized to XXX.
      * @param ec input-output error code. If the isoCode is invalid,
      * then this will be set to a failing value.
-     * @draft ICU 64
+     * @stable ICU 64
      */
     CurrencyUnit(StringPiece isoCode, UErrorCode &ec);
-#endif  /* U_HIDE_DRAFT_API */
 
     /**
      * Copy constructor

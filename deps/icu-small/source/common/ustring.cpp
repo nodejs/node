@@ -1451,6 +1451,14 @@ u_unescape(const char *src, UChar *dest, int32_t destCapacity) {
     } \
 } UPRV_BLOCK_MACRO_END
 
+U_CAPI UChar U_EXPORT2
+u_asciiToUpper(UChar c) {
+    if (u'a' <= c && c <= u'z') {
+        c = c + u'A' - u'a';
+    }
+    return c;
+}
+
 U_CAPI int32_t U_EXPORT2
 u_terminateUChars(UChar *dest, int32_t destCapacity, int32_t length, UErrorCode *pErrorCode) {
     __TERMINATE_STRING(dest, destCapacity, length, pErrorCode);

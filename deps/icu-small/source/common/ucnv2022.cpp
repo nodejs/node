@@ -478,7 +478,7 @@ setInitialStateFromUnicodeKR(UConverter* converter,UConverterDataISO2022 *myConv
 static void U_CALLCONV
 _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
 
-    char myLocale[6]={' ',' ',' ',' ',' ',' '};
+    char myLocale[7]={' ',' ',' ',' ',' ',' ', '\0'};
 
     cnv->extraInfo = uprv_malloc (sizeof (UConverterDataISO2022));
     if(cnv->extraInfo != NULL) {
@@ -493,7 +493,7 @@ _ISO2022Open(UConverter *cnv, UConverterLoadArgs *pArgs, UErrorCode *errorCode){
         myConverterData->currentType = ASCII1;
         cnv->fromUnicodeStatus =FALSE;
         if(pArgs->locale){
-            uprv_strncpy(myLocale, pArgs->locale, sizeof(myLocale));
+            uprv_strncpy(myLocale, pArgs->locale, sizeof(myLocale)-1);
         }
         version = pArgs->options & UCNV_OPTIONS_VERSION_MASK;
         myConverterData->version = version;

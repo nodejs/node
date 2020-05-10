@@ -18,6 +18,8 @@
 *   Internal function for sorting arrays.
 */
 
+#include <cstddef>
+
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #include "uarrsort.h"
@@ -35,7 +37,7 @@ enum {
 };
 
 static constexpr int32_t sizeInMaxAlignTs(int32_t sizeInBytes) {
-    return (sizeInBytes + sizeof(max_align_t) - 1) / sizeof(max_align_t);
+    return (sizeInBytes + sizeof(std::max_align_t) - 1) / sizeof(std::max_align_t);
 }
 
 /* UComparator convenience implementations ---------------------------------- */
@@ -139,7 +141,7 @@ static void
 insertionSort(char *array, int32_t length, int32_t itemSize,
               UComparator *cmp, const void *context, UErrorCode *pErrorCode) {
 
-    icu::MaybeStackArray<max_align_t, sizeInMaxAlignTs(STACK_ITEM_SIZE)> v;
+    icu::MaybeStackArray<std::max_align_t, sizeInMaxAlignTs(STACK_ITEM_SIZE)> v;
     if (sizeInMaxAlignTs(itemSize) > v.getCapacity() &&
             v.resize(sizeInMaxAlignTs(itemSize)) == nullptr) {
         *pErrorCode = U_MEMORY_ALLOCATION_ERROR;
@@ -233,7 +235,7 @@ static void
 quickSort(char *array, int32_t length, int32_t itemSize,
             UComparator *cmp, const void *context, UErrorCode *pErrorCode) {
     /* allocate two intermediate item variables (x and w) */
-    icu::MaybeStackArray<max_align_t, sizeInMaxAlignTs(STACK_ITEM_SIZE) * 2> xw;
+    icu::MaybeStackArray<std::max_align_t, sizeInMaxAlignTs(STACK_ITEM_SIZE) * 2> xw;
     if(sizeInMaxAlignTs(itemSize)*2 > xw.getCapacity() &&
             xw.resize(sizeInMaxAlignTs(itemSize) * 2) == nullptr) {
         *pErrorCode=U_MEMORY_ALLOCATION_ERROR;

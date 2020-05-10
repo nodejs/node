@@ -20,12 +20,12 @@
  * \brief C++ API: Locale matcher: User's desired locales vs. application's supported locales.
  */
 
-#ifndef U_HIDE_DRAFT_API
+#ifndef U_FORCE_HIDE_DRAFT_API
 
 /**
  * Builder option for whether the language subtag or the script subtag is most important.
  *
- * @see Builder#setFavorSubtag(FavorSubtag)
+ * @see Builder#setFavorSubtag(ULocMatchFavorSubtag)
  * @draft ICU 65
  */
 enum ULocMatchFavorSubtag {
@@ -51,7 +51,7 @@ typedef enum ULocMatchFavorSubtag ULocMatchFavorSubtag;
  * Builder option for whether all desired locales are treated equally or
  * earlier ones are preferred.
  *
- * @see Builder#setDemotionPerDesiredLocale(Demotion)
+ * @see Builder#setDemotionPerDesiredLocale(ULocMatchDemotion)
  * @draft ICU 65
  */
 enum ULocMatchDemotion {
@@ -91,6 +91,42 @@ enum ULocMatchDemotion {
 };
 #ifndef U_IN_DOXYGEN
 typedef enum ULocMatchDemotion ULocMatchDemotion;
+#endif
+
+/**
+ * Builder option for whether to include or ignore one-way (fallback) match data.
+ * The LocaleMatcher uses CLDR languageMatch data which includes fallback (oneway=true) entries.
+ * Sometimes it is desirable to ignore those.
+ *
+ * <p>For example, consider a web application with the UI in a given language,
+ * with a link to another, related web app.
+ * The link should include the UI language, and the target server may also use
+ * the client’s Accept-Language header data.
+ * The target server has its own list of supported languages.
+ * One may want to favor UI language consistency, that is,
+ * if there is a decent match for the original UI language, we want to use it,
+ * but not if it is merely a fallback.
+ *
+ * @see Builder#setDirection(ULocMatchDirection)
+ * @draft ICU 67
+ */
+enum ULocMatchDirection {
+    /**
+     * Locale matching includes one-way matches such as Breton→French. (default)
+     *
+     * @draft ICU 67
+     */
+    ULOCMATCH_DIRECTION_WITH_ONE_WAY,
+    /**
+     * Locale matching limited to two-way matches including e.g. Danish↔Norwegian
+     * but ignoring one-way matches.
+     *
+     * @draft ICU 67
+     */
+    ULOCMATCH_DIRECTION_ONLY_TWO_WAY
+};
+#ifndef U_IN_DOXYGEN
+typedef enum ULocMatchDirection ULocMatchDirection;
 #endif
 
 struct UHashtable;
@@ -182,6 +218,7 @@ public:
          */
         Result &operator=(Result &&src) U_NOEXCEPT;
 
+#ifndef U_HIDE_DRAFT_API
         /**
          * Returns the best-matching desired locale.
          * nullptr if the list of desired locales is empty or if none matched well enough.
@@ -236,6 +273,7 @@ public:
          * @draft ICU 65
          */
         Locale makeResolvedLocale(UErrorCode &errorCode) const;
+#endif  // U_HIDE_DRAFT_API
 
     private:
         Result(const Locale *desired, const Locale *supported,
@@ -298,6 +336,7 @@ public:
          */
         Builder &operator=(Builder &&src) U_NOEXCEPT;
 
+#ifndef U_HIDE_DRAFT_API
         /**
          * Parses an Accept-Language string
          * (<a href="https://tools.ietf.org/html/rfc2616#section-14.4">RFC 2616 Section 14.4</a>),
@@ -413,6 +452,21 @@ public:
         Builder &setDemotionPerDesiredLocale(ULocMatchDemotion demotion);
 
         /**
+         * Option for whether to include or ignore one-way (fallback) match data.
+         * By default, they are included.
+         *
+         * @param direction the match direction to set.
+         * @return this Builder object
+         * @draft ICU 67
+         */
+        Builder &setDirection(ULocMatchDirection direction) {
+            if (U_SUCCESS(errorCode_)) {
+                direction_ = direction;
+            }
+            return *this;
+        }
+
+        /**
          * Sets the UErrorCode if an error occurred while setting parameters.
          * Preserves older error codes in the outErrorCode.
          *
@@ -435,6 +489,7 @@ public:
          * @draft ICU 65
          */
         LocaleMatcher build(UErrorCode &errorCode) const;
+#endif  // U_HIDE_DRAFT_API
 
     private:
         friend class LocaleMatcher;
@@ -451,6 +506,7 @@ public:
         ULocMatchDemotion demotion_ = ULOCMATCH_DEMOTION_REGION;
         Locale *defaultLocale_ = nullptr;
         ULocMatchFavorSubtag favor_ = ULOCMATCH_FAVOR_LANGUAGE;
+        ULocMatchDirection direction_ = ULOCMATCH_DIRECTION_WITH_ONE_WAY;
     };
 
     // FYI No public LocaleMatcher constructors in C++; use the Builder.
@@ -479,6 +535,7 @@ public:
      */
     LocaleMatcher &operator=(LocaleMatcher &&src) U_NOEXCEPT;
 
+#ifndef U_HIDE_DRAFT_API
     /**
      * Returns the supported locale which best matches the desired locale.
      *
@@ -546,6 +603,7 @@ public:
      * @draft ICU 65
      */
     Result getBestMatchResult(Locale::Iterator &desiredLocales, UErrorCode &errorCode) const;
+#endif  // U_HIDE_DRAFT_API
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -574,6 +632,8 @@ private:
     LocaleMatcher(const LocaleMatcher &other) = delete;
     LocaleMatcher &operator=(const LocaleMatcher &other) = delete;
 
+    int32_t putIfAbsent(const LSR &lsr, int32_t i, int32_t suppLength, UErrorCode &errorCode);
+
     int32_t getBestSuppIndex(LSR desiredLSR, LocaleLsrIterator *remainingIter, UErrorCode &errorCode) const;
 
     const XLikelySubtags &likelySubtags;
@@ -581,6 +641,7 @@ private:
     int32_t thresholdDistance;
     int32_t demotionPerDesiredLocale;
     ULocMatchFavorSubtag favorSubtag;
+    ULocMatchDirection direction;
 
     // These are in input order.
     const Locale ** supportedLocales;
@@ -595,11 +656,10 @@ private:
     int32_t supportedLSRsLength;
     Locale *ownedDefaultLocale;
     const Locale *defaultLocale;
-    int32_t defaultLocaleIndex;
 };
 
 U_NAMESPACE_END
 
-#endif  // U_HIDE_DRAFT_API
+#endif  // U_FORCE_HIDE_DRAFT_API
 #endif  // U_SHOW_CPLUSPLUS_API
 #endif  // __LOCALEMATCHER_H__
