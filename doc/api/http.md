@@ -584,7 +584,11 @@ changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/20230
     description: The `aborted` property is no longer a timestamp number.
+  deprecated:
+    - REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`request.destroyed`][] instead.
 
 * {boolean}
 
@@ -1799,7 +1803,12 @@ status, headers and data.
 ### Event: `'aborted'`
 <!-- YAML
 added: v0.3.8
+changes:
+  deprecated:
+    - REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use the `'error'` event instead.
 
 Emitted when the request has been aborted.
 

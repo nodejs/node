@@ -2668,6 +2668,34 @@ Type: Documentation-only
 
 Use [`request.destroy()`][] instead of [`request.abort()`][].
 
+<a id="DEP0XXX"></a>
+### DEP0XX: Use `request.destroyed` instead of `request.aborted`
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33345
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Use [`request.destroyed`][] instead of [`request.aborted`][].
+
+<a id="DEP0XXX"></a>
+### DEP0XX: Use `'error'` event instead of `'aborted'`
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33345
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Use `'error'` event instead of `'aborted'`.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
