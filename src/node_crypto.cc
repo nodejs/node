@@ -2925,9 +2925,9 @@ ByteSource ByteSource::NullTerminatedCopy(Environment* env,
                                     : FromString(env, value.As<String>(), true);
 }
 
-ByteSource ByteSource::FromSymmetricKeyObject(Local<Value> handle) {
+ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
   CHECK(handle->IsObject());
-  KeyObject* key = Unwrap<KeyObject>(handle.As<Object>());
+  KeyObjectHandle* key = Unwrap<KeyObjectHandle>(handle.As<Object>());
   CHECK_NOT_NULL(key);
   return Foreign(key->GetSymmetricKey(), key->GetSymmetricKeySize());
 }
@@ -3073,7 +3073,7 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
                         "Failed to read private key");
   } else {
     CHECK(args[*offset]->IsObject() && allow_key_object);
-    KeyObject* key;
+    KeyObjectHandle* key;
     ASSIGN_OR_RETURN_UNWRAP(&key, args[*offset].As<Object>(), ManagedEVPPKey());
     CHECK_EQ(key->GetKeyType(), kKeyTypePrivate);
     (*offset) += 4;
@@ -3133,7 +3133,7 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
                         "Failed to read asymmetric key");
   } else {
     CHECK(args[*offset]->IsObject());
-    KeyObject* key = Unwrap<KeyObject>(args[*offset].As<Object>());
+    KeyObjectHandle* key = Unwrap<KeyObjectHandle>(args[*offset].As<Object>());
     CHECK_NOT_NULL(key);
     CHECK_NE(key->GetKeyType(), kKeyTypeSecret);
     (*offset) += 4;
@@ -3243,10 +3243,11 @@ EVP_PKEY* ManagedEVPPKey::get() const {
   return pkey_.get();
 }
 
-Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
+Local<Function> KeyObjectHandle::Initialize(Environment* env,
+                                            Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
-      KeyObject::kInternalFieldCount);
+      KeyObjectHandle::kInternalFieldCount);
   t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", Init);
@@ -3258,25 +3259,25 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObject"),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObjectHandle"),
               function).Check();
 
   return function;
 }
 
-MaybeLocal<Object> KeyObject::Create(Environment* env,
-                                     KeyType key_type,
-                                     const ManagedEVPPKey& pkey) {
+MaybeLocal<Object> KeyObjectHandle::Create(Environment* env,
+                                           KeyType key_type,
+                                           const ManagedEVPPKey& pkey) {
   CHECK_NE(key_type, kKeyTypeSecret);
   Local<Value> type = Integer::New(env->isolate(), key_type);
   Local<Object> obj;
-  if (!env->crypto_key_object_constructor()
+  if (!env->crypto_key_object_handle_constructor()
            ->NewInstance(env->context(), 1, &type)
            .ToLocal(&obj)) {
     return MaybeLocal<Object>();
   }
 
-  KeyObject* key = Unwrap<KeyObject>(obj);
+  KeyObjectHandle* key = Unwrap<KeyObjectHandle>(obj);
   CHECK_NOT_NULL(key);
   if (key_type == kKeyTypePublic)
     key->InitPublic(pkey);
@@ -3285,44 +3286,44 @@ MaybeLocal<Object> KeyObject::Create(Environment* env,
   return obj;
 }
 
-ManagedEVPPKey KeyObject::GetAsymmetricKey() const {
+ManagedEVPPKey KeyObjectHandle::GetAsymmetricKey() const {
   CHECK_NE(key_type_, kKeyTypeSecret);
   return this->asymmetric_key_;
 }
 
-const char* KeyObject::GetSymmetricKey() const {
+const char* KeyObjectHandle::GetSymmetricKey() const {
   CHECK_EQ(key_type_, kKeyTypeSecret);
   return this->symmetric_key_.get();
 }
 
-size_t KeyObject::GetSymmetricKeySize() const {
+size_t KeyObjectHandle::GetSymmetricKeySize() const {
   CHECK_EQ(key_type_, kKeyTypeSecret);
   return this->symmetric_key_len_;
 }
 
-void KeyObject::New(const FunctionCallbackInfo<Value>& args) {
+void KeyObjectHandle::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   CHECK(args[0]->IsInt32());
   KeyType key_type = static_cast<KeyType>(args[0].As<Uint32>()->Value());
   Environment* env = Environment::GetCurrent(args);
-  new KeyObject(env, args.This(), key_type);
+  new KeyObjectHandle(env, args.This(), key_type);
 }
 
-KeyType KeyObject::GetKeyType() const {
+KeyType KeyObjectHandle::GetKeyType() const {
   return this->key_type_;
 }
 
-KeyObject::KeyObject(Environment* env,
-                     Local<Object> wrap,
-                     KeyType key_type)
+KeyObjectHandle::KeyObjectHandle(Environment* env,
+                                 Local<Object> wrap,
+                                 KeyType key_type)
     : BaseObject(env, wrap),
       key_type_(key_type),
       symmetric_key_(nullptr, nullptr) {
   MakeWeak();
 }
 
-void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -3358,7 +3359,7 @@ void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void KeyObject::InitSecret(Local<ArrayBufferView> abv) {
+void KeyObjectHandle::InitSecret(Local<ArrayBufferView> abv) {
   CHECK_EQ(this->key_type_, kKeyTypeSecret);
 
   size_t key_len = abv->ByteLength();
@@ -3371,19 +3372,19 @@ void KeyObject::InitSecret(Local<ArrayBufferView> abv) {
   this->symmetric_key_len_ = key_len;
 }
 
-void KeyObject::InitPublic(const ManagedEVPPKey& pkey) {
+void KeyObjectHandle::InitPublic(const ManagedEVPPKey& pkey) {
   CHECK_EQ(this->key_type_, kKeyTypePublic);
   CHECK(pkey);
   this->asymmetric_key_ = pkey;
 }
 
-void KeyObject::InitPrivate(const ManagedEVPPKey& pkey) {
+void KeyObjectHandle::InitPrivate(const ManagedEVPPKey& pkey) {
   CHECK_EQ(this->key_type_, kKeyTypePrivate);
   CHECK(pkey);
   this->asymmetric_key_ = pkey;
 }
 
-Local<Value> KeyObject::GetAsymmetricKeyType() const {
+Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
   CHECK_NE(this->key_type_, kKeyTypeSecret);
   switch (EVP_PKEY_id(this->asymmetric_key_.get())) {
   case EVP_PKEY_RSA:
@@ -3409,21 +3410,23 @@ Local<Value> KeyObject::GetAsymmetricKeyType() const {
   }
 }
 
-void KeyObject::GetAsymmetricKeyType(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::GetAsymmetricKeyType(
+    const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
 }
 
-void KeyObject::GetSymmetricKeySize(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::GetSymmetricKeySize(
+    const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
   args.GetReturnValue().Set(static_cast<uint32_t>(key->GetSymmetricKeySize()));
 }
 
-void KeyObject::Export(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   MaybeLocal<Value> result;
@@ -3450,17 +3453,17 @@ void KeyObject::Export(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(result.ToLocalChecked());
 }
 
-Local<Value> KeyObject::ExportSecretKey() const {
+Local<Value> KeyObjectHandle::ExportSecretKey() const {
   return Buffer::Copy(env(), symmetric_key_.get(), symmetric_key_len_)
       .ToLocalChecked();
 }
 
-MaybeLocal<Value> KeyObject::ExportPublicKey(
+MaybeLocal<Value> KeyObjectHandle::ExportPublicKey(
     const PublicKeyEncodingConfig& config) const {
   return WritePublicKey(env(), asymmetric_key_.get(), config);
 }
 
-MaybeLocal<Value> KeyObject::ExportPrivateKey(
+MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
     const PrivateKeyEncodingConfig& config) const {
   return WritePrivateKey(env(), asymmetric_key_.get(), config);
 }
@@ -3663,7 +3666,7 @@ static ByteSource GetSecretKeyBytes(Environment* env, Local<Value> value) {
   // in JS to avoid creating an unprotected copy on the heap.
   return value->IsString() || Buffer::HasInstance(value) ?
            ByteSource::FromStringOrBuffer(env, value) :
-           ByteSource::FromSymmetricKeyObject(value);
+           ByteSource::FromSymmetricKeyObjectHandle(value);
 }
 
 void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
@@ -6277,7 +6280,8 @@ class GenerateKeyPairJob : public CryptoJob {
     if (public_key_encoding_.output_key_object_) {
       // Note that this has the downside of containing sensitive data of the
       // private key.
-      if (!KeyObject::Create(env(), kKeyTypePublic, pkey_).ToLocal(pubkey))
+      if (!KeyObjectHandle::Create(env(), kKeyTypePublic, pkey_)
+               .ToLocal(pubkey))
         return false;
     } else {
       if (!WritePublicKey(env(), pkey_.get(), public_key_encoding_)
@@ -6287,7 +6291,7 @@ class GenerateKeyPairJob : public CryptoJob {
 
     // Now do the same for the private key.
     if (private_key_encoding_.output_key_object_) {
-      if (!KeyObject::Create(env(), kKeyTypePrivate, pkey_)
+      if (!KeyObjectHandle::Create(env(), kKeyTypePrivate, pkey_)
               .ToLocal(privkey))
         return false;
     } else {
@@ -6731,10 +6735,10 @@ void StatelessDiffieHellman(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject() && args[1]->IsObject());
-  KeyObject* our_key_object;
+  KeyObjectHandle* our_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
   CHECK_EQ(our_key_object->GetKeyType(), kKeyTypePrivate);
-  KeyObject* their_key_object;
+  KeyObjectHandle* their_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
   CHECK_NE(their_key_object->GetKeyType(), kKeyTypeSecret);
 
@@ -6865,7 +6869,8 @@ void Initialize(Local<Object> target,
 
   Environment* env = Environment::GetCurrent(context);
   SecureContext::Initialize(env, target);
-  env->set_crypto_key_object_constructor(KeyObject::Initialize(env, target));
+  env->set_crypto_key_object_handle_constructor(
+      KeyObjectHandle::Initialize(env, target));
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
   ECDH::Initialize(env, target);

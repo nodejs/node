@@ -343,7 +343,7 @@ class ByteSource {
   static ByteSource NullTerminatedCopy(Environment* env,
                                        v8::Local<v8::Value> value);
 
-  static ByteSource FromSymmetricKeyObject(v8::Local<v8::Value> handle);
+  static ByteSource FromSymmetricKeyObjectHandle(v8::Local<v8::Value> handle);
 
   ByteSource(const ByteSource&) = delete;
   ByteSource& operator=(const ByteSource&) = delete;
@@ -408,7 +408,7 @@ class ManagedEVPPKey {
   EVPKeyPointer pkey_;
 };
 
-class KeyObject : public BaseObject {
+class KeyObjectHandle : public BaseObject {
  public:
   static v8::Local<v8::Function> Initialize(Environment* env,
                                             v8::Local<v8::Object> target);
@@ -419,8 +419,8 @@ class KeyObject : public BaseObject {
 
   // TODO(tniessen): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(KeyObject)
-  SET_SELF_SIZE(KeyObject)
+  SET_MEMORY_INFO_NAME(KeyObjectHandle)
+  SET_SELF_SIZE(KeyObjectHandle)
 
   KeyType GetKeyType() const;
 
@@ -452,7 +452,9 @@ class KeyObject : public BaseObject {
   v8::MaybeLocal<v8::Value> ExportPrivateKey(
       const PrivateKeyEncodingConfig& config) const;
 
-  KeyObject(Environment* env, v8::Local<v8::Object> wrap, KeyType key_type);
+  KeyObjectHandle(Environment* env,
+                  v8::Local<v8::Object> wrap,
+                  KeyType key_type);
 
  private:
   const KeyType key_type_;
