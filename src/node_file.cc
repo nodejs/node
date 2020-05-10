@@ -396,28 +396,8 @@ int FileHandle::ReadStart() {
     // for creating the new instance.
     HandleScope handle_scope(env()->isolate());
     AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(this);
-
-    auto& freelist = binding_data_->file_handle_read_wrap_freelist;
-    if (freelist.size() > 0) {
-      read_wrap = std::move(freelist.back());
-      freelist.pop_back();
-      // Use a fresh async resource.
-      // Lifetime is ensured via AsyncWrap::resource_.
-      Local<Object> resource = Object::New(env()->isolate());
-      USE(resource->Set(
-          env()->context(), env()->handle_string(), read_wrap->object()));
-      read_wrap->AsyncReset(resource);
-      read_wrap->file_handle_ = this;
-    } else {
-      Local<Object> wrap_obj;
-      if (!env()
-               ->filehandlereadwrap_template()
-               ->NewInstance(env()->context())
-               .ToLocal(&wrap_obj)) {
-        return UV_EBUSY;
-      }
-      read_wrap = MakeDetachedBaseObject<FileHandleReadWrap>(this, wrap_obj);
-    }
+    
+    delete read_length_
   }
   int64_t recommended_read = 65536;
   if (read_length_ >= 0 && read_length_ <= recommended_read)
