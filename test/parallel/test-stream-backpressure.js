@@ -32,8 +32,9 @@ const rs = new stream.Readable({
 
 const ws = stream.Writable({
   write: common.mustCall(function(data, enc, cb) {
-    setImmediate(cb);
-  }, 41 * 10)
+    assert.strictEqual(total, data.length);
+    cb();
+  }, 10)
 });
 
 rs.pipe(ws);

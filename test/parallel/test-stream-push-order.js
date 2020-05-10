@@ -42,11 +42,11 @@ s._read = function(n) {
   }
 };
 
-s.read(0);
+let chunk;
+let res = '';
 
-// ACTUALLY [1, 3, 5, 6, 4, 2]
+while ((chunk = s.read())) {
+  res += chunk;
+}
 
-process.on('exit', function() {
-  assert.deepStrictEqual(s.readableBuffer.join(','), '1,2,3,4,5,6');
-  console.log('ok');
-});
+assert.deepStrictEqual(res, '123456');

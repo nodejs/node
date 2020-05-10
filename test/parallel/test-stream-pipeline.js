@@ -361,7 +361,7 @@ const net = require('net');
 
   const ws = new Writable({
     write(data, enc, cb) {
-      assert.deepStrictEqual(data, expected.shift());
+      assert.deepStrictEqual(data, Buffer.concat(expected));
       cb();
     }
   });
