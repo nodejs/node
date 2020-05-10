@@ -33,7 +33,6 @@ server.listen(0, common.mustCall(() => {
     socket.on('timeout', common.mustCall(() => {
       // Free socket should be destroyed
       assert.strictEqual(socket.writable, false);
-      // Sending new requests will fail
       clearTimeout(timer);
       const newReq = http.get({
         path: '/',
