@@ -272,6 +272,11 @@ void Worker::Run() {
 
     DeleteFnPtr<Environment, FreeEnvironment> env_;
     auto cleanup_env = OnScopeLeave([&]() {
+      // TODO(addaleax): This call is harmless but should not be necessary.
+      // Figure out why V8 is raising a DCHECK() here without it
+      // (in test/parallel/test-async-hooks-worker-asyncfn-terminate-4.js).
+      isolate_->CancelTerminateExecution();
+
       if (!env_) return;
       env_->set_can_call_into_js(false);
       Isolate::DisallowJavascriptExecutionScope disallow_js(isolate_,
