@@ -463,6 +463,15 @@ class KeyObjectHandle : public BaseObject {
   ManagedEVPPKey asymmetric_key_;
 };
 
+class NativeKeyObject : public BaseObject {
+ public:
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(NativeKeyObject)
+  SET_SELF_SIZE(NativeKeyObject)
+};
+
 class CipherBase : public BaseObject {
  public:
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
