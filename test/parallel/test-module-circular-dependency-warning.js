@@ -38,3 +38,8 @@ assert.strictEqual(esmTranspiledExport.__esModule, true);
 const halfTranspiledExport =
   require(fixtures.path('cycles', 'warning-esm-half-transpiled-a.js'));
 assert.strictEqual(halfTranspiledExport.__esModule, undefined);
+
+// No circular check is done to prevent triggering proxy traps, if
+// module.exports is set to a proxy that contains a `getPrototypeOf` or
+// `setPrototypeOf` trap.
+require(fixtures.path('cycles', 'warning-skip-proxy-traps-a.js'));
