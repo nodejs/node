@@ -6591,6 +6591,17 @@ static int test_quic_api(void)
             || !TEST_true(SSL_process_quic_post_handshake(clientssl)))
         goto end;
 
+    /* Dummy handshake call should succeed */
+    if (!TEST_true(SSL_do_handshake(clientssl)))
+        goto end;
+    /* Test that we (correctly) fail to send KeyUpdate */
+    if (!TEST_true(SSL_key_update(clientssl, SSL_KEY_UPDATE_NOT_REQUESTED))
+            || !TEST_int_le(SSL_do_handshake(clientssl), 0))
+        goto end;
+    if (!TEST_true(SSL_key_update(serverssl, SSL_KEY_UPDATE_NOT_REQUESTED))
+            || !TEST_int_le(SSL_do_handshake(serverssl), 0))
+        goto end;
+
     testresult = 1;
 
 end:
