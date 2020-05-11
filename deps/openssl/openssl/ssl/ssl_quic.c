@@ -92,6 +92,7 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
                           const uint8_t *data, size_t len)
 {
     size_t l;
+    uint8_t mt;
 
     if (!SSL_IS_QUIC(ssl)) {
         SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
@@ -131,9 +132,14 @@ int SSL_provide_quic_data(SSL *ssl, OSSL_ENCRYPTION_LEVEL level,
             return 0;
         }
         /* TLS Handshake message header has 1-byte type and 3-byte length */
+        mt = *data;
         p = data + 1;
         n2l3(p, l);
         l += SSL3_HM_HEADER_LENGTH;
+        if (mt == SSL3_MT_KEY_UPDATE) {
+            SSLerr(SSL_F_SSL_PROVIDE_QUIC_DATA, SSL_R_UNEXPECTED_MESSAGE);
+            return 0;
+        }
 
         qd = OPENSSL_zalloc(sizeof(QUIC_DATA) + l);
         if (qd == NULL) {

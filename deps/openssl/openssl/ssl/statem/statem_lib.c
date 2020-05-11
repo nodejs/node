@@ -630,6 +630,14 @@ int tls_construct_finished(SSL *s, WPACKET *pkt)
 
 int tls_construct_key_update(SSL *s, WPACKET *pkt)
 {
+#ifndef OPENSSL_NO_QUIC
+    if (SSL_is_quic(s)) {
+        /* TLS KeyUpdate is not used for QUIC, so this is an error. */
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_KEY_UPDATE,
+                 ERR_R_INTERNAL_ERROR);
+        return 0;
+    }
+#endif
     if (!WPACKET_put_bytes_u8(pkt, s->key_update)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_F_TLS_CONSTRUCT_KEY_UPDATE,
                  ERR_R_INTERNAL_ERROR);
@@ -653,6 +661,14 @@ MSG_PROCESS_RETURN tls_process_key_update(SSL *s, PACKET *pkt)
                  SSL_R_NOT_ON_RECORD_BOUNDARY);
         return MSG_PROCESS_ERROR;
     }
+
+#ifndef OPENSSL_NO_QUIC
+    if (SSL_is_quic(s)) {
+        SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE, SSL_F_TLS_PROCESS_KEY_UPDATE,
+                 SSL_R_UNEXPECTED_MESSAGE);
+        return MSG_PROCESS_ERROR;
+    }
+#endif
 
     if (!PACKET_get_1(pkt, &updatetype)
             || PACKET_remaining(pkt) != 0) {
