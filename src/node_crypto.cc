@@ -2929,7 +2929,8 @@ ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
   CHECK(handle->IsObject());
   KeyObjectHandle* key = Unwrap<KeyObjectHandle>(handle.As<Object>());
   CHECK_NOT_NULL(key);
-  return Foreign(key->GetSymmetricKey(), key->GetSymmetricKeySize());
+  return Foreign(key->Data()->GetSymmetricKey(),
+                 key->Data()->GetSymmetricKeySize());
 }
 
 ByteSource::ByteSource(const char* data, char* allocated_data, size_t size)
@@ -3075,9 +3076,9 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
     CHECK(args[*offset]->IsObject() && allow_key_object);
     KeyObjectHandle* key;
     ASSIGN_OR_RETURN_UNWRAP(&key, args[*offset].As<Object>(), ManagedEVPPKey());
-    CHECK_EQ(key->GetKeyType(), kKeyTypePrivate);
+    CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePrivate);
     (*offset) += 4;
-    return key->GetAsymmetricKey();
+    return key->Data()->GetAsymmetricKey();
   }
 }
 
@@ -3135,9 +3136,9 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
     CHECK(args[*offset]->IsObject());
     KeyObjectHandle* key = Unwrap<KeyObjectHandle>(args[*offset].As<Object>());
     CHECK_NOT_NULL(key);
-    CHECK_NE(key->GetKeyType(), kKeyTypeSecret);
+    CHECK_NE(key->Data()->GetKeyType(), kKeyTypeSecret);
     (*offset) += 4;
-    return key->GetAsymmetricKey();
+    return key->Data()->GetAsymmetricKey();
   }
 }
 
@@ -3243,6 +3244,48 @@ EVP_PKEY* ManagedEVPPKey::get() const {
   return pkey_.get();
 }
 
+KeyObjectData* KeyObjectData::CreateSecret(v8::Local<v8::ArrayBufferView> abv) {
+  size_t key_len = abv->ByteLength();
+  char* mem = MallocOpenSSL<char>(key_len);
+  abv->CopyContents(mem, key_len);
+  KeyObjectData* data = new KeyObjectData();
+  data->key_type_ = kKeyTypeSecret;
+  data->symmetric_key_ = std::unique_ptr<char, std::function<void(char*)>>(mem,
+          [key_len](char* p) {
+            OPENSSL_clear_free(p, key_len);
+          });
+  data->symmetric_key_len_ = key_len;
+  return data;
+}
+
+KeyObjectData* KeyObjectData::CreateAsymmetric(KeyType key_type,
+                                               const ManagedEVPPKey& pkey) {
+  CHECK(pkey);
+  KeyObjectData* data = new KeyObjectData();
+  data->key_type_ = key_type;
+  data->asymmetric_key_ = pkey;
+  return data;
+}
+
+KeyType KeyObjectData::GetKeyType() const {
+  return key_type_;
+}
+
+ManagedEVPPKey KeyObjectData::GetAsymmetricKey() const {
+  CHECK_NE(key_type_, kKeyTypeSecret);
+  return asymmetric_key_;
+}
+
+const char* KeyObjectData::GetSymmetricKey() const {
+  CHECK_EQ(key_type_, kKeyTypeSecret);
+  return symmetric_key_.get();
+}
+
+size_t KeyObjectData::GetSymmetricKeySize() const {
+  CHECK_EQ(key_type_, kKeyTypeSecret);
+  return symmetric_key_len_;
+}
+
 Local<Function> KeyObjectHandle::Initialize(Environment* env,
                                             Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
@@ -3279,46 +3322,23 @@ MaybeLocal<Object> KeyObjectHandle::Create(Environment* env,
 
   KeyObjectHandle* key = Unwrap<KeyObjectHandle>(obj);
   CHECK_NOT_NULL(key);
-  if (key_type == kKeyTypePublic)
-    key->InitPublic(pkey);
-  else
-    key->InitPrivate(pkey);
+  key->data_.reset(KeyObjectData::CreateAsymmetric(key_type, pkey));
   return obj;
 }
 
-ManagedEVPPKey KeyObjectHandle::GetAsymmetricKey() const {
-  CHECK_NE(key_type_, kKeyTypeSecret);
-  return this->asymmetric_key_;
-}
-
-const char* KeyObjectHandle::GetSymmetricKey() const {
-  CHECK_EQ(key_type_, kKeyTypeSecret);
-  return this->symmetric_key_.get();
-}
-
-size_t KeyObjectHandle::GetSymmetricKeySize() const {
-  CHECK_EQ(key_type_, kKeyTypeSecret);
-  return this->symmetric_key_len_;
+const KeyObjectData* KeyObjectHandle::Data() {
+  return data_.get();
 }
 
 void KeyObjectHandle::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK(args[0]->IsInt32());
-  KeyType key_type = static_cast<KeyType>(args[0].As<Uint32>()->Value());
   Environment* env = Environment::GetCurrent(args);
-  new KeyObjectHandle(env, args.This(), key_type);
-}
-
-KeyType KeyObjectHandle::GetKeyType() const {
-  return this->key_type_;
+  new KeyObjectHandle(env, args.This());
 }
 
 KeyObjectHandle::KeyObjectHandle(Environment* env,
-                                 Local<Object> wrap,
-                                 KeyType key_type)
-    : BaseObject(env, wrap),
-      key_type_(key_type),
-      symmetric_key_(nullptr, nullptr) {
+                                 Local<Object> wrap)
+    : BaseObject(env, wrap) {
   MakeWeak();
 }
 
@@ -3327,66 +3347,45 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
+  CHECK(args[0]->IsInt32());
+  KeyType type = static_cast<KeyType>(args[0].As<Uint32>()->Value());
+
   unsigned int offset;
   ManagedEVPPKey pkey;
 
-  switch (key->key_type_) {
+  switch (type) {
   case kKeyTypeSecret:
-    CHECK_EQ(args.Length(), 1);
-    CHECK(args[0]->IsArrayBufferView());
-    key->InitSecret(args[0].As<ArrayBufferView>());
+    CHECK_EQ(args.Length(), 2);
+    CHECK(args[1]->IsArrayBufferView());
+    key->data_.reset(
+        KeyObjectData::CreateSecret(args[1].As<ArrayBufferView>()));
     break;
   case kKeyTypePublic:
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(args.Length(), 4);
 
-    offset = 0;
+    offset = 1;
     pkey = GetPublicOrPrivateKeyFromJs(args, &offset);
     if (!pkey)
       return;
-    key->InitPublic(pkey);
+    key->data_.reset(KeyObjectData::CreateAsymmetric(type, pkey));
     break;
   case kKeyTypePrivate:
-    CHECK_EQ(args.Length(), 4);
+    CHECK_EQ(args.Length(), 5);
 
-    offset = 0;
+    offset = 1;
     pkey = GetPrivateKeyFromJs(args, &offset, false);
     if (!pkey)
       return;
-    key->InitPrivate(pkey);
+    key->data_.reset(KeyObjectData::CreateAsymmetric(type, pkey));
     break;
   default:
     CHECK(false);
   }
 }
 
-void KeyObjectHandle::InitSecret(Local<ArrayBufferView> abv) {
-  CHECK_EQ(this->key_type_, kKeyTypeSecret);
-
-  size_t key_len = abv->ByteLength();
-  char* mem = MallocOpenSSL<char>(key_len);
-  abv->CopyContents(mem, key_len);
-  this->symmetric_key_ = std::unique_ptr<char, std::function<void(char*)>>(mem,
-      [key_len](char* p) {
-        OPENSSL_clear_free(p, key_len);
-      });
-  this->symmetric_key_len_ = key_len;
-}
-
-void KeyObjectHandle::InitPublic(const ManagedEVPPKey& pkey) {
-  CHECK_EQ(this->key_type_, kKeyTypePublic);
-  CHECK(pkey);
-  this->asymmetric_key_ = pkey;
-}
-
-void KeyObjectHandle::InitPrivate(const ManagedEVPPKey& pkey) {
-  CHECK_EQ(this->key_type_, kKeyTypePrivate);
-  CHECK(pkey);
-  this->asymmetric_key_ = pkey;
-}
-
 Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
-  CHECK_NE(this->key_type_, kKeyTypeSecret);
-  switch (EVP_PKEY_id(this->asymmetric_key_.get())) {
+  const ManagedEVPPKey& key = data_->GetAsymmetricKey();
+  switch (EVP_PKEY_id(key.get())) {
   case EVP_PKEY_RSA:
     return env()->crypto_rsa_string();
   case EVP_PKEY_RSA_PSS:
@@ -3422,24 +3421,27 @@ void KeyObjectHandle::GetSymmetricKeySize(
     const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
-  args.GetReturnValue().Set(static_cast<uint32_t>(key->GetSymmetricKeySize()));
+  args.GetReturnValue().Set(
+      static_cast<uint32_t>(key->Data()->GetSymmetricKeySize()));
 }
 
 void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
+  KeyType type = key->Data()->GetKeyType();
+
   MaybeLocal<Value> result;
-  if (key->key_type_ == kKeyTypeSecret) {
+  if (type == kKeyTypeSecret) {
     result = key->ExportSecretKey();
-  } else if (key->key_type_ == kKeyTypePublic) {
+  } else if (type == kKeyTypePublic) {
     unsigned int offset = 0;
     PublicKeyEncodingConfig config =
         GetPublicKeyEncodingFromJs(args, &offset, kKeyContextExport);
     CHECK_EQ(offset, static_cast<unsigned int>(args.Length()));
     result = key->ExportPublicKey(config);
   } else {
-    CHECK_EQ(key->key_type_, kKeyTypePrivate);
+    CHECK_EQ(type, kKeyTypePrivate);
     unsigned int offset = 0;
     NonCopyableMaybe<PrivateKeyEncodingConfig> config =
         GetPrivateKeyEncodingFromJs(args, &offset, kKeyContextExport);
@@ -3454,18 +3456,19 @@ void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
 }
 
 Local<Value> KeyObjectHandle::ExportSecretKey() const {
-  return Buffer::Copy(env(), symmetric_key_.get(), symmetric_key_len_)
-      .ToLocalChecked();
+  const char* buf = data_->GetSymmetricKey();
+  unsigned int len = data_->GetSymmetricKeySize();
+  return Buffer::Copy(env(), buf, len).ToLocalChecked();
 }
 
 MaybeLocal<Value> KeyObjectHandle::ExportPublicKey(
     const PublicKeyEncodingConfig& config) const {
-  return WritePublicKey(env(), asymmetric_key_.get(), config);
+  return WritePublicKey(env(), data_->GetAsymmetricKey().get(), config);
 }
 
 MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
     const PrivateKeyEncodingConfig& config) const {
-  return WritePrivateKey(env(), asymmetric_key_.get(), config);
+  return WritePrivateKey(env(), data_->GetAsymmetricKey().get(), config);
 }
 
 void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
@@ -6762,13 +6765,13 @@ void StatelessDiffieHellman(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject() && args[1]->IsObject());
   KeyObjectHandle* our_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
-  CHECK_EQ(our_key_object->GetKeyType(), kKeyTypePrivate);
+  CHECK_EQ(our_key_object->Data()->GetKeyType(), kKeyTypePrivate);
   KeyObjectHandle* their_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
-  CHECK_NE(their_key_object->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(their_key_object->Data()->GetKeyType(), kKeyTypeSecret);
 
-  ManagedEVPPKey our_key = our_key_object->GetAsymmetricKey();
-  ManagedEVPPKey their_key = their_key_object->GetAsymmetricKey();
+  ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
+  ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
 
   AllocatedBuffer out = StatelessDiffieHellman(env, our_key, their_key);
   if (out.size() == 0)
