@@ -378,6 +378,9 @@
       'conditions': [
         [ 'error_on_warn=="true"', {
           'cflags': ['-Werror'],
+          'xcode_settings': {
+            'WARNING_CFLAGS': [ '-Werror' ],
+          },
         }],
         [ 'node_intermediate_lib_type=="static_library" and '
             'node_shared=="true" and OS=="aix"', {
@@ -757,6 +760,9 @@
       'conditions': [
         [ 'error_on_warn=="true"', {
           'cflags': ['-Werror'],
+          'xcode_settings': {
+            'WARNING_CFLAGS': [ '-Werror' ],
+          },
         }],
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
