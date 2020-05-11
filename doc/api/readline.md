@@ -750,7 +750,7 @@ const { createInterface } = require('readline');
   <tr>
     <td><code>ctrl</code> + <code>shift</code> + <code>delete</code></td>
     <td>Delete line right</td>
-    <td>Doesn't work on Linux and Mac</td>
+    <td>Doesn't work on Mac</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>c</code></td>
@@ -824,7 +824,7 @@ const { createInterface } = require('readline');
     + <code>backspace</code></td>
     <td>Delete backwards to a word boundary</td>
     <td><code>ctrl</code> + <code>backspace</code> Doesn't
-    work as expected on Windows</td>
+    work on Linux, Mac and Windows</td>
   </tr>
   <tr>
     <td><code>ctrl</code> + <code>delete</code></td>
