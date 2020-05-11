@@ -84,9 +84,13 @@ void InternalCallbackScope::Close() {
   closed_ = true;
 
   if (!env_->can_call_into_js()) return;
-  if (failed_ && !env_->is_main_thread() && env_->is_stopping()) {
-    env_->async_hooks()->clear_async_id_stack();
-  }
+  auto perform_stopping_check = [&]() {
+    if (env_->is_stopping()) {
+      MarkAsFailed();
+      env_->async_hooks()->clear_async_id_stack();
+    }
+  };
+  perform_stopping_check();
 
   if (!failed_ && async_context_.async_id != 0 && !skip_hooks_) {
     AsyncWrap::EmitAfter(env_, async_context_.async_id);
@@ -109,6 +113,8 @@ void InternalCallbackScope::Close() {
 
   if (!tick_info->has_tick_scheduled()) {
     MicrotasksScope::PerformCheckpoint(env_->isolate());
+
+    perform_stopping_check();
   }
 
   // Make sure the stack unwound properly. If there are nested MakeCallback's
@@ -136,6 +142,7 @@ void InternalCallbackScope::Close() {
   if (tick_callback->Call(env_->context(), process, 0, nullptr).IsEmpty()) {
     failed_ = true;
   }
+  perform_stopping_check();
 }
 
 MaybeLocal<Value> InternalMakeCallback(Environment* env,
