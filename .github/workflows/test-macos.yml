@@ -18,6 +18,6 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j8 V=1
+        run: make build-ci -j8 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
         run: make run-ci -j8 V=1 TEST_CI_ARGS="-p dots"
