@@ -22,8 +22,7 @@
 'use strict';
 
 const common = require('../common');
-const W = require('_stream_writable');
-const D = require('_stream_duplex');
+const { Duplex: D, Writable: W } = require('stream');
 const assert = require('assert');
 
 class TestWriter extends W {

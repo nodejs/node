@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const OutgoingMessage = require('_http_outgoing').OutgoingMessage;
+const { OutgoingMessage } = require('http');
 
 // Verify that an error is thrown upon a call to `OutgoingMessage.pipe`.
 

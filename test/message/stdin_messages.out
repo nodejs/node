@@ -13,7 +13,7 @@ SyntaxError: Strict mode code may not include a with statement
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)
     at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
+    at endReadableNT (internal/streams/readable.js:*:*)
 42
 42
 [stdin]:1
@@ -30,7 +30,7 @@ Error: hello
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)
     at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
+    at endReadableNT (internal/streams/readable.js:*:*)
 [stdin]:1
 throw new Error("hello")
 ^
@@ -45,7 +45,7 @@ Error: hello
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)
     at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
+    at endReadableNT (internal/streams/readable.js:*:*)
 100
 [stdin]:1
 let x = 100; y = x;
@@ -61,7 +61,7 @@ ReferenceError: y is not defined
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)
     at Socket.emit (events.js:*:*)
-    at endReadableNT (_stream_readable.js:*:*)
+    at endReadableNT (internal/streams/readable.js:*:*)
 
 [stdin]:1
 let ______________________________________________; throw 10
