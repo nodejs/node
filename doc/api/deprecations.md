@@ -2680,7 +2680,12 @@ changes:
 
 Type: Documentation-only
 
-Use [`request.destroyed`][] instead of [`request.aborted`][].
+Use [`request.destroyed`][] and [`request.readableEnded`][] instead of 
+[`request.aborted`][].
+
+```js
+const aborted = request.destroyed && !request.readableEnded
+```
 
 <a id="DEP0XXX"></a>
 ### DEP0XX: Use `'error'` event instead of `'aborted'`
@@ -2757,10 +2762,13 @@ Use `'error'` event instead of `'aborted'`.
 [`punycode`]: punycode.html
 [`require.extensions`]: modules.html#modules_require_extensions
 [`require.main`]: modules.html#modules_accessing_the_main_module
+[`request.aborted`]: http.html#http_request_aborted
 [`request.abort()`]: http.html#http_request_abort
 [`request.socket`]: http.html#http_request_socket
 [`request.connection`]: http.html#http_request_connection
+[`request.destroyed`]: http.html#http_request_destroyed
 [`request.destroy()`]: http.html#http_request_destroy_error
+[`request.readableEnded`]: http.html#http_request_readableended
 [`response.socket`]: http.html#http_response_socket
 [`response.connection`]: http.html#http_response_connection
 [`response.end()`]: http.html#http_response_end_data_encoding_callback

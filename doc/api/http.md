@@ -588,7 +588,8 @@ changes:
     - REPLACEME
 -->
 
-> Stability: 0 - Deprecated: Use [`request.destroyed`][] instead.
+> Stability: 0 - Deprecated: Use [`request.destroyed`][] and 
+  [`request.readableEnded`][] instead.
 
 * {boolean}
 
@@ -1822,10 +1823,15 @@ Indicates that the underlying connection was closed.
 ### `message.aborted`
 <!-- YAML
 added: v10.1.0
+deprecated:
+  - REPLACEME
 -->
 
 * {boolean}
 
+> Stability: 0 - Deprecated: Use [`message.destroyed`][] and 
+  [`message.readableEnded`][] instead.
+  
 The `message.aborted` property will be `true` if the request has
 been aborted.
 
@@ -2597,10 +2603,12 @@ try {
 [`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
 [`request.destroy()`]: #http_request_destroy_error
+[`request.destroyed`]: #http_request_destroyed
 [`request.flushHeaders()`]: #http_request_flushheaders
 [`request.getHeader()`]: #http_request_getheader_name
 [`request.setHeader()`]: #http_request_setheader_name_value
 [`request.setTimeout()`]: #http_request_settimeout_timeout_callback
+[`request.readableEnded`]: #http_request_readableended
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`request.socket`]: #http_request_socket
 [`request.writableFinished`]: #http_request_writablefinished
