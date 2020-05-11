@@ -1041,7 +1041,7 @@ ensure the response is a properly formatted HTTP response message.
   correctly;
 * `rawPacket`: the raw packet of current request.
 
-In some cases the client has already received the response and/or the socket
+In some cases, the client has already received the response and/or the socket
 has already been destroyed, like in case of `ECONNRESET` errors. Before
 trying to send data to the socket, it is better to check that it is still
 writable.
