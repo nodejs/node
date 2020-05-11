@@ -1215,6 +1215,10 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33360
+    description: Instances of this class can now be passed to worker threads
+                 using `postMessage`.
   - version: v11.13.0
     pr-url: https://github.com/nodejs/node/pull/26438
     description: This class is now exported.
@@ -1229,6 +1233,10 @@ keyword.
 
 Most applications should consider using the new `KeyObject` API instead of
 passing keys as strings or `Buffer`s due to improved security features.
+
+`KeyObject` instances can be passed to other threads via [`postMessage()`][].
+The receiver obtains a cloned `KeyObject`, and the `KeyObject` does not need to
+be listed in the `transferList` argument.
 
 ### `keyObject.asymmetricKeyType`
 <!-- YAML
@@ -3560,6 +3568,7 @@ See the [list of SSL OP Flags][] for details.
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
 [`keyObject.export()`]: #crypto_keyobject_export_options
+[`postMessage()`]: worker_threads.html#worker_threads_port_postmessage_value_transferlist
 [`sign.sign()`]: #crypto_sign_sign_privatekey_outputencoding
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
 [`stream.Writable` options]: stream.html#stream_new_stream_writable_options
