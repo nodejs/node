@@ -2,7 +2,7 @@
 const common = require('../common');
 const { Worker } = require('worker_threads');
 
-// Like test-async-hooks-worker-promise.js but with an additrional statement
+// Like test-async-hooks-worker-promise.js but with an additional statement
 // after the `process.exit()` call, that shouldn’t really make a difference
 // but apparently does.
 
