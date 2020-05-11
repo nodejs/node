@@ -702,7 +702,7 @@ AsyncWrap::AsyncWrap(Environment* env, Local<Object> object)
 
 // This method is necessary to work around one specific problem:
 // Before the init() hook runs, if there is one, the BaseObject() constructor
-// registers this object with the Environment for finilization and debugging
+// registers this object with the Environment for finalization and debugging
 // purposes.
 // If the Environment decides to inspect this object for debugging, it tries to
 // call virtual methods on this object that are only (meaningfully) implemented
