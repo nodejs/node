@@ -487,6 +487,9 @@ constexpr size_t kFsStatsBufferLength =
   V(buffer_prototype_object, v8::Object)                                       \
   V(crypto_key_object_constructor, v8::Function)                               \
   V(crypto_key_object_handle_constructor, v8::Function)                        \
+  V(crypto_key_object_private_constructor, v8::Function)                       \
+  V(crypto_key_object_public_constructor, v8::Function)                        \
+  V(crypto_key_object_secret_constructor, v8::Function)                        \
   V(domexception_function, v8::Function)                                       \
   V(enhance_fatal_stack_after_inspector, v8::Function)                         \
   V(enhance_fatal_stack_before_inspector, v8::Function)                        \

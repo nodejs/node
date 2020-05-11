@@ -329,6 +329,9 @@ are part of the channel.
 added: v10.5.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33360
+    description: Added `KeyObject` to the list of cloneable types.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/33772
     description: Added `FileHandle` to the list of transferable types.
 -->
@@ -348,8 +351,8 @@ In particular, the significant differences to `JSON` are:
 * `value` may contain typed arrays, both using `ArrayBuffer`s
    and `SharedArrayBuffer`s.
 * `value` may contain [`WebAssembly.Module`][] instances.
-* `value` may not contain native (C++-backed) objects other than `MessagePort`s
-  and [`FileHandle`][]s.
+* `value` may not contain native (C++-backed) objects other than `MessagePort`s,
+  [`FileHandle`][]s, and [`KeyObject`][]s.
 
 ```js
 const { MessageChannel } = require('worker_threads');
@@ -849,6 +852,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`EventEmitter`]: events.html
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`FileHandle`]: fs.html#fs_class_filehandle
+[`KeyObject`]: crypto.html#crypto_class_keyobject
 [`MessagePort`]: #worker_threads_class_messageport
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
