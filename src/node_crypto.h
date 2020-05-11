@@ -408,6 +408,27 @@ class ManagedEVPPKey {
   EVPKeyPointer pkey_;
 };
 
+class KeyObjectData {
+ public:
+  static KeyObjectData* CreateSecret(v8::Local<v8::ArrayBufferView> abv);
+  static KeyObjectData* CreateAsymmetric(KeyType type,
+                                         const ManagedEVPPKey& pkey);
+
+  KeyType GetKeyType() const;
+
+  // These functions allow unprotected access to the raw key material and should
+  // only be used to implement cryptograohic operations requiring the key.
+  ManagedEVPPKey GetAsymmetricKey() const;
+  const char* GetSymmetricKey() const;
+  size_t GetSymmetricKeySize() const;
+
+ private:
+  KeyType key_type_;
+  std::unique_ptr<char, std::function<void(char*)>> symmetric_key_;
+  unsigned int symmetric_key_len_;
+  ManagedEVPPKey asymmetric_key_;
+};
+
 class KeyObjectHandle : public BaseObject {
  public:
   static v8::Local<v8::Function> Initialize(Environment* env,
@@ -422,21 +443,12 @@ class KeyObjectHandle : public BaseObject {
   SET_MEMORY_INFO_NAME(KeyObjectHandle)
   SET_SELF_SIZE(KeyObjectHandle)
 
-  KeyType GetKeyType() const;
-
-  // These functions allow unprotected access to the raw key material and should
-  // only be used to implement cryptograohic operations requiring the key.
-  ManagedEVPPKey GetAsymmetricKey() const;
-  const char* GetSymmetricKey() const;
-  size_t GetSymmetricKeySize() const;
+  const KeyObjectData* Data();
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
-  void InitSecret(v8::Local<v8::ArrayBufferView> abv);
-  void InitPublic(const ManagedEVPPKey& pkey);
-  void InitPrivate(const ManagedEVPPKey& pkey);
 
   static void GetAsymmetricKeyType(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -453,14 +465,10 @@ class KeyObjectHandle : public BaseObject {
       const PrivateKeyEncodingConfig& config) const;
 
   KeyObjectHandle(Environment* env,
-                  v8::Local<v8::Object> wrap,
-                  KeyType key_type);
+                  v8::Local<v8::Object> wrap);
 
  private:
-  const KeyType key_type_;
-  std::unique_ptr<char, std::function<void(char*)>> symmetric_key_;
-  unsigned int symmetric_key_len_;
-  ManagedEVPPKey asymmetric_key_;
+  std::unique_ptr<KeyObjectData> data_;
 };
 
 class NativeKeyObject : public BaseObject {
