@@ -238,7 +238,6 @@ struct text_region FindNodeTextRegion() {
     } else {
       char* start = reinterpret_cast<char*>(hugepage_align_up(addr));
       char* end = reinterpret_cast<char*>(hugepage_align_down(addr+size));
-      size_t esize = end - start;
 
       if (end > start && (map.protection & VM_PROT_READ) != 0 &&
           (map.protection & VM_PROT_EXECUTE) != 0) {
