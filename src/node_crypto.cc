@@ -3244,27 +3244,24 @@ EVP_PKEY* ManagedEVPPKey::get() const {
   return pkey_.get();
 }
 
-KeyObjectData* KeyObjectData::CreateSecret(v8::Local<v8::ArrayBufferView> abv) {
+std::shared_ptr<KeyObjectData> KeyObjectData::CreateSecret(
+    Local<ArrayBufferView> abv) {
   size_t key_len = abv->ByteLength();
   char* mem = MallocOpenSSL<char>(key_len);
   abv->CopyContents(mem, key_len);
-  KeyObjectData* data = new KeyObjectData();
-  data->key_type_ = kKeyTypeSecret;
-  data->symmetric_key_ = std::unique_ptr<char, std::function<void(char*)>>(mem,
+  return std::shared_ptr<KeyObjectData>(new KeyObjectData(
+      std::unique_ptr<char, std::function<void(char*)>>(mem,
           [key_len](char* p) {
             OPENSSL_clear_free(p, key_len);
-          });
-  data->symmetric_key_len_ = key_len;
-  return data;
+          }),
+      key_len));
 }
 
-KeyObjectData* KeyObjectData::CreateAsymmetric(KeyType key_type,
-                                               const ManagedEVPPKey& pkey) {
+std::shared_ptr<KeyObjectData> KeyObjectData::CreateAsymmetric(
+    KeyType key_type,
+    const ManagedEVPPKey& pkey) {
   CHECK(pkey);
-  KeyObjectData* data = new KeyObjectData();
-  data->key_type_ = key_type;
-  data->asymmetric_key_ = pkey;
-  return data;
+  return std::shared_ptr<KeyObjectData>(new KeyObjectData(key_type, pkey));
 }
 
 KeyType KeyObjectData::GetKeyType() const {
@@ -3308,26 +3305,24 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env,
   return function;
 }
 
-MaybeLocal<Object> KeyObjectHandle::Create(Environment* env,
-                                           KeyType key_type,
-                                           const ManagedEVPPKey& pkey) {
-  CHECK_NE(key_type, kKeyTypeSecret);
-  Local<Value> type = Integer::New(env->isolate(), key_type);
+MaybeLocal<Object> KeyObjectHandle::Create(
+    Environment* env,
+    std::shared_ptr<KeyObjectData> data) {
   Local<Object> obj;
   if (!env->crypto_key_object_handle_constructor()
-           ->NewInstance(env->context(), 1, &type)
+           ->NewInstance(env->context(), 0, nullptr)
            .ToLocal(&obj)) {
     return MaybeLocal<Object>();
   }
 
   KeyObjectHandle* key = Unwrap<KeyObjectHandle>(obj);
   CHECK_NOT_NULL(key);
-  key->data_.reset(KeyObjectData::CreateAsymmetric(key_type, pkey));
+  key->data_ = data;
   return obj;
 }
 
-const KeyObjectData* KeyObjectHandle::Data() {
-  return data_.get();
+const std::shared_ptr<KeyObjectData>& KeyObjectHandle::Data() {
+  return data_;
 }
 
 void KeyObjectHandle::New(const FunctionCallbackInfo<Value>& args) {
@@ -3357,8 +3352,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
   case kKeyTypeSecret:
     CHECK_EQ(args.Length(), 2);
     CHECK(args[1]->IsArrayBufferView());
-    key->data_.reset(
-        KeyObjectData::CreateSecret(args[1].As<ArrayBufferView>()));
+    key->data_ = KeyObjectData::CreateSecret(args[1].As<ArrayBufferView>());
     break;
   case kKeyTypePublic:
     CHECK_EQ(args.Length(), 4);
@@ -3367,7 +3361,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
     pkey = GetPublicOrPrivateKeyFromJs(args, &offset);
     if (!pkey)
       return;
-    key->data_.reset(KeyObjectData::CreateAsymmetric(type, pkey));
+    key->data_ = KeyObjectData::CreateAsymmetric(type, pkey);
     break;
   case kKeyTypePrivate:
     CHECK_EQ(args.Length(), 5);
@@ -3376,7 +3370,7 @@ void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
     pkey = GetPrivateKeyFromJs(args, &offset, false);
     if (!pkey)
       return;
-    key->data_.reset(KeyObjectData::CreateAsymmetric(type, pkey));
+    key->data_ = KeyObjectData::CreateAsymmetric(type, pkey);
     break;
   default:
     CHECK(false);
@@ -3472,7 +3466,50 @@ MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
 }
 
 void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(args.Length(), 0);
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsObject());
+  KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
+  new NativeKeyObject(env, args.This(), handle->Data());
+}
+
+BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
+        Environment* env,
+        Local<Context> context,
+        std::unique_ptr<worker::TransferData> self) {
+  if (context != env->context()) {
+    THROW_ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE(env);
+    return {};
+  }
+
+  Local<Value> handle = KeyObjectHandle::Create(env, data_).ToLocalChecked();
+  Local<Function> key_ctor;
+  switch (data_->GetKeyType()) {
+    case kKeyTypeSecret:
+      key_ctor = env->crypto_key_object_secret_constructor();
+      break;
+    case kKeyTypePublic:
+      key_ctor = env->crypto_key_object_public_constructor();
+      break;
+    case kKeyTypePrivate:
+      key_ctor = env->crypto_key_object_private_constructor();
+      break;
+    default:
+      CHECK(false);
+  }
+
+  Local<Value> key =
+      key_ctor->NewInstance(context, 1, &handle).ToLocalChecked();
+  return BaseObjectPtr<BaseObject>(Unwrap<KeyObjectHandle>(key.As<Object>()));
+}
+
+BaseObject::TransferMode NativeKeyObject::GetTransferMode() const {
+  return BaseObject::TransferMode::kCloneable;
+}
+
+std::unique_ptr<worker::TransferData> NativeKeyObject::CloneForMessaging()
+    const {
+  return std::make_unique<KeyObjectTransferData>(handle_data_);
 }
 
 static void CreateNativeKeyObjectClass(
@@ -3486,13 +3523,23 @@ static void CreateNativeKeyObjectClass(
   Local<FunctionTemplate> t = env->NewFunctionTemplate(NativeKeyObject::New);
   t->InstanceTemplate()->SetInternalFieldCount(
       KeyObjectHandle::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   Local<Value> ctor = t->GetFunction(env->context()).ToLocalChecked();
 
   Local<Value> recv = Undefined(env->isolate());
-  Local<Value> ret =
-      callback.As<Function>()->Call(env->context(), recv, 1, &ctor)
-      .ToLocalChecked();
+  Local<Value> ret_v;
+  if (!callback.As<Function>()->Call(
+          env->context(), recv, 1, &ctor).ToLocal(&ret_v)) {
+    return;
+  }
+  Local<Array> ret = ret_v.As<Array>();
+  if (!ret->Get(env->context(), 1).ToLocal(&ctor)) return;
+  env->set_crypto_key_object_secret_constructor(ctor.As<Function>());
+  if (!ret->Get(env->context(), 2).ToLocal(&ctor)) return;
+  env->set_crypto_key_object_public_constructor(ctor.As<Function>());
+  if (!ret->Get(env->context(), 3).ToLocal(&ctor)) return;
+  env->set_crypto_key_object_private_constructor(ctor.As<Function>());
   args.GetReturnValue().Set(ret);
 }
 
@@ -6308,8 +6355,9 @@ class GenerateKeyPairJob : public CryptoJob {
     if (public_key_encoding_.output_key_object_) {
       // Note that this has the downside of containing sensitive data of the
       // private key.
-      if (!KeyObjectHandle::Create(env(), kKeyTypePublic, pkey_)
-               .ToLocal(pubkey))
+      std::shared_ptr<KeyObjectData> data =
+          KeyObjectData::CreateAsymmetric(kKeyTypePublic, pkey_);
+      if (!KeyObjectHandle::Create(env(), data).ToLocal(pubkey))
         return false;
     } else {
       if (!WritePublicKey(env(), pkey_.get(), public_key_encoding_)
@@ -6319,8 +6367,9 @@ class GenerateKeyPairJob : public CryptoJob {
 
     // Now do the same for the private key.
     if (private_key_encoding_.output_key_object_) {
-      if (!KeyObjectHandle::Create(env(), kKeyTypePrivate, pkey_)
-              .ToLocal(privkey))
+      std::shared_ptr<KeyObjectData> data =
+          KeyObjectData::CreateAsymmetric(kKeyTypePrivate, pkey_);
+      if (!KeyObjectHandle::Create(env(), data).ToLocal(privkey))
         return false;
     } else {
       if (!WritePrivateKey(env(), pkey_.get(), private_key_encoding_)
