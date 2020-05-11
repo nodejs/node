@@ -957,8 +957,6 @@ assertDeepAndStrictEqual(obj1, obj2);
 
 // Check proxies.
 {
-  // TODO(BridgeAR): Check if it would not be better to detect proxies instead
-  // of just using the proxy value.
   const arrProxy = new Proxy([1, 2], {});
   assert.deepStrictEqual(arrProxy, [1, 2]);
   const tmp = util.inspect.defaultOptions;
