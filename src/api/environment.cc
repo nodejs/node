@@ -16,7 +16,6 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::FinalizationGroup;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -80,15 +79,6 @@ static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
     try_catch.ReThrow();
   }
   return result;
-}
-
-static void HostCleanupFinalizationGroupCallback(
-    Local<Context> context, Local<FinalizationGroup> group) {
-  Environment* env = Environment::GetCurrent(context);
-  if (env == nullptr) {
-    return;
-  }
-  env->RegisterFinalizationGroupForCleanup(group);
 }
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
@@ -258,11 +248,6 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   auto* promise_reject_cb = s.promise_reject_callback ?
     s.promise_reject_callback : task_queue::PromiseRejectCallback;
   isolate->SetPromiseRejectCallback(promise_reject_cb);
-
-  auto* host_cleanup_cb = s.host_cleanup_finalization_group_callback ?
-    s.host_cleanup_finalization_group_callback :
-    HostCleanupFinalizationGroupCallback;
-  isolate->SetHostCleanupFinalizationGroupCallback(host_cleanup_cb);
 
   if (s.flags & DETAILED_SOURCE_POSITIONS_FOR_PROFILING)
     v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);

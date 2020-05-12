@@ -31,7 +31,6 @@ using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
-using v8::FinalizationGroup;
 using v8::Function;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -523,7 +522,6 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
       [](uv_async_t* async) {
         Environment* env = ContainerOf(
             &Environment::task_queues_async_, async);
-        env->CleanupFinalizationGroups();
         env->RunAndClearNativeImmediates();
       });
   uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
@@ -1156,26 +1154,6 @@ char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
 
 void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
-}
-
-void Environment::CleanupFinalizationGroups() {
-  HandleScope handle_scope(isolate());
-  Context::Scope context_scope(context());
-  TryCatchScope try_catch(this);
-
-  while (!cleanup_finalization_groups_.empty() && can_call_into_js()) {
-    Local<FinalizationGroup> fg =
-        cleanup_finalization_groups_.front().Get(isolate());
-    cleanup_finalization_groups_.pop_front();
-    if (!FinalizationGroup::Cleanup(fg).FromMaybe(false)) {
-      if (try_catch.HasCaught() && !try_catch.HasTerminated())
-        errors::TriggerUncaughtException(isolate(), try_catch);
-      // Re-schedule the execution of the remainder of the queue.
-      CHECK(task_queues_async_initialized_);
-      uv_async_send(&task_queues_async_);
-      return;
-    }
-  }
 }
 
 // Not really any better place than env.cc at this moment.

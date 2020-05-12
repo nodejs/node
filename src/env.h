@@ -1107,9 +1107,7 @@ class Environment : public MemoryRetainer {
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
-  void RegisterFinalizationGroupForCleanup(v8::Local<v8::FinalizationGroup> fg);
   void RunWeakRefCleanup();
-  void CleanupFinalizationGroups();
 
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
@@ -1333,8 +1331,6 @@ class Environment : public MemoryRetainer {
   uint64_t flags_;
   uint64_t thread_id_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
-
-  std::deque<v8::Global<v8::FinalizationGroup>> cleanup_finalization_groups_;
 
   static void* const kNodeContextTagPtr;
   static int const kNodeContextTag;
