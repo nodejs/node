@@ -88,7 +88,7 @@ changes:
     This option is part of the experimental modules API, and should not be
     considered stable.
     * `specifier` {string} specifier passed to `import()`
-    * `script` {vm.Script}
+    * `module` {vm.Module}
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
@@ -807,6 +807,9 @@ changes:
     - v13.14.0
     pr-url: https://github.com/nodejs/node/pull/32985
     description: The `importModuleDynamically` option is now supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33364
+    description: Removal of `importModuleDynamically` due to compatibility issues
 -->
 
 * `code` {string} The body of the function to compile.
@@ -829,16 +832,6 @@ changes:
   * `contextExtensions` {Object[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental modules API, and should not be
-    considered stable.
-    * `specifier` {string} specifier passed to `import()`
-    * `function` {Function}
-    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
-      recommended in order to take advantage of error tracking, and to avoid
-      issues with namespaces that contain `then` function exports.
 * Returns: {Function}
 
 Compiles the given code into the provided context (if no context is
