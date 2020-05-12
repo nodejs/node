@@ -67,18 +67,14 @@ class JSDisplayNames : public JSObject {
 
   DECL_CAST(JSDisplayNames)
 
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _) \
-  V(StyleBits, Style, 2, _)    \
-  V(FallbackBits, Fallback, 1, _)
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_JS_DISPLAY_NAMES_FLAGS()
 
   STATIC_ASSERT(Style::kLong <= StyleBits::kMax);
   STATIC_ASSERT(Style::kShort <= StyleBits::kMax);
   STATIC_ASSERT(Style::kNarrow <= StyleBits::kMax);
-  STATIC_ASSERT(Fallback::kCode <= FallbackBits::kMax);
-  STATIC_ASSERT(Fallback::kNone <= FallbackBits::kMax);
+  STATIC_ASSERT(Fallback::kCode <= FallbackBit::kMax);
+  STATIC_ASSERT(Fallback::kNone <= FallbackBit::kMax);
 
   // [flags] Bit field containing various flags about the function.
   DECL_INT_ACCESSORS(flags)

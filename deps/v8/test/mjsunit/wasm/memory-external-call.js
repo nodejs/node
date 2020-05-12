@@ -302,7 +302,7 @@ function assertMemoryIndependence(load_a, store_a, load_b, store_b) {
   assertMemoryIndependence(a.exports.load, table.get(1),
                            b.exports.load, table.get(0));
 
-  // Check that calling (from WASM) through the table maintains independence.
+  // Check that calling (from Wasm) through the table maintains independence.
   builder = new WasmModuleBuilder();
   builder.addImportedTable("m", "table", kTableSize, kTableSize);
   var sig_index = builder.addType(kSig_v_ii);

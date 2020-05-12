@@ -51,12 +51,13 @@ class WireBytesRef {
 
 // Static representation of a wasm function.
 struct WasmFunction {
-  FunctionSig* sig;      // signature of the function.
-  uint32_t func_index;   // index into the function table.
-  uint32_t sig_index;    // index into the signature table.
-  WireBytesRef code;     // code of this function.
+  const FunctionSig* sig;  // signature of the function.
+  uint32_t func_index;     // index into the function table.
+  uint32_t sig_index;      // index into the signature table.
+  WireBytesRef code;       // code of this function.
   bool imported;
   bool exported;
+  bool declared;
 };
 
 // Static representation of a wasm global variable.
@@ -79,7 +80,7 @@ using WasmExceptionSig = FunctionSig;
 // Static representation of a wasm exception type.
 struct WasmException {
   explicit WasmException(const WasmExceptionSig* sig) : sig(sig) {}
-  FunctionSig* ToFunctionSig() const { return const_cast<FunctionSig*>(sig); }
+  const FunctionSig* ToFunctionSig() const { return sig; }
 
   const WasmExceptionSig* sig;  // type signature of the exception.
 };
@@ -115,19 +116,31 @@ struct WasmElemSegment {
 
   // Construct an active segment.
   WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
-      : table_index(table_index), offset(offset), active(true) {}
+      : type(kWasmFuncRef),
+        table_index(table_index),
+        offset(offset),
+        status(kStatusActive) {}
 
-  // Construct a passive segment, which has no table index or offset.
-  WasmElemSegment() : table_index(0), active(false) {}
+  // Construct a passive or declarative segment, which has no table index or
+  // offset.
+  explicit WasmElemSegment(bool declarative)
+      : type(kWasmFuncRef),
+        table_index(0),
+        status(declarative ? kStatusDeclarative : kStatusPassive) {}
 
   // Used in the {entries} vector to represent a `ref.null` entry in a passive
   // segment.
   V8_EXPORT_PRIVATE static const uint32_t kNullIndex = ~0u;
 
+  ValueType type;
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;
-  bool active;  // true if copied automatically during instantiation.
+  enum Status {
+    kStatusActive,      // copied automatically during instantiation.
+    kStatusPassive,     // copied explicitly after instantiation.
+    kStatusDeclarative  // purely declarative and never copied.
+  } status;
 };
 
 // Static representation of a wasm import.
@@ -181,7 +194,8 @@ struct ModuleWireBytes;
 class V8_EXPORT_PRIVATE DecodedFunctionNames {
  public:
   WireBytesRef Lookup(const ModuleWireBytes& wire_bytes,
-                      uint32_t function_index) const;
+                      uint32_t function_index,
+                      Vector<const WasmExport> export_table) const;
   void AddForTesting(int function_index, WireBytesRef name);
 
  private:
@@ -190,6 +204,21 @@ class V8_EXPORT_PRIVATE DecodedFunctionNames {
   mutable base::Mutex mutex_;
   mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
       function_names_;
+};
+
+class V8_EXPORT_PRIVATE DecodedGlobalNames {
+ public:
+  std::pair<WireBytesRef, WireBytesRef> Lookup(
+      uint32_t global_index, Vector<const WasmImport> import_table,
+      Vector<const WasmExport> export_table) const;
+
+ private:
+  // {global_names_} is populated lazily after decoding, and therefore needs a
+  // mutex to protect concurrent modifications from multiple {WasmModuleObject}.
+  mutable base::Mutex mutex_;
+  mutable std::unique_ptr<
+      std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>>
+      global_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
@@ -242,8 +271,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_declared_functions = 0;  // excluding imported
   uint32_t num_exported_functions = 0;
   uint32_t num_declared_data_segments = 0;  // From the DataCount section.
+  WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
-  std::vector<FunctionSig*> signatures;  // by signature index
+  std::vector<const FunctionSig*> signatures;  // by signature index
   std::vector<uint32_t> signature_ids;   // by signature index
   std::vector<WasmFunction> functions;
   std::vector<WasmDataSegment> data_segments;
@@ -257,6 +287,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
   DecodedFunctionNames function_names;
+  DecodedGlobalNames global_names;
   std::string source_map_url;
 
   // Asm.js source position information. Only available for modules compiled
@@ -350,7 +381,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);
 
-Handle<JSObject> GetTypeForFunction(Isolate* isolate, FunctionSig* sig);
+Handle<JSObject> GetTypeForFunction(Isolate* isolate, const FunctionSig* sig);
 Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
@@ -417,7 +448,7 @@ class TruncatedUserString {
 // Print the signature into the given {buffer}. If {buffer} is non-empty, it
 // will be null-terminated, even if the signature is cut off. Returns the number
 // of characters written, excluding the terminating null-byte.
-size_t PrintSignature(Vector<char> buffer, wasm::FunctionSig*);
+size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig*);
 
 }  // namespace wasm
 }  // namespace internal

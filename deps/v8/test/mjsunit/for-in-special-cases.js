@@ -179,7 +179,7 @@ for_in_string_prototype();
   }
 })();
 
-(function for_in_prototype_change_element() {
+(function for_in_prototype_change_element1() {
   let prototype1 = {prop: 0, prop1: 1};
   let derived1 = {prop2: 2, prop3: 3};
 
@@ -196,6 +196,74 @@ for_in_string_prototype();
   derived1.__proto__ = {1: 1, 3: 3};
   for (let i = 0; i < 3; i++) {
     assertEquals(['prop2', 'prop3', '1', '3'], Accumulate(derived1));
+  }
+})();
+
+(function for_in_prototype_change_element2() {
+  Array.prototype.__proto__ = {'A': 1};
+  let array = ['a', 'b', 'c', 'd', 'e'];
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['0', '1', '2', '3', '4', 'A'], Accumulate(array));
+  }
+  Array.prototype[10] = 'b';
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['0', '1', '2', '3', '4', '10', 'A'], Accumulate(array));
+  }
+})();
+
+(function for_in_prototype_change_element3() {
+  let prototype = {prop: 0};
+  let holey_array = {
+    1: 'a',
+    get 3() {
+      delete this[5];
+      return 'b';
+    },
+    5: 'c'
+  };
+  Object.setPrototypeOf(holey_array, prototype);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['1', '3', '5', 'prop'], Accumulate(holey_array));
+  }
+  prototype[10] = 'b';
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['1', '3', '5', '10', 'prop'], Accumulate(holey_array));
+  }
+  for (let i = 0; i < 3; i++) {
+    var accumulator = [];
+    for (var j in holey_array) {
+      accumulator.push(j);
+      holey_array[j];
+    }
+    assertEquals(['1', '3', '10', 'prop'], accumulator);
+  }
+})();
+
+(function for_in_prototype_change_element4() {
+  let prototype = {
+    1: 'a',
+    get 3() {
+      delete this[5];
+      return 'b';
+    },
+    5: 'c',
+  };
+  let holey_array = {7: 'd', 9: 'e'};
+  Object.setPrototypeOf(holey_array, prototype);
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['7', '9', '1', '3', '5'], Accumulate(holey_array));
+  }
+  prototype.prop = 0;
+  for (let i = 0; i < 3; i++) {
+    assertEquals(['7', '9', '1', '3', '5', 'prop'], Accumulate(holey_array));
+  }
+  for (let i = 0; i < 3; i++) {
+    var accumulator = [];
+    for (var j in holey_array) {
+      accumulator.push(j);
+      prototype[j];
+    }
+    assertEquals(['7', '9', '1', '3', 'prop'], accumulator);
   }
 })();
 

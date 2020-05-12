@@ -17,27 +17,28 @@ namespace promise {
       promiseOrCapability: JSPromise|PromiseCapability|Undefined, reason: JSAny,
       reactionType: constexpr PromiseReactionType): JSAny {
     if constexpr (reactionType == kPromiseReactionReject) {
-      if (IsJSPromise(promiseOrCapability)) {
-        // For fast native promises we can skip the indirection via the
-        // promiseCapability.[[Reject]] function and run the resolve logic
-        // directly from here.
-        return RejectPromise(
-            UnsafeCast<JSPromise>(promiseOrCapability), reason, False);
-      } else
-        deferred {
-          assert(IsPromiseCapability(promiseOrCapability));
+      typeswitch (promiseOrCapability) {
+        case (promise: JSPromise): {
+          // For fast native promises we can skip the indirection via the
+          // promiseCapability.[[Reject]] function and run the resolve logic
+          // directly from here.
+          return RejectPromise(promise, reason, False);
+        }
+        case (Undefined): {
+          return Undefined;
+        }
+        case (capability: PromiseCapability): {
           // In the general case we need to call the (user provided)
           // promiseCapability.[[Reject]] function.
           try {
-            const promiseCapability =
-                UnsafeCast<PromiseCapability>(promiseOrCapability);
-            const reject = UnsafeCast<Callable>(promiseCapability.reject);
+            const reject = UnsafeCast<Callable>(capability.reject);
             return Call(context, reject, Undefined, reason);
           } catch (e) {
             // Swallow the exception here.
             return runtime::ReportMessage(e);
           }
         }
+      }
     } else {
       StaticAssert(reactionType == kPromiseReactionFulfill);
       // We have to call out to the dedicated PromiseRejectReactionJob
@@ -53,20 +54,20 @@ namespace promise {
       context: Context,
       promiseOrCapability: JSPromise|PromiseCapability|Undefined, result: JSAny,
       reactionType: constexpr PromiseReactionType): JSAny {
-    if (IsJSPromise(promiseOrCapability)) {
-      // For fast native promises we can skip the indirection via the
-      // promiseCapability.[[Resolve]] function and run the resolve logic
-      // directly from here.
-      return ResolvePromise(
-          context, UnsafeCast<JSPromise>(promiseOrCapability), result);
-    } else
-      deferred {
-        assert(IsPromiseCapability(promiseOrCapability));
+    typeswitch (promiseOrCapability) {
+      case (promise: JSPromise): {
+        // For fast native promises we can skip the indirection via the
+        // promiseCapability.[[Resolve]] function and run the resolve logic
+        // directly from here.
+        return ResolvePromise(context, promise, result);
+      }
+      case (Undefined): {
+        return Undefined;
+      }
+      case (capability: PromiseCapability): {
         // In the general case we need to call the (user provided)
         // promiseCapability.[[Resolve]] function.
-        const promiseCapability =
-            UnsafeCast<PromiseCapability>(promiseOrCapability);
-        const resolve = UnsafeCast<Callable>(promiseCapability.resolve);
+        const resolve = UnsafeCast<Callable>(capability.resolve);
         try {
           return Call(context, resolve, Undefined, result);
         } catch (e) {
@@ -74,6 +75,7 @@ namespace promise {
               context, promiseOrCapability, e, reactionType);
         }
       }
+    }
   }
 
   // https://tc39.es/ecma262/#sec-promisereactionjob

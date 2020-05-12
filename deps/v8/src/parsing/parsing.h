@@ -18,10 +18,19 @@ namespace parsing {
 enum class ReportErrorsAndStatisticsMode { kYes, kNo };
 
 // Parses the top-level source code represented by the parse info and sets its
-// function literal.  Returns false (and deallocates any allocated AST
-// nodes) if parsing failed.
+// function literal. Returns false (and deallocates any allocated AST nodes) if
+// parsing failed.
 V8_EXPORT_PRIVATE bool ParseProgram(
     ParseInfo* info, Handle<Script> script, Isolate* isolate,
+    ReportErrorsAndStatisticsMode mode = ReportErrorsAndStatisticsMode::kYes);
+
+// Parses the top-level source code represented by the parse info and sets its
+// function literal. Allows passing an |outer_scope| for programs that exist in
+// another scope (e.g. eval). Returns false (and deallocates any allocated AST
+// nodes) if parsing failed.
+V8_EXPORT_PRIVATE bool ParseProgram(
+    ParseInfo* info, Handle<Script> script, MaybeHandle<ScopeInfo> outer_scope,
+    Isolate* isolate,
     ReportErrorsAndStatisticsMode mode = ReportErrorsAndStatisticsMode::kYes);
 
 // Like ParseProgram but for an individual function which already has a

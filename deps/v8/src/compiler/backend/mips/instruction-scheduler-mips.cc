@@ -137,6 +137,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI16x8UConvertI32x4:
     case kMipsI16x8UConvertI8x16High:
     case kMipsI16x8UConvertI8x16Low:
+    case kMipsI16x8Abs:
     case kMipsI32x4Add:
     case kMipsI32x4AddHoriz:
     case kMipsI32x4Eq:
@@ -164,6 +165,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI32x4UConvertF32x4:
     case kMipsI32x4UConvertI16x8High:
     case kMipsI32x4UConvertI16x8Low:
+    case kMipsI32x4Abs:
     case kMipsI8x16Add:
     case kMipsI8x16AddSaturateS:
     case kMipsI8x16AddSaturateU:
@@ -192,6 +194,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMipsI8x16SubSaturateS:
     case kMipsI8x16SubSaturateU:
     case kMipsI8x16UConvertI16x8:
+    case kMipsI8x16Abs:
     case kMipsIns:
     case kMipsLsa:
     case kMipsMaddD:
@@ -1295,13 +1298,9 @@ int AssembleArchJumpLatency() {
   return Latency::BRANCH;
 }
 
-int AssembleArchLookupSwitchLatency(int cases) {
-  return cases * (1 + Latency::BRANCH) + AssembleArchJumpLatency();
-}
-
 int AssembleArchBinarySearchSwitchLatency(int cases) {
   if (cases < CodeGenerator::kBinarySearchSwitchMinimalCases) {
-    return AssembleArchLookupSwitchLatency(cases);
+    return cases * (1 + Latency::BRANCH) + AssembleArchJumpLatency();
   }
   return 1 + Latency::BRANCH + AssembleArchBinarySearchSwitchLatency(cases / 2);
 }
@@ -1390,8 +1389,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArchBinarySearchSwitch:
       return AssembleArchBinarySearchSwitchLatency((instr->InputCount() - 2) /
                                                    2);
-    case kArchLookupSwitch:
-      return AssembleArchLookupSwitchLatency((instr->InputCount() - 2) / 2);
     case kArchTableSwitch:
       return AssembleArchTableSwitchLatency();
     case kArchAbortCSAAssert:

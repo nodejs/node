@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-anyref
+// Flags: --experimental-wasm-anyref --experimental-wasm-bulk-memory
 
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -44,4 +44,36 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let table_func = new WebAssembly.Table({ element: "anyfunc", initial: 3, maximum: 10 });
   assertThrows(() => builder.instantiate({ imp: { table: table_func } }),
     WebAssembly.LinkError, /imported table does not match the expected type/);
+})();
+
+(function TestAnyRefDropDeclarativeElementSegment() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addDeclarativeElementSegment([null]);
+  builder.addFunction('drop', kSig_v_v)
+      .addBody([kNumericPrefix, kExprElemDrop, 0])
+      .exportFunc();
+  const instance = builder.instantiate();
+
+  // Counts as double-drop because declarative segments are dropped on
+  // initialization and is therefore not expected to throw.
+  instance.exports.drop();
+})();
+
+(function TestAnyRefTableInitFromDeclarativeElementSegment() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  const table = builder.addTable(kWasmAnyFunc, 10);
+  builder.addDeclarativeElementSegment([null]);
+  builder.addFunction('init', kSig_v_v)
+      .addBody([
+        kExprI32Const, 0, kExprI32Const, 0, kExprI32Const, 1, kNumericPrefix,
+        kExprTableInit, table.index, 0
+      ])
+      .exportFunc();
+  const instance = builder.instantiate();
+
+  assertTraps(kTrapTableOutOfBounds, () => instance.exports.init());
 })();

@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if V8_TARGET_ARCH_PPC
+#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 
 #include "src/base/platform/platform.h"
 #include "src/codegen/macro-assembler.h"
@@ -1519,4 +1519,4 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
 
 }  // namespace disasm
 
-#endif  // V8_TARGET_ARCH_PPC
+#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64

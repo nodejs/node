@@ -706,10 +706,14 @@ CppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function UnixCppEntriesProvider(nmExec, targetRootFS, apkEmbeddedLibrary) {
+function UnixCppEntriesProvider(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
   this.symbols = [];
+  // File offset of a symbol minus the virtual address of a symbol found in
+  // the symbol table.
+  this.fileOffsetMinusVma = 0;
   this.parsePos = 0;
   this.nmExec = nmExec;
+  this.objdumpExec = objdumpExec;
   this.targetRootFS = targetRootFS;
   this.apkEmbeddedLibrary = apkEmbeddedLibrary;
   this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
@@ -731,6 +735,14 @@ UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
       os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),
       os.system(this.nmExec, ['-C', '-n', '-S', '-D', libName], -1, -1)
     ];
+
+    const objdumpOutput = os.system(this.objdumpExec, ['-h', libName], -1, -1);
+    for (const line of objdumpOutput.split('\n')) {
+      const [,sectionName,,vma,,fileOffset] = line.trim().split(/\s+/);
+      if (sectionName === ".text") {
+        this.fileOffsetMinusVma = parseInt(fileOffset, 16) - parseInt(vma, 16);
+      }
+    }
   } catch (e) {
     // If the library cannot be found on this system let's not panic.
     this.symbols = ['', ''];
@@ -754,7 +766,7 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
   var fields = line.match(this.FUNC_RE);
   var funcInfo = null;
   if (fields) {
-    funcInfo = { name: fields[3], start: parseInt(fields[1], 16) };
+    funcInfo = { name: fields[3], start: parseInt(fields[1], 16) + this.fileOffsetMinusVma };
     if (fields[2]) {
       funcInfo.size = parseInt(fields[2], 16);
     }
@@ -763,8 +775,8 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function MacCppEntriesProvider(nmExec, targetRootFS, apkEmbeddedLibrary) {
-  UnixCppEntriesProvider.call(this, nmExec, targetRootFS, apkEmbeddedLibrary);
+function MacCppEntriesProvider(nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary) {
+  UnixCppEntriesProvider.call(this, nmExec, objdumpExec, targetRootFS, apkEmbeddedLibrary);
   // Note an empty group. It is required, as UnixCppEntriesProvider expects 3 groups.
   this.FUNC_RE = /^([0-9a-fA-F]{8,16})() (.*)$/;
 };
@@ -786,7 +798,7 @@ MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
 };
 
 
-function WindowsCppEntriesProvider(_ignored_nmExec, targetRootFS,
+function WindowsCppEntriesProvider(_ignored_nmExec, _ignored_objdumpExec, targetRootFS,
                                    _ignored_apkEmbeddedLibrary) {
   this.targetRootFS = targetRootFS;
   this.symbols = '';
@@ -909,6 +921,8 @@ class ArgumentsProcessor extends BaseArgumentsProcessor {
           'Specify that we are running on Mac OS X platform'],
       '--nm': ['nm', 'nm',
           'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
+      '--objdump': ['objdump', 'objdump',
+          'Specify the \'objdump\' executable to use (e.g. --objdump=/my_dir/objdump)'],
       '--target': ['targetRootFS', '',
           'Specify the target root directory for cross environment'],
       '--apk-embedded-library': ['apkEmbeddedLibrary', '',
@@ -951,6 +965,7 @@ class ArgumentsProcessor extends BaseArgumentsProcessor {
       preprocessJson: null,
       targetRootFS: '',
       nm: 'nm',
+      objdump: 'objdump',
       range: 'auto,auto',
       distortion: 0,
       timedRange: false,

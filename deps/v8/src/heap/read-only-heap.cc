@@ -52,9 +52,12 @@ void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
 #ifdef DEBUG
   const base::Optional<uint32_t> last_checksum =
       shared_ro_heap_->read_only_blob_checksum_;
-  if (last_checksum || des_checksum) {
+  if (last_checksum) {
     // The read-only heap was set up from a snapshot. Make sure it's the always
     // the same snapshot.
+    CHECK_WITH_MSG(des_checksum,
+                   "Attempt to create the read-only heap after "
+                   "already creating from a snapshot.");
     CHECK_EQ(last_checksum, des_checksum);
   } else {
     // The read-only heap objects were created. Make sure this happens only
@@ -144,9 +147,7 @@ bool ReadOnlyHeap::Contains(Address address) {
 // static
 bool ReadOnlyHeap::Contains(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    // read only includes both TPH and the snapshot, so need both checks
-    return third_party_heap::Heap::InReadOnlySpace(object.address()) ||
-           MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
+    return third_party_heap::Heap::InReadOnlySpace(object.address());
   } else {
     return MemoryChunk::FromHeapObject(object)->InReadOnlySpace();
   }

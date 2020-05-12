@@ -351,15 +351,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       size_t input_count, InstructionOperand* inputs, size_t temp_count,
       InstructionOperand* temps, FlagsContinuation* cont);
 
-  // ===========================================================================
-  // ===== Architecture-independent deoptimization exit emission methods. ======
-  // ===========================================================================
-  Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
-                              InstructionOperand* outputs, size_t input_count,
-                              InstructionOperand* inputs, DeoptimizeKind kind,
-                              DeoptimizeReason reason,
-                              FeedbackSource const& feedback,
-                              Node* frame_state);
+  void EmitIdentity(Node* node);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -508,8 +500,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   void EmitTableSwitch(const SwitchInfo& sw,
                        InstructionOperand const& index_operand);
-  void EmitLookupSwitch(const SwitchInfo& sw,
-                        InstructionOperand const& value_operand);
   void EmitBinarySearchSwitch(const SwitchInfo& sw,
                               InstructionOperand const& value_operand);
 
@@ -586,6 +576,12 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
                                          StateObjectDeduplicator* deduplicator,
                                          InstructionOperandVector* inputs,
                                          FrameStateInputKind kind, Zone* zone);
+  size_t AddInputsToFrameStateDescriptor(StateValueList* values,
+                                         InstructionOperandVector* inputs,
+                                         OperandGenerator* g,
+                                         StateObjectDeduplicator* deduplicator,
+                                         Node* node, FrameStateInputKind kind,
+                                         Zone* zone);
   size_t AddOperandToStateValueDescriptor(StateValueList* values,
                                           InstructionOperandVector* inputs,
                                           OperandGenerator* g,
@@ -636,7 +632,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                       FeedbackSource const& feedback, Node* value);
+                       FeedbackSource const& feedback, Node* frame_state);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
@@ -655,7 +651,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
                           const CallDescriptor* call_descriptor, Node* node);
 
-  void EmitIdentity(Node* node);
   bool CanProduceSignalingNaN(Node* node);
 
   // ===========================================================================

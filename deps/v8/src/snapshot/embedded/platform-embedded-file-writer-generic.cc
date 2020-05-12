@@ -118,7 +118,9 @@ int PlatformEmbeddedFileWriterGeneric::HexLiteral(uint64_t value) {
   return fprintf(fp_, "0x%" PRIx64, value);
 }
 
-void PlatformEmbeddedFileWriterGeneric::FilePrologue() {}
+void PlatformEmbeddedFileWriterGeneric::FilePrologue() {
+  // TODO(v8:10026): Add ELF note required for BTI.
+}
 
 void PlatformEmbeddedFileWriterGeneric::DeclareExternalFilename(
     int fileid, const char* filename) {

@@ -4,7 +4,7 @@
 
 @abstract
 extern class FixedArrayBase extends HeapObject {
-  length: Smi;
+  const length: Smi;
 }
 
 extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
@@ -29,9 +29,9 @@ extern class TemplateList extends FixedArray {
 }
 
 extern class WeakArrayList extends HeapObject {
-  capacity: Smi;
+  const capacity: Smi;
   length: Smi;
-  objects[length]: MaybeObject;
+  objects[capacity]: MaybeObject;
 }
 
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(

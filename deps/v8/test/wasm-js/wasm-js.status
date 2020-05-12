@@ -4,9 +4,12 @@
 
 [
 [ALWAYS, {
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8633
-  'limits': [SKIP],
+  # These are slow, and not useful to run for the proposals:
   'proposals/reference-types/limits': [SKIP],
+  'proposals/multi-value/limits': [SKIP],
+  'proposals/bulk-memory-operations/limits': [SKIP],
+  'proposals/JS-BigInt-integration/limits': [SKIP],
+  'proposals/js-types/limits': [SKIP],
   # TODO(v8:9673): Enable these spec tests once they exist, and the out-dated
   # tests have been removed.
   'proposals/JS-BigInt-integration/module/params-long': [FAIL],
@@ -17,6 +20,12 @@
   'instance/constructor': [SKIP],
   'constructor/instantiate': [SKIP],
 }],  # 'arch == s390 or arch == s390x or system == aix'
+
+['mode == debug or simulator_run or variant != default or arch == arm', {
+  # Slow, and we always have the same limits anyway.
+  # ODroid bots don't have enough memory to run the test.
+  'limits': [SKIP],
+}],  # mode == debug or simulator_run or variant != default or arch == arm
 
 ##############################################################################
 ['lite_mode or variant == jitless', {

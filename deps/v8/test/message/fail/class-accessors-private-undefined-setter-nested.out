@@ -1,10 +1,10 @@
 # Copyright 2019 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-*%(basename)s:9: TypeError: Cannot read private member C from an object whose class did not declare it
+*%(basename)s:9: TypeError: Object must be an instance of class C
   getA(obj) { return obj.#a; }
                          ^
-TypeError: Cannot read private member C from an object whose class did not declare it
+TypeError: Object must be an instance of class C
     at C.getA (*%(basename)s:9:26)
     at new C (*%(basename)s:15:10)
     at *%(basename)s:19:1

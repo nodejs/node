@@ -57,6 +57,12 @@ declare_args() {
   # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
   # currently implemented.
   v8_use_perfetto = false
+
+  # Override global symbol level setting for v8
+  v8_symbol_level = symbol_level
+
+  # Enable WebAssembly debugging via GDB-remote protocol.
+  v8_enable_wasm_gdb_remote_debugging = false
 }
 
 if (v8_use_external_startup_data == "") {
@@ -109,11 +115,31 @@ if (is_debug && !v8_optimized_debug) {
   }
 }
 
+if (!is_debug) {
+  v8_remove_configs += [
+    # Too much performance impact, unclear security benefit.
+    "//build/config/compiler:default_init_stack_vars",
+  ]
+}
+
 if (v8_code_coverage && !is_clang) {
   v8_add_configs += [
     v8_path_prefix + ":v8_gcov_coverage_cflags",
     v8_path_prefix + ":v8_gcov_coverage_ldflags",
   ]
+}
+
+if (v8_symbol_level != symbol_level) {
+  v8_remove_configs += [ "//build/config/compiler:default_symbols" ]
+  if (v8_symbol_level == 0) {
+    v8_add_configs += [ "//build/config/compiler:no_symbols" ]
+  } else if (v8_symbol_level == 1) {
+    v8_add_configs += [ "//build/config/compiler:minimal_symbols" ]
+  } else if (v8_symbol_level == 2) {
+    v8_add_configs += [ "//build/config/compiler:symbols" ]
+  } else {
+    assert(false)
+  }
 }
 
 if ((is_posix || is_fuchsia) &&
@@ -214,6 +240,25 @@ template("v8_component") {
       configs -= invoker.remove_configs
     }
     configs += invoker.configs
+  }
+}
+
+template("v8_shared_library") {
+  shared_library(target_name) {
+    forward_variables_from(invoker,
+                           "*",
+                           [
+                             "configs",
+                             "remove_configs",
+                           ])
+    configs -= v8_remove_configs
+    configs += v8_add_configs
+    if (defined(invoker.remove_configs)) {
+      configs -= invoker.remove_configs
+    }
+    if (defined(invoker.configs)) {
+      configs += invoker.configs
+    }
   }
 }
 

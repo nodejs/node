@@ -9,6 +9,7 @@
 
 #include "src/ast/ast-source-ranges.h"
 #include "src/interpreter/block-coverage-builder.h"
+#include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/zone/zone-containers.h"
 
@@ -79,7 +80,6 @@ class V8_EXPORT_PRIVATE BreakableControlFlowBuilder
   BlockCoverageBuilder* block_coverage_builder_;
 };
 
-
 // Class to track control flow for block statements (which can break in JS).
 class V8_EXPORT_PRIVATE BlockBuilder final
     : public BreakableControlFlowBuilder {
@@ -91,7 +91,6 @@ class V8_EXPORT_PRIVATE BlockBuilder final
                                     statement) {}
 };
 
-
 // A class to help with co-ordinating break and continue statements with
 // their loop.
 class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
@@ -99,18 +98,20 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   LoopBuilder(BytecodeArrayBuilder* builder,
               BlockCoverageBuilder* block_coverage_builder, AstNode* node)
       : BreakableControlFlowBuilder(builder, block_coverage_builder, node),
-        continue_labels_(builder->zone()) {
+        continue_labels_(builder->zone()),
+        end_labels_(builder->zone()) {
     if (block_coverage_builder_ != nullptr) {
       block_coverage_body_slot_ =
           block_coverage_builder_->AllocateBlockCoverageSlot(
               node, SourceRangeKind::kBody);
     }
+    source_position_ = node ? node->position() : kNoSourcePosition;
   }
   ~LoopBuilder() override;
 
   void LoopHeader();
   void LoopBody();
-  void JumpToHeader(int loop_depth);
+  void JumpToHeader(int loop_depth, LoopBuilder* const parent_loop);
   void BindContinueTarget();
 
   // This method is called when visiting continue statements in the AST.
@@ -121,15 +122,28 @@ class V8_EXPORT_PRIVATE LoopBuilder final : public BreakableControlFlowBuilder {
   void ContinueIfNull() { EmitJumpIfNull(&continue_labels_); }
 
  private:
+  // Emit a Jump to our parent_loop_'s end label which could be a JumpLoop or,
+  // iff they are a nested inner loop with the same loop header bytecode offset
+  // as their parent's, a Jump to its parent's end label.
+  void JumpToLoopEnd() { EmitJump(&end_labels_); }
+  void BindLoopEnd();
+
   BytecodeLoopHeader loop_header_;
 
   // Unbound labels that identify jumps for continue statements in the code and
   // jumps from checking the loop condition to the header for do-while loops.
   BytecodeLabels continue_labels_;
 
-  int block_coverage_body_slot_;
-};
+  // Unbound labels that identify jumps for nested inner loops which share the
+  // same header offset as this loop. Said inner loops will Jump to our end
+  // label, which could be a JumpLoop or, iff we are a nested inner loop too, a
+  // Jump to our parent's end label.
+  BytecodeLabels end_labels_;
 
+  int block_coverage_body_slot_;
+
+  int source_position_;
+};
 
 // A class to help with co-ordinating break statements with their switch.
 class V8_EXPORT_PRIVATE SwitchBuilder final
@@ -165,7 +179,6 @@ class V8_EXPORT_PRIVATE SwitchBuilder final
   ZoneVector<BytecodeLabel> case_sites_;
 };
 
-
 // A class to help with co-ordinating control flow in try-catch statements.
 class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
  public:
@@ -193,7 +206,6 @@ class V8_EXPORT_PRIVATE TryCatchBuilder final : public ControlFlowBuilder {
   BlockCoverageBuilder* block_coverage_builder_;
   TryCatchStatement* statement_;
 };
-
 
 // A class to help with co-ordinating control flow in try-finally statements.
 class V8_EXPORT_PRIVATE TryFinallyBuilder final : public ControlFlowBuilder {

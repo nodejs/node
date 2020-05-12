@@ -40,7 +40,7 @@ enum AllocationFlags {
 #elif V8_TARGET_ARCH_ARM
 #include "src/codegen/arm/constants-arm.h"
 #include "src/codegen/arm/macro-assembler-arm.h"
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/codegen/ppc/macro-assembler-ppc.h"
 #elif V8_TARGET_ARCH_MIPS

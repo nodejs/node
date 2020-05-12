@@ -7,6 +7,7 @@
 #include "include/v8.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
+#include "src/execution/pointer-authentication.h"
 
 namespace v8 {
 
@@ -87,8 +88,9 @@ void* GetReturnAddressFromFP(void* fp, void* pc,
     caller_pc_offset = i::EntryFrameConstants::kDirectCallerPCOffset;
   }
 #endif
-  return reinterpret_cast<void*>(
-      Load(reinterpret_cast<i::Address>(fp) + caller_pc_offset));
+  i::Address ret_addr =
+      Load(reinterpret_cast<i::Address>(fp) + caller_pc_offset);
+  return reinterpret_cast<void*>(i::PointerAuthentication::StripPAC(ret_addr));
 }
 
 void* GetReturnAddressFromFP(void* fp, void* pc,
@@ -99,8 +101,9 @@ void* GetReturnAddressFromFP(void* fp, void* pc,
     caller_pc_offset = i::EntryFrameConstants::kDirectCallerPCOffset;
   }
 #endif
-  return reinterpret_cast<void*>(
-      Load(reinterpret_cast<i::Address>(fp) + caller_pc_offset));
+  i::Address ret_addr =
+      Load(reinterpret_cast<i::Address>(fp) + caller_pc_offset);
+  return reinterpret_cast<void*>(i::PointerAuthentication::StripPAC(ret_addr));
 }
 
 void* GetCallerFPFromFP(void* fp, void* pc,

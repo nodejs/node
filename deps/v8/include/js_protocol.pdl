@@ -119,6 +119,7 @@ domain Debugger
         script
         eval
         module
+        wasm-expression-stack
       # Object representing the scope. For `global` and `with` scopes it represents the actual
       # object; for the rest of the scopes, it is artificial transient object enumerating scope
       # variables as its properties.
@@ -273,6 +274,13 @@ domain Debugger
 
   # Resumes JavaScript execution.
   command resume
+    parameters
+      # Set to true to terminate execution upon resuming execution. In contrast
+      # to Runtime.terminateExecution, this will allows to execute further
+      # JavaScript (i.e. via evaluation) until execution of the paused code
+      # is actually resumed, at which point termination is triggered.
+      # If execution is currently not paused, this parameter has no effect.
+      optional boolean terminateOnResume
 
   # Searches for given string in script content.
   command searchInContent
@@ -496,6 +504,12 @@ domain Debugger
   # Fired when the virtual machine resumed execution.
   event resumed
 
+  # Enum of possible script languages.
+  type ScriptLanguage extends string
+    enum
+      JavaScript
+      WebAssembly
+
   # Fired when virtual machine fails to parse the script.
   event scriptFailedToParse
     parameters
@@ -527,6 +541,10 @@ domain Debugger
       optional integer length
       # JavaScript top stack frame of where the script parsed event was triggered if available.
       experimental optional Runtime.StackTrace stackTrace
+      # If the scriptLanguage is WebAssembly, the code section offset in the module.
+      experimental optional integer codeOffset
+      # The language of the script.
+      experimental optional Debugger.ScriptLanguage scriptLanguage
 
   # Fired when virtual machine parses script. This event is also fired for all known and uncollected
   # scripts upon enabling debugger.
@@ -562,6 +580,10 @@ domain Debugger
       optional integer length
       # JavaScript top stack frame of where the script parsed event was triggered if available.
       experimental optional Runtime.StackTrace stackTrace
+      # If the scriptLanguage is WebAssembly, the code section offset in the module.
+      experimental optional integer codeOffset
+      # The language of the script.
+      experimental optional Debugger.ScriptLanguage scriptLanguage
 
 experimental domain HeapProfiler
   depends on Runtime
@@ -824,6 +846,8 @@ domain Profiler
       optional boolean callCount
       # Collect block-based coverage.
       optional boolean detailed
+      # Allow the backend to send updates on its own initiative
+      optional boolean allowTriggeredUpdates
     returns
       # Monotonically increasing time (in seconds) when the coverage update was taken in the backend.
       number timestamp
@@ -931,7 +955,8 @@ domain Runtime
         boolean
         symbol
         bigint
-      # Object subtype hint. Specified for `object` type values only.
+        wasm
+      # Object subtype hint. Specified for `object` or `wasm` type values only.
       optional enum subtype
         array
         null
@@ -950,6 +975,11 @@ domain Runtime
         typedarray
         arraybuffer
         dataview
+        i32
+        i64
+        f32
+        f64
+        v128
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
@@ -1306,7 +1336,9 @@ domain Runtime
       experimental optional TimeDelta timeout
       # Disable breakpoints during execution.
       experimental optional boolean disableBreaks
-      # Reserved flag for future REPL mode support. Setting this flag has currently no effect.
+      # Setting this flag to true enables `let` re-declaration and top-level `await`.
+      # Note that `let` variables can only be re-declared if they originate from
+      # `replMode` themselves.
       experimental optional boolean replMode
     returns
       # Evaluation result.

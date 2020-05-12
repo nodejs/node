@@ -38,8 +38,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->instruction_start = code->InstructionStart();
   rec->entry = new CodeEntry(tag, GetName(name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
-                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code->InstructionStart());
+                             CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -52,8 +51,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->instruction_start = code->InstructionStart();
   rec->entry = new CodeEntry(tag, GetName(*name), CodeEntry::kEmptyResourceName,
                              CpuProfileNode::kNoLineNumberInfo,
-                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code->InstructionStart());
+                             CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -68,8 +66,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->entry = new CodeEntry(tag, GetName(shared->DebugName()),
                              GetName(InferScriptName(*script_name, *shared)),
                              CpuProfileNode::kNoLineNumberInfo,
-                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                             code->InstructionStart());
+                             CpuProfileNode::kNoColumnNumberInfo, nullptr);
   DCHECK(!code->IsCode());
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = code->InstructionSize();
@@ -164,7 +161,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
           std::unique_ptr<CodeEntry> inline_entry = std::make_unique<CodeEntry>(
               tag, GetFunctionName(*pos_info.shared), resource_name,
               start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
-              code->InstructionStart(), inline_is_shared_cross_origin);
+              inline_is_shared_cross_origin);
           inline_entry->FillFunctionInfo(*pos_info.shared);
 
           // Create a canonical CodeEntry for each inlined frame and then re-use
@@ -182,8 +179,7 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   rec->entry =
       new CodeEntry(tag, GetFunctionName(*shared),
                     GetName(InferScriptName(*script_name, *shared)), line,
-                    column, std::move(line_table),
-                    abstract_code->InstructionStart(), is_shared_cross_origin);
+                    column, std::move(line_table), is_shared_cross_origin);
   if (!inline_stacks.empty()) {
     rec->entry->SetInlineStacks(std::move(cached_inline_entries),
                                 std::move(inline_stacks));
@@ -200,10 +196,10 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry = new CodeEntry(
-      tag, GetName(name), CodeEntry::kWasmResourceNamePrefix,
-      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->instruction_start(), true);
+  rec->entry =
+      new CodeEntry(tag, GetName(name), CodeEntry::kWasmResourceNamePrefix,
+                    CpuProfileNode::kNoLineNumberInfo,
+                    CpuProfileNode::kNoColumnNumberInfo, nullptr, true);
   rec->instruction_size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }
@@ -247,7 +243,7 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   rec->entry = new CodeEntry(
       CodeEventListener::REG_EXP_TAG, GetConsName("RegExp: ", *source),
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->InstructionStart());
+      CpuProfileNode::kNoColumnNumberInfo, nullptr);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }

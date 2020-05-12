@@ -76,12 +76,8 @@ class JSSegmentIterator : public JSObject {
   inline void set_granularity(JSSegmenter::Granularity granularity);
   inline JSSegmenter::Granularity granularity() const;
 
-// Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _)                       \
-  V(GranularityBits, JSSegmenter::Granularity, 2, _) \
-  V(BreakTypeSetBits, bool, 1, _)
-  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
-#undef FLAGS_BIT_FIELDS
+  // Bit positions in |flags|.
+  DEFINE_TORQUE_GENERATED_JS_SEGMENT_ITERATOR_FLAGS()
 
   STATIC_ASSERT(JSSegmenter::Granularity::GRAPHEME <= GranularityBits::kMax);
   STATIC_ASSERT(JSSegmenter::Granularity::WORD <= GranularityBits::kMax);

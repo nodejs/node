@@ -37,9 +37,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   TNode<Object> SlowLoadLastIndex(TNode<Context> context, TNode<Object> regexp);
 
   void FastStoreLastIndex(TNode<JSRegExp> regexp, TNode<Smi> value);
-  void SlowStoreLastIndex(SloppyTNode<Context> context,
-                          SloppyTNode<Object> regexp,
-                          SloppyTNode<Object> value);
+  void SlowStoreLastIndex(TNode<Context> context, TNode<Object> regexp,
+                          TNode<Object> value);
 
   // Loads {var_string_start} and {var_string_end} with the corresponding
   // offsets into the given {string_data}.
@@ -140,10 +139,8 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
                                  const TNode<Object> maybe_pattern,
                                  const TNode<Object> maybe_flags);
 
-  TNode<Number> AdvanceStringIndex(SloppyTNode<String> string,
-                                   SloppyTNode<Number> index,
-                                   SloppyTNode<BoolT> is_unicode,
-                                   bool is_fastpath);
+  TNode<Number> AdvanceStringIndex(TNode<String> string, TNode<Number> index,
+                                   TNode<BoolT> is_unicode, bool is_fastpath);
 
   TNode<Smi> AdvanceStringIndexFast(TNode<String> string, TNode<Smi> index,
                                     TNode<BoolT> is_unicode) {

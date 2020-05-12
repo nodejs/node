@@ -1,4 +1,4 @@
 Test that console profiles contain wasm function names.
 Compiling wasm.
 Running fib with increasing input until it shows up in the profile.
-Found fib in profile.
+Found expected functions in profile.

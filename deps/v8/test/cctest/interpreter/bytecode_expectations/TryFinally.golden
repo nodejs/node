@@ -12,9 +12,8 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 45
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
                 B(Mov), R(context), R(3),
@@ -45,7 +44,7 @@ bytecodes: [
 constant pool: [
 ]
 handlers: [
-  [8, 12, 20],
+  [7, 11, 19],
 ]
 
 ---
@@ -55,9 +54,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 70
+bytecode array length: 69
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
                 B(Mov), R(context), R(3),
@@ -101,8 +99,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [8, 36, 44],
-  [11, 15, 17],
+  [7, 35, 43],
+  [10, 14, 16],
 ]
 
 ---
@@ -113,9 +111,8 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 90
+bytecode array length: 89
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
                 B(Mov), R(context), R(3),
                 B(Mov), R(context), R(4),
                 B(Mov), R(context), R(5),
@@ -170,8 +167,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [4, 56, 64],
-  [7, 35, 37],
-  [10, 14, 16],
+  [3, 55, 63],
+  [6, 34, 36],
+  [9, 13, 15],
 ]
 

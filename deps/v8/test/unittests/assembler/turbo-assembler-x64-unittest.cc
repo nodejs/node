@@ -5,6 +5,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/execution/simulator.h"
 #include "test/common/assembler-tester.h"
+#include "test/unittests/test-utils.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -16,26 +17,30 @@ namespace internal {
 // a buffer and executing them.  These tests do not initialize the
 // V8 library, create a context, or use any V8 objects.
 
-TEST(TurboAssemblerTest, TestHardAbort) {
+class TurboAssemblerTest : public TestWithIsolate {};
+
+TEST_F(TurboAssemblerTest, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
+  __ set_root_array_available(false);
   __ set_abort_hard(true);
 
   __ Abort(AbortReason::kNoReason);
 
   CodeDesc desc;
-  tasm.GetCode(nullptr, &desc);
+  tasm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
-  auto f = GeneratedCode<void>::FromBuffer(nullptr, buffer->start());
+  auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
 
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
 }
 
-TEST(TurboAssemblerTest, TestCheck) {
+TEST_F(TurboAssemblerTest, TestCheck) {
   auto buffer = AllocateAssemblerBuffer();
-  TurboAssembler tasm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+  TurboAssembler tasm(isolate(), AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
+  __ set_root_array_available(false);
   __ set_abort_hard(true);
 
   // Fail if the first parameter is 17.
@@ -45,9 +50,9 @@ TEST(TurboAssemblerTest, TestCheck) {
   __ ret(0);
 
   CodeDesc desc;
-  tasm.GetCode(nullptr, &desc);
+  tasm.GetCode(isolate(), &desc);
   buffer->MakeExecutable();
-  auto f = GeneratedCode<void, int>::FromBuffer(nullptr, buffer->start());
+  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
 
   f.Call(0);
   f.Call(18);

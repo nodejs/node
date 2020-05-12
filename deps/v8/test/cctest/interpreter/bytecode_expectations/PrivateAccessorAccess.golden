@@ -24,14 +24,13 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 98
+bytecode array length: 97
 bytecodes: [
-  /*   67 E> */ B(StackCheck),
                 B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
-                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
+  /*   67 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
   /*   76 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(Star), R(4),
                 B(LdaCurrentContextSlot), U8(3),
@@ -78,15 +77,14 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 31
 bytecodes: [
-  /*   48 E> */ B(StackCheck),
                 B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
-                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(265),
+  /*   48 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
+  /*   53 S> */ B(Wide), B(LdaSmi), I16(266),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -110,15 +108,14 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 31
 bytecodes: [
-  /*   41 E> */ B(StackCheck),
                 B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
-                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(264),
+  /*   41 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
+  /*   46 S> */ B(Wide), B(LdaSmi), I16(265),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -142,15 +139,14 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 31
 bytecodes: [
-  /*   48 E> */ B(StackCheck),
                 B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
-                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(265),
+  /*   48 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
+  /*   53 S> */ B(Wide), B(LdaSmi), I16(266),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -174,15 +170,14 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 31
 bytecodes: [
-  /*   41 E> */ B(StackCheck),
                 B(LdaCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
-                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(264),
+  /*   41 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
+  /*   46 S> */ B(Wide), B(LdaSmi), I16(265),
                 B(Star), R(4),
                 B(LdaConstant), U8(0),
                 B(Star), R(5),

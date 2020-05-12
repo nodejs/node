@@ -75,9 +75,45 @@ using compiler::Node;
     r.Build(code, code + arraysize(code)); \
   } while (false)
 
+template <typename T>
+void AppendSingle(std::vector<byte>* code, T t) {
+  static_assert(std::is_integral<T>::value,
+                "Special types need specializations");
+  code->push_back(t);
+}
+
+// Specialized for WasmOpcode.
+template <>
+void AppendSingle<WasmOpcode>(std::vector<byte>* code, WasmOpcode op);
+
+template <typename... T>
+void Append(std::vector<byte>* code, T... ts) {
+  static_assert(sizeof...(ts) == 0, "Base case for appending bytes to code.");
+}
+
+template <typename First, typename... Rest>
+void Append(std::vector<byte>* code, First first, Rest... rest) {
+  AppendSingle(code, first);
+  Append(code, rest...);
+}
+
+// Like BUILD but pushes code bytes into a std::vector instead of an array
+// initializer. This is useful for opcodes (like SIMD), that are LEB128
+// (variable-sized). We use recursive template instantiations with variadic
+// template arguments, so that the Append calls can handle either bytes or
+// opcodes. AppendSingle is specialized for WasmOpcode, and appends multiple
+// bytes. This allows existing callers to swap out the BUILD macro for BUILD_V
+// macro without changes. Also see https://crbug.com/v8/10258.
+#define BUILD_V(r, ...)                              \
+  do {                                               \
+    std::vector<byte> code;                          \
+    Append(&code, __VA_ARGS__);                      \
+    r.Build(code.data(), code.data() + code.size()); \
+  } while (false)
+
 // For tests that must manually import a JSFunction with source code.
 struct ManuallyImportedJSFunction {
-  FunctionSig* sig;
+  const FunctionSig* sig;
   Handle<JSFunction> js_function;
 };
 
@@ -89,6 +125,7 @@ class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ManuallyImportedJSFunction*, ExecutionTier,
                        RuntimeExceptionSupport, LowerSimd);
+  ~TestingModuleBuilder();
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsSloppyOrigin; }
 
@@ -103,13 +140,12 @@ class TestingModuleBuilder {
   }
 
   template <typename T>
-  T* AddGlobal(
-      ValueType type = ValueTypes::ValueTypeFor(MachineTypeForC<T>())) {
+  T* AddGlobal(ValueType type = ValueType::For(MachineTypeForC<T>())) {
     const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
-  byte AddSignature(FunctionSig* sig) {
+  byte AddSignature(const FunctionSig* sig) {
     DCHECK_EQ(test_module_->signatures.size(),
               test_module_->signature_ids.size());
     test_module_->signatures.push_back(sig);
@@ -180,7 +216,8 @@ class TestingModuleBuilder {
   void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
 
   enum FunctionType { kImport, kWasm };
-  uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
+  uint32_t AddFunction(const FunctionSig* sig, const char* name,
+                       FunctionType type);
 
   // Freezes the signature map of the module and allocates the storage for
   // export wrappers.
@@ -196,7 +233,7 @@ class TestingModuleBuilder {
 
   uint32_t AddBytes(Vector<const byte> bytes);
 
-  uint32_t AddException(FunctionSig* sig);
+  uint32_t AddException(const FunctionSig* sig);
 
   uint32_t AddPassiveDataSegment(Vector<const byte> bytes);
   uint32_t AddPassiveElementSegment(const std::vector<uint32_t>& entries);
@@ -221,7 +258,10 @@ class TestingModuleBuilder {
 
   void SetExecutable() { native_module_->SetExecutable(true); }
 
-  CompilationEnv CreateCompilationEnv();
+  void TierDown() { native_module_->TierDown(isolate_); }
+
+  enum AssumeDebugging : bool { kDebug = true, kNoDebug = false };
+  CompilationEnv CreateCompilationEnv(AssumeDebugging = kNoDebug);
 
   ExecutionTier execution_tier() const { return execution_tier_; }
 
@@ -257,7 +297,7 @@ class TestingModuleBuilder {
 };
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       CompilationEnv* module, FunctionSig* sig,
+                       CompilationEnv* module, const FunctionSig* sig,
                        compiler::SourcePositionTable* source_position_table,
                        const byte* start, const byte* end);
 
@@ -336,11 +376,11 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
  private:
   friend class WasmRunnerBase;
 
-  WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
+  WasmFunctionCompiler(Zone* zone, const FunctionSig* sig,
                        TestingModuleBuilder* builder, const char* name);
 
   compiler::JSGraph jsgraph;
-  FunctionSig* sig;
+  const FunctionSig* sig;
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
   TestingModuleBuilder* builder_;
@@ -382,7 +422,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   // Resets the state for building the next function.
   // The main function called will be the last generated function.
   // Returns the index of the previously built function.
-  WasmFunctionCompiler& NewFunction(FunctionSig* sig,
+  WasmFunctionCompiler& NewFunction(const FunctionSig* sig,
                                     const char* name = nullptr) {
     functions_.emplace_back(
         new WasmFunctionCompiler(&zone_, sig, &builder_, name));
@@ -406,18 +446,25 @@ class WasmRunnerBase : public HandleAndZoneScope {
 
   bool interpret() { return builder_.interpret(); }
 
+  void TierDown() { builder_.TierDown(); }
+
   template <typename ReturnType, typename... ParamTypes>
   FunctionSig* CreateSig() {
+    return WasmRunnerBase::CreateSig<ReturnType, ParamTypes...>(&zone_);
+  }
+
+  template <typename ReturnType, typename... ParamTypes>
+  static FunctionSig* CreateSig(Zone* zone) {
     std::array<MachineType, sizeof...(ParamTypes)> param_machine_types{
         {MachineTypeForC<ParamTypes>()...}};
     Vector<MachineType> param_vec(param_machine_types.data(),
                                   param_machine_types.size());
-    return CreateSig(MachineTypeForC<ReturnType>(), param_vec);
+    return CreateSig(zone, MachineTypeForC<ReturnType>(), param_vec);
   }
 
  private:
-  FunctionSig* CreateSig(MachineType return_type,
-                         Vector<MachineType> param_types);
+  static FunctionSig* CreateSig(Zone* zone, MachineType return_type,
+                                Vector<MachineType> param_types);
 
  protected:
   v8::internal::AccountingAllocator allocator_;
@@ -557,6 +604,10 @@ class WasmRunner : public WasmRunnerBase {
     Handle<Object> buffer[] = {isolate->factory()->NewNumber(p)...,
                                Handle<Object>()};
     CheckCallApplyViaJS(expected, function()->func_index, buffer, sizeof...(p));
+  }
+
+  void CheckCallViaJSTraps(ParamTypes... p) {
+    CheckCallViaJS(static_cast<double>(0xDEADBEEF), p...);
   }
 
   void CheckUsedExecutionTier(ExecutionTier expected_tier) {

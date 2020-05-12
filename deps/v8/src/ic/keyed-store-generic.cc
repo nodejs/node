@@ -617,9 +617,9 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
       Label found(this), found_fast(this), found_dict(this), found_global(this);
       TVARIABLE(HeapObject, var_meta_storage);
       TVARIABLE(IntPtrT, var_entry);
-      TryLookupProperty(CAST(holder), holder_map, instance_type, name,
-                        &found_fast, &found_dict, &found_global,
-                        &var_meta_storage, &var_entry, &next_proto, bailout);
+      TryLookupProperty(holder, holder_map, instance_type, name, &found_fast,
+                        &found_dict, &found_global, &var_meta_storage,
+                        &var_entry, &next_proto, bailout);
       BIND(&found_fast);
       {
         TNode<DescriptorArray> descriptors = CAST(var_meta_storage.value());
@@ -920,8 +920,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
       GotoIfNot(IsCallableMap(setter_map), &not_callable);
 
-      Callable callable = CodeFactory::Call(isolate());
-      CallJS(callable, p->context(), setter, receiver, p->value());
+      Call(p->context(), setter, receiver, p->value());
       exit_point->Return(p->value());
 
       BIND(&not_callable);
@@ -1054,7 +1053,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   TNode<Object> receiver_maybe_smi = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
   TNode<Object> value = CAST(Parameter(Descriptor::kValue));
-  TNode<Smi> slot = CAST(Parameter(Descriptor::kSlot));
+  TNode<TaggedIndex> slot = CAST(Parameter(Descriptor::kSlot));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   Label miss(this, Label::kDeferred), store_property(this);

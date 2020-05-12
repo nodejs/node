@@ -1,4 +1,4 @@
 wasm-function[0]:0x22: RuntimeError: unreachable
 RuntimeError: unreachable
-    at wasm-function[0]:0x22
+    at main (<anonymous>:wasm-function[0]:0x22)
     at *%(basename)s:{NUMBER}:31

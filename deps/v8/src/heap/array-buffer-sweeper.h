@@ -18,17 +18,24 @@ class Heap;
 // Singly linked-list of ArrayBufferExtensions that stores head and tail of the
 // list to allow for concatenation of lists.
 struct ArrayBufferList {
-  ArrayBufferList() : head_(nullptr), tail_(nullptr) {}
+  ArrayBufferList() : head_(nullptr), tail_(nullptr), bytes_(0) {}
 
   ArrayBufferExtension* head_;
   ArrayBufferExtension* tail_;
+  size_t bytes_;
 
   bool IsEmpty() {
     DCHECK_IMPLIES(head_, tail_);
     return head_ == nullptr;
   }
 
-  void Reset() { head_ = tail_ = nullptr; }
+  size_t Bytes() { return bytes_; }
+  size_t BytesSlow();
+
+  void Reset() {
+    head_ = tail_ = nullptr;
+    bytes_ = 0;
+  }
 
   void Append(ArrayBufferExtension* extension);
   void Append(ArrayBufferList* list);
@@ -41,7 +48,11 @@ struct ArrayBufferList {
 class ArrayBufferSweeper {
  public:
   explicit ArrayBufferSweeper(Heap* heap)
-      : heap_(heap), sweeping_in_progress_(false) {}
+      : heap_(heap),
+        sweeping_in_progress_(false),
+        freed_bytes_(0),
+        young_bytes_(0),
+        old_bytes_(0) {}
   ~ArrayBufferSweeper() { ReleaseAll(); }
 
   void EnsureFinished();
@@ -52,6 +63,9 @@ class ArrayBufferSweeper {
 
   ArrayBufferList young() { return young_; }
   ArrayBufferList old() { return old_; }
+
+  size_t YoungBytes();
+  size_t OldBytes();
 
  private:
   enum class SweepingScope { Young, Full };
@@ -67,20 +81,24 @@ class ArrayBufferSweeper {
 
     SweepingJob();
 
-    void Sweep();
-    void SweepYoung();
-    void SweepFull();
-    ArrayBufferList SweepListFull(ArrayBufferList* list);
     static SweepingJob Prepare(ArrayBufferList young, ArrayBufferList old,
                                SweepingScope scope);
   } job_;
 
   void Merge();
 
+  void DecrementExternalMemoryCounters();
+  void IncrementExternalMemoryCounters(size_t bytes);
+  void IncrementFreedBytes(size_t bytes);
+
   void RequestSweep(SweepingScope sweeping_task);
   void Prepare(SweepingScope sweeping_task);
 
+  void Sweep();
+  void SweepYoung();
+  void SweepFull();
   ArrayBufferList SweepListFull(ArrayBufferList* list);
+
   ArrayBufferList SweepYoungGen();
   void SweepOldGen(ArrayBufferExtension* extension);
 
@@ -91,9 +109,13 @@ class ArrayBufferSweeper {
   bool sweeping_in_progress_;
   base::Mutex sweeping_mutex_;
   base::ConditionVariable job_finished_;
+  std::atomic<size_t> freed_bytes_;
 
   ArrayBufferList young_;
   ArrayBufferList old_;
+
+  size_t young_bytes_;
+  size_t old_bytes_;
 };
 
 }  // namespace internal

@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_ELEMENTS_H_
 #define V8_OBJECTS_ELEMENTS_H_
 
+#include "src/builtins/builtins-utils.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/keys.h"
@@ -111,13 +112,13 @@ class ElementsAccessor {
                    Handle<Object> value, PropertyAttributes attributes,
                    uint32_t new_capacity) = 0;
 
-  static Handle<JSArray> Concat(Isolate* isolate, Arguments* args,
+  static Handle<JSArray> Concat(Isolate* isolate, BuiltinArguments* args,
                                 uint32_t concat_size, uint32_t result_length);
 
-  virtual uint32_t Push(Handle<JSArray> receiver, Arguments* args,
+  virtual uint32_t Push(Handle<JSArray> receiver, BuiltinArguments* args,
                         uint32_t push_size) = 0;
 
-  virtual uint32_t Unshift(Handle<JSArray> receiver, Arguments* args,
+  virtual uint32_t Unshift(Handle<JSArray> receiver, BuiltinArguments* args,
                            uint32_t unshift_size) = 0;
 
   virtual Handle<Object> Pop(Handle<JSArray> receiver) = 0;
@@ -206,7 +207,7 @@ class ElementsAccessor {
 };
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
-    Handle<JSArray> array, Arguments* args);
+    Handle<JSArray> array, JavaScriptArguments* args);
 
 // Called directly from CSA.
 // {raw_context}: Context pointer.

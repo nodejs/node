@@ -103,8 +103,7 @@ void PartialSerializer::SerializeObject(HeapObject obj) {
 
   // Clear InterruptBudget when serializing FeedbackCell.
   if (obj.IsFeedbackCell()) {
-    FeedbackCell::cast(obj).set_interrupt_budget(
-        FeedbackCell::GetInitialInterruptBudget());
+    FeedbackCell::cast(obj).SetInitialInterruptBudget();
   }
 
   if (SerializeJSObjectWithEmbedderFields(obj)) {

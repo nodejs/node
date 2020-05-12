@@ -49,6 +49,12 @@ void FullObjectSlot::Release_Store(Object value) const {
   base::AsAtomicPointer::Release_Store(location(), value.ptr());
 }
 
+Object FullObjectSlot::Relaxed_CompareAndSwap(Object old, Object target) const {
+  Address result = base::AsAtomicPointer::Relaxed_CompareAndSwap(
+      location(), old.ptr(), target.ptr());
+  return Object(result);
+}
+
 Object FullObjectSlot::Release_CompareAndSwap(Object old, Object target) const {
   Address result = base::AsAtomicPointer::Release_CompareAndSwap(
       location(), old.ptr(), target.ptr());

@@ -52,8 +52,8 @@ namespace iterator {
                                                     Context)(JSAny);
 
   transitioning builtin GetIteratorWithFeedback(
-      context: Context, receiver: JSAny, loadSlot: Smi, callSlot: Smi,
-      feedback: Undefined|FeedbackVector): JSAny {
+      context: Context, receiver: JSAny, loadSlot: TaggedIndex,
+      callSlot: TaggedIndex, feedback: Undefined|FeedbackVector): JSAny {
     let iteratorMethod: JSAny;
     typeswitch (feedback) {
       case (Undefined): {
@@ -64,8 +64,10 @@ namespace iterator {
             context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
       }
     }
+    // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+    const callSlotSmi: Smi = TaggedIndexToSmi(callSlot);
     return CallIteratorWithFeedback(
-        context, receiver, iteratorMethod, callSlot, feedback);
+        context, receiver, iteratorMethod, callSlotSmi, feedback);
   }
 
   transitioning builtin CallIteratorWithFeedback(

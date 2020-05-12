@@ -81,6 +81,10 @@ extern int madvise(caddr_t, size_t, int);
 #define MADV_FREE MADV_DONTNEED
 #endif
 
+#if defined(V8_LIBC_GLIBC)
+extern "C" void* __libc_stack_end;  // NOLINT
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -109,6 +113,8 @@ const int kMmapFd = -1;
 
 const int kMmapFdOffset = 0;
 
+// TODO(v8:10026): Add the right permission flag to make executable pages
+// guarded.
 int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
@@ -464,7 +470,7 @@ void OS::DebugBreak() {
   asm("break");
 #elif V8_HOST_ARCH_MIPS64
   asm("break");
-#elif V8_HOST_ARCH_PPC
+#elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
   asm("twge 2,2");
 #elif V8_HOST_ARCH_IA32
   asm("int $3");
@@ -802,7 +808,7 @@ static void* ThreadEntry(void* arg) {
 
 
 void Thread::set_name(const char* name) {
-  strncpy(name_, name, sizeof(name_));
+  strncpy(name_, name, sizeof(name_) - 1);
   name_[sizeof(name_) - 1] = '\0';
 }
 
@@ -960,6 +966,40 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   DCHECK_EQ(0, result);
   USE(result);
 }
+
+// pthread_getattr_np used below is non portable (hence the _np suffix). We
+// keep this version in POSIX as most Linux-compatible derivatives will
+// support it. MacOS and FreeBSD are different here.
+#if !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX)
+
+// static
+void* Stack::GetStackStart() {
+  pthread_attr_t attr;
+  int error = pthread_getattr_np(pthread_self(), &attr);
+  if (!error) {
+    void* base;
+    size_t size;
+    error = pthread_attr_getstack(&attr, &base, &size);
+    CHECK(!error);
+    pthread_attr_destroy(&attr);
+    return reinterpret_cast<uint8_t*>(base) + size;
+  }
+  pthread_attr_destroy(&attr);
+
+#if defined(V8_LIBC_GLIBC)
+  // pthread_getattr_np can fail for the main thread. In this case
+  // just like NaCl we rely on the __libc_stack_end to give us
+  // the start of the stack.
+  // See https://code.google.com/p/nativeclient/issues/detail?id=3431.
+  return __libc_stack_end;
+#endif  // !defined(V8_LIBC_GLIBC)
+  return nullptr;
+}
+
+#endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_MACOSX)
+
+// static
+void* Stack::GetCurrentStackPosition() { return __builtin_frame_address(0); }
 
 #undef LOG_TAG
 #undef MAP_ANONYMOUS

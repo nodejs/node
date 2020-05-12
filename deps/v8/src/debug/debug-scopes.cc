@@ -244,10 +244,11 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
     info_->set_eager();
   }
 
+  MaybeHandle<ScopeInfo> maybe_outer_scope;
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
     info_->set_eval();
     if (!context_->IsNativeContext()) {
-      info_->set_outer_scope_info(handle(context_->scope_info(), isolate_));
+      maybe_outer_scope = handle(context_->scope_info(), isolate_);
     }
     // Language mode may be inherited from the eval caller.
     // Retrieve it from shared function info.
@@ -259,9 +260,13 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
            scope_info->scope_type() == FUNCTION_SCOPE);
   }
 
-  if (parsing::ParseAny(info_, shared_info, isolate_) &&
-      Rewriter::Rewrite(info_)) {
-    info_->ast_value_factory()->Internalize(isolate_->factory());
+  const bool parse_result =
+      info_->is_toplevel()
+          ? parsing::ParseProgram(info_, script, maybe_outer_scope, isolate_)
+          : parsing::ParseFunction(info_, shared_info, isolate_);
+
+  if (parse_result && Rewriter::Rewrite(info_)) {
+    info_->ast_value_factory()->Internalize(isolate_);
     DeclarationScope* literal_scope = info_->literal()->scope();
 
     ScopeChainRetriever scope_chain_retriever(literal_scope, function_,

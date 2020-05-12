@@ -325,7 +325,13 @@ class CppLintProcessor(CacheableSourceFileProcessor):
     return (super(CppLintProcessor, self).IgnoreDir(name)
             or (name == 'third_party'))
 
-  IGNORE_LINT = ['export-template.h', 'flag-definitions.h']
+  IGNORE_LINT = [
+    'export-template.h',
+    'flag-definitions.h',
+    'gay-fixed.cc',
+    'gay-precision.cc',
+    'gay-shortest.cc',
+  ]
 
   def IgnoreFile(self, name):
     return (super(CppLintProcessor, self).IgnoreFile(name)

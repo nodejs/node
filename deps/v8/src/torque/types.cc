@@ -67,6 +67,20 @@ std::string Type::SimpleName() const {
   return *aliases_.begin();
 }
 
+// TODO(danno): HandlifiedCppTypeName should be used universally in Torque
+// where the C++ type of a Torque object is required.
+std::string Type::HandlifiedCppTypeName() const {
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
+  if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    base::Optional<const ClassType*> class_type = ClassSupertype();
+    std::string type =
+        class_type ? (*class_type)->GetGeneratedTNodeTypeName() : "Object";
+    return "Handle<" + type + ">";
+  } else {
+    return ConstexprVersion()->GetGeneratedTypeName();
+  }
+}
+
 bool Type::IsSubtypeOf(const Type* supertype) const {
   if (supertype->IsTopType()) return true;
   if (IsNever()) return true;
@@ -94,6 +108,15 @@ base::Optional<const ClassType*> Type::ClassSupertype() const {
   for (const Type* t = this; t != nullptr; t = t->parent()) {
     if (auto* class_type = ClassType::DynamicCast(t)) {
       return class_type;
+    }
+  }
+  return base::nullopt;
+}
+
+base::Optional<const StructType*> Type::StructSupertype() const {
+  for (const Type* t = this; t != nullptr; t = t->parent()) {
+    if (auto* struct_type = StructType::DynamicCast(t)) {
+      return struct_type;
     }
   }
   return base::nullopt;
@@ -147,6 +170,7 @@ std::string Type::GetGeneratedTNodeTypeName() const {
 }
 
 std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
+  if (generated_type_.empty()) return parent()->GetGeneratedTNodeTypeName();
   return generated_type_;
 }
 
@@ -371,10 +395,31 @@ size_t StructType::PackedSize() const {
   return result;
 }
 
+StructType::Classification StructType::ClassifyContents() const {
+  Classification result = ClassificationFlag::kEmpty;
+  for (const Field& struct_field : fields()) {
+    const Type* field_type = struct_field.name_and_type.type;
+    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      result |= ClassificationFlag::kTagged;
+    } else if (auto field_as_struct = field_type->StructSupertype()) {
+      result |= (*field_as_struct)->ClassifyContents();
+    } else {
+      result |= ClassificationFlag::kUntagged;
+    }
+  }
+  return result;
+}
+
 // static
 std::string Type::ComputeName(const std::string& basename,
                               MaybeSpecializationKey specialized_from) {
   if (!specialized_from) return basename;
+  if (specialized_from->generic == TypeOracle::GetConstReferenceGeneric()) {
+    return torque::ToString("const &", *specialized_from->specialized_types[0]);
+  }
+  if (specialized_from->generic == TypeOracle::GetMutableReferenceGeneric()) {
+    return torque::ToString("&", *specialized_from->specialized_types[0]);
+  }
   std::stringstream s;
   s << basename << "<";
   bool first = true;
@@ -501,47 +546,76 @@ void ClassType::GenerateAccessors() {
   // For each field, construct AST snippets that implement a CSA accessor
   // function. The implementation iterator will turn the snippets into code.
   for (auto& field : fields_) {
-    if (field.index || field.name_and_type.type == TypeOracle::GetVoidType()) {
+    if (field.name_and_type.type == TypeOracle::GetVoidType()) {
       continue;
     }
     CurrentSourcePosition::Scope position_activator(field.pos);
+
     IdentifierExpression* parameter =
         MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"o"}));
+    IdentifierExpression* index =
+        MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"i"}));
 
     // Load accessor
     std::string camel_field_name = CamelifyString(field.name_and_type.name);
     std::string load_macro_name = "Load" + this->name() + camel_field_name;
+
+    // For now, only generate indexed accessors for simple types
+    if (field.index.has_value() && field.name_and_type.type->IsStructType()) {
+      continue;
+    }
+
     Signature load_signature;
     load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
     load_signature.parameter_types.types.push_back(this);
+    if (field.index) {
+      load_signature.parameter_names.push_back(MakeNode<Identifier>("i"));
+      load_signature.parameter_types.types.push_back(
+          TypeOracle::GetIntPtrType());
+    }
     load_signature.parameter_types.var_args = false;
     load_signature.return_type = field.name_and_type.type;
-    Statement* load_body =
-        MakeNode<ReturnStatement>(MakeNode<FieldAccessExpression>(
-            parameter, MakeNode<Identifier>(field.name_and_type.name)));
+
+    Expression* load_expression = MakeNode<FieldAccessExpression>(
+        parameter, MakeNode<Identifier>(field.name_and_type.name));
+    if (field.index) {
+      load_expression =
+          MakeNode<ElementAccessExpression>(load_expression, index);
+    }
+    Statement* load_body = MakeNode<ReturnStatement>(load_expression);
     Declarations::DeclareMacro(load_macro_name, true, base::nullopt,
                                load_signature, load_body, base::nullopt);
 
     // Store accessor
-    IdentifierExpression* value = MakeNode<IdentifierExpression>(
-        std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
-    std::string store_macro_name = "Store" + this->name() + camel_field_name;
-    Signature store_signature;
-    store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
-    store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
-    store_signature.parameter_types.types.push_back(this);
-    store_signature.parameter_types.types.push_back(field.name_and_type.type);
-    store_signature.parameter_types.var_args = false;
-    // TODO(danno): Store macros probably should return their value argument
-    store_signature.return_type = TypeOracle::GetVoidType();
-    Statement* store_body =
-        MakeNode<ExpressionStatement>(MakeNode<AssignmentExpression>(
-            MakeNode<FieldAccessExpression>(
-                parameter, MakeNode<Identifier>(field.name_and_type.name)),
-            value));
-    Declarations::DeclareMacro(store_macro_name, true, base::nullopt,
-                               store_signature, store_body, base::nullopt,
-                               false);
+    if (!field.const_qualified) {
+      IdentifierExpression* value = MakeNode<IdentifierExpression>(
+          std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
+      std::string store_macro_name = "Store" + this->name() + camel_field_name;
+      Signature store_signature;
+      store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+      store_signature.parameter_types.types.push_back(this);
+      if (field.index) {
+        store_signature.parameter_names.push_back(MakeNode<Identifier>("i"));
+        store_signature.parameter_types.types.push_back(
+            TypeOracle::GetIntPtrType());
+      }
+      store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
+      store_signature.parameter_types.types.push_back(field.name_and_type.type);
+      store_signature.parameter_types.var_args = false;
+      // TODO(danno): Store macros probably should return their value argument
+      store_signature.return_type = TypeOracle::GetVoidType();
+      Expression* store_expression = MakeNode<FieldAccessExpression>(
+          parameter, MakeNode<Identifier>(field.name_and_type.name));
+      if (field.index) {
+        store_expression =
+            MakeNode<ElementAccessExpression>(store_expression, index);
+      }
+      Statement* store_body = MakeNode<ExpressionStatement>(
+          MakeNode<AssignmentExpression>(store_expression, value));
+      Declarations::DeclareMacro(store_macro_name, true, base::nullopt,
+                                 store_signature, store_body, base::nullopt,
+                                 false);
+    }
   }
 }
 
@@ -658,7 +732,7 @@ VisitResult ProjectStructField(VisitResult structure,
   BottomOffset begin = structure.stack_range().begin();
 
   // Check constructor this super classes for fields.
-  const StructType* type = StructType::cast(structure.type());
+  const StructType* type = *structure.type()->StructSupertype();
   auto& fields = type->fields();
   for (auto& field : fields) {
     BottomOffset end = begin + LoweredSlotCount(field.name_and_type.type);
@@ -677,8 +751,8 @@ void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
   DCHECK_NE(type, TypeOracle::GetNeverType());
   if (type->IsConstexpr()) return;
   if (type == TypeOracle::GetVoidType()) return;
-  if (auto* s = StructType::DynamicCast(type)) {
-    for (const Field& field : s->fields()) {
+  if (base::Optional<const StructType*> s = type->StructSupertype()) {
+    for (const Field& field : (*s)->fields()) {
       AppendLoweredTypes(field.name_and_type.type, result);
     }
   } else {
@@ -781,9 +855,9 @@ size_t StructType::AlignmentLog2() const {
 
 void Field::ValidateAlignment(ResidueClass at_offset) const {
   const Type* type = name_and_type.type;
-  const StructType* struct_type = StructType::DynamicCast(type);
+  base::Optional<const StructType*> struct_type = type->StructSupertype();
   if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
-    for (const Field& field : struct_type->fields()) {
+    for (const Field& field : (*struct_type)->fields()) {
       field.ValidateAlignment(at_offset);
       size_t field_size = std::get<0>(field.GetFieldSizeInformation());
       at_offset += field_size;
@@ -837,12 +911,12 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
     size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
-  } else if (const StructType* struct_type = StructType::DynamicCast(type)) {
+  } else if (auto struct_type = type->StructSupertype()) {
     if (type == TypeOracle::GetFloat64OrHoleType()) {
       size = kDoubleSize;
       size_string = "kDoubleSize";
     } else {
-      size = struct_type->PackedSize();
+      size = (*struct_type)->PackedSize();
       size_string = std::to_string(size);
     }
   } else {
@@ -853,6 +927,7 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
 
 bool IsAnyUnsignedInteger(const Type* type) {
   return type == TypeOracle::GetUint32Type() ||
+         type == TypeOracle::GetUint31Type() ||
          type == TypeOracle::GetUint16Type() ||
          type == TypeOracle::GetUint8Type() ||
          type == TypeOracle::GetUIntPtrType();

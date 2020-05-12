@@ -32,7 +32,7 @@ bool CanEmitUnwindInfoForBuiltins();
 
 /**
  * Returns true if V8 if we can register unwinding data for the whole code range
- * of an isolate or WASM module. The first page of the code range is reserved
+ * of an isolate or Wasm module. The first page of the code range is reserved
  * and writable, to be used to store unwind data, as documented in:
  * https://docs.microsoft.com/en-us/cpp/build/exception-handling-x64.
  * In jitless mode V8 does not allocate any executable memory itself so the only
@@ -52,9 +52,9 @@ void UnregisterNonABICompliantCodeRange(void* start);
 /**
  * Default count of RUNTIME_FUNCTION needed. For Windows X64, 1 RUNTIME_FUNCTION
  * covers 4GB range which is sufficient to cover the whole code range of an
- * isolate or WASM module. For Windows ARM64, 1 RUNTIME_FUNCTION covers
+ * isolate or Wasm module. For Windows ARM64, 1 RUNTIME_FUNCTION covers
  * kMaxFunctionLength bytes so multiple RUNTIME_FUNCTION structs could be needed
- * to cover the whole code range of an isolate or WASM module. The extra
+ * to cover the whole code range of an isolate or Wasm module. The extra
  * RUNTIME_FUNCTIONs are assumed following the first one in the reserved page.
  */
 static const uint32_t kDefaultRuntimeFunctionCount = 1;

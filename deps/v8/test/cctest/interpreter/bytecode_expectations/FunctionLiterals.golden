@@ -11,9 +11,8 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 5
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
   /*   54 S> */ B(Return),
 ]
@@ -29,9 +28,8 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 10
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star), R(0),
   /*   56 E> */ B(CallUndefinedReceiver0), R(0), U8(0),
@@ -49,9 +47,8 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 16
+bytecode array length: 15
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star), R(0),
                 B(LdaSmi), I8(1),

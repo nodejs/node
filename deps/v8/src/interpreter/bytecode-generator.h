@@ -24,7 +24,7 @@ enum class SourceRangeKind;
 
 namespace interpreter {
 
-class GlobalDeclarationsBuilder;
+class TopLevelDeclarationsBuilder;
 class LoopBuilder;
 class BlockCoverageBuilder;
 class BytecodeJumpTable;
@@ -37,12 +37,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       std::vector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
-  Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,
+  template <typename LocalIsolate>
+  Handle<BytecodeArray> FinalizeBytecode(LocalIsolate* isolate,
                                          Handle<Script> script);
-  Handle<ByteArray> FinalizeSourcePositionTable(Isolate* isolate);
+  template <typename LocalIsolate>
+  Handle<ByteArray> FinalizeSourcePositionTable(LocalIsolate* isolate);
 
 #ifdef DEBUG
-  int CheckBytecodeMatches(Handle<BytecodeArray> bytecode);
+  int CheckBytecodeMatches(BytecodeArray bytecode);
 #endif
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);
@@ -50,11 +52,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list and statements are overridden.
+  void VisitModuleDeclarations(Declaration::List* declarations);
   void VisitGlobalDeclarations(Declaration::List* declarations);
   void VisitDeclarations(Declaration::List* declarations);
   void VisitStatements(const ZonePtrList<Statement>* statments);
 
  private:
+  class AccumulatorPreservingScope;
   class ContextScope;
   class ControlScope;
   class ControlScopeForBreakable;
@@ -63,17 +67,17 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ControlScopeForTryCatch;
   class ControlScopeForTryFinally;
   class CurrentScope;
-  class ExpressionResultScope;
   class EffectResultScope;
+  class ExpressionResultScope;
   class FeedbackSlotCache;
-  class GlobalDeclarationsBuilder;
   class IteratorRecord;
+  class LoopScope;
   class NaryCodeCoverageSlots;
-  class RegisterAllocationScope;
-  class AccumulatorPreservingScope;
-  class TestResultScope;
-  class ValueResultScope;
   class OptionalChainNullLabelScope;
+  class RegisterAllocationScope;
+  class TestResultScope;
+  class TopLevelDeclarationsBuilder;
+  class ValueResultScope;
 
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
@@ -160,7 +164,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   };
 
   void GenerateBytecodeBody();
-  void AllocateDeferredConstants(Isolate* isolate, Handle<Script> script);
+  template <typename LocalIsolate>
+  void AllocateDeferredConstants(LocalIsolate* isolate, Handle<Script> script);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -220,6 +225,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                        LookupHoistingMode lookup_hoisting_mode);
 
   void BuildThisVariableLoad();
+
+  void BuildDeclareCall(Runtime::FunctionId id);
 
   Expression* GetDestructuringDefaultValue(Expression** target);
   void BuildDestructuringArrayAssignment(
@@ -462,9 +469,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     return builder()->register_allocator();
   }
 
-  GlobalDeclarationsBuilder* globals_builder() {
-    DCHECK_NOT_NULL(globals_builder_);
-    return globals_builder_;
+  TopLevelDeclarationsBuilder* top_level_builder() {
+    DCHECK_NOT_NULL(top_level_builder_);
+    return top_level_builder_;
   }
   inline LanguageMode language_mode() const;
   inline FunctionKind function_kind() const;
@@ -482,6 +489,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     catch_prediction_ = value;
   }
 
+  LoopScope* current_loop_scope() const { return current_loop_scope_; }
+  void set_current_loop_scope(LoopScope* loop_scope) {
+    current_loop_scope_ = loop_scope;
+  }
+
   Zone* zone_;
   BytecodeArrayBuilder builder_;
   UnoptimizedCompilationInfo* info_;
@@ -494,7 +506,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   FeedbackSlotCache* feedback_slot_cache_;
 
-  GlobalDeclarationsBuilder* globals_builder_;
+  TopLevelDeclarationsBuilder* top_level_builder_;
   BlockCoverageBuilder* block_coverage_builder_;
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
@@ -518,7 +530,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   BytecodeJumpTable* generator_jump_table_;
   int suspend_count_;
+  // TODO(solanes): assess if we can move loop_depth_ into LoopScope.
   int loop_depth_;
+
+  LoopScope* current_loop_scope_;
 
   HandlerTable::CatchPrediction catch_prediction_;
 };

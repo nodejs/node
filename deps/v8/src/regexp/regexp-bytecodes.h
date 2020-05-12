@@ -101,12 +101,12 @@ STATIC_ASSERT(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   V(CHECK_BIT_IN_TABLE, 34, 24) /* bc8 pad24 addr32 bits128           */       \
   V(CHECK_LT, 35, 8) /* bc8 pad8 uc16 addr32                       */          \
   V(CHECK_GT, 36, 8) /* bc8 pad8 uc16 addr32                       */          \
-  V(CHECK_NOT_BACK_REF, 37, 8)         /* bc8 reg_idx24 addr32 */              \
-  V(CHECK_NOT_BACK_REF_NO_CASE, 38, 8) /* bc8 reg_idx24 addr32 */              \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 39, 8)                                 \
+  V(CHECK_NOT_BACK_REF, 37, 8)                  /* bc8 reg_idx24 addr32 */     \
+  V(CHECK_NOT_BACK_REF_NO_CASE, 38, 8)          /* bc8 reg_idx24 addr32 */     \
+  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 39, 8)  /* UNUSED */                   \
   V(CHECK_NOT_BACK_REF_BACKWARD, 40, 8)         /* bc8 reg_idx24 addr32 */     \
   V(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD, 41, 8) /* bc8 reg_idx24 addr32 */     \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 42, 8)                        \
+  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 42, 8) /* UNUSED */           \
   V(CHECK_NOT_REGS_EQUAL, 43, 12) /* bc8 regidx24 reg_idx32 addr32 */          \
   V(CHECK_REGISTER_LT, 44, 12)    /* bc8 reg_idx24 value32 addr32 */           \
   V(CHECK_REGISTER_GE, 45, 12)    /* bc8 reg_idx24 value32 addr32 */           \

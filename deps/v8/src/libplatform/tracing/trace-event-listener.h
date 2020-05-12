@@ -7,6 +7,8 @@
 
 #include <vector>
 
+#include "libplatform/libplatform-export.h"
+
 namespace perfetto {
 namespace protos {
 class TracePacket;
@@ -22,7 +24,7 @@ namespace tracing {
 // the PerfettoConsumer class has to perform. Clients override ProcessPacket()
 // to respond to trace events, e.g. to write them to a file as JSON or for
 // testing purposes.
-class TraceEventListener {
+class V8_PLATFORM_EXPORT TraceEventListener {
  public:
   virtual ~TraceEventListener() = default;
   virtual void ProcessPacket(const ::perfetto::protos::TracePacket& packet) = 0;

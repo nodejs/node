@@ -665,6 +665,24 @@ class SystemTest(unittest.TestCase):
 
       self.assertEqual(0, result.returncode, result)
 
+  def testRunnerFlags(self):
+    """Test that runner-specific flags are passed to tests."""
+    with temp_base() as basedir:
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          '--progress=verbose',
+          '--variants=default',
+          '--random-seed=42',
+          'sweet/bananas',
+          '-v',
+      )
+
+      self.assertIn(
+          '--test bananas --random-seed=42 --nohard-abort --testing-d8-test-runner',
+          result.stdout, result)
+      self.assertEqual(0, result.returncode, result)
+
 
 if __name__ == '__main__':
   unittest.main()

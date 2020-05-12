@@ -122,8 +122,8 @@ void InterpreterAssembler::SaveBytecodeOffset() {
                         IntPtrConstant(payload_offset),
                         TruncateIntPtrToInt32(bytecode_offset));
   } else {
-    StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, base,
-                        IntPtrConstant(store_offset), SmiTag(bytecode_offset));
+    StoreFullTaggedNoWriteBarrier(base, IntPtrConstant(store_offset),
+                                  SmiTag(bytecode_offset));
   }
 }
 
@@ -265,11 +265,9 @@ TNode<IntPtrT> InterpreterAssembler::LoadAndUntagRegister(Register reg) {
 #if V8_TARGET_LITTLE_ENDIAN
     index += 4;
 #endif
-    return ChangeInt32ToIntPtr(
-        Load(MachineType::Int32(), base, IntPtrConstant(index)));
+    return ChangeInt32ToIntPtr(Load<Int32T>(base, IntPtrConstant(index)));
   } else {
-    return SmiToIntPtr(
-        Load(MachineType::TaggedSigned(), base, IntPtrConstant(index)));
+    return SmiToIntPtr(CAST(LoadFullTagged(base, IntPtrConstant(index))));
   }
 }
 
@@ -625,6 +623,13 @@ TNode<Smi> InterpreterAssembler::BytecodeOperandIdxSmi(int operand_index) {
   return SmiTag(Signed(BytecodeOperandIdx(operand_index)));
 }
 
+TNode<TaggedIndex> InterpreterAssembler::BytecodeOperandIdxTaggedIndex(
+    int operand_index) {
+  TNode<IntPtrT> index =
+      ChangeInt32ToIntPtr(Signed(BytecodeOperandIdxInt32(operand_index)));
+  return IntPtrToTaggedIndex(index);
+}
+
 TNode<UintPtrT> InterpreterAssembler::BytecodeOperandConstantPoolIdx(
     int operand_index, LoadSensitivity needs_poisoning) {
   DCHECK_EQ(OperandType::kIdx,
@@ -766,9 +771,15 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
 
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     // The first argument parameter (the receiver) is implied to be undefined.
+#ifdef V8_REVERSE_JSARGS
+    TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
+                                     context, function, arg_count, args...,
+                                     UndefinedConstant());
+#else
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count,
                                      UndefinedConstant(), args...);
+#endif
   } else {
     TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target,
                                      context, function, arg_count, args...);
@@ -1476,7 +1487,8 @@ bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   return false;
 #elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC ||   \
+    V8_TARGET_ARCH_PPC64
   return true;
 #else
 #error "Unknown Architecture"
@@ -1523,9 +1535,14 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
     // Iterate over parameters and write them into the array.
     Label loop(this, &var_index), done_loop(this);
 
+#ifdef V8_REVERSE_JSARGS
+    TNode<IntPtrT> reg_base =
+        IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() + 1);
+#else
     TNode<IntPtrT> reg_base = IntPtrAdd(
         IntPtrConstant(Register::FromParameterIndex(0, 1).ToOperand() - 1),
         formal_parameter_count_intptr);
+#endif
 
     Goto(&loop);
     BIND(&loop);
@@ -1534,7 +1551,11 @@ TNode<FixedArray> InterpreterAssembler::ExportParametersAndRegisterFile(
       GotoIfNot(UintPtrLessThan(index, formal_parameter_count_intptr),
                 &done_loop);
 
+#ifdef V8_REVERSE_JSARGS
+      TNode<IntPtrT> reg_index = IntPtrAdd(reg_base, index);
+#else
       TNode<IntPtrT> reg_index = IntPtrSub(reg_base, index);
+#endif
       TNode<Object> value = LoadRegister(reg_index);
 
       StoreFixedArrayElement(array, index, value);

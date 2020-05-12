@@ -357,64 +357,56 @@ int BreakPointInfo::GetBreakPointCount(Isolate* isolate) {
   return FixedArray::cast(break_points()).length();
 }
 
-int CoverageInfo::SlotCount() const {
-  DCHECK_EQ(kFirstSlotIndex, length() % kSlotIndexCount);
-  return (length() - kFirstSlotIndex) / kSlotIndexCount;
+int CoverageInfo::SlotFieldOffset(int slot_index, int field_offset) const {
+  DCHECK_LT(field_offset, Slot::kSize);
+  DCHECK_LT(slot_index, slot_count());
+  return kSlotsOffset + slot_index * Slot::kSize + field_offset;
 }
 
 int CoverageInfo::StartSourcePosition(int slot_index) const {
-  DCHECK_LT(slot_index, SlotCount());
-  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  return Smi::ToInt(get(slot_start + kSlotStartSourcePositionIndex));
+  return ReadField<int32_t>(
+      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset));
 }
 
 int CoverageInfo::EndSourcePosition(int slot_index) const {
-  DCHECK_LT(slot_index, SlotCount());
-  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  return Smi::ToInt(get(slot_start + kSlotEndSourcePositionIndex));
+  return ReadField<int32_t>(
+      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset));
 }
 
 int CoverageInfo::BlockCount(int slot_index) const {
-  DCHECK_LT(slot_index, SlotCount());
-  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  return Smi::ToInt(get(slot_start + kSlotBlockCountIndex));
+  return ReadField<int32_t>(
+      SlotFieldOffset(slot_index, Slot::kBlockCountOffset));
 }
 
 void CoverageInfo::InitializeSlot(int slot_index, int from_pos, int to_pos) {
-  DCHECK_LT(slot_index, SlotCount());
-  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  set(slot_start + kSlotStartSourcePositionIndex, Smi::FromInt(from_pos));
-  set(slot_start + kSlotEndSourcePositionIndex, Smi::FromInt(to_pos));
-  set(slot_start + kSlotBlockCountIndex, Smi::zero());
-}
-
-void CoverageInfo::IncrementBlockCount(int slot_index) {
-  DCHECK_LT(slot_index, SlotCount());
-  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  const int old_count = BlockCount(slot_index);
-  set(slot_start + kSlotBlockCountIndex, Smi::FromInt(old_count + 1));
+  WriteField<int32_t>(
+      SlotFieldOffset(slot_index, Slot::kStartSourcePositionOffset), from_pos);
+  WriteField<int32_t>(
+      SlotFieldOffset(slot_index, Slot::kEndSourcePositionOffset), to_pos);
+  ResetBlockCount(slot_index);
+  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kPaddingOffset), 0);
 }
 
 void CoverageInfo::ResetBlockCount(int slot_index) {
-  DCHECK_LT(slot_index, SlotCount());
-  const int slot_start = CoverageInfo::FirstIndexForSlot(slot_index);
-  set(slot_start + kSlotBlockCountIndex, Smi::zero());
+  WriteField<int32_t>(SlotFieldOffset(slot_index, Slot::kBlockCountOffset), 0);
 }
 
-void CoverageInfo::Print(std::unique_ptr<char[]> function_name) {
+void CoverageInfo::CoverageInfoPrint(std::ostream& os,
+                                     std::unique_ptr<char[]> function_name) {
   DCHECK(FLAG_trace_block_coverage);
   DisallowHeapAllocation no_gc;
 
-  StdoutStream os;
   os << "Coverage info (";
-  if (strlen(function_name.get()) > 0) {
+  if (function_name == nullptr) {
+    os << "{unknown}";
+  } else if (strlen(function_name.get()) > 0) {
     os << function_name.get();
   } else {
     os << "{anonymous}";
   }
   os << "):" << std::endl;
 
-  for (int i = 0; i < SlotCount(); i++) {
+  for (int i = 0; i < slot_count(); i++) {
     os << "{" << StartSourcePosition(i) << "," << EndSourcePosition(i) << "}"
        << std::endl;
   }

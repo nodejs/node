@@ -46,6 +46,7 @@ class V8InspectorClient;
 
 class V8DebuggerScript {
  public:
+  enum class Language { JavaScript, WebAssembly };
   static std::unique_ptr<V8DebuggerScript> Create(
       v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
       bool isLiveEdit, V8DebuggerAgentImpl* agent, V8InspectorClient* client);
@@ -59,11 +60,13 @@ class V8DebuggerScript {
   virtual const String16& sourceMappingURL() const = 0;
   virtual String16 source(size_t pos, size_t len = UINT_MAX) const = 0;
   virtual v8::Maybe<v8::MemorySpan<const uint8_t>> wasmBytecode() const = 0;
+  virtual Language getLanguage() const = 0;
   virtual const String16& hash() const = 0;
   virtual int startLine() const = 0;
   virtual int startColumn() const = 0;
   virtual int endLine() const = 0;
   virtual int endColumn() const = 0;
+  virtual int codeOffset() const = 0;
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
   virtual bool isModule() const = 0;

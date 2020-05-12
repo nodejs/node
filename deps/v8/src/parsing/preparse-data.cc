@@ -9,11 +9,13 @@
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/handles/handles.h"
+#include "src/heap/off-thread-factory.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data-impl.h"
 #include "src/parsing/preparser.h"
+#include "src/roots/roots.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 namespace v8 {
@@ -431,11 +433,37 @@ Handle<PreparseData> PreparseDataBuilder::ByteData::CopyToHeap(
   return data;
 }
 
+Handle<PreparseData> PreparseDataBuilder::ByteData::CopyToOffThreadHeap(
+    OffThreadIsolate* isolate, int children_length) {
+  DCHECK(is_finalized_);
+  int data_length = zone_byte_data_.length();
+  Handle<PreparseData> data =
+      isolate->factory()->NewPreparseData(data_length, children_length);
+  data->copy_in(0, zone_byte_data_.begin(), data_length);
+  return data;
+}
+
 Handle<PreparseData> PreparseDataBuilder::Serialize(Isolate* isolate) {
   DCHECK(HasData());
   DCHECK(!ThisOrParentBailedOut());
   Handle<PreparseData> data =
       byte_data_.CopyToHeap(isolate, num_inner_with_data_);
+  int i = 0;
+  DCHECK(finalized_children_);
+  for (const auto& builder : children_) {
+    if (!builder->HasData()) continue;
+    Handle<PreparseData> child_data = builder->Serialize(isolate);
+    data->set_child(i++, *child_data);
+  }
+  DCHECK_EQ(i, data->children_length());
+  return data;
+}
+
+Handle<PreparseData> PreparseDataBuilder::Serialize(OffThreadIsolate* isolate) {
+  DCHECK(HasData());
+  DCHECK(!ThisOrParentBailedOut());
+  Handle<PreparseData> data =
+      byte_data_.CopyToOffThreadHeap(isolate, num_inner_with_data_);
   int i = 0;
   DCHECK(finalized_children_);
   for (const auto& builder : children_) {
@@ -473,6 +501,10 @@ class BuilderProducedPreparseData final : public ProducedPreparseData {
     return builder_->Serialize(isolate);
   }
 
+  Handle<PreparseData> Serialize(OffThreadIsolate* isolate) final {
+    return builder_->Serialize(isolate);
+  }
+
   ZonePreparseData* Serialize(Zone* zone) final {
     return builder_->Serialize(zone);
   }
@@ -491,6 +523,11 @@ class OnHeapProducedPreparseData final : public ProducedPreparseData {
     return data_;
   }
 
+  Handle<PreparseData> Serialize(OffThreadIsolate* isolate) final {
+    // Not required.
+    UNREACHABLE();
+  }
+
   ZonePreparseData* Serialize(Zone* zone) final {
     // Not required.
     UNREACHABLE();
@@ -505,6 +542,10 @@ class ZoneProducedPreparseData final : public ProducedPreparseData {
   explicit ZoneProducedPreparseData(ZonePreparseData* data) : data_(data) {}
 
   Handle<PreparseData> Serialize(Isolate* isolate) final {
+    return data_->Serialize(isolate);
+  }
+
+  Handle<PreparseData> Serialize(OffThreadIsolate* isolate) final {
     return data_->Serialize(isolate);
   }
 
@@ -735,6 +776,22 @@ ZonePreparseData::ZonePreparseData(Zone* zone, Vector<uint8_t>* byte_data,
       children_(children_length, zone) {}
 
 Handle<PreparseData> ZonePreparseData::Serialize(Isolate* isolate) {
+  int data_size = static_cast<int>(byte_data()->size());
+  int child_data_length = children_length();
+  Handle<PreparseData> result =
+      isolate->factory()->NewPreparseData(data_size, child_data_length);
+  result->copy_in(0, byte_data()->data(), data_size);
+
+  for (int i = 0; i < child_data_length; i++) {
+    ZonePreparseData* child = get_child(i);
+    DCHECK_NOT_NULL(child);
+    Handle<PreparseData> child_data = child->Serialize(isolate);
+    result->set_child(i, *child_data);
+  }
+  return result;
+}
+
+Handle<PreparseData> ZonePreparseData::Serialize(OffThreadIsolate* isolate) {
   int data_size = static_cast<int>(byte_data()->size());
   int child_data_length = children_length();
   Handle<PreparseData> result =

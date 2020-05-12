@@ -81,17 +81,13 @@ const AbstractType* TypeVisitor::ComputeType(
 
   const Type* parent_type = nullptr;
   if (decl->extends) {
-    parent_type = Declarations::LookupType(*decl->extends);
+    parent_type = TypeVisitor::ComputeType(*decl->extends);
     if (parent_type->IsUnionType()) {
       // UnionType::IsSupertypeOf requires that types can only extend from non-
       // union types in order to work correctly.
       ReportError("type \"", decl->name->value,
                   "\" cannot extend a type union");
     }
-  }
-
-  if (generates == "" && parent_type) {
-    generates = parent_type->GetGeneratedTNodeTypeName();
   }
 
   if (decl->is_constexpr && decl->transient) {
@@ -244,81 +240,83 @@ const StructType* TypeVisitor::ComputeType(
 
 const ClassType* TypeVisitor::ComputeType(
     ClassDeclaration* decl, MaybeSpecializationKey specialized_from) {
-  ClassType* new_class;
   // TODO(sigurds): Remove this hack by introducing a declarable for classes.
   const TypeAlias* alias =
       Declarations::LookupTypeAlias(QualifiedName(decl->name->value));
-  GlobalContext::RegisterClass(alias);
   DCHECK_EQ(*alias->delayed_, decl);
-  bool is_shape = decl->flags & ClassFlag::kIsShape;
-  if (is_shape && !(decl->flags & ClassFlag::kExtern)) {
-    ReportError("Shapes must be extern, add \"extern\" to the declaration.");
+  ClassFlags flags = decl->flags;
+  bool is_shape = flags & ClassFlag::kIsShape;
+  std::string generates = decl->name->value;
+  const Type* super_type = TypeVisitor::ComputeType(*decl->super);
+  if (is_shape) {
+    if (!(flags & ClassFlag::kExtern)) {
+      ReportError("Shapes must be extern, add \"extern\" to the declaration.");
+    }
+    if (flags & ClassFlag::kUndefinedLayout) {
+      ReportError("Shapes need to define their layout.");
+    }
+    const ClassType* super_class = ClassType::DynamicCast(super_type);
+    if (!super_class ||
+        !super_class->IsSubtypeOf(TypeOracle::GetJSObjectType())) {
+      Error("Shapes need to extend a subclass of ",
+            *TypeOracle::GetJSObjectType())
+          .Throw();
+    }
+    // Shapes use their super class in CSA code since they have incomplete
+    // support for type-checks on the C++ side.
+    generates = super_class->name();
   }
-  if (is_shape && decl->flags & ClassFlag::kUndefinedLayout) {
-    ReportError("Shapes need to define their layout.");
+  if (!decl->super) {
+    ReportError("Extern class must extend another type.");
   }
-  if (decl->flags & ClassFlag::kExtern) {
-    if (!decl->super) {
-      ReportError("Extern class must extend another type.");
+  if (super_type != TypeOracle::GetStrongTaggedType()) {
+    const ClassType* super_class = ClassType::DynamicCast(super_type);
+    if (!super_class) {
+      ReportError(
+          "class \"", decl->name->value,
+          "\" must extend either StrongTagged or an already declared class");
     }
-    const Type* super_type = TypeVisitor::ComputeType(*decl->super);
-    if (super_type != TypeOracle::GetStrongTaggedType()) {
-      const ClassType* super_class = ClassType::DynamicCast(super_type);
-      if (!super_class) {
-        ReportError(
-            "class \"", decl->name->value,
-            "\" must extend either StrongTagged or an already declared class");
-      }
-      if (super_class->HasUndefinedLayout() &&
-          !(decl->flags & ClassFlag::kUndefinedLayout)) {
-        Error("Class \"", decl->name->value,
-              "\" defines its layout but extends a class which does not")
-            .Position(decl->pos);
-      }
+    if (super_class->HasUndefinedLayout() &&
+        !(flags & ClassFlag::kUndefinedLayout)) {
+      Error("Class \"", decl->name->value,
+            "\" defines its layout but extends a class which does not")
+          .Position(decl->pos);
     }
-
-    std::string generates = decl->name->value;
-    if (is_shape) {
-      const ClassType* super_class = ClassType::DynamicCast(super_type);
-      if (!super_class ||
-          !super_class->IsSubtypeOf(TypeOracle::GetJSObjectType())) {
-        Error("Shapes need to extend a subclass of ",
-              *TypeOracle::GetJSObjectType())
-            .Throw();
-      }
-      // Shapes use their super class in CSA code since they have incomplete
-      // support for type-checks on the C++ side.
-      generates = super_class->name();
+    if ((flags & ClassFlag::kExport) &&
+        !(super_class->ShouldExport() || super_class->IsExtern())) {
+      Error("cannot export class ", decl->name,
+            " because superclass is neither @export or extern");
     }
+  }
+  if ((flags & ClassFlag::kGenerateBodyDescriptor ||
+       flags & ClassFlag::kExport) &&
+      flags & ClassFlag::kUndefinedLayout) {
+    Error("Class \"", decl->name->value,
+          "\" requires a layout but doesn't have one");
+  }
+  if (flags & ClassFlag::kExtern) {
     if (decl->generates) {
       bool enforce_tnode_type = true;
       generates = ComputeGeneratesType(decl->generates, enforce_tnode_type);
     }
-
-    new_class = TypeOracle::GetClassType(super_type, decl->name->value,
-                                         decl->flags, generates, decl, alias);
+    if (flags & ClassFlag::kExport) {
+      Error("cannot export a class that is marked extern");
+    }
   } else {
-    if (!decl->super) {
-      ReportError("Intern class ", decl->name->value,
-                  " must extend class Struct.");
-    }
-    const Type* super_type = TypeVisitor::ComputeType(*decl->super);
-    const ClassType* super_class = ClassType::DynamicCast(super_type);
-    const Type* struct_type =
-        Declarations::LookupGlobalType(QualifiedName("Struct"));
-    if (!super_class || super_class != struct_type) {
-      ReportError("Intern class ", decl->name->value,
-                  " must extend class Struct.");
-    }
     if (decl->generates) {
       ReportError("Only extern classes can specify a generated type.");
     }
-    new_class = TypeOracle::GetClassType(
-        super_type, decl->name->value,
-        decl->flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify,
-        decl->name->value, decl, alias);
+    if (super_type != TypeOracle::GetStrongTaggedType()) {
+      if (flags & ClassFlag::kUndefinedLayout) {
+        Error("non-external classes must have defined layouts");
+      }
+    }
+    flags = flags | ClassFlag::kGeneratePrint | ClassFlag::kGenerateVerify |
+            ClassFlag::kGenerateBodyDescriptor;
   }
-  return new_class;
+
+  return TypeOracle::GetClassType(super_type, decl->name->value, flags,
+                                  generates, decl, alias);
 }
 
 const Type* TypeVisitor::ComputeType(TypeExpression* type_expression) {
@@ -406,33 +404,6 @@ void TypeVisitor::VisitClassFieldsAndMethods(
         ReportError("in-object properties cannot be weak");
       }
     }
-    if (!(class_declaration->flags & ClassFlag::kExtern)) {
-      if (!field_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
-        ReportError(
-            "non-extern classes only support subtypes of type Object, but "
-            "found type ",
-            *field_type);
-      }
-      if (field_expression.weak) {
-        ReportError("non-extern classes do not support weak fields");
-      }
-    }
-    const StructType* struct_type = StructType::DynamicCast(field_type);
-    if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
-      for (const Field& struct_field : struct_type->fields()) {
-        if (!struct_field.name_and_type.type->IsSubtypeOf(
-                TypeOracle::GetTaggedType())) {
-          // If we ever actually need different sizes of struct fields, then we
-          // can define the packing and alignment rules. Until then, let's keep
-          // it simple. This restriction also helps keep the tagged and untagged
-          // regions separate in the class layout (see also
-          // FieldOffsetsGenerator::GetSectionFor).
-          Error(
-              "Classes do not support fields which are structs containing "
-              "untagged data.");
-        }
-      }
-    }
     base::Optional<Expression*> array_length = field_expression.index;
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.name->pos,
@@ -445,6 +416,12 @@ void TypeVisitor::VisitClassFieldsAndMethods(
          field_expression.generate_verify});
     ResidueClass field_size = std::get<0>(field.GetFieldSizeInformation());
     if (field.index) {
+      // Validate that a value at any index in a packed array is aligned
+      // correctly, since it is possible to define a struct whose size is not a
+      // multiple of its alignment.
+      field.ValidateAlignment(class_offset +
+                              field_size * ResidueClass::Unknown());
+
       if (auto literal = NumberLiteralExpression::DynamicCast(*field.index)) {
         size_t value = static_cast<size_t>(literal->number);
         if (value != literal->number) {

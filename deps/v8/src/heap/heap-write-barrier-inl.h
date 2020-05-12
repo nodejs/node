@@ -61,6 +61,7 @@ struct MemoryChunk {
 
   V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
       HeapObject object) {
+    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
     return reinterpret_cast<MemoryChunk*>(object.ptr() & ~kPageAlignmentMask);
   }
 

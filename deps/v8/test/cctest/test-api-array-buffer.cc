@@ -636,6 +636,43 @@ TEST(SharedArrayBuffer_NewBackingStore_CustomDeleter) {
   CHECK(backing_store_custom_called);
 }
 
+TEST(ArrayBuffer_NewBackingStore_EmptyDeleter) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  char static_buffer[100];
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::ArrayBuffer::NewBackingStore(static_buffer, sizeof(static_buffer),
+                                       v8::BackingStore::EmptyDeleter, nullptr);
+  uint64_t external_memory_before =
+      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  v8::ArrayBuffer::New(isolate, std::move(backing_store));
+  uint64_t external_memory_after =
+      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  // The ArrayBuffer constructor does not increase the external memory counter.
+  // The counter may decrease however if the allocation triggers GC.
+  CHECK_GE(external_memory_before, external_memory_after);
+}
+
+TEST(SharedArrayBuffer_NewBackingStore_EmptyDeleter) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+  char static_buffer[100];
+  std::unique_ptr<v8::BackingStore> backing_store =
+      v8::SharedArrayBuffer::NewBackingStore(
+          static_buffer, sizeof(static_buffer), v8::BackingStore::EmptyDeleter,
+          nullptr);
+  uint64_t external_memory_before =
+      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  v8::SharedArrayBuffer::New(isolate, std::move(backing_store));
+  uint64_t external_memory_after =
+      isolate->AdjustAmountOfExternalAllocatedMemory(0);
+  // The SharedArrayBuffer constructor does not increase the external memory
+  // counter. The counter may decrease however if the allocation triggers GC.
+  CHECK_GE(external_memory_before, external_memory_after);
+}
+
 THREADED_TEST(BackingStore_NotShared) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -722,46 +759,6 @@ TEST(BackingStore_HoldAllocatorAlive_UntilIsolateShutdown) {
     // the allocation is not garbage collected yet.
     CHECK(!allocator_weak.expired());
     CHECK_EQ(allocator_weak.lock()->allocation_count(), 1);
-  }
-
-  isolate->Exit();
-  isolate->Dispose();
-  CHECK(allocator_weak.expired());
-}
-
-class NullptrAllocator final : public v8::ArrayBuffer::Allocator {
- public:
-  void* Allocate(size_t length) override {
-    CHECK_EQ(length, 0);
-    return nullptr;
-  }
-  void* AllocateUninitialized(size_t length) override {
-    CHECK_EQ(length, 0);
-    return nullptr;
-  }
-  void Free(void* data, size_t length) override { CHECK_EQ(data, nullptr); }
-};
-
-TEST(BackingStore_ReleaseAllocator_NullptrBackingStore) {
-  std::shared_ptr<NullptrAllocator> allocator =
-      std::make_shared<NullptrAllocator>();
-  std::weak_ptr<NullptrAllocator> allocator_weak(allocator);
-
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator_shared = allocator;
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  isolate->Enter();
-
-  allocator.reset();
-  create_params.array_buffer_allocator_shared.reset();
-  CHECK(!allocator_weak.expired());
-
-  {
-    std::shared_ptr<v8::BackingStore> backing_store =
-        v8::ArrayBuffer::NewBackingStore(isolate, 0);
-    // This should release a reference to the allocator, even though the
-    // buffer is empty/nullptr.
-    backing_store.reset();
   }
 
   isolate->Exit();

@@ -852,13 +852,6 @@ void TurboAssembler::PushStandardFrame(Register function_reg) {
   add(fp, sp, Operand(offset));
 }
 
-int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
-  // The registers are pushed starting with the highest encoding,
-  // which means that lowest encodings are closest to the stack pointer.
-  DCHECK(reg_code >= 0 && reg_code < kNumSafepointRegisters);
-  return reg_code;
-}
-
 void TurboAssembler::VFPCanonicalizeNaN(const DwVfpRegister dst,
                                         const DwVfpRegister src,
                                         const Condition cond) {
@@ -2373,15 +2366,25 @@ void TurboAssembler::CallCFunctionHelper(Register function,
 
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
-  if (isolate() != nullptr) {
-    Register scratch = r4;
-    Push(scratch);
+  Register addr_scratch = r4;
+  // See x64 code for reasoning about how to address the isolate data fields.
+  if (root_array_available()) {
+    str(pc,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_pc_offset()));
+    str(fp,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Push(addr_scratch);
 
-    Move(scratch, ExternalReference::fast_c_call_caller_pc_address(isolate()));
-    str(pc, MemOperand(scratch));
-    Move(scratch, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    str(fp, MemOperand(scratch));
-    Pop(scratch);
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_pc_address(isolate()));
+    str(pc, MemOperand(addr_scratch));
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    str(fp, MemOperand(addr_scratch));
+
+    Pop(addr_scratch);
   }
 
   // Just call directly. The function called cannot cause a GC, or
@@ -2389,18 +2392,24 @@ void TurboAssembler::CallCFunctionHelper(Register function,
   // stays correct.
   Call(function);
 
-  if (isolate() != nullptr) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register scratch1 = r4;
-    Register scratch2 = r5;
-    Push(scratch1);
-    Push(scratch2);
-    Move(scratch1, ExternalReference::fast_c_call_caller_fp_address(isolate()));
-    mov(scratch2, Operand::Zero());
-    str(scratch2, MemOperand(scratch1));
-    Pop(scratch2);
-    Pop(scratch1);
+  // We don't unset the PC; the FP is the source of truth.
+  Register zero_scratch = r5;
+  Push(zero_scratch);
+  mov(zero_scratch, Operand::Zero());
+
+  if (root_array_available()) {
+    str(zero_scratch,
+        MemOperand(kRootRegister, IsolateData::fast_c_call_caller_fp_offset()));
+  } else {
+    DCHECK_NOT_NULL(isolate());
+    Push(addr_scratch);
+    Move(addr_scratch,
+         ExternalReference::fast_c_call_caller_fp_address(isolate()));
+    str(zero_scratch, MemOperand(addr_scratch));
+    Pop(addr_scratch);
   }
+
+  Pop(zero_scratch);
 
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
@@ -2452,7 +2461,9 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   mov(kSpeculationPoisonRegister, Operand(-1));
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
+                                           Label* exit, DeoptimizeKind kind) {
+  USE(exit, kind);
   NoRootArrayScope no_root_array(this);
 
   // Save the deopt id in r10 (we don't need the roots array from now on).
@@ -2473,6 +2484,7 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
 }
 
 void TurboAssembler::Trap() { stop(); }
+void TurboAssembler::DebugBreak() { stop(); }
 
 }  // namespace internal
 }  // namespace v8

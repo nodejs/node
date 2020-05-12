@@ -80,20 +80,20 @@ PrintSig PrintReturns(const FunctionSig* sig) {
   return {sig->return_count(), [=](size_t i) { return sig->GetReturn(i); }};
 }
 const char* ValueTypeToConstantName(ValueType type) {
-  switch (type) {
-    case kWasmI32:
+  switch (type.kind()) {
+    case ValueType::kI32:
       return "kWasmI32";
-    case kWasmI64:
+    case ValueType::kI64:
       return "kWasmI64";
-    case kWasmF32:
+    case ValueType::kF32:
       return "kWasmF32";
-    case kWasmF64:
+    case ValueType::kF64:
       return "kWasmF64";
-    case kWasmAnyRef:
+    case ValueType::kAnyRef:
       return "kWasmAnyRef";
-    case kWasmFuncRef:
+    case ValueType::kFuncRef:
       return "kWasmFuncRef";
-    case kWasmExnRef:
+    case ValueType::kExnRef:
       return "kWasmExnRef";
     default:
       UNREACHABLE();
@@ -151,11 +151,10 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "\n"
         "load('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
-        "(function() {\n"
-        "  const builder = new WasmModuleBuilder();\n";
+        "const builder = new WasmModuleBuilder();\n";
 
   if (module->has_memory) {
-    os << "  builder.addMemory(" << module->initial_pages;
+    os << "builder.addMemory(" << module->initial_pages;
     if (module->has_maximum_pages) {
       os << ", " << module->maximum_pages;
     } else {
@@ -169,12 +168,12 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   for (WasmGlobal& glob : module->globals) {
-    os << "  builder.addGlobal(" << ValueTypeToConstantName(glob.type) << ", "
+    os << "builder.addGlobal(" << ValueTypeToConstantName(glob.type) << ", "
        << glob.mutability << ");\n";
   }
 
   for (const FunctionSig* sig : module->signatures) {
-    os << "  builder.addType(makeSig(" << PrintParameters(sig) << ", "
+    os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
        << PrintReturns(sig) << "));\n";
   }
 
@@ -183,7 +182,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   // There currently cannot be more than one table.
   DCHECK_GE(1, module->tables.size());
   for (const WasmTable& table : module->tables) {
-    os << "  builder.setTableBounds(" << table.initial_size << ", ";
+    os << "builder.setTableBounds(" << table.initial_size << ", ";
     if (table.has_maximum_size) {
       os << table.maximum_size << ");\n";
     } else {
@@ -191,7 +190,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     }
   }
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
-    os << "  builder.addElementSegment(";
+    os << "builder.addElementSegment(";
     switch (elem_segment.offset.kind) {
       case WasmInitExpr::kGlobalIndex:
         os << elem_segment.offset.val.global_index << ", true";
@@ -207,11 +206,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   for (const WasmFunction& func : module->functions) {
     Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
-    os << "  // Generate function " << (func.func_index + 1) << " (out of "
+    os << "// Generate function " << (func.func_index + 1) << " (out of "
        << module->functions.size() << ").\n";
 
     // Add function.
-    os << "  builder.addFunction(undefined, " << func.sig_index
+    os << "builder.addFunction(undefined, " << func.sig_index
        << " /* sig */)\n";
 
     // Add locals.
@@ -219,41 +218,40 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     DecodeLocalDecls(enabled_features, &decls, func_code.begin(),
                      func_code.end());
     if (!decls.type_list.empty()) {
-      os << "    ";
+      os << "  ";
       for (size_t pos = 0, count = 1, locals = decls.type_list.size();
            pos < locals; pos += count, count = 1) {
         ValueType type = decls.type_list[pos];
         while (pos + count < locals && decls.type_list[pos + count] == type)
           ++count;
-        os << ".addLocals({" << ValueTypes::TypeName(type)
-           << "_count: " << count << "})";
+        os << ".addLocals({" << type.type_name() << "_count: " << count << "})";
       }
       os << "\n";
     }
 
     // Add body.
-    os << "    .addBodyWithEnd([\n";
+    os << "  .addBodyWithEnd([\n";
 
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
                            func_code.end());
     PrintRawWasmCode(isolate->allocator(), func_body, module, kOmitLocals);
-    os << "            ]);\n";
+    os << "]);\n";
   }
 
   for (WasmExport& exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    os << "  builder.addExport('" << PrintName(wire_bytes, exp.name) << "', "
+    os << "builder.addExport('" << PrintName(wire_bytes, exp.name) << "', "
        << exp.index << ");\n";
   }
 
   if (compiles) {
-    os << "  const instance = builder.instantiate();\n"
-          "  print(instance.exports.main(1, 2, 3));\n";
+    os << "const instance = builder.instantiate();\n"
+          "print(instance.exports.main(1, 2, 3));\n";
   } else {
-    os << "  assertThrows(function() { builder.instantiate(); }, "
+    os << "assertThrows(function() { builder.instantiate(); }, "
           "WebAssembly.CompileError);\n";
   }
-  os << "})();\n";
+  os << "\n";
 }
 
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
@@ -265,6 +263,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,
   FlagScope<bool> enable_##feat(&FLAG_experimental_wasm_##feat, true);
   FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
+  // SIMD is not included in staging yet, so we enable it here for fuzzing.
+  EXPERIMENTAL_FLAG_SCOPE(simd);
 
   // Strictly enforce the input size limit. Note that setting "max_len" on the
   // fuzzer target is not enough, since different fuzzers are used and not all

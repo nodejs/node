@@ -230,6 +230,7 @@ class Simulator : public SimulatorBase {
   void HandleRList(Instruction* instr, bool load);
   void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
+  void DebugAtNextPC();
 
   // Stop helper functions.
   inline bool isStopInstruction(Instruction* instr);
@@ -457,7 +458,7 @@ class Simulator : public SimulatorBase {
 
   // Simulator support.
   char* stack_;
-  static const size_t stack_protection_size_ = 256 * kPointerSize;
+  static const size_t stack_protection_size_ = 256 * kSystemPointerSize;
   bool pc_modified_;
   int64_t icount_;
 
@@ -502,6 +503,7 @@ class Simulator : public SimulatorBase {
   S390_VRR_A_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRR_C_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRR_E_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
+  S390_VRR_F_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRX_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRS_A_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)
   S390_VRS_B_OPCODE_LIST(EVALUATE_VR_INSTRUCTIONS)

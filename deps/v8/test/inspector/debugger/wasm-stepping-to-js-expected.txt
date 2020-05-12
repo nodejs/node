@@ -3,7 +3,7 @@ Installing code and global variable.
 Calling instantiate function.
 Waiting for wasm scripts to be parsed.
 Ignoring script with url v8://test/callInstantiate
-Got wasm script: wasm://wasm/485e942e
+Got wasm script: wasm://wasm/242f4a16
 Setting breakpoint at start of wasm function
 {
     columnNumber : 33
@@ -18,7 +18,7 @@ function test() {
 
 Debugger.resume
 paused
-Script wasm://wasm/485e942e byte offset 33: Wasm opcode 0x1
+Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01
 Debugger.stepOut
 paused
   instance.exports.main();
@@ -37,10 +37,10 @@ function test() {
 
 Debugger.resume
 paused
-Script wasm://wasm/485e942e byte offset 33: Wasm opcode 0x1
+Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01
 Debugger.stepOver
 paused
-Script wasm://wasm/485e942e byte offset 34: Wasm opcode 0xb
+Script wasm://wasm/242f4a16 byte offset 34: Wasm opcode 0x0b
 Debugger.resume
 exports.main returned!
 Finished run 2!
@@ -53,10 +53,11 @@ function test() {
 
 Debugger.resume
 paused
-Script wasm://wasm/485e942e byte offset 33: Wasm opcode 0x1
+Script wasm://wasm/242f4a16 byte offset 33: Wasm opcode 0x01
 Debugger.stepInto
 paused
-Script wasm://wasm/485e942e byte offset 34: Wasm opcode 0xb
+Script wasm://wasm/242f4a16 byte offset 34: Wasm opcode 0x0b
 Debugger.resume
 exports.main returned!
 Finished run 3!
+

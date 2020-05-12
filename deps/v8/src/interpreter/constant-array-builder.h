@@ -7,6 +7,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/common/globals.h"
+#include "src/handles/handles.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/smi.h"
 #include "src/utils/identity-map.h"
@@ -52,12 +53,16 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
   explicit ConstantArrayBuilder(Zone* zone);
 
   // Generate a fixed array of constant handles based on inserted objects.
-  Handle<FixedArray> ToFixedArray(Isolate* isolate);
+  template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  Handle<FixedArray> ToFixedArray(LocalIsolate* isolate);
 
   // Returns the object, as a handle in |isolate|, that is in the constant pool
   // array at index |index|. Returns null if there is no handle at this index.
   // Only expected to be used in tests.
-  MaybeHandle<Object> At(size_t index, Isolate* isolate) const;
+  template <typename LocalIsolate>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  MaybeHandle<Object> At(size_t index, LocalIsolate* isolate) const;
 
   // Returns the number of elements in the array.
   size_t size() const;
@@ -150,7 +155,8 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
       smi_ = smi;
     }
 
-    Handle<Object> ToHandle(Isolate* isolate) const;
+    template <typename LocalIsolate>
+    Handle<Object> ToHandle(LocalIsolate* isolate) const;
 
    private:
     explicit Entry(Tag tag) : tag_(tag) {}
@@ -199,7 +205,8 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final {
     const Entry& At(size_t index) const;
 
 #if DEBUG
-    void CheckAllElementsAreUnique(Isolate* isolate) const;
+    template <typename LocalIsolate>
+    void CheckAllElementsAreUnique(LocalIsolate* isolate) const;
 #endif
 
     inline size_t available() const { return capacity() - reserved() - size(); }

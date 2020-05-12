@@ -1212,8 +1212,8 @@ class StateValueList {
   void PushPlain(MachineType type) {
     fields_.push_back(StateValueDescriptor::Plain(type));
   }
-  void PushOptimizedOut() {
-    fields_.push_back(StateValueDescriptor::OptimizedOut());
+  void PushOptimizedOut(size_t num = 1) {
+    fields_.insert(fields_.end(), num, StateValueDescriptor::OptimizedOut());
   }
 
   iterator begin() { return iterator(fields_.begin(), nested_.begin()); }
@@ -1362,6 +1362,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   bool IsDeferred() const { return deferred_; }
   bool IsHandler() const { return handler_; }
+  void MarkHandler() { handler_ = true; }
+  void UnmarkHandler() { handler_ = false; }
 
   RpoNumber ao_number() const { return ao_number_; }
   RpoNumber rpo_number() const { return rpo_number_; }
@@ -1416,7 +1418,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   int32_t code_start_;   // start index of arch-specific code.
   int32_t code_end_ = -1;     // end index of arch-specific code.
   const bool deferred_;       // Block contains deferred code.
-  const bool handler_;   // Block is a handler entry point.
+  bool handler_;              // Block is a handler entry point.
   bool switch_target_ = false;
   bool alignment_ = false;  // insert alignment before this block
   bool needs_frame_ = false;

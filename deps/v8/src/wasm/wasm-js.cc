@@ -24,12 +24,14 @@
 #include "src/tasks/task-utils.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
 
 using v8::internal::wasm::ErrorThrower;
+using v8::internal::wasm::ScheduledErrorThrower;
 
 namespace v8 {
 
@@ -136,35 +138,6 @@ namespace {
       DCHECK(!i_isolate->has_scheduled_exception()); \
     }                                                \
   } while (false)
-
-// Like an ErrorThrower, but turns all pending exceptions into scheduled
-// exceptions when going out of scope. Use this in API methods.
-// Note that pending exceptions are not necessarily created by the ErrorThrower,
-// but e.g. by the wasm start function. There might also be a scheduled
-// exception, created by another API call (e.g. v8::Object::Get). But there
-// should never be both pending and scheduled exceptions.
-class ScheduledErrorThrower : public ErrorThrower {
- public:
-  ScheduledErrorThrower(i::Isolate* isolate, const char* context)
-      : ErrorThrower(isolate, context) {}
-
-  ~ScheduledErrorThrower();
-};
-
-ScheduledErrorThrower::~ScheduledErrorThrower() {
-  // There should never be both a pending and a scheduled exception.
-  DCHECK(!isolate()->has_scheduled_exception() ||
-         !isolate()->has_pending_exception());
-  // Don't throw another error if there is already a scheduled error.
-  if (isolate()->has_scheduled_exception()) {
-    Reset();
-  } else if (isolate()->has_pending_exception()) {
-    Reset();
-    isolate()->OptionalRescheduleException(false);
-  } else if (error()) {
-    isolate()->ScheduleThrow(*Reify());
-  }
-}
 
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
@@ -1148,14 +1121,15 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
-                                   &initial, 0, i::wasm::max_mem_pages())) {
+                                   &initial, 0,
+                                   i::wasm::max_initial_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
-                                  initial, i::wasm::kSpecMaxWasmMemoryPages)) {
+                                  initial, i::wasm::max_maximum_mem_pages())) {
     return;
   }
 
@@ -1305,8 +1279,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // Convert value to a WebAssembly value, the default value is 0.
   Local<v8::Value> value = Local<Value>::Cast(args[1]);
-  switch (type) {
-    case i::wasm::kWasmI32: {
+  switch (type.kind()) {
+    case i::wasm::ValueType::kI32: {
       int32_t i32_value = 0;
       if (!value->IsUndefined()) {
         v8::Local<v8::Int32> int32_value;
@@ -1316,7 +1290,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetI32(i32_value);
       break;
     }
-    case i::wasm::kWasmI64: {
+    case i::wasm::ValueType::kI64: {
       int64_t i64_value = 0;
       if (!value->IsUndefined()) {
         if (!enabled_features.has_bigint()) {
@@ -1331,7 +1305,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetI64(i64_value);
       break;
     }
-    case i::wasm::kWasmF32: {
+    case i::wasm::ValueType::kF32: {
       float f32_value = 0;
       if (!value->IsUndefined()) {
         double f64_value = 0;
@@ -1343,7 +1317,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF32(f32_value);
       break;
     }
-    case i::wasm::kWasmF64: {
+    case i::wasm::ValueType::kF64: {
       double f64_value = 0;
       if (!value->IsUndefined()) {
         v8::Local<v8::Number> number_value;
@@ -1353,8 +1327,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetF64(f64_value);
       break;
     }
-    case i::wasm::kWasmAnyRef:
-    case i::wasm::kWasmExnRef: {
+    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExnRef: {
       if (args.Length() < 2) {
         // When no initial value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
@@ -1364,7 +1338,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       global_obj->SetAnyRef(Utils::OpenHandle(*value));
       break;
     }
-    case i::wasm::kWasmNullRef:
+    case i::wasm::ValueType::kNullRef:
       if (args.Length() < 2) {
         // When no initial value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
@@ -1375,7 +1349,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
         thrower.TypeError("The value of nullref globals must be null");
       }
       break;
-    case i::wasm::kWasmFuncRef: {
+    case i::wasm::ValueType::kFuncRef: {
       if (args.Length() < 2) {
         // When no initial value is provided, we have to use the WebAssembly
         // default value 'null', and not the JS default value 'undefined'.
@@ -1390,7 +1364,9 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       }
       break;
     }
-    default:
+    case i::wasm::ValueType::kStmt:
+    case i::wasm::ValueType::kS128:
+    case i::wasm::ValueType::kBottom:
       UNREACHABLE();
   }
 
@@ -1514,10 +1490,34 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 1 must be a function");
     return;
   }
+  const i::wasm::FunctionSig* sig = builder.Build();
 
-  i::wasm::FunctionSig* sig = builder.Build();
   i::Handle<i::JSReceiver> callable =
       Utils::OpenHandle(*args[1].As<Function>());
+  if (i::WasmExportedFunction::IsWasmExportedFunction(*callable)) {
+    if (*i::Handle<i::WasmExportedFunction>::cast(callable)->sig() == *sig) {
+      args.GetReturnValue().Set(Utils::ToLocal(callable));
+      return;
+    }
+
+    thrower.TypeError(
+        "The signature of Argument 1 (a WebAssembly function) does "
+        "not match the signature specified in Argument 0");
+    return;
+  }
+
+  if (i::WasmJSFunction::IsWasmJSFunction(*callable)) {
+    if (i::Handle<i::WasmJSFunction>::cast(callable)->MatchesSignature(sig)) {
+      args.GetReturnValue().Set(Utils::ToLocal(callable));
+      return;
+    }
+
+    thrower.TypeError(
+        "The signature of Argument 1 (a WebAssembly function) does "
+        "not match the signature specified in Argument 0");
+    return;
+  }
+
   i::Handle<i::JSFunction> result =
       i::WasmJSFunction::New(i_isolate, sig, callable);
   args.GetReturnValue().Set(Utils::ToLocal(result));
@@ -1530,7 +1530,7 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Function.type()");
 
-  i::wasm::FunctionSig* sig;
+  const i::wasm::FunctionSig* sig;
   i::Zone zone(i_isolate->allocator(), ZONE_NAME);
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
   if (i::WasmExportedFunction::IsWasmExportedFunction(*arg0)) {
@@ -1697,8 +1697,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   uint64_t max_size64 = receiver->maximum_pages();
-  if (max_size64 > uint64_t{i::wasm::max_mem_pages()}) {
-    max_size64 = i::wasm::max_mem_pages();
+  if (max_size64 > uint64_t{i::wasm::max_maximum_mem_pages()}) {
+    max_size64 = i::wasm::max_maximum_mem_pages();
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->array_buffer(), i_isolate);
 
@@ -1783,11 +1783,11 @@ void WebAssemblyGlobalGetValueCommon(
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
 
-  switch (receiver->type()) {
-    case i::wasm::kWasmI32:
+  switch (receiver->type().kind()) {
+    case i::wasm::ValueType::kI32:
       return_value.Set(receiver->GetI32());
       break;
-    case i::wasm::kWasmI64: {
+    case i::wasm::ValueType::kI64: {
       auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
       if (enabled_features.has_bigint()) {
         Local<BigInt> value = BigInt::New(isolate, receiver->GetI64());
@@ -1798,21 +1798,23 @@ void WebAssemblyGlobalGetValueCommon(
       }
       break;
     }
-    case i::wasm::kWasmF32:
+    case i::wasm::ValueType::kF32:
       return_value.Set(receiver->GetF32());
       break;
-    case i::wasm::kWasmF64:
+    case i::wasm::ValueType::kF64:
       return_value.Set(receiver->GetF64());
       break;
-    case i::wasm::kWasmAnyRef:
-    case i::wasm::kWasmFuncRef:
-    case i::wasm::kWasmNullRef:
-    case i::wasm::kWasmExnRef:
+    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kFuncRef:
+    case i::wasm::ValueType::kNullRef:
+    case i::wasm::ValueType::kExnRef:
       DCHECK_IMPLIES(receiver->type() == i::wasm::kWasmNullRef,
                      receiver->GetRef()->IsNull());
       return_value.Set(Utils::ToLocal(receiver->GetRef()));
       break;
-    default:
+    case i::wasm::ValueType::kBottom:
+    case i::wasm::ValueType::kStmt:
+    case i::wasm::ValueType::kS128:
       UNREACHABLE();
   }
 }
@@ -1847,14 +1849,14 @@ void WebAssemblyGlobalSetValue(
     return;
   }
 
-  switch (receiver->type()) {
-    case i::wasm::kWasmI32: {
+  switch (receiver->type().kind()) {
+    case i::wasm::ValueType::kI32: {
       int32_t i32_value = 0;
       if (!args[0]->Int32Value(context).To(&i32_value)) return;
       receiver->SetI32(i32_value);
       break;
     }
-    case i::wasm::kWasmI64: {
+    case i::wasm::ValueType::kI64: {
       auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
       if (enabled_features.has_bigint()) {
         v8::Local<v8::BigInt> bigint_value;
@@ -1865,29 +1867,29 @@ void WebAssemblyGlobalSetValue(
       }
       break;
     }
-    case i::wasm::kWasmF32: {
+    case i::wasm::ValueType::kF32: {
       double f64_value = 0;
       if (!args[0]->NumberValue(context).To(&f64_value)) return;
       receiver->SetF32(i::DoubleToFloat32(f64_value));
       break;
     }
-    case i::wasm::kWasmF64: {
+    case i::wasm::ValueType::kF64: {
       double f64_value = 0;
       if (!args[0]->NumberValue(context).To(&f64_value)) return;
       receiver->SetF64(f64_value);
       break;
     }
-    case i::wasm::kWasmAnyRef:
-    case i::wasm::kWasmExnRef: {
+    case i::wasm::ValueType::kAnyRef:
+    case i::wasm::ValueType::kExnRef: {
       receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
       break;
     }
-    case i::wasm::kWasmNullRef:
+    case i::wasm::ValueType::kNullRef:
       if (!receiver->SetNullRef(Utils::OpenHandle(*args[0]))) {
         thrower.TypeError("The value of nullref must be null");
       }
       break;
-    case i::wasm::kWasmFuncRef: {
+    case i::wasm::ValueType::kFuncRef: {
       if (!receiver->SetFuncRef(i_isolate, Utils::OpenHandle(*args[0]))) {
         thrower.TypeError(
             "value of an anyfunc reference must be either null or an "
@@ -1895,7 +1897,9 @@ void WebAssemblyGlobalSetValue(
       }
       break;
     }
-    default:
+    case i::wasm::ValueType::kBottom:
+    case i::wasm::ValueType::kStmt:
+    case i::wasm::ValueType::kS128:
       UNREACHABLE();
   }
 }

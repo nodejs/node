@@ -27,8 +27,10 @@
 #define ACTIVE_NO_INDEX 0
 #define PASSIVE 1
 #define ACTIVE_WITH_INDEX 2
+#define DECLARATIVE 3
 #define PASSIVE_WITH_ELEMENTS 5
 #define ACTIVE_WITH_ELEMENTS 6
+#define DECLARATIVE_WITH_ELEMENTS 7
 
 // The table index field in an element segment was repurposed as a flags field.
 // To specify a table index, we have to set the flag value to 2, followed by
@@ -87,9 +89,8 @@
 #define WASM_BLOCK_F(...) kExprBlock, kLocalF32, __VA_ARGS__, kExprEnd
 #define WASM_BLOCK_D(...) kExprBlock, kLocalF64, __VA_ARGS__, kExprEnd
 
-#define WASM_BLOCK_T(t, ...)                                                   \
-  kExprBlock, static_cast<byte>(ValueTypes::ValueTypeCodeFor(t)), __VA_ARGS__, \
-      kExprEnd
+#define WASM_BLOCK_T(t, ...) \
+  kExprBlock, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
 #define WASM_BLOCK_X(index, ...)                                  \
   kExprBlock, static_cast<byte>(index), __VA_ARGS__, kExprEnd
@@ -102,18 +103,16 @@
 #define WASM_LOOP_F(...) kExprLoop, kLocalF32, __VA_ARGS__, kExprEnd
 #define WASM_LOOP_D(...) kExprLoop, kLocalF64, __VA_ARGS__, kExprEnd
 
-#define WASM_LOOP_T(t, ...)                                                   \
-  kExprLoop, static_cast<byte>(ValueTypes::ValueTypeCodeFor(t)), __VA_ARGS__, \
-      kExprEnd
+#define WASM_LOOP_T(t, ...) \
+  kExprLoop, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
 #define WASM_LOOP_X(index, ...)                                   \
   kExprLoop, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_IF(cond, ...) cond, kExprIf, kLocalVoid, __VA_ARGS__, kExprEnd
 
-#define WASM_IF_T(t, cond, ...)                                      \
-  cond, kExprIf, static_cast<byte>(ValueTypes::ValueTypeCodeFor(t)), \
-      __VA_ARGS__, kExprEnd
+#define WASM_IF_T(t, cond, ...) \
+  cond, kExprIf, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
 #define WASM_IF_X(index, cond, ...)                                   \
   cond, kExprIf, static_cast<byte>(index), __VA_ARGS__, kExprEnd
@@ -130,16 +129,16 @@
 #define WASM_IF_ELSE_D(cond, tstmt, fstmt) \
   cond, kExprIf, kLocalF64, tstmt, kExprElse, fstmt, kExprEnd
 
-#define WASM_IF_ELSE_T(t, cond, tstmt, fstmt)                               \
-  cond, kExprIf, static_cast<byte>(ValueTypes::ValueTypeCodeFor(t)), tstmt, \
-      kExprElse, fstmt, kExprEnd
+#define WASM_IF_ELSE_T(t, cond, tstmt, fstmt)                                \
+  cond, kExprIf, static_cast<byte>((t).value_type_code()), tstmt, kExprElse, \
+      fstmt, kExprEnd
 
 #define WASM_IF_ELSE_X(index, cond, tstmt, fstmt)                            \
   cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
 
-#define WASM_TRY_CATCH_T(t, trystmt, catchstmt)                          \
-  kExprTry, static_cast<byte>(ValueTypes::ValueTypeCodeFor(t)), trystmt, \
-      kExprCatch, catchstmt, kExprEnd
+#define WASM_TRY_CATCH_T(t, trystmt, catchstmt)                            \
+  kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
+      catchstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \

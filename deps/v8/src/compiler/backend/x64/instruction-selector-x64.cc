@@ -2212,7 +2212,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   X64OperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 4 + sw.value_range();
@@ -2729,12 +2729,15 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4Neg)               \
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
+  V(I32x4Abs)               \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I16x8Neg)               \
   V(I16x8UConvertI8x16Low)  \
   V(I16x8UConvertI8x16High) \
+  V(I16x8Abs)               \
   V(I8x16Neg)               \
+  V(I8x16Abs)               \
   V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
@@ -2749,7 +2752,6 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_NARROW_SHIFT_OPCODES(V) \
   V(I8x16Shl)                        \
-  V(I8x16ShrS)                       \
   V(I8x16ShrU)
 
 #define SIMD_ANYTRUE_LIST(V) \
@@ -2806,13 +2808,18 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
 
-#define VISIT_SIMD_SHIFT(Opcode)                                          \
-  void InstructionSelector::Visit##Opcode(Node* node) {                   \
-    X64OperandGenerator g(this);                                          \
-    InstructionOperand temps[] = {g.TempSimd128Register()};               \
-    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                         \
-         g.UseUniqueRegister(node->InputAt(0)),                           \
-         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
+#define VISIT_SIMD_SHIFT(Opcode)                                               \
+  void InstructionSelector::Visit##Opcode(Node* node) {                        \
+    X64OperandGenerator g(this);                                               \
+    if (g.CanBeImmediate(node->InputAt(1))) {                                  \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
+           g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1))); \
+    } else {                                                                   \
+      InstructionOperand temps[] = {g.TempSimd128Register()};                  \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
+           g.UseUniqueRegister(node->InputAt(0)),                              \
+           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);    \
+    }                                                                          \
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
@@ -2822,9 +2829,15 @@ SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
   void InstructionSelector::Visit##Opcode(Node* node) {                       \
     X64OperandGenerator g(this);                                              \
     InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()}; \
-    Emit(kX64##Opcode, g.DefineSameAsFirst(node),                             \
-         g.UseUniqueRegister(node->InputAt(0)),                               \
-         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);     \
+    if (g.CanBeImmediate(node->InputAt(1))) {                                 \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+           g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1)), \
+           arraysize(temps), temps);                                          \
+    } else {                                                                  \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                           \
+           g.UseUniqueRegister(node->InputAt(0)),                             \
+           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);   \
+    }                                                                         \
   }
 SIMD_NARROW_SHIFT_OPCODES(VISIT_SIMD_NARROW_SHIFT)
 #undef VISIT_SIMD_NARROW_SHIFT
@@ -2862,23 +2875,22 @@ SIMD_BINOP_ONE_TEMP_LIST(VISIT_SIMD_BINOP_ONE_TEMP)
 #undef VISIT_SIMD_BINOP_ONE_TEMP
 #undef SIMD_BINOP_ONE_TEMP_LIST
 
-#define VISIT_SIMD_ANYTRUE(Opcode)                                        \
-  void InstructionSelector::Visit##Opcode(Node* node) {                   \
-    X64OperandGenerator g(this);                                          \
-    InstructionOperand temps[] = {g.TempRegister()};                      \
-    Emit(kX64##Opcode, g.DefineAsRegister(node),                          \
-         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+#define VISIT_SIMD_ANYTRUE(Opcode)                      \
+  void InstructionSelector::Visit##Opcode(Node* node) { \
+    X64OperandGenerator g(this);                        \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),        \
+         g.UseUniqueRegister(node->InputAt(0)));        \
   }
 SIMD_ANYTRUE_LIST(VISIT_SIMD_ANYTRUE)
 #undef VISIT_SIMD_ANYTRUE
 #undef SIMD_ANYTRUE_LIST
 
-#define VISIT_SIMD_ALLTRUE(Opcode)                                            \
-  void InstructionSelector::Visit##Opcode(Node* node) {                       \
-    X64OperandGenerator g(this);                                              \
-    InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()}; \
-    Emit(kX64##Opcode, g.DefineAsRegister(node),                              \
-         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);     \
+#define VISIT_SIMD_ALLTRUE(Opcode)                                        \
+  void InstructionSelector::Visit##Opcode(Node* node) {                   \
+    X64OperandGenerator g(this);                                          \
+    InstructionOperand temps[] = {g.TempSimd128Register()};               \
+    Emit(kX64##Opcode, g.DefineAsRegister(node),                          \
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
   }
 SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 #undef VISIT_SIMD_ALLTRUE
@@ -3033,6 +3045,19 @@ void InstructionSelector::VisitI8x16Mul(Node* node) {
   Emit(kX64I8x16Mul, g.DefineSameAsFirst(node),
        g.UseUniqueRegister(node->InputAt(0)),
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitI8x16ShrS(Node* node) {
+  X64OperandGenerator g(this);
+  if (g.CanBeImmediate(node->InputAt(1))) {
+    Emit(kX64I8x16ShrS, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseImmediate(node->InputAt(1)));
+  } else {
+    InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()};
+    Emit(kX64I8x16ShrS, g.DefineSameAsFirst(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {

@@ -1,4 +1,4 @@
 wasm-function[0]:0x2e: RuntimeError: wasm exception
 RuntimeError: wasm exception
-    at throw0 (wasm-function[0]:0x2e)
+    at throw0 (<anonymous>:wasm-function[0]:0x2e)
     at *%(basename)s:17:18

@@ -6,7 +6,7 @@
 
 let cleanedUp = false;
 let r = Realm.create();
-let FG = Realm.eval(r, "FinalizationGroup");
+let FG = Realm.eval(r, "FinalizationRegistry");
 Realm.detachGlobal(r);
 
 let fg_not_run = new FG(() => {

@@ -153,11 +153,13 @@ TEST_F(StateValuesIteratorTest, TreeFromVectorWithLiveness) {
 
     // Check the tree contents with vector.
     int i = 0;
-    for (StateValuesAccess::TypedNode node : StateValuesAccess(values_node)) {
+    for (StateValuesAccess::iterator it =
+             StateValuesAccess(values_node).begin();
+         !it.done(); ++it) {
       if (liveness.Contains(i)) {
-        EXPECT_THAT(node.node, IsInt32Constant(i));
+        EXPECT_THAT(it.node(), IsInt32Constant(i));
       } else {
-        EXPECT_EQ(node.node, nullptr);
+        EXPECT_EQ(it.node(), nullptr);
       }
       i++;
     }

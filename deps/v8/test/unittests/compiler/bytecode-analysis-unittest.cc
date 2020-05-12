@@ -256,7 +256,7 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
     expected_liveness.emplace_back("L..L", "L.L.");
 
     loop_builder.BindContinueTarget();
-    loop_builder.JumpToHeader(0);
+    loop_builder.JumpToHeader(0, nullptr);
     expected_liveness.emplace_back("L.L.", "L.L.");
   }
 
@@ -361,7 +361,7 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
     builder.Bind(&end_label);
 
     loop_builder.BindContinueTarget();
-    loop_builder.JumpToHeader(0);
+    loop_builder.JumpToHeader(0, nullptr);
     expected_liveness.emplace_back("L...", "L...");
   }
 
@@ -433,12 +433,12 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
       expected_liveness.emplace_back("LL.L", "LL..");
 
       inner_loop_builder.BindContinueTarget();
-      inner_loop_builder.JumpToHeader(1);
+      inner_loop_builder.JumpToHeader(1, &loop_builder);
       expected_liveness.emplace_back(".L..", ".L..");
     }
 
     loop_builder.BindContinueTarget();
-    loop_builder.JumpToHeader(0);
+    loop_builder.JumpToHeader(0, nullptr);
     expected_liveness.emplace_back("LL..", "LL..");
   }
 
