@@ -24,8 +24,11 @@ const child = fork(__filename, ['test'], {
 child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
-  const log = fs.readFileSync(file, 'utf8');
-  assert(/SECRET/.test(log));
+  const log = fs.readFileSync(file, 'utf8').trim().split('\n');
+  // Both client and server should log their secrets,
+  // so we should have two identical lines in the log
+  assert.strictEqual(log.length, 2);
+  assert.strictEqual(log[0], log[1]);
 }));
 
 function test() {
@@ -40,7 +43,9 @@ function test() {
     },
     server: {
       cert: keys.agent6.cert,
-      key: keys.agent6.key
+      key: keys.agent6.key,
+      // Number of keylog events is dependent on protocol version
+      maxVersion: 'TLSv1.2',
     },
   }, common.mustCall((err, pair, cleanup) => {
     if (pair.server.err) {
