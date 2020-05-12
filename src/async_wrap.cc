@@ -391,9 +391,10 @@ static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsObject());
 
-  // All of init, before, after, destroy are supplied by async_hooks
-  // internally, so this should every only be called once. At which time all
-  // the functions should be set. Detect this by checking if init !IsEmpty().
+  // All of init, before, after, destroy, and promise_resolve are supplied by
+  // async_hooks internally, so this should only ever be called once. At which
+  // time all the functions should be set. Detect this by checking if
+  // init !IsEmpty().
   CHECK(env->async_hooks_init_function().IsEmpty());
 
   Local<Object> fn_obj = args[0].As<Object>();
