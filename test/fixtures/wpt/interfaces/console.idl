@@ -12,10 +12,10 @@ namespace console { // but see namespace object requirements below
   void error(any... data);
   void info(any... data);
   void log(any... data);
-  void table(any tabularData, optional sequence<DOMString> properties);
+  void table(optional any tabularData, optional sequence<DOMString> properties);
   void trace(any... data);
   void warn(any... data);
-  void dir(any item, optional object? options);
+  void dir(optional any item, optional object? options);
   void dirxml(any... data);
 
   // Counting

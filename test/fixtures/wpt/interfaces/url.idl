@@ -3,10 +3,11 @@
 // (https://github.com/tidoust/reffy-reports)
 // Source: URL Standard (https://url.spec.whatwg.org/)
 
-[Constructor(USVString url, optional USVString base),
- Exposed=(Window,Worker),
+[Exposed=(Window,Worker),
  LegacyWindowAlias=webkitURL]
 interface URL {
+  constructor(USVString url, optional USVString base);
+
   stringifier attribute USVString href;
   readonly attribute USVString origin;
            attribute USVString protocol;
@@ -23,9 +24,10 @@ interface URL {
   USVString toJSON();
 };
 
-[Constructor(optional (sequence<sequence<USVString>> or record<USVString, USVString> or USVString) init = ""),
- Exposed=(Window,Worker)]
+[Exposed=(Window,Worker)]
 interface URLSearchParams {
+  constructor(optional (sequence<sequence<USVString>> or record<USVString, USVString> or USVString) init = "");
+
   void append(USVString name, USVString value);
   void delete(USVString name);
   USVString? get(USVString name);
