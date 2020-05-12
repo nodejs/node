@@ -557,13 +557,29 @@ struct ContextInfo {
 
 class EnabledDebugList;
 
+// Disables zero-filling for ArrayBuffer allocations in this scope. This is
+// similar to how we implement Buffer.allocUnsafe() in JS land.
+class NoArrayBufferZeroFillScope{
+ public:
+  explicit NoArrayBufferZeroFillScope(IsolateData* isolate_data);
+  ~NoArrayBufferZeroFillScope();
+
+ private:
+  NodeArrayBufferAllocator* node_allocator_;
+};
+
 // A unique-pointer-ish object that is compatible with the JS engine's
 // ArrayBuffer::Allocator.
-struct AllocatedBuffer {
+// TODO(addaleax): We may want to start phasing this out as it's only a thin
+// wrapper around v8::BackingStore at this point.
+class AllocatedBuffer {
  public:
-  explicit inline AllocatedBuffer(Environment* env = nullptr);
-  inline AllocatedBuffer(Environment* env, uv_buf_t buf);
-  inline ~AllocatedBuffer();
+  AllocatedBuffer() = default;
+  inline AllocatedBuffer(
+      Environment* env, std::unique_ptr<v8::BackingStore> bs);
+  // For this constructor variant, `buffer` *must* come from an earlier call
+  // to .release().
+  inline AllocatedBuffer(Environment* env, uv_buf_t buffer);
   inline void Resize(size_t len);
 
   inline uv_buf_t release();
@@ -575,16 +591,14 @@ struct AllocatedBuffer {
   inline v8::MaybeLocal<v8::Object> ToBuffer();
   inline v8::Local<v8::ArrayBuffer> ToArrayBuffer();
 
-  inline AllocatedBuffer(AllocatedBuffer&& other);
-  inline AllocatedBuffer& operator=(AllocatedBuffer&& other);
+  AllocatedBuffer(AllocatedBuffer&& other) = default;
+  AllocatedBuffer& operator=(AllocatedBuffer&& other) = default;
   AllocatedBuffer(const AllocatedBuffer& other) = delete;
   AllocatedBuffer& operator=(const AllocatedBuffer& other) = delete;
 
  private:
-  Environment* env_;
-  // We do not pass this to libuv directly, but uv_buf_t is a convenient way
-  // to represent a chunk of memory, and plays nicely with other parts of core.
-  uv_buf_t buffer_;
+  Environment* env_ = nullptr;
+  std::unique_ptr<v8::BackingStore> backing_store_;
 
   friend class Environment;
 };
@@ -959,11 +973,7 @@ class Environment : public MemoryRetainer {
   // Utilities that allocate memory using the Isolate's ArrayBuffer::Allocator.
   // In particular, using AllocateManaged() will provide a RAII-style object
   // with easy conversion to `Buffer` and `ArrayBuffer` objects.
-  inline AllocatedBuffer AllocateManaged(size_t size, bool checked = true);
-  inline char* Allocate(size_t size);
-  inline char* AllocateUnchecked(size_t size);
-  char* Reallocate(char* data, size_t old_size, size_t size);
-  inline void Free(char* data, size_t size);
+  inline AllocatedBuffer AllocateManaged(size_t size);
 
   inline bool printed_error() const;
   inline void set_printed_error(bool value);
@@ -1251,6 +1261,9 @@ class Environment : public MemoryRetainer {
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
 
+  inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
+      released_allocated_buffers();
+
  private:
   template <typename Fn>
   inline void CreateImmediate(Fn&& cb, bool ref);
@@ -1413,6 +1426,11 @@ class Environment : public MemoryRetainer {
   // We should probably find a way to just use plain `v8::String`s created from
   // the source passed to LoadEnvironment() directly instead.
   std::unique_ptr<v8::String::Value> main_utf16_;
+
+  // Used by AllocatedBuffer::release() to keep track of the BackingStore for
+  // a given pointer.
+  std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
+      released_allocated_buffers_;
 };
 
 }  // namespace node
