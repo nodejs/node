@@ -51,6 +51,7 @@ namespace node {
   V(HTTPINCOMINGMESSAGE)                                                      \
   V(HTTPCLIENTREQUEST)                                                        \
   V(JSSTREAM)                                                                 \
+  V(JSUDPWRAP)                                                                \
   V(MESSAGEPORT)                                                              \
   V(PIPECONNECTWRAP)                                                          \
   V(PIPESERVERWRAP)                                                           \
