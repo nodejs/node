@@ -17,7 +17,6 @@ The following example of an ES module exports a function:
 
 ```js
 // addTwo.js
-'use strict';
 function addTwo(num) {
   return num + 2;
 }
@@ -29,7 +28,6 @@ The following example of an ES module imports the function from `addTwo.js`:
 
 ```js
 // app.js
-'use strict';
 import { addTwo } from './addTwo.js';
 
 // Prints: 6
