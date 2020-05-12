@@ -65,13 +65,13 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   }
 
   void PostDelayedTask(std::unique_ptr<Task> task, double delay_in_seconds) {
-    tasks_.Push(std::unique_ptr<Task>(new ScheduleTask(this, std::move(task),
-                                                       delay_in_seconds)));
+    tasks_.Push(std::make_unique<ScheduleTask>(this, std::move(task),
+                                               delay_in_seconds));
     uv_async_send(&flush_tasks_);
   }
 
   void Stop() {
-    tasks_.Push(std::unique_ptr<Task>(new StopTask(this)));
+    tasks_.Push(std::make_unique<StopTask>(this));
     uv_async_send(&flush_tasks_);
   }
 
