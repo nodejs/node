@@ -19,6 +19,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disasm.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/utils/ostreams.h"
@@ -43,8 +44,6 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 class ArmDebugger {
  public:
   explicit ArmDebugger(Simulator* sim) : sim_(sim) {}
-
-  void Stop(Instruction* instr);
   void Debug();
 
  private:
@@ -61,26 +60,20 @@ class ArmDebugger {
   bool GetVFPSingleValue(const char* desc, float* value);
   bool GetVFPDoubleValue(const char* desc, double* value);
 
-  // Set or delete a breakpoint. Returns true if successful.
+  // Set or delete breakpoint (there can be only one).
   bool SetBreakpoint(Instruction* breakpc);
-  bool DeleteBreakpoint(Instruction* breakpc);
+  void DeleteBreakpoint();
 
-  // Undo and redo all breakpoints. This is needed to bracket disassembly and
-  // execution to skip past breakpoints when run from the debugger.
-  void UndoBreakpoints();
-  void RedoBreakpoints();
+  // Undo and redo the breakpoint. This is needed to bracket disassembly and
+  // execution to skip past the breakpoint when run from the debugger.
+  void UndoBreakpoint();
+  void RedoBreakpoint();
 };
 
-void ArmDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Print the stop message and code if it is not the default code.
-  if (code != kMaxStopCode) {
-    PrintF("Simulator hit stop %u\n", code);
-  } else {
-    PrintF("Simulator hit\n");
-  }
-  Debug();
+void Simulator::DebugAtNextPC() {
+  PrintF("Starting debugger on the next instruction:\n");
+  set_pc(get_pc() + kInstrSize);
+  ArmDebugger(this).Debug();
 }
 
 int32_t ArmDebugger::GetRegisterValue(int regnum) {
@@ -148,25 +141,33 @@ bool ArmDebugger::SetBreakpoint(Instruction* breakpc) {
   return true;
 }
 
-bool ArmDebugger::DeleteBreakpoint(Instruction* breakpc) {
-  if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
-  }
+namespace {
+// This function is dangerous, but it's only available in non-production
+// (simulator) builds.
+void SetInstructionBitsInCodeSpace(Instruction* instr, Instr value,
+                                   Heap* heap) {
+  CodeSpaceMemoryModificationScope scope(heap);
+  instr->SetInstructionBits(value);
+}
+}  // namespace
 
+void ArmDebugger::DeleteBreakpoint() {
+  UndoBreakpoint();
   sim_->break_pc_ = nullptr;
   sim_->break_instr_ = 0;
-  return true;
 }
 
-void ArmDebugger::UndoBreakpoints() {
+void ArmDebugger::UndoBreakpoint() {
   if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
+    SetInstructionBitsInCodeSpace(sim_->break_pc_, sim_->break_instr_,
+                                  sim_->isolate_->heap());
   }
 }
 
-void ArmDebugger::RedoBreakpoints() {
+void ArmDebugger::RedoBreakpoint() {
   if (sim_->break_pc_ != nullptr) {
-    sim_->break_pc_->SetInstructionBits(kBreakpointInstr);
+    SetInstructionBitsInCodeSpace(sim_->break_pc_, kBreakpointInstr,
+                                  sim_->isolate_->heap());
   }
 }
 
@@ -190,9 +191,9 @@ void ArmDebugger::Debug() {
   arg1[ARG_SIZE] = 0;
   arg2[ARG_SIZE] = 0;
 
-  // Undo all set breakpoints while running in the debugger shell. This will
-  // make them invisible to all commands.
-  UndoBreakpoints();
+  // Unset breakpoint while running in the debugger shell, making it invisible
+  // to all commands.
+  UndoBreakpoint();
 
   while (!done && !sim_->has_bad_pc()) {
     if (last_pc != sim_->get_pc()) {
@@ -292,7 +293,8 @@ void ArmDebugger::Debug() {
         } else {
           PrintF("printobject <value>\n");
         }
-      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
+      } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0 ||
+                 strcmp(cmd, "dump") == 0) {
         int32_t* cur = nullptr;
         int32_t* end = nullptr;
         int next_arg = 1;
@@ -319,20 +321,23 @@ void ArmDebugger::Debug() {
         }
         end = cur + words;
 
+        bool skip_obj_print = (strcmp(cmd, "dump") == 0);
         while (cur < end) {
           PrintF("  0x%08" V8PRIxPTR ":  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (obj.IsSmi() ||
-              IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-            PrintF(" (");
-            if (obj.IsSmi()) {
-              PrintF("smi %d", Smi::ToInt(obj));
-            } else {
-              obj.ShortPrint();
+          if (!skip_obj_print) {
+            if (obj.IsSmi() ||
+                IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+              PrintF(" (");
+              if (obj.IsSmi()) {
+                PrintF("smi %d", Smi::ToInt(obj));
+              } else {
+                obj.ShortPrint();
+              }
+              PrintF(")");
             }
-            PrintF(")");
           }
           PrintF("\n");
           cur++;
@@ -402,9 +407,7 @@ void ArmDebugger::Debug() {
           PrintF("break <address>\n");
         }
       } else if (strcmp(cmd, "del") == 0) {
-        if (!DeleteBreakpoint(nullptr)) {
-          PrintF("deleting breakpoint failed\n");
-        }
+        DeleteBreakpoint();
       } else if (strcmp(cmd, "flags") == 0) {
         PrintF("N flag: %d; ", sim_->n_flag_);
         PrintF("Z flag: %d; ", sim_->z_flag_);
@@ -421,8 +424,9 @@ void ArmDebugger::Debug() {
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
-          if (sim_->isStopInstruction(stop_instr)) {
-            stop_instr->SetInstructionBits(kNopInstr);
+          if (stop_instr->IsStop()) {
+            SetInstructionBitsInCodeSpace(stop_instr, kNopInstr,
+                                          sim_->isolate_->heap());
           } else {
             PrintF("Not at debugger stop.\n");
           }
@@ -486,6 +490,10 @@ void ArmDebugger::Debug() {
         PrintF("  dump stack content, default dump 10 words)\n");
         PrintF("mem <address> [<words>]\n");
         PrintF("  dump memory content, default dump 10 words)\n");
+        PrintF("dump [<words>]\n");
+        PrintF(
+            "  dump memory content without pretty printing JS objects, default "
+            "dump 10 words)\n");
         PrintF("disasm [<instructions>]\n");
         PrintF("disasm [<address/register>]\n");
         PrintF("disasm [[<address/register>] <instructions>]\n");
@@ -526,9 +534,9 @@ void ArmDebugger::Debug() {
     }
   }
 
-  // Add all the breakpoints back to stop execution and enter the debugger
-  // shell when hit.
-  RedoBreakpoints();
+  // Reinstall breakpoint to stop execution and enter the debugger shell when
+  // hit.
+  RedoBreakpoint();
 
 #undef COMMAND_SIZE
 #undef ARG_SIZE
@@ -1785,13 +1793,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       set_pc(get_register(lr));
       break;
     }
-    case kBreakpoint: {
-      ArmDebugger dbg(this);
-      dbg.Debug();
+    case kBreakpoint:
+      ArmDebugger(this).Debug();
       break;
-    }
     // stop uses all codes greater than 1 << 23.
-    default: {
+    default:
       if (svc >= (1 << 23)) {
         uint32_t code = svc & kStopCodeMask;
         if (isWatchedStop(code)) {
@@ -1800,15 +1806,17 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         // Stop if it is enabled, otherwise go on jumping over the stop
         // and the message address.
         if (isEnabledStop(code)) {
-          ArmDebugger dbg(this);
-          dbg.Stop(instr);
+          if (code != kMaxStopCode) {
+            PrintF("Simulator hit stop %u. ", code);
+          } else {
+            PrintF("Simulator hit stop. ");
+          }
+          DebugAtNextPC();
         }
       } else {
         // This is not a valid svc code.
         UNREACHABLE();
-        break;
       }
-    }
   }
 }
 
@@ -1848,10 +1856,6 @@ Float64 Simulator::canonicalizeNaN(Float64 value) {
 }
 
 // Stop helper functions.
-bool Simulator::isStopInstruction(Instruction* instr) {
-  return (instr->Bits(27, 24) == 0xF) && (instr->SvcValue() >= kStopCode);
-}
-
 bool Simulator::isWatchedStop(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
   return code < kNumOfWatchedStops;
@@ -2243,12 +2247,10 @@ void Simulator::DecodeType01(Instruction* instr) {
           set_register(lr, old_pc + kInstrSize);
           break;
         }
-        case BKPT: {
-          ArmDebugger dbg(this);
-          PrintF("Simulator hit BKPT.\n");
-          dbg.Debug();
+        case BKPT:
+          PrintF("Simulator hit BKPT. ");
+          DebugAtNextPC();
           break;
-        }
         default:
           UNIMPLEMENTED();
       }

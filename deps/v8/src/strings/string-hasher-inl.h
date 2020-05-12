@@ -35,18 +35,13 @@ uint32_t StringHasher::GetHashCore(uint32_t running_hash) {
 
 uint32_t StringHasher::GetTrivialHash(int length) {
   DCHECK_GT(length, String::kMaxHashCalcLength);
-  // The hash of a large string is simply computed from the length. We don't
-  // have quite enough bits, so we drop the least significant bit.
-  // TODO(9904): Free up one bit, so we don't have to drop anything here.
-  constexpr int kDroppedBits = 1;
-  // Ensure that the max length after dropping bits is small enough to be
-  // shifted without losing information.
-  STATIC_ASSERT(base::bits::CountLeadingZeros32(String::kMaxLength) +
-                    kDroppedBits >=
+  // The hash of a large string is simply computed from the length.
+  // Ensure that the max length is small enough to be shifted without losing
+  // information.
+  STATIC_ASSERT(base::bits::CountLeadingZeros32(String::kMaxLength) >=
                 String::kHashShift);
-  uint32_t hash = static_cast<uint32_t>(length) >> kDroppedBits;
-  return (hash << String::kHashShift) | String::kIsNotArrayIndexMask |
-         String::kIsNotIntegerIndexMask;
+  uint32_t hash = static_cast<uint32_t>(length);
+  return (hash << String::kHashShift) | String::kIsNotIntegerIndexMask;
 }
 
 template <typename char_t>
@@ -93,8 +88,17 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
           }
           running_hash = AddCharacterCore(running_hash, *chars++);
         }
-        return (GetHashCore(running_hash) << String::kHashShift) |
-               String::kIsNotArrayIndexMask | is_integer_index;
+        uint32_t hash = (GetHashCore(running_hash) << String::kHashShift) |
+                        is_integer_index;
+        if (Name::ContainsCachedArrayIndex(hash)) {
+          // The hash accidentally looks like a cached index. Fix that by
+          // setting a bit that looks like a longer-than-cacheable string
+          // length.
+          hash |= (String::kMaxCachedArrayIndexLength + 1)
+                  << String::ArrayIndexLengthBits::kShift;
+        }
+        DCHECK(!Name::ContainsCachedArrayIndex(hash));
+        return hash;
       }
 #endif
     }
@@ -113,7 +117,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
   }
 
   return (GetHashCore(running_hash) << String::kHashShift) |
-         String::kIsNotArrayIndexMask | String::kIsNotIntegerIndexMask;
+         String::kIsNotIntegerIndexMask;
 }
 
 std::size_t SeededStringHasher::operator()(const char* name) const {

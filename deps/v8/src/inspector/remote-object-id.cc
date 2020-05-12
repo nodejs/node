@@ -4,6 +4,7 @@
 
 #include "src/inspector/remote-object-id.h"
 
+#include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 
@@ -13,8 +14,12 @@ RemoteObjectIdBase::RemoteObjectIdBase() : m_injectedScriptId(0) {}
 
 std::unique_ptr<protocol::DictionaryValue>
 RemoteObjectIdBase::parseInjectedScriptId(const String16& objectId) {
+  std::vector<uint8_t> cbor;
+  v8_crdtp::json::ConvertJSONToCBOR(
+      v8_crdtp::span<uint16_t>(objectId.characters16(), objectId.length()),
+      &cbor);
   std::unique_ptr<protocol::Value> parsedValue =
-      protocol::StringUtil::parseJSON(objectId);
+      protocol::Value::parseBinary(cbor.data(), cbor.size());
   if (!parsedValue || parsedValue->type() != protocol::Value::TypeObject)
     return nullptr;
 
@@ -33,12 +38,12 @@ Response RemoteObjectId::parse(const String16& objectId,
   std::unique_ptr<RemoteObjectId> remoteObjectId(new RemoteObjectId());
   std::unique_ptr<protocol::DictionaryValue> parsedObjectId =
       remoteObjectId->parseInjectedScriptId(objectId);
-  if (!parsedObjectId) return Response::Error("Invalid remote object id");
+  if (!parsedObjectId) return Response::ServerError("Invalid remote object id");
 
   bool success = parsedObjectId->getInteger("id", &remoteObjectId->m_id);
-  if (!success) return Response::Error("Invalid remote object id");
+  if (!success) return Response::ServerError("Invalid remote object id");
   *result = std::move(remoteObjectId);
-  return Response::OK();
+  return Response::Success();
 }
 
 RemoteCallFrameId::RemoteCallFrameId()
@@ -49,13 +54,13 @@ Response RemoteCallFrameId::parse(const String16& objectId,
   std::unique_ptr<RemoteCallFrameId> remoteCallFrameId(new RemoteCallFrameId());
   std::unique_ptr<protocol::DictionaryValue> parsedObjectId =
       remoteCallFrameId->parseInjectedScriptId(objectId);
-  if (!parsedObjectId) return Response::Error("Invalid call frame id");
+  if (!parsedObjectId) return Response::ServerError("Invalid call frame id");
 
   bool success =
       parsedObjectId->getInteger("ordinal", &remoteCallFrameId->m_frameOrdinal);
-  if (!success) return Response::Error("Invalid call frame id");
+  if (!success) return Response::ServerError("Invalid call frame id");
   *result = std::move(remoteCallFrameId);
-  return Response::OK();
+  return Response::Success();
 }
 
 String16 RemoteCallFrameId::serialize(int injectedScriptId, int frameOrdinal) {

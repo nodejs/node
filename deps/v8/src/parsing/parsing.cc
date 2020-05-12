@@ -8,6 +8,7 @@
 
 #include "src/ast/ast.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
@@ -18,8 +19,9 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
-                  ReportErrorsAndStatisticsMode mode) {
+bool ParseProgram(ParseInfo* info, Handle<Script> script,
+                  MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+                  Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -38,7 +40,7 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
 
-  result = parser.ParseProgram(isolate, script, info);
+  result = parser.ParseProgram(isolate, script, info, maybe_outer_scope_info);
   info->set_literal(result);
   if (result) {
     info->set_language_mode(info->literal()->language_mode());
@@ -55,6 +57,11 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
     parser.UpdateStatistics(isolate, script);
   }
   return (result != nullptr);
+}
+
+bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
+                  ReportErrorsAndStatisticsMode mode) {
+  return ParseProgram(info, script, kNullMaybeHandle, isolate, mode);
 }
 
 bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
@@ -83,7 +90,7 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   result = parser.ParseFunction(isolate, info, shared_info);
   info->set_literal(result);
   if (result) {
-    info->ast_value_factory()->Internalize(isolate->factory());
+    info->ast_value_factory()->Internalize(isolate);
     if (info->is_eval()) {
       info->set_allow_eval_cache(parser.allow_eval_cache());
     }
@@ -102,11 +109,17 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
               Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
-  return info->is_toplevel()
-             ? ParseProgram(
-                   info, handle(Script::cast(shared_info->script()), isolate),
-                   isolate, mode)
-             : ParseFunction(info, shared_info, isolate, mode);
+  if (info->is_toplevel()) {
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info;
+    if (shared_info->HasOuterScopeInfo()) {
+      maybe_outer_scope_info =
+          handle(shared_info->GetOuterScopeInfo(), isolate);
+    }
+    return ParseProgram(info,
+                        handle(Script::cast(shared_info->script()), isolate),
+                        maybe_outer_scope_info, isolate, mode);
+  }
+  return ParseFunction(info, shared_info, isolate, mode);
 }
 
 }  // namespace parsing

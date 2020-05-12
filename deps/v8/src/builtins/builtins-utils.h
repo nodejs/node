@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 
 // Arguments object passed to C++ builtins.
-class BuiltinArguments : public Arguments {
+class BuiltinArguments : public JavaScriptArguments {
  public:
   BuiltinArguments(int length, Address* arguments)
       : Arguments(length, arguments) {
@@ -25,13 +25,24 @@ class BuiltinArguments : public Arguments {
 
   Object operator[](int index) const {
     DCHECK_LT(index, length());
-    return Arguments::operator[](index);
+    return Object(*address_of_arg_at(index + kArgsOffset));
   }
 
   template <class S = Object>
   Handle<S> at(int index) const {
     DCHECK_LT(index, length());
-    return Arguments::at<S>(index);
+    return Handle<S>(address_of_arg_at(index + kArgsOffset));
+  }
+
+  inline void set_at(int index, Object value) {
+    DCHECK_LT(index, length());
+    *address_of_arg_at(index + kArgsOffset) = value.ptr();
+  }
+
+  // Note: this should return the address after the receiver,
+  // even when length() == 1.
+  inline Address* address_of_first_argument() const {
+    return address_of_arg_at(kArgsOffset + 1);  // Skips receiver.
   }
 
   static constexpr int kNewTargetOffset = 0;
@@ -41,6 +52,12 @@ class BuiltinArguments : public Arguments {
 
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;
+
+#ifdef V8_REVERSE_JSARGS
+  static constexpr int kArgsOffset = 4;
+#else
+  static constexpr int kArgsOffset = 0;
+#endif
 
   inline Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
   inline Handle<Object> receiver() const;

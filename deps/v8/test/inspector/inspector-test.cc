@@ -70,8 +70,7 @@ std::vector<uint8_t> ToBytes(v8::Isolate* isolate, v8::Local<v8::String> str) {
 }
 
 v8::Local<v8::String> ToV8String(v8::Isolate* isolate, const char* str) {
-  return v8::String::NewFromUtf8(isolate, str, v8::NewStringType::kNormal)
-      .ToLocalChecked();
+  return v8::String::NewFromUtf8(isolate, str).ToLocalChecked();
 }
 
 v8::Local<v8::String> ToV8String(v8::Isolate* isolate,

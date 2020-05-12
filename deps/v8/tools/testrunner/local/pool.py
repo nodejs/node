@@ -196,10 +196,10 @@ class Pool():
             # gracefully, e.g. missing test files.
             internal_error = True
             continue
-
-          if self.abort_now:
-            # SIGINT, SIGTERM or internal hard timeout.
-            return
+          finally:
+            if self.abort_now:
+              # SIGINT, SIGTERM or internal hard timeout.
+              return
 
           yield result
           break

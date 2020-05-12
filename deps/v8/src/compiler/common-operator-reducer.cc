@@ -21,6 +21,9 @@ namespace {
 
 Decision DecideCondition(JSHeapBroker* broker, Node* const cond) {
   switch (cond->opcode()) {
+    case IrOpcode::kFoldConstant: {
+      return DecideCondition(broker, cond->InputAt(1));
+    }
     case IrOpcode::kInt32Constant: {
       Int32Matcher mcond(cond);
       return mcond.Value() ? Decision::kTrue : Decision::kFalse;

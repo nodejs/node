@@ -26,9 +26,9 @@ TypedOptimization::TypedOptimization(Editor* editor,
       jsgraph_(jsgraph),
       broker_(broker),
       true_type_(
-          Type::HeapConstant(broker, factory()->true_value(), graph()->zone())),
-      false_type_(Type::HeapConstant(broker, factory()->false_value(),
-                                     graph()->zone())),
+          Type::Constant(broker, factory()->true_value(), graph()->zone())),
+      false_type_(
+          Type::Constant(broker, factory()->false_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
 TypedOptimization::~TypedOptimization() = default;

@@ -4,7 +4,6 @@
 
 #include <cstdlib>
 #include <string>
-#include <unordered_map>
 
 #include "span.h"
 #include "test_platform.h"
@@ -13,7 +12,6 @@ namespace v8_crdtp {
 // =============================================================================
 // span - sequence of bytes
 // =============================================================================
-
 template <typename T>
 class SpanTest : public ::testing::Test {};
 
@@ -107,42 +105,5 @@ TEST(SpanComparisons, ByteWiseLexicographicalOrder) {
   EXPECT_TRUE(SpanLessThan(SpanFrom(lesser_msg), SpanFrom(msg)));
   EXPECT_FALSE(SpanLessThan(SpanFrom(msg), SpanFrom(lesser_msg)));
   EXPECT_FALSE(SpanEquals(SpanFrom(msg), SpanFrom(lesser_msg)));
-}
-
-// TODO(johannes): The following shows how the span can be used in an
-// std::unordered_map as a key. Once we have a production usage, we'll move
-// SpanHash, SpanEq, SpanHasher into the header.
-
-// A simple hash code, inspired by http://stackoverflow.com/q/1646807.
-constexpr inline size_t SpanHash(span<uint8_t> s) noexcept {
-  size_t hash = 17;
-  for (uint8_t c : s)
-    hash = 31 * hash + c;
-  return hash;
-}
-
-// Structs for making std::unordered_map with std::span<uint8_t> keys.
-struct SpanEq {
-  constexpr inline bool operator()(span<uint8_t> l, span<uint8_t> r) const {
-    return SpanEquals(l, r);
-  }
-};
-
-struct SpanHasher {
-  constexpr inline size_t operator()(span<uint8_t> s) const {
-    return SpanHash(s);
-  }
-};
-
-TEST(SpanHasherAndSpanEq, SpanAsKeyInUnorderedMap) {
-  // A very simple smoke test for unordered_map, storing three key/value pairs.
-  std::unordered_map<span<uint8_t>, int32_t, SpanHasher, SpanEq> a_map;
-  a_map[SpanFrom("foo")] = 1;
-  a_map[SpanFrom("bar")] = 2;
-  a_map[SpanFrom("baz")] = 3;
-  EXPECT_EQ(3u, a_map.size());
-  EXPECT_EQ(1, a_map[SpanFrom("foo")]);
-  EXPECT_EQ(2, a_map[SpanFrom("bar")]);
-  EXPECT_EQ(3, a_map[SpanFrom("baz")]);
 }
 }  // namespace v8_crdtp

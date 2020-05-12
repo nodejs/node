@@ -353,6 +353,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void RecordEmbedderSpeed(size_t bytes, double duration);
 
+  // Returns the average time between scheduling and invocation of an
+  // incremental marking task.
+  double AverageTimeToIncrementalMarkingTask() const;
+  void RecordTimeToIncrementalMarkingTask(double time_to_task);
+
   WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
 
  private:
@@ -445,6 +450,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   double incremental_marking_start_time_;
 
   double recorded_incremental_marking_speed_;
+
+  double average_time_to_incremental_marking_task_ = 0.0;
 
   double recorded_embedder_speed_ = 0.0;
 

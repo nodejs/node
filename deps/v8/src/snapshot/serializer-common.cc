@@ -100,7 +100,6 @@ void SerializedData::AllocateData(uint32_t size) {
   data_ = NewArray<byte>(size);
   size_ = size;
   owns_data_ = true;
-  DCHECK(IsAligned(reinterpret_cast<intptr_t>(data_), kPointerAlignment));
 }
 
 // static
@@ -146,7 +145,7 @@ void SerializerDeserializer::RestoreExternalReferenceRedirectors(
   }
 }
 
-V8_EXPORT_PRIVATE extern uint32_t Checksum(Vector<const byte> payload) {
+uint32_t Checksum(Vector<const byte> payload) {
 #ifdef MEMORY_SANITIZER
   // Computing the checksum includes padding bytes for objects like strings.
   // Mark every object as initialized in the code serializer.

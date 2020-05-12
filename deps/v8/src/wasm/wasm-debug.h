@@ -21,6 +21,9 @@ namespace internal {
 template <typename T>
 class Handle;
 class JSObject;
+template <typename T>
+class Vector;
+class WasmCompiledFrame;
 class WasmInstanceObject;
 
 namespace wasm {
@@ -28,6 +31,7 @@ namespace wasm {
 class DebugInfoImpl;
 class LocalNames;
 class NativeModule;
+class WasmCode;
 class WireBytesRef;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
@@ -37,71 +41,66 @@ class DebugSideTable {
  public:
   class Entry {
    public:
-    struct Constant {
-      int index;
-      int32_t i32_const;
+    enum ValueKind : int8_t { kConstant, kRegister, kStack };
+    struct Value {
+      ValueType type;
+      ValueKind kind;
+      union {
+        int32_t i32_const;  // if kind == kConstant
+        int reg_code;       // if kind == kRegister
+        int stack_offset;   // if kind == kStack
+      };
     };
 
-    Entry(int pc_offset, std::vector<ValueType> stack_types,
-          std::vector<int> stack_offsets, std::vector<Constant> constants)
-        : pc_offset_(pc_offset),
-          stack_types_(std::move(stack_types)),
-          stack_offsets_(std::move(stack_offsets)),
-          constants_(std::move(constants)) {
-      DCHECK(std::is_sorted(constants_.begin(), constants_.end(),
-                            ConstantIndexLess{}));
-      DCHECK_EQ(stack_types_.size(), stack_offsets_.size());
-    }
+    Entry(int pc_offset, std::vector<Value> values)
+        : pc_offset_(pc_offset), values_(std::move(values)) {}
 
     // Constructor for map lookups (only initializes the {pc_offset_}).
     explicit Entry(int pc_offset) : pc_offset_(pc_offset) {}
 
     int pc_offset() const { return pc_offset_; }
-    int stack_height() const { return static_cast<int>(stack_types_.size()); }
-    ValueType stack_type(int stack_index) const {
-      return stack_types_[stack_index];
+
+    int num_values() const { return static_cast<int>(values_.size()); }
+    ValueType value_type(int index) const { return values_[index].type; }
+
+    auto values() const {
+      return base::make_iterator_range(values_.begin(), values_.end());
     }
-    int stack_offset(int stack_index) const {
-      return stack_offsets_[stack_index];
+
+    int stack_offset(int index) const {
+      DCHECK_EQ(kStack, values_[index].kind);
+      return values_[index].stack_offset;
     }
-    // {index} can point to a local or operand stack value.
-    bool IsConstant(int index) const {
-      return std::binary_search(constants_.begin(), constants_.end(),
-                                Constant{index, 0}, ConstantIndexLess{});
+
+    bool is_constant(int index) const {
+      return values_[index].kind == kConstant;
     }
-    int32_t GetConstant(int index) const {
-      DCHECK(IsConstant(index));
-      auto it = std::lower_bound(constants_.begin(), constants_.end(),
-                                 Constant{index, 0}, ConstantIndexLess{});
-      DCHECK_NE(it, constants_.end());
-      DCHECK_EQ(it->index, index);
-      return it->i32_const;
+
+    bool is_register(int index) const {
+      return values_[index].kind == kRegister;
+    }
+
+    int32_t i32_constant(int index) const {
+      DCHECK_EQ(kConstant, values_[index].kind);
+      return values_[index].i32_const;
+    }
+
+    int32_t register_code(int index) const {
+      DCHECK_EQ(kRegister, values_[index].kind);
+      return values_[index].reg_code;
     }
 
    private:
-    struct ConstantIndexLess {
-      bool operator()(const Constant& a, const Constant& b) const {
-        return a.index < b.index;
-      }
-    };
-
     int pc_offset_;
-    // TODO(clemensb): Merge these vectors into one.
-    std::vector<ValueType> stack_types_;
-    std::vector<int> stack_offsets_;
-    std::vector<Constant> constants_;
+    std::vector<Value> values_;
   };
 
   // Technically it would be fine to copy this class, but there should not be a
   // reason to do so, hence mark it move only.
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(DebugSideTable);
 
-  explicit DebugSideTable(std::vector<ValueType> local_types,
-                          std::vector<int> local_stack_offsets,
-                          std::vector<Entry> entries)
-      : local_types_(std::move(local_types)),
-        local_stack_offsets_(std::move(local_stack_offsets)),
-        entries_(std::move(entries)) {
+  explicit DebugSideTable(int num_locals, std::vector<Entry> entries)
+      : num_locals_(num_locals), entries_(std::move(entries)) {
     DCHECK(
         std::is_sorted(entries_.begin(), entries_.end(), EntryPositionLess{}));
   }
@@ -110,6 +109,7 @@ class DebugSideTable {
     auto it = std::lower_bound(entries_.begin(), entries_.end(),
                                Entry{pc_offset}, EntryPositionLess{});
     if (it == entries_.end() || it->pc_offset() != pc_offset) return nullptr;
+    DCHECK_LE(num_locals_, it->num_values());
     return &*it;
   }
 
@@ -117,12 +117,7 @@ class DebugSideTable {
     return base::make_iterator_range(entries_.begin(), entries_.end());
   }
 
-  size_t num_entries() const { return entries_.size(); }
-  int num_locals() const { return static_cast<int>(local_types_.size()); }
-  ValueType local_type(int index) const { return local_types_[index]; }
-  int local_stack_offset(int index) const {
-    return local_stack_offsets_[index];
-  }
+  int num_locals() const { return num_locals_; }
 
  private:
   struct EntryPositionLess {
@@ -131,8 +126,7 @@ class DebugSideTable {
     }
   };
 
-  std::vector<ValueType> local_types_;
-  std::vector<int32_t> local_stack_offsets_;
+  int num_locals_;
   std::vector<Entry> entries_;
 };
 
@@ -147,11 +141,27 @@ class DebugInfo {
   explicit DebugInfo(NativeModule*);
   ~DebugInfo();
 
-  Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp);
+  // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
+  // the {WasmDebugBreak} frame (if any).
+  Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp,
+                                       Address debug_break_fp);
+
+  Handle<JSObject> GetStackScopeObject(Isolate*, Address pc, Address fp,
+                                       Address debug_break_fp);
 
   WireBytesRef GetLocalName(int func_index, int local_index);
 
-  void SetBreakpoint(int func_index, int offset);
+  void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
+
+  void PrepareStep(Isolate*, StackFrameId);
+
+  void ClearStepping();
+
+  bool IsStepping(WasmCompiledFrame*);
+
+  void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
+
+  void RemoveDebugSideTables(Vector<WasmCode* const>);
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

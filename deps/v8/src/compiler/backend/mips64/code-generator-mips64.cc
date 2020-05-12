@@ -765,7 +765,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       // from start_call to return address.
-      int offset = 48;
+      int offset = __ root_array_available() ? 76 : 88;
 #if V8_HOST_ARCH_MIPS64
       if (__ emit_debug_code()) {
         offset += 16;
@@ -818,8 +818,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchBinarySearchSwitch:
       AssembleArchBinarySearchSwitch(instr);
       break;
-    case kArchLookupSwitch:
-      AssembleArchLookupSwitch(instr);
       break;
     case kArchTableSwitch:
       AssembleArchTableSwitch(instr);
@@ -837,7 +835,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ stop();
       break;
     case kArchDebugBreak:
-      __ stop();
+      __ DebugBreak();
       break;
     case kArchComment:
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)));
@@ -2492,6 +2490,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputSimd128Register(0));
       break;
     }
+    case kMips64I32x4Abs: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ asub_s_w(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  kSimd128RegZero);
+      break;
+    }
     case kMips64I16x8Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fill_h(i.OutputSimd128Register(), i.InputRegister(0));
@@ -2653,6 +2657,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(0));
       break;
     }
+    case kMips64I16x8Abs: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ asub_s_h(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  kSimd128RegZero);
+      break;
+    }
     case kMips64I8x16Splat: {
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ fill_b(i.OutputSimd128Register(), i.InputRegister(0));
@@ -2812,6 +2822,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       __ aver_u_b(i.OutputSimd128Register(), i.InputSimd128Register(1),
                   i.InputSimd128Register(0));
+      break;
+    }
+    case kMips64I8x16Abs: {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      __ asub_s_b(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  kSimd128RegZero);
       break;
     }
     case kMips64S128And: {
@@ -3780,16 +3796,6 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
                                       cases.data() + cases.size());
 }
 
-void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
-  MipsOperandConverter i(this, instr);
-  Register input = i.InputRegister(0);
-  for (size_t index = 2; index < instr->InputCount(); index += 2) {
-    __ li(kScratchReg, Operand(i.InputInt32(index + 0)));
-    __ Branch(GetLabel(i.InputRpo(index + 1)), eq, input, Operand(kScratchReg));
-  }
-  AssembleArchJump(i.InputRpo(1));
-}
-
 void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   MipsOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -3844,7 +3850,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Push(kWasmInstanceRegister);
       } else if (call_descriptor->IsWasmImportWrapper() ||
                  call_descriptor->IsWasmCapiFunction()) {
-        // WASM import wrappers are passed a tuple in the place of the instance.
+        // Wasm import wrappers are passed a tuple in the place of the instance.
         // Unpack the tuple into the instance and the target callable.
         // This must be done here in the codegen because it cannot be expressed
         // properly in the graph.

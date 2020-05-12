@@ -36,7 +36,7 @@ namespace string {
 
     try {
       // 3. Let n be ? ToInteger(count).
-      typeswitch (ToInteger_Inline(count, kTruncateMinusZero)) {
+      typeswitch (ToInteger_Inline(count)) {
         case (n: Smi): {
           // 4. If n < 0, throw a RangeError exception.
           if (n < 0) goto InvalidCount;

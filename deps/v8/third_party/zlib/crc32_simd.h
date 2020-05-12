@@ -33,3 +33,4 @@ uint32_t ZLIB_INTERNAL crc32_sse42_simd_(
 uint32_t ZLIB_INTERNAL armv8_crc32_little(unsigned long crc,
                                           const unsigned char* buf,
                                           z_size_t len);
+

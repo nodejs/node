@@ -4,6 +4,7 @@
 
 let {session, contextGroup, Protocol} =
     InspectorTest.start('Tests stepping through wasm scripts by byte offsets');
+session.setupScriptMap();
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -82,8 +83,8 @@ function instantiate(bytes) {
   await waitForPauseAndStep('resume');    // to next breakpoint (3rd iteration)
   await waitForPauseAndStep('stepInto');  // into wasm_A
   await waitForPauseAndStep('stepOut');   // out to wasm_B
-  // Now step 10 times, until we are in wasm_A again.
-  for (let i = 0; i < 10; ++i) await waitForPauseAndStep('stepInto');
+  // Now step 9 times, until we are in wasm_A again.
+  for (let i = 0; i < 9; ++i) await waitForPauseAndStep('stepInto');
   // 3 more times, back to wasm_B.
   for (let i = 0; i < 3; ++i) await waitForPauseAndStep('stepInto');
   // Then just resume.
@@ -95,9 +96,7 @@ function instantiate(bytes) {
 
 async function waitForPauseAndStep(stepAction) {
   const {params: {callFrames}} = await Protocol.Debugger.oncePaused();
-  const topFrame = callFrames[0];
-  InspectorTest.log(
-      `Paused at ${topFrame.url}:${topFrame.location.lineNumber}:${topFrame.location.columnNumber}`);
+  await session.logSourceLocation(callFrames[0].location);
   for (var frame of callFrames) {
     const functionName = frame.functionName || '(anonymous)';
     const lineNumber = frame.location.lineNumber;
@@ -114,9 +113,13 @@ async function waitForPauseAndStep(stepAction) {
             functionDeclaration: 'function() { return this; }',
             returnByValue: true
           });
-        if (value.locals)
-          InspectorTest.log(`   locals: ${JSON.stringify(value.locals)}`);
-        InspectorTest.log(`   stack: ${JSON.stringify(value.stack)}`);
+        if (scope.type === 'local') {
+          if (value.locals)
+            InspectorTest.log(`   locals: ${JSON.stringify(value.locals)}`);
+          InspectorTest.log(`   stack: ${JSON.stringify(value.stack)}`);
+        } else {
+          InspectorTest.log(`   ${JSON.stringify(value)}`);
+        }
       }
     }
   }

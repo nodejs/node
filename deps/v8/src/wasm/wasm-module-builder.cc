@@ -343,8 +343,7 @@ uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
 
 uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
                                             ValueType type, bool mutability) {
-  global_imports_.push_back(
-      {name, ValueTypes::ValueTypeCodeFor(type), mutability});
+  global_imports_.push_back({name, type.value_type_code(), mutability});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 
@@ -408,11 +407,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       buffer->write_u8(kWasmFunctionTypeCode);
       buffer->write_size(sig->parameter_count());
       for (auto param : sig->parameters()) {
-        buffer->write_u8(ValueTypes::ValueTypeCodeFor(param));
+        buffer->write_u8(param.value_type_code());
       }
       buffer->write_size(sig->return_count());
       for (auto ret : sig->returns()) {
-        buffer->write_u8(ValueTypes::ValueTypeCodeFor(ret));
+        buffer->write_u8(ret.value_type_code());
       }
     }
     FixupSection(buffer, start);
@@ -455,7 +454,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer->write_size(tables_.size());
     for (const WasmTable& table : tables_) {
-      buffer->write_u8(ValueTypes::ValueTypeCodeFor(table.type));
+      buffer->write_u8(table.type.value_type_code());
       buffer->write_u8(table.has_maximum ? kHasMaximumFlag : kNoMaximumFlag);
       buffer->write_size(table.min_size);
       if (table.has_maximum) buffer->write_size(table.max_size);
@@ -486,8 +485,8 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kGlobalSectionCode, buffer);
     buffer->write_size(globals_.size());
 
-    for (auto global : globals_) {
-      buffer->write_u8(ValueTypes::ValueTypeCodeFor(global.type));
+    for (const WasmGlobal& global : globals_) {
+      buffer->write_u8(global.type.value_type_code());
       buffer->write_u8(global.mutability ? 1 : 0);
       switch (global.init.kind) {
         case WasmInitExpr::kI32Const:
@@ -522,22 +521,22 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
           break;
         case WasmInitExpr::kNone: {
           // No initializer, emit a default value.
-          switch (global.type) {
-            case kWasmI32:
+          switch (global.type.kind()) {
+            case ValueType::kI32:
               buffer->write_u8(kExprI32Const);
               // LEB encoding of 0.
               buffer->write_u8(0);
               break;
-            case kWasmI64:
+            case ValueType::kI64:
               buffer->write_u8(kExprI64Const);
               // LEB encoding of 0.
               buffer->write_u8(0);
               break;
-            case kWasmF32:
+            case ValueType::kF32:
               buffer->write_u8(kExprF32Const);
               buffer->write_f32(0.f);
               break;
-            case kWasmF64:
+            case ValueType::kF64:
               buffer->write_u8(kExprF64Const);
               buffer->write_f64(0.);
               break;

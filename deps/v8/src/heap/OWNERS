@@ -1,6 +1,10 @@
+bikineev@chromium.org
 dinfuehr@chromium.org
 hpayer@chromium.org
 mlippautz@chromium.org
+omerkatz@chromium.org
 ulan@chromium.org
+
+per-file *factory*=leszeks@chromium.org
 
 # COMPONENT: Blink>JavaScript>GC

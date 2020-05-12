@@ -68,7 +68,7 @@ namespace string {
     const string: String = ToThisString(receiver, methodName);
 
     // 3. Let position be ? ToInteger(pos).
-    const indexNumber: Number = ToInteger_Inline(position, kTruncateMinusZero);
+    const indexNumber: Number = ToInteger_Inline(position);
 
     // Convert the {position} to a uintptr and check that it's in bounds of
     // the {string}.

@@ -76,10 +76,9 @@ IsolateData::IsolateData(TaskRunner* task_runner,
   v8::HandleScope handle_scope(isolate_.get());
   not_inspectable_private_.Reset(
       isolate_.get(),
-      v8::Private::ForApi(isolate_.get(), v8::String::NewFromUtf8(
-                                              isolate_.get(), "notInspectable",
-                                              v8::NewStringType::kNormal)
-                                              .ToLocalChecked()));
+      v8::Private::ForApi(
+          isolate_.get(),
+          v8::String::NewFromUtf8Literal(isolate_.get(), "notInspectable")));
 }
 
 IsolateData* IsolateData::FromContext(v8::Local<v8::Context> context) {
@@ -310,9 +309,7 @@ void IsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
   if (context.IsEmpty()) return;
   v8::Local<v8::Promise> promise = data.GetPromise();
   v8::Local<v8::Private> id_private = v8::Private::ForApi(
-      isolate,
-      v8::String::NewFromUtf8(isolate, "id", v8::NewStringType::kNormal)
-          .ToLocalChecked());
+      isolate, v8::String::NewFromUtf8Literal(isolate, "id"));
 
   if (data.GetEvent() == v8::kPromiseHandlerAddedAfterReject) {
     v8::Local<v8::Value> id;
@@ -373,9 +370,8 @@ std::vector<int> IsolateData::GetSessionIds(int context_group_id) {
 bool IsolateData::formatAccessorsAsProperties(v8::Local<v8::Value> object) {
   v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::Local<v8::Private> shouldFormatAccessorsPrivate = v8::Private::ForApi(
-      isolate(), v8::String::NewFromUtf8(isolate(), "allowAccessorFormatting",
-                                         v8::NewStringType::kNormal)
-                     .ToLocalChecked());
+      isolate(),
+      v8::String::NewFromUtf8Literal(isolate(), "allowAccessorFormatting"));
   CHECK(object->IsObject());
   return object.As<v8::Object>()
       ->HasPrivate(context, shouldFormatAccessorsPrivate)

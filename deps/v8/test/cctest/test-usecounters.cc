@@ -115,6 +115,42 @@ TEST(RegExpMatchIsFalseishOnJSRegExp) {
   CHECK_EQ(1, use_counts[v8::Isolate::kRegExpMatchIsFalseishOnJSRegExp]);
 }
 
+TEST(ObjectPrototypeHasElements) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("var o = {}; o[1] = 2;");
+  CHECK_EQ(0, use_counts[v8::Isolate::kObjectPrototypeHasElements]);
+
+  CompileRun("var o = {}; var p = {}; o.__proto__ = p; p[1] = 2;");
+  CHECK_EQ(0, use_counts[v8::Isolate::kObjectPrototypeHasElements]);
+
+  CompileRun("Object.prototype[1] = 2;");
+  CHECK_EQ(1, use_counts[v8::Isolate::kObjectPrototypeHasElements]);
+}
+
+TEST(ArrayPrototypeHasElements) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  CompileRun("var a = []; a[1] = 2;");
+  CHECK_EQ(0, use_counts[v8::Isolate::kArrayPrototypeHasElements]);
+
+  CompileRun("var a = []; var p = []; a.__proto__ = p; p[1] = 2;");
+  CHECK_EQ(0, use_counts[v8::Isolate::kArrayPrototypeHasElements]);
+
+  CompileRun("Array.prototype[1] = 2;");
+  CHECK_EQ(1, use_counts[v8::Isolate::kArrayPrototypeHasElements]);
+}
+
 }  // namespace test_usecounters
 }  // namespace internal
 }  // namespace v8

@@ -2,5 +2,5 @@
 fg.unregister(1);
    ^
 TypeError: unregisterToken ('1') must be an object
-    at FinalizationGroup.unregister (<anonymous>)
+    at FinalizationRegistry.unregister (<anonymous>)
     at *%(basename)s:8:4

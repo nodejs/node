@@ -86,6 +86,7 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   virtual void LoadRoot(Register destination, RootIndex index) = 0;
 
   virtual void Trap() = 0;
+  virtual void DebugBreak() = 0;
 
   static int32_t RootRegisterOffsetForRootIndex(RootIndex root_index);
   static int32_t RootRegisterOffsetForBuiltinIndex(int builtin_index);

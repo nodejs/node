@@ -537,8 +537,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
       int enumeration_index = original_details.dictionary_index();
       DCHECK_GT(enumeration_index, 0);
       details = details.set_index(enumeration_index);
-      dictionary->SetEntry(isolate(), dictionary_entry(), *name(), *value,
-                           details);
+      dictionary->SetEntry(dictionary_entry(), *name(), *value, details);
       property_details_ = details;
     }
     state_ = DATA;

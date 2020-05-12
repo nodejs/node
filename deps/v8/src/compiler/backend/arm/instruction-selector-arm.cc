@@ -92,12 +92,23 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
 }
 
 void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
-                       Node* node) {
+                       Node* node, int width) {
   ArmOperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+  Int32Matcher m(node->InputAt(1));
+  if (m.HasValue()) {
+    if (m.IsMultipleOf(width)) {
+      selector->EmitIdentity(node);
+    } else {
+      selector->Emit(opcode, g.DefineAsRegister(node),
+                     g.UseRegister(node->InputAt(0)),
+                     g.UseImmediate(node->InputAt(1)));
+    }
+  } else {
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseUniqueRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
 void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
@@ -2004,7 +2015,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   ArmOperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 4 + sw.value_range();
@@ -2458,24 +2469,24 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
                          AddressingModeField::encode(addressing_mode);
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r2),
-                                    g.DefineAsFixed(projection1, r3)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
-  } else if (projection0) {
-    InstructionOperand outputs[] = {
-        g.DefineAsFixed(NodeProperties::FindProjection(node, 0), r2)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                  g.TempRegister(r3)};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  InstructionOperand temps[4];
+  size_t temp_count = 0;
+  temps[temp_count++] = g.TempRegister();
+  temps[temp_count++] = g.TempRegister();
+  if (projection0) {
+    outputs[output_count++] = g.DefineAsFixed(projection0, r2);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                  g.TempRegister(r2), g.TempRegister(r3)};
-    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+    temps[temp_count++] = g.TempRegister(r2);
   }
+  if (projection1) {
+    outputs[output_count++] = g.DefineAsFixed(projection1, r3);
+  } else {
+    temps[temp_count++] = g.TempRegister(r3);
+  }
+  Emit(code, output_count, outputs, arraysize(inputs), inputs, temp_count,
+       temps);
 }
 
 #define SIMD_TYPE_LIST(V) \
@@ -2501,12 +2512,15 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I32x4UConvertF32x4, kArmI32x4UConvertF32x4)         \
   V(I32x4UConvertI16x8Low, kArmI32x4UConvertI16x8Low)   \
   V(I32x4UConvertI16x8High, kArmI32x4UConvertI16x8High) \
+  V(I32x4Abs, kArmI32x4Abs)                             \
   V(I16x8SConvertI8x16Low, kArmI16x8SConvertI8x16Low)   \
   V(I16x8SConvertI8x16High, kArmI16x8SConvertI8x16High) \
   V(I16x8Neg, kArmI16x8Neg)                             \
   V(I16x8UConvertI8x16Low, kArmI16x8UConvertI8x16Low)   \
   V(I16x8UConvertI8x16High, kArmI16x8UConvertI8x16High) \
+  V(I16x8Abs, kArmI16x8Abs)                             \
   V(I8x16Neg, kArmI8x16Neg)                             \
+  V(I8x16Abs, kArmI8x16Abs)                             \
   V(S128Not, kArmS128Not)                               \
   V(S1x4AnyTrue, kArmS1x4AnyTrue)                       \
   V(S1x4AllTrue, kArmS1x4AllTrue)                       \
@@ -2516,18 +2530,18 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(S1x16AllTrue, kArmS1x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
-  V(I64x2Shl)                 \
-  V(I64x2ShrS)                \
-  V(I64x2ShrU)                \
-  V(I32x4Shl)                 \
-  V(I32x4ShrS)                \
-  V(I32x4ShrU)                \
-  V(I16x8Shl)                 \
-  V(I16x8ShrS)                \
-  V(I16x8ShrU)                \
-  V(I8x16Shl)                 \
-  V(I8x16ShrS)                \
-  V(I8x16ShrU)
+  V(I64x2Shl, 64)             \
+  V(I64x2ShrS, 64)            \
+  V(I64x2ShrU, 64)            \
+  V(I32x4Shl, 32)             \
+  V(I32x4ShrS, 32)            \
+  V(I32x4ShrU, 32)            \
+  V(I16x8Shl, 16)             \
+  V(I16x8ShrS, 16)            \
+  V(I16x8ShrU, 16)            \
+  V(I8x16Shl, 8)              \
+  V(I8x16ShrS, 8)             \
+  V(I8x16ShrU, 8)
 
 #define SIMD_BINOP_LIST(V)                            \
   V(F64x2Add, kArmF64x2Add)                           \
@@ -2655,9 +2669,9 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_SHIFT_OP(Name)                     \
+#define SIMD_VISIT_SHIFT_OP(Name, width)              \
   void InstructionSelector::Visit##Name(Node* node) { \
-    VisitSimdShiftRRR(this, kArm##Name, node);        \
+    VisitSimdShiftRRR(this, kArm##Name, node, width); \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
@@ -2899,6 +2913,29 @@ void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
+}
+
+namespace {
+template <ArchOpcode opcode>
+void VisitBitMask(InstructionSelector* selector, Node* node) {
+  ArmOperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+}
+}  // namespace
+
+void InstructionSelector::VisitI8x16BitMask(Node* node) {
+  VisitBitMask<kArmI8x16BitMask>(this, node);
+}
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) {
+  VisitBitMask<kArmI16x8BitMask>(this, node);
+}
+
+void InstructionSelector::VisitI32x4BitMask(Node* node) {
+  VisitBitMask<kArmI32x4BitMask>(this, node);
 }
 
 // static

@@ -66,6 +66,7 @@ class PlatformEmbeddedFileWriterWin : public PlatformEmbeddedFileWriterBase {
 
  private:
   void DeclareSymbolGlobal(const char* name);
+  const char* DirectiveAsString(DataDirective directive);
 
  private:
   const EmbeddedTargetArch target_arch_;

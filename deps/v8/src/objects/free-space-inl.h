@@ -37,7 +37,8 @@ void FreeSpace::set_next(FreeSpace next) {
 }
 
 FreeSpace FreeSpace::cast(HeapObject o) {
-  SLOW_DCHECK(!GetHeapFromWritableObject(o)->deserialization_complete() ||
+  SLOW_DCHECK((!Heap::InOffThreadSpace(o) &&
+               !GetHeapFromWritableObject(o)->deserialization_complete()) ||
               o.IsFreeSpace());
   return bit_cast<FreeSpace>(o);
 }

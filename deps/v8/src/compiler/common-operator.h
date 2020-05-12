@@ -273,6 +273,11 @@ class SparseInputMask final {
     // current sparse input is real.
     Node* GetReal() const;
 
+    // Advance to the next real value or the end. Only valid if the iterator is
+    // not dense. Returns the number of empty values that were skipped. This can
+    // return 0 and in that case, it does not advance.
+    size_t AdvanceToNextRealOrEnd();
+
     // Get the current sparse input, returning either a real input node if
     // the current sparse input is real, or the given {empty_value} if the
     // current sparse input is empty.
@@ -487,12 +492,11 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Merge(int control_input_count);
   const Operator* Parameter(int index, const char* debug_name = nullptr);
 
-  const Operator* OsrNormalEntry();
-  const Operator* OsrLoopEntry();
   const Operator* OsrValue(int index);
 
   const Operator* Int32Constant(int32_t);
   const Operator* Int64Constant(int64_t);
+  const Operator* TaggedIndexConstant(int32_t value);
   const Operator* Float32Constant(volatile float);
   const Operator* Float64Constant(volatile double);
   const Operator* ExternalConstant(const ExternalReference&);
@@ -534,6 +538,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Projection(size_t index);
   const Operator* Retain();
   const Operator* TypeGuard(Type type);
+  const Operator* FoldConstant();
 
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.

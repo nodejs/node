@@ -76,8 +76,6 @@ class StackTraceFrame
     : public TorqueGeneratedStackTraceFrame<StackTraceFrame, Struct> {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_INT_ACCESSORS(frame_index)
-  DECL_INT_ACCESSORS(id)
 
   // Dispatched behavior.
   DECL_PRINTER(StackTraceFrame)
@@ -128,6 +126,7 @@ Handle<FrameArray> GetFrameArrayFromStackTrace(Isolate* isolate,
 class IncrementalStringBuilder;
 void SerializeStackTraceFrame(Isolate* isolate, Handle<StackTraceFrame> frame,
                               IncrementalStringBuilder* builder);
+V8_EXPORT_PRIVATE
 MaybeHandle<String> SerializeStackTraceFrame(Isolate* isolate,
                                              Handle<StackTraceFrame> frame);
 

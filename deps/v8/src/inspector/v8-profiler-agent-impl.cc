@@ -27,8 +27,10 @@ static const char profilerEnabled[] = "profilerEnabled";
 static const char preciseCoverageStarted[] = "preciseCoverageStarted";
 static const char preciseCoverageCallCount[] = "preciseCoverageCallCount";
 static const char preciseCoverageDetailed[] = "preciseCoverageDetailed";
+static const char preciseCoverageAllowTriggeredUpdates[] =
+    "preciseCoverageAllowTriggeredUpdates";
 static const char typeProfileStarted[] = "typeProfileStarted";
-}
+}  // namespace ProfilerAgentState
 
 namespace {
 
@@ -218,14 +220,14 @@ void V8ProfilerAgentImpl::consoleProfileEnd(const String16& title) {
 }
 
 Response V8ProfilerAgentImpl::enable() {
-  if (m_enabled) return Response::OK();
+  if (m_enabled) return Response::Success();
   m_enabled = true;
   m_state->setBoolean(ProfilerAgentState::profilerEnabled, true);
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::disable() {
-  if (!m_enabled) return Response::OK();
+  if (!m_enabled) return Response::Success();
   for (size_t i = m_startedProfiles.size(); i > 0; --i)
     stopProfiling(m_startedProfiles[i - 1].m_id, false);
   m_startedProfiles.clear();
@@ -234,15 +236,16 @@ Response V8ProfilerAgentImpl::disable() {
   DCHECK(!m_profiler);
   m_enabled = false;
   m_state->setBoolean(ProfilerAgentState::profilerEnabled, false);
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::setSamplingInterval(int interval) {
   if (m_profiler) {
-    return Response::Error("Cannot change sampling interval when profiling.");
+    return Response::ServerError(
+        "Cannot change sampling interval when profiling.");
   }
   m_state->setInteger(ProfilerAgentState::samplingInterval, interval);
-  return Response::OK();
+  return Response::Success();
 }
 
 void V8ProfilerAgentImpl::restore() {
@@ -261,52 +264,57 @@ void V8ProfilerAgentImpl::restore() {
         ProfilerAgentState::preciseCoverageCallCount, false);
     bool detailed = m_state->booleanProperty(
         ProfilerAgentState::preciseCoverageDetailed, false);
+    bool updatesAllowed = m_state->booleanProperty(
+        ProfilerAgentState::preciseCoverageAllowTriggeredUpdates, false);
     double timestamp;
     startPreciseCoverage(Maybe<bool>(callCount), Maybe<bool>(detailed),
-                         &timestamp);
+                         Maybe<bool>(updatesAllowed), &timestamp);
   }
 }
 
 Response V8ProfilerAgentImpl::start() {
-  if (m_recordingCPUProfile) return Response::OK();
-  if (!m_enabled) return Response::Error("Profiler is not enabled");
+  if (m_recordingCPUProfile) return Response::Success();
+  if (!m_enabled) return Response::ServerError("Profiler is not enabled");
   m_recordingCPUProfile = true;
   m_frontendInitiatedProfileId = nextProfileId();
   startProfiling(m_frontendInitiatedProfileId);
   m_state->setBoolean(ProfilerAgentState::userInitiatedProfiling, true);
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::stop(
     std::unique_ptr<protocol::Profiler::Profile>* profile) {
   if (!m_recordingCPUProfile) {
-    return Response::Error("No recording profiles found");
+    return Response::ServerError("No recording profiles found");
   }
   m_recordingCPUProfile = false;
   std::unique_ptr<protocol::Profiler::Profile> cpuProfile =
       stopProfiling(m_frontendInitiatedProfileId, !!profile);
   if (profile) {
     *profile = std::move(cpuProfile);
-    if (!profile->get()) return Response::Error("Profile is not found");
+    if (!profile->get()) return Response::ServerError("Profile is not found");
   }
   m_frontendInitiatedProfileId = String16();
   m_state->setBoolean(ProfilerAgentState::userInitiatedProfiling, false);
-  return Response::OK();
+  return Response::Success();
 }
 
-Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
-                                                   Maybe<bool> detailed,
-                                                   double* out_timestamp) {
-  if (!m_enabled) return Response::Error("Profiler is not enabled");
+Response V8ProfilerAgentImpl::startPreciseCoverage(
+    Maybe<bool> callCount, Maybe<bool> detailed,
+    Maybe<bool> allowTriggeredUpdates, double* out_timestamp) {
+  if (!m_enabled) return Response::ServerError("Profiler is not enabled");
   *out_timestamp =
       v8::base::TimeTicks::HighResolutionNow().since_origin().InSecondsF();
   bool callCountValue = callCount.fromMaybe(false);
   bool detailedValue = detailed.fromMaybe(false);
+  bool allowTriggeredUpdatesValue = allowTriggeredUpdates.fromMaybe(false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount,
                       callCountValue);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageDetailed,
                       detailedValue);
+  m_state->setBoolean(ProfilerAgentState::preciseCoverageAllowTriggeredUpdates,
+                      allowTriggeredUpdatesValue);
   // BlockCount is a superset of PreciseCount. It includes block-granularity
   // coverage data if it exists (at the time of writing, that's the case for
   // each function recompiled after the BlockCount mode has been set); and
@@ -317,17 +325,17 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
                   ? (detailedValue ? Mode::kBlockCount : Mode::kPreciseCount)
                   : (detailedValue ? Mode::kBlockBinary : Mode::kPreciseBinary);
   C::SelectMode(m_isolate, mode);
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::stopPreciseCoverage() {
-  if (!m_enabled) return Response::Error("Profiler is not enabled");
+  if (!m_enabled) return Response::ServerError("Profiler is not enabled");
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount, false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageDetailed, false);
   v8::debug::Coverage::SelectMode(m_isolate,
                                   v8::debug::CoverageMode::kBestEffort);
-  return Response::OK();
+  return Response::Success();
 }
 
 namespace {
@@ -395,7 +403,7 @@ Response coverageToProtocol(
                              .build());
   }
   *out_result = std::move(result);
-  return Response::OK();
+  return Response::Success();
 }
 }  // anonymous namespace
 
@@ -405,7 +413,7 @@ Response V8ProfilerAgentImpl::takePreciseCoverage(
     double* out_timestamp) {
   if (!m_state->booleanProperty(ProfilerAgentState::preciseCoverageStarted,
                                 false)) {
-    return Response::Error("Precise coverage has not been started.");
+    return Response::ServerError("Precise coverage has not been started.");
   }
   v8::HandleScope handle_scope(m_isolate);
   v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(m_isolate);
@@ -418,6 +426,10 @@ void V8ProfilerAgentImpl::triggerPreciseCoverageDeltaUpdate(
     const String16& occassion) {
   if (!m_state->booleanProperty(ProfilerAgentState::preciseCoverageStarted,
                                 false)) {
+    return;
+  }
+  if (!m_state->booleanProperty(
+          ProfilerAgentState::preciseCoverageAllowTriggeredUpdates, false)) {
     return;
   }
   v8::HandleScope handle_scope(m_isolate);
@@ -489,14 +501,14 @@ Response V8ProfilerAgentImpl::startTypeProfile() {
   m_state->setBoolean(ProfilerAgentState::typeProfileStarted, true);
   v8::debug::TypeProfile::SelectMode(m_isolate,
                                      v8::debug::TypeProfileMode::kCollect);
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::stopTypeProfile() {
   m_state->setBoolean(ProfilerAgentState::typeProfileStarted, false);
   v8::debug::TypeProfile::SelectMode(m_isolate,
                                      v8::debug::TypeProfileMode::kNone);
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::takeTypeProfile(
@@ -504,37 +516,38 @@ Response V8ProfilerAgentImpl::takeTypeProfile(
         out_result) {
   if (!m_state->booleanProperty(ProfilerAgentState::typeProfileStarted,
                                 false)) {
-    return Response::Error("Type profile has not been started.");
+    return Response::ServerError("Type profile has not been started.");
   }
   v8::HandleScope handle_scope(m_isolate);
   v8::debug::TypeProfile type_profile =
       v8::debug::TypeProfile::Collect(m_isolate);
   *out_result = typeProfileToProtocol(m_session->inspector(), type_profile);
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::enableRuntimeCallStats() {
   if (m_counters)
-    return Response::Error("RuntimeCallStats collection already enabled.");
+    return Response::ServerError(
+        "RuntimeCallStats collection already enabled.");
 
   if (V8Inspector* inspector = v8::debug::GetInspector(m_isolate))
     m_counters = inspector->enableCounters();
   else
-    return Response::Error("No inspector found.");
+    return Response::ServerError("No inspector found.");
 
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::disableRuntimeCallStats() {
   if (m_counters) m_counters.reset();
-  return Response::OK();
+  return Response::Success();
 }
 
 Response V8ProfilerAgentImpl::getRuntimeCallStats(
     std::unique_ptr<protocol::Array<protocol::Profiler::CounterInfo>>*
         out_result) {
   if (!m_counters)
-    return Response::Error("RuntimeCallStats collection is not enabled.");
+    return Response::ServerError("RuntimeCallStats collection is not enabled.");
 
   *out_result =
       std::make_unique<protocol::Array<protocol::Profiler::CounterInfo>>();
@@ -548,7 +561,7 @@ Response V8ProfilerAgentImpl::getRuntimeCallStats(
                 .build());
   }
 
-  return Response::OK();
+  return Response::Success();
 }
 
 String16 V8ProfilerAgentImpl::nextProfileId() {

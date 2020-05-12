@@ -736,6 +736,35 @@ TEST(TestTestParentFrameArguments) {
   asm_tester.GenerateCode();
 }
 
+TEST(TestFullyGeneratedClassFromCpp) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  { m.Return(m.TestFullyGeneratedClassFromCpp()); }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  Handle<ExportedSubClass> result =
+      Handle<ExportedSubClass>::cast(ft.Call().ToHandleChecked());
+  CHECK_EQ(result->c_field(), 7);
+  CHECK_EQ(result->d_field(), 8);
+  CHECK_EQ(result->e_field(), 9);
+}
+
+TEST(TestFullyGeneratedClassWithElements) {
+  CcTest::InitializeVM();
+  Isolate* isolate(CcTest::i_isolate());
+  i::HandleScope scope(isolate);
+  CodeAssemblerTester asm_tester(isolate, 1);
+  TestTorqueAssembler m(asm_tester.state());
+  {
+    m.TestFullyGeneratedClassWithElements();
+    m.Return(m.UndefinedConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), 0);
+  ft.Call();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

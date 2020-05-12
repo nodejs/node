@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-let {session, contextGroup, Protocol} = InspectorTest.start('Tests stepping from javascript into wasm');
+let {session, contextGroup, Protocol} =
+    InspectorTest.start('Tests stepping from javascript into wasm');
 session.setupScriptMap();
 
 utils.load('test/mjsunit/wasm/wasm-module-builder.js');
@@ -11,14 +12,12 @@ let builder = new WasmModuleBuilder();
 
 // wasm_A
 let func = builder.addFunction('wasm_A', kSig_i_i)
-    .addBody([
-      // clang-format off
-      kExprLocalGet, 0,              // Line 1: get input
-      kExprI32Const, 1,              // Line 2: get constant 1
-      kExprI32Sub                    // Line 3: decrease
-      // clang-format on
-    ])
-    .exportAs('main');
+               .addBody([
+                 kExprLocalGet, 0,  // push param 0
+                 kExprI32Const, 1,  // push constant 1
+                 kExprI32Sub        // subtract
+               ])
+               .exportAs('main');
 
 let module_bytes = builder.toArray();
 
@@ -38,7 +37,7 @@ let evalWithUrl = (code, url) => Protocol.Runtime.evaluate(
     {'expression': code + '\n//# sourceURL=v8://test/' + url});
 
 Protocol.Debugger.onPaused(async message => {
-  InspectorTest.log("paused");
+  InspectorTest.log('paused');
   var frames = message.params.callFrames;
   await session.logSourceLocation(frames[0].location);
   let action = step_actions.shift() || 'resume';
@@ -50,8 +49,7 @@ let step_actions = [
   'stepInto',  // # debugger
   'stepInto',  // step into instance.exports.main(1)
   'resume',    // move to breakpoint
-  // then just resume.
-  'resume',
+  'resume',    // then just resume.
 ];
 
 contextGroup.addScript(`
@@ -69,13 +67,17 @@ function test() {
   evalWithUrl(
       'instantiate(' + JSON.stringify(module_bytes) + ')', 'callInstantiate');
   const scriptId = await waitForWasmScript();
-  InspectorTest.log(
-      'Setting breakpoint on line 3 of wasm function');
-  let msg = await Protocol.Debugger.setBreakpoint(
-      {'location': {'scriptId': scriptId, 'lineNumber': 0, 'columnNumber': 2 + func.body_offset}});
+  InspectorTest.log('Setting breakpoint on i32.const');
+  let msg = await Protocol.Debugger.setBreakpoint({
+    'location': {
+      'scriptId': scriptId,
+      'lineNumber': 0,
+      'columnNumber': 2 + func.body_offset
+    }
+  });
   printFailure(msg);
   InspectorTest.logMessage(msg.result.actualLocation);
-  await Protocol.Runtime.evaluate({ expression: 'test()' });
+  await Protocol.Runtime.evaluate({expression: 'test()'});
   InspectorTest.log('exports.main returned!');
   InspectorTest.log('Finished!');
   InspectorTest.completeTest();

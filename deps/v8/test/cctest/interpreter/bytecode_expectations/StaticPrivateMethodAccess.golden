@@ -19,14 +19,13 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 35
 bytecodes: [
-  /*   51 E> */ B(StackCheck),
   /*   56 S> */ B(LdaCurrentContextSlot), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(261),
+                B(Wide), B(LdaSmi), I16(262),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -55,10 +54,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
-  /*   51 E> */ B(StackCheck),
-  /*   56 S> */ B(Wide), B(LdaSmi), I16(263),
+  /*   56 S> */ B(Wide), B(LdaSmi), I16(264),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -83,10 +81,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
-  /*   51 E> */ B(StackCheck),
-  /*   56 S> */ B(Wide), B(LdaSmi), I16(263),
+  /*   56 S> */ B(Wide), B(LdaSmi), I16(264),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -117,16 +114,15 @@ snippet: "
 "
 frame size: 5
 parameter count: 1
-bytecode array length: 143
+bytecode array length: 142
 bytecodes: [
-  /*   81 E> */ B(StackCheck),
   /*   90 S> */ B(LdaCurrentContextSlot), U8(2),
                 B(Star), R(1),
                 B(LdaCurrentContextSlot), U8(3),
   /*   94 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(261),
+                B(Wide), B(LdaSmi), I16(262),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -148,7 +144,7 @@ bytecodes: [
   /*  109 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(262),
+                B(Wide), B(LdaSmi), I16(263),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -163,7 +159,7 @@ bytecodes: [
   /*  133 E> */ B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(261),
+                B(Wide), B(LdaSmi), I16(262),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
@@ -191,10 +187,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
-  /*   55 E> */ B(StackCheck),
-  /*   60 S> */ B(Wide), B(LdaSmi), I16(265),
+  /*   60 S> */ B(Wide), B(LdaSmi), I16(266),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -218,10 +213,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
-  /*   48 E> */ B(StackCheck),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(264),
+  /*   53 S> */ B(Wide), B(LdaSmi), I16(265),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -245,10 +239,9 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
-  /*   55 E> */ B(StackCheck),
-  /*   60 S> */ B(Wide), B(LdaSmi), I16(265),
+  /*   60 S> */ B(Wide), B(LdaSmi), I16(266),
                 B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -272,10 +265,9 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 16
 bytecodes: [
-  /*   41 E> */ B(StackCheck),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(264),
+  /*   46 S> */ B(Wide), B(LdaSmi), I16(265),
                 B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(Star), R(2),

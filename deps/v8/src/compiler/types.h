@@ -191,7 +191,7 @@ namespace compiler {
   V(SymbolOrReceiver,             kSymbol | kReceiver) \
   V(StringOrReceiver,             kString | kReceiver) \
   V(Unique,                       kBoolean | kUniqueName | kNull | \
-                                  kUndefined | kReceiver) \
+                                  kUndefined | kHole | kReceiver) \
   V(Internal,                     kHole | kExternalPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
@@ -369,26 +369,15 @@ class V8_EXPORT_PRIVATE Type {
   static Type SignedSmall() { return NewBitset(BitsetType::SignedSmall()); }
   static Type UnsignedSmall() { return NewBitset(BitsetType::UnsignedSmall()); }
 
-  static Type OtherNumberConstant(double value, Zone* zone);
-  static Type HeapConstant(JSHeapBroker* broker, Handle<i::Object> value,
-                           Zone* zone);
-  static Type HeapConstant(const HeapObjectRef& value, Zone* zone);
+  static Type Constant(JSHeapBroker* broker, Handle<i::Object> value,
+                       Zone* zone);
+  static Type Constant(double value, Zone* zone);
   static Type Range(double min, double max, Zone* zone);
-  static Type Range(RangeType::Limits lims, Zone* zone);
   static Type Tuple(Type first, Type second, Type third, Zone* zone);
-  static Type Union(int length, Zone* zone);
-
-  // NewConstant is a factory that returns Constant, Range or Number.
-  static Type NewConstant(JSHeapBroker* broker, Handle<i::Object> value,
-                          Zone* zone);
-  static Type NewConstant(double value, Zone* zone);
 
   static Type Union(Type type1, Type type2, Zone* zone);
   static Type Intersect(Type type1, Type type2, Zone* zone);
 
-  static Type For(HeapObjectType const& type) {
-    return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(type)));
-  }
   static Type For(MapRef const& type) {
     return NewBitset(BitsetType::ExpandInternals(BitsetType::Lub(type)));
   }
@@ -411,6 +400,13 @@ class V8_EXPORT_PRIVATE Type {
     return IsKind(TypeBase::kOtherNumberConstant);
   }
   bool IsTuple() const { return IsKind(TypeBase::kTuple); }
+
+  bool IsSingleton() const {
+    if (IsNone()) return false;
+    return Is(Type::Null()) || Is(Type::Undefined()) || Is(Type::MinusZero()) ||
+           Is(Type::NaN()) || Is(Type::Hole()) || IsHeapConstant() ||
+           (Is(Type::PlainNumber()) && Min() == Max());
+  }
 
   const HeapConstantType* AsHeapConstant() const;
   const OtherNumberConstantType* AsOtherNumberConstant() const;
@@ -459,6 +455,7 @@ class V8_EXPORT_PRIVATE Type {
   friend size_t hash_value(Type type);
 
   explicit Type(bitset bits) : payload_(bits | 1u) {}
+
   Type(TypeBase* type_base)  // NOLINT(runtime/explicit)
       : payload_(reinterpret_cast<uintptr_t>(type_base)) {}
 
@@ -490,6 +487,10 @@ class V8_EXPORT_PRIVATE Type {
   bool SlowIs(Type that) const;
 
   static Type NewBitset(bitset bits) { return Type(bits); }
+
+  static Type Range(RangeType::Limits lims, Zone* zone);
+  static Type OtherNumberConstant(double value, Zone* zone);
+  static Type HeapConstant(const HeapObjectRef& value, Zone* zone);
 
   static bool Overlap(const RangeType* lhs, const RangeType* rhs);
   static bool Contains(const RangeType* lhs, const RangeType* rhs);
@@ -553,10 +554,8 @@ class V8_EXPORT_PRIVATE HeapConstantType : public NON_EXPORTED_BASE(TypeBase) {
   friend class Type;
   friend class BitsetType;
 
-  static HeapConstantType* New(const HeapObjectRef& heap_ref, Zone* zone) {
-    DCHECK(!heap_ref.IsHeapNumber());
-    DCHECK_IMPLIES(heap_ref.IsString(), heap_ref.IsInternalizedString());
-    BitsetType::bitset bitset = BitsetType::Lub(heap_ref.GetHeapObjectType());
+  static HeapConstantType* New(const HeapObjectRef& heap_ref,
+                               BitsetType::bitset bitset, Zone* zone) {
     return new (zone->New(sizeof(HeapConstantType)))
         HeapConstantType(bitset, heap_ref);
   }

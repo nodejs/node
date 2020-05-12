@@ -7,6 +7,7 @@
 
 #include <map>
 #include <vector>
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory-base.h"
@@ -14,7 +15,9 @@
 #include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/map.h"
 #include "src/objects/objects.h"
+#include "src/objects/shared-function-info.h"
 #include "src/roots/roots.h"
 
 namespace v8 {
@@ -23,16 +26,7 @@ namespace internal {
 class AstValueFactory;
 class AstRawString;
 class AstConsString;
-
-class OffThreadFactory;
-
-template <>
-struct FactoryTraits<OffThreadFactory> {
-  template <typename T>
-  using HandleType = OffThreadHandle<T>;
-  template <typename T>
-  using MaybeHandleType = OffThreadHandle<T>;
-};
+class OffThreadIsolate;
 
 struct RelativeSlot {
   RelativeSlot() = default;
@@ -50,18 +44,29 @@ class V8_EXPORT_PRIVATE OffThreadFactory
 
   ReadOnlyRoots read_only_roots() const { return roots_; }
 
-#define ROOT_ACCESSOR(Type, name, CamelName) \
-  inline OffThreadHandle<Type> name();
+#define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+  // AccessorInfos appear mutable, but they're actually not mutated once they
+  // finish initializing. In particular, the root accessors are not mutated and
+  // are safe to access (as long as the off-thread job doesn't try to mutate
+  // them).
+  ACCESSOR_INFO_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+  Handle<String> InternalizeString(const Vector<const uint8_t>& string);
+  Handle<String> InternalizeString(const Vector<const uint16_t>& string);
 
   void FinishOffThread();
   void Publish(Isolate* isolate);
 
-  OffThreadHandle<Object> NewInvalidStringLengthError();
+  // The parser shouldn't allow the OffThreadFactory to get into a state where
+  // it generates errors.
+  Handle<Object> NewInvalidStringLengthError() { UNREACHABLE(); }
+  Handle<Object> NewRangeError(MessageTemplate template_index) {
+    UNREACHABLE();
+  }
 
-  OffThreadHandle<FixedArray> StringWrapperForTest(
-      OffThreadHandle<String> string);
+  Handle<FixedArray> StringWrapperForTest(Handle<String> string);
 
  private:
   friend class FactoryBase<OffThreadFactory>;
@@ -70,23 +75,28 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   // Customization points for FactoryBase.
   HeapObject AllocateRaw(int size, AllocationType allocation,
                          AllocationAlignment alignment = kWordAligned);
-  template <typename T>
-  OffThreadHandle<T> Throw(OffThreadHandle<Object> exception) {
-    // TODO(leszeks): Figure out what to do here.
-    return OffThreadHandle<T>();
+
+  OffThreadIsolate* isolate() {
+    // Downcast to the privately inherited sub-class using c-style casts to
+    // avoid undefined behavior (as static_cast cannot cast across private
+    // bases).
+    // NOLINTNEXTLINE (google-readability-casting)
+    return (OffThreadIsolate*)this;  // NOLINT(readability/casting)
   }
-  [[noreturn]] void FatalProcessOutOfHeapMemory(const char* location);
   inline bool CanAllocateInReadOnlySpace() { return false; }
   inline bool EmptyStringRootIsInitialized() { return true; }
   // ------
 
-  OffThreadHandle<String> MakeOrFindTwoCharacterString(uint16_t c1,
-                                                       uint16_t c2);
+  Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
+
+  void AddToScriptList(Handle<Script> shared);
+  // ------
 
   ReadOnlyRoots roots_;
   OffThreadSpace space_;
   OffThreadLargeObjectSpace lo_space_;
   std::vector<RelativeSlot> string_slots_;
+  std::vector<Script> script_list_;
   bool is_finished = false;
 };
 

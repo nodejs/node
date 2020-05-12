@@ -20,6 +20,7 @@
 #include "src/objects/bigint.h"
 
 #include "src/execution/isolate-inl.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
@@ -44,22 +45,28 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
  public:
   // Bottleneck for converting MutableBigInts to BigInts.
   static MaybeHandle<BigInt> MakeImmutable(MaybeHandle<MutableBigInt> maybe);
+  template <typename Isolate = v8::internal::Isolate>
   static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result);
 
   static void Canonicalize(MutableBigInt result);
 
   // Allocation helpers.
+  template <typename LocalIsolate>
   static MaybeHandle<MutableBigInt> New(
-      Isolate* isolate, int length,
+      LocalIsolate* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
   static Handle<BigInt> NewFromInt(Isolate* isolate, int value);
   static Handle<BigInt> NewFromDouble(Isolate* isolate, double value);
   void InitializeDigits(int length, byte value = 0);
   static Handle<MutableBigInt> Copy(Isolate* isolate,
                                     Handle<BigIntBase> source);
-  static Handle<BigInt> Zero(Isolate* isolate) {
+  template <typename LocalIsolate>
+  static Handle<BigInt> Zero(
+      LocalIsolate* isolate,
+      AllocationType allocation = AllocationType::kYoung) {
     // TODO(jkummerow): Consider caching a canonical zero-BigInt.
-    return MakeImmutable(New(isolate, 0)).ToHandleChecked();
+    return MakeImmutable<LocalIsolate>(
+        New(isolate, 0, allocation).ToHandleChecked());
   }
 
   static Handle<MutableBigInt> Cast(Handle<FreshlyAllocatedBigInt> bigint) {
@@ -236,7 +243,7 @@ NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
 #include "src/objects/object-macros-undef.h"
 
-template <typename T>
+template <typename T, typename Isolate>
 MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
   // If the result of a BigInt computation is truncated to 64 bit, Turbofan
   // can sometimes truncate intermediate results already, which can prevent
@@ -250,7 +257,8 @@ MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
   THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig), T);
 }
 
-MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
+template <typename LocalIsolate>
+MaybeHandle<MutableBigInt> MutableBigInt::New(LocalIsolate* isolate, int length,
                                               AllocationType allocation) {
   if (length > BigInt::kMaxLength) {
     return ThrowBigIntTooBig<MutableBigInt>(isolate);
@@ -372,6 +380,7 @@ MaybeHandle<BigInt> MutableBigInt::MakeImmutable(
   return MakeImmutable(result);
 }
 
+template <typename LocalIsolate>
 Handle<BigInt> MutableBigInt::MakeImmutable(Handle<MutableBigInt> result) {
   MutableBigInt::Canonicalize(*result);
   return Handle<BigInt>::cast(result);
@@ -405,9 +414,14 @@ void MutableBigInt::Canonicalize(MutableBigInt result) {
                  result.digit(result.length() - 1) != 0);  // MSD is non-zero.
 }
 
-Handle<BigInt> BigInt::Zero(Isolate* isolate) {
-  return MutableBigInt::Zero(isolate);
+template <typename LocalIsolate>
+Handle<BigInt> BigInt::Zero(LocalIsolate* isolate, AllocationType allocation) {
+  return MutableBigInt::Zero(isolate, allocation);
 }
+template Handle<BigInt> BigInt::Zero<Isolate>(Isolate* isolate,
+                                              AllocationType allocation);
+template Handle<BigInt> BigInt::Zero<OffThreadIsolate>(
+    OffThreadIsolate* isolate, AllocationType allocation);
 
 Handle<BigInt> BigInt::UnaryMinus(Isolate* isolate, Handle<BigInt> x) {
   // Special case: There is no -0n.
@@ -1505,13 +1519,13 @@ void MutableBigInt::InternalMultiplyAdd(BigIntBase source, digit_t factor,
 }
 
 // Multiplies {x} with {factor} and then adds {summand} to it.
-void BigInt::InplaceMultiplyAdd(Handle<FreshlyAllocatedBigInt> x,
-                                uintptr_t factor, uintptr_t summand) {
+void BigInt::InplaceMultiplyAdd(FreshlyAllocatedBigInt x, uintptr_t factor,
+                                uintptr_t summand) {
   STATIC_ASSERT(sizeof(factor) == sizeof(digit_t));
   STATIC_ASSERT(sizeof(summand) == sizeof(digit_t));
-  Handle<MutableBigInt> bigint = MutableBigInt::Cast(x);
-  MutableBigInt::InternalMultiplyAdd(*bigint, factor, summand, bigint->length(),
-                                     *bigint);
+  MutableBigInt bigint = MutableBigInt::cast(x);
+  MutableBigInt::InternalMultiplyAdd(bigint, factor, summand, bigint.length(),
+                                     bigint);
 }
 
 // Divides {x} by {divisor}, returning the result in {quotient} and {remainder}.
@@ -1907,8 +1921,9 @@ constexpr uint8_t kMaxBitsPerChar[] = {
 static const int kBitsPerCharTableShift = 5;
 static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
 
+template <typename LocalIsolate>
 MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
-    Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+    LocalIsolate* isolate, int radix, int charcount, ShouldThrow should_throw,
     AllocationType allocation) {
   DCHECK(2 <= radix && radix <= 36);
   DCHECK_GE(charcount, 0);
@@ -1937,12 +1952,25 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
     return MaybeHandle<FreshlyAllocatedBigInt>();
   }
 }
+template MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor<Isolate>(
+    Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+    AllocationType allocation);
+template MaybeHandle<FreshlyAllocatedBigInt>
+BigInt::AllocateFor<OffThreadIsolate>(OffThreadIsolate* isolate, int radix,
+                                      int charcount, ShouldThrow should_throw,
+                                      AllocationType allocation);
 
+template <typename LocalIsolate>
 Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
-  Handle<MutableBigInt> bigint = MutableBigInt::Cast(x);
+  Handle<MutableBigInt> bigint = Handle<MutableBigInt>::cast(x);
   bigint->set_sign(sign);
-  return MutableBigInt::MakeImmutable(bigint);
+  return MutableBigInt::MakeImmutable<Isolate>(bigint);
 }
+
+template Handle<BigInt> BigInt::Finalize<Isolate>(
+    Handle<FreshlyAllocatedBigInt>, bool);
+template Handle<BigInt> BigInt::Finalize<OffThreadIsolate>(
+    Handle<FreshlyAllocatedBigInt>, bool);
 
 // The serialization format MUST NOT CHANGE without updating the format
 // version in value-serializer.cc!

@@ -146,6 +146,7 @@ load("test/mjsunit/wasm/exceptions-utils.js");
 
 // Test storing and loading to/from an exception type table.
 (function TestTableExnRef() {
+  print(arguments.callee.name);
   let kSig_e_i = makeSig([kWasmI32], [kWasmExnRef]);
   let kSig_v_ie = makeSig([kWasmI32, kWasmExnRef], []);
   let builder = new WasmModuleBuilder();
@@ -181,4 +182,98 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   assertSame(e1, instance.exports.table_load(1));
   assertSame(e0, instance.exports.table.get(0));
   assertSame(e1, instance.exports.table.get(1));
+})();
+
+// 'br_on_exn' on a null-ref value should trap.
+(function TestBrOnExnNullRefSimple() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_r);
+  builder.addFunction('br_on_exn_nullref', kSig_v_v)
+      .addBody([
+        kExprRefNull,
+        kExprBrOnExn, 0, except,
+        kExprDrop
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapBrOnExnNullRef, () => instance.exports.br_on_exn_nullref());
+})();
+
+(function TestBrOnExnNullRefFromJS() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_i);
+  let imp = builder.addImport('imp', 'ort', kSig_i_i);
+  let kConstant0 = 11;
+  let kNoMatch = 13;
+  builder.addFunction('call_import', kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprLocalGet, 0,
+          kExprCallFunction, imp,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprDrop,
+          kExprI32Const, kNoMatch,
+        kExprEnd
+      ]).exportFunc();
+  let instance;
+  function js_import(i) {
+    if (i == 0) return kConstant0;     // Will return kConstant0.
+    if (i == 1) throw new Error('1');  // Will not match.
+    if (i == 2) throw null;            // Will trap.
+    throw undefined;                   // Will not match.
+  }
+  instance = builder.instantiate({imp: {ort: js_import}});
+
+  assertEquals(kConstant0, instance.exports.call_import(0));
+  assertEquals(kNoMatch, instance.exports.call_import(1));
+  assertTraps(kTrapBrOnExnNullRef, () => instance.exports.call_import(2));
+  assertEquals(kNoMatch, instance.exports.call_import(3));
+})();
+
+// 'rethrow' on a null-ref value should trap.
+(function TestRethrowNullRefSimple() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_r);
+  builder.addFunction('rethrow_nullref', kSig_v_v)
+      .addBody([
+        kExprRefNull,
+        kExprRethrow
+      ]).exportFunc();
+  let instance = builder.instantiate();
+
+  assertTraps(kTrapRethrowNullRef, () => instance.exports.rethrow_nullref());
+})();
+
+(function TestRethrowNullRefFromJS() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_i);
+  let imp = builder.addImport('imp', 'ort', kSig_i_i);
+  let kSuccess = 11;
+  builder.addFunction('call_import', kSig_i_i)
+      .addBody([
+        kExprTry, kWasmI32,
+          kExprLocalGet, 0,
+          kExprCallFunction, imp,
+        kExprCatch,
+          kExprRethrow,
+        kExprEnd
+      ]).exportFunc();
+  let instance;
+  function js_import(i) {
+    if (i == 0) return kSuccess;       // Will return kSuccess.
+    if (i == 1) throw new Error('1');  // Will rethrow.
+    if (i == 2) throw null;            // Will trap.
+    throw undefined;                   // Will rethrow.
+  }
+  instance = builder.instantiate({imp: {ort: js_import}});
+
+  assertEquals(kSuccess, instance.exports.call_import(0));
+  assertThrows(() => instance.exports.call_import(1), Error, '1');
+  assertTraps(kTrapRethrowNullRef, () => instance.exports.call_import(2));
+  assertThrowsEquals(() => instance.exports.call_import(3), undefined);
 })();

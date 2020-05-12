@@ -345,7 +345,7 @@ struct Xor {
 // but also includes the ToInteger/ToBigInt conversion that's part of
 // https://tc39.github.io/ecma262/#sec-atomicreadmodifywrite
 template <template <typename> class Op>
-Object GetModifySetValueInBuffer(Arguments args, Isolate* isolate) {
+Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, sta, 0);

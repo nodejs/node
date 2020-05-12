@@ -629,6 +629,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4MaxU();
   const Operator* I32x4GtU();
   const Operator* I32x4GeU();
+  const Operator* I32x4Abs();
+  const Operator* I32x4BitMask();
 
   const Operator* I16x8Splat();
   const Operator* I16x8ExtractLaneU(int32_t);
@@ -664,6 +666,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8GtU();
   const Operator* I16x8GeU();
   const Operator* I16x8RoundingAverageU();
+  const Operator* I16x8Abs();
+  const Operator* I16x8BitMask();
 
   const Operator* I8x16Splat();
   const Operator* I8x16ExtractLaneU(int32_t);
@@ -694,6 +698,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I8x16GtU();
   const Operator* I8x16GeU();
   const Operator* I8x16RoundingAverageU();
+  const Operator* I8x16Abs();
+  const Operator* I8x16BitMask();
 
   const Operator* S128Load();
   const Operator* S128Store();

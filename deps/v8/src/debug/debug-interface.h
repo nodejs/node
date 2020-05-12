@@ -101,6 +101,13 @@ void PrepareStep(Isolate* isolate, StepAction action);
 void ClearStepping(Isolate* isolate);
 V8_EXPORT_PRIVATE void BreakRightNow(Isolate* isolate);
 
+// Use `SetTerminateOnResume` to indicate that an TerminateExecution interrupt
+// should be set shortly before resuming, i.e. shortly before returning into
+// the JavaScript stack frames on the stack. In contrast to setting the
+// interrupt with `RequestTerminateExecution` directly, this flag allows
+// the isolate to be entered for further JavaScript execution.
+V8_EXPORT_PRIVATE void SetTerminateOnResume(Isolate* isolate);
+
 bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
 
 class Script;
@@ -174,6 +181,9 @@ class WasmScript : public Script {
   int GetContainingFunction(int byte_offset) const;
 
   uint32_t GetFunctionHash(int function_index);
+
+  int CodeOffset() const;
+  int CodeLength() const;
 };
 
 V8_EXPORT_PRIVATE void GetLoadedScripts(
@@ -208,6 +218,9 @@ class DebugDelegate {
 
 V8_EXPORT_PRIVATE void SetDebugDelegate(Isolate* isolate,
                                         DebugDelegate* listener);
+
+V8_EXPORT_PRIVATE void TierDownAllModulesPerIsolate(Isolate* isolate);
+V8_EXPORT_PRIVATE void TierUpAllModulesPerIsolate(Isolate* isolate);
 
 class AsyncEventDelegate {
  public:
@@ -410,7 +423,8 @@ class V8_EXPORT_PRIVATE ScopeIterator {
     ScopeTypeBlock,
     ScopeTypeScript,
     ScopeTypeEval,
-    ScopeTypeModule
+    ScopeTypeModule,
+    ScopeTypeWasmExpressionStack
   };
 
   virtual bool Done() = 0;

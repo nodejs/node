@@ -24,10 +24,9 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 131
+bytecode array length: 130
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaConstant), U8(2),
                 B(Star), R(4),
@@ -130,10 +129,9 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 268
+bytecode array length: 267
 bytecodes: [
-  /*   30 E> */ B(StackCheck),
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
                 B(LdaConstant), U8(2),
                 B(Star), R(5),

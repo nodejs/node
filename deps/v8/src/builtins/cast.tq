@@ -20,7 +20,6 @@ extern macro IsContext(HeapObject): bool;
 extern macro IsNativeContext(HeapObject): bool;
 extern macro IsJSReceiver(HeapObject): bool;
 extern macro TaggedIsCallable(Object): bool;
-extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsBigInt(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
@@ -624,8 +623,7 @@ Cast<DebugInfo>(implicit context: Context)(o: HeapObject): DebugInfo
 extern macro IsCoverageInfo(HeapObject): bool;
 Cast<CoverageInfo>(implicit context: Context)(o: HeapObject): CoverageInfo
     labels CastError {
-  // TODO(jgruber): Assign an instance type.
-  if (IsFixedArray(o)) return %RawDownCast<CoverageInfo>(o);
+  if (IsCoverageInfo(o)) return %RawDownCast<CoverageInfo>(o);
   goto CastError;
 }
 

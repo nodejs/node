@@ -13,6 +13,7 @@ scriptParsed
     isModule : false
     length : 42
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -32,6 +33,7 @@ scriptParsed
     isModule : false
     length : 52
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -51,6 +53,7 @@ scriptParsed
     isModule : false
     length : 43
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -70,6 +73,7 @@ scriptParsed
     isModule : false
     length : 46
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -89,6 +93,7 @@ scriptParsed
     isModule : false
     length : 50
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : oneline-map
     startColumn : 0
     startLine : 0
@@ -108,6 +113,7 @@ scriptParsed
     isModule : false
     length : 60
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : oneline-without-nl-map
     startColumn : 0
     startLine : 0
@@ -127,6 +133,7 @@ scriptParsed
     isModule : false
     length : 51
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : twoline-map
     startColumn : 0
     startLine : 0
@@ -146,6 +153,7 @@ scriptParsed
     isModule : false
     length : 54
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : threeline-map
     startColumn : 0
     startLine : 0
@@ -165,6 +173,7 @@ scriptParsed
     isModule : false
     length : 88
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : source-mapping-url-map
     startColumn : 0
     startLine : 0
@@ -184,6 +193,7 @@ scriptParsed
     isModule : false
     length : 89
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : source-mapping-url-map
     startColumn : 0
     startLine : 0
@@ -203,6 +213,7 @@ scriptParsed
     isModule : false
     length : 40
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -222,6 +233,7 @@ scriptParsed
     isModule : false
     length : 41
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -241,6 +253,7 @@ scriptParsed
     isModule : false
     length : 18
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -260,6 +273,7 @@ scriptParsed
     isModule : false
     length : 96
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -279,6 +293,7 @@ scriptParsed
     isModule : false
     length : 39
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -298,6 +313,7 @@ scriptParsed
     isModule : false
     length : 19
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -317,6 +333,7 @@ scriptParsed
     isModule : false
     length : 20
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -336,6 +353,7 @@ scriptParsed
     isModule : false
     length : 21
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -355,6 +373,7 @@ scriptParsed
     isModule : false
     length : 22
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -374,6 +393,7 @@ scriptParsed
     isModule : false
     length : 42
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -393,6 +413,7 @@ scriptParsed
     isModule : false
     length : 52
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -412,6 +433,7 @@ scriptParsed
     isModule : false
     length : 43
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -431,6 +453,7 @@ scriptParsed
     isModule : false
     length : 46
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -450,6 +473,7 @@ scriptParsed
     isModule : false
     length : 50
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : oneline-map
     startColumn : 0
     startLine : 0
@@ -469,6 +493,7 @@ scriptParsed
     isModule : false
     length : 60
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : oneline-without-nl-map
     startColumn : 0
     startLine : 0
@@ -488,6 +513,7 @@ scriptParsed
     isModule : false
     length : 51
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : twoline-map
     startColumn : 0
     startLine : 0
@@ -507,6 +533,7 @@ scriptParsed
     isModule : false
     length : 54
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : threeline-map
     startColumn : 0
     startLine : 0
@@ -526,6 +553,7 @@ scriptParsed
     isModule : false
     length : 88
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : source-mapping-url-map
     startColumn : 0
     startLine : 0
@@ -545,6 +573,7 @@ scriptParsed
     isModule : false
     length : 89
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : source-mapping-url-map
     startColumn : 0
     startLine : 0
@@ -564,6 +593,7 @@ scriptParsed
     isModule : false
     length : 40
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -583,6 +613,7 @@ scriptParsed
     isModule : false
     length : 41
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -602,6 +633,7 @@ scriptParsed
     isModule : false
     length : 18
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -621,6 +653,7 @@ scriptParsed
     isModule : false
     length : 96
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -640,6 +673,7 @@ scriptParsed
     isModule : false
     length : 39
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     stackTrace : {
         callFrames : [
@@ -669,6 +703,7 @@ scriptFailedToParse
     isModule : false
     length : 31
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -687,6 +722,7 @@ scriptFailedToParse
     isModule : false
     length : 56
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : failed-map
     startColumn : 0
     startLine : 0
@@ -706,6 +742,7 @@ scriptParsed
     isModule : false
     length : 19
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -725,6 +762,7 @@ scriptParsed
     isModule : false
     length : 20
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -744,6 +782,7 @@ scriptParsed
     isModule : false
     length : 21
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0
@@ -763,6 +802,7 @@ scriptParsed
     isModule : false
     length : 22
     scriptId : <scriptId>
+    scriptLanguage : JavaScript
     sourceMapURL : 
     startColumn : 0
     startLine : 0

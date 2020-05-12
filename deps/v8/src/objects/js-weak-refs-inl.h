@@ -19,25 +19,26 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakCell)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSWeakRef)
-OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroup, JSObject)
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationGroupCleanupIterator)
+OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistry, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSFinalizationRegistryCleanupIterator)
 
-ACCESSORS(JSFinalizationGroup, native_context, NativeContext,
+ACCESSORS(JSFinalizationRegistry, native_context, NativeContext,
           kNativeContextOffset)
-ACCESSORS(JSFinalizationGroup, cleanup, Object, kCleanupOffset)
-ACCESSORS(JSFinalizationGroup, active_cells, HeapObject, kActiveCellsOffset)
-ACCESSORS(JSFinalizationGroup, cleared_cells, HeapObject, kClearedCellsOffset)
-ACCESSORS(JSFinalizationGroup, key_map, Object, kKeyMapOffset)
-SMI_ACCESSORS(JSFinalizationGroup, flags, kFlagsOffset)
-ACCESSORS(JSFinalizationGroup, next, Object, kNextOffset)
-CAST_ACCESSOR(JSFinalizationGroup)
+ACCESSORS(JSFinalizationRegistry, cleanup, Object, kCleanupOffset)
+ACCESSORS(JSFinalizationRegistry, active_cells, HeapObject, kActiveCellsOffset)
+ACCESSORS(JSFinalizationRegistry, cleared_cells, HeapObject,
+          kClearedCellsOffset)
+ACCESSORS(JSFinalizationRegistry, key_map, Object, kKeyMapOffset)
+SMI_ACCESSORS(JSFinalizationRegistry, flags, kFlagsOffset)
+ACCESSORS(JSFinalizationRegistry, next_dirty, Object, kNextDirtyOffset)
+CAST_ACCESSOR(JSFinalizationRegistry)
 
-void JSFinalizationGroup::Register(
-    Handle<JSFinalizationGroup> finalization_group, Handle<JSReceiver> target,
-    Handle<Object> holdings, Handle<Object> unregister_token,
-    Isolate* isolate) {
+void JSFinalizationRegistry::Register(
+    Handle<JSFinalizationRegistry> finalization_registry,
+    Handle<JSReceiver> target, Handle<Object> holdings,
+    Handle<Object> unregister_token, Isolate* isolate) {
   Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell();
-  weak_cell->set_finalization_group(*finalization_group);
+  weak_cell->set_finalization_registry(*finalization_registry);
   weak_cell->set_target(*target);
   weak_cell->set_holdings(*holdings);
   weak_cell->set_prev(ReadOnlyRoots(isolate).undefined_value());
@@ -47,19 +48,20 @@ void JSFinalizationGroup::Register(
   weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
 
   // Add to active_cells.
-  weak_cell->set_next(finalization_group->active_cells());
-  if (finalization_group->active_cells().IsWeakCell()) {
-    WeakCell::cast(finalization_group->active_cells()).set_prev(*weak_cell);
+  weak_cell->set_next(finalization_registry->active_cells());
+  if (finalization_registry->active_cells().IsWeakCell()) {
+    WeakCell::cast(finalization_registry->active_cells()).set_prev(*weak_cell);
   }
-  finalization_group->set_active_cells(*weak_cell);
+  finalization_registry->set_active_cells(*weak_cell);
 
   if (!unregister_token->IsUndefined(isolate)) {
     Handle<SimpleNumberDictionary> key_map;
-    if (finalization_group->key_map().IsUndefined(isolate)) {
+    if (finalization_registry->key_map().IsUndefined(isolate)) {
       key_map = SimpleNumberDictionary::New(isolate, 1);
     } else {
-      key_map = handle(
-          SimpleNumberDictionary::cast(finalization_group->key_map()), isolate);
+      key_map =
+          handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
+                 isolate);
     }
 
     // Unregister tokens are held weakly as objects are often their own
@@ -74,29 +76,29 @@ void JSFinalizationGroup::Register(
       weak_cell->set_key_list_next(existing_weak_cell);
     }
     key_map = SimpleNumberDictionary::Set(isolate, key_map, key, weak_cell);
-    finalization_group->set_key_map(*key_map);
+    finalization_registry->set_key_map(*key_map);
   }
 }
 
-bool JSFinalizationGroup::Unregister(
-    Handle<JSFinalizationGroup> finalization_group,
+bool JSFinalizationRegistry::Unregister(
+    Handle<JSFinalizationRegistry> finalization_registry,
     Handle<JSReceiver> unregister_token, Isolate* isolate) {
   // Iterate through the doubly linked list of WeakCells associated with the
   // key. Each WeakCell will be in the "active_cells" or "cleared_cells" list of
-  // its FinalizationGroup; remove it from there.
-  return finalization_group->RemoveUnregisterToken(
+  // its FinalizationRegistry; remove it from there.
+  return finalization_registry->RemoveUnregisterToken(
       *unregister_token, isolate,
       [isolate](WeakCell matched_cell) {
-        matched_cell.RemoveFromFinalizationGroupCells(isolate);
+        matched_cell.RemoveFromFinalizationRegistryCells(isolate);
       },
       [](HeapObject, ObjectSlot, Object) {});
 }
 
 template <typename MatchCallback, typename GCNotifyUpdatedSlotCallback>
-bool JSFinalizationGroup::RemoveUnregisterToken(
+bool JSFinalizationRegistry::RemoveUnregisterToken(
     JSReceiver unregister_token, Isolate* isolate, MatchCallback match_callback,
     GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
-  // This method is called from both FinalizationGroup#unregister and for
+  // This method is called from both FinalizationRegistry#unregister and for
   // removing weakly-held dead unregister tokens. The latter is during GC so
   // this function cannot GC.
   DisallowHeapAllocation no_gc;
@@ -159,7 +161,7 @@ bool JSFinalizationGroup::RemoveUnregisterToken(
   }
   if (new_key_list_head.IsUndefined(isolate)) {
     DCHECK(was_present);
-    key_map.ClearEntry(isolate, entry);
+    key_map.ClearEntry(entry);
     key_map.ElementRemoved();
   } else {
     key_map.ValueAtPut(entry, new_key_list_head);
@@ -169,41 +171,42 @@ bool JSFinalizationGroup::RemoveUnregisterToken(
   return was_present;
 }
 
-bool JSFinalizationGroup::NeedsCleanup() const {
+bool JSFinalizationRegistry::NeedsCleanup() const {
   return cleared_cells().IsWeakCell();
 }
 
-bool JSFinalizationGroup::scheduled_for_cleanup() const {
+bool JSFinalizationRegistry::scheduled_for_cleanup() const {
   return ScheduledForCleanupField::decode(flags());
 }
 
-void JSFinalizationGroup::set_scheduled_for_cleanup(
+void JSFinalizationRegistry::set_scheduled_for_cleanup(
     bool scheduled_for_cleanup) {
   set_flags(ScheduledForCleanupField::update(flags(), scheduled_for_cleanup));
 }
 
-Object JSFinalizationGroup::PopClearedCellHoldings(
-    Handle<JSFinalizationGroup> finalization_group, Isolate* isolate) {
+Object JSFinalizationRegistry::PopClearedCellHoldings(
+    Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate) {
   Handle<WeakCell> weak_cell =
-      handle(WeakCell::cast(finalization_group->cleared_cells()), isolate);
+      handle(WeakCell::cast(finalization_registry->cleared_cells()), isolate);
   DCHECK(weak_cell->prev().IsUndefined(isolate));
-  finalization_group->set_cleared_cells(weak_cell->next());
+  finalization_registry->set_cleared_cells(weak_cell->next());
   weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
 
-  if (finalization_group->cleared_cells().IsWeakCell()) {
+  if (finalization_registry->cleared_cells().IsWeakCell()) {
     WeakCell cleared_cells_head =
-        WeakCell::cast(finalization_group->cleared_cells());
+        WeakCell::cast(finalization_registry->cleared_cells());
     DCHECK_EQ(cleared_cells_head.prev(), *weak_cell);
     cleared_cells_head.set_prev(ReadOnlyRoots(isolate).undefined_value());
   } else {
-    DCHECK(finalization_group->cleared_cells().IsUndefined(isolate));
+    DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
   }
 
   // Also remove the WeakCell from the key_map (if it's there).
   if (!weak_cell->unregister_token().IsUndefined(isolate)) {
     if (weak_cell->key_list_prev().IsUndefined(isolate)) {
-      Handle<SimpleNumberDictionary> key_map = handle(
-          SimpleNumberDictionary::cast(finalization_group->key_map()), isolate);
+      Handle<SimpleNumberDictionary> key_map =
+          handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
+                 isolate);
       Handle<Object> unregister_token =
           handle(weak_cell->unregister_token(), isolate);
       uint32_t key = Smi::ToInt(unregister_token->GetHash());
@@ -214,7 +217,7 @@ Object JSFinalizationGroup::PopClearedCellHoldings(
         // from the hash table.
         DCHECK(entry.is_found());
         key_map = SimpleNumberDictionary::DeleteEntry(isolate, key_map, entry);
-        finalization_group->set_key_map(*key_map);
+        finalization_registry->set_key_map(*key_map);
       } else {
         // weak_cell is the list head for its key; we need to change the value
         // of the key in the hash table.
@@ -224,7 +227,7 @@ Object JSFinalizationGroup::PopClearedCellHoldings(
         next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
         weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
         key_map = SimpleNumberDictionary::Set(isolate, key_map, key, next);
-        finalization_group->set_key_map(*key_map);
+        finalization_registry->set_key_map(*key_map);
       }
     } else {
       // weak_cell is somewhere in the middle of its key list.
@@ -244,25 +247,26 @@ template <typename GCNotifyUpdatedSlotCallback>
 void WeakCell::Nullify(Isolate* isolate,
                        GCNotifyUpdatedSlotCallback gc_notify_updated_slot) {
   // Remove from the WeakCell from the "active_cells" list of its
-  // JSFinalizationGroup and insert it into the "cleared_cells" list. This is
+  // JSFinalizationRegistry and insert it into the "cleared_cells" list. This is
   // only called for WeakCells which haven't been unregistered yet, so they will
   // be in the active_cells list. (The caller must guard against calling this
   // for unregistered WeakCells by checking that the target is not undefined.)
   DCHECK(target().IsJSReceiver());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
-  JSFinalizationGroup fg = JSFinalizationGroup::cast(finalization_group());
+  JSFinalizationRegistry fr =
+      JSFinalizationRegistry::cast(finalization_registry());
   if (prev().IsWeakCell()) {
-    DCHECK_NE(fg.active_cells(), *this);
+    DCHECK_NE(fr.active_cells(), *this);
     WeakCell prev_cell = WeakCell::cast(prev());
     prev_cell.set_next(next());
     gc_notify_updated_slot(prev_cell, prev_cell.RawField(WeakCell::kNextOffset),
                            next());
   } else {
-    DCHECK_EQ(fg.active_cells(), *this);
-    fg.set_active_cells(next());
+    DCHECK_EQ(fr.active_cells(), *this);
+    fr.set_active_cells(next());
     gc_notify_updated_slot(
-        fg, fg.RawField(JSFinalizationGroup::kActiveCellsOffset), next());
+        fr, fr.RawField(JSFinalizationRegistry::kActiveCellsOffset), next());
   }
   if (next().IsWeakCell()) {
     WeakCell next_cell = WeakCell::cast(next());
@@ -272,7 +276,7 @@ void WeakCell::Nullify(Isolate* isolate,
   }
 
   set_prev(ReadOnlyRoots(isolate).undefined_value());
-  Object cleared_head = fg.cleared_cells();
+  Object cleared_head = fr.cleared_cells();
   if (cleared_head.IsWeakCell()) {
     WeakCell cleared_head_cell = WeakCell::cast(cleared_head);
     cleared_head_cell.set_prev(*this);
@@ -280,29 +284,30 @@ void WeakCell::Nullify(Isolate* isolate,
                            cleared_head_cell.RawField(WeakCell::kPrevOffset),
                            *this);
   }
-  set_next(fg.cleared_cells());
+  set_next(fr.cleared_cells());
   gc_notify_updated_slot(*this, RawField(WeakCell::kNextOffset), next());
-  fg.set_cleared_cells(*this);
+  fr.set_cleared_cells(*this);
   gc_notify_updated_slot(
-      fg, fg.RawField(JSFinalizationGroup::kClearedCellsOffset), *this);
+      fr, fr.RawField(JSFinalizationRegistry::kClearedCellsOffset), *this);
 }
 
-void WeakCell::RemoveFromFinalizationGroupCells(Isolate* isolate) {
+void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
   // Remove the WeakCell from the list it's in (either "active_cells" or
-  // "cleared_cells" of its JSFinalizationGroup).
+  // "cleared_cells" of its JSFinalizationRegistry).
 
   // It's important to set_target to undefined here. This guards that we won't
   // call Nullify (which assumes that the WeakCell is in active_cells).
   DCHECK(target().IsUndefined() || target().IsJSReceiver());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
-  JSFinalizationGroup fg = JSFinalizationGroup::cast(finalization_group());
-  if (fg.active_cells() == *this) {
+  JSFinalizationRegistry fr =
+      JSFinalizationRegistry::cast(finalization_registry());
+  if (fr.active_cells() == *this) {
     DCHECK(prev().IsUndefined(isolate));
-    fg.set_active_cells(next());
-  } else if (fg.cleared_cells() == *this) {
+    fr.set_active_cells(next());
+  } else if (fr.cleared_cells() == *this) {
     DCHECK(!prev().IsWeakCell());
-    fg.set_cleared_cells(next());
+    fr.set_cleared_cells(next());
   } else {
     DCHECK(prev().IsWeakCell());
     WeakCell prev_cell = WeakCell::cast(prev());

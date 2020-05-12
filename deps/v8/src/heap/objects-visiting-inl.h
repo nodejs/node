@@ -18,6 +18,7 @@
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/wasm/wasm-objects.h"
+#include "torque-generated/objects-body-descriptors-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -43,6 +44,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
     return visitor->Visit##TypeName( \
         map, ConcreteVisitor::template Cast<TypeName>(object));
     TYPED_VISITOR_ID_LIST(CASE)
+    TORQUE_VISITOR_ID_LIST(CASE)
 #undef CASE
     case kVisitShortcutCandidate:
       return visitor->VisitShortcutCandidate(
@@ -96,6 +98,7 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
     return static_cast<ResultType>(size);                                      \
   }
 TYPED_VISITOR_ID_LIST(VISIT)
+TORQUE_VISITOR_ID_LIST(VISIT)
 #undef VISIT
 
 template <typename ResultType, typename ConcreteVisitor>

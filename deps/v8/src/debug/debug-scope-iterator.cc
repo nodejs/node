@@ -137,17 +137,24 @@ DebugWasmScopeIterator::DebugWasmScopeIterator(Isolate* isolate,
       type_(debug::ScopeIterator::ScopeTypeGlobal) {}
 
 bool DebugWasmScopeIterator::Done() {
-  return type_ != debug::ScopeIterator::ScopeTypeGlobal &&
-         type_ != debug::ScopeIterator::ScopeTypeLocal;
+  return type_ == debug::ScopeIterator::ScopeTypeWith;
 }
 
 void DebugWasmScopeIterator::Advance() {
   DCHECK(!Done());
-  if (type_ == debug::ScopeIterator::ScopeTypeGlobal) {
-    type_ = debug::ScopeIterator::ScopeTypeLocal;
-  } else {
-    // We use ScopeTypeWith type as marker for done.
-    type_ = debug::ScopeIterator::ScopeTypeWith;
+  switch (type_) {
+    case ScopeTypeGlobal:
+      type_ = debug::ScopeIterator::ScopeTypeLocal;
+      break;
+    case ScopeTypeLocal:
+      type_ = debug::ScopeIterator::ScopeTypeWasmExpressionStack;
+      break;
+    case ScopeTypeWasmExpressionStack:
+      // We use ScopeTypeWith type as marker for done.
+      type_ = debug::ScopeIterator::ScopeTypeWith;
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -176,7 +183,21 @@ v8::Local<v8::Object> DebugWasmScopeIterator::GetObject() {
       wasm::DebugInfo* debug_info =
           WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
       return Utils::ToLocal(debug_info->GetLocalScopeObject(
-          isolate_, frame_->pc(), frame_->fp()));
+          isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
+    }
+    case debug::ScopeIterator::ScopeTypeWasmExpressionStack: {
+      if (frame_->is_wasm_interpreter_entry()) {
+        Handle<WasmDebugInfo> debug_info(
+            WasmInterpreterEntryFrame::cast(frame_)->debug_info(), isolate_);
+        return Utils::ToLocal(WasmDebugInfo::GetStackScopeObject(
+            debug_info, frame_->fp(), inlined_frame_index_));
+      }
+      // Compiled code.
+      DCHECK(frame_->is_wasm_compiled());
+      wasm::DebugInfo* debug_info =
+          WasmCompiledFrame::cast(frame_)->native_module()->GetDebugInfo();
+      return Utils::ToLocal(debug_info->GetStackScopeObject(
+          isolate_, frame_->pc(), frame_->fp(), frame_->callee_fp()));
     }
     default:
       return {};

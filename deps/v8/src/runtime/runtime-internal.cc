@@ -198,6 +198,15 @@ RUNTIME_FUNCTION(Runtime_ThrowAccessedUninitializedVariable) {
       NewReferenceError(MessageTemplate::kAccessedUninitializedVariable, name));
 }
 
+RUNTIME_FUNCTION(Runtime_NewError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_INT32_ARG_CHECKED(template_index, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
+  MessageTemplate message_template = MessageTemplateFromInt(template_index);
+  return *isolate->factory()->NewError(message_template, arg0);
+}
+
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -398,6 +407,13 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorError) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   return isolate->Throw(*ErrorUtils::NewIteratorError(isolate, object));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowSpreadArgIsNullOrUndefined) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  return ErrorUtils::ThrowSpreadArgIsNullOrUndefinedError(isolate, object);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {

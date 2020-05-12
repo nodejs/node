@@ -40,7 +40,7 @@ struct ValueConversions<bool> {
         bool result = false;
         bool success = value ? value->asBoolean(&result) : false;
         if (!success)
-            errors->addError("boolean value expected");
+            errors->AddError("boolean value expected");
         return result;
     }
 
@@ -57,7 +57,7 @@ struct ValueConversions<int> {
         int result = 0;
         bool success = value ? value->asInteger(&result) : false;
         if (!success)
-            errors->addError("integer value expected");
+            errors->AddError("integer value expected");
         return result;
     }
 
@@ -74,7 +74,7 @@ struct ValueConversions<double> {
         double result = 0;
         bool success = value ? value->asDouble(&result) : false;
         if (!success)
-            errors->addError("double value expected");
+            errors->AddError("double value expected");
         return result;
     }
 
@@ -91,7 +91,7 @@ struct ValueConversions<String> {
         String result;
         bool success = value ? value->asString(&result) : false;
         if (!success)
-            errors->addError("string value expected");
+            errors->AddError("string value expected");
         return result;
     }
 
@@ -107,7 +107,7 @@ struct ValueConversions<Binary> {
     {
         if (!value ||
             (value->type() != Value::TypeBinary && value->type() != Value::TypeString)) {
-            errors->addError("Either string base64 or binary value expected");
+            errors->AddError("Either string base64 or binary value expected");
             return Binary();
         }
         Binary binary;
@@ -118,7 +118,7 @@ struct ValueConversions<Binary> {
         bool success;
         Binary out = Binary::fromBase64(result, &success);
         if (!success)
-          errors->addError("base64 decoding error");
+          errors->AddError("base64 decoding error");
         return out;
     }
 
@@ -133,20 +133,20 @@ struct ValueConversions<std::vector<std::unique_ptr<T>>> {
     static std::unique_ptr<std::vector<std::unique_ptr<T>>> fromValue(protocol::Value* value, ErrorSupport* errors) {
         protocol::ListValue* array = ListValue::cast(value);
         if (!array) {
-            errors->addError("array expected");
+            errors->AddError("array expected");
             return nullptr;
         }
-        errors->push();
+        errors->Push();
         std::unique_ptr<std::vector<std::unique_ptr<T>>> result(
             new std::vector<std::unique_ptr<T>>());
         result->reserve(array->size());
         for (size_t i = 0; i < array->size(); ++i) {
-            errors->setName(StringUtil::fromInteger(i));
+            errors->SetIndex(i);
             auto item = ValueConversions<T>::fromValue(array->at(i), errors);
             result->emplace_back(std::move(item));
         }
-        errors->pop();
-        if (errors->hasErrors())
+        errors->Pop();
+        if (!errors->Errors().empty())
             return nullptr;
         return result;
     }
@@ -167,19 +167,19 @@ struct ValueConversions<std::vector<T>> {
     static std::unique_ptr<std::vector<T>> fromValue(protocol::Value* value, ErrorSupport* errors) {
         protocol::ListValue* array = ListValue::cast(value);
         if (!array) {
-            errors->addError("array expected");
+            errors->AddError("array expected");
             return nullptr;
         }
-        errors->push();
+        errors->Push();
         std::unique_ptr<std::vector<T>> result(new std::vector<T>());
         result->reserve(array->size());
         for (size_t i = 0; i < array->size(); ++i) {
-            errors->setName(StringUtil::fromInteger(i));
+            errors->SetIndex(i);
             auto item = ValueConversions<T>::fromValue(array->at(i), errors);
             result->emplace_back(std::move(item));
         }
-        errors->pop();
-        if (errors->hasErrors())
+        errors->Pop();
+        if (!errors->Errors().empty())
             return nullptr;
         return result;
     }
@@ -200,7 +200,7 @@ struct ValueConversions<Value> {
     {
         bool success = !!value;
         if (!success) {
-            errors->addError("value expected");
+            errors->AddError("value expected");
             return nullptr;
         }
         return value->clone();
@@ -223,7 +223,7 @@ struct ValueConversions<DictionaryValue> {
     {
         bool success = value && value->type() == protocol::Value::TypeObject;
         if (!success)
-            errors->addError("object expected");
+            errors->AddError("object expected");
         return DictionaryValue::cast(value->clone());
     }
 
@@ -244,7 +244,7 @@ struct ValueConversions<ListValue> {
     {
         bool success = value && value->type() == protocol::Value::TypeArray;
         if (!success)
-            errors->addError("list expected");
+            errors->AddError("list expected");
         return ListValue::cast(value->clone());
     }
 

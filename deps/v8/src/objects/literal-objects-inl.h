@@ -128,8 +128,6 @@ ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayBoilerplateDescription)
 
-TQ_SMI_ACCESSORS(ArrayBoilerplateDescription, flags)
-
 ElementsKind ArrayBoilerplateDescription::elements_kind() const {
   return static_cast<ElementsKind>(flags());
 }

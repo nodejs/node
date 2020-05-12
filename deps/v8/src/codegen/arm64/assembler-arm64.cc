@@ -83,18 +83,6 @@ CPURegister CPURegList::PopHighestIndex() {
   return CPURegister::Create(index, size_, type_);
 }
 
-void CPURegList::RemoveCalleeSaved() {
-  if (type() == CPURegister::kRegister) {
-    Remove(GetCalleeSaved(RegisterSizeInBits()));
-  } else if (type() == CPURegister::kVRegister) {
-    Remove(GetCalleeSavedV(RegisterSizeInBits()));
-  } else {
-    DCHECK_EQ(type(), CPURegister::kNoRegister);
-    DCHECK(IsEmpty());
-    // The list must already be empty, so do nothing.
-  }
-}
-
 void CPURegList::Align() {
   // Use padreg, if necessary, to maintain stack alignment.
   if (Count() % 2 != 0) {
@@ -109,7 +97,7 @@ void CPURegList::Align() {
 }
 
 CPURegList CPURegList::GetCalleeSaved(int size) {
-  return CPURegList(CPURegister::kRegister, size, 19, 29);
+  return CPURegList(CPURegister::kRegister, size, 19, 28);
 }
 
 CPURegList CPURegList::GetCalleeSavedV(int size) {
@@ -118,9 +106,8 @@ CPURegList CPURegList::GetCalleeSavedV(int size) {
 
 CPURegList CPURegList::GetCallerSaved(int size) {
   // x18 is the platform register and is reserved for the use of platform ABIs.
-  // Registers x0-x17 and lr (x30) are caller-saved.
+  // Registers x0-x17 are caller-saved.
   CPURegList list = CPURegList(CPURegister::kRegister, size, 0, 17);
-  list.Combine(lr);
   return list;
 }
 
@@ -128,34 +115,6 @@ CPURegList CPURegList::GetCallerSavedV(int size) {
   // Registers d0-d7 and d16-d31 are caller-saved.
   CPURegList list = CPURegList(CPURegister::kVRegister, size, 0, 7);
   list.Combine(CPURegList(CPURegister::kVRegister, size, 16, 31));
-  return list;
-}
-
-// This function defines the list of registers which are associated with a
-// safepoint slot. Safepoint register slots are saved contiguously on the stack.
-// MacroAssembler::SafepointRegisterStackIndex handles mapping from register
-// code to index in the safepoint register slots. Any change here can affect
-// this mapping.
-CPURegList CPURegList::GetSafepointSavedRegisters() {
-  CPURegList list = CPURegList::GetCalleeSaved();
-  list.Combine(
-      CPURegList(CPURegister::kRegister, kXRegSizeInBits, kJSCallerSaved));
-
-  // Note that unfortunately we can't use symbolic names for registers and have
-  // to directly use register codes. This is because this function is used to
-  // initialize some static variables and we can't rely on register variables
-  // to be initialized due to static initialization order issues in C++.
-
-  // Drop ip0 and ip1 (i.e. x16 and x17), as they should not be expected to be
-  // preserved outside of the macro assembler.
-  list.Remove(16);
-  list.Remove(17);
-
-  // x18 is the platform register and is reserved for the use of platform ABIs.
-
-  // Add the link register (x30) to the safepoint list.
-  list.Combine(30);
-
   return list;
 }
 
@@ -290,31 +249,6 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
   }
 
   return !RelocInfo::IsNone(rmode);
-}
-
-MemOperand::PairResult MemOperand::AreConsistentForPair(
-    const MemOperand& operandA, const MemOperand& operandB,
-    int access_size_log2) {
-  DCHECK_GE(access_size_log2, 0);
-  DCHECK_LE(access_size_log2, 3);
-  // Step one: check that they share the same base, that the mode is Offset
-  // and that the offset is a multiple of access size.
-  if (operandA.base() != operandB.base() || (operandA.addrmode() != Offset) ||
-      (operandB.addrmode() != Offset) ||
-      ((operandA.offset() & ((1 << access_size_log2) - 1)) != 0)) {
-    return kNotPair;
-  }
-  // Step two: check that the offsets are contiguous and that the range
-  // is OK for ldp/stp.
-  if ((operandB.offset() == operandA.offset() + (1LL << access_size_log2)) &&
-      is_int7(operandA.offset() >> access_size_log2)) {
-    return kPairAB;
-  }
-  if ((operandA.offset() == operandB.offset() + (1LL << access_size_log2)) &&
-      is_int7(operandB.offset() >> access_size_log2)) {
-    return kPairBA;
-  }
-  return kNotPair;
 }
 
 // Assembler
@@ -1183,6 +1117,30 @@ void Assembler::pacia1716() { Emit(PACIA1716); }
 void Assembler::autia1716() { Emit(AUTIA1716); }
 void Assembler::paciasp() { Emit(PACIASP); }
 void Assembler::autiasp() { Emit(AUTIASP); }
+
+void Assembler::bti(BranchTargetIdentifier id) {
+  SystemHint op;
+  switch (id) {
+    case BranchTargetIdentifier::kBti:
+      op = BTI;
+      break;
+    case BranchTargetIdentifier::kBtiCall:
+      op = BTI_c;
+      break;
+    case BranchTargetIdentifier::kBtiJump:
+      op = BTI_j;
+      break;
+    case BranchTargetIdentifier::kBtiJumpCall:
+      op = BTI_jc;
+      break;
+    case BranchTargetIdentifier::kNone:
+    case BranchTargetIdentifier::kPaciasp:
+      // We always want to generate a BTI instruction here, so disallow
+      // skipping its generation or generating a PACIASP instead.
+      UNREACHABLE();
+  }
+  hint(op);
+}
 
 void Assembler::ldp(const CPURegister& rt, const CPURegister& rt2,
                     const MemOperand& src) {

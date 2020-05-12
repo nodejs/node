@@ -12,8 +12,9 @@
 namespace v8 {
 namespace internal {
 
-const bool Deoptimizer::kSupportsFixedDeoptExitSize = false;
-const int Deoptimizer::kDeoptExitSize = 0;
+const bool Deoptimizer::kSupportsFixedDeoptExitSizes = false;
+const int Deoptimizer::kNonLazyDeoptExitSize = 0;
+const int Deoptimizer::kLazyDeoptExitSize = 0;
 
 #define __ masm->
 
@@ -261,6 +262,8 @@ void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
   // No embedded constant pool support.
   UNREACHABLE();
 }
+
+void FrameDescription::SetPc(intptr_t pc) { pc_ = pc; }
 
 #undef __
 

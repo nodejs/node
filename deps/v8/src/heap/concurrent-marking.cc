@@ -524,7 +524,7 @@ void ConcurrentMarking::ScheduleTasks() {
 #else   // defined(OS_MACOSX)
     // On other platforms use all logical cores, leaving one for the main
     // thread.
-    total_task_count_ = Max(1, Min(kMaxTasks, num_cores - 1));
+    total_task_count_ = Max(1, Min(kMaxTasks, num_cores - 2));
 #endif  // defined(OS_MACOSX)
     DCHECK_LE(total_task_count_, kMaxTasks);
     // One task is for the main thread.

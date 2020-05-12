@@ -6,6 +6,7 @@
 
 #include "src/common/globals.h"
 #include "src/torque/type-oracle.h"
+#include "src/torque/types.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -14,24 +15,51 @@ namespace torque {
 
 base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
     Stack<std::string> parameters) {
+  for (BottomOffset i = 0; i < parameters.AboveTop(); ++i) {
+    SetDefinitionVariable(DefinitionLocation::Parameter(i.offset),
+                          parameters.Peek(i));
+  }
+
   for (Block* block : cfg_.blocks()) {
-    out_ << "  compiler::CodeAssemblerParameterizedLabel<";
-    PrintCommaSeparatedList(out_, block->InputTypes(), [](const Type* t) {
-      return t->GetGeneratedTNodeTypeName();
-    });
-    out_ << "> " << BlockName(block) << "(&ca_, compiler::CodeAssemblerLabel::"
-         << (block->IsDeferred() ? "kDeferred" : "kNonDeferred") << ");\n";
+    if (block->IsDead()) continue;
+
+    out() << "  compiler::CodeAssemblerParameterizedLabel<";
+    bool first = true;
+    DCHECK_EQ(block->InputTypes().Size(), block->InputDefinitions().Size());
+    for (BottomOffset i = 0; i < block->InputTypes().AboveTop(); ++i) {
+      if (block->InputDefinitions().Peek(i).IsPhiFromBlock(block)) {
+        if (!first) out() << ", ";
+        out() << block->InputTypes().Peek(i)->GetGeneratedTNodeTypeName();
+        first = false;
+      }
+    }
+    out() << "> " << BlockName(block) << "(&ca_, compiler::CodeAssemblerLabel::"
+          << (block->IsDeferred() ? "kDeferred" : "kNonDeferred") << ");\n";
   }
 
   EmitInstruction(GotoInstruction{cfg_.start()}, &parameters);
   for (Block* block : cfg_.blocks()) {
     if (cfg_.end() && *cfg_.end() == block) continue;
-    out_ << "\n  if (" << BlockName(block) << ".is_used()) {\n";
+    if (block->IsDead()) continue;
+    out() << "\n";
+
+    // Redirect the output of non-declarations into a buffer and only output
+    // declarations right away.
+    std::stringstream out_buffer;
+    std::ostream* old_out = out_;
+    out_ = &out_buffer;
+
+    out() << "  if (" << BlockName(block) << ".is_used()) {\n";
     EmitBlock(block);
-    out_ << "  }\n";
+    out() << "  }\n";
+
+    // All declarations have been printed now, so we can append the buffered
+    // output and redirect back to the original output stream.
+    out_ = old_out;
+    out() << out_buffer.str();
   }
   if (cfg_.end()) {
-    out_ << "\n";
+    out() << "\n";
     return EmitBlock(*cfg_.end());
   }
   return base::nullopt;
@@ -39,16 +67,20 @@ base::Optional<Stack<std::string>> CSAGenerator::EmitGraph(
 
 Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
   Stack<std::string> stack;
-  for (const Type* t : block->InputTypes()) {
-    stack.Push(FreshNodeName());
-    out_ << "    TNode<" << t->GetGeneratedTNodeTypeName() << "> "
-         << stack.Top() << ";\n";
+  std::stringstream phi_names;
+
+  for (BottomOffset i = 0; i < block->InputTypes().AboveTop(); ++i) {
+    const auto& def = block->InputDefinitions().Peek(i);
+    stack.Push(DefinitionToVariable(def));
+    if (def.IsPhiFromBlock(block)) {
+      decls() << "  TNode<"
+              << block->InputTypes().Peek(i)->GetGeneratedTNodeTypeName()
+              << "> " << stack.Top() << ";\n";
+      phi_names << ", &" << stack.Top();
+    }
   }
-  out_ << "    ca_.Bind(&" << BlockName(block);
-  for (const std::string& name : stack) {
-    out_ << ", &" << name;
-  }
-  out_ << ");\n";
+  out() << "    ca_.Bind(&" << BlockName(block) << phi_names.str() << ");\n";
+
   for (const Instruction& instruction : block->instructions()) {
     EmitInstruction(instruction, &stack);
   }
@@ -60,16 +92,32 @@ void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
   if (always_emit || !previous_position_.CompareStartIgnoreColumn(pos)) {
     // Lines in Torque SourcePositions are zero-based, while the
     // CodeStubAssembler and downwind systems are one-based.
-    out_ << "    ca_.SetSourcePosition(\"" << file << "\", "
-         << (pos.start.line + 1) << ");\n";
+    out() << "    ca_.SetSourcePosition(\"" << file << "\", "
+          << (pos.start.line + 1) << ");\n";
     previous_position_ = pos;
+  }
+}
+
+bool CSAGenerator::IsEmptyInstruction(const Instruction& instruction) {
+  switch (instruction.kind()) {
+    case InstructionKind::kPeekInstruction:
+    case InstructionKind::kPokeInstruction:
+    case InstructionKind::kDeleteRangeInstruction:
+    case InstructionKind::kPushUninitializedInstruction:
+    case InstructionKind::kPushBuiltinPointerInstruction:
+    case InstructionKind::kUnsafeCastInstruction:
+      return true;
+    default:
+      return false;
   }
 }
 
 void CSAGenerator::EmitInstruction(const Instruction& instruction,
                                    Stack<std::string>* stack) {
 #ifdef DEBUG
-  EmitSourcePosition(instruction->pos);
+  if (!IsEmptyInstruction(instruction)) {
+    EmitSourcePosition(instruction->pos);
+  }
 #endif
 
   switch (instruction.kind()) {
@@ -103,15 +151,20 @@ void CSAGenerator::EmitInstruction(
   // TODO(tebbi): This can trigger an error in CSA if it is used. Instead, we
   // should prevent usage of uninitialized in the type system. This
   // requires "if constexpr" being evaluated at Torque time.
-  stack->Push("ca_.Uninitialized<" +
-              instruction.type->GetGeneratedTNodeTypeName() + ">()");
+  const std::string str = "ca_.Uninitialized<" +
+                          instruction.type->GetGeneratedTNodeTypeName() + ">()";
+  stack->Push(str);
+  SetDefinitionVariable(instruction.GetValueDefinition(), str);
 }
 
 void CSAGenerator::EmitInstruction(
     const PushBuiltinPointerInstruction& instruction,
     Stack<std::string>* stack) {
-  stack->Push("ca_.UncheckedCast<BuiltinPtr>(ca_.SmiConstant(Builtins::k" +
-              instruction.external_name + "))");
+  const std::string str =
+      "ca_.UncheckedCast<BuiltinPtr>(ca_.SmiConstant(Builtins::k" +
+      instruction.external_name + "))";
+  stack->Push(str);
+  SetDefinitionVariable(instruction.GetValueDefinition(), str);
 }
 
 void CSAGenerator::EmitInstruction(
@@ -119,26 +172,28 @@ void CSAGenerator::EmitInstruction(
     Stack<std::string>* stack) {
   const Type* type = instruction.constant->type();
   std::vector<std::string> results;
-  for (const Type* lowered : LowerType(type)) {
-    results.push_back(FreshNodeName());
+
+  const auto lowered = LowerType(type);
+  for (std::size_t i = 0; i < lowered.size(); ++i) {
+    results.push_back(DefinitionToVariable(instruction.GetValueDefinition(i)));
     stack->Push(results.back());
-    out_ << "    TNode<" << lowered->GetGeneratedTNodeTypeName() << "> "
-         << stack->Top() << ";\n";
-    out_ << "    USE(" << stack->Top() << ");\n";
+    decls() << "  TNode<" << lowered[i]->GetGeneratedTNodeTypeName() << "> "
+            << stack->Top() << ";\n";
   }
-  out_ << "    ";
-  if (type->IsStructType()) {
-    out_ << "std::tie(";
-    PrintCommaSeparatedList(out_, results);
-    out_ << ") = ";
+
+  out() << "    ";
+  if (type->StructSupertype()) {
+    out() << "std::tie(";
+    PrintCommaSeparatedList(out(), results);
+    out() << ") = ";
   } else if (results.size() == 1) {
-    out_ << results[0] << " = ";
+    out() << results[0] << " = ";
   }
-  out_ << instruction.constant->external_name() << "(state_)";
-  if (type->IsStructType()) {
-    out_ << ".Flatten();\n";
+  out() << instruction.constant->external_name() << "(state_)";
+  if (type->StructSupertype()) {
+    out() << ".Flatten();\n";
   } else {
-    out_ << ";\n";
+    out() << ";\n";
   }
 }
 
@@ -175,22 +230,23 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.intrinsic->signature().return_type;
   std::vector<std::string> results;
-  for (const Type* type : LowerType(return_type)) {
-    results.push_back(FreshNodeName());
-    stack->Push(results.back());
-    out_ << "    TNode<" << type->GetGeneratedTNodeTypeName() << "> "
-         << stack->Top() << ";\n";
-    out_ << "    USE(" << stack->Top() << ");\n";
-  }
-  out_ << "    ";
 
-  if (return_type->IsStructType()) {
-    out_ << "std::tie(";
-    PrintCommaSeparatedList(out_, results);
-    out_ << ") = ";
+  const auto lowered = LowerType(return_type);
+  for (std::size_t i = 0; i < lowered.size(); ++i) {
+    results.push_back(DefinitionToVariable(instruction.GetValueDefinition(i)));
+    stack->Push(results.back());
+    decls() << "  TNode<" << lowered[i]->GetGeneratedTNodeTypeName() << "> "
+            << stack->Top() << ";\n";
+  }
+
+  out() << "    ";
+  if (return_type->StructSupertype()) {
+    out() << "std::tie(";
+    PrintCommaSeparatedList(out(), results);
+    out() << ") = ";
   } else {
     if (results.size() == 1) {
-      out_ << results[0] << " = ";
+      out() << results[0] << " = ";
     }
   }
 
@@ -207,13 +263,14 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       ReportError("%RawDownCast error: ", *return_type, " is not a subtype of ",
                   *original_type);
     }
-    if (return_type->GetGeneratedTNodeTypeName() !=
-        original_type->GetGeneratedTNodeTypeName()) {
+    if (!original_type->StructSupertype() &&
+        return_type->GetGeneratedTNodeTypeName() !=
+            original_type->GetGeneratedTNodeTypeName()) {
       if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        out_ << "TORQUE_CAST";
+        out() << "TORQUE_CAST";
       } else {
-        out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
-             << ">";
+        out() << "ca_.UncheckedCast<"
+              << return_type->GetGeneratedTNodeTypeName() << ">";
       }
     }
   } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
@@ -226,25 +283,25 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       ReportError("%FromConstexpr must return a non-constexpr type");
     }
     if (return_type->IsSubtypeOf(TypeOracle::GetSmiType())) {
-      out_ << "ca_.SmiConstant";
+      out() << "ca_.SmiConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetNumberType())) {
-      out_ << "ca_.NumberConstant";
+      out() << "ca_.NumberConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetStringType())) {
-      out_ << "ca_.StringConstant";
+      out() << "ca_.StringConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetObjectType())) {
       ReportError(
           "%FromConstexpr cannot cast to subclass of HeapObject unless it's a "
           "String or Number");
     } else if (return_type->IsSubtypeOf(TypeOracle::GetIntPtrType())) {
-      out_ << "ca_.IntPtrConstant";
+      out() << "ca_.IntPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetUIntPtrType())) {
-      out_ << "ca_.UintPtrConstant";
+      out() << "ca_.UintPtrConstant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetInt32Type())) {
-      out_ << "ca_.Int32Constant";
+      out() << "ca_.Int32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetUint32Type())) {
-      out_ << "ca_.Uint32Constant";
+      out() << "ca_.Uint32Constant";
     } else if (return_type->IsSubtypeOf(TypeOracle::GetBoolType())) {
-      out_ << "ca_.BoolConstant";
+      out() << "ca_.BoolConstant";
     } else {
       std::stringstream s;
       s << "%FromConstexpr does not support return type " << *return_type;
@@ -252,21 +309,21 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     }
     // Wrap the raw constexpr value in a static_cast to ensure that
     // enums get properly casted to their backing integral value.
-    out_ << "(CastToUnderlyingTypeIfEnum";
+    out() << "(CastToUnderlyingTypeIfEnum";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
   }
 
-  out_ << "(";
-  PrintCommaSeparatedList(out_, args);
+  out() << "(";
+  PrintCommaSeparatedList(out(), args);
   if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
-    out_ << ")";
+    out() << ")";
   }
-  if (return_type->IsStructType()) {
-    out_ << ").Flatten();\n";
+  if (return_type->StructSupertype()) {
+    out() << ").Flatten();\n";
   } else {
-    out_ << ");\n";
+    out() << ");\n";
   }
 }
 
@@ -282,42 +339,45 @@ void CSAGenerator::EmitInstruction(const CallCsaMacroInstruction& instruction,
   Stack<std::string> pre_call_stack = *stack;
   const Type* return_type = instruction.macro->signature().return_type;
   std::vector<std::string> results;
-  for (const Type* type : LowerType(return_type)) {
-    results.push_back(FreshNodeName());
+
+  const auto lowered = LowerType(return_type);
+  for (std::size_t i = 0; i < lowered.size(); ++i) {
+    results.push_back(DefinitionToVariable(instruction.GetValueDefinition(i)));
     stack->Push(results.back());
-    out_ << "    TNode<" << type->GetGeneratedTNodeTypeName() << "> "
-         << stack->Top() << ";\n";
-    out_ << "    USE(" << stack->Top() << ");\n";
+    decls() << "  TNode<" << lowered[i]->GetGeneratedTNodeTypeName() << "> "
+            << stack->Top() << ";\n";
   }
+
   std::string catch_name =
       PreCallableExceptionPreparation(instruction.catch_block);
-  out_ << "    ";
-  bool needs_flattening = return_type->IsStructType();
+  out() << "    ";
+  bool needs_flattening = return_type->StructSupertype().has_value();
   if (needs_flattening) {
-    out_ << "std::tie(";
-    PrintCommaSeparatedList(out_, results);
-    out_ << ") = ";
+    out() << "std::tie(";
+    PrintCommaSeparatedList(out(), results);
+    out() << ") = ";
   } else {
     if (results.size() == 1) {
-      out_ << results[0] << " = ";
+      out() << results[0] << " = ";
     } else {
       DCHECK_EQ(0, results.size());
     }
   }
   if (ExternMacro* extern_macro = ExternMacro::DynamicCast(instruction.macro)) {
-    out_ << extern_macro->external_assembler_name() << "(state_).";
+    out() << extern_macro->external_assembler_name() << "(state_).";
   } else {
     args.insert(args.begin(), "state_");
   }
-  out_ << instruction.macro->ExternalName() << "(";
-  PrintCommaSeparatedList(out_, args);
+  out() << instruction.macro->ExternalName() << "(";
+  PrintCommaSeparatedList(out(), args);
   if (needs_flattening) {
-    out_ << ").Flatten();\n";
+    out() << ").Flatten();\n";
   } else {
-    out_ << ");\n";
+    out() << ");\n";
   }
   PostCallableExceptionPreparation(catch_name, return_type,
-                                   instruction.catch_block, &pre_call_stack);
+                                   instruction.catch_block, &pre_call_stack,
+                                   instruction.GetExceptionObjectDefinition());
 }
 
 void CSAGenerator::EmitInstruction(
@@ -333,13 +393,14 @@ void CSAGenerator::EmitInstruction(
   Stack<std::string> pre_call_stack = *stack;
   std::vector<std::string> results;
   const Type* return_type = instruction.macro->signature().return_type;
+
   if (return_type != TypeOracle::GetNeverType()) {
-    for (const Type* type :
-         LowerType(instruction.macro->signature().return_type)) {
-      results.push_back(FreshNodeName());
-      out_ << "    TNode<" << type->GetGeneratedTNodeTypeName() << "> "
-           << results.back() << ";\n";
-      out_ << "    USE(" << results.back() << ");\n";
+    const auto lowered = LowerType(return_type);
+    for (std::size_t i = 0; i < lowered.size(); ++i) {
+      results.push_back(
+          DefinitionToVariable(instruction.GetValueDefinition(i)));
+      decls() << "  TNode<" << lowered[i]->GetGeneratedTNodeTypeName() << "> "
+              << results.back() << ";\n";
     }
   }
 
@@ -349,77 +410,97 @@ void CSAGenerator::EmitInstruction(
   DCHECK_EQ(labels.size(), instruction.label_blocks.size());
   for (size_t i = 0; i < labels.size(); ++i) {
     TypeVector label_parameters = labels[i].types;
-    label_names.push_back("label" + std::to_string(i));
+    label_names.push_back(FreshLabelName());
     var_names.push_back({});
     for (size_t j = 0; j < label_parameters.size(); ++j) {
-      var_names[i].push_back("result_" + std::to_string(i) + "_" +
-                             std::to_string(j));
-      out_ << "    compiler::TypedCodeAssemblerVariable<"
-           << label_parameters[j]->GetGeneratedTNodeTypeName() << "> "
-           << var_names[i][j] << "(&ca_);\n";
+      var_names[i].push_back(FreshNodeName());
+      const auto def = instruction.GetLabelValueDefinition(i, j);
+      SetDefinitionVariable(def, var_names[i].back() + ".value()");
+      decls() << "    compiler::TypedCodeAssemblerVariable<"
+              << label_parameters[j]->GetGeneratedTNodeTypeName() << "> "
+              << var_names[i][j] << "(&ca_);\n";
     }
-    out_ << "    compiler::CodeAssemblerLabel " << label_names[i]
-         << "(&ca_);\n";
+    out() << "    compiler::CodeAssemblerLabel " << label_names[i]
+          << "(&ca_);\n";
   }
 
   std::string catch_name =
       PreCallableExceptionPreparation(instruction.catch_block);
-  out_ << "    ";
+  out() << "    ";
   if (results.size() == 1) {
-    out_ << results[0] << " = ";
+    out() << results[0] << " = ";
   } else if (results.size() > 1) {
-    out_ << "std::tie(";
-    PrintCommaSeparatedList(out_, results);
-    out_ << ") = ";
+    out() << "std::tie(";
+    PrintCommaSeparatedList(out(), results);
+    out() << ") = ";
   }
   if (ExternMacro* extern_macro = ExternMacro::DynamicCast(instruction.macro)) {
-    out_ << extern_macro->external_assembler_name() << "(state_).";
+    out() << extern_macro->external_assembler_name() << "(state_).";
   } else {
     args.insert(args.begin(), "state_");
   }
-  out_ << instruction.macro->ExternalName() << "(";
-  PrintCommaSeparatedList(out_, args);
+  out() << instruction.macro->ExternalName() << "(";
+  PrintCommaSeparatedList(out(), args);
   bool first = args.empty();
   for (size_t i = 0; i < label_names.size(); ++i) {
-    if (!first) out_ << ", ";
-    out_ << "&" << label_names[i];
+    if (!first) out() << ", ";
+    out() << "&" << label_names[i];
     first = false;
     for (size_t j = 0; j < var_names[i].size(); ++j) {
-      out_ << ", &" << var_names[i][j];
+      out() << ", &" << var_names[i][j];
     }
   }
-  if (return_type->IsStructType()) {
-    out_ << ").Flatten();\n";
+  if (return_type->StructSupertype()) {
+    out() << ").Flatten();\n";
   } else {
-    out_ << ");\n";
+    out() << ");\n";
   }
 
   PostCallableExceptionPreparation(catch_name, return_type,
-                                   instruction.catch_block, &pre_call_stack);
+                                   instruction.catch_block, &pre_call_stack,
+                                   instruction.GetExceptionObjectDefinition());
 
   if (instruction.return_continuation) {
-    out_ << "    ca_.Goto(&" << BlockName(*instruction.return_continuation);
-    for (const std::string& value : *stack) {
-      out_ << ", " << value;
-    }
-    for (const std::string& result : results) {
-      out_ << ", " << result;
-    }
-    out_ << ");\n";
-  }
-  for (size_t i = 0; i < label_names.size(); ++i) {
-    out_ << "    if (" << label_names[i] << ".is_used()) {\n";
-    out_ << "      ca_.Bind(&" << label_names[i] << ");\n";
-    out_ << "      ca_.Goto(&" << BlockName(instruction.label_blocks[i]);
-    for (const std::string& value : *stack) {
-      out_ << ", " << value;
-    }
-    for (const std::string& var : var_names[i]) {
-      out_ << ", " << var << ".value()";
-    }
-    out_ << ");\n";
+    out() << "    ca_.Goto(&" << BlockName(*instruction.return_continuation);
+    DCHECK_EQ(stack->Size() + results.size(),
+              (*instruction.return_continuation)->InputDefinitions().Size());
 
-    out_ << "    }\n";
+    const auto& input_definitions =
+        (*instruction.return_continuation)->InputDefinitions();
+    for (BottomOffset i = 0; i < input_definitions.AboveTop(); ++i) {
+      if (input_definitions.Peek(i).IsPhiFromBlock(
+              *instruction.return_continuation)) {
+        out() << ", "
+              << (i < stack->AboveTop() ? stack->Peek(i) : results[i.offset]);
+      }
+    }
+    out() << ");\n";
+  }
+  for (size_t l = 0; l < label_names.size(); ++l) {
+    out() << "    if (" << label_names[l] << ".is_used()) {\n";
+    out() << "      ca_.Bind(&" << label_names[l] << ");\n";
+    out() << "      ca_.Goto(&" << BlockName(instruction.label_blocks[l]);
+    DCHECK_EQ(stack->Size() + var_names[l].size(),
+              instruction.label_blocks[l]->InputDefinitions().Size());
+
+    const auto& label_definitions =
+        instruction.label_blocks[l]->InputDefinitions();
+
+    BottomOffset i = 0;
+    for (; i < stack->AboveTop(); ++i) {
+      if (label_definitions.Peek(i).IsPhiFromBlock(
+              instruction.label_blocks[l])) {
+        out() << ", " << stack->Peek(i);
+      }
+    }
+    for (std::size_t k = 0; k < var_names[l].size(); ++k, ++i) {
+      if (label_definitions.Peek(i).IsPhiFromBlock(
+              instruction.label_blocks[l])) {
+        out() << ", " << var_names[l][k] << ".value()";
+      }
+    }
+    out() << ");\n";
+    out() << "    }\n";
   }
 }
 
@@ -429,15 +510,16 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
   std::vector<const Type*> result_types =
       LowerType(instruction.builtin->signature().return_type);
   if (instruction.is_tailcall) {
-    out_ << "   CodeStubAssembler(state_).TailCallBuiltin(Builtins::k"
-         << instruction.builtin->ExternalName() << ", ";
-    PrintCommaSeparatedList(out_, arguments);
-    out_ << ");\n";
+    out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtins::k"
+          << instruction.builtin->ExternalName() << ", ";
+    PrintCommaSeparatedList(out(), arguments);
+    out() << ");\n";
   } else {
-    std::string result_name = FreshNodeName();
+    std::string result_name;
     if (result_types.size() == 1) {
-      out_ << "    TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
-           << "> " << result_name << ";\n";
+      result_name = DefinitionToVariable(instruction.GetValueDefinition(0));
+      decls() << "  TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
+              << "> " << result_name << ";\n";
     }
     std::string catch_name =
         PreCallableExceptionPreparation(instruction.catch_block);
@@ -445,27 +527,27 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     if (result_types.size() == 1) {
       std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
       stack->Push(result_name);
-      out_ << "    " << result_name << " = ";
-      if (generated_type != "Object") out_ << "TORQUE_CAST(";
-      out_ << "CodeStubAssembler(state_).CallBuiltin(Builtins::k"
-           << instruction.builtin->ExternalName() << ", ";
-      PrintCommaSeparatedList(out_, arguments);
-      if (generated_type != "Object") out_ << ")";
-      out_ << ");\n";
-      out_ << "    USE(" << result_name << ");\n";
+      out() << "    " << result_name << " = ";
+      if (generated_type != "Object") out() << "TORQUE_CAST(";
+      out() << "CodeStubAssembler(state_).CallBuiltin(Builtins::k"
+            << instruction.builtin->ExternalName() << ", ";
+      PrintCommaSeparatedList(out(), arguments);
+      if (generated_type != "Object") out() << ")";
+      out() << ");\n";
     } else {
       DCHECK_EQ(0, result_types.size());
       // TODO(tebbi): Actually, builtins have to return a value, so we should
       // not have to handle this case.
-      out_ << "    CodeStubAssembler(state_).CallBuiltin(Builtins::k"
-           << instruction.builtin->ExternalName() << ", ";
-      PrintCommaSeparatedList(out_, arguments);
-      out_ << ");\n";
+      out() << "    CodeStubAssembler(state_).CallBuiltin(Builtins::k"
+            << instruction.builtin->ExternalName() << ", ";
+      PrintCommaSeparatedList(out(), arguments);
+      out() << ");\n";
     }
     PostCallableExceptionPreparation(
         catch_name,
         result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
-        instruction.catch_block, &pre_call_stack);
+        instruction.catch_block, &pre_call_stack,
+        instruction.GetExceptionObjectDefinition());
   }
 }
 
@@ -483,20 +565,21 @@ void CSAGenerator::EmitInstruction(
     ReportError("tail-calls to builtin pointers are not supported");
   }
 
-  stack->Push(FreshNodeName());
+  DCHECK_EQ(1, instruction.GetValueDefinitionCount());
+  stack->Push(DefinitionToVariable(instruction.GetValueDefinition(0)));
   std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
-  out_ << "    TNode<" << generated_type << "> " << stack->Top() << " = ";
-  if (generated_type != "Object") out_ << "TORQUE_CAST(";
-  out_ << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
-          "CallableFor(ca_."
-          "isolate(),"
-          "ExampleBuiltinForTorqueFunctionPointerType("
-       << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
-  PrintCommaSeparatedList(out_, function_and_arguments);
-  out_ << ")";
-  if (generated_type != "Object") out_ << ")";
-  out_ << "; \n";
-  out_ << "    USE(" << stack->Top() << ");\n";
+  decls() << "  TNode<" << generated_type << "> " << stack->Top() << ";\n";
+  out() << stack->Top() << " = ";
+  if (generated_type != "Object") out() << "TORQUE_CAST(";
+  out() << "CodeStubAssembler(state_).CallBuiltinPointer(Builtins::"
+           "CallableFor(ca_."
+           "isolate(),"
+           "ExampleBuiltinForTorqueFunctionPointerType("
+        << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
+  PrintCommaSeparatedList(out(), function_and_arguments);
+  out() << ")";
+  if (generated_type != "Object") out() << ")";
+  out() << ";\n";
 }
 
 std::string CSAGenerator::PreCallableExceptionPreparation(
@@ -504,38 +587,52 @@ std::string CSAGenerator::PreCallableExceptionPreparation(
   std::string catch_name;
   if (catch_block) {
     catch_name = FreshCatchName();
-    out_ << "    compiler::CodeAssemblerExceptionHandlerLabel " << catch_name
-         << "__label(&ca_, compiler::CodeAssemblerLabel::kDeferred);\n";
-    out_ << "    { compiler::CodeAssemblerScopedExceptionHandler s(&ca_, &"
-         << catch_name << "__label);\n";
+    out() << "    compiler::CodeAssemblerExceptionHandlerLabel " << catch_name
+          << "__label(&ca_, compiler::CodeAssemblerLabel::kDeferred);\n";
+    out() << "    { compiler::ScopedExceptionHandler s(&ca_, &" << catch_name
+          << "__label);\n";
   }
   return catch_name;
 }
 
 void CSAGenerator::PostCallableExceptionPreparation(
     const std::string& catch_name, const Type* return_type,
-    base::Optional<Block*> catch_block, Stack<std::string>* stack) {
+    base::Optional<Block*> catch_block, Stack<std::string>* stack,
+    const base::Optional<DefinitionLocation>& exception_object_definition) {
   if (catch_block) {
+    DCHECK(exception_object_definition);
     std::string block_name = BlockName(*catch_block);
-    out_ << "    }\n";
-    out_ << "    if (" << catch_name << "__label.is_used()) {\n";
-    out_ << "      compiler::CodeAssemblerLabel " << catch_name
-         << "_skip(&ca_);\n";
+    out() << "    }\n";
+    out() << "    if (" << catch_name << "__label.is_used()) {\n";
+    out() << "      compiler::CodeAssemblerLabel " << catch_name
+          << "_skip(&ca_);\n";
     if (!return_type->IsNever()) {
-      out_ << "      ca_.Goto(&" << catch_name << "_skip);\n";
+      out() << "      ca_.Goto(&" << catch_name << "_skip);\n";
     }
-    out_ << "      TNode<Object> " << catch_name << "_exception_object;\n";
-    out_ << "      ca_.Bind(&" << catch_name << "__label, &" << catch_name
-         << "_exception_object);\n";
-    out_ << "      ca_.Goto(&" << block_name;
-    for (size_t i = 0; i < stack->Size(); ++i) {
-      out_ << ", " << stack->begin()[i];
+    decls() << "      TNode<Object> "
+            << DefinitionToVariable(*exception_object_definition) << ";\n";
+    out() << "      ca_.Bind(&" << catch_name << "__label, &"
+          << DefinitionToVariable(*exception_object_definition) << ");\n";
+    out() << "      ca_.Goto(&" << block_name;
+
+    DCHECK_EQ(stack->Size() + 1, (*catch_block)->InputDefinitions().Size());
+    const auto& input_definitions = (*catch_block)->InputDefinitions();
+    for (BottomOffset i = 0; i < input_definitions.AboveTop(); ++i) {
+      if (input_definitions.Peek(i).IsPhiFromBlock(*catch_block)) {
+        if (i < stack->AboveTop()) {
+          out() << ", " << stack->Peek(i);
+        } else {
+          DCHECK_EQ(i, stack->AboveTop());
+          out() << ", " << DefinitionToVariable(*exception_object_definition);
+        }
+      }
     }
-    out_ << ", " << catch_name << "_exception_object);\n";
+    out() << ");\n";
+
     if (!return_type->IsNever()) {
-      out_ << "      ca_.Bind(&" << catch_name << "_skip);\n";
+      out() << "      ca_.Bind(&" << catch_name << "_skip);\n";
     }
-    out_ << "    }\n";
+    out() << "    }\n";
   }
 }
 
@@ -552,15 +649,16 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
     ReportError("runtime function must have at most one result");
   }
   if (instruction.is_tailcall) {
-    out_ << "    CodeStubAssembler(state_).TailCallRuntime(Runtime::k"
-         << instruction.runtime_function->ExternalName() << ", ";
-    PrintCommaSeparatedList(out_, arguments);
-    out_ << ");\n";
+    out() << "    CodeStubAssembler(state_).TailCallRuntime(Runtime::k"
+          << instruction.runtime_function->ExternalName() << ", ";
+    PrintCommaSeparatedList(out(), arguments);
+    out() << ");\n";
   } else {
-    std::string result_name = FreshNodeName();
+    std::string result_name;
     if (result_types.size() == 1) {
-      out_ << "    TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
-           << "> " << result_name << ";\n";
+      result_name = DefinitionToVariable(instruction.GetValueDefinition(0));
+      decls() << "  TNode<" << result_types[0]->GetGeneratedTNodeTypeName()
+              << "> " << result_name << ";\n";
     }
     std::string catch_name =
         PreCallableExceptionPreparation(instruction.catch_block);
@@ -568,94 +666,132 @@ void CSAGenerator::EmitInstruction(const CallRuntimeInstruction& instruction,
     if (result_types.size() == 1) {
       std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
       stack->Push(result_name);
-      out_ << "    " << result_name << " = ";
-      if (generated_type != "Object") out_ << "TORQUE_CAST(";
-      out_ << "CodeStubAssembler(state_).CallRuntime(Runtime::k"
-           << instruction.runtime_function->ExternalName() << ", ";
-      PrintCommaSeparatedList(out_, arguments);
-      out_ << ")";
-      if (generated_type != "Object") out_ << ")";
-      out_ << "; \n";
-      out_ << "    USE(" << result_name << ");\n";
+      out() << "    " << result_name << " = ";
+      if (generated_type != "Object") out() << "TORQUE_CAST(";
+      out() << "CodeStubAssembler(state_).CallRuntime(Runtime::k"
+            << instruction.runtime_function->ExternalName() << ", ";
+      PrintCommaSeparatedList(out(), arguments);
+      out() << ")";
+      if (generated_type != "Object") out() << ")";
+      out() << "; \n";
     } else {
       DCHECK_EQ(0, result_types.size());
-      out_ << "    CodeStubAssembler(state_).CallRuntime(Runtime::k"
-           << instruction.runtime_function->ExternalName() << ", ";
-      PrintCommaSeparatedList(out_, arguments);
-      out_ << ");\n";
+      out() << "    CodeStubAssembler(state_).CallRuntime(Runtime::k"
+            << instruction.runtime_function->ExternalName() << ", ";
+      PrintCommaSeparatedList(out(), arguments);
+      out() << ");\n";
       if (return_type == TypeOracle::GetNeverType()) {
-        out_ << "    CodeStubAssembler(state_).Unreachable();\n";
+        out() << "    CodeStubAssembler(state_).Unreachable();\n";
       } else {
         DCHECK(return_type == TypeOracle::GetVoidType());
       }
     }
-    PostCallableExceptionPreparation(catch_name, return_type,
-                                     instruction.catch_block, &pre_call_stack);
+    PostCallableExceptionPreparation(
+        catch_name, return_type, instruction.catch_block, &pre_call_stack,
+        instruction.GetExceptionObjectDefinition());
   }
 }
 
 void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
                                    Stack<std::string>* stack) {
-  out_ << "    ca_.Branch(" << stack->Pop() << ", &"
-       << BlockName(instruction.if_true) << ", &"
-       << BlockName(instruction.if_false);
-  for (const std::string& value : *stack) {
-    out_ << ", " << value;
+  out() << "    ca_.Branch(" << stack->Pop() << ", &"
+        << BlockName(instruction.if_true) << ", std::vector<Node*>{";
+
+  const auto& true_definitions = instruction.if_true->InputDefinitions();
+  DCHECK_EQ(stack->Size(), true_definitions.Size());
+  bool first = true;
+  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+    if (true_definitions.Peek(i).IsPhiFromBlock(instruction.if_true)) {
+      if (!first) out() << ", ";
+      out() << stack->Peek(i);
+      first = false;
+    }
   }
-  out_ << ");\n";
+
+  out() << "}, &" << BlockName(instruction.if_false) << ", std::vector<Node*>{";
+
+  const auto& false_definitions = instruction.if_false->InputDefinitions();
+  DCHECK_EQ(stack->Size(), false_definitions.Size());
+  first = true;
+  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+    if (false_definitions.Peek(i).IsPhiFromBlock(instruction.if_false)) {
+      if (!first) out() << ", ";
+      out() << stack->Peek(i);
+      first = false;
+    }
+  }
+
+  out() << "});\n";
 }
 
 void CSAGenerator::EmitInstruction(
     const ConstexprBranchInstruction& instruction, Stack<std::string>* stack) {
-  out_ << "    if ((" << instruction.condition << ")) {\n";
-  out_ << "      ca_.Goto(&" << BlockName(instruction.if_true);
-  for (const std::string& value : *stack) {
-    out_ << ", " << value;
-  }
-  out_ << ");\n";
-  out_ << "    } else {\n";
-  out_ << "      ca_.Goto(&" << BlockName(instruction.if_false);
-  for (const std::string& value : *stack) {
-    out_ << ", " << value;
-  }
-  out_ << ");\n";
+  out() << "    if ((" << instruction.condition << ")) {\n";
+  out() << "      ca_.Goto(&" << BlockName(instruction.if_true);
 
-  out_ << "    }\n";
+  const auto& true_definitions = instruction.if_true->InputDefinitions();
+  DCHECK_EQ(stack->Size(), true_definitions.Size());
+  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+    if (true_definitions.Peek(i).IsPhiFromBlock(instruction.if_true)) {
+      out() << ", " << stack->Peek(i);
+    }
+  }
+
+  out() << ");\n";
+  out() << "    } else {\n";
+  out() << "      ca_.Goto(&" << BlockName(instruction.if_false);
+
+  const auto& false_definitions = instruction.if_false->InputDefinitions();
+  DCHECK_EQ(stack->Size(), false_definitions.Size());
+  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+    if (false_definitions.Peek(i).IsPhiFromBlock(instruction.if_false)) {
+      out() << ", " << stack->Peek(i);
+    }
+  }
+
+  out() << ");\n";
+  out() << "    }\n";
 }
 
 void CSAGenerator::EmitInstruction(const GotoInstruction& instruction,
                                    Stack<std::string>* stack) {
-  out_ << "    ca_.Goto(&" << BlockName(instruction.destination);
-  for (const std::string& value : *stack) {
-    out_ << ", " << value;
+  out() << "    ca_.Goto(&" << BlockName(instruction.destination);
+  const auto& destination_definitions =
+      instruction.destination->InputDefinitions();
+  DCHECK_EQ(stack->Size(), destination_definitions.Size());
+  for (BottomOffset i = 0; i < stack->AboveTop(); ++i) {
+    if (destination_definitions.Peek(i).IsPhiFromBlock(
+            instruction.destination)) {
+      out() << ", " << stack->Peek(i);
+    }
   }
-  out_ << ");\n";
+  out() << ");\n";
 }
 
 void CSAGenerator::EmitInstruction(const GotoExternalInstruction& instruction,
                                    Stack<std::string>* stack) {
   for (auto it = instruction.variable_names.rbegin();
        it != instruction.variable_names.rend(); ++it) {
-    out_ << "    *" << *it << " = " << stack->Pop() << ";\n";
+    out() << "    *" << *it << " = " << stack->Pop() << ";\n";
   }
-  out_ << "    ca_.Goto(" << instruction.destination << ");\n";
+  out() << "    ca_.Goto(" << instruction.destination << ");\n";
 }
 
 void CSAGenerator::EmitInstruction(const ReturnInstruction& instruction,
                                    Stack<std::string>* stack) {
   if (*linkage_ == Builtin::kVarArgsJavaScript) {
-    out_ << "    " << ARGUMENTS_VARIABLE_STRING << ".PopAndReturn(";
+    out() << "    " << ARGUMENTS_VARIABLE_STRING << ".PopAndReturn(";
   } else {
-    out_ << "    CodeStubAssembler(state_).Return(";
+    out() << "    CodeStubAssembler(state_).Return(";
   }
-  out_ << stack->Pop() << ");\n";
+  out() << stack->Pop() << ");\n";
 }
 
 void CSAGenerator::EmitInstruction(
     const PrintConstantStringInstruction& instruction,
     Stack<std::string>* stack) {
-  out_ << "    CodeStubAssembler(state_).Print("
-       << StringLiteralQuote(instruction.message) << ");\n";
+  out() << "    CodeStubAssembler(state_).Print("
+        << StringLiteralQuote(instruction.message) << ");\n";
 }
 
 void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
@@ -663,18 +799,18 @@ void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
   switch (instruction.kind) {
     case AbortInstruction::Kind::kUnreachable:
       DCHECK(instruction.message.empty());
-      out_ << "    CodeStubAssembler(state_).Unreachable();\n";
+      out() << "    CodeStubAssembler(state_).Unreachable();\n";
       break;
     case AbortInstruction::Kind::kDebugBreak:
       DCHECK(instruction.message.empty());
-      out_ << "    CodeStubAssembler(state_).DebugBreak();\n";
+      out() << "    CodeStubAssembler(state_).DebugBreak();\n";
       break;
     case AbortInstruction::Kind::kAssertionFailure: {
       std::string file = StringLiteralQuote(
           SourceFileMap::PathFromV8Root(instruction.pos.source));
-      out_ << "    CodeStubAssembler(state_).FailAssert("
-           << StringLiteralQuote(instruction.message) << ", " << file << ", "
-           << instruction.pos.start.line + 1 << ");\n";
+      out() << "    CodeStubAssembler(state_).FailAssert("
+            << StringLiteralQuote(instruction.message) << ", " << file << ", "
+            << instruction.pos.start.line + 1 << ");\n";
       break;
     }
   }
@@ -682,25 +818,30 @@ void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
                                    Stack<std::string>* stack) {
-  stack->Poke(stack->AboveTop() - 1,
-              "ca_.UncheckedCast<" +
-                  instruction.destination_type->GetGeneratedTNodeTypeName() +
-                  ">(" + stack->Top() + ")");
+  const std::string str =
+      "ca_.UncheckedCast<" +
+      instruction.destination_type->GetGeneratedTNodeTypeName() + ">(" +
+      stack->Top() + ")";
+  stack->Poke(stack->AboveTop() - 1, str);
+  SetDefinitionVariable(instruction.GetValueDefinition(), str);
 }
 
 void CSAGenerator::EmitInstruction(const LoadReferenceInstruction& instruction,
                                    Stack<std::string>* stack) {
-  std::string result_name = FreshNodeName();
+  std::string result_name =
+      DefinitionToVariable(instruction.GetValueDefinition());
 
   std::string offset = stack->Pop();
   std::string object = stack->Pop();
   stack->Push(result_name);
 
-  out_ << "    " << instruction.type->GetGeneratedTypeName() << result_name
-       << " = CodeStubAssembler(state_).LoadReference<"
-       << instruction.type->GetGeneratedTNodeTypeName()
-       << ">(CodeStubAssembler::Reference{" << object << ", " << offset
-       << "});\n";
+  decls() << "  " << instruction.type->GetGeneratedTypeName() << " "
+          << result_name << ";\n";
+  out() << "    " << result_name
+        << " = CodeStubAssembler(state_).LoadReference<"
+        << instruction.type->GetGeneratedTNodeTypeName()
+        << ">(CodeStubAssembler::Reference{" << object << ", " << offset
+        << "});\n";
 }
 
 void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
@@ -709,25 +850,29 @@ void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
   std::string offset = stack->Pop();
   std::string object = stack->Pop();
 
-  out_ << "    CodeStubAssembler(state_).StoreReference<"
-       << instruction.type->GetGeneratedTNodeTypeName()
-       << ">(CodeStubAssembler::"
-          "Reference{"
-       << object << ", " << offset << "}, " << value << ");\n";
+  out() << "    CodeStubAssembler(state_).StoreReference<"
+        << instruction.type->GetGeneratedTNodeTypeName()
+        << ">(CodeStubAssembler::"
+           "Reference{"
+        << object << ", " << offset << "}, " << value << ");\n";
 }
 
 namespace {
 std::string GetBitFieldSpecialization(const BitFieldStructType* container,
                                       const BitField& field) {
-  std::string suffix = field.num_bits == 1 ? "Bit" : "Bits";
-  return "TorqueGenerated" + container->name() +
-         "Fields::" + CamelifyString(field.name_and_type.name) + suffix;
+  std::stringstream stream;
+  stream << "base::BitField<"
+         << field.name_and_type.type->GetConstexprGeneratedTypeName() << ", "
+         << field.offset << ", " << field.num_bits << ", "
+         << container->GetConstexprGeneratedTypeName() << ">";
+  return stream.str();
 }
 }  // namespace
 
 void CSAGenerator::EmitInstruction(const LoadBitFieldInstruction& instruction,
                                    Stack<std::string>* stack) {
-  std::string result_name = FreshNodeName();
+  std::string result_name =
+      DefinitionToVariable(instruction.GetValueDefinition());
 
   std::string bit_field_struct = stack->Pop();
   stack->Push(result_name);
@@ -742,17 +887,20 @@ void CSAGenerator::EmitInstruction(const LoadBitFieldInstruction& instruction,
           ? (result_uintptr ? "DecodeWord" : "DecodeWord32FromWord")
           : (result_uintptr ? "DecodeWordFromWord32" : "DecodeWord32");
 
-  out_ << "    " << result_type->GetGeneratedTypeName() << result_name
-       << " = ca_.UncheckedCast<" << result_type->GetGeneratedTNodeTypeName()
-       << ">(CodeStubAssembler(state_)." << decoder << "<"
-       << GetBitFieldSpecialization(source_type, instruction.bit_field)
-       << ">(ca_.UncheckedCast<" << source_word_type << ">(" << bit_field_struct
-       << ")));\n";
+  decls() << "  " << result_type->GetGeneratedTypeName() << " " << result_name
+          << ";\n";
+  out() << "    " << result_name << " = ca_.UncheckedCast<"
+        << result_type->GetGeneratedTNodeTypeName()
+        << ">(CodeStubAssembler(state_)." << decoder << "<"
+        << GetBitFieldSpecialization(source_type, instruction.bit_field)
+        << ">(ca_.UncheckedCast<" << source_word_type << ">("
+        << bit_field_struct << ")));\n";
 }
 
 void CSAGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,
                                    Stack<std::string>* stack) {
-  std::string result_name = FreshNodeName();
+  std::string result_name =
+      DefinitionToVariable(instruction.GetValueDefinition());
 
   std::string value = stack->Pop();
   std::string bit_field_struct = stack->Pop();
@@ -768,13 +916,15 @@ void CSAGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,
       struct_uintptr ? (field_uintptr ? "UpdateWord" : "UpdateWord32InWord")
                      : (field_uintptr ? "UpdateWordInWord32" : "UpdateWord32");
 
-  out_ << "    " << struct_type->GetGeneratedTypeName() << result_name
-       << " = ca_.UncheckedCast<" << struct_type->GetGeneratedTNodeTypeName()
-       << ">(CodeStubAssembler(state_)." << encoder << "<"
-       << GetBitFieldSpecialization(struct_type, instruction.bit_field)
-       << ">(ca_.UncheckedCast<" << struct_word_type << ">(" << bit_field_struct
-       << "), ca_.UncheckedCast<" << field_word_type << ">(" << value
-       << ")));\n";
+  decls() << "  " << struct_type->GetGeneratedTypeName() << " " << result_name
+          << ";\n";
+  out() << "    " << result_name << " = ca_.UncheckedCast<"
+        << struct_type->GetGeneratedTNodeTypeName()
+        << ">(CodeStubAssembler(state_)." << encoder << "<"
+        << GetBitFieldSpecialization(struct_type, instruction.bit_field)
+        << ">(ca_.UncheckedCast<" << struct_word_type << ">("
+        << bit_field_struct << "), ca_.UncheckedCast<" << field_word_type
+        << ">(" << value << ")));\n";
 }
 
 // static
@@ -783,10 +933,10 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
                                 std::ostream& out) {
   if (!result.IsOnStack()) {
     out << result.constexpr_value();
-  } else if (auto* struct_type = StructType::DynamicCast(result.type())) {
-    out << struct_type->GetGeneratedTypeName() << "{";
+  } else if (auto struct_type = result.type()->StructSupertype()) {
+    out << (*struct_type)->GetGeneratedTypeName() << "{";
     bool first = true;
-    for (auto& field : struct_type->fields()) {
+    for (auto& field : (*struct_type)->fields()) {
       if (!first) {
         out << ", ";
       }

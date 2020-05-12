@@ -228,7 +228,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       FeedbackSource const& source);
 
   void CollectArrayAndObjectPrototypes();
-  void SerializeTypedArrayStringTags();
 
   PerIsolateCompilerCache* compiler_cache() const { return compiler_cache_; }
 

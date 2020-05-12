@@ -15,7 +15,7 @@ namespace internal {
 namespace wasm {
 
 // TODO(wasm): optimize calling conventions to be both closer to C++ (to
-// reduce adapter costs for fast WASM <-> C++ calls) and to be more efficient
+// reduce adapter costs for fast Wasm <-> C++ calls) and to be more efficient
 // in general.
 
 #if V8_TARGET_ARCH_IA32

@@ -1571,8 +1571,7 @@ WASM_EXEC_TEST(LoadMem_offset_oob) {
     r.builder().RandomizeMemory(1116 + static_cast<int>(m));
 
     constexpr byte offset = 8;
-    uint32_t boundary =
-        num_bytes - offset - ValueTypes::MemSize(machineTypes[m]);
+    uint32_t boundary = num_bytes - offset - machineTypes[m].MemSize();
 
     BUILD(r, WASM_LOAD_MEM_OFFSET(machineTypes[m], offset, WASM_GET_LOCAL(0)),
           WASM_DROP, WASM_ZERO);
@@ -1718,7 +1717,7 @@ WASM_EXEC_TEST(StoreMem_offset_oob) {
                                    WASM_LOAD_MEM(machineTypes[m], WASM_ZERO)),
           WASM_ZERO);
 
-    byte memsize = ValueTypes::MemSize(machineTypes[m]);
+    byte memsize = machineTypes[m].MemSize();
     uint32_t boundary = num_bytes - 8 - memsize;
     CHECK_EQ(0, r.Call(boundary));  // in bounds.
     CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
@@ -2009,7 +2008,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::Graph graph(&zone);
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
-  FunctionSig* sig = WasmOpcodes::Signature(opcode);
+  const FunctionSig* sig = WasmOpcodes::Signature(opcode);
 
   if (sig->parameter_count() == 1) {
     byte code[] = {WASM_NO_LOCALS, kExprLocalGet, 0, static_cast<byte>(opcode),
@@ -2643,9 +2642,9 @@ static void Run_WasmMixedCall_N(ExecutionTier execution_tier, int start) {
     // Build the selector function.
     // =========================================================================
     FunctionSig::Builder b(&zone, 1, num_params);
-    b.AddReturn(ValueTypes::ValueTypeFor(result));
+    b.AddReturn(ValueType::For(result));
     for (int i = 0; i < num_params; ++i) {
-      b.AddParam(ValueTypes::ValueTypeFor(memtypes[i]));
+      b.AddParam(ValueType::For(memtypes[i]));
     }
     WasmFunctionCompiler& t = r.NewFunction(b.Build());
     BUILD(t, WASM_GET_LOCAL(which));
@@ -2665,7 +2664,7 @@ static void Run_WasmMixedCall_N(ExecutionTier execution_tier, int start) {
     ADD_CODE(code, WASM_CALL_FUNCTION0(t.function_index()));
 
     // Store the result in a local.
-    byte local_index = r.AllocateLocal(ValueTypes::ValueTypeFor(result));
+    byte local_index = r.AllocateLocal(ValueType::For(result));
     ADD_CODE(code, kExprLocalSet, local_index);
 
     // Store the result in memory.
@@ -2682,7 +2681,7 @@ static void Run_WasmMixedCall_N(ExecutionTier execution_tier, int start) {
       r.builder().RandomizeMemory();
       CHECK_EQ(kExpected, r.Call());
 
-      int size = ValueTypes::MemSize(result);
+      int size = result.MemSize();
       for (int i = 0; i < size; ++i) {
         int base = (which + 1) * kElemSize;
         byte expected = r.builder().raw_mem_at<byte>(base + i);
@@ -2740,7 +2739,7 @@ WASM_EXEC_TEST(MultiReturnSub) {
 template <typename T>
 void RunMultiReturnSelect(ExecutionTier execution_tier, const T* inputs) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
-  ValueType type = ValueTypes::ValueTypeFor(MachineTypeForC<T>());
+  ValueType type = ValueType::For(MachineTypeForC<T>());
   ValueType storage[] = {type, type, type, type, type, type};
   const size_t kNumReturns = 2;
   const size_t kNumParams = arraysize(storage) - kNumReturns;
@@ -3498,7 +3497,7 @@ void BinOpOnDifferentRegisters(
     for (int i = 0; i < num_locals; ++i) {
       ADD_CODE(
           init_locals_code,
-          WASM_SET_LOCAL(i, WASM_LOAD_MEM(ValueTypes::MachineTypeFor(type),
+          WASM_SET_LOCAL(i, WASM_LOAD_MEM(type.machine_type(),
                                           WASM_I32V_2(sizeof(ctype) * i))));
     }
     // {write_locals_code} is shared by all code generated in the loop below.
@@ -3506,7 +3505,7 @@ void BinOpOnDifferentRegisters(
     // Write locals back into memory, shifted by one element to the right.
     for (int i = 0; i < num_locals; ++i) {
       ADD_CODE(write_locals_code,
-               WASM_STORE_MEM(ValueTypes::MachineTypeFor(type),
+               WASM_STORE_MEM(type.machine_type(),
                               WASM_I32V_2(sizeof(ctype) * (i + 1)),
                               WASM_GET_LOCAL(i)));
     }
@@ -3521,7 +3520,7 @@ void BinOpOnDifferentRegisters(
         std::vector<byte> code(init_locals_code);
         ADD_CODE(code,
                  // Store the result of the binary operation at memory[0].
-                 WASM_STORE_MEM(ValueTypes::MachineTypeFor(type), WASM_ZERO,
+                 WASM_STORE_MEM(type.machine_type(), WASM_ZERO,
                                 WASM_BINOP(opcode, WASM_GET_LOCAL(lhs),
                                            WASM_GET_LOCAL(rhs))),
                  // Return 0.
@@ -3753,9 +3752,9 @@ TEST(Liftoff_tier_up) {
     memcpy(buffer.get(), sub_code->instructions().begin(), sub_size);
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
-    std::unique_ptr<WasmCode> new_code = native_module->AddCode(
-        add.function_index(), desc, 0, 0, {}, OwnedVector<byte>(),
-        WasmCode::kFunction, ExecutionTier::kTurbofan);
+    std::unique_ptr<WasmCode> new_code =
+        native_module->AddCode(add.function_index(), desc, 0, 0, {}, {},
+                               WasmCode::kFunction, ExecutionTier::kTurbofan);
     native_module->PublishCode(std::move(new_code));
 
     // Second run should now execute {sub}.

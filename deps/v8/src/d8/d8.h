@@ -23,6 +23,8 @@
 
 namespace v8 {
 
+class D8Console;
+
 // A single counter in a counter collection.
 class Counter {
  public:
@@ -296,6 +298,7 @@ class ShellOptions {
   bool include_arguments = true;
   bool cpu_profiler = false;
   bool cpu_profiler_print = false;
+  bool fuzzy_module_file_extensions = true;
 };
 
 class Shell : public i::AllStatic {
@@ -456,6 +459,9 @@ class Shell : public i::AllStatic {
   static void AddRunningWorker(std::shared_ptr<Worker> worker);
   static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
 
+  static void Initialize(Isolate* isolate, D8Console* console,
+                         bool isOnMainThread = true);
+
  private:
   static Global<Context> evaluation_context_;
   static base::OnceType quit_once_;
@@ -482,7 +488,6 @@ class Shell : public i::AllStatic {
   static void WriteLcovData(v8::Isolate* isolate, const char* file);
   static Counter* GetCounter(const char* name, bool is_histogram);
   static Local<String> Stringify(Isolate* isolate, Local<Value> value);
-  static void Initialize(Isolate* isolate);
   static void RunShell(Isolate* isolate);
   static bool SetOptions(int argc, char* argv[]);
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);

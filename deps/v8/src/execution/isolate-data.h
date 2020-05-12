@@ -62,6 +62,14 @@ class IsolateData final {
     return kBuiltinsTableOffset - kIsolateRootBias;
   }
 
+  static constexpr int fast_c_call_caller_fp_offset() {
+    return kFastCCallCallerFPOffset - kIsolateRootBias;
+  }
+
+  static constexpr int fast_c_call_caller_pc_offset() {
+    return kFastCCallCallerPCOffset - kIsolateRootBias;
+  }
+
   // Root-register-relative offset of the given builtin table entry.
   // TODO(ishell): remove in favour of typified id version.
   static int builtin_slot_offset(int builtin_index) {

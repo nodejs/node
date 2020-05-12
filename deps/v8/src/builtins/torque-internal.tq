@@ -17,13 +17,12 @@ namespace torque_internal {
     const offset: intptr;
     unsafeMarker: Unsafe;
   }
+  type ConstReference<T: type> extends Reference<T>;
+  type MutableReference<T: type> extends ConstReference<T>;
 
   macro UnsafeNewReference<T: type>(object: HeapObject, offset: intptr):&T {
-    return Reference<T>{
-      object: object,
-      offset: offset,
-      unsafeMarker: Unsafe {}
-    };
+    return %RawDownCast<&T>(
+        Reference<T>{object: object, offset: offset, unsafeMarker: Unsafe {}});
   }
 
   struct Slice<T: type> {
@@ -148,7 +147,7 @@ namespace torque_internal {
   type UninitializedHeapObject extends HeapObject;
 
   extern macro AllocateAllowLOS(intptr): UninitializedHeapObject;
-  extern macro GetStructMap(constexpr InstanceType): Map;
+  extern macro GetInstanceTypeMap(constexpr InstanceType): Map;
 
   macro Allocate(sizeInBytes: intptr, map: Map): UninitializedHeapObject {
     assert(ValidAllocationSize(sizeInBytes, map));

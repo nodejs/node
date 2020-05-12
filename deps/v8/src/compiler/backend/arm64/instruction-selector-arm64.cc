@@ -152,12 +152,25 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
 }
 
 void VisitSimdShiftRRR(InstructionSelector* selector, ArchOpcode opcode,
-                       Node* node) {
+                       Node* node, int width) {
   Arm64OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+  if (g.IsIntegerConstant(node->InputAt(1))) {
+    if (g.GetIntegerConstantValue(node->InputAt(1)) % width == 0) {
+      selector->EmitIdentity(node);
+    } else {
+      selector->Emit(opcode, g.DefineAsRegister(node),
+                     g.UseRegister(node->InputAt(0)),
+                     g.UseImmediate(node->InputAt(1)));
+    }
+  } else {
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
+    // We only need a unique register for the first input (src), since in
+    // the codegen we use tmp to store the shifts, and then later use it with
+    // src. The second input can be the same as the second temp (shift).
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseUniqueRegister(node->InputAt(0)),
+                   g.UseRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
@@ -2578,7 +2591,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   Arm64OperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
+  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 4 + sw.value_range();
@@ -3157,12 +3170,15 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4UConvertF32x4, kArm64I32x4UConvertF32x4)         \
   V(I32x4UConvertI16x8Low, kArm64I32x4UConvertI16x8Low)   \
   V(I32x4UConvertI16x8High, kArm64I32x4UConvertI16x8High) \
+  V(I32x4Abs, kArm64I32x4Abs)                             \
   V(I16x8SConvertI8x16Low, kArm64I16x8SConvertI8x16Low)   \
   V(I16x8SConvertI8x16High, kArm64I16x8SConvertI8x16High) \
   V(I16x8Neg, kArm64I16x8Neg)                             \
   V(I16x8UConvertI8x16Low, kArm64I16x8UConvertI8x16Low)   \
   V(I16x8UConvertI8x16High, kArm64I16x8UConvertI8x16High) \
+  V(I16x8Abs, kArm64I16x8Abs)                             \
   V(I8x16Neg, kArm64I8x16Neg)                             \
+  V(I8x16Abs, kArm64I8x16Abs)                             \
   V(S128Not, kArm64S128Not)                               \
   V(S1x2AnyTrue, kArm64S1x2AnyTrue)                       \
   V(S1x2AllTrue, kArm64S1x2AllTrue)                       \
@@ -3174,18 +3190,18 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(S1x16AllTrue, kArm64S1x16AllTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
-  V(I64x2Shl)                 \
-  V(I64x2ShrS)                \
-  V(I64x2ShrU)                \
-  V(I32x4Shl)                 \
-  V(I32x4ShrS)                \
-  V(I32x4ShrU)                \
-  V(I16x8Shl)                 \
-  V(I16x8ShrS)                \
-  V(I16x8ShrU)                \
-  V(I8x16Shl)                 \
-  V(I8x16ShrS)                \
-  V(I8x16ShrU)
+  V(I64x2Shl, 64)             \
+  V(I64x2ShrS, 64)            \
+  V(I64x2ShrU, 64)            \
+  V(I32x4Shl, 32)             \
+  V(I32x4ShrS, 32)            \
+  V(I32x4ShrU, 32)            \
+  V(I16x8Shl, 16)             \
+  V(I16x8ShrS, 16)            \
+  V(I16x8ShrU, 16)            \
+  V(I8x16Shl, 8)              \
+  V(I8x16ShrS, 8)             \
+  V(I8x16ShrU, 8)
 
 #define SIMD_BINOP_LIST(V)                              \
   V(F64x2Add, kArm64F64x2Add)                           \
@@ -3319,9 +3335,9 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_SHIFT_OP(Name)                     \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitSimdShiftRRR(this, kArm64##Name, node);      \
+#define SIMD_VISIT_SHIFT_OP(Name, width)                \
+  void InstructionSelector::Visit##Name(Node* node) {   \
+    VisitSimdShiftRRR(this, kArm64##Name, node, width); \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
@@ -3362,6 +3378,29 @@ VISIT_SIMD_QFMOP(F64x2Qfms)
 VISIT_SIMD_QFMOP(F32x4Qfma)
 VISIT_SIMD_QFMOP(F32x4Qfms)
 #undef VISIT_SIMD_QFMOP
+
+namespace {
+template <ArchOpcode opcode>
+void VisitBitMask(InstructionSelector* selector, Node* node) {
+  Arm64OperandGenerator g(selector);
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+}
+}  // namespace
+
+void InstructionSelector::VisitI8x16BitMask(Node* node) {
+  VisitBitMask<kArm64I8x16BitMask>(this, node);
+}
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) {
+  VisitBitMask<kArm64I16x8BitMask>(this, node);
+}
+
+void InstructionSelector::VisitI32x4BitMask(Node* node) {
+  VisitBitMask<kArm64I32x4BitMask>(this, node);
+}
 
 namespace {
 

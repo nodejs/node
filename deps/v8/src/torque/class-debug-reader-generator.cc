@@ -44,14 +44,22 @@ class ValueTypeFieldIterator {
     int shift_bits;
   };
   const Result operator*() const {
-    if (const StructType* struct_type = StructType::DynamicCast(type_)) {
-      const auto& field = struct_type->fields()[index_];
+    if (auto struct_type = type_->StructSupertype()) {
+      const auto& field = (*struct_type)->fields()[index_];
       return {field.name_and_type, field.pos, *field.offset, 0, 0};
     }
+    const Type* type = type_;
+    int bitfield_start_offset = 0;
+    if (const auto type_wrapped_in_smi =
+            Type::MatchUnaryGeneric(type_, TypeOracle::GetSmiTaggedGeneric())) {
+      type = *type_wrapped_in_smi;
+      bitfield_start_offset = kSmiTagSize + kSmiShiftSize;
+    }
     if (const BitFieldStructType* bit_field_struct_type =
-            BitFieldStructType::DynamicCast(type_)) {
+            BitFieldStructType::DynamicCast(type)) {
       const auto& field = bit_field_struct_type->fields()[index_];
-      return {field.name_and_type, field.pos, 0, field.num_bits, field.offset};
+      return {field.name_and_type, field.pos, 0, field.num_bits,
+              field.offset + bitfield_start_offset};
     }
     UNREACHABLE();
   }
@@ -79,12 +87,17 @@ class ValueTypeFieldsRange {
   ValueTypeFieldIterator begin() { return {type_, 0}; }
   ValueTypeFieldIterator end() {
     size_t index = 0;
-    const StructType* struct_type = StructType::DynamicCast(type_);
-    if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
-      index = struct_type->fields().size();
+    base::Optional<const StructType*> struct_type = type_->StructSupertype();
+    if (struct_type && *struct_type != TypeOracle::GetFloat64OrHoleType()) {
+      index = (*struct_type)->fields().size();
+    }
+    const Type* type = type_;
+    if (const auto type_wrapped_in_smi =
+            Type::MatchUnaryGeneric(type_, TypeOracle::GetSmiTaggedGeneric())) {
+      type = *type_wrapped_in_smi;
     }
     if (const BitFieldStructType* bit_field_struct_type =
-            BitFieldStructType::DynamicCast(type_)) {
+            BitFieldStructType::DynamicCast(type)) {
       index = bit_field_struct_type->fields().size();
     }
     return {type_, index};
@@ -115,23 +128,21 @@ class DebugFieldType {
     if (IsTagged()) {
       return storage == kAsStoredInHeap ? "i::Tagged_t" : "uintptr_t";
     }
-    // Note that we need constexpr names to resolve correctly in the global
-    // namespace, because we're passing them as strings to a debugging
-    // extension. We can verify this during build of the debug helper, because
-    // we use this type for a local variable below, and generate this code in
-    // a disjoint namespace. However, we can't emit a useful error at this
-    // point. Instead we'll emit a comment that might be helpful.
+
+    // We can't emit a useful error at this point if the constexpr type name is
+    // wrong, but we can include a comment that might be helpful.
     return GetOriginalType(storage) +
-           " /*Failing? Ensure constexpr type name is fully qualified and "
-           "necessary #includes are in debug-helper-internal.h*/";
+           " /*Failing? Ensure constexpr type name is correct, and the "
+           "necessary #include is in any .tq file*/";
   }
 
   // Returns the type that should be used to represent a field's type to
   // debugging tools that have full V8 symbols. The types returned from this
-  // method are fully qualified and may refer to object types that are not
-  // included in the compilation of the debug helper library.
+  // method are resolveable in the v8::internal namespace and may refer to
+  // object types that are not included in the compilation of the debug helper
+  // library.
   std::string GetOriginalType(TypeStorage storage) const {
-    if (name_and_type_.type->IsStructType()) {
+    if (name_and_type_.type->StructSupertype()) {
       // There's no meaningful type we could use here, because the V8 symbols
       // don't have any definition of a C++ struct matching this struct type.
       return "";
@@ -149,6 +160,26 @@ class DebugFieldType {
                   : "Object");
     }
     return name_and_type_.type->GetConstexprGeneratedTypeName();
+  }
+
+  // Returns a C++ expression that evaluates to a string (type `const char*`)
+  // containing the name of the field's type. The types returned from this
+  // method are resolveable in the v8::internal namespace and may refer to
+  // object types that are not included in the compilation of the debug helper
+  // library.
+  std::string GetTypeString(TypeStorage storage) const {
+    if (IsTagged() || name_and_type_.type->IsStructType()) {
+      // Wrap up the original type in a string literal.
+      return "\"" + GetOriginalType(storage) + "\"";
+    }
+
+    // We require constexpr type names to be resolvable in the v8::internal
+    // namespace, according to the contract in debug-helper.h. In order to
+    // verify at compile time that constexpr type names are resolvable, we use
+    // the type name as a dummy template parameter to a function that just
+    // returns its parameter.
+    return "CheckTypeName<" + GetValueType(storage) + ">(\"" +
+           GetOriginalType(storage) + "\")";
   }
 
   // Returns the field's size in bytes.
@@ -228,7 +259,7 @@ void GenerateFieldValueAccessor(const Field& field,
                                 std::ostream& h_contents,
                                 std::ostream& cc_contents) {
   // Currently not implemented for struct fields.
-  if (field.name_and_type.type->IsStructType()) return;
+  if (field.name_and_type.type->StructSupertype()) return;
 
   DebugFieldType debug_field_type(field);
 
@@ -243,25 +274,23 @@ void GenerateFieldValueAccessor(const Field& field,
     index_offset = " + offset * sizeof(value)";
   }
 
-  if (!field.name_and_type.type->IsStructType()) {
-    std::string field_value_type = debug_field_type.GetValueType(kUncompressed);
-    h_contents << "  Value<" << field_value_type << "> " << field_getter
-               << "(d::MemoryAccessor accessor " << index_param << ") const;\n";
-    cc_contents << "\nValue<" << field_value_type << "> Tq" << class_name
-                << "::" << field_getter << "(d::MemoryAccessor accessor"
-                << index_param << ") const {\n";
-    cc_contents << "  " << debug_field_type.GetValueType(kAsStoredInHeap)
-                << " value{};\n";
-    cc_contents << "  d::MemoryAccessResult validity = accessor("
-                << address_getter << "()" << index_offset
-                << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
-    cc_contents << "  return {validity, "
-                << (debug_field_type.IsTagged()
-                        ? "EnsureDecompressed(value, address_)"
-                        : "value")
-                << "};\n";
-    cc_contents << "}\n";
-  }
+  std::string field_value_type = debug_field_type.GetValueType(kUncompressed);
+  h_contents << "  Value<" << field_value_type << "> " << field_getter
+             << "(d::MemoryAccessor accessor " << index_param << ") const;\n";
+  cc_contents << "\nValue<" << field_value_type << "> Tq" << class_name
+              << "::" << field_getter << "(d::MemoryAccessor accessor"
+              << index_param << ") const {\n";
+  cc_contents << "  " << debug_field_type.GetValueType(kAsStoredInHeap)
+              << " value{};\n";
+  cc_contents << "  d::MemoryAccessResult validity = accessor("
+              << address_getter << "()" << index_offset
+              << ", reinterpret_cast<uint8_t*>(&value), sizeof(value));\n";
+  cc_contents << "  return {validity, "
+              << (debug_field_type.IsTagged()
+                      ? "EnsureDecompressed(value, address_)"
+                      : "value")
+              << "};\n";
+  cc_contents << "}\n";
 }
 
 // Emits a portion of the member function GetProperties that is responsible for
@@ -333,10 +362,9 @@ void GenerateGetPropsChunkForField(const Field& field,
                                      struct_field.pos);
     get_props_impl << "  " << struct_field_list
                    << ".push_back(std::make_unique<StructProperty>(\""
-                   << struct_field.name_and_type.name << "\", \""
-                   << struct_field_type.GetOriginalType(kAsStoredInHeap)
-                   << "\", \""
-                   << struct_field_type.GetOriginalType(kUncompressed) << "\", "
+                   << struct_field.name_and_type.name << "\", "
+                   << struct_field_type.GetTypeString(kAsStoredInHeap) << ", "
+                   << struct_field_type.GetTypeString(kUncompressed) << ", "
                    << struct_field.offset_bytes << ", " << struct_field.num_bits
                    << ", " << struct_field.shift_bits << "));\n";
   }
@@ -370,11 +398,11 @@ void GenerateGetPropsChunkForField(const Field& field,
   }
 
   get_props_impl << "  result.push_back(std::make_unique<ObjectProperty>(\""
-                 << field.name_and_type.name << "\", \""
-                 << debug_field_type.GetOriginalType(kAsStoredInHeap)
-                 << "\", \"" << debug_field_type.GetOriginalType(kUncompressed)
-                 << "\", " << debug_field_type.GetAddressGetter() << "(), "
-                 << count_value << ", " << debug_field_type.GetSize() << ", "
+                 << field.name_and_type.name << "\", "
+                 << debug_field_type.GetTypeString(kAsStoredInHeap) << ", "
+                 << debug_field_type.GetTypeString(kUncompressed) << ", "
+                 << debug_field_type.GetAddressGetter() << "(), " << count_value
+                 << ", " << debug_field_type.GetSize() << ", "
                  << struct_field_list << ", " << property_kind << "));\n";
 }
 
@@ -524,12 +552,17 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     h_contents << "#undef GetBValue\n";
     h_contents << "#endif\n\n";
 
+    for (const std::string& include_path : GlobalContext::CppIncludes()) {
+      cc_contents << "#include " << StringLiteralQuote(include_path) << "\n";
+    }
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
     cc_contents << "#include \"include/v8-internal.h\"\n\n";
     cc_contents << "namespace i = v8::internal;\n\n";
 
-    NamespaceScope h_namespaces(h_contents, {"v8_debug_helper_internal"});
-    NamespaceScope cc_namespaces(cc_contents, {"v8_debug_helper_internal"});
+    NamespaceScope h_namespaces(h_contents,
+                                {"v8", "internal", "debug_helper_internal"});
+    NamespaceScope cc_namespaces(cc_contents,
+                                 {"v8", "internal", "debug_helper_internal"});
 
     std::stringstream visitor;
     visitor << "\nclass TqObjectVisitor {\n";
@@ -539,8 +572,7 @@ void ImplementationVisitor::GenerateClassDebugReaders(
     std::stringstream class_names;
 
     std::unordered_set<const ClassType*> done;
-    for (const TypeAlias* alias : GlobalContext::GetClasses()) {
-      const ClassType* type = ClassType::DynamicCast(alias->type());
+    for (const ClassType* type : TypeOracle::GetClasses()) {
       GenerateClassDebugReader(*type, h_contents, cc_contents, visitor,
                                class_names, &done);
     }

@@ -9,3 +9,6 @@ interpreter func:     0+0x3     load from 00000002 val: i32:1454047232 / 56ab000
 interpreter func:     2+0x3     load from 00000002 val: f32:94008244174848.000000 / 56ab0000
 interpreter func:     6+0x7      store to 00000004 val: s128:48879 48879 48879 48879 / 0000beef 0000beef 0000beef 0000beef
 interpreter func:     5+0x3     load from 00000002 val: s128:-1091633152 -1091633152 -1091633152 -1091633152 / beef0000 beef0000 beef0000 beef0000
+interpreter func:     7+0x3     load from 00000004 val: i16:48879 / beef
+interpreter func:     8+0x3     load from 00000002 val: i64:-4688528683866062848 / beef0000beef0000
+interpreter func:     9+0x3     load from 00000002 val: f64:-0.000015 / beef0000beef0000
