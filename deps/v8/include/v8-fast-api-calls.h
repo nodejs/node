@@ -183,30 +183,32 @@ class CTypeInfo {
     kUnwrappedApiObject,
   };
 
-  enum ArgFlags : char {
-    None = 0,
-    IsArrayBit = 1 << 0,  // This argument is first in an array of values.
+  enum class ArgFlags : uint8_t {
+    kNone = 0,
+    kIsArrayBit = 1 << 0,  // This argument is first in an array of values.
   };
 
   static CTypeInfo FromWrapperType(const void* wrapper_type_info,
-                                   ArgFlags flags = ArgFlags::None) {
+                                   ArgFlags flags = ArgFlags::kNone) {
     uintptr_t wrapper_type_info_ptr =
         reinterpret_cast<uintptr_t>(wrapper_type_info);
     // Check that the lower kIsWrapperTypeBit bits are 0's.
     CHECK_EQ(
         wrapper_type_info_ptr & ~(static_cast<uintptr_t>(~0)
                                   << static_cast<uintptr_t>(kIsWrapperTypeBit)),
-        0);
+        0u);
     // TODO(mslekova): Refactor the manual bit manipulations to use
     // PointerWithPayload instead.
-    return CTypeInfo(wrapper_type_info_ptr | flags | kIsWrapperTypeBit);
+    return CTypeInfo(wrapper_type_info_ptr | static_cast<int>(flags) |
+                     kIsWrapperTypeBit);
   }
 
   static constexpr CTypeInfo FromCType(Type ctype,
-                                       ArgFlags flags = ArgFlags::None) {
+                                       ArgFlags flags = ArgFlags::kNone) {
     // ctype cannot be Type::kUnwrappedApiObject.
     return CTypeInfo(
-        ((static_cast<uintptr_t>(ctype) << kTypeOffset) & kTypeMask) | flags);
+        ((static_cast<uintptr_t>(ctype) << kTypeOffset) & kTypeMask) |
+        static_cast<int>(flags));
   }
 
   const void* GetWrapperInfo() const;
@@ -218,7 +220,9 @@ class CTypeInfo {
     return static_cast<Type>((payload_ & kTypeMask) >> kTypeOffset);
   }
 
-  constexpr bool IsArray() const { return payload_ & ArgFlags::IsArrayBit; }
+  constexpr bool IsArray() const {
+    return payload_ & static_cast<int>(ArgFlags::kIsArrayBit);
+  }
 
  private:
   explicit constexpr CTypeInfo(uintptr_t payload) : payload_(payload) {}
@@ -283,9 +287,6 @@ SUPPORTED_C_TYPES(SPECIALIZE_GET_C_TYPE_FOR)
 template <typename T, typename = void>
 struct EnableIfHasWrapperTypeInfo {};
 
-template <>
-struct EnableIfHasWrapperTypeInfo<void> {};
-
 template <typename T>
 struct EnableIfHasWrapperTypeInfo<T, decltype(WrapperTraits<T>::GetTypeInfo(),
                                               void())> {
@@ -297,7 +298,7 @@ template <typename T, typename = void>
 struct GetCTypePointerImpl {
   static constexpr CTypeInfo Get() {
     return CTypeInfo::FromCType(GetCType<T>::Get().GetType(),
-                                CTypeInfo::IsArrayBit);
+                                CTypeInfo::ArgFlags::kIsArrayBit);
   }
 };
 
@@ -321,7 +322,7 @@ struct GetCTypePointerPointerImpl<
     T, typename EnableIfHasWrapperTypeInfo<T>::type> {
   static constexpr CTypeInfo Get() {
     return CTypeInfo::FromWrapperType(WrapperTraits<T>::GetTypeInfo(),
-                                      CTypeInfo::IsArrayBit);
+                                      CTypeInfo::ArgFlags::kIsArrayBit);
   }
 };
 
@@ -335,11 +336,12 @@ template <typename R, typename... Args>
 class CFunctionInfoImpl : public CFunctionInfo {
  public:
   CFunctionInfoImpl()
-      : return_info_(i::GetCType<R>::Get()),
+      : return_info_(internal::GetCType<R>::Get()),
         arg_count_(sizeof...(Args)),
-        arg_info_{i::GetCType<Args>::Get()...} {
-    static_assert(i::GetCType<R>::Get().GetType() == CTypeInfo::Type::kVoid,
-                  "Only void return types are currently supported.");
+        arg_info_{internal::GetCType<Args>::Get()...} {
+    static_assert(
+        internal::GetCType<R>::Get().GetType() == CTypeInfo::Type::kVoid,
+        "Only void return types are currently supported.");
   }
 
   const CTypeInfo& ReturnInfo() const override { return return_info_; }
@@ -359,6 +361,8 @@ class CFunctionInfoImpl : public CFunctionInfo {
 
 class V8_EXPORT CFunction {
  public:
+  constexpr CFunction() : address_(nullptr), type_info_(nullptr) {}
+
   const CTypeInfo& ReturnInfo() const { return type_info_->ReturnInfo(); }
 
   const CTypeInfo& ArgumentInfo(unsigned int index) const {

@@ -27064,6 +27064,8 @@ void SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
   v8::Isolate* isolate = CcTest::isolate();
 
   v8::CFunction c_func = v8::CFunction::Make(ApiNumberChecker<T>::CheckArgFast);
+  CHECK_EQ(c_func.ArgumentInfo(0).GetType(),
+           v8::CTypeInfo::Type::kUnwrappedApiObject);
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, ApiNumberChecker<T>::CheckArgSlow, v8::Local<v8::Value>(),
