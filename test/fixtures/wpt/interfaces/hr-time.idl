@@ -1,0 +1,17 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into reffy-reports
+// (https://github.com/tidoust/reffy-reports)
+// Source: High Resolution Time (https://w3c.github.io/hr-time/)
+
+typedef double DOMHighResTimeStamp;
+
+[Exposed=(Window,Worker)]
+interface Performance : EventTarget {
+    DOMHighResTimeStamp now();
+    readonly attribute DOMHighResTimeStamp timeOrigin;
+    [Default] object toJSON();
+};
+
+partial interface mixin WindowOrWorkerGlobalScope {
+  [Replaceable] readonly attribute Performance performance;
+};
