@@ -1280,6 +1280,14 @@ being issued by trusted CA (`options.ca`).
 <!-- YAML
 added: v0.11.3
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33387
+    description: The `highWaterMark` option is not supported now.
+  - version:
+    - v14.1.0
+    - v13.14.0
+    pr-url: https://github.com/nodejs/node/pull/32786
+    description: The `highWaterMark` option is accepted now.
   - version:
      - v13.6.0
      - v12.16.0
@@ -1386,7 +1394,9 @@ changes:
     `tls.createSecureContext()`.
   * ...: [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing, otherwise they are ignored.
-  * ...: Any [`socket.connect()`][] option not already listed.
+  * ...: Any [`socket.connect()`][] option not already listed with the following
+    exception. The `highWaterMark` option is not supported, as the TLS protocol
+    assumes 16KB as the maximum record size.
 * `callback` {Function}
 * Returns: {tls.TLSSocket}
 
