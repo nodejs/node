@@ -8,7 +8,7 @@ This module provides an implementation of a subset of the W3C
 [Web Performance APIs][] as well as additional APIs for
 Node.js-specific performance measurements.
 
-Currently, Node.js supports the following [Web Performance APIs][]:
+Node.js supports the following [Web Performance APIs][]:
 
 * [High Resolution Time][]
 * [Performance Timeline][]
@@ -39,7 +39,7 @@ added: v8.5.0
 -->
 
 An object that can be used to collect performance metrics from the current
-Node.js instance. It's similar to [`window.performance`][] in browsers.
+Node.js instance. It is similar to [`window.performance`][] in browsers.
 
 ### `performance.clearMarks([name])`
 <!-- YAML
@@ -103,8 +103,7 @@ added: v8.5.0
 
 * {PerformanceNodeTiming}
 
-> Note: This property is an extension by Node.js. It's not available in Web
-> browsers.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 An instance of the `PerformanceNodeTiming` class that provides performance
 metrics for specific Node.js operational milestones.
@@ -136,8 +135,7 @@ added: v8.5.0
 
 * `fn` {Function}
 
-> Note: This property is an extension by Node.js. It's not available in Web
-> browsers.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 Wraps a function within a new function that measures the running time of the
 wrapped function. A `PerformanceObserver` must be subscribed to the `'function'`
@@ -206,7 +204,7 @@ added: v8.5.0
 
 * {string}
 
-The type of the performance entry. Currently it may be one of:
+The type of the performance entry. It may be one of:
 
 * `'node'` (Node.js only)
 * `'mark'` (available on the Web)
@@ -223,8 +221,7 @@ added: v8.5.0
 
 * {number}
 
-> Note: This property is an extension by Node.js. It is not available in Web
-> browsers.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.kind`
 property identifies the type of garbage collection operation that occurred.
@@ -242,8 +239,7 @@ added: v13.9.0
 
 * {number}
 
-> Note: This property is an extension by Node.js. It is not available in Web
-> browsers.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.flags`
 property contains additional information about garbage collection operation.
@@ -262,11 +258,10 @@ The value may be one of:
 added: v8.5.0
 -->
 
-> Note: This class is an extension by Node.js. It's not available in Web
-> browsers.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 Provides timing details for Node.js itself. The constructor of this class
-is not directly exposed to users.
+is not exposed to users.
 
 ### `performanceNodeTiming.bootstrapComplete`
 <!-- YAML
@@ -433,7 +428,7 @@ added: v8.5.0
 
 The `PerformanceObserverEntryList` class is used to provide access to the
 `PerformanceEntry` instances passed to a `PerformanceObserver`.
-The constructor of this class is not directly exposed to users.
+The constructor of this class is not exposed to users.
 
 ### `performanceObserverEntryList.getEntries()`
 <!-- YAML
@@ -481,8 +476,7 @@ added: v11.10.0
     than zero. **Default:** `10`.
 * Returns: {Histogram}
 
-> Note: This property is an extension by Node.js. It's not available in Web
-> browsers.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 Creates a `Histogram` object that samples and reports the event loop delay
 over time. The delays will be reported in nanoseconds.
@@ -513,10 +507,9 @@ console.log(h.percentile(99));
 added: v11.10.0
 -->
 Tracks the event loop delay at a given sampling rate. The constructor of
-this class not directly exposed to users.
+this class not exposed to users.
 
-> Note: This class is an extension by Node.js. It's not available in Web
-> browsers.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 #### `histogram.disable()`
 <!-- YAML
