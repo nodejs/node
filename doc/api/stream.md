@@ -548,6 +548,15 @@ added: v9.3.0
 Return the value of `highWaterMark` passed when constructing this
 `Writable`.
 
+##### `writable.writableHighWaterMark`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `highwaterMark` {number} new highwaterMark
+
+Update the value of `highWaterMark` of a given `Writable` stream.
+
 ##### `writable.writableLength`
 <!-- YAML
 added: v9.4.0
@@ -567,24 +576,6 @@ added: v12.3.0
 * {boolean}
 
 Getter for the property `objectMode` of a given `Writable` stream.
-
-##### `writable.updateWritableHighwaterMark(highwaterMark)`
-<!-- YAML
-added: REPLACEME
--->
-
-* `highwaterMark` {number} new highwaterMark
-
-Update the value of `highWaterMark` of a given `Writable` stream.
-
-##### `writable.updateWritableObjectMode(objectMode)`
-<!-- YAML
-added: REPLACEME
--->
-
-* `objectMode` {boolean} new objectMode
-
-Update the value of `objectMode` of a given `Writable` stream.
 
 ##### `writable.write(chunk[, encoding][, callback])`
 <!-- YAML
@@ -1209,6 +1200,15 @@ added: v9.3.0
 Returns the value of `highWaterMark` passed when constructing this
 `Readable`.
 
+##### `readable.readableHighWaterMark`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `highwaterMark` {number} new highwaterMark
+
+Update the value of `highWaterMark` of a given `Readable` stream.
+
 ##### `readable.readableLength`
 <!-- YAML
 added: v9.4.0
@@ -1228,24 +1228,6 @@ added: v12.3.0
 * {boolean}
 
 Getter for the property `objectMode` of a given `Readable` stream.
-
-##### `readable.updateReadableHighWaterMark(highwaterMark)`
-<!-- YAML
-added: REPLACEME
--->
-
-* `highwaterMark` {number} new highwaterMark
-
-Update the value of `highWaterMark` of a given `Readable` stream.
-
-##### `readable.updateReadableObjectMode(objectMode)`
-<!-- YAML
-added: REPLACEME
--->
-
-* `objectMode` {boolean} new objectMode
-
-Update the value of `objectMode` of a given `Readable` stream.
 
 ##### `readable.resume()`
 <!-- YAML

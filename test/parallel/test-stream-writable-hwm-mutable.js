@@ -17,31 +17,28 @@ const rs = new stream.Readable({
 });
 
 let currHighWaterMark = 0;
-let currObjectMode = true;
-let read = 0;
+let write = 0;
 const ws = stream.Writable({
-  highWaterMark: currHighWaterMark,
-  objectMode: currObjectMode,
   write: common.mustCall(function(data, enc, cb) {
 
-    const highWaterMark = this._writableState.highWaterMark;
-    const objectMode = this._writableState.objectMode;
+    const highWaterMark = this.writableHighWaterMark;
 
-    // Should update highwatermark and objectmode
+    // Should update highwatermark
     // after emptying current buffer
     assert.strictEqual(highWaterMark, currHighWaterMark);
-    assert.strictEqual(objectMode, currObjectMode);
 
-    if (read++ === 30) {
-      this.updateWritableHighwaterMark(2048);
-      this.updateWritableObjectMode(false);
+    if (write++ === 30) {
+      this.writableHighWaterMark = 2048;
       currHighWaterMark = 2048;
-      currObjectMode = false;
     }
 
     setImmediate(cb);
 
   }, 100)
 });
+
+assert.strictEqual(ws.writableHighWaterMark, 16384); // default HWM
+ws.writableHighWaterMark = currHighWaterMark;
+assert.strictEqual(ws.writableHighWaterMark, currHighWaterMark);
 
 rs.pipe(ws);
