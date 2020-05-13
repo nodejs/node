@@ -540,22 +540,12 @@ Is set to `true` immediately before the [`'finish'`][] event is emitted.
 
 ##### `writable.writableHighWaterMark`
 <!-- YAML
-added: v9.3.0
+added: REPLACEME
 -->
 
 * {number}
 
-Return the value of `highWaterMark` passed when constructing this
-`Writable`.
-
-##### `writable.writableHighWaterMark`
-<!-- YAML
-added: REPLACEME
--->
-
-* `highwaterMark` {number} new highwaterMark
-
-Update the value of `highWaterMark` of a given `Writable` stream.
+Get or set the value of `highWaterMark` for a given `Writable` stream.
 
 ##### `writable.writableLength`
 <!-- YAML
@@ -1192,22 +1182,12 @@ in the [Stream Three States][] section.
 
 ##### `readable.readableHighWaterMark`
 <!-- YAML
-added: v9.3.0
+added: REPLACEME
 -->
 
 * {number}
 
-Returns the value of `highWaterMark` passed when constructing this
-`Readable`.
-
-##### `readable.readableHighWaterMark`
-<!-- YAML
-added: REPLACEME
--->
-
-* `highwaterMark` {number} new highwaterMark
-
-Update the value of `highWaterMark` of a given `Readable` stream.
+Get or set the value of `highWaterMark` for a given `Readable` stream.
 
 ##### `readable.readableLength`
 <!-- YAML
