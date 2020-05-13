@@ -240,11 +240,6 @@ Global instance of [`https.Agent`][] for all HTTPS client requests.
 <!-- YAML
 added: v0.3.6
 changes:
-  - version:
-    - v14.1.0
-    - v13.14.0
-    pr-url: https://github.com/nodejs/node/pull/32786
-    description: The `highWaterMark` option is accepted now.
   - version: v10.9.0
     pr-url: https://github.com/nodejs/node/pull/21616
     description: The `url` parameter can now be passed along with a separate
@@ -270,8 +265,7 @@ Makes a request to a secure web server.
 The following additional `options` from [`tls.connect()`][] are also accepted:
 `ca`, `cert`, `ciphers`, `clientCertEngine`, `crl`, `dhparam`, `ecdhCurve`,
 `honorCipherOrder`, `key`, `passphrase`, `pfx`, `rejectUnauthorized`,
-`secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`,
-`highWaterMark`.
+`secureOptions`, `secureProtocol`, `servername`, `sessionIdContext`.
 
 `options` can be an object, a string, or a [`URL`][] object. If `options` is a
 string, it is automatically parsed with [`new URL()`][]. If it is a [`URL`][]

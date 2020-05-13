@@ -1281,11 +1281,6 @@ being issued by trusted CA (`options.ca`).
 added: v0.11.3
 changes:
   - version:
-    - v14.1.0
-    - v13.14.0
-    pr-url: https://github.com/nodejs/node/pull/32786
-    description: The `highWaterMark` option is accepted now.
-  - version:
      - v13.6.0
      - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/23188
@@ -1385,8 +1380,6 @@ changes:
     TLS connection. When a server offers a DH parameter with a size less
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
     **Default:** `1024`.
-  * `highWaterMark`: {number} Consistent with the readable stream `highWaterMark` parameter.
-    **Default:** `16 * 1024`.
   * `secureContext`: TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
