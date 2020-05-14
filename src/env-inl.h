@@ -867,29 +867,9 @@ inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
-inline char* Environment::AllocateUnchecked(size_t size) {
-  return static_cast<char*>(
-      isolate_data()->allocator()->AllocateUninitialized(size));
-}
-
-inline char* Environment::Allocate(size_t size) {
-  char* ret = AllocateUnchecked(size);
-  CHECK_NE(ret, nullptr);
-  return ret;
-}
-
-inline void Environment::Free(char* data, size_t size) {
-  if (data != nullptr)
-    isolate_data()->allocator()->Free(data, size);
-}
-
-// It's a bit awkward to define this Buffer::New() overload here, but it
-// avoids a circular dependency with node_internals.h.
-namespace Buffer {
-v8::MaybeLocal<v8::Object> New(Environment* env,
-                               char* data,
-                               size_t length,
-                               bool uses_malloc);
+std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
+    Environment::released_allocated_buffers() {
+  return &released_allocated_buffers_;
 }
 
 inline void Environment::ThrowError(const char* errmsg) {

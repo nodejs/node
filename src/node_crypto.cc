@@ -4028,7 +4028,7 @@ bool CipherBase::Final(AllocatedBuffer* out) {
   bool ok;
   if (kind_ == kDecipher && mode == EVP_CIPH_CCM_MODE) {
     ok = !pending_auth_failed_;
-    *out = AllocatedBuffer(env());  // Empty buffer.
+    *out = AllocatedBuffer::AllocateManaged(env(), 0);  // Empty buffer.
   } else {
     int out_len = out->size();
     ok = EVP_CipherFinal_ex(ctx_.get(),
