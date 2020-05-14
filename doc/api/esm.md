@@ -16,6 +16,7 @@ code for reuse. Modules are defined using a variety of [`import`][] and
 First, to enable modules in Node.js for `.js` extensions, ensure there is a
 `package.json` file in the root of the project with `"type": "module"` set:
 
+<!-- eslint-skip -->
 ```js
 // package.json
 {
