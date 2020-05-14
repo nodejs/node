@@ -65,7 +65,7 @@ void AllocatedBuffer::Resize(size_t len) {
       env_->isolate(), std::move(backing_store_), len);
 }
 
-inline uv_buf_t AllocatedBuffer::release() {
+uv_buf_t AllocatedBuffer::release() {
   if (data() == nullptr) return uv_buf_init(nullptr, 0);
 
   CHECK_NOT_NULL(env_);
@@ -75,33 +75,33 @@ inline uv_buf_t AllocatedBuffer::release() {
   return ret;
 }
 
-inline char* AllocatedBuffer::data() {
+char* AllocatedBuffer::data() {
   if (!backing_store_) return nullptr;
   return static_cast<char*>(backing_store_->Data());
 }
 
-inline const char* AllocatedBuffer::data() const {
+const char* AllocatedBuffer::data() const {
   if (!backing_store_) return nullptr;
   return static_cast<char*>(backing_store_->Data());
 }
 
 
-inline size_t AllocatedBuffer::size() const {
+size_t AllocatedBuffer::size() const {
   if (!backing_store_) return 0;
   return backing_store_->ByteLength();
 }
 
-inline void AllocatedBuffer::clear() {
+void AllocatedBuffer::clear() {
   backing_store_.reset();
 }
 
-inline v8::MaybeLocal<v8::Object> AllocatedBuffer::ToBuffer() {
+v8::MaybeLocal<v8::Object> AllocatedBuffer::ToBuffer() {
   v8::Local<v8::ArrayBuffer> ab = ToArrayBuffer();
   return Buffer::New(env_, ab, 0, ab->ByteLength())
       .FromMaybe(v8::Local<v8::Uint8Array>());
 }
 
-inline v8::Local<v8::ArrayBuffer> AllocatedBuffer::ToArrayBuffer() {
+v8::Local<v8::ArrayBuffer> AllocatedBuffer::ToArrayBuffer() {
   return v8::ArrayBuffer::New(env_->isolate(), std::move(backing_store_));
 }
 
