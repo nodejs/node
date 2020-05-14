@@ -5,3 +5,11 @@ prefix wasi
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+
+[$system==win32]
+# These tests have become flaky on Windows in the CI. The failures do not appear
+# to be consistent, or even in the same parts of the tests. They do seem to be
+# related to trying to open or stat files though.
+# https://github.com/nodejs/node/pull/33376#issuecomment-628049988
+test-wasi: PASS,FLAKY
+test-wasi-symlinks: PASS,FLAKY
