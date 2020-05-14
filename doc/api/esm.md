@@ -13,6 +13,19 @@ ECMAScript modules are [the official standard format][] to package JavaScript
 code for reuse. Modules are defined using a variety of [`import`][] and
 [`export`][] statements.
 
+First, to enable modules in Node.js for `.js` extensions, ensure there is a
+`package.json` file in the root of the project with `"type": "module"` set:
+
+```js
+// package.json
+{
+  "name": "app",
+  "type": "module"
+}
+```
+
+> An alternative to setting `"type": "module" is to use the `.mjs` extension.
+
 The following example of an ES module exports a function:
 
 ```js
