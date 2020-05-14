@@ -24,13 +24,17 @@ const common = require('../common');
 const assert = require('assert');
 const util = require('util');
 const fs = require('fs');
+const url = require('url');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-function stat_resource(resource) {
+const lpath = `${tmpdir.path}/symlink`;
+fs.symlinkSync('unoent-entry', lpath);
+
+function stat_resource(resource, statSync = fs.statSync) {
   if (typeof resource === 'string') {
-    return fs.statSync(resource);
+    return statSync(resource);
   }
   const stats = fs.fstatSync(resource);
   // Ensure mtime has been written to disk
@@ -41,9 +45,9 @@ function stat_resource(resource) {
   return fs.fstatSync(resource);
 }
 
-function check_mtime(resource, mtime) {
+function check_mtime(resource, mtime, statSync) {
   mtime = fs._toUnixTimestamp(mtime);
-  const stats = stat_resource(resource);
+  const stats = stat_resource(resource, statSync);
   const real_mtime = fs._toUnixTimestamp(stats.mtime);
   return mtime - real_mtime;
 }
@@ -55,8 +59,8 @@ function expect_errno(syscall, resource, err, errno) {
   );
 }
 
-function expect_ok(syscall, resource, err, atime, mtime) {
-  const mtime_diff = check_mtime(resource, mtime);
+function expect_ok(syscall, resource, err, atime, mtime, statSync) {
+  const mtime_diff = check_mtime(resource, mtime, statSync);
   assert(
     // Check up to single-second precision.
     // Sub-second precision is OS and fs dependant.
@@ -68,45 +72,55 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 
 const stats = fs.statSync(tmpdir.path);
 
+const asPath = (path) => path;
+const asUrl = (path) => url.pathToFileURL(path);
+
 const cases = [
-  new Date('1982-09-10 13:37'),
-  new Date(),
-  123456.789,
-  stats.mtime,
-  ['123456', -1],
-  new Date('2017-04-08T17:59:38.008Z')
+  [asPath, new Date('1982-09-10 13:37')],
+  [asPath, new Date()],
+  [asPath, 123456.789],
+  [asPath, stats.mtime],
+  [asPath, '123456', -1],
+  [asPath, new Date('2017-04-08T17:59:38.008Z')],
+  [asUrl, new Date()],
 ];
+
 runTests(cases.values());
 
 function runTests(iter) {
   const { value, done } = iter.next();
   if (done) return;
+
   // Support easy setting same or different atime / mtime values.
-  const [atime, mtime] = Array.isArray(value) ? value : [value, value];
+  const [pathType, atime, mtime = atime] = value;
 
   let fd;
   //
   // test async code paths
   //
-  fs.utimes(tmpdir.path, atime, mtime, common.mustCall((err) => {
+  fs.utimes(pathType(tmpdir.path), atime, mtime, common.mustCall((err) => {
     expect_ok('utimes', tmpdir.path, err, atime, mtime);
 
-    fs.utimes('foobarbaz', atime, mtime, common.mustCall((err) => {
-      expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
+    fs.lutimes(pathType(lpath), atime, mtime, common.mustCall((err) => {
+      expect_ok('lutimes', lpath, err, atime, mtime, fs.lstatSync);
 
-      // don't close this fd
-      if (common.isWindows) {
-        fd = fs.openSync(tmpdir.path, 'r+');
-      } else {
-        fd = fs.openSync(tmpdir.path, 'r');
-      }
+      fs.utimes(pathType('foobarbaz'), atime, mtime, common.mustCall((err) => {
+        expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
-      fs.futimes(fd, atime, mtime, common.mustCall((err) => {
-        expect_ok('futimes', fd, err, atime, mtime);
+        // don't close this fd
+        if (common.isWindows) {
+          fd = fs.openSync(tmpdir.path, 'r+');
+        } else {
+          fd = fs.openSync(tmpdir.path, 'r');
+        }
 
-        syncTests();
+        fs.futimes(fd, atime, mtime, common.mustCall((err) => {
+          expect_ok('futimes', fd, err, atime, mtime);
 
-        setImmediate(common.mustCall(runTests), iter);
+          syncTests();
+
+          setImmediate(common.mustCall(runTests), iter);
+        }));
       }));
     }));
   }));
@@ -115,8 +129,11 @@ function runTests(iter) {
   // test synchronized code paths, these functions throw on failure
   //
   function syncTests() {
-    fs.utimesSync(tmpdir.path, atime, mtime);
+    fs.utimesSync(pathType(tmpdir.path), atime, mtime);
     expect_ok('utimesSync', tmpdir.path, undefined, atime, mtime);
+
+    fs.lutimesSync(pathType(lpath), atime, mtime);
+    expect_ok('lutimesSync', lpath, undefined, atime, mtime, fs.lstatSync);
 
     // Some systems don't have futimes
     // if there's an error, it should be ENOSYS
@@ -129,7 +146,7 @@ function runTests(iter) {
 
     let err;
     try {
-      fs.utimesSync('foobarbaz', atime, mtime);
+      fs.utimesSync(pathType('foobarbaz'), atime, mtime);
     } catch (ex) {
       err = ex;
     }
