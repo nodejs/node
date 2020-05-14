@@ -16,7 +16,7 @@ code for reuse. Modules are defined using a variety of [`import`][] and
 The following example of an ES module exports a function:
 
 ```js
-// addTwo.js
+// addTwo.mjs
 function addTwo(num) {
   return num + 2;
 }
@@ -24,11 +24,11 @@ function addTwo(num) {
 export { addTwo };
 ```
 
-The following example of an ES module imports the function from `addTwo.js`:
+The following example of an ES module imports the function from `addTwo.mjs`:
 
 ```js
-// app.js
-import { addTwo } from './addTwo.js';
+// app.mjs
+import { addTwo } from './addTwo.mjs';
 
 // Prints: 6
 console.log(addTwo(4));
