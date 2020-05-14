@@ -160,8 +160,7 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
 // ArrayBuffer::Allocator().
 v8::MaybeLocal<v8::Object> New(Environment* env,
                                char* data,
-                               size_t length,
-                               bool uses_malloc);
+                               size_t length);
 // Creates a Buffer instance over an existing ArrayBuffer.
 v8::MaybeLocal<v8::Uint8Array> New(Environment* env,
                                    v8::Local<v8::ArrayBuffer> ab,
@@ -183,7 +182,7 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
   const size_t len_in_bytes = buf->length() * sizeof(buf->out()[0]);
 
   if (buf->IsAllocated())
-    ret = New(env, src, len_in_bytes, true);
+    ret = New(env, src, len_in_bytes);
   else if (!buf->IsInvalidated())
     ret = Copy(env, src, len_in_bytes);
 
