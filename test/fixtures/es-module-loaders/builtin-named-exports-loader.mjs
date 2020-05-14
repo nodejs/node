@@ -11,9 +11,9 @@ export function getFormat(url, context, defaultGetFormat) {
 
 export function dynamicInstantiate(url) {
   const builtinInstance = module._load(url);
-  const builtinExports = ['default', ...Object.keys(builtinInstance)];
+  const builtinExports = Object.keys(builtinInstance);
   return {
-    exports: builtinExports,
+    exports: builtinExports.concat('default'),
     execute: exports => {
       for (let name of builtinExports)
         exports[name].set(builtinInstance[name]);
