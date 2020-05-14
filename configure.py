@@ -1040,7 +1040,7 @@ def configure_node(o):
 
   cross_compiling = (options.cross_compiling
                      if options.cross_compiling is not None
-                     else host_arch not in (target_arch, "x64", "ia32"))
+                     else target_arch != host_arch)
   if cross_compiling:
     os.environ['GYP_CROSSCOMPILE'] = "1"
   if options.unused_without_snapshot:
