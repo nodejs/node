@@ -2304,6 +2304,35 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void LUTimes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsNumber());
+  const double atime = args[1].As<Number>()->Value();
+
+  CHECK(args[2]->IsNumber());
+  const double mtime = args[2].As<Number>()->Value();
+
+  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // lutimes(path, atime, mtime, req)
+    AsyncCall(env, req_wrap_async, args, "lutime", UTF8, AfterNoArgs,
+              uv_fs_lutime, *path, atime, mtime);
+  } else {  // lutimes(path, atime, mtime, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(lutimes);
+    SyncCall(env, args[4], &req_wrap_sync, "lutime",
+             uv_fs_lutime, *path, atime, mtime);
+    FS_SYNC_TRACE_END(lutimes);
+  }
+}
+
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -2399,6 +2428,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "utimes", UTimes);
   env->SetMethod(target, "futimes", FUTimes);
+  env->SetMethod(target, "lutimes", LUTimes);
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
 
