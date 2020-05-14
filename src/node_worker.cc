@@ -680,7 +680,7 @@ void Worker::StopThread(const FunctionCallbackInfo<Value>& args) {
 void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  if (!w->has_ref_) {
+  if (!w->has_ref_ && !w->thread_joined_) {
     w->has_ref_ = true;
     w->env()->add_refs(1);
   }
@@ -689,7 +689,7 @@ void Worker::Ref(const FunctionCallbackInfo<Value>& args) {
 void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
-  if (w->has_ref_) {
+  if (w->has_ref_ && !w->thread_joined_) {
     w->has_ref_ = false;
     w->env()->add_refs(-1);
   }
