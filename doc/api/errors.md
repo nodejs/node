@@ -943,6 +943,11 @@ An invalid HTTP header value was specified.
 
 Status code was outside the regular status code range (100-999).
 
+<a id="ERR_HTTP_SOCKET_ENCODING"></a>
+### `ERR_HTTP_SOCKET_ENCODING`
+
+Changing the socket encoding is not allowed per [RFC 7230 Section 3][].
+
 <a id="ERR_HTTP_TRAILER_INVALID"></a>
 ### `ERR_HTTP_TRAILER_INVALID`
 
@@ -2613,6 +2618,7 @@ such as `process.stdout.on('data')`.
 [exports]: esm.html#esm_package_entry_points
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [policy]: policy.html
+[RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscalls.2.html
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
