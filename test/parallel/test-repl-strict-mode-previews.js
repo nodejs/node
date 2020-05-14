@@ -2,7 +2,9 @@
 
 'use strict';
 
-require('../common');
+const common = require('../common');
+
+common.skipIfInspectorDisabled();
 
 if (process.argv[2] === 'child') {
   const stream = require('stream');
