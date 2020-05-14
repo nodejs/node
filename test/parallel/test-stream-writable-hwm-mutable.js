@@ -7,33 +7,14 @@ const stream = require('stream');
 let pushes = 0;
 const rs = new stream.Readable({
   read: common.mustCall(function() {
-    if (pushes++ === 100) {
-      this.push(null);
-      return;
-    }
-
-    this.push(Buffer.alloc(1024));
+    pushes++ < 100 ? this.push(Buffer.alloc(1024)) : this.push(null);
   }, 101)
 });
 
-let currHighWaterMark = 0;
-let write = 0;
+const currHighWaterMark = 0;
 const ws = stream.Writable({
-  write: common.mustCall(function(data, enc, cb) {
-
-    const highWaterMark = this.writableHighWaterMark;
-
-    // Should update highwatermark
-    // after emptying current buffer
-    assert.strictEqual(highWaterMark, currHighWaterMark);
-
-    if (write++ === 30) {
-      this.writableHighWaterMark = 2048;
-      currHighWaterMark = 2048;
-    }
-
+  write: common.mustCall(function(_data, _enc, cb) {
     setImmediate(cb);
-
   }, 100)
 });
 

@@ -1810,6 +1810,24 @@ pushed to the stream.
 An attempt was made to call [`stream.unshift()`][] after the `'end'` event was
 emitted.
 
+<a id="ERR_STREAM_UPDATING_HIGHWATERMARK_IN_READ"></a>
+### `ERR_STREAM_UPDATING_HIGHWATERMARK_IN_READ`
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to update `readableHighWarkMark` from [`stream.read()`][]
+function.
+
+<a id="ERR_STREAM_UPDATING_HIGHWATERMARK_IN_WRITE"></a>
+### `ERR_STREAM_UPDATING_HIGHWATERMARK_IN_WRITE`
+<!-- YAML
+added: REPLACEME
+-->
+
+An attempt was made to update `writableHighWaterMark` from [`stream.write()`][]
+function.
+
 <a id="ERR_STREAM_WRAP"></a>
 ### `ERR_STREAM_WRAP`
 
@@ -2569,6 +2587,7 @@ such as `process.stdout.on('data')`.
 [`stream.push()`]: stream.html#stream_readable_push_chunk_encoding
 [`stream.unshift()`]: stream.html#stream_readable_unshift_chunk_encoding
 [`stream.write()`]: stream.html#stream_writable_write_chunk_encoding_callback
+[`stream.read()`]: stream.html#stream_readable_read_size
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`util.getSystemErrorName(error.errno)`]: util.html#util_util_getsystemerrorname_err

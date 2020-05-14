@@ -545,7 +545,8 @@ added: REPLACEME
 
 * {number}
 
-Get or set the value of `highWaterMark` for a given `Writable` stream.
+Get or set the value of `highWaterMark` for a given `Writable` stream. Should
+not update `writableHighWaterMark` from [`stream.write`][stream-write]
 
 ##### `writable.writableLength`
 <!-- YAML
@@ -1187,7 +1188,8 @@ added: REPLACEME
 
 * {number}
 
-Get or set the value of `highWaterMark` for a given `Readable` stream.
+Get or set the value of `highWaterMark` for a given `Readable` stream. Should
+not update `readableHighWaterMark` from [`stream.read()`][stream-read].
 
 ##### `readable.readableLength`
 <!-- YAML
