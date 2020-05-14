@@ -349,19 +349,8 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
     return Local<Object>();
   }
 
-  AllocatedBuffer ret(env);
-  if (length > 0) {
-    ret = AllocatedBuffer::AllocateManaged(
-        env,
-        length,
-        AllocatedBuffer::ALLOCATE_MANAGED_UNCHECKED);
-    if (ret.data() == nullptr) {
-      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
-      return Local<Object>();
-    }
-  }
-
-  return scope.EscapeMaybe(ret.ToBuffer());
+  return scope.EscapeMaybe(
+      AllocatedBuffer::AllocateManaged(env, length).ToBuffer());
 }
 
 
@@ -388,17 +377,8 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
     return Local<Object>();
   }
 
-  AllocatedBuffer ret(env);
+  AllocatedBuffer ret = AllocatedBuffer::AllocateManaged(env, length);
   if (length > 0) {
-    CHECK_NOT_NULL(data);
-    ret = AllocatedBuffer::AllocateManaged(
-        env,
-        length,
-        AllocatedBuffer::ALLOCATE_MANAGED_UNCHECKED);
-    if (ret.data() == nullptr) {
-      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
-      return Local<Object>();
-    }
     memcpy(ret.data(), data, length);
   }
 
@@ -462,53 +442,23 @@ MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
     return MaybeLocal<Object>();
   }
   Local<Object> obj;
-  if (Buffer::New(env, data, length, true).ToLocal(&obj))
+  if (Buffer::New(env, data, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
 }
 
-// Warning: If this call comes through the public node_buffer.h API,
-// the contract for this function is that `data` is allocated with malloc()
+// The contract for this function is that `data` is allocated with malloc()
 // and not necessarily isolate's ArrayBuffer::Allocator.
 MaybeLocal<Object> New(Environment* env,
                        char* data,
-                       size_t length,
-                       bool uses_malloc) {
+                       size_t length) {
   if (length > 0) {
     CHECK_NOT_NULL(data);
     CHECK(length <= kMaxLength);
   }
 
-  if (uses_malloc) {
-    if (!env->isolate_data()->uses_node_allocator()) {
-      // We don't know for sure that the allocator is malloc()-based, so we need
-      // to fall back to the FreeCallback variant.
-      auto free_callback = [](char* data, void* hint) { free(data); };
-      return New(env, data, length, free_callback, nullptr);
-    } else {
-      // This is malloc()-based, so we can acquire it into our own
-      // ArrayBufferAllocator.
-      CHECK_NOT_NULL(env->isolate_data()->node_allocator());
-      env->isolate_data()->node_allocator()->RegisterPointer(data, length);
-    }
-  }
-
-  auto callback = [](void* data, size_t length, void* deleter_data){
-    CHECK_NOT_NULL(deleter_data);
-
-    static_cast<v8::ArrayBuffer::Allocator*>(deleter_data)
-        ->Free(data, length);
-  };
-  std::unique_ptr<v8::BackingStore> backing =
-      v8::ArrayBuffer::NewBackingStore(data,
-                                       length,
-                                       callback,
-                                       env->isolate()
-                                          ->GetArrayBufferAllocator());
-  Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(),
-                                           std::move(backing));
-
-  return Buffer::New(env, ab, 0, length).FromMaybe(Local<Object>());
+  auto free_callback = [](char* data, void* hint) { free(data); };
+  return New(env, data, length, free_callback, nullptr);
 }
 
 namespace {
