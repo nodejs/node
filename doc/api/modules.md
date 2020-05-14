@@ -208,9 +208,9 @@ LOAD_SELF_REFERENCE(X, START)
 1. Find the closest package scope to START.
 2. If no scope was found, return.
 3. If the `package.json` has no "exports", return.
-4. If the name in `package.json` isn't a prefix of X, throw "not found".
-5. Otherwise, load the remainder of X relative to this package as if it
-  was loaded via `LOAD_NODE_MODULES` with a name in `package.json`.
+4. If the name in `package.json` is a prefix of X, then
+   a. Load the remainder of X relative to this package as if it was
+      loaded via `LOAD_NODE_MODULES` with a name in `package.json`.
 
 LOAD_PACKAGE_EXPORTS(DIR, X)
 1. Try to interpret X as a combination of name and subpath where the name
