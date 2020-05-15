@@ -1666,14 +1666,15 @@ The `pipeline` API also supports async generators:
 
 ```js
 const pipeline = util.promisify(stream.pipeline);
-const fs = require('fs').promises;
+const fs = require('fs');
 
 async function run() {
   await pipeline(
     fs.createReadStream('lowercase.txt'),
     async function* (source) {
+      source.setEncoding('utf8');  // Work with strings rather than `Buffer`s.
       for await (const chunk of source) {
-        yield String(chunk).toUpperCase();
+        yield chunk.toUpperCase();
       }
     },
     fs.createWriteStream('uppercase.txt')
