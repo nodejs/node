@@ -241,12 +241,19 @@ To include an ES module into CommonJS, use [`import()`][].
 
 ### `import` statements
 
-An `import` statement can reference an ES module or a CommonJS module. Other
-file types such as JSON or native modules are not supported. For those, use
-[`module.createRequire()`][].
-
+An `import` statement can reference an ES module or a CommonJS module.
 `import` statements are permitted only in ES modules. For similar functionality
 in CommonJS, see [`import()`][].
+
+When importing [CommonJS modules](#esm_commonjs_namespaces), the
+`module.exports` object is provided as the default export. Named exports may be
+available, provided by static analysis as a convenience for better ecosystem
+compatibility.
+
+Additional experimental flags are available for importing
+[Wasm modules](#esm_experimental_wasm_modules) or
+[JSON modules](#esm_experimental_json_modules). For importing native modules or
+JSON modules unflagged, see [`module.createRequire()`][].
 
 The _specifier_ of an `import` statement (the string after the `from` keyword)
 can either be an URL-style relative path like `'./file.mjs'` or a package name
@@ -261,40 +268,93 @@ via the path defined in [`"exports"`][].
 import { sin, cos } from 'geometry/trigonometry-functions.mjs';
 ```
 
-Only the “default export” is supported for CommonJS files or packages:
-
-<!-- eslint-disable no-duplicate-imports -->
-```js
-import packageMain from 'commonjs-package'; // Works
-
-import { method } from 'commonjs-package'; // Errors
-```
-
-It is also possible to
-[import an ES or CommonJS module for its side effects only][].
-
 ### `import()` expressions
 
 [Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be
 used to include ES module files from CommonJS code.
 
-## CommonJS, JSON, and native modules
+## CommonJS Namespaces
 
-CommonJS, JSON, and native modules can be used with
-[`module.createRequire()`][].
+CommonJS modules consist of a `module.exports` object which can be of any type.
+
+When importing a CommonJS module, it can be reliably imported using the ES
+module default import or its corresponding sugar syntax:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+import { default as cjs } from 'cjs';
+
+// The following import statement is "syntax sugar" (equivalent but sweeter)
+// for `{ default as cjsSugar }` in the above import statement:
+import cjsSugar from 'cjs';
+
+console.log(cjs);
+console.log(cjs === cjsSugar);
+// Prints:
+//   <module.exports>
+//   true
+```
+
+The ECMAScript Module Namespace representation of a CommonJS module will always
+be a namespace with a `default` export key pointing to the CommonJS
+`module.exports` value.
+
+This Module Namespace Exotic Object can be directly observed either when using
+`import * as m from 'cjs'` or a dynamic import:
+
+<!-- eslint-skip -->
+```js
+import * as m from 'cjs';
+console.log(m);
+console.log(m === await import('cjs'));
+// Prints:
+//   [Module] { default: <module.exports> }
+//   true
+```
+
+For better compatibility with existing usage in the JS ecosystem, Node.js will
+in addition attempt to determine the CommonJS named exports of every imported
+CommonJS module to provide them as separate ES module exports using a static
+analysis process.
+
+For example, a CommonJS module written:
 
 ```js
 // cjs.cjs
-module.exports = 'cjs';
-
-// esm.mjs
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-
-const cjs = require('./cjs.cjs');
-cjs === 'cjs'; // true
+exports.name = 'exported';
 ```
+
+will support named imports in ES modules:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+import { name } from './cjs.cjs';
+console.log(name);
+// Prints: 'exported'
+
+import cjs from './cjs.cjs';
+console.log(cjs);
+// Prints: { name: 'exported' }
+
+import * as m from './cjs.cjs';
+console.log(m);
+// Prints: [Module] { default: { name: 'exported' }, name: 'exported' }
+```
+
+As can be seen from the last example of the Module Namespace Exotic Object being
+logged, the `name` export is copied off of the `module.exports` object and set
+directly on the ES module namespace when the module is imported.
+
+Live binding updates or new exports added to `module.exports` are not detected
+for these named exports.
+
+The detection of named exports is based on common syntax patterns but will not
+always correctly detect named exports, in these cases using the default
+import form described above can be a better option.
+
+Named exports detection covers many common export patterns, reexport patterns
+and build tool and transpiler outputs. See [cjs-module-lexer][] for the exact
+semantics implemented.
 
 ## Builtin modules
 
@@ -328,6 +388,24 @@ fs.readFileSync = () => Buffer.from('Hello, ESM');
 syncBuiltinESMExports();
 
 fs.readFileSync === readFileSync;
+```
+
+## CommonJS, JSON, and native modules
+
+CommonJS, JSON, and native modules can be used with
+[`module.createRequire()`][].
+
+```js
+// cjs.cjs
+module.exports = 'cjs';
+
+// esm.mjs
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+
+const cjs = require('./cjs.cjs');
+cjs === 'cjs'; // true
 ```
 
 ## Experimental JSON modules
@@ -1150,6 +1228,7 @@ $ node --experimental-specifier-resolution=node index
 success!
 ```
 
+<!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
 [CommonJS]: modules.html
 [Conditional exports]: packages.html#packages_conditional_exports
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
@@ -1173,7 +1252,7 @@ success!
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
-[import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
+[cjs-module-lexer]: https://github.com/guybedford/cjs-module-lexer/tree/0.3.1
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader
