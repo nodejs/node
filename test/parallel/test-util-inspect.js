@@ -2777,7 +2777,9 @@ assert.strictEqual(
   v8.setFlagsFromString('--allow-natives-syntax');
   const undetectable = vm.runInThisContext('%GetUndetectable()');
   v8.setFlagsFromString('--no-allow-natives-syntax');
-  assert.strictEqual(inspect(undetectable), '{}');
+  assert.strictEqual(inspect(undetectable), '<HTMLDDA> {}');
+  Object.setPrototypeOf(undetectable, null);
+  assert.strictEqual(inspect(undetectable), '<HTMLDDA> {}');
 }
 
 {
