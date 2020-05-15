@@ -260,7 +260,7 @@
       'deps/acorn-plugins/acorn-numeric-separator/index.js',
       'deps/acorn-plugins/acorn-private-class-elements/index.js',
       'deps/acorn-plugins/acorn-private-methods/index.js',
-      'deps/acorn-plugins/acorn-static-class-features/index.js',
+      'deps/acorn-plugins/acorn-static-class-features/index.js'
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'mkcodecache_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mkcodecache<(EXECUTABLE_SUFFIX)',
@@ -371,6 +371,7 @@
 
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
+        'deps/cjs-module-lexer/cjs-module-lexer.gyp:cjs-module-lexer',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
@@ -554,6 +555,7 @@
       ],
       'dependencies': [
         'deps/histogram/histogram.gyp:histogram',
+        'deps/cjs-module-lexer/cjs-module-lexer.gyp:cjs-module-lexer',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
 
@@ -1209,6 +1211,7 @@
       'dependencies': [
         '<(node_lib_target_name)',
         'deps/histogram/histogram.gyp:histogram',
+        'deps/cjs-module-lexer/cjs-module-lexer.gyp:cjs-module-lexer',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
         'node_dtrace_ustack',
@@ -1224,6 +1227,7 @@
         'tools/msvs/genfiles',
         'deps/v8/include',
         'deps/cares/include',
+        'deps/cjs-module-lexer/include',
         'deps/uv/include',
         'deps/uvwasi/include',
         'test/cctest',
@@ -1313,6 +1317,7 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
+        'deps/cjs-module-lexer/cjs-module-lexer.gyp:cjs-module-lexer',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'node_dtrace_header',
@@ -1329,6 +1334,7 @@
         'tools/msvs/genfiles',
         'deps/v8/include',
         'deps/cares/include',
+        'deps/cjs-module-lexer/include',
         'deps/uv/include',
         'deps/uvwasi/include',
         'test/embedding',
@@ -1375,6 +1381,7 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
+        'deps/cjs-module-lexer/cjs-module-lexer.gyp:cjs-module-lexer',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
@@ -1388,6 +1395,7 @@
         'tools/msvs/genfiles',
         'deps/v8/include',
         'deps/cares/include',
+        'deps/cjs-module-lexer/include',
         'deps/uv/include',
         'deps/uvwasi/include',
       ],
@@ -1435,6 +1443,7 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
+        'deps/cjs-module-lexer/cjs-module-lexer.gyp:cjs-module-lexer',
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
       ],
@@ -1448,6 +1457,7 @@
         'tools/msvs/genfiles',
         'deps/v8/include',
         'deps/cares/include',
+        'deps/cjs-module-lexer/include',
         'deps/uv/include',
         'deps/uvwasi/include',
       ],

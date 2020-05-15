@@ -241,12 +241,26 @@ To include an ES module into CommonJS, use [`import()`][].
 
 ### `import` statements
 
-An `import` statement can reference an ES module or a CommonJS module. Other
-file types such as JSON or native modules are not supported. For those, use
-[`module.createRequire()`][].
-
+An `import` statement can reference an ES module or a CommonJS module.
 `import` statements are permitted only in ES modules. For similar functionality
 in CommonJS, see [`import()`][].
+
+Additional experimental flags are available for importing
+[Wasm modules](#esm_experimental_wasm_modules) or
+[JSON modules](#esm_experimental_json_modules). For importing native modules or
+JSON modules unflagged, see [`module.createRequire()`][].
+
+Only the “default export” is supported for importing CommonJS files or packages:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+import packageMain from 'commonjs-package'; // Works
+
+import { method } from 'commonjs-package'; // Errors
+```
+
+Support is provided for detecting named exports on CommonJS modules that are
+transpiled from ES modules and expose the `__esModule` "flag" export.
 
 The _specifier_ of an `import` statement (the string after the `from` keyword)
 can either be an URL-style relative path like `'./file.mjs'` or a package name
@@ -260,18 +274,6 @@ defined in `"exports"`.
 ```js
 import { sin, cos } from 'geometry/trigonometry-functions.mjs';
 ```
-
-Only the “default export” is supported for CommonJS files or packages:
-
-<!-- eslint-disable no-duplicate-imports -->
-```js
-import packageMain from 'commonjs-package'; // Works
-
-import { method } from 'commonjs-package'; // Errors
-```
-
-It is also possible to
-[import an ES or CommonJS module for its side effects only][].
 
 ### `import()` expressions
 
@@ -329,6 +331,48 @@ syncBuiltinESMExports();
 
 fs.readFileSync === readFileSync;
 ```
+
+## Transpiled CommonJS exports
+
+CommonJS modules that export the `__esModule` special transpiled module flag
+will have their named exports detected via static analysis.
+
+The `default` export will continue to refer to the full `module.exports`
+object to retain full compability with normal CJS import semantics.
+
+Importing a normal CJS module:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+// Provides the module.exports value:
+import cjs from 'cjs';
+// Throws named export not defined:
+import { name } from 'cjs';
+```
+
+Importing a transpiled CJS module with `__esModule`:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+// Provides the module.exports value:
+import cjs from 'transpiled-esm';
+// Provides the module.exports.name value:
+import { name } from 'transpiled-esm';
+```
+
+The ES Module named exports for a CommonJS module are not live bindings and any
+changes to `exports.name` for the CommonJS module in the above do not update the
+`name` binding. The only way to read the live binding is via `cjs.name`.
+
+The named exports detection uses a static analysis [heuristical best-effort
+detection of the named exports](https://github.com/guybedford/cjs-module-lexer).
+The reason for this approach is that named exports in the ES module loader need
+to known ahead of execution time.
+
+This analysis approach may over-classify and provide named exports that do not
+exist on the CommonJS module. Any properties defined on `exports` that are
+getters will trigger those getters as soon as the CommonJS module is loaded by
+the ES module loader, which may cause side effects.
 
 ## Experimental JSON modules
 
@@ -1152,7 +1196,6 @@ success!
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
-[import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
 [transpiler loader example]: #esm_transpiler_loader

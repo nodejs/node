@@ -3,33 +3,23 @@ import { rejects } from 'assert';
 
 const fixtureBase = '../fixtures/es-modules/package-cjs-named-error';
 
-const expectedRelative = 'The requested module \'./fail.cjs\' is expected to ' +
-  'be of type CommonJS, which does not support named exports. CommonJS ' +
-  'modules can be imported by importing the default export.\n' +
-  'For example:\n' +
-  'import pkg from \'./fail.cjs\';\n' +
-  'const { comeOn } = pkg;';
+const errTemplate = (specifier, name, namedImports) =>
+  `Named export '${name}' not found. The requested module` +
+  ` '${specifier}' is of type CommonJS, which may not support ` +
+  'all module.exports via named exports.\nCommonJS modules can also' +
+  ' be reliably imported via the default export, for example using:' +
+  `\n\nimport pkg from '${specifier}';\n` +
+  `const ${namedImports} = pkg;\n`;
 
-const expectedRenamed = 'The requested module \'./fail.cjs\' is expected to ' +
-  'be of type CommonJS, which does not support named exports. CommonJS ' +
-  'modules can be imported by importing the default export.\n' +
-  'For example:\n' +
-  'import pkg from \'./fail.cjs\';\n' +
-  'const { comeOn: comeOnRenamed } = pkg;';
+const expectedRelative = errTemplate('./fail.cjs', 'comeOn', '{ comeOn }');
 
-const expectedPackageHack = 'The requested module \'./json-hack/fail.js\' is ' +
-  'expected to be of type CommonJS, which does not support named exports. ' +
-  'CommonJS modules can be imported by importing the default export.\n' +
-  'For example:\n' +
-  'import pkg from \'./json-hack/fail.js\';\n' +
-  'const { comeOn } = pkg;';
+const expectedRenamed = errTemplate('./fail.cjs', 'comeOn',
+                                    '{ comeOn: comeOnRenamed }');
 
-const expectedBare = 'The requested module \'deep-fail\' is expected to ' +
-  'be of type CommonJS, which does not support named exports. CommonJS ' +
-  'modules can be imported by importing the default export.\n' +
-  'For example:\n' +
-  'import pkg from \'deep-fail\';\n' +
-  'const { comeOn } = pkg;';
+const expectedPackageHack =
+    errTemplate('./json-hack/fail.js', 'comeOn', '{ comeOn }');
+
+const expectedBare = errTemplate('deep-fail', 'comeOn', '{ comeOn }');
 
 rejects(async () => {
   await import(`${fixtureBase}/single-quote.mjs`);
