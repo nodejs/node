@@ -535,30 +535,15 @@ void Environment::RegisterHandleCleanups() {
     });
   };
 
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(timer_handle()),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(immediate_check_handle()),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(immediate_idle_handle()),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
-      close_and_finish,
-      nullptr);
-  RegisterHandleCleanup(
-      reinterpret_cast<uv_handle_t*>(&task_queues_async_),
-      close_and_finish,
-      nullptr);
+  auto register_handle = [&](uv_handle_t* handle) {
+    RegisterHandleCleanup(handle, close_and_finish, nullptr);
+  };
+  register_handle(reinterpret_cast<uv_handle_t*>(timer_handle()));
+  register_handle(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
+  register_handle(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
+  register_handle(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
+  register_handle(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
+  register_handle(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
 void Environment::CleanupHandles() {
