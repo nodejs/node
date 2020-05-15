@@ -39,8 +39,7 @@ NodeMainInstance::NodeMainInstance(Isolate* isolate,
   isolate_data_ =
       std::make_unique<IsolateData>(isolate_, event_loop, platform, nullptr);
 
-  IsolateSettings misc;
-  SetIsolateMiscHandlers(isolate_, misc);
+  SetIsolateMiscHandlers(isolate_, {});
 }
 
 std::unique_ptr<NodeMainInstance> NodeMainInstance::Create(
