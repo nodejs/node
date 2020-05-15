@@ -190,8 +190,7 @@ NodeMainInstance::CreateMainEnvironment(int* exit_code) {
     context =
         Context::FromSnapshot(isolate_, kNodeContextIndex).ToLocalChecked();
     InitializeContextRuntime(context);
-    IsolateSettings s;
-    SetIsolateErrorHandlers(isolate_, s);
+    SetIsolateErrorHandlers(isolate_, {});
   } else {
     context = NewContext(isolate_);
   }
