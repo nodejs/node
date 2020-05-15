@@ -999,8 +999,8 @@ pathToFileURL(__filename);          // Correct:   file:///C:/... (Windows)
 new URL('/foo#1', 'file:');         // Incorrect: file:///foo#1
 pathToFileURL('/foo#1');            // Correct:   file:///foo%231 (POSIX)
 
-new URL('/some/path%.js', 'file:'); // Incorrect: file:///some/path%
-pathToFileURL('/some/path%.js');    // Correct:   file:///some/path%25 (POSIX)
+new URL('/some/path%.c', 'file:'); // Incorrect: file:///some/path%.c
+pathToFileURL('/some/path%.c');    // Correct:   file:///some/path%25.c (POSIX)
 ```
 
 ## Legacy URL API
