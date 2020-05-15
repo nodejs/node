@@ -217,20 +217,22 @@ BaseObject::PointerData*
 BaseObjectPtrImpl<T, kIsWeak>::pointer_data() const {
   if (kIsWeak) {
     return data_.pointer_data;
-  } else {
-    if (get_base_object() == nullptr) return nullptr;
-    return get_base_object()->pointer_data();
   }
+  if (get_base_object() == nullptr) {
+    return nullptr;
+  }
+  return get_base_object()->pointer_data();
 }
 
 template <typename T, bool kIsWeak>
 BaseObject* BaseObjectPtrImpl<T, kIsWeak>::get_base_object() const {
   if (kIsWeak) {
-    if (pointer_data() == nullptr) return nullptr;
+    if (pointer_data() == nullptr) {
+      return nullptr;
+    }
     return pointer_data()->self;
-  } else {
-    return data_.target;
   }
+  return data_.target;
 }
 
 template <typename T, bool kIsWeak>
