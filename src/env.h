@@ -1102,8 +1102,6 @@ class Environment : public MemoryRetainer {
                                          const char* name,
                                          v8::FunctionCallback callback);
 
-  void BeforeExit(void (*cb)(void* arg), void* arg);
-  void RunBeforeExitCallbacks();
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
@@ -1364,7 +1362,6 @@ class Environment : public MemoryRetainer {
     void (*cb_)(void* arg);
     void* arg_;
   };
-  std::list<ExitCallback> before_exit_functions_;
 
   std::list<ExitCallback> at_exit_functions_;
 
