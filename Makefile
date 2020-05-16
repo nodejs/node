@@ -737,7 +737,7 @@ out/doc/api/assets:
 
 # If it's not a source tarball, we need to copy assets from doc/api_assets
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets
-	@cp $< $@
+	@cp $< $@ ; $(RM) out/doc/api/assets/README.md
 
 
 run-npm-ci = $(PWD)/$(NPM) ci
