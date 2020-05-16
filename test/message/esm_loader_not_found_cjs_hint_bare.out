@@ -1,4 +1,4 @@
-internal/modules/run_main.js:*
+internal/process/esm_loader.js:*
     internalBinding('errors').triggerUncaughtException(
                               ^
 

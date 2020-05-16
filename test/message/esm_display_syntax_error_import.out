@@ -5,3 +5,4 @@ SyntaxError: The requested module '../fixtures/es-module-loaders/module-named-ex
     at ModuleJob._instantiate (internal/modules/esm/module_job.js:*:*)
     at async ModuleJob.run (internal/modules/esm/module_job.js:*:*)
     at async Loader.import (internal/modules/esm/loader.js:*:*)
+    at async Object.loadESM (internal/process/esm_loader.js:*:*)
