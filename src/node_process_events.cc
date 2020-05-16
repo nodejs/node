@@ -24,10 +24,14 @@ MaybeLocal<Value> ProcessEmit(Environment* env,
                               const char* event,
                               Local<Value> message) {
   // Send message to enable debug in cluster workers
-  Local<Object> process = env->process_object();
   Isolate* isolate = env->isolate();
-  Local<Value> argv[] = {OneByteString(isolate, event), message};
 
+  Local<String> event_string;
+  if (!String::NewFromOneByte(isolate, reinterpret_cast<const uint8_t*>(event))
+      .ToLocal(&event_string)) return MaybeLocal<Value>();
+
+  Local<Object> process = env->process_object();
+  Local<Value> argv[] = {event_string, message};
   return MakeCallback(isolate, process, "emit", arraysize(argv), argv, {0, 0});
 }
 
