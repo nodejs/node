@@ -1,6 +1,6 @@
 (node:*) ExperimentalWarning: The ESM module loader is experimental.
 (node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
-internal/modules/run_main.js:*
+internal/process/esm_loader.js:*
     internalBinding('errors').triggerUncaughtException(
                               ^
 Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'i-dont-exist' imported from *
@@ -11,8 +11,8 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'i-dont-exist' imported from *
     at Loader.getModuleJob (internal/modules/esm/loader.js:*:*)
     at Loader.import (internal/modules/esm/loader.js:*:*)
     at internal/process/esm_loader.js:*:*
-    at Object.initializeLoader (internal/process/esm_loader.js:*:*)
-    at runMainESM (internal/modules/run_main.js:*:*)
-    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*) {
+    at initializeLoader (internal/process/esm_loader.js:*:*)
+    at Object.loadESM (internal/process/esm_loader.js:*:*)
+    at runMainESM (internal/modules/run_main.js:*:*) {
   code: 'ERR_MODULE_NOT_FOUND'
 }
