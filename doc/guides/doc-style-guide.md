@@ -30,7 +30,7 @@
 * When documenting APIs, update the YAML comment associated with the API as
   appropriate. This is especially true when introducing or deprecating an API.
 * For code blocks:
-  * Use language aware fences. ("```js")
+  * Use [language aware fences][]. (<code>```js</code>)
   * Code need not be complete. Treat code blocks as an illustration or aid to
     your point, not as complete running programs. If a complete running program
     is necessary, include it as an asset in `assets/code-examples` and link to
@@ -65,6 +65,7 @@
 
 See also API documentation structure overview in [doctools README][].
 
+[language aware fences]: https://github.com/highlightjs/highlight.js/blob/master/SUPPORTED_LANGUAGES.md
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
 [serial commas]: https://en.wikipedia.org/wiki/Serial_comma
 [plugin]: https://editorconfig.org/#download

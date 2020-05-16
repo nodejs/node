@@ -1,25 +1,23 @@
-.sh_sourceCode {
+.hljs {
   font-weight: normal;
   font-style: normal;
 }
 
-.sh_sourceCode .sh_symbol,
-.sh_sourceCode .sh_cbracket {
+.hljs-symbol {
   color: #333;
 }
 
-.sh_sourceCode .sh_keyword {
+.hljs-keyword {
   color: #338;
 }
 
-.sh_sourceCode .sh_string,
-.sh_sourceCode .sh_regexp,
-.sh_sourceCode .sh_number,
-.sh_sourceCode .sh_specialchar {
+.hljs-string,
+.hljs-regexp,
+.hljs-number {
   color: #E54305;
 }
 
-.sh_sourceCode .sh_comment {
+.hljs-comment {
   color: #666;
   font-weight: lighter;
 }
