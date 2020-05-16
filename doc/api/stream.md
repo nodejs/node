@@ -93,6 +93,11 @@ A key goal of the `stream` API, particularly the [`stream.pipe()`][] method,
 is to limit the buffering of data to acceptable levels such that sources and
 destinations of differing speeds will not overwhelm the available memory.
 
+The `highWaterMark` option is a threshold, not a limit: it dictates the amount
+of data that a stream buffers before it stops asking for more data. It does not
+enforce a strict memory limitation in general. Specific stream implementations
+may choose to enforce stricter limits but doing so is optional.
+
 Because [`Duplex`][] and [`Transform`][] streams are both `Readable` and
 `Writable`, each maintains *two* separate internal buffers used for reading and
 writing, allowing each side to operate independently of the other while
