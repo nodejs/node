@@ -1129,7 +1129,7 @@ Type: Documentation-only
 The [`util.isNumber()`][] API is deprecated.
 
 <a id="DEP0053"></a>
-### DEP0053 `util.isObject()`
+### DEP0053: `util.isObject()`
 <!-- YAML
 changes:
   - version:
@@ -1794,6 +1794,9 @@ Type: End-of-Life
 
 `runInAsyncIdScope` doesn't emit the `'before'` or `'after'` event and can thus
 cause a lot of issues. See <https://github.com/nodejs/node/issues/14328>.
+
+<!-- md-lint skip-deprecation DEP0087 -->
+<!-- md-lint skip-deprecation DEP0088 -->
 
 <a id="DEP0089"></a>
 ### DEP0089: `require('assert')`
