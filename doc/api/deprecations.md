@@ -2668,8 +2668,8 @@ Type: Documentation-only
 
 Use [`request.destroy()`][] instead of [`request.abort()`][].
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: `repl.inputStream` and `repl.outputStream`
+<a id="DEP0141"></a>
+### DEP0141: `repl.inputStream` and `repl.outputStream`
 <!-- YAML
 changes:
   - version: REPLACEME
@@ -2682,8 +2682,8 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The `repl` module exported the input and output stream twice. Use `.input`
 instead of `.inputStream` and `.output` instead of `.outputStream`.
 
-<a id="DEP0XX1"></a>
-### DEP0XX1: `repl._builtinLibs`
+<a id="DEP0142"></a>
+### DEP0142: `repl._builtinLibs`
 <!-- YAML
 changes:
   - version: REPLACEME
