@@ -30,7 +30,10 @@ void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
 }
 
 void EmitBeforeExit(Environment* env) {
-  env->RunBeforeExitCallbacks();
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "BeforeExit", env);
+  if (!env->destroy_async_id_list()->empty())
+    AsyncWrap::DestroyAsyncIdsCallback(env);
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
