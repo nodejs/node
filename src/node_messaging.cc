@@ -464,8 +464,7 @@ void MessagePortData::Disentangle() {
 }
 
 MessagePort::~MessagePort() {
-  if (data_)
-    data_->owner_ = nullptr;
+  if (data_) Detach();
 }
 
 MessagePort::MessagePort(Environment* env,
@@ -662,10 +661,9 @@ void MessagePort::OnMessage() {
 void MessagePort::OnClose() {
   Debug(this, "MessagePort::OnClose()");
   if (data_) {
-    data_->owner_ = nullptr;
-    data_->Disentangle();
+    // Detach() returns move(data_).
+    Detach()->Disentangle();
   }
-  data_.reset();
 }
 
 std::unique_ptr<MessagePortData> MessagePort::Detach() {
