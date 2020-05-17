@@ -230,6 +230,7 @@ typedef enum {
   do {                                              \
     close_loop(uv_default_loop());                  \
     ASSERT(0 == uv_loop_close(uv_default_loop()));  \
+    uv_library_shutdown();                          \
   } while (0)
 
 /* Just sugar for wrapping the main() for a task or helper. */

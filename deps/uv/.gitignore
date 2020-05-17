@@ -67,6 +67,7 @@ ipch
 
 # Clion / IntelliJ project files
 /.idea/
+cmake-build-debug/
 
 *.xcodeproj
 *.xcworkspace

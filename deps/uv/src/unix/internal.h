@@ -106,10 +106,8 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset);
 #if defined(__clang__) ||                                                     \
     defined(__GNUC__) ||                                                      \
     defined(__INTEL_COMPILER)
-# define UV_DESTRUCTOR(declaration) __attribute__((destructor)) declaration
 # define UV_UNUSED(declaration)     __attribute__((unused)) declaration
 #else
-# define UV_DESTRUCTOR(declaration) declaration
 # define UV_UNUSED(declaration)     declaration
 #endif
 

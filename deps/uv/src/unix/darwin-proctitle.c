@@ -30,8 +30,7 @@
 #include <TargetConditionals.h>
 
 #if !TARGET_OS_IPHONE
-# include <CoreFoundation/CoreFoundation.h>
-# include <ApplicationServices/ApplicationServices.h>
+#include "darwin-stub.h"
 #endif
 
 

@@ -125,17 +125,10 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle, SOCKET socket,
 }
 
 
-int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
-  int domain;
-
-  /* Use the lower 8 bits for the domain */
-  domain = flags & 0xFF;
-  if (domain != AF_INET && domain != AF_INET6 && domain != AF_UNSPEC)
-    return UV_EINVAL;
-
-  if (flags & ~0xFF)
-    return UV_EINVAL;
-
+int uv__udp_init_ex(uv_loop_t* loop,
+                    uv_udp_t* handle,
+                    unsigned flags,
+                    int domain) {
   uv__handle_init(loop, (uv_handle_t*) handle, UV_UDP);
   handle->socket = INVALID_SOCKET;
   handle->reqs_pending = 0;
@@ -171,11 +164,6 @@ int uv_udp_init_ex(uv_loop_t* loop, uv_udp_t* handle, unsigned int flags) {
   }
 
   return 0;
-}
-
-
-int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
-  return uv_udp_init_ex(loop, handle, AF_UNSPEC);
 }
 
 
@@ -786,8 +774,10 @@ int uv__udp_set_source_membership6(uv_udp_t* handle,
     mreq.gsr_interface = 0;
   }
 
-  memcpy(&mreq.gsr_group, multicast_addr, sizeof(mreq.gsr_group));
-  memcpy(&mreq.gsr_source, source_addr, sizeof(mreq.gsr_source));
+  STATIC_ASSERT(sizeof(mreq.gsr_group) >= sizeof(*multicast_addr));
+  STATIC_ASSERT(sizeof(mreq.gsr_source) >= sizeof(*source_addr));
+  memcpy(&mreq.gsr_group, multicast_addr, sizeof(*multicast_addr));
+  memcpy(&mreq.gsr_source, source_addr, sizeof(*source_addr));
 
   if (membership == UV_JOIN_GROUP)
     optname = MCAST_JOIN_SOURCE_GROUP;
