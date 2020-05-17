@@ -232,10 +232,10 @@ TEST_F(EnvironmentTest, SetImmediateCleanup) {
       EXPECT_EQ(env_arg, *env);
       called++;
     });
-    (*env)->SetUnrefImmediate([&](node::Environment* env_arg) {
+    (*env)->SetImmediate([&](node::Environment* env_arg) {
       EXPECT_EQ(env_arg, *env);
       called_unref++;
-    });
+    }, node::CallbackFlags::kUnrefed);
   }
 
   EXPECT_EQ(called, 1);
