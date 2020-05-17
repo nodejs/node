@@ -131,11 +131,11 @@ Data types
             char* model;
             int speed;
             struct uv_cpu_times_s {
-                uint64_t user;
-                uint64_t nice;
-                uint64_t sys;
-                uint64_t idle;
-                uint64_t irq;
+                uint64_t user; /* milliseconds */
+                uint64_t nice; /* milliseconds */
+                uint64_t sys; /* milliseconds */
+                uint64_t idle; /* milliseconds */
+                uint64_t irq; /* milliseconds */
             } cpu_times;
         } uv_cpu_info_t;
 
@@ -232,6 +232,24 @@ API
                  times. If the user changes it they are responsible for making
                  sure the allocator is changed while no memory was allocated with
                  the previous allocator, or that they are compatible.
+
+    .. warning:: Allocator must be thread-safe.
+
+.. c:function:: void uv_library_shutdown(void);
+
+    .. versionadded:: 1.38.0
+
+    Release any global state that libuv is holding onto. Libuv will normally
+    do so automatically when it is unloaded but it can be instructed to perform
+    cleanup manually.
+
+    .. warning:: Only call :c:func:`uv_library_shutdown()` once.
+
+    .. warning:: Don't call :c:func:`uv_library_shutdown()` when there are
+                 still event loops or I/O requests active.
+
+    .. warning:: Don't call libuv functions after calling
+                 :c:func:`uv_library_shutdown()`.
 
 .. c:function:: uv_buf_t uv_buf_init(char* base, unsigned int len)
 
@@ -657,7 +675,7 @@ API
 
     .. note::
         On IBM i PASE, you are not allowed to change your priority unless you
-        have the *JOBCTL special authority (even to lower it).
+        have the \*JOBCTL special authority (even to lower it).
 
     .. versionadded:: 1.23.0
 

@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sched.h>  /* sched_yield() */
 
 #ifdef __linux__
 #include <sys/eventfd.h>
@@ -81,20 +82,32 @@ int uv_async_send(uv_async_t* handle) {
 
 /* Only call this from the event loop thread. */
 static int uv__async_spin(uv_async_t* handle) {
+  int i;
   int rc;
 
   for (;;) {
-    /* rc=0 -- handle is not pending.
-     * rc=1 -- handle is pending, other thread is still working with it.
-     * rc=2 -- handle is pending, other thread is done.
+    /* 997 is not completely chosen at random. It's a prime number, acyclical
+     * by nature, and should therefore hopefully dampen sympathetic resonance.
      */
-    rc = cmpxchgi(&handle->pending, 2, 0);
+    for (i = 0; i < 997; i++) {
+      /* rc=0 -- handle is not pending.
+       * rc=1 -- handle is pending, other thread is still working with it.
+       * rc=2 -- handle is pending, other thread is done.
+       */
+      rc = cmpxchgi(&handle->pending, 2, 0);
 
-    if (rc != 1)
-      return rc;
+      if (rc != 1)
+        return rc;
 
-    /* Other thread is busy with this handle, spin until it's done. */
-    cpu_relax();
+      /* Other thread is busy with this handle, spin until it's done. */
+      cpu_relax();
+    }
+
+    /* Yield the CPU. We may have preempted the other thread while it's
+     * inside the critical section and if it's running on the same CPU
+     * as us, we'll just burn CPU cycles until the end of our time slice.
+     */
+    sched_yield();
   }
 }
 

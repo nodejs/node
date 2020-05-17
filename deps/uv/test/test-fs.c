@@ -315,7 +315,7 @@ static void chown_root_cb(uv_fs_t* req) {
      * User may grant qsecofr's privileges, including changing 
      * the file's ownership to uid 0.
      */
-    ASSERT(req->result == 0);
+    ASSERT(req->result == 0 || req->result == UV_EPERM);
 #   else
     ASSERT(req->result == UV_EPERM);
 #   endif
@@ -2453,6 +2453,57 @@ TEST_IMPL(fs_non_symlink_reparse_point) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+TEST_IMPL(fs_lstat_windows_store_apps) {
+  uv_loop_t* loop;
+  char localappdata[MAX_PATH];
+  char windowsapps_path[MAX_PATH];
+  char file_path[MAX_PATH];
+  size_t len;
+  int r;
+  uv_fs_t req;
+  uv_fs_t stat_req;
+  uv_dirent_t dirent;
+
+  loop = uv_default_loop();
+  ASSERT_NOT_NULL(loop);
+  len = sizeof(localappdata);
+  r = uv_os_getenv("LOCALAPPDATA", localappdata, &len);
+  if (r == UV_ENOENT) {
+    MAKE_VALGRIND_HAPPY();
+    return TEST_SKIP;
+  }
+  ASSERT_EQ(r, 0);
+  r = snprintf(windowsapps_path,
+              sizeof(localappdata),
+              "%s\\Microsoft\\WindowsApps",
+              localappdata);
+  ASSERT_GT(r, 0);
+  if (uv_fs_opendir(loop, &req, windowsapps_path, NULL) != 0) {
+    /* If we cannot read the directory, skip the test. */
+    MAKE_VALGRIND_HAPPY();
+    return TEST_SKIP;
+  }
+  if (uv_fs_scandir(loop, &req, windowsapps_path, 0, NULL) <= 0) {
+    MAKE_VALGRIND_HAPPY();
+    return TEST_SKIP;
+  }
+  while (uv_fs_scandir_next(&req, &dirent) != UV_EOF) {
+    if (dirent.type != UV_DIRENT_LINK) {
+      continue;
+    }
+    if (snprintf(file_path,
+                 sizeof(file_path),
+                 "%s\\%s",
+                 windowsapps_path,
+                 dirent.name) < 0) {
+      continue;
+    }
+    ASSERT_EQ(uv_fs_lstat(loop, &stat_req, file_path, NULL), 0);
+  }
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
 #endif
 
 
@@ -4344,6 +4395,24 @@ TEST_IMPL(fs_statfs) {
   ASSERT(r == 0);
   uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(statfs_cb_count == 2);
+
+  return 0;
+}
+
+TEST_IMPL(fs_get_system_error) {
+  uv_fs_t req;
+  int r;
+  int system_error;
+
+  r = uv_fs_statfs(NULL, &req, "non_existing_file", NULL);
+  ASSERT(r != 0);
+
+  system_error = uv_fs_get_system_error(&req);
+#ifdef _WIN32
+  ASSERT(system_error == ERROR_FILE_NOT_FOUND);
+#else
+  ASSERT(system_error == ENOENT);
+#endif
 
   return 0;
 }

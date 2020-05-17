@@ -31,6 +31,11 @@
 extern char executable_path[];
 
 TEST_IMPL(get_currentexe) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   char buffer[PATHMAX];
   char path[PATHMAX];
   size_t size;

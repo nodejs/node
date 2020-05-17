@@ -120,6 +120,11 @@ static void connection_fail(uv_connect_cb connect_cb) {
  * expect an error.
  */
 TEST_IMPL(connection_fail) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   connection_fail(on_connect_with_close);
 
   ASSERT(timer_close_cb_calls == 0);
@@ -136,6 +141,11 @@ TEST_IMPL(connection_fail) {
  * attempt.
  */
 TEST_IMPL(connection_fail_doesnt_auto_close) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   int r;
 
   r = uv_timer_init(uv_default_loop(), &timer);
