@@ -85,6 +85,7 @@ if (common.hasIntl) {
   assert.strictEqual(dec.encoding, 'utf-8');
   assert.strictEqual(dec.fatal, false);
   assert.strictEqual(dec.ignoreBOM, false);
+  assert.strictEqual(dec[Symbol.toStringTag], 'TextDecoder');
 }
 
 // Test TextDecoder, UTF-16le
