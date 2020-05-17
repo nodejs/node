@@ -30,15 +30,15 @@ const runAsStandalone = typeof __dirname !== 'undefined';
 const [ InspectClient, createRepl ] =
   runAsStandalone ?
   // This copy of node-inspect is on-disk, relative paths make sense.
-  [
-    require('./internal/inspect_client'),
-    require('./internal/inspect_repl')
-  ] :
+    [
+      require('./internal/inspect_client'),
+      require('./internal/inspect_repl')
+    ] :
   // This copy of node-inspect is built into the node executable.
-  [
-    require('node-inspect/lib/internal/inspect_client'),
-    require('node-inspect/lib/internal/inspect_repl')
-  ];
+    [
+      require('node-inspect/lib/internal/inspect_client'),
+      require('node-inspect/lib/internal/inspect_repl')
+    ];
 
 const debuglog = util.debuglog('inspect');
 
@@ -49,8 +49,8 @@ class StartupError extends Error {
   }
 }
 
-function portIsFree(host, port, timeout = 2000) {
-  if (port === 0) return Promise.resolve();  // Binding to a random port.
+function portIsFree(host, port, timeout = 9999) {
+  if (port === 0) return Promise.resolve(); // Binding to a random port.
 
   const retryDelay = 150;
   let didTimeOut = false;
@@ -96,9 +96,9 @@ function runScript(script, scriptArgs, inspectHost, inspectPort, childPrint) {
       return new Promise((resolve) => {
         const needDebugBrk = process.version.match(/^v(6|7)\./);
         const args = (needDebugBrk ?
-                          ['--inspect', `--debug-brk=${inspectPort}`] :
-                          [`--inspect-brk=${inspectPort}`])
-                         .concat([script], scriptArgs);
+          ['--inspect', `--debug-brk=${inspectPort}`] :
+          [`--inspect-brk=${inspectPort}`])
+          .concat([script], scriptArgs);
         const child = spawn(process.execPath, args);
         child.stdout.setEncoding('utf8');
         child.stderr.setEncoding('utf8');
@@ -154,11 +154,11 @@ class NodeInspector {
 
     if (options.script) {
       this._runScript = runScript.bind(null,
-                                       options.script,
-                                       options.scriptArgs,
-                                       options.host,
-                                       options.port,
-                                       this.childPrint.bind(this));
+        options.script,
+        options.scriptArgs,
+        options.host,
+        options.port,
+        this.childPrint.bind(this));
     } else {
       this._runScript =
           () => Promise.resolve([null, options.port, options.host]);
@@ -333,8 +333,8 @@ function parseArgv([target, ...args]) {
 }
 
 function startInspect(argv = process.argv.slice(2),
-                      stdin = process.stdin,
-                      stdout = process.stdout) {
+  stdin = process.stdin,
+  stdout = process.stdout) {
   /* eslint-disable no-console */
   if (argv.length < 1) {
     const invokedAs = runAsStandalone ?

@@ -174,3 +174,23 @@ test('run after quit / restart', (t) => {
     .then(() => cli.quit())
     .then(null, onFatal);
 });
+
+test('auto-resume on start if the environment variable is defined', (t) => {
+  const script = Path.join('examples', 'break.js');
+
+  const cli = startCLI([script], [], {
+    env: { NODE_INSPECT_RESUME_ON_START: '1' }
+  });
+
+  return cli.waitForInitialBreak()
+    .then(() => {
+      t.match(
+        cli.breakInfo,
+        { filename: script, line: 10 },
+        'skips to the first breakpoint');
+    })
+    .then(() => cli.quit())
+    .then((code) => {
+      t.equal(code, 0, 'exits with success');
+    });
+});
