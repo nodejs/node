@@ -16,7 +16,7 @@ Grammars included in the custom bundle:
 * Plaintext
 * Shell Session
 
-## sh.css
+## hljs.css
 
 The syntax theme for code snippets in API reference documents.
 
