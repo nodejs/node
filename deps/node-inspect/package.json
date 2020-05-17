@@ -1,6 +1,6 @@
 {
   "name": "node-inspect",
-  "version": "1.11.6",
+  "version": "2.0.0",
   "description": "Node Inspect",
   "license": "MIT",
   "main": "lib/_inspect.js",
@@ -27,7 +27,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "eslint": "^3.10.2",
+    "eslint": "^6.8.0",
     "nlm": "^3.0.0",
     "tap": "^10.7.0"
   },
