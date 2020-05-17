@@ -1,0 +1,9 @@
+(node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+file:///*/test/message/esm-invalid-transform-source.mjs:1
+[object Object]
+        ^^^^^^
+
+SyntaxError: Unexpected identifier
+    at Loader.moduleStrategy (internal/modules/esm/translators.js:*:*)
+    at async link (internal/modules/esm/module_job.js:*:*)
