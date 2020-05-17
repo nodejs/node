@@ -282,9 +282,9 @@ void MarkGarbageCollectionEnd(Isolate* isolate,
       static_cast<PerformanceGCFlags>(flags),
       state->performance_last_gc_start_mark,
       PERFORMANCE_NOW());
-  env->SetUnrefImmediate([entry = std::move(entry)](Environment* env) mutable {
+  env->SetImmediate([entry = std::move(entry)](Environment* env) mutable {
     PerformanceGCCallback(env, std::move(entry));
-  });
+  }, CallbackFlags::kUnrefed);
 }
 
 void GarbageCollectionCleanupHook(void* data) {

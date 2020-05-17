@@ -759,7 +759,7 @@ void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
               env, std::move(snapshot));
           Local<Value> args[] = { stream->object() };
           taker->MakeCallback(env->ondone_string(), arraysize(args), args);
-        }, /* refed */ false);
+        }, CallbackFlags::kUnrefed);
   });
   args.GetReturnValue().Set(scheduled ? taker->object() : Local<Object>());
 }

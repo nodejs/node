@@ -707,29 +707,21 @@ inline void IsolateData::set_options(
 }
 
 template <typename Fn>
-void Environment::CreateImmediate(Fn&& cb, bool ref) {
-  auto callback = native_immediates_.CreateCallback(std::move(cb), ref);
+void Environment::SetImmediate(Fn&& cb, CallbackFlags::Flags flags) {
+  auto callback = native_immediates_.CreateCallback(std::move(cb), flags);
   native_immediates_.Push(std::move(callback));
+
+  if (flags & CallbackFlags::kRefed) {
+    if (immediate_info()->ref_count() == 0)
+      ToggleImmediateRef(true);
+    immediate_info()->ref_count_inc(1);
+  }
 }
 
 template <typename Fn>
-void Environment::SetImmediate(Fn&& cb) {
-  CreateImmediate(std::move(cb), true);
-
-  if (immediate_info()->ref_count() == 0)
-    ToggleImmediateRef(true);
-  immediate_info()->ref_count_inc(1);
-}
-
-template <typename Fn>
-void Environment::SetUnrefImmediate(Fn&& cb) {
-  CreateImmediate(std::move(cb), false);
-}
-
-template <typename Fn>
-void Environment::SetImmediateThreadsafe(Fn&& cb, bool refed) {
-  auto callback =
-      native_immediates_threadsafe_.CreateCallback(std::move(cb), refed);
+void Environment::SetImmediateThreadsafe(Fn&& cb, CallbackFlags::Flags flags) {
+  auto callback = native_immediates_threadsafe_.CreateCallback(
+      std::move(cb), flags);
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     native_immediates_threadsafe_.Push(std::move(callback));
@@ -740,8 +732,8 @@ void Environment::SetImmediateThreadsafe(Fn&& cb, bool refed) {
 
 template <typename Fn>
 void Environment::RequestInterrupt(Fn&& cb) {
-  auto callback =
-      native_immediates_interrupts_.CreateCallback(std::move(cb), false);
+  auto callback = native_immediates_interrupts_.CreateCallback(
+      std::move(cb), CallbackFlags::kRefed);
   {
     Mutex::ScopedLock lock(native_immediates_threadsafe_mutex_);
     native_immediates_interrupts_.Push(std::move(callback));
