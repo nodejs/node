@@ -768,7 +768,8 @@ static int read_times(FILE* statfile_fp,
                       unsigned int numcpus,
                       uv_cpu_info_t* ci) {
   struct uv_cpu_times_s ts;
-  uint64_t clock_ticks;
+  unsigned int ticks;
+  unsigned int multiplier;
   uint64_t user;
   uint64_t nice;
   uint64_t sys;
@@ -779,9 +780,10 @@ static int read_times(FILE* statfile_fp,
   uint64_t len;
   char buf[1024];
 
-  clock_ticks = sysconf(_SC_CLK_TCK);
-  assert(clock_ticks != (uint64_t) -1);
-  assert(clock_ticks != 0);
+  ticks = (unsigned int)sysconf(_SC_CLK_TCK);
+  multiplier = ((uint64_t)1000L / ticks);
+  assert(ticks != (unsigned int) -1);
+  assert(ticks != 0);
 
   rewind(statfile_fp);
 
@@ -823,11 +825,11 @@ static int read_times(FILE* statfile_fp,
                     &irq))
       abort();
 
-    ts.user = clock_ticks * user;
-    ts.nice = clock_ticks * nice;
-    ts.sys  = clock_ticks * sys;
-    ts.idle = clock_ticks * idle;
-    ts.irq  = clock_ticks * irq;
+    ts.user = user * multiplier;
+    ts.nice = nice * multiplier;
+    ts.sys  = sys * multiplier;
+    ts.idle = idle * multiplier;
+    ts.irq  = irq * multiplier;
     ci[num++].cpu_times = ts;
   }
   assert(num == numcpus);

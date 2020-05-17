@@ -172,10 +172,11 @@ static size_t thread_stack_size(void) {
 #if defined(__APPLE__) || defined(__linux__)
   struct rlimit lim;
 
-  if (getrlimit(RLIMIT_STACK, &lim))
-    abort();
-
-  if (lim.rlim_cur != RLIM_INFINITY) {
+  /* getrlimit() can fail on some aarch64 systems due to a glibc bug where
+   * the system call wrapper invokes the wrong system call. Don't treat
+   * that as fatal, just use the default stack size instead.
+   */
+  if (0 == getrlimit(RLIMIT_STACK, &lim) && lim.rlim_cur != RLIM_INFINITY) {
     /* pthread_attr_setstacksize() expects page-aligned values. */
     lim.rlim_cur -= lim.rlim_cur % (rlim_t) getpagesize();
 

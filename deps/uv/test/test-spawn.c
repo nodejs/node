@@ -1452,7 +1452,7 @@ TEST_IMPL(spawn_setuid_fails) {
   options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
-#if defined(__CYGWIN__) || defined(__PASE__)
+#if defined(__CYGWIN__)
   ASSERT(r == UV_EINVAL);
 #else
   ASSERT(r == UV_EPERM);
@@ -1497,7 +1497,7 @@ TEST_IMPL(spawn_setgid_fails) {
 #endif
 
   r = uv_spawn(uv_default_loop(), &process, &options);
-#if defined(__CYGWIN__) || defined(__MVS__) || defined(__PASE__)
+#if defined(__CYGWIN__) || defined(__MVS__)
   ASSERT(r == UV_EINVAL);
 #else
   ASSERT(r == UV_EPERM);
@@ -1689,7 +1689,7 @@ TEST_IMPL(spawn_reads_child_path) {
    */
 #if defined(__APPLE__)
   static const char dyld_path_var[] = "DYLD_LIBRARY_PATH";
-#elif defined __MVS__
+#elif defined(__MVS__) || defined(__PASE__)
   static const char dyld_path_var[] = "LIBPATH";
 #else
   static const char dyld_path_var[] = "LD_LIBRARY_PATH";

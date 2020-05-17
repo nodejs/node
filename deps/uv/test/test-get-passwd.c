@@ -24,6 +24,11 @@
 #include <string.h>
 
 TEST_IMPL(get_passwd) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   uv_passwd_t pwd;
   size_t len;
   int r;

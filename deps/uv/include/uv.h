@@ -265,6 +265,8 @@ typedef void* (*uv_realloc_func)(void* ptr, size_t size);
 typedef void* (*uv_calloc_func)(size_t count, size_t size);
 typedef void (*uv_free_func)(void* ptr);
 
+UV_EXTERN void uv_library_shutdown(void);
+
 UV_EXTERN int uv_replace_allocator(uv_malloc_func malloc_func,
                                    uv_realloc_func realloc_func,
                                    uv_calloc_func calloc_func,
@@ -1069,11 +1071,11 @@ UV_EXTERN int uv_cancel(uv_req_t* req);
 
 
 struct uv_cpu_times_s {
-  uint64_t user;
-  uint64_t nice;
-  uint64_t sys;
-  uint64_t idle;
-  uint64_t irq;
+  uint64_t user; /* milliseconds */
+  uint64_t nice; /* milliseconds */
+  uint64_t sys; /* milliseconds */
+  uint64_t idle; /* milliseconds */
+  uint64_t irq; /* milliseconds */
 };
 
 struct uv_cpu_info_s {
@@ -1305,6 +1307,7 @@ struct uv_fs_s {
 
 UV_EXTERN uv_fs_type uv_fs_get_type(const uv_fs_t*);
 UV_EXTERN ssize_t uv_fs_get_result(const uv_fs_t*);
+UV_EXTERN int uv_fs_get_system_error(const uv_fs_t*);
 UV_EXTERN void* uv_fs_get_ptr(const uv_fs_t*);
 UV_EXTERN const char* uv_fs_get_path(const uv_fs_t*);
 UV_EXTERN uv_stat_t* uv_fs_get_statbuf(uv_fs_t*);
