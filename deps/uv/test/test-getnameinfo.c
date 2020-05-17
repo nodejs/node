@@ -66,6 +66,11 @@ TEST_IMPL(getnameinfo_basic_ip4) {
 
 
 TEST_IMPL(getnameinfo_basic_ip4_sync) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
   ASSERT(0 == uv_ip4_addr(address_ip4, port, &addr4));
 
   ASSERT(0 == uv_getnameinfo(uv_default_loop(),

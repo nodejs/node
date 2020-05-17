@@ -46,6 +46,11 @@ void uv_signals_init(void) {
 }
 
 
+void uv__signal_cleanup(void) {
+  /* TODO(bnoordhuis) Undo effects of uv_signal_init()? */
+}
+
+
 static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2) {
   /* Compare signums first so all watchers with the same signnum end up
    * adjacent. */

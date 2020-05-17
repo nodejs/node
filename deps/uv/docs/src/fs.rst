@@ -492,6 +492,13 @@ API
 
     .. versionadded:: 1.19.0
 
+.. c:function:: int uv_fs_get_system_error(const uv_fs_t* req)
+
+    Returns the platform specific error code - `GetLastError()` value on Windows
+    and `-(req->result)` on other platforms.
+
+    .. versionadded:: 1.38.0
+
 .. c:function:: void* uv_fs_get_ptr(const uv_fs_t* req)
 
     Returns `req->ptr`.
