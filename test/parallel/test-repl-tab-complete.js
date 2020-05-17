@@ -68,6 +68,19 @@ testMe.complete('console.lo', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
+testMe.complete('console?.lo', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['console?.log'], 'console?.lo']);
+}));
+
+testMe.complete('console?.zzz', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [[], 'console?.zzz']);
+}));
+
+testMe.complete('console?.', common.mustCall((error, data) => {
+  assert(data[0].includes('console?.log'));
+  assert.strictEqual(data[1], 'console?.');
+}));
+
 // Tab Complete will return globally scoped variables
 putIn.run(['};']);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
