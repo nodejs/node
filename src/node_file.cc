@@ -221,11 +221,12 @@ inline void FileHandle::Close() {
   // If the close was successful, we still want to emit a process warning
   // to notify that the file descriptor was gc'd. We want to be noisy about
   // this because not explicitly closing the FileHandle is a bug.
-  env()->SetUnrefImmediate([detail](Environment* env) {
+
+  env()->SetImmediate([detail](Environment* env) {
     ProcessEmitWarning(env,
                        "Closing file descriptor %d on garbage collection",
                        detail.fd);
-  });
+  }, CallbackFlags::kUnrefed);
 }
 
 void FileHandle::CloseReq::Resolve() {

@@ -126,10 +126,10 @@ inline void DirHandle::GCClose() {
   // to notify that the file descriptor was gc'd. We want to be noisy about
   // this because not explicitly closing the DirHandle is a bug.
 
-  env()->SetUnrefImmediate([](Environment* env) {
+  env()->SetImmediate([](Environment* env) {
     ProcessEmitWarning(env,
                        "Closing directory handle on garbage collection");
-  });
+  }, CallbackFlags::kUnrefed);
 }
 
 void AfterClose(uv_fs_t* req) {
