@@ -2827,6 +2827,37 @@ assert.strictEqual(
     '{ \x1B[2mabc: \x1B[33mtrue\x1B[39m\x1B[22m, ' +
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
+
+  assert.strictEqual(
+    inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
+    '<ref *1> Foo [Map] {\n' +
+    '    [constructor]: [class Bar extends Foo] {\n' +
+    '      [length]: 0,\n' +
+    '      [prototype]: [Circular *1],\n' +
+    "      [name]: 'Bar',\n" +
+    '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
+      "(Symbol.prototype.toString requires that 'this' be a Symbol)>]\n" +
+    '    },\n' +
+    "    [xyz]: [Getter: 'YES!'],\n" +
+    '    [Symbol(nodejs.util.inspect.custom)]: ' +
+      '[Function: [nodejs.util.inspect.custom]] {\n' +
+    '      [length]: 0,\n' +
+    "      [name]: '[nodejs.util.inspect.custom]'\n" +
+    '    },\n' +
+    '    [abc]: [Getter: true],\n' +
+    '    [def]: [Getter/Setter: false]\n' +
+    '  }'
+  );
+
+  assert.strictEqual(
+    inspect(Object.getPrototypeOf(bar)),
+    'Foo [Map] {}'
+  );
+
+  assert.strictEqual(
+    inspect(Object.getPrototypeOf(new Foo())),
+    'Map {}'
+  );
 }
 
 // Test changing util.inspect.colors colors and aliases.

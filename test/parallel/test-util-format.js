@@ -266,7 +266,7 @@ assert.strictEqual(
   '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
+  '    [prototype]: { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '}');
 assert.strictEqual(
@@ -279,7 +279,7 @@ assert.strictEqual(
   '      a: <ref *1> [Function: a] {\n' +
   '        [length]: 0,\n' +
   '        [name]: \'a\',\n' +
-  '        [prototype]: a { [constructor]: [Circular *1] }\n' +
+  '        [prototype]: { [constructor]: [Circular *1] }\n' +
   '      }\n' +
   '    },\n' +
   '    [length]: 1\n' +
@@ -294,7 +294,7 @@ assert.strictEqual(
   '    func: <ref *1> [Function: func] {\n' +
   '      [length]: 0,\n' +
   '      [name]: \'func\',\n' +
-  '      [prototype]: func { [constructor]: [Circular *1] }\n' +
+  '      [prototype]: { [constructor]: [Circular *1] }\n' +
   '    }\n' +
   '  }\n' +
   '}');
@@ -306,7 +306,7 @@ assert.strictEqual(
   '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
+  '    [prototype]: { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '} {\n' +
   '  foo: \'bar\',\n' +
@@ -314,7 +314,7 @@ assert.strictEqual(
   '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
+  '    [prototype]: { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '}');
 assert.strictEqual(
@@ -325,7 +325,7 @@ assert.strictEqual(
   '  func: <ref *1> [Function: func] {\n' +
   '    [length]: 0,\n' +
   '    [name]: \'func\',\n' +
-  '    [prototype]: func { [constructor]: [Circular *1] }\n' +
+  '    [prototype]: { [constructor]: [Circular *1] }\n' +
   '  }\n' +
   '} %o');
 

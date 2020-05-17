@@ -83,9 +83,12 @@ const util = require('util');
 
   assert.strictEqual(util.inspect(m, { depth: -1 }), '[SourceTextModule]');
 
-  assert.strictEqual(
-    m[util.inspect.custom].call(Object.create(null)),
-    'Module { status: undefined, identifier: undefined, context: undefined }',
+  assert.throws(
+    () => m[util.inspect.custom].call(Object.create(null)),
+    {
+      code: 'ERR_VM_MODULE_NOT_MODULE',
+      message: 'Provided module is not an instance of Module'
+    },
   );
 }
 
