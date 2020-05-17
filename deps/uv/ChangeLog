@@ -1,3 +1,76 @@
+2020.05.18, Version 1.38.0 (Stable), 1ab9ea3790378f9f25c4e78e9e2b511c75f9c9ed
+
+Changes since version 1.37.0:
+
+* test: skip poll_duplex and poll_unidirectional on PASE (Xu Meng)
+
+* linux: make cpu_times consistently be milliseconds (James Ross)
+
+* win: DRY uv_poll_start() and uv_poll_stop() (Ben Noordhuis)
+
+* win: DRY uv_poll_close() (Ben Noordhuis)
+
+* unix,win: add uv_library_shutdown() (Ben Noordhuis)
+
+* unix: yield cpu when spinlocking on async handle (Ben Noordhuis)
+
+* win: remove dep on GetQueuedCompletionStatusEx (Colin Finck)
+
+* doc: correct source lines (Shohei YOSHIDA)
+
+* build,android: fix typo (twosee)
+
+* doc: uv_cancel() handles uv_random_t requests (Philip Chimento)
+
+* doc: fix unescaped character (Philip Chimento)
+
+* build,cmake: fix compilation on old MinGW (erw7)
+
+* build: remove unnessesary MSVC warnings (Bartosz Sosnowski)
+
+* win: make uv_udp_init_ex() accept UV_UDP_RECVMMSG (Ben Noordhuis)
+
+* unix: simplify uv__udp_init_ex() (Ben Noordhuis)
+
+* win: remove MAX_PATH limitations (Bartosz Sosnowski)
+
+* build, win: add long path aware manifest (Bartosz Sosnowski)
+
+* doc: check/idle/prepare functions always succeed (Ben Noordhuis)
+
+* darwin: fix build with non-apple compilers (Ben Noordhuis)
+
+* win: support environment variables > 32767 chars (Ben Noordhuis)
+
+* unix: fully initialize struct msghdr (Ben Noordhuis)
+
+* doc: add uv_replace_allocator thread safety warning (twosee)
+
+* unix: fix int overflow when copying large files (Michal Artazov)
+
+* fs: report original error (Bartosz Sosnowski)
+
+* win, fs: add IO_REPARSE_TAG_APPEXECLINK support (Bartosz Sosnowski)
+
+* doc: fix formatting (Ben Noordhuis)
+
+* unix: fix memory leak when uv_loop_init() fails (Anna Henningsen)
+
+* unix: shrink uv_udp_set_source_membership() stack (Ben Noordhuis)
+
+* unix,win: fix wrong sizeof argument to memcpy() (Ben Noordhuis)
+
+* build: check for libraries not provided by libc (Jeroen Roovers)
+
+* doc: fix the order of arguments to calloc() (MasterDuke17)
+
+* unix: don't abort when getrlimit() fails (Ben Noordhuis)
+
+* test: support common user profile on IBMi (Xu Meng)
+
+* build: test on more platforms via QEMU in CI (gengjiawen)
+
+
 2020.04.20, Version 1.37.0 (Stable), 02a9e1be252b623ee032a3137c0b0c94afbe6809
 
 Changes since version 1.36.0:

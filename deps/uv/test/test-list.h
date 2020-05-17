@@ -346,6 +346,7 @@ TEST_DECLARE   (fs_symlink_dir)
 #ifdef _WIN32
 TEST_DECLARE   (fs_symlink_junction)
 TEST_DECLARE   (fs_non_symlink_reparse_point)
+TEST_DECLARE   (fs_lstat_windows_store_apps)
 TEST_DECLARE   (fs_open_flags)
 #endif
 #if defined(_WIN32) && !defined(USING_UV_SHARED)
@@ -409,6 +410,7 @@ TEST_DECLARE   (fs_open_readonly_acl)
 TEST_DECLARE   (fs_fchmod_archive_readonly)
 TEST_DECLARE   (fs_invalid_mkdir_name)
 #endif
+TEST_DECLARE   (fs_get_system_error)
 TEST_DECLARE   (strscpy)
 TEST_DECLARE   (threadpool_queue_work_simple)
 TEST_DECLARE   (threadpool_queue_work_einval)
@@ -978,6 +980,7 @@ TASK_LIST_START
 #ifdef _WIN32
   TEST_ENTRY  (fs_symlink_junction)
   TEST_ENTRY  (fs_non_symlink_reparse_point)
+  TEST_ENTRY  (fs_lstat_windows_store_apps)
   TEST_ENTRY  (fs_open_flags)
 #endif
 #if defined(_WIN32) && !defined(USING_UV_SHARED)
@@ -1036,6 +1039,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_fchmod_archive_readonly)
   TEST_ENTRY  (fs_invalid_mkdir_name)
 #endif
+  TEST_ENTRY  (fs_get_system_error)
   TEST_ENTRY  (get_osfhandle_valid_handle)
   TEST_ENTRY  (open_osfhandle_valid_handle)
   TEST_ENTRY  (strscpy)

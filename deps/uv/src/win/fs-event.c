@@ -83,6 +83,7 @@ static void uv_relative_path(const WCHAR* filename,
 static int uv_split_path(const WCHAR* filename, WCHAR** dir,
     WCHAR** file) {
   size_t len, i;
+  DWORD dir_len;
 
   if (filename == NULL) {
     if (dir != NULL)
@@ -97,12 +98,16 @@ static int uv_split_path(const WCHAR* filename, WCHAR** dir,
 
   if (i == 0) {
     if (dir) {
-      *dir = (WCHAR*)uv__malloc((MAX_PATH + 1) * sizeof(WCHAR));
+      dir_len = GetCurrentDirectoryW(0, NULL);
+      if (dir_len == 0) {
+        return -1;
+      }
+      *dir = (WCHAR*)uv__malloc(dir_len * sizeof(WCHAR));
       if (!*dir) {
         uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
       }
 
-      if (!GetCurrentDirectoryW(MAX_PATH, *dir)) {
+      if (!GetCurrentDirectoryW(dir_len, *dir)) {
         uv__free(*dir);
         *dir = NULL;
         return -1;
@@ -155,9 +160,11 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   int name_size, is_path_dir, size;
   DWORD attr, last_error;
   WCHAR* dir = NULL, *dir_to_watch, *pathw = NULL;
-  WCHAR short_path_buffer[MAX_PATH];
+  DWORD short_path_buffer_len;
+  WCHAR *short_path_buffer;
   WCHAR* short_path, *long_path;
 
+  short_path = NULL;
   if (uv__is_active(handle))
     return UV_EINVAL;
 
@@ -230,13 +237,23 @@ int uv_fs_event_start(uv_fs_event_t* handle,
      */
 
     /* Convert to short path. */
+    short_path_buffer = NULL;
+    short_path_buffer_len = GetShortPathNameW(pathw, NULL, 0);
+    if (short_path_buffer_len == 0) {
+      goto short_path_done;
+    }
+    short_path_buffer = uv__malloc(short_path_buffer_len * sizeof(WCHAR));
+    if (short_path_buffer == NULL) {
+      goto short_path_done;
+    }
     if (GetShortPathNameW(pathw,
                           short_path_buffer,
-                          ARRAY_SIZE(short_path_buffer))) {
-      short_path = short_path_buffer;
-    } else {
-      short_path = NULL;
+                          short_path_buffer_len) == 0) {
+      uv__free(short_path_buffer);
+      short_path_buffer = NULL;
     }
+short_path_done:
+    short_path = short_path_buffer;
 
     if (uv_split_path(pathw, &dir, &handle->filew) != 0) {
       last_error = GetLastError();
@@ -345,6 +362,8 @@ error:
 
   if (uv__is_active(handle))
     uv__handle_stop(handle);
+
+  uv__free(short_path);
 
   return uv_translate_sys_error(last_error);
 }

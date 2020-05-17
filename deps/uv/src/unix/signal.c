@@ -77,7 +77,7 @@ static void uv__signal_global_init(void) {
 }
 
 
-UV_DESTRUCTOR(static void uv__signal_global_fini(void)) {
+void uv__signal_cleanup(void) {
   /* We can only use signal-safe functions here.
    * That includes read/write and close, fortunately.
    * We do all of this directly here instead of resetting
@@ -98,7 +98,7 @@ UV_DESTRUCTOR(static void uv__signal_global_fini(void)) {
 
 
 static void uv__signal_global_reinit(void) {
-  uv__signal_global_fini();
+  uv__signal_cleanup();
 
   if (uv__make_pipe(uv__signal_lock_pipefd, 0))
     abort();
