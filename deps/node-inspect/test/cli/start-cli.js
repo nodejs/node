@@ -8,8 +8,8 @@ tap.test('startCLI', (t) => t.end());
 
 const CLI =
   process.env.USE_EMBEDDED_NODE_INSPECT === '1' ?
-  'inspect' :
-  require.resolve('../../cli.js');
+    'inspect' :
+    require.resolve('../../cli.js');
 
 const BREAK_MESSAGE = new RegExp('(?:' + [
   'assert', 'break', 'break on start', 'debugCommand',
@@ -20,8 +20,8 @@ function isPreBreak(output) {
   return /Break on start/.test(output) && /1 \(function \(exports/.test(output);
 }
 
-function startCLI(args, flags = []) {
-  const child = spawn(process.execPath, [...flags, CLI, ...args]);
+function startCLI(args, flags = [], spawnOpts = {}) {
+  const child = spawn(process.execPath, [...flags, CLI, ...args], spawnOpts);
   let isFirstStdoutChunk = true;
 
   const outputBuffer = [];
