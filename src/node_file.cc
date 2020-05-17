@@ -51,6 +51,7 @@ namespace node {
 namespace fs {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -831,25 +832,27 @@ void Close(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// Used to speed up module loading.  Returns the contents of the file as
-// a string or undefined when the file cannot be opened or "main" is not found
-// in the file.
+// Used to speed up module loading. Returns object
+// {string: string | undefined, containsKeys: undefined | boolean}
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   uv_loop_t* loop = env->event_loop();
+  Local<Object> return_value = Object::New(isolate);
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(isolate, args[0]);
 
-  if (strlen(*path) != path.length())
+  if (strlen(*path) != path.length()) {
+    args.GetReturnValue().Set(return_value);
     return;  // Contains a nul byte.
-
+  }
   uv_fs_t open_req;
   const int fd = uv_fs_open(loop, &open_req, *path, O_RDONLY, 0, nullptr);
   uv_fs_req_cleanup(&open_req);
 
   if (fd < 0) {
+    args.GetReturnValue().Set(return_value);
     return;
   }
 
@@ -875,9 +878,10 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     numchars = uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
     uv_fs_req_cleanup(&read_req);
 
-    if (numchars < 0)
+    if (numchars < 0) {
+      args.GetReturnValue().Set(return_value);
       return;
-
+    }
     offset += numchars;
   } while (static_cast<size_t>(numchars) == kBlockSize);
 
@@ -912,18 +916,18 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
       if (0 == memcmp(s, "exports", 7)) break;
     }
   }
+  return_value->Set(
+    isolate->GetCurrentContext(),
+    FIXED_ONE_BYTE_STRING(isolate, "string"),
+    String::NewFromUtf8(isolate,
+                    &chars[start],
+                    v8::NewStringType::kNormal,
+                    size).ToLocalChecked()).Check();
 
-  Local<String> return_value;
-  if (p < pe) {
-    return_value =
-        String::NewFromUtf8(isolate,
-                            &chars[start],
-                            v8::NewStringType::kNormal,
-                            size).ToLocalChecked();
-  } else {
-    return_value = env->empty_object_string();
-  }
-
+  return_value->Set(
+    isolate->GetCurrentContext(),
+    FIXED_ONE_BYTE_STRING(isolate, "containsKeys"),
+    Boolean::New(isolate, p < pe ? true : false)).Check();
   args.GetReturnValue().Set(return_value);
 }
 

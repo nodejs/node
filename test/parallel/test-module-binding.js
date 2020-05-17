@@ -6,11 +6,29 @@ const { internalBinding } = require('internal/test/binding');
 const { internalModuleReadJSON } = internalBinding('fs');
 const { readFileSync } = require('fs');
 const { strictEqual } = require('assert');
-
-strictEqual(internalModuleReadJSON('nosuchfile'), undefined);
-strictEqual(internalModuleReadJSON(fixtures.path('empty.txt')), '{}');
-strictEqual(internalModuleReadJSON(fixtures.path('empty-with-bom.txt')), '{}');
+{
+  const result = internalModuleReadJSON('nosuchfile');
+  strictEqual(result.string, undefined);
+  strictEqual(result.containsKeys, undefined);
+}
+{
+  const result = internalModuleReadJSON(fixtures.path('empty.txt'));
+  strictEqual(result.string, '');
+  strictEqual(result.containsKeys, false);
+}
+{
+  const result = internalModuleReadJSON(fixtures.path('empty.txt'));
+  strictEqual(result.string, '');
+  strictEqual(result.containsKeys, false);
+}
+{
+  const result = internalModuleReadJSON(fixtures.path('empty-with-bom.txt'));
+  strictEqual(result.string, '');
+  strictEqual(result.containsKeys, false);
+}
 {
   const filename = fixtures.path('require-bin/package.json');
-  strictEqual(internalModuleReadJSON(filename), readFileSync(filename, 'utf8'));
+  const result = internalModuleReadJSON(filename);
+  strictEqual(result.string, readFileSync(filename, 'utf8'));
+  strictEqual(result.containsKeys, true);
 }
