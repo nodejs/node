@@ -1165,12 +1165,12 @@ class Environment : public MemoryRetainer {
   // Unlike the JS setImmediate() function, nested SetImmediate() calls will
   // be run without returning control to the event loop, similar to nextTick().
   template <typename Fn>
-  inline void SetImmediate(Fn&& cb);
-  template <typename Fn>
-  inline void SetUnrefImmediate(Fn&& cb);
+  inline void SetImmediate(
+      Fn&& cb, CallbackFlags::Flags flags = CallbackFlags::kRefed);
   template <typename Fn>
   // This behaves like SetImmediate() but can be called from any thread.
-  inline void SetImmediateThreadsafe(Fn&& cb, bool refed = true);
+  inline void SetImmediateThreadsafe(
+      Fn&& cb, CallbackFlags::Flags flags = CallbackFlags::kRefed);
   // This behaves like V8's Isolate::RequestInterrupt(), but also accounts for
   // the event loop (i.e. combines the V8 function with SetImmediate()).
   // The passed callback may not throw exceptions.
@@ -1253,9 +1253,6 @@ class Environment : public MemoryRetainer {
   void RunAndClearInterrupts();
 
  private:
-  template <typename Fn>
-  inline void CreateImmediate(Fn&& cb, bool ref);
-
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
 
