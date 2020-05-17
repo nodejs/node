@@ -364,7 +364,7 @@ def WriteOnDiff(filename):
                 dir=base_temp_dir,
             )
             try:
-                self.tmp_file = os.fdopen(tmp_fd, "w")
+                self.tmp_file = os.fdopen(tmp_fd, "wb")
             except Exception:
                 # Don't leave turds behind.
                 os.unlink(self.tmp_path)
