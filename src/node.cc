@@ -243,7 +243,7 @@ static void AtomicsWaitCallback(Isolate::AtomicsWaitEvent event,
                                 void* data) {
   Environment* env = static_cast<Environment*>(data);
 
-  const char* message;
+  const char* message = "(unknown event)";
   switch (event) {
 #define V(key, msg)                         \
     case Isolate::AtomicsWaitEvent::key:    \
