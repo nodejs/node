@@ -33,9 +33,9 @@ repl._builtinLibs;
 
 common.expectWarning({
   DeprecationWarning: {
-    DEP0XX1:
+    DEP0142:
       'repl._builtinLibs is deprecated. Check module.builtinModules instead',
-    DEP0XXX: 'repl.inputStream and repl.outputStream is deprecated. ' +
+    DEP0141: 'repl.inputStream and repl.outputStream is deprecated. ' +
              'Use repl.input and repl.output instead',
     DEP0124: 'REPLServer.rli is deprecated',
   }

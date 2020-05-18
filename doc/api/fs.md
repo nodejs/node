@@ -581,7 +581,7 @@ Stop watching for changes on the given `fs.FSWatcher`. Once stopped, the
 
 ### `watcher.ref()`
 <!-- YAML
-added: REPLACEME
+added: v14.3.0
 -->
 
 * Returns: {fs.FSWatcher}
@@ -596,7 +596,7 @@ called previously.
 
 ### `watcher.unref()`
 <!-- YAML
-added: REPLACEME
+added: v14.3.0
 -->
 
 * Returns: {fs.FSWatcher}
@@ -609,7 +609,7 @@ no effect.
 
 ## Class: `fs.StatWatcher`
 <!-- YAML
-added: REPLACEME
+added: v14.3.0
 -->
 
 * Extends {EventEmitter}
@@ -619,7 +619,7 @@ object.
 
 ### `watcher.ref()`
 <!-- YAML
-added: REPLACEME
+added: v14.3.0
 -->
 
 * Returns: {fs.StatWatcher}
@@ -634,7 +634,7 @@ called previously.
 
 ### `watcher.unref()`
 <!-- YAML
-added: REPLACEME
+added: v14.3.0
 -->
 
 * Returns: {fs.StatWatcher}
