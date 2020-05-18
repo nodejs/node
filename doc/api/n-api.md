@@ -5124,6 +5124,10 @@ preventing data from being successfully added to the queue. If set to
 `napi_call_threadsafe_function()` never blocks if the thread-safe function was
 created with a maximum queue size of 0.
 
+`napi_call_threadsafe_function()` should not be called with `napi_tsfn_blocking`
+from a JavaScript thread, because, if the queue is full, it may cause the
+JavaScript thread to deadlock.
+
 The actual call into JavaScript is controlled by the callback given via the
 `call_js_cb` parameter. `call_js_cb` is invoked on the main thread once for each
 value that was placed into the queue by a successful call to
@@ -5288,6 +5292,10 @@ napi_call_threadsafe_function(napi_threadsafe_function func,
   indicate that the call should block if the queue is full or
   `napi_tsfn_nonblocking` to indicate that the call should return immediately
   with a status of `napi_queue_full` whenever the queue is full.
+
+This API should not be called with `napi_tsfn_blocking` from a JavaScript
+thread, because, if the queue is full, it may cause the JavaScript thread to
+deadlock.
 
 This API will return `napi_closing` if `napi_release_threadsafe_function()` was
 called with `abort` set to `napi_tsfn_abort` from any thread. The value is only
