@@ -112,6 +112,13 @@ class JSQuicSocketListener : public QuicSocketListener {
   void OnDestroy() override;
 };
 
+// This is just a formality as the QUIC spec normatively
+// defines that the ipv4 max pktlen is always going to be
+// larger than the ipv6 max pktlen, but in the off chance
+// ever changes (which is unlikely) we check here.
+constexpr size_t MAX_PKTLEN =
+    std::max<size_t>(NGTCP2_MAX_PKTLEN_IPV4, NGTCP2_MAX_PKTLEN_IPV6);
+
 // A serialized QuicPacket to be sent by a QuicSocket instance.
 class QuicPacket : public MemoryRetainer {
  public:
@@ -141,7 +148,7 @@ class QuicPacket : public MemoryRetainer {
   // QuicPacket instance will be freed.
   static inline std::unique_ptr<QuicPacket> Create(
       const char* diagnostic_label = nullptr,
-      size_t len = NGTCP2_MAX_PKTLEN_IPV4);
+      size_t len = MAX_PKTLEN);
 
   // Copy the data of the QuicPacket to a new one. Currently,
   // this is only used when retransmitting close connection
@@ -151,11 +158,11 @@ class QuicPacket : public MemoryRetainer {
 
   QuicPacket(const char* diagnostic_label, size_t len);
   QuicPacket(const QuicPacket& other);
-  uint8_t* data() { return data_.data(); }
-  size_t length() const { return data_.size(); }
+  uint8_t* data() { return data_; }
+  size_t length() const { return len_; }
   uv_buf_t buf() const {
     return uv_buf_init(
-      const_cast<char*>(reinterpret_cast<const char*>(data_.data())),
+      const_cast<char*>(reinterpret_cast<const char*>(&data_)),
       length());
   }
   inline void set_length(size_t len);
@@ -166,7 +173,8 @@ class QuicPacket : public MemoryRetainer {
   SET_SELF_SIZE(QuicPacket);
 
  private:
-  std::vector<uint8_t> data_;
+  uint8_t data_[MAX_PKTLEN];
+  size_t len_ = MAX_PKTLEN;
   const char* diagnostic_label_ = nullptr;
 };
 
