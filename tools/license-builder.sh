@@ -102,6 +102,9 @@ addlicense "brotli" "deps/brotli" "$(cat ${rootdir}/deps/brotli/LICENSE)"
 
 addlicense "HdrHistogram" "deps/histogram" "$(cat ${rootdir}/deps/histogram/LICENSE.txt)"
 
+addlicense "highlight.js" "doc/api_assets/highlight.pack.js" \
+           "$(curl -sL https://raw.githubusercontent.com/highlightjs/highlight.js/63f367c46f2eeb6f9b7a3545e325eeeb917f9942/LICENSE)"
+
 addlicense "node-heapdump" "src/heap_utils.cc" \
            "$(curl -sL https://raw.githubusercontent.com/bnoordhuis/node-heapdump/0ca52441e46241ffbea56a389e2856ec01c48c97/LICENSE)"
 
