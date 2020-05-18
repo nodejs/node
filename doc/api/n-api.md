@@ -462,6 +462,7 @@ typedef enum {
   napi_date_expected,
   napi_arraybuffer_expected,
   napi_detachable_arraybuffer_expected,
+  napi_would_deadlock,  /* unused */
 } napi_status;
 ```
 
