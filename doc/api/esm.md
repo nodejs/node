@@ -1209,8 +1209,8 @@ of the following:
 | `'module'` | Load a standard JavaScript module (ES module) | array buffer, string, or typed array |
 | `'wasm'` | Load a WebAssembly module | array buffer, or typed array |
 
-For text based formats like `'json'` or `'module'` if the source value is not a
-string it will be converted to a string using [`util.TextDecoder`][].
+Note: If the source value of a text-based format (i.e., `'json'`, `'module'`) is not a
+string, it will be converted to a string using [`util.TextDecoder`][].
 
 Note: `Buffer` is a form of typed array.
 
