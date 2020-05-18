@@ -807,7 +807,7 @@ changes:
     - v13.14.0
     pr-url: https://github.com/nodejs/node/pull/32985
     description: The `importModuleDynamically` option is now supported.
-  - version: REPLACEME
+  - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33364
     description: Removal of `importModuleDynamically` due to compatibility issues
 -->

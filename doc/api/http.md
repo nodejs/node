@@ -2502,7 +2502,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 
 ## `http.validateHeaderName(name)`
 <!-- YAML
-added: REPLACEME
+added: v14.3.0
 -->
 
 * `name` {string}
@@ -2532,7 +2532,7 @@ try {
 
 ## `http.validateHeaderValue(name, value)`
 <!-- YAML
-added: REPLACEME
+added: v14.3.0
 -->
 
 * `name` {string}
