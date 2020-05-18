@@ -109,6 +109,37 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     code: 'ERR_INVALID_OPT_VALUE'
   });
 
+  // Constructor throws if postprocessor is not a function or undefined
+  assert.throws(() => {
+    readline.createInterface({
+      input,
+      postprocessor: 'string is not valid'
+    });
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_OPT_VALUE'
+  });
+
+  assert.throws(() => {
+    readline.createInterface({
+      input,
+      postprocessor: ''
+    });
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_OPT_VALUE'
+  });
+
+  assert.throws(() => {
+    readline.createInterface({
+      input,
+      postprocessor: false
+    });
+  }, {
+    name: 'TypeError',
+    code: 'ERR_INVALID_OPT_VALUE'
+  });
+
   // Constructor throws if historySize is not a positive number
   assert.throws(() => {
     readline.createInterface({
@@ -1034,4 +1065,47 @@ for (let i = 0; i < 12; i++) {
   });
   rl.line = `a${' '.repeat(1e6)}a`;
   rl.cursor = rl.line.length;
+}
+
+{
+  const input = new Readable({
+    read() {
+      this.push('test');
+      this.push(null);
+    }
+  });
+  const outputs = [
+    '\x1B[1G',
+    '\x1B[0J',
+    '> ^t$',
+    '\x1B[4G',
+    '\x1B[1G',
+    '\x1B[0J',
+    '> ^te$',
+    '\x1B[5G',
+    '\x1B[1G',
+    '\x1B[0J',
+    '> ^tes$',
+    '\x1B[6G',
+    '\x1B[1G',
+    '\x1B[0J',
+    '> ^test$',
+    '\x1B[7G',
+  ];
+  let i = 0;
+  const output = new Writable({
+    write: common.mustCall((data, encoding, cb) => {
+      assert.strictEqual(data.toString(), outputs[i], `${i}`);
+      i += 1;
+      cb();
+    }, outputs.length),
+  });
+  readline.createInterface({
+    input,
+    output,
+    terminal: true,
+    postprocessor(line) {
+      return `^${line}$`;
+    },
+  });
 }

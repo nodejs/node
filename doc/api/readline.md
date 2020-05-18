@@ -485,6 +485,8 @@ changes:
   * `output` {stream.Writable} The [Writable][] stream to write readline data
     to.
   * `completer` {Function} An optional function used for Tab autocompletion.
+  * `postprocessor` {Function} An optional function used to process the current
+    line before writing it to `output`.
   * `terminal` {boolean} `true` if the `input` and `output` streams should be
     treated like a TTY, and have ANSI/VT100 escape codes written to it.
     **Default:** checking `isTTY` on the `output` stream upon instantiation.
@@ -561,6 +563,19 @@ arguments:
 ```js
 function completer(linePartial, callback) {
   callback(null, [['123'], linePartial]);
+}
+```
+
+### Use of the `postprocessor` Function
+
+The `postprocessor` function takes the current line entered by the user
+as an argument, and returns a potentially altered line to be written
+to the `output`.
+
+```js
+function postprocessor(line) {
+  // Make it appear as though all input is uppercase.
+  return line.toUpperCase();
 }
 ```
 
