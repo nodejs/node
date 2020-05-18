@@ -210,13 +210,8 @@ new Promise(function testWithoutJSMarshaller(resolve) {
 }))
 .then((result) => assert.strictEqual(result.indexOf(0), -1))
 
-// Start a child process to test rapid teardown.
+// Start a child process to test rapid teardown
 .then(() => testUnref(binding.MAX_QUEUE_SIZE))
 
-// Start a child process with an infinite queue to test rapid teardown.
-.then(() => testUnref(0))
-
-// Test deadlock prevention.
-.then(() => assert.deepStrictEqual(binding.TestDeadlock(), {
-  deadlockTest: 'Main thread would deadlock'
-}));
+// Start a child process with an infinite queue to test rapid teardown
+.then(() => testUnref(0));
