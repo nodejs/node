@@ -100,7 +100,7 @@ function toHTML({ input,
     return `document.write('${htmlPayload}')`;
   }
 
-  const versionsJS = `.${filename}.versions.js`;
+  const versionsJS = `../.${filename}.versions.js`;
   return HTML.replace('__ALTDOCS__', `<script src="${versionsJS}"></script>`);
 }
 

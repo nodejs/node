@@ -101,7 +101,8 @@ async function main() {
   const basename = path.basename(filename, '.md');
   const htmlTarget = path.join(outputDir, `${basename}.html`);
   const jsonTarget = path.join(outputDir, `${basename}.json`);
-  const versionPickerTarget = path.join(outputDir, `.${basename}.versions.js`);
+  const versionPickerTarget =
+    path.join(outputDir, '..', `.${basename}.versions.js`);
 
   return Promise.allSettled([
     fs.writeFile(htmlTarget, myHtml),
