@@ -1201,7 +1201,7 @@ acceptable forms of source values are for a module when parsing. This can be one
 of the following:
 
 | `format` | Description | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
-| --- | --- |
+| --- | --- | --- |
 | `'builtin'` | Load a Node.js builtin module | Not applicable |
 | `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
 | `'dynamic'` | Use a [dynamic instantiate hook][] | Not applicable |
