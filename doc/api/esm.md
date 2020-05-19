@@ -1205,14 +1205,18 @@ of the following:
 | `'builtin'` | Load a Node.js builtin module | Not applicable |
 | `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
 | `'dynamic'` | Use a [dynamic instantiate hook][] | Not applicable |
-| `'json'` | Load a JSON file | array buffer, string, or typed array |
-| `'module'` | Load a standard JavaScript module (ES module) | array buffer, string, or typed array |
-| `'wasm'` | Load a WebAssembly module | array buffer, or typed array |
+| `'json'` | Load a JSON file | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'module'` | Load an ES module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'wasm'` | Load a WebAssembly module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+
+Note: These types all correspond to classes defined in ECMAScript.
+
+* The specific [ArrayBuffer][] object is a [SharedArrayBuffer][].
+* The specific [string][] object is not the class constructor, but an instance.
+* The specific [TypedArray][] object is a [Uint8Array][].
 
 Note: If the source value of a text-based format (i.e., `'json'`, `'module'`) is
 not a string, it will be converted to a string using [`util.TextDecoder`][].
-
-Note: `Buffer` is a form of typed array.
 
 ```js
 /**
