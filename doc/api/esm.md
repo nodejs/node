@@ -1848,6 +1848,11 @@ success!
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_code_transformsource_code_hook
+[ArrayBuffer]: http://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer-constructor
+[SharedArrayBuffer]: https://tc39.es/ecma262/#sec-sharedarraybuffer-constructor
+[string]: http://www.ecma-international.org/ecma-262/6.0/#sec-string-constructor
+[TypedArray]: http://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
+[Uint8Array]: http://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
 [dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
