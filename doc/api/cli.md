@@ -226,6 +226,16 @@ the ability to import a directory that has an index file.
 
 Please see [customizing ESM specifier resolution][] for example usage.
 
+### `--experimental-top-level-await`
+<!-- YAML
+added: v14.3.0
+-->
+
+Enable experimental top-level `await` keyword support, available only in ES
+module scripts.
+
+(See also `--experimental-repl-await`.)
+
 ### `--experimental-vm-modules`
 <!-- YAML
 added: v9.6.0
