@@ -20,6 +20,7 @@ inout._write = function(s, _, cb) {
 
 const repl = new REPLServer({ input: inout, output: inout, useColors: true });
 inout.isTTY = true;
+inout.hasColors = () => true;
 const repl2 = new REPLServer({ input: inout, output: inout });
 
 process.on('exit', function() {
