@@ -42,6 +42,7 @@ common.expectWarning({
 
 // Create a dummy stream that does nothing
 const stream = new ArrayStream();
+stream.hasColors = () => true;
 
 // 1, mostly defaults
 const r1 = repl.start({

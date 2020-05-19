@@ -191,6 +191,8 @@ fs.createReadStream(historyFixturePath)
 
 const runTestWrap = common.mustCall(runTest, numtests);
 
+const originalEnv = process.env;
+
 function runTest(assertCleaned) {
   const opts = tests.shift();
   if (!opts) return; // All done
@@ -208,7 +210,6 @@ function runTest(assertCleaned) {
     }
   }
 
-  const env = opts.env;
   const test = opts.test;
   const expected = opts.expected;
   const clean = opts.clean;
@@ -216,7 +217,9 @@ function runTest(assertCleaned) {
 
   if (before) before();
 
-  REPL.createInternalRepl(env, {
+  process.env = { ...originalEnv, ...opts.env };
+
+  REPL.createInternalRepl({
     input: new ActionStream(),
     output: new stream.Writable({
       write(chunk, _, next) {
@@ -239,12 +242,7 @@ function runTest(assertCleaned) {
     prompt,
     useColors: false,
     terminal: true
-  }, function(err, repl) {
-    if (err) {
-      console.error(`Failed test # ${numtests - tests.length}`);
-      throw err;
-    }
-
+  }, function(repl) {
     repl.once('close', () => {
       if (repl._flushing) {
         repl.once('flushHistory', onClose);
