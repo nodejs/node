@@ -592,6 +592,50 @@ td > *:last-child {
   margin: -2px 3px 0 0;
 }
 
+/* API reference sidebar */
+@media only screen and (min-width: 1025px) {
+  .apidoc #column2 > .line {
+    pointer-events: none;
+  }
+  .apidoc #column2 > :first-child,
+  .apidoc #column2 > ul,
+  .apidoc #column2 > ul > li {
+    margin: 0;
+    padding: 0;
+  }
+  .apidoc #column2 > :first-child > a[href] {
+    border-radius: 0;
+    padding: 1.25rem 1.4375rem .625rem;
+    display: block;
+  }
+  .apidoc #column2 > ul > li > a[href] {
+    padding: .5rem 1.4375rem;
+    padding-right: 0;
+    display: block;
+  }
+  .apidoc #column2 > ul > :first-child > a[href] {
+    padding-top: .625rem;
+  }
+  .apidoc #column2 > ul > :last-child > a[href] {
+    padding-bottom: .625rem;
+  }
+  .apidoc #column2 > ul:first-of-type > :last-child  > a[href] {
+    padding-bottom: 1rem;
+  }
+  .apidoc #column2 > ul:nth-of-type(2) > :first-child > a[href] {
+    padding-top: .875rem;
+  }
+  .apidoc #column2 > ul:nth-of-type(2) > :last-child > a[href] {
+    padding-bottom: .9375rem;
+  }
+  .apidoc #column2 > ul:last-of-type > :first-child > a[href] {
+    padding-top: 1rem;
+  }
+  .apidoc #column2 > ul:last-of-type > :last-child > a[href] {
+    padding-bottom: 1.75rem;
+  }
+}
+
 @media only screen and (max-width: 1024px) {
   #content {
     overflow: visible;
