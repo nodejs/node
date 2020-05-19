@@ -51,7 +51,8 @@ including the autocompleted part. Pressing `<escape>` cancels that behavior.
 
 #### Support for Top-Level Await
 
-It's now possible to use the await keyword outside of async functions.
+It's now possible to use the await keyword outside of async functions, with the
+`--experimental-top-level-await` flag.
 
 #### Other Notable Changes
 
