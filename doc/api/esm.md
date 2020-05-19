@@ -894,8 +894,7 @@ const __dirname = dirname(__filename);
 ### No `require.resolve`
 
 Former use cases relying on `require.resolve` to determine the resolved path
-of a module can be supported via `import.meta.resolve`, which is experimental
-and supported via the `--experimental-import-meta-resolve` flag:
+of a module can be supported via `import.meta.resolve`:
 
 ```js
 (async () => {

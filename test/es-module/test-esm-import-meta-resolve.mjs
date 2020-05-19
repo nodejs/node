@@ -1,4 +1,3 @@
-// Flags: --experimental-import-meta-resolve
 import '../common/index.mjs';
 import assert from 'assert';
 

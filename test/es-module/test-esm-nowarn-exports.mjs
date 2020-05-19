@@ -4,7 +4,6 @@ import { strictEqual, ok } from 'assert';
 import { spawn } from 'child_process';
 
 const child = spawn(process.execPath, [
-  '--experimental-import-meta-resolve',
   path('/es-modules/import-resolve-exports.mjs')
 ]);
 
