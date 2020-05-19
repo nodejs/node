@@ -92,14 +92,20 @@ async function main() {
     .use(htmlStringify)
     .process(input);
 
-  const myHtml = await html.toHTML({ input, content, filename, nodeVersion,
-                                     versions });
+  const myHtml = await html.toHTML(
+    { input, content, filename, nodeVersion, versions }
+  );
+  const myVersionPicker = await html.versionPicker(
+    { input, content, filename, nodeVersion, versions }
+  );
   const basename = path.basename(filename, '.md');
   const htmlTarget = path.join(outputDir, `${basename}.html`);
   const jsonTarget = path.join(outputDir, `${basename}.json`);
+  const versionPickerTarget = path.join(outputDir, `.${basename}.versions.js`);
 
   return Promise.allSettled([
     fs.writeFile(htmlTarget, myHtml),
+    fs.writeFile(versionPickerTarget, myVersionPicker),
     fs.writeFile(jsonTarget, JSON.stringify(content.json, null, 2)),
   ]);
 }

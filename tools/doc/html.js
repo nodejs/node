@@ -34,7 +34,8 @@ const path = require('path');
 const typeParser = require('./type-parser.js');
 
 module.exports = {
-  toHTML, firstHeader, preprocessText, preprocessElements, buildToc
+  toHTML, firstHeader, preprocessText, preprocessElements, buildToc,
+  versionPicker
 };
 
 const docPath = path.resolve(__dirname, '..', '..', 'doc');
@@ -62,12 +63,17 @@ const gtocHTML = unified()
 const templatePath = path.join(docPath, 'template.html');
 const template = fs.readFileSync(templatePath, 'utf8');
 
-function toHTML({ input, content, filename, nodeVersion, versions }) {
+function toHTML({ input,
+                  content,
+                  filename,
+                  nodeVersion,
+                  versions,
+                  versionsPartial }) {
   filename = path.basename(filename, '.md');
 
   const id = filename.replace(/\W+/g, '-');
 
-  let HTML = template.replace('__ID__', id)
+  const HTML = template.replace('__ID__', id)
                      .replace(/__FILENAME__/g, filename)
                      .replace('__SECTION__', content.section)
                      .replace(/__VERSION__/g, nodeVersion)
@@ -79,14 +85,29 @@ function toHTML({ input, content, filename, nodeVersion, versions }) {
 
   const docCreated = input.match(
     /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.[0-9]+\s*-->/);
-  if (docCreated) {
-    HTML = HTML.replace('__ALTDOCS__', altDocs(filename, docCreated, versions));
-  } else {
-    console.error(`Failed to add alternative version links to ${filename}`);
-    HTML = HTML.replace('__ALTDOCS__', '');
+  if (!docCreated) {
+    throw new Error(`required introduced_in comment not found in ${filename}`);
   }
 
-  return HTML;
+  if (versionsPartial) {
+    const htmlPayload =
+      altDocs(filename, docCreated, versions).replace(/\n/g, ' ');
+    if (htmlPayload.includes("'")) {
+      // If this ever throws during a doc build, guess we'll need to add
+      // escaping.
+      throw new Error('not prepared for single quoted content');
+    }
+    return `document.write('${htmlPayload}')`;
+  }
+
+  const versionsJS = `.${filename}.versions.js`;
+  return HTML.replace('__ALTDOCS__', `<script src="${versionsJS}"></script>`);
+}
+
+function versionPicker({ input, content, filename, nodeVersion, versions }) {
+  return toHTML(
+    { input, content, filename, nodeVersion, versions, versionsPartial: true }
+  );
 }
 
 // Set the section name based on the first header.  Default to 'Index'.
