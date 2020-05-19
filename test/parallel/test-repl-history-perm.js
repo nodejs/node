@@ -35,9 +35,7 @@ const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const replHistoryPath = path.join(tmpdir.path, '.node_repl_history');
 
-const checkResults = common.mustCall(function(err, r) {
-  assert.ifError(err);
-
+const checkResults = common.mustCall((repl) => {
   const stat = fs.statSync(replHistoryPath);
   const fileMode = stat.mode & 0o777;
   assert.strictEqual(
@@ -45,12 +43,13 @@ const checkResults = common.mustCall(function(err, r) {
     `REPL history file should be mode 0600 but was 0${fileMode.toString(8)}`);
 
   // Close the REPL
-  r.input.emit('keypress', '', { ctrl: true, name: 'd' });
-  r.input.end();
+  repl.input.emit('keypress', '', { ctrl: true, name: 'd' });
+  repl.input.end();
 });
 
+process.env.NODE_REPL_HISTORY = replHistoryPath;
+
 repl.createInternalRepl(
-  { NODE_REPL_HISTORY: replHistoryPath },
   {
     terminal: true,
     input: stream,

@@ -555,6 +555,10 @@ A list of the names of all Node.js modules, e.g., `'http'`.
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33461
+    description: The `NODE_REPL_MODE` environment variable now accounts for
+                 all repl instances.
   - version:
      - v13.4.0
      - v12.17.0

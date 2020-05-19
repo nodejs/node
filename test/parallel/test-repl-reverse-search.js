@@ -282,6 +282,9 @@ function cleanupTmpFile() {
   return true;
 }
 
+
+const originalEnv = { ...process.env };
+
 function runTest() {
   const opts = tests.shift();
   if (!opts) return; // All done
@@ -297,7 +300,9 @@ function runTest() {
   const lastChunks = [];
   let i = 0;
 
-  REPL.createInternalRepl(opts.env, {
+  process.env = { ...originalEnv, ...opts.env };
+
+  REPL.createInternalRepl({
     input: new ActionStream(),
     output: new stream.Writable({
       write(chunk, _, next) {
@@ -330,12 +335,7 @@ function runTest() {
     prompt,
     useColors: opts.useColors || false,
     terminal: true
-  }, function(err, repl) {
-    if (err) {
-      console.error(`Failed test # ${numtests - tests.length}`);
-      throw err;
-    }
-
+  }, function(repl) {
     repl.once('close', () => {
       if (opts.clean)
         cleanupTmpFile();
