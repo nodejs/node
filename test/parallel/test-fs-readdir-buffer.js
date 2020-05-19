@@ -2,8 +2,8 @@
 const fs = require('fs');
 
 const common = require('../common');
-if (common.isWindows) {
-    common.skip('windows doesnt support /dev');
+if (!common.isOSX) {
+    common.skip('this tests works only on MacOS');
 }
 
 const assert = require('assert');
