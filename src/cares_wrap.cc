@@ -152,7 +152,7 @@ using node_ares_task_list =
 
 class ChannelWrap : public AsyncWrap {
  public:
-  ChannelWrap(Environment* env, Local<Object> object);
+  ChannelWrap(Environment* env, Local<Object> object, int timeout);
   ~ChannelWrap() override;
 
   static void New(const FunctionCallbackInfo<Value>& args);
@@ -190,18 +190,21 @@ class ChannelWrap : public AsyncWrap {
   bool query_last_ok_;
   bool is_servers_default_;
   bool library_inited_;
+  int timeout_;
   int active_query_count_;
   node_ares_task_list task_list_;
 };
 
 ChannelWrap::ChannelWrap(Environment* env,
-                         Local<Object> object)
+                         Local<Object> object,
+                         int timeout)
   : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
     timer_handle_(nullptr),
     channel_(nullptr),
     query_last_ok_(true),
     is_servers_default_(true),
     library_inited_(false),
+    timeout_(timeout),
     active_query_count_(0) {
   MakeWeak();
 
@@ -210,10 +213,11 @@ ChannelWrap::ChannelWrap(Environment* env,
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 0);
-
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsInt32());
+  const int timeout = args[0].As<Int32>()->Value();
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This());
+  new ChannelWrap(env, args.This(), timeout);
 }
 
 class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
@@ -462,6 +466,7 @@ void ChannelWrap::Setup() {
   options.flags = ARES_FLAG_NOCHECKRESP;
   options.sock_state_cb = ares_sockstate_cb;
   options.sock_state_cb_data = this;
+  options.timeout = timeout_;
 
   int r;
   if (!library_inited_) {
@@ -474,9 +479,9 @@ void ChannelWrap::Setup() {
   }
 
   /* We do the call to ares_init_option for caller. */
-  r = ares_init_options(&channel_,
-                        &options,
-                        ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
+  const int optmask =
+      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB;
+  r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
     Mutex::ScopedLock lock(ares_library_mutex);
@@ -495,7 +500,10 @@ void ChannelWrap::StartTimer() {
   } else if (uv_is_active(reinterpret_cast<uv_handle_t*>(timer_handle_))) {
     return;
   }
-  uv_timer_start(timer_handle_, AresTimeout, 1000, 1000);
+  int timeout = timeout_;
+  if (timeout == 0) timeout = 1;
+  if (timeout < 0 || timeout > 1000) timeout = 1000;
+  uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
 }
 
 void ChannelWrap::CloseTimer() {
