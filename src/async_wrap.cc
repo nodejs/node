@@ -534,12 +534,12 @@ void AsyncWrap::GetProviderType(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-void AsyncWrap::EmitDestroy() {
+void AsyncWrap::EmitDestroy(bool from_gc) {
   AsyncWrap::EmitDestroy(env(), async_id_);
   // Ensure no double destroy is emitted via AsyncReset().
   async_id_ = kInvalidAsyncId;
 
-  if (!persistent().IsEmpty()) {
+  if (!persistent().IsEmpty() && !from_gc) {
     HandleScope handle_scope(env()->isolate());
     USE(object()->Set(env()->context(), env()->resource_symbol(), object()));
   }
@@ -727,7 +727,7 @@ bool AsyncWrap::IsDoneInitializing() const {
 
 AsyncWrap::~AsyncWrap() {
   EmitTraceEventDestroy();
-  EmitDestroy();
+  EmitDestroy(true /* from gc */);
 }
 
 void AsyncWrap::EmitTraceEventDestroy() {
@@ -853,7 +853,7 @@ MaybeLocal<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   ProviderType provider = provider_type();
   async_context context { get_async_id(), get_trigger_async_id() };
   MaybeLocal<Value> ret = InternalMakeCallback(
-      env(), GetResource(), object(), cb, argc, argv, context);
+      env(), object(), object(), cb, argc, argv, context);
 
   // This is a static call with cached values because the `this` object may
   // no longer be alive at this point.

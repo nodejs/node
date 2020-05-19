@@ -152,7 +152,7 @@ class AsyncWrap : public BaseObject {
   static void EmitAfter(Environment* env, double async_id);
   static void EmitPromiseResolve(Environment* env, double async_id);
 
-  void EmitDestroy();
+  void EmitDestroy(bool from_gc = false);
 
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
