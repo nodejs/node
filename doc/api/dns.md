@@ -97,7 +97,7 @@ The following methods from the `dns` module are available:
 added: v8.3.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33472
     description: The constructor now accepts an `options` object.
                  The single supported option is `timeout`.
 -->
