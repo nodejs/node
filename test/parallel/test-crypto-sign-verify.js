@@ -394,7 +394,7 @@ assert.throws(
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "key" argument must be of type string or an instance of ' +
+      message: 'The "key.key property" argument must be of type string or an instance of ' +
                'Buffer, TypedArray, DataView, or KeyObject.' +
                common.invalidArgTypeHelper(input)
     };
