@@ -6,7 +6,7 @@ performance improvements not currently available in standard zlib.
 ## Updating zlib
 
 Update zlib:
-```shell
+```bash
 git clone https://chromium.googlesource.com/chromium/src/third_party/zlib
 cp deps/zlib/zlib.gyp deps/zlib/win32/zlib.def deps
 rm -rf deps/zlib zlib/.git
