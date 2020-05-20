@@ -33,7 +33,7 @@ Node.js requires some per-process state management in order to run:
 The following example shows how these can be set up. Some class names are from
 the `node` and `v8` C++ namespaces, respectively.
 
-```c++
+```cpp
 int main(int argc, char** argv) {
   std::vector<std::string> args(argv, argv + argc);
   std::vector<std::string> exec_args;
@@ -93,7 +93,7 @@ The `node::NewIsolate()` helper function creates a `v8::Isolate`,
 sets it up with some Node.js-specific hooks (e.g. the Node.js error handler),
 and registers it with the platform automatically.
 
-```c++
+```cpp
 int RunNodeInstance(MultiIsolatePlatform* platform,
                     const std::vector<std::string>& args,
                     const std::vector<std::string>& exec_args) {
