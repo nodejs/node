@@ -832,19 +832,17 @@ void Close(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// Used to speed up module loading. Returns object
-// {string: string | undefined, containsKeys: undefined | boolean}
+// Used to speed up module loading. Returns an array [string, boolean]
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
   uv_loop_t* loop = env->event_loop();
-  Local<Object> return_value = Object::New(isolate);
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(isolate, args[0]);
 
   if (strlen(*path) != path.length()) {
-    args.GetReturnValue().Set(return_value);
+    args.GetReturnValue().Set(Array::New(isolate));
     return;  // Contains a nul byte.
   }
   uv_fs_t open_req;
@@ -852,7 +850,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   uv_fs_req_cleanup(&open_req);
 
   if (fd < 0) {
-    args.GetReturnValue().Set(return_value);
+    args.GetReturnValue().Set(Array::New(isolate));
     return;
   }
 
@@ -879,7 +877,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     uv_fs_req_cleanup(&read_req);
 
     if (numchars < 0) {
-      args.GetReturnValue().Set(return_value);
+      args.GetReturnValue().Set(Array::New(isolate));
       return;
     }
     offset += numchars;
@@ -916,19 +914,17 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
       if (0 == memcmp(s, "exports", 7)) break;
     }
   }
-  return_value->Set(
-    isolate->GetCurrentContext(),
-    FIXED_ONE_BYTE_STRING(isolate, "string"),
-    String::NewFromUtf8(isolate,
-                    &chars[start],
-                    v8::NewStringType::kNormal,
-                    size).ToLocalChecked()).Check();
 
-  return_value->Set(
-    isolate->GetCurrentContext(),
-    FIXED_ONE_BYTE_STRING(isolate, "containsKeys"),
-    Boolean::New(isolate, p < pe ? true : false)).Check();
-  args.GetReturnValue().Set(return_value);
+
+  Local<Value> return_value[] = {
+    String::NewFromUtf8(isolate,
+                        &chars[start],
+                        v8::NewStringType::kNormal,
+                        size).ToLocalChecked(),
+    Boolean::New(isolate, p < pe ? true : false)
+  };
+  args.GetReturnValue().Set(
+    Array::New(isolate, return_value, arraysize(return_value)));
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
