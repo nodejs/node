@@ -390,7 +390,7 @@ assert.throws(
     verify.update(new clazz());
   });
 
-  [{}, [], 1, Infinity].forEach((input) => {
+  [1, {}, [], Infinity].forEach((input) => {
     let prop = '"key" argument';
     let value = input;
     if (typeof input === 'object') {
