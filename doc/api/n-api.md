@@ -45,12 +45,12 @@ following `node-addon-api` code. The first section shows the
 `node-addon-api` code and the second section shows what actually gets
 used in the addon.
 
-```C++
+```cpp
 Object obj = Object::New(env);
 obj["foo"] = String::New(env, "bar");
 ```
 
-```C++
+```cpp
 napi_status status;
 napi_value object, string;
 status = napi_create_object(env, &object);
@@ -87,7 +87,7 @@ versions:
 
 * the Node.js C++ APIs available via any of
 
-    ```C++
+    ```cpp
     #include <node.h>
     #include <node_buffer.h>
     #include <node_version.h>
@@ -96,13 +96,13 @@ versions:
 
 * the libuv APIs which are also included with Node.js and available via
 
-    ```C++
+    ```cpp
     #include <uv.h>
     ```
 
 * the V8 API available via
 
-    ```C++
+    ```cpp
     #include <v8.h>
     ```
 

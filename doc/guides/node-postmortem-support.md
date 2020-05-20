@@ -35,7 +35,7 @@ For example, if we want to add a constant with the offset for
 `sizeof(req_)` depends on the type of T, which means the class definition should
 be like this:
 
-```c++
+```cpp
 template <typename T>
 class ReqWrap : public AsyncWrap {
  private:
@@ -49,7 +49,7 @@ class ReqWrap : public AsyncWrap {
 
 instead of:
 
-```c++
+```cpp
 template <typename T>
 class ReqWrap : public AsyncWrap {
  private:
