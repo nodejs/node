@@ -21,7 +21,7 @@ ICU consumes and includes:
 
 The current versions of these items can be viewed for node with `node -p process.versions`:
 
-```shell
+```console
 $ node -p process.versions
 
 {
@@ -101,7 +101,7 @@ should be sufficient).
 * Configure Node.js with the specific [ICU version](http://icu-project.org/download)
   you want to upgrade to, for example:
 
-```shell
+```bash
 ./configure \
     --with-intl=full-icu \
     --with-icu-source=http://download.icu-project.org/files/icu4c/58.1/icu4c-58_1-src.tgz
@@ -118,7 +118,7 @@ make
 
 * Verify the Node.js build works:
 
-```shell
+```bash
 make test-ci
 ```
 
@@ -137,13 +137,13 @@ new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date(9E8));
 > :warning: Do not modify any source code in `deps/icu-small` !
 > See section below about floating patches to ICU.
 
-```shell
+```bash
 python tools/icu/shrink-icu-src.py
 ```
 
 * Now, do a clean rebuild of Node.js to test:
 
-```shell
+```bash
 make -k distclean
 ./configure
 make
@@ -168,7 +168,7 @@ so make this a separate commit from the smaller changes.
 
 * Now, rebuild the Node.js license.
 
-```shell
+```bash
 # clean up - remove deps/icu
 make clean
 tools/license-builder.sh
@@ -178,7 +178,7 @@ tools/license-builder.sh
 It should match the ICU URL used in the first step.  When this is done, the
 following should build with small ICU.
 
-```shell
+```bash
 # clean up
 rm -rf out deps/icu deps/icu4c*
 ./configure --with-intl=small-icu --download=all
@@ -210,7 +210,7 @@ version.
 For example, to patch `source/tools/toolutil/pkg_genc.cpp` for
 ICU version 63:
 
-```shell
+```bash
 # go to your Node.js source directory
 cd <node>
 
@@ -233,7 +233,7 @@ make clean && ./configure && make
 
 You should see a message such as:
 
-```shell
+```console
 INFO: Using floating patch "tools/icu/patches/63/source/tools/toolutil/pkg_genc.cpp" from "tools/icu"
 ```
 
