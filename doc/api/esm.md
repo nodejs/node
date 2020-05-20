@@ -1160,25 +1160,26 @@ condition list **must** be passed through to the `defaultResolve` function.
 ```js
 /**
  * @param {string} specifier
- * @param {object} context
- * @param {string} context.parentURL
- * @param {string[]} context.conditions
- * @param {function} defaultResolve
- * @returns {object} response
- * @returns {string} response.url
+ * @param {{
+ *   parentURL: !(string | undefined),
+ *   conditions: !(Array<string>),
+ * }} context
+ * @param {Function} defaultResolve
+ * @returns {!(Promise<{ url: string }>)}
  */
 export async function resolve(specifier, context, defaultResolve) {
   const { parentURL = null } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all specifiers, do some custom logic for resolving.
-    // Always return an object of the form {url: <string>}
+    // Always return an object of the form {url: <string>}.
     return {
-      url: (parentURL) ?
-        new URL(specifier, parentURL).href : new URL(specifier).href
+      url: parentURL ?
+        new URL(specifier, parentURL).href :
+        new URL(specifier).href,
     };
   }
-  if (anotherCondition) {
-    // When calling the defaultResolve, the arguments can be modified. In this
+  if (Math.random() < 0.5) { // Another condition.
+    // When calling `defaultResolve`, the arguments can be modified. In this
     // case it's adding another value for matching conditional exports.
     return defaultResolve(specifier, {
       ...context,
@@ -1220,18 +1221,17 @@ not a string, it will be converted to a string using [`util.TextDecoder`][].
 ```js
 /**
  * @param {string} url
- * @param {object} context (currently empty)
- * @param {function} defaultGetFormat
- * @returns {object} response
- * @returns {string} response.format
+ * @param {Object} context (currently empty)
+ * @param {Function} defaultGetFormat
+ * @returns {Promise<{ format: string }>}
  */
 export async function getFormat(url, context, defaultGetFormat) {
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for determining format.
     // Always return an object of the form {format: <string>}, where the
     // format is one of the strings in the table above.
     return {
-      format: 'module'
+      format: 'module',
     };
   }
   // Defer to Node.js for all other URLs.
@@ -1251,19 +1251,17 @@ potentially avoid reading files from disk.
 ```js
 /**
  * @param {string} url
- * @param {object} context
- * @param {string} context.format
- * @param {function} defaultGetSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {{ format: string }} context
+ * @param {Function} defaultGetSource
+ * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
  */
 export async function getSource(url, context, defaultGetSource) {
   const { format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for retrieving the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other URLs.
@@ -1286,28 +1284,25 @@ unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
 
 ```js
 /**
- * @param {string|buffer} source
- * @param {object} context
- * @param {string} context.url
- * @param {string} context.format
- * @param {function} defaultTransformSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {!(SharedArrayBuffer | string | Uint8Array)} source
+ * @param {{
+ *   url: string,
+ *   format: string,
+ * }} context
+ * @param {Function} defaultTransformSource
+ * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
  */
-export async function transformSource(source,
-                                      context,
-                                      defaultTransformSource) {
+export async function transformSource(source, context, defaultTransformSource) {
   const { url, format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for modifying the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other sources.
-  return defaultTransformSource(
-    source, context, defaultTransformSource);
+  return defaultTransformSource(source, context, defaultTransformSource);
 }
 ```
 
