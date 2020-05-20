@@ -328,7 +328,7 @@ that Node.js may be floating (or else cause a merge conflict).
 
 The rough outline of the process is:
 
-```shell
+```bash
 # Assuming your fork of Node.js is checked out in $NODE_DIR
 # and you want to update the Node.js master branch.
 # Find the current (OLD) version in
@@ -367,7 +367,7 @@ above. A better strategy is to
 
 To audit for floating patches:
 
-```shell
+```bash
 git log --oneline deps/v8
 ```
 
@@ -375,7 +375,7 @@ To replace the copy of V8 in Node.js, use the [`git-node`][] tool. For example,
 if you want to replace the copy of V8 in Node.js with the branch-head for V8 5.1
 branch:
 
-```shell
+```bash
 cd $NODE_DIR
 git node v8 major --branch=5.1-lkgr
 ```

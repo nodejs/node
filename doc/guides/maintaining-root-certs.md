@@ -30,7 +30,7 @@ the nodejs/node repository.
 
     Update the tag in the commands below, and run:
 
-    ```shell
+    ```bash
     cd tools/
     ./mk-ca-bundle.pl -v 2>_before
     curl -O https://hg.mozilla.org/projects/nss/raw-file/NSS_3_41_RTM/lib/ckfw/builtins/certdata.txt
@@ -57,7 +57,7 @@ the nodejs/node repository.
 
     Run the command below:
 
-    ```shell
+    ```bash
     ./mk-ca-bundle.pl -v 2>_after
     ```
 
@@ -65,7 +65,7 @@ the nodejs/node repository.
 
     Determine what changes were made by diffing the before and after files:
 
-    ```shell
+    ```console
     % diff _before _after
     11d10
     < Parsing: Visa eCommerce Root

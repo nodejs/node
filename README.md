@@ -572,7 +572,7 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
 To import the full set of trusted release keys:
 
-```shell
+```bash
 gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
