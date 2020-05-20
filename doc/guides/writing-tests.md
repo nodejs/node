@@ -356,7 +356,7 @@ The unit test should be placed in `test/cctest` and be named with the prefix
 `test` followed by the name of unit being tested. For example, the code below
 would be placed in `test/cctest/test_env.cc`:
 
-```c++
+```cpp
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
 #include "env.h"

@@ -137,7 +137,7 @@ function getFoo(obj) {
 }
 ```
 
-```c++
+```cpp
 v8::Local<v8::Value> GetFoo(v8::Local<v8::Context> context,
                             v8::Local<v8::Object> obj) {
   v8::Isolate* isolate = context->GetIsolate();
@@ -168,7 +168,7 @@ See [exception handling][] for more information about the usage of `.To()`,
 If it is known that a `Local<Value>` refers to a more specific type, it can
 be cast to that type using `.As<...>()`:
 
-```c++
+```cpp
 v8::Local<v8::Value> some_value;
 // CHECK() is a Node.js utilitity that works similar to assert().
 CHECK(some_value->IsUint8Array());
@@ -201,7 +201,7 @@ alive even if no other objects refer to them. Weak global handles do not do
 that, and instead optionally call a callback when the object they refer to
 is garbage-collected.
 
-```c++
+```cpp
 v8::Global<v8::Object> reference;
 
 void StoreReference(v8::Isolate* isolate, v8::Local<v8::Object> obj) {
@@ -329,7 +329,7 @@ The platform can be accessed through `isolate_data->platform()` given an
 C++ functions exposed to JS follow a specific signature. The following example
 is from `node_util.cc`:
 
-```c++
+```cpp
 void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsArrayBufferView());
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
@@ -351,7 +351,7 @@ floating-point number or a `Local<Value>` to set the return value.
 Node.js provides various helpers for building JS classes in C++ and/or attaching
 C++ functions to the exports of a built-in module:
 
-```c++
+```cpp
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -409,7 +409,7 @@ constant string, in order to disambiguate it from other classes of this type,
 and which could e.g. match the binding’s name (in the example above, that would
 be `cares_wrap`).
 
-```c++
+```cpp
 // In the HTTP parser source code file:
 class BindingData : public BaseObject {
  public:
@@ -523,7 +523,7 @@ to perform further calls to APIs that return `Maybe`s.
 A typical pattern for dealing with APIs that return `Maybe` and `MaybeLocal` is
 using `.ToLocal()` and `.To()` and returning early in case there is an error:
 
-```c++
+```cpp
 // This could also return a v8::MaybeLocal<v8::Number>, for example.
 v8::Maybe<double> SumNumbers(v8::Local<v8::Context> context,
                              v8::Local<v8::Array> array_of_integers) {
@@ -692,7 +692,7 @@ A helper for this is the `ASSIGN_OR_RETURN_UNWRAP` macro that returns from the
 current function if unwrapping fails (typically that means that the `BaseObject`
 has been deleted earlier).
 
-```c++
+```cpp
 void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
@@ -780,7 +780,7 @@ queues once it returns.
 Before calling `MakeCallback()`, it is typically necessary to enter both a
 `HandleScope` and a `Context::Scope`.
 
-```c++
+```cpp
 void StatWatcher::Callback(uv_fs_poll_t* handle,
                            int status,
                            const uv_stat_t* prev,
@@ -872,7 +872,7 @@ The `Utf8Value`, `TwoByteValue` (i.e. UTF-16 value) and `BufferValue`
 inherit from this class and allow accessing the characters in a JavaScript
 string this way.
 
-```c++
+```cpp
 static void Chdir(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   // ...
