@@ -1160,25 +1160,26 @@ condition list **must** be passed through to the `defaultResolve` function.
 ```js
 /**
  * @param {string} specifier
- * @param {object} context
- * @param {string} context.parentURL
- * @param {string[]} context.conditions
- * @param {function} defaultResolve
- * @returns {object} response
- * @returns {string} response.url
+ * @param {{
+ *   parentURL: !(string | undefined),
+ *   conditions: !(Array<string>),
+ * }} context
+ * @param {Function} defaultResolve
+ * @returns {!(Promise<{ url: string }>)}
  */
 export async function resolve(specifier, context, defaultResolve) {
   const { parentURL = null } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all specifiers, do some custom logic for resolving.
     // Always return an object of the form {url: <string>}
     return {
-      url: (parentURL) ?
-        new URL(specifier, parentURL).href : new URL(specifier).href
+      url: parentURL ?
+        new URL(specifier, parentURL).href :
+        new URL(specifier).href,
     };
   }
-  if (anotherCondition) {
-    // When calling the defaultResolve, the arguments can be modified. In this
+  if (Math.random() < 0.5) { // Another condition.
+    // When calling `defaultResolve`, the arguments can be modified. In this
     // case it's adding another value for matching conditional exports.
     return defaultResolve(specifier, {
       ...context,
