@@ -119,6 +119,12 @@ bool Map::CanHaveFastTransitionableElementsKind() const {
   return CanHaveFastTransitionableElementsKind(instance_type());
 }
 
+bool Map::IsDetached(Isolate* isolate) const {
+  if (is_prototype_map()) return true;
+  return instance_type() == JS_OBJECT_TYPE && NumberOfOwnDescriptors() > 0 &&
+         GetBackPointer().IsUndefined(isolate);
+}
+
 // static
 void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
     Isolate* isolate, InstanceType instance_type,
@@ -697,7 +703,10 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 
 DEF_GETTER(Map, GetBackPointer, HeapObject) {
   Object object = constructor_or_backpointer(isolate);
-  if (object.IsMap(isolate)) {
+  // This is the equivalent of IsMap() but avoids reading the instance type so
+  // it can be used concurrently without acquire load.
+  if (object.IsHeapObject() && HeapObject::cast(object).map(isolate) ==
+                                   GetReadOnlyRoots(isolate).meta_map()) {
     return Map::cast(object);
   }
   // Can't use ReadOnlyRoots(isolate) as this isolate could be produced by
