@@ -118,6 +118,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (!unhandled_rejections.empty() &&
+      unhandled_rejections != "warn-with-error-code" &&
+      unhandled_rejections != "throw" &&
       unhandled_rejections != "strict" &&
       unhandled_rejections != "warn" &&
       unhandled_rejections != "none") {
