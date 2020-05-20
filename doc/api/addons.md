@@ -157,11 +157,11 @@ The context-aware addon can be structured to avoid global static data by
 performing the following steps:
 * Define a class which will hold per-addon-instance data and which has a static
 member of the form
-    ```C++
-    static void DeleteInstance(void* data) {
-      // Cast `data` to an instance of the class and delete it.
-    }
-    ```
+  ```cpp
+  static void DeleteInstance(void* data) {
+    // Cast `data` to an instance of the class and delete it.
+  }
+  ```
 * Heap-allocate an instance of this class in the addon initializer. This can be
 accomplished using the `new` keyword.
 * Call `node::AddEnvironmentCleanupHook()`, passing it the above-created
@@ -245,7 +245,7 @@ In order to support [`Worker`][] threads, addons need to clean up any resources
 they may have allocated when such a thread exists. This can be achieved through
 the usage of the `AddEnvironmentCleanupHook()` function:
 
-```c++
+```cpp
 void AddEnvironmentCleanupHook(v8::Isolate* isolate,
                                void (*fun)(void* arg),
                                void* arg);
