@@ -428,6 +428,11 @@ class Map : public HeapObject {
   inline bool has_sealed_elements() const;
   inline bool has_frozen_elements() const;
 
+  // Weakly checks whether a map is detached from all transition trees. If this
+  // returns true, the map is guaranteed to be detached. If it returns false,
+  // there is no guarantee it is attached.
+  inline bool IsDetached(Isolate* isolate) const;
+
   // Returns true if the current map doesn't have DICTIONARY_ELEMENTS but if a
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
   bool DictionaryElementsInPrototypeChainOnly(Isolate* isolate);

@@ -646,7 +646,7 @@ Map Map::FindRootMap(Isolate* isolate) const {
       // Initial map always owns descriptors and doesn't have unused entries
       // in the descriptor array.
       DCHECK(result.owns_descriptors());
-      DCHECK_EQ(result.NumberOfOwnDescriptors(),
+      DCHECK_LE(result.NumberOfOwnDescriptors(),
                 result.instance_descriptors().number_of_descriptors());
       return result;
     }
@@ -1192,7 +1192,7 @@ Map Map::FindElementsKindTransitionedMap(Isolate* isolate,
   DisallowHeapAllocation no_allocation;
   DisallowDeoptimization no_deoptimization(isolate);
 
-  if (is_prototype_map()) return Map();
+  if (IsDetached(isolate)) return Map();
 
   ElementsKind kind = elements_kind();
   bool packed = IsFastPackedElementsKind(kind);
@@ -1325,7 +1325,7 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 
   ElementsKind kind = map->elements_kind();
   TransitionFlag flag;
-  if (map->is_prototype_map()) {
+  if (map->IsDetached(isolate)) {
     flag = OMIT_TRANSITION;
   } else {
     flag = INSERT_TRANSITION;
@@ -1687,15 +1687,15 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
                  child->may_have_interesting_symbols());
   if (!parent->GetBackPointer().IsUndefined(isolate)) {
     parent->set_owns_descriptors(false);
-  } else {
+  } else if (!parent->IsDetached(isolate)) {
     // |parent| is initial map and it must keep the ownership, there must be no
     // descriptors in the descriptors array that do not belong to the map.
     DCHECK(parent->owns_descriptors());
     DCHECK_EQ(parent->NumberOfOwnDescriptors(),
               parent->instance_descriptors().number_of_descriptors());
   }
-  if (parent->is_prototype_map()) {
-    DCHECK(child->is_prototype_map());
+  if (parent->IsDetached(isolate)) {
+    DCHECK(child->IsDetached(isolate));
     if (FLAG_trace_maps) {
       LOG(isolate, MapEvent("Transition", *parent, *child, "prototype", *name));
     }
@@ -1722,7 +1722,9 @@ Handle<Map> Map::CopyReplaceDescriptors(
     result->set_may_have_interesting_symbols(true);
   }
 
-  if (!map->is_prototype_map()) {
+  if (map->is_prototype_map()) {
+    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
+  } else {
     if (flag == INSERT_TRANSITION &&
         TransitionsAccessor(isolate, map).CanHaveMoreTransitions()) {
       result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
@@ -1733,19 +1735,11 @@ Handle<Map> Map::CopyReplaceDescriptors(
       descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(isolate, *descriptors,
                                     LayoutDescriptor::FastPointerLayout());
-      // If we were trying to insert a transition but failed because there are
-      // too many transitions already, mark the object as a prototype to avoid
-      // tracking transitions from the detached map.
-      if (flag == INSERT_TRANSITION) {
-        result->set_is_prototype_map(true);
-      }
     }
-  } else {
-    result->InitializeDescriptors(isolate, *descriptors, *layout_descriptor);
   }
   if (FLAG_trace_maps &&
       // Mirror conditions above that did not call ConnectTransition().
-      (map->is_prototype_map() ||
+      (map->IsDetached(isolate) ||
        !(flag == INSERT_TRANSITION &&
          TransitionsAccessor(isolate, map).CanHaveMoreTransitions()))) {
     LOG(isolate, MapEvent("ReplaceDescriptors", *map, *result, reason,
@@ -1926,7 +1920,7 @@ Handle<Map> Map::AsLanguageMode(Isolate* isolate, Handle<Map> initial_map,
 }
 
 Handle<Map> Map::CopyForElementsTransition(Isolate* isolate, Handle<Map> map) {
-  DCHECK(!map->is_prototype_map());
+  DCHECK(!map->IsDetached(isolate));
   Handle<Map> new_map = CopyDropDescriptors(isolate, map);
 
   if (map->owns_descriptors()) {
@@ -2126,7 +2120,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
                                           StoreOrigin store_origin) {
   RuntimeCallTimerScope stats_scope(
       isolate, *map,
-      map->is_prototype_map()
+      map->IsDetached(isolate)
           ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
           : RuntimeCallCounterId::kMap_TransitionToDataProperty);
 
@@ -2238,7 +2232,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
                                               PropertyAttributes attributes) {
   RuntimeCallTimerScope stats_scope(
       isolate,
-      map->is_prototype_map()
+      map->IsDetached(isolate)
           ? RuntimeCallCounterId::kPrototypeMap_TransitionToAccessorProperty
           : RuntimeCallCounterId::kMap_TransitionToAccessorProperty);
 

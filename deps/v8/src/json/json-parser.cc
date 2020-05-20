@@ -828,7 +828,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             Map maybe_feedback = JSObject::cast(*element_stack.back()).map();
             // Don't consume feedback from objects with a map that's detached
             // from the transition tree.
-            if (!maybe_feedback.GetBackPointer().IsUndefined(isolate_)) {
+            if (!maybe_feedback.IsDetached(isolate_)) {
               feedback = handle(maybe_feedback, isolate_);
             }
           }
