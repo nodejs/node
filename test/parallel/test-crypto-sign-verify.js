@@ -391,12 +391,18 @@ assert.throws(
   });
 
   [1, {}, [], Infinity].forEach((input) => {
+    let prop = '"key" argument';
+    let value = input;
+    if (typeof input === 'object') {
+      prop = '"key.key" property';
+      value = undefined;
+    }
     const errObj = {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
-      message: 'The "key" argument must be of type string or an instance of ' +
-               'Buffer, TypedArray, DataView, or KeyObject.' +
-               common.invalidArgTypeHelper(input)
+      message: `The ${prop} must be of type string or ` +
+               'an instance of Buffer, TypedArray, DataView, or KeyObject.' +
+               common.invalidArgTypeHelper(value)
     };
 
     assert.throws(() => sign.sign(input), errObj);
@@ -478,25 +484,33 @@ assert.throws(
 [1, {}, [], true, Infinity].forEach((input) => {
   const data = Buffer.alloc(1);
   const sig = Buffer.alloc(1);
-  const received = common.invalidArgTypeHelper(input);
   const errObj = {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
     message: 'The "data" argument must be an instance of Buffer, ' +
-             `TypedArray, or DataView.${received}`
+             'TypedArray, or DataView.' +
+             common.invalidArgTypeHelper(input)
   };
 
   assert.throws(() => crypto.sign(null, input, 'asdf'), errObj);
   assert.throws(() => crypto.verify(null, input, 'asdf', sig), errObj);
 
-  errObj.message = 'The "key" argument must be of type string or an instance ' +
-                   `of Buffer, TypedArray, DataView, or KeyObject.${received}`;
+  let prop = '"key" argument';
+  let value = input;
+  if (typeof input === 'object') {
+    prop = '"key.key" property';
+    value = undefined;
+  }
+  errObj.message = `The ${prop} must be of type string or ` +
+              'an instance of Buffer, TypedArray, DataView, or KeyObject.' +
+              common.invalidArgTypeHelper(value);
 
   assert.throws(() => crypto.sign(null, data, input), errObj);
   assert.throws(() => crypto.verify(null, data, input, sig), errObj);
 
   errObj.message = 'The "signature" argument must be an instance of ' +
-                   `Buffer, TypedArray, or DataView.${received}`;
+                   'Buffer, TypedArray, or DataView.' +
+                   common.invalidArgTypeHelper(input);
   assert.throws(() => crypto.verify(null, data, 'test', input), errObj);
 });
 
