@@ -124,9 +124,8 @@ changes:
     having to reestablish a TCP connection. Not to be confused with the
     `keep-alive` value of the `Connection` header. The `Connection: keep-alive`
     header is always sent when using an agent except when the `Connection`
-    header is explicitly specified or when the `keepAlive` and `maxSockets`
-    options are respectively set to `false` and `Infinity`, in which case
-    `Connection: close` will be used. **Default:** `false`.
+    header is explicitly specified or when the `keepAlive` options is set to
+    `false`, in which case `Connection: close` will be  used. **Default:** `false`.
   * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
     the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
