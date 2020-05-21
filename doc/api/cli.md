@@ -1341,8 +1341,9 @@ Overriding this value to an empty string (`''`) will use the built-in REPL.
 added: REPLACEME
 -->
 
-Skips the check for a supported platform that happens during Node.js startup.
-Using this might lead to issues during execution.
+If `value` equals `'1'`, the check for a supported platform is skipped during
+Node.js startup. Node.js might not execute correctly. Any issues encountered
+on unsupported platforms will not be fixed.
 
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 
