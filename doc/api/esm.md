@@ -1204,7 +1204,6 @@ of the following:
 | --- | --- | --- |
 | `'builtin'` | Load a Node.js builtin module | Not applicable |
 | `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
-| `'dynamic'` | Use a [dynamic instantiate hook][] | Not applicable |
 | `'json'` | Load a JSON file | { [ArrayBuffer][], [string][], [TypedArray][] } |
 | `'module'` | Load an ES module | { [ArrayBuffer][], [string][], [TypedArray][] } |
 | `'wasm'` | Load a WebAssembly module | { [ArrayBuffer][], [string][], [TypedArray][] } |
@@ -1344,38 +1343,6 @@ const require = createRequire(process.cwd() + '/<preload>');
 `;
 }
 ```
-
-#### <code>dynamicInstantiate</code> hook
-
-> Note: The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
-
-To create a custom dynamic module that doesn't correspond to one of the
-existing `format` interpretations, the `dynamicInstantiate` hook can be used.
-This hook is called only for modules that return `format: 'dynamic'` from
-the [`getFormat` hook][].
-
-```js
-/**
- * @param {string} url
- * @returns {object} response
- * @returns {array} response.exports
- * @returns {function} response.execute
- */
-export async function dynamicInstantiate(url) {
-  return {
-    exports: ['customExportName'],
-    execute: (exports) => {
-      // Get and set functions provided for pre-allocated export names
-      exports.customExportName.set('value');
-    }
-  };
-}
-```
-
-With the list of module exports provided upfront, the `execute` function will
-then be called at the exact point of module evaluation order for that module
-in the import tree.
 
 ### Examples
 
@@ -1846,7 +1813,6 @@ success!
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`esm`]: https://github.com/standard-things/esm#readme
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
-[`getFormat` hook]: #esm_code_getformat_code_hook
 [`import()`]: #esm_import_expressions
 [`import.meta.url`]: #esm_import_meta
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
@@ -1859,7 +1825,6 @@ success!
 [TypedArray]: http://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
 [Uint8Array]: http://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
-[dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the full specifier path]: #esm_mandatory_file_extensions
