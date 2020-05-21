@@ -599,7 +599,8 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
 
   AddOption("--experimental-top-level-await",
             "enable experimental support for ECMAScript Top-Level Await",
-            &PerIsolateOptions::experimental_top_level_await);
+            &PerIsolateOptions::experimental_top_level_await,
+            kAllowedInEnvironment);
   AddOption("--harmony-top-level-await", "", V8Option{});
   Implies("--experimental-top-level-await", "--harmony-top-level-await");
   Implies("--harmony-top-level-await", "--experimental-top-level-await");

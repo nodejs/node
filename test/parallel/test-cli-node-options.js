@@ -78,6 +78,10 @@ expect('--stack-trace-limit=100',
 if (!['arm', 'arm64', 's390x'].includes(process.arch))
   expect('--interpreted-frames-native-stack', 'B\n');
 
+// Workers can't eval as ES Modules. https://github.com/nodejs/node/issues/30682
+expectNoWorker('--experimental-top-level-await --input-type=module',
+               'B\n', 'console.log(await "B")');
+
 function expectNoWorker(opt, want, command, wantsError) {
   expect(opt, want, command, wantsError, false);
 }
