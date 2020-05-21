@@ -2,7 +2,7 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
+> Stability: 2 -Stabled
 
 <!--type=module-->
 
