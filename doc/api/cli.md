@@ -1187,6 +1187,7 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-repl-await`
 * `--experimental-specifier-resolution`
+* `--experimental-top-level-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
