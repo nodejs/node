@@ -1,9 +1,5 @@
 # ECMAScript Modules
 
-<!-- Actual changes have been split into the next commits -->
+This documentation was moved to the [Modules][] page.
 
-<!--introduced_in=v8.5.0-->
-<!-- type=misc -->
-
-> Stability: 1 - Experimental
-
+[Modules]: modules.html
