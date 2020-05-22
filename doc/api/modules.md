@@ -1794,6 +1794,114 @@ loaded file.
 
 ## Packages
 
+### `package.json` file
+
+A `package.json` file defines a package scope. Its parent directory, and all
+subfolders below that folder down until the next folder containing another
+`package.json`, is considered a _package scope_.
+
+This document aims to describe the fields used by the Node.js
+runtime. Other tools (such as
+[npm](https://docs.npmjs.com/creating-a-package-json-file)) may use additional
+fields which are ignored by Node.js and not documented here.
+
+#### `"name"`
+<!-- YAML
+added:
+  - v13.1.0
+  - v12.16.0
+changes:
+  - version: v13.6.0
+    pr-url: https://github.com/nodejs/node/pull/31002
+    description: Remove the --experimental-resolve-self option.
+-->
+
+```json
+{
+  "name": "package-name"
+}
+```
+
+The `"name"` field defines your package’s name. Node.js doesn't apply any
+restriction on the name field, although the field is ignored if it is not a
+string or an empty string.
+
+The `"name"` field can be used in addition to the [`"exports"`][] field to
+[self-reference a package using its name][].
+
+#### `"exports"`
+<!-- YAML
+added: v12.7.0
+changes:
+  - version: v13.2.0
+    pr-url: https://github.com/nodejs/node/pull/29978
+    description: Implements conditional exports.
+  - version: v13.7.0
+    pr-url: https://github.com/nodejs/node/pull/31001
+    description: Remove the --experimental-conditional-exports option.
+  - version: v13.7.0
+    pr-url: https://github.com/nodejs/node/pull/31008
+    description: Implement logical conditional exports ordering.
+-->
+
+```json
+{
+  "exports": {
+    ".": "./index.js"
+  }
+}
+```
+
+The `"exports"` field provides an alternative to [`"main"`][] where the package
+main entry point can be defined while also encapsulating the package, preventing
+any other entry points besides those defined in `"exports"`. If package entry
+points are defined in both [`"main"`][] and `"exports"`, the latter takes
+precedence in versions of Node.js that support `"exports"` when referencing the
+package by its name.
+
+All paths defined in the `"exports"` field must be relative file URLs starting
+with `./`.
+
+Refer to the [Package Entry Points][] section for more information.
+
+#### `"main"`
+<!-- YAML
+added: v0.4.0
+-->
+
+```json
+{
+  "main": "./main.js"
+}
+```
+
+The `"main"` field defines the script that is used when the
+current directory is required by another script. Its value is interpreted as a
+path.
+
+```js
+require('./path/to/directory'); // This resolves to ./path/to/directory/main.js.
+```
+
+This field is ignored when referencing the package by its name and the
+[`"exports"`][] field is provided. The `"main"` field is supported in all
+versions of Node.js, but its capabilities are limited: it only defines the main
+entry point of the directory.
+
+#### `"type"`
+<!-- YAML
+added: v12.0.0
+changes:
+  - version: v13.2.0
+    pr-url: https://github.com/nodejs/node/pull/29866
+    description: Unflag --experimental-modules.
+-->
+
+The `"type"` field defines how `.js` files should be treated
+within a particular `package.json` file’s package scope.
+
+Refer to the [`package.json` `"type"` field][] section for more information.
+
 ### Package Entry Points
 
 In a package’s `package.json` file, two fields can define entry points for a
