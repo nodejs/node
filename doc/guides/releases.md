@@ -576,7 +576,7 @@ same GPG key!**
 Use `tools/release.sh` to promote and sign the build. Before doing this, you'll
 need to ensure you've loaded the correct ssh key, or you'll see the following:
 
-```sh
+```console
 # Checking for releases ...
 Enter passphrase for key '/Users/<user>/.ssh/id_rsa':
 dist@direct.nodejs.org's password:
@@ -584,14 +584,14 @@ dist@direct.nodejs.org's password:
 
 The key can be loaded either with `ssh-add`:
 
-```sh
+```console
 # Substitute node_id_rsa with whatever you've named the key
 $ ssh-add ~/.ssh/node_id_rsa
 ```
 
 or at runtime with:
 
-```sh
+```console
 # Substitute node_id_rsa with whatever you've named the key
 $ ./tools/release.sh -i ~/.ssh/node_id_rsa
 ```

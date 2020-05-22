@@ -1601,7 +1601,7 @@ querystring.parse(str, '\n', '=');
 This function is not completely equivalent to `querystring.parse()`. One
 difference is that `querystring.parse()` does url decoding:
 
-```sh
+```console
 > querystring.parse('%E5%A5%BD=1', '\n', '=');
 { '好': '1' }
 > tls.parseCertString('%E5%A5%BD=1');
