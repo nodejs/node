@@ -268,6 +268,8 @@ but important side effect: any *additional* listeners registered to the same
 listener that is in the process of being added.
 
 ```js
+class MyEmitter extends EventEmitter {}
+
 const myEmitter = new MyEmitter();
 // Only do this once so we don't loop forever
 myEmitter.once('newListener', (event, listener) => {
@@ -319,7 +321,7 @@ A class method that returns the number of listeners for the given `eventName`
 registered on the given `emitter`.
 
 ```js
-const myEmitter = new MyEmitter();
+const myEmitter = new EventEmitter();
 myEmitter.on('event', () => {});
 myEmitter.on('event', () => {});
 console.log(EventEmitter.listenerCount(myEmitter, 'event'));
