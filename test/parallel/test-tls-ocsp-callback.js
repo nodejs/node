@@ -46,7 +46,9 @@ function test(testOptions, cb) {
     cert,
     ca: [ca]
   };
-  const requestCount = testOptions.response ? 0 : 1;
+  const mustOrMustNotCall = testOptions.response ?
+    common.mustNotCall :
+    common.mustCall;
 
   if (!testOptions.ocsp)
     assert.strictEqual(testOptions.response, undefined);
@@ -58,7 +60,7 @@ function test(testOptions, cb) {
     options.passphrase = testOptions.passphrase;
   }
 
-  const server = tls.createServer(options, common.mustCall((cleartext) => {
+  const server = tls.createServer(options, mustOrMustNotCall((cleartext) => {
     cleartext.on('error', function(er) {
       // We're ok with getting ECONNRESET in this test, but it's
       // timing-dependent, and thus unreliable. Any other errors
@@ -67,7 +69,7 @@ function test(testOptions, cb) {
         throw er;
     });
     cleartext.end();
-  }, requestCount));
+  }));
 
   if (!testOptions.ocsp)
     server.on('OCSPRequest', common.mustNotCall());
@@ -87,16 +89,20 @@ function test(testOptions, cb) {
       requestOCSP: testOptions.ocsp,
       secureOptions: testOptions.ocsp ? 0 : SSL_OP_NO_TICKET,
       rejectUnauthorized: false
-    }, common.mustCall(() => { }, requestCount));
+    }, mustOrMustNotCall(() => { }));
 
-    client.on('OCSPResponse', common.mustCall((resp) => {
+    const mustOrMustNotCall2 = testOptions.ocsp ?
+      common.mustCall :
+      common.mustNotCall;
+
+    client.on('OCSPResponse', mustOrMustNotCall2((resp) => {
       if (testOptions.response) {
         assert.strictEqual(resp.toString(), testOptions.response);
         client.destroy();
       } else {
         assert.strictEqual(resp, null);
       }
-    }, testOptions.ocsp === false ? 0 : 1));
+    }));
 
     client.on('close', common.mustCall(() => {
       server.close(cb);

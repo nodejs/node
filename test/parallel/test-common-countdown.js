@@ -18,7 +18,8 @@ assert.strictEqual(done, true);
 const failFixtures = [
   [
     fixtures.path('failcounter.js'),
-    'Mismatched <anonymous> function calls. Expected exactly 1, actual 0.',
+    'AssertionError [ERR_ASSERTION]: Mismatched <anonymous call tracked ' +
+      'function> function calls. Expected exactly 1, actual 0.',
   ]
 ];
 
@@ -26,8 +27,8 @@ for (const p of failFixtures) {
   const [file, expected] = p;
   execFile(process.argv[0], [file], common.mustCall((ex, stdout, stderr) => {
     assert.ok(ex);
-    assert.strictEqual(stderr, '');
-    const firstLine = stdout.split('\n').shift();
+    assert.strictEqual(stdout, '');
+    const firstLine = stderr.split('\n')[4];
     assert.strictEqual(firstLine, expected);
   }));
 }

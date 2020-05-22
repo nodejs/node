@@ -46,8 +46,6 @@ const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 if (isMainThread)
   process.umask(0o022);
 
-const noop = () => {};
-
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
@@ -300,68 +298,28 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
   });
 }
 
-const mustCallChecks = [];
-
-function runCallChecks(exitCode) {
-  if (exitCode !== 0) return;
-
-  const failed = mustCallChecks.filter(function(context) {
-    if ('minimum' in context) {
-      context.messageSegment = `at least ${context.minimum}`;
-      return context.actual < context.minimum;
-    }
-    context.messageSegment = `exactly ${context.exact}`;
-    return context.actual !== context.exact;
-  });
-
-  failed.forEach(function(context) {
-    console.log('Mismatched %s function calls. Expected %s, actual %d.',
-                context.name,
-                context.messageSegment,
-                context.actual);
-    console.log(context.stack.split('\n').slice(2).join('\n'));
-  });
-
-  if (failed.length) process.exit(1);
-}
-
 function mustCall(fn, exact) {
-  return _mustCallInner(fn, exact, 'exact');
+  if (typeof fn === 'number') {
+    exact = fn;
+    fn = undefined;
+  }
+  return assert.trackCalls(fn, {
+    mode: 'exact',
+    verifyOnExit: true,
+    expected: exact
+  });
 }
 
 function mustCallAtLeast(fn, minimum) {
-  return _mustCallInner(fn, minimum, 'minimum');
-}
-
-function _mustCallInner(fn, criteria = 1, field) {
-  if (process._exiting)
-    throw new Error('Cannot use common.mustCall*() in process exit handler');
   if (typeof fn === 'number') {
-    criteria = fn;
-    fn = noop;
-  } else if (fn === undefined) {
-    fn = noop;
+    minimum = fn;
+    fn = undefined;
   }
-
-  if (typeof criteria !== 'number')
-    throw new TypeError(`Invalid ${field} value: ${criteria}`);
-
-  const context = {
-    [field]: criteria,
-    actual: 0,
-    stack: util.inspect(new Error()),
-    name: fn.name || '<anonymous>'
-  };
-
-  // Add the exit listener only once to avoid listener leak warnings
-  if (mustCallChecks.length === 0) process.on('exit', runCallChecks);
-
-  mustCallChecks.push(context);
-
-  return function() {
-    context.actual++;
-    return fn.apply(this, arguments);
-  };
+  return assert.trackCalls(fn, {
+    mode: 'minimum',
+    verifyOnExit: true,
+    expected: minimum
+  });
 }
 
 function hasMultiLocalhost() {
