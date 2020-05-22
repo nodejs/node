@@ -25,6 +25,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 const totalWorkers = 2;
+const errorMessage = 'accidental error';
 
 // Cluster setup
 if (cluster.isWorker) {
@@ -49,7 +50,7 @@ if (cluster.isWorker) {
     if (++forkNum === totalWorkers) {
       cluster.removeListener('fork', forkEvent);
     }
-  }));
+  }, totalWorkers));
 
   // Throw accidental error when all workers are listening
   let listeningNum = 0;
@@ -62,11 +63,11 @@ if (cluster.isWorker) {
 
       // Throw accidental error
       process.nextTick(() => {
-        throw new Error('accidental error');
+        throw new Error(errorMessage);
       });
     }
 
-  }));
+  }, totalWorkers));
 
   // Startup a basic cluster
   cluster.fork();
@@ -84,7 +85,13 @@ if (cluster.isWorker) {
   const workers = [];
 
   // Spawn a cluster process
-  const master = fork(process.argv[1], ['cluster'], { silent: true });
+  const master = fork(process.argv[1], ['cluster'], {
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc']
+  });
+
+  master.stderr.on('data', common.mustCall((data) => {
+    assert.match(data.toString(), /accidental error/);
+  }));
 
   // Handle messages from the cluster
   master.on('message', common.mustCall((data) => {
