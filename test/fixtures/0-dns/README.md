@@ -6,7 +6,7 @@ can be created by using `asn1.js` and `asn1.js-rfc5280`,
 
 ## How to create a test cert.
 
-```sh
+```console
 $ openssl genrsa -out 0-dns-key.pem 2048
 Generating RSA private key, 2048 bit long modulus
 ...................+++

@@ -31,7 +31,7 @@ when loading modules.
 Once this has been set, all modules must conform to a policy manifest file
 passed to the flag:
 
-```sh
+```bash
 node --experimental-policy=policy.json app.js
 ```
 
@@ -43,7 +43,7 @@ the policy file itself may be provided via `--policy-integrity`.
 This allows running `node` and asserting the policy file contents
 even if the file is changed on disk.
 
-```sh
+```bash
 node --experimental-policy=policy.json --policy-integrity="sha384-SggXRQHwCG8g+DktYYzxkXRIkTiEYWBHqev0xnpCxYlqMBufKZHAHQM3/boDaI/0" app.js
 ```
 
