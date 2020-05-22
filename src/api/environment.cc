@@ -51,17 +51,11 @@ static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
                                       Local<Array> trace) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
-    MaybeLocal<String> s = exception->ToString(context);
-    return s.IsEmpty() ?
-      MaybeLocal<Value>() :
-      MaybeLocal<Value>(s.ToLocalChecked());
+    return exception->ToString(context).FromMaybe(Local<Value>());
   }
   Local<Function> prepare = env->prepare_stack_trace_callback();
   if (prepare.IsEmpty()) {
-    MaybeLocal<String> s = exception->ToString(context);
-    return s.IsEmpty() ?
-      MaybeLocal<Value>() :
-      MaybeLocal<Value>(s.ToLocalChecked());
+    return exception->ToString(context).FromMaybe(Local<Value>());
   }
   Local<Value> args[] = {
       context->Global(),
