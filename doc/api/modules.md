@@ -1792,6 +1792,339 @@ loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
 loaded file.
 
+## Packages
+
+### Package Entry Points
+
+In a package’s `package.json` file, two fields can define entry points for a
+package: `"main"` and `"exports"`. The `"main"` field is supported in all
+versions of Node.js, but its capabilities are limited: it only defines the main
+entry point of the package.
+
+The `"exports"` field provides an alternative to `"main"` where the package
+main entry point can be defined while also encapsulating the package,
+**preventing any other entry points besides those defined in `"exports"`**.
+This encapsulation allows module authors to define a public interface for
+their package.
+
+If both `"exports"` and `"main"` are defined, the `"exports"` field takes
+precedence over `"main"`. `"exports"` are not specific to ES modules or
+CommonJS; `"main"` will be overridden by `"exports"` if it exists. As such
+`"main"` cannot be used as a fallback for CommonJS but it can be used as a
+fallback for legacy versions of Node.js that do not support the `"exports"`
+field.
+
+[Conditional Exports][] can be used within `"exports"` to define different
+package entry points per environment, including whether the package is
+referenced via `require` or via `import`. For more information about supporting
+both CommonJS and ES Modules in a single package please consult
+[the dual CommonJS/ES module packages section][].
+
+**Warning**: Introducing the `"exports"` field prevents consumers of a package
+from using any entry points that are not defined, including the `package.json`
+(e.g. `require('your-package/package.json')`. **This will likely be a breaking
+change.**
+
+To make the introduction of `"exports"` non-breaking, ensure that every
+previously supported entry point is exported. It is best to explicitly specify
+entry points so that the package’s public API is well-defined. For example,
+a project that previous exported `main`, `lib`,
+`feature`, and the `package.json` could use the following `package.exports`:
+
+```json
+{
+  "name": "my-mod",
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib": "./lib/index.js",
+    "./lib/index": "./lib/index.js",
+    "./lib/index.js": "./lib/index.js",
+    "./feature": "./feature/index.js",
+    "./feature/index.js": "./feature/index.js",
+    "./package.json": "./package.json"
+  }
+}
+```
+
+Alternatively a project could choose to export entire folders:
+
+```json
+{
+  "name": "my-mod",
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib": "./lib/index.js",
+    "./lib/": "./lib/",
+    "./feature": "./feature/index.js",
+    "./feature/": "./feature/",
+    "./package.json": "./package.json"
+  }
+}
+```
+
+As a last resort, package encapsulation can be disabled entirely by creating an
+export for the root of the package `"./": "./"`. This will expose every file in
+the package at the cost of disabling the encapsulation and potential tooling
+benefits this provides. As the ES Module loader in Node.js enforces the use of
+[the full specifier path][], exporting the root rather than being explicit
+about entry is less expressive than either of the prior examples. Not only
+will encapsulation be lost but module consumers will be unable to
+`import feature from 'my-mod/feature'` as they will need to provide the full
+path `import feature from 'my-mod/feature/index.js`.
+
+#### Main Entry Point Export
+
+To set the main entry point for a package, it is advisable to define both
+`"exports"` and `"main"` in the package’s `package.json` file:
+
+```json
+{
+  "main": "./main.js",
+  "exports": "./main.js"
+}
+```
+
+The benefit of doing this is that when using the `"exports"` field all
+subpaths of the package will no longer be available to importers under
+`require('pkg/subpath.js')`, and instead they will get a new error,
+`ERR_PACKAGE_PATH_NOT_EXPORTED`.
+
+This encapsulation of exports provides more reliable guarantees
+about package interfaces for tools and when handling semver upgrades for a
+package. It is not a strong encapsulation since a direct require of any
+absolute subpath of the package such as
+`require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
+
+#### Subpath Exports
+
+When using the `"exports"` field, custom subpaths can be defined along
+with the main entry point by treating the main entry point as the
+`"."` subpath:
+
+```json
+{
+  "main": "./main.js",
+  "exports": {
+    ".": "./main.js",
+    "./submodule": "./src/submodule.js"
+  }
+}
+```
+
+Now only the defined subpath in `"exports"` can be imported by a
+consumer:
+
+```js
+import submodule from 'es-module-package/submodule';
+// Loads ./node_modules/es-module-package/src/submodule.js
+```
+
+While other subpaths will error:
+
+```js
+import submodule from 'es-module-package/private-module.js';
+// Throws ERR_PACKAGE_PATH_NOT_EXPORTED
+```
+
+Entire folders can also be mapped with package exports:
+
+```json
+// ./node_modules/es-module-package/package.json
+{
+  "exports": {
+    "./features/": "./src/features/"
+  }
+}
+```
+
+With the above, all modules within the `./src/features/` folder
+are exposed deeply to `import` and `require`:
+
+```js
+import feature from 'es-module-package/features/x.js';
+// Loads ./node_modules/es-module-package/src/features/x.js
+```
+
+When using folder mappings, ensure that you do want to expose every
+module inside the subfolder. Any modules which are not public
+should be moved to another folder to retain the encapsulation
+benefits of exports.
+
+#### Package Exports Fallbacks
+
+For possible new specifier support in future, array fallbacks are
+supported for all invalid specifiers:
+
+```json
+{
+  "exports": {
+    "./submodule": ["not:valid", "./submodule.js"]
+  }
+}
+```
+
+Since `"not:valid"` is not a valid specifier, `"./submodule.js"` is used
+instead as the fallback, as if it were the only target.
+
+#### Exports Sugar
+
+If the `"."` export is the only export, the `"exports"` field provides sugar
+for this case being the direct `"exports"` field value.
+
+If the `"."` export has a fallback array or string value, then the `"exports"`
+field can be set to this value directly.
+
+```json
+{
+  "exports": {
+    ".": "./main.js"
+  }
+}
+```
+
+can be written:
+
+```json
+{
+  "exports": "./main.js"
+}
+```
+
+#### Conditional Exports
+
+Conditional exports provide a way to map to different paths depending on
+certain conditions. They are supported for both CommonJS and ES module imports.
+
+For example, a package that wants to provide different ES module exports for
+`require()` and `import` can be written:
+
+```json
+// package.json
+{
+  "main": "./main-require.cjs",
+  "exports": {
+    "import": "./main-module.js",
+    "require": "./main-require.cjs"
+  },
+  "type": "module"
+}
+```
+
+Node.js supports the following conditions:
+
+* `"import"` - matched when the package is loaded via `import` or
+   `import()`. Can reference either an ES module or CommonJS file, as both
+   `import` and `import()` can load either ES module or CommonJS sources.
+* `"require"` - matched when the package is loaded via `require()`.
+   As `require()` only supports CommonJS, the referenced file must be CommonJS.
+* `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
+   module file. _This condition should always come after `"import"` or
+   `"require"`._
+* `"default"` - the generic fallback that will always match. Can be a CommonJS
+   or ES module file. _This condition should always come last._
+
+Condition matching is applied in object order from first to last within the
+`"exports"` object. _The general rule is that conditions should be used
+from most specific to least specific in object order._
+
+Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
+etc. are ignored by Node.js but may be used by other runtimes or tools.
+Further restrictions, definitions or guidance on condition names may be
+provided in the future.
+
+Using the `"import"` and `"require"` conditions can lead to some hazards,
+which are explained further in
+[the dual CommonJS/ES module packages section][].
+
+Conditional exports can also be extended to exports subpaths, for example:
+
+```json
+{
+  "main": "./main.js",
+  "exports": {
+    ".": "./main.js",
+    "./feature": {
+      "browser": "./feature-browser.js",
+      "default": "./feature.js"
+    }
+  }
+}
+```
+
+Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
+could provide different implementations between the browser and Node.js,
+given third-party tool support for a `"browser"` condition.
+
+#### Nested conditions
+
+In addition to direct mappings, Node.js also supports nested condition objects.
+
+For example, to define a package that only has dual mode entry points for
+use in Node.js but not the browser:
+
+```json
+{
+  "main": "./main.js",
+  "exports": {
+    "browser": "./feature-browser.mjs",
+    "node": {
+      "import": "./feature-node.mjs",
+      "require": "./feature-node.cjs"
+    }
+  }
+}
+```
+
+Conditions continue to be matched in order as with flat conditions. If
+a nested conditional does not have any mapping it will continue checking
+the remaining conditions of the parent condition. In this way nested
+conditions behave analogously to nested JavaScript `if` statements.
+
+#### Self-referencing a package using its name
+
+Within a package, the values defined in the package’s
+`package.json` `"exports"` field can be referenced via the package’s name.
+For example, assuming the `package.json` is:
+
+```json
+// package.json
+{
+  "name": "a-package",
+  "exports": {
+    ".": "./main.mjs",
+    "./foo": "./foo.js"
+  }
+}
+```
+
+Then any module _in that package_ can reference an export in the package itself:
+
+```js
+// ./a-module.mjs
+import { something } from 'a-package'; // Imports "something" from ./main.mjs.
+```
+
+Self-referencing is available only if `package.json` has `exports`, and will
+allow importing only what that `exports` (in the `package.json`) allows.
+So the code below, given the package above, will generate a runtime error:
+
+```js
+// ./another-module.mjs
+
+// Imports "another" from ./m.mjs. Fails because
+// the "package.json" "exports" field
+// does not provide an export named "./m.mjs".
+import { another } from 'a-package/m.mjs';
+```
+
+Self-referencing is also available when using `require`, both in an ES module,
+and in a CommonJS one. For example, this code will also work:
+
+```js
+// ./a-module.js
+const { something } = require('a-package/foo'); // Loads from ./foo.js.
+```
+
 ## Utility Methods
 
 <!-- YAML
