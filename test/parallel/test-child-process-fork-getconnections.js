@@ -52,7 +52,7 @@ if (process.argv[2] === 'child') {
         sockets[m.id].destroy();
       }
     }
-  }));
+  }, count * 2));
 
 } else {
   const child = fork(process.argv[1], ['child']);
