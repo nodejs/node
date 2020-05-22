@@ -1367,13 +1367,13 @@ An invalid or unknown file encoding was passed.
 <a id="ERR_INVALID_PACKAGE_CONFIG"></a>
 ### `ERR_INVALID_PACKAGE_CONFIG`
 
-An invalid `package.json` file was found which failed parsing.
+An invalid [`package.json`][] file was found which failed parsing.
 
 <a id="ERR_INVALID_PACKAGE_TARGET"></a>
 ### `ERR_INVALID_PACKAGE_TARGET`
 
-The `package.json` [exports][] field contains an invalid target mapping value
-for the attempted module resolution.
+The [`package.json`][] [`"exports"`][] field contains an invalid target mapping
+value for the attempted module resolution.
 
 <a id="ERR_INVALID_PERFORMANCE_MARK"></a>
 ### `ERR_INVALID_PERFORMANCE_MARK`
@@ -1684,9 +1684,10 @@ A given value is out of the accepted range.
 <a id="ERR_PACKAGE_PATH_NOT_EXPORTED"></a>
 ### `ERR_PACKAGE_PATH_NOT_EXPORTED`
 
-The `package.json` [exports][] field does not export the requested subpath.
-Because exports are encapsulated, private internal modules that are not exported
-cannot be imported through the package resolution, unless using an absolute URL.
+The [`package.json`][] [`"exports"`][] field does not export the requested
+subpath. Because exports are encapsulated, private internal modules that are not
+exported cannot be imported through the package resolution, unless using an
+absolute URL.
 
 <a id="ERR_PROTO_ACCESS"></a>
 ### `ERR_PROTO_ACCESS`
@@ -2050,7 +2051,7 @@ signal (such as [`subprocess.kill()`][]).
 
 `import` a directory URL is unsupported. Instead, you can
 [self-reference a package using its name][] and [define a custom subpath][] in
-the `"exports"` field of the `package.json` file.
+the [`"exports"`][] field of the [`package.json`][] file.
 
 <!-- eslint-skip -->
 ```js
@@ -2471,11 +2472,11 @@ releases.
 > Stability: 1 - Experimental
 
 The `--entry-type=commonjs` flag was used to attempt to execute an `.mjs` file
-or a `.js` file where the nearest parent `package.json` contains
+or a `.js` file where the nearest parent [`package.json`][] contains
 `"type": "module"`; or
 the `--entry-type=module` flag was used to attempt to execute a `.cjs` file or
-a `.js` file where the nearest parent `package.json` either lacks a `"type"`
-field or contains `"type": "commonjs"`.
+a `.js` file where the nearest parent [`package.json`][] either lacks a
+[`"type"`][] field or contains `"type": "commonjs"`.
 
 <a id="ERR_FS_WATCHER_ALREADY_STARTED"></a>
 #### `ERR_FS_WATCHER_ALREADY_STARTED`
@@ -2601,7 +2602,7 @@ such as `process.stdout.on('data')`.
 [`subprocess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
 [`util.getSystemErrorName(error.errno)`]: util.html#util_util_getsystemerrorname_err
 [`zlib`]: zlib.html
-[ES Module]: esm.html
+[ES Module]: modules.html
 [ICU]: intl.html#intl_internationalization_support
 [Node.js Error Codes]: #nodejs-error-codes
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
@@ -2610,7 +2611,9 @@ such as `process.stdout.on('data')`.
 [crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
-[exports]: esm.html#esm_package_entry_points
+[`"exports"`]: modules.html#modules_exports_1
+[`"type"`]: modules.html#modules_type
+[`package.json`]: modules.html#modules_package_json_file
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [policy]: policy.html
 [stream-based]: stream.html
@@ -2618,5 +2621,5 @@ such as `process.stdout.on('data')`.
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
-[self-reference a package using its name]: esm.html#esm_self_referencing_a_package_using_its_name
-[define a custom subpath]: esm.html#esm_subpath_exports
+[self-reference a package using its name]: modules.html#modules_self_referencing_a_package_using_its_name
+[define a custom subpath]: modules.html#modules_subpath_exports

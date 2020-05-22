@@ -1264,7 +1264,7 @@ queues.
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedobject_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
-[ECMAScript Module Loader]: esm.html#esm_ecmascript_modules
+[ECMAScript Module Loader]: modules.html#modules_ecmascript_modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.es/ecma262/#sec-hostresolveimportedmodule

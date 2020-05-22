@@ -1517,11 +1517,11 @@ $ node --max-old-space-size=1536 index.js
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [context-aware]: addons.html#addons_context_aware_addons
-[customizing ESM specifier resolution]: esm.html#esm_customizing_esm_specifier_resolution_algorithm
+[customizing ESM specifier resolution]: modules.html#modules_customizing_esm_specifier_resolution_algorithm
 [debugger]: debugger.html
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [emit_warning]: process.html#process_process_emitwarning_warning_type_code_ctor
-[experimental ECMAScript Module loader]: esm.html#esm_experimental_loaders
+[experimental ECMAScript Module loader]: modules.html#modules_experimental_loaders
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: http://docs.libuv.org/en/latest/threadpool.html
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection

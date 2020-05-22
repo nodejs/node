@@ -74,7 +74,7 @@ const customTypesMap = {
 
   'errors.Error': 'errors.html#errors_class_error',
 
-  'import.meta': 'esm.html#esm_import_meta',
+  'import.meta': 'modules.html#modules_import_meta',
 
   'EventEmitter': 'events.html#events_class_eventemitter',
 
