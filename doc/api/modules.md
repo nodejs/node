@@ -1030,6 +1030,768 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
+## ECMAScript modules
+
+<!--introduced_in=v8.5.0-->
+
+> Stability: 1 - Experimental
+
+### `import` Specifiers
+
+#### Terminology
+
+The _specifier_ of an `import` statement is the string after the `from` keyword,
+e.g. `'path'` in `import { sep } from 'path'`. Specifiers are also used in
+`export from` statements, and as the argument to an `import()` expression.
+
+There are four types of specifiers:
+
+* _Bare specifiers_ like `'some-package'`. They refer to an entry point of a
+  package by the package name.
+
+* _Deep import specifiers_ like `'some-package/lib/shuffle.mjs'`. They refer to
+  a path within a package prefixed by the package name.
+
+* _Relative specifiers_ like `'./startup.js'` or `'../config.mjs'`. They refer
+  to a path relative to the location of the importing file.
+
+* _Absolute specifiers_ like `'file:///opt/nodejs/config.js'`. They refer
+  directly and explicitly to a full path.
+
+Bare specifiers, and the bare specifier portion of deep import specifiers, are
+strings; but everything else in a specifier is a URL.
+
+Only `file:` and `data:` URLs are supported. A specifier like
+`'https://example.com/app.js'` may be supported by browsers but it is not
+supported in Node.js.
+
+Specifiers may not begin with `/` or `//`. These are reserved for potential
+future use. The root of the current volume may be referenced via `file:///`.
+
+##### `data:` Imports
+
+<!-- YAML
+added: v12.10.0
+-->
+
+[`data:` URLs][] are supported for importing with the following MIME types:
+
+* `text/javascript` for ES Modules
+* `application/json` for JSON
+* `application/wasm` for WASM.
+
+`data:` URLs only resolve [_Bare specifiers_][Terminology] for builtin modules
+and [_Absolute specifiers_][Terminology]. Resolving
+[_Relative specifiers_][Terminology] will not work because `data:` is not a
+[special scheme][]. For example, attempting to load `./foo`
+from `data:text/javascript,import "./foo";` will fail to resolve since there
+is no concept of relative resolution for `data:` URLs. An example of a `data:`
+URLs being used is:
+
+```js
+import 'data:text/javascript,console.log("hello!");';
+import _ from 'data:application/json,"world!"';
+```
+
+### `import.meta`
+
+* {Object}
+
+The `import.meta` metaproperty is an `Object` that contains the following
+property:
+
+* `url` {string} The absolute `file:` URL of the module.
+
+### Differences Between ES Modules and CommonJS
+
+#### Mandatory file extensions
+
+A file extension must be provided when using the `import` keyword. Directory
+indexes (e.g. `'./startup/index.js'`) must also be fully specified.
+
+This behavior matches how `import` behaves in browser environments, assuming a
+typically configured server.
+
+#### No `NODE_PATH`
+
+`NODE_PATH` is not part of resolving `import` specifiers. Please use symlinks
+if this behavior is desired.
+
+#### No `require`, `exports`, `module.exports`, `__filename`, `__dirname`
+
+These CommonJS variables are not available in ES modules.
+
+`require` can be imported into an ES module using [`module.createRequire()`][].
+
+Equivalents of `__filename` and `__dirname` can be created inside of each file
+via [`import.meta.url`][].
+
+```js
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+```
+
+#### No `require.resolve`
+
+Former use cases relying on `require.resolve` to determine the resolved path
+of a module can be supported via `import.meta.resolve`, which is experimental
+and supported via the `--experimental-import-meta-resolve` flag:
+
+```js
+(async () => {
+  const dependencyAsset = await import.meta.resolve('component-lib/asset.css');
+})();
+```
+
+`import.meta.resolve` also accepts a second argument which is the parent module
+from which to resolve from:
+
+```js
+(async () => {
+  // Equivalent to import.meta.resolve('./dep')
+  await import.meta.resolve('./dep', import.meta.url);
+})();
+```
+
+This function is asynchronous since the ES module resolver in Node.js is
+asynchronous. With the introduction of [Top-Level Await][], these use cases
+will be easier as they won't require an async function wrapper.
+
+#### No `require.extensions`
+
+`require.extensions` is not used by `import`. The expectation is that loader
+hooks can provide this workflow in the future.
+
+#### No `require.cache`
+
+`require.cache` is not used by `import`. It has a separate cache.
+
+#### URL-based paths
+
+ES modules are resolved and cached based upon
+[URL](https://url.spec.whatwg.org/) semantics. This means that files containing
+special characters such as `#` and `?` need to be escaped.
+
+Modules will be loaded multiple times if the `import` specifier used to resolve
+them have a different query or fragment.
+
+```js
+import './foo.mjs?query=1'; // loads ./foo.mjs with query of "?query=1"
+import './foo.mjs?query=2'; // loads ./foo.mjs with query of "?query=2"
+```
+
+For now, only modules using the `file:` protocol can be loaded.
+
+### Interoperability with CommonJS
+
+#### `require`
+
+`require` always treats the files it references as CommonJS. This applies
+whether `require` is used the traditional way within a CommonJS environment, or
+in an ES module environment using [`module.createRequire()`][].
+
+To include an ES module into CommonJS, use [`import()`][].
+
+#### `import` statements
+
+An `import` statement can reference an ES module or a CommonJS module. Other
+file types such as JSON or Native modules are not supported. For those, use
+[`module.createRequire()`][].
+
+`import` statements are permitted only in ES modules. For similar functionality
+in CommonJS, see [`import()`][].
+
+The _specifier_ of an `import` statement (the string after the `from` keyword)
+can either be an URL-style relative path like `'./file.mjs'` or a package name
+like `'fs'`.
+
+Like in CommonJS, files within packages can be accessed by appending a path to
+the package name; unless the package’s `package.json` contains an `"exports"`
+field, in which case files within packages need to be accessed via the path
+defined in `"exports"`.
+
+```js
+import { sin, cos } from 'geometry/trigonometry-functions.mjs';
+```
+
+Only the “default export” is supported for CommonJS files or packages:
+
+<!-- eslint-disable no-duplicate-imports -->
+```js
+import packageMain from 'commonjs-package'; // Works
+
+import { method } from 'commonjs-package'; // Errors
+```
+
+It is also possible to
+[import an ES or CommonJS module for its side effects only][].
+
+#### `import()` expressions
+
+[Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be
+used to include ES module files from CommonJS code.
+
+### CommonJS, JSON, and Native Modules
+
+CommonJS, JSON, and Native modules can be used with
+[`module.createRequire()`][].
+
+```js
+// cjs.cjs
+module.exports = 'cjs';
+
+// esm.mjs
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+
+const cjs = require('./cjs.cjs');
+cjs === 'cjs'; // true
+```
+
+### Builtin modules
+
+Builtin modules will provide named exports of their public API. A
+default export is also provided which is the value of the CommonJS exports.
+The default export can be used for, among other things, modifying the named
+exports. Named exports of builtin modules are updated only by calling
+[`module.syncBuiltinESMExports()`][].
+
+```js
+import EventEmitter from 'events';
+const e = new EventEmitter();
+```
+
+```js
+import { readFile } from 'fs';
+readFile('./foo.txt', (err, source) => {
+  if (err) {
+    console.error(err);
+  } else {
+    console.log(source);
+  }
+});
+```
+
+```js
+import fs, { readFileSync } from 'fs';
+import { syncBuiltinESMExports } from 'module';
+
+fs.readFileSync = () => Buffer.from('Hello, ESM');
+syncBuiltinESMExports();
+
+fs.readFileSync === readFileSync;
+```
+
+### Experimental JSON Modules
+
+Currently importing JSON modules are only supported in the `commonjs` mode
+and are loaded using the CJS loader. [WHATWG JSON modules specification][] are
+still being standardized, and are experimentally supported by including the
+additional flag `--experimental-json-modules` when running Node.js.
+
+When the `--experimental-json-modules` flag is included both the
+`commonjs` and `module` mode will use the new experimental JSON
+loader. The imported JSON only exposes a `default`, there is no
+support for named exports. A cache entry is created in the CommonJS
+cache, to avoid duplication. The same object will be returned in
+CommonJS if the JSON module has already been imported from the
+same path.
+
+Assuming an `index.mjs` with
+
+```js
+import packageConfig from './package.json';
+```
+
+The `--experimental-json-modules` flag is needed for the module
+to work.
+
+```bash
+node index.mjs # fails
+node --experimental-json-modules index.mjs # works
+```
+
+### Experimental Wasm Modules
+
+Importing Web Assembly modules is supported under the
+`--experimental-wasm-modules` flag, allowing any `.wasm` files to be
+imported as normal modules while also supporting their module imports.
+
+This integration is in line with the
+[ES Module Integration Proposal for Web Assembly][].
+
+For example, an `index.mjs` containing:
+
+```js
+import * as M from './module.wasm';
+console.log(M);
+```
+
+executed under:
+
+```bash
+node --experimental-wasm-modules index.mjs
+```
+
+would provide the exports interface for the instantiation of `module.wasm`.
+
+### Experimental Top-Level `await`
+
+When the `--experimental-top-level-await` flag is provided, `await` may be used
+in the top level (outside of async functions) within modules. This implements
+the [ECMAScript Top-Level `await` proposal][].
+
+Assuming an `a.mjs` with
+
+<!-- eslint-skip -->
+```js
+export const five = await Promise.resolve(5);
+```
+
+And a `b.mjs` with
+
+```js
+import { five } from './a.mjs';
+
+console.log(five); // Logs `5`
+```
+
+```bash
+node b.mjs # fails
+node --experimental-top-level-await b.mjs # works
+```
+
+### Experimental Loaders
+
+**Note: This API is currently being redesigned and will still change.**
+
+<!-- type=misc -->
+
+To customize the default module resolution, loader hooks can optionally be
+provided via a `--experimental-loader ./loader-name.mjs` argument to Node.js.
+
+When hooks are used they only apply to ES module loading and not to any
+CommonJS modules loaded.
+
+#### Hooks
+
+##### <code>resolve</code> hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+The `resolve` hook returns the resolved file URL for a given module specifier
+and parent URL. The module specifier is the string in an `import` statement or
+`import()` expression, and the parent URL is the URL of the module that imported
+this one, or `undefined` if this is the main entry point for the application.
+
+The `conditions` property on the `context` is an array of conditions for
+[Conditional Exports][] that apply to this resolution request. They can be used
+for looking up conditional mappings elsewhere or to modify the list when calling
+the default resolution logic.
+
+The [current set of Node.js default conditions][Conditional Exports] will always
+be in the `context.conditions` list passed to the hook. If the hook wants to
+ensure Node.js-compatible resolution logic, all items from this default
+condition list **must** be passed through to the `defaultResolve` function.
+
+```js
+/**
+ * @param {string} specifier
+ * @param {object} context
+ * @param {string} context.parentURL
+ * @param {string[]} context.conditions
+ * @param {function} defaultResolve
+ * @returns {object} response
+ * @returns {string} response.url
+ */
+export async function resolve(specifier, context, defaultResolve) {
+  const { parentURL = null } = context;
+  if (someCondition) {
+    // For some or all specifiers, do some custom logic for resolving.
+    // Always return an object of the form {url: <string>}
+    return {
+      url: (parentURL) ?
+        new URL(specifier, parentURL).href : new URL(specifier).href
+    };
+  }
+  if (anotherCondition) {
+    // When calling the defaultResolve, the arguments can be modified. In this
+    // case it's adding another value for matching conditional exports.
+    return defaultResolve(specifier, {
+      ...context,
+      conditions: [...context.conditions, 'another-condition'],
+    });
+  }
+  // Defer to Node.js for all other specifiers.
+  return defaultResolve(specifier, context, defaultResolve);
+}
+```
+
+##### <code>getFormat</code> hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+The `getFormat` hook provides a way to define a custom method of determining how
+a URL should be interpreted. The `format` returned also affects what the
+acceptable forms of source values are for a module when parsing. This can be one
+of the following:
+
+| `format` | Description | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
+| --- | --- | --- |
+| `'builtin'` | Load a Node.js builtin module | Not applicable |
+| `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
+| `'dynamic'` | Use a [dynamic instantiate hook][] | Not applicable |
+| `'json'` | Load a JSON file | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'module'` | Load an ES module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'wasm'` | Load a WebAssembly module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+
+Note: These types all correspond to classes defined in ECMAScript.
+
+* The specific [ArrayBuffer][] object is a [SharedArrayBuffer][].
+* The specific [string][] object is not the class constructor, but an instance.
+* The specific [TypedArray][] object is a [Uint8Array][].
+
+Note: If the source value of a text-based format (i.e., `'json'`, `'module'`) is
+not a string, it will be converted to a string using [`util.TextDecoder`][].
+
+```js
+/**
+ * @param {string} url
+ * @param {object} context (currently empty)
+ * @param {function} defaultGetFormat
+ * @returns {object} response
+ * @returns {string} response.format
+ */
+export async function getFormat(url, context, defaultGetFormat) {
+  if (someCondition) {
+    // For some or all URLs, do some custom logic for determining format.
+    // Always return an object of the form {format: <string>}, where the
+    // format is one of the strings in the table above.
+    return {
+      format: 'module'
+    };
+  }
+  // Defer to Node.js for all other URLs.
+  return defaultGetFormat(url, context, defaultGetFormat);
+}
+```
+
+##### <code>getSource</code> hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+The `getSource` hook provides a way to define a custom method for retrieving
+the source code of an ES module specifier. This would allow a loader to
+potentially avoid reading files from disk.
+
+```js
+/**
+ * @param {string} url
+ * @param {object} context
+ * @param {string} context.format
+ * @param {function} defaultGetSource
+ * @returns {object} response
+ * @returns {string|buffer} response.source
+ */
+export async function getSource(url, context, defaultGetSource) {
+  const { format } = context;
+  if (someCondition) {
+    // For some or all URLs, do some custom logic for retrieving the source.
+    // Always return an object of the form {source: <string|buffer>}.
+    return {
+      source: '...'
+    };
+  }
+  // Defer to Node.js for all other URLs.
+  return defaultGetSource(url, context, defaultGetSource);
+}
+```
+
+##### <code>transformSource</code> hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+The `transformSource` hook provides a way to modify the source code of a loaded
+ES module file after the source string has been loaded but before Node.js has
+done anything with it.
+
+If this hook is used to convert unknown-to-Node.js file types into executable
+JavaScript, a resolve hook is also necessary in order to register any
+unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
+
+```js
+/**
+ * @param {string|buffer} source
+ * @param {object} context
+ * @param {string} context.url
+ * @param {string} context.format
+ * @param {function} defaultTransformSource
+ * @returns {object} response
+ * @returns {string|buffer} response.source
+ */
+export async function transformSource(source,
+                                      context,
+                                      defaultTransformSource) {
+  const { url, format } = context;
+  if (someCondition) {
+    // For some or all URLs, do some custom logic for modifying the source.
+    // Always return an object of the form {source: <string|buffer>}.
+    return {
+      source: '...'
+    };
+  }
+  // Defer to Node.js for all other sources.
+  return defaultTransformSource(
+    source, context, defaultTransformSource);
+}
+```
+
+##### <code>getGlobalPreloadCode</code> hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+Sometimes it can be necessary to run some code inside of the same global scope
+that the application will run in. This hook allows to return a string that will
+be ran as sloppy-mode script on startup.
+
+Similar to how CommonJS wrappers work, the code runs in an implicit function
+scope. The only argument is a `require`-like function that can be used to load
+builtins like "fs": `getBuiltin(request: string)`.
+
+If the code needs more advanced `require` features, it will have to construct
+its own `require` using  `module.createRequire()`.
+
+```js
+/**
+ * @returns {string} Code to run before application startup
+ */
+export function getGlobalPreloadCode() {
+  return `\
+globalThis.someInjectedProperty = 42;
+console.log('I just set some globals!');
+
+const { createRequire } = getBuiltin('module');
+
+const require = createRequire(process.cwd() + '/<preload>');
+// [...]
+`;
+}
+```
+
+##### <code>dynamicInstantiate</code> hook
+
+> Note: The loaders API is being redesigned. This hook may disappear or its
+> signature may change. Do not rely on the API described below.
+
+To create a custom dynamic module that doesn't correspond to one of the
+existing `format` interpretations, the `dynamicInstantiate` hook can be used.
+This hook is called only for modules that return `format: 'dynamic'` from
+the [`getFormat` hook][].
+
+```js
+/**
+ * @param {string} url
+ * @returns {object} response
+ * @returns {array} response.exports
+ * @returns {function} response.execute
+ */
+export async function dynamicInstantiate(url) {
+  return {
+    exports: ['customExportName'],
+    execute: (exports) => {
+      // Get and set functions provided for pre-allocated export names
+      exports.customExportName.set('value');
+    }
+  };
+}
+```
+
+With the list of module exports provided upfront, the `execute` function will
+then be called at the exact point of module evaluation order for that module
+in the import tree.
+
+#### Examples
+
+The various loader hooks can be used together to accomplish wide-ranging
+customizations of Node.js’ code loading and evaluation behaviors.
+
+##### HTTPS loader
+
+In current Node.js, specifiers starting with `https://` are unsupported. The
+loader below registers hooks to enable rudimentary support for such specifiers.
+While this may seem like a significant improvement to Node.js core
+functionality, there are substantial downsides to actually using this loader:
+performance is much slower than loading files from disk, there is no caching,
+and there is no security.
+
+```js
+// https-loader.mjs
+import { get } from 'https';
+
+export function resolve(specifier, context, defaultResolve) {
+  const { parentURL = null } = context;
+
+  // Normally Node.js would error on specifiers starting with 'https://', so
+  // this hook intercepts them and converts them into absolute URLs to be
+  // passed along to the later hooks below.
+  if (specifier.startsWith('https://')) {
+    return {
+      url: specifier
+    };
+  } else if (parentURL && parentURL.startsWith('https://')) {
+    return {
+      url: new URL(specifier, parentURL).href
+    };
+  }
+
+  // Let Node.js handle all other specifiers.
+  return defaultResolve(specifier, context, defaultResolve);
+}
+
+export function getFormat(url, context, defaultGetFormat) {
+  // This loader assumes all network-provided JavaScript is ES module code.
+  if (url.startsWith('https://')) {
+    return {
+      format: 'module'
+    };
+  }
+
+  // Let Node.js handle all other URLs.
+  return defaultGetFormat(url, context, defaultGetFormat);
+}
+
+export function getSource(url, context, defaultGetSource) {
+  // For JavaScript to be loaded over the network, we need to fetch and
+  // return it.
+  if (url.startsWith('https://')) {
+    return new Promise((resolve, reject) => {
+      get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => resolve({ source: data }));
+      }).on('error', (err) => reject(err));
+    });
+  }
+
+  // Let Node.js handle all other URLs.
+  return defaultGetSource(url, context, defaultGetSource);
+}
+```
+
+```js
+// main.mjs
+import { VERSION } from 'https://coffeescript.org/browser-compiler-modern/coffeescript.js';
+
+console.log(VERSION);
+```
+
+With this loader, running:
+
+```console
+node --experimental-loader ./https-loader.mjs ./main.js
+```
+
+Will print the current version of CoffeeScript per the module at the URL in
+`main.mjs`.
+
+##### Transpiler loader
+
+Sources that are in formats Node.js doesn’t understand can be converted into
+JavaScript using the [`transformSource` hook][]. Before that hook gets called,
+however, other hooks need to tell Node.js not to throw an error on unknown file
+types; and to tell Node.js how to load this new file type.
+
+This is less performant than transpiling source files before running
+Node.js; a transpiler loader should only be used for development and testing
+purposes.
+
+```js
+// coffeescript-loader.mjs
+import { URL, pathToFileURL } from 'url';
+import CoffeeScript from 'coffeescript';
+
+const baseURL = pathToFileURL(`${process.cwd()}/`).href;
+
+// CoffeeScript files end in .coffee, .litcoffee or .coffee.md.
+const extensionsRegex = /\.coffee$|\.litcoffee$|\.coffee\.md$/;
+
+export function resolve(specifier, context, defaultResolve) {
+  const { parentURL = baseURL } = context;
+
+  // Node.js normally errors on unknown file extensions, so return a URL for
+  // specifiers ending in the CoffeeScript file extensions.
+  if (extensionsRegex.test(specifier)) {
+    return {
+      url: new URL(specifier, parentURL).href
+    };
+  }
+
+  // Let Node.js handle all other specifiers.
+  return defaultResolve(specifier, context, defaultResolve);
+}
+
+export function getFormat(url, context, defaultGetFormat) {
+  // Now that we patched resolve to let CoffeeScript URLs through, we need to
+  // tell Node.js what format such URLs should be interpreted as. For the
+  // purposes of this loader, all CoffeeScript URLs are ES modules.
+  if (extensionsRegex.test(url)) {
+    return {
+      format: 'module'
+    };
+  }
+
+  // Let Node.js handle all other URLs.
+  return defaultGetFormat(url, context, defaultGetFormat);
+}
+
+export function transformSource(source, context, defaultTransformSource) {
+  const { url, format } = context;
+
+  if (extensionsRegex.test(url)) {
+    return {
+      source: CoffeeScript.compile(source, { bare: true })
+    };
+  }
+
+  // Let Node.js handle all other sources.
+  return defaultTransformSource(source, context, defaultTransformSource);
+}
+```
+
+```coffee
+# main.coffee
+import { scream } from './scream.coffee'
+console.log scream 'hello, world'
+
+import { version } from 'process'
+console.log "Brought to you by Node.js version #{version}"
+```
+
+```coffee
+# scream.coffee
+export scream = (str) -> str.toUpperCase()
+```
+
+With this loader, running:
+
+```console
+node --experimental-loader ./coffeescript-loader.mjs main.coffee
+```
+
+Will cause `main.coffee` to be turned into JavaScript after its source code is
+loaded from disk but before Node.js executes it; and so on for any `.coffee`,
+`.litcoffee` or `.coffee.md` files referenced via `import` statements of any
+loaded file.
+
 ## Utility Methods
 
 <!-- YAML
