@@ -267,6 +267,7 @@ class RefBase : protected Finalizer, RefTracker {
  protected:
   inline void Finalize(bool is_env_teardown = false) override {
     if (_finalize_callback != nullptr) {
+      v8::HandleScope handle_scope(_env->isolate);
       _env->CallIntoModule([&](napi_env env) {
         _finalize_callback(
             env,
