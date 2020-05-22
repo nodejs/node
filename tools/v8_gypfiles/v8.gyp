@@ -1642,7 +1642,13 @@
           'toolsets': ['host', 'target'],
         }],
         ['OS=="win"', {
-          'defines': ['X86_WINDOWS'],
+          'conditions': [
+            ['"<(target_arch)"=="arm64" and _toolset=="target"', {
+              'defines': ['CPU_NO_SIMD']
+            }, {
+              'defines': ['X86_WINDOWS']
+            }]
+          ]
         }],
       ],
       'direct_dependent_settings': {
