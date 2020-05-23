@@ -203,10 +203,14 @@ module.exports = {
             }
 
             if (requirePaddingFor(node)) {
+
                 if (!blockHasTopPadding) {
                     context.report({
                         node,
-                        loc: { line: tokenBeforeFirst.loc.start.line, column: tokenBeforeFirst.loc.start.column },
+                        loc: {
+                            start: tokenBeforeFirst.loc.start,
+                            end: firstBlockToken.loc.start
+                        },
                         fix(fixer) {
                             return fixer.insertTextAfter(tokenBeforeFirst, "\n");
                         },
@@ -216,7 +220,10 @@ module.exports = {
                 if (!blockHasBottomPadding) {
                     context.report({
                         node,
-                        loc: { line: tokenAfterLast.loc.end.line, column: tokenAfterLast.loc.end.column - 1 },
+                        loc: {
+                            end: tokenAfterLast.loc.start,
+                            start: lastBlockToken.loc.end
+                        },
                         fix(fixer) {
                             return fixer.insertTextBefore(tokenAfterLast, "\n");
                         },
@@ -228,7 +235,10 @@ module.exports = {
 
                     context.report({
                         node,
-                        loc: { line: tokenBeforeFirst.loc.start.line, column: tokenBeforeFirst.loc.start.column },
+                        loc: {
+                            start: tokenBeforeFirst.loc.start,
+                            end: firstBlockToken.loc.start
+                        },
                         fix(fixer) {
                             return fixer.replaceTextRange([tokenBeforeFirst.range[1], firstBlockToken.range[0] - firstBlockToken.loc.start.column], "\n");
                         },
@@ -240,7 +250,10 @@ module.exports = {
 
                     context.report({
                         node,
-                        loc: { line: tokenAfterLast.loc.end.line, column: tokenAfterLast.loc.end.column - 1 },
+                        loc: {
+                            end: tokenAfterLast.loc.start,
+                            start: lastBlockToken.loc.end
+                        },
                         messageId: "neverPadBlock",
                         fix(fixer) {
                             return fixer.replaceTextRange([lastBlockToken.range[1], tokenAfterLast.range[0] - tokenAfterLast.loc.start.column], "\n");

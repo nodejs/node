@@ -102,9 +102,18 @@ module.exports = {
 
             // Check.
             if (!isValid(openBrace, firstToken)) {
+                let loc = openBrace.loc;
+
+                if (messageId === "extra") {
+                    loc = {
+                        start: openBrace.loc.end,
+                        end: firstToken.loc.start
+                    };
+                }
+
                 context.report({
                     node,
-                    loc: openBrace.loc.start,
+                    loc,
                     messageId,
                     data: {
                         location: "after",
@@ -120,9 +129,17 @@ module.exports = {
                 });
             }
             if (!isValid(lastToken, closeBrace)) {
+                let loc = closeBrace.loc;
+
+                if (messageId === "extra") {
+                    loc = {
+                        start: lastToken.loc.end,
+                        end: closeBrace.loc.start
+                    };
+                }
                 context.report({
                     node,
-                    loc: closeBrace.loc.start,
+                    loc,
                     messageId,
                     data: {
                         location: "before",

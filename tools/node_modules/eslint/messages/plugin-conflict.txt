@@ -4,4 +4,4 @@ ESLint couldn't determine the plugin "<%- pluginId %>" uniquely.
 
 Please remove the "plugins" setting from either config or remove either plugin installation.
 
-If you still can't figure out the problem, please stop by https://gitter.im/eslint/eslint to chat with the team.
+If you still can't figure out the problem, please stop by https://eslint.org/chat to chat with the team.

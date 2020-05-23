@@ -326,6 +326,7 @@ function processAnswers(answers) {
     }
     if (answers.typescript && config.extends.includes("eslint:recommended")) {
         config.extends.push("plugin:@typescript-eslint/eslint-recommended");
+        config.extends.push("plugin:@typescript-eslint/recommended");
     }
 
     // normalize extends

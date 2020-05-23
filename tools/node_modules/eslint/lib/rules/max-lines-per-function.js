@@ -134,7 +134,7 @@ module.exports = {
          * @returns {boolean} True if it's an IIFE
          */
         function isIIFE(node) {
-            return node.type === "FunctionExpression" && node.parent && node.parent.type === "CallExpression" && node.parent.callee === node;
+            return (node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") && node.parent && node.parent.type === "CallExpression" && node.parent.callee === node;
         }
 
         /**

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Rule to flag wrapping non-iife in parens
+ * @fileoverview Rule to enforce getter and setter pairs in objects and classes.
  * @author Gyandeep Singh
  */
 
