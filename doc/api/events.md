@@ -935,6 +935,462 @@ if the `EventEmitter` emits `'error'`. It removes all listeners when
 exiting the loop. The `value` returned by each iteration is an array
 composed of the emitted event arguments.
 
+## `EventTarget` and `Event` API
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `EventTarget` and `Event` objects are a Node.js-specific implementation
+of the [`EventTarget` Web API][] that are exposed by some Node.js core APIs.
+Neither the `EventTarget` nor `Event` classes are currently available for end
+user code to create.
+
+```js
+const target = getEventTargetSomehow();
+
+target.addEventListener('foo', (event) => {
+  console.log('foo event happened!');
+});
+```
+
+### Node.js `EventTarget` vs. DOM `EventTarget`
+
+There are two key differences between the Node.js `EventTarget` and the
+[`EventTarget` Web API][]:
+
+1. Whereas DOM `EventTarget` instances *may* be hierarchical, there is no
+   concept of hierarchy and event propagation in Node.js. That is, an event
+   dispatched to an `EventTarget` does not propagate through a hierarchy of
+   nested target objects that may each have their own set of handlers for the
+   event.
+2. In the Node.js `EventTarget`, if an event listener is an async function
+   or returns a `Promise`, and the returned `Promise` rejects, the rejection
+   will be automatically captured and handled the same way as a listener that
+   throws synchronously (see [`EventTarget` Error Handling][] for details).
+
+### `NodeEventTarget` vs. `EventEmitter`
+
+The `NodeEventTarget` object implements a modified subset of the
+`EventEmitter` API that allows it to closely *emulate* an `EventEmitter` in
+certain situations. It is important to understand, however, that an
+`NodeEventTarget` is *not* an instance of `EventEmitter` and cannot be used in
+place of an `EventEmitter` in most cases.
+
+1. Unlike `EventEmitter`, any given `listener` can be registered at most once
+   per event `type`. Attempts to register a `listener` multiple times will be
+   ignored.
+2. The `NodeEventTarget` does not emulate the full `EventEmitter` API.
+   Specifically the `prependListener()`, `prependOnceListener()`,
+   `rawListeners()`, `setMaxListeners()`, `getMaxListeners()`, and
+   `errorMonitor` APIs are not emulated. The `'newListener'` and
+   `'removeListener'` events will also not be emitted.
+3. The `NodeEventTarget` does not implement any special default behavior
+   for events with type `'error'`.
+3. The `NodeEventTarget` supports `EventListener` objects as well as
+   functions as handlers for all event types.
+
+### Event Listener
+
+Event listeners registered for an event `type` may either be JavaScript
+functions or objects with a `handleEvent` property whose value is a function.
+
+In either case, the handler function will be invoked with the `event` argument
+passed to the `eventTarget.dispatchEvent()` function.
+
+Async functions may be used as event listeners. If an async handler function
+rejects, the rejection will be captured and be will handled as described in
+[`EventTarget` Error Handling][].
+
+An error thrown by one handler function will not prevent the other handlers
+from being invoked.
+
+The return value of a handler function will be ignored.
+
+Handlers are always invoked in the order they were added.
+
+Handler functions may mutate the `event` object.
+
+```js
+function handler1(event) {
+  console.log(event.type);  // Prints 'foo'
+  event.a = 1;
+}
+
+async function handler2(event) {
+  console.log(event.type);  // Prints 'foo'
+  console.log(event.a);  // Prints 1
+}
+
+const handler3 = {
+  handleEvent(event) {
+    console.log(event.type);  // Prints 'foo'
+  }
+};
+
+const handler4 = {
+  async handleEvent(event) {
+    console.log(event.type);  // Prints 'foo'
+  }
+};
+
+const target = getEventTargetSomehow();
+
+target.addEventListener('foo', handler1);
+target.addEventListener('foo', handler2);
+target.addEventListener('foo', handler3);
+target.addEventListener('foo', handler4, { once: true });
+```
+
+### `EventTarget` Error Handling
+
+When a registered event listener throws (or returns a Promise that rejects),
+by default the error will be forwarded to the `process.on('error')` event
+on `process.nextTick()`. Throwing within an event listener will *not* stop
+the other registered handlers from being invoked.
+
+The `EventTarget` does not implement any special default handling for
+`'error'` type events.
+
+### Class: `Event`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `Event` object is an adaptation of the [`Event` Web API][]. Instances
+are created internally by Node.js.
+
+#### `event.bubbles`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} Always returns `false`.
+
+This is not used in Node.js and is provided purely for completeness.
+
+#### `event.cancelBubble()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Alias for `event.stopPropagation()`. This is not used in Node.js and is
+provided purely for completeness.
+
+#### `event.cancelable`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} True if the event was created with the `cancelable` option.
+
+#### `event.composed`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} Always returns `false`.
+
+This is not used in Node.js and is provided purely for completeness.
+
+#### `event.composedPath()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Returns an array containing the current `EventTarget` as the only entry or
+empty if the event is not currently being dispatched. This is not used in
+Node.js and is provided purely for completeness.
+
+#### `event.currentTarget`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {EventTarget} The `EventTarget` currently dispatching the event.
+
+Alias for `event.target`.
+
+#### `event.defaultPrevented`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean}
+
+Will be `true` if `cancelable` is `true` and `event.preventDefault()` has been
+called.
+
+#### `event.eventPhase`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number} Returns `0` while an event is not being dispatched, `2` while
+  it is being dispatched.
+
+This is not used in Node.js and is provided purely for completeness.
+
+#### `event.isTrusted`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} Always returns `false`.
+
+This is not used in Node.js and is provided purely for completeness.
+
+#### `event.preventDefault()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Sets the `defaultPrevented` property to `true` if `cancelable` is `true`.
+
+#### `event.returnValue`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} True if the event has not been canceled.
+
+This is not used in Node.js and is provided purely for completeness.
+
+#### `event.srcElement`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {EventTarget} The `EventTarget` currently dispatching the event.
+
+Alias for `event.target`.
+
+#### `event.stopImmediatePropagation()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Stops the invocation of event listeners after the current one completes.
+
+#### `event.stopPropagation()`
+<!-- YAML
+added: REPLACEME
+-->
+
+This is not used in Node.js and is provided purely for completeness.
+
+#### `event.target`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {EventTarget} The `EventTarget` currently dispatching the event.
+
+#### `event.timeStamp`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+The millisecond timestamp when the `Event` object was created.
+
+#### `event.type`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The event type identifier.
+
+### Class: `EventTarget`
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `eventTarget.addEventListener(type, listener[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+* `listener` {Function|EventListener}
+* `options` {Object}
+  * `once` {boolean} When `true`, the listener will be automatically removed
+    when it is first invoked. *Default*: `false`
+  * `passive` {boolean} When `true`, serves as a hint that the listener will
+    not call the `Event` object's `preventDefault()` method. *Default*: `false`
+  * `capture` {boolean} Not directly used by Node.js. Added for API
+    completeness. *Default*: `false`
+
+Adds a new handler for the `type` event. Any given `listener` will be added
+only once per `type` and per `capture` option value.
+
+If the `once` option is `true`, the `listener` will be removed after the
+next time a `type` event is dispatched.
+
+The `capture` option is not used by Node.js in any functional way other than
+tracking registered event listeners per the `EventTarget` specification.
+Specifically, the `capture` option is used as part of the key when registering
+a `listener`. Any individual `listener` may be added once with
+`capture = false`, and once with `capture = true`.
+
+```js
+function handler(event) {}
+
+const target = getEventTargetSomehow();
+target.addEventListener('foo', handler, { capture: true });  // first
+target.addEventListener('foo', handler, { capture: false }); // second
+
+// Removes the second instance of handler
+target.removeEventListener('foo', handler);
+
+// Removes the first instance of handler
+target.removeEventListener('foo', handler, { capture: true });
+```
+
+#### `eventTarget.dispatchEvent(event)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `event` {Object|Event}
+
+Dispatches the `event` to the list of handlers for `event.type`. The `event`
+may be an `Event` object or any object with a `type` property whose value is
+a `string`.
+
+The registered event listeners will be synchronously invoked in the order they
+were registered.
+
+#### `eventTarget.removeEventListener(type, listener)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+* `listener` {Function|EventListener}
+* `options` {Object}
+  * `capture` {boolean}
+
+Removes the `listener` from the list of handlers for event `type`.
+
+### Class: `NodeEventTarget extends EventTarget`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `NodeEventTarget` is a Node.js-specific extension to `EventTarget`
+that emulates a subset of the `EventEmitter` API.
+
+#### `nodeEventTarget.addListener(type, listener[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+* `listener` {Function|EventListener}
+* `options` {Object}
+  * `once` {boolean}
+
+* Returns: {EventTarget} this
+
+Node.js-specific extension to the `EventTarget` class that emulates the
+equivalent `EventEmitter` API. The only difference between `addListener()` and
+`addEventListener()` is that `addListener()` will return a reference to the
+`EventTarget`.
+
+#### `nodeEventTarget.eventNames()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string[]}
+
+Node.js-specific extension to the `EventTarget` class that returns an array
+of event `type` names for which event listeners are currently registered.
+
+#### `nodeEventTarget.listenerCount(type)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+
+* Returns: {number}
+
+Node.js-specific extension to the `EventTarget` class that returns the number
+of event listeners registered for the `type`.
+
+#### `nodeEventTarget.off(type, listener)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+* `listener` {Function|EventListener}
+
+* Returns: {EventTarget} this
+
+Node.js-speciic alias for `eventTarget.removeListener()`.
+
+#### `nodeEventTarget.on(type, listener[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+* `listener` {Function|EventListener}
+* `options` {Object}
+  * `once` {boolean}
+
+* Returns: {EventTarget} this
+
+Node.js-specific alias for `eventTarget.addListener()`.
+
+#### `nodeEventTarget.once(type, listener[, options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+* `listener` {Function|EventListener}
+* `options` {Object}
+
+* Returns: {EventTarget} this
+
+Node.js-specific extension to the `EventTarget` class that adds a `once`
+listener for the given event `type`. This is equivalent to calling `on`
+with the `once` option set to `true`.
+
+#### `nodeEventTarget.removeAllListeners([type])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+
+Node.js-specific extension to the `EventTarget` class. If `type` is specified,
+removes all registered listeners for `type`, otherwise removes all registered
+listeners.
+
+#### `nodeEventTarget.removeListener(type, listener)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string}
+* `listener` {Function|EventListener}
+
+* Returns: {EventTarget} this
+
+Node.js-specific extension to the `EventTarget` class that removes the
+`listener` for the given `type`. The only difference between `removeListener()`
+and `removeEventListener()` is that `removeListener()` will return a reference
+to the `EventTarget`.
+
 [WHATWG-EventTarget]: https://dom.spec.whatwg.org/#interface-eventtarget
 [`--trace-warnings`]: cli.html#cli_trace_warnings
 [`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
@@ -942,6 +1398,9 @@ composed of the emitted event arguments.
 [`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
 [`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
+[`Event` Web API]: https://dom.spec.whatwg.org/#event
+[`EventTarget` Error Handling]: #events_eventtarget_error_handling
+[`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server
 [`process.on('warning')`]: process.html#process_event_warning
