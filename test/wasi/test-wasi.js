@@ -38,7 +38,13 @@ if (process.argv[2] === 'wasi-child') {
 
   function runWASI(options) {
     console.log('executing', options.test);
-    const opts = { env: { ...process.env, NODE_DEBUG_NATIVE: 'wasi' } };
+    const opts = {
+      env: {
+        ...process.env,
+        NODE_DEBUG_NATIVE: 'wasi',
+        NODE_PLATFORM: process.platform
+      }
+    };
 
     if (options.stdin !== undefined)
       opts.input = options.stdin;
@@ -75,7 +81,7 @@ if (process.argv[2] === 'wasi-child') {
   runWASI({ test: 'link' });
   runWASI({ test: 'main_args' });
   runWASI({ test: 'notdir' });
-  // runWASI({ test: 'poll' });
+  runWASI({ test: 'poll' });
   runWASI({ test: 'preopen_populates' });
   runWASI({ test: 'read_file', stdout: `hello from input.txt${EOL}` });
   runWASI({
