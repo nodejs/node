@@ -86,8 +86,14 @@ module.exports = {
                     context.report({
                         node,
                         loc: {
-                            line: i,
-                            column: sourceCode.lines[i - 1].length
+                            start: {
+                                line: i,
+                                column: sourceCode.lines[i - 1].length
+                            },
+                            end: {
+                                line: i + 1,
+                                column: 0
+                            }
                         },
                         messageId: expectedLF ? "expectedLF" : "expectedCRLF",
                         fix: createFix(range, expectedLFChars)

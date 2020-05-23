@@ -148,6 +148,7 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "no-lone-blocks": () => require("./no-lone-blocks"),
     "no-lonely-if": () => require("./no-lonely-if"),
     "no-loop-func": () => require("./no-loop-func"),
+    "no-loss-of-precision": () => require("./no-loss-of-precision"),
     "no-magic-numbers": () => require("./no-magic-numbers"),
     "no-misleading-character-class": () => require("./no-misleading-character-class"),
     "no-mixed-operators": () => require("./no-mixed-operators"),

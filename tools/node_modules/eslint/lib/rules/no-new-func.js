@@ -29,26 +29,29 @@ module.exports = {
 
     create(context) {
 
-        //--------------------------------------------------------------------------
-        // Helpers
-        //--------------------------------------------------------------------------
-
-        /**
-         * Reports a node.
-         * @param {ASTNode} node The node to report
-         * @returns {void}
-         * @private
-         */
-        function report(node) {
-            context.report({
-                node,
-                messageId: "noFunctionConstructor"
-            });
-        }
-
         return {
-            "NewExpression[callee.name = 'Function']": report,
-            "CallExpression[callee.name = 'Function']": report
+            "Program:exit"() {
+                const globalScope = context.getScope();
+                const variable = globalScope.set.get("Function");
+
+                if (variable && variable.defs.length === 0) {
+                    variable.references.forEach(ref => {
+                        const node = ref.identifier;
+                        const { parent } = node;
+
+                        if (
+                            parent &&
+                            (parent.type === "NewExpression" || parent.type === "CallExpression") &&
+                            node === parent.callee
+                        ) {
+                            context.report({
+                                node: parent,
+                                messageId: "noFunctionConstructor"
+                            });
+                        }
+                    });
+                }
+            }
         };
 
     }

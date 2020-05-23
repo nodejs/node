@@ -71,7 +71,7 @@ module.exports = {
                         context.report({
                             node,
                             messageId: "expectVarOnNewline",
-                            loc: current.loc.start,
+                            loc: current.loc,
                             fix: fixer => fixer.insertTextBefore(current, "\n")
                         });
                     }

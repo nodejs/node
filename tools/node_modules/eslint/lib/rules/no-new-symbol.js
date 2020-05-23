@@ -37,8 +37,9 @@ module.exports = {
                 if (variable && variable.defs.length === 0) {
                     variable.references.forEach(ref => {
                         const node = ref.identifier;
+                        const parent = node.parent;
 
-                        if (node.parent && node.parent.type === "NewExpression") {
+                        if (parent && parent.type === "NewExpression" && parent.callee === node) {
                             context.report({
                                 node,
                                 messageId: "noNewSymbol"

@@ -1243,19 +1243,64 @@ module.exports = {
 
     /**
      * Gets next location when the result is not out of bound, otherwise returns null.
+     *
+     * Assumptions:
+     *
+     * - The given location represents a valid location in the given source code.
+     * - Columns are 0-based.
+     * - Lines are 1-based.
+     * - Column immediately after the last character in a line (not incl. linebreaks) is considered to be a valid location.
+     * - If the source code ends with a linebreak, `sourceCode.lines` array will have an extra element (empty string) at the end.
+     *   The start (column 0) of that extra line is considered to be a valid location.
+     *
+     * Examples of successive locations (line, column):
+     *
+     * code: foo
+     * locations: (1, 0) -> (1, 1) -> (1, 2) -> (1, 3) -> null
+     *
+     * code: foo<LF>
+     * locations: (1, 0) -> (1, 1) -> (1, 2) -> (1, 3) -> (2, 0) -> null
+     *
+     * code: foo<CR><LF>
+     * locations: (1, 0) -> (1, 1) -> (1, 2) -> (1, 3) -> (2, 0) -> null
+     *
+     * code: a<LF>b
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (2, 1) -> null
+     *
+     * code: a<LF>b<LF>
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (2, 1) -> (3, 0) -> null
+     *
+     * code: a<CR><LF>b<CR><LF>
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (2, 1) -> (3, 0) -> null
+     *
+     * code: a<LF><LF>
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (3, 0) -> null
+     *
+     * code: <LF>
+     * locations: (1, 0) -> (2, 0) -> null
+     *
+     * code:
+     * locations: (1, 0) -> null
      * @param {SourceCode} sourceCode The sourceCode
      * @param {{line: number, column: number}} location The location
      * @returns {{line: number, column: number} | null} Next location
      */
-    getNextLocation(sourceCode, location) {
-        const index = sourceCode.getIndexFromLoc(location);
-
-        // Avoid out of bound location
-        if (index + 1 > sourceCode.text.length) {
-            return null;
+    getNextLocation(sourceCode, { line, column }) {
+        if (column < sourceCode.lines[line - 1].length) {
+            return {
+                line,
+                column: column + 1
+            };
         }
 
-        return sourceCode.getLocFromIndex(index + 1);
+        if (line < sourceCode.lines.length) {
+            return {
+                line: line + 1,
+                column: 0
+            };
+        }
+
+        return null;
     },
 
     /**
