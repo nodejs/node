@@ -777,7 +777,7 @@ const errorTests = [
       /  dirxml: \[Function: (dirxml|log)],/,
       /  error: \[Function: (error|warn)],/,
       /  groupCollapsed: \[Function: (groupCollapsed|group)],/,
-      '  Console: [Function: Console],',
+      /  Console: \[Function: Console],?/,
       ...process.features.inspector ? [
         '  profile: [Function: profile],',
         '  profileEnd: [Function: profileEnd],',
