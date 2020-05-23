@@ -233,8 +233,9 @@ changes:
 
 * `err` {Error} The uncaught exception.
 * `origin` {string} Indicates if the exception originates from an unhandled
-  rejection or from synchronous errors. Can either be `'uncaughtException'` or
-  `'unhandledRejection'`.
+  rejection or from an synchronous error. Can either be `'uncaughtException'` or
+  `'unhandledRejection'`. The latter is only used in conjunction with the
+  [`--unhandled-rejections`][] flag set to `strict` and an unhandled rejection.
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
@@ -2604,6 +2605,7 @@ cases:
 [`'exit'`]: #process_event_exit
 [`'message'`]: child_process.html#child_process_event_message
 [`'uncaughtException'`]: #process_event_uncaughtexception
+[`--unhandled-rejections`]: cli.html#cli_unhandled_rejections_mode
 [`Buffer`]: buffer.html
 [`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
