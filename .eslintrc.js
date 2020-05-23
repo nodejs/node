@@ -280,6 +280,7 @@ module.exports = {
     'node-core/no-duplicate-requires': 'error',
   },
   globals: {
+    AbortController: 'readable',
     Atomics: 'readable',
     BigInt: 'readable',
     BigInt64Array: 'readable',

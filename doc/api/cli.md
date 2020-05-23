@@ -167,6 +167,13 @@ Enable experimental Source Map V3 support for stack traces.
 Currently, overriding `Error.prepareStackTrace` is ignored when the
 `--enable-source-maps` flag is set.
 
+### `--experimental-abortcontroller`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enable experimental `AbortController` and `AbortSignal` support.
+
 ### `--experimental-import-meta-resolve`
 <!-- YAML
 added:
@@ -1209,6 +1216,7 @@ Node.js options that are allowed are:
 * `--disable-proto`
 * `--enable-fips`
 * `--enable-source-maps`
+* `--experimental-abortcontroller`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
