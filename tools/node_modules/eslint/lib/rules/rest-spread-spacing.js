@@ -79,10 +79,7 @@ module.exports = {
             if (alwaysSpace && !hasWhitespace) {
                 context.report({
                     node,
-                    loc: {
-                        line: operator.loc.end.line,
-                        column: operator.loc.end.column
-                    },
+                    loc: operator.loc,
                     messageId: "expectedWhitespace",
                     data: {
                         type
@@ -95,8 +92,8 @@ module.exports = {
                 context.report({
                     node,
                     loc: {
-                        line: operator.loc.end.line,
-                        column: operator.loc.end.column
+                        start: operator.loc.end,
+                        end: nextToken.loc.start
                     },
                     messageId: "unexpectedWhitespace",
                     data: {

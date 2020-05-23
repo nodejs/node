@@ -14,7 +14,8 @@ try {
   var _require = require;
   esprima = _require('esprima');
 } catch (_) {
-  /*global window */
+  /* eslint-disable no-redeclare */
+  /* global window */
   if (typeof window !== 'undefined') esprima = window.esprima;
 }
 

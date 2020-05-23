@@ -42,7 +42,7 @@ module.exports = {
     meta: {
         deprecated: true,
 
-        replacedBy: ["node/no-restricted-require"],
+        replacedBy: [],
 
         type: "suggestion",
 

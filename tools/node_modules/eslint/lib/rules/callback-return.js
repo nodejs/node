@@ -12,7 +12,7 @@ module.exports = {
     meta: {
         deprecated: true,
 
-        replacedBy: ["node/callback-return"],
+        replacedBy: [],
 
         type: "suggestion",
 
