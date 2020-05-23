@@ -256,6 +256,7 @@ function platformTimeout(ms) {
 }
 
 let knownGlobals = [
+  AbortController,
   clearImmediate,
   clearInterval,
   clearTimeout,

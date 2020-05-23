@@ -274,6 +274,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental Source Map V3 support",
             &EnvironmentOptions::enable_source_maps,
             kAllowedInEnvironment);
+  AddOption("--experimental-abortcontroller",
+            "experimental AbortController support",
+            &EnvironmentOptions::experimental_abortcontroller,
+            kAllowedInEnvironment);
   AddOption("--experimental-json-modules",
             "experimental JSON interop support for the ES Module loader",
             &EnvironmentOptions::experimental_json_modules,
