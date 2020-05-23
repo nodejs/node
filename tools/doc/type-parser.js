@@ -77,6 +77,9 @@ const customTypesMap = {
   'import.meta': 'esm.html#esm_import_meta',
 
   'EventEmitter': 'events.html#events_class_eventemitter',
+  'EventTarget': 'events.html#events_class_eventtarget',
+  'Event': 'events.html#events_class_event',
+  'EventListener': 'events.html#events_event_listener',
 
   'FileHandle': 'fs.html#fs_class_filehandle',
   'fs.Dir': 'fs.html#fs_class_fs_dir',
@@ -118,6 +121,9 @@ const customTypesMap = {
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
+
+  'NodeEventTarget':
+    'events.html#events_class_nodeeventtarget_extends_eventtarget',
 
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 
