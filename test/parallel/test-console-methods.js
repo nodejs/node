@@ -32,9 +32,29 @@ const methods = [
   'groupCollapsed',
 ];
 
+const alternateNames = {
+  debug: 'log',
+  info: 'log',
+  dirxml: 'log',
+  error: 'warn',
+  groupCollapsed: 'group'
+};
+
+function assertEqualName(method) {
+  try {
+    assert.strictEqual(console[method].name, method);
+  } catch {
+    assert.strictEqual(console[method].name, alternateNames[method]);
+  }
+  try {
+    assert.strictEqual(newInstance[method].name, method);
+  } catch {
+    assert.strictEqual(newInstance[method].name, alternateNames[method]);
+  }
+}
+
 for (const method of methods) {
-  assert.strictEqual(console[method].name, method);
-  assert.strictEqual(newInstance[method].name, method);
+  assertEqualName(method);
 
   assert.throws(() => new console[method](), err);
   assert.throws(() => new newInstance[method](), err);
