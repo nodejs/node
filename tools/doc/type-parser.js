@@ -26,6 +26,10 @@ const customTypesMap = {
 
   'this': `${jsDocPrefix}Reference/Operators/this`,
 
+  'AbortController': 'globals.html#globals_class_abortcontroller',
+  'AbortSignal':
+    'globals.html#globals_class_abortsignal_extends_eventtarget',
+
   'ArrayBufferView':
     'https://developer.mozilla.org/en-US/docs/Web/API/ArrayBufferView',
 
