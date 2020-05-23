@@ -305,6 +305,7 @@ class SourceCode extends TokenStore {
      * @returns {Object} An object containing a leading and trailing array
      *      of comments indexed by their position.
      * @public
+     * @deprecated replaced by getCommentsBefore(), getCommentsAfter(), and getCommentsInside().
      */
     getComments(node) {
         if (this._commentCache.has(node)) {

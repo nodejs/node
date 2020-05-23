@@ -12,7 +12,7 @@ module.exports = {
     meta: {
         deprecated: true,
 
-        replacedBy: ["node/no-deprecated-api"],
+        replacedBy: [],
 
         type: "problem",
 

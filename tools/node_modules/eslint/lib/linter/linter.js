@@ -938,7 +938,8 @@ function runRules(sourceCode, configuredRules, ruleMapper, parserOptions, parser
         });
     });
 
-    const eventGenerator = new CodePathAnalyzer(new NodeEventGenerator(emitter));
+    // only run code path analyzer if the top level node is "Program", skip otherwise
+    const eventGenerator = nodeQueue[0].node.type === "Program" ? new CodePathAnalyzer(new NodeEventGenerator(emitter)) : new NodeEventGenerator(emitter);
 
     nodeQueue.forEach(traversalInfo => {
         currentNode = traversalInfo.node;

@@ -117,6 +117,18 @@ module.exports = {
         }
 
         /**
+         * Report location example :
+         *
+         * for unexpected space `before`
+         *
+         * var a = 'b'   ;
+         *            ^^^
+         *
+         * for unexpected space `after`
+         *
+         * var a = 'b';  c = 10;
+         *             ^^
+         *
          * Reports if the given token has invalid spacing.
          * @param {Token} token The semicolon token to check.
          * @param {ASTNode} node The corresponding node of the token.
@@ -124,16 +136,19 @@ module.exports = {
          */
         function checkSemicolonSpacing(token, node) {
             if (astUtils.isSemicolonToken(token)) {
-                const location = token.loc.start;
-
                 if (hasLeadingSpace(token)) {
                     if (!requireSpaceBefore) {
+                        const tokenBefore = sourceCode.getTokenBefore(token);
+                        const loc = {
+                            start: tokenBefore.loc.end,
+                            end: token.loc.start
+                        };
+
                         context.report({
                             node,
-                            loc: location,
+                            loc,
                             messageId: "unexpectedWhitespaceBefore",
                             fix(fixer) {
-                                const tokenBefore = sourceCode.getTokenBefore(token);
 
                                 return fixer.removeRange([tokenBefore.range[1], token.range[0]]);
                             }
@@ -141,9 +156,11 @@ module.exports = {
                     }
                 } else {
                     if (requireSpaceBefore) {
+                        const loc = token.loc;
+
                         context.report({
                             node,
-                            loc: location,
+                            loc,
                             messageId: "missingWhitespaceBefore",
                             fix(fixer) {
                                 return fixer.insertTextBefore(token, " ");
@@ -155,12 +172,17 @@ module.exports = {
                 if (!isFirstTokenInCurrentLine(token) && !isLastTokenInCurrentLine(token) && !isBeforeClosingParen(token)) {
                     if (hasTrailingSpace(token)) {
                         if (!requireSpaceAfter) {
+                            const tokenAfter = sourceCode.getTokenAfter(token);
+                            const loc = {
+                                start: token.loc.end,
+                                end: tokenAfter.loc.start
+                            };
+
                             context.report({
                                 node,
-                                loc: location,
+                                loc,
                                 messageId: "unexpectedWhitespaceAfter",
                                 fix(fixer) {
-                                    const tokenAfter = sourceCode.getTokenAfter(token);
 
                                     return fixer.removeRange([token.range[1], tokenAfter.range[0]]);
                                 }
@@ -168,9 +190,11 @@ module.exports = {
                         }
                     } else {
                         if (requireSpaceAfter) {
+                            const loc = token.loc;
+
                             context.report({
                                 node,
-                                loc: location,
+                                loc,
                                 messageId: "missingWhitespaceAfter",
                                 fix(fixer) {
                                     return fixer.insertTextAfter(token, " ");
