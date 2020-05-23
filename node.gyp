@@ -95,6 +95,7 @@
       'lib/wasi.js',
       'lib/worker_threads.js',
       'lib/zlib.js',
+      'lib/internal/abort_controller.js',
       'lib/internal/assert.js',
       'lib/internal/assert/assertion_error.js',
       'lib/internal/assert/calltracker.js',
