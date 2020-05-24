@@ -107,7 +107,8 @@ server.listen(0, common.mustCall(function() {
     assert.deepStrictEqual(response.getHeaders(), expectedHeaders);
 
     response.getHeaders()[fake] = fake;
-    assert.strictEqual(response.hasHeader(fake), true);
+    assert.strictEqual(response.hasHeader(fake), false);
+    assert.strictEqual(Object.getPrototypeOf(response.getHeaders()), null);
 
     assert.strictEqual(response.sendDate, true);
     response.sendDate = false;
