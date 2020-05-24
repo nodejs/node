@@ -47,6 +47,7 @@ server.listen(0, function() {
   }
 
   req.on('error', common.mustCall(function(er) {
+    assert.strictEqual(req.res, null);
     switch (er.code) {
       // This is the expected case
       case 'ECONNRESET':
@@ -73,10 +74,7 @@ server.listen(0, function() {
     server.close();
   }));
 
-  req.on('response', function(res) {
-    res.on('data', common.mustNotCall('Should not receive response data'));
-    res.on('end', common.mustNotCall('Should not receive response end'));
-  });
+  req.on('response', common.mustNotCall());
 
   write();
 });
