@@ -2612,6 +2612,9 @@ no longer required due to simplification of the implementation.
 ### DEP0144: `module.parent`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33534
+    description: Runtime deprecation.
   - version:
     - v14.6.0
     - v12.19.0
@@ -2619,7 +2622,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime (supports [`--pending-deprecation`][])
 
 A CommonJS module can access the first module that required it using
 `module.parent`. This feature is deprecated because it does not work
@@ -2642,6 +2645,9 @@ When looking for the CommonJS modules that have required the current one,
 const moduleParents = Object.values(require.cache)
   .filter((m) => m.children.includes(module));
 ```
+
+Without `--pending-deprecation`, runtime warnings occur only when this property
+is accessed from a module that have a nullish value for their `module.parent`.
 
 ### DEP0145: `socket.bufferSize`
 <!-- YAML

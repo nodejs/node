@@ -917,10 +917,10 @@ deprecated:
 > Stability: 0 - Deprecated: Please use [`require.main`][] and
 > [`module.children`][] instead.
 
-* {module | null | undefined}
+* {module | null | UnknownModule}
 
 The module that first required this one, or `null` if the current module is the
-entry point of the current process, or `undefined` if the module was loaded by
+entry point of the current process, or `UnknownModule` if the module was loaded by
 something that is not a CommonJS module (E.G.: REPL or `import`).
 
 ### `module.path`
