@@ -23,7 +23,7 @@ const server = http2.createServer(common.mustCall((req, res) => {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const request = client.request();
-  request.on('data', common.mustCall((d) => { }));
+  request.on('data', common.mustCall());
   request.on('end', common.mustCall(() => {
     client.close();
   }));
