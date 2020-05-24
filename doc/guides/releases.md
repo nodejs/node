@@ -283,7 +283,7 @@ in the release branch (e.g. a release for Node.js v4 would be added to the
 
 The new entry should take the following form:
 
-```md
+```markdown
 <a id="x.y.x"></a>
 ## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
 
