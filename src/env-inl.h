@@ -795,6 +795,14 @@ void Environment::set_emit_insecure_umask_warning(bool on) {
   emit_insecure_umask_warning_ = on;
 }
 
+void Environment::set_source_maps_enabled(bool on) {
+  source_maps_enabled_ = on;
+}
+
+bool Environment::source_maps_enabled() const {
+  return source_maps_enabled_;
+}
+
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }
