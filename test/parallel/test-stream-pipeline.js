@@ -499,7 +499,9 @@ const { promisify } = require('util');
     http.get({ port: this.address().port }, (res) => {
       const stream = new PassThrough();
 
-      stream.on('error', common.mustCall());
+      // NOTE: 2 because Node 12 streams can emit 'error'
+      // multiple times.
+      stream.on('error', common.mustCall(2));
 
       pipeline(
         res,
