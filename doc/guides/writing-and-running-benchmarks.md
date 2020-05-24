@@ -59,7 +59,7 @@ package managers or download it from <https://www.r-project.org/>.
 The R packages `ggplot2` and `plyr` are also used and can be installed using
 the R REPL.
 
-```R
+```console
 $ R
 install.packages("ggplot2")
 install.packages("plyr")
@@ -71,7 +71,7 @@ selected first, specify a mirror by adding in the repo parameter.
 If we used the "<http://cran.us.r-project.org>" mirror, it could look something
 like this:
 
-```R
+```r
 install.packages("ggplot2", repo="http://cran.us.r-project.org")
 ```
 

@@ -366,7 +366,7 @@ line number:
 
 This new output shows us exactly where the leak is occurring in the file `hello.cc`:
 
-```C++
+```cpp
   6 void* malloc_holder = nullptr;
   7 napi_value Method(napi_env env, napi_callback_info info) {
   8   napi_status status;
