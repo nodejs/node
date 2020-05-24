@@ -1410,6 +1410,8 @@ struct ssl_st {
     OSSL_ENCRYPTION_LEVEL quic_write_level;
     QUIC_DATA *quic_input_data_head;
     QUIC_DATA *quic_input_data_tail;
+    uint8_t quic_msg_hd[SSL3_HM_HEADER_LENGTH];
+    size_t quic_msg_hd_offset;
     const SSL_QUIC_METHOD *quic_method;
 #endif
     /*
