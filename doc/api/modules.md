@@ -912,16 +912,23 @@ added: v0.1.16
 deprecated:
   - v14.6.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: When the module is loaded by something that is not a CommonJS
+                 module, the value of `module.parent` is truthy. On previous
+                 versions, it is `undefined`.
 -->
 
 > Stability: 0 - Deprecated: Please use [`require.main`][] and
 > [`module.children`][] instead.
 
-* {module | null | undefined}
+* {module | null | Object}
 
 The module that first required this one, or `null` if the current module is the
-entry point of the current process, or `undefined` if the module was loaded by
-something that is not a CommonJS module (E.G.: REPL or `import`).
+entry point of the current process, or an instance of an add-hoc `UnknownModule`
+class if the module was loaded by something that is not a CommonJS module (E.G.:
+REPL or `import`).
 
 ### `module.path`
 <!-- YAML
