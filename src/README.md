@@ -910,7 +910,7 @@ Node.js provides a few macros that behave similar to `assert()`:
 The `OnScopeLeave()` function can be used to run a piece of code when leaving
 the current C++ scope.
 
-```c++
+```cpp
 static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_passwd_t pwd;
