@@ -14,7 +14,7 @@ into the JavaScript language. A number of additional methods are supported
 that cover additional use cases. Node.js APIs accept plain [`Uint8Array`][]s
 wherever `Buffer`s are supported as well.
 
-Instances of the `Buffer` class, and [`Uint8Array`][]s in general,
+Instances of `Buffer`, and instances of [`Uint8Array`][] in general,
 are similar to arrays of integers from `0` to `255`, but correspond to
 fixed-sized blocks of memory and cannot contain any other values.
 The size of a `Buffer` is established when it is created and cannot be changed.
