@@ -646,6 +646,14 @@ parser.add_option('--v8-with-dchecks',
     default=False,
     help='compile V8 with debug checks and runtime debugging features enabled')
 
+parser.add_option('--v8-lite-mode',
+    action='store_true',
+    dest='v8_lite_mode',
+    default=False,
+    help='compile V8 in lite mode for constrained environments (lowers V8 '+
+         'memory footprint, but also implies no just-in-time compilation ' +
+         'support, thus much slower execution)')
+
 parser.add_option('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
@@ -1246,6 +1254,7 @@ def configure_library(lib, output, pkgname=None):
 
 
 def configure_v8(o):
+  o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
