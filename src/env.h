@@ -1059,6 +1059,9 @@ class Environment : public MemoryRetainer {
   inline bool emit_insecure_umask_warning() const;
   inline void set_emit_insecure_umask_warning(bool on);
 
+  inline void set_source_maps_enabled(bool on);
+  inline bool source_maps_enabled() const;
+
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
@@ -1277,6 +1280,8 @@ class Environment : public MemoryRetainer {
   bool emit_err_name_warning_ = true;
   bool emit_filehandle_warning_ = true;
   bool emit_insecure_umask_warning_ = true;
+  bool source_maps_enabled_ = false;
+
   size_t async_callback_scope_depth_ = 0;
   std::vector<double> destroy_async_id_list_;
 

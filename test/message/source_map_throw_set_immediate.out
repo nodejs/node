@@ -1,6 +1,6 @@
-*uglify-throw.js:1
-setImmediate(function(){!function(){throw Error("goodbye")}()});
-                                    ^
+*uglify-throw-original.js:5
+  throw Error('goodbye');
+        ^
 
 Error: goodbye
     at *uglify-throw.js:1:43
