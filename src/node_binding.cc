@@ -233,7 +233,6 @@ using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -644,8 +643,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
   Local<Object> module = Object::New(env->isolate());
   Local<Object> exports = Object::New(env->isolate());
   Local<String> exports_prop =
-      String::NewFromUtf8(env->isolate(), "exports", NewStringType::kNormal)
-          .ToLocalChecked();
+      String::NewFromUtf8Literal(env->isolate(), "exports");
   module->Set(env->context(), exports_prop, exports).Check();
 
   if (mod->nm_context_register_func != nullptr) {
