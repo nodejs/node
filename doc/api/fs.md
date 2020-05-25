@@ -5180,6 +5180,7 @@ async function createRandomFile() {
   console.log(result.path);
   // Prints: /tmp/foo-itXde2 or C:\Users\...\AppData\Local\Temp\foo-itXde2
   await result.handle.close();
+  // Closes the file descriptor but does not remove the file.
 }
 createRandomFile().catch(console.error);
 ```
