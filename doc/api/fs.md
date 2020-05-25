@@ -5175,16 +5175,13 @@ The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
 ```js
-const fs = require('fs');
-
-async function createRandomFile(path, data) {
+async function createRandomFile() {
   const result = await fsPromises.mkstemp(path.join(os.tmpdir(), 'foo-'));
   console.log(result.path);
   // Prints: /tmp/foo-itXde2 or C:\Users\...\AppData\Local\Temp\foo-itXde2
-  await result.handle.writeFile(data);
   await result.handle.close();
 }
-createRandomFile('./').catch(console.error);
+createRandomFile().catch(console.error);
 ```
 
 The `fsPromises.mkstemp()` method will append the six randomly selected

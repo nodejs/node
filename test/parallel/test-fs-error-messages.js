@@ -667,13 +667,11 @@ if (!common.isAIX) {
 {
   const validateError = (err) => {
     const pathPrefix = new RegExp('^' + re`${nonexistentDir}`);
-    assert(pathPrefix.test(err.path),
-           `Expect ${err.path} to match ${pathPrefix}`);
+    assert.match(err.path, pathPrefix);
 
     const prefix = new RegExp('^ENOENT: no such file or directory, mkstemp ' +
                               re`'${nonexistentDir}`);
-    assert(prefix.test(err.message),
-           `Expect ${err.message} to match ${prefix}`);
+    assert.match(err.message, prefix);
 
     assert.strictEqual(err.errno, UV_ENOENT);
     assert.strictEqual(err.code, 'ENOENT');

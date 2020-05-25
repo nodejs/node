@@ -10,7 +10,7 @@ tmpdir.refresh();
 
 const tmpFile = fs.mkstempSync(path.join(tmpdir.path, 'foo.'));
 
-assert.match(path.basename(tmpFile.path), /^foo\.[0-9a-z]{6}$/i);
+assert.match(path.basename(tmpFile.path), /^foo\..{6}$/);
 assert(fs.existsSync(tmpFile.path));
 
 assert.strictEqual(typeof tmpFile.fd, 'number');

@@ -402,7 +402,7 @@ async function getHandle(dest) {
     // Create a file with `mkstemp`.
     {
       const file = await mkstemp(path.resolve(tmpDir, 'FOO'));
-      assert.match(path.basename(file.path), /^FOO[0-9a-z]{6}$/i);
+      assert.match(path.basename(file.path), /^FOO.{6}$/);
       assert(fs.existsSync(file.path));
       await file.handle.appendFile('bar');
       await file.handle.close();
