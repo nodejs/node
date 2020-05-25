@@ -62,9 +62,15 @@ if (!common.isIBMi) { // IBMi does not suppport fs.watch()
 }
 
 {
-  const tempFileName = path.resolve(tmpdir.path, 'mkdtemp-');
-  fs.mkdtempSync(tempFileName, options);
-  fs.mkdtemp(tempFileName, options, common.mustCall(errHandler));
+  const tempDirName = path.resolve(tmpdir.path, 'mkdtemp-');
+  fs.mkdtempSync(tempDirName, options);
+  fs.mkdtemp(tempDirName, options, common.mustCall(errHandler));
+}
+
+{
+  const tempFileName = path.resolve(tmpdir.path, 'mkstemp-');
+  fs.mkstempSync(tempFileName, options);
+  fs.mkstemp(tempFileName, options, common.mustCall(errHandler));
 }
 
 {

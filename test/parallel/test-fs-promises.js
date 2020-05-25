@@ -18,6 +18,7 @@ const {
   lstat,
   mkdir,
   mkdtemp,
+  mkstemp,
   open,
   readFile,
   readdir,
@@ -398,6 +399,24 @@ async function getHandle(dest) {
       );
     }
 
+    // Create a file with `mkstemp`.
+    {
+      const file = await mkstemp(path.resolve(tmpDir, 'FOO'));
+      assert.match(path.basename(file.path), /^FOO[0-9a-z]{6}$/i);
+      assert(fs.existsSync(file.path));
+      await file.handle.appendFile('bar');
+      await file.handle.close();
+      assert.strictEqual(await readFile(file.path, 'utf-8'), 'bar');
+    }
+
+    // `mkstemp` with invalid numeric prefix
+    assert.rejects(
+      async () => mkstemp(1),
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        name: 'TypeError'
+      }
+    );
   }
 
   doTest().then(common.mustCall());

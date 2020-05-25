@@ -71,6 +71,8 @@ tests['fs.sync.mkdir'] = 'fs.mkdirSync("fstemp");' +
                          'fs.rmdirSync("fstemp")';
 tests['fs.sync.mkdtemp'] = 'const fp = fs.mkdtempSync("fstest");' +
                            'fs.rmdirSync(fp)';
+tests['fs.sync.mkstemp'] = 'const res = fs.mkstempSync("fstest");' +
+                           'fs.unlinkSync(res.path)';
 tests['fs.sync.open'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
                         'fs.unlinkSync("fs.txt")';
 tests['fs.sync.read'] = 'fs.writeFileSync("fs.txt", "123", "utf8");' +
