@@ -649,15 +649,12 @@ void AfterMkstemp(uv_fs_t* req) {
       return;
     }
 
-    Local<Object> result = Object::New(env->isolate());
-    result->Set(env->context(), env->path_string(), path.ToLocalChecked())
-        .Check();
-    result
-        ->Set(env->context(),
-              env->fd_string(),
-              Integer::New(env->isolate(), req->result))
-        .Check();
-    req_wrap->Resolve(result);
+    Local<Value> result[] = {
+      path.ToLocalChecked(),
+      Integer::New(env->isolate(), req->result)
+    };
+
+    req_wrap->Resolve(Array::New(env->isolate(), result, arraysize(result)));
   }
 }
 
@@ -680,11 +677,12 @@ void AfterMkstempFileHandle(uv_fs_t* req) {
     FileHandle* fd = FileHandle::New(req_wrap->binding_data(), req->result);
     if (fd == nullptr) return;
 
-    Local<Object> result = Object::New(env->isolate());
-    result->Set(env->context(), env->path_string(), path.ToLocalChecked())
-        .Check();
-    result->Set(env->context(), env->handle_string(), fd->object()).Check();
-    req_wrap->Resolve(result);
+    Local<Value> result[] = {
+      path.ToLocalChecked(),
+      fd->object()
+    };
+
+    req_wrap->Resolve(Array::New(env->isolate(), result, arraysize(result)));
   }
 }
 
