@@ -1252,19 +1252,17 @@ potentially avoid reading files from disk.
 ```js
 /**
  * @param {string} url
- * @param {object} context
- * @param {string} context.format
- * @param {function} defaultGetSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {{ format: string }} context
+ * @param {Function} defaultGetSource
+ * @returns {Promise<{ source: (SharedArrayBuffer | string | Uint8Array) }>}
  */
 export async function getSource(url, context, defaultGetSource) {
   const { format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for retrieving the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other URLs.
