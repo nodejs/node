@@ -2399,12 +2399,11 @@ static void Mkstemp(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    Local<Object> result = Object::New(isolate);
-    result->Set(env->context(), env->path_string(), rc.ToLocalChecked())
-        .Check();
-    result->Set(env->context(), env->fd_string(), Integer::New(isolate, fd))
-        .Check();
-    args.GetReturnValue().Set(result);
+    Local<Value> result[] = {rc.ToLocalChecked(),
+                             Integer::New(env->isolate(), fd)};
+
+    args.GetReturnValue().Set(
+        Array::New(env->isolate(), result, arraysize(result)));
   }
 }
 
