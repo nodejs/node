@@ -634,10 +634,10 @@ bool InitializePrimordials(Local<Context> context) {
     MaybeLocal<Function> maybe_fn =
         native_module::NativeModuleEnv::LookupAndCompile(
             context, *module, &parameters, nullptr);
-    if (maybe_fn.IsEmpty()) {
+    Local<Function> fn;
+    if (!maybe_fn.ToLocal(&fn)) {
       return false;
     }
-    Local<Function> fn = maybe_fn.ToLocalChecked();
     MaybeLocal<Value> result =
         fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
     // Execution failed during context creation.
