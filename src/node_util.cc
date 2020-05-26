@@ -10,7 +10,6 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;

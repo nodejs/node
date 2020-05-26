@@ -57,7 +57,6 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
-using v8::String;
 using v8::Value;
 
 #define SLURP_STRING(obj, member, valp)                                    \

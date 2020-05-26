@@ -15,7 +15,6 @@ using v8::Global;
 using v8::HandleScope;
 using v8::HeapSnapshot;
 using v8::Isolate;
-using v8::JSON;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Number;
