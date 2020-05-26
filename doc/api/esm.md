@@ -1284,28 +1284,25 @@ unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
 
 ```js
 /**
- * @param {string|buffer} source
- * @param {object} context
- * @param {string} context.url
- * @param {string} context.format
- * @param {function} defaultTransformSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {!(SharedArrayBuffer | string | Uint8Array)} source
+ * @param {{
+ *   url: string,
+ *   format: string,
+ * }} context
+ * @param {Function} defaultTransformSource
+ * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
  */
-export async function transformSource(source,
-                                      context,
-                                      defaultTransformSource) {
+export async function transformSource(source, context, defaultTransformSource) {
   const { url, format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for modifying the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other sources.
-  return defaultTransformSource(
-    source, context, defaultTransformSource);
+  return defaultTransformSource(source, context, defaultTransformSource);
 }
 ```
 
