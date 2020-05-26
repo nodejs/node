@@ -25,7 +25,6 @@ using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Message;
-using v8::Number;
 using v8::Object;
 using v8::ScriptOrigin;
 using v8::StackFrame;
