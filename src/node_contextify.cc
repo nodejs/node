@@ -36,7 +36,6 @@ namespace contextify {
 using errors::TryCatchScope;
 
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
