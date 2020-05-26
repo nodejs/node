@@ -2983,7 +2983,7 @@ added: v8.4.0
 Request URL string. This contains only the URL that is
 present in the actual HTTP request. If the request is:
 
-```text
+```http
 GET /status?name=ryan HTTP/1.1\r\n
 Accept: text/plain\r\n
 \r\n
