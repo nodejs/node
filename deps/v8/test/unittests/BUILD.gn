@@ -190,6 +190,7 @@ v8_source_set("unittests_sources") {
     "numbers/conversions-unittest.cc",
     "objects/object-unittest.cc",
     "objects/value-serializer-unittest.cc",
+    "objects/weakarraylist-unittest.cc",
     "parser/ast-value-unittest.cc",
     "parser/preparser-unittest.cc",
     "profiler/strings-storage-unittest.cc",
