@@ -57,7 +57,7 @@ class BufferFinalizer : private Finalizer {
       v8::HandleScope handle_scope(finalizer->_env->isolate);
       v8::Context::Scope context_scope(finalizer->_env->context());
 
-      finalizer->_env->CallIntoModuleThrow([&](napi_env env) {
+      finalizer->_env->CallIntoModule([&](napi_env env) {
         finalizer->_finalize_callback(
             env,
             finalizer->_finalize_data,
@@ -308,7 +308,7 @@ class ThreadSafeFunction : public node::AsyncResource {
           v8::Local<v8::Function>::New(env->isolate, ref);
         js_callback = v8impl::JsValueFromV8LocalValue(js_cb);
       }
-      env->CallIntoModuleThrow([&](napi_env env) {
+      env->CallIntoModule([&](napi_env env) {
         call_js_cb(env, js_callback, context, data);
       });
     }
@@ -318,7 +318,7 @@ class ThreadSafeFunction : public node::AsyncResource {
     v8::HandleScope scope(env->isolate);
     if (finalize_cb) {
       CallbackScope cb_scope(this);
-      env->CallIntoModuleThrow([&](napi_env env) {
+      env->CallIntoModule([&](napi_env env) {
         finalize_cb(env, finalize_data, context);
       });
     }
@@ -455,7 +455,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   napi_env env = v8impl::NewEnv(context);
 
   napi_value _exports;
-  env->CallIntoModuleThrow([&](napi_env env) {
+  env->CallIntoModule([&](napi_env env) {
     _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
   });
 
