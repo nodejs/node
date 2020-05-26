@@ -1677,8 +1677,8 @@ Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
   script->set_flags(0);
   script->set_host_defined_options(*empty_fixed_array());
   Handle<WeakArrayList> scripts = script_list();
-  scripts = WeakArrayList::AddToEnd(isolate(), scripts,
-                                    MaybeObjectHandle::Weak(script));
+  scripts = WeakArrayList::Append(isolate(), scripts,
+                                  MaybeObjectHandle::Weak(script));
   heap->set_script_list(*scripts);
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   TRACE_EVENT_OBJECT_CREATED_WITH_ID(
@@ -2112,6 +2112,29 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
   return CopyArrayAndGrow(array, grow_by, allocation);
 }
 
+Handle<WeakArrayList> Factory::NewUninitializedWeakArrayList(
+    int capacity, AllocationType allocation) {
+  DCHECK_LE(0, capacity);
+  if (capacity == 0) return empty_weak_array_list();
+
+  HeapObject obj = AllocateRawWeakArrayList(capacity, allocation);
+  obj.set_map_after_allocation(*weak_array_list_map(), SKIP_WRITE_BARRIER);
+
+  Handle<WeakArrayList> result(WeakArrayList::cast(obj), isolate());
+  result->set_length(0);
+  result->set_capacity(capacity);
+  return result;
+}
+
+Handle<WeakArrayList> Factory::NewWeakArrayList(int capacity,
+                                                AllocationType allocation) {
+  Handle<WeakArrayList> result =
+      NewUninitializedWeakArrayList(capacity, allocation);
+  MemsetTagged(ObjectSlot(result->data_start()),
+               ReadOnlyRoots(isolate()).undefined_value(), capacity);
+  return result;
+}
+
 Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
     Handle<WeakFixedArray> src, int grow_by, AllocationType allocation) {
   DCHECK(!src->IsTransitionArray());  // Compacted by GC, this code doesn't work
@@ -2123,22 +2146,42 @@ Handle<WeakArrayList> Factory::CopyWeakArrayListAndGrow(
   int old_capacity = src->capacity();
   int new_capacity = old_capacity + grow_by;
   DCHECK_GE(new_capacity, old_capacity);
-  HeapObject obj = AllocateRawWeakArrayList(new_capacity, allocation);
-  obj.set_map_after_allocation(src->map(), SKIP_WRITE_BARRIER);
-
-  WeakArrayList result = WeakArrayList::cast(obj);
+  Handle<WeakArrayList> result =
+      NewUninitializedWeakArrayList(new_capacity, allocation);
   int old_len = src->length();
-  result.set_length(old_len);
-  result.set_capacity(new_capacity);
+  result->set_length(old_len);
 
   // Copy the content.
   DisallowHeapAllocation no_gc;
-  WriteBarrierMode mode = obj.GetWriteBarrierMode(no_gc);
-  result.CopyElements(isolate(), 0, *src, 0, old_len, mode);
-  MemsetTagged(ObjectSlot(result.data_start() + old_len),
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  result->CopyElements(isolate(), 0, *src, 0, old_len, mode);
+  MemsetTagged(ObjectSlot(result->data_start() + old_len),
                ReadOnlyRoots(isolate()).undefined_value(),
                new_capacity - old_len);
-  return Handle<WeakArrayList>(result, isolate());
+  return result;
+}
+
+Handle<WeakArrayList> Factory::CompactWeakArrayList(Handle<WeakArrayList> src,
+                                                    int new_capacity,
+                                                    AllocationType allocation) {
+  Handle<WeakArrayList> result =
+      NewUninitializedWeakArrayList(new_capacity, allocation);
+
+  // Copy the content.
+  DisallowHeapAllocation no_gc;
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  int copy_to = 0, length = src->length();
+  for (int i = 0; i < length; i++) {
+    MaybeObject element = src->Get(i);
+    if (element->IsCleared()) continue;
+    result->Set(copy_to++, element, mode);
+  }
+  result->set_length(copy_to);
+
+  MemsetTagged(ObjectSlot(result->data_start() + copy_to),
+               ReadOnlyRoots(isolate()).undefined_value(),
+               new_capacity - copy_to);
+  return result;
 }
 
 Handle<PropertyArray> Factory::CopyPropertyArrayAndGrow(

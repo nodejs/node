@@ -339,6 +339,17 @@ class WeakArrayList : public HeapObject {
       Isolate* isolate, Handle<WeakArrayList> array,
       const MaybeObjectHandle& value);
 
+  // Appends an element to the array and possibly compacts and shrinks live weak
+  // references to the start of the collection. Only use this method when
+  // indices to elements can change.
+  static Handle<WeakArrayList> Append(
+      Isolate* isolate, Handle<WeakArrayList> array,
+      const MaybeObjectHandle& value,
+      AllocationType allocation = AllocationType::kYoung);
+
+  // Compact weak references to the beginning of the array.
+  V8_EXPORT_PRIVATE void Compact(Isolate* isolate);
+
   inline MaybeObject Get(int index) const;
   inline MaybeObject Get(Isolate* isolate, int index) const;
 
@@ -350,6 +361,10 @@ class WeakArrayList : public HeapObject {
 
   static constexpr int SizeForCapacity(int capacity) {
     return kHeaderSize + capacity * kTaggedSize;
+  }
+
+  static constexpr int CapacityForLength(int length) {
+    return length + Max(length / 2, 2);
   }
 
   // Gives access to raw memory which stores the array's data.
@@ -382,6 +397,9 @@ class WeakArrayList : public HeapObject {
 
   // Returns the number of non-cleaned weak references in the array.
   int CountLiveWeakReferences() const;
+
+  // Returns the number of non-cleaned elements in the array.
+  int CountLiveElements() const;
 
   // Returns whether an entry was found and removed. Will move the elements
   // around in the array - this method can only be used in cases where the user

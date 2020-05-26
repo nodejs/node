@@ -3952,6 +3952,65 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
   return array;
 }
 
+// static
+Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
+                                            Handle<WeakArrayList> array,
+                                            const MaybeObjectHandle& value,
+                                            AllocationType allocation) {
+  int length = array->length();
+
+  if (length < array->capacity()) {
+    array->Set(length, *value);
+    array->set_length(length + 1);
+    return array;
+  }
+
+  // Not enough space in the array left, either grow, shrink or
+  // compact the array.
+  int new_length = array->CountLiveElements() + 1;
+
+  bool shrink = new_length < length / 4;
+  bool grow = 3 * (length / 4) < new_length;
+
+  if (shrink || grow) {
+    // Grow or shrink array and compact out-of-place.
+    int new_capacity = CapacityForLength(new_length);
+    array = isolate->factory()->CompactWeakArrayList(array, new_capacity,
+                                                     allocation);
+
+  } else {
+    // Perform compaction in the current array.
+    array->Compact(isolate);
+  }
+
+  // Now append value to the array, there should always be enough space now.
+  DCHECK_LT(array->length(), array->capacity());
+
+  // Reload length, allocation might have killed some weak refs.
+  int index = array->length();
+  array->Set(index, *value);
+  array->set_length(index + 1);
+  return array;
+}
+
+void WeakArrayList::Compact(Isolate* isolate) {
+  int length = this->length();
+  int new_length = 0;
+
+  for (int i = 0; i < length; i++) {
+    MaybeObject value = Get(isolate, i);
+
+    if (!value->IsCleared()) {
+      if (new_length != i) {
+        Set(new_length, value);
+      }
+      ++new_length;
+    }
+  }
+
+  set_length(new_length);
+}
+
 bool WeakArrayList::IsFull() { return length() == capacity(); }
 
 // static
@@ -3961,9 +4020,7 @@ Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,
                                                  AllocationType allocation) {
   int capacity = array->capacity();
   if (capacity < length) {
-    int new_capacity = length;
-    new_capacity = new_capacity + Max(new_capacity / 2, 2);
-    int grow_by = new_capacity - capacity;
+    int grow_by = CapacityForLength(length) - capacity;
     array = isolate->factory()->CopyWeakArrayListAndGrow(array, grow_by,
                                                          allocation);
   }
@@ -3978,6 +4035,16 @@ int WeakArrayList::CountLiveWeakReferences() const {
     }
   }
   return live_weak_references;
+}
+
+int WeakArrayList::CountLiveElements() const {
+  int non_cleared_objects = 0;
+  for (int i = 0; i < length(); i++) {
+    if (!Get(i)->IsCleared()) {
+      ++non_cleared_objects;
+    }
+  }
+  return non_cleared_objects;
 }
 
 bool WeakArrayList::RemoveOne(const MaybeObjectHandle& value) {
