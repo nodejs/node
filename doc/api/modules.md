@@ -409,7 +409,7 @@ example, then `require('./some-library')` would attempt to load:
 If these attempts fail, then Node.js will report the entire module as missing
 with the default error:
 
-```text
+```console
 Error: Cannot find module 'some-library'
 ```
 
