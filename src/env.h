@@ -639,6 +639,7 @@ class AsyncHooks : public MemoryRetainer {
     kTotals,
     kCheck,
     kStackLength,
+    kCachedResourceIsValid,
     kFieldsCount,
   };
 
@@ -653,7 +654,7 @@ class AsyncHooks : public MemoryRetainer {
   inline AliasedUint32Array& fields();
   inline AliasedFloat64Array& async_id_fields();
   inline AliasedFloat64Array& async_ids_stack();
-  inline v8::Local<v8::Array> execution_async_resources();
+  inline v8::Local<v8::Value> execution_async_resource();
 
   inline v8::Local<v8::String> provider_string(int idx);
 
@@ -664,6 +665,8 @@ class AsyncHooks : public MemoryRetainer {
       v8::Local<v8::Value> execution_async_resource_);
   inline bool pop_async_context(double async_id);
   inline void clear_async_id_stack();  // Used in fatal exceptions.
+  inline void set_js_execution_async_resources(v8::Local<v8::Map> value);
+  inline void set_cached_resource_holder(v8::Local<v8::Map> value);
 
   AsyncHooks(const AsyncHooks&) = delete;
   AsyncHooks& operator=(const AsyncHooks&) = delete;
@@ -706,7 +709,9 @@ class AsyncHooks : public MemoryRetainer {
 
   void grow_async_ids_stack();
 
-  v8::Global<v8::Array> execution_async_resources_;
+  std::vector<v8::Global<v8::Value>> native_execution_async_resources_;
+  v8::Global<v8::Map> js_execution_async_resources_;
+  v8::Global<v8::Map> cached_resource_holder_;
 };
 
 class ImmediateInfo : public MemoryRetainer {

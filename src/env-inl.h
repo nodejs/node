@@ -113,8 +113,32 @@ inline AliasedFloat64Array& AsyncHooks::async_ids_stack() {
   return async_ids_stack_;
 }
 
-inline v8::Local<v8::Array> AsyncHooks::execution_async_resources() {
-  return PersistentToLocal::Strong(execution_async_resources_);
+v8::Local<v8::Value> AsyncHooks::execution_async_resource() {
+  if (fields_[kStackLength] == 0) return {};
+  uint32_t offset = fields_[kStackLength] - 1;
+  if (LIKELY(offset < native_execution_async_resources_.size()))
+    return PersistentToLocal::Strong(native_execution_async_resources_[offset]);
+
+  // This async resource was stored in the JS async resource map.
+  v8::Local<v8::Map> js_map =
+      PersistentToLocal::Strong(js_execution_async_resources_);
+  v8::Local<v8::Integer> key =
+      v8::Integer::NewFromUnsigned(env()->isolate(), offset);
+  v8::Local<v8::Value> ret;
+  if (UNLIKELY(js_map.IsEmpty() ||
+               !js_map->Get(env()->context(), key).ToLocal(&ret) ||
+               ret->IsUndefined())) {
+    return {};
+  }
+  return ret;
+}
+
+void AsyncHooks::set_js_execution_async_resources(v8::Local<v8::Map> value) {
+  js_execution_async_resources_.Reset(env()->isolate(), value);
+}
+
+void AsyncHooks::set_cached_resource_holder(v8::Local<v8::Map> value) {
+  cached_resource_holder_.Reset(env()->isolate(), value);
 }
 
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
@@ -151,12 +175,23 @@ inline void AsyncHooks::push_async_context(double async_id,
   async_id_fields_[kExecutionAsyncId] = async_id;
   async_id_fields_[kTriggerAsyncId] = trigger_async_id;
 
-  auto resources = execution_async_resources();
-  USE(resources->Set(env()->context(), offset, resource));
+#ifdef DEBUG
+  for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
+    CHECK(native_execution_async_resources_[i].IsEmpty());
+#endif
+  native_execution_async_resources_.resize(offset + 1);
+  native_execution_async_resources_[offset].Reset(env()->isolate(), resource);
+  if (fields_[kCachedResourceIsValid])
+    PersistentToLocal::Strong(cached_resource_holder_)->Clear();
+  fields_[kCachedResourceIsValid] = 0;
 }
 
 // Remember to keep this code aligned with popAsyncContext() in JS.
 inline bool AsyncHooks::pop_async_context(double async_id) {
+  if (fields_[kCachedResourceIsValid])
+    PersistentToLocal::Strong(cached_resource_holder_)->Clear();
+  fields_[kCachedResourceIsValid] = 0;
+
   // In case of an exception then this may have already been reset, if the
   // stack was multiple MakeCallback()'s deep.
   if (fields_[kStackLength] == 0) return false;
@@ -185,21 +220,42 @@ inline bool AsyncHooks::pop_async_context(double async_id) {
   async_id_fields_[kTriggerAsyncId] = async_ids_stack_[2 * offset + 1];
   fields_[kStackLength] = offset;
 
-  auto resources = execution_async_resources();
-  USE(resources->Delete(env()->context(), offset));
+  if (LIKELY(offset < native_execution_async_resources_.size() &&
+             !native_execution_async_resources_[offset].IsEmpty())) {
+#ifdef DEBUG
+    for (uint32_t i = offset + 1;
+         i < native_execution_async_resources_.size();
+         i++) {
+      CHECK(native_execution_async_resources_[i].IsEmpty());
+    }
+#endif
+    native_execution_async_resources_[offset].Reset();
+    native_execution_async_resources_.resize(offset);
+    if (native_execution_async_resources_.size() <
+        native_execution_async_resources_.capacity() / 2) {
+      native_execution_async_resources_.shrink_to_fit();
+    }
+  } else {
+    USE(PersistentToLocal::Strong(js_execution_async_resources_)->Delete(
+        env()->context(),
+        v8::Integer::NewFromUnsigned(env()->isolate(), offset)));
+  }
 
   return fields_[kStackLength] > 0;
 }
 
-// Keep in sync with clearAsyncIdStack in lib/internal/async_hooks.js.
-inline void AsyncHooks::clear_async_id_stack() {
-  auto isolate = env()->isolate();
-  v8::HandleScope handle_scope(isolate);
-  execution_async_resources_.Reset(isolate, v8::Array::New(isolate));
+void AsyncHooks::clear_async_id_stack() {
+  if (!js_execution_async_resources_.IsEmpty()) {
+    PersistentToLocal::Strong(cached_resource_holder_)->Clear();
+    PersistentToLocal::Strong(js_execution_async_resources_)->Clear();
+  }
+  native_execution_async_resources_.clear();
+  native_execution_async_resources_.shrink_to_fit();
 
   async_id_fields_[kExecutionAsyncId] = 0;
   async_id_fields_[kTriggerAsyncId] = 0;
   fields_[kStackLength] = 0;
+  fields_[kCachedResourceIsValid] = 0;
 }
 
 // The DefaultTriggerAsyncIdScope(AsyncWrap*) constructor is defined in
