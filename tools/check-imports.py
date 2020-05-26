@@ -6,10 +6,11 @@ import io
 import re
 import sys
 
-
 def do_exist(file_name, lines, imported):
   if not any(not re.match('using \w+::{0};'.format(imported), line) and
-             re.search(imported, line) for line in lines):
+             re.search("(:?^|\s|<|\(|\:|{{){0}[\s<>(,:*)&]".format(imported),
+                                                                   line)
+             for line in lines):
     print('File "{0}" does not use "{1}"'.format(file_name, imported))
     return False
   return True
