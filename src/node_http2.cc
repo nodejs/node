@@ -18,7 +18,6 @@ using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
-using v8::Float64Array;
 using v8::Function;
 using v8::Integer;
 using v8::NewStringType;
@@ -26,7 +25,6 @@ using v8::Number;
 using v8::ObjectTemplate;
 using v8::String;
 using v8::Uint32;
-using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Undefined;
 

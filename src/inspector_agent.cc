@@ -45,11 +45,9 @@ using v8::Isolate;
 using v8::Local;
 using v8::Message;
 using v8::Object;
-using v8::String;
 using v8::Task;
 using v8::TaskRunner;
 using v8::Value;
-
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
 using v8_inspector::V8Inspector;
