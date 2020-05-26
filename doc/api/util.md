@@ -93,7 +93,7 @@ debuglog('hello from foo [%d]', 123);
 If this program is run with `NODE_DEBUG=foo` in the environment, then
 it will output something like:
 
-```text
+```console
 FOO 3245: hello from foo [123]
 ```
 
