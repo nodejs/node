@@ -11,7 +11,6 @@
 namespace node {
 namespace performance {
 
-using v8::Array;
 using v8::Context;
 using v8::DontDelete;
 using v8::Function;
@@ -25,14 +24,12 @@ using v8::Isolate;
 using v8::Local;
 using v8::Map;
 using v8::MaybeLocal;
-using v8::Name;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::String;
-using v8::Uint32Array;
 using v8::Value;
 
 // Microseconds in a millisecond, as a float.
