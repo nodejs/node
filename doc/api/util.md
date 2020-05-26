@@ -112,7 +112,7 @@ debuglog('hi there, it\'s foo-bar [%d]', 2333);
 if it is run with `NODE_DEBUG=foo*` in the environment, then it will output
 something like:
 
-```text
+```console
 FOO-BAR 3257: hi there, it's foo-bar [2333]
 ```
 
