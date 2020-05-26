@@ -86,9 +86,8 @@ struct napi_env__ {
   HandleThrow(napi_env env, v8::Local<v8::Value> value) {
     env->isolate->ThrowException(value);
   }
-  typedef void (*ThrowHandler)(napi_env, v8::Local<v8::Value>);
 
-  template <typename T, typename U = ThrowHandler>
+  template <typename T, typename U = decltype(HandleThrow)>
   inline void CallIntoModule(T&& call, U&& handle_exception = HandleThrow) {
     int open_handle_scopes_before = open_handle_scopes;
     int open_callback_scopes_before = open_callback_scopes;
