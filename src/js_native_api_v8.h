@@ -82,8 +82,13 @@ struct napi_env__ {
     return v8::Just(true);
   }
 
-  template <typename T, typename U>
-  void CallIntoModule(T&& call, U&& handle_exception) {
+  static inline void
+  HandleThrow(napi_env env, v8::Local<v8::Value> value) {
+    env->isolate->ThrowException(value);
+  }
+
+  template <typename T, typename U = decltype(HandleThrow)>
+  inline void CallIntoModule(T&& call, U&& handle_exception = HandleThrow) {
     int open_handle_scopes_before = open_handle_scopes;
     int open_callback_scopes_before = open_callback_scopes;
     napi_clear_last_error(this);
@@ -94,13 +99,6 @@ struct napi_env__ {
       handle_exception(this, last_exception.Get(this->isolate));
       last_exception.Reset();
     }
-  }
-
-  template <typename T>
-  void CallIntoModuleThrow(T&& call) {
-    CallIntoModule(call, [&](napi_env env, v8::Local<v8::Value> value) {
-      env->isolate->ThrowException(value);
-    });
   }
 
   v8impl::Persistent<v8::Value> last_exception;
