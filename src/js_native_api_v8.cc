@@ -267,7 +267,7 @@ class RefBase : protected Finalizer, RefTracker {
  protected:
   inline void Finalize(bool is_env_teardown = false) override {
     if (_finalize_callback != nullptr) {
-      _env->CallIntoModuleThrow([&](napi_env env) {
+      _env->CallIntoModule([&](napi_env env) {
         _finalize_callback(
             env,
             _finalize_data,
@@ -475,7 +475,7 @@ class CallbackWrapperBase : public CallbackWrapper {
     napi_callback cb = _bundle->*FunctionField;
 
     napi_value result;
-    env->CallIntoModuleThrow([&](napi_env env) {
+    env->CallIntoModule([&](napi_env env) {
       result = cb(env, cbinfo_wrapper);
     });
 
