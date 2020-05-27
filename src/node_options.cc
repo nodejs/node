@@ -146,6 +146,10 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
     }
   }
 
+  if (cpu_prof && cpu_prof_dir.empty() && !diagnostic_dir.empty()) {
+      cpu_prof_dir = diagnostic_dir;
+    }
+
   if (!heap_prof) {
     if (!heap_prof_name.empty()) {
       errors->push_back("--heap-prof-name must be used with --heap-prof");
@@ -159,6 +163,11 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
       errors->push_back("--heap-prof-interval must be used with --heap-prof");
     }
   }
+
+  if (heap_prof && heap_prof_dir.empty() && !diagnostic_dir.empty()) {
+    heap_prof_dir = diagnostic_dir;
+  }
+
   debug_options_.CheckOptions(errors);
 #endif  // HAVE_INSPECTOR
 }
@@ -272,6 +281,11 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+  AddOption("--diagnostic-dir",
+            "set dir for all output files"
+            " (default: current working directory)",
+            &EnvironmentOptions::diagnostic_dir,
+            kAllowedInEnvironment);
   AddOption("--enable-source-maps",
             "experimental Source Map V3 support",
             &EnvironmentOptions::enable_source_maps,
