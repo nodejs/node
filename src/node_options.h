@@ -138,6 +138,7 @@ class EnvironmentOptions : public Options {
   bool heap_prof = false;
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
+  std::string diagnostic_dir;
   bool test_udp_no_try_send = false;
   bool throw_deprecation = false;
   bool trace_atomics_wait = false;

@@ -272,6 +272,11 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+    AddOption("--diagnostic-dir",
+            "set dir for all output files"
+            " (default: current working directory)",
+            &EnvironmentOptions::diagnostic_dir,
+            kAllowedInEnvironment);
   AddOption("--enable-source-maps",
             "experimental Source Map V3 support",
             &EnvironmentOptions::enable_source_maps,
