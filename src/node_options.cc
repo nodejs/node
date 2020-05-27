@@ -664,11 +664,12 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "output compact single-line JSON",
             &PerProcessOptions::report_compact,
             kAllowedInEnvironment);
-  AddOption("--report-directory",
+  AddOption("--report-dir",
             "define custom report pathname."
-            " (default: current working directory of Node.js process)",
+            " (default: current working directory)",
             &PerProcessOptions::report_directory,
             kAllowedInEnvironment);
+  AddAlias("--report-directory", "--report-dir");
   AddOption("--report-filename",
             "define custom report file name."
             " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
