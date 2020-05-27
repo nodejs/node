@@ -45,7 +45,7 @@ flag to enable trace events. This requirement has been removed. However, the
 `--trace-events-enabled` flag *may* still be used and will enable the
 `node`, `node.async_hooks`, and `v8` trace event categories by default.
 
-```text
+```bash
 node --trace-events-enabled
 
 // is equivalent to
