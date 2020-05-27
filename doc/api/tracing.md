@@ -74,7 +74,7 @@ The logging file is by default called `node_trace.${rotation}.log`, where
 be specified with `--trace-event-file-pattern` that accepts a template
 string that supports `${rotation}` and `${pid}`:
 
-```text
+```bash
 node --trace-event-categories v8 --trace-event-file-pattern '${pid}-${rotation}.log' server.js
 ```
 
