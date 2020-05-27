@@ -36,7 +36,7 @@ The available categories are:
 
 By default the `node`, `node.async_hooks`, and `v8` categories are enabled.
 
-```text
+```bash
 node --trace-event-categories v8,node,node.async_hooks server.js
 ```
 
