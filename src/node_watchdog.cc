@@ -432,4 +432,4 @@ static void Initialize(Local<Object> target,
 
 }  // namespace node
 
-NODE_MODULE_CONTEXT_AWARE_INTERNAL(watchdog, node::watchdog::Initialize);
+NODE_MODULE_CONTEXT_AWARE_INTERNAL(watchdog, node::watchdog::Initialize)
