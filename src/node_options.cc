@@ -667,9 +667,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             kAllowedInEnvironment);
   AddOption("--report-directory",
             "define custom report pathname."
-            " (default: current working directory of Node.js process)",
+            " (default: current working directory)",
             &PerProcessOptions::report_directory,
             kAllowedInEnvironment);
+  AddAlias("--report-dir", "--report-directory");
   AddOption("--report-filename",
             "define custom report file name."
             " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
