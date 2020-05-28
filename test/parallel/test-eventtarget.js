@@ -113,10 +113,11 @@ ok(EventTarget);
   ok(!eventTarget.dispatchEvent(event));
 }
 {
-  // adding event listeners with a boolean useCapture
+  // Adding event listeners with a boolean useCapture
   const eventTarget = new EventTarget();
   const event = new Event('foo');
-  eventTarget.addEventListener('foo', common.mustCall((event) => strictEqual(event.type, 'foo')), false);
+  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  eventTarget.addEventListener('foo', fn, false);
   eventTarget.dispatchEvent(event);
 }
 {
