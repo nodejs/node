@@ -80,7 +80,8 @@ ok(EventTarget);
   const SubEvent = class extends Event {};
   const ev = new SubEvent('foo');
   const eventTarget = new EventTarget();
-  eventTarget.addEventListener('foo', common.mustCall((event) => strictEqual(event, ev)), { once: true });
+  const fn = common.mustCall((event) => strictEqual(event, ev));
+  eventTarget.addEventListener('foo', fn, { once: true });
   eventTarget.dispatchEvent(ev);
 }
 {
@@ -394,7 +395,7 @@ ok(EventTarget);
 
 {
   const target = new EventTarget();
-  strictEqual(target.toString(), "[object EventTarget]");
+  strictEqual(target.toString(), '[object EventTarget]');
   const event = new Event();
-  strictEqual(event.toString(), "[object Event]");
+  strictEqual(event.toString(), '[object Event]');
 }
