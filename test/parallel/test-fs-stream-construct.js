@@ -199,11 +199,14 @@ const examplePath = fixtures.path('x.txt');
     });
   });
 
-  const w = new WriteStream(`${tmpdir.path}/dummy2`,
-                            { flags: 'wx+', emitClose: true })
-    .on('error', common.mustCall((err) => {
-      assert.strictEqual(err.code, 'EEXIST');
-      w.destroy();
-      w.on('close', common.mustCall());
-    }));
+  fs.open(`${tmpdir.path}/dummy3`, 'wx+', common.mustCall((err) => {
+    assert(!err);
+    const w = new WriteStream(`${tmpdir.path}/dummy3`,
+                              { flags: 'wx+', emitClose: true })
+      .on('error', common.mustCall((err) => {
+        assert.strictEqual(err.code, 'EEXIST');
+        w.destroy();
+        w.on('close', common.mustCall());
+      }));
+  }));
 }
