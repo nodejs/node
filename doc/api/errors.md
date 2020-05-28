@@ -1286,7 +1286,7 @@ the worker thread.
 The provided address family is not understood by the Node.js API.
 
 <a id="ERR_INVALID_ARG_COUNT"></a>
-### `ERR_INVALID_ARGUMENT_COUNT`
+### `ERR_INVALID_ARG_COUNT`
 
 Thrown when an invalid number of arguments is passed to a function.
 
