@@ -36,6 +36,7 @@ ok(EventTarget);
   strictEqual(ev.composed, false);
   strictEqual(ev.isTrusted, false);
   strictEqual(ev.eventPhase, 0);
+  strictEqual(ev.cancelBubble, false);
 
   // Not cancelable
   ev.preventDefault();
@@ -49,6 +50,24 @@ ok(EventTarget);
   // Too many arguments passed behavior - ignore additional arguments
   const ev = new Event('foo', {}, {});
   strictEqual(ev.type, 'foo');
+}
+{
+const ev = new Event('foo');
+  strictEqual(ev.cancelBubble, false);
+  ev.cancelBubble = true;
+  strictEqual(ev.cancelBubble, true);
+}
+{
+  const ev = new Event('foo');
+  strictEqual(ev.cancelBubble, false);
+  ev.stopPropagation();
+  strictEqual(ev.cancelBubble, true);
+}
+{
+  const ev = new Event('foo');
+  strictEqual(ev.cancelBubble, false);
+  ev.cancelBubble = 'some-truthy-value';
+  strictEqual(ev.cancelBubble, true);
 }
 {
   const ev = new Event('foo', { cancelable: true });
