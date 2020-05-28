@@ -41,6 +41,24 @@ ok(EventTarget);
   ev.preventDefault();
   strictEqual(ev.defaultPrevented, false);
 }
+{
+  const ev = new Event('foo');
+  strictEqual(ev.cancelBubble, false);
+  ev.cancelBubble = true;
+  strictEqual(ev.cancelBubble, true);
+}
+{
+  const ev = new Event('foo');
+  strictEqual(ev.cancelBubble, false);
+  ev.stopPropagation();
+  strictEqual(ev.cancelBubble, true);
+}
+{
+  const ev = new Event('foo');
+  strictEqual(ev.cancelBubble, false);
+  ev.cancelBubble = 'some-truthy-value';
+  strictEqual(ev.cancelBubble, true);
+}
 
 {
   const ev = new Event('foo', { cancelable: true });
