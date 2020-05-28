@@ -31,7 +31,7 @@ e.on('maxListeners', common.mustCall());
 // Should not corrupt the 'maxListeners' queue.
 e.setMaxListeners(42);
 
-const throwsObjs = [NaN, -1, 'and even this'];
+const throwsObjs = [NaN, -1, 'and even this', 0.1];
 
 for (const obj of throwsObjs) {
   assert.throws(
@@ -40,7 +40,7 @@ for (const obj of throwsObjs) {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "n" is out of range. ' +
-               `It must be a non-negative number. Received ${inspect(obj)}`
+               `It must be a non-negative integer. Received ${inspect(obj)}`
     }
   );
 
@@ -50,7 +50,7 @@ for (const obj of throwsObjs) {
       code: 'ERR_OUT_OF_RANGE',
       name: 'RangeError',
       message: 'The value of "defaultMaxListeners" is out of range. ' +
-               `It must be a non-negative number. Received ${inspect(obj)}`
+               `It must be a non-negative integer. Received ${inspect(obj)}`
     }
   );
 }
