@@ -908,6 +908,11 @@ Encoding provided to `TextDecoder()` API was not one of the
 
 Thrown when an attempt is made to recursively dispatch an event on `EventTarget`.
 
+<a id="ERR_EVENT_NAME_REQUIRED"></a>
+### `ERR_EVENT_NAME_REQUIRED`
+
+Thrown when an Event is created without passing its constructor a valid `type`.
+
 <a id="ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE"></a>
 ### `ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE`
 

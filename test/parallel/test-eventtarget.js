@@ -29,6 +29,12 @@ ok(EventTarget);
   strictEqual(ev.defaultPrevented, false);
   strictEqual(typeof ev.timeStamp, 'number');
 
+  // no argument behavior
+  throws(() => {
+    new Event();
+  }, TypeError);
+
+  // compatibility properties with the DOM
   deepStrictEqual(ev.composedPath(), []);
   strictEqual(ev.returnValue, true);
   strictEqual(ev.bubbles, false);
