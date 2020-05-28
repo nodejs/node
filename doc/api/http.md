@@ -1350,6 +1350,13 @@ deprecated: v13.0.0
 
 See [`response.socket`][].
 
+### `response.req`
+
+* {IncomingMessage|undefined}
+
+If it's a response object in an HTTP request, this object will be it's
+`request` object.
+
 ### `response.cork()`
 <!-- YAML
 added:
@@ -1382,6 +1389,27 @@ If `data` is specified, it is similar in effect to calling
 
 If `callback` is specified, it will be called when the response stream
 is finished.
+
+### `response.send()`
+
+This is an alias for `response.end()`.
+
+### `response.redirect(url[, statusCode][, body][, callback])`
+
+* `url` {string}
+* `statusCode` {number}
+* `body` {string|Buffer}
+* `callback` {Function}
+
+Do `30x` redirection for current response.
+
+If no `statusCode` is specified, the redirection status code will be leaved for
+302.
+
+if no `body` is specified, the response body will be empty.
+
+If `callback` is specified, it will be called when the response stream is
+finished.
 
 ### `response.finished`
 <!-- YAML
