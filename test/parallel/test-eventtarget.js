@@ -35,6 +35,7 @@ ok(EventTarget);
   strictEqual(ev.composed, false);
   strictEqual(ev.isTrusted, false);
   strictEqual(ev.eventPhase, 0);
+  strictEqual(ev.cancelBubble, false);
 
   // Not cancelable
   ev.preventDefault();
