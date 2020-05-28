@@ -385,6 +385,7 @@ const ev = new Event('foo');
 {
   const target = new EventTarget();
   const event = new Event('foo');
+  strictEqual(event.target, null);
   target.addEventListener('foo', common.mustCall((event) => {
     strictEqual(event.target, target);
     strictEqual(event.currentTarget, target);
