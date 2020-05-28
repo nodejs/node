@@ -50,7 +50,10 @@ ok(EventTarget);
   ev.preventDefault();
   strictEqual(ev.defaultPrevented, true);
 }
-
+{
+  const ev = new Event('foo');
+  deepStrictEqual(Object.keys(ev), ['isTrusted']);
+}
 {
   const eventTarget = new EventTarget();
 
