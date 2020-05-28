@@ -481,6 +481,9 @@ This behavior has been removed.
 ### DEP0020: `Server.connections`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33647
+    description: Server.connections has been removed.
   - version:
     - v4.8.6
     - v6.12.0
@@ -491,10 +494,10 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-life
 
-The [`Server.connections`][] property is deprecated. Please use the
-[`Server.getConnections()`][] method instead.
+The `Server.connections` property was deprecated in Node.js v0.9.7 and has
+been removed. Please use the [`Server.getConnections()`][] method instead.
 
 <a id="DEP0021"></a>
 ### DEP0021: `Server.listenFD`
@@ -2759,7 +2762,6 @@ const moduleParents = Object.values(require.cache)
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
 [`REPLServer.clearBufferedCommand()`]: repl.html#repl_replserver_clearbufferedcommand
 [`ReadStream.open()`]: fs.html#fs_class_fs_readstream
-[`Server.connections`]: net.html#net_server_connections
 [`Server.getConnections()`]: net.html#net_server_getconnections_callback
 [`Server.listen({fd: <number>})`]: net.html#net_server_listen_handle_backlog_callback
 [`SlowBuffer`]: buffer.html#buffer_class_slowbuffer

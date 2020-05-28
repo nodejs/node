@@ -156,22 +156,6 @@ The optional `callback` will be called once the `'close'` event occurs. Unlike
 that event, it will be called with an `Error` as its only argument if the server
 was not open when it was closed.
 
-### `server.connections`
-<!-- YAML
-added: v0.2.0
-deprecated: v0.9.7
--->
-
-> Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
-
-* {integer|null}
-
-The number of concurrent connections on the server.
-
-This becomes `null` when sending a socket to a child with
-[`child_process.fork()`][]. To poll forks and get current number of active
-connections, use asynchronous [`server.getConnections()`][] instead.
-
 ### `server.getConnections(callback)`
 <!-- YAML
 added: v0.9.7
@@ -1256,7 +1240,6 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`new net.Socket(options)`]: #net_new_net_socket_options
 [`readable.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [`server.close()`]: #net_server_close_callback
-[`server.getConnections()`]: #net_server_getconnections_callback
 [`server.listen()`]: #net_server_listen
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
