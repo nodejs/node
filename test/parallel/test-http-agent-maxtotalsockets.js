@@ -21,6 +21,7 @@ const server = http.createServer(common.mustCall((req, res) => {
 server.keepAliveTimeout = 0;
 
 const countdown = new Countdown(6, () => {
+  assert.strictEqual(getRequestCount(), 0);
   agent.destroy();
   server.close();
 });
@@ -33,8 +34,8 @@ function handler() {
       agent: agent,
       path: `/${i}`,
       // Setting different origins
-      family: i < 3 ? 4 : 6
-    }, common.mustCall(res => {
+      family: i < 3 ? 4 : 6,
+    }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       res.resume();
       res.on('end', common.mustCall(() => {
