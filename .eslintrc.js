@@ -59,7 +59,7 @@ module.exports = {
   ],
   rules: {
     // ESLint built-in rules
-    // http://eslint.org/docs/rules
+    // https://eslint.org/docs/rules/
     'accessor-pairs': 'error',
     'array-callback-return': 'error',
     'arrow-parens': ['error', 'always'],
