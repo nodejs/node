@@ -289,10 +289,10 @@ ok(EventTarget);
 
 {
   const eventTarget = new EventTarget();
-
+  const event = new Event('foo');
   // Once handler only invoked once
-  const ev = common.mustCall((event) => {
-    throws(() => eventTarget.dispatchEvent(new Event('foo')), {
+  const ev = common.mustCall(() => {
+    throws(() => eventTarget.dispatchEvent(event), {
       code: 'ERR_EVENT_RECURSION'
     });
   });
@@ -300,7 +300,7 @@ ok(EventTarget);
   // Errors in a handler won't stop calling the others.
   eventTarget.addEventListener('foo', ev);
 
-  eventTarget.dispatchEvent(new Event('foo'));
+  eventTarget.dispatchEvent(event);
 }
 
 {
@@ -487,3 +487,13 @@ ok(EventTarget);
   }
   clearInterval(interval);
 })().then(common.mustCall());
+  const event = new Event('foo');
+  let callCount = 0;
+  target.addEventListener('foo', common.mustCall(() => {
+    callCount++;
+    if (callCount < 5) {
+      target.dispatchEvent(new Event('foo'));
+    }
+  }, 5));
+  target.dispatchEvent(event);
+}
