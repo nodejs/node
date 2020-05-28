@@ -29,6 +29,7 @@ ok(EventTarget);
   strictEqual(ev.defaultPrevented, false);
   strictEqual(typeof ev.timeStamp, 'number');
 
+  // Compatibility properties with the DOM
   deepStrictEqual(ev.composedPath(), []);
   strictEqual(ev.returnValue, true);
   strictEqual(ev.bubbles, false);
@@ -59,7 +60,15 @@ ok(EventTarget);
   ev.cancelBubble = 'some-truthy-value';
   strictEqual(ev.cancelBubble, true);
 }
-
+{
+  // No argument behavior - throw TypeError
+  throws(() => {
+    new Event();
+  }, TypeError);
+  // Too many arguments passed behavior - ignore additional arguments
+  const ev = new Event('foo', {}, {});
+  strictEqual(ev.type, 'foo');
+}
 {
   const ev = new Event('foo', { cancelable: true });
   strictEqual(ev.type, 'foo');
@@ -419,6 +428,6 @@ ok(EventTarget);
 {
   const target = new EventTarget();
   strictEqual(target.toString(), '[object EventTarget]');
-  const event = new Event();
+  const event = new Event('');
   strictEqual(event.toString(), '[object Event]');
 }
