@@ -908,11 +908,6 @@ Encoding provided to `TextDecoder()` API was not one of the
 
 Thrown when an attempt is made to recursively dispatch an event on `EventTarget`.
 
-<a id="ERR_EVENT_NAME_REQUIRED"></a>
-### `ERR_EVENT_NAME_REQUIRED`
-
-Thrown when an Event is created without passing its constructor a valid `type`.
-
 <a id="ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE"></a>
 ### `ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE`
 
@@ -1289,6 +1284,11 @@ the worker thread.
 ### `ERR_INVALID_ADDRESS_FAMILY`
 
 The provided address family is not understood by the Node.js API.
+
+<a id="ERR_INVALID_ARG_COUNT"></a>
+### `ERR_INVALID_ARGUMENT_COUNT`
+
+Thrown when an invalid number of arguments is passed to a function.
 
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### `ERR_INVALID_ARG_TYPE`

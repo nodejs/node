@@ -29,11 +29,6 @@ ok(EventTarget);
   strictEqual(ev.defaultPrevented, false);
   strictEqual(typeof ev.timeStamp, 'number');
 
-  // no argument behavior
-  throws(() => {
-    new Event();
-  }, TypeError);
-
   // compatibility properties with the DOM
   deepStrictEqual(ev.composedPath(), []);
   strictEqual(ev.returnValue, true);
@@ -66,6 +61,14 @@ ok(EventTarget);
   strictEqual(ev.cancelBubble, true);
 }
 
+    // no argument behavior - throw TypeError
+    throws(() => {
+      new Event();
+    }, TypeError);
+    // too many arguments passed behavior - ignore additional arguments
+    const ev = new Event('foo', {}, {});
+    strictEqual(ev.type, 'foo');
+}
 {
   const ev = new Event('foo', { cancelable: true });
   strictEqual(ev.type, 'foo');
