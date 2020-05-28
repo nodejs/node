@@ -152,7 +152,14 @@ ok(EventTarget);
   eventTarget.addEventListener('foo', (event) => event.preventDefault());
   ok(!eventTarget.dispatchEvent(event));
 }
-
+{
+  // Adding event listeners with a boolean useCapture
+  const eventTarget = new EventTarget();
+  const event = new Event('foo');
+  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  eventTarget.addEventListener('foo', fn, false);
+  eventTarget.dispatchEvent(event);
+}
 {
   const eventTarget = new NodeEventTarget();
   strictEqual(eventTarget.listenerCount('foo'), 0);
