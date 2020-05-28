@@ -326,6 +326,11 @@ inline bool StringEqualNoCase(const char* a, const char* b);
 // strncasecmp() is locale-sensitive.  Use StringEqualNoCaseN() instead.
 inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
 
+template <typename T, size_t N>
+constexpr size_t arraysize(const T (&)[N]) {
+  return N;
+}
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
@@ -365,8 +370,7 @@ class MaybeStackBuffer {
   // Current maximum capacity of the buffer with which SetLength() can be used
   // without first calling AllocateSufficientStorage().
   size_t capacity() const {
-    return IsAllocated() ? capacity_ :
-                           IsInvalidated() ? 0 : kStackStorageSize;
+    return capacity_;
   }
 
   // Make sure enough space for `storage` entries is available.
@@ -408,6 +412,7 @@ class MaybeStackBuffer {
   // be used.
   void Invalidate() {
     CHECK(!IsAllocated());
+    capacity_ = 0;
     length_ = 0;
     buf_ = nullptr;
   }
@@ -428,10 +433,11 @@ class MaybeStackBuffer {
     CHECK(IsAllocated());
     buf_ = buf_st_;
     length_ = 0;
-    capacity_ = 0;
+    capacity_ = arraysize(buf_st_);
   }
 
-  MaybeStackBuffer() : length_(0), capacity_(0), buf_(buf_st_) {
+  MaybeStackBuffer()
+      : length_(0), capacity_(arraysize(buf_st_)), buf_(buf_st_) {
     // Default to a zero-length, null-terminated buffer.
     buf_[0] = T();
   }
@@ -705,11 +711,6 @@ inline bool IsLittleEndian() {
 
 inline bool IsBigEndian() {
   return GetEndianness() == kBigEndian;
-}
-
-template <typename T, size_t N>
-constexpr size_t arraysize(const T (&)[N]) {
-  return N;
 }
 
 // Round up a to the next highest multiple of b.
