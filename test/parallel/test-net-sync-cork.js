@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -26,16 +26,8 @@ server.listen(0, function() {
   });
 });
 
-process.on('exit', function() {
-  assert.strictEqual(server.connections, 0);
-});
-
 function handle(socket) {
   socket.resume();
-
-  socket.on('error', function(err) {
-    socket.destroy();
-  }).on('close', function() {
-    server.close();
-  });
+  socket.on('error', common.mustNotCall())
+        .on('close', common.mustCall(() => server.close()));
 }

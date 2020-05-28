@@ -1379,9 +1379,8 @@ process.on('message', (m, socket) => {
 ```
 
 Once a socket has been passed to a child, the parent is no longer capable of
-tracking when the socket is destroyed. To indicate this, the `.connections`
-property becomes `null`. It is recommended not to use `.maxConnections` when
-this occurs.
+tracking when the socket is destroyed. It is recommended not to use
+`.maxConnections` when this occurs.
 
 It is also recommended that any `'message'` handlers in the child process
 verify that `socket` exists, as the connection may have been closed during the
