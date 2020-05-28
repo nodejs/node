@@ -477,7 +477,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     first_argv = env->argv()[1];
   }
 
-  if (first_argv == "inspect" || first_argv == "debug") {
+  if (first_argv == "inspect") {
     return StartExecution(env, "internal/main/inspect");
   }
 
