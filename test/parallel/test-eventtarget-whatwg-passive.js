@@ -65,7 +65,4 @@ const {
   testPassiveValue({ passive: 1 }, false);
   testPassiveValue({ passive: true }, false);
   testPassiveValue({ passive: 0 }, true);
-
-
-
 }

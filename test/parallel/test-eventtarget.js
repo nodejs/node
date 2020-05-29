@@ -116,14 +116,14 @@ ok(EventTarget);
   eventTarget.addEventListener('foo', fn, { once: true });
   eventTarget.dispatchEvent(ev);
   const eventTarget = new EventTarget();
-  // single argument throws
+  // Single argument throws
   throws(() => eventTarget.addEventListener('foo'), TypeError);
   // Null events - does not throw
   eventTarget.addEventListener('foo', null);
   eventTarget.removeEventListener('foo', null);
   eventTarget.addEventListener('foo', undefined);
   eventTarget.removeEventListener('foo', undefined);
-  // strings, booleans
+  // Strings, booleans
   throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
   throws(() => eventTarget.addEventListener('foo', false), TypeError);
   throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
