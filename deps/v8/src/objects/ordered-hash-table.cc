@@ -196,6 +196,13 @@ HeapObject OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
 
 template <class Derived, int entrysize>
 MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
+    Isolate* isolate, Handle<Derived> table) {
+  return OrderedHashTable<Derived, entrysize>::Rehash(isolate, table,
+                                                      table->Capacity());
+}
+
+template <class Derived, int entrysize>
+MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     Isolate* isolate, Handle<Derived> table, int new_capacity) {
   DCHECK(!table->IsObsolete());
 
@@ -248,6 +255,20 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Rehash(Isolate* isolate,
                                                    int new_capacity) {
   return OrderedHashTable<OrderedHashSet, 1>::Rehash(isolate, table,
                                                      new_capacity);
+}
+
+MaybeHandle<OrderedHashSet> OrderedHashSet::Rehash(
+    Isolate* isolate, Handle<OrderedHashSet> table) {
+  return OrderedHashTable<
+      OrderedHashSet, OrderedHashSet::kEntrySizeWithoutChain>::Rehash(isolate,
+                                                                      table);
+}
+
+MaybeHandle<OrderedHashMap> OrderedHashMap::Rehash(
+    Isolate* isolate, Handle<OrderedHashMap> table) {
+  return OrderedHashTable<
+      OrderedHashMap, OrderedHashMap::kEntrySizeWithoutChain>::Rehash(isolate,
+                                                                      table);
 }
 
 MaybeHandle<OrderedHashMap> OrderedHashMap::Rehash(Isolate* isolate,
