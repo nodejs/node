@@ -5,9 +5,6 @@ const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
-const maxTotalSockets = 3;
-const maxSockets = 2;
-
 assert.throws(() => new http.Agent({
   maxTotalSockets: 'test',
 }), {
@@ -26,6 +23,9 @@ assert.throws(() => new http.Agent({
     'It must be > 0. Received -1',
 });
 
+const maxTotalSockets = 2;
+const maxSockets = 3;
+
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
@@ -37,24 +37,27 @@ const agent = new http.Agent({
 const server = http.createServer(common.mustCall((req, res) => {
   res.end('hello world');
 }, 6));
+const server2 = http.createServer(common.mustCall((req, res) => {
+  res.end('hello world');
+}, 6));
 
 server.keepAliveTimeout = 0;
+server2.keepAliveTimeout = 0;
 
-const countdown = new Countdown(6, () => {
+const countdown = new Countdown(12, () => {
   assert.strictEqual(getRequestCount(), 0);
   agent.destroy();
   server.close();
+  server2.close();
 });
 
-function handler() {
+function handler(s) {
   for (let i = 0; i < 6; i++) {
     http.get({
       host: 'localhost',
-      port: server.address().port,
+      port: s.address().port,
       agent: agent,
       path: `/${i}`,
-      // Setting different origins
-      family: i < 3 ? 4 : 6,
     }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       res.resume();
@@ -62,7 +65,8 @@ function handler() {
         for (const key of Object.keys(agent.sockets)) {
           assert(agent.sockets[key].length <= maxSockets);
         }
-        assert(getTotalSocketsCount() <= maxTotalSockets);
+        const totalSocketsCount = getTotalSocketsCount();
+        assert(totalSocketsCount <= maxTotalSockets);
         countdown.dec();
       }));
     }));
@@ -85,4 +89,6 @@ function getRequestCount() {
   return num;
 }
 
-server.listen(0, common.mustCall(handler));
+server.listen(0, common.mustCall(() => handler(server)));
+server2.listen(0, common.mustCall(() => handler(server2)));
+
