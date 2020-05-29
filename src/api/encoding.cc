@@ -103,15 +103,11 @@ Local<Value> Encode(Isolate* isolate,
                     size_t len,
                     enum encoding encoding) {
   CHECK_NE(encoding, UCS2);
-  Local<Value> error;
-  return StringBytes::Encode(isolate, buf, len, encoding, &error)
-      .ToLocalChecked();
+  return StringBytes::Encode(isolate, buf, len, encoding).ToLocalChecked();
 }
 
 Local<Value> Encode(Isolate* isolate, const uint16_t* buf, size_t len) {
-  Local<Value> error;
-  return StringBytes::Encode(isolate, buf, len, &error)
-      .ToLocalChecked();
+  return StringBytes::Encode(isolate, buf, len).ToLocalChecked();
 }
 
 // Returns -1 if the handle was not valid for decoding

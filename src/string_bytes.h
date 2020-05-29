@@ -87,24 +87,24 @@ class StringBytes {
 
   // Take the bytes in the src, and turn it into a Buffer or String.
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
-                                          const char* buf,
-                                          size_t buflen,
-                                          enum encoding encoding,
-                                          v8::Local<v8::Value>* error);
+      const char* buf,
+      size_t buflen,
+      enum encoding encoding,
+      v8::Local<v8::Value>* error = nullptr);
 
   // Warning: This reverses endianness on BE platforms, even though the
   // signature using uint16_t implies that it should not.
   // However, the brokenness is already public API and can't therefore
   // be changed easily.
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
-                                          const uint16_t* buf,
-                                          size_t buflen,
-                                          v8::Local<v8::Value>* error);
+      const uint16_t* buf,
+      size_t buflen,
+      v8::Local<v8::Value>* error = nullptr);
 
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
-                                          const char* buf,
-                                          enum encoding encoding,
-                                          v8::Local<v8::Value>* error);
+      const char* buf,
+      enum encoding encoding,
+      v8::Local<v8::Value>* error = nullptr);
 
   static size_t hex_encode(const char* src,
                            size_t slen,

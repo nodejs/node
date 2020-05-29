@@ -209,18 +209,15 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   };
 
   if (filename != nullptr) {
-    Local<Value> error;
     MaybeLocal<Value> fn = StringBytes::Encode(env->isolate(),
                                                filename,
-                                               wrap->encoding_,
-                                               &error);
+                                               wrap->encoding_);
     if (fn.IsEmpty()) {
       argv[0] = Integer::New(env->isolate(), UV_EINVAL);
       argv[2] = StringBytes::Encode(env->isolate(),
                                     filename,
                                     strlen(filename),
-                                    BUFFER,
-                                    &error).ToLocalChecked();
+                                    BUFFER).ToLocalChecked();
     } else {
       argv[2] = fn.ToLocalChecked();
     }
