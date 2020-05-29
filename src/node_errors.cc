@@ -55,6 +55,7 @@ static std::string GetErrorSource(Isolate* isolate,
   MaybeLocal<String> source_line_maybe = message->GetSourceLine(context);
   node::Utf8Value encoded_source(isolate, source_line_maybe.ToLocalChecked());
   std::string sourceline(*encoded_source, encoded_source.length());
+  *added_exception_line = false;
 
   // If source maps have been enabled, the exception line will instead be
   // added in the JavaScript context:
@@ -62,12 +63,10 @@ static std::string GetErrorSource(Isolate* isolate,
   const bool has_source_map_url =
       !message->GetScriptOrigin().SourceMapUrl().IsEmpty();
   if (has_source_map_url && env->source_maps_enabled()) {
-    *added_exception_line = false;
     return sourceline;
   }
 
   if (sourceline.find("node-do-not-add-exception-line") != std::string::npos) {
-    *added_exception_line = false;
     return sourceline;
   }
 
@@ -114,6 +113,13 @@ static std::string GetErrorSource(Isolate* isolate,
                             linenum,
                             sourceline.c_str());
   CHECK_GT(buf.size(), 0);
+  *added_exception_line = true;
+
+  if (start > end ||
+      start < 0 ||
+      static_cast<size_t>(end) > sourceline.size()) {
+    return buf;
+  }
 
   constexpr int kUnderlineBufsize = 1020;
   char underline_buf[kUnderlineBufsize + 4];
@@ -136,7 +142,6 @@ static std::string GetErrorSource(Isolate* isolate,
   CHECK_LE(off, kUnderlineBufsize);
   underline_buf[off++] = '\n';
 
-  *added_exception_line = true;
   return buf + std::string(underline_buf, off);
 }
 
