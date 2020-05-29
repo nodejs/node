@@ -2,6 +2,9 @@
 'use strict';
 
 const common = require('../common');
+const { promisify } = require('util');
+const delay = promisify(setTimeout);
+
 const {
   Event,
   EventTarget,
@@ -16,10 +19,19 @@ const {
 } = require('assert');
 
 const { once } = require('events');
-
 // The globals are defined.
 ok(Event);
 ok(EventTarget);
+
+// The warning event has special behavior regarding attaching listeners
+let lastWarning;
+process.on('warning', (e) => {
+  lastWarning = e;
+});
+
+// Utility promise for parts of the test that need to wait for eachother -
+// Namely tests for warning events
+let asyncTest = Promise.resolve();
 
 // First, test Event
 {
@@ -127,6 +139,31 @@ ok(EventTarget);
   throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
   throws(() => eventTarget.addEventListener('foo', false), TypeError);
   throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
+  asyncTest = asyncTest.then(async () => {
+    const eventTarget = new EventTarget();
+    // Single argument throws
+    throws(() => eventTarget.addEventListener('foo'), TypeError);
+    // Null events - does not throw
+
+    eventTarget.addEventListener('foo', null);
+    eventTarget.removeEventListener('foo', null);
+
+    // Warnings always happen after nextTick, so wait for a timer of 0
+    await delay(0);
+    strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
+    strictEqual(lastWarning.target, eventTarget);
+    lastWarning = null;
+    eventTarget.addEventListener('foo', undefined);
+    await delay(0);
+    strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
+    strictEqual(lastWarning.target, eventTarget);
+    eventTarget.removeEventListener('foo', undefined);
+    // Strings, booleans
+    throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
+    throws(() => eventTarget.addEventListener('foo', false), TypeError);
+    throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
+  });
+
 }
 {
   const eventTarget = new NodeEventTarget();
@@ -345,22 +382,22 @@ ok(EventTarget);
 }
 
 {
-  const target = new NodeEventTarget();
+  asyncTest = asyncTest.then(async () => {
+    const target = new NodeEventTarget();
+    strictEqual(target.getMaxListeners(), NodeEventTarget.defaultMaxListeners);
+    target.setMaxListeners(1);
+    target.on('foo', () => {});
+    target.on('foo', () => {});
 
-  process.on('warning', common.mustCall((warning) => {
-    ok(warning instanceof Error);
-    strictEqual(warning.name, 'MaxListenersExceededWarning');
-    strictEqual(warning.target, target);
-    strictEqual(warning.count, 2);
-    strictEqual(warning.type, 'foo');
-    ok(warning.message.includes(
-      '2 foo listeners added to NodeEventTarget'));
-  }));
-
-  strictEqual(target.getMaxListeners(), NodeEventTarget.defaultMaxListeners);
-  target.setMaxListeners(1);
-  target.on('foo', () => {});
-  target.on('foo', () => {});
+    // warnings are always emitted asynchronously so wait for a tick
+    await delay(0)
+    ok(lastWarning instanceof Error);
+    strictEqual(lastWarning.name, 'MaxListenersExceededWarning');
+    strictEqual(lastWarning.target, target);
+    strictEqual(lastWarning.count, 2);
+    strictEqual(lastWarning.type, 'foo');
+    ok(lastWarning.message.includes('2 foo listeners added to NodeEventTarget'));
+  }).then(common.mustCall());
 }
 
 {
