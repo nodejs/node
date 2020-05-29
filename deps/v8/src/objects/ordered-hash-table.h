@@ -138,6 +138,7 @@ class OrderedHashTable : public FixedArray {
 
   // The extra +1 is for linking the bucket chains together.
   static const int kEntrySize = entrysize + 1;
+  static const int kEntrySizeWithoutChain = entrysize;
   static const int kChainOffset = entrysize;
 
   static const int kNotFound = -1;
@@ -200,6 +201,8 @@ class OrderedHashTable : public FixedArray {
   static MaybeHandle<Derived> Allocate(
       Isolate* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
+
+  static MaybeHandle<Derived> Rehash(Isolate* isolate, Handle<Derived> table);
   static MaybeHandle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                      int new_capacity);
 
@@ -244,6 +247,8 @@ class V8_EXPORT_PRIVATE OrderedHashSet
   static MaybeHandle<OrderedHashSet> Rehash(Isolate* isolate,
                                             Handle<OrderedHashSet> table,
                                             int new_capacity);
+  static MaybeHandle<OrderedHashSet> Rehash(Isolate* isolate,
+                                            Handle<OrderedHashSet> table);
   static MaybeHandle<OrderedHashSet> Allocate(
       Isolate* isolate, int capacity,
       AllocationType allocation = AllocationType::kYoung);
@@ -273,6 +278,8 @@ class V8_EXPORT_PRIVATE OrderedHashMap
   static MaybeHandle<OrderedHashMap> Rehash(Isolate* isolate,
                                             Handle<OrderedHashMap> table,
                                             int new_capacity);
+  static MaybeHandle<OrderedHashMap> Rehash(Isolate* isolate,
+                                            Handle<OrderedHashMap> table);
   Object ValueAt(int entry);
 
   // This takes and returns raw Address values containing tagged Object

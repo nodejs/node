@@ -30,6 +30,7 @@ class JSSet : public TorqueGeneratedJSSet<JSSet, JSCollection> {
  public:
   static void Initialize(Handle<JSSet> set, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSSet> set);
+  void Rehash(Isolate* isolate);
 
   // Dispatched behavior.
   DECL_PRINTER(JSSet)
@@ -56,6 +57,7 @@ class JSMap : public TorqueGeneratedJSMap<JSMap, JSCollection> {
  public:
   static void Initialize(Handle<JSMap> map, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSMap> map);
+  void Rehash(Isolate* isolate);
 
   // Dispatched behavior.
   DECL_PRINTER(JSMap)
