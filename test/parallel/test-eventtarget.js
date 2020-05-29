@@ -6,6 +6,7 @@ const {
   Event,
   EventTarget,
   NodeEventTarget,
+  defineEventHandler
 } = require('internal/event_target');
 
 const {
@@ -437,6 +438,39 @@ ok(EventTarget);
   strictEqual(target.toString(), '[object EventTarget]');
   const event = new Event('');
   strictEqual(event.toString(), '[object Event]');
+}
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  target.onfoo = common.mustCall();
+  target.dispatchEvent(new Event('foo'));
+}
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  let count = 0;
+  target.onfoo = () => count++;
+  target.onfoo = common.mustCall(() => count++);
+  target.dispatchEvent(new Event('foo'));
+  strictEqual(count, 1);
+}
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  let count = 0;
+  target.addEventListener('foo', () => count++);
+  target.onfoo = common.mustCall(() => count++);
+  target.dispatchEvent(new Event('foo'));
+  strictEqual(count, 2);
+}
+{
+  const target = new EventTarget();
+  defineEventHandler(target, 'foo');
+  const fn = common.mustNotCall();
+  target.onfoo = fn;
+  strictEqual(target.onfoo, fn);
+  target.onfoo = null;
+  target.dispatchEvent(new Event('foo'));
 }
 
 {
