@@ -14,13 +14,26 @@ assert.throws(() => new http.Agent({
     "Received type string ('test')",
 });
 
-assert.throws(() => new http.Agent({
-  maxTotalSockets: -1,
-}), {
-  code: 'ERR_OUT_OF_RANGE',
-  name: 'RangeError',
-  message: 'The value of "maxTotalSockets" is out of range. ' +
-    'It must be > 0. Received -1',
+[NaN, Infinity].forEach((item) => {
+  assert.throws(() => new http.Agent({
+    maxTotalSockets: item,
+  }), {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "maxTotalSockets" is out of range. ' +
+      `It must be an integer. Received ${item}`,
+  });
+});
+
+[-1, 0].forEach((item) => {
+  assert.throws(() => new http.Agent({
+    maxTotalSockets: item,
+  }), {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "maxTotalSockets" is out of range. ' +
+      `It must be > 0. Received ${item}`,
+  });
 });
 
 const maxTotalSockets = 2;
@@ -56,7 +69,7 @@ function handler(s) {
     http.get({
       host: 'localhost',
       port: s.address().port,
-      agent: agent,
+      agent,
       path: `/${i}`,
     }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
@@ -91,4 +104,3 @@ function getRequestCount() {
 
 server.listen(0, common.mustCall(() => handler(server)));
 server2.listen(0, common.mustCall(() => handler(server2)));
-
