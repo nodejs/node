@@ -115,6 +115,18 @@ ok(EventTarget);
   const fn = common.mustCall((event) => strictEqual(event, ev));
   eventTarget.addEventListener('foo', fn, { once: true });
   eventTarget.dispatchEvent(ev);
+  const eventTarget = new EventTarget();
+  // single argument throws
+  throws(() => eventTarget.addEventListener('foo'), TypeError);
+  // Null events - does not throw
+  eventTarget.addEventListener('foo', null);
+  eventTarget.removeEventListener('foo', null);
+  eventTarget.addEventListener('foo', undefined);
+  eventTarget.removeEventListener('foo', undefined);
+  // strings, booleans
+  throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
+  throws(() => eventTarget.addEventListener('foo', false), TypeError);
+  throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
 }
 {
   const eventTarget = new NodeEventTarget();
@@ -309,8 +321,6 @@ ok(EventTarget);
     'foo',
     1,
     {},  // No handleEvent function
-    false,
-    undefined
   ].forEach((i) => {
     throws(() => target.addEventListener('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE'
@@ -321,8 +331,6 @@ ok(EventTarget);
     'foo',
     1,
     {},  // No handleEvent function
-    false,
-    undefined
   ].forEach((i) => {
     throws(() => target.removeEventListener('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE'
