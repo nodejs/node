@@ -1351,8 +1351,11 @@ deprecated: v13.0.0
 See [`response.socket`][].
 
 ### `response.req`
+<!-- YAML
+added: REPLACEME
+-->
 
-* {IncomingMessage|undefined}
+* {http.IncomingMessage|undefined}
 
 If it's a response object in an HTTP request, this object will be it's
 `request` object.
@@ -1391,10 +1394,16 @@ If `callback` is specified, it will be called when the response stream
 is finished.
 
 ### `response.send()`
+<!-- YAML
+added: REPLACEME
+-->
 
 This is an alias for `response.end()`.
 
 ### `response.redirect(url[, statusCode][, body][, callback])`
+<!-- YAML
+added: REPLACEME
+-->
 
 * `url` {string}
 * `statusCode` {number}
