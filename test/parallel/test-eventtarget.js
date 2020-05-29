@@ -466,7 +466,7 @@ ok(EventTarget);
 {
   const target = new EventTarget();
   defineEventHandler(target, 'foo');
-  let fn = common.mustNotCall(() => count++);
+  const fn = common.mustNotCall();
   target.onfoo = fn;
   strictEqual(target.onfoo, fn);
   target.onfoo = null;
