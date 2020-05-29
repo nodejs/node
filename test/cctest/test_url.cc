@@ -81,6 +81,26 @@ TEST_F(URLTest, Base3) {
   EXPECT_EQ(simple.path(), "/baz");
 }
 
+TEST_F(URLTest, TruncatedAfterProtocol) {
+  char input[2] = { 'q', ':' };
+  URL simple(input, sizeof(input));
+
+  EXPECT_FALSE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "q:");
+  EXPECT_EQ(simple.host(), "");
+  EXPECT_EQ(simple.path(), "/");
+}
+
+TEST_F(URLTest, TruncatedAfterProtocol2) {
+  char input[6] = { 'h', 't', 't', 'p', ':', '/' };
+  URL simple(input, sizeof(input));
+
+  EXPECT_TRUE(simple.flags() & URL_FLAGS_FAILED);
+  EXPECT_EQ(simple.protocol(), "http:");
+  EXPECT_EQ(simple.host(), "");
+  EXPECT_EQ(simple.path(), "");
+}
+
 TEST_F(URLTest, ToFilePath) {
 #define T(url, path) EXPECT_EQ(path, URL(url).ToFilePath())
   T("http://example.org/foo/bar", "");
