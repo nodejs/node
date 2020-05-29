@@ -197,6 +197,11 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
   std::vector<HeapObject> to_rehash_;
+  // Store the objects whose maps are deferred and thus initialized as filler
+  // maps during deserialization, so that they can be processed later when the
+  // maps become available.
+  std::unordered_map<HeapObject, SnapshotSpace, Object::Hasher>
+      fillers_to_post_process_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;
