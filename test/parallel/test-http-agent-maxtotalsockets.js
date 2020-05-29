@@ -1,16 +1,18 @@
 'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
 
 const maxTotalSockets = 3;
+const maxSockets = 2;
 
 const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
   maxTotalSockets,
-  maxSockets: 100,
+  maxSockets,
   maxFreeSockets: 3
 });
 
@@ -39,11 +41,17 @@ function handler() {
       assert.strictEqual(res.statusCode, 200);
       res.resume();
       res.on('end', common.mustCall(() => {
-        const count = getTotalSocketsCount();
-        assert(count <= maxTotalSockets);
+        testMaxSockets();
+        assert(getTotalSocketsCount() <= maxTotalSockets);
         countdown.dec();
       }));
     }));
+  }
+}
+
+function testMaxSockets() {
+  for(const key of Object.keys(agent.sockets)) {
+    assert(agent.sockets[key].length <= maxSockets)
   }
 }
 

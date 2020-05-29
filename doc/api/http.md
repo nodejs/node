@@ -307,8 +307,8 @@ added: REPLACEME
 
 * {number}
 
-By default set to `undefined`. Determines how many concurrent sockets the agent
-can have open. The `maxSockets` will not take effect when this parameter is set.
+By default set to `Infinity`. Determines how many concurrent sockets the agent
+can have open.
 
 ### `agent.requests`
 <!-- YAML
