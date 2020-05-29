@@ -2614,6 +2614,7 @@ properties.
 * `maxHeaderListSize` {number} Specifies the maximum size (uncompressed octets)
   of header list that will be accepted. The minimum allowed value is 0. The
   maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
+* `maxHeaderSize` {number} Alias for `maxHeaderListSize`.
 * `enableConnectProtocol`{boolean} Specifies `true` if the "Extended Connect
   Protocol" defined by [RFC 8441][] is to be enabled. This setting is only
   meaningful if sent by the server. Once the `enableConnectProtocol` setting

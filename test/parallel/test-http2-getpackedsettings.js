@@ -26,7 +26,9 @@ assert.deepStrictEqual(val, check);
   ['maxConcurrentStreams', 0],
   ['maxConcurrentStreams', 2 ** 31 - 1],
   ['maxHeaderListSize', 0],
-  ['maxHeaderListSize', 2 ** 32 - 1]
+  ['maxHeaderListSize', 2 ** 32 - 1],
+  ['maxHeaderSize', 0],
+  ['maxHeaderSize', 2 ** 32 - 1]
 ].forEach((i) => {
   // Valid options should not throw.
   http2.getPackedSettings({ [i[0]]: i[1] });
@@ -45,7 +47,9 @@ http2.getPackedSettings({ enablePush: false });
   ['maxConcurrentStreams', -1],
   ['maxConcurrentStreams', 2 ** 32],
   ['maxHeaderListSize', -1],
-  ['maxHeaderListSize', 2 ** 32]
+  ['maxHeaderListSize', 2 ** 32],
+  ['maxHeaderSize', -1],
+  ['maxHeaderSize', 2 ** 32]
 ].forEach((i) => {
   assert.throws(() => {
     http2.getPackedSettings({ [i[0]]: i[1] });
@@ -97,6 +101,7 @@ http2.getPackedSettings({ enablePush: false });
     maxFrameSize: 20000,
     maxConcurrentStreams: 200,
     maxHeaderListSize: 100,
+    maxHeaderSize: 100,
     enablePush: true,
     enableConnectProtocol: false,
     foo: 'ignored'
@@ -149,6 +154,7 @@ http2.getPackedSettings({ enablePush: false });
   assert.strictEqual(settings.maxFrameSize, 20000);
   assert.strictEqual(settings.maxConcurrentStreams, 200);
   assert.strictEqual(settings.maxHeaderListSize, 100);
+  assert.strictEqual(settings.maxHeaderSize, 100);
   assert.strictEqual(settings.enablePush, true);
   assert.strictEqual(settings.enableConnectProtocol, false);
 }

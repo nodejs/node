@@ -9,24 +9,26 @@ const {
   NGHTTP2_ENHANCE_YOUR_CALM
 } = http2.constants;
 
-const server = http2.createServer({ settings: { maxHeaderListSize: 100 } });
-server.on('stream', common.mustNotCall());
+for (const prototype of ['maxHeaderListSize', 'maxHeaderSize']) {
+  const server = http2.createServer({ settings: { [prototype]: 100 } });
+  server.on('stream', common.mustNotCall());
 
-server.listen(0, common.mustCall(() => {
-  const client = http2.connect(`http://localhost:${server.address().port}`);
+  server.listen(0, common.mustCall(() => {
+    const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  client.on('remoteSettings', () => {
-    const req = client.request({ 'foo': 'a'.repeat(1000) });
-    req.on('error', common.expectsError({
-      code: 'ERR_HTTP2_STREAM_ERROR',
-      name: 'Error',
-      message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM'
-    }));
-    req.on('close', common.mustCall(() => {
-      assert.strictEqual(req.rstCode, NGHTTP2_ENHANCE_YOUR_CALM);
-      server.close();
-      client.close();
-    }));
-  });
+    client.on('remoteSettings', () => {
+      const req = client.request({ 'foo': 'a'.repeat(1000) });
+      req.on('error', common.expectsError({
+        code: 'ERR_HTTP2_STREAM_ERROR',
+        name: 'Error',
+        message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM'
+      }));
+      req.on('close', common.mustCall(() => {
+        assert.strictEqual(req.rstCode, NGHTTP2_ENHANCE_YOUR_CALM);
+        server.close();
+        client.close();
+      }));
+    });
 
-}));
+  }));
+}
