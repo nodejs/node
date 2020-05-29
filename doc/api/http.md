@@ -308,7 +308,7 @@ added: REPLACEME
 * {number}
 
 By default set to `Infinity`. Determines how many concurrent sockets the agent
-can have open. Unlike `maxSockets`, this parameter across all origins.
+can have open. Unlike `maxSockets`, this parameter applies across all origins.
 
 ### `agent.requests`
 <!-- YAML
