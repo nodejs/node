@@ -59,12 +59,12 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     // new code, which also has to be flushed from instruction cache.
     CHECK_EQ(start_address, code_space->top());
 
-    if (FLAG_rehash_snapshot && can_rehash()) Rehash();
     LogNewMapEvents();
 
     result = handle(root, isolate);
   }
 
+  if (FLAG_rehash_snapshot && can_rehash()) Rehash();
   SetupOffHeapArrayBufferBackingStores();
 
   return result;
