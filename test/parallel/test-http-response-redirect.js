@@ -17,7 +17,10 @@ const finished = [];
 server.listen(0, function() {
   for (let i = 0; i < 4; i++) {
     const time = i.toString();
-    http.get({ port: this.address().port, path: `/?time=${time}` }, function(res) {
+    http.get({
+      port: this.address().port,
+      path: `/?time=${time}`
+    }, function(res) {
       finished.push(res);
 
       let data = '';
