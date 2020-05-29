@@ -185,8 +185,11 @@ async function tests(options) {
       assert.deepStrictEqual(lines, preview);
     } else {
       assert.ok(lines[0].includes(noPreview), lines.map(inspect));
-      if (preview.length !== 1 || preview[0] !== `${input}\r`)
+      if (preview.length !== 1 || preview[0] !== `${input}\r`) {
         assert.strictEqual(lines.length, 2);
+      } else {
+        assert.strictEqual(lines.length, 1);
+      }
     }
   }
 }
