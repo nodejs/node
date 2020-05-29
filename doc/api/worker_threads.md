@@ -588,7 +588,8 @@ changes:
 * `filename` {string|URL} The path to the Worker’s main script or module. Must
   be either an absolute path or a relative path (i.e. relative to the
   current working directory) starting with `./` or `../`, or a WHATWG `URL`
-  object using `file:` protocol.
+  object using `file:` or `data:` protocol.
+  When using a [`data:` URL][], you must set the `type` option to `"module"`.
   If `options.eval` is `true`, this is a string containing JavaScript code
   rather than a path.
 * `options` {Object}
@@ -601,12 +602,13 @@ changes:
     to specify that the parent thread and the child thread should share their
     environment variables; in that case, changes to one thread’s `process.env`
     object will affect the other thread as well. **Default:** `process.env`.
-  * `eval` {boolean} If `true`, interpret the first argument to the constructor
+  * `eval` {boolean} If `true`, interprets the first argument to the constructor
     as a script (or a module if `type` is set to `module`) that is executed once
     the worker is online.
-  * `type` {string} If `"module"` and `eval` is set to `true`, interpret the
-    first argument as an ECMAScript 2015 module instead of a script. The default
-    value is `"classic"`. Doesn't have any effect when `eval` is set to `false`.
+  * `type` {string} If `"module"`, interprets the first argument as an
+    ECMAScript 2015 module instead of a script. The default value is
+    `"classic"`. Doesn't have any effect when `filename` refers to a file, in
+    which case the type is inferred from the file extension.
   * `execArgv` {string[]} List of node CLI options passed to the worker.
     V8 options (such as `--max-old-space-size`) and options that affect the
     process (such as `--title`) are not supported. If set, this will be provided
@@ -869,3 +871,4 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [child processes]: child_process.html
 [contextified]: vm.html#vm_what_does_it_mean_to_contextify_an_object
 [v8.serdes]: v8.html#v8_serialization_api
+[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs

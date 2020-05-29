@@ -47,6 +47,4 @@ const { Worker } = require('worker_threads');
   };
   assert.throws(() => { new Worker(new URL('https://www.url.com')); },
                 expectedErr);
-  assert.throws(() => { new Worker(new URL('data:application/javascript,')); },
-                expectedErr);
 }
