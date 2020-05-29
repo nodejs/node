@@ -9,7 +9,10 @@ const {
   NGHTTP2_ENHANCE_YOUR_CALM
 } = http2.constants;
 
-const server = http2.createServer({ settings: { maxHeaderListSize: 100 } });
+let server = http2.createServer({ settings: { maxHeaderListSize: 100 } });
+server.on('stream', common.mustNotCall());
+
+server = http2.createServer({ settings: {maxHeaderSize: 100 } });
 server.on('stream', common.mustNotCall());
 
 server.listen(0, common.mustCall(() => {
