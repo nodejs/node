@@ -3755,7 +3755,7 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
   FreeCurrentEmbeddedBlob();
 }
 
-UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
+UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
   DisableAlwaysOpt();
   i::FLAG_rehash_snapshot = true;
   i::FLAG_hash_seed = 42;
@@ -3773,13 +3773,18 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
       CompileRun(
           "var m = new Map();"
           "m.set('a', 1);"
-          "m.set('b', 2);");
+          "m.set('b', 2);"
+          "var s = new Set();"
+          "s.add(1);"
+          "s.add(globalThis);");
       ExpectInt32("m.get('b')", 2);
+      ExpectTrue("s.has(1)");
+      ExpectTrue("s.has(globalThis)");
       creator.SetDefaultContext(context);
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
-    CHECK(!blob.CanBeRehashed());
+    CHECK(blob.CanBeRehashed());
   }
 
   i::FLAG_hash_seed = 1337;
@@ -3788,8 +3793,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
   create_params.snapshot_blob = &blob;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
-    // Check that no rehashing has been performed.
-    CHECK_EQ(static_cast<uint64_t>(42),
+    // Check that rehashing has been performed.
+    CHECK_EQ(static_cast<uint64_t>(1337),
              HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -3797,6 +3802,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
     CHECK(!context.IsEmpty());
     v8::Context::Scope context_scope(context);
     ExpectInt32("m.get('b')", 2);
+    ExpectTrue("s.has(1)");
+    ExpectTrue("s.has(globalThis)");
   }
   isolate->Dispose();
   delete[] blob.data;
