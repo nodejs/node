@@ -48,9 +48,9 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
     LinkAllocationSites();
     LogNewMapEvents();
     result = handle(HeapObject::cast(root), isolate);
-    Rehash();
     allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }
+  Rehash();
   CommitPostProcessedObjects();
   return scope.CloseAndEscape(result);
 }
