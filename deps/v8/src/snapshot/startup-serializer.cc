@@ -193,6 +193,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");
     (*p).Print();
+    PrintF("\n");
     ok_ = false;
   }
 }
