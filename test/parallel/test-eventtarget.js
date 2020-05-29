@@ -31,6 +31,7 @@ process.on('warning', (e) => {
 
 // Utility promise for parts of the test that need to wait for eachother -
 // Namely tests for warning events
+/* eslint-disable no-unused-vars */
 let asyncTest = Promise.resolve();
 
 // First, test Event
@@ -389,14 +390,15 @@ let asyncTest = Promise.resolve();
     target.on('foo', () => {});
     target.on('foo', () => {});
 
-    // warnings are always emitted asynchronously so wait for a tick
-    await delay(0)
+    // Warnings are always emitted asynchronously so wait for a tick
+    await delay(0);
     ok(lastWarning instanceof Error);
     strictEqual(lastWarning.name, 'MaxListenersExceededWarning');
     strictEqual(lastWarning.target, target);
     strictEqual(lastWarning.count, 2);
     strictEqual(lastWarning.type, 'foo');
-    ok(lastWarning.message.includes('2 foo listeners added to NodeEventTarget'));
+    const warning = '2 foo listeners added to NodeEventTarget';
+    ok(lastWarning.message.includes(warning));
   }).then(common.mustCall());
 }
 
