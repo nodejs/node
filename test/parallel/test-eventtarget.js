@@ -432,7 +432,6 @@ ok(EventTarget);
   target.removeEventListener('foo', a, { capture: false });
   target.dispatchEvent(new Event('foo'));
 }
-
 {
   const target = new EventTarget();
   strictEqual(target.toString(), '[object EventTarget]');
@@ -463,4 +462,17 @@ ok(EventTarget);
       code: 'ERR_INVALID_THIS'
     });
   });
+}
+
+{
+  strictEqual(Event.NONE, 0);
+  strictEqual(Event.CAPTURING_PHASE, 1);
+  strictEqual(Event.AT_TARGET, 2);
+  strictEqual(Event.BUBBLING_PHASE, 3);
+  strictEqual(new Event('foo').eventPhase, Event.NONE);
+  const target = new EventTarget();
+  target.addEventListener('foo', common.mustCall((e) => {
+    strictEqual(e.eventPhase, Event.AT_TARGET);
+  }), { once: true });
+  target.dispatchEvent(new Event('foo'));
 }
