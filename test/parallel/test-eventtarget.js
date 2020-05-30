@@ -458,9 +458,9 @@ ok(EventTarget);
   // test NodeEventTarget async-iterability
   const emitter = new NodeEventTarget();
   const event = new Event('foo');
-  const interval = setInterval(() => emitter.dispatchEvent(event));
+  const interval = setInterval(() => emitter.dispatchEvent(event), 0);
   let count = 0;
-  for await(const [ item ] of on(emitter, 'foo')) {
+  for await (const [ item ] of on(emitter, 'foo')) {
     count++;
     strictEqual(item.type, 'foo');
     if (count > 5) {
