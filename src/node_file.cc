@@ -454,8 +454,9 @@ int FileHandle::ReadStart() {
 
     // Push the read wrap back to the freelist, or let it be destroyed
     // once we’re exiting the current scope.
+    constexpr size_t kWantedFreelistFill = 100;
     auto& freelist = handle->binding_data_->file_handle_read_wrap_freelist;
-    if (freelist.size() < /* wanted_freelist_fill */ 100) {
+    if (freelist.size() < kWantedFreelistFill) {
       read_wrap->Reset();
       freelist.emplace_back(std::move(read_wrap));
     }
