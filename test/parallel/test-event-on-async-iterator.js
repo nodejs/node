@@ -3,6 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 const { on, EventEmitter } = require('events');
+const {
+  EventTarget,
+  NodeEventTarget,
+  Event
+} = require('internal/event_target');
 
 async function basic() {
   const ee = new EventEmitter();
@@ -204,6 +209,39 @@ async function iterableThrow() {
   assert.strictEqual(ee.listenerCount('error'), 0);
 }
 
+async function eventTarget() {
+  const et = new EventTarget();
+  const tick = () => et.dispatchEvent(new Event('tick'));
+  const interval = setInterval(tick, 0);
+  let count = 0;
+  for await (const [ event ] of on(et, 'tick')) {
+    count++;
+    assert.strictEqual(event.type, 'tick');
+    if (count >= 5) {
+      break;
+    }
+  }
+  assert.strictEqual(count, 5);
+  clearInterval(interval);
+}
+
+async function nodeEventTarget() {
+  const et = new NodeEventTarget();
+  const tick = () => et.dispatchEvent(new Event('tick'));
+  const interval = setInterval(tick, 0);
+  let count = 0;
+  for await (const [ event] of on(et, 'tick')) {
+    count++;
+    assert.strictEqual(event.type, 'tick');
+    if (count >= 5) {
+      break;
+    }
+  }
+  assert.strictEqual(count, 5);
+  clearInterval(interval);
+}
+
+
 async function run() {
   const funcs = [
     basic,
@@ -212,7 +250,9 @@ async function run() {
     throwInLoop,
     next,
     nextError,
-    iterableThrow
+    iterableThrow,
+    eventTarget,
+    nodeEventTarget
   ];
 
   for (const fn of funcs) {
