@@ -2,9 +2,6 @@
 'use strict';
 const common = require('../common');
 
-if (!common.hasIntl)
-  common.skip('missing Intl');
-
 const assert = require('assert');
 const { getStringWidth } = require('internal/util/inspect');
 
@@ -88,7 +85,7 @@ for (let i = 0; i < 256; i++) {
   }
 }
 
-{
+if (common.hasIntl) {
   const a = '한글'.normalize('NFD'); // 한글
   const b = '한글'.normalize('NFC'); // 한글
   assert.strictEqual(a.length, 6);
