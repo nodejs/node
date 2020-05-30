@@ -14,18 +14,7 @@ assert.throws(() => new http.Agent({
     "Received type string ('test')",
 });
 
-[NaN, Infinity].forEach((item) => {
-  assert.throws(() => new http.Agent({
-    maxTotalSockets: item,
-  }), {
-    code: 'ERR_OUT_OF_RANGE',
-    name: 'RangeError',
-    message: 'The value of "maxTotalSockets" is out of range. ' +
-      `It must be an integer. Received ${item}`,
-  });
-});
-
-[-1, 0].forEach((item) => {
+[-1, 0, NaN].forEach((item) => {
   assert.throws(() => new http.Agent({
     maxTotalSockets: item,
   }), {
@@ -36,71 +25,89 @@ assert.throws(() => new http.Agent({
   });
 });
 
-const maxTotalSockets = 2;
-const maxSockets = 3;
+assert.ok(new http.Agent({
+  maxTotalSockets: Infinity,
+}));
 
-const agent = new http.Agent({
-  keepAlive: true,
-  keepAliveMsecs: 1000,
-  maxTotalSockets,
-  maxSockets,
-  maxFreeSockets: 3
-});
+function start(param = {}) {
+  const { maxTotalSockets, maxSockets } = param;
 
-const server = http.createServer(common.mustCall((req, res) => {
-  res.end('hello world');
-}, 6));
-const server2 = http.createServer(common.mustCall((req, res) => {
-  res.end('hello world');
-}, 6));
+  const agent = new http.Agent({
+    keepAlive: true,
+    keepAliveMsecs: 1000,
+    maxTotalSockets,
+    maxSockets,
+    maxFreeSockets: 3
+  });
 
-server.keepAliveTimeout = 0;
-server2.keepAliveTimeout = 0;
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.end('hello world');
+  }, 6));
+  const server2 = http.createServer(common.mustCall((req, res) => {
+    res.end('hello world');
+  }, 6));
 
-const countdown = new Countdown(12, () => {
-  assert.strictEqual(getRequestCount(), 0);
-  agent.destroy();
-  server.close();
-  server2.close();
-});
+  server.keepAliveTimeout = 0;
+  server2.keepAliveTimeout = 0;
 
-function handler(s) {
-  for (let i = 0; i < 6; i++) {
-    http.get({
-      host: 'localhost',
-      port: s.address().port,
-      agent,
-      path: `/${i}`,
-    }, common.mustCall((res) => {
-      assert.strictEqual(res.statusCode, 200);
-      res.resume();
-      res.on('end', common.mustCall(() => {
-        for (const key of Object.keys(agent.sockets)) {
-          assert(agent.sockets[key].length <= maxSockets);
-        }
-        const totalSocketsCount = getTotalSocketsCount();
-        assert(totalSocketsCount <= maxTotalSockets);
-        countdown.dec();
+  const countdown = new Countdown(12, () => {
+    assert.strictEqual(getRequestCount(), 0);
+    agent.destroy();
+    server.close();
+    server2.close();
+  });
+
+  function handler(s) {
+    for (let i = 0; i < 6; i++) {
+      http.get({
+        host: 'localhost',
+        port: s.address().port,
+        agent,
+        path: `/${i}`,
+      }, common.mustCall((res) => {
+        assert.strictEqual(res.statusCode, 200);
+        res.resume();
+        res.on('end', common.mustCall(() => {
+          for (const key of Object.keys(agent.sockets)) {
+            assert(agent.sockets[key].length <= maxSockets);
+          }
+          assert(getTotalSocketsCount() <= maxTotalSockets);
+          countdown.dec();
+        }));
       }));
-    }));
+    }
   }
+
+  function getTotalSocketsCount() {
+    let num = 0;
+    for (const key of Object.keys(agent.sockets)) {
+      num += agent.sockets[key].length;
+    }
+    return num;
+  }
+
+  function getRequestCount() {
+    let num = 0;
+    for (const key of Object.keys(agent.requests)) {
+      num += agent.requests[key].length;
+    }
+    return num;
+  }
+
+  server.listen(0, common.mustCall(() => handler(server)));
+  server2.listen(0, common.mustCall(() => handler(server2)));
 }
 
-function getTotalSocketsCount() {
-  let num = 0;
-  for (const key of Object.keys(agent.sockets)) {
-    num += agent.sockets[key].length;
-  }
-  return num;
-}
-
-function getRequestCount() {
-  let num = 0;
-  for (const key of Object.keys(agent.requests)) {
-    num += agent.requests[key].length;
-  }
-  return num;
-}
-
-server.listen(0, common.mustCall(() => handler(server)));
-server2.listen(0, common.mustCall(() => handler(server2)));
+// If maxTotalSockets is larger than maxSockets,
+// then the origin check will be skipped
+// when the socket is removed.
+[{
+  maxTotalSockets: 2,
+  maxSockets: 3,
+}, {
+  maxTotalSockets: 3,
+  maxSockets: 2,
+}, {
+  maxTotalSockets: 2,
+  maxSockets: 2,
+}].forEach((param) => start(param));
