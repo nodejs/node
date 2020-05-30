@@ -116,35 +116,30 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     code: 'ERR_INVALID_ARG_VALUE'
   });
 
+  // Constructor throws if history is not an array
+  ['not an array', 123, 123n, {}, true, Symbol(), null].forEach((history) => {
+    assert.throws(() => {
+      readline.createInterface({
+        input,
+        history,
+      });
+    }, {
+      name: 'TypeError',
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  });
+
   // Constructor throws if historySize is not a positive number
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      historySize: 'not a number'
+  ['not a number', -1, NaN, {}, true, Symbol(), null].forEach((historySize) => {
+    assert.throws(() => {
+      readline.createInterface({
+        input,
+        historySize,
+      });
+    }, {
+      name: 'RangeError',
+      code: 'ERR_INVALID_ARG_VALUE'
     });
-  }, {
-    name: 'RangeError',
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      historySize: -1
-    });
-  }, {
-    name: 'RangeError',
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-
-  assert.throws(() => {
-    readline.createInterface({
-      input,
-      historySize: NaN
-    });
-  }, {
-    name: 'RangeError',
-    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   // Check for invalid tab sizes.
@@ -236,6 +231,38 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   }));
   fi.emit('data', '\t');
   fi.emit('data', '\n');
+  rli.close();
+}
+
+// Adding history lines should emit the history event with
+// the history array
+{
+  const [rli, fi] = getInterface({ terminal: true });
+  const expectedLines = ['foo', 'bar', 'baz', 'bat'];
+  rli.on('history', common.mustCall((history) => {
+    const expectedHistory = expectedLines.slice(0, history.length).reverse();
+    assert.deepStrictEqual(history, expectedHistory);
+  }, expectedLines.length));
+  for (const line of expectedLines) {
+    fi.emit('data', `${line}\n`);
+  }
+  rli.close();
+}
+
+// Altering the history array in the listener should not alter
+// the line being processed
+{
+  const [rli, fi] = getInterface({ terminal: true });
+  const expectedLine = 'foo';
+  rli.on('history', common.mustCall((history) => {
+    assert.strictEqual(history[0], expectedLine);
+    history.shift();
+  }));
+  rli.on('line', common.mustCall((line) => {
+    assert.strictEqual(line, expectedLine);
+    assert.strictEqual(rli.history.length, 0);
+  }));
+  fi.emit('data', `${expectedLine}\n`);
   rli.close();
 }
 
@@ -774,7 +801,7 @@ for (let i = 0; i < 12; i++) {
     assert.strictEqual(rli.historySize, 0);
 
     fi.emit('data', 'asdf\n');
-    assert.deepStrictEqual(rli.history, terminal ? [] : undefined);
+    assert.deepStrictEqual(rli.history, []);
     rli.close();
   }
 
@@ -784,7 +811,7 @@ for (let i = 0; i < 12; i++) {
     assert.strictEqual(rli.historySize, 30);
 
     fi.emit('data', 'asdf\n');
-    assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : undefined);
+    assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : []);
     rli.close();
   }
 
