@@ -342,6 +342,7 @@ h5 {
 .srclink {
   float: right;
   font-size: smaller;
+  margin-right: 30px;
 }
 
 h1 span,
