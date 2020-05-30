@@ -110,4 +110,4 @@ function start(param = {}) {
 }, {
   maxTotalSockets: 2,
   maxSockets: 2,
-}].forEach((param) => start(param));
+}].forEach(start);
