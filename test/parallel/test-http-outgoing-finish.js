@@ -73,4 +73,5 @@ function write(out) {
       console.log(`ok - ${name} endCb`);
     });
   }));
+  assert.strictEqual(out.writable, false);
 }

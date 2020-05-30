@@ -22,11 +22,14 @@ server.on('listening', common.mustCall(function() {
     path: '/'
   });
 
+  assert.strictEqual(clientRequest.writable, true);
   assert.strictEqual(clientRequest.writableFinished, false);
   clientRequest
     .on('finish', common.mustCall(() => {
+      assert.strictEqual(clientRequest.writable, false);
       assert.strictEqual(clientRequest.writableFinished, true);
     }))
     .end();
+  assert.strictEqual(clientRequest.writable, false);
   assert.strictEqual(clientRequest.writableFinished, false);
 }));
