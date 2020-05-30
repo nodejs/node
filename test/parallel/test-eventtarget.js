@@ -439,3 +439,28 @@ ok(EventTarget);
   const event = new Event('');
   strictEqual(event.toString(), '[object Event]');
 }
+
+{
+  // `this` value of dispatchEvent
+  const target = new EventTarget();
+  const target2 = new EventTarget();
+  const event = new Event('foo');
+
+  ok(target.dispatchEvent.call(target2, event));
+
+  [
+    'foo',
+    {},
+    [],
+    1,
+    null,
+    undefined,
+    false,
+    Symbol(),
+    /a/
+  ].forEach((i) => {
+    throws(() => target.dispatchEvent.call(i, event), {
+      code: 'ERR_INVALID_THIS'
+    });
+  });
+}
