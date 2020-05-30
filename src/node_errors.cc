@@ -114,8 +114,9 @@ static std::string GetErrorSource(Isolate* isolate,
                             linenum,
                             sourceline.c_str());
   CHECK_GT(buf.size(), 0);
+  *added_exception_line = true;
 
-  if (start >= end ||
+  if (start > end ||
       start < 0 ||
       static_cast<size_t>(end) > sourceline.size()) {
     return buf;
@@ -142,7 +143,6 @@ static std::string GetErrorSource(Isolate* isolate,
   CHECK_LE(off, kUnderlineBufsize);
   underline_buf[off++] = '\n';
 
-  *added_exception_line = true;
   return buf + std::string(underline_buf, off);
 }
 
