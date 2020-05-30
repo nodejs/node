@@ -225,6 +225,12 @@ async function eventTarget() {
   clearInterval(interval);
 }
 
+async function errorListenerCount() {
+  const et = new EventEmitter();
+  on(et, 'foo');
+  assert.strictEqual(et.listenerCount('error'), 1);
+}
+
 async function nodeEventTarget() {
   const et = new NodeEventTarget();
   const tick = () => et.dispatchEvent(new Event('tick'));
@@ -252,6 +258,7 @@ async function run() {
     nextError,
     iterableThrow,
     eventTarget,
+    errorListenerCount,
     nodeEventTarget
   ];
 

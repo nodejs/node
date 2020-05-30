@@ -78,7 +78,9 @@ async function onceError() {
     ee.emit('error', expected);
   });
 
-  const [err] = await once(ee, 'error');
+  const promise = once(ee, 'error');
+  strictEqual(ee.listenerCount('error'), 1);
+  const [ err ] = await promise;
   strictEqual(err, expected);
   strictEqual(ee.listenerCount('error'), 0);
   strictEqual(ee.listenerCount('myevent'), 0);
