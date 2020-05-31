@@ -19,13 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Flags: --expose-internals
+// Flags: --expose-internals --experimental-abortcontroller
 'use strict';
 const common = require('../common');
 common.skipIfDumbTerminal();
 
 const assert = require('assert');
 const readline = require('readline');
+const util = require('util');
 const {
   getStringWidth,
   stripVTControlCharacters
@@ -931,6 +932,51 @@ for (let i = 0; i < 12; i++) {
     rli.question('bar?', common.mustNotCall(() => {
     }));
     rli.write('baz\n');
+    rli.close();
+  }
+
+  // Calling the promisified question
+  {
+    const [rli] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    question('foo?')
+    .then(common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.write('bar\n');
+    rli.close();
+  }
+
+  // Aborting a question
+  {
+    const ac = new AbortController();
+    const signal = ac.signal;
+    const [rli] = getInterface({ terminal });
+    rli.on('line', common.mustCall((line) => {
+      assert.strictEqual(line, 'bar');
+    }));
+    rli.question('hello?', { signal }, common.mustNotCall());
+    ac.abort();
+    rli.write('bar\n');
+    rli.close();
+  }
+
+  // Aborting a promisified question
+  {
+    const ac = new AbortController();
+    const signal = ac.signal;
+    const [rli] = getInterface({ terminal });
+    const question = util.promisify(rli.question).bind(rli);
+    rli.on('line', common.mustCall((line) => {
+      assert.strictEqual(line, 'bar');
+    }));
+    question('hello?', { signal })
+    .then(common.mustNotCall())
+    .catch(common.mustCall((error) => {
+      assert.strictEqual(error.name, 'AbortError');
+    }));
+    ac.abort();
+    rli.write('bar\n');
     rli.close();
   }
 
