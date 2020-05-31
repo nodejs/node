@@ -110,7 +110,7 @@ function test(decode, uncork, multi, next) {
   if (uncork)
     w.uncork();
 
-  w.end(cnt('end'));
+  w.end();
 
   w.on('finish', function() {
     // Make sure finish comes after all the write cb

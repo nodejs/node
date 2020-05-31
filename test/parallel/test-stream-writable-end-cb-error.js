@@ -42,7 +42,10 @@ const stream = require('stream');
     assert.strictEqual(err.message, 'kaboom');
   }));
   writable.on('finish', common.mustCall(() => {
-    assert.strictEqual(called, true);
+    assert.strictEqual(called, false);
+    process.nextTick(() => {
+      assert.strictEqual(called, true);
+    });
     writable.emit('error', new Error('kaboom'));
   }));
 }

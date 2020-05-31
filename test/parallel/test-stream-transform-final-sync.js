@@ -95,7 +95,7 @@ t.on('finish', common.mustCall(function() {
 t.on('end', common.mustCall(function() {
   state++;
   // endEvent
-  assert.strictEqual(state, 16);
+  assert.strictEqual(state, 15);
 }, 1));
 t.on('data', common.mustCall(function(d) {
   // dataListener
@@ -106,5 +106,5 @@ t.write(4);
 t.end(7, common.mustCall(function() {
   state++;
   // endMethodCallback
-  assert.strictEqual(state, 15);
+  assert.strictEqual(state, 16);
 }, 1));
