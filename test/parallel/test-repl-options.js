@@ -104,7 +104,7 @@ assert.throws(r3, {
 // 4, Verify that defaults are used when no arguments are provided
 const r4 = repl.start();
 
-assert.strictEqual(r4._prompt, '> ');
+assert.strictEqual(r4.getPrompt(), '> ');
 assert.strictEqual(r4.input, process.stdin);
 assert.strictEqual(r4.output, process.stdout);
 assert.strictEqual(r4.terminal, !!r4.output.isTTY);
