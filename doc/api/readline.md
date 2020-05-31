@@ -283,6 +283,15 @@ added: v0.1.98
 The `rl.setPrompt()` method sets the prompt that will be written to `output`
 whenever `rl.prompt()` is called.
 
+### `rl.getPrompt()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {string} the current prompt string
+
+The `rl.getPrompt()` method returns the current prompt used by `rl.prompt()`.
+
 ### `rl.write(data[, key])`
 <!-- YAML
 added: v0.1.98
