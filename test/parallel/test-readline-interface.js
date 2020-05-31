@@ -898,6 +898,16 @@ for (let i = 0; i < 12; i++) {
     });
   }
 
+  // Calling the getPrompt method
+  {
+    const expectedPrompts = ['$ ', '> '];
+    const [rli] = getInterface({ terminal });
+    for (const prompt of expectedPrompts) {
+      rli.setPrompt(prompt);
+      assert.strictEqual(rli.getPrompt(), prompt);
+    }
+  }
+
   {
     const expected = terminal ?
       ['\u001b[1G', '\u001b[0J', '$ ', '\u001b[3G'] :
@@ -920,7 +930,7 @@ for (let i = 0; i < 12; i++) {
 
     rl.prompt();
 
-    assert.strictEqual(rl._prompt, '$ ');
+    assert.strictEqual(rl.getPrompt(), '$ ');
   }
 
   {
