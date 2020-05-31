@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const { once, EventEmitter } = require('events');
-const { strictEqual, deepStrictEqual } = require('assert');
+const { strictEqual, deepStrictEqual, fail } = require('assert');
 const { EventTarget, Event } = require('internal/event_target');
 
 async function onceAnEvent() {
@@ -107,6 +107,13 @@ async function onceWithEventTargetError() {
   strictEqual(err, error);
 }
 
+async function prioritizesEventEmitter() {
+  const ee = new EventEmitter();
+  ee.addEventListener = fail;
+  ee.removeAllListeners = fail;
+  process.nextTick(() => ee.emit('foo'));
+  await once(ee, 'foo');
+}
 Promise.all([
   onceAnEvent(),
   onceAnEventWithTwoArgs(),
@@ -115,4 +122,5 @@ Promise.all([
   onceError(),
   onceWithEventTarget(),
   onceWithEventTargetError(),
+  prioritizesEventEmitter(),
 ]).then(common.mustCall());
