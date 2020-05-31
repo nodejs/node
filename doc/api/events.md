@@ -244,7 +244,7 @@ It supports the following option:
 
 * `captureRejections` {boolean} It enables
   [automatic capturing of promise rejection][capturerejections].
-  Default: `false`.
+  **Default:** `false`.
 
 ### Event: `'newListener'`
 <!-- YAML
@@ -1218,11 +1218,12 @@ added: REPLACEME
 * `listener` {Function|EventListener}
 * `options` {Object}
   * `once` {boolean} When `true`, the listener will be automatically removed
-    when it is first invoked. *Default*: `false`
+    when it is first invoked. **Default:** `false`.
   * `passive` {boolean} When `true`, serves as a hint that the listener will
-    not call the `Event` object's `preventDefault()` method. *Default*: `false`
+    not call the `Event` object's `preventDefault()` method.
+    **Default:** `false`.
   * `capture` {boolean} Not directly used by Node.js. Added for API
-    completeness. *Default*: `false`
+    completeness. **Default:** `false`.
 
 Adds a new handler for the `type` event. Any given `listener` will be added
 only once per `type` and per `capture` option value.
