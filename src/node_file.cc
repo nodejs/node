@@ -762,7 +762,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   std::vector<Local<Value>> name_v;
   std::vector<Local<Value>> type_v;
 
-  while (true) {
+  for (;;) {
     uv_dirent_t ent;
 
     r = uv_fs_scandir_next(req, &ent);
