@@ -49,6 +49,7 @@ ok(EventTarget);
 
   ev.preventDefault();
   strictEqual(ev.defaultPrevented, true);
+  throws(() => new Event(Symbol()), TypeError);
 }
 {
   const ev = new Event('foo');
