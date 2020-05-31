@@ -234,13 +234,16 @@ paused.
 If the `readline.Interface` was created with `output` set to `null` or
 `undefined` the prompt is not written.
 
-### `rl.question(query, callback)`
+### `rl.question(query[, options], callback)`
 <!-- YAML
 added: v0.3.3
 -->
 
 * `query` {string} A statement or query to write to `output`, prepended to the
   prompt.
+* `options` {Object}
+  * `signal` {AbortSignal} Optionally allows the `question()` to be canceled
+    using an `AbortController`.
 * `callback` {Function} A callback function that is invoked with the user's
   input in response to the `query`.
 
@@ -254,6 +257,10 @@ paused.
 If the `readline.Interface` was created with `output` set to `null` or
 `undefined` the `query` is not written.
 
+The `callback` function passed to `rl.question()` does not follow the typical
+pattern of accepting an `Error` object or `null` as the first argument.
+The `callback` is called with the provided answer as the only argument.
+
 Example usage:
 
 ```js
@@ -262,9 +269,41 @@ rl.question('What is your favorite food? ', (answer) => {
 });
 ```
 
-The `callback` function passed to `rl.question()` does not follow the typical
-pattern of accepting an `Error` object or `null` as the first argument.
-The `callback` is called with the provided answer as the only argument.
+Using an `AbortController` to cancel a question.
+
+```js
+const ac = new AbortController();
+const signal = ac.signal;
+
+rl.question('What is your favorite food? ', { signal }, (answer) => {
+  console.log(`Oh, so your favorite food is ${answer}`);
+});
+
+signal.addEventListener('abort', () => {
+  console.log('The food question timed out');
+}, { once: true });
+
+setTimeout(() => ac.abort(), 10000);
+```
+
+If this method is invoked as it's util.promisify()ed version, it returns a
+Promise that fulfills with the answer. If the question is canceled using
+an `AbortController` it will reject with an `AbortError`.
+
+```js
+const util = require('util');
+const question = util.promisify(rl.question).bind(rl);
+
+async function questionExample() {
+  try {
+    const answer = await question('What is you favorite food? ');
+    console.log(`Oh, so your favorite food is ${answer}`);
+  } catch (err) {
+    console.error('Question rejected', err);
+  }
+}
+questionExample();
+```
 
 ### `rl.resume()`
 <!-- YAML
@@ -374,9 +413,13 @@ asynchronous iteration may result in missed lines.
 ### `rl.line`
 <!-- YAML
 added: v0.1.98
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33676
+    description: Value will always be a string, never undefined.
 -->
 
-* {string|undefined}
+* {string}
 
 The current input data being processed by node.
 
