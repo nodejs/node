@@ -721,7 +721,7 @@ void AfterScanDir(uv_fs_t* req) {
   int r;
   std::vector<Local<Value>> name_v;
 
-  while (true) {
+  for (;;) {
     uv_dirent_t ent;
 
     r = uv_fs_scandir_next(req, &ent);
