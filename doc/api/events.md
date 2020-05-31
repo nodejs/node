@@ -974,9 +974,8 @@ There are two key differences between the Node.js `EventTarget` and the
 
 The `NodeEventTarget` object implements a modified subset of the
 `EventEmitter` API that allows it to closely *emulate* an `EventEmitter` in
-certain situations. It is important to understand, however, that an
-`NodeEventTarget` is *not* an instance of `EventEmitter` and cannot be used in
-place of an `EventEmitter` in most cases.
+certain situations. A `NodeEventTarget` is *not* an instance of `EventEmitter`
+and cannot be used in place of an `EventEmitter` in most cases.
 
 1. Unlike `EventEmitter`, any given `listener` can be registered at most once
    per event `type`. Attempts to register a `listener` multiple times will be
