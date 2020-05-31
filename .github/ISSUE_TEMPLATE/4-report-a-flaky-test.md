@@ -8,9 +8,9 @@ labels: "CI / flaky test"
 <!--
 Thank you for reporting a flaky test.
 
-Flaky tests are tests that fail occaisonally in Node.js CI, but not consistently
-enough to block PRs from landing, or that are failing in CI jobs or test modes
-that are not run for every PR.
+Flaky tests are tests that fail occasionally in the Node.js CI, but not
+consistently enough to block PRs from landing, or that are failing in CI jobs or
+test modes that are not run for every PR.
 
 Please fill in as much of the template below as you're able.
 
