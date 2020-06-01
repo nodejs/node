@@ -398,6 +398,13 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/33690
+    description: If `object` is from a different `vm.Context` now, a custom
+                 inspection function on it will not receive context-specific
+                 arguments anymore.
+  - version:
+     - v13.13.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32392
     description: The `maxStringLength` option is supported now.
   - version:
