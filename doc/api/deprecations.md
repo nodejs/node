@@ -494,7 +494,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: End-of-life
+Type: End-of-Life
 
 The `Server.connections` property was deprecated in Node.js v0.9.7 and has
 been removed. Please use the [`Server.getConnections()`][] method instead.
@@ -1446,7 +1446,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: End-of-life
+Type: End-of-Life
 
 `node debug` corresponds to the legacy CLI debugger which has been replaced with
 a V8-inspector based CLI debugger available through `node inspect`.
