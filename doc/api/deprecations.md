@@ -1436,7 +1436,7 @@ an officially supported API.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33648
     description: The legacy `node debug` command was removed.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11441
