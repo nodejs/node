@@ -24,9 +24,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <type_traits>  // std::remove_reference
 #include "memory_tracker.h"
 #include "v8.h"
-#include <type_traits>  // std::remove_reference
 
 namespace node {
 
@@ -88,7 +88,7 @@ class BaseObject : public MemoryRetainer {
   template <int Field>
   static void InternalFieldGet(v8::Local<v8::String> property,
                                const v8::PropertyCallbackInfo<v8::Value>& info);
-  template <int Field, bool (v8::Value::* typecheck)() const>
+  template <int Field, bool (v8::Value::*typecheck)() const>
   static void InternalFieldSet(v8::Local<v8::String> property,
                                v8::Local<v8::Value> value,
                                const v8::PropertyCallbackInfo<void>& info);
@@ -205,13 +205,11 @@ inline T* Unwrap(v8::Local<v8::Value> obj) {
   return BaseObject::FromJSObject<T>(obj);
 }
 
-
-#define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                \
-  do {                                                                        \
-    *ptr = static_cast<typename std::remove_reference<decltype(*ptr)>::type>( \
-        BaseObject::FromJSObject(obj));                                       \
-    if (*ptr == nullptr)                                                      \
-      return __VA_ARGS__;                                                     \
+#define ASSIGN_OR_RETURN_UNWRAP(ptr, obj, ...)                                 \
+  do {                                                                         \
+    *ptr = static_cast<typename std::remove_reference<decltype(*ptr)>::type>(  \
+        BaseObject::FromJSObject(obj));                                        \
+    if (*ptr == nullptr) return __VA_ARGS__;                                   \
   } while (0)
 
 // Implementation of a generic strong or weak pointer to a BaseObject.
@@ -252,7 +250,7 @@ class BaseObjectPtrImpl final {
 
  private:
   union {
-    BaseObject* target;  // Used for strong pointers.
+    BaseObject* target;                     // Used for strong pointers.
     BaseObject::PointerData* pointer_data;  // Used for weak pointers.
   } data_;
 
