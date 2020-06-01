@@ -644,7 +644,7 @@
         'src/aliased_struct.h',
         'src/aliased_struct-inl.h',
         'src/allocated_buffer.h',
-        'src/allocated_buffer-inl.h'
+        'src/allocated_buffer-inl.h',
         'src/async_wrap.h',
         'src/async_wrap-inl.h',
         'src/base_object.h',
