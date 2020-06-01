@@ -2969,7 +2969,8 @@ assert.strictEqual(
       }
 
       graph.add(Object.getPrototypeOf(entry));
-      const descriptors = Object.values(Object.getOwnPropertyDescriptors(entry));
+      const descriptors = Object.values(
+        Object.getOwnPropertyDescriptors(entry));
       for (const descriptor of descriptors) {
         graph.add(descriptor.value);
         graph.add(descriptor.set);
@@ -2981,5 +2982,5 @@ assert.strictEqual(
   }
 
   // Consistency check.
-  assert(fullObjectGraph(global).includes(Function.prototype));
+  assert(fullObjectGraph(global).has(Function.prototype));
 }
