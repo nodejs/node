@@ -2901,3 +2901,86 @@ assert.strictEqual(
     "'aaaa'... 999996 more characters"
   );
 }
+
+{
+  // Verify that util.inspect() invokes custom inspect functions on objects
+  // from other vm.Contexts but does not pass data from its own Context to that
+  // function.
+  const target = vm.runInNewContext(`
+    ({
+      [Symbol.for('nodejs.util.inspect.custom')](depth, ctx) {
+        this.depth = depth;
+        this.ctx = ctx;
+        try {
+          this.stylized = ctx.stylize('🐈');
+        } catch (e) {
+          this.stylizeException = e;
+        }
+        return this.stylized;
+      }
+    })
+  `, Object.create(null));
+  assert.strictEqual(target.ctx, undefined);
+
+  {
+    // Subtest 1: Just try to inspect the object with default options.
+    assert.strictEqual(util.inspect(target), '🐈');
+    assert.strictEqual(typeof target.ctx, 'object');
+    const objectGraph = fullObjectGraph(target);
+    assert(!objectGraph.has(Object));
+    assert(!objectGraph.has(Function));
+  }
+
+  {
+    // Subtest 2: Use a stylize function that returns a non-primitive.
+    const output = util.inspect(target, {
+      stylize: common.mustCall((str) => {
+        return {};
+      })
+    });
+    assert.strictEqual(output, '[object Object]');
+    assert.strictEqual(typeof target.ctx, 'object');
+    const objectGraph = fullObjectGraph(target);
+    assert(!objectGraph.has(Object));
+    assert(!objectGraph.has(Function));
+  }
+
+  {
+    // Subtest 3: Use a stylize function that throws an exception.
+    const output = util.inspect(target, {
+      stylize: common.mustCall((str) => {
+        throw new Error('oops');
+      })
+    });
+    assert.strictEqual(output, '🐈');
+    assert.strictEqual(typeof target.ctx, 'object');
+    const objectGraph = fullObjectGraph(target);
+    assert(!objectGraph.has(Object));
+    assert(!objectGraph.has(Function));
+  }
+
+  function fullObjectGraph(value) {
+    const graph = new Set([value]);
+
+    for (const entry of graph) {
+      if ((typeof entry !== 'object' && typeof entry !== 'function') ||
+          entry === null) {
+        continue;
+      }
+
+      graph.add(Object.getPrototypeOf(entry));
+      const descriptors = Object.values(
+        Object.getOwnPropertyDescriptors(entry));
+      for (const descriptor of descriptors) {
+        graph.add(descriptor.value);
+        graph.add(descriptor.set);
+        graph.add(descriptor.get);
+      }
+    }
+
+    return graph;
+  }
+
+  // Consistency check.
+  assert(fullObjectGraph(global).has(Function.prototype));
+}
