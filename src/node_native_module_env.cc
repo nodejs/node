@@ -131,8 +131,9 @@ void NativeModuleEnv::CompileFunction(const FunctionCallbackInfo<Value>& args) {
       NativeModuleLoader::GetInstance()->CompileAsModule(
           env->context(), id, &result);
   RecordResult(id, result, env);
-  if (!maybe.IsEmpty()) {
-    args.GetReturnValue().Set(maybe.ToLocalChecked());
+  Local<Function> fn;
+  if (maybe.ToLocal(&fn)) {
+    args.GetReturnValue().Set(fn);
   }
 }
 
