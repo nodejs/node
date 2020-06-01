@@ -482,7 +482,7 @@ This behavior has been removed.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33647
     description: Server.connections has been removed.
   - version:
     - v4.8.6
