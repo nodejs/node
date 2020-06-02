@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.18.0">12.18.0</a><br/>
 <a href="#12.17.0">12.17.0</a><br/>
 <a href="#12.16.3">12.16.3</a><br/>
 <a href="#12.16.2">12.16.2</a><br/>
@@ -59,6 +60,27 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.18.0"></a>
+## 2020-06-02, Version 12.18.0 'Erbium' (LTS), @targos
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+* **CVE-2020-8172**: TLS session reuse can lead to host certificate verification bypass (High).
+* **CVE-2020-11080**: HTTP/2 Large Settings Frame DoS (Low).
+* **CVE-2020-8174**: `napi_get_value_string_*()` allows various kinds of memory corruption (High).
+
+### Commits
+
+* [[`c6d0bdacc4`](https://github.com/nodejs/node/commit/c6d0bdacc4)] - **crypto**: update root certificates (AshCripps) [#33682](https://github.com/nodejs/node/pull/33682)
+* [[`916b2824d1`](https://github.com/nodejs/node/commit/916b2824d1)] - **(SEMVER-MINOR)** **deps**: update nghttp2 to 1.41.0 (James M Snell) [nodejs-private/node-private#206](https://github.com/nodejs-private/node-private/pull/206)
+* [[`d381426377`](https://github.com/nodejs/node/commit/d381426377)] - **(SEMVER-MINOR)** **http2**: implement support for max settings entries (James M Snell) [nodejs-private/node-private#206](https://github.com/nodejs-private/node-private/pull/206)
+* [[`7dd8982570`](https://github.com/nodejs/node/commit/7dd8982570)] - **napi**: fix memory corruption vulnerability (Tobias Nießen) [nodejs-private/node-private#195](https://github.com/nodejs-private/node-private/pull/195)
+* [[`0932309af2`](https://github.com/nodejs/node/commit/0932309af2)] - **tls**: emit `session` after verifying certificate (Fedor Indutny) [nodejs-private/node-private#200](https://github.com/nodejs-private/node-private/pull/200)
+* [[`c392d3923f`](https://github.com/nodejs/node/commit/c392d3923f)] - **tools**: update certdata.txt (AshCripps) [#33682](https://github.com/nodejs/node/pull/33682)
 
 <a id="12.17.0"></a>
 ## 2020-05-26, Version 12.17.0 'Erbium' (LTS), @targos
