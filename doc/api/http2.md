@@ -1948,8 +1948,9 @@ error will be thrown.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs-private/node-private/pull/204
+  - version:
+     - v12.18.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/206
     description: Added `maxSettings` option with a default of 32.
   - version: v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30534
@@ -2083,8 +2084,9 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs-private/node-private/pull/204
+  - version:
+     - v12.18.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/206
     description: Added `maxSettings` option with a default of 32.
   - version: v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30534
@@ -2205,8 +2207,9 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs-private/node-private/pull/204
+  - version:
+     - v12.18.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/206
     description: Added `maxSettings` option with a default of 32.
   - version: v8.9.3
     pr-url: https://github.com/nodejs/node/pull/17105
