@@ -2001,7 +2001,8 @@ value only affects new connections to the server, not any existing connections.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v14.4.0
     pr-url: https://github.com/nodejs-private/node-private/pull/204
     description: Added `maxSettings` option with a default of 32.
   - version:
@@ -2137,7 +2138,8 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v14.4.0
     pr-url: https://github.com/nodejs-private/node-private/pull/204
     description: Added `maxSettings` option with a default of 32.
   - version:
@@ -2260,7 +2262,8 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v14.4.0
     pr-url: https://github.com/nodejs-private/node-private/pull/204
     description: Added `maxSettings` option with a default of 32.
   - version: v13.0.0

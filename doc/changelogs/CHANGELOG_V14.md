@@ -10,6 +10,7 @@
 </tr>
 <tr>
 <td>
+<a href="#14.4.0">14.4.0</a><br/>
 <a href="#14.3.0">14.3.0</a><br/>
 <a href="#14.2.0">14.2.0</a><br/>
 <a href="#14.1.0">14.1.0</a><br/>
@@ -33,6 +34,27 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="14.4.0"></a>
+## 2020-06-02, Version 14.4.0 (Current), @targos
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+* **CVE-2020-8172**: TLS session reuse can lead to host certificate verification bypass (High).
+* **CVE-2020-11080**: HTTP/2 Large Settings Frame DoS (Low).
+* **CVE-2020-8174**: `napi_get_value_string_*()` allows various kinds of memory corruption (High).
+
+### Commits
+
+* [[`07a4d5061f`](https://github.com/nodejs/node/commit/07a4d5061f)] - **crypto**: update root certificates (AshCripps) [#33682](https://github.com/nodejs/node/pull/33682)
+* [[`0a7bf50fd4`](https://github.com/nodejs/node/commit/0a7bf50fd4)] - **(SEMVER-MINOR)** **deps**: update nghttp2 to 1.41.0 (James M Snell) [nodejs-private/node-private#204](https://github.com/nodejs-private/node-private/pull/204)
+* [[`55e4c72af8`](https://github.com/nodejs/node/commit/55e4c72af8)] - **(SEMVER-MINOR)** **http2**: implement support for max settings entries (James M Snell) [nodejs-private/node-private#204](https://github.com/nodejs-private/node-private/pull/204)
+* [[`290720d16a`](https://github.com/nodejs/node/commit/290720d16a)] - **napi**: fix memory corruption vulnerability (Tobias Nießen) [nodejs-private/node-private#195](https://github.com/nodejs-private/node-private/pull/195)
+* [[`94571c1001`](https://github.com/nodejs/node/commit/94571c1001)] - **tls**: emit `session` after verifying certificate (Fedor Indutny) [nodejs-private/node-private#200](https://github.com/nodejs-private/node-private/pull/200)
+* [[`1658cf9ee6`](https://github.com/nodejs/node/commit/1658cf9ee6)] - **tools**: update certdata.txt (AshCripps) [#33682](https://github.com/nodejs/node/pull/33682)
 
 <a id="14.3.0"></a>
 ## 2020-05-19, Version 14.3.0 (Current), @codebytere
