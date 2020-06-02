@@ -44,12 +44,13 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
   if (env != nullptr) {
     HandleScope handle_scope(env->isolate());
     TryCatch ignore_errors(env->isolate());
-    MaybeLocal<String> value = env->env_vars()->Get(
+    MaybeLocal<String> maybe_value = env->env_vars()->Get(
         env->isolate(),
         String::NewFromUtf8(env->isolate(), key, NewStringType::kNormal)
             .ToLocalChecked());
-    if (value.IsEmpty()) goto fail;
-    String::Utf8Value utf8_value(env->isolate(), value.ToLocalChecked());
+    Local<String> value;
+    if (!maybe_value.ToLocal(&value)) goto fail;
+    String::Utf8Value utf8_value(env->isolate(), value);
     if (*utf8_value == nullptr) goto fail;
     *text = std::string(*utf8_value, utf8_value.length());
     return true;
