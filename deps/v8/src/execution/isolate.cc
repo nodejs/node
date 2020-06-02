@@ -3431,15 +3431,15 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
     setup_delegate_->SetupBuiltins(this);
 
-#if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_S390X)
+#ifndef V8_TARGET_ARCH_ARM
     // Store the interpreter entry trampoline on the root list. It is used as a
     // template for further copies that may later be created to help profile
     // interpreted code.
-    // We currently cannot do this on above architectures due to
-    // RELATIVE_CODE_TARGETs assuming that all possible Code targets may be
-    // addressed with an int24 offset, effectively limiting code space size to
-    // 32MB. We can guarantee this at mksnapshot-time, but not at runtime. See
-    // also: https://crbug.com/v8/8713.
+    // We currently cannot do this on arm due to RELATIVE_CODE_TARGETs
+    // assuming that all possible Code targets may be addressed with an int24
+    // offset, effectively limiting code space size to 32MB. We can guarantee
+    // this at mksnapshot-time, but not at runtime.
+    // See also: https://crbug.com/v8/8713.
     heap_.SetInterpreterEntryTrampolineForProfiling(
         heap_.builtin(Builtins::kInterpreterEntryTrampoline));
 #endif
@@ -3514,11 +3514,11 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   }
 #endif  // DEBUG
 
-#if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_S390X)
+#ifndef V8_TARGET_ARCH_ARM
   // The IET for profiling should always be a full on-heap Code object.
   DCHECK(!Code::cast(heap_.interpreter_entry_trampoline_for_profiling())
               .is_off_heap_trampoline());
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_S390X
+#endif  // V8_TARGET_ARCH_ARM
 
   if (FLAG_print_builtin_code) builtins()->PrintBuiltinCode();
   if (FLAG_print_builtin_size) builtins()->PrintBuiltinSize();
