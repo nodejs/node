@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.21.0">10.21.0</a><br/>
 <a href="#10.20.1">10.20.1</a><br/>
 <a href="#10.20.0">10.20.0</a><br/>
 <a href="#10.19.0">10.19.0</a><br/>
@@ -65,6 +66,27 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.21.0"></a>
+## 2020-06-02, Version 10.21.0 'Dubnium' (LTS), @BethGriggs
+
+### Notable changes
+
+This is a security release.
+
+Vulnerabilities fixed:
+
+* **CVE-2020-8174**: napi_get_value_string_*() allows various kinds of memory corruption (High).
+* **CVE-2020-10531**: ICU-20958 Prevent SEGV_MAPERR in append (High).
+* **CVE-2020-11080**: HTTP/2 Large Settings Frame DoS (Low).
+
+### Commits
+
+* [[`0ad7970256`](https://github.com/nodejs/node/commit/0ad7970256)] - **deps**: fix OPENSSLDIR on Windows (Shigeki Ohtsu) [#29456](https://github.com/nodejs/node/pull/29456)
+* [[`bd78c6ea46`](https://github.com/nodejs/node/commit/bd78c6ea46)] - **deps**: backport ICU-20958 to fix CVE-2020-10531 (Richard Lau) [#33572](https://github.com/nodejs/node/pull/33572)
+* [[`33e9a12241`](https://github.com/nodejs/node/commit/33e9a12241)] - **(SEMVER-MINOR)** **deps**: update nghttp2 to 1.41.0 (James M Snell) [nodejs-private/node-private#204](https://github.com/nodejs-private/node-private/pull/204)
+* [[`881c244a4e`](https://github.com/nodejs/node/commit/881c244a4e)] - **(SEMVER-MINOR)** **http2**: implement support for max settings entries (James M Snell) [nodejs-private/node-private#204](https://github.com/nodejs-private/node-private/pull/204)
+* [[`cd9827f105`](https://github.com/nodejs/node/commit/cd9827f105)] - **napi**: fix memory corruption vulnerability (Tobias Nießen) [nodejs-private/node-private#203](https://github.com/nodejs-private/node-private/pull/203)
 
 <a id="10.20.1"></a>
 ## 2020-04-12, Version 10.20.1 'Dubnium' (LTS), @BethGriggs

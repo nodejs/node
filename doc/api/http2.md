@@ -2004,6 +2004,7 @@ changes:
   - version:
      - v14.4.0
      - v12.18.0
+     - v10.21.0
     pr-url: https://github.com/nodejs-private/node-private/pull/204
     description: Added `maxSettings` option with a default of 32.
   - version:
@@ -2142,6 +2143,7 @@ changes:
   - version:
      - v14.4.0
      - v12.18.0
+     - v10.21.0
     pr-url: https://github.com/nodejs-private/node-private/pull/204
     description: Added `maxSettings` option with a default of 32.
   - version:
@@ -2267,6 +2269,7 @@ changes:
   - version:
      - v14.4.0
      - v12.18.0
+     - v10.21.0
     pr-url: https://github.com/nodejs-private/node-private/pull/204
     description: Added `maxSettings` option with a default of 32.
   - version: v13.0.0
