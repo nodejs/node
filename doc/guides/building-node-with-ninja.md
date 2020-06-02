@@ -29,7 +29,7 @@ number of processes to run for [Ninja][] using the environment variable `JOBS`.
 This will be the equivalent to the `-j` parameter in the regular `make`:
 
 ```bash
-$ JOBS=12 make
+JOBS=12 make
 ```
 
 ## Producing a debug build
@@ -37,7 +37,7 @@ $ JOBS=12 make
 To create a debug build rather than a release build:
 
 ```bash
-$ ./configure --ninja --debug && make
+./configure --ninja --debug && make
 ```
 
 [Ninja]: https://ninja-build.org/
