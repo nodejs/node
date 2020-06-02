@@ -1625,8 +1625,8 @@ DEFINE_BOOL(vtune_prof_annotate_wasm, false,
 
 DEFINE_BOOL(win64_unwinding_info, true, "Enable unwinding info for Windows/x64")
 
-#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390X)
-// Unsupported on above architectures. See https://crbug.com/v8/8713.
+#ifdef V8_TARGET_ARCH_ARM
+// Unsupported on arm. See https://crbug.com/v8/8713.
 DEFINE_BOOL_READONLY(
     interpreted_frames_native_stack, false,
     "Show interpreted frames on the native stack (useful for external "

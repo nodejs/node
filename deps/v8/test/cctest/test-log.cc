@@ -565,7 +565,7 @@ UNINITIALIZED_TEST(LogAll) {
   isolate->Dispose();
 }
 
-#if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_S390X)
+#ifndef V8_TARGET_ARCH_ARM
 UNINITIALIZED_TEST(LogInterpretedFramesNativeStack) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
@@ -650,7 +650,7 @@ UNINITIALIZED_TEST(LogInterpretedFramesNativeStackWithSerialization) {
   } while (!has_cache);
   delete cache;
 }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_S390X
+#endif  // V8_TARGET_ARCH_ARM
 
 UNINITIALIZED_TEST(ExternalCodeEventListener) {
   i::FLAG_log = false;
@@ -753,7 +753,7 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
   isolate2->Dispose();
 }
 
-#if !defined(V8_TARGET_ARCH_ARM) && !defined(V8_TARGET_ARCH_S390X)
+#ifndef V8_TARGET_ARCH_ARM
 UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
@@ -803,7 +803,7 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   }
   isolate->Dispose();
 }
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_S390X
+#endif  // V8_TARGET_ARCH_ARM
 
 UNINITIALIZED_TEST(TraceMaps) {
   SETUP_FLAGS();
