@@ -746,6 +746,7 @@
 
       'variables': {
         'openssl_system_ca_path%': '',
+        'openssl_default_cipher_list%': '',
       },
 
       'defines': [
@@ -762,6 +763,11 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'openssl_default_cipher_list!=""', {
+          'defines': [
+            'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'
+           ]
+        }],
         [ 'error_on_warn=="true"', {
           'cflags': ['-Werror'],
           'xcode_settings': {
