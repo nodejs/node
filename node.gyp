@@ -736,6 +736,7 @@
 
       'variables': {
         'openssl_system_ca_path%': '',
+        'openssl_default_cipher_list%': '',
       },
 
       'defines': [
@@ -752,6 +753,11 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'openssl_default_cipher_list!=""', {
+          'defines': [
+            'NODE_OPENSSL_DEFAULT_CIPHER_LIST="<(openssl_default_cipher_list)"'
+           ]
+        }],
         [ 'node_builtin_modules_path!=""', {
           'defines': [ 'NODE_BUILTIN_MODULES_PATH="<(node_builtin_modules_path)"' ]
         }],
