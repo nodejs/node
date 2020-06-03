@@ -143,9 +143,7 @@ const stat = promisify(fs.stat);
 
   o.fn = fn;
 
-  o.fn().then(common.mustCall(function(val) {
-    assert(val);
-  }));
+  o.fn().then(common.mustCall((val) => assert(val)));
 }
 
 {
