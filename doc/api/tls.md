@@ -308,9 +308,9 @@ instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS
 cipher suite:
 
 ```bash
-node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4" server.js
+node --tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4' server.js
 
-export NODE_OPTIONS=--tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+export NODE_OPTIONS=--tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4'
 node server.js
 ```
 
