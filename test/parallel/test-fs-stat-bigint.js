@@ -122,6 +122,23 @@ if (!common.isWindows) {
   fs.closeSync(fd);
 }
 
+const runSyncFailureTest = (func, arg, error) => {
+  assert.throws(() => func(arg), error);
+  assert.strictEqual(func(arg, { throws: false }), undefined);
+};
+
+{
+  runSyncFailureTest(fs.statSync, 'does_not_exist', { code: 'ENOENT' });
+}
+
+{
+  runSyncFailureTest(fs.lstatSync, 'does_not_exist', { code: 'ENOENT' });
+}
+
+{
+  runSyncFailureTest(fs.fstatSync, 9999, { code: 'EBADF' });
+}
+
 const runCallbackTest = (func, arg, done) => {
   const startTime = process.hrtime.bigint();
   func(arg, { bigint: true }, common.mustCall((err, bigintStats) => {

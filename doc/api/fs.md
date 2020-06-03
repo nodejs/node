@@ -2202,6 +2202,9 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+  * `throws` {boolean} Whether an exception will be thrown
+    if stats are not available, rather than returning `undefined`.
+    **Default:** `true`.
 * Returns: {fs.Stats}
 
 Synchronous fstat(2).
@@ -2568,6 +2571,9 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+  * `throws` {boolean} Whether an exception will be thrown
+    if stats are not available, rather than returning `undefined`.
+    **Default:** `true`.
 * Returns: {fs.Stats}
 
 Synchronous lstat(2).
@@ -3810,6 +3816,9 @@ changes:
 * `options` {Object}
   * `bigint` {boolean} Whether the numeric values in the returned
     [`fs.Stats`][] object should be `bigint`. **Default:** `false`.
+  * `throws` {boolean} Whether an exception will be thrown
+    if stats are not available, rather than returning `undefined`.
+    **Default:** `true`.
 * Returns: {fs.Stats}
 
 Synchronous stat(2).
