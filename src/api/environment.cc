@@ -555,7 +555,7 @@ void InitializeContextRuntime(Local<Context> context) {
   if (context->Global()->Get(context, intl_string).ToLocal(&intl_v) &&
       intl_v->IsObject()) {
     Local<Object> intl = intl_v.As<Object>();
-    intl->Delete(context, break_iter_string).FromJust();
+    intl->Delete(context, break_iter_string).Check();
   }
 
   // Delete `Atomics.wake`
@@ -566,7 +566,7 @@ void InitializeContextRuntime(Local<Context> context) {
   if (context->Global()->Get(context, atomics_string).ToLocal(&atomics_v) &&
       atomics_v->IsObject()) {
     Local<Object> atomics = atomics_v.As<Object>();
-    atomics->Delete(context, wake_string).FromJust();
+    atomics->Delete(context, wake_string).Check();
   }
 
   // Remove __proto__
