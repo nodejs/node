@@ -170,6 +170,11 @@ parser.add_option("--link-module",
          "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
+parser.add_option('--openssl-default-cipher-list',
+    action='store',
+    dest='openssl_default_cipher_list',
+    help='Use the specified cipher list as the default cipher list')
+
 parser.add_option("--openssl-no-asm",
     action="store_true",
     dest="openssl_no_asm",
@@ -1302,6 +1307,8 @@ def configure_openssl(o):
       without_ssl_error('--openssl-no-asm')
     if options.openssl_fips:
       without_ssl_error('--openssl-fips')
+    if options.openssl_default_cipher_list:
+      without_ssl_error('--openssl-default-cipher-list')
     return
 
   if options.use_openssl_ca_store:
@@ -1311,6 +1318,9 @@ def configure_openssl(o):
   variables['node_without_node_options'] = b(options.without_node_options)
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
+  if options.openssl_default_cipher_list:
+    variables['openssl_default_cipher_list'] = \
+            options.openssl_default_cipher_list
 
   if not options.shared_openssl and not options.openssl_no_asm:
     is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
