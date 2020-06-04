@@ -1307,6 +1307,8 @@ def configure_openssl(o):
       without_ssl_error('--openssl-no-asm')
     if options.openssl_fips:
       without_ssl_error('--openssl-fips')
+    if options.openssl_default_cipher_list:
+      without_ssl_error('--openssl-default-cipher-list')
     return
 
   if options.use_openssl_ca_store:
