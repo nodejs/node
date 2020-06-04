@@ -1,4 +1,4 @@
-// Flags: --no-warnings --experimental-abortcontroller
+// Flags: --no-warnings
 'use strict';
 
 const common = require('../common');
