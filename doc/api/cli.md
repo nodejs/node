@@ -170,9 +170,14 @@ Currently, overriding `Error.prepareStackTrace` is ignored when the
 ### `--experimental-abortcontroller`
 <!-- YAML
 added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33527
+    description: --experimental-abortcontroller is no longer required.
 -->
 
-Enable experimental `AbortController` and `AbortSignal` support.
+Experimental `AbortController` and `AbortSignal` support is enabled by default.
+Use of this command line flag is no longer required.
 
 ### `--experimental-import-meta-resolve`
 <!-- YAML

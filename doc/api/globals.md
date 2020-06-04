@@ -29,8 +29,6 @@ added: REPLACEME
 A utility class used to signal cancelation in selected `Promise`-based APIs.
 The API is based on the Web API [`AbortController`][].
 
-To use, launch Node.js using the `--experimental-abortcontroller` flag.
-
 ```js
 const ac = new AbortController();
 
