@@ -331,20 +331,17 @@ async_hooks.createHook({
   },
   before(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeFileSync('log.out',
-                     `${indentStr}before:  ${asyncId}\n`, { flag: 'a' });
+    fs.writeSync(process.stdout.fd, `${indentStr}before:  ${asyncId}\n`);
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
     const indentStr = ' '.repeat(indent);
-    fs.writeFileSync('log.out',
-                     `${indentStr}after:  ${asyncId}\n`, { flag: 'a' });
+    fs.writeSync(process.stdout.fd, `${indentStr}after:  ${asyncId}\n`);
   },
   destroy(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeFileSync('log.out',
-                     `${indentStr}destroy:  ${asyncId}\n`, { flag: 'a' });
+    fs.writeSync(process.stdout.fd, `${indentStr}destroy:  ${asyncId}\n`);
   },
 }).enable();
 
@@ -380,16 +377,38 @@ the value of the current execution context; which is delineated by calls to
 Only using `execution` to graph resource allocation results in the following:
 
 ```console
-Timeout(7) -> TickObject(6) -> root(1)
+  root(1)
+     ^
+     |
+TickObject(6)
+     ^
+     |
+ Timeout(7)
 ```
 
 The `TCPSERVERWRAP` is not part of this graph, even though it was the reason for
 `console.log()` being called. This is because binding to a port without a host
 name is a *synchronous* operation, but to maintain a completely asynchronous
-API the user's callback is placed in a `process.nextTick()`.
+API the user's callback is placed in a `process.nextTick()`. Which is why
+`TickObject` is present in the output and is a 'parent' for `.listen()`
+callback.
 
 The graph only shows *when* a resource was created, not *why*, so to track
-the *why* use `triggerAsyncId`.
+the *why* use `triggerAsyncId`. Which can be represented with the following
+graph:
+
+```console
+ bootstrap(1)
+     |
+     ˅
+TCPSERVERWRAP(5)
+     |
+     ˅
+ TickObject(6)
+     |
+     ˅
+  Timeout(7)
+```
 
 ##### `before(asyncId)`
 
