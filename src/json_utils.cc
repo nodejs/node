@@ -41,12 +41,11 @@ std::string EscapeJsonChars(const std::string& str) {
 }
 
 std::string Reindent(const std::string& str, int indent_depth) {
-  std::string indent;
-  for (int i = 0; i < indent_depth; i++) indent += ' ';
-
+  if (indent_depth <= 0) return str;
+  const std::string indent(indent_depth, ' ');
   std::string out;
   std::string::size_type pos = 0;
-  do {
+  for (;;) {
     std::string::size_type prev_pos = pos;
     pos = str.find('\n', pos);
 
@@ -59,7 +58,7 @@ std::string Reindent(const std::string& str, int indent_depth) {
       pos++;
       out.append(str, prev_pos, pos - prev_pos);
     }
-  } while (true);
+  }
 
   return out;
 }
