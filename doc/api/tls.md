@@ -275,7 +275,7 @@ distributions to provide their own default list.
 
 The following command can be used to show the default cipher suite:
 ```console
-node -p "require('crypto').constants.defaultCoreCipherList" | tr ':' '\n'
+node -p crypto.constants.defaultCoreCipherList | tr ':' '\n'
 TLS_AES_256_GCM_SHA384
 TLS_CHACHA20_POLY1305_SHA256
 TLS_AES_128_GCM_SHA256
