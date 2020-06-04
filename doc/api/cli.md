@@ -639,7 +639,7 @@ Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
 human consumption.
 
-### --report-dir=directory`, `report-directory=directory`
+### `--report-dir=directory`, `report-directory=directory`
 <!-- YAML
 added: v11.8.0
 changes:
