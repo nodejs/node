@@ -428,6 +428,6 @@ ok(EventTarget);
 {
   const target = new EventTarget();
   strictEqual(target.toString(), '[object EventTarget]');
-  const event = new Event();
+  const event = new Event('');
   strictEqual(event.toString(), '[object Event]');
 }
