@@ -4,7 +4,6 @@ const assert = require('assert');
 
 // This test ensures that assert.trackCalls() checks proper usage on exit.
 
-// Check minimum mode
 const trackedFunc = assert.trackCalls();
 trackedFunc();
 

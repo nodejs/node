@@ -117,6 +117,10 @@ process.on('exit', () => {
   trackedFunc();
   trackedFunc();
   trackedFunc();
+  const secondFunc = trackedFunc.add();
+  secondFunc();
+  const thirdFunc = trackedFunc.add({ expected: 1, mode: 'exact' });
+  thirdFunc();
   trackedFunc.verify();
 
   // Check failEarly set to false

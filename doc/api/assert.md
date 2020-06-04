@@ -149,19 +149,14 @@ try {
 }
 ```
 
-## Class: `assert.CallTracker`
+### `assert.trackCalls([fn][, exact])`
 <!-- YAML
-added: v14.2.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
 
 This feature is currently experimental and behavior might still change.
-
-### `new assert.CallTracker()`
-<!-- YAML
-added: v14.2.0
--->
 
 Creates a new [`CallTracker`][] object which can be used to track if functions
 were called a specific number of times. The `tracker.verify()` must be called
@@ -187,13 +182,17 @@ process.on('exit', () => {
 });
 ```
 
-### `tracker.calls([fn][, exact])`
+#### `tracker.calls([fn][, expected])`
 <!-- YAML
 added: v14.2.0
 -->
 
-* `fn` {Function} **Default** A no-op function.
-* `exact` {number} **Default** `1`.
+* `fn` {Function} **Default**: A no-op function.
+* `expected` {number|Object} **Default**: `1`.
+  * `expected` {number} **Default**: `1`.
+  * `mode` {string} **Default**: `'exact'`
+  * `failEarly` {boolean} **Default**: `false`
+  * `verifyOnExit` {boolean} **Default**: `true`
 * Returns: {Function} that wraps `fn`.
 
 The wrapper function is expected to be called exactly `exact` times. If the
@@ -204,13 +203,19 @@ error.
 ```js
 const assert = require('assert');
 
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
 function func() {}
 
 // Returns a function that wraps func() that must be called exact times
-// before tracker.verify().
+// before calling trackedFunction.verify().
+const trackedFunction = assert.trackCalls(func, 2);
+trackedFunction();
+trackedFunction();
+// This will pass: the tracked function was called exactly twice.
+trackedFunction.verify();
+
+trackedFunction();
+// AssertionError: Mismatched func function calls. Expected exactly 2, actual 3.
+
 const callsfunc = tracker.calls(func);
 ```
 

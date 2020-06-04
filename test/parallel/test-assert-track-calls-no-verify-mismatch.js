@@ -11,7 +11,18 @@ foo();
 foo();
 
 assert.trackCalls()();
-assert.trackCalls(console.log);
+assert.trackCalls(console.log, { mode: 'minimum' });
+
+const secondFunc = trackedFunc.add();
+secondFunc();
+assert.throws(
+  () => secondFunc(),
+  {
+    code: 'ERR_ASSERTION',
+    message: 'Mismatched trackedFunction function calls. ' +
+             'Expected exactly 1, actual 2.'
+  }
+);
 
 process.on('uncaughtException', (err) => {
   assert.strictEqual(process._exiting, true);
@@ -63,7 +74,8 @@ process.on('uncaughtException', (err) => {
 
   assert.strictEqual(
     err.errors[2].message,
-    'Mismatched bound consoleCall function calls. Expected exactly 1, actual 0.'
+    'Mismatched bound consoleCall function calls. ' +
+      'Expected at least 1, actual 0.'
   );
   assert.deepStrictEqual({ ...err.errors[2] }, {
     generatedMessage: true,
