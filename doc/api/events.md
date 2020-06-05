@@ -944,7 +944,7 @@ added: REPLACEME
 
 The `EventTarget` and `Event` objects are a Node.js-specific implementation
 of the [`EventTarget` Web API][] that are exposed by some Node.js core APIs.
-Neither the `EventTarget` nor `Event` classes are currently available for end
+Neither the `EventTarget` nor `Event` classes are available for end
 user code to create.
 
 ```js
@@ -1099,7 +1099,7 @@ added: REPLACEME
 -->
 
 Returns an array containing the current `EventTarget` as the only entry or
-empty if the event is not currently being dispatched. This is not used in
+empty if the event is not being dispatched. This is not used in
 Node.js and is provided purely for completeness.
 
 #### `event.currentTarget`
@@ -1107,7 +1107,7 @@ Node.js and is provided purely for completeness.
 added: REPLACEME
 -->
 
-* Type: {EventTarget} The `EventTarget` currently dispatching the event.
+* Type: {EventTarget} The `EventTarget` dispatching the event.
 
 Alias for `event.target`.
 
@@ -1161,7 +1161,7 @@ This is not used in Node.js and is provided purely for completeness.
 added: REPLACEME
 -->
 
-* Type: {EventTarget} The `EventTarget` currently dispatching the event.
+* Type: {EventTarget} The `EventTarget` dispatching the event.
 
 Alias for `event.target`.
 
@@ -1184,7 +1184,7 @@ This is not used in Node.js and is provided purely for completeness.
 added: REPLACEME
 -->
 
-* Type: {EventTarget} The `EventTarget` currently dispatching the event.
+* Type: {EventTarget} The `EventTarget` dispatching the event.
 
 #### `event.timeStamp`
 <!-- YAML
@@ -1310,7 +1310,7 @@ added: REPLACEME
 * Returns: {string[]}
 
 Node.js-specific extension to the `EventTarget` class that returns an array
-of event `type` names for which event listeners are currently registered.
+of event `type` names for which event listeners are registered.
 
 #### `nodeEventTarget.listenerCount(type)`
 <!-- YAML
