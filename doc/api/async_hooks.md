@@ -509,7 +509,7 @@ createHook({
   }
 }).enable();
 
-const server = createServer(function(req, res) {
+const server = createServer((req, res) => {
   executionAsyncResource()[sym] = { state: req.url };
   setTimeout(function() {
     res.end(JSON.stringify(executionAsyncResource()[sym]));
@@ -864,6 +864,31 @@ for (let i = 0; i < 10; i++) {
 }
 ```
 
+### Integrating `AsyncResource` with `EventEmitter`
+
+Event listeners triggered by an [`EventEmitter`][] may be run in a different
+execution context than the one that was active when `eventEmitter.on()` was
+called.
+
+The following example shows how to use the `AsyncResource` class to properly
+associate an event listener with the correct execution context. The same
+approach can be applied to a [`Stream`][] or a similar event-driven class.
+
+```js
+const { createServer } = require('http');
+const { AsyncResource, executionAsyncId } = require('async_hooks');
+
+const server = createServer((req, res) => {
+  const asyncResource = new AsyncResource('request');
+  // The listener will always run in the execution context of `asyncResource`.
+  req.on('close', asyncResource.runInAsyncScope.bind(asyncResource, () => {
+    // Prints: true
+    console.log(asyncResource.asyncId() === executionAsyncId());
+  }));
+  res.end();
+}).listen(3000);
+```
+
 ## Class: `AsyncLocalStorage`
 <!-- YAML
 added:
@@ -1116,8 +1141,10 @@ to associate the asynchronous operation with the correct execution context.
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
+[`EventEmitter`]: events.html#events_class_eventemitter
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
+[`Stream`]: stream.html#stream_stream
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking
 [`util.promisify()`]: util.html#util_util_promisify_original
