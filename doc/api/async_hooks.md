@@ -662,6 +662,10 @@ const asyncResource = new AsyncResource(
 // * restore the original execution context
 asyncResource.runInAsyncScope(fn, thisArg, ...args);
 
+// Return a wrapper function that always runs in the execution context
+// of the resource.
+asyncResource.bindToAsyncScope(fn);
+
 // Call AsyncHooks destroy callbacks.
 asyncResource.emitDestroy();
 
@@ -722,6 +726,34 @@ Call the provided function with the provided arguments in the execution context
 of the async resource. This will establish the context, trigger the AsyncHooks
 before callbacks, call the function, trigger the AsyncHooks after callbacks, and
 then restore the original execution context.
+
+#### `asyncResource.bindToAsyncScope(fn)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to be wrapped.
+
+Return a wrapper function for the supplied function. The returned funtion, when
+it is run, will have the same context as if it was run with
+`asyncResource.runInAsyncScope()`.
+
+The following is a simple demonstration of `asyncResource.bindToAsyncScope()`:
+
+```js
+const { createServer } = require('http');
+const { AsyncResource, executionAsyncId } = require('async_hooks');
+
+const server = createServer(function(req, res) {
+  const asyncResource = new AsyncResource('request');
+  const asyncId = asyncResource.asyncId();
+  // The listener will always run in the execution context of `asyncResource`.
+  req.on('close', asyncResource.bindToAsyncScope(() => {
+    console.log(executionAsyncId()); // Prints the value of `asyncId`.
+  }));
+  res.end();
+}).listen(3000);
+```
 
 #### `asyncResource.emitDestroy()`
 
