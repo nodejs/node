@@ -300,7 +300,7 @@ bool StringEqualNoCase(const char* a, const char* b) {
     if (*a == '\0')
       return *b == '\0';
     if (*b == '\0')
-      return *a == '\0';
+      return false;
   } while (ToLower(*a++) == ToLower(*b++));
   return false;
 }
@@ -533,9 +533,9 @@ inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
 constexpr size_t FastStringKey::HashImpl(const char* str) {
   // Low-quality hash (djb2), but just fine for current use cases.
   size_t h = 5381;
-  do {
-    h = h * 33 + *str;  // NOLINT(readability/pointer_notation)
-  } while (*(str++) != '\0');
+  while (*str != '\0') {
+    h = h * 33 + *(str++);  // NOLINT(readability/pointer_notation)
+  }
   return h;
 }
 
@@ -551,7 +551,7 @@ constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
   do {
     if (*(p1++) != *(p2++)) return false;
   } while (*p1 != '\0');
-  return true;
+  return *p2 == '\0';
 }
 
 constexpr FastStringKey::FastStringKey(const char* name)
