@@ -3045,7 +3045,7 @@ key may be passed for `key`.
 
 ## Notes
 
-### Legacy Streams API (pre Node.js v0.10)
+### Legacy Streams API (prior to Node.js 0.10)
 
 The Crypto module was added to Node.js before there was the concept of a
 unified Stream API, and before there were [`Buffer`][] objects for handling
