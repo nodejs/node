@@ -210,7 +210,7 @@ console.log(myURL.hostname);
 
 myURL.hostname = 'example.com:82';
 console.log(myURL.href);
-// Prints https://example.com:81/foo
+// Prints https://example.com:82/foo
 ```
 
 Invalid host name values assigned to the `hostname` property are ignored.
