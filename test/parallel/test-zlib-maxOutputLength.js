@@ -1,14 +1,15 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
 const encoded = Buffer.from('G38A+CXCIrFAIAM=', 'base64');
 
 // Async
-zlib.brotliDecompress(encoded, { maxOutputLength: 64 }, function(err) {
-  assert.ok(err instanceof RangeError);
-});
+zlib.brotliDecompress(encoded, { maxOutputLength: 64 }, common.expectsError({
+  code: 'ERR_BUFFER_TOO_LARGE',
+  message: 'Cannot create a Buffer larger than 64 bytes'
+}));
 
 // Sync
 assert.throws(function() {
