@@ -10,11 +10,11 @@ echo Tools for Node.js Native Modules Installation Script
 echo ====================================================
 echo.
 echo This script will install Python and the Visual Studio Build Tools, necessary
-echo to compile Node.js native modules. Note that Chocolatey and required Windows
-echo updates will also be installed.
+echo to compile Node.js native modules. Note that Chocolatey, Python, Visual 
+echo Studio and required Windows updates will also be installed.
 echo.
-echo This will require about 3 Gb of free disk space, plus any space necessary to
-echo install Windows updates. This will take a while to run.
+echo This will require about 3 Gb of free disk space on C: drive, plus any space 
+echo necessary to install Windows updates. This will take a while to run.
 echo.
 echo Please close all open programs for the duration of the installation. If the
 echo installation fails, please ensure Windows is fully updated, reboot your
