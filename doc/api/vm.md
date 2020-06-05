@@ -396,7 +396,7 @@ linking, and evaluation. These three steps are illustrated in the following
 example.
 
 This implementation lies at a lower level than the [ECMAScript Module
-loader][]. There is also currently no way to interact with the Loader, though
+loader][]. There is also no way to interact with the Loader yet, though
 support is planned.
 
 ```js
