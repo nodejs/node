@@ -15,7 +15,7 @@ Refer to [C/C++ Addons with N-API](n-api.html) for more information on N-API.
 When not using N-API, implementing Addons is complicated,
 involving knowledge of several components and APIs:
 
-* V8: the C++ library Node.js currently uses to provide the
+* V8: the C++ library Node.js uses to provide the
   JavaScript implementation. V8 provides the mechanisms for creating objects,
   calling functions, etc. V8's API is documented mostly in the
   `v8.h` header file (`deps/v8/include/v8.h` in the Node.js source
@@ -418,7 +418,7 @@ dramatically from one V8 release to the next (and one major Node.js release to
 the next). With each change, Addons may need to be updated and recompiled in
 order to continue functioning. The Node.js release schedule is designed to
 minimize the frequency and impact of such changes but there is little that
-Node.js can do currently to ensure stability of the V8 APIs.
+Node.js can do to ensure stability of the V8 APIs.
 
 The [Native Abstractions for Node.js][] (or `nan`) provide a set of tools that
 Addon developers are recommended to use to keep compatibility between past and
