@@ -373,7 +373,7 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket,
 std::string InspectorSocketServer::GetFrontendURL(bool is_compat,
     const std::string &formatted_address) {
   std::ostringstream frontend_url;
-  frontend_url << "chrome-devtools://devtools/bundled/";
+  frontend_url << "devtools://devtools/bundled/";
   frontend_url << (is_compat ? "inspector" : "js_app");
   frontend_url << ".html?experiments=true&v8only=true&ws=";
   frontend_url << formatted_address;
