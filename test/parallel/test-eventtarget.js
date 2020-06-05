@@ -57,6 +57,21 @@ let asyncTest = Promise.resolve();
   strictEqual(ev.defaultPrevented, false);
 }
 {
+  [
+    'foo',
+    1,
+    false,
+    function() {},
+  ].forEach((i) => (
+    throws(() => new Event('foo', i), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "options" argument must be of type object.' +
+               common.invalidArgTypeHelper(i)
+    })
+  ));
+}
+{
   const ev = new Event('foo');
   strictEqual(ev.cancelBubble, false);
   ev.cancelBubble = true;
@@ -221,19 +236,18 @@ let asyncTest = Promise.resolve();
     false
   ].forEach((i) => {
     throws(() => target.dispatchEvent(i), {
-      code: 'ERR_INVALID_ARG_TYPE'
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "event" argument must be an instance of Event.' +
+               common.invalidArgTypeHelper(i)
     });
   });
 
-  [
-    'foo',
-    1,
-    {},  // No handleEvent function
-    false,
-  ].forEach((i) => {
-    throws(() => target.addEventListener('foo', i), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
+  const err = (arg) => ({
+    code: 'ERR_INVALID_ARG_TYPE',
+    name: 'TypeError',
+    message: 'The "listener" argument must be an instance of EventListener.' +
+             common.invalidArgTypeHelper(arg)
   });
 
   [
@@ -241,11 +255,14 @@ let asyncTest = Promise.resolve();
     1,
     {},  // No handleEvent function
     false
-  ].forEach((i) => {
-    throws(() => target.removeEventListener('foo', i), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-  });
+  ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
+
+  [
+    'foo',
+    1,
+    {},  // No handleEvent function
+    false
+  ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
 }
 
 {
