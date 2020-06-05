@@ -36,7 +36,7 @@ The following special commands are supported by all REPL instances:
   the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
   further input or processing of that expression.
 * `.clear`: Resets the REPL `context` to an empty object and clears any
-  multi-line expression currently being input.
+  multi-line expression being input.
 * `.exit`: Close the I/O stream, causing the REPL to exit.
 * `.help`: Show this list of special commands.
 * `.save`: Save the current REPL session to a file:
