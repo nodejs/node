@@ -24,7 +24,8 @@ const suffix = `' -- "\${cur_word}") )
     return 0
   fi
 }
-complete -F _node_complete node node_g`.replace(/\r/g, '');
+complete -o filenames -o nospace -o bashdefault -F _node_complete node node_g`
+  .replace(/\r/g, '');
 
 assert.ok(
   output.includes(prefix),
