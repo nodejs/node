@@ -147,10 +147,12 @@ module.exports = {
                         loc: node.consequent.loc.start,
                         messageId: "unnecessaryConditionalAssignment",
                         fix: fixer => {
-                            const shouldParenthesizeAlternate = (
-                                astUtils.getPrecedence(node.alternate) < OR_PRECEDENCE &&
-                                !astUtils.isParenthesised(sourceCode, node.alternate)
-                            );
+                            const shouldParenthesizeAlternate =
+                                (
+                                    astUtils.getPrecedence(node.alternate) < OR_PRECEDENCE ||
+                                    astUtils.isCoalesceExpression(node.alternate)
+                                ) &&
+                                !astUtils.isParenthesised(sourceCode, node.alternate);
                             const alternateText = shouldParenthesizeAlternate
                                 ? `(${sourceCode.getText(node.alternate)})`
                                 : astUtils.getParenthesisedText(sourceCode, node.alternate);

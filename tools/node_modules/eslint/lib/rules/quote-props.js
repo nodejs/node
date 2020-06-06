@@ -154,7 +154,7 @@ module.exports = {
 
                 try {
                     tokens = espree.tokenize(key.value);
-                } catch (e) {
+                } catch {
                     return;
                 }
 
@@ -239,7 +239,7 @@ module.exports = {
 
                         try {
                             tokens = espree.tokenize(key.value);
-                        } catch (e) {
+                        } catch {
                             necessaryQuotes = true;
                             return;
                         }
