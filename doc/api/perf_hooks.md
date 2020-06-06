@@ -255,10 +255,12 @@ The value may be one of:
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_ALL_EXTERNAL_MEMORY`
 * `perf_hooks.constants.NODE_PERFORMANCE_GC_FLAGS_SCHEDULE_IDLE`
 
-## Class: `PerformanceNodeTiming extends PerformanceEntry`
+## Class: `PerformanceNodeTiming`
 <!-- YAML
 added: v8.5.0
 -->
+
+* Extends: {PerformanceEntry}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 

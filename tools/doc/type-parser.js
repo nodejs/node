@@ -134,7 +134,7 @@ const customTypesMap = {
   'Histogram': 'perf_hooks.html#perf_hooks_class_histogram',
   'PerformanceEntry': 'perf_hooks.html#perf_hooks_class_performanceentry',
   'PerformanceNodeTiming':
-    'perf_hooks.html#perf_hooks_class_performancenodetiming_extends_performanceentry', // eslint-disable-line max-len
+    'perf_hooks.html#perf_hooks_class_performancenodetiming',
   'PerformanceObserver':
     'perf_hooks.html#perf_hooks_class_perf_hooks_performanceobserver',
   'PerformanceObserverEntryList':
