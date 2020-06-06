@@ -2699,6 +2699,19 @@ resolutions not in `node_modules`. This means there will not be deprecation
 warnings for `"exports"` in dependencies. With `--pending-deprecation`, a
 runtime warning results no matter where the `"exports"` usage occurs.
 
+<a id="DEP0148"></a>
+### DEP0148: `http.IncomingMessage#connection`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33768
+    description: Documentation-only deprecation.
+ -->
+
+Type: Documentation-only.
+
+Prefer [`message.socket`][] over [`message.connection`][].
+
 [Legacy URL API]: url.md#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -2757,6 +2770,8 @@ runtime warning results no matter where the `"exports"` usage occurs.
 [`http.request()`]: http.md#http_http_request_options_callback
 [`https.get()`]: https.md#https_https_get_options_callback
 [`https.request()`]: https.md#https_https_request_options_callback
+[`message.connection`]: http.md#http_message_connection
+[`message.socket`]: http.md#http_message_socket
 [`module.createRequire()`]: module.md#module_module_createrequire_filename
 [`os.networkInterfaces()`]: os.md#os_os_networkinterfaces
 [`os.tmpdir()`]: os.md#os_os_tmpdir

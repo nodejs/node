@@ -1984,6 +1984,16 @@ const req = http.request({
 });
 ```
 
+### `message.connection`
+<!-- YAML
+added: v0.1.90
+deprecated: REPLACEME
+ -->
+
+> Stability: 0 - Deprecated. Use [`message.socket`][].
+
+Alias for [`message.socket`][].
+
 ### `message.destroy([error])`
 <!-- YAML
 added: v0.3.0
@@ -2742,6 +2752,7 @@ try {
 [`net.Socket`]: net.md#net_class_net_socket
 [`net.createConnection()`]: net.md#net_net_createconnection_options_connectlistener
 [`new URL()`]: url.md#url_new_url_input_base
+[`message.socket`]: #http_message_socket
 [`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
 [`request.destroy()`]: #http_request_destroy_error
