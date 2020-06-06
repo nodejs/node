@@ -123,12 +123,17 @@ class BaseObject : public MemoryRetainer {
   //     make sure that they are not accidentally destroyed on the sending side.
   //     TransferForMessaging() will be called to get a representation of the
   //     object that is used for subsequent deserialization.
+  //     The NestedTransferables() method can be used to transfer other objects
+  //     along with this one, if a situation requires it.
   // - kCloneable:
   //     This object can be cloned without being modified.
   //     CloneForMessaging() will be called to get a representation of the
   //     object that is used for subsequent deserialization, unless the
   //     object is listed in transferList, in which case TransferForMessaging()
   //     is attempted first.
+  // After a successful clone, FinalizeTransferRead() is called on the receiving
+  // end, and can read deserialize JS data possibly serialized by a previous
+  // FinalizeTransferWrite() call.
   enum class TransferMode {
     kUntransferable,
     kTransferable,
@@ -137,6 +142,10 @@ class BaseObject : public MemoryRetainer {
   virtual TransferMode GetTransferMode() const;
   virtual std::unique_ptr<worker::TransferData> TransferForMessaging();
   virtual std::unique_ptr<worker::TransferData> CloneForMessaging() const;
+  virtual v8::Maybe<std::vector<BaseObjectPtrImpl<BaseObject, false>>>
+      NestedTransferables() const;
+  virtual v8::Maybe<bool> FinalizeTransferRead(
+      v8::Local<v8::Context> context, v8::ValueDeserializer* deserializer);
 
   virtual inline void OnGCCollect();
 

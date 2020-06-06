@@ -55,6 +55,7 @@ const meowScript = () => 'meow';
     transferList: []
   }), {
     code: 'ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST',
-    message: 'MessagePort was found in message but not listed in transferList'
+    message: 'Object that needs transfer was found in message but not ' +
+             'listed in transferList'
   });
 }
