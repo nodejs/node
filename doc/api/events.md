@@ -1277,10 +1277,12 @@ added: REPLACEME
 
 Removes the `listener` from the list of handlers for event `type`.
 
-### Class: `NodeEventTarget extends EventTarget`
+### Class: `NodeEventTarget`
 <!-- YAML
 added: REPLACEME
 -->
+
+* Extends: {EventTarget}
 
 The `NodeEventTarget` is a Node.js-specific extension to `EventTarget`
 that emulates a subset of the `EventEmitter` API.
