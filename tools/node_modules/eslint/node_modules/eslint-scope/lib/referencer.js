@@ -593,7 +593,16 @@ class Referencer extends esrecurse.Visitor {
         this.visitChildren(node);
     }
 
+    // TODO: ExportDeclaration doesn't exist. for bc?
     ExportDeclaration(node) {
+        this.visitExportDeclaration(node);
+    }
+
+    ExportAllDeclaration(node) {
+        this.visitExportDeclaration(node);
+    }
+
+    ExportDefaultDeclaration(node) {
         this.visitExportDeclaration(node);
     }
 
@@ -602,6 +611,8 @@ class Referencer extends esrecurse.Visitor {
     }
 
     ExportSpecifier(node) {
+
+        // TODO: `node.id` doesn't exist. for bc?
         const local = (node.id || node.local);
 
         this.visit(local);

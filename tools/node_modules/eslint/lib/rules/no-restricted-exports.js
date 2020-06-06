@@ -61,6 +61,12 @@ module.exports = {
         }
 
         return {
+            ExportAllDeclaration(node) {
+                if (node.exported) {
+                    checkExportedName(node.exported);
+                }
+            },
+
             ExportNamedDeclaration(node) {
                 const declaration = node.declaration;
 

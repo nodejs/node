@@ -93,7 +93,7 @@ module.exports = {
             try {
                 validator.validateFlags(flags);
                 return null;
-            } catch (err) {
+            } catch {
                 return `Invalid flags supplied to RegExp constructor '${flags}'`;
             }
         }

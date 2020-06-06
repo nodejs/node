@@ -21,13 +21,15 @@ const COMPARISON_OPERATORS = ["==", "!=", "===", "!==", ">", ">=", "<", "<="];
 const LOGICAL_OPERATORS = ["&&", "||"];
 const RELATIONAL_OPERATORS = ["in", "instanceof"];
 const TERNARY_OPERATOR = ["?:"];
+const COALESCE_OPERATOR = ["??"];
 const ALL_OPERATORS = [].concat(
     ARITHMETIC_OPERATORS,
     BITWISE_OPERATORS,
     COMPARISON_OPERATORS,
     LOGICAL_OPERATORS,
     RELATIONAL_OPERATORS,
-    TERNARY_OPERATOR
+    TERNARY_OPERATOR,
+    COALESCE_OPERATOR
 );
 const DEFAULT_GROUPS = [
     ARITHMETIC_OPERATORS,
@@ -236,7 +238,6 @@ module.exports = {
         return {
             BinaryExpression: check,
             LogicalExpression: check
-
         };
     }
 };
