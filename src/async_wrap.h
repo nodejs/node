@@ -146,6 +146,8 @@ class AsyncWrap : public BaseObject {
   static void GetProviderType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyAsyncId(
     const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCallbackTrampoline(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void EmitAsyncInit(Environment* env,
                             v8::Local<v8::Object> object,
