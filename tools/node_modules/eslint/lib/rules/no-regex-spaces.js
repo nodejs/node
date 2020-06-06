@@ -76,7 +76,7 @@ module.exports = {
 
             try {
                 regExpAST = regExpParser.parsePattern(pattern, 0, pattern.length, flags.includes("u"));
-            } catch (e) {
+            } catch {
 
                 // Ignore regular expressions with syntax errors
                 return;

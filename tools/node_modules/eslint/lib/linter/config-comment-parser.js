@@ -78,7 +78,7 @@ module.exports = class ConfigCommentParser {
                     config: items
                 };
             }
-        } catch (ex) {
+        } catch {
 
             debug("Levn parsing failed; falling back to manual parsing.");
 
