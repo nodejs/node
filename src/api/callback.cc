@@ -158,20 +158,46 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
     CHECK(!argv[i].IsEmpty());
 #endif
 
-  InternalCallbackScope scope(env, resource, asyncContext);
+  Local<Function> hook_cb = env->async_hooks_callback_trampoline();
+  int flags = InternalCallbackScope::kNoFlags;
+  int hook_count = 0;
+  if (!hook_cb.IsEmpty()) {
+    flags = InternalCallbackScope::kSkipAsyncHooks;
+    AsyncHooks* async_hooks = env->async_hooks();
+    hook_count = async_hooks->fields()[AsyncHooks::kBefore] +
+                 async_hooks->fields()[AsyncHooks::kAfter];
+  }
+
+  InternalCallbackScope scope(env, resource, asyncContext, flags);
   if (scope.Failed()) {
     return MaybeLocal<Value>();
   }
 
   Local<Function> domain_cb = env->domain_callback();
   MaybeLocal<Value> ret;
-  if (asyncContext.async_id != 0 || domain_cb.IsEmpty()) {
-    ret = callback->Call(env->context(), recv, argc, argv);
-  } else {
-    std::vector<Local<Value>> args(1 + argc);
+
+  if (asyncContext.async_id != 0 && hook_count != 0) {
+    MaybeStackBuffer<Local<Value>, 16> args(3 + argc);
+    args[0] = v8::Number::New(env->isolate(), asyncContext.async_id);
+    args[1] = callback;
+    if (domain_cb.IsEmpty()) {
+      args[2] = Undefined(env->isolate());
+    } else {
+      args[2] = domain_cb;
+    }
+    for (int i = 0; i < argc; i++) {
+      args[i + 3] = argv[i];
+    }
+    ret = hook_cb->Call(env->context(), recv, args.length(), &args[0]);
+  } else if (asyncContext.async_id == 0 && !domain_cb.IsEmpty()) {
+    MaybeStackBuffer<Local<Value>, 16> args(1 + argc);
     args[0] = callback;
-    std::copy(&argv[0], &argv[argc], args.begin() + 1);
-    ret = domain_cb->Call(env->context(), recv, args.size(), &args[0]);
+    for (int i = 0; i < argc; i++) {
+      args[i + 1] = argv[i];
+    }
+    ret = domain_cb->Call(env->context(), recv, args.length(), &args[0]);
+  } else {
+    ret = callback->Call(env->context(), recv, argc, argv);
   }
 
   if (ret.IsEmpty()) {
