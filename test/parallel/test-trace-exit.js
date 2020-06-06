@@ -47,12 +47,12 @@ switch (true) {
       stderr.match(/WARNING: Exited the environment with code 0/g);
     if (warnings === 0) {
       assert.strictEqual(actualWarnings, null);
-      return;
+      continue;
     }
     assert.strictEqual(actualWarnings.length, warnings);
 
     if (variant.startsWith('worker')) {
-      const workerIds = stderr.match(/\(node:\d+, thread:\d+)/g);
+      const workerIds = stderr.match(/\(node:\d+, thread:\d+\)/g);
       assert.strictEqual(workerIds.length, warnings);
     }
   }
