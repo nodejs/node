@@ -2630,8 +2630,6 @@ releases.
 <a id="ERR_ENTRY_TYPE_MISMATCH"></a>
 #### `ERR_ENTRY_TYPE_MISMATCH`
 
-> Stability: 1 - Experimental
-
 The `--entry-type=commonjs` flag was used to attempt to execute an `.mjs` file
 or a `.js` file where the nearest parent `package.json` contains
 `"type": "module"`; or
@@ -2669,8 +2667,6 @@ while trying to read and parse it.
 
 <a id="ERR_INVALID_REPL_TYPE"></a>
 #### `ERR_INVALID_REPL_TYPE`
-
-> Stability: 1 - Experimental
 
 The `--entry-type=...` flag is not compatible with the Node.js REPL.
 
