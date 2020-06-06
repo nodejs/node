@@ -93,7 +93,8 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                                 \
-    "MessagePort was found in message but not listed in transferList")         \
+    "Object that needs transfer was found in message but not listed "          \
+    "in transferList")                                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER,                                           \
     "The V8 platform used by this instance of Node does not support "          \
     "creating Workers")                                                        \

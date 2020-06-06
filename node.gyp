@@ -220,6 +220,7 @@
       'lib/internal/vm/module.js',
       'lib/internal/worker.js',
       'lib/internal/worker/io.js',
+      'lib/internal/worker/js_transferable.js',
       'lib/internal/watchdog.js',
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/async_iterator.js',

@@ -159,6 +159,10 @@ constexpr size_t kFsStatsBufferLength =
   V(async_id_symbol, "async_id_symbol")                                        \
   V(handle_onclose_symbol, "handle_onclose")                                   \
   V(no_message_symbol, "no_message_symbol")                                    \
+  V(messaging_deserialize_symbol, "messaging_deserialize_symbol")              \
+  V(messaging_transfer_symbol, "messaging_transfer_symbol")                    \
+  V(messaging_clone_symbol, "messaging_clone_symbol")                          \
+  V(messaging_transfer_list_symbol, "messaging_transfer_list_symbol")          \
   V(oninit_symbol, "oninit")                                                   \
   V(owner_symbol, "owner_symbol")                                              \
   V(onpskexchange_symbol, "onpskexchange")                                     \
@@ -201,6 +205,7 @@ constexpr size_t kFsStatsBufferLength =
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
+  V(deserialize_info_string, "deserializeInfo")                                \
   V(dest_string, "dest")                                                       \
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
@@ -453,6 +458,7 @@ constexpr size_t kFsStatsBufferLength =
   V(internal_binding_loader, v8::Function)                                     \
   V(immediate_callback_function, v8::Function)                                 \
   V(inspector_console_extension_installer, v8::Function)                       \
+  V(messaging_deserialize_create_object, v8::Function)                         \
   V(message_port, v8::Object)                                                  \
   V(native_module_require, v8::Function)                                       \
   V(performance_entry_callback, v8::Function)                                  \
