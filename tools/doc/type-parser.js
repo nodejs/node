@@ -127,7 +127,7 @@ const customTypesMap = {
   'net.Socket': 'net.html#net_class_net_socket',
 
   'NodeEventTarget':
-    'events.html#events_class_nodeeventtarget_extends_eventtarget',
+    'events.html#events_class_nodeeventtarget',
 
   'os.constants.dlopen': 'os.html#os_dlopen_constants',
 

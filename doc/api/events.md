@@ -1471,10 +1471,12 @@ added: v14.5.0
 
 Removes the `listener` from the list of handlers for event `type`.
 
-### Class: `NodeEventTarget extends EventTarget`
+### Class: `NodeEventTarget`
 <!-- YAML
 added: v14.5.0
 -->
+
+* Extends: {EventTarget}
 
 The `NodeEventTarget` is a Node.js-specific extension to `EventTarget`
 that emulates a subset of the `EventEmitter` API.
