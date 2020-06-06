@@ -55,10 +55,12 @@ added: REPLACEME
 
 * Type: {AbortSignal}
 
-### Class: `AbortSignal extends EventTarget`
+### Class: `AbortSignal`
 <!-- YAML
 added: REPLACEME
 -->
+
+* Extends: {EventTarget}
 
 The `AbortSignal` is used to notify observers when the
 `abortController.abort()` method is called.
