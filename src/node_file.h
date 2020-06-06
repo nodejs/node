@@ -319,10 +319,10 @@ class FileHandle final : public AsyncWrap, public StreamBase {
   int fd_;
   bool closing_ = false;
   bool closed_ = false;
+  bool reading_ = false;
   int64_t read_offset_ = -1;
   int64_t read_length_ = -1;
 
-  bool reading_ = false;
   BaseObjectPtr<FileHandleReadWrap> current_read_;
 
   BaseObjectPtr<BindingData> binding_data_;
