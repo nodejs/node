@@ -320,7 +320,7 @@ are part of the channel.
 added: v10.5.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/?????
+    pr-url: https://github.com/nodejs/node/pull/33772
     description: Added `FileHandle` to the list of transferable types.
 -->
 
