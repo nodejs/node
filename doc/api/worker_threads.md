@@ -318,6 +318,10 @@ are part of the channel.
 ### `port.postMessage(value[, transferList])`
 <!-- YAML
 added: v10.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33772
+    description: Added `FileHandle` to the list of transferable types.
 -->
 
 * `value` {any}
@@ -335,7 +339,8 @@ In particular, the significant differences to `JSON` are:
 * `value` may contain typed arrays, both using `ArrayBuffer`s
    and `SharedArrayBuffer`s.
 * `value` may contain [`WebAssembly.Module`][] instances.
-* `value` may not contain native (C++-backed) objects other than `MessagePort`s.
+* `value` may not contain native (C++-backed) objects other than `MessagePort`s
+  and [`FileHandle`][]s.
 
 ```js
 const { MessageChannel } = require('worker_threads');
@@ -349,7 +354,8 @@ circularData.foo = circularData;
 port2.postMessage(circularData);
 ```
 
-`transferList` may be a list of `ArrayBuffer` and `MessagePort` objects.
+`transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][] and
+[`FileHandle`][] objects.
 After transferring, they will not be usable on the sending side of the channel
 anymore (even if they are not contained in `value`). Unlike with
 [child processes][], transferring handles such as network sockets is currently
@@ -816,6 +822,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 
 [`'close'` event]: #worker_threads_event_close
 [`'exit'` event]: #worker_threads_event_exit
+[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`AsyncResource`]: async_hooks.html#async_hooks_class_asyncresource
 [`Buffer`]: buffer.html
 [`Buffer.allocUnsafe()`]: buffer.html#buffer_class_method_buffer_allocunsafe_size
@@ -823,6 +830,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`ERR_WORKER_NOT_RUNNING`]: errors.html#ERR_WORKER_NOT_RUNNING
 [`EventEmitter`]: events.html
 [`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
+[`FileHandle`]: fs.html#fs_class_filehandle
 [`MessagePort`]: #worker_threads_class_messageport
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
 [`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
