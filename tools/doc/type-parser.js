@@ -5,7 +5,6 @@ const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
 const jsDataStructuresUrl = `${jsDocPrefix}Data_structures`;
 const jsPrimitives = {
   boolean: 'Boolean',
-  integer: 'Number', // Not a primitive, used for clarification.
   null: 'Null',
   number: 'Number',
   string: 'String',
@@ -37,6 +36,7 @@ const customTypesMap = {
 
   'AsyncIterable': 'https://tc39.github.io/ecma262/#sec-asynciterable-interface',
 
+  'integer': 'https://www.ecma-international.org/ecma-262/6.0/#sec-number.isinteger',
   'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
