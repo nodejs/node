@@ -16352,7 +16352,18 @@ TEST(PromiseHook) {
   CHECK_EQ(v8::Promise::kPending, GetPromise("p")->State());
   CompileRun("resolve(Promise.resolve(value));\n");
   CHECK_EQ(v8::Promise::kFulfilled, GetPromise("p")->State());
-  CHECK_EQ(9, promise_hook_data->promise_hook_count);
+  CHECK_EQ(11, promise_hook_data->promise_hook_count);
+
+  promise_hook_data->Reset();
+  source =
+      "var p = Promise.resolve({\n"
+      "  then(r) {\n"
+      "    r();\n"
+      "  }\n"
+      "});";
+  CompileRun(source);
+  CHECK_EQ(GetPromise("p")->State(), v8::Promise::kFulfilled);
+  CHECK_EQ(promise_hook_data->promise_hook_count, 5);
 
   delete promise_hook_data;
   isolate->SetPromiseHook(nullptr);

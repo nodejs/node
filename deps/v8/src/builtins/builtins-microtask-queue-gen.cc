@@ -198,11 +198,18 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     const TNode<Object> thenable = LoadObjectField(
         microtask, PromiseResolveThenableJobTask::kThenableOffset);
 
+    RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
+                   CAST(promise_to_resolve));
+
     {
       ScopedExceptionHandler handler(this, &if_exception, &var_exception);
       CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
                   promise_to_resolve, thenable, then);
     }
+
+    RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
+                   CAST(promise_to_resolve));
+
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);
     Goto(&done);
