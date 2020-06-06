@@ -993,10 +993,17 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         Node* const thenable = LoadObjectField(
             microtask, PromiseResolveThenableJobTask::kThenableOffset);
 
+        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
+                       CAST(promise_to_resolve));
+
         Node* const result =
             CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
                         promise_to_resolve, thenable, then);
         GotoIfException(result, &if_exception, &var_exception);
+
+        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
+                       CAST(promise_to_resolve));
+
         LeaveMicrotaskContext();
         SetCurrentContext(current_context);
         Goto(&loop_next);
