@@ -338,6 +338,20 @@ BaseObjectPtrImpl<T, kIsWeak>::operator bool() const {
   return get() != nullptr;
 }
 
+template <typename T, bool kIsWeak>
+template <typename U, bool kW>
+bool BaseObjectPtrImpl<T, kIsWeak>::operator ==(
+    const BaseObjectPtrImpl<U, kW>& other) const {
+  return get() == other.get();
+}
+
+template <typename T, bool kIsWeak>
+template <typename U, bool kW>
+bool BaseObjectPtrImpl<T, kIsWeak>::operator !=(
+    const BaseObjectPtrImpl<U, kW>& other) const {
+  return get() != other.get();
+}
+
 template <typename T, typename... Args>
 BaseObjectPtr<T> MakeBaseObject(Args&&... args) {
   return BaseObjectPtr<T>(new T(std::forward<Args>(args)...));
