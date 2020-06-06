@@ -272,7 +272,7 @@ class NativeCompileCache {
 //------------------------------------------------------------------------------
 
 function mkdirpSync(p_) {
-  _mkdirpSync(path.resolve(p_), parseInt('0777', 8) & ~process.umask());
+  _mkdirpSync(path.resolve(p_), 0o777);
 }
 
 function _mkdirpSync(p, mode) {

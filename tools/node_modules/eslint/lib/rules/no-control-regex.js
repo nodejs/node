@@ -35,7 +35,7 @@ const collector = new (class {
         try {
             this._source = regexpStr;
             this._validator.validatePattern(regexpStr); // Call onCharacter hook
-        } catch (err) {
+        } catch {
 
             // Ignore syntax errors in RegExp.
         }

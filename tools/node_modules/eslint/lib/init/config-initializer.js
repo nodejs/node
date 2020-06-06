@@ -265,11 +265,7 @@ function processAnswers(answers) {
     };
 
     config.parserOptions.ecmaVersion = espree.latestEcmaVersion;
-    config.env.es6 = true;
-    config.globals = {
-        Atomics: "readonly",
-        SharedArrayBuffer: "readonly"
-    };
+    config.env.es2020 = true;
 
     // set the module type
     if (answers.moduleType === "esm") {
@@ -350,7 +346,7 @@ function getLocalESLintVersion() {
         const eslint = require(eslintPath);
 
         return eslint.linter.version || null;
-    } catch (_err) {
+    } catch {
         return null;
     }
 }

@@ -59,7 +59,7 @@ module.exports = {
 
             try {
                 ast = parser.parsePattern(pattern, 0, pattern.length, uFlag);
-            } catch (_) {
+            } catch {
 
                 // ignore regex syntax errors
                 return;

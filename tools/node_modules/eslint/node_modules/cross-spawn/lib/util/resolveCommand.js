@@ -2,9 +2,10 @@
 
 const path = require('path');
 const which = require('which');
-const pathKey = require('path-key')();
+const getPathKey = require('path-key');
 
 function resolveCommandAttempt(parsed, withoutPathExt) {
+    const env = parsed.options.env || process.env;
     const cwd = process.cwd();
     const hasCustomCwd = parsed.options.cwd != null;
     // Worker threads do not have process.chdir()
@@ -24,7 +25,7 @@ function resolveCommandAttempt(parsed, withoutPathExt) {
 
     try {
         resolved = which.sync(parsed.command, {
-            path: (parsed.options.env || process.env)[pathKey],
+            path: env[getPathKey({ env })],
             pathExt: withoutPathExt ? path.delimiter : undefined,
         });
     } catch (e) {

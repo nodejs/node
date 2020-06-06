@@ -147,7 +147,7 @@ module.exports = {
                     pattern.length,
                     flags.includes("u")
                 );
-            } catch (e) {
+            } catch {
 
                 // Ignore regular expressions with syntax errors
                 return;

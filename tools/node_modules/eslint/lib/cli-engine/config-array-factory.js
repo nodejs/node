@@ -517,7 +517,7 @@ class ConfigArrayFactory {
                     try {
                         loadPackageJSONConfigFile(filePath);
                         return filePath;
-                    } catch (error) { /* ignore */ }
+                    } catch { /* ignore */ }
                 } else {
                     return filePath;
                 }

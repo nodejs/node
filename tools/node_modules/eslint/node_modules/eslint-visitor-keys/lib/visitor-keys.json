@@ -66,6 +66,7 @@
     ],
     "EmptyStatement": [],
     "ExportAllDeclaration": [
+        "exported",
         "source"
     ],
     "ExportDefaultDeclaration": [

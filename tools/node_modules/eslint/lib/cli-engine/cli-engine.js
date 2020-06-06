@@ -403,7 +403,7 @@ function getCacheFile(cacheFile, cwd) {
 
     try {
         fileStats = fs.lstatSync(resolvedCacheFile);
-    } catch (ex) {
+    } catch {
         fileStats = null;
     }
 
@@ -991,7 +991,7 @@ class CLIEngine {
                     const npmFormat = naming.normalizePackageName(normalizedFormatName, "eslint-formatter");
 
                     formatterPath = ModuleResolver.resolve(npmFormat, path.join(cwd, "__placeholder__.js"));
-                } catch (e) {
+                } catch {
                     formatterPath = path.resolve(__dirname, "formatters", normalizedFormatName);
                 }
             }

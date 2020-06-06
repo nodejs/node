@@ -33,10 +33,10 @@ function isCaseNode(node) {
  * Checks whether the given logical operator is taken into account for the code
  * path analysis.
  * @param {string} operator The operator found in the LogicalExpression node
- * @returns {boolean} `true` if the operator is "&&" or "||"
+ * @returns {boolean} `true` if the operator is "&&" or "||" or "??"
  */
 function isHandledLogicalOperator(operator) {
-    return operator === "&&" || operator === "||";
+    return operator === "&&" || operator === "||" || operator === "??";
 }
 
 /**

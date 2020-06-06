@@ -152,7 +152,7 @@ module.exports = {
                 sourceCode.isSpaceBetweenTokens(prevToken, token)
             ) {
                 context.report({
-                    loc: token.loc.start,
+                    loc: { start: prevToken.loc.end, end: token.loc.start },
                     messageId: "unexpectedBefore",
                     data: token,
                     fix(fixer) {
@@ -203,8 +203,9 @@ module.exports = {
                 astUtils.isTokenOnSameLine(token, nextToken) &&
                 sourceCode.isSpaceBetweenTokens(token, nextToken)
             ) {
+
                 context.report({
-                    loc: token.loc.start,
+                    loc: { start: token.loc.end, end: nextToken.loc.start },
                     messageId: "unexpectedAfter",
                     data: token,
                     fix(fixer) {
@@ -440,6 +441,12 @@ module.exports = {
 
             if (node.type === "ExportDefaultDeclaration") {
                 checkSpacingAround(sourceCode.getTokenAfter(firstToken));
+            }
+
+            if (node.type === "ExportAllDeclaration" && node.exported) {
+                const asToken = sourceCode.getTokenBefore(node.exported);
+
+                checkSpacingBefore(asToken, PREV_TOKEN_M);
             }
 
             if (node.source) {

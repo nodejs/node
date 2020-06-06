@@ -49,7 +49,10 @@ module.exports = {
             if (never && hasWhitespace) {
                 context.report({
                     node,
-                    loc: tagToken.loc.start,
+                    loc: {
+                        start: tagToken.loc.end,
+                        end: literalToken.loc.start
+                    },
                     messageId: "unexpected",
                     fix(fixer) {
                         const comments = sourceCode.getCommentsBefore(node.quasi);
@@ -68,7 +71,10 @@ module.exports = {
             } else if (!never && !hasWhitespace) {
                 context.report({
                     node,
-                    loc: tagToken.loc.start,
+                    loc: {
+                        start: node.loc.start,
+                        end: literalToken.loc.start
+                    },
                     messageId: "missing",
                     fix(fixer) {
                         return fixer.insertTextAfter(tagToken, " ");

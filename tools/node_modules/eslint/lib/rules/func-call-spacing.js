@@ -116,7 +116,13 @@ module.exports = {
             if (never && hasWhitespace) {
                 context.report({
                     node,
-                    loc: leftToken.loc.start,
+                    loc: {
+                        start: leftToken.loc.end,
+                        end: {
+                            line: rightToken.loc.start.line,
+                            column: rightToken.loc.start.column - 1
+                        }
+                    },
                     messageId: "unexpectedWhitespace",
                     fix(fixer) {
 
@@ -134,7 +140,13 @@ module.exports = {
             } else if (!never && !hasWhitespace) {
                 context.report({
                     node,
-                    loc: leftToken.loc.start,
+                    loc: {
+                        start: {
+                            line: leftToken.loc.end.line,
+                            column: leftToken.loc.end.column - 1
+                        },
+                        end: rightToken.loc.start
+                    },
                     messageId: "missing",
                     fix(fixer) {
                         return fixer.insertTextBefore(rightToken, " ");
@@ -143,7 +155,10 @@ module.exports = {
             } else if (!never && !allowNewlines && hasNewline) {
                 context.report({
                     node,
-                    loc: leftToken.loc.start,
+                    loc: {
+                        start: leftToken.loc.end,
+                        end: rightToken.loc.start
+                    },
                     messageId: "unexpectedNewline",
                     fix(fixer) {
                         return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ");
