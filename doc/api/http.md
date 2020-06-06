@@ -2173,7 +2173,8 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `url` {string | URL} `URL` here indicates an instance of the `URL` class.
+* `url` {string | URL} `URL` here is not the legacy
+  `urlObject`(`require('url').Url`), but an instance of the `URL` class.
 * `options` {Object} Accepts the same `options` as
   [`http.request()`][], with the `method` always set to `GET`.
   Properties that are inherited from the prototype are ignored.
