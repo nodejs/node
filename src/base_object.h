@@ -236,6 +236,11 @@ class BaseObjectPtrImpl final {
   inline T* operator->() const;
   inline operator bool() const;
 
+  template <typename U, bool kW>
+  inline bool operator ==(const BaseObjectPtrImpl<U, kW>& other) const;
+  template <typename U, bool kW>
+  inline bool operator !=(const BaseObjectPtrImpl<U, kW>& other) const;
+
  private:
   union {
     BaseObject* target;  // Used for strong pointers.
