@@ -79,7 +79,7 @@ queue until it is consumed.
 Once the total size of the internal read buffer reaches the threshold specified
 by `highWaterMark`, the stream will temporarily stop reading data from the
 underlying resource until the data currently buffered can be consumed (that is,
-the stream will stop calling the internal `readable._read()` method that is
+the stream will stop calling the internal [`readable._read()`][] method that is
 used to fill the read buffer).
 
 Data is buffered in `Writable` streams when the
@@ -2155,7 +2155,7 @@ console.log(w.data); // currency: €
 The `stream.Readable` class is extended to implement a [`Readable`][] stream.
 
 Custom `Readable` streams *must* call the `new stream.Readable([options])`
-constructor and implement the `readable._read()` method.
+constructor and implement the [`readable._read()`][] method.
 
 #### `new stream.Readable([options])`
 <!-- YAML
@@ -2299,19 +2299,19 @@ implemented by child classes, and called by the internal `Readable` class
 methods only.
 
 All `Readable` stream implementations must provide an implementation of the
-`readable._read()` method to fetch data from the underlying resource.
+[`readable._read()`][] method to fetch data from the underlying resource.
 
-When `readable._read()` is called, if data is available from the resource, the
-implementation should begin pushing that data into the read queue using the
+When [`readable._read()`][] is called, if data is available from the resource,
+the implementation should begin pushing that data into the read queue using the
 [`this.push(dataChunk)`][stream-push] method. `_read()` should continue reading
 from the resource and pushing data until `readable.push()` returns `false`. Only
 when `_read()` is called again after it has stopped should it resume pushing
 additional data onto the queue.
 
-Once the `readable._read()` method has been called, it will not be called again
-until more data is pushed through the [`readable.push()`][stream-push] method.
-Empty data such as empty buffers and strings will not cause `readable._read()`
-to be called.
+Once the [`readable._read()`][] method has been called, it will not be called
+again until more data is pushed through the [`readable.push()`][stream-push]
+method. Empty data such as empty buffers and strings will not cause
+[`readable._read()`][] to be called.
 
 The `size` argument is advisory. For implementations where a "read" is a
 single operation that returns data can use the `size` argument to determine how
@@ -2319,7 +2319,7 @@ much data to fetch. Other implementations may ignore this argument and simply
 provide data whenever it becomes available. There is no need to "wait" until
 `size` bytes are available before calling [`stream.push(chunk)`][stream-push].
 
-The `readable._read()` method is prefixed with an underscore because it is
+The [`readable._read()`][] method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
 user programs.
 
@@ -2402,7 +2402,7 @@ class SourceWrapper extends Readable {
 ```
 
 The `readable.push()` method is used to push the content
-into the internal buffer. It can be driven by the `readable._read()` method.
+into the internal buffer. It can be driven by the [`readable._read()`][] method.
 
 For streams not operating in object mode, if the `chunk` parameter of
 `readable.push()` is `undefined`, it will be treated as empty string or
@@ -2475,7 +2475,7 @@ both base classes due to overriding [`Symbol.hasInstance`][] on
 `stream.Writable`.
 
 Custom `Duplex` streams *must* call the `new stream.Duplex([options])`
-constructor and implement *both* the `readable._read()` and
+constructor and implement *both* the [`readable._read()`][] and
 `writable._write()` methods.
 
 #### `new stream.Duplex(options)`
@@ -2678,10 +2678,10 @@ larger than its input.
 The `stream.Transform` class is extended to implement a [`Transform`][] stream.
 
 The `stream.Transform` class prototypically inherits from `stream.Duplex` and
-implements its own versions of the `writable._write()` and `readable._read()`
-methods. Custom `Transform` implementations *must* implement the
-[`transform._transform()`][stream-_transform] method and *may* also implement
-the [`transform._flush()`][stream-_flush] method.
+implements its own versions of the `writable._write()` and
+[`readable._read()`][] methods. Custom `Transform` implementations *must*
+implement the [`transform._transform()`][stream-_transform] method and *may*
+also implement the [`transform._flush()`][stream-_flush] method.
 
 Care must be taken when using `Transform` streams in that data written to the
 stream can cause the `Writable` side of the stream to become paused if the
