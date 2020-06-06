@@ -26,7 +26,7 @@ class TransferData : public MemoryRetainer {
   // - The return value is treated like a `Maybe`, i.e. if `nullptr` is
   //   returned, any further deserialization of the message is stopped and
   //   control is returned to the event loop or JS as soon as possible.
-  virtual BaseObject* Deserialize(
+  virtual BaseObjectPtr<BaseObject> Deserialize(
       Environment* env,
       v8::Local<v8::Context> context,
       std::unique_ptr<TransferData> self) = 0;
@@ -126,7 +126,7 @@ class MessagePortData : public TransferData {
   void Disentangle();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-  BaseObject* Deserialize(
+  BaseObjectPtr<BaseObject> Deserialize(
       Environment* env,
       v8::Local<v8::Context> context,
       std::unique_ptr<TransferData> self) override;

@@ -68,7 +68,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
   DeserializerDelegate(
       Message* m,
       Environment* env,
-      const std::vector<BaseObject*>& host_objects,
+      const std::vector<BaseObjectPtr<BaseObject>>& host_objects,
       const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers,
       const std::vector<CompiledWasmModule>& wasm_modules)
       : host_objects_(host_objects),
@@ -100,7 +100,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
   ValueDeserializer* deserializer = nullptr;
 
  private:
-  const std::vector<BaseObject*>& host_objects_;
+  const std::vector<BaseObjectPtr<BaseObject>>& host_objects_;
   const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
   const std::vector<CompiledWasmModule>& wasm_modules_;
 };
@@ -115,19 +115,19 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   Context::Scope context_scope(context);
 
   // Create all necessary objects for transferables, e.g. MessagePort handles.
-  std::vector<BaseObject*> host_objects(transferables_.size());
+  std::vector<BaseObjectPtr<BaseObject>> host_objects(transferables_.size());
   for (uint32_t i = 0; i < transferables_.size(); ++i) {
     TransferData* data = transferables_[i].get();
     host_objects[i] = data->Deserialize(
         env, context, std::move(transferables_[i]));
-    if (host_objects[i] == nullptr) {
-      for (BaseObject* object : host_objects) {
-        CHECK_NOT_NULL(object);
+    if (!host_objects[i]) {
+      for (BaseObjectPtr<BaseObject> object : host_objects) {
+        if (!object) continue;
 
         // Since creating one of the objects failed, we don't want to have the
         // other objects lying around in memory. We act as if the object has
         // been garbage-collected.
-        object->OnGCCollect();
+        object->Detach();
       }
       return MaybeLocal<Value>();
     }
@@ -734,13 +734,13 @@ std::unique_ptr<TransferData> MessagePort::TransferForMessaging() {
   return Detach();
 }
 
-BaseObject* MessagePortData::Deserialize(
+BaseObjectPtr<BaseObject> MessagePortData::Deserialize(
     Environment* env,
     Local<Context> context,
     std::unique_ptr<TransferData> self) {
-  return MessagePort::New(
+  return BaseObjectPtr<MessagePort> { MessagePort::New(
       env, context,
-      static_unique_pointer_cast<MessagePortData>(std::move(self)));
+      static_unique_pointer_cast<MessagePortData>(std::move(self))) };
 }
 
 Maybe<bool> MessagePort::PostMessage(Environment* env,
