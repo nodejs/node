@@ -201,6 +201,7 @@ function finalizeTestSegmentsOfFor(context, choiceContext, head) {
     if (!choiceContext.processed) {
         choiceContext.trueForkContext.add(head);
         choiceContext.falseForkContext.add(head);
+        choiceContext.qqForkContext.add(head);
     }
 
     if (context.test !== true) {
@@ -351,6 +352,7 @@ class CodePathState {
             isForkingAsResult,
             trueForkContext: ForkContext.newEmpty(this.forkContext),
             falseForkContext: ForkContext.newEmpty(this.forkContext),
+            qqForkContext: ForkContext.newEmpty(this.forkContext),
             processed: false
         };
     }
@@ -370,6 +372,7 @@ class CodePathState {
         switch (context.kind) {
             case "&&":
             case "||":
+            case "??":
 
                 /*
                  * If any result were not transferred from child contexts,
@@ -379,6 +382,7 @@ class CodePathState {
                 if (!context.processed) {
                     context.trueForkContext.add(headSegments);
                     context.falseForkContext.add(headSegments);
+                    context.qqForkContext.add(headSegments);
                 }
 
                 /*
@@ -390,6 +394,7 @@ class CodePathState {
 
                     parentContext.trueForkContext.addAll(context.trueForkContext);
                     parentContext.falseForkContext.addAll(context.falseForkContext);
+                    parentContext.qqForkContext.addAll(context.qqForkContext);
                     parentContext.processed = true;
 
                     return context;
@@ -456,13 +461,24 @@ class CodePathState {
              * This got segments already from the child choice context.
              * Creates the next path from own true/false fork context.
              */
-            const prevForkContext =
-                context.kind === "&&" ? context.trueForkContext
-                /* kind === "||" */ : context.falseForkContext;
+            let prevForkContext;
+
+            switch (context.kind) {
+                case "&&": // if true then go to the right-hand side.
+                    prevForkContext = context.trueForkContext;
+                    break;
+                case "||": // if false then go to the right-hand side.
+                    prevForkContext = context.falseForkContext;
+                    break;
+                case "??": // Both true/false can short-circuit, so needs the third path to go to the right-hand side. That's qqForkContext.
+                    prevForkContext = context.qqForkContext;
+                    break;
+                default:
+                    throw new Error("unreachable");
+            }
 
             forkContext.replaceHead(prevForkContext.makeNext(0, -1));
             prevForkContext.clear();
-
             context.processed = false;
         } else {
 
@@ -471,14 +487,19 @@ class CodePathState {
              * So addresses the head segments.
              * The head segments are the path of the left-hand operand.
              */
-            if (context.kind === "&&") {
-
-                // The path does short-circuit if false.
-                context.falseForkContext.add(forkContext.head);
-            } else {
-
-                // The path does short-circuit if true.
-                context.trueForkContext.add(forkContext.head);
+            switch (context.kind) {
+                case "&&": // the false path can short-circuit.
+                    context.falseForkContext.add(forkContext.head);
+                    break;
+                case "||": // the true path can short-circuit.
+                    context.trueForkContext.add(forkContext.head);
+                    break;
+                case "??": // both can short-circuit.
+                    context.trueForkContext.add(forkContext.head);
+                    context.falseForkContext.add(forkContext.head);
+                    break;
+                default:
+                    throw new Error("unreachable");
             }
 
             forkContext.replaceHead(forkContext.makeNext(-1, -1));
@@ -501,6 +522,7 @@ class CodePathState {
         if (!context.processed) {
             context.trueForkContext.add(forkContext.head);
             context.falseForkContext.add(forkContext.head);
+            context.qqForkContext.add(forkContext.head);
         }
 
         context.processed = false;

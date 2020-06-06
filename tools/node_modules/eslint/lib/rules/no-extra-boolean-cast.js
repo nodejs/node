@@ -172,6 +172,9 @@ module.exports = {
                 case "UnaryExpression":
                     return precedence(node) < precedence(parent);
                 case "LogicalExpression":
+                    if (astUtils.isMixedLogicalAndCoalesceExpressions(node, parent)) {
+                        return true;
+                    }
                     if (previousNode === parent.left) {
                         return precedence(node) < precedence(parent);
                     }
