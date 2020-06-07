@@ -2055,8 +2055,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to `http.Server#maxHeadersCount` (or
-    `http.ClientRequest#maxHeadersCount`). The minimum value is `4`.
+    This is similar to `http.Server#maxHeadersCount` or
+    `http.ClientRequest#maxHeadersCount`. The minimum value is `4`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -2196,8 +2196,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to `http.Server#maxHeadersCount` (or
-    `http.ClientRequest#maxHeadersCount`). The minimum value is `4`.
+    This is similar to `http.Server#maxHeadersCount` or
+    `http.ClientRequest#maxHeadersCount`. The minimum value is `4`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -2311,8 +2311,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to `http.Server#maxHeadersCount` (or
-    `http.ClientRequest#maxHeadersCount`). The minimum value is `1`.
+    This is similar to `http.Server#maxHeadersCount` or
+    `http.ClientRequest#maxHeadersCount`. The minimum value is `1`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
