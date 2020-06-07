@@ -61,14 +61,15 @@
   <!-- lint disable prohibited-strings remark-lint-->
   * NOT OK: It is important to note that, in all cases, the return value will be
     a string regardless.
-  <!-- lint enable prohibited-strings remark-lint-->
 * For headings, use sentence case, not title case.
+  <!-- lint enable prohibited-strings remark-lint-->
   * OK: _## Everybody to the limit_
   * NOT OK: _## Everybody To The Limit_
 * When referring to a version of Node.js in prose, use _Node.js_ and the version
   number. Do not prefix the version number with _v_ in prose. This is to avoid
-  confusion about whether _v8_ refers to Node.js 8.x or the V8 JavaScript
+  confusion about whether _V8_ refers to Node.js 8.x or the V8 JavaScript
   engine.
+  <!-- lint enable prohibited-strings remark-lint-->
   * OK: _Node.js 14.x_, _Node.js 14.3.1_
   * NOT OK: _Node.js v14_
 
