@@ -84,7 +84,7 @@ An exception will be thrown if there is no active inspector.
 The `inspector.Session` is used for dispatching messages to the V8 inspector
 back-end and receiving message responses and notifications.
 
-### Constructor: `new inspector.Session()`
+### `new inspector.Session()`
 <!-- YAML
 added: v8.0.0
 -->

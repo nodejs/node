@@ -1739,7 +1739,7 @@ Custom `Writable` streams *must* call the `new stream.Writable([options])`
 constructor and implement the `writable._write()` and/or `writable._writev()`
 method.
 
-#### Constructor: `new stream.Writable([options])`
+#### `new stream.Writable([options])`
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -2891,5 +2891,5 @@ contain multi-byte characters.
 [Three states]: #stream_three_states
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
-[writable-new]: #stream_constructor_new_stream_writable_options
+[writable-new]: #stream_new_stream_writable_options
 [zlib]: zlib.html
