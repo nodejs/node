@@ -3033,13 +3033,13 @@ added: v8.4.0
 
 * {string}
 
-Request URL string. This contains only the URL that is
-present in the actual HTTP request. If the request is:
+Request URL string. This contains only the URL that is present in the actual
+HTTP request. If the request is (remember, each header line ends with `\r\n`
+plus a final `\r\n` after the last one indicating the end of the header):
 
 ```http
-GET /status?name=ryan HTTP/1.1\r\n
-Accept: text/plain\r\n
-\r\n
+GET /status?name=ryan HTTP/1.1
+Accept: text/plain
 ```
 
 Then `request.url` will be:
