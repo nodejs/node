@@ -1634,6 +1634,8 @@ The resolver can throw the following errors:
 >       1. If _pjson_ is not **null** and _pjson_ has an _"exports"_ key, then
 >          1. Let _exports_ be _pjson.exports_.
 >          1. If _exports_ is not **null** or **undefined**, then
+>             1. If _packageSubpath_ starts with _"#"_, then
+>                1. Throw a _Private Package Path_ error.
 >             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
 >                _packageSubpath_, _pjson.exports_).
 >       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
@@ -1656,9 +1658,9 @@ The resolver can throw the following errors:
 >       1. If _pjson_ is not **null** and _pjson_ has an _"exports"_ key, then
 >          1. Let _exports_ be _pjson.exports_.
 >          1. If _exports_ is not **null** or **undefined**, then
->             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _subpath_,
->                _pjson.exports_).
->       1. Return the URL resolution of _subpath_ in _packageURL_.
+>             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
+>                _packageSubpath_, _pjson.exports_).
+>       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 1. Otherwise, return **undefined**.
 
 **PACKAGE_MAIN_RESOLVE**(_packageURL_, _pjson_)
@@ -1682,7 +1684,7 @@ The resolver can throw the following errors:
 >    _Module Not Found_ error for no resolution.
 > 1. Return _legacyMainURL_.
 
-**PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packagePath_, _exports_)
+**PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _packageSubpath_, _exports_)
 > 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
 >    starting with _"."_, throw an _Invalid Package Configuration_ error.
 > 1. If _exports_ is an Object and all keys of _exports_ start with _"."_, then

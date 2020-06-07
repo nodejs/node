@@ -179,15 +179,24 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
     'package subpath keys or an object of main entry condition name keys ' +
     'only.');
   }));
+
+  // Private mappings should throw a private error when imported externally
+  loadFixture('pkgexports/#private').catch(mustCall((err) => {
+    strictEqual(err.code, 'ERR_PRIVATE_PACKAGE_PATH');
+    assertStartsWith(err.message, 'Private package subpath \'./#private\'');
+  }));
 });
 
 const { requireFromInside, importFromInside } = fromInside;
 [importFromInside, requireFromInside].forEach((loadFromInside) => {
+  const isRequire = loadFromInside === requireFromInside;
   const validSpecifiers = new Map([
     // A file not visible from outside of the package
     ['../not-exported.js', { default: 'not-exported' }],
     // Part of the public interface
     ['pkgexports/valid-cjs', { default: 'asdf' }],
+    // Private mappings
+    ['pkg-exports/#private', { default: isRequire ? 'cjs' : 'esm' }],
   ]);
   for (const [validSpecifier, expected] of validSpecifiers) {
     if (validSpecifier === null) continue;

@@ -1697,6 +1697,14 @@ The `package.json` [exports][] field does not export the requested subpath.
 Because exports are encapsulated, private internal modules that are not exported
 cannot be imported through the package resolution, unless using an absolute URL.
 
+<a id="ERR_PRIVATE_PACKAGE_PATH"></a>
+### `ERR_PRIVATE_PACKAGE_PATH`
+
+Thrown when trying to access a private exports subpath from outside a package.
+Private package subpaths starting with `#` defined in the `package.json`
+[exports][] field can only be resolved from within modules of the same package
+using [package internal self-resolution][].
+
 <a id="ERR_PROTO_ACCESS"></a>
 ### `ERR_PROTO_ACCESS`
 
@@ -2059,9 +2067,9 @@ signal (such as [`subprocess.kill()`][]).
 <a id="ERR_UNSUPPORTED_DIR_IMPORT"></a>
 ### `ERR_UNSUPPORTED_DIR_IMPORT`
 
-`import` a directory URL is unsupported. Instead, you can
-[self-reference a package using its name][] and [define a custom subpath][] in
-the `"exports"` field of the `package.json` file.
+`import` a directory URL is unsupported. Instead use explicit file paths
+or the package author can [define a custom subpath][] in the `"exports"` field
+of the `package.json` file.
 
 <!-- eslint-skip -->
 ```js
@@ -2624,5 +2632,5 @@ such as `process.stdout.on('data')`.
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
-[self-reference a package using its name]: esm.html#esm_self_referencing_a_package_using_its_name
+[package internal self-resolution]: esm.html#esm_self_referencing_a_package_using_its_name
 [define a custom subpath]: esm.html#esm_subpath_exports
