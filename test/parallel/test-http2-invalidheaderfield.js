@@ -1,10 +1,12 @@
-// spaced headers
-// psuedo heaers
-// capitalized headers
-
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto) { common.skip('missing crypto'); }
+
+// Check for:
+// Spaced headers
+// Psuedo headers
+// Capitalized headers
+
 const http2 = require('http2');
 const { throws } = require('assert');
 
