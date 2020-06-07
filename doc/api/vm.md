@@ -48,7 +48,7 @@ added: v0.3.1
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific contexts.
 
-### Constructor: `new vm.Script(code[, options])`
+### `new vm.Script(code[, options])`
 <!-- YAML
 added: v0.3.1
 changes:
@@ -628,7 +628,7 @@ flag enabled.*
 The `vm.SourceTextModule` class provides the [Source Text Module Record][] as
 defined in the ECMAScript specification.
 
-### Constructor: `new vm.SourceTextModule(code[, options])`
+### `new vm.SourceTextModule(code[, options])`
 
 * `code` {string} JavaScript Module code to parse
 * `options`
@@ -749,7 +749,7 @@ const module = new vm.SyntheticModule(['default'], function() {
 // Use `module` in linking...
 ```
 
-### Constructor: `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
+### `new vm.SyntheticModule(exportNames, evaluateCallback[, options])`
 <!-- YAML
 added:
  - v13.0.0

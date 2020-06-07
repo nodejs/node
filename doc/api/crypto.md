@@ -3520,7 +3520,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`keyObject.export()`]: #crypto_keyobject_export_options
 [`sign.sign()`]: #crypto_sign_sign_privatekey_outputencoding
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
-[`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options
+[`stream.Writable` options]: stream.html#stream_new_stream_writable_options
 [`stream.transform` options]: stream.html#stream_new_stream_transform_options
 [`util.promisify()`]: util.html#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding

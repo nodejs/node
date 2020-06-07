@@ -89,7 +89,7 @@ using the `delete` keyword on any properties of `URL` objects (e.g. `delete
 myURL.protocol`, `delete myURL.pathname`, etc) has no effect but will still
 return `true`.
 
-#### Constructor: `new URL(input[, base])`
+#### `new URL(input[, base])`
 
 * `input` {string} The absolute or relative input URL to parse. If `input`
   is relative, then `base` is required. If `input` is absolute, the `base`
@@ -618,11 +618,11 @@ console.log(myURL.href);
 // Prints https://example.org/?a=b&a=c
 ```
 
-#### Constructor: `new URLSearchParams()`
+#### `new URLSearchParams()`
 
 Instantiate a new empty `URLSearchParams` object.
 
-#### Constructor: `new URLSearchParams(string)`
+#### `new URLSearchParams(string)`
 
 * `string` {string} A query string
 
@@ -643,7 +643,7 @@ console.log(params.toString());
 // Prints 'user=abc&query=xyz'
 ```
 
-#### Constructor: `new URLSearchParams(obj)`
+#### `new URLSearchParams(obj)`
 <!-- YAML
 added:
   - v7.10.0
@@ -670,7 +670,7 @@ console.log(params.toString());
 // Prints 'user=abc&query=first%2Csecond'
 ```
 
-#### Constructor: `new URLSearchParams(iterable)`
+#### `new URLSearchParams(iterable)`
 <!-- YAML
 added:
   - v7.10.0
@@ -1359,7 +1359,7 @@ console.log(myURL.origin);
 [`TypeError`]: errors.html#errors_class_typeerror
 [`URLSearchParams`]: #url_class_urlsearchparams
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
-[`new URL()`]: #url_constructor_new_url_input_base
+[`new URL()`]: #url_new_url_input_base
 [`querystring`]: querystring.html
 [`require('url').format()`]: #url_url_format_url_options
 [`url.domainToASCII()`]: #url_url_domaintoascii_domain
