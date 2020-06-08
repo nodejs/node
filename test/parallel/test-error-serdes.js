@@ -3,7 +3,7 @@
 require('../common');
 const assert = require('assert');
 const { ERR_INVALID_ARG_TYPE } = require('internal/errors').codes;
-const { serializeError, deserializeError } = require('internal/error-serdes');
+const { serializeError, deserializeError } = require('internal/error_serdes');
 
 function cycle(err) {
   return deserializeError(serializeError(err));
