@@ -2938,7 +2938,7 @@ assert.strictEqual(
         return {};
       })
     });
-    assert.strictEqual(output, '🐈');
+    assert.strictEqual(output, '[object Object]');
     assert.strictEqual(typeof target.ctx, 'object');
     const objectGraph = fullObjectGraph(target);
     assert(!objectGraph.has(Object));
