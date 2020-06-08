@@ -223,6 +223,7 @@ constexpr size_t kFsStatsBufferLength =
   V(done_string, "done")                                                       \
   V(duration_string, "duration")                                               \
   V(ecdh_string, "ECDH")                                                       \
+  V(emit_string, "emit")                                                       \
   V(emit_warning_string, "emitWarning")                                        \
   V(empty_object_string, "{}")                                                 \
   V(encoding_string, "encoding")                                               \
@@ -279,6 +280,7 @@ constexpr size_t kFsStatsBufferLength =
   V(message_port_constructor_string, "MessagePort")                            \
   V(message_port_string, "messagePort")                                        \
   V(message_string, "message")                                                 \
+  V(messageerror_string, "messageerror")                                       \
   V(minttl_string, "minttl")                                                   \
   V(module_string, "module")                                                   \
   V(modulus_string, "modulus")                                                 \
