@@ -13,10 +13,14 @@ const { throws, strictEqual } = require('assert');
 const server = http2.createServer(common.mustCall((req, res) => {
   throws(() => {
     res.setHeader(':path', '/');
-  }, TypeError);
+  }, {
+    code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED'
+  });
   throws(() => {
     res.setHeader('t est', 123);
-  }, TypeError);
+  }, {
+    code: 'ERR_INVALID_HTTP_TOKEN'
+  });
   res.setHeader('TEST', 123);
   res.setHeader('test_', 123);
   res.setHeader(' test', 123);
@@ -30,20 +34,27 @@ server.listen(0, common.mustCall(() => {
       session1.close();
       server.close();
     }));
+
   const session2 = http2.connect(`http://localhost:${server.address().port}`);
   session2.on('error', common.mustCall((e) => {
     strictEqual(e.code, 'ERR_INVALID_HTTP_TOKEN');
   }));
-  try {
+  throws(() => {
     session2.request({ 't est': 123 });
-  } catch (e) { } // eslint-disable-line no-unused-vars
+  }, {
+    code: 'ERR_INVALID_HTTP_TOKEN'
+  });
+
   const session3 = http2.connect(`http://localhost:${server.address().port}`);
   session3.on('error', common.mustCall((e) => {
     strictEqual(e.code, 'ERR_INVALID_HTTP_TOKEN');
   }));
-  try {
+  throws(() => {
     session3.request({ ' test': 123 });
-  } catch (e) { } // eslint-disable-line no-unused-vars
+  }, {
+    code: 'ERR_INVALID_HTTP_TOKEN'
+  });
+
   const session4 = http2.connect(`http://localhost:${server.address().port}`);
   try {
     session4.request({ ':test': 123 });
