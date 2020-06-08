@@ -8,54 +8,47 @@ if (!common.hasCrypto) { common.skip('missing crypto'); }
 // Capitalized headers
 
 const http2 = require('http2');
-const { throws } = require('assert');
+const { throws, strictEqual } = require('assert');
 
 const server = http2.createServer(common.mustCall((req, res) => {
-
   throws(() => {
     res.setHeader(':path', '/');
   }, TypeError);
-
   throws(() => {
     res.setHeader('t est', 123);
   }, TypeError);
-
-  // should not fail
   res.setHeader('TEST', 123);
-
-  // should not fail
   res.setHeader('test_', 123);
-
+  res.setHeader(' test', 123);
   res.end();
-}, 2));
+}));
 
 server.listen(0, common.mustCall(() => {
-  const session = http2.connect(`http://localhost:${server.address().port}`);
-
-  throws(() => {
-    session.request({
-      't est': 123
-    });
-  }, TypeError);
-
-  throws(() => {
-    session.request({
-      ':test': 123
-    });
-  }, TypeError);
-
-  // should not fail
-  session.request({
-    'TEST': 123
-  });
-
-  // should not fail
-  const req = session.request({
-    'test_': 123
-  });
-
-  req.on('end', () => {
-    session.close();
-    server.close();
-  });
+  const session1 = http2.connect(`http://localhost:${server.address().port}`);
+  session1.request({ 'test_': 123, 'TEST': 123 })
+    .on('end', common.mustCall(() => {
+      session1.close();
+      server.close();
+    }));
+  const session2 = http2.connect(`http://localhost:${server.address().port}`);
+  session2.on('error', common.mustCall((e) => {
+    strictEqual(e.code, 'ERR_INVALID_HTTP_TOKEN');
+  }));
+  try {
+    session2.request({ 't est': 123 });
+  } catch (e) { } // eslint-disable-line no-unused-vars
+  const session3 = http2.connect(`http://localhost:${server.address().port}`);
+  session3.on('error', common.mustCall((e) => {
+    strictEqual(e.code, 'ERR_INVALID_HTTP_TOKEN');
+  }));
+  try {
+    session3.request({ ' test': 123 });
+  } catch (e) { } // eslint-disable-line no-unused-vars
+  const session4 = http2.connect(`http://localhost:${server.address().port}`);
+  try {
+    session4.request({ ':test': 123 });
+  } catch (e) {
+    strictEqual(e.code, 'ERR_HTTP2_INVALID_PSEUDOHEADER');
+    session4.destroy();
+  }
 }));
