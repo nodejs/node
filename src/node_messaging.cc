@@ -742,7 +742,17 @@ void MessagePort::OnMessage() {
     Local<Function> emit_message = PersistentToLocal::Strong(emit_message_fn_);
 
     Local<Value> payload;
-    if (!ReceiveMessage(context, true).ToLocal(&payload)) goto reschedule;
+    Local<Value> message_error;
+    {
+      // Catch any exceptions from parsing the message itself (not from
+      // emitting it) as 'messageeror' events.
+      TryCatchScope try_catch(env());
+      if (!ReceiveMessage(context, true).ToLocal(&payload)) {
+        if (try_catch.HasCaught() && !try_catch.HasTerminated())
+          message_error = try_catch.Exception();
+        goto reschedule;
+      }
+    }
     if (payload == env()->no_message_symbol()) break;
 
     if (!env()->can_call_into_js()) {
@@ -753,6 +763,16 @@ void MessagePort::OnMessage() {
 
     if (MakeCallback(emit_message, 1, &payload).IsEmpty()) {
     reschedule:
+      if (!message_error.IsEmpty()) {
+        // This should become a `messageerror` event in the sense of the
+        // EventTarget API at some point.
+        Local<Value> argv[] = {
+          env()->messageerror_string(),
+          message_error
+        };
+        USE(MakeCallback(env()->emit_string(), arraysize(argv), argv));
+      }
+
       // Re-schedule OnMessage() execution in case of failure.
       if (data_)
         TriggerAsync();
@@ -1215,8 +1235,7 @@ BaseObjectPtr<BaseObject> JSTransferable::Data::Deserialize(
   // the end of the stream, after the main message has been read.
 
   if (context != env->context()) {
-    // It would be nice to throw some kind of exception here, but how do we
-    // pass that to end users? For now, just drop the message silently.
+    THROW_ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE(env);
     return {};
   }
   HandleScope handle_scope(env->isolate());
