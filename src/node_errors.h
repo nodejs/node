@@ -41,6 +41,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
+  V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                      \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
@@ -92,6 +93,9 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
+  V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
+    "A message object could not be deserialized successfully in the target "   \
+    "vm.Context")                                                              \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                                 \
     "Object that needs transfer was found in message but not listed "          \
     "in transferList")                                                         \
