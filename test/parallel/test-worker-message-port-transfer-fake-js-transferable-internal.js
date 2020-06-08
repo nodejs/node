@@ -26,7 +26,7 @@ const { once } = require('events');
   port1.postMessage(fh, [ fh ]);
   port2.on('message', common.mustNotCall());
 
-  const [ exception ] = await once(process, 'uncaughtException');
+  const [ exception ] = await once(port2, 'messageerror');
 
   assert.strictEqual(exception.message, 'Unknown deserialize spec net:Socket');
   port2.close();
