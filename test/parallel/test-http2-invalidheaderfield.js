@@ -56,10 +56,10 @@ server.listen(0, common.mustCall(() => {
   });
 
   const session4 = http2.connect(`http://localhost:${server.address().port}`);
-  try {
+  throws(() => {
     session4.request({ ':test': 123 });
-  } catch (e) {
-    strictEqual(e.code, 'ERR_HTTP2_INVALID_PSEUDOHEADER');
-    session4.destroy();
-  }
+  }, {
+    code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'
+  });
+  session4.close();
 }));
