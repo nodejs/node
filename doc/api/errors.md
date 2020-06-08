@@ -1566,6 +1566,17 @@ behavior. See the documentation for [policy][] manifests for more information.
 An attempt was made to allocate memory (usually in the C++ layer) but it
 failed.
 
+<a id="ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE"></a>
+### `ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE`
+<!-- YAML
+added: REPLACEME
+-->
+
+A message posted to a [`MessagePort`][] could not be deserialized in the target
+[vm][] `Context`. Not all Node.js objects can be successfully instantiated in
+any context at this time, and attempting to transfer them using `postMessage()`
+can fail on the receiving side in that case.
+
 <a id="ERR_METHOD_NOT_IMPLEMENTED"></a>
 ### `ERR_METHOD_NOT_IMPLEMENTED`
 
@@ -2564,6 +2575,7 @@ such as `process.stdout.on('data')`.
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`MessagePort`]: worker_threads.html#worker_threads_class_messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
 [`REPL`]: repl.html

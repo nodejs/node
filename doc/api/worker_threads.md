@@ -303,6 +303,15 @@ input of [`port.postMessage()`][].
 Listeners on this event will receive a clone of the `value` parameter as passed
 to `postMessage()` and no further arguments.
 
+### Event: `'messageerror'`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {Error} An Error object
+
+The `'messageerror'` event is emitted when deserializing a message failed.
+
 ### `port.close()`
 <!-- YAML
 added: v10.5.0
@@ -680,6 +689,15 @@ See the [`port.on('message')`][] event for more details.
 
 All messages sent from the worker thread will be emitted before the
 [`'exit'` event][] is emitted on the `Worker` object.
+
+### Event: `'messageerror'`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {Error} An Error object
+
+The `'messageerror'` event is emitted when deserializing a message failed.
 
 ### Event: `'online'`
 <!-- YAML
