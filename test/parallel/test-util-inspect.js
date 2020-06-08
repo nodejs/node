@@ -2245,6 +2245,12 @@ assert.strictEqual(
     assert.deepStrictEqual(inspect.colors[bgColor], [40 + i, 49]);
     assert.deepStrictEqual(inspect.colors[`${bgColor}Bright`], [100 + i, 49]);
   });
+
+  // Unknown colors are handled gracefully:
+  const stringStyle = inspect.styles.string;
+  inspect.styles.string = 'UNKNOWN';
+  assert.strictEqual(inspect('foobar', { colors: true }), "'foobar'");
+  inspect.styles.string = stringStyle;
 }
 
 assert.strictEqual(
