@@ -30,7 +30,7 @@ module.exports = {
   port1.postMessage(fh, [ fh ]);
   port2.on('message', common.mustNotCall());
 
-  const [ exception ] = await once(process, 'uncaughtException');
+  const [ exception ] = await once(port2, 'messageerror');
 
   assert.match(exception.message, /Missing internal module/);
   port2.close();
