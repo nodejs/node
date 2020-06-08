@@ -98,7 +98,7 @@ if (!common.isMainThread) {
   expectedModules.add('NativeModule _stream_readable');
   expectedModules.add('NativeModule _stream_transform');
   expectedModules.add('NativeModule _stream_writable');
-  expectedModules.add('NativeModule internal/error-serdes');
+  expectedModules.add('NativeModule internal/error_serdes');
   expectedModules.add('NativeModule internal/process/worker_thread_only');
   expectedModules.add('NativeModule internal/streams/buffer_list');
   expectedModules.add('NativeModule internal/streams/destroy');
