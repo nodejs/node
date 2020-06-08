@@ -101,7 +101,7 @@ if (!common.isMainThread) {
     'NativeModule _stream_readable',
     'NativeModule _stream_transform',
     'NativeModule _stream_writable',
-    'NativeModule internal/error-serdes',
+    'NativeModule internal/error_serdes',
     'NativeModule internal/process/worker_thread_only',
     'NativeModule internal/streams/buffer_list',
     'NativeModule internal/streams/destroy',
