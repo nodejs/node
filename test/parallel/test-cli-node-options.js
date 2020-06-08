@@ -74,8 +74,8 @@ expect('--stack-trace-limit=100',
        /(\s*at f \(\[(eval|worker eval)\]:1:\d*\)\r?\n)/,
        '(function f() { f(); })();',
        true);
-// Unsupported on arm and s390. See https://crbug.com/v8/8713.
-if (!['arm', 'arm64', 's390x'].includes(process.arch))
+// Unsupported on arm. See https://crbug.com/v8/8713.
+if (!['arm', 'arm64'].includes(process.arch))
   expect('--interpreted-frames-native-stack', 'B\n');
 
 // Workers can't eval as ES Modules. https://github.com/nodejs/node/issues/30682
