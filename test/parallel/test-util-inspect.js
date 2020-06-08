@@ -2249,7 +2249,7 @@ assert.strictEqual(
   // Unknown colors are handled gracefully:
   const stringStyle = inspect.styles.string;
   inspect.styles.string = 'UNKNOWN';
-  assert.strictEqual(inspect('foobar', { colors: true }), 'foobar');
+  assert.strictEqual(inspect('foobar', { colors: true }), "'foobar'");
   inspect.styles.string = stringStyle;
 }
 
