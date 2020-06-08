@@ -55,6 +55,12 @@ const { once } = require('events');
     assert.strictEqual(msgEvent.data, 'second message');
     port1.close();
   });
+  // TODO(addaleax): Switch this to a 'messageerror' event once MessagePort
+  // implements EventTarget fully and in a cross-context manner.
+  port2moved.emit = common.mustCall((name, err) => {
+    assert.strictEqual(name, 'messageerror');
+    assert.strictEqual(err.code, 'ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE');
+  });
   port2moved.start();
 
   assert.notStrictEqual(fh.fd, -1);
