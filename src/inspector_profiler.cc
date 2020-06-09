@@ -295,6 +295,10 @@ void V8CoverageConnection::TakeCoverage() {
   DispatchMessage("Profiler.takePreciseCoverage", nullptr, true);
 }
 
+void V8CoverageConnection::StopCoverage() {
+  DispatchMessage("Profiler.stopPreciseCoverage");
+}
+
 void V8CoverageConnection::End() {
   Debug(env_,
       DebugCategory::INSPECTOR_PROFILER,
@@ -505,6 +509,21 @@ static void TakeCoverage(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void StopCoverage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  V8CoverageConnection* connection = env->coverage_connection();
+
+  Debug(env,
+        DebugCategory::INSPECTOR_PROFILER,
+        "StopCoverage, connection %s nullptr\n",
+        connection == nullptr ? "==" : "!=");
+
+  if (connection != nullptr) {
+    Debug(env, DebugCategory::INSPECTOR_PROFILER, "Stopping coverage\n");
+    connection->StopCoverage();
+  }
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -513,6 +532,7 @@ static void Initialize(Local<Object> target,
   env->SetMethod(target, "setCoverageDirectory", SetCoverageDirectory);
   env->SetMethod(target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
   env->SetMethod(target, "takeCoverage", TakeCoverage);
+  env->SetMethod(target, "stopCoverage", StopCoverage);
 }
 
 }  // namespace profiler
