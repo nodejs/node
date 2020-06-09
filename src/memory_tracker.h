@@ -208,13 +208,6 @@ class MemoryTracker {
   inline void TrackField(const char* edge_name,
                          const MallocedBuffer<T>& value,
                          const char* node_name = nullptr);
-  // We do not implement CleanupHookCallback as MemoryRetainer
-  // but instead specialize the method here to avoid the cost of
-  // virtual pointers.
-  // TODO(joyeecheung): do this for BaseObject and remove WrappedObject()
-  void TrackField(const char* edge_name,
-                  const CleanupHookCallback& value,
-                  const char* node_name = nullptr);
   inline void TrackField(const char* edge_name,
                          const uv_buf_t& value,
                          const char* node_name = nullptr);
