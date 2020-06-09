@@ -9,6 +9,7 @@
 #include "util-inl.h"
 #include "v8-inspector.h"
 
+#include <cinttypes>
 #include <sstream>
 
 namespace node {
@@ -36,10 +37,11 @@ V8ProfilerConnection::V8ProfilerConnection(Environment* env)
           false)),
       env_(env) {}
 
-size_t V8ProfilerConnection::DispatchMessage(const char* method,
-                                             const char* params) {
+uint32_t V8ProfilerConnection::DispatchMessage(const char* method,
+                                               const char* params,
+                                               bool is_profile_request) {
   std::stringstream ss;
-  size_t id = next_id();
+  uint32_t id = next_id();
   ss << R"({ "id": )" << id;
   DCHECK(method != nullptr);
   ss << R"(, "method": ")" << method << '"';
@@ -50,12 +52,15 @@ size_t V8ProfilerConnection::DispatchMessage(const char* method,
   std::string message = ss.str();
   const uint8_t* message_data =
       reinterpret_cast<const uint8_t*>(message.c_str());
+  // Save the id of the profile request to identify its response.
+  if (is_profile_request) {
+    profile_ids_.insert(id);
+  }
   Debug(env(),
         DebugCategory::INSPECTOR_PROFILER,
         "Dispatching message %s\n",
         message.c_str());
   session_->Dispatch(StringView(message_data, message.length()));
-  // TODO(joyeecheung): use this to identify the ending message.
   return id;
 }
 
@@ -77,21 +82,10 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
   Environment* env = connection_->env();
   Isolate* isolate = env->isolate();
   HandleScope handle_scope(isolate);
-  Context::Scope context_scope(env->context());
+  Local<Context> context = env->context();
+  Context::Scope context_scope(context);
 
-  // TODO(joyeecheung): always parse the message so that we can use the id to
-  // identify ending messages as well as printing the message in the debug
-  // output when there is an error.
   const char* type = connection_->type();
-  Debug(env,
-        DebugCategory::INSPECTOR_PROFILER,
-        "Receive %s profile message, ending = %s\n",
-        type,
-        connection_->ending() ? "true" : "false");
-  if (!connection_->ending()) {
-    return;
-  }
-
   // Convert StringView to a Local<String>.
   Local<String> message_str;
   if (!String::NewFromTwoByte(isolate,
@@ -99,11 +93,62 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
                               NewStringType::kNormal,
                               message.length())
            .ToLocal(&message_str)) {
-    fprintf(stderr, "Failed to convert %s profile message\n", type);
+    fprintf(
+        stderr, "Failed to convert %s profile message to V8 string\n", type);
     return;
   }
 
-  connection_->WriteProfile(message_str);
+  Debug(env,
+        DebugCategory::INSPECTOR_PROFILER,
+        "Receive %s profile message\n",
+        type);
+
+  Local<Value> parsed;
+  if (!v8::JSON::Parse(context, message_str).ToLocal(&parsed) ||
+      !parsed->IsObject()) {
+    fprintf(stderr, "Failed to parse %s profile result as JSON object\n", type);
+    return;
+  }
+
+  Local<Object> response = parsed.As<Object>();
+  Local<Value> id_v;
+  if (!response->Get(context, FIXED_ONE_BYTE_STRING(isolate, "id"))
+           .ToLocal(&id_v) ||
+      !id_v->IsUint32()) {
+    Utf8Value str(isolate, message_str);
+    fprintf(
+        stderr, "Cannot retrieve id from the response message:\n%s\n", *str);
+    return;
+  }
+  uint32_t id = id_v.As<v8::Uint32>()->Value();
+
+  if (!connection_->HasProfileId(id)) {
+    Utf8Value str(isolate, message_str);
+    Debug(env, DebugCategory::INSPECTOR_PROFILER, "%s\n", *str);
+    return;
+  } else {
+    Debug(env,
+          DebugCategory::INSPECTOR_PROFILER,
+          "Writing profile response (id = %" PRIu64 ")\n",
+          static_cast<uint64_t>(id));
+  }
+
+  // Get message.result from the response.
+  Local<Value> result_v;
+  if (!response->Get(context, FIXED_ONE_BYTE_STRING(isolate, "result"))
+           .ToLocal(&result_v)) {
+    fprintf(stderr, "Failed to get 'result' from %s profile response\n", type);
+    return;
+  }
+
+  if (!result_v->IsObject()) {
+    fprintf(
+        stderr, "'result' from %s profile response is not an object\n", type);
+    return;
+  }
+
+  connection_->WriteProfile(result_v.As<Object>());
+  connection_->RemoveProfileId(id);
 }
 
 static bool EnsureDirectory(const std::string& directory, const char* type) {
@@ -138,45 +183,9 @@ std::string V8CoverageConnection::GetFilename() const {
   return filename;
 }
 
-static MaybeLocal<Object> ParseProfile(Environment* env,
-                                       Local<String> message,
-                                       const char* type) {
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
-
-  // Get message.result from the response
-  Local<Value> parsed;
-  if (!v8::JSON::Parse(context, message).ToLocal(&parsed) ||
-      !parsed->IsObject()) {
-    fprintf(stderr, "Failed to parse %s profile result as JSON object\n", type);
-    return MaybeLocal<Object>();
-  }
-
-  Local<Value> result_v;
-  if (!parsed.As<Object>()
-           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "result"))
-           .ToLocal(&result_v)) {
-    fprintf(stderr, "Failed to get 'result' from %s profile message\n", type);
-    return MaybeLocal<Object>();
-  }
-
-  if (!result_v->IsObject()) {
-    fprintf(
-        stderr, "'result' from %s profile message is not an object\n", type);
-    return MaybeLocal<Object>();
-  }
-
-  return result_v.As<Object>();
-}
-
-void V8ProfilerConnection::WriteProfile(Local<String> message) {
+void V8ProfilerConnection::WriteProfile(Local<Object> result) {
   Local<Context> context = env_->context();
 
-  // Get message.result from the response.
-  Local<Object> result;
-  if (!ParseProfile(env_, message, type()).ToLocal(&result)) {
-    return;
-  }
   // Generate the profile output from the subclass.
   Local<Object> profile;
   if (!GetProfile(result).ToLocal(&profile)) {
@@ -203,7 +212,7 @@ void V8ProfilerConnection::WriteProfile(Local<String> message) {
   WriteResult(env_, path.c_str(), result_s);
 }
 
-void V8CoverageConnection::WriteProfile(Local<String> message) {
+void V8CoverageConnection::WriteProfile(Local<Object> result) {
   Isolate* isolate = env_->isolate();
   Local<Context> context = env_->context();
   HandleScope handle_scope(isolate);
@@ -219,11 +228,6 @@ void V8CoverageConnection::WriteProfile(Local<String> message) {
     return;
   }
 
-  // Get message.result from the response.
-  Local<Object> result;
-  if (!ParseProfile(env_, message, type()).ToLocal(&result)) {
-    return;
-  }
   // Generate the profile output from the subclass.
   Local<Object> profile;
   if (!GetProfile(result).ToLocal(&profile)) {
@@ -287,10 +291,19 @@ void V8CoverageConnection::Start() {
                   R"({ "callCount": true, "detailed": true })");
 }
 
+void V8CoverageConnection::TakeCoverage() {
+  DispatchMessage("Profiler.takePreciseCoverage", nullptr, true);
+}
+
 void V8CoverageConnection::End() {
-  CHECK_EQ(ending_, false);
+  Debug(env_,
+      DebugCategory::INSPECTOR_PROFILER,
+      "V8CoverageConnection::End(), ending = %d\n", ending_);
+  if (ending_) {
+    return;
+  }
   ending_ = true;
-  DispatchMessage("Profiler.takePreciseCoverage");
+  TakeCoverage();
 }
 
 std::string V8CpuProfilerConnection::GetDirectory() const {
@@ -327,9 +340,14 @@ void V8CpuProfilerConnection::Start() {
 }
 
 void V8CpuProfilerConnection::End() {
-  CHECK_EQ(ending_, false);
+  Debug(env_,
+      DebugCategory::INSPECTOR_PROFILER,
+      "V8CpuProfilerConnection::End(), ending = %d\n", ending_);
+  if (ending_) {
+    return;
+  }
   ending_ = true;
-  DispatchMessage("Profiler.stop");
+  DispatchMessage("Profiler.stop", nullptr, true);
 }
 
 std::string V8HeapProfilerConnection::GetDirectory() const {
@@ -365,31 +383,33 @@ void V8HeapProfilerConnection::Start() {
 }
 
 void V8HeapProfilerConnection::End() {
-  CHECK_EQ(ending_, false);
+  Debug(env_,
+      DebugCategory::INSPECTOR_PROFILER,
+      "V8HeapProfilerConnection::End(), ending = %d\n", ending_);
+  if (ending_) {
+    return;
+  }
   ending_ = true;
-  DispatchMessage("HeapProfiler.stopSampling");
+  DispatchMessage("HeapProfiler.stopSampling", nullptr, true);
 }
 
 // For now, we only support coverage profiling, but we may add more
 // in the future.
 static void EndStartedProfilers(Environment* env) {
+  // TODO(joyeechueng): merge these connections and use one session per env.
   Debug(env, DebugCategory::INSPECTOR_PROFILER, "EndStartedProfilers\n");
   V8ProfilerConnection* connection = env->cpu_profiler_connection();
-  if (connection != nullptr && !connection->ending()) {
-    Debug(env, DebugCategory::INSPECTOR_PROFILER, "Ending cpu profiling\n");
+  if (connection != nullptr) {
     connection->End();
   }
 
   connection = env->heap_profiler_connection();
-  if (connection != nullptr && !connection->ending()) {
-    Debug(env, DebugCategory::INSPECTOR_PROFILER, "Ending heap profiling\n");
+  if (connection != nullptr) {
     connection->End();
   }
 
   connection = env->coverage_connection();
-  if (connection != nullptr && !connection->ending()) {
-    Debug(
-        env, DebugCategory::INSPECTOR_PROFILER, "Ending coverage collection\n");
+  if (connection != nullptr) {
     connection->End();
   }
 }
@@ -469,6 +489,22 @@ static void SetSourceMapCacheGetter(const FunctionCallbackInfo<Value>& args) {
   env->set_source_map_cache_getter(args[0].As<Function>());
 }
 
+static void TakeCoverage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  V8CoverageConnection* connection = env->coverage_connection();
+
+  Debug(
+    env,
+    DebugCategory::INSPECTOR_PROFILER,
+    "TakeCoverage, connection %s nullptr\n",
+    connection == nullptr ? "==" : "!=");
+
+  if (connection != nullptr) {
+    Debug(env, DebugCategory::INSPECTOR_PROFILER, "taking coverage\n");
+    connection->TakeCoverage();
+  }
+}
+
 static void Initialize(Local<Object> target,
                        Local<Value> unused,
                        Local<Context> context,
@@ -476,6 +512,7 @@ static void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   env->SetMethod(target, "setCoverageDirectory", SetCoverageDirectory);
   env->SetMethod(target, "setSourceMapCacheGetter", SetSourceMapCacheGetter);
+  env->SetMethod(target, "takeCoverage", TakeCoverage);
 }
 
 }  // namespace profiler
