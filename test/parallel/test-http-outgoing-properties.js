@@ -51,3 +51,28 @@ const OutgoingMessage = http.OutgoingMessage;
   msg.write('asd');
   assert.strictEqual(msg.writableLength, 7);
 }
+
+{
+  const server = http.createServer(function(req, res) {
+    res.end();
+    res.on('finish', () => {
+      server.close();
+    });
+  });
+
+  server.listen(0);
+
+  server.on('listening', function() {
+    const req = http.request({
+      port: server.address().port,
+      method: 'GET',
+      path: '/'
+    });
+
+    assert.strictEqual(req.path, '/');
+    assert.strictEqual(req.method, 'GET');
+    assert.strictEqual(req.host, 'localhost');
+    assert.strictEqual(req.protocol, 'http:');
+    req.end();
+  });
+}
