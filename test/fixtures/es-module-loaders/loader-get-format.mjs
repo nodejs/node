@@ -1,4 +1,4 @@
-export async function getFormat(url, context, defaultGetFormat) {
+export async function getFormat(url) {
   try {
     if (new URL(url).pathname.endsWith('.unknown')) {
       return {
@@ -6,5 +6,5 @@ export async function getFormat(url, context, defaultGetFormat) {
       };
     }
   } catch {}
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return null;
 }

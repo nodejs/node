@@ -1,18 +1,18 @@
 (node:*) ExperimentalWarning: --experimental-loader is an experimental feature. This feature could change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-internal/process/esm_loader.js:*
-    internalBinding('errors').triggerUncaughtException(
-                              ^
+internal/process/execution.js:*
+  internalBinding('errors').triggerUncaughtException(error, fromPromise);
+                            ^
 Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'i-dont-exist' imported from *
     at new NodeError (internal/errors.js:*:*)
     at packageResolve (internal/modules/esm/resolve.js:*:*)
     at moduleResolve (internal/modules/esm/resolve.js:*:*)
-    at Loader.defaultResolve [as _resolve] (internal/modules/esm/resolve.js:*:*)
-    at Loader.resolve (internal/modules/esm/loader.js:*:*)
-    at Loader.getModuleJob (internal/modules/esm/loader.js:*:*)
-    at Loader.import (internal/modules/esm/loader.js:*:*)
-    at internal/process/esm_loader.js:*:*
-    at initializeLoader (internal/process/esm_loader.js:*:*)
-    at Object.loadESM (internal/process/esm_loader.js:*:*) {
+    at defaultResolve (internal/modules/esm/resolve.js:*:*)
+    at Loader.importLoader (internal/modules/esm/loader.js:*:*)
+    at createLoader (internal/process/esm_loader.js:*:*)
+    at exports.getLoader (internal/process/esm_loader.js:*:*)
+    at runMainESM (internal/modules/run_main.js:*:*)
+    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*)
+    at internal/main/run_main_module.js:*:* {
   code: 'ERR_MODULE_NOT_FOUND'
 }

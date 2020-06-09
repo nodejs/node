@@ -8,7 +8,7 @@ const JS_EXTENSIONS = new Set(['.js', '.mjs']);
 const baseURL = new URL('file://');
 baseURL.pathname = process.cwd() + '/';
 
-export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
+export function resolve(specifier, { parentURL = baseURL, ...context }, nextResolve) {
   if (builtinModules.includes(specifier)) {
     return {
       url: 'nodejs:' + specifier
@@ -16,7 +16,7 @@ export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
   }
   if (/^\.{1,2}[/]/.test(specifier) !== true && !specifier.startsWith('file:')) {
     // For node_modules support:
-    // return defaultResolve(specifier, {parentURL}, defaultResolve);
+    // return nextResolve(specifier, { parentURL, ...context });
     throw new Error(
       `imports must be URLs or begin with './', or '../'; '${specifier}' does not`);
   }
@@ -26,7 +26,7 @@ export function resolve(specifier, { parentURL = baseURL }, defaultResolve) {
   };
 }
 
-export function getFormat(url, context, defaultGetFormat) {
+export function getFormat(url) {
   if (url.startsWith('nodejs:') && builtinModules.includes(url.slice(7))) {
     return {
       format: 'builtin'

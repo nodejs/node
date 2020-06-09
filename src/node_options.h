@@ -149,7 +149,7 @@ class EnvironmentOptions : public Options {
   bool trace_uncaught = false;
   bool trace_warnings = false;
   std::string unhandled_rejections;
-  std::string userland_loader;
+  std::vector<std::string> userland_loaders;
 
   bool syntax_check_only = false;
   bool has_eval_string = false;

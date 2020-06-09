@@ -1,6 +1,6 @@
-internal/process/esm_loader.js:*
-    internalBinding('errors').triggerUncaughtException(
-                              ^
+internal/process/execution.js:*
+  internalBinding('errors').triggerUncaughtException(error, fromPromise);
+                            ^
 
 Error [ERR_MODULE_NOT_FOUND]: Cannot find module '*test*fixtures*node_modules*some_module*obj' imported from *test*fixtures*esm_loader_not_found_cjs_hint_bare.mjs
 Did you mean to import some_module/obj.js?

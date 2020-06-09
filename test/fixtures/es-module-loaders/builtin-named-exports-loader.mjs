@@ -3,7 +3,8 @@ import module from 'module';
 const GET_BUILTIN = `$__get_builtin_hole_${Date.now()}`;
 
 export function getGlobalPreloadCode() {
-  return `Object.defineProperty(globalThis, ${JSON.stringify(GET_BUILTIN)}, {
+  return `\
+Object.defineProperty(globalThis, ${JSON.stringify(GET_BUILTIN)}, {
   value: (builtinName) => {
     return getBuiltin(builtinName);
   },
@@ -13,8 +14,8 @@ export function getGlobalPreloadCode() {
 `;
 }
 
-export function resolve(specifier, context, defaultResolve) {
-  const def = defaultResolve(specifier, context);
+export async function resolve(specifier, context, nextResolve) {
+  const def = await nextResolve(specifier, context);
   if (def.url.startsWith('nodejs:')) {
     return {
       url: `custom-${def.url}`,
@@ -23,7 +24,7 @@ export function resolve(specifier, context, defaultResolve) {
   return def;
 }
 
-export function getSource(url, context, defaultGetSource) {
+export function getSource(url) {
   if (url.startsWith('custom-nodejs:')) {
     const urlObj = new URL(url);
     return {
@@ -31,14 +32,14 @@ export function getSource(url, context, defaultGetSource) {
       format: 'module',
     };
   }
-  return defaultGetSource(url, context);
+  return null;
 }
 
-export function getFormat(url, context, defaultGetFormat) {
+export function getFormat(url) {
   if (url.startsWith('custom-nodejs:')) {
     return { format: 'module' };
   }
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return null;
 }
 
 function generateBuiltinModule(builtinName) {

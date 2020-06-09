@@ -1,17 +1,17 @@
-export async function resolve(specifier, { parentURL }, defaultResolve) {
+export async function resolve(specifier) {
   if (specifier === 'unknown-builtin-module') {
     return {
       url: 'nodejs:unknown-builtin-module'
     };
   }
-  return defaultResolve(specifier, {parentURL}, defaultResolve);
+  return null;
 }
 
-export async function getFormat(url, context, defaultGetFormat) {
+export async function getFormat(url) {
   if (url === 'nodejs:unknown-builtin-module') {
     return {
       format: 'builtin'
     };
   }
-  return defaultGetFormat(url, context, defaultGetFormat);
+  return null;
 }

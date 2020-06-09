@@ -10,21 +10,21 @@ const SOURCES = {
   'test:Uint8Array': new Uint8Array(0),
   'test:undefined': undefined,
 }
-export function resolve(specifier, context, defaultFn) {
+export function resolve(specifier) {
   if (specifier.startsWith('test:')) {
     return { url: specifier };
   }
-  return defaultFn(specifier, context);
+  return null;
 }
-export function getFormat(href, context, defaultFn) {
+export function getFormat(href) {
   if (href.startsWith('test:')) {
     return { format: 'module' };
   }
-  return defaultFn(href, context);
+  return null;
 }
-export function getSource(href, context, defaultFn) {
+export function getSource(href) {
   if (href.startsWith('test:')) {
     return { source: SOURCES[href] };
   }
-  return defaultFn(href, context);
+  return null;
 }
