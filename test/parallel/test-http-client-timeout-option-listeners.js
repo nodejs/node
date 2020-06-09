@@ -24,9 +24,9 @@ const options = {
 server.listen(0, options.host, common.mustCall(() => {
   options.port = server.address().port;
   doRequest(common.mustCall((numListeners) => {
-    assert.strictEqual(numListeners, 2);
+    assert.strictEqual(numListeners, 3);
     doRequest(common.mustCall((numListeners) => {
-      assert.strictEqual(numListeners, 2);
+      assert.strictEqual(numListeners, 3);
       server.close();
       agent.destroy();
     }));
