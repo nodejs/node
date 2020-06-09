@@ -11,37 +11,26 @@
 namespace node {
 //// Base 64 ////
 static inline constexpr size_t base64_encoded_size(size_t size) {
-  return ((size + 2 - ((size + 2) % 3)) / 3 * 4);
+  return ((size + 2) / 3 * 4);
 }
 
 // Doesn't check for padding at the end.  Can be 1-2 bytes over.
-static inline size_t base64_decoded_size_fast(size_t size) {
-  size_t remainder = size % 4;
-
-  size = (size / 4) * 3;
-  if (remainder) {
-    if (size == 0 && remainder == 1) {
-      // special case: 1-byte input cannot be decoded
-      size = 0;
-    } else {
-      // non-padded input, add 1 or 2 extra bytes
-      size += 1 + (remainder == 3);
-    }
-  }
-
-  return size;
+static inline constexpr size_t base64_decoded_size_fast(size_t size) {
+  // 1-byte input cannot be decoded
+  return size > 1 ? (size / 4) * 3 + (size % 4 + 1) / 2 : 0;
 }
 
 template <typename TypeName>
 size_t base64_decoded_size(const TypeName* src, size_t size) {
-  if (size == 0)
+  // 1-byte input cannot be decoded
+  if (size < 2)
     return 0;
 
-  if (src[size - 1] == '=')
+  if (src[size - 1] == '=') {
     size--;
-  if (size > 0 && src[size - 1] == '=')
-    size--;
-
+    if (src[size - 1] == '=')
+      size--;
+  }
   return base64_decoded_size_fast(size);
 }
 
@@ -166,25 +155,22 @@ static size_t base64_encode(const char* src,
     k += 4;
   }
 
-  if (n != slen) {
-    switch (slen - n) {
-      case 1:
-        a = src[i + 0] & 0xff;
-        dst[k + 0] = table[a >> 2];
-        dst[k + 1] = table[(a & 3) << 4];
-        dst[k + 2] = '=';
-        dst[k + 3] = '=';
-        break;
-
-      case 2:
-        a = src[i + 0] & 0xff;
-        b = src[i + 1] & 0xff;
-        dst[k + 0] = table[a >> 2];
-        dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
-        dst[k + 2] = table[(b & 0x0f) << 2];
-        dst[k + 3] = '=';
-        break;
-    }
+  switch (slen - n) {
+    case 1:
+      a = src[i + 0] & 0xff;
+      dst[k + 0] = table[a >> 2];
+      dst[k + 1] = table[(a & 3) << 4];
+      dst[k + 2] = '=';
+      dst[k + 3] = '=';
+      break;
+    case 2:
+      a = src[i + 0] & 0xff;
+      b = src[i + 1] & 0xff;
+      dst[k + 0] = table[a >> 2];
+      dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
+      dst[k + 2] = table[(b & 0x0f) << 2];
+      dst[k + 3] = '=';
+      break;
   }
 
   return dlen;
