@@ -754,6 +754,27 @@ added: v0.4.0
 
 * {string} The request path.
 
+### `request.method`
+<!-- YAML
+added: v0.1.97
+-->
+
+* {string} The request method.
+
+### `request.host`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string} The request host.
+
+### `request.protocol`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string} The request protocol.
+
 ### `request.removeHeader(name)`
 <!-- YAML
 added: v1.6.0
