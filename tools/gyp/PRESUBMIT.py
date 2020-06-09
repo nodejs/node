@@ -10,7 +10,7 @@ for more details about the presubmit API built into gcl.
 """
 
 
-PYLINT_BLACKLIST = [
+PYLINT_BLOCKLIST = [
     # TODO: fix me.
     # From SCons, not done in google style.
     'test/lib/TestCmd.py',
@@ -111,14 +111,14 @@ def CheckChangeOnCommit(input_api, output_api):
   old_sys_path = sys.path
   try:
     sys.path = ['pylib', 'test/lib'] + sys.path
-    blacklist = PYLINT_BLACKLIST
+    blocklist = PYLINT_BLOCKLIST
     if sys.platform == 'win32':
-      blacklist = [os.path.normpath(x).replace('\\', '\\\\')
-                   for x in PYLINT_BLACKLIST]
+      blocklist = [os.path.normpath(x).replace('\\', '\\\\')
+                   for x in PYLINT_BLOCKLIST]
     report.extend(input_api.canned_checks.RunPylint(
         input_api,
         output_api,
-        black_list=blacklist,
+        black_list=blocklist,
         disabled_warnings=PYLINT_DISABLED_WARNINGS))
   finally:
     sys.path = old_sys_path
