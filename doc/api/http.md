@@ -746,7 +746,7 @@ added: v0.4.0
 
 ### `request.method`
 <!-- YAML
-added: v14.4.0
+added: v0.1.97
 -->
 
 * {string} The request method.
