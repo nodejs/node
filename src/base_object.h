@@ -103,6 +103,7 @@ class BaseObject : public MemoryRetainer {
 
  private:
   v8::Local<v8::Object> WrappedObject() const override;
+  bool IsRootNode() const override;
   static void DeleteMe(void* data);
 
   // persistent_handle_ needs to be at a fixed offset from the start of the

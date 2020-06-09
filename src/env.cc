@@ -986,33 +986,16 @@ Environment* Environment::worker_parent_env() const {
   return worker_context_->env();
 }
 
-void MemoryTracker::TrackField(const char* edge_name,
-                               const CleanupHookCallback& value,
-                               const char* node_name) {
-  HandleScope handle_scope(isolate_);
-  // Here, we utilize the fact that CleanupHookCallback instances
-  // are all unique and won't be tracked twice in one BuildEmbedderGraph
-  // callback.
-  MemoryRetainerNode* n =
-      PushNode("CleanupHookCallback", sizeof(value), edge_name);
-  // TODO(joyeecheung): at the moment only arguments of type BaseObject will be
-  // identified and tracked here (based on their deleters),
-  // but we may convert and track other known types here.
-  BaseObject* obj = value.GetBaseObject();
-  if (obj != nullptr && obj->IsDoneInitializing()) {
-    TrackField("arg", obj);
-  }
-  CHECK_EQ(CurrentNode(), n);
-  CHECK_NE(n->size_, 0);
-  PopNode();
-}
-
 void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      EmbedderGraph* graph,
                                      void* data) {
   MemoryTracker tracker(isolate, graph);
   Environment* env = static_cast<Environment*>(data);
   tracker.Track(env);
+  env->ForEachBaseObject([&](BaseObject* obj) {
+    if (obj->IsDoneInitializing())
+      tracker.Track(obj);
+  });
 }
 
 inline size_t Environment::SelfSize() const {
@@ -1042,7 +1025,8 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("fs_stats_field_array", fs_stats_field_array_);
   tracker->TrackField("fs_stats_field_bigint_array",
                       fs_stats_field_bigint_array_);
-  tracker->TrackField("cleanup_hooks", cleanup_hooks_);
+  tracker->TrackFieldWithSize(
+      "cleanup_hooks", cleanup_hooks_.size() * sizeof(CleanupHookCallback));
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
   tracker->TrackField("tick_info", tick_info_);
@@ -1134,6 +1118,10 @@ bool BaseObject::IsDoneInitializing() const { return true; }
 
 Local<Object> BaseObject::WrappedObject() const {
   return object();
+}
+
+bool BaseObject::IsRootNode() const {
+  return !persistent_handle_.IsWeak();
 }
 
 }  // namespace node
