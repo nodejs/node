@@ -746,21 +746,33 @@ added: v0.4.0
 
 ### `request.method`
 <!-- YAML
-added: v0.4.0
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33803
+    description: add request.method to doc.
 -->
 
 * {string} The request method.
 
 ### `request.host`
 <!-- YAML
-added: v0.4.0
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33803
+    description: exposed host property.
 -->
 
 * {string} The request host.
 
 ### `request.protocol`
 <!-- YAML
-added: v0.4.0
+added: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33803
+    description: exposed protocol property.
 -->
 
 * {string} The request protocol.
