@@ -848,7 +848,7 @@ The [`fs.Dir`][] was previously closed.
 <a id="ERR_DIR_CONCURRENT_OPERATION"></a>
 ### `ERR_DIR_CONCURRENT_OPERATION`
 <!-- YAML
-added: REPLACEME
+added: v12.18.1
 -->
 
 A synchronous read or close call was attempted on an [`fs.Dir`][] which has
