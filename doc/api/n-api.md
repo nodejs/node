@@ -4755,6 +4755,9 @@ is sufficient and appropriate. Use of the `napi_make_callback` function
 may be required when implementing custom async behavior that does not use
 `napi_create_async_work`.
 
+Any `process.nextTick`s or Promises scheduled on the microtask queue by
+JavaScript during the callback are ran before returning back to C/C++.
+
 ### napi_open_callback_scope
 <!-- YAML
 added: v9.6.0
