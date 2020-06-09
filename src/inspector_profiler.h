@@ -95,6 +95,7 @@ class V8CoverageConnection : public V8ProfilerConnection {
   void WriteProfile(v8::Local<v8::Object> result) override;
   void WriteSourceMapCache();
   void TakeCoverage();
+  void StopCoverage();
 
  private:
   std::unique_ptr<inspector::InspectorSession> session_;
