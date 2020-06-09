@@ -55,14 +55,12 @@ const OutgoingMessage = http.OutgoingMessage;
 {
   const server = http.createServer(function(req, res) {
     res.end();
-    res.on('finish', () => {
-      server.close();
-    });
+    server.close();
   });
 
   server.listen(0);
 
-  server.on('listening', function() {
+  server.on('listening', common.mustCall(function() {
     const req = http.request({
       port: server.address().port,
       method: 'GET',
@@ -74,5 +72,5 @@ const OutgoingMessage = http.OutgoingMessage;
     assert.strictEqual(req.host, 'localhost');
     assert.strictEqual(req.protocol, 'http:');
     req.end();
-  });
+  }));
 }

@@ -746,11 +746,7 @@ added: v0.4.0
 
 ### `request.method`
 <!-- YAML
-added: REPLACEME
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/33803
-    description: add request.method to doc.
+added: v14.4.0
 -->
 
 * {string} The request method.
