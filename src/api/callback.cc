@@ -173,29 +173,16 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
     return MaybeLocal<Value>();
   }
 
-  Local<Function> domain_cb = env->domain_callback();
   MaybeLocal<Value> ret;
 
-  if (asyncContext.async_id != 0 && hook_count != 0) {
-    MaybeStackBuffer<Local<Value>, 16> args(3 + argc);
+  if (hook_count != 0) {
+    MaybeStackBuffer<Local<Value>, 16> args(2 + argc);
     args[0] = v8::Number::New(env->isolate(), asyncContext.async_id);
     args[1] = callback;
-    if (domain_cb.IsEmpty()) {
-      args[2] = Undefined(env->isolate());
-    } else {
-      args[2] = domain_cb;
-    }
     for (int i = 0; i < argc; i++) {
-      args[i + 3] = argv[i];
+      args[i + 2] = argv[i];
     }
     ret = hook_cb->Call(env->context(), recv, args.length(), &args[0]);
-  } else if (asyncContext.async_id == 0 && !domain_cb.IsEmpty()) {
-    MaybeStackBuffer<Local<Value>, 16> args(1 + argc);
-    args[0] = callback;
-    for (int i = 0; i < argc; i++) {
-      args[i + 1] = argv[i];
-    }
-    ret = domain_cb->Call(env->context(), recv, args.length(), &args[0]);
   } else {
     ret = callback->Call(env->context(), recv, argc, argv);
   }
