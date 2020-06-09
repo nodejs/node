@@ -41,7 +41,7 @@ test-async-hooks-http-parser-destroy: PASS,FLAKY
 test-crypto-dh-stateless: SKIP
 test-crypto-keygen: SKIP
 # https://github.com/nodejs/node/issues/33796
-test-fs-stream-construct: SKIP
+test-fs-stream-construct: PASS,FLAKY
 
 [$system==solaris] # Also applies to SmartOS
 
