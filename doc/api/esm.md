@@ -689,6 +689,31 @@ stateless):
 }
 ```
 
+Another variant to also preserve backward-compatibility of `require`ing some
+files from the package that were previously available is to combine [Conditional
+Exports][] with [Nested conditions][] as follows:
+
+<!-- eslint-skip -->
+```js
+// This will allow to:
+// `import 'package'`
+// `require('package')`
+// `require('package/lib/file')`
+// while preventing to `import 'package/lib/file.js'`.
+{
+  "main": "./index.cjs",
+  "exports": {
+    ".": {
+      "import": "./wrapper.mjs",
+      "require": "./index.cjs"
+    },
+    "./lib": {
+      "require": "./lib"
+    }
+  }
+}
+```
+
 ##### Approach #2: Isolate State
 
 A `package.json` file can define the separate CommonJS and ES module entry
@@ -1807,6 +1832,7 @@ success!
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
 [ES Module Integration Proposal for Web Assembly]: https://github.com/webassembly/esm-integration
+[Nested conditions]: #esm_nested_conditions
 [Node.js EP for ES Modules]: https://github.com/nodejs/node-eps/blob/master/002-es-modules.md
 [Terminology]: #esm_terminology
 [WHATWG JSON modules specification]: https://html.spec.whatwg.org/#creating-a-json-module-script
