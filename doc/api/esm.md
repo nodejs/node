@@ -694,7 +694,7 @@ files from the package that were previously available is to combine [Conditional
 Exports][] with [Nested conditions][] as follows:
 
 <!-- eslint-skip -->
-```js
+```json
 // This will allow to:
 // `import 'package'`
 // `require('package')`
