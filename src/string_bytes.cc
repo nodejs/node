@@ -644,11 +644,11 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
           return MaybeLocal<Value>();
         }
         auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
-        if (maybe_buf.IsEmpty()) {
+        Local<v8::Object> buf;
+        if (!maybe_buf.ToLocal(&buf)) {
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
-          return MaybeLocal<Value>();
         }
-        return maybe_buf.ToLocalChecked();
+        return buf;
       }
 
     case ASCII:
@@ -665,15 +665,17 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       }
 
     case UTF8:
-      val = String::NewFromUtf8(isolate,
-                                buf,
-                                v8::NewStringType::kNormal,
-                                buflen);
-      if (val.IsEmpty()) {
-        *error = node::ERR_STRING_TOO_LONG(isolate);
-        return MaybeLocal<Value>();
+      {
+        val = String::NewFromUtf8(isolate,
+                                  buf,
+                                  v8::NewStringType::kNormal,
+                                  buflen);
+        Local<String> str;
+        if (!val.ToLocal(&str)) {
+          *error = node::ERR_STRING_TOO_LONG(isolate);
+        }
+        return str;
       }
-      return val.ToLocalChecked();
 
     case LATIN1:
       return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);
