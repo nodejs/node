@@ -424,8 +424,10 @@ Node.js supports the following conditions:
 * `"import"` - matched when the package is loaded via `import` or
    `import()`. Can reference either an ES module or CommonJS file, as both
    `import` and `import()` can load either ES module or CommonJS sources.
+   _Mutually exclusive with the `"require"` condition._
 * `"require"` - matched when the package is loaded via `require()`.
    As `require()` only supports CommonJS, the referenced file must be CommonJS.
+   _Mutually exclusive with the `"import"` condition._
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file. _This condition should always come after `"import"` or
    `"require"`._
