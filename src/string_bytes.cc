@@ -31,7 +31,6 @@
 #include <cstring>  // memcpy
 
 #include <algorithm>
-#include <vector>
 
 // When creating strings >= this length v8's gc spins up and consumes
 // most of the execution time. For these cases it's more performant to
