@@ -3,7 +3,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <vector>
 
 #include "cache_builder.h"
 #include "debug_utils-inl.h"
