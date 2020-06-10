@@ -241,6 +241,13 @@ Enable experimental WebAssembly System Interface (WASI) support.
 added: v12.3.0
 -->
 
+### `--force-context-aware`
+<!-- YAML
+added: v12.12.0
+-->
+
+Disable loading native addons that are not [context-aware][].
+
 Enable experimental WebAssembly module support.
 
 ### `--force-fips`
@@ -494,13 +501,6 @@ added: v6.0.0
 -->
 
 Silence all process warnings (including deprecations).
-
-### `--force-context-aware`
-<!-- YAML
-added: v12.12.0
--->
-
-Disable loading native addons that are not [context-aware][].
 
 ### `--openssl-config=file`
 <!-- YAML
