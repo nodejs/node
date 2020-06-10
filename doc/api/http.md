@@ -754,10 +754,6 @@ added: v0.1.97
 ### `request.host`
 <!-- YAML
 added: REPLACEME
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/33803
-    description: exposed host property.
 -->
 
 * {string} The request host.
@@ -765,10 +761,6 @@ changes:
 ### `request.protocol`
 <!-- YAML
 added: REPLACEME
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/33803
-    description: exposed protocol property.
 -->
 
 * {string} The request protocol.
