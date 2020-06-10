@@ -38,6 +38,12 @@ const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
   'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
 ];
+const links = [
+  '</>;rel=up',
+  '</who?q=foo>;rel="http://example.com/rel/left"',
+  '</page/3>;rel=next',
+  '</page/1>;rel=prev'
+];
 
 const s = http.createServer(common.mustCall((req, res) => {
   switch (test) {
@@ -67,6 +73,14 @@ const s = http.createServer(common.mustCall((req, res) => {
         }
       );
       assert.throws(
+        () => res.addHeader('someHeader'),
+        {
+          code: 'ERR_HTTP_INVALID_HEADER_VALUE',
+          name: 'TypeError',
+          message: 'Invalid value "undefined" for header "someHeader"'
+        }
+      );
+      assert.throws(
         () => res.getHeader(),
         {
           code: 'ERR_INVALID_ARG_TYPE',
@@ -89,6 +103,10 @@ const s = http.createServer(common.mustCall((req, res) => {
       res.setHeader('x-test-header', 'testing');
       res.setHeader('X-TEST-HEADER2', 'testing');
       res.setHeader('set-cookie', cookies);
+      res.addHeader('Link', links[0]);
+      res.addHeader('Link', links[1]);
+      res.addHeader('Link', links[2]);
+      res.addHeader('Link', links[3]);
       res.setHeader('x-test-array-header', arrayValues);
 
       assert.strictEqual(res.getHeader('x-test-header'), 'testing');
@@ -99,6 +117,7 @@ const s = http.createServer(common.mustCall((req, res) => {
         'x-test-header': 'testing',
         'x-test-header2': 'testing',
         'set-cookie': cookies,
+        'link': links,
         'x-test-array-header': arrayValues
       };
       Object.setPrototypeOf(expected, null);
@@ -106,7 +125,7 @@ const s = http.createServer(common.mustCall((req, res) => {
 
       assert.deepStrictEqual(res.getHeaderNames(),
                              ['x-test-header', 'x-test-header2',
-                              'set-cookie', 'x-test-array-header']);
+                              'set-cookie', 'link', 'x-test-array-header']);
 
       assert.strictEqual(res.hasHeader('x-test-header2'), true);
       assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), true);
