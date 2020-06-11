@@ -333,7 +333,8 @@ NodePlatform::NodePlatform(int thread_pool_size,
   // TODO(addaleax): It's a bit icky that we use global state here, but we can't
   // really do anything about it unless V8 starts exposing a way to access the
   // current v8::Platform instance.
-  tracing::TraceEventHelper::SetTracingController(tracing_controller_);
+  SetTracingController(tracing_controller_);
+  DCHECK_EQ(GetTracingController(), tracing_controller_);
   worker_thread_task_runner_ =
       std::make_shared<WorkerThreadsTaskRunner>(thread_pool_size);
 }

@@ -5,8 +5,8 @@
 #ifndef SRC_TRACING_TRACE_EVENT_H_
 #define SRC_TRACING_TRACE_EVENT_H_
 
-#include "node_platform.h"
 #include "v8-platform.h"
+#include "tracing/agent.h"
 #include "trace_event_common.h"
 #include <atomic>
 
@@ -310,9 +310,7 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
-// Extern (for now) because embedders need access to TraceEventHelper.
-// Refs: https://github.com/nodejs/node/pull/28724
-class NODE_EXTERN TraceEventHelper {
+class TraceEventHelper {
  public:
   static v8::TracingController* GetTracingController();
   static void SetTracingController(v8::TracingController* controller);
