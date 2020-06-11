@@ -178,6 +178,7 @@ def write_if_chaged(content, target):
   else:
     old_content = ''
   if old_content == content:
+    os.utime(target, None)
     return
   with open(target, "wt") as output:
     output.write(content)
