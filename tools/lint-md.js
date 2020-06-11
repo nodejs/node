@@ -43322,63 +43322,10 @@ function stringify$6(options) {
 
 var remark = unified_1().use(remarkParse).use(remarkStringify).freeze();
 
-const _from = "remark@latest";
-const _id = "remark@12.0.0";
-const _inBundle = false;
-const _integrity = "sha512-oX4lMIS0csgk8AEbzY0h2jdR0ngiCHOpwwpxjmRa5TqAkeknY+tkhjRJGZqnCmvyuWh55/0SW5WY3R3nn3PH9A==";
-const _location = "/remark";
-const _phantomChildren = {
-};
-const _requested = {
-	type: "tag",
-	registry: true,
-	raw: "remark@latest",
-	name: "remark",
-	escapedName: "remark",
-	rawSpec: "latest",
-	saveSpec: null,
-	fetchSpec: "latest"
-};
-const _requiredBy = [
-	"#USER",
-	"/"
-];
-const _resolved = "https://registry.npmjs.org/remark/-/remark-12.0.0.tgz";
-const _shasum = "d1c145c07341c9232f93b2f8539d56da15a2548c";
-const _spec = "remark@latest";
-const _where = "/Users/trott/io.js/tools/node-lint-md-cli-rollup";
-const author = {
-	name: "Titus Wormer",
-	email: "tituswormer@gmail.com",
-	url: "https://wooorm.com"
-};
-const bugs = {
-	url: "https://github.com/remarkjs/remark/issues"
-};
-const bundleDependencies = false;
-const contributors = [
-	{
-		name: "Titus Wormer",
-		email: "tituswormer@gmail.com",
-		url: "https://wooorm.com"
-	}
-];
-const dependencies = {
-	"remark-parse": "^8.0.0",
-	"remark-stringify": "^8.0.0",
-	unified: "^9.0.0"
-};
-const deprecated$1 = false;
+const name$1 = "remark";
+const version$1 = "12.0.0";
 const description = "Markdown processor powered by plugins part of the unified collective";
-const files = [
-	"index.js",
-	"types/index.d.ts"
-];
-const funding = {
-	type: "opencollective",
-	url: "https://opencollective.com/unified"
-};
-const homepage = "https://remark.js.org";
+const license = "MIT";
 const keywords = [
 	"unified",
 	"remark",
@@ -43394,83 +43341,77 @@ const keywords = [
 	"compile",
 	"process"
 ];
-const license = "MIT";
-const name$1 = "remark";
-const repository = {
-	type: "git",
-	url: "https://github.com/remarkjs/remark/tree/master/packages/remark"
+const homepage = "https://remark.js.org";
+const repository = "https://github.com/remarkjs/remark/tree/master/packages/remark";
+const bugs = "https://github.com/remarkjs/remark/issues";
+const funding = {
+	type: "opencollective",
+	url: "https://opencollective.com/unified"
+};
+const author = "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)";
+const contributors = [
+	"Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
+];
+const files = [
+	"index.js",
+	"types/index.d.ts"
+];
+const types = "types/index.d.ts";
+const dependencies = {
+	"remark-parse": "^8.0.0",
+	"remark-stringify": "^8.0.0",
+	unified: "^9.0.0"
 };
 const scripts = {
 	test: "tape test.js"
 };
-const types = "types/index.d.ts";
-const version$1 = "12.0.0";
 const xo = false;
+const _resolved = "https://registry.npmjs.org/remark/-/remark-12.0.0.tgz";
+const _integrity = "sha512-oX4lMIS0csgk8AEbzY0h2jdR0ngiCHOpwwpxjmRa5TqAkeknY+tkhjRJGZqnCmvyuWh55/0SW5WY3R3nn3PH9A==";
+const _from = "remark@12.0.0";
 var _package = {
-	_from: _from,
-	_id: _id,
-	_inBundle: _inBundle,
-	_integrity: _integrity,
-	_location: _location,
-	_phantomChildren: _phantomChildren,
-	_requested: _requested,
-	_requiredBy: _requiredBy,
-	_resolved: _resolved,
-	_shasum: _shasum,
-	_spec: _spec,
-	_where: _where,
-	author: author,
-	bugs: bugs,
-	bundleDependencies: bundleDependencies,
-	contributors: contributors,
-	dependencies: dependencies,
-	deprecated: deprecated$1,
-	description: description,
-	files: files,
-	funding: funding,
-	homepage: homepage,
-	keywords: keywords,
-	license: license,
 	name: name$1,
-	repository: repository,
-	scripts: scripts,
-	types: types,
 	version: version$1,
-	xo: xo
+	description: description,
+	license: license,
+	keywords: keywords,
+	homepage: homepage,
+	repository: repository,
+	bugs: bugs,
+	funding: funding,
+	author: author,
+	contributors: contributors,
+	files: files,
+	types: types,
+	dependencies: dependencies,
+	scripts: scripts,
+	xo: xo,
+	_resolved: _resolved,
+	_integrity: _integrity,
+	_from: _from
 };
 
 var _package$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  _from: _from,
-  _id: _id,
-  _inBundle: _inBundle,
-  _integrity: _integrity,
-  _location: _location,
-  _phantomChildren: _phantomChildren,
-  _requested: _requested,
-  _requiredBy: _requiredBy,
-  _resolved: _resolved,
-  _shasum: _shasum,
-  _spec: _spec,
-  _where: _where,
-  author: author,
-  bugs: bugs,
-  bundleDependencies: bundleDependencies,
-  contributors: contributors,
-  dependencies: dependencies,
-  deprecated: deprecated$1,
-  description: description,
-  files: files,
-  funding: funding,
-  homepage: homepage,
-  keywords: keywords,
-  license: license,
   name: name$1,
-  repository: repository,
-  scripts: scripts,
-  types: types,
   version: version$1,
+  description: description,
+  license: license,
+  keywords: keywords,
+  homepage: homepage,
+  repository: repository,
+  bugs: bugs,
+  funding: funding,
+  author: author,
+  contributors: contributors,
+  files: files,
+  types: types,
+  dependencies: dependencies,
+  scripts: scripts,
   xo: xo,
+  _resolved: _resolved,
+  _integrity: _integrity,
+  _from: _from,
   'default': _package
 });
 
@@ -43488,7 +43429,7 @@ const dependencies$1 = {
 	"markdown-extensions": "^1.1.1",
 	remark: "^12.0.0",
 	"remark-lint": "^7.0.0",
-	"remark-preset-lint-node": "^1.15.1",
+	"remark-preset-lint-node": "^1.16.0",
 	"unified-args": "^8.0.0"
 };
 const main = "dist/index.js";
@@ -47191,7 +47132,26 @@ var plugins$2 = [
   remarkLintCheckboxContentIndent,
   [remarkLintCodeBlockStyle, "fenced"],
   remarkLintDefinitionSpacing,
-  remarkLintFencedCodeFlag,
+  [
+    remarkLintFencedCodeFlag,
+    {
+      flags: [
+        "bash",
+        "c",
+        "coffee",
+        "console",
+        "cpp",
+        "diff",
+        "http",
+        "js",
+        "json",
+        "markdown",
+        "powershell",
+        "r",
+        "text",
+      ],
+    },
+  ],
   [remarkLintFencedCodeMarker, "`"],
   [remarkLintFileExtension, "md"],
   remarkLintFinalDefinition,
