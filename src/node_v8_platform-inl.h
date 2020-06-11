@@ -8,6 +8,7 @@
 #include "env-inl.h"
 #include "node.h"
 #include "node_metadata.h"
+#include "node_platform.h"
 #include "node_options.h"
 #include "tracing/node_trace_writer.h"
 #include "tracing/trace_event.h"

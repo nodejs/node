@@ -11,7 +11,6 @@
 #include "libplatform/libplatform.h"
 #include "node.h"
 #include "node_mutex.h"
-#include "tracing/agent.h"
 #include "uv.h"
 
 namespace node {
