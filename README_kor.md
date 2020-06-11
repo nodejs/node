@@ -9,146 +9,123 @@
   </a>
 </p>
 
-Node.js is an open-source, cross-platform, JavaScript runtime environment. It
-executes JavaScript code outside of a browser. For more information on using
-Node.js, see the [Node.js Website][].
+Node.js는 오픈 소스이며, 크로스 플랫폼, 자바스크립트 런타임 환경입니다. 이것은 브라우저 밖에서 자바스크립트 코드로 실행됩니다 node.js를 사용하면서 더 많은 정보가 필요하다면, [Node.js Website][]을 확인하세요.
 
-The Node.js project uses an [open governance model](./GOVERNANCE.md). The
-[OpenJS Foundation][] provides support for the project.
+Node.js 프로젝트는 [open governance model](./GOVERNANCE.md)을 사용합니다. 
+[OpenJS Foundation][]에서 이 프로젝트를 지원제공합니다.
 
-**This project is bound by a [Code of Conduct][].**
+**이 프로젝트는 [Code of Conduct][]와 묶여있습니다.**
 
 # Table of Contents
 
-* [Support](#support)
-* [Release Types](#release-types)
-  * [Download](#download)
-    * [Current and LTS Releases](#current-and-lts-releases)
-    * [Nightly Releases](#nightly-releases)
-    * [API Documentation](#api-documentation)
-  * [Verifying Binaries](#verifying-binaries)
-* [Building Node.js](#building-nodejs)
-* [Security](#security)
-* [Contributing to Node.js](#contributing-to-nodejs)
-* [Current Project Team Members](#current-project-team-members)
+* [지원](#support)
+* [릴리즈 타입](#release-types)
+  * [다운로드](#download)
+    * [Current 및 LTS 릴리즈](#current-and-lts-releases)
+    * [야간 릴리즈](#nightly-releases)
+    * [API 문서](#api-documentation)
+  * [바이너리 확인](#verifying-binaries)
+* [Node.js 빌드하기](#building-nodejs)
+* [보안](#security)
+* [Node.js에 기여하기](#contributing-to-nodejs)
+* [현재 프로젝트 팀 멤버들](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
   * [Release Keys](#release-keys)
 
-## Support
+## 지원
 
-Looking for help? Check out the
-[instructions for getting support](.github/SUPPORT.md).
+도움을 원한다면
+[instructions for getting support](.github/SUPPORT.md)을 확인하기.
 
-## Release Types
+## 릴리즈 타입
 
-* **Current**: Under active development. Code for the Current release is in the
-  branch for its major version number (for example,
-  [v10.x](https://github.com/nodejs/node/tree/v10.x)). Node.js releases a new
-  major version every 6 months, allowing for breaking changes. This happens in
-  April and October every year. Releases appearing each October have a support
-  life of 8 months. Releases appearing each April convert to LTS (see below)
-  each October.
-* **LTS**: Releases that receive Long-term Support, with a focus on stability
-  and security. Every even-numbered major version will become an LTS release.
-  LTS releases receive 12 months of _Active LTS_ support and a further 18 months
-  of _Maintenance_. LTS release lines have alphabetically-ordered codenames,
-  beginning with v4 Argon. There are no breaking changes or feature additions,
-  except in some special circumstances.
-* **Nightly**: Code from the Current branch built every 24-hours when there are
-  changes. Use with caution.
+* **Current**: 진행되고 있는 개발에서 이뤄진다. 현재 배포판의 코드는 주요 버전 넘버의 브랜치에 있습니다. ( 예시 : 
+  [v10.x](https://github.com/nodejs/node/tree/v10.x)) Node.js는 주요 변화에 따라 6개월마다 새 버전을 배포합니다. 매년 10월과 4월에 발생합니다. 10월에 나타나는 배포의  지원 수명은 8달입니다. 4월에 나타나는 배포판은 각 10월에 LTS로 변환됩니다.
+* **LTS**: 안정성과 보안에 중점을 둔 오랜 기간동안 지원을 받는 배포판입니다. 모든 주요 버전은 LTS 배포판이 됩니다. LTS 배포판은 12개월의 활성 LTS 지원과 18개월의 유지보수를 받습니다. LTS 배포판 라인은 v4 Argon에서 시작하는 알파벳 순서로 된 코드네임이 있습니다. 거기에는 몇몇 특별한 순환을 제외하고, 주요한 변화나 특징적인 추가사항은 없습니다.
+* **Nightly**: 변경사항이 있을 때 24시간마다 현재 브랜치의 코드가 작성되므로 주의해서 사용해야합니다.
 
-Current and LTS releases follow [Semantic Versioning](https://semver.org). A
-member of the Release Team [signs](#release-keys) each Current and LTS release.
-For more information, see the
-[Release README](https://github.com/nodejs/Release#readme).
+Current 및 LTS 릴리즈는 [Semantic Versioning](https://semver.org)을 따릅니다. 릴리즈 팀의 구성원은 각 Current와 LTS 배포에 [signs](#release-keys)합니다.
+자세한 내용은 [Release README](https://github.com/nodejs/Release#readme)을 참조하십시오.
 
-### Download
+### 다운로드
 
-Binaries, installers, and source tarballs are available at
-<https://nodejs.org/en/download/>.
+바이너리, 설치 프로그램 및 소스 tarballs은
+<https://nodejs.org/en/download/>에서 제공됩니다.
 
-#### Current and LTS Releases
+#### Current 및 LTS Releases
 <https://nodejs.org/download/release/>
 
-The [latest](https://nodejs.org/download/release/latest/) directory is an
-alias for the latest Current release. The latest-_codename_ directory is an
-alias for the latest release from an LTS line. For example, the
-[latest-carbon](https://nodejs.org/download/release/latest-carbon/) directory
-contains the latest Carbon (Node.js 8) release.
+[latest](https://nodejs.org/download/release/latest/) 디렉토리는 최신 현재 릴리즈를 다르게 부르는 말입니다. latest- codename 디렉토리는 LTS 최신 릴리스에 대한 별명입니다. 예를 들어
+[latest-carbon](https://nodejs.org/download/release/latest-carbon/) 디렉토리에는
+최신 Carbon(Node.js 8) 릴리즈가 포함됩니다.
 
-#### Nightly Releases
+#### 야간 릴리즈
 <https://nodejs.org/download/nightly/>
 
-Each directory name and filename contains a date (in UTC) and the commit
-SHA at the HEAD of the release.
+각 디렉토리 이름과 파일 이름에는 날짜(UTC)와 릴리즈 HEAD의 커밑 SHA가 포함됩니다.
 
-#### API Documentation
+#### API 문서
 
-Documentation for the latest Current release is at <https://nodejs.org/api/>.
-Version-specific documentation is available in each release directory in the
-_docs_ subdirectory. Version-specific documentation is also at
-<https://nodejs.org/download/docs/>.
+최신 Current 릴리즈에 대한 설명서는 <https://nodejs.org/api/>에 있습니다.
+버전 별 설명서는 _docs_ 하위 디렉토리의 각 릴리즈 디렉토리에서 사용할 수 있습니다. 버전별 설명서는
+<https://nodejs.org/download/docs/> 에도 있습니다.
 
-### Verifying Binaries
+### 바이너리 확인
 
-Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
-files.
+다운로드 디렉토리에는 파일에 대한 SHA 체크합계가 있는`SHASUMS256.txt` 파일이 있습니다. 
 
-To download `SHASUMS256.txt` using `curl`:
+`curl`을 사용하여 `SHASUMS256.txt`를 다운로드 하려면 :
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
 ```
 
-To check that a downloaded file matches the checksum, run
-it through `sha256sum` with a command such as:
+다운로드 한 파일이 checksum과 일치하는지 확인하려면 `sha256sum`을 통해
+다음과 같은 명령으로 실행하십니오. :
 
 ```console
 $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 ```
 
-For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
-`SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
-`SHASUM256.txt`. You will first need to import
-[the GPG keys of individuals authorized to create releases](#release-keys). To
-import the keys:
+Current 및 LTS의 경우`SHASUMS256.txt`의 GPG 분리 서명은`SHASUMS256.txt.sig `에 있습니다. 
+`gpg`와 함께 사용하여`SHASUM256.txt`의 무결성을 확인할 수 있습니다. 
+먼저 [the GPG keys of individuals authorized to create releases](#release-keys)를 가져와야합니다.
+키를 가져 오려면 :
 
 ```console
 $ gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 ```
 
-See the bottom of this README for a full script to import active release keys.
+활성 릴리즈키를 가져오는 전체 스크립트는 이 README의 맨 아래를 참조하십시오.
 
-Next, download the `SHASUMS256.txt.sig` for the release:
+다음으로 `SHASUMS256.txt.sig` 을 다운로드 하십시오.
 
 ```console
 $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
 ```
 
-Then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify
-the file's signature.
+그리고 파일의 서명을 확인하기 위해 `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` 을 사용해야합니다.
 
-## Building Node.js
+## Node.js 빌드
 
-See [BUILDING.md](BUILDING.md) for instructions on how to build Node.js from
-source and a list of supported platforms.
+소스 및 지원되는 플랫폼 목록에서 Node.js를 빌드하는 방법에 대한 지시 사항은 [BUILDING.md](BUILDING.md) 을 참조하십시오. 
 
-## Security
+## 보안
 
-For information on reporting security vulnerabilities in Node.js, see
-[SECURITY.md](./SECURITY.md).
+Node.js의 보안 취약성 보고에 대한정보는
+[SECURITY.md](./SECURITY.md)을 참조하십시오.
 
-## Contributing to Node.js
+## Node.js에 기여
 
-* [Contributing to the project][]
-* [Working Groups][]
-* [Strategic Initiatives][]
+* [프로젝트에 기여][]
+* [실무 그룹][]
+* [전략적 이니셔티브][]
 
-## Current Project Team Members
+## 현재 프로젝트 팀원
 
-For information about the governance of the Node.js project, see
-[GOVERNANCE.md](./GOVERNANCE.md).
+Node.js 프로젝트의 통제에 대한 정보는
+[GOVERNANCE.md](./GOVERNANCE.md) 을 참조하십시오.
 
 ### TSC (Technical Steering Committee)
 
@@ -548,9 +525,7 @@ For information about the governance of the Node.js project, see
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 <!--lint enable prohibited-strings-->
 
-Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
-maintaining the Node.js project.
-
+콜라보레이터들은 Node.js 프로젝트를 유지하는데에 [Collaborator Guide](./doc/guides/collaborator-guide.md) 을 따릅니다.
 ### Release Keys
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
@@ -572,7 +547,7 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 * **Shelley Vohr** &lt;shelley.vohr@gmail.com&gt;
 `B9E2F5981AA6E0CD28160D9FF13993A75599653C`
 
-To import the full set of trusted release keys:
+신뢰할 수있는 릴리즈 키의 전체 세트를 가져 오려면 :
 
 ```bash
 gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
@@ -585,10 +560,8 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys A48C2BEE680E841632CD4E44F074
 gpg --keyserver pool.sks-keyservers.net --recv-keys B9E2F5981AA6E0CD28160D9FF13993A75599653C
 ```
 
-See the section above on [Verifying Binaries](#verifying-binaries) for how to
-use these keys to verify a downloaded file.
-
-Other keys used to sign some previous releases:
+이 키를 사용하여 다운로드 한 파일을 확인하기 위한 방법은 
+위의 [Verifying Binaries](#verifying-binaries) 섹션을 참조하십시오.
 
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 `9554F04D7259F04124DE6B476D5A82AC7E37093B`
