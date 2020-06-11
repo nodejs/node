@@ -1,6 +1,7 @@
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
