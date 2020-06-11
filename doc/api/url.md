@@ -486,7 +486,9 @@ property will be [percent-encoded][]. The selection of which
 characters to percent-encode may vary somewhat from what the [`url.parse()`][]
 and [`url.format()`][] methods would produce.
 
-Note that `search` will be null for newly parsed URLs without a querystring if the `url.parse` method is used for parsing, but will be the empty string if parsed using the `URL` constructor.
+`search` will be null for newly parsed URLs without a querystring if
+the [`url.parse()`][] method is used for parsing, but will be the empty
+string if parsed using the `URL` constructor.
 
 #### `url.searchParams`
 
