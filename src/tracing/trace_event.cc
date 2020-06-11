@@ -1,4 +1,5 @@
 #include "tracing/trace_event.h"
+#include "node.h"
 
 namespace node {
 namespace tracing {
@@ -24,4 +25,13 @@ void TraceEventHelper::SetTracingController(v8::TracingController* controller) {
 }
 
 }  // namespace tracing
+
+v8::TracingController* GetTracingController() {
+  return tracing::TraceEventHelper::GetTracingController();
+}
+
+void SetTracingController(v8::TracingController* controller) {
+  tracing::TraceEventHelper::SetTracingController(controller);
+}
+
 }  // namespace node

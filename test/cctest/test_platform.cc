@@ -57,3 +57,22 @@ TEST_F(PlatformTest, SkipNewTasksInFlushForegroundTasks) {
   EXPECT_EQ(3, run_count);
   EXPECT_FALSE(platform->FlushForegroundTasks(isolate_));
 }
+
+TEST_F(PlatformTest, TracingControllerNullptr) {
+  v8::TracingController* orig_controller = node::GetTracingController();
+  node::SetTracingController(nullptr);
+  EXPECT_EQ(node::GetTracingController(), nullptr);
+
+  v8::Isolate::Scope isolate_scope(isolate_);
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env {handle_scope, argv};
+
+  node::LoadEnvironment(*env, [&](const node::StartExecutionCallbackInfo& info)
+                                  -> v8::MaybeLocal<v8::Value> {
+    return v8::Null(isolate_);
+  });
+
+  node::SetTracingController(orig_controller);
+  EXPECT_EQ(node::GetTracingController(), orig_controller);
+}
