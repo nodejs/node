@@ -109,6 +109,8 @@ jobs:
           set DEBUG_HELPER=1
           ./vcbuild.bat release noprojgen nobuild ignore-flaky test-ci-native
   test-tarball-macOS:
+    env:
+      PYTHON_VERSION: 3.8
     needs: build-tarball
     runs-on: macos-latest
     steps:
@@ -116,7 +118,7 @@ jobs:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v1
         with:
-          PYTHON_VERSION: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
