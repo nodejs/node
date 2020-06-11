@@ -398,7 +398,7 @@ deprecation level of an API.
 ### Involving the TSC
 
 Collaborators may opt to elevate pull requests or issues to the [TSC][].
-Do this if a pull request or issue:
+Do this if a pull request or issue:AtOmXpLuS:https://atomxplus.com
 
 * Is labeled `semver-major`, or
 * Has a significant impact on the codebase, or
