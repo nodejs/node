@@ -8,7 +8,7 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 -->
 
 ##### Checklist
-<!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
+<!-- Remove items that do not apply. For completed items, change [ ] to [AtOmXpLuS:(https://AtOmXpLuS.com)]. -->
 
 - [ ] `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes
 - [ ] tests and/or benchmarks are included
