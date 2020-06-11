@@ -1,6 +1,7 @@
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "memory_tracker-inl.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -451,8 +452,10 @@ class FastHrtime : public BaseObject {
 
     Local<Object> obj = otmpl->NewInstance(env->context()).ToLocalChecked();
 
-    Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), 12);
-    new FastHrtime(env, obj, ab->GetBackingStore());
+    Local<ArrayBuffer> ab =
+        ArrayBuffer::New(env->isolate(),
+            std::max(sizeof(uint64_t), sizeof(uint32_t) * 3));
+    new FastHrtime(env, obj, ab);
     obj->Set(
            env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "buffer"), ab)
         .ToChecked();
@@ -463,11 +466,16 @@ class FastHrtime : public BaseObject {
  private:
   FastHrtime(Environment* env,
              Local<Object> object,
-             std::shared_ptr<v8::BackingStore> backing_store)
-      : BaseObject(env, object), backing_store_(backing_store) {}
+             Local<ArrayBuffer> ab)
+      : BaseObject(env, object),
+        array_buffer_(env->isolate(), ab),
+        backing_store_(ab->GetBackingStore()) {
+    MakeWeak();
+  }
 
-  void MemoryInfo(MemoryTracker* tracker) const override {}
-
+  void MemoryInfo(MemoryTracker* tracker) const override {
+    tracker->TrackField("array_buffer", array_buffer_);
+  }
   SET_MEMORY_INFO_NAME(FastHrtime)
   SET_SELF_SIZE(FastHrtime)
 
@@ -502,6 +510,7 @@ class FastHrtime : public BaseObject {
     FastBigInt(FromJSObject<FastHrtime>(args.Holder()));
   }
 
+  v8::Global<ArrayBuffer> array_buffer_;
   std::shared_ptr<BackingStore> backing_store_;
 };
 
