@@ -467,6 +467,7 @@ According to the WHATWG URL Standard, special protocol schemes are `ftp`,
 #### `url.search`
 
 * {string}
+* {null}
 
 Gets and sets the serialized query portion of the URL.
 
@@ -484,6 +485,8 @@ Any invalid URL characters appearing in the value assigned the `search`
 property will be [percent-encoded][]. The selection of which
 characters to percent-encode may vary somewhat from what the [`url.parse()`][]
 and [`url.format()`][] methods would produce.
+
+Note that `search` will be null for newly parsed URLs without a querystring if the `url.parse` method is used for parsing, but will be the empty string if parsed using the `URL` constructor.
 
 #### `url.searchParams`
 
