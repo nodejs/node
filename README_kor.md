@@ -9,7 +9,9 @@
   </a>
 </p>
 
-Node.js는 오픈 소스이며, 크로스 플랫폼, 자바스크립트 런타임 환경입니다. 이것은 브라우저 밖에서 자바스크립트 코드로 실행됩니다 node.js를 사용하면서 더 많은 정보가 필요하다면, [Node.js Website][]을 확인하세요.
+Node.js는 오픈 소스이며, 크로스 플랫폼, 자바스크립트 런타임 환경입니다.
+이것은 브라우저 밖에서 자바스크립트 코드로 실행됩니다.
+node.js를 사용하면서 더 많은 정보가 필요하다면, [Node.js Website][]을 확인하세요.
 
 Node.js 프로젝트는 [open governance model](./GOVERNANCE.md)을 사용합니다. 
 [OpenJS Foundation][]에서 이 프로젝트를 지원제공합니다.
@@ -40,12 +42,19 @@ Node.js 프로젝트는 [open governance model](./GOVERNANCE.md)을 사용합니
 
 ## 릴리즈 타입
 
-* **Current**: 진행되고 있는 개발에서 이뤄진다. 현재 배포판의 코드는 주요 버전 넘버의 브랜치에 있습니다. ( 예시 : 
-  [v10.x](https://github.com/nodejs/node/tree/v10.x)) Node.js는 주요 변화에 따라 6개월마다 새 버전을 배포합니다. 매년 10월과 4월에 발생합니다. 10월에 나타나는 배포의  지원 수명은 8달입니다. 4월에 나타나는 배포판은 각 10월에 LTS로 변환됩니다.
+* **Current**: 진행되고 있는 개발에서 이뤄집니다. 
+현재 배포판의 코드는 주요 버전 넘버의 브랜치에 있습니다. 
+( 예시 :  [v10.x](https://github.com/nodejs/node/tree/v10.x))
+Node.js는 주요 변화에 따라 6개월마다 새 버전을 배포합니다. 매년 10월과 4월에 발생합니다. 
+10월에 나타나는 배포의  지원 수명은 8달입니다. 
+4월에 나타나는 배포판은 각 10월에 LTS로 변환됩니다.
+
 * **LTS**: 안정성과 보안에 중점을 둔 오랜 기간동안 지원을 받는 배포판입니다. 모든 주요 버전은 LTS 배포판이 됩니다. LTS 배포판은 12개월의 활성 LTS 지원과 18개월의 유지보수를 받습니다. LTS 배포판 라인은 v4 Argon에서 시작하는 알파벳 순서로 된 코드네임이 있습니다. 거기에는 몇몇 특별한 순환을 제외하고, 주요한 변화나 특징적인 추가사항은 없습니다.
+
 * **Nightly**: 변경사항이 있을 때 24시간마다 현재 브랜치의 코드가 작성되므로 주의해서 사용해야합니다.
 
-Current 및 LTS 릴리즈는 [Semantic Versioning](https://semver.org)을 따릅니다. 릴리즈 팀의 구성원은 각 Current와 LTS 배포에 [signs](#release-keys)합니다.
+Current 및 LTS 릴리즈는 [Semantic Versioning](https://semver.org)을 따릅니다. 
+릴리즈 팀의 구성원은 각 Current와 LTS 배포에 [signs](#release-keys)합니다.
 자세한 내용은 [Release README](https://github.com/nodejs/Release#readme)을 참조하십시오.
 
 ### 다운로드
@@ -56,7 +65,9 @@ Current 및 LTS 릴리즈는 [Semantic Versioning](https://semver.org)을 따릅
 #### Current 및 LTS Releases
 <https://nodejs.org/download/release/>
 
-[latest](https://nodejs.org/download/release/latest/) 디렉토리는 최신 현재 릴리즈를 다르게 부르는 말입니다. latest- codename 디렉토리는 LTS 최신 릴리스에 대한 별명입니다. 예를 들어
+[latest](https://nodejs.org/download/release/latest/) 디렉토리는 최신 현재 릴리즈를 다르게 부르는 말입니다. 
+latest- codename 디렉토리는 LTS 최신 릴리스에 대한 별명입니다. 
+예를 들어,
 [latest-carbon](https://nodejs.org/download/release/latest-carbon/) 디렉토리에는
 최신 Carbon(Node.js 8) 릴리즈가 포함됩니다.
 
@@ -68,8 +79,8 @@ Current 및 LTS 릴리즈는 [Semantic Versioning](https://semver.org)을 따릅
 #### API 문서
 
 최신 Current 릴리즈에 대한 설명서는 <https://nodejs.org/api/>에 있습니다.
-버전 별 설명서는 _docs_ 하위 디렉토리의 각 릴리즈 디렉토리에서 사용할 수 있습니다. 버전별 설명서는
-<https://nodejs.org/download/docs/> 에도 있습니다.
+버전 별 설명서는 _docs_ 하위 디렉토리의 각 릴리즈 디렉토리에서 사용할 수 있습니다.
+버전별 설명서는 <https://nodejs.org/download/docs/> 에도 있습니다.
 
 ### 바이너리 확인
 
@@ -109,7 +120,8 @@ $ curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
 
 ## Node.js 빌드
 
-소스 및 지원되는 플랫폼 목록에서 Node.js를 빌드하는 방법에 대한 지시 사항은 [BUILDING.md](BUILDING.md) 을 참조하십시오. 
+소스 및 지원되는 플랫폼 목록에서 Node.js를 빌드하는 방법에 대한 지시 사항은 
+[BUILDING.md](BUILDING.md) 을 참조하십시오. 
 
 ## 보안
 
