@@ -1074,6 +1074,7 @@ of 0.12, `ctime` is not "creation time", and on Unix systems, it never was.
 <!-- YAML
 added: v0.1.93
 -->
+A successful call to `fs.createWriteStream()` will return a new `fs.WriteStream` object.
 
 * Extends {stream.Writable}
 
