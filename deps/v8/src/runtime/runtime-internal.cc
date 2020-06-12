@@ -578,19 +578,21 @@ RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
       isolate, native_context, description, shared_info, slot_id);
 }
 
-RUNTIME_FUNCTION(Runtime_ReportMessage) {
+RUNTIME_FUNCTION(Runtime_ReportMessageFromMicrotask) {
   // Helper to report messages and continue JS execution. This is intended to
-  // behave similarly to reporting exceptions which reach the top-level in
-  // Execution.cc, but allow the JS code to continue. This is useful for
-  // implementing algorithms such as RunMicrotasks in JS.
+  // behave similarly to reporting exceptions which reach the top-level, but
+  // allow the JS code to continue.
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, message_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, exception, 0);
 
   DCHECK(!isolate->has_pending_exception());
-  isolate->set_pending_exception(*message_obj);
-  isolate->ReportPendingMessagesFromJavaScript();
+  isolate->set_pending_exception(*exception);
+  MessageLocation* no_location = nullptr;
+  Handle<JSMessageObject> message =
+      isolate->CreateMessageOrAbort(exception, no_location);
+  MessageHandler::ReportMessage(isolate, no_location, message);
   isolate->clear_pending_exception();
   return ReadOnlyRoots(isolate).undefined_value();
 }

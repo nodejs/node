@@ -327,7 +327,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   BIND(&if_exception);
   {
     // Report unhandled exceptions from microtasks.
-    CallRuntime(Runtime::kReportMessage, current_context,
+    CallRuntime(Runtime::kReportMessageFromMicrotask, current_context,
                 var_exception.value());
     RewindEnteredContext(saved_entered_context_count);
     SetCurrentContext(current_context);

@@ -1412,6 +1412,8 @@ void Isolate::InvokeApiInterruptCallbacks() {
   }
 }
 
+namespace {
+
 void ReportBootstrappingException(Handle<Object> exception,
                                   MessageLocation* location) {
   base::OS::PrintError("Exception thrown during bootstrapping\n");
@@ -1465,6 +1467,36 @@ void ReportBootstrappingException(Handle<Object> exception,
     }
   }
 #endif
+}
+
+}  // anonymous namespace
+
+Handle<JSMessageObject> Isolate::CreateMessageOrAbort(
+    Handle<Object> exception, MessageLocation* location) {
+  Handle<JSMessageObject> message_obj = CreateMessage(exception, location);
+
+  // If the abort-on-uncaught-exception flag is specified, and if the
+  // embedder didn't specify a custom uncaught exception callback,
+  // or if the custom callback determined that V8 should abort, then
+  // abort.
+  if (FLAG_abort_on_uncaught_exception) {
+    CatchType prediction = PredictExceptionCatcher();
+    if ((prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) &&
+        (!abort_on_uncaught_exception_callback_ ||
+         abort_on_uncaught_exception_callback_(
+             reinterpret_cast<v8::Isolate*>(this)))) {
+      // Prevent endless recursion.
+      FLAG_abort_on_uncaught_exception = false;
+      // This flag is intended for use by JavaScript developers, so
+      // print a user-friendly stack trace (not an internal one).
+      PrintF(stderr, "%s\n\nFROM\n",
+             MessageHandler::GetLocalizedMessage(this, message_obj).get());
+      PrintCurrentStackTrace(stderr);
+      base::OS::Abort();
+    }
+  }
+
+  return message_obj;
 }
 
 Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
@@ -1538,38 +1570,14 @@ Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
     if (location == nullptr && ComputeLocation(&computed_location)) {
       location = &computed_location;
     }
-
     if (bootstrapper()->IsActive()) {
       // It's not safe to try to make message objects or collect stack traces
       // while the bootstrapper is active since the infrastructure may not have
       // been properly initialized.
       ReportBootstrappingException(exception, location);
     } else {
-      Handle<Object> message_obj = CreateMessage(exception, location);
+      Handle<Object> message_obj = CreateMessageOrAbort(exception, location);
       thread_local_top()->pending_message_obj_ = *message_obj;
-
-      // For any exception not caught by JavaScript, even when an external
-      // handler is present:
-      // If the abort-on-uncaught-exception flag is specified, and if the
-      // embedder didn't specify a custom uncaught exception callback,
-      // or if the custom callback determined that V8 should abort, then
-      // abort.
-      if (FLAG_abort_on_uncaught_exception) {
-        CatchType prediction = PredictExceptionCatcher();
-        if ((prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) &&
-            (!abort_on_uncaught_exception_callback_ ||
-             abort_on_uncaught_exception_callback_(
-                 reinterpret_cast<v8::Isolate*>(this)))) {
-          // Prevent endless recursion.
-          FLAG_abort_on_uncaught_exception = false;
-          // This flag is intended for use by JavaScript developers, so
-          // print a user-friendly stack trace (not an internal one).
-          PrintF(stderr, "%s\n\nFROM\n",
-                 MessageHandler::GetLocalizedMessage(this, message_obj).get());
-          PrintCurrentStackTrace(stderr);
-          base::OS::Abort();
-        }
-      }
     }
   }
 
@@ -2106,7 +2114,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i).value() & FrameArray::kAsmJsAtNumberConversion;
-      if (elements->IsWasmCompiledFrame(i)) {
+      if (elements->IsWasmCompiledFrame(i) || elements->IsAsmJsWasmFrame(i)) {
         // WasmCode* held alive by the {GlobalWasmCodeRef}.
         wasm::WasmCode* code =
             Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
@@ -2230,8 +2238,27 @@ bool Isolate::IsExternalHandlerOnTop(Object exception) {
   return (entry_handler > external_handler);
 }
 
-void Isolate::ReportPendingMessagesImpl(bool report_externally) {
+std::vector<MemoryRange>* Isolate::GetCodePages() const {
+  return code_pages_.load(std::memory_order_acquire);
+}
+
+void Isolate::SetCodePages(std::vector<MemoryRange>* new_code_pages) {
+  code_pages_.store(new_code_pages, std::memory_order_release);
+}
+
+void Isolate::ReportPendingMessages() {
+  DCHECK(AllowExceptions::IsAllowed(this));
+
+  // The embedder might run script in response to an exception.
+  AllowJavascriptExecutionDebugOnly allow_script(this);
+
   Object exception_obj = pending_exception();
+
+  // Try to propagate the exception to an external v8::TryCatch handler. If
+  // propagation was unsuccessful, then we will get another chance at reporting
+  // the pending message if the exception is re-thrown.
+  bool has_been_propagated = PropagatePendingExceptionToExternalTryCatch();
+  if (!has_been_propagated) return;
 
   // Clear the pending message object early to avoid endless recursion.
   Object message_obj = thread_local_top()->pending_message_obj_;
@@ -2245,7 +2272,7 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
   // depending on whether and external v8::TryCatch or an internal JavaScript
   // handler is on top.
   bool should_report_exception;
-  if (report_externally) {
+  if (IsExternalHandlerOnTop(exception_obj)) {
     // Only report the exception if the external handler is verbose.
     should_report_exception = try_catch_handler()->is_verbose_;
   } else {
@@ -2269,93 +2296,6 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
     MessageLocation location(script, start_pos, end_pos);
     MessageHandler::ReportMessage(this, &location, message);
   }
-}
-
-std::vector<MemoryRange>* Isolate::GetCodePages() const {
-  return code_pages_.load(std::memory_order_acquire);
-}
-
-void Isolate::SetCodePages(std::vector<MemoryRange>* new_code_pages) {
-  code_pages_.store(new_code_pages, std::memory_order_release);
-}
-
-void Isolate::ReportPendingMessages() {
-  DCHECK(AllowExceptions::IsAllowed(this));
-
-  // The embedder might run script in response to an exception.
-  AllowJavascriptExecutionDebugOnly allow_script(this);
-
-  Object exception = pending_exception();
-
-  // Try to propagate the exception to an external v8::TryCatch handler. If
-  // propagation was unsuccessful, then we will get another chance at reporting
-  // the pending message if the exception is re-thrown.
-  bool has_been_propagated = PropagatePendingExceptionToExternalTryCatch();
-  if (!has_been_propagated) return;
-
-  ReportPendingMessagesImpl(IsExternalHandlerOnTop(exception));
-}
-
-void Isolate::ReportPendingMessagesFromJavaScript() {
-  DCHECK(AllowExceptions::IsAllowed(this));
-
-  auto IsHandledByJavaScript = [=]() {
-    // In this situation, the exception is always a non-terminating exception.
-
-    // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
-    Address entry_handler = Isolate::handler(thread_local_top());
-    DCHECK_NE(entry_handler, kNullAddress);
-    entry_handler = StackHandler::FromAddress(entry_handler)->next_address();
-
-    // Get the address of the external handler so we can compare the address to
-    // determine which one is closer to the top of the stack.
-    Address external_handler = thread_local_top()->try_catch_handler_address();
-    if (external_handler == kNullAddress) return true;
-
-    return (entry_handler < external_handler);
-  };
-
-  auto IsHandledExternally = [=]() {
-    Address external_handler = thread_local_top()->try_catch_handler_address();
-    if (external_handler == kNullAddress) return false;
-
-    // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
-    Address entry_handler = Isolate::handler(thread_local_top());
-    DCHECK_NE(entry_handler, kNullAddress);
-    entry_handler = StackHandler::FromAddress(entry_handler)->next_address();
-    return (entry_handler > external_handler);
-  };
-
-  auto PropagateToExternalHandler = [=]() {
-    if (IsHandledByJavaScript()) {
-      thread_local_top()->external_caught_exception_ = false;
-      return false;
-    }
-
-    if (!IsHandledExternally()) {
-      thread_local_top()->external_caught_exception_ = false;
-      return true;
-    }
-
-    thread_local_top()->external_caught_exception_ = true;
-    v8::TryCatch* handler = try_catch_handler();
-    DCHECK(thread_local_top()->pending_message_obj_.IsJSMessageObject() ||
-           thread_local_top()->pending_message_obj_.IsTheHole(this));
-    handler->can_continue_ = true;
-    handler->has_terminated_ = false;
-    handler->exception_ = reinterpret_cast<void*>(pending_exception().ptr());
-    // Propagate to the external try-catch only if we got an actual message.
-    if (thread_local_top()->pending_message_obj_.IsTheHole(this)) return true;
-
-    handler->message_obj_ =
-        reinterpret_cast<void*>(thread_local_top()->pending_message_obj_.ptr());
-    return true;
-  };
-
-  // Try to propagate to an external v8::TryCatch handler.
-  if (!PropagateToExternalHandler()) return;
-
-  ReportPendingMessagesImpl(true);
 }
 
 bool Isolate::OptionalRescheduleException(bool clear_exception) {

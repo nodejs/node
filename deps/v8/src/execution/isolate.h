@@ -822,10 +822,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Un-schedule an exception that was caught by a TryCatch handler.
   void CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler);
   void ReportPendingMessages();
-  void ReportPendingMessagesFromJavaScript();
-
-  // Implements code shared between the two above methods
-  void ReportPendingMessagesImpl(bool report_externally);
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   Object PromoteScheduledException();
@@ -842,6 +838,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Handle<JSMessageObject> CreateMessage(Handle<Object> exception,
                                         MessageLocation* location);
+  Handle<JSMessageObject> CreateMessageOrAbort(Handle<Object> exception,
+                                               MessageLocation* location);
 
   // Out of resource exception helpers.
   Object StackOverflow();
