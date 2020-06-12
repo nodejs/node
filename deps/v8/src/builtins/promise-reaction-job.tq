@@ -4,11 +4,6 @@
 
 #include 'src/builtins/builtins-promise-gen.h'
 
-namespace runtime {
-  extern transitioning runtime
-  ReportMessage(implicit context: Context)(JSAny): JSAny;
-}
-
 namespace promise {
 
   transitioning
@@ -30,13 +25,8 @@ namespace promise {
         case (capability: PromiseCapability): {
           // In the general case we need to call the (user provided)
           // promiseCapability.[[Reject]] function.
-          try {
-            const reject = UnsafeCast<Callable>(capability.reject);
-            return Call(context, reject, Undefined, reason);
-          } catch (e) {
-            // Swallow the exception here.
-            return runtime::ReportMessage(e);
-          }
+          const reject = UnsafeCast<Callable>(capability.reject);
+          return Call(context, reject, Undefined, reason);
         }
       }
     } else {
