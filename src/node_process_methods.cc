@@ -450,7 +450,8 @@ class FastHrtime : public BaseObject {
     Local<Object> obj = otmpl->NewInstance(env->context()).ToLocalChecked();
 
     Local<ArrayBuffer> ab =
-        ArrayBuffer::New(env->isolate(), sizeof(uint32_t) * 3);
+        ArrayBuffer::New(env->isolate(),
+            std::max(sizeof(uint64_t), sizeof(uint32_t) * 3));
     new FastHrtime(env, obj, ab);
     obj->Set(
            env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "buffer"), ab)
