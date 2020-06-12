@@ -75,9 +75,8 @@ added: v0.11.3
 
 * `section` {string} A string identifying the portion of the application for
   which the `debuglog` function is being created.
-* `callback` {Function} A callback that is called with `null` if the section is
-disabled or the logging function if enabled the first time the logging function
-is called.
+* `callback` {Function} A callback invoked the first time the logging function
+is called with a function argument that is a more optimized logging function.
 * Returns: {Function} The logging function
 
 The `util.debuglog()` method is used to create a function that conditionally
