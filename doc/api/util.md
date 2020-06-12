@@ -70,13 +70,15 @@ callbackFunction((err, ret) => {
 });
 ```
 
-## `util.debuglog(section)`
+## `util.debuglog(section[, callback])`
 <!-- YAML
 added: v0.11.3
 -->
 
 * `section` {string} A string identifying the portion of the application for
   which the `debuglog` function is being created.
+* `callback` {Function} A callback invoked the first time the logging function
+is called with a function argument that is a more optimized logging function.
 * Returns: {Function} The logging function
 
 The `util.debuglog()` method is used to create a function that conditionally
@@ -120,6 +122,19 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable: `NODE_DEBUG=fs,net,tls`.
+
+The optional `callback` argument can be used to replace the logging function
+with a different function that doesn't have any initialization or
+unnecessary wrapping.
+
+```js
+const util = require('util');
+let debuglog = util.debuglog('internals', (debug) => {
+  // Replace with a logging function that optimizes out
+  // testing if the section is enabled
+  debuglog = debug;
+});
+```
 
 ## `util.deprecate(fn, msg[, code])`
 <!-- YAML
