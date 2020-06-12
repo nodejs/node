@@ -121,27 +121,18 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable: `NODE_DEBUG=fs,net,tls`.
 
-The optional `callback` argument can be used to perform logic depending on if
-a section is enabled.
+The optional `callback` argument can be used to replace the logging function
+with a different function that doesn't have any initialization or
+unnecessary wrapping.
 
 ```js
 const util = require('util');
 let makeInternalsPublic = false;
-const debug = util.debuglog('internals', (debug) => {
-  makeInternalsPublic = debug !== null;
+const debuglog = util.debuglog('internals', (debug) => {
+  // replace with a logging function that optimizes out
+  // testing if the section is enabled
+  debuglog = debug;
 });
-let counter = 1;
-debug('exposing internals, do not use them as a public API');
-module.exports = {
-  internal: makeInternalsPublic ? {
-    setCounter(newValue) {
-      counter = newValue;
-    }
-  } : null,
-  nextValue() {
-    return counter++;
-  }
-};
 ```
 
 ## `util.deprecate(fn, msg[, code])`
