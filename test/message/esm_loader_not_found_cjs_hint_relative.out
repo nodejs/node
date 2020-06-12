@@ -6,6 +6,7 @@ internal/modules/run_main.js:*
 
 Error [ERR_MODULE_NOT_FOUND]: Cannot find module '*test*common*fixtures' imported from *
 Did you mean to import ./test/common/fixtures.js?
+    at new NodeError (internal/errors.js:*:*)
     at finalizeResolution (internal/modules/esm/resolve.js:*:*)
     at moduleResolve (internal/modules/esm/resolve.js:*:*)
     at Loader.defaultResolve [as _resolve] (internal/modules/esm/resolve.js:*:*)
@@ -14,7 +15,6 @@ Did you mean to import ./test/common/fixtures.js?
     at Loader.import (internal/modules/esm/loader.js:*:*)
     at internal/process/esm_loader.js:*:*
     at Object.initializeLoader (internal/process/esm_loader.js:*:*)
-    at runMainESM (internal/modules/run_main.js:*:*)
-    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*) {
+    at runMainESM (internal/modules/run_main.js:*:*) {
   code: 'ERR_MODULE_NOT_FOUND'
 }
