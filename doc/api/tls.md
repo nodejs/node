@@ -1399,6 +1399,12 @@ The `callback` function, if specified, will be added as a listener for the
 
 `tls.connect()` returns a [`tls.TLSSocket`][] object.
 
+Unlike the `https` API, `tls.connect()` does not enable the
+SNI (Server Name Indication) extension by default, which may cause some
+servers to return an incorrect certificate or reject the connection
+altogether. To enable SNI, set the `servername` option in addition
+to `host`.
+
 The following illustrates a client for the echo server example from
 [`tls.createServer()`][]:
 
