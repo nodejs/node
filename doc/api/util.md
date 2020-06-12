@@ -68,13 +68,16 @@ callbackFunction((err, ret) => {
 });
 ```
 
-## `util.debuglog(section)`
+## `util.debuglog(section[, callback])`
 <!-- YAML
 added: v0.11.3
 -->
 
 * `section` {string} A string identifying the portion of the application for
   which the `debuglog` function is being created.
+* `callback` {Function} A callback that is called with `null` if the section is
+disabled or the logging function if enabled the first time the logging function
+is called.
 * Returns: {Function} The logging function
 
 The `util.debuglog()` method is used to create a function that conditionally
@@ -118,6 +121,29 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable: `NODE_DEBUG=fs,net,tls`.
+
+The optional `callback` argument can be used to perform logic depending on if
+a section is enabled.
+
+```js
+const util = require('util');
+let makeInternalsPublic = false;
+const debug = util.debuglog('internals', (debug) => {
+  makeInternalsPublic = debug !== null;
+});
+let counter = 1;
+debug('exposing internals, do not use them as a public API');
+module.exports = {
+  internal: makeInternalsPublic ? {
+    setCounter(newValue) {
+      counter = newValue;
+    }
+  } : null,
+  nextValue() {
+    return counter++;
+  }
+};
+```
 
 ## `util.deprecate(fn, msg[, code])`
 <!-- YAML
