@@ -2977,13 +2977,13 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // This is definitely not an expression so don't accumulate
     // expression-related errors.
     productions &= ~ExpressionClassifier::ExpressionProduction;
+    ValidateAssignmentPattern(CHECK_OK);
   }
 
   Accumulate(productions);
   if (!Token::IsAssignmentOp(peek())) return expression;
 
   if (is_destructuring_assignment) {
-    ValidateAssignmentPattern(CHECK_OK);
   } else {
     expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, scanner()->location().end_pos,
