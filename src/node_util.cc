@@ -145,28 +145,28 @@ static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsUint32());
 
   Local<Object> obj = args[0].As<Object>();
-  auto index = args[1]->Uint32Value(env->context()).FromJust();
-  auto private_symbol = IndexToPrivateSymbol(env, index);
-  auto maybe_value = obj->GetPrivate(env->context(), private_symbol);
-
-  args.GetReturnValue().Set(maybe_value.ToLocalChecked());
+  uint32_t index;
+  if (!args[1]->Uint32Value(env->context()).To(&index)) return;
+  Local<Private> private_symbol = IndexToPrivateSymbol(env, index);
+  Local<Value> ret;
+  if (obj->GetPrivate(env->context(), private_symbol).ToLocal(&ret))
+    args.GetReturnValue().Set(ret);
 }
 
 static void SetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsUint32());
 
   Local<Object> obj = args[0].As<Object>();
-  auto index = args[1]->Uint32Value(env->context()).FromJust();
-  auto private_symbol = IndexToPrivateSymbol(env, index);
-  auto maybe_value = obj->SetPrivate(env->context(), private_symbol, args[2]);
-
-  args.GetReturnValue().Set(maybe_value.FromJust());
+  uint32_t index;
+  if (!args[1]->Uint32Value(env->context()).To(&index)) return;
+  Local<Private> private_symbol = IndexToPrivateSymbol(env, index);
+  bool ret;
+  if (obj->SetPrivate(env->context(), private_symbol, args[2]).To(&ret))
+    args.GetReturnValue().Set(ret);
 }
 
 static void Sleep(const FunctionCallbackInfo<Value>& args) {
