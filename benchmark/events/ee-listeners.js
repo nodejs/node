@@ -14,7 +14,7 @@ function main({ n, listeners, raw }) {
 
   for (let k = 0; k < listeners; k += 1) {
     ee.on('dummy0', () => {});
-    ee.on('dummy1', () => {});
+    ee.once('dummy1', () => {});
   }
 
   if (raw === 'true') {
