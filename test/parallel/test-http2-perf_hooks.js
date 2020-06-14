@@ -30,7 +30,7 @@ const obs = new PerformanceObserver(common.mustCall((items) => {
           break;
         case 'client':
           assert.strictEqual(entry.streamCount, 1);
-          assert.strictEqual(entry.framesReceived, 8);
+          assert.strictEqual(entry.framesReceived, 7);
           break;
         default:
           assert.fail('invalid Http2Session type');
