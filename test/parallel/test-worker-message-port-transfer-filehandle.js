@@ -14,8 +14,7 @@ const { once } = require('events');
   assert.throws(() => {
     port1.postMessage(fh);
   }, {
-    // See the TODO about error code in node_messaging.cc.
-    code: 'ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST'
+    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST'
   });
 
   // Check that transferring FileHandle instances works.

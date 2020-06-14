@@ -43,7 +43,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
-  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                      \
+  V(ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST, TypeError)                      \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
@@ -98,7 +98,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
     "A message object could not be deserialized successfully in the target "   \
     "vm.Context")                                                              \
-  V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                                 \
+  V(ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST,                                 \
     "Object that needs transfer was found in message but not listed "          \
     "in transferList")                                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER,                                           \

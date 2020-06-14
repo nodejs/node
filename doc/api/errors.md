@@ -1597,12 +1597,20 @@ strict compliance with the API specification (which in some cases may accept
 For APIs that accept options objects, some options might be mandatory. This code
 is thrown if a required option is missing.
 
-<a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
-### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
+<a id="ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST"></a>
+### `ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`
+<!-- YAML
+added: REPLACEME
+-->
 
 An object that needs to be explicitly listed in the `transferList` argument
-was found in the object passed to a `postMessage()` call, but not provided in
-the `transferList` for that call. Usually, this is a `MessagePort`.
+was found in the object passed to a [`postMessage()`][] call, but not provided
+in the `transferList` for that call. Usually, this is a `MessagePort`.
+
+In Node.js versions prior to REPLACEME, the error code being used here was
+[`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][]. However, the set of
+transferable object types has been expanded to cover more types than
+`MessagePort`.
 
 <a id="ERR_MISSING_PASSPHRASE"></a>
 ### `ERR_MISSING_PASSPHRASE`
@@ -2442,6 +2450,16 @@ Used when an invalid character is found in an HTTP response status message
 -->
 A given index was out of the accepted range (e.g. negative offsets).
 
+<a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
+### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
+<!-- YAML
+removed: REPLACEME
+-->
+
+This error code was replaced by [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`][]
+in Node.js REPLACEME, because it is no longer accurate as other types of
+transferable objects also exist now.
+
 <a id="ERR_NAPI_CONS_PROTOTYPE_OBJECT"></a>
 ### `ERR_NAPI_CONS_PROTOTYPE_OBJECT`
 <!-- YAML
@@ -2693,6 +2711,8 @@ such as `process.stdout.on('data')`.
 [`--force-fips`]: cli.html#cli_force_fips
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
+[`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: #ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST
+[`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`]: #ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`MessagePort`]: worker_threads.html#worker_threads_class_messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
@@ -2725,6 +2745,7 @@ such as `process.stdout.on('data')`.
 [`net`]: net.html
 [`new URL(input)`]: url.html#url_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.html#url_new_urlsearchparams_iterable
+[`postMessage()`]: worker_threads.html#worker_threads_port_postmessage_value_transferlist
 [`process.on('exit')`]: process.html#Event:-`'exit'`
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn
