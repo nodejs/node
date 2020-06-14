@@ -19,6 +19,8 @@ More than one subsystem may be valid for any particular issue or pull request.
 * `discuss`: Things that need larger discussion
 * `feature request`: Any issue that requests a new feature
 * `good first issue`: Issues suitable for newcomers to fix
+* `wait-for-feedback` - Keep this pull request open at least 48 hours before
+  landing, to give others a chance to weigh in.
 * `meta`: Governance, policies, procedures, etc.
 * `tsc-agenda`: Open issues and pull requests with this label will be added to
   the Technical Steering Committee meeting agenda

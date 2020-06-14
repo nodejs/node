@@ -11,6 +11,7 @@
   * [Code reviews](#code-reviews)
   * [Consensus seeking](#consensus-seeking)
   * [Waiting for approvals](#waiting-for-approvals)
+  * [Reverting PRs shortly after landing](#reverting-prs-shortly-after-landing)
   * [Testing and CI](#testing-and-ci)
     * [Useful CI jobs](#useful-ci-jobs)
     * [Starting a CI job](#starting-a-ci-job)
@@ -95,9 +96,8 @@ request must pass code review and CI before landing into the codebase.
 
 ### Code reviews
 
-At least two Collaborators must approve a pull request before the pull request
-lands. One Collaborator approval is enough if the pull request has been open
-for more than seven days.
+At least one Collaborator must approve a pull request before the pull request
+lands. Waiting for a second approval is recommended but not mandatory.
 
 Approving a pull request indicates that the Collaborator accepts responsibility
 for the change.
@@ -150,30 +150,28 @@ adding the `tsc-agenda` label to the issue.
 
 ### Waiting for approvals
 
-Before landing pull requests, allow 48 hours for input from other Collaborators.
-Certain types of pull requests can be fast-tracked and can land after a shorter
-delay. For example:
+Before landing pull requests, allow for input from other Collaborators.
+If you expect that a pull request might raise objections,
+wait longer before landing. You can also add the `wait-for-feedback` label
+to pull requests; in that case, it is expected that the pull request will not
+be merged until at least 48 hours after it has been opened, in order to allow
+for everybody to comment on it.
 
-* Focused changes that affect only documentation and/or the test suite:
-  * `code-and-learn` tasks often fall into this category.
-  * `good-first-issue` pull requests might also be suitable.
-* Changes that fix regressions:
-  * Regressions that break the workflow (red CI or broken compilation).
-  * Regressions that happen right before a release, or reported soon after.
+For pull requests that are lacking an approval from a member of the relevant
+team (e.g. @nodejs/http in the case of HTTP changes), it is recommended to keep
+them open for a longer period of time, e.g. several days.
 
-To propose fast-tracking a pull request, apply the `fast-track` label. Then add
-a comment that Collaborators can upvote.
+### Reverting PRs shortly after landing
 
-If someone disagrees with the fast-tracking request, remove the label. Do not
-fast-track the pull request in that case.
+If it has been less than 48 hours after a pull request has been opened and it
+has already been landed, and you object to it in a way that cannot be addressed
+through a new pull request which addresses your concerns, you can open a
+pull request containing a revert and merge it without waiting for approvals or
+CI runs.
 
-The pull request can be fast-tracked if two Collaborators approve the
-fast-tracking request. To land, the pull request itself still needs two
-Collaborator approvals and a passing CI.
-
-Collaborators can request fast-tracking of pull requests they did not author.
-In that case only, the request itself is also one fast-track approval. Upvote
-the comment anyway to avoid any doubt.
+If it has been more than 48 hours since the original pull request was opened,
+you can still open a revert pull request, but should follow the standard rules
+for merging them, i.e. wait for approvals, no objections, and a passing CI run.
 
 ### Testing and CI
 

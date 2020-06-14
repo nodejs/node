@@ -130,10 +130,15 @@ onboarding session.
   reviewers. If you are leaving comments about issues that could be identified
   by tools but are not, consider implementing the necessary tooling.
 * Minimum wait for comments time
-  * There is a minimum waiting time which we try to respect for non-trivial
-    changes so that people who may have important input in such a distributed
-    project are able to respond.
-  * For non-trivial changes, leave the pull request open for at least 48 hours.
+  * Node.js is a distributed project, and it is important that other people
+    have a chance to weigh in on changes that affect them. We do not enforce
+    a fixed waiting time, and pull requests that can generally be expected
+    not to be contentious can be merged as soon as they have approvals and a
+    passing CI run.
+  * If in doubt, leave the pull request open for at least 48 hours.
+  * If you object to a pull request that has already been merged, open a revert
+    PR. If it has been less then 48 hours since the original PR has been opened,
+    you can merge the revert PR immediately.
   * If a pull request is abandoned, check if they'd mind if you took it over
     (especially if it just has nits left).
 * Approving a change
@@ -205,8 +210,7 @@ needs to be pointed out separately during the onboarding.
     -1`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
-* Label your pull request with the `doc`, `notable-change`, and `fast-track`
-  labels.
+* Label your pull request with the `doc`, `notable-change` labels.
 * Run CI on the PR. Use the `node-test-pull-request` CI task.
 * After two Collaborator approvals for the change and two Collaborator approvals
   for fast-tracking, land the PR.
