@@ -74,7 +74,7 @@ myEmitter.on('event', (a, b) => {
 myEmitter.emit('event', 'a', 'b');
 ```
 
-## Asynchronous vs. Synchronous
+## Asynchronous vs. synchronous
 
 The `EventEmitter` calls all listeners synchronously in the order in which
 they were registered. This ensures the proper sequencing of
@@ -167,7 +167,7 @@ myEmitter.emit('error', new Error('whoops!'));
 // Still throws and crashes Node.js
 ```
 
-## Capture Rejections of Promises
+## Capture rejections of promises
 
 > Stability: 1 - captureRejections is experimental.
 

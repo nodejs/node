@@ -1,4 +1,4 @@
-# Query String
+# Query string
 
 <!--introduced_in=v0.1.25-->
 

@@ -1,4 +1,4 @@
-# Diagnostic Report
+# Diagnostic report
 
 <!--introduced_in=v11.8.0-->
 <!-- type=misc -->
@@ -578,7 +578,7 @@ NODE_OPTIONS="--report-uncaught-exception \
 Specific API documentation can be found under
 [`process API documentation`][] section.
 
-## Interaction with Workers
+## Interaction with workers
 <!-- YAML
 changes:
   - version: v12.16.2
