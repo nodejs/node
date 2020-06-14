@@ -54,7 +54,7 @@ const meowScript = () => 'meow';
     workerData,
     transferList: []
   }), {
-    code: 'ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST',
+    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
     message: 'Object that needs transfer was found in message but not ' +
              'listed in transferList'
   });

@@ -354,9 +354,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       ThrowDataCloneError(env_->clone_unsupported_type_str());
       return Nothing<bool>();
     } else if (mode == BaseObject::TransferMode::kTransferable) {
-      // TODO(addaleax): This message code is too specific. Fix that in a
-      // semver-major follow-up.
-      THROW_ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST(env_);
+      THROW_ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST(env_);
       return Nothing<bool>();
     }
 
