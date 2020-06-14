@@ -732,7 +732,7 @@ ssize_t Http2Session::OnMaxFrameSizePadding(size_t frameLen,
 // quite expensive. This is a potential performance optimization target later.
 ssize_t Http2Session::ConsumeHTTP2Data() {
   CHECK_NOT_NULL(stream_buf_.base);
-  CHECK_LT(stream_buf_offset_, stream_buf_.len);
+  CHECK_LE(stream_buf_offset_, stream_buf_.len);
   size_t read_len = stream_buf_.len - stream_buf_offset_;
 
   // multiple side effects.
@@ -753,11 +753,11 @@ ssize_t Http2Session::ConsumeHTTP2Data() {
     CHECK_GT(ret, 0);
     CHECK_LE(static_cast<size_t>(ret), read_len);
 
-    if (static_cast<size_t>(ret) < read_len) {
-      // Mark the remainder of the data as available for later consumption.
-      stream_buf_offset_ += ret;
-      return ret;
-    }
+    // Mark the remainder of the data as available for later consumption.
+    // Even if all bytes were received, a paused stream may delay the
+    // nghttp2_on_frame_recv_callback which may have an END_STREAM flag.
+    stream_buf_offset_ += ret;
+    return ret;
   }
 
   // We are done processing the current input chunk.
@@ -1093,6 +1093,7 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
   if (session->is_write_in_progress()) {
     CHECK(session->is_reading_stopped());
     session->set_receive_paused();
+    Debug(session, "receive paused");
     return NGHTTP2_ERR_PAUSE;
   }
 
