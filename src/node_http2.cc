@@ -755,7 +755,7 @@ ssize_t Http2Session::ConsumeHTTP2Data() {
     CHECK_GT(ret, 0);
     CHECK_LE(static_cast<size_t>(ret), read_len);
 
-    if (static_cast<size_t>(ret) < read_len) {
+    if (static_cast<size_t>(ret) <= read_len) {
       // Mark the remainder of the data as available for later consumption.
       stream_buf_offset_ += ret;
       return ret;
@@ -1089,12 +1089,6 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
       session->SendPendingData();
     }
   } while (len != 0);
-
-  // If end-stream flag is set, there is nothing more to read
-  if (flags & NGHTTP2_FLAG_END_STREAM) {
-    stream->EmitRead(UV_EOF);
-    return 0;
-  }
 
   // If we are currently waiting for a write operation to finish, we should
   // tell nghttp2 that we want to wait before we process more input data.
