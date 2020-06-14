@@ -52,7 +52,7 @@ Worker 5644 started
 
 On Windows, it is not yet possible to set up a named pipe server in a worker.
 
-## How It Works
+## How it works
 
 <!--type=misc-->
 
@@ -753,7 +753,7 @@ changes:
     `undefined` (inherits from parent process).
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
-    See [Advanced Serialization for `child_process`][] for more details.
+    See [Advanced serialization for `child_process`][] for more details.
     **Default:** `false`.
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`.
@@ -883,5 +883,5 @@ socket.on('data', (id) => {
 [`process` event: `'message'`]: process.html#process_event_message
 [`server.close()`]: net.html#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
-[Advanced Serialization for `child_process`]: child_process.html#child_process_advanced_serialization
+[Advanced serialization for `child_process`]: child_process.html#child_process_advanced_serialization
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options

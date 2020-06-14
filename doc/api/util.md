@@ -763,7 +763,7 @@ ignored, if not supported.
 * `bgCyanBright`
 * `bgWhiteBright`
 
-### Custom inspection functions on Objects
+### Custom inspection functions on objects
 
 <!-- type=misc -->
 
@@ -1054,7 +1054,7 @@ while (buffer = getNextChunkSomehow()) {
 string += decoder.decode(); // end-of-stream
 ```
 
-### WHATWG Supported Encodings
+### WHATWG supported encodings
 
 Per the [WHATWG Encoding Standard][], the encodings supported by the
 `TextDecoder` API are outlined in the tables below. For each encoding,
@@ -1063,7 +1063,7 @@ one or more aliases may be used.
 Different Node.js build configurations support different sets of encodings.
 (see [Internationalization][])
 
-#### Encodings Supported by Default (With Full ICU Data)
+#### Encodings supported by default (with full ICU data)
 
 | Encoding           | Aliases                          |
 | -----------------  | -------------------------------- |
@@ -1102,7 +1102,7 @@ Different Node.js build configurations support different sets of encodings.
 | `'shift_jis'`      | `'csshiftjis'`, `'ms932'`, `'ms_kanji'`, `'shift-jis'`, `'sjis'`, `'windows-31j'`, `'x-sjis'` |
 | `'euc-kr'`         | `'cseuckr'`, `'csksc56011987'`, `'iso-ir-149'`, `'korean'`, `'ks_c_5601-1987'`, `'ks_c_5601-1989'`, `'ksc5601'`, `'ksc_5601'`, `'windows-949'` |
 
-#### Encodings Supported when Node.js is built with the `small-icu` option
+#### Encodings supported when Node.js is built with the `small-icu` option
 
 | Encoding     | Aliases                           |
 | -----------  | --------------------------------- |
@@ -1110,7 +1110,7 @@ Different Node.js build configurations support different sets of encodings.
 | `'utf-16le'` | `'utf-16'`                        |
 | `'utf-16be'` |                                   |
 
-#### Encodings Supported when ICU is disabled
+#### Encodings supported when ICU is disabled
 
 | Encoding     | Aliases                           |
 | -----------  | --------------------------------- |
@@ -2434,7 +2434,7 @@ util.log('Timestamped message.');
 [`util.types.isNativeError()`]: #util_util_types_isnativeerror_value
 [`util.types.isSharedArrayBuffer()`]: #util_util_types_issharedarraybuffer_value
 [Common System Errors]: errors.html#errors_common_system_errors
-[Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
+[Custom inspection functions on objects]: #util_custom_inspection_functions_on_objects
 [Custom promisified functions]: #util_custom_promisified_functions
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [Internationalization]: intl.html

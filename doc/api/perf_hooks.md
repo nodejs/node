@@ -1,4 +1,4 @@
-# Performance Measurement APIs
+# Performance measurement APIs
 
 <!--introduced_in=v8.5.0-->
 

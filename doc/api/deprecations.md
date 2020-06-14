@@ -38,7 +38,7 @@ Occasionally, the deprecation of an API may be reversed. In such situations,
 this document will be updated with information relevant to the decision.
 However, the deprecation identifier will not be modified.
 
-## List of Deprecated APIs
+## List of deprecated APIs
 
 <a id="DEP0001"></a>
 ### DEP0001: `http.OutgoingMessage.prototype.flush`
@@ -1647,7 +1647,7 @@ Type: End-of-Life
 `REPLServer.turnOffEditorMode()` was removed from userland visibility.
 
 <a id="DEP0079"></a>
-### DEP0079: Custom inspection function on Objects via `.inspect()`
+### DEP0079: Custom inspection function on objects via `.inspect()`
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -1775,7 +1775,7 @@ manager, as it is published on the npm registry under the same name. No source
 code modification is necessary if that is done.
 
 <a id="DEP0085"></a>
-### DEP0085: AsyncHooks Sensitive API
+### DEP0085: AsyncHooks sensitive API
 <!-- YAML
 changes:
   - version: 10.0.0
@@ -1790,7 +1790,7 @@ changes:
 
 Type: End-of-Life
 
-The AsyncHooks Sensitive API was never documented and had various minor issues.
+The AsyncHooks sensitive API was never documented and had various minor issues.
 Use the `AsyncResource` API instead. See
 <https://github.com/nodejs/node/issues/15572>.
 
@@ -1954,7 +1954,7 @@ should start using the `async_context` variant of `MakeCallback` or
 `CallbackScope`, or the high-level `AsyncResource` class.
 
 <a id="DEP0098"></a>
-### DEP0098: AsyncHooks Embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
+### DEP0098: AsyncHooks embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1979,7 +1979,7 @@ safer, and more convenient, alternative. See
 <https://github.com/nodejs/node/pull/18513>.
 
 <a id="DEP0099"></a>
-### DEP0099: async context-unaware `node::MakeCallback` C++ APIs
+### DEP0099: Async context-unaware `node::MakeCallback` C++ APIs
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -2336,7 +2336,7 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 [`util.getSystemErrorName()`][] instead.
 
 <a id="DEP0120"></a>
-### DEP0120: Windows Performance Counter Support
+### DEP0120: Windows Performance Counter support
 <!-- YAML
 changes:
   - version: v12.0.0

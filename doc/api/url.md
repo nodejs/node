@@ -11,7 +11,7 @@ accessed using:
 const url = require('url');
 ```
 
-## URL Strings and URL Objects
+## URL strings and URL objects
 
 A URL string is a structured string containing multiple meaningful components.
 When parsed, a URL object is returned containing properties for each of these
@@ -418,7 +418,7 @@ console.log(myURL.href);
 
 Invalid URL protocol values assigned to the `protocol` property are ignored.
 
-##### Special Schemes
+##### Special schemes
 <!-- YAML
 changes:
   - version: REPLACEME
@@ -1294,7 +1294,7 @@ url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
 <a id="whatwg-percent-encoding"></a>
-## Percent-Encoding in URLs
+## Percent-encoding in URLs
 
 URLs are permitted to only contain a certain range of characters. Any character
 falling outside of that range must be encoded. How such characters are encoded,

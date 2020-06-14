@@ -31,7 +31,7 @@ properties:
   `napi_value`.
 * In case of an error status code, additional information can be obtained
   using `napi_get_last_error_info`. More information can be found in the error
-  handling section [Error Handling][].
+  handling section [Error handling][].
 
 The N-API is a C API that ensures ABI stability across Node.js versions
 and different compiler levels. A C++ API can be easier to use.
@@ -78,7 +78,7 @@ it still gets the benefits of the ABI stability provided by the C API.
 When using `node-addon-api` instead of the C APIs, start with the API [docs][]
 for `node-addon-api`.
 
-## Implications of ABI Stability
+## Implications of ABI stability
 
 Although N-API provides an ABI stability guarantee, other parts of Node.js do
 not, and any external libraries used from the addon may not. In particular,
@@ -196,7 +196,7 @@ GitHub projects using CMake.js.
 
 #### prebuildify
 
-[prebuildify][] is tool based on node-gyp. The advantage of prebuildify is
+[prebuildify][] is a tool based on node-gyp. The advantage of prebuildify is
 that the built binaries are bundled with the native module when it's
 uploaded to npm. The binaries are downloaded from npm and are immediately
 available to the module user when the native module is installed.
@@ -233,7 +233,7 @@ opt-in to access those APIs:
 In this case the entire API surface, including any experimental APIs, will be
 available to the module code.
 
-## N-API Version Matrix
+## N-API version matrix
 
 N-API versions are additive and versioned independently from Node.js.
 Version 4 is an extension to version 3 in that it has all of the APIs
@@ -343,7 +343,7 @@ NAPI_MODULE_INIT() {
 }
 ```
 
-## Environment Life Cycle APIs
+## Environment life cycle APIs
 
 > Stability: 1 - Experimental
 
@@ -425,7 +425,7 @@ This API retrieves data that was previously associated with the currently
 running Agent via `napi_set_instance_data()`. If no data is set, the call will
 succeed and `data` will be set to `NULL`.
 
-## Basic N-API Data Types
+## Basic N-API data types
 
 N-API exposes the following fundamental datatypes as abstractions that are
 consumed by the various APIs. These APIs should be treated as opaque,
@@ -492,7 +492,7 @@ typedef struct {
   not implemented for any VM.
 * `error_code`: The N-API status code that originated with the last error.
 
-See the [Error Handling][] section for additional information.
+See the [Error handling][] section for additional information.
 
 ### napi_env
 
@@ -557,7 +557,7 @@ typedef enum {
 } napi_threadsafe_function_call_mode;
 ```
 
-### N-API Memory Management types
+### N-API memory management types
 #### napi_handle_scope
 
 This is an abstraction used to control and modify the lifetime of objects
@@ -575,7 +575,7 @@ using [`napi_close_handle_scope`][]. Closing the scope can indicate to the GC
 that all `napi_value`s created during the lifetime of the handle scope are no
 longer referenced from the current stack frame.
 
-For more details, review the [Object Lifetime Management][].
+For more details, review the [Object lifetime management][].
 
 #### napi_escapable_handle_scope
 <!-- YAML
@@ -594,9 +594,9 @@ This is the abstraction to use to reference a `napi_value`. This allows for
 users to manage the lifetimes of JavaScript values, including defining their
 minimum lifetimes explicitly.
 
-For more details, review the [Object Lifetime Management][].
+For more details, review the [Object lifetime management][].
 
-### N-API Callback types
+### N-API callback types
 #### napi_callback_info
 <!-- YAML
 added: v8.0.0
@@ -713,7 +713,7 @@ typedef void (*napi_threadsafe_function_call_js)(napi_env env,
   This pointer is managed entirely by the threads and this callback. Thus this
   callback should free the data.
 
-## Error Handling
+## Error handling
 
 N-API uses both return values and JavaScript exceptions for error handling.
 The following sections explain the approach for each case.
@@ -1103,7 +1103,7 @@ napi_status napi_fatal_exception(napi_env env, napi_value err);
 Trigger an `'uncaughtException'` in JavaScript. Useful if an async
 callback throws an exception with no way to recover.
 
-### Fatal Errors
+### Fatal errors
 
 In the event of an unrecoverable error in a native module, a fatal error can be
 thrown to immediately terminate the process.
@@ -1132,7 +1132,7 @@ The function call does not return, the process will be terminated.
 
 This API can be called even if there is a pending JavaScript exception.
 
-## Object Lifetime management
+## Object lifetime management
 
 As N-API calls are made, handles to objects in the heap for the underlying
 VM may be returned as `napi_values`. These handles must hold the
@@ -1586,7 +1586,7 @@ napi_value Init(napi_env env, napi_value exports) {
 ```
 
 To define a class so that new instances can be created (often used with
-[Object Wrap][]):
+[Object wrap][]):
 
 ```c
 // NOTE: partial example, not all referenced code is included
@@ -1643,12 +1643,12 @@ The variables `env` and `exports` will be available inside the function body
 following the macro invocation.
 
 For more details on setting properties on objects, see the section on
-[Working with JavaScript Properties][].
+[Working with JavaScript properties][].
 
 For more details on building addon modules in general, refer to the existing
 API.
 
-## Working with JavaScript Values
+## Working with JavaScript values
 N-API exposes a set of APIs to create all types of JavaScript values.
 Some of these types are documented under [Section 6][]
 of the [ECMAScript Language Specification][].
@@ -1781,7 +1781,7 @@ This represents the underlying binary scalar datatype of the `TypedArray`.
 Elements of this enum correspond to
 [Section 22.2][] of the [ECMAScript Language Specification][].
 
-### Object Creation Functions
+### Object creation functions
 #### napi_create_array
 <!-- YAML
 added: v8.0.0
@@ -3010,7 +3010,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns the Undefined object.
 
-## Working with JavaScript Values and Abstract Operations
+## Working with JavaScript values and abstract operations
 
 N-API exposes a set of APIs to perform some abstract operations on JavaScript
 values. Some of these operations are documented under [Section 7][]
@@ -3369,7 +3369,7 @@ This API represents the invocation of the `ArrayBuffer` `IsDetachedBuffer`
 operation as defined in [Section 24.1.1.2][] of the ECMAScript Language
 Specification.
 
-## Working with JavaScript Properties
+## Working with JavaScript properties
 
 N-API exposes a set of APIs to get and set properties on JavaScript
 objects. Some of these types are documented under [Section 7][] of the
@@ -3945,7 +3945,7 @@ this API will set the properties on the object one at a time, as defined by
 `DefineOwnProperty()` (described in [Section 9.1.6][] of the ECMA-262
 specification).
 
-## Working with JavaScript Functions
+## Working with JavaScript functions
 
 N-API provides a set of APIs that allow JavaScript code to
 call back into native code. N-API APIs that support calling back
@@ -4232,7 +4232,7 @@ status = napi_new_instance(env, constructor, argc, argv, &value);
 
 Returns `napi_ok` if the API succeeded.
 
-## Object Wrap
+## Object wrap
 
 N-API offers a way to "wrap" C++ classes and instances so that the class
 constructor and methods can be called from JavaScript.
@@ -4486,7 +4486,7 @@ invocation. If it is deleted before then, then the finalize callback may never
 be invoked. Therefore, when obtaining a reference a finalize callback is also
 required in order to enable correct disposal of the reference.
 
-## Simple Asynchronous Operations
+## Simple asynchronous operations
 
 Addon modules often need to leverage async helpers from libuv as part of their
 implementation. This allows them to schedule work to be executed asynchronously
@@ -4655,7 +4655,7 @@ callback invocation, even if it has been successfully cancelled.
 
 This API can be called even if there is a pending JavaScript exception.
 
-## Custom Asynchronous Operations
+## Custom asynchronous operations
 
 The simple asynchronous work APIs above may not be appropriate for every
 scenario. When using any other asynchronous mechanism, the following APIs
@@ -4801,7 +4801,7 @@ NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
 
 This API can be called even if there is a pending JavaScript exception.
 
-## Version Management
+## Version management
 
 ### napi_get_node_version
 <!-- YAML
@@ -4862,7 +4862,7 @@ support it:
 * If the function is not available, provide an alternate implementation
   that does not use the function.
 
-## Memory Management
+## Memory management
 
 ### napi_adjust_external_memory
 <!-- YAML
@@ -5089,7 +5089,7 @@ NAPI_EXTERN napi_status napi_get_uv_event_loop(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[out] loop`: The current libuv loop instance.
 
-## Asynchronous Thread-safe Function Calls
+## Asynchronous thread-safe function calls
 
 JavaScript functions can normally only be called from a native addon's main
 thread. If an addon creates additional threads, then N-API functions that
@@ -5409,14 +5409,14 @@ This API may only be called from the main thread.
 [CMake.js]: https://github.com/cmake-js/cmake-js
 [CMake]: https://cmake.org
 [ECMAScript Language Specification]: https://tc39.github.io/ecma262/
-[Error Handling]: #n_api_error_handling
+[Error handling]: #n_api_error_handling
 [GCC]: https://gcc.gnu.org
 [GYP]: https://gyp.gsrc.io
 [GitHub releases]: https://help.github.com/en/github/administering-a-repository/about-releases
 [LLVM]: https://llvm.org
 [Native Abstractions for Node.js]: https://github.com/nodejs/nan
-[Object Lifetime Management]: #n_api_object_lifetime_management
-[Object Wrap]: #n_api_object_wrap
+[Object lifetime management]: #n_api_object_lifetime_management
+[Object wrap]: #n_api_object_wrap
 [Section 12.10.4]: https://tc39.github.io/ecma262/#sec-instanceofoperator
 [Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
 [Section 19.2]: https://tc39.github.io/ecma262/#sec-function-objects
@@ -5446,7 +5446,7 @@ This API may only be called from the main thread.
 [Section 24.1.1.2]: https://tc39.es/ecma262/#sec-isdetachedbuffer
 [Travis CI]: https://travis-ci.org
 [Visual Studio]: https://visualstudio.microsoft.com
-[Working with JavaScript Properties]: #n_api_working_with_javascript_properties
+[Working with JavaScript properties]: #n_api_working_with_javascript_properties
 [Xcode]: https://developer.apple.com/xcode/
 [`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
 [`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer

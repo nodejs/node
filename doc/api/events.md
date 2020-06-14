@@ -74,7 +74,7 @@ myEmitter.on('event', (a, b) => {
 myEmitter.emit('event', 'a', 'b');
 ```
 
-## Asynchronous vs. Synchronous
+## Asynchronous vs. synchronous
 
 The `EventEmitter` calls all listeners synchronously in the order in which
 they were registered. This ensures the proper sequencing of
@@ -167,7 +167,7 @@ myEmitter.emit('error', new Error('whoops!'));
 // Still throws and crashes Node.js
 ```
 
-## Capture Rejections of Promises
+## Capture rejections of promises
 
 > Stability: 1 - captureRejections is experimental.
 
@@ -968,7 +968,7 @@ There are two key differences between the Node.js `EventTarget` and the
 2. In the Node.js `EventTarget`, if an event listener is an async function
    or returns a `Promise`, and the returned `Promise` rejects, the rejection
    will be automatically captured and handled the same way as a listener that
-   throws synchronously (see [`EventTarget` Error Handling][] for details).
+   throws synchronously (see [`EventTarget` error handling][] for details).
 
 ### `NodeEventTarget` vs. `EventEmitter`
 
@@ -990,7 +990,7 @@ and cannot be used in place of an `EventEmitter` in most cases.
 3. The `NodeEventTarget` supports `EventListener` objects as well as
    functions as handlers for all event types.
 
-### Event Listener
+### Event listener
 
 Event listeners registered for an event `type` may either be JavaScript
 functions or objects with a `handleEvent` property whose value is a function.
@@ -1000,7 +1000,7 @@ passed to the `eventTarget.dispatchEvent()` function.
 
 Async functions may be used as event listeners. If an async handler function
 rejects, the rejection will be captured and be will handled as described in
-[`EventTarget` Error Handling][].
+[`EventTarget` error handling][].
 
 An error thrown by one handler function will not prevent the other handlers
 from being invoked.
@@ -1042,7 +1042,7 @@ target.addEventListener('foo', handler3);
 target.addEventListener('foo', handler4, { once: true });
 ```
 
-### `EventTarget` Error Handling
+### `EventTarget` error handling
 
 When a registered event listener throws (or returns a Promise that rejects),
 by default the error will be forwarded to the `process.on('error')` event
@@ -1401,7 +1401,7 @@ to the `EventTarget`.
 [`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
-[`EventTarget` Error Handling]: #events_eventtarget_error_handling
+[`EventTarget` error handling]: #events_eventtarget_error_handling
 [`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server

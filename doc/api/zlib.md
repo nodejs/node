@@ -93,7 +93,7 @@ do_unzip(buffer)
   });
 ```
 
-## Threadpool Usage and Performance Considerations
+## Threadpool usage and performance considerations
 
 All `zlib` APIs, except those that are explicitly synchronous, use the Node.js
 internal threadpool. This can lead to surprising effects and performance
@@ -133,7 +133,7 @@ message.
 
 The examples given below are drastically simplified to show the basic concept.
 Using `zlib` encoding can be expensive, and the results ought to be cached.
-See [Memory Usage Tuning][] for more information on the speed/memory/compression
+See [Memory usage tuning][] for more information on the speed/memory/compression
 tradeoffs involved in `zlib` usage.
 
 ```js
@@ -252,7 +252,7 @@ possible to determine whether the input ended prematurely or lacks the
 integrity checks, making it necessary to manually check that the
 decompressed result is valid.
 
-## Memory Usage Tuning
+## Memory usage tuning
 
 <!--type=misc-->
 
@@ -837,7 +837,7 @@ added: v0.5.8
 
 Creates and returns a new [`Unzip`][] object.
 
-## Convenience Methods
+## Convenience methods
 
 <!--type=misc-->
 
@@ -1186,7 +1186,7 @@ Decompress a chunk of data with [`Unzip`][].
 [`stream.Transform`]: stream.html#stream_class_stream_transform
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [Brotli parameters]: #zlib_brotli_constants
-[Memory Usage Tuning]: #zlib_memory_usage_tuning
+[Memory usage tuning]: #zlib_memory_usage_tuning
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
 [Streams API]: stream.md
 [convenience methods]: #zlib_convenience_methods

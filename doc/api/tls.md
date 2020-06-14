@@ -12,7 +12,7 @@ The module can be accessed using:
 const tls = require('tls');
 ```
 
-## TLS/SSL Concepts
+## TLS/SSL concepts
 
 The TLS/SSL is a public/private key infrastructure (PKI). For most common
 cases, each client and server must have a *private key*.
@@ -64,11 +64,11 @@ Where:
 * `certfile`: is a concatenation of all Certificate Authority (CA) certs into
    a single file, e.g. `cat ca1-cert.pem ca2-cert.pem > ca-cert.pem`
 
-### Perfect Forward Secrecy
+### Perfect forward secrecy
 
 <!-- type=misc -->
 
-The term "[Forward Secrecy][]" or "Perfect Forward Secrecy" describes a feature
+The term _[forward secrecy][]_ or _perfect forward secrecy_ describes a feature
 of key-agreement (i.e., key-exchange) methods. That is, the server and client
 keys are used to negotiate new temporary keys that are used specifically and
 only for the current communication session. Practically, this means that even
@@ -76,11 +76,11 @@ if the server's private key is compromised, communication can only be decrypted
 by eavesdroppers if the attacker manages to obtain the key-pair specifically
 generated for the session.
 
-Perfect Forward Secrecy is achieved by randomly generating a key pair for
+Perfect forward secrecy is achieved by randomly generating a key pair for
 key-agreement on every TLS/SSL handshake (in contrast to using the same key for
 all sessions). Methods implementing this technique are called "ephemeral".
 
-Currently two methods are commonly used to achieve Perfect Forward Secrecy (note
+Currently two methods are commonly used to achieve perfect forward secrecy (note
 the character "E" appended to the traditional abbreviations):
 
 * [DHE][]: An ephemeral version of the Diffie Hellman key-agreement protocol.
@@ -90,7 +90,7 @@ the character "E" appended to the traditional abbreviations):
 Ephemeral methods may have some performance drawbacks, because key generation
 is expensive.
 
-To use Perfect Forward Secrecy using `DHE` with the `tls` module, it is required
+To use perfect forward secrecy using `DHE` with the `tls` module, it is required
 to generate Diffie-Hellman parameters and specify them with the `dhparam`
 option to [`tls.createSecureContext()`][]. The following illustrates the use of
 the OpenSSL command-line interface to generate such parameters:
@@ -99,12 +99,12 @@ the OpenSSL command-line interface to generate such parameters:
 openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
-If using Perfect Forward Secrecy using `ECDHE`, Diffie-Hellman parameters are
+If using perfect forward secrecy using `ECDHE`, Diffie-Hellman parameters are
 not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`][] for more info.
 
-Perfect Forward Secrecy was optional up to TLSv1.2, but it is not optional for
+Perfect forward secrecy was optional up to TLSv1.2, but it is not optional for
 TLSv1.3, because all TLSv1.3 cipher suites use ECDHE.
 
 ### ALPN and SNI
@@ -175,13 +175,15 @@ understanding of the implications and risks.
 
 TLSv1.3 does not support renegotiation.
 
-### Session Resumption
+### Session resumption
 
 Establishing a TLS session can be relatively slow. The process can be sped
 up by saving and later reusing the session state. There are several mechanisms
 to do so, discussed here from oldest to newest (and preferred).
 
-***Session Identifiers*** Servers generate a unique ID for new connections and
+#### Session identifiers
+
+Servers generate a unique ID for new connections and
 send it to the client. Clients and servers save the session state. When
 reconnecting, clients send the ID of their saved session state and if the server
 also has the state for that ID, it can agree to use it. Otherwise, the server
@@ -200,7 +202,9 @@ reuse sessions. To reuse sessions across load balancers or cluster workers,
 servers must use a shared session cache (such as Redis) in their session
 handlers.
 
-***Session Tickets*** The servers encrypt the entire session state and send it
+#### Session tickets
+
+The servers encrypt the entire session state and send it
 to the client as a "ticket". When reconnecting, the state is sent to the server
 in the initial connection. This mechanism avoids the need for server-side
 session cache. If the server doesn't use the ticket, for any reason (failure
@@ -267,7 +271,7 @@ Subsequent connections should say "Reused", for example:
 Reused, TLSv1.2, Cipher is ECDHE-RSA-AES128-GCM-SHA256
 ```
 
-## Modifying the Default TLS Cipher suite
+## Modifying the default TLS cipher suite
 
 Node.js is built with a default suite of enabled and disabled TLS ciphers. This
 default cipher list can be configured when building Node.js to allow
@@ -340,8 +344,8 @@ of an application. The `--tls-cipher-list` switch and `ciphers` option should by
 used only if absolutely necessary.
 
 The default cipher suite prefers GCM ciphers for [Chrome's 'modern
-cryptography' setting][] and also prefers ECDHE and DHE ciphers for Perfect
-Forward Secrecy, while offering *some* backward compatibility.
+cryptography' setting][] and also prefers ECDHE and DHE ciphers for perfect
+forward secrecy, while offering *some* backward compatibility.
 
 128 bit AES is preferred over 192 and 256 bit AES in light of [specific
 attacks affecting larger AES key sizes][].
@@ -892,7 +896,7 @@ added: v5.0.0
 * Returns: {Object}
 
 Returns an object representing the type, name, and size of parameter of
-an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
+an ephemeral key exchange in [perfect forward secrecy][] on a client
 connection. It returns an empty object when the key exchange is not
 ephemeral. As this is only supported on a client socket; `null` is returned
 if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
@@ -934,7 +938,7 @@ If the full certificate chain was requested, each certificate will include an
 `issuerCertificate` property containing an object representing its issuer's
 certificate.
 
-#### Certificate Object
+#### Certificate object
 <!-- YAML
 changes:
   - version: v11.4.0
@@ -1551,7 +1555,7 @@ changes:
   * `crl` {string|string[]|Buffer|Buffer[]} PEM formatted CRLs (Certificate
     Revocation Lists).
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
-    [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
+    [perfect forward secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits or else an error
     will be thrown. Although 1024 bits is permissible, use 2048 bits or larger
     for stronger security. If omitted or invalid, the parameters are silently
@@ -1976,11 +1980,11 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
+[forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
-[Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
+[perfect forward secrecy]: #tls_perfect_forward_secrecy
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929

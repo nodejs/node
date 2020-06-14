@@ -1,4 +1,4 @@
-# C++ Addons
+# C++ addons
 
 <!--introduced_in=v0.10.0-->
 <!-- type=misc -->
@@ -395,7 +395,7 @@ only the symbols exported by Node.js will be available.
 source image. Using this option, the Addon will have access to the full set of
 dependencies.
 
-### Loading Addons using `require()`
+### Loading addons using `require()`
 
 The filename extension of the compiled Addon binary is `.node` (as opposed
 to `.dll` or `.so`). The [`require()`][require] function is written to look for
@@ -410,7 +410,7 @@ there is a file `addon.js` in the same directory as the binary `addon.node`,
 then [`require('addon')`][require] will give precedence to the `addon.js` file
 and load it instead.
 
-## Native Abstractions for Node.js
+## Native abstractions for Node.js
 
 Each of the examples illustrated in this document make direct use of the
 Node.js and V8 APIs for implementing Addons. The V8 API can, and has, changed
