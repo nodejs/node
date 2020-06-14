@@ -10,6 +10,13 @@ const expectedRelative = 'The requested module \'./fail.cjs\' is expected to ' +
   'import pkg from \'./fail.cjs\';\n' +
   'const { comeOn } = pkg;';
 
+const expectedRenamed = 'The requested module \'./fail.cjs\' is expected to ' +
+  'be of type CommonJS, which does not support named exports. CommonJS ' +
+  'modules can be imported by importing the default export.\n' +
+  'For example:\n' +
+  'import pkg from \'./fail.cjs\';\n' +
+  'const { comeOn: comeOnRenamed } = pkg;';
+
 const expectedPackageHack = 'The requested module \'./json-hack/fail.js\' is ' +
   'expected to be of type CommonJS, which does not support named exports. ' +
   'CommonJS modules can be imported by importing the default export.\n' +
@@ -37,6 +44,13 @@ rejects(async () => {
   name: 'SyntaxError',
   message: expectedRelative
 }, 'should support relative specifiers with double quotes');
+
+rejects(async () => {
+  await import(`${fixtureBase}/renamed-import.mjs`);
+}, {
+  name: 'SyntaxError',
+  message: expectedRenamed
+}, 'should correctly format named imports with renames');
 
 rejects(async () => {
   await import(`${fixtureBase}/json-hack.mjs`);
