@@ -1,4 +1,4 @@
-# UDP/Datagram Sockets
+# UDP/datagram sockets
 
 <!--introduced_in=v0.10.0-->
 
@@ -6,7 +6,7 @@
 
 <!-- name=dgram -->
 
-The `dgram` module provides an implementation of UDP Datagram sockets.
+The `dgram` module provides an implementation of UDP datagram sockets.
 
 ```js
 const dgram = require('dgram');
@@ -550,7 +550,7 @@ also use explicit scope in addresses, so only packets sent to a multicast
 address without specifying an explicit scope are affected by the most recent
 successful use of this call.
 
-#### Examples: IPv6 Outgoing Multicast Interface
+#### Example: IPv6 outgoing multicast interface
 
 On most systems, where scope format uses the interface name:
 
@@ -572,7 +572,7 @@ socket.bind(1234, () => {
 });
 ```
 
-#### Example: IPv4 Outgoing Multicast Interface
+#### Example: IPv4 outgoing multicast interface
 All systems use an IP of the host on the desired physical interface:
 
 ```js
@@ -583,7 +583,7 @@ socket.bind(1234, () => {
 });
 ```
 
-#### Call Results
+#### Call results
 
 A call on a socket that is not ready to send or no longer open may throw a *Not
 running* [`Error`][].
