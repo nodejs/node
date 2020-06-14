@@ -5122,7 +5122,9 @@ The `context` given during the call to `napi_create_threadsafe_function()` can
 be retrieved from any thread with a call to
 `napi_get_threadsafe_function_context()`.
 
-`napi_call_threadsafe_function()` can then be used for initiating a call into
+### Calling a thread-safe function
+
+`napi_call_threadsafe_function()` can be used for initiating a call into
 JavaScript. `napi_call_threadsafe_function()` accepts a parameter which controls
 whether the API behaves blockingly. If set to `napi_tsfn_nonblocking`, the API
 behaves non-blockingly, returning `napi_queue_full` if the queue was full,
@@ -5154,6 +5156,8 @@ Node.js process exits while there is a thread-safe function still active.
 It is not necessary to call into JavaScript via `napi_make_callback()` because
 N-API runs `call_js_cb` in a context appropriate for callbacks.
 
+### Reference counting of thread-safe functions
+
 Threads can be added to and removed from a `napi_threadsafe_function` object
 during its existence. Thus, in addition to specifying an initial number of
 threads upon creation, `napi_acquire_threadsafe_function` can be called to
@@ -5173,7 +5177,10 @@ reason, do not make use of a thread-safe function
 after receiving a return value of `napi_closing` in response to a call to
 `napi_call_threadsafe_function`. Data associated with the
 `napi_threadsafe_function` can be freed in its `napi_finalize` callback which
-was passed to `napi_create_threadsafe_function()`.
+was passed to `napi_create_threadsafe_function()`. The parameter
+`initial_thread_count` of `napi_create_threadsafe_function` marks the initial
+number of aquisitions of the thread-safe functions, instead of calling
+`napi_acquire_threadsafe_function` multiple times at creation.
 
 Once the number of threads making use of a `napi_threadsafe_function` reaches
 zero, no further threads can start making use of it by calling
@@ -5193,12 +5200,18 @@ of `napi_closing` from `napi_call_threadsafe_function()` a thread must make no
 further use of the thread-safe function because it is no longer guaranteed to
 be allocated.**
 
+### Deciding whether to keep the process running
+
 Similarly to libuv handles, thread-safe functions can be "referenced" and
 "unreferenced". A "referenced" thread-safe function will cause the event loop on
 the thread on which it is created to remain alive until the thread-safe function
 is destroyed. In contrast, an "unreferenced" thread-safe function will not
 prevent the event loop from exiting. The APIs `napi_ref_threadsafe_function` and
 `napi_unref_threadsafe_function` exist for this purpose.
+
+Neither does `napi_unref_threadsafe_function` mark the thread-safe functions as
+able to be destroyed nor does `napi_ref_threadsafe_function` prevent it from
+being destroyed.
 
 ### napi_create_threadsafe_function
 
@@ -5237,8 +5250,9 @@ napi_create_threadsafe_function(napi_env env,
   the kind of resource that is being provided for diagnostic information exposed
   by the `async_hooks` API.
 * `[in] max_queue_size`: Maximum size of the queue. `0` for no limit.
-* `[in] initial_thread_count`: The initial number of threads, including the main
-  thread, which will be making use of this function.
+* `[in] initial_thread_count`: The initial number of acquisitions, i.e. the
+  initial number of threads, including the main thread, which will be making use
+  of this function.
 * `[in] thread_finalize_data`: Optional data to be passed to `thread_finalize_cb`.
 * `[in] thread_finalize_cb`: Optional function to call when the
   `napi_threadsafe_function` is being destroyed.
@@ -5379,6 +5393,11 @@ napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 This API is used to indicate that the event loop running on the main thread
 should not exit until `func` has been destroyed. Similar to [`uv_ref`][] it is
 also idempotent.
+
+Neither does `napi_unref_threadsafe_function` mark the thread-safe functions as
+able to be destroyed nor does `napi_ref_threadsafe_function` prevent it from
+being destroyed. `napi_acquire_threadsafe_function` and
+`napi_release_threadsafe_function` are available for that purpose.
 
 This API may only be called from the main thread.
 
