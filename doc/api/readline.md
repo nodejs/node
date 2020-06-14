@@ -536,7 +536,7 @@ the best compatibility if it defines an `output.columns` property and emits
 a `'resize'` event on the `output` if or when the columns ever change
 ([`process.stdout`][] does this automatically when it is a TTY).
 
-### Use of the `completer` Function
+### Use of the `completer` function
 
 The `completer` function takes the current line entered by the user
 as an argument, and returns an `Array` with 2 entries:
@@ -661,7 +661,7 @@ rl.on('line', (line) => {
 });
 ```
 
-## Example: Read File Stream Line-by-Line
+## Example: Read file stream line-by-Line
 
 A common use case for `readline` is to consume an input file one line at a
 time. The easiest way to do so is leveraging the [`fs.ReadStream`][] API as

@@ -1,4 +1,4 @@
-# Worker Threads
+# Worker threads
 
 <!--introduced_in=v10.5.0-->
 

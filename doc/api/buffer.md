@@ -53,7 +53,7 @@ const buf6 = Buffer.from('tést');
 const buf7 = Buffer.from('tést', 'latin1');
 ```
 
-## Buffers and Character Encodings
+## Buffers and character encodings
 <!-- YAML
 changes:
   - version: v6.4.0
@@ -2640,7 +2640,7 @@ deprecated: v6.0.0
 
 See [`Buffer.allocUnsafeSlow()`][].
 
-## Buffer Constants
+## Buffer constants
 <!-- YAML
 added: v8.2.0
 -->

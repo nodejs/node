@@ -1,4 +1,4 @@
-# ECMAScript Modules
+# ECMAScript modules
 
 <!--introduced_in=v8.5.0-->
 <!-- type=misc -->
@@ -121,7 +121,7 @@ files in the package should be interpreted.
 Regardless of the value of the `"type"` field, `.mjs` files are always treated
 as ES modules and `.cjs` files are always treated as CommonJS.
 
-### Package Scope and File Extensions
+### Package scope and file extensions
 
 A folder containing a `package.json` file, and all subfolders below that folder
 down until the next folder containing another `package.json`, is considered a
@@ -196,7 +196,7 @@ unspecified.
 
 ## Packages
 
-### Package Entry Points
+### Package entry points
 
 In a package’s `package.json` file, two fields can define entry points for a
 package: `"main"` and `"exports"`. The `"main"` field is supported in all
@@ -216,7 +216,7 @@ CommonJS; `"main"` will be overridden by `"exports"` if it exists. As such
 fallback for legacy versions of Node.js that do not support the `"exports"`
 field.
 
-[Conditional Exports][] can be used within `"exports"` to define different
+[Conditional exports][] can be used within `"exports"` to define different
 package entry points per environment, including whether the package is
 referenced via `require` or via `import`. For more information about supporting
 both CommonJS and ES Modules in a single package please consult
@@ -274,7 +274,7 @@ will encapsulation be lost but module consumers will be unable to
 `import feature from 'my-mod/feature'` as they will need to provide the full
 path `import feature from 'my-mod/feature/index.js`.
 
-#### Main Entry Point Export
+#### Main entry point export
 
 To set the main entry point for a package, it is advisable to define both
 `"exports"` and `"main"` in the package’s `package.json` file:
@@ -298,7 +298,7 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-#### Subpath Exports
+#### Subpath exports
 
 When using the `"exports"` field, custom subpaths can be defined along
 with the main entry point by treating the main entry point as the
@@ -355,7 +355,7 @@ module inside the subfolder. Any modules which are not public
 should be moved to another folder to retain the encapsulation
 benefits of exports.
 
-#### Package Exports Fallbacks
+#### Package exports fallbacks
 
 For possible new specifier support in future, array fallbacks are
 supported for all invalid specifiers:
@@ -372,7 +372,7 @@ supported for all invalid specifiers:
 Since `"not:valid"` is not a valid specifier, `"./submodule.js"` is used
 instead as the fallback, as if it were the only target.
 
-#### Exports Sugar
+#### Exports sugar
 
 If the `"."` export is the only export, the `"exports"` field provides sugar
 for this case being the direct `"exports"` field value.
@@ -398,7 +398,7 @@ can be written:
 }
 ```
 
-#### Conditional Exports
+#### Conditional exports
 
 Conditional exports provide a way to map to different paths depending on
 certain conditions. They are supported for both CommonJS and ES module imports.
@@ -536,7 +536,7 @@ and in a CommonJS one. For example, this code will also work:
 const { something } = require('a-package/foo'); // Loads from ./foo.js.
 ```
 
-### Dual CommonJS/ES Module Packages
+### Dual CommonJS/ES module packages
 
 Prior to the introduction of support for ES modules in Node.js, it was a common
 pattern for package authors to include both CommonJS and ES module JavaScript
@@ -549,12 +549,12 @@ ignores) the top-level `"module"` field.
 Node.js can now run ES module entry points, and a package can contain both
 CommonJS and ES module entry points (either via separate specifiers such as
 `'pkg'` and `'pkg/es-module'`, or both at the same specifier via [Conditional
-Exports][]). Unlike in the scenario where `"module"` is only used by bundlers,
+exports][]). Unlike in the scenario where `"module"` is only used by bundlers,
 or ES module files are transpiled into CommonJS on the fly before evaluation by
 Node.js, the files referenced by the ES module entry point are evaluated as ES
 modules.
 
-#### Dual Package Hazard
+#### Dual package hazard
 
 When an application is using a package that provides both CommonJS and ES module
 sources, there is a risk of certain bugs if both versions of the package get
@@ -577,7 +577,7 @@ all-CommonJS or all-ES module environments, respectively, and therefore is
 surprising to users. It also differs from the behavior users are familiar with
 when using transpilation via tools like [Babel][] or [`esm`][].
 
-#### Writing Dual Packages While Avoiding or Minimizing Hazards
+#### Writing dual packages while avoiding or minimizing hazards
 
 First, the hazard described in the previous section occurs when a package
 contains both CommonJS and ES module sources and both sources are provided for
@@ -607,11 +607,11 @@ following conditions:
    browsers.
 1. The hazards described in the previous section are avoided or minimized.
 
-##### Approach #1: Use an ES Module Wrapper
+##### Approach #1: Use an ES module wrapper
 
 Write the package in CommonJS or transpile ES module sources into CommonJS, and
 create an ES module wrapper file that defines the named exports. Using
-[Conditional Exports][], the ES module wrapper is used for `import` and the
+[Conditional exports][], the ES module wrapper is used for `import` and the
 CommonJS entry point for `require`.
 
 <!-- eslint-skip -->
@@ -689,7 +689,7 @@ stateless):
 }
 ```
 
-##### Approach #2: Isolate State
+##### Approach #2: Isolate state
 
 A `package.json` file can define the separate CommonJS and ES module entry
 points directly:
@@ -859,7 +859,7 @@ property:
 
 * `url` {string} The absolute `file:` URL of the module.
 
-## Differences Between ES Modules and CommonJS
+## Differences between ES modules and CommonJS
 
 ### Mandatory file extensions
 
@@ -955,7 +955,7 @@ To include an ES module into CommonJS, use [`import()`][].
 ### `import` statements
 
 An `import` statement can reference an ES module or a CommonJS module. Other
-file types such as JSON or Native modules are not supported. For those, use
+file types such as JSON or native modules are not supported. For those, use
 [`module.createRequire()`][].
 
 `import` statements are permitted only in ES modules. For similar functionality
@@ -991,9 +991,9 @@ It is also possible to
 [Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be
 used to include ES module files from CommonJS code.
 
-## CommonJS, JSON, and Native Modules
+## CommonJS, JSON, and native modules
 
-CommonJS, JSON, and Native modules can be used with
+CommonJS, JSON, and native modules can be used with
 [`module.createRequire()`][].
 
 ```js
@@ -1043,7 +1043,7 @@ syncBuiltinESMExports();
 fs.readFileSync === readFileSync;
 ```
 
-## Experimental JSON Modules
+## Experimental JSON modules
 
 Currently importing JSON modules are only supported in the `commonjs` mode
 and are loaded using the CJS loader. [WHATWG JSON modules specification][] are
@@ -1073,7 +1073,7 @@ node index.mjs # fails
 node --experimental-json-modules index.mjs # works
 ```
 
-## Experimental Wasm Modules
+## Experimental Wasm modules
 
 Importing Web Assembly modules is supported under the
 `--experimental-wasm-modules` flag, allowing any `.wasm` files to be
@@ -1097,7 +1097,7 @@ node --experimental-wasm-modules index.mjs
 
 would provide the exports interface for the instantiation of `module.wasm`.
 
-## Experimental Top-Level `await`
+## Experimental top-level `await`
 
 When the `--experimental-top-level-await` flag is provided, `await` may be used
 in the top level (outside of async functions) within modules. This implements
@@ -1123,7 +1123,7 @@ node b.mjs # fails
 node --experimental-top-level-await b.mjs # works
 ```
 
-## Experimental Loaders
+## Experimental loaders
 
 **Note: This API is currently being redesigned and will still change.**
 
@@ -1148,11 +1148,11 @@ and parent URL. The module specifier is the string in an `import` statement or
 this one, or `undefined` if this is the main entry point for the application.
 
 The `conditions` property on the `context` is an array of conditions for
-[Conditional Exports][] that apply to this resolution request. They can be used
+[Conditional exports][] that apply to this resolution request. They can be used
 for looking up conditional mappings elsewhere or to modify the list when calling
 the default resolution logic.
 
-The [current set of Node.js default conditions][Conditional Exports] will always
+The [current set of Node.js default conditions][Conditional exports] will always
 be in the `context.conditions` list passed to the hook. If the hook wants to
 ensure Node.js-compatible resolution logic, all items from this default
 condition list **must** be passed through to the `defaultResolve` function.
@@ -1512,7 +1512,7 @@ loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
 loaded file.
 
-## Resolution Algorithm
+## Resolution algorithm
 
 ### Features
 
@@ -1525,7 +1525,7 @@ The resolver has the following properties:
 * No folder mains
 * Bare specifier package resolution lookup through node_modules
 
-### Resolver Algorithm
+### Resolver algorithm
 
 The algorithm to load an ES module specifier is given through the
 **ESM_RESOLVE** method below. It returns the resolved URL for a
@@ -1797,7 +1797,7 @@ success!
 
 [Babel]: https://babeljs.io/
 [CommonJS]: modules.html
-[Conditional Exports]: #esm_conditional_exports
+[Conditional exports]: #esm_conditional_exports
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
