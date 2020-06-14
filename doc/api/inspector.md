@@ -188,7 +188,7 @@ to the run-time events.
 Apart from the debugger, various V8 Profilers are available through the DevTools
 protocol.
 
-### CPU Profiler
+### CPU profiler
 
 Here's an example showing how to use the [CPU Profiler][]:
 
@@ -213,7 +213,7 @@ session.post('Profiler.enable', () => {
 });
 ```
 
-### Heap Profiler
+### Heap profiler
 
 Here's an example showing how to use the [Heap Profiler][]:
 

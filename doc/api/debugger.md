@@ -168,9 +168,9 @@ breakpoint)
 * `scripts`: List all loaded scripts
 * `version`: Display V8's version
 
-## Advanced Usage
+## Advanced usage
 
-### V8 Inspector Integration for Node.js
+### V8 inspector integration for Node.js
 
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
 instances for debugging and profiling. It uses the
@@ -196,10 +196,10 @@ debugging sessions.)
 If the Chrome browser is older than 66.0.3345.0,
 use `inspector.html` instead of `js_app.html` in the above URL.
 
-Chrome DevTools doesn't support debugging [Worker Threads][] yet.
+Chrome DevTools doesn't support debugging [worker threads][] yet.
 [ndb][] can be used to debug them.
 
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [V8 Inspector]: #debugger_v8_inspector_integration_for_node_js
-[Worker Threads]: worker_threads.html
+[worker threads]: worker_threads.html
 [ndb]: https://github.com/GoogleChromeLabs/ndb/
