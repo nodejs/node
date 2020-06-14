@@ -1089,6 +1089,12 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
       session->SendPendingData();
     }
   } while (len != 0);
+  
+  // If end-stream flag is set, there is nothing more to read
+  if (flags & NGHTTP2_FLAG_END_STREAM) {
+    stream->EmitRead(UV_EOF);
+    return 0;
+  }
 
   // If we are currently waiting for a write operation to finish, we should
   // tell nghttp2 that we want to wait before we process more input data.
