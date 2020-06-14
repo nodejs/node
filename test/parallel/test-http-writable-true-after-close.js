@@ -4,16 +4,13 @@ const common = require('../common');
 const assert = require('assert');
 const { get, createServer } = require('http');
 
-// res.writable should not be set to false after it has finished sending
-// Ref: https://github.com/nodejs/node/issues/15029
-
 let internal;
 let external;
 
 // Proxy server
 const server = createServer(common.mustCall((req, res) => {
   const listener = common.mustCall(() => {
-    assert.strictEqual(res.writable, true);
+    assert.strictEqual(res.writable, false);
   });
 
   // on CentOS 5, 'finish' is emitted
