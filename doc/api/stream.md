@@ -2734,15 +2734,19 @@ const myTransform = new Transform({
 });
 ```
 
-#### Events: `'finish'` and `'end'`
+#### Event: `'end'`
 
-The [`'finish'`][] and [`'end'`][] events are from the `stream.Writable`
-and `stream.Readable` classes, respectively. The `'finish'` event is emitted
-after [`stream.end()`][stream-end] is called and all chunks have been processed
-by [`stream._transform()`][stream-_transform]. The `'end'` event is emitted
-after all data has been output, which occurs after the callback in
+The [`'end'`][] event is from the `stream.Readable` class. The `'end'` event is
+emitted after all data has been output, which occurs after the callback in
 [`transform._flush()`][stream-_flush] has been called. In the case of an error,
-neither `'finish'` nor `'end'` should be emitted.
+`'end'` should not be emitted.
+
+#### Event: `'finish'`
+
+The [`'finish'`][] event is from the `stream.Writable` class. The `'finish'`
+event is emitted after [`stream.end()`][stream-end] is called and all chunks
+have been processed by [`stream._transform()`][stream-_transform]. In the case
+of an error, `'finish'` should not be emitted.
 
 #### `transform._flush(callback)`
 
