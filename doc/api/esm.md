@@ -419,7 +419,7 @@ For example, a package that wants to provide different ES module exports for
 }
 ```
 
-Node.js supports the following conditions:
+Node.js supports the following conditions out of the box:
 
 * `"import"` - matched when the package is loaded via `import` or
    `import()`. Can reference either an ES module or CommonJS file, as both
@@ -434,18 +434,18 @@ Node.js supports the following conditions:
 * `"default"` - the generic fallback that will always match. Can be a CommonJS
    or ES module file. _This condition should always come last._
 
-Condition matching is applied in object order from first to last within the
-`"exports"` object. _The general rule is that conditions should be used
-from most specific to least specific in object order._
+Within the `"exports"` object, key order is significant. During condition
+matching, earlier entries have higher priority and take precedence over later
+entries. _The general rule is that conditions should be from most specific to
+least specific in object order_.
 
 Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc. are ignored by Node.js but may be used by other runtimes or tools.
-Further restrictions, definitions or guidance on condition names may be
-provided in the future.
+etc. are unknown to, and thus ignored by Node.js. Runtimes or tools other than
+Node.js may use them at their discretion. Further restrictions, definitions, or
+guidance on condition names may occur in the future.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
-which are explained further in
-[the dual CommonJS/ES module packages section][].
+which are further explained in [the dual CommonJS/ES module packages section][].
 
 Conditional exports can also be extended to exports subpaths, for example:
 
@@ -1154,10 +1154,11 @@ The `conditions` property on the `context` is an array of conditions for
 for looking up conditional mappings elsewhere or to modify the list when calling
 the default resolution logic.
 
-The [current set of Node.js default conditions][Conditional exports] will always
-be in the `context.conditions` list passed to the hook. If the hook wants to
-ensure Node.js-compatible resolution logic, all items from this default
-condition list **must** be passed through to the `defaultResolve` function.
+The current [package exports conditions][Conditional Exports] will always be in
+the `context.conditions` array passed into the hook. To guarantee _default
+Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
+`context.conditions` array passed to it _must_ include _all_ elements of the
+`context.conditions` array originally passed into the `resolve` hook.
 
 ```js
 /**
