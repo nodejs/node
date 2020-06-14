@@ -27,6 +27,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Private;
 using v8::PropertyDescriptor;
+using v8::SealHandleScope;
 using v8::String;
 using v8::Value;
 
@@ -378,10 +379,13 @@ Environment* CreateEnvironment(
 }
 
 void FreeEnvironment(Environment* env) {
+  Isolate::DisallowJavascriptExecutionScope disallow_js(env->isolate(),
+      Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
   {
-    // TODO(addaleax): This should maybe rather be in a SealHandleScope.
-    HandleScope handle_scope(env->isolate());
+    HandleScope handle_scope(env->isolate());  // For env->context().
     Context::Scope context_scope(env->context());
+    SealHandleScope seal_handle_scope(env->isolate());
+
     env->set_stopping(true);
     env->stop_sub_worker_contexts();
     env->RunCleanup();

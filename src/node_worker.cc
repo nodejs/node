@@ -274,10 +274,6 @@ void Worker::Run() {
         this->env_ = nullptr;
       }
 
-      // TODO(addaleax): Try moving DisallowJavascriptExecutionScope into
-      // FreeEnvironment().
-      Isolate::DisallowJavascriptExecutionScope disallow_js(isolate_,
-          Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
       env_.reset();
     });
 
