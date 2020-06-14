@@ -729,6 +729,13 @@ constexpr T RoundUp(T a, T b) {
   return a % b != 0 ? a + b - (a % b) : a;
 }
 
+// Align ptr to an `alignment`-bytes boundary.
+template <typename T, typename U>
+constexpr T* AlignUp(T* ptr, U alignment) {
+  return reinterpret_cast<T*>(
+      RoundUp(reinterpret_cast<uintptr_t>(ptr), alignment));
+}
+
 class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
  public:
   inline explicit SlicedArguments(
