@@ -208,8 +208,7 @@ void SwapBytes16(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
 
 #if defined(_MSC_VER)
-  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint16_t);
-  if (align == 0) {
+  if (AlignUp(data, sizeof(uint16_t)) == data) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
     uint16_t* data16 = reinterpret_cast<uint16_t*>(data);
     size_t len16 = nbytes / sizeof(*data16);
@@ -232,9 +231,8 @@ void SwapBytes32(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 4, 0);
 
 #if defined(_MSC_VER)
-  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint32_t);
   // MSVC has no strict aliasing, and is able to highly optimize this case.
-  if (align == 0) {
+  if (AlignUp(data, sizeof(uint32_t)) == data) {
     uint32_t* data32 = reinterpret_cast<uint32_t*>(data);
     size_t len32 = nbytes / sizeof(*data32);
     for (size_t i = 0; i < len32; i++) {
@@ -256,8 +254,7 @@ void SwapBytes64(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 8, 0);
 
 #if defined(_MSC_VER)
-  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint64_t);
-  if (align == 0) {
+  if (AlignUp(data, sizeof(uint64_t)) == data) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
     uint64_t* data64 = reinterpret_cast<uint64_t*>(data);
     size_t len64 = nbytes / sizeof(*data64);

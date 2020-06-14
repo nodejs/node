@@ -273,16 +273,14 @@ size_t StringBytes::WriteUCS2(Isolate* isolate,
     return 0;
   }
 
+  uint16_t* const aligned_dst = AlignUp(dst, sizeof(*dst));
   size_t nchars;
-  size_t alignment = reinterpret_cast<uintptr_t>(dst) % sizeof(*dst);
-  if (alignment == 0) {
+  if (aligned_dst == dst) {
     nchars = str->Write(isolate, dst, 0, max_chars, flags);
     *chars_written = nchars;
     return nchars * sizeof(*dst);
   }
 
-  uint16_t* aligned_dst =
-      reinterpret_cast<uint16_t*>(buf + sizeof(*dst) - alignment);
   CHECK_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
 
   // Write all but the last char
