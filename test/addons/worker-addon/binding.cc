@@ -6,10 +6,13 @@
 #include <uv.h>
 
 using v8::Context;
+using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 size_t count = 0;
@@ -31,6 +34,18 @@ void Dummy(void*) {
 
 void Cleanup(void* str) {
   printf("%s ", static_cast<const char*>(str));
+
+  // Check that calling into JS fails.
+  Isolate* isolate = Isolate::GetCurrent();
+  HandleScope handle_scope(isolate);
+  assert(isolate->InContext());
+  Local<Context> context = isolate->GetCurrentContext();
+  MaybeLocal<Value> call_result =
+      context->Global()->Get(
+          context, String::NewFromUtf8Literal(isolate, "Object"))
+              .ToLocalChecked().As<Function>()->Call(
+                  context, v8::Null(isolate), 0, nullptr);
+  assert(call_result.IsEmpty());
 }
 
 void Initialize(Local<Object> exports,
