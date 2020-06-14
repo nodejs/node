@@ -1089,7 +1089,7 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
       session->SendPendingData();
     }
   } while (len != 0);
-  
+
   // If end-stream flag is set, there is nothing more to read
   if (flags & NGHTTP2_FLAG_END_STREAM) {
     stream->EmitRead(UV_EOF);
