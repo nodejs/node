@@ -68,6 +68,9 @@
   <!-- lint enable prohibited-strings remark-lint-->
   * OK: _Node.js 14.x_, _Node.js 14.3.1_
   * NOT OK: _Node.js v14_
+* For headings, use sentence case, not title case.
+  * OK: _## Everybody to the limit_
+  * NOT OK: _## Everybody To The Limit_
 
 See also API documentation structure overview in [doctools README][].
 
