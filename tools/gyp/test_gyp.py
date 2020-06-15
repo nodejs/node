@@ -229,8 +229,7 @@ class Runner(object):
             and not (stdout.endswith("NO RESULT\n"))
         ):
             print()
-            for l in stdout.splitlines():
-                print("    %s" % l)
+            print("\n".join("    %s" % line for line in stdout.splitlines()))
         elif not self.isatty:
             print()
 
