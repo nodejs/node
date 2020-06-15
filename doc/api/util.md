@@ -129,7 +129,7 @@ unnecessary wrapping.
 const util = require('util');
 const makeInternalsPublic = false;
 const debuglog = util.debuglog('internals', (debug) => {
-  // replace with a logging function that optimizes out
+  // Replace with a logging function that optimizes out
   // testing if the section is enabled
   debuglog = debug;
 });
