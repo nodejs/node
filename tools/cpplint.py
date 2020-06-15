@@ -4120,7 +4120,7 @@ def CheckTrailingSemicolon(filename, clean_lines, linenum, error):
   # Block bodies should not be followed by a semicolon.  Due to C++11
   # brace initialization, there are more places where semicolons are
   # required than not, so we use an allowlist approach to check these
-  # rather than a blocklist.  These are the places where "};" should
+  # rather than a denylist. These are the places where "};" should
   # be replaced by just "}":
   # 1. Some flavor of block following closing parenthesis:
   #    for (;;) {};
@@ -4177,11 +4177,11 @@ def CheckTrailingSemicolon(filename, clean_lines, linenum, error):
     #  - INTERFACE_DEF
     #  - EXCLUSIVE_LOCKS_REQUIRED, SHARED_LOCKS_REQUIRED, LOCKS_EXCLUDED:
     #
-    # We implement an allowlist of safe macros instead of a blocklist of
+    # We implement an allowlist of safe macros instead of a denylist of
     # unsafe macros, even though the latter appears less frequently in
     # google code and would have been easier to implement.  This is because
     # the downside for getting the allowlist wrong means some extra
-    # semicolons, while the downside for getting the blocklist wrong
+    # semicolons, while the downside for getting the denylist wrong
     # would result in compile errors.
     #
     # In addition to macros, we also don't want to warn on
