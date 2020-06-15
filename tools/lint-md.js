@@ -46416,16 +46416,16 @@ function maximumLineLength(tree, file, option) {
     }
   }
 
-  // Finally, allowlist some inline spans, but only if they occur at or after
+  // Finally, whitelist some inline spans, but only if they occur at or after
   // the wrap.
   // However, when they do, and there’s whitespace after it, they are not
-  // allowlisted.
+  // whitelisted.
   function inline(node, pos, parent) {
     var next = parent.children[pos + 1];
     var initial;
     var final;
 
-    /* istanbul ignore if - Nothing to allowlist when generated. */
+    /* istanbul ignore if - Nothing to whitelist when generated. */
     if (unistUtilGenerated(node)) {
       return
     }
@@ -46433,12 +46433,12 @@ function maximumLineLength(tree, file, option) {
     initial = start$d(node);
     final = end$8(node);
 
-    // No allowlisting when starting after the border, or ending before it.
+    // No whitelisting when starting after the border, or ending before it.
     if (initial.column > preferred || final.column < preferred) {
       return
     }
 
-    // No allowlisting when there’s whitespace after the link.
+    // No whitelisting when there’s whitespace after the link.
     if (
       next &&
       start$d(next).line === initial.line &&
@@ -46447,18 +46447,18 @@ function maximumLineLength(tree, file, option) {
       return
     }
 
-    allowlist(initial.line - 1, final.line);
+    whitelist(initial.line - 1, final.line);
   }
 
   function ignore(node) {
     /* istanbul ignore else - Hard to test, as we only run this case on `position: true` */
     if (!unistUtilGenerated(node)) {
-      allowlist(start$d(node).line - 1, end$8(node).line);
+      whitelist(start$d(node).line - 1, end$8(node).line);
     }
   }
 
-  // Allowlist from `initial` to `final`, zero-based.
-  function allowlist(initial, final) {
+  // Whitelist from `initial` to `final`, zero-based.
+  function whitelist(initial, final) {
     while (initial < final) {
       lines[initial++] = '';
     }
