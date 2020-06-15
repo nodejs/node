@@ -734,7 +734,7 @@ ssize_t Http2Session::OnMaxFrameSizePadding(size_t frameLen,
 // quite expensive. This is a potential performance optimization target later.
 ssize_t Http2Session::ConsumeHTTP2Data() {
   CHECK_NOT_NULL(stream_buf_.base);
-  CHECK_LT(stream_buf_offset_, stream_buf_.len);
+  CHECK_LE(stream_buf_offset_, stream_buf_.len);
   size_t read_len = stream_buf_.len - stream_buf_offset_;
 
   // multiple side effects.
