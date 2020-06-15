@@ -145,10 +145,10 @@ static void GetHiddenValue(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject());
+  CHECK(args[1]->IsUint32());
 
   Local<Object> obj = args[0].As<Object>();
-  uint32_t index;
-  if (!args[1]->Uint32Value(env->context()).To(&index)) return;
+  uint32_t index = args[1].As<Uint32>()->Value();
   Local<Private> private_symbol = IndexToPrivateSymbol(env, index);
   Local<Value> ret;
   if (obj->GetPrivate(env->context(), private_symbol).ToLocal(&ret))
