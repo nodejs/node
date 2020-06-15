@@ -1619,10 +1619,10 @@ def ExpandWildcardDependencies(targets, data):
                 index = index + 1
 
 
-def Unify(l):
-    """Removes duplicate elements from l, keeping the first element."""
+def Unify(items):
+    """Removes duplicate elements from items, keeping the first element."""
     seen = {}
-    return [seen.setdefault(e, e) for e in l if e not in seen]
+    return [seen.setdefault(e, e) for e in items if e not in seen]
 
 
 def RemoveDuplicateDependencies(targets):
@@ -1635,10 +1635,10 @@ def RemoveDuplicateDependencies(targets):
                 target_dict[dependency_key] = Unify(dependencies)
 
 
-def Filter(l, item):
-    """Removes item from l."""
+def Filter(items, item):
+    """Removes item from items."""
     res = {}
-    return [res.setdefault(e, e) for e in l if e != item]
+    return [res.setdefault(e, e) for e in items if e != item]
 
 
 def RemoveSelfDependencies(targets):
@@ -2242,11 +2242,11 @@ def MergeLists(to, fro, to_file, fro_file, is_paths=False, append=True):
     def is_hashable(val):
         return val.__hash__
 
-    # If x is hashable, returns whether x is in s. Else returns whether x is in l.
-    def is_in_set_or_list(x, s, l):
+    # If x is hashable, returns whether x is in s. Else returns whether x is in items.
+    def is_in_set_or_list(x, s, items):
         if is_hashable(x):
             return x in s
-        return x in l
+        return x in items
 
     prepend_index = 0
 
