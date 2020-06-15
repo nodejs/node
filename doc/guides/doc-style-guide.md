@@ -62,6 +62,9 @@
   * NOT OK: It is important to note that, in all cases, the return value will be
     a string regardless.
   <!-- lint enable prohibited-strings remark-lint-->
+* For headings, use sentence case, not title case.
+  * OK: _## Everybody to the limit_
+  * NOT OK: _## Everybody To The Limit_
 
 See also API documentation structure overview in [doctools README][].
 
