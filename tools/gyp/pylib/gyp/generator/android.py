@@ -981,9 +981,9 @@ class AndroidMkWriter(object):
     """
         values = ""
         if value_list:
-            value_list = [quoter(prefix + l) for l in value_list]
+            value_list = [quoter(prefix + value) for value in value_list]
             if local_pathify:
-                value_list = [self.LocalPathify(l) for l in value_list]
+                value_list = [self.LocalPathify(value) for value in value_list]
             values = " \\\n\t" + " \\\n\t".join(value_list)
         self.fp.write("%s :=%s\n\n" % (variable, values))
 

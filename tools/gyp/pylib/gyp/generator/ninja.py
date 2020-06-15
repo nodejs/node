@@ -1481,16 +1481,18 @@ class NinjaWriter(object):
         library_dirs = config.get("library_dirs", [])
         if self.flavor == "win":
             library_dirs = [
-                self.msvs_settings.ConvertVSMacros(l, config_name) for l in library_dirs
+                self.msvs_settings.ConvertVSMacros(library_dir, config_name)
+                for library_dir in library_dirs
             ]
             library_dirs = [
-                "/LIBPATH:" + QuoteShellArgument(self.GypPathToNinja(l), self.flavor)
-                for l in library_dirs
+                "/LIBPATH:"
+                + QuoteShellArgument(self.GypPathToNinja(library_dir), self.flavor)
+                for library_dir in library_dirs
             ]
         else:
             library_dirs = [
-                QuoteShellArgument("-L" + self.GypPathToNinja(l), self.flavor)
-                for l in library_dirs
+                QuoteShellArgument("-L" + self.GypPathToNinja(library_dir), self.flavor)
+                for library_dir in library_dirs
             ]
 
         libraries = gyp.common.uniquer(
