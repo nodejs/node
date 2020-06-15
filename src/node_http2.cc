@@ -755,11 +755,10 @@ ssize_t Http2Session::ConsumeHTTP2Data() {
     CHECK_GT(ret, 0);
     CHECK_LE(static_cast<size_t>(ret), read_len);
 
-    if (static_cast<size_t>(ret) <= read_len) {
-      // Mark the remainder of the data as available for later consumption.
-      stream_buf_offset_ += ret;
-      return ret;
-    }
+    // Mark the remainder of the data as available for later consumption.
+    // Even if all bytes were received, a paused stream may delay nghttp2_on_frame_recv_callback
+    stream_buf_offset_ += ret;
+    return ret;
   }
 
   // We are done processing the current input chunk.
