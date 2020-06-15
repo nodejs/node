@@ -756,7 +756,7 @@ ssize_t Http2Session::ConsumeHTTP2Data() {
     CHECK_LE(static_cast<size_t>(ret), read_len);
 
     // Mark the remainder of the data as available for later consumption.
-    // Even if all bytes were received, a paused stream may delay 
+    // Even if all bytes were received, a paused stream may delay the
     // nghttp2_on_frame_recv_callback which may have an END_STREAM flag.
     stream_buf_offset_ += ret;
     return ret;
