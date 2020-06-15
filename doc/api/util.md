@@ -128,7 +128,7 @@ unnecessary wrapping.
 ```js
 const util = require('util');
 const makeInternalsPublic = false;
-const debuglog = util.debuglog('internals', (debug) => {
+let debuglog = util.debuglog('internals', (debug) => {
   // Replace with a logging function that optimizes out
   // testing if the section is enabled
   debuglog = debug;
