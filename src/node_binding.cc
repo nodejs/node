@@ -246,7 +246,7 @@ static thread_local node_module* thread_local_modpending;
 bool node_is_initialized = false;
 
 extern "C" void node_module_register(void* m) {
-  struct node_module* mp = reinterpret_cast<struct node_module*>(m);
+  struct node_module* mp = (struct node_module*)(m);
 
   if (mp->nm_flags & NM_F_INTERNAL) {
     mp->nm_link = modlist_internal;
