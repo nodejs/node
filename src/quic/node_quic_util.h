@@ -386,13 +386,12 @@ class StatelessResetToken : public MemoryRetainer {
       const uint8_t* secret,
       const QuicCID& cid);
 
-  explicit StatelessResetToken(
-      const uint8_t* token)
-      : token_(token) {}
+  explicit inline StatelessResetToken(
+      const uint8_t* token);
 
   inline std::string ToString() const;
 
-  const uint8_t* data() const { return token_; }
+  const uint8_t* data() const { return buf_; }
 
   struct Hash {
     inline size_t operator()(const StatelessResetToken& token) const;
@@ -414,7 +413,6 @@ class StatelessResetToken : public MemoryRetainer {
 
  private:
   uint8_t buf_[NGTCP2_STATELESS_RESET_TOKENLEN]{};
-  const uint8_t* token_;
 };
 
 template <typename T>
