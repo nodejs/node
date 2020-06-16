@@ -1122,14 +1122,14 @@ void ContextifyContext::CompileFunction(
       context_extensions.size(), context_extensions.data(), options,
       v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason, &script);
 
-  if (maybe_fn.IsEmpty()) {
+  Local<Function> fn;
+  if (!maybe_fn.ToLocal(&fn)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
       errors::DecorateErrorStack(env, try_catch);
       try_catch.ReThrow();
     }
     return;
   }
-  Local<Function> fn = maybe_fn.ToLocalChecked();
 
   Local<Object> cache_key;
   if (!env->compiled_fn_entry_template()->NewInstance(
