@@ -503,7 +503,7 @@ void QuicStream::Initialize(
   env->set_quicserverstream_instance_template(streamt);
   target->Set(env->context(),
               class_name,
-              stream->GetFunction(env->context()).ToLocalChecked()).FromJust();
+              stream->GetFunction(env->context()).ToLocalChecked()).Check();
 
   env->SetMethod(target, "openBidirectionalStream", OpenBidirectionalStream);
   env->SetMethod(target, "openUnidirectionalStream", OpenUnidirectionalStream);
