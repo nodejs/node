@@ -1059,12 +1059,14 @@ def configure_arm(o):
   o['variables']['arm_fpu'] = options.arm_fpu or arm_fpu
 
 
-def configure_mips(o):
+def configure_mips(o, target_arch):
   can_use_fpu_instructions = (options.mips_float_abi != 'soft')
   o['variables']['v8_can_use_fpu_instructions'] = b(can_use_fpu_instructions)
   o['variables']['v8_use_mips_abi_hardfloat'] = b(can_use_fpu_instructions)
   o['variables']['mips_arch_variant'] = options.mips_arch_variant
   o['variables']['mips_fpu_mode'] = options.mips_fpu_mode
+  host_byteorder = 'little' if target_arch in ('mipsel', 'mips64el') else 'big'
+  o['variables']['v8_host_byteorder'] = host_byteorder
 
 
 def gcc_version_ge(version_checked):
@@ -1124,7 +1126,7 @@ def configure_node(o):
   if target_arch == 'arm':
     configure_arm(o)
   elif target_arch in ('mips', 'mipsel', 'mips64el'):
-    configure_mips(o)
+    configure_mips(o, target_arch)
 
   if flavor == 'aix':
     o['variables']['node_target_type'] = 'static_library'
