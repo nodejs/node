@@ -287,22 +287,27 @@ bool PreferredAddress::ResolvePreferredAddress(
 StatelessResetToken::StatelessResetToken(
     uint8_t* token,
     const uint8_t* secret,
-    const QuicCID& cid) : token_(token) {
+    const QuicCID& cid) {
   GenerateResetToken(token, secret, cid);
+  memcpy(buf_, token, sizeof(buf_));
 }
 
 StatelessResetToken::StatelessResetToken(
     const uint8_t* secret,
-    const QuicCID& cid)
-    : token_(buf_) {
+    const QuicCID& cid)  {
   GenerateResetToken(buf_, secret, cid);
+}
+
+StatelessResetToken::StatelessResetToken(
+    const uint8_t* token) {
+  memcpy(buf_, token, sizeof(buf_));
 }
 
 std::string StatelessResetToken::ToString() const {
   std::vector<char> dest(NGTCP2_STATELESS_RESET_TOKENLEN * 2 + 1);
   dest[dest.size() - 1] = '\0';
   size_t written = StringBytes::hex_encode(
-      reinterpret_cast<const char*>(token_),
+      reinterpret_cast<const char*>(buf_),
       NGTCP2_STATELESS_RESET_TOKENLEN,
       dest.data(),
       dest.size());
@@ -313,7 +318,7 @@ size_t StatelessResetToken::Hash::operator()(
     const StatelessResetToken& token) const {
   size_t hash = 0;
   for (size_t n = 0; n < NGTCP2_STATELESS_RESET_TOKENLEN; n++)
-    hash ^= std::hash<uint8_t>{}(token.token_[n]) + 0x9e3779b9 +
+    hash ^= std::hash<uint8_t>{}(token.buf_[n]) + 0x9e3779b9 +
             (hash << 6) + (hash >> 2);
   return hash;
 }
