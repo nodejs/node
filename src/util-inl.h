@@ -299,12 +299,10 @@ std::string ToUpper(const std::string& in) {
 }
 
 bool StringEqualNoCase(const char* a, const char* b) {
-  do {
-    if (*a == '\0')
-      return *b == '\0';
-    if (*b == '\0')
-      return *a == '\0';
-  } while (ToLower(*a++) == ToLower(*b++));
+  while (ToLower(*a) == ToLower(*b++)) {
+    if (*a++ == '\0')
+      return true;
+  }
   return false;
 }
 
