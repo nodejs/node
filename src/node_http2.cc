@@ -1095,6 +1095,7 @@ int Http2Session::OnDataChunkReceived(nghttp2_session* handle,
   if (session->is_write_in_progress()) {
     CHECK(session->is_reading_stopped());
     session->set_receive_paused();
+    Debug(session, "receive paused");
     return NGHTTP2_ERR_PAUSE;
   }
 
