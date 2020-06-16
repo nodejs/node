@@ -14,74 +14,91 @@ enum encoding ParseEncoding(const char* encoding,
                             enum encoding default_encoding) {
   switch (encoding[0]) {
     case 'u':
+    case 'U':
       // utf8, utf16le
       if (encoding[1] == 't' && encoding[2] == 'f') {
         // Skip `-`
-        encoding += encoding[3] == '-' ? 4 : 3;
-        if (encoding[0] == '8' && encoding[1] == '\0')
+        const size_t skip = encoding[3] == '-' ? 4 : 3;
+        if (encoding[skip] == '8' && encoding[skip + 1] == '\0')
           return UTF8;
-        if (strncmp(encoding, "16le", 4) == 0)
+        if (strncmp(encoding + skip, "16le", 5) == 0)
           return UCS2;
-
       // ucs2
       } else if (encoding[1] == 'c' && encoding[2] == 's') {
-        encoding += encoding[3] == '-' ? 4 : 3;
-        if (encoding[0] == '2' && encoding[1] == '\0')
+        const size_t skip = encoding[3] == '-' ? 4 : 3;
+        if (encoding[skip] == '2' && encoding[skip + 1] == '\0')
           return UCS2;
       }
+      if (StringEqualNoCase(encoding, "utf8"))
+        return UTF8;
+      if (StringEqualNoCase(encoding, "utf-8"))
+        return UTF8;
+      if (StringEqualNoCase(encoding, "ucs2"))
+        return UCS2;
+      if (StringEqualNoCase(encoding, "ucs-2"))
+        return UCS2;
+      if (StringEqualNoCase(encoding, "utf16le"))
+        return UCS2;
+      if (StringEqualNoCase(encoding, "utf-16le"))
+        return UCS2;
       break;
+
     case 'l':
+    case 'L':
       // latin1
       if (encoding[1] == 'a') {
-        if (strncmp(encoding + 2, "tin1", 4) == 0)
+        if (strncmp(encoding + 2, "tin1", 5) == 0)
           return LATIN1;
       }
+      if (StringEqualNoCase(encoding, "latin1"))
+        return LATIN1;
       break;
-    case 'b':
-      // binary
-      if (encoding[1] == 'i') {
-        if (strncmp(encoding + 2, "nary", 4) == 0)
-          return LATIN1;
 
+    case 'b':
+    case 'B':
+      // binary is a deprecated alias of latin1
+      if (encoding[1] == 'i') {
+        if (strncmp(encoding + 2, "nary", 5) == 0)
+          return LATIN1;
       // buffer
       } else if (encoding[1] == 'u') {
-        if (strncmp(encoding + 2, "ffer", 4) == 0)
+        if (strncmp(encoding + 2, "ffer", 5) == 0)
           return BUFFER;
+      // base64
+      } else if (encoding[1] == 'a') {
+        if (strncmp(encoding + 2, "se64", 5) == 0)
+          return BASE64;
       }
+      if (StringEqualNoCase(encoding, "binary"))
+        return LATIN1;  // BINARY is a deprecated alias of LATIN1.
+      if (StringEqualNoCase(encoding, "buffer"))
+        return BUFFER;
+      if (StringEqualNoCase(encoding, "base64"))
+        return BASE64;
       break;
-    case '\0':
-      return default_encoding;
-    default:
-      break;
-  }
 
-  if (StringEqualNoCase(encoding, "utf8")) {
-    return UTF8;
-  } else if (StringEqualNoCase(encoding, "utf-8")) {
-    return UTF8;
-  } else if (StringEqualNoCase(encoding, "ascii")) {
-    return ASCII;
-  } else if (StringEqualNoCase(encoding, "base64")) {
-    return BASE64;
-  } else if (StringEqualNoCase(encoding, "ucs2")) {
-    return UCS2;
-  } else if (StringEqualNoCase(encoding, "ucs-2")) {
-    return UCS2;
-  } else if (StringEqualNoCase(encoding, "utf16le")) {
-    return UCS2;
-  } else if (StringEqualNoCase(encoding, "utf-16le")) {
-    return UCS2;
-  } else if (StringEqualNoCase(encoding, "latin1")) {
-    return LATIN1;
-  } else if (StringEqualNoCase(encoding, "binary")) {
-    return LATIN1;  // BINARY is a deprecated alias of LATIN1.
-  } else if (StringEqualNoCase(encoding, "buffer")) {
-    return BUFFER;
-  } else if (StringEqualNoCase(encoding, "hex")) {
-    return HEX;
-  } else {
-    return default_encoding;
+    case 'a':
+    case 'A':
+      // ascii
+      if (encoding[1] == 's') {
+        if (strncmp(encoding + 2, "cii", 4) == 0)
+          return ASCII;
+      }
+      if (StringEqualNoCase(encoding, "ascii"))
+        return ASCII;
+      break;
+
+    case 'h':
+    case 'H':
+      // hex
+      if (encoding[1] == 'e')
+        if (encoding[2] == 'x' && encoding[3] == '\0')
+          return HEX;
+      if (StringEqualNoCase(encoding, "hex"))
+        return HEX;
+      break;
   }
+  return default_encoding;
 }
 
 
