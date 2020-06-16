@@ -25,16 +25,16 @@ const {
   // but callback will only be called once
   const server = createServer(mustCall((request, response) => {
     response.end('end', 'utf8', mustCall(() => {
-      response.end(mustNotCall());
+      response.end(mustCall());
       process.nextTick(() => {
-        response.end(mustNotCall());
+        response.end(mustCall());
         server.close();
       });
     }));
     response.on('finish', mustCall(() => {
-      response.end(mustNotCall());
+      response.end(mustCall());
     }));
-    response.end(mustNotCall());
+    response.end(mustCall());
   }));
   server.listen(0, mustCall(() => {
     let data = '';
@@ -294,7 +294,7 @@ const {
     }));
     response.end('data', mustCall(() => {
       strictEqual(finished, false);
-      response.end('data', mustNotCall());
+      response.end('data', mustCall());
     }));
   }));
   server.listen(0, mustCall(() => {
@@ -328,7 +328,7 @@ const {
   // Should be able to respond to HEAD with just .end
   const server = createServer(mustCall((request, response) => {
     response.end('data', mustCall());
-    response.end(mustNotCall());
+    response.end(mustCall());
   }));
   server.listen(0, mustCall(() => {
     const { port } = server.address();
