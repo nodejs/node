@@ -10,7 +10,7 @@ updated together.
 ## Updating ngtcp2
 
 Update ngtcp2:
-```shell
+```bash
 git clone https://github.com/ngtcp2/ngtcp2
 cd ngtcp2
 autoreconf -i
@@ -29,7 +29,7 @@ Check that Node.js still builds and tests.
 ## Updating nghttp3
 
 Update nghttp3:
-```shell
+```bash
 git clone https://github.com/ngtcp2/nghttp3
 cd nghttp3
 autoreconf -i
