@@ -13,7 +13,6 @@
 #include <ngtcp2/ngtcp2.h>
 #include <nghttp3/nghttp3.h>
 #include <algorithm>
-#include <string>
 
 namespace node {
 
