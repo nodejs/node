@@ -14,10 +14,10 @@
 #include "v8.h"
 #include "uv.h"
 
-#include <array>
 #include <algorithm>
-#include <limits>
+#include <memory>
 #include <string>
+#include <utility>
 
 namespace node {
 
