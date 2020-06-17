@@ -97,6 +97,8 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "_tls_wrap",
       "internal/http2/core",
       "internal/http2/compat",
+      "internal/http2/session",
+      "internal/http2/streams",
       "internal/policy/manifest",
       "internal/process/policy",
       "internal/streams/lazy_transform",
