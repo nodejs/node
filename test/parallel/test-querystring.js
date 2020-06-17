@@ -144,7 +144,8 @@ const qsWeirdObjects = [
   [{ n: null }, 'n=', { 'n': '' }],
   [{ nan: NaN }, 'nan=', { 'nan': '' }],
   [{ inf: Infinity }, 'inf=', { 'inf': '' }],
-  [{ a: [], b: [] }, '', {}]
+  [{ a: [], b: [] }, '', {}],
+  [{ a: 1, b: [] }, 'a=1', { 'a': '1' }]
 ];
 // }}}
 
