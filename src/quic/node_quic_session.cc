@@ -2295,7 +2295,7 @@ int QuicSession::set_session(SSL_SESSION* session) {
   if (size > SecureContext::kMaxSessionSize)
     return 0;
   listener_->OnSessionTicket(size, session);
-  return 1;
+  return 0;
 }
 
 // A client QuicSession can be migrated to a different QuicSocket instance.
