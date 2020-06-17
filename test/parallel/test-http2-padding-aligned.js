@@ -26,7 +26,7 @@ const makeDuplexPair = require('../common/duplexpair');
   // The lengths of the expected writes... note that this is highly
   // sensitive to how the internals are implemented.
   const serverLengths = [24, 9, 9, 32];
-  const clientLengths = [9, 9, 48, 9, 1, 21, 1, 16];
+  const clientLengths = [9, 9, 48, 9, 1, 21, 1];
 
   // Adjust for the 24-byte preamble and two 9-byte settings frames, and
   // the result must be equally divisible by 8
