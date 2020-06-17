@@ -25,7 +25,7 @@ internationalization functionality.
 * Configure Node.js with the specific [ICU version](http://icu-project.org/download)
   you want to upgrade to, for example:
 
-```shell
+```bash
 ./configure \
     --with-intl=small-icu \
     --with-icu-source=http://download.icu-project.org/files/icu4c/58.1/icu4c-58_1-src.tgz
@@ -42,7 +42,7 @@ make
 
 * Verify the Node.js build works:
 
-```shell
+```bash
 make test-ci
 ```
 
@@ -58,13 +58,13 @@ new Intl.DateTimeFormat('es', {month: 'long'}).format(new Date(9E8));
 
 * Now, copy `deps/icu` over to `deps/icu-small`
 
-```shell
+```bash
 python tools/icu/shrink-icu-src.py
 ```
 
 * Now, do a clean rebuild of Node.js to test:
 
-```shell
+```bash
 make -k distclean
 ./configure
 make
@@ -86,7 +86,7 @@ so make this a separate commit from the smaller changes.
 
 * Now, rebuild the Node.js license.
 
-```shell
+```bash
 # clean up - remove deps/icu
 make clean
 tools/license-builder.sh
@@ -96,7 +96,7 @@ tools/license-builder.sh
 It should match the ICU URL used in the first step.  When this is done, the
 following should build with full ICU.
 
-```shell
+```bash
 # clean up
 rm -rf out deps/icu deps/icu4c*
 ./configure --with-intl=full-icu --download=all
