@@ -3193,6 +3193,11 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
     for detail.</td>
   </tr>
   <tr>
+    <td><code>SSL_OP_ALLOW_NO_DHE_KEX</code></td>
+    <td>Instructs OpenSSL to allow a non-[EC]DHE-based key exchange mode
+    for TLS v1.3</td>
+  </tr>
+  <tr>
     <td><code>SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION</code></td>
     <td>Allows legacy insecure renegotiation between OpenSSL and unpatched
     clients or servers. See
@@ -3265,8 +3270,16 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
     <td>Instructs OpenSSL to disable support for SSL/TLS compression.</td>
   </tr>
   <tr>
+    <td><code>SSL_OP_NO_ENCRYPT_THEN_MAC</code></td>
+    <td>Instructs OpenSSL to disable encrypt-then-MAC.</td>
+  </tr>
+  <tr>
     <td><code>SSL_OP_NO_QUERY_MTU</code></td>
     <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_NO_RENEGOTIATION</code></td>
+    <td>Instructs OpenSSL to disable renegotiation.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION</code></td>
@@ -3297,12 +3310,24 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
     <td><code>SSL_OP_NO_TLSv1_2</code></td>
     <td>Instructs OpenSSL to turn off TLS v1.2</td>
   </tr>
+  <tr>
+    <td><code>SSL_OP_NO_TLSv1_3</code></td>
+    <td>Instructs OpenSSL to turn off TLS v1.3</td>
+  </tr>
     <td><code>SSL_OP_PKCS1_CHECK_1</code></td>
     <td></td>
   </tr>
   <tr>
     <td><code>SSL_OP_PKCS1_CHECK_2</code></td>
     <td></td>
+  </tr>
+  <tr>
+    <td><code>SSL_OP_PRIORITIZE_CHACHA</code></td>
+    <td>Instructs OpenSSL server to prioritize ChaCha20Poly1305
+    when client does.
+    This option has no effect if
+    <code>SSL_OP_CIPHER_SERVER_PREFERENCE</code>
+    is not enabled.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_SINGLE_DH_USE</code></td>

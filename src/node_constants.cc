@@ -806,6 +806,10 @@ void DefineCryptoConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALL);
 #endif
 
+#ifdef SSL_OP_ALLOW_NO_DHE_KEX
+    NODE_DEFINE_CONSTANT(target, SSL_OP_ALLOW_NO_DHE_KEX);
+#endif
+
 #ifdef SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
     NODE_DEFINE_CONSTANT(target, SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION);
 #endif
@@ -870,8 +874,16 @@ void DefineCryptoConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, SSL_OP_NO_COMPRESSION);
 #endif
 
+#ifdef SSL_OP_NO_ENCRYPT_THEN_MAC
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_ENCRYPT_THEN_MAC);
+#endif
+
 #ifdef SSL_OP_NO_QUERY_MTU
     NODE_DEFINE_CONSTANT(target, SSL_OP_NO_QUERY_MTU);
+#endif
+
+#ifdef SSL_OP_NO_RENEGOTIATION
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_RENEGOTIATION);
 #endif
 
 #ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
@@ -902,12 +914,20 @@ void DefineCryptoConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1_2);
 #endif
 
+#ifdef SSL_OP_NO_TLSv1_3
+    NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1_3);
+#endif
+
 #ifdef SSL_OP_PKCS1_CHECK_1
     NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_1);
 #endif
 
 #ifdef SSL_OP_PKCS1_CHECK_2
     NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_2);
+#endif
+
+#ifdef SSL_OP_PRIORITIZE_CHACHA
+    NODE_DEFINE_CONSTANT(target, SSL_OP_PRIORITIZE_CHACHA);
 #endif
 
 #ifdef SSL_OP_SINGLE_DH_USE
