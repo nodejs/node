@@ -5,6 +5,9 @@ const common = require('../common');
 if (!common.hasQuic)
   common.skip('missing quic');
 
+if (!common.hasIPv6)
+  common.skip('missing ipv6');
+
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
