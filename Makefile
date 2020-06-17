@@ -98,13 +98,12 @@ help: ## Print help for targets with comments.
 # and recreated which can break the addons build when running test-ci
 # See comments on the build-addons target for some more info
 ifeq ($(BUILD_WITH), make)
-$(NODE_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=Release V=$(V)
-	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Release/$(NODE_EXE) $@; fi
-
-$(NODE_G_EXE): config.gypi out/Makefile
-	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-	if [ ! -r $@ -o ! -L $@ ]; then ln -fs out/Debug/$(NODE_EXE) $@; fi
+$(NODE_EXE): build_type:=Release
+$(NODE_G_EXE): build_type:=Debug
+$(NODE_EXE) $(NODE_G_EXE): config.gypi out/Makefile
+	$(MAKE) -C out BUILDTYPE=${build_type} V=$(V)
+	if [ ! -r $@ -o ! -L $@ ]; then \
+	  ln -fs out/${build_type}/$(NODE_EXE) $@; fi
 else
 ifeq ($(BUILD_WITH), ninja)
 ifeq ($(V),1)
