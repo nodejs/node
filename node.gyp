@@ -47,6 +47,7 @@
       'lib/child_process.js',
       'lib/console.js',
       'lib/constants.js',
+      'lib/corotine.js',
       'lib/crypto.js',
       'lib/cluster.js',
       'lib/dgram.js',
