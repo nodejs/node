@@ -29,7 +29,8 @@ if (process.argv[2] === 'child') {
   assert.strictEqual(a.used, 0);
 
   {
-    const dh1 = createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
+    const size = common.hasFipsCrypto || common.hasOpenSSL3 ? 1024 : 256;
+    const dh1 = createDiffieHellman(size);
     const p1 = dh1.getPrime('buffer');
     const dh2 = createDiffieHellman(p1, 'buffer');
     const key1 = dh1.generateKeys();

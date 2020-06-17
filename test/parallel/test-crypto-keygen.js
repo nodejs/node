@@ -342,7 +342,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 
   // Test async DSA key generation.
   generateKeyPair('dsa', {
-    modulusLength: 512,
+    modulusLength: common.hasOpenSSL3 ? 2048 : 512,
     divisorLength: 256,
     publicKeyEncoding: {
       type: 'spki',
@@ -359,8 +359,8 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     // The private key is DER-encoded.
     assert(Buffer.isBuffer(privateKeyDER));
 
-    assertApproximateSize(publicKey, 440);
-    assertApproximateSize(privateKeyDER, 336);
+    assertApproximateSize(publicKey, common.hasOpenSSL3 ? 1194 : 440);
+    assertApproximateSize(privateKeyDER, common.hasOpenSSL3 ? 721 : 336);
 
     // Since the private key is encrypted, signing shouldn't work anymore.
     assert.throws(() => {
@@ -1029,7 +1029,7 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 // Test classic Diffie-Hellman key generation.
 {
   generateKeyPair('dh', {
-    primeLength: 1024
+    primeLength: common.hasOpenSSL3 ? 2048 : 1024
   }, common.mustSucceed((publicKey, privateKey) => {
     assert.strictEqual(publicKey.type, 'public');
     assert.strictEqual(publicKey.asymmetricKeyType, 'dh');
