@@ -33,6 +33,12 @@
             },
           },
         }],
+        ['OS=="linux"', {
+          'defines': [
+            'HAVE_ARPA_INET_H',
+            'HAVE_NETINET_IN_H',
+          ],
+        }],
       ],
       'direct_dependent_settings': {
         'defines': [ 'NGTCP2_STATICLIB' ],
