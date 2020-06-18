@@ -26,6 +26,11 @@
             },
           },
         }],
+        ['OS=="linux"', {
+          'defines': [
+            'HAVE_ARPA_INET_H',
+          ],
+        }],
       ],
       'direct_dependent_settings': {
         'defines': [ 'NGHTTP3_STATICLIB' ],
