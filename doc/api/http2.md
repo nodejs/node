@@ -3414,6 +3414,15 @@ added: v8.4.0
 
 The [`Http2Stream`][] object backing the response.
 
+#### `response.writableCorked`
+<!-- YAML
+added: v14.0.0
+ -->
+
+* Returns: {number}
+
+See [`writable.writableCorked`][].
+
 #### `response.writableEnded`
 <!-- YAML
 added: v12.9.0
@@ -3424,6 +3433,33 @@ added: v12.9.0
 Is `true` after [`response.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
 [`writable.writableFinished`][] instead.
+
+#### `response.writableFinished`
+<!-- YAML
+added: REPLACEME
+ -->
+
+* Returns: {boolean}
+
+See [`writable.writableFinished`][].
+
+#### `response.writableHighWaterMark`
+<!-- YAML
+added: REPLACEME
+ -->
+
+* Returns: {number}
+
+See [`writable.writableHighWaterMark`][].
+
+#### `response.writableLength`
+<!-- YAML
+added: REPLACEME
+ -->
+
+* Returns: {number}
+
+See [`writable.writableLength`][].
 
 #### `response.write(chunk[, encoding][, callback])`
 <!-- YAML
@@ -3667,4 +3703,7 @@ following additional properties:
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [error code]: #error_codes
+[`writable.writableCorked`]: stream.html#stream_writable_writablecorked
 [`writable.writableFinished`]: stream.html#stream_writable_writablefinished
+[`writable.writableHighWaterMark`]: stream.html#stream_writable_writablehighwatermark
+[`writable.writableLength`]: stream.html#stream_writable_writablelength
