@@ -16,26 +16,24 @@ const { once } = require('events');
 
 const kALPN = 'zzz';
 
-// Setting `type` to `udp4` while setting `ipv6Only` to `true` is possible
-// and it will throw an error.
-{
+// Setting `type` to `udp4` while setting `ipv6Only` to `true` is possible.
+// The ipv6Only setting will be ignored.
+async function ipv4() {
   const server = createQuicSocket({
     endpoint: {
       type: 'udp4',
       ipv6Only: true
-    } });
-
-  server.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'EINVAL');
-    assert.strictEqual(err.message, 'bind EINVAL 0.0.0.0');
-  }));
-
+    }
+  });
+  server.on('error', common.mustNotCall());
   server.listen({ key, cert, ca, alpn: kALPN });
+  await once(server, 'ready');
+  server.close();
 }
 
-// Connecting ipv6 server by "127.0.0.1" should work when `ipv6Only`
-// is set to `false`.
-(async () => {
+// Connecting to ipv6 server using "127.0.0.1" should work when
+// `ipv6Only` is set to `false`.
+async function ipv6() {
   const server = createQuicSocket({
     endpoint: {
       type: 'udp6',
@@ -54,6 +52,7 @@ const kALPN = 'zzz';
   const session = client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
+    ipv6Only: true,
   });
 
   await once(session, 'secure');
@@ -70,11 +69,11 @@ const kALPN = 'zzz';
     once(client, 'close'),
     once(server, 'close')
   ]);
-})().then(common.mustCall());
+}
 
 // When the `ipv6Only` set to `true`, a client cann't connect to it
 // through "127.0.0.1".
-(async () => {
+async function ipv6Only() {
   const server = createQuicSocket({
     endpoint: {
       type: 'udp6',
@@ -87,10 +86,13 @@ const kALPN = 'zzz';
 
   await once(server, 'ready');
 
+  // This will attempt to connect to the ipv4 localhost address
+  // but should fail as the connection idle timeout expires.
   const session = client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
     idleTimeout: common.platformTimeout(1),
+    ipv6Only: true,
   });
 
   session.on('secure', common.mustNotCall());
@@ -104,11 +106,11 @@ const kALPN = 'zzz';
     once(client, 'close'),
     once(server, 'close')
   ]);
-})();
+}
 
 // Creating the QuicSession fails when connect type does not match the
 // the connect IP address...
-(async () => {
+async function mismatch() {
   const server = createQuicSocket({ endpoint: { type: 'udp6' } });
   const client = createQuicSocket({ client: { key, cert, ca, alpn: kALPN } });
 
@@ -137,4 +139,10 @@ const kALPN = 'zzz';
     once(client, 'close'),
     once(server, 'close')
   ]);
-})().then(common.mustCall());
+}
+
+ipv4()
+  .then(ipv6)
+  .then(ipv6Only)
+  .then(mismatch)
+  .then(common.mustCall());
