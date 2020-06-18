@@ -11,9 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const nodeBinary = path.resolve(
-  __dirname, '..', '..',
-  `out/${common.buildType}/node`);
+const nodeBinary = process.execPath;
 
 tmpdir.refresh();
 
