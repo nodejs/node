@@ -3184,7 +3184,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
   <tr>
     <td><code>SSL_OP_ALLOW_NO_DHE_KEX</code></td>
-    <td>Instructs OpenSSL to allow a non-[EC]DHE-based key exchane mode
+    <td>Instructs OpenSSL to allow a non-[EC]DHE-based key exchange mode
     for TLS v1.3</td>
   </tr>
   <tr>
@@ -3315,7 +3315,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
     <td><code>SSL_OP_PRIORITIZE_CHACHA</code></td>
     <td>Instructs OpenSSL server to prioritize ChaCha20Poly1305
     when client does.
-    This option has no effect if SSL_OP_CIPHER_SERVER_PREFERENCE
+    This option has no effect if
+    <code>SSL_OP_CIPHER_SERVER_PREFERENCE</code>
     is not enabled.</td>
   </tr>
   <tr>
