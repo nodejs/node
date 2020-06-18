@@ -261,8 +261,11 @@ added: REPLACEME
       to an IP address.
     * `port` {number} The local port to bind to.
     * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
-      respectively.
-    * `ipv6Only` {boolean}
+      respectively. **Default**: `'udp4'`.
+    * `ipv6Only` {boolean} If `type` is `'udp6'`, then setting `ipv6Only` to
+      `true` will disable dual-stack support on the UDP binding -- that is,
+      binding to address `'::'` will not make `'0.0.0.0'` be bound. The option
+      is ignored if `type` is `'udp4'`. **Default**: `false`.
   * `lookup` {Function} A custom DNS lookup function. Default `dns.lookup()`.
   * `maxConnections` {number} The maximum number of total active inbound
     connections.
@@ -1387,8 +1390,11 @@ added: REPLACEME
     to an IP address.
   * `port` {number} The local port to bind to.
   * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
-    respectively.
-  * `ipv6Only` {boolean}
+    respectively. **Default**: `'udp4'`.
+  * `ipv6Only` {boolean} If `type` is `'udp6'`, then setting `ipv6Only` to
+    `true` will disable dual-stack support on the UDP binding -- that is,
+    binding to address `'::'` will not make `'0.0.0.0'` be bound. The option
+    is ignored if `type` is `'udp4'`. **Default**: `false`.
 * Returns: {QuicEndpoint}
 
 Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance.
@@ -1519,7 +1525,10 @@ added: REPLACEME
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
     [OpenSSL Options][] for more information.
   * `idleTimeout` {number}
-  * `ipv6Only` {boolean}
+  * `ipv6Only` {boolean} If `type` is `'udp6'`, then setting `ipv6Only` to
+    `true` will disable dual-stack support on the UDP binding -- that is,
+    binding to address `'::'` will not make `'0.0.0.0'` be bound. The option
+    is ignored if `type` is `'udp4'`. **Default**: `false`.
   * `key` {string|string[]|Buffer|Buffer[]|Object[]} Private keys in PEM format.
     PEM allows the option of private keys being encrypted. Encrypted keys will
     be decrypted with `options.passphrase`. Multiple keys using different
@@ -1578,7 +1587,7 @@ added: REPLACEME
     `QuicClientSession` object.
   * `type`: {string} Identifies the type of UDP socket. The value must either
     be `'udp4'`, indicating UDP over IPv4, or `'udp6'`, indicating UDP over
-    IPv6. Defaults to `'udp4'`.
+    IPv6. **Default**: `'udp4'`.
 
 Create a new `QuicClientSession`. This function can be called multiple times
 to create sessions associated with different endpoints on the same
