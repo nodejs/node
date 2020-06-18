@@ -125,7 +125,7 @@ void Initialize(Local<Object> target,
 #define SET_STATE_TYPEDARRAY(name, field)             \
   target->Set(context,                                \
               FIXED_ONE_BYTE_STRING(isolate, (name)), \
-              (field.GetJSArray())).FromJust()
+              (field.GetJSArray())).Check()
   SET_STATE_TYPEDARRAY("sessionConfig", state->quicsessionconfig_buffer);
   SET_STATE_TYPEDARRAY("http3Config", state->http3config_buffer);
 #undef SET_STATE_TYPEDARRAY
