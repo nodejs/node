@@ -1,5 +1,9 @@
 'use strict';
-require('../common');
+const common = require('../common');
+
+// crbug.com/1095721
+common.skip('Temporarily disabling to update TypedArray size.');
+
 const assert = require('assert');
 
 const buffer = require('buffer');
