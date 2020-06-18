@@ -128,3 +128,26 @@ function test(options, clientResult, serverResult) {
     }));
   });
 }
+
+// Ensure an error is thrown if 'servername' is not specified.
+assert.throws(() =>
+  tls.createServer(serverOptions, () => {}).addContext(),
+              {
+                code: 'ERR_MISSING_ARGS'
+              });
+
+// Ensure an error is thrown is 'servername' is not a string.
+assert.throws(() =>
+  tls.createServer(serverOptions, () => {}).addContext(7),
+              {
+                code: 'ERR_INVALID_ARG_TYPE'
+              });
+
+// Ensure an error is thrown if 'servername' is an IP address.
+assert.throws(() =>
+  tls.createServer(serverOptions, () => {}).addContext('::'),
+              {
+                code: 'ERR_INVALID_ARG_VALUE',
+                message: 'The argument \'servername\' must not be an IP ' +
+                'address. Received \'::\''
+              });

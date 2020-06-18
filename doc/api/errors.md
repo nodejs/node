@@ -2063,12 +2063,6 @@ attempt to set the `secureProtocol` explicitly. Use one mechanism or the other.
 
 An attempt was made to renegotiate TLS on a socket instance with TLS disabled.
 
-<a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
-### `ERR_TLS_REQUIRED_SERVER_NAME`
-
-While using TLS, the `server.addContext()` method was called without providing
-a host name in the first parameter.
-
 <a id="ERR_TLS_SESSION_ATTACK"></a>
 ### `ERR_TLS_SESSION_ATTACK`
 
