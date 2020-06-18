@@ -85,6 +85,7 @@
       'lib/_stream_wrap.js',
       'lib/string_decoder.js',
       'lib/sys.js',
+      'lib/timers/promises.js',
       'lib/timers.js',
       'lib/tls.js',
       'lib/_tls_common.js',
