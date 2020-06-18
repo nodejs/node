@@ -302,6 +302,40 @@ added: v0.0.1
 
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
+## Timers Promises API
+
+> Stability: 1 - Experimental
+
+The `timers/promises` API provides an alternative set of timer functions
+that return `Promise` objects. The API is accessible via
+`require('timers/promises')`.
+
+```js
+const timersPromises = require('timers/promises');
+```
+
+### `timersPromises.setTimeout(delay\[, value\[, options\]\])
+
+* `delay` {number} The number of milliseconds to wait before resolving the
+  `Promise`.
+* `value` {any} A value with which the `Promise` is resolved.
+* `options` {Object}
+  * `ref` {boolean} Set to `false` to indicate that the scheduled `Timeout`
+    should not require the Node.js event loop to remain active.
+    **Default**: `true`.
+  * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
+    cancel the scheduled `Timeout`.
+
+### `timersPromises.setImmediate(\[value\[, options\]\])
+
+* `value` {any} A value with which the `Promise` is resolved.
+* `options` {Object}
+  * `ref` {boolean} Set to `false` to indicate that the scheduled `Immediate`
+    should not require the Node.js event loop to remain active.
+    **Default**: `true`.
+  * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
+    cancel the scheduled `Immediate`.
+
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#setimmediate-vs-settimeout
 [`AbortController`]: globals.html#globals_class_abortcontroller
 [`TypeError`]: errors.html#errors_class_typeerror
