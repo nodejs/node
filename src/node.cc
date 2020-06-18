@@ -730,7 +730,10 @@ void ResetStdio() {
         err = tcsetattr(fd, TCSANOW, &s.termios);
       while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
-      CHECK_EQ(0, err);
+
+      // Normally we expect err == 0. But if macOS App Sandbox is enabled,
+      // tcsetattr will fail with err == -1 and errno == EPERM.
+      CHECK_IMPLIES(err != 0, err == -1 && errno == EPERM);
     }
   }
 #endif  // __POSIX__
