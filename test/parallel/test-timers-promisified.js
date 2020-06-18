@@ -10,10 +10,7 @@ const { promisify } = require('util');
 const setTimeout = promisify(timers.setTimeout);
 const setImmediate = promisify(timers.setImmediate);
 
-process.on('multipleResolves', (type, promise, reason) => {
-  console.error('multipleResolves', type, promise, reason);
-  throw new Error('multipleResolves');
-});
+process.on('multipleResolves', common.mustNotCall());
 
 {
   const promise = setTimeout(1);
