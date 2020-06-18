@@ -10,6 +10,11 @@ const { promisify } = require('util');
 const setTimeout = promisify(timers.setTimeout);
 const setImmediate = promisify(timers.setImmediate);
 
+process.on('multipleResolves', (type, promise, reason) => {
+  console.error('multipleResolves', type, promise, reason);
+  throw new Error('multipleResolves');
+});
+
 {
   const promise = setTimeout(1);
   promise.then(common.mustCall((value) => {
@@ -64,6 +69,23 @@ const setImmediate = promisify(timers.setImmediate);
   const signal = ac.signal;
   ac.abort(); // Abort in advance
   assert.rejects(setImmediate(10, { signal }), /AbortError/);
+}
+
+{
+  // Check that aborting after resolve will not reject.
+  const ac = new AbortController();
+  const signal = ac.signal;
+  setTimeout(10, undefined, { signal }).then(() => {
+    ac.abort();
+  });
+}
+{
+  // Check that aborting after resolve will not reject.
+  const ac = new AbortController();
+  const signal = ac.signal;
+  setImmediate(10, { signal }).then(() => {
+    ac.abort();
+  });
 }
 
 {
