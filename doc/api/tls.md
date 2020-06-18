@@ -549,7 +549,7 @@ called:
 <!-- YAML
 added: v0.5.3
 -->
-`
+
 * `servername` {string} A SNI server name or wildcard (e.g. `'*'`). Must not be
   an IP address.
 * `context` {Object} An object containing any of the possible properties
