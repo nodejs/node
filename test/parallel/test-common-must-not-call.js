@@ -26,14 +26,14 @@ const createValidate = (line, args = []) => common.mustCall((e) => {
   assert.strictEqual(rest, line + argsInfo);
 });
 
-const validate1 = createValidate('9')
+const validate1 = createValidate('9');
 try {
   testFunction1();
 } catch (e) {
   validate1(e);
 }
 
-const validate2 = createValidate('11', ['hello', 42])
+const validate2 = createValidate('11', ['hello', 42]);
 try {
   testFunction2('hello', 42);
 } catch (e) {
