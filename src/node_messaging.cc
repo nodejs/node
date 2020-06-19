@@ -225,21 +225,6 @@ MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context) {
   return emit_message_val.As<Function>();
 }
 
-MaybeLocal<Function> GetDOMException(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
-  Local<Object> per_context_bindings;
-  Local<Value> domexception_ctor_val;
-  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
-      !per_context_bindings->Get(context,
-                                FIXED_ONE_BYTE_STRING(isolate, "DOMException"))
-          .ToLocal(&domexception_ctor_val)) {
-    return MaybeLocal<Function>();
-  }
-  CHECK(domexception_ctor_val->IsFunction());
-  Local<Function> domexception_ctor = domexception_ctor_val.As<Function>();
-  return domexception_ctor;
-}
-
 void ThrowDataCloneException(Local<Context> context, Local<String> message) {
   Isolate* isolate = context->GetIsolate();
   Local<Value> argv[] = {message,

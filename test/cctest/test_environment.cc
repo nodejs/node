@@ -559,3 +559,22 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
 
   EXPECT_EQ(called, 1);
 }
+
+TEST_F(EnvironmentTest, GetDOMExceptionTest) {
+  // Test that GetDOMException() returns a constructor named "DOMException"
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  v8::Local<v8::Function> domexception_ctor =
+      node::GetDOMException(env.context()).ToLocalChecked();
+
+  CHECK(domexception_ctor->IsConstructor());
+
+  char domexception[13];
+  v8::Local<v8::Value> v_name = domexception_ctor->GetName();
+  CHECK(v_name->IsString());
+  v8::Local<v8::String> name = v_name->ToString(env.context()).ToLocalChecked();
+  name->WriteUtf8(isolate_, domexception, 13);
+  EXPECT_STREQ(domexception, "DOMException");
+}
