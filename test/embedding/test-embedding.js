@@ -19,7 +19,7 @@ assert.strictEqual(
   '42');
 
 assert.strictEqual(
-  child_process.spawnSync(binary, ['console.log(embedVars.nön_𝒂scıı)'])
+  child_process.spawnSync(binary, ['console.log(embedVars.nön_ascıı)'])
     .stdout.toString().trim(),
   '🏳️‍🌈');
 
