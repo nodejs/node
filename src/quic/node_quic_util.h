@@ -114,7 +114,7 @@ class StatsBase {
   // A StatsBase instance may have one of three histogram
   // instances. One that records rate of data flow, one
   // that records size of data chunk, and one that records
-  // rate of data ackwowledgement. These may be used in
+  // rate of data acknowledgement. These may be used in
   // slightly different ways of different StatsBase
   // instances or may be turned off entirely.
   enum HistogramOptions {
