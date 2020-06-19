@@ -1,7 +1,9 @@
-/* eslint-disable node-core/crypto-check */
 'use strict';
 // Refs: https://github.com/nodejs/node/issues/31733
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -121,7 +123,6 @@ function test(config) {
 
 tmpdir.refresh();
 
-// OK
 test({
   cipher: 'aes-128-ccm',
   aad: Buffer.alloc(1),
@@ -131,7 +132,6 @@ test({
   plaintextLength: 32768,
 });
 
-// Fails the fstream test.
 test({
   cipher: 'aes-128-ccm',
   aad: Buffer.alloc(1),
