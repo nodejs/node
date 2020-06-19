@@ -27,7 +27,7 @@ const process = global.process;  // Some tests tamper with the process global.
 const assert = require('assert');
 const { exec, execSync, spawnSync } = require('child_process');
 const fs = require('fs');
-// Do not require 'os' until needed so that test-os-checked-fucnction can
+// Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
 const path = require('path');
 const util = require('util');
