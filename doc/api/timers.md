@@ -123,6 +123,21 @@ Calling `timeout.unref()` creates an internal timer that will wake the Node.js
 event loop. Creating too many of these can adversely impact performance
 of the Node.js application.
 
+### `timeout[Symbol.toPrimitive]()`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {integer} number that can be used to reference this `timeout`
+
+Coerce a `Timeout` to a primitive, a primitive will be generated that
+can be used to clear the `Timeout`.
+The generated number can only be used in the same thread where timeout
+was created. Therefore to use it cross [`worker_threads`][] it has
+to first be passed to a correct thread.
+This allows enhanced compatibility with browser's `setTimeout()`, and
+`setInterval()` implementations.
+
 ## Scheduling timers
 
 A timer in Node.js is an internal construct that calls a given function after
@@ -346,3 +361,4 @@ const timersPromises = require('timers/promises');
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
 [`util.promisify()`]: util.html#util_util_promisify_original
+[`worker_threads`]: worker_threads.html
