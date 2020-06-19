@@ -1121,8 +1121,10 @@ void QuicEndpoint::Initialize(
   Isolate* isolate = env->isolate();
   Local<String> class_name = FIXED_ONE_BYTE_STRING(isolate, "QuicEndpoint");
   Local<FunctionTemplate> endpoint = env->NewFunctionTemplate(NewQuicEndpoint);
+  endpoint->Inherit(BaseObject::GetConstructorTemplate(env));
   endpoint->SetClassName(class_name);
-  endpoint->InstanceTemplate()->SetInternalFieldCount(1);
+  endpoint->InstanceTemplate()->SetInternalFieldCount(
+      QuicEndpoint::kInternalFieldCount);
   env->SetProtoMethod(endpoint,
                       "waitForPendingCallbacks",
                       QuicEndpointWaitForPendingCallbacks);
@@ -1142,8 +1144,10 @@ void QuicSocket::Initialize(
   Isolate* isolate = env->isolate();
   Local<String> class_name = FIXED_ONE_BYTE_STRING(isolate, "QuicSocket");
   Local<FunctionTemplate> socket = env->NewFunctionTemplate(NewQuicSocket);
+  socket->Inherit(AsyncWrap::GetConstructorTemplate(env));
   socket->SetClassName(class_name);
-  socket->InstanceTemplate()->SetInternalFieldCount(1);
+  socket->InstanceTemplate()->SetInternalFieldCount(
+      QuicSocket::kInternalFieldCount);
   socket->InstanceTemplate()->Set(env->owner_symbol(), Null(isolate));
   env->SetProtoMethod(socket,
                       "addEndpoint",
@@ -1170,9 +1174,11 @@ void QuicSocket::Initialize(
   target->Set(context, class_name,
               socket->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
-  // TODO(addaleax): None of these templates actually are constructor templates.
-  Local<ObjectTemplate> sendwrap_template = ObjectTemplate::New(isolate);
-  sendwrap_template->SetInternalFieldCount(1);
+  Local<FunctionTemplate> sendwrap_ctor = FunctionTemplate::New(isolate);
+  sendwrap_ctor->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  sendwrap_ctor->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SendWrap"));
+  Local<ObjectTemplate> sendwrap_template = sendwrap_ctor->InstanceTemplate();
+  sendwrap_template->SetInternalFieldCount(SendWrap::kInternalFieldCount);
   env->set_quicsocketsendwrap_instance_template(sendwrap_template);
 }
 
