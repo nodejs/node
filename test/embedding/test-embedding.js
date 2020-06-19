@@ -6,11 +6,22 @@ const child_process = require('child_process');
 const path = require('path');
 
 common.allowGlobals(global.require);
+common.allowGlobals(global.embedVars);
 let binary = `out/${common.buildType}/embedtest`;
 if (common.isWindows) {
   binary += '.exe';
 }
 binary = path.resolve(__dirname, '..', '..', binary);
+
+assert.strictEqual(
+  child_process.spawnSync(binary, ['console.log(42)'])
+    .stdout.toString().trim(),
+  '42');
+
+assert.strictEqual(
+  child_process.spawnSync(binary, ['console.log(embedVars.nön_ascıı)'])
+    .stdout.toString().trim(),
+  '🏳️‍🌈');
 
 assert.strictEqual(
   child_process.spawnSync(binary, ['console.log(42)'])
