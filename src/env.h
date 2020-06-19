@@ -146,12 +146,12 @@ constexpr size_t kFsStatsBufferLength =
 // "node:" prefix to avoid name clashes with third-party code.
 #define PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)                              \
   V(alpn_buffer_private_symbol, "node:alpnBuffer")                            \
-  V(arraybuffer_untransferable_private_symbol, "node:untransferableBuffer")   \
   V(arrow_message_private_symbol, "node:arrowMessage")                        \
   V(contextify_context_private_symbol, "node:contextify:context")             \
   V(contextify_global_private_symbol, "node:contextify:global")               \
   V(decorated_private_symbol, "node:decorated")                               \
   V(napi_wrapper, "node:napi:wrapper")                                        \
+  V(untransferable_object_private_symbol, "node:untransferableObject")        \
 
 // Symbols are per-isolate primitives but Environment proxies them
 // for the sake of convenience.
