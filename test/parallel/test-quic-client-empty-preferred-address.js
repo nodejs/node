@@ -3,7 +3,7 @@
 
 // This test ensures that when we don't define `preferredAddress`
 // on the server while the `preferredAddressPolicy` on the client
-// is `accpet`, it works as expected.
+// is `accept`, it works as expected.
 
 const common = require('../common');
 if (!common.hasQuic)
