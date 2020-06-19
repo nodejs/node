@@ -397,7 +397,21 @@ Maybe<bool> Message::Serialize(Environment* env,
   std::vector<Local<ArrayBuffer>> array_buffers;
   for (uint32_t i = 0; i < transfer_list_v.length(); ++i) {
     Local<Value> entry = transfer_list_v[i];
-    // Currently, we support ArrayBuffers and MessagePorts.
+    if (entry->IsObject()) {
+      // See https://github.com/nodejs/node/pull/30339#issuecomment-552225353
+      // for details.
+      bool untransferable;
+      if (!entry.As<Object>()->HasPrivate(
+              context,
+              env->untransferable_object_private_symbol())
+              .To(&untransferable)) {
+        return Nothing<bool>();
+      }
+      if (untransferable) continue;
+    }
+
+    // Currently, we support ArrayBuffers and BaseObjects for which
+    // GetTransferMode() does not return kUntransferable.
     if (entry->IsArrayBuffer()) {
       Local<ArrayBuffer> ab = entry.As<ArrayBuffer>();
       // If we cannot render the ArrayBuffer unusable in this Isolate,
@@ -409,16 +423,6 @@ Maybe<bool> Message::Serialize(Environment* env,
       // is always going to outlive any Workers it creates, and so will its
       // allocator along with it.
       if (!ab->IsDetachable()) continue;
-      // See https://github.com/nodejs/node/pull/30339#issuecomment-552225353
-      // for details.
-      bool untransferrable;
-      if (!ab->HasPrivate(
-              context,
-              env->arraybuffer_untransferable_private_symbol())
-              .To(&untransferrable)) {
-        return Nothing<bool>();
-      }
-      if (untransferrable) continue;
       if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
           array_buffers.end()) {
         ThrowDataCloneException(

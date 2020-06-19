@@ -29,7 +29,7 @@ struct node_napi_env__ : public napi_env__ {
       v8::Local<v8::ArrayBuffer> ab) const override {
     return ab->SetPrivate(
         context(),
-        node_env()->arraybuffer_untransferable_private_symbol(),
+        node_env()->untransferable_object_private_symbol(),
         v8::True(isolate));
   }
 };

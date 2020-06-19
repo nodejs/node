@@ -80,6 +80,42 @@ if (isMainThread) {
 }
 ```
 
+## `worker.markAsUntransferable(object)`
+<!-- YAML
+added: REPLACEME
+-->
+
+Mark an object as not transferable. If `object` occurs in the transfer list of
+a [`port.postMessage()`][] call, it will be ignored.
+
+In particular, this makes sense for objects that can be cloned, rather than
+transferred, and which are used by other objects on the sending side.
+For example, Node.js marks the `ArrayBuffer`s it uses for its
+[`Buffer` pool][`Buffer.allocUnsafe()`] with this.
+
+This operation cannot be undone.
+
+```js
+const { MessageChannel, markAsUntransferable } = require('worker_threads');
+
+const pooledBuffer = new ArrayBuffer(8);
+const typedArray1 = new Uint8Array(pooledBuffer);
+const typedArray2 = new Float64Array(pooledBuffer);
+
+markAsUntransferable(pooledBuffer);
+
+const { port1 } = new MessageChannel();
+port1.postMessage(typedArray1, [ typedArray1.buffer ]);
+
+// The following line prints the contents of typedArray1 -- it still owns its
+// memory and has been cloned, not transfered. Without `markAsUntransferable()`,
+// this would print an empty Uint8Array. typedArray2 is intact as well.
+console.log(typedArray1);
+console.log(typedArray2);
+```
+
+There is no equivalent to this API in browsers.
+
 ## `worker.moveMessagePortToContext(port, contextifiedSandbox)`
 <!-- YAML
 added: v11.13.0
@@ -441,6 +477,9 @@ console.log(u2.length);  // prints 0
 For `Buffer` instances, specifically, whether the underlying
 `ArrayBuffer` can be transferred or cloned depends entirely on how
 instances were created, which often cannot be reliably determined.
+
+An `ArrayBuffer` can be marked with [`markAsUntransferable()`][] to indicate
+that it should always be cloned and never transferred.
 
 Depending on how a `Buffer` instance was created, it may or may
 not own its underlying `ArrayBuffer`. An `ArrayBuffer` must not
@@ -859,6 +898,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.html
+[`markAsUntransferable()`]: #worker_threads_worker_markasuntransferable_object
 [`port.on('message')`]: #worker_threads_event_message
 [`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
 [`port.postMessage()`]: #worker_threads_port_postmessage_value_transferlist
