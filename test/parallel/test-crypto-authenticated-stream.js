@@ -121,7 +121,6 @@ function test(config) {
 
 tmpdir.refresh();
 
-// OK
 test({
   cipher: 'aes-128-ccm',
   aad: Buffer.alloc(1),
@@ -131,7 +130,6 @@ test({
   plaintextLength: 32768,
 });
 
-// Fails the fstream test.
 test({
   cipher: 'aes-128-ccm',
   aad: Buffer.alloc(1),
