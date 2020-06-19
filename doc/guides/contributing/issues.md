@@ -90,10 +90,10 @@ including whether the behavior being seen is a bug or a feature. This discussion
 is part of the process and should be kept focused, helpful, and professional.
 
 Short, clipped responses that provide neither additional context nor supporting
-detail are not helpful or professional. To many, such responses are simply
+details are not helpful or professional to many. Such responses are simply
 annoying and unfriendly.
 
-Contributors are encouraged to help one another make forward progress as much
+Contributors are encouraged to help one another to make forward progress as much
 as possible, empowering one another to solve issues collaboratively. If you
 choose to comment on an issue that you feel either is not a problem that needs
 to be fixed, or if you encounter information in an issue that you feel is
