@@ -560,7 +560,9 @@ Local<Value> GetALPNProtocol(const QuicSession& session) {
   QuicCryptoContext* ctx = session.crypto_context();
   Environment* env = session.env();
   std::string alpn = ctx->selected_alpn();
-  if (alpn == NGTCP2_ALPN_H3 + 1) {
+  // This supposed to be `NGTCP2_ALPN_H3 + 1`
+  // Details see https://github.com/nodejs/node/issues/33959
+  if (alpn == &NGTCP2_ALPN_H3[1]) {
     return env->quic_alpn_string();
   } else {
     return ToV8Value(
