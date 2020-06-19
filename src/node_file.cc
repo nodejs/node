@@ -130,6 +130,32 @@ FileHandleReadWrap::~FileHandleReadWrap() {}
 
 FSReqBase::~FSReqBase() {}
 
+void FSReqBase::Cancel(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  FSReqBase* self;
+  ASSIGN_OR_RETURN_UNWRAP(&self, args.Holder());
+  self->ReqWrap::Cancel();
+  self->is_canceled_ = true;
+}
+
+void FSReqBase::MaybeReplaceWithAbortError(v8::Local<v8::Value>* reject) {
+  if (!is_canceled_) return;
+
+  Local<Value> exception;
+  Local<Function> domexception_ctor;
+  if (!GetDOMException(env()->context()).ToLocal(&domexception_ctor)) return;
+
+  Local<Value> argv[] = {
+      FIXED_ONE_BYTE_STRING(env()->isolate(), "Operation was cancelled."),
+      FIXED_ONE_BYTE_STRING(env()->isolate(), "AbortError"),
+  };
+  Local<Value> abort_error;
+  if (!domexception_ctor->NewInstance(env()->context(), arraysize(argv), argv)
+           .ToLocal(&abort_error))
+    return;
+
+  *reject = abort_error;
+}
+
 void FSReqBase::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("continuation_data", continuation_data_);
 }
@@ -555,6 +581,7 @@ int FileHandle::DoShutdown(ShutdownWrap* req_wrap) {
 
 
 void FSReqCallback::Reject(Local<Value> reject) {
+  MaybeReplaceWithAbortError(&reject);
   MakeCallback(env()->oncomplete_string(), 1, &reject);
 }
 
@@ -563,6 +590,13 @@ void FSReqCallback::ResolveStat(const uv_stat_t* stat) {
 }
 
 void FSReqCallback::Resolve(Local<Value> value) {
+  // If FSReqBase::Cancel() was called, then reject the request rather than
+  // resolving.
+  if (IsCanceled()) {
+    Reject(Undefined(env()->isolate()));
+    return;
+  }
+
   Local<Value> argv[2] {
     Null(env()->isolate()),
     value
@@ -2462,6 +2496,7 @@ void Initialize(Local<Object> target,
   fst->InstanceTemplate()->SetInternalFieldCount(
       FSReqBase::kInternalFieldCount);
   fst->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  env->SetProtoMethod(fst, "cancel", FSReqBase::Cancel);
   Local<String> wrapString =
       FIXED_ONE_BYTE_STRING(isolate, "FSReqCallback");
   fst->SetClassName(wrapString);
@@ -2485,6 +2520,7 @@ void Initialize(Local<Object> target,
   // Create Function Template for FSReqPromise
   Local<FunctionTemplate> fpt = FunctionTemplate::New(isolate);
   fpt->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  env->SetProtoMethod(fpt, "cancel", FSReqBase::Cancel);
   Local<String> promiseString =
       FIXED_ONE_BYTE_STRING(isolate, "FSReqPromise");
   fpt->SetClassName(promiseString);

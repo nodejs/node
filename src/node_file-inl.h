@@ -182,12 +182,17 @@ void FSReqPromise<AliasedBufferT>::Reject(v8::Local<v8::Value> reject) {
       object()->Get(env()->context(),
                     env()->promise_string()).ToLocalChecked();
   v8::Local<v8::Promise::Resolver> resolver = value.As<v8::Promise::Resolver>();
+  MaybeReplaceWithAbortError(&reject);
   USE(resolver->Reject(env()->context(), reject).FromJust());
 }
 
 template <typename AliasedBufferT>
 void FSReqPromise<AliasedBufferT>::Resolve(v8::Local<v8::Value> value) {
   finished_ = true;
+  if (IsCanceled()) {
+    Reject(v8::Undefined(env()->isolate()));
+    return;
+  }
   v8::HandleScope scope(env()->isolate());
   InternalCallbackScope callback_scope(this);
   v8::Local<v8::Value> val =

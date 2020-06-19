@@ -85,6 +85,9 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
   virtual void SetReturnValue(
       const v8::FunctionCallbackInfo<v8::Value>& args) = 0;
 
+  // JS-exposed method to cancel the UV request.
+  static void Cancel(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   const char* syscall() const { return syscall_; }
   const char* data() const { return has_data_ ? *buffer_ : nullptr; }
   enum encoding encoding() const { return encoding_; }
@@ -111,12 +114,17 @@ class FSReqBase : public ReqWrap<uv_fs_t> {
 
   BindingData* binding_data() { return binding_data_.get(); }
 
+ protected:
+  bool IsCanceled() { return is_canceled_; }
+  void MaybeReplaceWithAbortError(v8::Local<v8::Value>* value);
+
  private:
   std::unique_ptr<FSContinuationData> continuation_data_;
   enum encoding encoding_ = UTF8;
   bool has_data_ = false;
   bool use_bigint_ = false;
   bool is_plain_open_ = false;
+  bool is_canceled_ = false;
   const char* syscall_ = nullptr;
 
   BaseObjectPtr<BindingData> binding_data_;
