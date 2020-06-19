@@ -108,6 +108,9 @@ Tells the kernel to join a multicast group at the given `multicastAddress` and
 one interface and will add membership to it. To add membership to every
 available interface, call `addMembership` multiple times, once per interface.
 
+When called on an unbound socket, this method will implicitly bind to a random
+port, listening on all interfaces.
+
 When sharing a UDP socket across multiple `cluster` workers, the
 `socket.addMembership()` function must be called only once or an
 `EADDRINUSE` error will occur:
@@ -143,6 +146,9 @@ is not specified, the operating system will choose one interface and will add
 membership to it. To add membership to every available interface, call
 `socket.addSourceSpecificMembership()` multiple times, once per interface.
 
+When called on an unbound socket, this method will implicitly bind to a random
+port, listening on all interfaces.
+
 ### `socket.address()`
 <!-- YAML
 added: v0.1.99
@@ -153,6 +159,8 @@ added: v0.1.99
 Returns an object containing the address information for a socket.
 For UDP sockets, this object will contain `address`, `family` and `port`
 properties.
+
+This method throws `EBADF` if called on an unbound socket.
 
 ### `socket.bind([port][, address][, callback])`
 <!-- YAML
@@ -298,8 +306,9 @@ added: v12.0.0
 -->
 
 A synchronous function that disassociates a connected `dgram.Socket` from
-its remote address. Trying to call `disconnect()` on an already disconnected
-socket will result in an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][] exception.
+its remote address. Trying to call `disconnect()` on an unbound or already
+disconnected socket will result in an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][]
+exception.
 
 ### `socket.dropMembership(multicastAddress[, multicastInterface])`
 <!-- YAML
@@ -344,12 +353,16 @@ added: v8.7.0
 
 * Returns: {number} the `SO_RCVBUF` socket receive buffer size in bytes.
 
+This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
+
 ### `socket.getSendBufferSize()`
 <!-- YAML
 added: v8.7.0
 -->
 
 * Returns: {number} the `SO_SNDBUF` socket send buffer size in bytes.
+
+This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 
 ### `socket.ref()`
 <!-- YAML
@@ -377,8 +390,8 @@ added: v12.0.0
 * Returns: {Object}
 
 Returns an object containing the `address`, `family`, and `port` of the remote
-endpoint. It throws an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][] exception if the
-socket is not connected.
+endpoint. This method throws an [`ERR_SOCKET_DGRAM_NOT_CONNECTED`][] exception
+if the socket is not connected.
 
 ### `socket.send(msg[, offset, length][, port][, address][, callback])`
 <!-- YAML
@@ -451,6 +464,8 @@ the error is emitted as an `'error'` event on the `socket` object.
 Offset and length are optional but both *must* be set if either are used.
 They are supported only when the first argument is a `Buffer`, a `TypedArray`,
 or a `DataView`.
+
+This method throws [`ERR_SOCKET_BAD_PORT`][] if called on an unbound socket.
 
 Example of sending a UDP packet to a port on `localhost`;
 
@@ -532,6 +547,8 @@ added: v0.6.9
 Sets or clears the `SO_BROADCAST` socket option. When set to `true`, UDP
 packets may be sent to a local interface's broadcast address.
 
+This method throws `EBADF` if called on an unbound socket.
+
 ### `socket.setMulticastInterface(multicastInterface)`
 <!-- YAML
 added: v8.6.0
@@ -557,6 +574,8 @@ interface as in the examples that follow. In IPv6, individual `send` calls can
 also use explicit scope in addresses, so only packets sent to a multicast
 address without specifying an explicit scope are affected by the most recent
 successful use of this call.
+
+This method throws `EBADF` if called on an unbound socket.
 
 #### Example: IPv6 outgoing multicast interface
 
@@ -620,6 +639,8 @@ added: v0.3.8
 Sets or clears the `IP_MULTICAST_LOOP` socket option. When set to `true`,
 multicast packets will also be received on the local interface.
 
+This method throws `EBADF` if called on an unbound socket.
+
 ### `socket.setMulticastTTL(ttl)`
 <!-- YAML
 added: v0.3.8
@@ -635,6 +656,8 @@ decremented to 0 by a router, it will not be forwarded.
 
 The `ttl` argument may be between 0 and 255. The default on most systems is `1`.
 
+This method throws `EBADF` if called on an unbound socket.
+
 ### `socket.setRecvBufferSize(size)`
 <!-- YAML
 added: v8.7.0
@@ -645,6 +668,8 @@ added: v8.7.0
 Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
 in bytes.
 
+This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
+
 ### `socket.setSendBufferSize(size)`
 <!-- YAML
 added: v8.7.0
@@ -654,6 +679,8 @@ added: v8.7.0
 
 Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
 in bytes.
+
+This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 
 ### `socket.setTTL(ttl)`
 <!-- YAML
@@ -670,6 +697,8 @@ Changing TTL values is typically done for network probes or when multicasting.
 
 The `ttl` argument may be between between 1 and 255. The default on most systems
 is 64.
+
+This method throws `EBADF` if called on an unbound socket.
 
 ### `socket.unref()`
 <!-- YAML
@@ -749,6 +778,8 @@ and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
 [`'close'`]: #dgram_event_close
+[`ERR_SOCKET_BAD_PORT`]: errors.html#errors_err_socket_bad_port
+[`ERR_SOCKET_BUFFER_SIZE`]: errors.html#errors_err_socket_buffer_size
 [`ERR_SOCKET_DGRAM_IS_CONNECTED`]: errors.html#errors_err_socket_dgram_is_connected
 [`ERR_SOCKET_DGRAM_NOT_CONNECTED`]: errors.html#errors_err_socket_dgram_not_connected
 [`Error`]: errors.html#errors_class_error
