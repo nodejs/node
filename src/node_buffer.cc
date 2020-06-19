@@ -412,7 +412,7 @@ MaybeLocal<Object> New(Environment* env,
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(env->isolate(), data, length);
   if (ab->SetPrivate(env->context(),
-                     env->arraybuffer_untransferable_private_symbol(),
+                     env->untransferable_object_private_symbol(),
                      True(env->isolate())).IsNothing()) {
     callback(data, hint);
     return Local<Object>();
@@ -1188,6 +1188,10 @@ void Initialize(Local<Object> target,
     uint32_t* zero_fill_field = allocator->zero_fill_field();
     Local<ArrayBuffer> array_buffer = ArrayBuffer::New(
         env->isolate(), zero_fill_field, sizeof(*zero_fill_field));
+    array_buffer->SetPrivate(
+        env->context(),
+        env->untransferable_object_private_symbol(),
+        True(env->isolate())).Check();
     CHECK(target
               ->Set(env->context(),
                     FIXED_ONE_BYTE_STRING(env->isolate(), "zeroFill"),
