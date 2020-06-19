@@ -480,6 +480,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "getMinProto", GetMinProto);
   env->SetProtoMethod(t, "setOptions", SetOptions);
   env->SetProtoMethod(t, "setSessionIdContext", SetSessionIdContext);
+  env->SetProtoMethod(t, "getSessionTimeout", GetSessionTimeout);
   env->SetProtoMethod(t, "setSessionTimeout", SetSessionTimeout);
   env->SetProtoMethod(t, "close", Close);
   env->SetProtoMethod(t, "loadPKCS12", LoadPKCS12);
@@ -1374,6 +1375,15 @@ void SecureContext::SetSessionIdContext(
   args.GetIsolate()->ThrowException(Exception::TypeError(message));
 }
 
+void SecureContext::GetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+
+  CHECK_EQ(args.Length(), 0);
+
+  long sessionTimeout = SSL_CTX_get_timeout(sc->ctx_.get());
+  args.GetReturnValue().Set(static_cast<uint32_t>(sessionTimeout));
+}
 
 void SecureContext::SetSessionTimeout(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;

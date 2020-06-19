@@ -141,6 +141,8 @@ class SecureContext final : public BaseObject {
   static void SetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionIdContext(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetSessionTimeout(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetSessionTimeout(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMinProto(const v8::FunctionCallbackInfo<v8::Value>& args);

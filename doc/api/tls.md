@@ -629,6 +629,20 @@ Existing or currently pending server connections will use the previous keys.
 
 See [Session Resumption][] for more information.
 
+### `server.getSessionTimeout()`
+
+* Returns: {number} The number of seconds after which a TLS session
+    created by the server will no longer be resumable.
+
+  Returns the session timeout in seconds.
+
+### `server.setSessionTimeout(sessionTimeout)`
+
+* `sessionTimeout` {number} The number of seconds after which a TLS session
+    created by the server will no longer be resumable.
+
+  Sets the session timeout.
+  TODO (changed dynamically/for further connections?)
 ## Class: `tls.TLSSocket`
 <!-- YAML
 added: v0.11.4
