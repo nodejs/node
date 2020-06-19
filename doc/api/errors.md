@@ -2530,6 +2530,10 @@ Used when a TLS renegotiation request has failed in a non-specific way.
 
 <a id="ERR_TLS_REQUIRED_SERVER_NAME"></a>
 ### `ERR_TLS_REQUIRED_SERVER_NAME`
+<!-- YAML
+added: v9.0.0
+removed: REPLACEME
+-->
 
 While using TLS, the `server.addContext()` method was called without providing
 a host name in the first parameter.
