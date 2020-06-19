@@ -1954,7 +1954,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
-[`server.addContext()`]: #tls_server_addcontext_hostname_context
+[`server.addContext()`]: #tls_server_addcontext_servername_context
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
 [`server.listen()`]: net.html#net_server_listen
 [`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
