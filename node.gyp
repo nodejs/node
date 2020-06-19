@@ -162,7 +162,6 @@
       'lib/internal/main/prof_process.js',
       'lib/internal/main/repl.js',
       'lib/internal/main/run_main_module.js',
-      'lib/internal/main/run_third_party_main.js',
       'lib/internal/main/worker_thread.js',
       'lib/internal/modules/run_main.js',
       'lib/internal/modules/package_json_reader.js',

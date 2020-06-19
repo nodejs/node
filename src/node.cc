@@ -461,13 +461,6 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return scope.EscapeMaybe(cb(info));
   }
 
-  // To allow people to extend Node in different ways, this hook allows
-  // one to drop a file lib/_third_party_main.js into the build
-  // directory which will be executed instead of Node's normal loading.
-  if (NativeModuleEnv::Exists("_third_party_main")) {
-    return StartExecution(env, "internal/main/run_third_party_main");
-  }
-
   if (env->worker_context() != nullptr) {
     return StartExecution(env, "internal/main/worker_thread");
   }
