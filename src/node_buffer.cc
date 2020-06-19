@@ -419,7 +419,7 @@ MaybeLocal<Object> New(Environment* env,
   Local<ArrayBuffer> ab =
       CallbackInfo::CreateTrackedArrayBuffer(env, data, length, callback, hint);
   if (ab->SetPrivate(env->context(),
-                     env->arraybuffer_untransferable_private_symbol(),
+                     env->untransferable_object_private_symbol(),
                      True(env->isolate())).IsNothing()) {
     return Local<Object>();
   }
@@ -1179,7 +1179,7 @@ void Initialize(Local<Object> target,
         ArrayBuffer::New(env->isolate(), std::move(backing));
     array_buffer->SetPrivate(
         env->context(),
-        env->arraybuffer_untransferable_private_symbol(),
+        env->untransferable_object_private_symbol(),
         True(env->isolate())).Check();
     CHECK(target
               ->Set(env->context(),
