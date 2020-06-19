@@ -384,7 +384,7 @@ bool CheckCertNames(
       return false;
   }
 
-  if (name_parts[0].find("*") == std::string::npos ||
+  if (name_parts[0].find('*') == std::string::npos ||
       name_parts[0].find("xn--") != std::string::npos) {
     return host_parts[0] == name_parts[0];
   }
