@@ -1630,6 +1630,11 @@ changes:
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
+  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
+    data. See [Session Resumption][] for more information.
+  * `sessionTimeout` {number} The number of seconds after which a TLS session
+    created by the server will no longer be resumable. See
+    [Session Resumption][] for more information. **Default:** `300`.
 
 [`tls.createServer()`][] sets the default value of the `honorCipherOrder` option
 to `true`, other APIs that create secure contexts leave it unset.
