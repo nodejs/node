@@ -3529,12 +3529,11 @@ static void CreateNativeKeyObjectClass(
 
   Local<Value> recv = Undefined(env->isolate());
   Local<Value> ret_v;
-  if (callback.As<Function>()->Call(
-          env->context(), recv, 1, &ctor).ToLocal(&ret)) {
+  if (!callback.As<Function>()->Call(
+          env->context(), recv, 1, &ctor).ToLocal(&ret_v)) {
     return;
   }
   Local<Array> ret = ret_v.As<Array>();
-  Local<Value> ctor;
   if (!ret->Get(env->context(), 1).ToLocal(&ctor)) return;
   env->set_crypto_key_object_secret_constructor(ctor.As<Function>());
   if (!ret->Get(env->context(), 2).ToLocal(&ctor)) return;
