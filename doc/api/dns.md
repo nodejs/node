@@ -10,9 +10,8 @@ addresses of host names.
 Although named for the [Domain Name System (DNS)][], it does not always use the
 DNS protocol for lookups. [`dns.lookup()`][] uses the operating system
 facilities to perform name resolution. It may not need to perform any network
-communication. Developers looking to perform name resolution in the same way
-that other applications on the same operating system behave should use
-[`dns.lookup()`][].
+communication. To perform name resolution the way other applications on the same
+system do, use [`dns.lookup()`][].
 
 ```js
 const dns = require('dns');
@@ -26,9 +25,8 @@ dns.lookup('example.org', (err, address, family) => {
 All other functions in the `dns` module connect to an actual DNS server to
 perform name resolution. They will always use the network to perform DNS
 queries. These functions do not use the same set of configuration files used by
-[`dns.lookup()`][] (e.g. `/etc/hosts`). These functions should be used by
-developers who do not want to use the underlying operating system's
-facilities for name resolution, and instead want to always perform DNS queries.
+[`dns.lookup()`][] (e.g. `/etc/hosts`). Use these functions to always perform
+DNS queries, bypassing other name-resolution facilities.
 
 ```js
 const dns = require('dns');
