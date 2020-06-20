@@ -558,7 +558,7 @@ environment variable.
 
 `process.allowedNodeEnvironmentFlags` extends `Set`, but overrides
 `Set.prototype.has` to recognize several different possible flag
-representations.  `process.allowedNodeEnvironmentFlags.has()` will
+representations. `process.allowedNodeEnvironmentFlags.has()` will
 return `true` in the following cases:
 
 * Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,

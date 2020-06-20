@@ -3679,14 +3679,14 @@ changes:
   * `err` {Error}
 
 Asynchronous symlink(2) which creates the link called `path` pointing to
-`target`.  No arguments other than a possible exception are given to the
+`target`. No arguments other than a possible exception are given to the
 completion callback.
 
 The `type` argument is only available on Windows and ignored on other platforms.
 It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
 not set, Node.js will autodetect `target` type and use `'file'` or `'dir'`. If
 the `target` does not exist, `'file'` will be used. Windows junction points
-require the destination path to be absolute.  When using `'junction'`, the
+require the destination path to be absolute. When using `'junction'`, the
 `target` argument will automatically be normalized to absolute path.
 
 Relative targets are relative to the link’s parent directory.
@@ -4300,7 +4300,7 @@ before and/or after the newly written data.
 For example, if `fs.writeFile()` is called twice in a row, first to write the
 string `'Hello'`, then to write the string `', World'`, the file would contain
 `'Hello, World'`, and might contain some of the file's original data (depending
-on the size of the original file, and the position of the file descriptor).  If
+on the size of the original file, and the position of the file descriptor). If
 a file name had been used instead of a descriptor, the file would be guaranteed
 to contain only `', World'`.
 

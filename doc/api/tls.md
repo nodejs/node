@@ -325,9 +325,9 @@ in [`tls.createServer()`][], [`tls.connect()`][], and when creating new
 
 The ciphers list can contain a mixture of TLSv1.3 cipher suite names, the ones
 that start with `'TLS_'`, and specifications for TLSv1.2 and below cipher
-suites.  The TLSv1.2 ciphers support a legacy specification format, consult
+suites. The TLSv1.2 ciphers support a legacy specification format, consult
 the OpenSSL [cipher list format][] documentation for details, but those
-specifications do *not* apply to TLSv1.3 ciphers.  The TLSv1.3 suites can only
+specifications do *not* apply to TLSv1.3 ciphers. The TLSv1.3 suites can only
 be enabled by including their full name in the cipher list. They cannot, for
 example, be enabled or disabled by using the legacy TLSv1.2 `'EECDH'` or
 `'!EECDH'` specification.
@@ -760,12 +760,12 @@ On the client, the `session` can be provided to the `session` option of
 See [Session Resumption][] for more information.
 
 For TLSv1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
-the handshake is complete.  For TLSv1.3, only ticket-based resumption is allowed
+the handshake is complete. For TLSv1.3, only ticket-based resumption is allowed
 by the protocol, multiple tickets are sent, and the tickets aren't sent until
 after the handshake completes. So it is necessary to wait for the
-`'session'` event to get a resumable session.  Applications
+`'session'` event to get a resumable session. Applications
 should use the `'session'` event instead of `getSession()` to ensure
-they will work for all TLS versions.  Applications that only expect to
+they will work for all TLS versions. Applications that only expect to
 get or use one session should listen for this event only once:
 
 ```js
@@ -1619,11 +1619,11 @@ changes:
     [OpenSSL Options][].
   * `secureProtocol` {string} Legacy mechanism to select the TLS protocol
     version to use, it does not support independent control of the minimum and
-    maximum version, and does not support limiting the protocol to TLSv1.3.  Use
-    `minVersion` and `maxVersion` instead.  The possible values are listed as
-    [SSL_METHODS][], use the function names as strings.  For example, use
+    maximum version, and does not support limiting the protocol to TLSv1.3. Use
+    `minVersion` and `maxVersion` instead. The possible values are listed as
+    [SSL_METHODS][], use the function names as strings. For example, use
     `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'` to allow any
-    TLS protocol version up to TLSv1.3.  It is not recommended to use TLS
+    TLS protocol version up to TLSv1.3. It is not recommended to use TLS
     versions less than 1.2, but it may be required for interoperability.
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
@@ -1821,7 +1821,7 @@ added: v11.4.0
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
   **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
-  `--tls-max-v1.2` sets the default to `'TLSv1.2'`.  Using `--tls-max-v1.3` sets
+  `--tls-max-v1.2` sets the default to `'TLSv1.2'`. Using `--tls-max-v1.3` sets
   the default to `'TLSv1.3'`. If multiple of the options are provided, the
   highest maximum is used.
 

@@ -158,7 +158,7 @@ used to exhange application data until the `'secure'` event has been emitted.
 
 QUIC uses the TLS 1.3 [ALPN][] ("Application-Layer Protocol Negotiation")
 extension to identify the application level protocol that is using the QUIC
-connection.  Every `QuicSession` instance has an ALPN identifier that *must* be
+connection. Every `QuicSession` instance has an ALPN identifier that *must* be
 specified in either the `connect()` or `listen()` options. ALPN identifiers that
 are known to Node.js (such as the ALPN identifier for HTTP/3) will alter how the
 `QuicSession` and `QuicStream` objects operate internally, but the QUIC

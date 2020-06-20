@@ -2708,7 +2708,7 @@ it allows injection of numbers where a naively written application that does not
 validate its input sufficiently might expect to always receive a string.
 Before Node.js 8.0.0, the 100 byte buffer might contain
 arbitrary pre-existing in-memory data, so may be used to expose in-memory
-secrets to a remote attacker.  Since Node.js 8.0.0, exposure of memory cannot
+secrets to a remote attacker. Since Node.js 8.0.0, exposure of memory cannot
 occur because the data is zero-filled. However, other attacks are still
 possible, such as causing very large buffers to be allocated by the server,
 leading to performance degradation or crashing on memory exhaustion.

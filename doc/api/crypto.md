@@ -2074,7 +2074,7 @@ added: v0.1.92
 * `options` {Object} [`stream.Writable` options][]
 * Returns: {Sign}
 
-Creates and returns a `Sign` object that uses the given `algorithm`.  Use
+Creates and returns a `Sign` object that uses the given `algorithm`. Use
 [`crypto.getHashes()`][] to obtain the names of the available digest algorithms.
 Optional `options` argument controls the `stream.Writable` behavior.
 
