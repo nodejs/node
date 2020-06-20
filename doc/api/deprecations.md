@@ -2751,6 +2751,32 @@ const moduleParents = Object.values(require.cache)
   .filter((m) => m.children.includes(module));
 ```
 
+<a id="DEPXXXX"></a>
+### DEP0143: `WriteStream.close`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+For graceful completion use `WriteStream.end()`.
+
+<a id="DEPXXXX"></a>
+### DEP0143: `ReadStream.close`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Use `ReadStream.destroy()`. For callback use `stream.finished()`
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
