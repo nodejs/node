@@ -1262,7 +1262,7 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is an instance of one of the [`ArrayBuffer`][]
-views, such as typed array objects or [`DataView`][].  Equivalent to
+views, such as typed array objects or [`DataView`][]. Equivalent to
 [`ArrayBuffer.isView()`][].
 
 ```js
