@@ -413,7 +413,8 @@ added: REPLACEME
 
 * {boolean}
 
-Is `true` after `callback` in [`writable._destroy(err, callback)`][writable-_destroy]
+Is `true` after `callback` in
+[`writable._destroy(err, callback)`][writable-_destroy]
 has been called.
 
 ##### `writable.end([chunk[, encoding]][, callback])`
@@ -1000,7 +1001,8 @@ added: REPLACEME
 
 * {boolean}
 
-Is `true` after `callback` in [`readable._destroy(err, callback)`][readable-_destroy]
+Is `true` after `callback` in
+[`readable._destroy(err, callback)`][readable-_destroy]
 has been called.
 
 ##### `readable.isPaused()`
