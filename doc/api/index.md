@@ -65,4 +65,4 @@
 
 <div class="line"></div>
 
-* [GitHub Repo & Issue Tracker](https://github.com/nodejs/node)
+* [Code repository and issue tracker](https://github.com/nodejs/node)
