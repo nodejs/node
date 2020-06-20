@@ -2055,8 +2055,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to `http.Server#maxHeadersCount` or
-    `http.ClientRequest#maxHeadersCount`. The minimum value is `4`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -2196,8 +2196,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to `http.Server#maxHeadersCount` or
-    `http.ClientRequest#maxHeadersCount`. The minimum value is `4`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -2311,8 +2311,8 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    This is similar to `http.Server#maxHeadersCount` or
-    `http.ClientRequest#maxHeadersCount`. The minimum value is `1`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `1`.
     **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
@@ -3645,6 +3645,8 @@ following additional properties:
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.html#errors_class_typeerror
+[`http.ClientRequest#maxHeadersCount`]: http.html#http_request_maxheaderscount
+[`http.Server#maxHeadersCount`]: http.html#http_server_maxheaderscount
 [`http2.SecureServer`]: #http2_class_http2secureserver
 [`http2.Server`]: #http2_class_http2server
 [`http2.createSecureServer()`]: #http2_http2_createsecureserver_options_onrequesthandler
