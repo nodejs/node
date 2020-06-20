@@ -6,14 +6,21 @@ const assert = require('assert');
 
 {
   const read = new Readable({
-    read() {}
+    read() {},
+    destroy(err, cb) {
+      assert.strictEqual(read.closed, false);
+      cb();
+      assert.strictEqual(read.closed, true);
+    }
   });
   read.resume();
 
   read.on('close', common.mustCall());
 
+  assert.strictEqual(read.closed, false);
   read.destroy();
   assert.strictEqual(read.destroyed, true);
+  assert.strictEqual(read.closed, true);
 }
 
 {
@@ -101,7 +108,9 @@ const assert = require('assert');
     assert.strictEqual(err, null);
     process.nextTick(() => {
       this.push(null);
+      assert.strictEqual(read.closed, false);
       cb();
+      assert.strictEqual(read.closed, true);
     });
   });
 
@@ -112,9 +121,11 @@ const assert = require('assert');
 
   read.destroy();
 
+  assert.strictEqual(read.closed, false);
   read.removeListener('end', fail);
   read.on('end', common.mustNotCall());
   assert.strictEqual(read.destroyed, true);
+  assert.strictEqual(read.closed, false);
 }
 
 {

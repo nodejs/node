@@ -406,6 +406,16 @@ added: v8.0.0
 
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 
+##### `writable.closed`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` after `callback` in [`writable._destroy(err, callback)`][writable-_destroy]
+has been called.
+
 ##### `writable.end([chunk[, encoding]][, callback])`
 <!-- YAML
 added: v0.9.4
@@ -982,6 +992,16 @@ added: v8.0.0
 * {boolean}
 
 Is `true` after [`readable.destroy()`][readable-destroy] has been called.
+
+##### `readable.closed`
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Is `true` after `callback` in [`readable._destroy(err, callback)`][readable-_destroy]
+has been called.
 
 ##### `readable.isPaused()`
 <!-- YAML

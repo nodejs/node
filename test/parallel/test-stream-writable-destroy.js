@@ -6,14 +6,21 @@ const assert = require('assert');
 
 {
   const write = new Writable({
-    write(chunk, enc, cb) { cb(); }
+    write(chunk, enc, cb) { cb(); },
+    destroy(err, cb) {
+      assert.strictEqual(write.closed, false);
+      cb();
+      assert.strictEqual(write.closed, true);
+    }
   });
 
   write.on('finish', common.mustNotCall());
   write.on('close', common.mustCall());
 
+  assert.strictEqual(write.closed, false);
   write.destroy();
   assert.strictEqual(write.destroyed, true);
+  assert.strictEqual(write.closed, true);
 }
 
 {
@@ -113,7 +120,9 @@ const assert = require('assert');
     assert.strictEqual(err, null);
     process.nextTick(() => {
       this.end();
+      assert.strictEqual(write.closed, false);
       cb();
+      assert.strictEqual(write.closed, true);
     });
   });
 
@@ -127,6 +136,7 @@ const assert = require('assert');
   write.removeListener('finish', fail);
   write.on('finish', common.mustCall());
   assert.strictEqual(write.destroyed, true);
+  assert.strictEqual(write.closed, false);
 }
 
 {

@@ -271,7 +271,7 @@ if (!common.isWindows) {
   file.on('error', common.mustCall());
 
   process.on('exit', function() {
-    assert(!file.closed);
+    assert(file.closed);
     assert(file.destroyed);
   });
 }
