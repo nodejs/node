@@ -165,15 +165,15 @@ require(X) from module at path Y
 6. THROW "not found"
 
 LOAD_AS_FILE(X)
-1. If X is a file, load X as its file extension format.  STOP
-2. If X.js is a file, load X.js as JavaScript text.  STOP
-3. If X.json is a file, parse X.json to a JavaScript Object.  STOP
-4. If X.node is a file, load X.node as binary addon.  STOP
+1. If X is a file, load X as its file extension format. STOP
+2. If X.js is a file, load X.js as JavaScript text. STOP
+3. If X.json is a file, parse X.json to a JavaScript Object. STOP
+4. If X.node is a file, load X.node as binary addon. STOP
 
 LOAD_INDEX(X)
-1. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
+1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-3. If X/index.node is a file, load X/index.node as binary addon.  STOP
+3. If X/index.node is a file, load X/index.node as binary addon. STOP
 
 LOAD_AS_DIRECTORY(X)
 1. If X/package.json is a file,
@@ -234,7 +234,7 @@ LOAD_PACKAGE_EXPORTS(DIR, X)
     a. LOAD_AS_FILE(RESOLVED)
     b. LOAD_AS_DIRECTORY(RESOLVED)
 12. Otherwise
-   a. If RESOLVED is a file, load it as its file extension format.  STOP
+   a. If RESOLVED is a file, load it as its file extension format. STOP
 13. Throw "not found"
 ```
 
