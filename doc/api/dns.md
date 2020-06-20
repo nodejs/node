@@ -1201,6 +1201,6 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [DNS error codes]: #dns_error_codes
 [Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
 [Implementation considerations section]: #dns_implementation_considerations
-[RFC 8482]: https://tools.ietf.org/html/rfc8482
 [RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
+[RFC 8482]: https://tools.ietf.org/html/rfc8482
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags
