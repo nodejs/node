@@ -2501,15 +2501,15 @@ properties.
 
 * `headerTableSize` {number} Specifies the maximum number of bytes used for
   header compression. The minimum allowed value is 0. The maximum allowed value
-  is 2<sup>32</sup>-1. **Default:** `4,096 octets`.
+  is 2<sup>32</sup>-1. **Default:** `4096`.
 * `enablePush` {boolean} Specifies `true` if HTTP/2 Push Streams are to be
   permitted on the `Http2Session` instances. **Default:** `true`.
-* `initialWindowSize` {number} Specifies the *senders* initial window size
-  for stream-level flow control. The minimum allowed value is 0. The maximum
-  allowed value is 2<sup>32</sup>-1. **Default:** `65,535 bytes`.
-* `maxFrameSize` {number} Specifies the size of the largest frame payload.
-  The minimum allowed value is 16,384. The maximum allowed value
-  is 2<sup>24</sup>-1. **Default:** `16,384 bytes`.
+* `initialWindowSize` {number} Specifies the *sender's* initial window size in
+  bytes for stream-level flow control. The minimum allowed value is 0. The
+  maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
+* `maxFrameSize` {number} Specifies the size in bytes of the largest frame
+  payload. The minimum allowed value is 16,384. The maximum allowed value is
+  2<sup>24</sup>-1. **Default:** `16384`.
 * `maxConcurrentStreams` {number} Specifies the maximum number of concurrent
   streams permitted on an `Http2Session`. There is no default value which
   implies, at least theoretically, 2<sup>32</sup>-1 streams may be open
