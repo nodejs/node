@@ -456,8 +456,6 @@ const maybeAncestors = r`(?:${id}\.?)*`;
 
 const callWithParams = r`\([^)]*\)`;
 
-const noCallOrProp = '(?![.[(])';
-
 const maybeExtends = `(?: +extends +${maybeAncestors}${classId})?`;
 
 /* eslint-disable max-len */
@@ -478,7 +476,7 @@ const headingExpressions = [
     `^${maybeBacktick}${maybeAncestors}(${id})${callWithParams}${maybeBacktick}$`, 'i') },
 
   { type: 'property', re: RegExp(
-    `^${maybeClassPropertyPrefix}${maybeBacktick}${ancestors}(${id})${maybeBacktick}${noCallOrProp}$`, 'i') },
+    `^${maybeClassPropertyPrefix}${maybeBacktick}${ancestors}(${id})${maybeBacktick}$`, 'i') },
 ];
 /* eslint-enable max-len */
 
