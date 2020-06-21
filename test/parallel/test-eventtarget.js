@@ -439,6 +439,7 @@ ok(EventTarget);
   strictEqual(target.toString(), '[object EventTarget]');
   const event = new Event('');
   strictEqual(event.toString(), '[object Event]');
+}
 {
   const target = new EventTarget();
   defineEventHandler(target, 'foo');
