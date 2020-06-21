@@ -443,7 +443,7 @@ ok(EventTarget);
   strictEqual(Event.CAPTURING_PHASE, 1);
   strictEqual(Event.AT_TARGET, 2);
   strictEqual(Event.BUBBLING_PHASE, 3);
-  strictEqual(new Event().eventPhase, Event.NONE);
+  strictEqual(new Event('foo').eventPhase, Event.NONE);
   const target = new EventTarget();
   target.addEventListener('foo', common.mustCall((e) => {
     strictEqual(e.eventPhase, Event.AT_TARGET);
