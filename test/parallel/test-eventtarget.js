@@ -488,7 +488,7 @@ ok(EventTarget);
   clearInterval(interval);
 })().then(common.mustCall());
 {
-  let target = new EventTarget();
+  const target = new EventTarget();
   const event = new Event('foo');
   let callCount = 0;
   target.addEventListener('foo', common.mustCall(() => {
