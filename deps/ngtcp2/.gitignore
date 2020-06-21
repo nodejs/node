@@ -1,0 +1,4 @@
+**/*/CMakeLists.txt
+**/*/*.am
+**/*/*.h.in
+**/*/*.pc.in

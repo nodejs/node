@@ -331,6 +331,11 @@ constexpr size_t arraysize(const T (&)[N]) {
   return N;
 }
 
+template <typename T, size_t N>
+constexpr size_t strsize(const T (&)[N]) {
+  return N - 1;
+}
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
@@ -564,6 +569,11 @@ struct MallocedBuffer {
     size = new_size;
   }
 
+  void Realloc(size_t new_size) {
+    Truncate(new_size);
+    data = UncheckedRealloc(data, new_size);
+  }
+
   inline bool is_empty() const { return data == nullptr; }
 
   MallocedBuffer() : data(nullptr), size(0) {}
@@ -719,6 +729,13 @@ constexpr T RoundUp(T a, T b) {
   return a % b != 0 ? a + b - (a % b) : a;
 }
 
+// Align ptr to an `alignment`-bytes boundary.
+template <typename T, typename U>
+constexpr T* AlignUp(T* ptr, U alignment) {
+  return reinterpret_cast<T*>(
+      RoundUp(reinterpret_cast<uintptr_t>(ptr), alignment));
+}
+
 class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
  public:
   inline explicit SlicedArguments(
@@ -783,6 +800,12 @@ class FastStringKey {
   const char* name_;
   size_t cached_hash_;
 };
+
+// Like std::static_pointer_cast but for unique_ptr with the default deleter.
+template <typename T, typename U>
+std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
+  return std::unique_ptr<T>(static_cast<T*>(ptr.release()));
+}
 
 }  // namespace node
 

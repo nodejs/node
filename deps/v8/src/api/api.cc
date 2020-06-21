@@ -1582,8 +1582,9 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   obj->set_data(*Utils::OpenHandle(*data));
-  if (c_function != nullptr) {
-    DCHECK_NOT_NULL(c_function->GetAddress());
+  // Blink passes CFunction's constructed with the default constructor
+  // for non-fast calls, so we should check the address too.
+  if (c_function != nullptr && c_function->GetAddress()) {
     i::FunctionTemplateInfo::SetCFunction(
         isolate, info,
         i::handle(*FromCData(isolate, c_function->GetAddress()), isolate));
@@ -8333,6 +8334,10 @@ void Isolate::Initialize(Isolate* isolate,
   }
   i_isolate->set_only_terminate_in_safe_scope(
       params.only_terminate_in_safe_scope);
+  i_isolate->set_embedder_wrapper_type_index(
+      params.embedder_wrapper_type_index);
+  i_isolate->set_embedder_wrapper_object_index(
+      params.embedder_wrapper_object_index);
 
   if (!i::V8::GetCurrentPlatform()
            ->GetForegroundTaskRunner(isolate)

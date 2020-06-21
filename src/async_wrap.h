@@ -51,6 +51,7 @@ namespace node {
   V(HTTPINCOMINGMESSAGE)                                                      \
   V(HTTPCLIENTREQUEST)                                                        \
   V(JSSTREAM)                                                                 \
+  V(JSUDPWRAP)                                                                \
   V(MESSAGEPORT)                                                              \
   V(PIPECONNECTWRAP)                                                          \
   V(PIPESERVERWRAP)                                                           \
@@ -58,6 +59,11 @@ namespace node {
   V(PROCESSWRAP)                                                              \
   V(PROMISE)                                                                  \
   V(QUERYWRAP)                                                                \
+  V(QUICCLIENTSESSION)                                                        \
+  V(QUICSERVERSESSION)                                                        \
+  V(QUICSENDWRAP)                                                             \
+  V(QUICSOCKET)                                                               \
+  V(QUICSTREAM)                                                               \
   V(SHUTDOWNWRAP)                                                             \
   V(SIGNALWRAP)                                                               \
   V(STATWATCHER)                                                              \
@@ -139,6 +145,8 @@ class AsyncWrap : public BaseObject {
   static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetProviderType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QueueDestroyAsyncId(
+    const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetCallbackTrampoline(
     const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void EmitAsyncInit(Environment* env,

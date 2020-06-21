@@ -101,7 +101,10 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "internal/process/policy",
       "internal/streams/lazy_transform",
 #endif  // !HAVE_OPENSSL
-
+#if !NODE_EXPERIMENTAL_QUIC
+      "internal/quic/core",
+      "internal/quic/util",
+#endif
       "sys",  // Deprecated.
       "wasi",  // Experimental.
       "internal/test/binding",

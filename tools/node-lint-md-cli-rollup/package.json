@@ -13,7 +13,7 @@
     "markdown-extensions": "^1.1.1",
     "remark": "^12.0.0",
     "remark-lint": "^7.0.0",
-    "remark-preset-lint-node": "^1.15.0",
+    "remark-preset-lint-node": "^1.16.0",
     "unified-args": "^8.0.0"
   },
   "main": "dist/index.js",

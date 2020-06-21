@@ -123,7 +123,7 @@ Calling `timeout.unref()` creates an internal timer that will wake the Node.js
 event loop. Creating too many of these can adversely impact performance
 of the Node.js application.
 
-## Scheduling Timers
+## Scheduling timers
 
 A timer in Node.js is an internal construct that calls a given function after
 a certain period of time. When a timer's function is called varies depending on
@@ -226,14 +226,53 @@ setTimeoutPromise(40, 'foobar').then((value) => {
 });
 ```
 
-## Cancelling Timers
+## Cancelling timers
 
 The [`setImmediate()`][], [`setInterval()`][], and [`setTimeout()`][] methods
 each return objects that represent the scheduled timers. These can be used to
 cancel the timer and prevent it from triggering.
 
-It is not possible to cancel timers that were created using the promisified
-variants of [`setImmediate()`][], [`setTimeout()`][].
+For the promisified variants of [`setImmediate()`][] and [`setTimeout()`][],
+an [`AbortController`][] may be used to cancel the timer. When canceled, the
+returned Promises will be rejected with an `'AbortError'`.
+
+For `setImmediate()`:
+
+```js
+const util = require('util');
+const setImmediatePromise = util.promisify(setImmediate);
+
+const ac = new AbortController();
+const signal = ac.signal;
+
+setImmediatePromise('foobar', { signal })
+  .then(console.log)
+  .catch((err) => {
+    if (err.message === 'AbortError')
+      console.log('The immediate was aborted');
+  });
+
+ac.abort();
+```
+
+For `setTimeout()`:
+
+```js
+const util = require('util');
+const setTimeoutPromise = util.promisify(setTimeout);
+
+const ac = new AbortController();
+const signal = ac.signal;
+
+setTimeoutPromise(1000, 'foobar', { signal })
+  .then(console.log)
+  .catch((err) => {
+    if (err.message === 'AbortError')
+      console.log('The timeout was aborted');
+  });
+
+ac.abort();
+```
 
 ### `clearImmediate(immediate)`
 <!-- YAML
@@ -264,6 +303,7 @@ added: v0.0.1
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#setimmediate-vs-settimeout
+[`AbortController`]: globals.html#globals_class_abortcontroller
 [`TypeError`]: errors.html#errors_class_typeerror
 [`clearImmediate()`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout

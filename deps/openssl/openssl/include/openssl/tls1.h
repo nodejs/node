@@ -148,6 +148,9 @@ extern "C" {
 /* Temporary extension type */
 # define TLSEXT_TYPE_renegotiate                 0xff01
 
+/* ExtensionType value from draft-ietf-quic-tls-13 */
+# define TLSEXT_TYPE_quic_transport_parameters   0xffa5
+
 # ifndef OPENSSL_NO_NEXTPROTONEG
 /* This is not an IANA defined extension number */
 #  define TLSEXT_TYPE_next_proto_neg              13172

@@ -176,6 +176,8 @@ typedef struct ct_policy_eval_ctx_st CT_POLICY_EVAL_CTX;
 typedef struct ossl_store_info_st OSSL_STORE_INFO;
 typedef struct ossl_store_search_st OSSL_STORE_SEARCH;
 
+typedef struct ssl_quic_method_st SSL_QUIC_METHOD;
+
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L && \
     defined(INTMAX_MAX) && defined(UINTMAX_MAX)
 typedef intmax_t ossl_intmax_t;

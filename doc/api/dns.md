@@ -625,7 +625,7 @@ That is, if attempting to resolve with the first server provided results in a
 subsequent servers provided. Fallback DNS servers will only be used if the
 earlier ones time out or result in some other error.
 
-## DNS Promises API
+## DNS promises API
 
 The `dns.promises` API provides an alternative set of asynchronous DNS methods
 that return `Promise` objects rather than using callbacks. The API is accessible

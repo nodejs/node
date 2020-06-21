@@ -118,6 +118,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (!unhandled_rejections.empty() &&
+      unhandled_rejections != "warn-with-error-code" &&
+      unhandled_rejections != "throw" &&
       unhandled_rejections != "strict" &&
       unhandled_rejections != "warn" &&
       unhandled_rejections != "none") {
@@ -831,7 +833,8 @@ std::string GetBashCompletion() {
          "    return 0\n"
          "  fi\n"
          "}\n"
-         "complete -F _node_complete node node_g";
+         "complete -o filenames -o nospace -o bashdefault "
+         "-F _node_complete node node_g";
   return out.str();
 }
 

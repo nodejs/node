@@ -2616,7 +2616,7 @@ try {
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
-[`new URL()`]: url.html#url_constructor_new_url_input_base
+[`new URL()`]: url.html#url_new_url_input_base
 [`removeHeader(name)`]: #http_request_removeheader_name
 [`request.end()`]: #http_request_end_data_encoding_callback
 [`request.destroy()`]: #http_request_destroy_error

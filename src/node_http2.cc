@@ -373,9 +373,7 @@ Origins::Origins(
                               origin_string_len);
 
   // Make sure the start address is aligned appropriately for an nghttp2_nv*.
-  char* start = reinterpret_cast<char*>(
-      RoundUp(reinterpret_cast<uintptr_t>(buf_.data()),
-              alignof(nghttp2_origin_entry)));
+  char* start = AlignUp(buf_.data(), alignof(nghttp2_origin_entry));
   char* origin_contents = start + (count_ * sizeof(nghttp2_origin_entry));
   nghttp2_origin_entry* const nva =
       reinterpret_cast<nghttp2_origin_entry*>(start);

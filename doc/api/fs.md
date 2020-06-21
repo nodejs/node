@@ -1,4 +1,4 @@
-# File System
+# File system
 
 <!--introduced_in=v0.10.0-->
 
@@ -242,7 +242,7 @@ fs.readFileSync(new URL('file:///C:/path/%5c'));
 \ or / characters */
 ```
 
-## File Descriptors
+## File descriptors
 
 On POSIX systems, for every process, the kernel maintains a table of currently
 open files and resources. Each open file is assigned a simple numeric
@@ -277,7 +277,7 @@ at any given time so it is critical to close the descriptor when operations
 are completed. Failure to do so will result in a memory leak that will
 eventually cause an application to crash.
 
-## Threadpool Usage
+## Threadpool usage
 
 All file system APIs except `fs.FSWatcher()` and those that are explicitly
 synchronous use libuv's threadpool, which can have surprising and negative
@@ -1030,7 +1030,7 @@ added: v0.11.13
 
 The timestamp indicating the creation time of this file.
 
-### Stat Time Values
+### Stat time values
 
 The `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` properties are
 numeric values that hold the corresponding times in milliseconds. Their
@@ -1155,7 +1155,7 @@ changes:
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File Access Constants][] for possible values
+checks to be performed. Check [File access constants][] for possible values
 of `mode`. It is possible to create a mask consisting of the bitwise OR of
 two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
@@ -1297,7 +1297,7 @@ changes:
 
 Synchronously tests a user's permissions for the file or directory specified
 by `path`. The `mode` argument is an optional integer that specifies the
-accessibility checks to be performed. Check [File Access Constants][] for
+accessibility checks to be performed. Check [File access constants][] for
 possible values of `mode`. It is possible to create a mask consisting of
 the bitwise OR of two or more values
 (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
@@ -1623,7 +1623,7 @@ through any other `fs` operation may lead to undefined behavior.
 
 Returns an object containing commonly used constants for file system
 operations. The specific constants currently defined are described in
-[FS Constants][].
+[FS constants][].
 
 ## `fs.copyFile(src, dest[, mode], callback)`
 <!-- YAML
@@ -3025,7 +3025,7 @@ fs.readFile('<directory>', (err, data) => {
 The `fs.readFile()` function buffers the entire file. To minimize memory costs,
 when possible prefer streaming via `fs.createReadStream()`.
 
-### File Descriptors
+### File descriptors
 
 1. Any specified file descriptor has to support reading.
 2. If a file descriptor is specified as the `path`, it will not be closed
@@ -4006,7 +4006,7 @@ AIX files retain the same inode for the lifetime of a file. Saving and closing a
 watched file on AIX will result in two notifications (one for adding new
 content, and one for truncation).
 
-#### Filename Argument
+#### Filename argument
 
 <!--type=misc-->
 
@@ -4278,7 +4278,7 @@ It is unsafe to use `fs.writeFile()` multiple times on the same file without
 waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
 recommended.
 
-### Using `fs.writeFile()` with File Descriptors
+### Using `fs.writeFile()` with file descriptors
 
 When `file` is a file descriptor, the behavior is almost identical to directly
 calling `fs.write()` like:
@@ -4885,7 +4885,7 @@ added: v10.0.0
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File Access Constants][] for possible values
+checks to be performed. Check [File access constants][] for possible values
 of `mode`. It is possible to create a mask consisting of the bitwise OR of
 two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
@@ -5455,7 +5455,7 @@ Any specified `FileHandle` has to support writing.
 It is unsafe to use `fsPromises.writeFile()` multiple times on the same file
 without waiting for the `Promise` to be resolved (or rejected).
 
-## FS Constants
+## FS constants
 
 The following constants are exported by `fs.constants`.
 
@@ -5479,7 +5479,7 @@ fs.open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
 });
 ```
 
-### File Access Constants
+### File access constants
 
 The following constants are meant for use with [`fs.access()`][].
 
@@ -5511,7 +5511,7 @@ The following constants are meant for use with [`fs.access()`][].
   </tr>
 </table>
 
-### File Copy Constants
+### File copy constants
 
 The following constants are meant for use with [`fs.copyFile()`][].
 
@@ -5539,7 +5539,7 @@ The following constants are meant for use with [`fs.copyFile()`][].
   </tr>
 </table>
 
-### File Open Constants
+### File open constants
 
 The following constants are meant for use with `fs.open()`.
 
@@ -5633,7 +5633,7 @@ The following constants are meant for use with `fs.open()`.
   </tr>
 </table>
 
-### File Type Constants
+### File type constants
 
 The following constants are meant for use with the [`fs.Stats`][] object's
 `mode` property for determining a file's type.
@@ -5677,7 +5677,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
 </table>
 
-### File Mode Constants
+### File mode constants
 
 The following constants are meant for use with the [`fs.Stats`][] object's
 `mode` property for determining the access permissions for a file.
@@ -5737,7 +5737,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
 </table>
 
-## File System Flags
+## File system flags
 
 The following flags are available wherever the `flag` option takes a
 string.
@@ -5883,8 +5883,8 @@ the file contents.
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
-[FS Constants]: #fs_fs_constants_1
-[File Access Constants]: #fs_file_access_constants
+[FS constants]: #fs_fs_constants_1
+[File access constants]: #fs_file_access_constants
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths

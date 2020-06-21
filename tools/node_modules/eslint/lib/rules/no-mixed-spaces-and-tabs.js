@@ -67,7 +67,7 @@ module.exports = {
                  * or the reverse before non-tab/-space
                  * characters begin.
                  */
-                let regex = /^(?=[\t ]*(\t | \t))/u;
+                let regex = /^(?=( +|\t+))\1(?:\t| )/u;
 
                 if (smartTabs) {
 
@@ -75,19 +75,27 @@ module.exports = {
                      * At least one space followed by a tab
                      * before non-tab/-space characters begin.
                      */
-                    regex = /^(?=[\t ]* \t)/u;
+                    regex = /^(?=(\t*))\1(?=( +))\2\t/u;
                 }
 
                 lines.forEach((line, i) => {
                     const match = regex.exec(line);
 
                     if (match) {
-                        const lineNumber = i + 1,
-                            column = match.index + 1,
-                            loc = { line: lineNumber, column };
+                        const lineNumber = i + 1;
+                        const loc = {
+                            start: {
+                                line: lineNumber,
+                                column: match[0].length - 2
+                            },
+                            end: {
+                                line: lineNumber,
+                                column: match[0].length
+                            }
+                        };
 
                         if (!ignoredCommentLines.has(lineNumber)) {
-                            const containingNode = sourceCode.getNodeByRangeIndex(sourceCode.getIndexFromLoc(loc));
+                            const containingNode = sourceCode.getNodeByRangeIndex(sourceCode.getIndexFromLoc(loc.start));
 
                             if (!(containingNode && ["Literal", "TemplateElement"].includes(containingNode.type))) {
                                 context.report({

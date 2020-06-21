@@ -4,6 +4,7 @@ internal/modules/run_main.js:*
     internalBinding('errors').triggerUncaughtException(
                               ^
 Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'i-dont-exist' imported from *
+    at new NodeError (internal/errors.js:*:*)
     at packageResolve (internal/modules/esm/resolve.js:*:*)
     at moduleResolve (internal/modules/esm/resolve.js:*:*)
     at Loader.defaultResolve [as _resolve] (internal/modules/esm/resolve.js:*:*)
@@ -12,7 +13,6 @@ Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'i-dont-exist' imported from *
     at Loader.import (internal/modules/esm/loader.js:*:*)
     at internal/process/esm_loader.js:*:*
     at Object.initializeLoader (internal/process/esm_loader.js:*:*)
-    at runMainESM (internal/modules/run_main.js:*:*)
-    at Function.executeUserEntryPoint [as runMain] (internal/modules/run_main.js:*:*) {
+    at runMainESM (internal/modules/run_main.js:*:*) {
   code: 'ERR_MODULE_NOT_FOUND'
 }
