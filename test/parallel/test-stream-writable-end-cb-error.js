@@ -46,3 +46,23 @@ const stream = require('stream');
     writable.emit('error', new Error('kaboom'));
   }));
 }
+
+{
+  // Invoke end with write error
+  const writable = new stream.Writable();
+
+  writable._write = (chunk, encoding, cb) => {
+    process.nextTick(cb);
+  };
+  writable._final = (cb) => {
+    process.nextTick(cb);
+  };
+
+  writable.end();
+  writable.end('asd', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+  writable.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ERR_STREAM_WRITE_AFTER_END');
+  }));
+}
