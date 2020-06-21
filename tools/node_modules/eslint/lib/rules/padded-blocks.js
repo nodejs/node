@@ -58,7 +58,8 @@ module.exports = {
                     allowSingleLineBlocks: {
                         type: "boolean"
                     }
-                }
+                },
+                additionalProperties: false
             }
         ],
 

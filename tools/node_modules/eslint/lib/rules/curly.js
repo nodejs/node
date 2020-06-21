@@ -457,11 +457,18 @@ module.exports = {
 
         return {
             IfStatement(node) {
-                if (node.parent.type !== "IfStatement") {
+                const parent = node.parent;
+                const isElseIf = parent.type === "IfStatement" && parent.alternate === node;
+
+                if (!isElseIf) {
+
+                    // This is a top `if`, check the whole `if-else-if` chain
                     prepareIfChecks(node).forEach(preparedCheck => {
                         preparedCheck.check();
                     });
                 }
+
+                // Skip `else if`, it's already checked (when the top `if` was visited)
             },
 
             WhileStatement(node) {

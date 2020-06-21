@@ -35,11 +35,8 @@ module.exports = {
                 properties: {
                     overrides: {
                         type: "object",
-                        properties: {
-                            anyOf: {
-                                type: "string",
-                                enum: ["after", "before", "none", "ignore"]
-                            }
+                        additionalProperties: {
+                            enum: ["after", "before", "none", "ignore"]
                         }
                     }
                 },

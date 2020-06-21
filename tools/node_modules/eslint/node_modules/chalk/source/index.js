@@ -6,6 +6,8 @@ const {
 	stringEncaseCRLFWithFirstIndex
 } = require('./util');
 
+const {isArray} = Array;
+
 // `supportsColor.level` → `ansiStyles.color[name]` mapping
 const levelMapping = [
 	'ansi',
@@ -135,6 +137,11 @@ const createStyler = (open, close, parent) => {
 
 const createBuilder = (self, _styler, _isEmpty) => {
 	const builder = (...arguments_) => {
+		if (isArray(arguments_[0]) && isArray(arguments_[0].raw)) {
+			// Called as a template literal, for example: chalk.red`2 + 3 = {bold ${2+3}}`
+			return applyStyle(builder, chalkTag(builder, ...arguments_));
+		}
+
 		// Single argument is hot path, implicit coercion is faster than anything
 		// eslint-disable-next-line no-implicit-coercion
 		return applyStyle(builder, (arguments_.length === 1) ? ('' + arguments_[0]) : arguments_.join(' '));
@@ -189,7 +196,7 @@ let template;
 const chalkTag = (chalk, ...strings) => {
 	const [firstString] = strings;
 
-	if (!Array.isArray(firstString)) {
+	if (!isArray(firstString) || !isArray(firstString.raw)) {
 		// If chalk() was called by itself or with a string,
 		// return the string itself as a string.
 		return strings.join(' ');

@@ -53,7 +53,8 @@ module.exports = {
             }
         ],
         messages: {
-            exceed: "File has too many lines ({{actual}}). Maximum allowed is {{max}}."
+            exceed:
+                "File has too many lines ({{actual}}). Maximum allowed is {{max}}."
         }
     },
 
@@ -61,7 +62,10 @@ module.exports = {
         const option = context.options[0];
         let max = 300;
 
-        if (typeof option === "object" && Object.prototype.hasOwnProperty.call(option, "max")) {
+        if (
+            typeof option === "object" &&
+            Object.prototype.hasOwnProperty.call(option, "max")
+        ) {
             max = option.max;
         } else if (typeof option === "number") {
             max = option;
@@ -94,7 +98,9 @@ module.exports = {
 
             token = comment;
             do {
-                token = sourceCode.getTokenBefore(token, { includeComments: true });
+                token = sourceCode.getTokenBefore(token, {
+                    includeComments: true
+                });
             } while (isCommentNodeType(token));
 
             if (token && astUtils.isTokenOnSameLine(token, comment)) {
@@ -103,7 +109,9 @@ module.exports = {
 
             token = comment;
             do {
-                token = sourceCode.getTokenAfter(token, { includeComments: true });
+                token = sourceCode.getTokenAfter(token, {
+                    includeComments: true
+                });
             } while (isCommentNodeType(token));
 
             if (token && astUtils.isTokenOnSameLine(comment, token)) {
@@ -118,7 +126,10 @@ module.exports = {
 
         return {
             "Program:exit"() {
-                let lines = sourceCode.lines.map((text, i) => ({ lineNumber: i + 1, text }));
+                let lines = sourceCode.lines.map((text, i) => ({
+                    lineNumber: i + 1,
+                    text
+                }));
 
                 if (skipBlankLines) {
                     lines = lines.filter(l => l.text.trim() !== "");
@@ -127,14 +138,29 @@ module.exports = {
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = lodash.flatten(comments.map(comment => getLinesWithoutCode(comment)));
+                    const commentLines = lodash.flatten(
+                        comments.map(comment => getLinesWithoutCode(comment))
+                    );
 
-                    lines = lines.filter(l => !lodash.includes(commentLines, l.lineNumber));
+                    lines = lines.filter(
+                        l => !lodash.includes(commentLines, l.lineNumber)
+                    );
                 }
 
                 if (lines.length > max) {
+                    const loc = {
+                        start: {
+                            line: lines[max].lineNumber,
+                            column: 0
+                        },
+                        end: {
+                            line: sourceCode.lines.length,
+                            column: lodash.last(sourceCode.lines).length
+                        }
+                    };
+
                     context.report({
-                        loc: { line: 1, column: 0 },
+                        loc,
                         messageId: "exceed",
                         data: {
                             max,
