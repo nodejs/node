@@ -745,7 +745,7 @@ may impact an LTS release.
 | upgrading c-ares                         | @rvagg                                                                |
 | upgrading http-parser                    | @nodejs/http, @nodejs/http2                                           |
 | upgrading libuv                          | @nodejs/libuv                                                         |
-| upgrading npm                            | @fishrock123, @MylesBorins                                            |
+| upgrading npm                            | @nodejs/npm                                                           |
 | upgrading V8                             | @nodejs/V8, @nodejs/post-mortem                                       |
 | Embedded use or delivery of Node.js      | @nodejs/delivery-channels                                             |
 
