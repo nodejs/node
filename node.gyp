@@ -43,6 +43,7 @@
       'lib/internal/per_context/messageport.js',
       'lib/async_hooks.js',
       'lib/assert.js',
+      'lib/assert/strict.js',
       'lib/buffer.js',
       'lib/child_process.js',
       'lib/console.js',
