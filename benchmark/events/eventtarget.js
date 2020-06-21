@@ -2,7 +2,7 @@
 const common = require('../common.js');
 
 const bench = common.createBenchmark(main, {
-  n: [2e7],
+  n: [1e6],
   listeners: [1, 5, 10]
 }, { flags: ['--expose-internals'] });
 
@@ -13,11 +13,9 @@ function main({ n, listeners }) {
   for (let n = 0; n < listeners; n++)
     target.addEventListener('foo', () => {});
 
-  const event = new Event('foo');
-
   bench.start();
   for (let i = 0; i < n; i++) {
-    target.dispatchEvent(event);
+    target.dispatchEvent(new Event('foo'));
   }
   bench.end(n);
 
