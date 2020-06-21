@@ -49,6 +49,9 @@ Additionally, this module includes the utility functions
 [`stream.Readable.from()`][].
 
 ### Streams Promises API
+<!-- YAML
+added: v15.0.0
+-->
 
 The `stream/promises` API provides an alternative set of asynchronous utility
 functions for streams that return `Promise` objects rather than using
