@@ -9,6 +9,9 @@ const path = require('path');
 const stream = require('stream');
 const tmpdir = require('../common/tmpdir');
 
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 class Sink extends stream.Writable {
   constructor() {
     super();
