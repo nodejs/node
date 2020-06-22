@@ -35,7 +35,7 @@ assert.throws(() => {
       queueMicrotask,
       loop
     },
-    { timeout }
+    { timeout, microtaskMode: 'afterScriptRun' }
   );
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',

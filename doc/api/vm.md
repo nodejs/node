@@ -188,6 +188,9 @@ overhead.
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34023
+    description: The `microtaskMode` option is supported now.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `contextCodeGeneration` option is supported now.
@@ -225,6 +228,10 @@ changes:
       `EvalError`. **Default:** `true`.
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
+  * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
+    scheduled through `Promise`s any `async function`s) will be run immediately
+    after the script has run. They are included in the `timeout` and
+    `breakOnSigint` scopes in that case.
 * Returns: {any} the result of the very last statement executed in the script.
 
 First contextifies the given `contextObject`, runs the compiled code contained
@@ -846,6 +853,9 @@ function with the given `params`.
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34023
+    description: The `microtaskMode` option is supported now.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19398
     description: The first argument can no longer be a function.
@@ -871,6 +881,10 @@ changes:
       `EvalError`. **Default:** `true`.
     * `wasm` {boolean} If set to false any attempt to compile a WebAssembly
       module will throw a `WebAssembly.CompileError`. **Default:** `true`.
+  * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
+    scheduled through `Promise`s any `async function`s) will be run immediately
+    after a script has run through [`script.runInContext()`][].
+    They are included in the `timeout` and `breakOnSigint` scopes in that case.
 * Returns: {Object} contextified object.
 
 If given a `contextObject`, the `vm.createContext()` method will [prepare
@@ -1002,6 +1016,9 @@ console.log(contextObject);
 <!-- YAML
 added: v0.3.1
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34023
+    description: The `microtaskMode` option is supported now.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
     description: The `contextCodeGeneration` option is supported now.
@@ -1068,6 +1085,10 @@ changes:
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
       recommended in order to take advantage of error tracking, and to avoid
       issues with namespaces that contain `then` function exports.
+  * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
+    scheduled through `Promise`s any `async function`s) will be run immediately
+    after the script has run. They are included in the `timeout` and
+    `breakOnSigint` scopes in that case.
 * Returns: {any} the result of the very last statement executed in the script.
 
 The `vm.runInNewContext()` first contextifies the given `contextObject` (or
@@ -1224,13 +1245,13 @@ within which it can operate. The process of creating the V8 Context and
 associating it with the `contextObject` is what this document refers to as
 "contextifying" the object.
 
-## Timeout limitations when using `process.nextTick()`, promises, and `queueMicrotask()`
+## Timeout interactions with asynchronous tasks and Promises
 
-Because of the internal mechanics of how the `process.nextTick()` queue and
-the microtask queue that underlies Promises are implemented within V8 and
-Node.js, it is possible for code running within a context to "escape" the
-`timeout` set using `vm.runInContext()`, `vm.runInNewContext()`, and
-`vm.runInThisContext()`.
+`Promise`s and `async function`s can schedule tasks run by the JavaScript
+engine asynchronously. By default, these tasks are run after all JavaScript
+functions on the current stack are done executing.
+This allows escaping the functionality of the `timeout` and
+`breakOnSigint` options.
 
 For example, the following code executed by `vm.runInNewContext()` with a
 timeout of 5 milliseconds schedules an infinite loop to run after a promise
@@ -1240,21 +1261,52 @@ resolves. The scheduled loop is never interrupted by the timeout:
 const vm = require('vm');
 
 function loop() {
+  console.log('entering loop');
   while (1) console.log(Date.now());
 }
 
 vm.runInNewContext(
-  'Promise.resolve().then(loop);',
+  'Promise.resolve().then(() => loop());',
   { loop, console },
   { timeout: 5 }
 );
+// This prints *before* 'entering loop' (!)
+console.log('done executing');
 ```
 
-This issue also occurs when the `loop()` call is scheduled using
-the `process.nextTick()` and `queueMicrotask()` functions.
+This can be addressed by passing `microtaskMode: 'afterEvaluate'` to the code
+that creates the `Context`:
 
-This issue occurs because all contexts share the same microtask and nextTick
-queues.
+```js
+const vm = require('vm');
+
+function loop() {
+  while (1) console.log(Date.now());
+}
+
+vm.runInNewContext(
+  'Promise.resolve().then(() => loop());',
+  { loop, console },
+  { timeout: 5, microtaskMode: 'afterEvaluate' }
+);
+```
+
+In this case, the microtask scheduled through `promise.then()` will be run
+before returning from `vm.runInNewContext()`, and will be interrupted
+by the `timeout` functionality. This applies only to code running in a
+`vm.Context`, so e.g. [`vm.runInThisContext()`][] does not take this option.
+
+Promise callbacks are entered into the microtask queue of the context in which
+they were created. For example, if `() => loop()` is replaced with just `loop`
+in the above example, then `loop` will be pushed into the global microtask
+queue, because it is a function from the outer (main) context, and thus will
+also be able to escape the timeout.
+
+If asynchronous scheduling functions such as `process.nextTick()`,
+`queueMicrotask()`, `setTimeout()`, `setImmediate()`, etc. are made available
+inside a `vm.Context`, functions passed to them will be added to global queues,
+which are shared by all contexts. Therefore, callbacks passed to those functions
+are not controllable through the timeout either.
 
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.html#ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING
 [`ERR_VM_MODULE_STATUS`]: errors.html#ERR_VM_MODULE_STATUS
