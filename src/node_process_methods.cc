@@ -504,6 +504,16 @@ class FastHrtime : public BaseObject {
   std::shared_ptr<BackingStore> backing_store_;
 };
 
+static void GetFastAPIs(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Object> ret = Object::New(env->isolate());
+  ret->Set(env->context(),
+           FIXED_ONE_BYTE_STRING(env->isolate(), "hrtime"),
+           FastHrtime::New(env))
+      .ToChecked();
+  args.GetReturnValue().Set(ret);
+}
+
 static void InitializeProcessMethods(Local<Object> target,
                                      Local<Value> unused,
                                      Local<Context> context,
@@ -534,12 +544,7 @@ static void InitializeProcessMethods(Local<Object> target,
   env->SetMethod(target, "reallyExit", ReallyExit);
   env->SetMethodNoSideEffect(target, "uptime", Uptime);
   env->SetMethod(target, "patchProcessObject", PatchProcessObject);
-
-  target
-      ->Set(env->context(),
-            FIXED_ONE_BYTE_STRING(env->isolate(), "hrtime"),
-            FastHrtime::New(env))
-      .ToChecked();
+  env->SetMethod(target, "getFastAPIs", GetFastAPIs);
 }
 
 }  // namespace node
