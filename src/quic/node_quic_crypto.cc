@@ -31,7 +31,6 @@ namespace node {
 
 using crypto::EntropySource;
 using v8::Local;
-using v8::String;
 using v8::Value;
 
 namespace quic {
