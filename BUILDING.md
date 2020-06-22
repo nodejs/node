@@ -544,6 +544,8 @@ Optional requirements to build the MSI installer package:
 
 * The [WiX Toolset v3.11](https://wixtoolset.org/releases/) and the
   [Wix Toolset Visual Studio 2019 Extension](https://marketplace.visualstudio.com/items?itemName=WixToolset.WixToolsetVisualStudio2019Extension).
+* The [WiX Toolset v3.14](https://wixtoolset.org/releases/) if
+  building for Windows 10 on ARM (ARM64).
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
