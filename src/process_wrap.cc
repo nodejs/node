@@ -139,6 +139,115 @@ class ProcessWrap : public HandleWrap {
     }
   }
 
+  static void ParseOptions(Environment* env,
+                            Local<Object> js_options,
+                            uv_process_options_t* options) {
+      Local<Context> context = env->context();
+      options->exit_cb = OnExit;
+
+      // options.uid
+      Local<Value> uid_v =
+              js_options->Get(context, env->uid_string()).ToLocalChecked();
+      if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
+          CHECK(uid_v->IsInt32());
+          const int32_t uid = uid_v.As<Int32>()->Value();
+          options->flags |= UV_PROCESS_SETUID;
+          options->uid = static_cast<uv_uid_t>(uid);
+      }
+
+      // options.gid
+      Local<Value> gid_v =
+              js_options->Get(context, env->gid_string()).ToLocalChecked();
+      if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
+          CHECK(gid_v->IsInt32());
+          const int32_t gid = gid_v.As<Int32>()->Value();
+          options->flags |= UV_PROCESS_SETGID;
+          options->gid = static_cast<uv_gid_t>(gid);
+      }
+
+      // TODO(bnoordhuis) is this possible to do without mallocing ?
+
+      // options.file
+      Local<Value> file_v =
+              js_options->Get(context, env->file_string()).ToLocalChecked();
+      CHECK(file_v->IsString());
+      node::Utf8Value file(env->isolate(), file_v);
+      options->file = *file;
+
+      // options.args
+      Local<Value> argv_v =
+              js_options->Get(context, env->args_string()).ToLocalChecked();
+      if (!argv_v.IsEmpty() && argv_v->IsArray()) {
+          Local<Array> js_argv = Local<Array>::Cast(argv_v);
+          int argc = js_argv->Length();
+          CHECK_GT(argc + 1, 0);  // Check for overflow.
+
+          // Heap allocate to detect errors. +1 is for nullptr.
+          options->args = new char*[argc + 1];
+          for (int i = 0; i < argc; i++) {
+              node::Utf8Value arg(env->isolate(),
+                                  js_argv->Get(context, i).ToLocalChecked());
+              options->args[i] = strdup(*arg);
+              CHECK_NOT_NULL(options->args[i]);
+          }
+          options->args[argc] = nullptr;
+      }
+
+      // options.cwd
+      Local<Value> cwd_v =
+              js_options->Get(context, env->cwd_string()).ToLocalChecked();
+      node::Utf8Value cwd(env->isolate(),
+                          cwd_v->IsString() ? cwd_v : Local<Value>());
+      if (cwd.length() > 0) {
+          options->cwd = *cwd;
+      }
+
+      // options.env
+      Local<Value> env_v =
+              js_options->Get(context,
+                      env->env_pairs_string()).ToLocalChecked();
+      if (!env_v.IsEmpty() && env_v->IsArray()) {
+          Local<Array> env_opt = Local<Array>::Cast(env_v);
+          int envc = env_opt->Length();
+          CHECK_GT(envc + 1, 0);  // Check for overflow.
+          // Heap allocated to detect errors.
+          options->env = new char*[envc + 1];
+          for (int i = 0; i < envc; i++) {
+              node::Utf8Value pair(env->isolate(),
+                                   env_opt->Get(context, i).ToLocalChecked());
+              options->env[i] = strdup(*pair);
+              CHECK_NOT_NULL(options->env[i]);
+          }
+          options->env[envc] = nullptr;
+      }
+
+      // options.windowsHide
+      Local<Value> hide_v =
+              js_options->Get(context,
+                      env->windows_hide_string()).ToLocalChecked();
+
+      if (hide_v->IsTrue()) {
+          options->flags |= UV_PROCESS_WINDOWS_HIDE;
+      }
+
+      // options.windows_verbatim_arguments
+      Local<Value> wva_v =
+              js_options->Get(context, env->windows_verbatim_arguments_string())
+                      .ToLocalChecked();
+
+      if (wva_v->IsTrue()) {
+          options->flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+      }
+
+      // options.detached
+      Local<Value> detached_v =
+              js_options->Get(context, env->detached_string()).ToLocalChecked();
+
+      if (detached_v->IsTrue()) {
+          options->flags |= UV_PROCESS_DETACHED;
+      }
+  }
+
   static void Spawn(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     Local<Context> context = env->context();
@@ -151,110 +260,10 @@ class ProcessWrap : public HandleWrap {
     uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
 
-    options.exit_cb = OnExit;
+    ParseOptions(env, js_options, &options);
 
-    // options.uid
-    Local<Value> uid_v =
-        js_options->Get(context, env->uid_string()).ToLocalChecked();
-    if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
-      CHECK(uid_v->IsInt32());
-      const int32_t uid = uid_v.As<Int32>()->Value();
-      options.flags |= UV_PROCESS_SETUID;
-      options.uid = static_cast<uv_uid_t>(uid);
-    }
-
-    // options.gid
-    Local<Value> gid_v =
-        js_options->Get(context, env->gid_string()).ToLocalChecked();
-    if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
-      CHECK(gid_v->IsInt32());
-      const int32_t gid = gid_v.As<Int32>()->Value();
-      options.flags |= UV_PROCESS_SETGID;
-      options.gid = static_cast<uv_gid_t>(gid);
-    }
-
-    // TODO(bnoordhuis) is this possible to do without mallocing ?
-
-    // options.file
-    Local<Value> file_v =
-        js_options->Get(context, env->file_string()).ToLocalChecked();
-    CHECK(file_v->IsString());
-    node::Utf8Value file(env->isolate(), file_v);
-    options.file = *file;
-
-    // options.args
-    Local<Value> argv_v =
-        js_options->Get(context, env->args_string()).ToLocalChecked();
-    if (!argv_v.IsEmpty() && argv_v->IsArray()) {
-      Local<Array> js_argv = Local<Array>::Cast(argv_v);
-      int argc = js_argv->Length();
-      CHECK_GT(argc + 1, 0);  // Check for overflow.
-
-      // Heap allocate to detect errors. +1 is for nullptr.
-      options.args = new char*[argc + 1];
-      for (int i = 0; i < argc; i++) {
-        node::Utf8Value arg(env->isolate(),
-                            js_argv->Get(context, i).ToLocalChecked());
-        options.args[i] = strdup(*arg);
-        CHECK_NOT_NULL(options.args[i]);
-      }
-      options.args[argc] = nullptr;
-    }
-
-    // options.cwd
-    Local<Value> cwd_v =
-        js_options->Get(context, env->cwd_string()).ToLocalChecked();
-    node::Utf8Value cwd(env->isolate(),
-                        cwd_v->IsString() ? cwd_v : Local<Value>());
-    if (cwd.length() > 0) {
-      options.cwd = *cwd;
-    }
-
-    // options.env
-    Local<Value> env_v =
-        js_options->Get(context, env->env_pairs_string()).ToLocalChecked();
-    if (!env_v.IsEmpty() && env_v->IsArray()) {
-      Local<Array> env_opt = Local<Array>::Cast(env_v);
-      int envc = env_opt->Length();
-      CHECK_GT(envc + 1, 0);  // Check for overflow.
-      options.env = new char*[envc + 1];  // Heap allocated to detect errors.
-      for (int i = 0; i < envc; i++) {
-        node::Utf8Value pair(env->isolate(),
-                             env_opt->Get(context, i).ToLocalChecked());
-        options.env[i] = strdup(*pair);
-        CHECK_NOT_NULL(options.env[i]);
-      }
-      options.env[envc] = nullptr;
-    }
-
-    // options.stdio
+      // options.stdio
     ParseStdioOptions(env, js_options, &options);
-
-    // options.windowsHide
-    Local<Value> hide_v =
-        js_options->Get(context, env->windows_hide_string()).ToLocalChecked();
-
-    if (hide_v->IsTrue()) {
-      options.flags |= UV_PROCESS_WINDOWS_HIDE;
-    }
-
-    // options.windows_verbatim_arguments
-    Local<Value> wva_v =
-        js_options->Get(context, env->windows_verbatim_arguments_string())
-            .ToLocalChecked();
-
-    if (wva_v->IsTrue()) {
-      options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-    }
-
-    // options.detached
-    Local<Value> detached_v =
-        js_options->Get(context, env->detached_string()).ToLocalChecked();
-
-    if (detached_v->IsTrue()) {
-      options.flags |= UV_PROCESS_DETACHED;
-    }
-
     int err = uv_spawn(env->event_loop(), &wrap->process_, &options);
     wrap->MarkAsInitialized();
 
