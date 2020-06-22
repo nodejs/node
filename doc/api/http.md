@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/http.js -->
+
 To use the HTTP server and client one must `require('http')`.
 
 The HTTP interfaces in Node.js are designed to support many features

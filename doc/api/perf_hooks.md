@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/perf_hooks.js -->
+
 This module provides an implementation of a subset of the W3C
 [Web Performance APIs][] as well as additional APIs for
 Node.js-specific performance measurements.

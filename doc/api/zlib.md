@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/zlib.js -->
+
 The `zlib` module provides compression functionality implemented using Gzip,
 Deflate/Inflate, and Brotli.
 
