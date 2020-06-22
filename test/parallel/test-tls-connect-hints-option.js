@@ -22,6 +22,7 @@ assert.notStrictEqual(hints, dns.V4MAPPED | dns.ALL);
 assert.notStrictEqual(hints, dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL);
 
 tls.connect({
+  port: 42,
   lookup: common.mustCall((host, options) => {
     assert.strictEqual(host, 'localhost');
     assert.deepStrictEqual(options, { family: undefined, hints });

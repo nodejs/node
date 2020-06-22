@@ -12,12 +12,12 @@ const fixtures = require('../common/fixtures');
 const tls = require('tls');
 
 {
-  const socket = tls.connect({ lookup() {} });
+  const socket = tls.connect({ port: 42, lookup() {} });
   assert.strictEqual(socket.allowHalfOpen, false);
 }
 
 {
-  const socket = tls.connect({ allowHalfOpen: false, lookup() {} });
+  const socket = tls.connect({ port: 42, allowHalfOpen: false, lookup() {} });
   assert.strictEqual(socket.allowHalfOpen, false);
 }
 
