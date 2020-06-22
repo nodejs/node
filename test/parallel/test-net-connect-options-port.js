@@ -60,7 +60,7 @@ const net = require('net');
 {
   // connect({hint}, cb) and connect({hint})
   const hints = (dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL) + 42;
-  const hintOptBlocks = doConnect([{ hints }],
+  const hintOptBlocks = doConnect([{ port: 42, hints }],
                                   () => common.mustNotCall());
   for (const fn of hintOptBlocks) {
     assert.throws(fn, {
@@ -95,7 +95,6 @@ const net = require('net');
   // Try connecting to random ports, but do so once the server is closed
   server.on('close', () => {
     asyncFailToConnect(0);
-    asyncFailToConnect(/* undefined */);
   });
 }
 

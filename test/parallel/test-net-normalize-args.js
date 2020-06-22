@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const { normalizedArgsSymbol } = require('internal/net');
-const { getSystemErrorName } = require('util');
 
 function validateNormalizedArgs(input, output) {
   const args = net._normalizeArgs(input);
@@ -27,18 +26,15 @@ validateNormalizedArgs([{ port: 1234 }, assert.fail], res);
   const server = net.createServer(common.mustNotCall('should not connect'));
 
   server.listen(common.mustCall(() => {
-    const possibleErrors = ['ECONNREFUSED', 'EADDRNOTAVAIL'];
     const port = server.address().port;
     const socket = new net.Socket();
 
-    socket.on('error', common.mustCall((err) => {
-      assert(possibleErrors.includes(err.code));
-      assert(possibleErrors.includes(getSystemErrorName(err.errno)));
-      assert.strictEqual(err.syscall, 'connect');
-      server.close();
-    }));
-
-    socket.connect([{ port }, assert.fail]);
+    assert.throws(() => {
+      socket.connect([{ port }, assert.fail]);
+    }, {
+      code: 'ERR_MISSING_ARGS'
+    });
+    server.close();
   }));
 }
 
