@@ -124,17 +124,17 @@ process.on('multipleResolves', common.mustNotCall());
 }
 
 {
-  exec(`${process.execPath} -pe 'const assert = require("assert");` +
-       'require("timers/promises").setTimeout(1000, null, { ref: false }).' +
-       'then(assert.fail)\'').then(common.mustCall(({ stderr }) => {
+  exec(`${process.execPath} -pe "const assert = require('assert');` +
+       'require(\'timers/promises\').setTimeout(1000, null, { ref: false }).' +
+       'then(assert.fail)"').then(common.mustCall(({ stderr }) => {
     assert.strictEqual(stderr, '');
   }));
 }
 
 {
-  exec(`${process.execPath} -pe 'const assert = require("assert");` +
-       'require("timers/promises").setImmediate(null, { ref: false }).' +
-       'then(assert.fail)\'').then(common.mustCall(({ stderr }) => {
+  exec(`${process.execPath} -pe "const assert = require('assert');` +
+       'require(\'timers/promises\').setImmediate(null, { ref: false }).' +
+       'then(assert.fail)"').then(common.mustCall(({ stderr }) => {
     assert.strictEqual(stderr, '');
   }));
 }
