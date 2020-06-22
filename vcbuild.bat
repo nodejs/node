@@ -174,6 +174,20 @@ if defined package set stage_package=1
 
 :: assign path to node_exe
 set "node_exe=%config%\node.exe"
+if "%target_arch%"=="arm64" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
+  if not defined "%x64_node_exe%" set "x64_node_exe=temp-vcbuild\node-x64-cross-compiling.exe"
+  if not exist "%x64_node_exe%" (
+    echo Downloading x64 node.exe...
+    if not exist "temp-vcbuild" mkdir temp-vcbuild
+    powershell -c "Invoke-WebRequest -Uri 'https://nodejs.org/dist/latest/win-x64/node.exe' -OutFile 'temp-vcbuild\node-x64-cross-compiling.exe'"
+  )
+  if not exist "%x64_node_exe%" (
+    echo Could not find the Node executable at the given x64_node_exe path. Aborting. 
+    goto exit
+  )
+  echo Using x64 Node executable because we're cross-compiling for arm64: %x64_node_exe%
+  set "node_exe=%x64_node_exe%"
+)
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
 if "%target_env%"=="vs2019" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2019"
