@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/buffer.js -->
+
 In Node.js, `Buffer` objects are used to represent binary data in the form
 of a sequence of bytes. Many Node.js APIs, for example streams and file system
 operations, support `Buffer`s, as interactions with the operating system or

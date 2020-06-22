@@ -4,6 +4,8 @@
 
 > Stability: 1 - Experimental
 
+<!-- source_link=lib/wasi.js -->
+
 The WASI API provides an implementation of the [WebAssembly System Interface][]
 specification. WASI gives sandboxed WebAssembly applications access to the
 underlying operating system via a collection of POSIX-like functions.
