@@ -422,7 +422,7 @@ MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallback cb,
     std::unique_ptr<InspectorParentHandle> removeme) {
-  env->InitializeLibuv(per_process::v8_is_profiling);
+  env->InitializeLibuv();
   env->InitializeDiagnostics();
 
   return StartExecution(env, cb);
