@@ -187,7 +187,7 @@ overhead.
 added: v0.3.1
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/🤷‍♀️
+    pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
@@ -852,7 +852,7 @@ function with the given `params`.
 added: v0.3.1
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/🤷‍♀️
+    pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19398
@@ -1015,7 +1015,7 @@ console.log(contextObject);
 added: v0.3.1
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/🤷‍♀️
+    pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/19016
