@@ -9,7 +9,6 @@ const { createContext } = require('vm');
 const {
   MessageChannel,
   Worker,
-  isMainThread,
   moveMessagePortToContext,
   parentPort
 } = require('worker_threads');
@@ -25,11 +24,14 @@ function keyToString(key) {
 }
 
 // Worker threads simply reply with their representation of the received key.
-if (!isMainThread) {
+if (process.env.HAS_STARTED_WORKER) {
   return parentPort.once('message', ({ key }) => {
     parentPort.postMessage(keyToString(key));
   });
 }
+
+// Don't use isMainThread to allow running this test inside a worker.
+process.env.HAS_STARTED_WORKER = 1;
 
 // The main thread generates keys and passes them to worker threads.
 const secretKey = createSecretKey(randomBytes(32));
