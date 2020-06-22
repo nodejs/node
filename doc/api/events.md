@@ -6,6 +6,8 @@
 
 <!--type=module-->
 
+<!-- source_link=lib/events.js -->
+
 Much of the Node.js core API is built around an idiomatic asynchronous
 event-driven architecture in which certain kinds of objects (called "emitters")
 emit named events that cause `Function` objects ("listeners") to be called.

@@ -6,6 +6,8 @@
 
 <!-- name=dgram -->
 
+<!-- source_link=lib/dgram.js -->
+
 The `dgram` module provides an implementation of UDP datagram sockets.
 
 ```js

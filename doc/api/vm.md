@@ -6,6 +6,8 @@
 
 <!--name=vm-->
 
+<!-- source_link=lib/vm.js -->
+
 The `vm` module enables compiling and running code within V8 Virtual
 Machine contexts. **The `vm` module is not a security mechanism. Do
 not use it to run untrusted code**.

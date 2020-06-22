@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/stream.js -->
+
 A stream is an abstract interface for working with streaming data in Node.js.
 The `stream` module provides an API for implementing the stream interface.
 

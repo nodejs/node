@@ -10,6 +10,8 @@ changes:
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/http2.js -->
+
 The `http2` module provides an implementation of the [HTTP/2][] protocol. It
 can be accessed using:
 

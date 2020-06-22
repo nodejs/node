@@ -82,7 +82,7 @@ async function main() {
   const content = await unified()
     .use(replaceLinks, { filename, linksMapper })
     .use(markdown)
-    .use(html.preprocessText)
+    .use(html.preprocessText, { nodeVersion })
     .use(json.jsonAPI, { filename })
     .use(html.firstHeader)
     .use(html.preprocessElements, { filename })

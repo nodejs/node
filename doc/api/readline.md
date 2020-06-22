@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/readline.js -->
+
 The `readline` module provides an interface for reading data from a [Readable][]
 stream (such as [`process.stdin`][]) one line at a time. It can be accessed
 using:
