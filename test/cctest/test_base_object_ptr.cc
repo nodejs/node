@@ -16,7 +16,7 @@ using v8::Object;
 
 // Environments may come with existing BaseObject instances.
 // This variable offsets the expected BaseObject counts.
-static const int BASE_OBJECT_COUNT = 1;
+static const int BASE_OBJECT_COUNT = 0;
 
 class BaseObjectPtrTest : public EnvironmentTestFixture {};
 
