@@ -60,7 +60,7 @@ const OutgoingMessage = http.OutgoingMessage;
 
   server.listen(0);
 
-  server.on('listening', common.mustCall(function() {
+  server.on('listening', common.mustCall(() => {
     const req = http.request({
       port: server.address().port,
       method: 'GET',
