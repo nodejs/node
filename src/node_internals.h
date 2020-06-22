@@ -55,7 +55,6 @@ class NativeModuleLoader;
 namespace per_process {
 extern Mutex env_var_mutex;
 extern uint64_t node_start_time;
-extern bool v8_is_profiling;
 }  // namespace per_process
 
 // Forward declaration

@@ -196,16 +196,6 @@ void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-static void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->StartProfilerIdleNotifier();
-}
-
-static void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->StopProfilerIdleNotifier();
-}
-
 static void Umask(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->has_run_bootstrapping_code());
@@ -528,10 +518,6 @@ static void InitializeProcessMethods(Local<Object> target,
     env->SetMethod(target, "causeSegfault", CauseSegfault);
     env->SetMethod(target, "chdir", Chdir);
   }
-
-  env->SetMethod(
-      target, "_startProfilerIdleNotifier", StartProfilerIdleNotifier);
-  env->SetMethod(target, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);
 
   env->SetMethod(target, "umask", Umask);
   env->SetMethod(target, "_rawDebug", RawDebug);
