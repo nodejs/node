@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/assert.js -->
+
 The `assert` module provides a set of assertion functions for verifying
 invariants.
 
