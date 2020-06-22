@@ -53,7 +53,7 @@ const OutgoingMessage = http.OutgoingMessage;
 }
 
 {
-  const server = http.createServer(function(req, res) {
+  const server = http.createServer((req, res) => {
     res.end();
     server.close();
   });
