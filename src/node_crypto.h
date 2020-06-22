@@ -155,6 +155,8 @@ class SecureContext final : public BaseObject {
 #endif  // !OPENSSL_NO_ENGINE
   static void GetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetTicketKeys(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetNumTickets(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetNumTickets(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetFreeListLength(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableTicketKeyCallback(

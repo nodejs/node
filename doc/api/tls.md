@@ -629,6 +629,30 @@ Existing or currently pending server connections will use the previous keys.
 
 See [Session Resumption][] for more information.
 
+### `server.getNumTickets()`
+<!-- YAML
+added: CHANGEME
+-->
+
+* Returns: {number} A number of session tickets.
+
+Returns the number of session tickets that are sent to the client after
+a full handshake.
+
+See [SSL_CTX_get_num_tickets][] for more information.
+
+### `server.setNumTickets(numTickets)`
+<!-- YAML
+added: CHANGEME
+-->
+
+* `numTickets` {number} A number of session tickets.
+
+Sets the number of session tickets that are sent to the client after
+a full handshake.
+
+See [SSL_CTX_set_num_tickets][] for more information.
+
 ## Class: `tls.TLSSocket`
 <!-- YAML
 added: v0.11.4
@@ -1628,6 +1652,8 @@ changes:
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
+  * `numTickets` {number} The number of session tickets that will be sent to the
+    client after a full handshake. **Default:** `2`.
 
 [`tls.createServer()`][] sets the default value of the `honorCipherOrder` option
 to `true`, other APIs that create secure contexts leave it unset.
@@ -2005,3 +2031,5 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
 [RFC 4279]: https://tools.ietf.org/html/rfc4279
 [RFC 4086]: https://tools.ietf.org/html/rfc4086
+[SSL_CTX_get_num_tickets]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_get_num_tickets.html
+[SSL_CTX_set_num_tickets]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_num_tickets.html

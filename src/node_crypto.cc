@@ -492,6 +492,8 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   env->SetProtoMethod(t, "enableTicketKeyCallback", EnableTicketKeyCallback);
   env->SetProtoMethodNoSideEffect(t, "getCertificate", GetCertificate<true>);
   env->SetProtoMethodNoSideEffect(t, "getIssuer", GetCertificate<false>);
+  env->SetProtoMethodNoSideEffect(t, "getNumTickets", GetNumTickets);
+  env->SetProtoMethod(t, "setNumTickets", SetNumTickets);
 
 #define SET_INTEGER_CONSTANTS(name, value)                                     \
     t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), name),                        \
@@ -1555,6 +1557,32 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(true);
 #endif  // !def(OPENSSL_NO_TLSEXT) && def(SSL_CTX_get_tlsext_ticket_keys)
+}
+
+
+void SecureContext::GetNumTickets(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+
+  CHECK_EQ(args.Length(), 0);
+
+  uint32_t numTickets = SSL_CTX_get_num_tickets(sc->ctx_.get());
+  args.GetReturnValue().Set(static_cast<uint32_t>(numTickets));
+}
+
+
+void SecureContext::SetNumTickets(const FunctionCallbackInfo<Value>& args) {
+  SecureContext* sc;
+  ASSIGN_OR_RETURN_UNWRAP(&sc, args.Holder());
+
+  if (args.Length() != 1 || !args[0]->IsUint32()) {
+    return THROW_ERR_INVALID_ARG_TYPE(
+        sc->env(), "Number of tickets must be an unsigned 32-bit integer");
+  }
+
+  uint32_t numTickets = args[0].As<Uint32>()->Value();
+
+  CHECK(SSL_CTX_set_num_tickets(sc->ctx_.get(), numTickets));
 }
 
 
