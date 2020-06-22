@@ -16,7 +16,7 @@ const {
   throws,
 } = require('assert');
 
-const { once } = require('events');
+const { once, on } = require('events');
 
 // The globals are defined.
 ok(Event);
@@ -71,7 +71,7 @@ ok(EventTarget);
   strictEqual(ev.type, 'foo');
 }
 {
-const ev = new Event('foo');
+  const ev = new Event('foo');
   strictEqual(ev.cancelBubble, false);
   ev.cancelBubble = true;
   strictEqual(ev.cancelBubble, true);
@@ -528,3 +528,35 @@ const ev = new Event('foo');
   }), { once: true });
   target.dispatchEvent(new Event('foo'));
 }
+
+{
+  const target = new EventTarget();
+  const ev = new Event('toString');
+  const fn = common.mustCall((event) => strictEqual(event.type, 'toString'));
+  target.addEventListener('toString', fn);
+  target.dispatchEvent(ev);
+}
+{
+  const target = new EventTarget();
+  const ev = new Event('__proto__');
+  const fn = common.mustCall((event) => strictEqual(event.type, '__proto__'));
+  target.addEventListener('__proto__', fn);
+  target.dispatchEvent(ev);
+}
+
+(async () => {
+  // test NodeEventTarget async-iterability
+  const emitter = new NodeEventTarget();
+  const interval = setInterval(() => {
+    emitter.dispatchEvent(new Event('foo'));
+  }, 0);
+  let count = 0;
+  for await (const [ item ] of on(emitter, 'foo')) {
+    count++;
+    strictEqual(item.type, 'foo');
+    if (count > 5) {
+      break;
+    }
+  }
+  clearInterval(interval);
+})().then(common.mustCall());
