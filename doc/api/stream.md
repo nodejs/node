@@ -2890,20 +2890,32 @@ In the scenario of writing to a writable stream from an async iterator, ensure
 the correct handling of backpressure and errors.
 
 ```js
-const { once } = require('events');
 const finished = util.promisify(stream.finished);
 
 const writable = fs.createWriteStream('./file');
 
 function drain(writable) {
+  const resolve = () => Promise.resolve();
+  const rejectError = (err) => Promise.reject(err);
+  const rejectPrematureClose = () => Promise.reject(new Error('premature close of writable stream'));
+
   if (writable.destroyed) {
-    return Promise.reject(new Error('premature close'));
+    return rejectPrematureClose();
   }
-  return Promise.race([
-    once(writable, 'drain'),
-    once(writable, 'close')
-      .then(() => Promise.reject(new Error('premature close')))
-  ]);
+
+  try {
+    // register event listeners and wait for whatever event gets emitted first
+    await Promise.race([
+      writable.once('drain', resolve),
+      writable.once('error', rejectError),
+      writable.once('close', rejectPrematureClose),
+    ]);
+  } finally {
+    // ensure that all the registered event listeners get removed again
+    writable.removeListener('drain', resolve);
+    writable.removeListener('error', rejectError);
+    writable.removeListener('close', rejectPrematureClose);
+  }
 }
 
 async function pump(iterable, writable) {
