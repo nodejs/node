@@ -293,13 +293,12 @@ ok(EventTarget);
 
   // Once handler only invoked once
   const ev = common.mustCall((event) => {
-    throws(() => eventTarget.dispatchEvent(new Event('foo')), {
-      code: 'ERR_EVENT_RECURSION'
-    });
+    // Can invoke the same event name recursively
+    eventTarget.dispatchEvent(new Event('foo'));
   });
 
   // Errors in a handler won't stop calling the others.
-  eventTarget.addEventListener('foo', ev);
+  eventTarget.addEventListener('foo', ev, { once: true });
 
   eventTarget.dispatchEvent(new Event('foo'));
 }
