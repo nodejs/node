@@ -925,7 +925,7 @@ class Environment : public MemoryRetainer {
               ThreadId thread_id);
   ~Environment() override;
 
-  void InitializeLibuv(bool start_profiler_idle_notifier);
+  void InitializeLibuv();
   inline const std::vector<std::string>& exec_argv();
   inline const std::vector<std::string>& argv();
   const std::string& exec_path() const;
@@ -954,10 +954,6 @@ class Environment : public MemoryRetainer {
 
   inline void AssignToContext(v8::Local<v8::Context> context,
                               const ContextInfo& info);
-
-  void StartProfilerIdleNotifier();
-  void StopProfilerIdleNotifier();
-  inline bool profiler_idle_notifier_started() const;
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
@@ -1285,11 +1281,8 @@ class Environment : public MemoryRetainer {
   uv_timer_t timer_handle_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
-  uv_prepare_t idle_prepare_handle_;
-  uv_check_t idle_check_handle_;
   uv_async_t task_queues_async_;
   int64_t task_queues_async_refs_ = 0;
-  bool profiler_idle_notifier_started_ = false;
 
   AsyncHooks async_hooks_;
   ImmediateInfo immediate_info_;
