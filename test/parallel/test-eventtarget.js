@@ -5,7 +5,6 @@ const common = require('../common');
 const {
   Event,
   EventTarget,
-  NodeEventTarget,
   defineEventHandler
 } = require('internal/event_target');
 
@@ -16,11 +15,25 @@ const {
   throws,
 } = require('assert');
 
-const { once, on } = require('events');
+const { once } = require('events');
+
+const { promisify } = require('util');
+const delay = promisify(setTimeout);
 
 // The globals are defined.
 ok(Event);
 ok(EventTarget);
+
+// The warning event has special behavior regarding attaching listeners
+let lastWarning;
+process.on('warning', (e) => {
+  lastWarning = e;
+});
+
+// Utility promise for parts of the test that need to wait for eachother -
+// Namely tests for warning events
+/* eslint-disable no-unused-vars */
+let asyncTest = Promise.resolve();
 
 // First, test Event
 {
@@ -135,35 +148,6 @@ ok(EventTarget);
   eventTarget.addEventListener('foo', fn, { once: true });
   eventTarget.dispatchEvent(ev);
 }
-{
-  const eventTarget = new NodeEventTarget();
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  deepStrictEqual(eventTarget.eventNames(), []);
-
-  const ev1 = common.mustCall(function(event) {
-    strictEqual(event.type, 'foo');
-    strictEqual(this, eventTarget);
-  }, 2);
-
-  const ev2 = {
-    handleEvent: common.mustCall(function(event) {
-      strictEqual(event.type, 'foo');
-      strictEqual(this, ev2);
-    })
-  };
-
-  eventTarget.addEventListener('foo', ev1);
-  eventTarget.addEventListener('foo', ev2, { once: true });
-  strictEqual(eventTarget.listenerCount('foo'), 2);
-  ok(eventTarget.dispatchEvent(new Event('foo')));
-  strictEqual(eventTarget.listenerCount('foo'), 1);
-  eventTarget.dispatchEvent(new Event('foo'));
-
-  eventTarget.removeEventListener('foo', ev1);
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  eventTarget.dispatchEvent(new Event('foo'));
-}
-
 
 {
   const eventTarget = new EventTarget();
@@ -178,88 +162,6 @@ ok(EventTarget);
   const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
   eventTarget.addEventListener('foo', fn, false);
   eventTarget.dispatchEvent(event);
-}
-{
-  const eventTarget = new NodeEventTarget();
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  deepStrictEqual(eventTarget.eventNames(), []);
-
-  const ev1 = common.mustCall((event) => {
-    strictEqual(event.type, 'foo');
-  }, 2);
-
-  const ev2 = {
-    handleEvent: common.mustCall((event) => {
-      strictEqual(event.type, 'foo');
-    })
-  };
-
-  strictEqual(eventTarget.on('foo', ev1), eventTarget);
-  strictEqual(eventTarget.once('foo', ev2, { once: true }), eventTarget);
-  strictEqual(eventTarget.listenerCount('foo'), 2);
-  eventTarget.dispatchEvent(new Event('foo'));
-  strictEqual(eventTarget.listenerCount('foo'), 1);
-  eventTarget.dispatchEvent(new Event('foo'));
-
-  strictEqual(eventTarget.off('foo', ev1), eventTarget);
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  eventTarget.dispatchEvent(new Event('foo'));
-}
-
-{
-  const eventTarget = new NodeEventTarget();
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  deepStrictEqual(eventTarget.eventNames(), []);
-
-  const ev1 = common.mustCall((event) => {
-    strictEqual(event.type, 'foo');
-  }, 2);
-
-  const ev2 = {
-    handleEvent: common.mustCall((event) => {
-      strictEqual(event.type, 'foo');
-    })
-  };
-
-  eventTarget.addListener('foo', ev1);
-  eventTarget.once('foo', ev2, { once: true });
-  strictEqual(eventTarget.listenerCount('foo'), 2);
-  eventTarget.dispatchEvent(new Event('foo'));
-  strictEqual(eventTarget.listenerCount('foo'), 1);
-  eventTarget.dispatchEvent(new Event('foo'));
-
-  eventTarget.removeListener('foo', ev1);
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  eventTarget.dispatchEvent(new Event('foo'));
-}
-
-{
-  const eventTarget = new NodeEventTarget();
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  deepStrictEqual(eventTarget.eventNames(), []);
-
-  // Won't actually be called.
-  const ev1 = () => {};
-
-  // Won't actually be called.
-  const ev2 = { handleEvent() {} };
-
-  eventTarget.addListener('foo', ev1);
-  eventTarget.addEventListener('foo', ev1);
-  eventTarget.once('foo', ev2, { once: true });
-  eventTarget.once('foo', ev2, { once: false });
-  eventTarget.on('bar', ev1);
-  strictEqual(eventTarget.listenerCount('foo'), 2);
-  strictEqual(eventTarget.listenerCount('bar'), 1);
-  deepStrictEqual(eventTarget.eventNames(), ['foo', 'bar']);
-  eventTarget.removeAllListeners('foo');
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  strictEqual(eventTarget.listenerCount('bar'), 1);
-  deepStrictEqual(eventTarget.eventNames(), ['bar']);
-  eventTarget.removeAllListeners();
-  strictEqual(eventTarget.listenerCount('foo'), 0);
-  strictEqual(eventTarget.listenerCount('bar'), 0);
-  deepStrictEqual(eventTarget.eventNames(), []);
 }
 
 {
@@ -328,7 +230,6 @@ ok(EventTarget);
     1,
     {},  // No handleEvent function
     false,
-    undefined
   ].forEach((i) => {
     throws(() => target.addEventListener('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE'
@@ -339,8 +240,7 @@ ok(EventTarget);
     'foo',
     1,
     {},  // No handleEvent function
-    false,
-    undefined
+    false
   ].forEach((i) => {
     throws(() => target.removeEventListener('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE'
@@ -352,25 +252,6 @@ ok(EventTarget);
   const target = new EventTarget();
   once(target, 'foo').then(common.mustCall());
   target.dispatchEvent(new Event('foo'));
-}
-
-{
-  const target = new NodeEventTarget();
-
-  process.on('warning', common.mustCall((warning) => {
-    ok(warning instanceof Error);
-    strictEqual(warning.name, 'MaxListenersExceededWarning');
-    strictEqual(warning.target, target);
-    strictEqual(warning.count, 2);
-    strictEqual(warning.type, 'foo');
-    ok(warning.message.includes(
-      '2 foo listeners added to NodeEventTarget'));
-  }));
-
-  strictEqual(target.getMaxListeners(), NodeEventTarget.defaultMaxListeners);
-  target.setMaxListeners(1);
-  target.on('foo', () => {});
-  target.on('foo', () => {});
 }
 
 {
@@ -543,19 +424,41 @@ ok(EventTarget);
   target.dispatchEvent(ev);
 }
 
-(async () => {
-  // test NodeEventTarget async-iterability
-  const emitter = new NodeEventTarget();
-  const interval = setInterval(() => {
-    emitter.dispatchEvent(new Event('foo'));
-  }, 0);
-  let count = 0;
-  for await (const [ item ] of on(emitter, 'foo')) {
-    count++;
-    strictEqual(item.type, 'foo');
-    if (count > 5) {
-      break;
-    }
-  }
-  clearInterval(interval);
-})().then(common.mustCall());
+{
+  const eventTarget = new EventTarget();
+  // Single argument throws
+  throws(() => eventTarget.addEventListener('foo'), TypeError);
+  // Null events - does not throw
+  eventTarget.addEventListener('foo', null);
+  eventTarget.removeEventListener('foo', null);
+  eventTarget.addEventListener('foo', undefined);
+  eventTarget.removeEventListener('foo', undefined);
+  // Strings, booleans
+  throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
+  throws(() => eventTarget.addEventListener('foo', false), TypeError);
+  throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
+  asyncTest = asyncTest.then(async () => {
+    const eventTarget = new EventTarget();
+    // Single argument throws
+    throws(() => eventTarget.addEventListener('foo'), TypeError);
+    // Null events - does not throw
+
+    eventTarget.addEventListener('foo', null);
+    eventTarget.removeEventListener('foo', null);
+
+    // Warnings always happen after nextTick, so wait for a timer of 0
+    await delay(0);
+    strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
+    strictEqual(lastWarning.target, eventTarget);
+    lastWarning = null;
+    eventTarget.addEventListener('foo', undefined);
+    await delay(0);
+    strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
+    strictEqual(lastWarning.target, eventTarget);
+    eventTarget.removeEventListener('foo', undefined);
+    // Strings, booleans
+    throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
+    throws(() => eventTarget.addEventListener('foo', false), TypeError);
+    throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
+  });
+}
