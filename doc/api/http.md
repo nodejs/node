@@ -112,6 +112,10 @@ http.get({
 ### `new Agent([options])`
 <!-- YAML
 added: v0.3.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/33617
+    description: Add `maxTotalSockets` option to agent constructor.
 -->
 
 * `options` {Object} Set of configurable options to set on the agent.
@@ -130,6 +134,10 @@ added: v0.3.4
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per
     host. Each request will use a new socket until the maximum is reached.
+    **Default:** `Infinity`.
+  * `maxTotalSockets` {number} Maximum number of sockets allowed for
+    all hosts in total. Each request will use a new socket
+    until the maximum is reached.
     **Default:** `Infinity`.
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state. Only relevant if `keepAlive` is set to `true`.
