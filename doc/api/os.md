@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/os.js -->
+
 The `os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
