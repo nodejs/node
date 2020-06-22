@@ -12,6 +12,10 @@ namespace node {
 
 class Environment;
 
+namespace contextify {
+class ContextifyContext;
+}
+
 namespace loader {
 
 enum ScriptType : int {
@@ -82,12 +86,13 @@ class ModuleWrap : public BaseObject {
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
   v8::Global<v8::Function> synthetic_evaluation_steps_;
-  bool synthetic_ = false;
   v8::Global<v8::Module> module_;
   v8::Global<v8::String> url_;
-  bool linked_ = false;
   std::unordered_map<std::string, v8::Global<v8::Promise>> resolve_cache_;
   v8::Global<v8::Context> context_;
+  contextify::ContextifyContext* contextify_context_ = nullptr;
+  bool synthetic_ = false;
+  bool linked_ = false;
   uint32_t id_;
 };
 
