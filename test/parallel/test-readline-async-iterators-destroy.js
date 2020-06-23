@@ -75,6 +75,7 @@ async function testMutualDestroy() {
         break;
       }
       assert.deepStrictEqual(iteratedLines, expectedLines);
+      break;
     }
 
     assert.deepStrictEqual(iteratedLines, expectedLines);
