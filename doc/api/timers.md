@@ -314,7 +314,7 @@ that return `Promise` objects. The API is accessible via
 const timersPromises = require('timers/promises');
 ```
 
-### `timersPromises.setTimeout(delay\[, value\[, options\]\])
+### `timersPromises.setTimeout(delay\[, value\[, options\]\])`
 
 * `delay` {number} The number of milliseconds to wait before resolving the
   `Promise`.
@@ -326,7 +326,7 @@ const timersPromises = require('timers/promises');
   * `signal` {AbortSignal} An optional `AbortSignal` that can be used to
     cancel the scheduled `Timeout`.
 
-### `timersPromises.setImmediate(\[value\[, options\]\])
+### `timersPromises.setImmediate(\[value\[, options\]\])`
 
 * `value` {any} A value with which the `Promise` is resolved.
 * `options` {Object}
