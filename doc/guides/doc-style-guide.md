@@ -49,7 +49,7 @@
     | R             | `r`               |
     | Shell Session | `console`         |
 
-    Note: If one of your language-aware fences needs an info string that is not
+    If one of your language-aware fences needs an info string that is not
     already on this list, you may use `text` until the grammar gets added to
     [`remark-preset-lint-node`][].
 
