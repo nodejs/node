@@ -31,6 +31,19 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
 
+#ifdef _MSC_VER
+#include <intrin.h>
+static inline int __builtin_clzll(unsigned long long x) {
+#if defined(_WIN64) || defined(_LP64)
+  return (int)__lzcnt64(x);
+#else
+  // TODO(@jasnell): Determine if there's an alternative available for x86
+  assert(0);
+#endif
+
+}
+#endif
+
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
   n = ngtcp2_max(n, 14720);
