@@ -12,6 +12,7 @@
 #include "node_quic_state.h"
 #include "node_quic_util-inl.h"
 #include "node_sockaddr-inl.h"
+#include "nghttp3/nghttp3.h"
 
 #include <memory>
 #include <utility>
@@ -169,10 +170,11 @@ void Initialize(Local<Object> target,
   V(IDX_QUIC_SESSION_MAX_STREAM_DATA_UNI)                                      \
   V(IDX_QUIC_SESSION_MAX_STREAMS_BIDI)                                         \
   V(IDX_QUIC_SESSION_MAX_STREAMS_UNI)                                          \
-  V(IDX_QUIC_SESSION_MAX_PACKET_SIZE)                                          \
+  V(IDX_QUIC_SESSION_MAX_UDP_PAYLOAD_SIZE)                                     \
   V(IDX_QUIC_SESSION_ACK_DELAY_EXPONENT)                                       \
   V(IDX_QUIC_SESSION_DISABLE_MIGRATION)                                        \
   V(IDX_QUIC_SESSION_MAX_ACK_DELAY)                                            \
+  V(IDX_QUIC_SESSION_CC_ALGO)                                                  \
   V(IDX_QUIC_SESSION_CONFIG_COUNT)                                             \
   V(IDX_QUIC_SESSION_STATE_CERT_ENABLED)                                       \
   V(IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED)                               \
@@ -190,6 +192,9 @@ void Initialize(Local<Object> target,
   V(NGTCP2_APP_NOERROR)                                                        \
   V(NGTCP2_PATH_VALIDATION_RESULT_FAILURE)                                     \
   V(NGTCP2_PATH_VALIDATION_RESULT_SUCCESS)                                     \
+  V(NGTCP2_DEFAULT_MAX_PKTLEN)                                                 \
+  V(NGTCP2_CC_ALGO_CUBIC)                                                      \
+  V(NGTCP2_CC_ALGO_RENO)                                                       \
   V(QUIC_ERROR_APPLICATION)                                                    \
   V(QUIC_ERROR_CRYPTO)                                                         \
   V(QUIC_ERROR_SESSION)                                                        \
@@ -238,8 +243,8 @@ void Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, AF_INET);
   NODE_DEFINE_CONSTANT(constants, AF_INET6);
   NODE_DEFINE_STRING_CONSTANT(constants,
-                              NODE_STRINGIFY_HELPER(NGTCP2_ALPN_H3),
-                              NGTCP2_ALPN_H3);
+                              NODE_STRINGIFY_HELPER(NGHTTP3_ALPN_H3),
+                              NGHTTP3_ALPN_H3);
 
   target->Set(context, env->constants_string(), constants).FromJust();
 }

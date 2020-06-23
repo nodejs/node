@@ -79,7 +79,7 @@ server.on('ready', common.mustCall(() => {
     stream.on('error', common.mustNotCall());
     stream.on('close', common.mustCall(() => countdown.dec()));
 
-    req.startHandshake();
+    // req.startHandshake();
 
     // TODO(@jasnell): There's a slight bug in here in that
     // calling end() will uncork the stream, causing data to

@@ -13,6 +13,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
+#include <nghttp3/nghttp3.h>  // NGHTTP3_ALPN_H3
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -231,7 +232,6 @@ std::unique_ptr<QuicPacket> GenerateRetryPacket(
   cid.set_length(kScidLen);
 
   size_t pktlen = tokenlen + (2 * NGTCP2_MAX_CIDLEN) + scid.length() + 8;
-  CHECK_LE(pktlen, NGTCP2_MAX_PKT_SIZE);
 
   auto packet = QuicPacket::Create("retry", pktlen);
   ssize_t nwrite =
@@ -258,13 +258,13 @@ std::unique_ptr<QuicPacket> GenerateRetryPacket(
 // is successful, ocid will be updated to the original connection ID encoded
 // in the encrypted token.
 bool InvalidRetryToken(
-    const ngtcp2_pkt_hd& hd,
+    const ngtcp2_vec& token,
     const SocketAddress& addr,
     QuicCID* ocid,
     const uint8_t* token_secret,
     uint64_t verification_expiration) {
 
-  if (hd.tokenlen < kTokenRandLen)
+  if (token.len < kTokenRandLen)
     return true;
 
   ngtcp2_crypto_ctx ctx;
@@ -272,9 +272,9 @@ bool InvalidRetryToken(
 
   size_t ivlen = ngtcp2_crypto_packet_protection_ivlen(&ctx.aead);
 
-  size_t ciphertextlen = hd.tokenlen - kTokenRandLen;
-  const uint8_t* ciphertext = hd.token;
-  const uint8_t* rand_data = hd.token + ciphertextlen;
+  size_t ciphertextlen = token.len - kTokenRandLen;
+  const uint8_t* ciphertext = token.base;
+  const uint8_t* rand_data = token.base + ciphertextlen;
 
   uint8_t token_key[kCryptoTokenKeylen];
   uint8_t token_iv[kCryptoTokenIvlen];
@@ -559,10 +559,10 @@ Local<Value> GetALPNProtocol(const QuicSession& session) {
   QuicCryptoContext* ctx = session.crypto_context();
   Environment* env = session.env();
   std::string alpn = ctx->selected_alpn();
-  // This supposed to be `NGTCP2_ALPN_H3 + 1`
+  // This supposed to be `NGHTTP3_ALPN_H3 + 1`
   // Details see https://github.com/nodejs/node/issues/33959
-  if (alpn == &NGTCP2_ALPN_H3[1]) {
-    return env->quic_alpn_string();
+  if (alpn == &NGHTTP3_ALPN_H3[1]) {
+    return env->http3_alpn_string();
   } else {
     return ToV8Value(
       env->context(),
@@ -800,6 +800,7 @@ void InitializeTLS(QuicSession* session, const crypto::SSLPointer& ssl) {
       UNREACHABLE();
   }
 
+  ngtcp2_conn_set_tls_native_handle(session->connection(), ssl.get());
   SetTransportParams(session, ssl);
 }
 
@@ -857,33 +858,6 @@ void InitializeSecureContext(
   SSL_CTX_set_keylog_callback(**sc, Keylog_CB);
   SSL_CTX_set_tlsext_status_arg(**sc, nullptr);
   SSL_CTX_set_quic_method(**sc, &quic_method);
-}
-
-bool DeriveAndInstallInitialKey(
-    const QuicSession& session,
-    const QuicCID& dcid) {
-  uint8_t initial_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
-  uint8_t rx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
-  uint8_t tx_secret[NGTCP2_CRYPTO_INITIAL_SECRETLEN];
-  uint8_t rx_key[NGTCP2_CRYPTO_INITIAL_KEYLEN];
-  uint8_t tx_key[NGTCP2_CRYPTO_INITIAL_KEYLEN];
-  uint8_t rx_hp[NGTCP2_CRYPTO_INITIAL_KEYLEN];
-  uint8_t tx_hp[NGTCP2_CRYPTO_INITIAL_KEYLEN];
-  uint8_t rx_iv[NGTCP2_CRYPTO_INITIAL_IVLEN];
-  uint8_t tx_iv[NGTCP2_CRYPTO_INITIAL_IVLEN];
-  return NGTCP2_OK(ngtcp2_crypto_derive_and_install_initial_key(
-      session.connection(),
-      rx_secret,
-      tx_secret,
-      initial_secret,
-      rx_key,
-      rx_iv,
-      rx_hp,
-      tx_key,
-      tx_iv,
-      tx_hp,
-      dcid.cid(),
-      session.crypto_context()->side()));
 }
 
 ngtcp2_crypto_level from_ossl_level(OSSL_ENCRYPTION_LEVEL ossl_level) {

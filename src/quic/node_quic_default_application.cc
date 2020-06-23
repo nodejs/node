@@ -81,8 +81,8 @@ void DefaultApplication::ResumeStream(int64_t stream_id) {
 }
 
 bool DefaultApplication::ReceiveStreamData(
+    uint32_t flags,
     int64_t stream_id,
-    int fin,
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) {
@@ -110,7 +110,7 @@ bool DefaultApplication::ReceiveStreamData(
   }
   CHECK(stream);
 
-  stream->ReceiveData(fin, data, datalen, offset);
+  stream->ReceiveData(flags, data, datalen, offset);
   return true;
 }
 

@@ -8,6 +8,7 @@
 #include "node_crypto.h"
 #include "node_internals.h"
 #include "ngtcp2/ngtcp2.h"
+#include "nghttp3/nghttp3.h"
 #include "node_quic_state.h"
 #include "node_quic_session.h"
 #include "node_quic_util.h"
@@ -322,7 +323,7 @@ class QuicSocket : public AsyncWrap,
   void Listen(
       BaseObjectPtr<crypto::SecureContext> context,
       const sockaddr* preferred_address = nullptr,
-      const std::string& alpn = NGTCP2_ALPN_H3,
+      const std::string& alpn = NGHTTP3_ALPN_H3,
       uint32_t options = 0);
 
   inline void ReceiveStart();

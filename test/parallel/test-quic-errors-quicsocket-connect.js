@@ -100,7 +100,7 @@ const client = createQuicSocket();
   'activeConnectionIdLimit',
   'maxAckDelay',
   'maxData',
-  'maxPacketSize',
+  'maxUdpPayloadSize',
   'maxStreamDataBidiLocal',
   'maxStreamDataBidiRemote',
   'maxStreamDataUni',
@@ -206,7 +206,7 @@ assert.throws(() => client.connect(), {
 //  [x] activeConnectionIdLimit - must be a number between 2 and 8
 //  [x] maxAckDelay - must be a number greater than zero
 //  [x] maxData - must be a number greater than zero
-//  [x] maxPacketSize - must be a number greater than zero
+//  [x] maxUdpPayloadSize - must be a number greater than zero
 //  [x] maxStreamDataBidiLocal - must be a number greater than zero
 //  [x] maxStreamDataBidiRemote - must be a number greater than zero
 //  [x] maxStreamDataUni - must be a number greater than zero

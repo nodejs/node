@@ -63,7 +63,7 @@ struct Http3ApplicationConfig : public nghttp3_conn_settings {
     nghttp3_conn_settings_default(this);
     qpack_max_table_capacity = DEFAULT_QPACK_MAX_TABLE_CAPACITY;
     qpack_blocked_streams = DEFAULT_QPACK_BLOCKED_STREAMS;
-    max_header_list_size = DEFAULT_MAX_HEADER_LIST_SIZE;
+    max_field_section_size = DEFAULT_MAX_HEADER_LIST_SIZE;
     max_pushes = DEFAULT_MAX_PUSHES;
   }
   uint64_t max_header_pairs = DEFAULT_MAX_HEADER_LIST_PAIRS;
@@ -90,8 +90,8 @@ class Http3Application final :
   }
 
   bool ReceiveStreamData(
+    uint32_t flags,
     int64_t stream_id,
-    int fin,
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) override;

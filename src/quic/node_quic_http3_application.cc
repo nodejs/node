@@ -60,7 +60,7 @@ Http3Application::Http3Application(
   SetConfig<size_t>(IDX_HTTP3_QPACK_BLOCKED_STREAMS,
             &Http3ApplicationConfig::qpack_blocked_streams);
   SetConfig(IDX_HTTP3_MAX_HEADER_LIST_SIZE,
-            &Http3ApplicationConfig::max_header_list_size);
+            &Http3ApplicationConfig::max_field_section_size);
   SetConfig(IDX_HTTP3_MAX_PUSHES,
             &Http3ApplicationConfig::max_pushes);
   SetConfig(IDX_HTTP3_MAX_HEADER_PAIRS,
@@ -372,7 +372,7 @@ bool Http3Application::Initialize() {
   Debug(session(), "QPack Blocked Streams: %" PRIu64,
         config_.qpack_blocked_streams);
   Debug(session(), "Max Header List Size: %" PRIu64,
-        config_.max_header_list_size);
+        config_.max_field_section_size);
   Debug(session(), "Max Pushes: %" PRIu64,
         config_.max_pushes);
 
@@ -401,16 +401,22 @@ bool Http3Application::Initialize() {
 // Here we pass the received data off to nghttp3 for processing. This will
 // trigger the invocation of the various nghttp3 callbacks.
 bool Http3Application::ReceiveStreamData(
+    uint32_t flags,
     int64_t stream_id,
-    int fin,
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) {
   Debug(session(), "Receiving %" PRIu64 " bytes for stream %" PRIu64 "%s",
-        datalen, stream_id, fin == 1 ? " (fin)" : "");
+        datalen,
+        stream_id,
+        flags & NGTCP2_STREAM_DATA_FLAG_FIN ? " (fin)" : "");
   ssize_t nread =
       nghttp3_conn_read_stream(
-          connection(), stream_id, data, datalen, fin);
+          connection(),
+          stream_id,
+          data,
+          datalen,
+          flags & NGTCP2_STREAM_DATA_FLAG_FIN);
   if (nread < 0) {
     Debug(session(), "Failure to read HTTP/3 Stream Data [%" PRId64 "]", nread);
     return false;
