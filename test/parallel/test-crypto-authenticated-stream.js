@@ -2,15 +2,15 @@
 'use strict';
 // Refs: https://github.com/nodejs/node/issues/31733
 const common = require('../common');
+if (!common.hasCrypto)
+  common.skip('missing crypto');
+
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const stream = require('stream');
 const tmpdir = require('../common/tmpdir');
-
-if (!common.hasCrypto)
-  common.skip('missing crypto');
 
 class Sink extends stream.Writable {
   constructor() {
