@@ -1,4 +1,3 @@
-/* eslint-disable node-core/crypto-check */
 'use strict';
 // Refs: https://github.com/nodejs/node/issues/31733
 const common = require('../common');
