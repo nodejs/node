@@ -30,7 +30,29 @@
 * When documenting APIs, update the YAML comment associated with the API as
   appropriate. This is especially true when introducing or deprecating an API.
 * For code blocks:
-  * Use [language aware fences][]. (<code>```js</code>)
+  * Use [language][]-aware fences. (<code>```js</code>)
+  * For the [info string][], use one of the following.
+
+    | Meaning       | Info string       |
+    | ------------- | ----------------- |
+    | Bash          | `bash`            |
+    | C             | `c`               |
+    | C++           | `cpp`             |
+    | CoffeeScript  | `coffee`          |
+    | Diff          | `diff`            |
+    | HTTP          | `http`            |
+    | JavaScript    | `js`              |
+    | JSON          | `json`            |
+    | Markdown      | `markdown`        |
+    | Plaintext     | `text`            |
+    | Powershell    | `powershell`      |
+    | R             | `r`               |
+    | Shell Session | `console`         |
+
+    If one of your language-aware fences needs an info string that is not
+    already on this list, you may use `text` until the grammar gets added to
+    [`remark-preset-lint-node`][].
+
   * Code need not be complete. Treat code blocks as an illustration or aid to
     your point, not as complete running programs. If a complete running program
     is necessary, include it as an asset in `assets/code-examples` and link to
@@ -74,8 +96,10 @@
 
 See also API documentation structure overview in [doctools README][].
 
-[language aware fences]: https://github.com/highlightjs/highlight.js/blob/master/SUPPORTED_LANGUAGES.md
+[info string]: https://github.github.com/gfm/#info-string
+[language]: https://github.com/highlightjs/highlight.js/blob/master/SUPPORTED_LANGUAGES.md
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
 [serial commas]: https://en.wikipedia.org/wiki/Serial_comma
 [plugin]: https://editorconfig.org/#download
 [doctools README]: ../../tools/doc/README.md
+[`remark-preset-lint-node`]: https://github.com/nodejs/remark-preset-lint-node
