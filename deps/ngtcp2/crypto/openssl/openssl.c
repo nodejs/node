@@ -35,10 +35,14 @@
 #include <openssl/evp.h>
 #include <openssl/kdf.h>
 
+#include "shared.h"
+
 ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_initial(ngtcp2_crypto_ctx *ctx) {
   ctx->aead.native_handle = (void *)EVP_aes_128_gcm();
   ctx->md.native_handle = (void *)EVP_sha256();
   ctx->hp.native_handle = (void *)EVP_aes_128_ctr();
+  ctx->max_encryption = 0;
+  ctx->max_decryption_failure = 0;
   return ctx;
 }
 
@@ -59,6 +63,34 @@ static const EVP_CIPHER *crypto_ssl_get_aead(SSL *ssl) {
     return EVP_aes_128_ccm();
   default:
     return NULL;
+  }
+}
+
+static uint64_t crypto_ssl_get_aead_max_encryption(SSL *ssl) {
+  switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
+  case TLS1_3_CK_AES_128_GCM_SHA256:
+  case TLS1_3_CK_AES_256_GCM_SHA384:
+    return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_GCM;
+  case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
+    return NGTCP2_CRYPTO_MAX_ENCRYPTION_CHACHA20_POLY1305;
+  case TLS1_3_CK_AES_128_CCM_SHA256:
+    return NGTCP2_CRYPTO_MAX_ENCRYPTION_AES_CCM;
+  default:
+    return 0;
+  }
+}
+
+static uint64_t crypto_ssl_get_aead_max_decryption_failure(SSL *ssl) {
+  switch (SSL_CIPHER_get_id(SSL_get_current_cipher(ssl))) {
+  case TLS1_3_CK_AES_128_GCM_SHA256:
+  case TLS1_3_CK_AES_256_GCM_SHA384:
+    return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_GCM;
+  case TLS1_3_CK_CHACHA20_POLY1305_SHA256:
+    return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_CHACHA20_POLY1305;
+  case TLS1_3_CK_AES_128_CCM_SHA256:
+    return NGTCP2_CRYPTO_MAX_DECRYPTION_FAILURE_AES_CCM;
+  default:
+    return 0;
   }
 }
 
@@ -95,6 +127,8 @@ ngtcp2_crypto_ctx *ngtcp2_crypto_ctx_tls(ngtcp2_crypto_ctx *ctx,
   ctx->aead.native_handle = (void *)crypto_ssl_get_aead(ssl);
   ctx->md.native_handle = (void *)crypto_ssl_get_md(ssl);
   ctx->hp.native_handle = (void *)crypto_ssl_get_hp(ssl);
+  ctx->max_encryption = crypto_ssl_get_aead_max_encryption(ssl);
+  ctx->max_decryption_failure = crypto_ssl_get_aead_max_decryption_failure(ssl);
   return ctx;
 }
 
@@ -313,10 +347,10 @@ from_ngtcp2_level(ngtcp2_crypto_level crypto_level) {
   }
 }
 
-int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
+int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
                                          ngtcp2_crypto_level crypto_level,
                                          const uint8_t *data, size_t datalen) {
-  SSL *ssl = tls;
+  SSL *ssl = ngtcp2_conn_get_tls_native_handle(conn);
   int rv;
   int err;
 
@@ -365,13 +399,12 @@ int ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
   return 0;
 }
 
-int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
-                                              ngtcp2_crypto_side side) {
+int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls) {
   SSL *ssl = tls;
   ngtcp2_transport_params_type exttype =
-      side == NGTCP2_CRYPTO_SIDE_CLIENT
-          ? NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS
-          : NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO;
+      ngtcp2_conn_is_server(conn)
+          ? NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO
+          : NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS;
   const uint8_t *tp;
   size_t tplen;
   ngtcp2_transport_params params;
@@ -388,6 +421,15 @@ int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
   rv = ngtcp2_conn_set_remote_transport_params(conn, &params);
   if (rv != 0) {
     ngtcp2_conn_set_tls_error(conn, rv);
+    return -1;
+  }
+
+  return 0;
+}
+
+int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
+                                             size_t len) {
+  if (SSL_set_quic_transport_params(tls, buf, len) != 1) {
     return -1;
   }
 

@@ -447,14 +447,17 @@ static uint8_t *write_new_token_frame(uint8_t *p, const ngtcp2_new_token *fr) {
   (void)fr;
 
   /*
-   * {"frame_type":"new_token"}
+   * {"frame_type":"new_token","length":0000000000000000000,"token":""}
    */
-#define NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD 26
+#define NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD 66
 
   *p++ = '{';
   p = write_pair(p, ngtcp2_vec_lit(&name, "frame_type"),
                  ngtcp2_vec_lit(&value, "new_token"));
-  /* TODO Write token here */
+  *p++ = ',';
+  p = write_pair_number(p, ngtcp2_vec_lit(&name, "length"), fr->token.len);
+  *p++ = ',';
+  p = write_pair_hex(p, ngtcp2_vec_lit(&name, "token"), &fr->token);
   *p++ = '}';
 
   return p;
@@ -870,7 +873,8 @@ void ngtcp2_qlog_write_frame(ngtcp2_qlog *qlog, const ngtcp2_frame *fr) {
     p = write_crypto_frame(p, &fr->crypto);
     break;
   case NGTCP2_FRAME_NEW_TOKEN:
-    if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD + 1 +
+    if (ngtcp2_buf_left(&qlog->buf) < NGTCP2_QLOG_NEW_TOKEN_FRAME_OVERHEAD +
+                                          fr->new_token.token.len * 2 + 1 +
                                           NGTCP2_QLOG_PKT_WRITE_END_OVERHEAD) {
       return;
     }
@@ -1010,7 +1014,8 @@ void ngtcp2_qlog_pkt_sent_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 }
 
 void ngtcp2_qlog_parameters_set_transport_params(
-    ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int local) {
+    ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
+    int local) {
   uint8_t buf[1024];
   uint8_t *p = buf;
   ngtcp2_vec name, value;
@@ -1032,9 +1037,19 @@ void ngtcp2_qlog_parameters_set_transport_params(
                  local ? ngtcp2_vec_lit(&value, "local")
                        : ngtcp2_vec_lit(&value, "remote"));
   *p++ = ',';
-  if (params->original_connection_id_present) {
-    p = write_pair_cid(p, ngtcp2_vec_lit(&name, "original_connection_id"),
-                       &params->original_connection_id);
+  p = write_pair_cid(p, ngtcp2_vec_lit(&name, "initial_source_connection_id"),
+                     &params->initial_scid);
+  *p++ = ',';
+  if (!server == !local) {
+    p = write_pair_cid(
+        p, ngtcp2_vec_lit(&name, "original_destination_connection_id"),
+        &params->original_dcid);
+    *p++ = ',';
+  }
+  if (params->retry_scid_present) {
+    assert(!server);
+    p = write_pair_cid(p, ngtcp2_vec_lit(&name, "retry_source_connection_id"),
+                       &params->retry_scid);
     *p++ = ',';
   }
   if (params->stateless_reset_token_present) {
@@ -1049,8 +1064,8 @@ void ngtcp2_qlog_parameters_set_transport_params(
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "max_idle_timeout"),
                           params->max_idle_timeout);
   *p++ = ',';
-  p = write_pair_number(p, ngtcp2_vec_lit(&name, "max_packet_size"),
-                        params->max_packet_size);
+  p = write_pair_number(p, ngtcp2_vec_lit(&name, "max_udp_payload_size"),
+                        params->max_udp_payload_size);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "ack_delay_exponent"),
                         params->ack_delay_exponent);
@@ -1115,8 +1130,7 @@ void ngtcp2_qlog_parameters_set_transport_params(
 }
 
 void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
-                                 const ngtcp2_rcvry_stat *rcs,
-                                 ngtcp2_cc_stat *ccs) {
+                                 const ngtcp2_conn_stat *cstat) {
   uint8_t buf[1024];
   uint8_t *p = buf;
   ngtcp2_vec name, value;
@@ -1134,30 +1148,33 @@ void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
   *p++ = ',';
   *p++ = '{';
 
-  if (rcs->min_rtt != UINT64_MAX) {
-    p = write_pair_duration(p, ngtcp2_vec_lit(&name, "min_rtt"), rcs->min_rtt);
+  if (cstat->min_rtt != UINT64_MAX) {
+    p = write_pair_duration(p, ngtcp2_vec_lit(&name, "min_rtt"),
+                            cstat->min_rtt);
     *p++ = ',';
   }
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "smoothed_rtt"),
-                          rcs->smoothed_rtt);
+                          cstat->smoothed_rtt);
   *p++ = ',';
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "latest_rtt"),
-                          rcs->latest_rtt);
+                          cstat->latest_rtt);
   *p++ = ',';
   p = write_pair_duration(p, ngtcp2_vec_lit(&name, "rtt_variance"),
-                          rcs->rttvar);
+                          cstat->rttvar);
   *p++ = ',';
   /* TODO max_ack_delay? */
-  p = write_pair_number(p, ngtcp2_vec_lit(&name, "pto_count"), rcs->pto_count);
+  p = write_pair_number(p, ngtcp2_vec_lit(&name, "pto_count"),
+                        cstat->pto_count);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "congestion_window"),
-                        ccs->cwnd);
+                        cstat->cwnd);
   *p++ = ',';
   p = write_pair_number(p, ngtcp2_vec_lit(&name, "bytes_in_flight"),
-                        ccs->bytes_in_flight);
-  if (ccs->ssthresh != UINT64_MAX) {
+                        cstat->bytes_in_flight);
+  if (cstat->ssthresh != UINT64_MAX) {
     *p++ = ',';
-    p = write_pair_number(p, ngtcp2_vec_lit(&name, "ssthresh"), ccs->ssthresh);
+    p = write_pair_number(p, ngtcp2_vec_lit(&name, "ssthresh"),
+                          cstat->ssthresh);
   }
 
   *p++ = '}';

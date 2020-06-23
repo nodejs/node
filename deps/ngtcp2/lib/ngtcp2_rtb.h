@@ -47,9 +47,6 @@ typedef struct ngtcp2_log ngtcp2_log;
 struct ngtcp2_qlog;
 typedef struct ngtcp2_qlog ngtcp2_qlog;
 
-struct ngtcp2_default_cc;
-typedef struct ngtcp2_default_cc ngtcp2_default_cc;
-
 struct ngtcp2_strm;
 typedef struct ngtcp2_strm ngtcp2_strm;
 
@@ -211,31 +208,34 @@ typedef struct {
   /* crypto is CRYPTO stream. */
   ngtcp2_strm *crypto;
   ngtcp2_rst *rst;
-  ngtcp2_default_cc *cc;
+  ngtcp2_cc *cc;
   ngtcp2_log *log;
   ngtcp2_qlog *qlog;
   const ngtcp2_mem *mem;
   /* largest_acked_tx_pkt_num is the largest packet number
      acknowledged by the peer. */
   int64_t largest_acked_tx_pkt_num;
+  /* num_ack_eliciting is the number of ACK eliciting entries. */
   size_t num_ack_eliciting;
-  ngtcp2_tstamp loss_time;
   /* probe_pkt_left is the number of probe packet to send */
   size_t probe_pkt_left;
-  /* crypto_level is encryption level which |crypto| belongs to. */
-  ngtcp2_crypto_level crypto_level;
+  /* pktns_id is the identifier of packet number space. */
+  ngtcp2_pktns_id pktns_id;
   /* cc_pkt_num is the smallest packet number that is contributed to
-     bytes_in_flight. */
+     ngtcp2_conn_stat.bytes_in_flight. */
   int64_t cc_pkt_num;
+  /* cc_bytes_in_flight is the number of in-flight bytes that is
+     contributed to ngtcp2_conn_stat.bytes_in_flight.  It only
+     includes the bytes after congestion state is reset. */
+  uint64_t cc_bytes_in_flight;
 } ngtcp2_rtb;
 
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_crypto_level crypto_level,
-                     ngtcp2_strm *crypto, ngtcp2_rst *rst,
-                     ngtcp2_default_cc *cc, ngtcp2_log *log, ngtcp2_qlog *qlog,
-                     const ngtcp2_mem *mem);
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
+                     ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
+                     ngtcp2_log *log, ngtcp2_qlog *qlog, const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_rtb_free deallocates resources allocated for |rtb|.
@@ -251,7 +251,8 @@ void ngtcp2_rtb_free(ngtcp2_rtb *rtb);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent);
+int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
+                   ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_head returns the iterator which points to the entry
@@ -276,8 +277,8 @@ ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
  *     Out of memory
  */
 ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
-                                 ngtcp2_conn *conn, ngtcp2_tstamp pkt_ts,
-                                 ngtcp2_tstamp ts);
+                                 ngtcp2_conn_stat *cstat, ngtcp2_conn *conn,
+                                 ngtcp2_tstamp pkt_ts, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
@@ -286,7 +287,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * handle them.  |pto| is PTO.
  */
 void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                                ngtcp2_rcvry_stat *rcs, ngtcp2_duration pto,
+                                ngtcp2_conn_stat *cstat, ngtcp2_duration pto,
                                 ngtcp2_tstamp ts);
 
 /*
@@ -294,7 +295,8 @@ void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
  * all frames to |*pfrc|.  Even when this function fails, some frames
  * might be prepended to |*pfrc| and the caller should handle them.
  */
-void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                           ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_on_crypto_timeout copies all unacknowledged CRYPTO
@@ -307,7 +309,8 @@ void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
+int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
+                                 ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.
@@ -315,15 +318,10 @@ int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc);
 int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_get_bytes_in_flight returns the sum of bytes in flight
- * for the stored entries.
+ * ngtcp2_rtb_reset_cc_state resets congestion state in |rtb|.
+ * |cc_pkt_num| is the next outbound packet number which is sent under
+ * new congestion state.
  */
-uint64_t ngtcp2_rtb_get_bytes_in_flight(ngtcp2_rtb *rtb);
-
-/*
- * ngtcp2_rtb_num_ack_eliciting returns the number of ACK eliciting
- * entries.
- */
-size_t ngtcp2_rtb_num_ack_eliciting(ngtcp2_rtb *rtb);
+void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num);
 
 #endif /* NGTCP2_RTB_H */

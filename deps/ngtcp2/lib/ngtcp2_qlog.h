@@ -110,19 +110,20 @@ void ngtcp2_qlog_pkt_sent_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
 
 /*
  * ngtcp2_qlog_parameters_set_transport_params writes |params| to qlog
- * as parameters_set event.  If |local| is nonzero, it is "owner"
- * field becomes "local", otherwise "remote".
+ * as parameters_set event.  |server| is nonzero if the local endpoint
+ * is server.  If |local| is nonzero, it is "owner" field becomes
+ * "local", otherwise "remote".
  */
 void ngtcp2_qlog_parameters_set_transport_params(
-    ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int local);
+    ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
+    int local);
 
 /*
  * ngtcp2_qlog_metrics_updated writes metrics_updated event of
  * recovery category.
  */
 void ngtcp2_qlog_metrics_updated(ngtcp2_qlog *qlog,
-                                 const ngtcp2_rcvry_stat *rcs,
-                                 ngtcp2_cc_stat *ccs);
+                                 const ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_qlog_pkt_lost writes packet_lost event.

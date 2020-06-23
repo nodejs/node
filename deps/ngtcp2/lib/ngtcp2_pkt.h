@@ -89,7 +89,7 @@
 
 /* NGTCP2_MAX_NUM_ACK_BLK is the maximum number of Additional ACK
    blocks which this library can create, or decode. */
-#define NGTCP2_MAX_ACK_BLKS 255
+#define NGTCP2_MAX_ACK_BLKS 32
 
 /* NGTCP2_MAX_PKT_NUM is the maximum packet number. */
 #define NGTCP2_MAX_PKT_NUM ((int64_t)((1ll << 62) - 1))
@@ -98,6 +98,15 @@
    addition to the minimum DCID length to hide/trigger Stateless
    Reset. */
 #define NGTCP2_MIN_PKT_EXPANDLEN 22
+
+/* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
+#define NGTCP2_RETRY_TAGLEN 16
+
+typedef struct ngtcp2_pkt_retry {
+  ngtcp2_cid odcid;
+  ngtcp2_vec token;
+  uint8_t tag[NGTCP2_RETRY_TAGLEN];
+} ngtcp2_pkt_retry;
 
 typedef enum {
   NGTCP2_FRAME_PADDING = 0x00,
@@ -155,8 +164,7 @@ typedef struct {
   uint64_t ack_delay;
   /**
    * ack_delay_unscaled is an ack_delay multiplied by
-   * 2**ack_delay_component * NGTCP2_DURATION_TICK /
-   * NGTCP2_MICROSECONDS.
+   * 2**ack_delay_component * NGTCP2_MICROSECONDS.
    */
   ngtcp2_duration ack_delay_unscaled;
   uint64_t first_ack_blklen;
@@ -263,8 +271,7 @@ typedef struct {
 
 typedef struct {
   uint8_t type;
-  size_t tokenlen;
-  const uint8_t *token;
+  ngtcp2_vec token;
 } ngtcp2_new_token;
 
 typedef struct {

@@ -10,8 +10,9 @@
       'type': 'static_library',
       'include_dirs': [
         'lib/includes',
-        'crypto/includes',
         'lib',
+        'crypto/includes',
+        'crypto'
       ],
       'defines': [
         'BUILDING_NGTCP2',
@@ -44,7 +45,7 @@
         'defines': [ 'NGTCP2_STATICLIB' ],
         'include_dirs': [
           'lib/includes',
-          'crypto/includes'
+          'crypto/includes',
         ]
       },
       'sources': [
@@ -79,19 +80,14 @@
   'lib/ngtcp2_map.h',
   'lib/ngtcp2_mem.c',
   'lib/ngtcp2_mem.h',
-  'lib/ngtcp2_net.h',
   'lib/ngtcp2_path.c',
   'lib/ngtcp2_path.h',
-  'lib/ngtcp2_pipeack.c',
-  'lib/ngtcp2_pipeack.h',
   'lib/ngtcp2_pkt.c',
   'lib/ngtcp2_pkt.h',
   'lib/ngtcp2_ppe.c',
   'lib/ngtcp2_ppe.h',
   'lib/ngtcp2_pq.c',
   'lib/ngtcp2_pq.h',
-  'lib/ngtcp2_psl.c',
-  'lib/ngtcp2_psl.h',
   'lib/ngtcp2_pv.c',
   'lib/ngtcp2_pv.h',
   'lib/ngtcp2_qlog.c',

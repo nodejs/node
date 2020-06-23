@@ -57,6 +57,10 @@ typedef struct {
      a packet.  For decryption key, it is the lowest packet number of
      a packet which can be decrypted with this keying material. */
   int64_t pkt_num;
+  /* use_count is the number of encryption or decryption failure.  For
+     tx key, this is the number of encryption.  For rx key, this is
+     the number of decryption failure. */
+  uint64_t use_count;
   /* flags is the bitwise OR of zero or more of
      ngtcp2_crypto_km_flag. */
   uint8_t flags;
@@ -88,7 +92,7 @@ void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 typedef struct {
   ngtcp2_crypto_aead aead;
   ngtcp2_crypto_cipher hp;
-  const ngtcp2_crypto_km *ckm;
+  ngtcp2_crypto_km *ckm;
   const ngtcp2_vec *hp_key;
   size_t aead_overhead;
   ngtcp2_encrypt encrypt;
