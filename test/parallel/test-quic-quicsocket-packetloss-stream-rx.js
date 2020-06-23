@@ -11,6 +11,8 @@ const common = require('../common');
 if (!common.hasQuic)
   common.skip('missing quic');
 
+common.skip('temporarily skip packetloss tests for refactoring');
+
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const {
