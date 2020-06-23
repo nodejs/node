@@ -5,6 +5,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "nghttp2/nghttp2.h"
+#include "nghttp3/nghttp3.h"
 #include "node.h"
 #include "node_buffer.h"
 #include "node_crypto.h"
@@ -248,7 +249,7 @@ QuicSocket::QuicSocket(
     max_stateless_resets_per_host_(max_stateless_resets_per_host),
     retry_token_expiration_(retry_token_expiration),
     qlog_(qlog),
-    server_alpn_(NGTCP2_ALPN_H3),
+    server_alpn_(NGHTTP3_ALPN_H3),
     quic_state_(quic_state) {
   MakeWeak();
   PushListener(&default_listener_);
@@ -757,7 +758,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
       QuicCID(hd.dcid),
       local_addr,
       remote_addr,
-      NGTCP2_SERVER_BUSY);
+      NGTCP2_CONNECTION_REFUSED);
     return {};
   }
 
@@ -771,16 +772,16 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
     switch (hd.type) {
       case NGTCP2_PKT_INITIAL:
         if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS) ||
-            hd.tokenlen > 0) {
+            hd.token.len > 0) {
           Debug(this, "Performing explicit address validation");
-          if (hd.tokenlen == 0) {
+          if (hd.token.len == 0) {
             Debug(this, "No retry token was detected. Generating one");
             SendRetry(dcid, scid, local_addr, remote_addr);
             // Sending a retry token terminates this connection attempt.
             return {};
           }
           if (InvalidRetryToken(
-                  hd,
+                  hd.token,
                   remote_addr,
                   &ocid,
                   token_secret_,
@@ -805,10 +806,10 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
       QuicSession::CreateServer(
           this,
           server_session_config_,
-          dcid,
           local_addr,
           remote_addr,
           scid,
+          dcid,
           ocid,
           version,
           server_alpn_,
@@ -1069,7 +1070,7 @@ void QuicSocketListen(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::string alpn(NGTCP2_ALPN_H3);
+  std::string alpn(NGHTTP3_ALPN_H3);
   if (args[4]->IsString()) {
     Utf8Value val(env->isolate(), args[4]);
     alpn = val.length();

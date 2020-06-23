@@ -1539,9 +1539,11 @@ added: REPLACEME
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `activeConnectionIdLimit` {number} Must be a value between `2` and `8`
     (inclusive). Default: `2`.
+  * `congestionAlgorithm` {string} Must be either `'reno'` or `'cubic'`.
+    **Default**: `'reno'`.
   * `maxAckDelay` {number}
   * `maxData` {number}
-  * `maxPacketSize` {number}
+  * `maxUdpPayloadSize` {number}
   * `maxStreamDataBidiLocal` {number}
   * `maxStreamDataBidiRemote` {number}
   * `maxStreamDataUni` {number}
@@ -1706,9 +1708,11 @@ added: REPLACEME
     `object.passphrase` is optional. Encrypted keys will be decrypted with
     `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `activeConnectionIdLimit` {number}
+  * `congestionAlgorithm` {string} Must be either `'reno'` or `'cubic'`.
+    **Default**: `'reno'`.
   * `maxAckDelay` {number}
   * `maxData` {number}
-  * `maxPacketSize` {number}
+  * `maxUdpPayloadSize` {number}
   * `maxStreamsBidi` {number}
   * `maxStreamsUni` {number}
   * `maxStreamDataBidiLocal` {number}

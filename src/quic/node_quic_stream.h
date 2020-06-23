@@ -301,7 +301,7 @@ class QuicStream : public AsyncWrap,
 
   // Passes a chunk of data on to the QuicStream listener.
   void ReceiveData(
-      int fin,
+      uint32_t flags,
       const uint8_t* data,
       size_t datalen,
       uint64_t offset);

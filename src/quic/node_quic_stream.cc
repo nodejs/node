@@ -149,7 +149,7 @@ int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
   if (is_destroyed())
     return UV_EPIPE;
 
-  QuicSession::SendSessionScope send_scope(session(), true);
+  QuicSession::SendSessionScope send_scope(session());
 
   if (is_writable()) {
     Debug(this, "Shutdown writable side");
@@ -181,7 +181,7 @@ int QuicStream::DoWrite(
     return 0;
   }
 
-  QuicSession::SendSessionScope send_scope(session(), true);
+  QuicSession::SendSessionScope send_scope(session());
 
   Debug(this, "Queuing %" PRIu64 " bytes of data from %d buffers",
         length, nbufs);
@@ -283,14 +283,14 @@ BaseObjectPtr<QuicStream> QuicStream::New(
 // to the sending peer if the stream is in flowing mode, so the sender
 // should not be sending too much data.
 void QuicStream::ReceiveData(
-    int fin,
+    uint32_t flags,
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) {
   CHECK(!is_destroyed());
   Debug(this, "Receiving %d bytes. Final? %s. Readable? %s",
         datalen,
-        fin ? "yes" : "no",
+        flags & NGTCP2_STREAM_DATA_FLAG_FIN ? "yes" : "no",
         is_readable() ? "yes" : "no");
 
   // If the QuicStream is not (or was never) readable, just ignore the chunk.
@@ -299,7 +299,7 @@ void QuicStream::ReceiveData(
 
   // ngtcp2 guarantees that datalen will only be 0 if fin is set.
   // Let's just make sure.
-  CHECK(datalen > 0 || fin == 1);
+  CHECK(datalen > 0 || flags & NGTCP2_STREAM_DATA_FLAG_FIN);
 
   // ngtcp2 guarantees that offset is always greater than the previously
   // received offset. Let's just make sure.
@@ -354,7 +354,7 @@ void QuicStream::ReceiveData(
 
   // When fin != 0, we've received that last chunk of data for this
   // stream, indicating that the stream will no longer be readable.
-  if (fin) {
+  if (flags & NGTCP2_STREAM_DATA_FLAG_FIN) {
     set_flag(QUICSTREAM_FLAG_FIN);
     set_final_size(offset + datalen);
     EmitRead(UV_EOF);

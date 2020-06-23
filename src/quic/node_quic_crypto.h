@@ -44,13 +44,6 @@ void InitializeSecureContext(
 // with the session.
 void InitializeTLS(QuicSession* session, const crypto::SSLPointer& ssl);
 
-// Called when the client QuicSession is created and
-// when the server QuicSession first receives the
-// client hello.
-bool DeriveAndInstallInitialKey(
-    const QuicSession& session,
-    const QuicCID& dcid);
-
 // Generates a stateless reset token using HKDF with the
 // cid and token secret as input. The token secret is
 // either provided by user code when a QuicSocket is
@@ -101,7 +94,7 @@ uint32_t GenerateFlowLabel(
 // the ocid will be updated to the original CID value encoded
 // within the successfully validated, encrypted token.
 bool InvalidRetryToken(
-    const ngtcp2_pkt_hd& hd,
+    const ngtcp2_vec& token,
     const SocketAddress& addr,
     QuicCID* ocid,
     const uint8_t* token_secret,

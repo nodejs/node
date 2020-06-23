@@ -55,7 +55,7 @@ const { createQuicSocket } = require('net');
     'activeConnectionIdLimit',
     'maxAckDelay',
     'maxData',
-    'maxPacketSize',
+    'maxUdpPayloadSize',
     'maxStreamDataBidiLocal',
     'maxStreamDataBidiRemote',
     'maxStreamDataUni',
@@ -152,7 +152,7 @@ const { createQuicSocket } = require('net');
 // * [x] activeConnectionIdLimit
 // * [x] maxAckDelay
 // * [x] maxData
-// * [x] maxPacketSize
+// * [x] maxUdpPayloadSize
 // * [x] maxStreamsBidi
 // * [x] maxStreamsUni
 // * [x] maxStreamDataBidiLocal

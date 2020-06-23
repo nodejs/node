@@ -43,10 +43,13 @@ void QuicSessionConfig::GeneratePreferredAddressToken(
     *pscid);
 }
 
-void QuicSessionConfig::set_original_connection_id(const QuicCID& ocid) {
+void QuicSessionConfig::set_original_connection_id(
+    const QuicCID& ocid,
+    const QuicCID& scid) {
   if (ocid) {
-    transport_params.original_connection_id = *ocid;
-    transport_params.original_connection_id_present = 1;
+    transport_params.original_dcid = *ocid;
+    transport_params.retry_scid = *scid;
+    transport_params.retry_scid_present = 1;
   }
 }
 
@@ -193,13 +196,6 @@ void QuicCryptoContext::set_tls_alert(int err) {
   session_->set_last_error(QuicError(QUIC_ERROR_CRYPTO, err));
 }
 
-// Derives and installs the initial keying material for a newly
-// created session.
-bool QuicCryptoContext::SetupInitialKey(const QuicCID& dcid) {
-  Debug(session(), "Deriving and installing initial keys");
-  return DeriveAndInstallInitialKey(*session(), dcid);
-}
-
 QuicApplication::QuicApplication(QuicSession* session) : session_(session) {}
 
 void QuicApplication::set_stream_fin(int64_t stream_id) {
@@ -214,17 +210,21 @@ ssize_t QuicApplication::WriteVStream(
     ssize_t* ndatalen,
     const StreamData& stream_data) {
   CHECK_LE(stream_data.count, kMaxVectorCount);
+
+  uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_NONE;
+  if (stream_data.remaining > 0)
+    flags |= NGTCP2_WRITE_STREAM_FLAG_MORE;
+  if (stream_data.fin)
+    flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
+
   return ngtcp2_conn_writev_stream(
     session()->connection(),
     &path->path,
     buf,
     session()->max_packet_length(),
     ndatalen,
-    stream_data.remaining > 0 ?
-        NGTCP2_WRITE_STREAM_FLAG_MORE :
-        NGTCP2_WRITE_STREAM_FLAG_NONE,
+    flags,
     stream_data.id,
-    stream_data.fin,
     stream_data.buf,
     stream_data.count,
     uv_hrtime());
@@ -248,13 +248,6 @@ void QuicSession::AssociateCID(const QuicCID& cid) {
 void QuicSession::DisassociateCID(const QuicCID& cid) {
   if (is_server())
     socket()->DisassociateCID(cid);
-}
-
-void QuicSession::StartHandshake() {
-  if (crypto_context_->is_handshake_started() || is_server())
-    return;
-  crypto_context_->handshake_started();
-  SendPendingData();
 }
 
 void QuicSession::ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) {

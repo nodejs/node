@@ -21,6 +21,7 @@
 
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
+#include <nghttp3/nghttp3.h>
 #include <openssl/ssl.h>
 
 #include <unordered_map>
@@ -72,6 +73,9 @@ class QuicSessionConfig : public ngtcp2_settings {
   QuicSessionConfig(const QuicSessionConfig& config) {
     initial_ts = uv_hrtime();
     transport_params = config.transport_params;
+    max_udp_payload_size = config.max_udp_payload_size;
+    cc_algo = config.cc_algo;
+    cc = config.cc;
     qlog = config.qlog;
     log_printf = config.log_printf;
     token = config.token;
@@ -86,7 +90,9 @@ class QuicSessionConfig : public ngtcp2_settings {
   void Set(QuicState* quic_state,
            const struct sockaddr* preferred_addr = nullptr);
 
-  inline void set_original_connection_id(const QuicCID& ocid);
+  inline void set_original_connection_id(
+      const QuicCID& ocid,
+      const QuicCID& scid);
 
   // Generates the stateless reset token for the settings_
   inline void GenerateStatelessResetToken(
@@ -215,7 +221,6 @@ enum QuicSessionState : int {
   V(STREAMS_IN_COUNT, streams_in_count, "Streams In Count")                    \
   V(STREAMS_OUT_COUNT, streams_out_count, "Streams Out Count")                 \
   V(KEYUPDATE_COUNT, keyupdate_count, "Key Update Count")                      \
-  V(RETRY_COUNT, retry_count, "Retry Count")                                   \
   V(LOSS_RETRANSMIT_COUNT, loss_retransmit_count, "Loss Retransmit Count")     \
   V(ACK_DELAY_RETRANSMIT_COUNT,                                                \
     ack_delay_retransmit_count,                                                \
@@ -358,7 +363,7 @@ class QuicCryptoContext : public MemoryRetainer {
   // when ngtcp2 determines that it has received an acknowledgement
   // for crypto data at the specified level. This is our indication
   // that the data for that level can be released.
-  void AcknowledgeCryptoData(ngtcp2_crypto_level level, size_t datalen);
+  void AcknowledgeCryptoData(ngtcp2_crypto_level level, uint64_t datalen);
 
   inline void Initialize();
 
@@ -433,8 +438,6 @@ class QuicCryptoContext : public MemoryRetainer {
 
   inline void set_tls_alert(int err);
 
-  inline bool SetupInitialKey(const QuicCID& dcid);
-
   ngtcp2_crypto_side side() const { return side_; }
 
   void WriteHandshake(
@@ -449,12 +452,6 @@ class QuicCryptoContext : public MemoryRetainer {
   QuicSession* session() const { return session_.get(); }
 
   void MemoryInfo(MemoryTracker* tracker) const override;
-
-  void handshake_started() {
-    is_handshake_started_ = true;
-  }
-
-  bool is_handshake_started() const { return is_handshake_started_; }
 
   SET_MEMORY_INFO_NAME(QuicCryptoContext)
   SET_SELF_SIZE(QuicCryptoContext)
@@ -477,7 +474,6 @@ class QuicCryptoContext : public MemoryRetainer {
   ngtcp2_crypto_side side_;
   crypto::SSLPointer ssl_;
   QuicBuffer handshake_[3];
-  bool is_handshake_started_ = false;
   bool in_tls_callback_ = false;
   bool in_key_update_ = false;
   bool in_ocsp_request_ = false;
@@ -552,8 +548,8 @@ class QuicApplication : public MemoryRetainer,
 
   virtual bool Initialize() = 0;
   virtual bool ReceiveStreamData(
+      uint32_t flags,
       int64_t stream_id,
-      int fin,
       const uint8_t* data,
       size_t datalen,
       uint64_t offset) = 0;
@@ -698,13 +694,13 @@ class QuicSession : public AsyncWrap,
   static BaseObjectPtr<QuicSession> CreateServer(
       QuicSocket* socket,
       const QuicSessionConfig& config,
-      const QuicCID& rcid,
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
       const QuicCID& dcid,
+      const QuicCID& scid,
       const QuicCID& ocid,
       uint32_t version,
-      const std::string& alpn = NGTCP2_ALPN_H3,
+      const std::string& alpn = NGHTTP3_ALPN_H3,
       uint32_t options = 0,
       QlogMode qlog = QlogMode::kDisabled);
 
@@ -718,15 +714,13 @@ class QuicSession : public AsyncWrap,
       v8::Local<v8::Value> dcid,
       PreferredAddressStrategy preferred_address_strategy =
           IgnorePreferredAddressStrategy,
-      const std::string& alpn = NGTCP2_ALPN_H3,
+      const std::string& alpn = NGHTTP3_ALPN_H3,
       const std::string& hostname = "",
       uint32_t options = 0,
       QlogMode qlog = QlogMode::kDisabled);
 
   static const int kInitialClientBufferLength = 4096;
 
-  // The QuicSession::CryptoContext encapsulates all details of the
-  // TLS context on behalf of the QuicSession.
   QuicSession(
       ngtcp2_crypto_side side,
       // The QuicSocket that created this session. Note that
@@ -745,7 +739,7 @@ class QuicSession : public AsyncWrap,
       // is always required.
       const std::string& alpn,
       const std::string& hostname,
-      const QuicCID& rcid,
+      const QuicCID& dcid,
       uint32_t options = 0,
       PreferredAddressStrategy preferred_address_strategy =
           IgnorePreferredAddressStrategy);
@@ -755,10 +749,10 @@ class QuicSession : public AsyncWrap,
       QuicSocket* socket,
       const QuicSessionConfig& config,
       v8::Local<v8::Object> wrap,
-      const QuicCID& rcid,
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
       const QuicCID& dcid,
+      const QuicCID& scid,
       const QuicCID& ocid,
       uint32_t version,
       const std::string& alpn,
@@ -786,12 +780,6 @@ class QuicSession : public AsyncWrap,
   std::string diagnostic_name() const override;
 
   inline QuicCID dcid() const;
-
-  // When a client QuicSession is created, if the autoStart
-  // option is true, the handshake will be immediately started.
-  // If autoStart is false, the start of the handshake will be
-  // deferred until the start handshake method is called;
-  inline void StartHandshake();
 
   QuicApplication* application() const { return application_.get(); }
 
@@ -924,8 +912,8 @@ class QuicSession : public AsyncWrap,
 
   // Receive a chunk of QUIC stream data received from the peer
   bool ReceiveStreamData(
+      uint32_t flags,
       int64_t stream_id,
-      int fin,
       const uint8_t* data,
       size_t datalen,
       uint64_t offset);
@@ -1104,24 +1092,18 @@ class QuicSession : public AsyncWrap,
   // complete.
   class SendSessionScope {
    public:
-    explicit SendSessionScope(
-        QuicSession* session,
-        bool wait_for_handshake = false)
-        : session_(session),
-          wait_for_handshake_(wait_for_handshake) {
+    explicit SendSessionScope(QuicSession* session)
+        : session_(session) {
       CHECK(session_);
     }
 
     ~SendSessionScope() {
-      if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()) &&
-          (!wait_for_handshake_ ||
-           session_->crypto_context()->is_handshake_started()))
+      if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()))
         session_->SendPendingData();
     }
 
    private:
     BaseObjectPtr<QuicSession> session_;
-    bool wait_for_handshake_ = false;
   };
 
   // Tracks whether or not we are currently within an ngtcp2 callback
@@ -1165,6 +1147,7 @@ class QuicSession : public AsyncWrap,
       const SocketAddress& local_addr,
       const SocketAddress& remote_addr,
       const QuicCID& dcid,
+      const QuicCID& scid,
       const QuicCID& ocid,
       uint32_t version,
       QlogMode qlog);
@@ -1183,7 +1166,7 @@ class QuicSession : public AsyncWrap,
   void AckedStreamDataOffset(
       int64_t stream_id,
       uint64_t offset,
-      size_t datalen);
+      uint64_t datalen);
 
   inline void AssociateCID(const QuicCID& cid);
 
@@ -1213,11 +1196,7 @@ class QuicSession : public AsyncWrap,
     const ngtcp2_path* path,
     ngtcp2_path_validation_result res);
 
-  bool ReceiveClientInitial(const QuicCID& dcid);
-
   bool ReceivePacket(ngtcp2_path* path, const uint8_t* data, ssize_t nread);
-
-  bool ReceiveRetry();
 
   inline void RemoveConnectionID(const QuicCID& cid);
 
@@ -1251,16 +1230,6 @@ class QuicSession : public AsyncWrap,
 
   inline void VersionNegotiation(const uint32_t* sv, size_t nsv);
 
-  // static ngtcp2 callbacks
-  static int OnClientInitial(
-      ngtcp2_conn* conn,
-      void* user_data);
-
-  static int OnReceiveClientInitial(
-      ngtcp2_conn* conn,
-      const ngtcp2_cid* dcid,
-      void* user_data);
-
   static int OnReceiveCryptoData(
       ngtcp2_conn* conn,
       ngtcp2_crypto_level crypto_level,
@@ -1279,32 +1248,26 @@ class QuicSession : public AsyncWrap,
 
   static int OnReceiveStreamData(
       ngtcp2_conn* conn,
+      uint32_t flags,
       int64_t stream_id,
-      int fin,
       uint64_t offset,
       const uint8_t* data,
       size_t datalen,
       void* user_data,
       void* stream_user_data);
 
-  static int OnReceiveRetry(
-      ngtcp2_conn* conn,
-      const ngtcp2_pkt_hd* hd,
-      const ngtcp2_pkt_retry* retry,
-      void* user_data);
-
   static int OnAckedCryptoOffset(
       ngtcp2_conn* conn,
       ngtcp2_crypto_level crypto_level,
       uint64_t offset,
-      size_t datalen,
+      uint64_t datalen,
       void* user_data);
 
   static int OnAckedStreamDataOffset(
       ngtcp2_conn* conn,
       int64_t stream_id,
       uint64_t offset,
-      size_t datalen,
+      uint64_t datalen,
       void* user_data,
       void* stream_user_data);
 
@@ -1530,7 +1493,7 @@ class QuicSession : public AsyncWrap,
   TimerPointer retransmit_;
 
   QuicCID scid_;
-  QuicCID rcid_;
+  QuicCID dcid_;
   QuicCID pscid_;
   ngtcp2_transport_params transport_params_;
 

@@ -29,8 +29,8 @@ class DefaultApplication final : public QuicApplication {
   }
 
   bool ReceiveStreamData(
+      uint32_t flags,
       int64_t stream_id,
-      int fin,
       const uint8_t* data,
       size_t datalen,
       uint64_t offset) override;

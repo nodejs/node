@@ -335,7 +335,7 @@ constexpr size_t kFsStatsBufferLength =
   V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
   V(query_string, "query")                                                     \
-  V(quic_alpn_string, "h3-27")                                                 \
+  V(http3_alpn_string, "h3-29")                                                \
   V(rate_string, "rate")                                                       \
   V(raw_string, "raw")                                                         \
   V(read_host_object_string, "_readHostObject")                                \
