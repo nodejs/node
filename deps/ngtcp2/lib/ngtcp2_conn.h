@@ -262,16 +262,18 @@ struct ngtcp2_conn {
   /* rcid is a connection ID present in Initial or 0-RTT packet from
      client as destination connection ID.  Server uses this field to
      check that duplicated Initial or 0-RTT packet are indeed sent to
-     this connection.  Client uses this field to validate
-     original_connection_id transport parameter. */
+     this connection.  It is also sent to client as
+     original_destination_connection_id transport parameter.  Client
+     uses this field to validate original_destination_connection_id
+     transport parameter if no Retry packet is involved. */
   ngtcp2_cid rcid;
   /* oscid is the source connection ID initially used by the local
      endpoint. */
   ngtcp2_cid oscid;
-  /* odcid is the destination connection ID initially negotiated
-     during handshake.  It is used to receive late handshake packets
-     after handshake completion. */
-  ngtcp2_cid odcid;
+  /* retry_scid is the source connection ID from Retry packet.  Client
+     records it in order to verify retry_source_connection_id
+     transport parameter.  Server does not use this field. */
+  ngtcp2_cid retry_scid;
   ngtcp2_pktns *in_pktns;
   ngtcp2_pktns *hs_pktns;
   ngtcp2_pktns pktns;
@@ -338,6 +340,14 @@ struct ngtcp2_conn {
     ngtcp2_ringbuf path_challenge;
     /* ccec is the received connection close error code. */
     ngtcp2_connection_close_error_code ccec;
+    struct {
+      /* start_ts is the time instant when receiving rate measurement
+         is started. */
+      ngtcp2_tstamp start_ts;
+      /* received is the number of bytes received in the current
+         measurement period. */
+      uint64_t received;
+    } rate;
   } rx;
 
   struct {
@@ -417,6 +427,8 @@ struct ngtcp2_conn {
       ngtcp2_tstamp confirmed_ts;
     } key_update;
 
+    /* tls_native_handle is a native handle to TLS session object. */
+    void *tls_native_handle;
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_vec decrypt_buf;
@@ -441,23 +453,13 @@ struct ngtcp2_conn {
   } pkt;
 
   ngtcp2_map strms;
-  ngtcp2_rcvry_stat rcs;
-  ngtcp2_cc_stat ccs;
+  ngtcp2_conn_stat cstat;
   ngtcp2_pv *pv;
   ngtcp2_log log;
   ngtcp2_qlog qlog;
   ngtcp2_rst rst;
-  ngtcp2_default_cc cc;
-  /* token is an address validation token received from server. */
-  ngtcp2_buf token;
-  /* hs_recved is the number of bytes received from client before its
-     address is validated.  This field is only used by server to
-     ensure "3 times received data" rule. */
-  size_t hs_recved;
-  /* hs_sent is the number of bytes sent from server during handshake.
-     This field is only used by server to ensure "3 times received
-     data" rule. */
-  size_t hs_sent;
+  ngtcp2_cc_algo cc_algo;
+  ngtcp2_cc cc;
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
@@ -467,101 +469,6 @@ struct ngtcp2_conn {
   uint16_t flags;
   int server;
 };
-
-/**
- * @function
- *
- * `ngtcp2_conn_read_handshake` performs QUIC cryptographic handshake
- * by reading given data.  |pkt| points to the buffer to read and
- * |pktlen| is the length of the buffer.  |path| is the network path.
- *
- * The application should call `ngtcp2_conn_write_handshake` (or
- * `ngtcp2_conn_client_write_handshake` for client session) to make
- * handshake go forward after calling this function.
- *
- * Application should call this function until
- * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
- * completion of handshake, `ngtcp2_conn_read_pkt` and
- * `ngtcp2_conn_write_pkt` should be called instead.
- *
- * This function must not be called from inside the callback
- * functions.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes: (TBD).
- */
-int ngtcp2_conn_read_handshake(ngtcp2_conn *conn, const ngtcp2_path *path,
-                               const uint8_t *pkt, size_t pktlen,
-                               ngtcp2_tstamp ts);
-
-/**
- * @function
- *
- * `ngtcp2_conn_write_handshake` performs QUIC cryptographic handshake
- * by writing handshake packets.  It may write a packet in the given
- * buffer pointed by |dest| whose capacity is given as |destlen|.
- * Application must ensure that the buffer pointed by |dest| is not
- * empty.
- *
- * Application should keep calling this function repeatedly until it
- * returns zero, or negative error code.
- *
- * Application should call this function until
- * `ngtcp2_conn_get_handshake_completed` returns nonzero.  After the
- * completion of handshake, `ngtcp2_conn_read_pkt` and
- * `ngtcp2_conn_write_pkt` should be called instead.
- *
- * During handshake, application can send 0-RTT data (or its response)
- * using `ngtcp2_conn_write_stream`.
- * `ngtcp2_conn_client_write_handshake` is generally efficient because
- * it can coalesce Handshake packet and 0-RTT packet into one UDP
- * packet.
- *
- * This function returns 0 if it cannot write any frame because buffer
- * is too small, or packet is congestion limited.  Application should
- * keep reading and wait for congestion window to grow.
- *
- * This function must not be called from inside the callback
- * functions.
- *
- * This function returns the number of bytes written to the buffer
- * pointed by |dest| if it succeeds, or one of the following negative
- * error codes: (TBD).
- */
-ngtcp2_ssize ngtcp2_conn_write_handshake(ngtcp2_conn *conn, uint8_t *dest,
-                                         size_t destlen, ngtcp2_tstamp ts);
-
-/**
- * @function
- *
- * `ngtcp2_conn_client_write_handshake` is just like
- * `ngtcp2_conn_write_handshake`, but it is for client only, and can
- * write 0-RTT data.  This function can coalesce handshake packet and
- * 0-RTT packet into single UDP packet, thus it is generally more
- * efficient than the combination of `ngtcp2_conn_write_handshake` and
- * `ngtcp2_conn_write_stream`.
- *
- * |stream_id|, |fin|, |datav|, and |datavcnt| are stream identifier
- * to which 0-RTT data is sent, whether it is a last data chunk in
- * this stream, a vector of 0-RTT data, and its number of elements
- * respectively.  If there is no 0RTT data to send, pass negative
- * integer to |stream_id|.  The amount of 0RTT data sent is assigned
- * to |*pdatalen|.  If no data is sent, -1 is assigned.  Note that 0
- * length STREAM frame is allowed in QUIC, so 0 might be assigned to
- * |*pdatalen|.
- *
- * This function returns 0 if it cannot write any frame because buffer
- * is too small, or packet is congestion limited.  Application should
- * keep reading and wait for congestion window to grow.
- *
- * This function returns the number of bytes written to the buffer
- * pointed by |dest| if it succeeds, or one of the following negative
- * error codes: (TBD).
- */
-ngtcp2_ssize ngtcp2_conn_client_write_handshake(
-    ngtcp2_conn *conn, uint8_t *dest, size_t destlen, ngtcp2_ssize *pdatalen,
-    uint32_t flags, int64_t stream_id, int fin, const ngtcp2_vec *datav,
-    size_t datavcnt, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
@@ -653,7 +560,7 @@ void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts);
  *     Out of memory.
  */
 int ngtcp2_conn_detect_lost_pkt(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
-                                ngtcp2_rcvry_stat *rcs, ngtcp2_tstamp ts);
+                                ngtcp2_conn_stat *cstat, ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_tx_strmq_top returns the ngtcp2_strm which sits on the

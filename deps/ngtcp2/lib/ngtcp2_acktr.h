@@ -177,6 +177,12 @@ void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
 
 /*
+ * ngtcp2_acktr_empty returns nonzero if it has no packet to
+ * acknowledge.
+ */
+int ngtcp2_acktr_empty(ngtcp2_acktr *acktr);
+
+/*
  * ngtcp2_acktr_add_ack records outgoing ACK frame whose largest
  * acknowledged packet number is |largest_ack|.  |pkt_num| is the
  * packet number of a packet in which ACK frame is included.  This

@@ -98,6 +98,8 @@ const char *ngtcp2_strerror(int liberr) {
     return "ERR_WRITE_STREAM_MORE";
   case NGTCP2_ERR_RETRY:
     return "ERR_RETRY";
+  case NGTCP2_ERR_DROP_CONN:
+    return "ERR_DROP_CONN";
   default:
     return "(unknown)";
   }

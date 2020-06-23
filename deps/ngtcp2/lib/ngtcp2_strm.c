@@ -32,7 +32,7 @@
 #include "ngtcp2_vec.h"
 
 static int offset_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
-  return *lhs->i < *rhs->i;
+  return *(int64_t *)lhs < *(int64_t *)rhs;
 }
 
 int ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
@@ -110,13 +110,10 @@ void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
 }
 
 int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc) {
-  ngtcp2_ksl_key key;
-
   assert(frc->fr.type == NGTCP2_FRAME_STREAM);
   assert(frc->next == NULL);
 
-  return ngtcp2_ksl_insert(&strm->tx.streamfrq, NULL,
-                           ngtcp2_ksl_key_ptr(&key, &frc->fr.stream.offset),
+  return ngtcp2_ksl_insert(&strm->tx.streamfrq, NULL, &frc->fr.stream.offset,
                            frc);
 }
 
@@ -131,7 +128,6 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   ngtcp2_vec b[NGTCP2_MAX_STREAM_DATACNT];
   size_t acnt, bcnt;
   ngtcp2_ksl_it it;
-  ngtcp2_ksl_key key, old_key;
   uint64_t old_offset;
 
   if (ngtcp2_ksl_len(&strm->tx.streamfrq) == 0) {
@@ -153,8 +149,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     }
   }
 
-  ngtcp2_ksl_remove(&strm->tx.streamfrq, NULL,
-                    ngtcp2_ksl_key_ptr(&key, &fr->offset));
+  ngtcp2_ksl_remove(&strm->tx.streamfrq, NULL, &fr->offset);
 
   if (datalen > left) {
     ngtcp2_vec_copy(a, fr->data, fr->datacnt);
@@ -182,8 +177,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     nfr->datacnt = bcnt;
     ngtcp2_vec_copy(nfr->data, b, bcnt);
 
-    rv = ngtcp2_ksl_insert(&strm->tx.streamfrq, NULL,
-                           ngtcp2_ksl_key_ptr(&key, &nfr->offset), nfrc);
+    rv = ngtcp2_ksl_insert(&strm->tx.streamfrq, NULL, &nfr->offset, nfrc);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
       ngtcp2_frame_chain_del(nfrc, strm->mem);
@@ -228,8 +222,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
     if (nfr->fin && nfr->datacnt == 0) {
       fr->fin = 1;
-      ngtcp2_ksl_remove(&strm->tx.streamfrq, NULL,
-                        ngtcp2_ksl_key_ptr(&key, &nfr->offset));
+      ngtcp2_ksl_remove(&strm->tx.streamfrq, NULL, &nfr->offset);
       ngtcp2_frame_chain_del(nfrc, strm->mem);
       break;
     }
@@ -245,8 +238,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
 
     if (nfr->datacnt == 0) {
       fr->fin = nfr->fin;
-      ngtcp2_ksl_remove(&strm->tx.streamfrq, NULL,
-                        ngtcp2_ksl_key_ptr(&key, &nfr->offset));
+      ngtcp2_ksl_remove(&strm->tx.streamfrq, NULL, &nfr->offset);
       ngtcp2_frame_chain_del(nfrc, strm->mem);
       continue;
     }
@@ -254,9 +246,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     old_offset = nfr->offset;
     nfr->offset += nmerged;
 
-    ngtcp2_ksl_update_key(&strm->tx.streamfrq,
-                          ngtcp2_ksl_key_ptr(&old_key, &old_offset),
-                          ngtcp2_ksl_key_ptr(&key, &nfr->offset));
+    ngtcp2_ksl_update_key(&strm->tx.streamfrq, &old_offset, &nfr->offset);
 
     break;
   }

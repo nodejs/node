@@ -175,7 +175,7 @@ ngtcp2_crypto_packet_protection_ivlen(const ngtcp2_crypto_aead *aead);
 /**
  * @function
  *
- * `ngtcp2_crypto_derive_packet_protection_key` dervies packet
+ * `ngtcp2_crypto_derive_packet_protection_key` derives packet
  * protection key.  This function writes packet protection key into
  * the buffer pointed by |key|.  |key| must point to the buffer which
  * is at least ngtcp2_crypto_aead_keylen(aead) bytes long.  This
@@ -237,7 +237,7 @@ ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * `ngtcp2_crypto_decrypt` decrypts |ciphertext| of length
  * |ciphertextlen| and writes the plaintext into the buffer pointed by
  * |dest|.  The length of plaintext is ciphertextlen -
- * ngtcp2_crypto_aead_taglen(aead) bytes log.  |dest| must have enough
+ * ngtcp2_crypto_aead_taglen(aead) bytes long.  |dest| must have enough
  * capacity to store the plaintext.  It is allowed to specify the same
  * value to |dest| and |ciphertext|.
  *
@@ -298,32 +298,50 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask_cb(uint8_t *dest,
 /**
  * @function
  *
- * `ngtcp2_crypto_derive_and_install_key` derives the rx and tx keys
- * from |rx_secret| and |tx_secret| respectively and installs new keys
- * to |conn|.
+ * `ngtcp2_crypto_derive_and_install_rx_key` derives the rx keys from
+ * |secret| and installs new keys to |conn|.
  *
- * If |rx_key| is not NULL, the derived packet protection key for
- * decryption is written to the buffer pointed by |rx_key|.  If
- * |rx_iv| is not NULL, the derived packet protection IV for
- * decryption is written to the buffer pointed by |rx_iv|.  If |rx_hp|
- * is not NULL, the derived header protection key for decryption is
- * written to the buffer pointed by |rx_hp|.
+ * If |key| is not NULL, the derived packet protection key for
+ * decryption is written to the buffer pointed by |key|.  If |iv| is
+ * not NULL, the derived packet protection IV for decryption is
+ * written to the buffer pointed by |iv|.  If |hp| is not NULL, the
+ * derived header protection key for decryption is written to the
+ * buffer pointed by |hp|.
  *
- * If |tx_key| is not NULL, the derived packet protection key for
- * encryption is written to the buffer pointed by |tx_key|.  If
- * |tx_iv| is not NULL, the derived packet protection IV for
- * encryption is written to the buffer pointed by |tx_iv|.  If |tx_hp|
- * is not NULL, the derived header protection key for encryption is
- * written to the buffer pointed by |tx_hp|.
+ * |secretlen| specifies the length of |secret|.
  *
- * |level| specifies the encryption level.  If |level| is
- * NGTCP2_CRYPTO_LEVEL_EARLY, and if |side| is
- * NGTCP2_CRYPTO_SIDE_CLIENT, |rx_secret| must be NULL.  If |level| is
- * NGTCP2_CRYPTO_LEVEL_EARLY, and if |side| is
- * NGTCP2_CRYPTO_SIDE_SERVER, |tx_secret| must be NULL.  Otherwise,
- * |rx_secret| and |tx_secret| must not be NULL.
+ * The length of packet protection key and header protection key is
+ * ngtcp2_crypto_aead(ctx->aead), and the length of packet protection
+ * IV is ngtcp2_crypto_packet_protection_ivlen(ctx->aead) where ctx
+ * can be obtained by `ngtcp2_crypto_ctx_tls`.
  *
- * |secretlen| specifies the length of |rx_secret| and |tx_secret|.
+ * In the first call of this function, it calls
+ * `ngtcp2_conn_set_crypto_ctx` to set negotiated AEAD and message
+ * digest algorithm.  After the successful call of this function,
+ * application can use `ngtcp2_conn_get_crypto_ctx` to get the object.
+ * It also calls `ngtcp2_conn_set_aead_overhead` to set AEAD tag
+ * length.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
+    ngtcp2_conn *conn, uint8_t *key, uint8_t *iv, uint8_t *hp,
+    ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_derive_and_install_tx_key` derives the tx keys from
+ * |secret| and installs new keys to |conn|.
+ *
+ * If |key| is not NULL, the derived packet protection key for
+ * encryption is written to the buffer pointed by |key|.  If |iv| is
+ * not NULL, the derived packet protection IV for encryption is
+ * written to the buffer pointed by |iv|.  If |hp| is not NULL, the
+ * derived header protection key for encryption is written to the
+ * buffer pointed by |hp|.
+ *
+ * |secretlen| specifies the length of |secret|.
  *
  * The length of packet protection key and header protection key is
  * ngtcp2_crypto_aead(ctx->aead), and the length of packet protection
@@ -343,65 +361,9 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask_cb(uint8_t *dest,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_key(
-    ngtcp2_conn *conn, void *tls, uint8_t *rx_key, uint8_t *rx_iv,
-    uint8_t *rx_hp, uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
-    ngtcp2_crypto_level level, const uint8_t *rx_secret,
-    const uint8_t *tx_secret, size_t secretlen, ngtcp2_crypto_side side);
-
-/**
- * @function
- *
- * `ngtcp2_crypto_derive_and_install_initial_key` derives initial
- * keying materials and installs keys to |conn|.
- *
- * If |rx_secret| is not NULL, the secret for decryption is written to
- * the buffer pointed by |rx_secret|.  The length of secret is 32
- * bytes, and |rx_secret| must point to the buffer which has enough
- * capacity.
- *
- * If |tx_secret| is not NULL, the secret for encryption is written to
- * the buffer pointed by |tx_secret|.  The length of secret is 32
- * bytes, and |tx_secret| must point to the buffer which has enough
- * capacity.
- *
- * If |initial_secret| is not NULL, the initial secret is written to
- * the buffer pointed by |initial_secret|.  The length of secret is 32
- * bytes, and |initial_secret| must point to the buffer which has
- * enough capacity.
- *
- * |client_dcid| is the destination connection ID in first Initial
- * packet of client.
- *
- * If |rx_key| is not NULL, the derived packet protection key for
- * decryption is written to the buffer pointed by |rx_key|.  If
- * |rx_iv| is not NULL, the derived packet protection IV for
- * decryption is written to the buffer pointed by |rx_iv|.  If |rx_hp|
- * is not NULL, the derived header protection key for decryption is
- * written to the buffer pointed by |rx_hp|.
- *
- * If |tx_key| is not NULL, the derived packet protection key for
- * encryption is written to the buffer pointed by |tx_key|.  If
- * |tx_iv| is not NULL, the derived packet protection IV for
- * encryption is written to the buffer pointed by |tx_iv|.  If |tx_hp|
- * is not NULL, the derived header protection key for encryption is
- * written to the buffer pointed by |tx_hp|.
- *
- * The length of packet protection key and header protection key is 16
- * bytes long.  The length of packet protection IV is 12 bytes long.
- *
- * This function calls `ngtcp2_conn_set_initial_crypto_ctx` to set
- * initial AEAD and message digest algorithm.  After the successful
- * call of this function, application can use
- * `ngtcp2_conn_get_initial_crypto_ctx` to get the object.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_initial_key(
-    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
-    uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
-    uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
-    const ngtcp2_cid *client_dcid, ngtcp2_crypto_side side);
+NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_tx_key(
+    ngtcp2_conn *conn, uint8_t *key, uint8_t *iv, uint8_t *hp,
+    ngtcp2_crypto_level level, const uint8_t *secret, size_t secretlen);
 
 /**
  * @function
@@ -461,16 +423,60 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
 /**
  * @function
  *
+ * `ngtcp2_crypto_client_initial_cb` installs initial secrets and
+ * encryption keys and sets QUIC transport parameters.
+ *
+ * This function can be directly passed to client_initial field in
+ * ngtcp2_callbacks.  It is only used by client.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_client_initial_cb(ngtcp2_conn *conn,
+                                                  void *user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_recv_retry_cb` re-installs initial secrets in
+ * response to incoming Retry packet.
+ *
+ * This function can be directly passed to recv_retry field in
+ * ngtcp2_callbacks.  It is only used by client.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_recv_retry_cb(ngtcp2_conn *conn,
+                                              const ngtcp2_pkt_hd *hd,
+                                              void *user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_recv_client_initial_cb` installs initial secrets in
+ * response to an incoming Initial packet from client, and sets QUIC
+ * transport parameters.
+ *
+ * This function can be directly passed to recv_client_initial field
+ * in ngtcp2_callbacks.  It is only used by server.
+ *
+ * This function returns 0 if it succeeds, or
+ * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_recv_client_initial_cb(ngtcp2_conn *conn,
+                                                       const ngtcp2_cid *dcid,
+                                                       void *user_data);
+
+/**
+ * @function
+ *
  * `ngtcp2_crypto_read_write_crypto_data` reads CRYPTO data |data| of
  * length |datalen| in encryption level |crypto_level| and may feed
  * outgoing CRYPTO data to |conn|.  This function can drive handshake.
  * This function can be also used after handshake completes.  It is
  * allowed to call this function with datalen == 0.  In this case, no
  * additional read operation is done.
- *
- * |tls| points to a implementation dependent TLS session object.  If
- * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
- * object.
  *
  * This function returns 0 if it succeeds, or a negative error code.
  * The generic error code is -1 if a specific error code is not
@@ -479,26 +485,9 @@ NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
  * defined in ngtcp2_crypto_openssl.h.
  */
 NGTCP2_EXTERN int
-ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn, void *tls,
+ngtcp2_crypto_read_write_crypto_data(ngtcp2_conn *conn,
                                      ngtcp2_crypto_level crypto_level,
                                      const uint8_t *data, size_t datalen);
-
-/**
- * @function
- *
- * `ngtcp2_crypto_set_remote_transport_params` retrieves a remote QUIC
- * transport parameters from |tls| and sets it to |conn| using
- * `ngtcp2_conn_set_remote_transport_params`.
- *
- * |tls| points to a implementation dependent TLS session object.  If
- * libngtcp2_crypto_openssl is linked, |tls| must be a pointer to SSL
- * object.
- *
- * This function returns 0 if it succeeds, or -1.
- */
-NGTCP2_EXTERN int
-ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls,
-                                          ngtcp2_crypto_side side);
 
 /**
  * @function

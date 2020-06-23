@@ -33,22 +33,6 @@
 
 #include "ngtcp2_pkt.h"
 
-typedef enum {
-  NGTCP2_LOG_EVENT_NONE,
-  /* connection (catch-all) event */
-  NGTCP2_LOG_EVENT_CON,
-  /* packet event */
-  NGTCP2_LOG_EVENT_PKT,
-  /* frame event */
-  NGTCP2_LOG_EVENT_FRM,
-  /* recovery event */
-  NGTCP2_LOG_EVENT_RCV,
-  /* crypto event */
-  NGTCP2_LOG_EVENT_CRY,
-  /* path validation event */
-  NGTCP2_LOG_EVENT_PTV,
-} ngtcp2_log_event;
-
 struct ngtcp2_log {
   /* log_printf is a sink to write log.  NULL means no logging
      output. */
@@ -75,9 +59,6 @@ void ngtcp2_log_rx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr);
 void ngtcp2_log_tx_fr(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const ngtcp2_frame *fr);
-
-void ngtcp2_log_info(ngtcp2_log *log, ngtcp2_log_event ev, const char *fmt,
-                     ...);
 
 void ngtcp2_log_rx_vn(ngtcp2_log *log, const ngtcp2_pkt_hd *hd,
                       const uint32_t *sv, size_t nsv);
