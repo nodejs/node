@@ -44,6 +44,10 @@
    enough to fill outgoing single QUIC packet. */
 #define NGHTTP3_MIN_UNSENT_BYTES 4096
 
+/* NGHTTP3_STREAM_MIN_WRITELEN is the minimum length of write to cause
+   the stream to reschedule. */
+#define NGHTTP3_STREAM_MIN_WRITELEN 800
+
 /* nghttp3_stream_type is unidirectional stream type. */
 typedef enum {
   NGHTTP3_STREAM_TYPE_CONTROL = 0x00,
@@ -196,6 +200,8 @@ struct nghttp3_http_state {
      far. */
   int64_t recv_content_length;
   uint16_t flags;
+  /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
+  uint8_t pri;
 };
 
 typedef struct nghttp3_http_state nghttp3_http_state;
@@ -229,7 +235,7 @@ struct nghttp3_stream {
   size_t outq_offset;
   /* ack_offset is offset acknowledged by peer relative to the first
      element in outq. */
-  size_t ack_offset;
+  uint64_t ack_offset;
   /* ack_done is the number of bytes notified to an application that
      they are acknowledged inside the first outq element if it is of
      type NGHTTP3_BUF_TYPE_ALIEN. */
@@ -267,8 +273,7 @@ typedef struct {
 } nghttp3_frame_entry;
 
 int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
-                       uint64_t seq, uint32_t weight, nghttp3_tnode *parent,
-                       const nghttp3_stream_callbacks *callbacks,
+                       uint64_t seq, const nghttp3_stream_callbacks *callbacks,
                        const nghttp3_mem *mem);
 
 void nghttp3_stream_del(nghttp3_stream *stream);
@@ -338,7 +343,7 @@ int nghttp3_stream_add_outq_offset(nghttp3_stream *stream, size_t n);
  */
 int nghttp3_stream_outq_write_done(nghttp3_stream *stream);
 
-int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, size_t n);
+int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, uint64_t n);
 
 /*
  * nghttp3_stream_is_active returns nonzero if |stream| is active.  In
@@ -354,34 +359,10 @@ int nghttp3_stream_is_active(nghttp3_stream *stream);
  */
 int nghttp3_stream_require_schedule(nghttp3_stream *stream);
 
-/*
- * nghttp3_stream_schedule schedules |stream|.  This function works
- * whether |stream| has already been scheduled or not.  If it has been
- * scheduled already, it is rescheduled by delaying its pending
- * penalty.
- */
-int nghttp3_stream_schedule(nghttp3_stream *stream);
-
-/*
- * nghttp3_stream_ensure_scheduled schedules |stream| if it has not
- * been scheduled.
- */
-int nghttp3_stream_ensure_scheduled(nghttp3_stream *stream);
-
-void nghttp3_stream_unschedule(nghttp3_stream *stream);
-
-/*
- * nghttp3_stream_squash unschedules |stream| and removes it from
- * dependency tree.
- */
-int nghttp3_stream_squash(nghttp3_stream *stream);
-
 int nghttp3_stream_buffer_data(nghttp3_stream *stream, const uint8_t *src,
                                size_t srclen);
 
 size_t nghttp3_stream_get_buffered_datalen(nghttp3_stream *stream);
-
-void nghttp3_stream_clear_buffered_data(nghttp3_stream *stream);
 
 int nghttp3_stream_ensure_qpack_stream_context(nghttp3_stream *stream);
 

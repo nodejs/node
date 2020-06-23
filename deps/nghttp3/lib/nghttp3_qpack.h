@@ -76,14 +76,14 @@ struct nghttp3_qpack_entry {
      value does not contain the space required for this entry. */
   size_t sum;
   /* absidx is the absolute index of this entry. */
-  size_t absidx;
+  uint64_t absidx;
   /* The hash value for header name (nv.name). */
   uint32_t hash;
 };
 
 /* The entry used for static table. */
 typedef struct {
-  size_t absidx;
+  uint64_t absidx;
   int32_t token;
   uint32_t hash;
 } nghttp3_qpack_static_entry;
@@ -103,16 +103,16 @@ typedef struct {
   nghttp3_pq_entry max_cnts_pe;
   nghttp3_pq_entry min_cnts_pe;
   /* max_cnt is the required insert count. */
-  size_t max_cnt;
+  uint64_t max_cnt;
   /* min_cnt is the minimum insert count of dynamic table entry it
      refers to.  In other words, this is the minimum absolute index of
      dynamic header table entry this encoded block refers to plus
      1. */
-  size_t min_cnt;
+  uint64_t min_cnt;
 } nghttp3_qpack_header_block_ref;
 
 int nghttp3_qpack_header_block_ref_new(nghttp3_qpack_header_block_ref **pref,
-                                       size_t max_cnt, size_t min_cnt,
+                                       uint64_t max_cnt, uint64_t min_cnt,
                                        const nghttp3_mem *mem);
 
 void nghttp3_qpack_header_block_ref_del(nghttp3_qpack_header_block_ref *ref,
@@ -136,7 +136,7 @@ int nghttp3_qpack_stream_new(nghttp3_qpack_stream **pstream, int64_t stream_id,
 void nghttp3_qpack_stream_del(nghttp3_qpack_stream *stream,
                               const nghttp3_mem *mem);
 
-size_t nghttp3_qpack_stream_get_max_cnt(const nghttp3_qpack_stream *stream);
+uint64_t nghttp3_qpack_stream_get_max_cnt(const nghttp3_qpack_stream *stream);
 
 int nghttp3_qpack_stream_add_ref(nghttp3_qpack_stream *stream,
                                  nghttp3_qpack_header_block_ref *ref);
@@ -169,7 +169,7 @@ typedef struct {
   size_t max_blocked;
   /* next_absidx is the next absolute index for nghttp3_qpack_entry.
      It is equivalent to insert count. */
-  size_t next_absidx;
+  uint64_t next_absidx;
   /* If inflate/deflate error occurred, this value is set to 1 and
      further invocation of inflate/deflate will fail with
      NGHTTP3_ERR_QPACK_FATAL. */
@@ -185,7 +185,7 @@ typedef struct {
   uint64_t left;
   size_t prefix;
   size_t shift;
-  size_t absidx;
+  uint64_t absidx;
   int never;
   int dynamic;
   int huffman_encoded;
@@ -212,7 +212,7 @@ typedef enum {
    stream. */
 typedef enum {
   NGHTTP3_QPACK_DS_OPCODE_ICNT_INCREMENT,
-  NGHTTP3_QPACK_DS_OPCODE_HEADER_ACK,
+  NGHTTP3_QPACK_DS_OPCODE_SECTION_ACK,
   NGHTTP3_QPACK_DS_OPCODE_STREAM_CANCEL,
 } nghttp3_qpack_decoder_stream_opcode;
 
@@ -242,7 +242,7 @@ struct nghttp3_qpack_encoder {
      evicted from dynamic table.  */
   nghttp3_pq min_cnts;
   /* krcnt is Known Received Count. */
-  size_t krcnt;
+  uint64_t krcnt;
   /* state is a current state of reading decoder stream. */
   nghttp3_qpack_decoder_stream_state state;
   /* opcode is a decoder stream opcode being processed. */
@@ -296,9 +296,9 @@ void nghttp3_qpack_encoder_free(nghttp3_qpack_encoder *encoder);
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_encode_nv(nghttp3_qpack_encoder *encoder,
-                                    size_t *pmax_cnt, size_t *pmin_cnt,
+                                    uint64_t *pmax_cnt, uint64_t *pmin_cnt,
                                     nghttp3_buf *rbuf, nghttp3_buf *ebuf,
-                                    const nghttp3_nv *nv, size_t base,
+                                    const nghttp3_nv *nv, uint64_t base,
                                     int allow_blocking);
 
 /* nghttp3_qpack_lookup_result stores a result of table lookup. */
@@ -332,13 +332,13 @@ nghttp3_qpack_lookup_stable(const nghttp3_nv *nv, int32_t token,
  */
 nghttp3_qpack_lookup_result nghttp3_qpack_encoder_lookup_dtable(
     nghttp3_qpack_encoder *encoder, const nghttp3_nv *nv, int32_t token,
-    uint32_t hash, nghttp3_qpack_indexing_mode indexing_mode, size_t krcnt,
+    uint32_t hash, nghttp3_qpack_indexing_mode indexing_mode, uint64_t krcnt,
     int allow_blocking);
 
 /*
- * nghttp3_qpack_encoder_write_header_block_prefix writes Header Block
- * Prefix into |pbuf|.  |ricnt| is Required Insert Count.  |base| is
- * Base.
+ * nghttp3_qpack_encoder_write_field_section_prefix writes Encoded
+ * Field Section Prefix into |pbuf|.  |ricnt| is Required Insert
+ * Count.  |base| is Base.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -346,9 +346,9 @@ nghttp3_qpack_lookup_result nghttp3_qpack_encoder_lookup_dtable(
  * NGHTTP3_ERR_NOMEM
  *     Out of memory.
  */
-int nghttp3_qpack_encoder_write_header_block_prefix(
-    nghttp3_qpack_encoder *encoder, nghttp3_buf *pbuf, size_t ricnt,
-    size_t base);
+int nghttp3_qpack_encoder_write_field_section_prefix(
+    nghttp3_qpack_encoder *encoder, nghttp3_buf *pbuf, uint64_t ricnt,
+    uint64_t base);
 
 /*
  * nghttp3_qpack_encoder_write_static_indexed writes Indexed Header
@@ -362,7 +362,7 @@ int nghttp3_qpack_encoder_write_header_block_prefix(
  */
 int nghttp3_qpack_encoder_write_static_indexed(nghttp3_qpack_encoder *encoder,
                                                nghttp3_buf *rbuf,
-                                               size_t absidx);
+                                               uint64_t absidx);
 
 /*
  * nghttp3_qpack_encoder_write_dynamic_indexed writes Indexed Header
@@ -377,7 +377,7 @@ int nghttp3_qpack_encoder_write_static_indexed(nghttp3_qpack_encoder *encoder,
  */
 int nghttp3_qpack_encoder_write_dynamic_indexed(nghttp3_qpack_encoder *encoder,
                                                 nghttp3_buf *rbuf,
-                                                size_t absidx, size_t base);
+                                                uint64_t absidx, uint64_t base);
 
 /*
  * nghttp3_qpack_encoder_write_static_indexed writes Literal Header
@@ -392,7 +392,7 @@ int nghttp3_qpack_encoder_write_dynamic_indexed(nghttp3_qpack_encoder *encoder,
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_write_static_indexed_name(
-    nghttp3_qpack_encoder *encoder, nghttp3_buf *rbuf, size_t absidx,
+    nghttp3_qpack_encoder *encoder, nghttp3_buf *rbuf, uint64_t absidx,
     const nghttp3_nv *nv);
 
 /*
@@ -408,8 +408,8 @@ int nghttp3_qpack_encoder_write_static_indexed_name(
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_write_dynamic_indexed_name(
-    nghttp3_qpack_encoder *encoder, nghttp3_buf *rbuf, size_t absidx,
-    size_t base, const nghttp3_nv *nv);
+    nghttp3_qpack_encoder *encoder, nghttp3_buf *rbuf, uint64_t absidx,
+    uint64_t base, const nghttp3_nv *nv);
 
 /*
  * nghttp3_qpack_encoder_write_literal writes Literal Header Field
@@ -438,7 +438,8 @@ int nghttp3_qpack_encoder_write_literal(nghttp3_qpack_encoder *encoder,
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_write_static_insert(nghttp3_qpack_encoder *encoder,
-                                              nghttp3_buf *ebuf, size_t absidx,
+                                              nghttp3_buf *ebuf,
+                                              uint64_t absidx,
                                               const nghttp3_nv *nv);
 
 /*
@@ -453,7 +454,8 @@ int nghttp3_qpack_encoder_write_static_insert(nghttp3_qpack_encoder *encoder,
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_write_dynamic_insert(nghttp3_qpack_encoder *encoder,
-                                               nghttp3_buf *ebuf, size_t absidx,
+                                               nghttp3_buf *ebuf,
+                                               uint64_t absidx,
                                                const nghttp3_nv *nv);
 
 /*
@@ -469,7 +471,7 @@ int nghttp3_qpack_encoder_write_dynamic_insert(nghttp3_qpack_encoder *encoder,
  */
 int nghttp3_qpack_encoder_write_duplicate_insert(nghttp3_qpack_encoder *encoder,
                                                  nghttp3_buf *ebuf,
-                                                 size_t absidx);
+                                                 uint64_t absidx);
 
 /*
  * nghttp3_qpack_encoder_write_literal_insert writes Insert Without
@@ -511,7 +513,7 @@ void nghttp3_qpack_encoder_unblock_stream(nghttp3_qpack_encoder *encoder,
  * than or equal to |max_cnt|.
  */
 void nghttp3_qpack_encoder_unblock(nghttp3_qpack_encoder *encoder,
-                                   size_t max_cnt);
+                                   uint64_t max_cnt);
 
 /*
  * nghttp3_qpack_encoder_find_stream returns stream whose stream ID is
@@ -522,7 +524,7 @@ nghttp3_qpack_stream *
 nghttp3_qpack_encoder_find_stream(nghttp3_qpack_encoder *encoder,
                                   int64_t stream_id);
 
-size_t nghttp3_qpack_encoder_get_min_cnt(nghttp3_qpack_encoder *encoder);
+uint64_t nghttp3_qpack_encoder_get_min_cnt(nghttp3_qpack_encoder *encoder);
 
 /*
  * nghttp3_qpack_encoder_shrink_dtable shrinks dynamic table so that
@@ -585,7 +587,8 @@ int nghttp3_qpack_context_dtable_add(nghttp3_qpack_context *ctx,
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_dtable_static_add(nghttp3_qpack_encoder *encoder,
-                                            size_t absidx, const nghttp3_nv *nv,
+                                            uint64_t absidx,
+                                            const nghttp3_nv *nv,
                                             uint32_t hash);
 
 /*
@@ -600,7 +603,7 @@ int nghttp3_qpack_encoder_dtable_static_add(nghttp3_qpack_encoder *encoder,
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_dtable_dynamic_add(nghttp3_qpack_encoder *encoder,
-                                             size_t absidx,
+                                             uint64_t absidx,
                                              const nghttp3_nv *nv,
                                              uint32_t hash);
 
@@ -615,7 +618,7 @@ int nghttp3_qpack_encoder_dtable_dynamic_add(nghttp3_qpack_encoder *encoder,
  *     Out of memory.
  */
 int nghttp3_qpack_encoder_dtable_duplicate_add(nghttp3_qpack_encoder *encoder,
-                                               size_t absidx);
+                                               uint64_t absidx);
 
 /*
  * nghttp3_qpack_encoder_dtable_literal_add adds |nv| to dynamic
@@ -634,7 +637,7 @@ int nghttp3_qpack_encoder_dtable_literal_add(nghttp3_qpack_encoder *encoder,
  * exists.
  */
 nghttp3_qpack_entry *
-nghttp3_qpack_context_dtable_get(nghttp3_qpack_context *ctx, size_t absidx);
+nghttp3_qpack_context_dtable_get(nghttp3_qpack_context *ctx, uint64_t absidx);
 
 /*
  * nghttp3_qpack_context_dtable_top returns latest dynamic table
@@ -652,7 +655,7 @@ nghttp3_qpack_context_dtable_top(nghttp3_qpack_context *ctx);
  * qnv->nv.value.
  */
 void nghttp3_qpack_entry_init(nghttp3_qpack_entry *ent, nghttp3_qpack_nv *qnv,
-                              size_t sum, size_t absidx, uint32_t hash);
+                              size_t sum, uint64_t absidx, uint32_t hash);
 
 /*
  * nghttp3_qpack_entry_free frees memory allocated for |ent|.
@@ -739,7 +742,7 @@ struct nghttp3_qpack_decoder {
   /* dbuf is decoder stream. */
   nghttp3_buf dbuf;
   /* written_icnt is Insert Count written to decoder stream so far. */
-  size_t written_icnt;
+  uint64_t written_icnt;
   /* max_concurrent_streams is the number of concurrent streams that a
      remote endpoint can open, including both bidirectional and
      unidirectional streams which potentially receives QPACK encoded
@@ -855,9 +858,9 @@ struct nghttp3_qpack_stream_context {
   nghttp3_qpack_request_stream_opcode opcode;
   int64_t stream_id;
   /* ricnt is Required Insert Count to decode this header block. */
-  size_t ricnt;
+  uint64_t ricnt;
   /* base is Base in Header Block Prefix. */
-  size_t base;
+  uint64_t base;
   /* dbase_sign is the delta base sign in Header Block Prefix. */
   int dbase_sign;
 };
@@ -889,7 +892,7 @@ void nghttp3_qpack_stream_context_reset(nghttp3_qpack_stream_context *sctx);
  *     Unable to reconstruct Required Insert Count.
  */
 int nghttp3_qpack_decoder_reconstruct_ricnt(nghttp3_qpack_decoder *decoder,
-                                            size_t *dest, size_t encricnt);
+                                            uint64_t *dest, uint64_t encricnt);
 
 /*
  * nghttp3_qpack_decoder_rel2abs converts relative index rstate->left
@@ -946,7 +949,7 @@ void nghttp3_qpack_decoder_emit_literal(nghttp3_qpack_decoder *decoder,
                                         nghttp3_qpack_nv *nv);
 
 /*
- * nghttp3_qpack_decoder_write_header_ack writes Header
+ * nghttp3_qpack_decoder_write_section_ack writes Section
  * Acknowledgement to decoder stream.
  *
  * This function returns 0 if it succeeds, or one of the following
@@ -957,7 +960,7 @@ void nghttp3_qpack_decoder_emit_literal(nghttp3_qpack_decoder *decoder,
  * NGHTTP3_ERR_QPACK_FATAL
  *     Decoder stream overflow.
  */
-int nghttp3_qpack_decoder_write_header_ack(
+int nghttp3_qpack_decoder_write_section_ack(
     nghttp3_qpack_decoder *decoder, const nghttp3_qpack_stream_context *sctx);
 
 #endif /* NGHTTP3_QPACK_H */

@@ -34,6 +34,79 @@
 
 #include "nghttp3_buf.h"
 
+typedef enum {
+  NGHTTP3_FRAME_DATA = 0x00,
+  NGHTTP3_FRAME_HEADERS = 0x01,
+  NGHTTP3_FRAME_CANCEL_PUSH = 0x03,
+  NGHTTP3_FRAME_SETTINGS = 0x04,
+  NGHTTP3_FRAME_PUSH_PROMISE = 0x05,
+  NGHTTP3_FRAME_GOAWAY = 0x07,
+  NGHTTP3_FRAME_MAX_PUSH_ID = 0x0d,
+} nghttp3_frame_type;
+
+typedef struct {
+  int64_t type;
+  int64_t length;
+} nghttp3_frame_hd;
+
+typedef struct {
+  nghttp3_frame_hd hd;
+} nghttp3_frame_data;
+
+typedef struct {
+  nghttp3_frame_hd hd;
+  nghttp3_nv *nva;
+  size_t nvlen;
+} nghttp3_frame_headers;
+
+typedef struct {
+  nghttp3_frame_hd hd;
+  int64_t push_id;
+} nghttp3_frame_cancel_push;
+
+#define NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE 0x06
+#define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
+#define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
+
+typedef struct {
+  uint64_t id;
+  uint64_t value;
+} nghttp3_settings_entry;
+
+typedef struct {
+  nghttp3_frame_hd hd;
+  size_t niv;
+  nghttp3_settings_entry iv[1];
+} nghttp3_frame_settings;
+
+typedef struct {
+  nghttp3_frame_hd hd;
+  nghttp3_nv *nva;
+  size_t nvlen;
+  int64_t push_id;
+} nghttp3_frame_push_promise;
+
+typedef struct {
+  nghttp3_frame_hd hd;
+  int64_t stream_id;
+} nghttp3_frame_goaway;
+
+typedef struct {
+  nghttp3_frame_hd hd;
+  int64_t push_id;
+} nghttp3_frame_max_push_id;
+
+typedef union {
+  nghttp3_frame_hd hd;
+  nghttp3_frame_data data;
+  nghttp3_frame_headers headers;
+  nghttp3_frame_cancel_push cancel_push;
+  nghttp3_frame_settings settings;
+  nghttp3_frame_push_promise push_promise;
+  nghttp3_frame_goaway goaway;
+  nghttp3_frame_max_push_id max_push_id;
+} nghttp3_frame;
+
 /*
  * nghttp3_frame_write_hd writes frame header |hd| to |dest|.  This
  * function assumes that |dest| has enough space to write |hd|.

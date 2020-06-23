@@ -70,6 +70,11 @@ extern "C" {
 
 typedef ptrdiff_t nghttp3_ssize;
 
+/* NGHTTP3_ALPN_H3 is a serialized form of HTTP/3 ALPN protocol
+   identifier this library supports.  Notice that the first byte is
+   the length of the following protocol identifier. */
+#define NGHTTP3_ALPN_H3 "\x5h3-29"
+
 typedef enum {
   NGHTTP3_ERR_INVALID_ARGUMENT = -101,
   NGHTTP3_ERR_NOBUF = -102,
@@ -476,7 +481,8 @@ typedef enum {
   NGHTTP3_QPACK_TOKEN_TRANSFER_ENCODING,
   NGHTTP3_QPACK_TOKEN_UPGRADE,
   NGHTTP3_QPACK_TOKEN_TE,
-  NGHTTP3_QPACK_TOKEN__PROTOCOL
+  NGHTTP3_QPACK_TOKEN__PROTOCOL,
+  NGHTTP3_QPACK_TOKEN_PRIORITY
 } nghttp3_qpack_token;
 
 /**
@@ -670,7 +676,7 @@ nghttp3_qpack_encoder_ack_header(nghttp3_qpack_encoder *encoder,
  */
 NGHTTP3_EXTERN int
 nghttp3_qpack_encoder_add_insert_count(nghttp3_qpack_encoder *encoder,
-                                       size_t n);
+                                       uint64_t n);
 
 /**
  * @function
@@ -748,7 +754,7 @@ nghttp3_qpack_stream_context_del(nghttp3_qpack_stream_context *sctx);
  * `nghttp3_qpack_stream_context_get_ricnt` returns required insert
  * count.
  */
-NGHTTP3_EXTERN size_t
+NGHTTP3_EXTERN uint64_t
 nghttp3_qpack_stream_context_get_ricnt(nghttp3_qpack_stream_context *sctx);
 
 struct nghttp3_qpack_decoder;
@@ -814,7 +820,7 @@ NGHTTP3_EXTERN nghttp3_ssize nghttp3_qpack_decoder_read_encoder(
  *
  * `nghttp3_qpack_decoder_get_icnt` returns insert count.
  */
-NGHTTP3_EXTERN size_t
+NGHTTP3_EXTERN uint64_t
 nghttp3_qpack_decoder_get_icnt(const nghttp3_qpack_decoder *decoder);
 
 /**
@@ -863,7 +869,7 @@ typedef enum {
  * due to required insert count.
  *
  * When a header field is decoded, an application receives it in |nv|.
- * nv->name and nv->value are reference counted buffer, and the their
+ * nv->name and nv->value are reference counted buffer, and their
  * reference counts are already incremented for application use.
  * Therefore, when application finishes processing the header field,
  * it must call nghttp3_rcbuf_decref(nv->name) and
@@ -1201,7 +1207,7 @@ typedef struct {
 } nghttp3_conn_callbacks;
 
 typedef struct {
-  uint64_t max_header_list_size;
+  uint64_t max_field_section_size;
   uint64_t max_pushes;
   size_t qpack_max_table_capacity;
   size_t qpack_blocked_streams;
@@ -1258,79 +1264,6 @@ NGHTTP3_EXTERN int nghttp3_conn_bind_control_stream(nghttp3_conn *conn,
 NGHTTP3_EXTERN int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn,
                                                    int64_t qenc_stream_id,
                                                    int64_t qdec_stream_id);
-
-typedef enum {
-  NGHTTP3_FRAME_DATA = 0x00,
-  NGHTTP3_FRAME_HEADERS = 0x01,
-  NGHTTP3_FRAME_CANCEL_PUSH = 0x03,
-  NGHTTP3_FRAME_SETTINGS = 0x04,
-  NGHTTP3_FRAME_PUSH_PROMISE = 0x05,
-  NGHTTP3_FRAME_GOAWAY = 0x07,
-  NGHTTP3_FRAME_MAX_PUSH_ID = 0x0d,
-} nghttp3_frame_type;
-
-typedef struct {
-  int64_t type;
-  int64_t length;
-} nghttp3_frame_hd;
-
-typedef struct {
-  nghttp3_frame_hd hd;
-} nghttp3_frame_data;
-
-typedef struct {
-  nghttp3_frame_hd hd;
-  nghttp3_nv *nva;
-  size_t nvlen;
-} nghttp3_frame_headers;
-
-typedef struct {
-  nghttp3_frame_hd hd;
-  int64_t push_id;
-} nghttp3_frame_cancel_push;
-
-#define NGHTTP3_SETTINGS_ID_MAX_HEADER_LIST_SIZE 0x06
-#define NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY 0x01
-#define NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS 0x07
-
-typedef struct {
-  uint64_t id;
-  uint64_t value;
-} nghttp3_settings_entry;
-
-typedef struct {
-  nghttp3_frame_hd hd;
-  size_t niv;
-  nghttp3_settings_entry iv[1];
-} nghttp3_frame_settings;
-
-typedef struct {
-  nghttp3_frame_hd hd;
-  nghttp3_nv *nva;
-  size_t nvlen;
-  int64_t push_id;
-} nghttp3_frame_push_promise;
-
-typedef struct {
-  nghttp3_frame_hd hd;
-  int64_t stream_id;
-} nghttp3_frame_goaway;
-
-typedef struct {
-  nghttp3_frame_hd hd;
-  int64_t push_id;
-} nghttp3_frame_max_push_id;
-
-typedef union {
-  nghttp3_frame_hd hd;
-  nghttp3_frame_data data;
-  nghttp3_frame_headers headers;
-  nghttp3_frame_cancel_push cancel_push;
-  nghttp3_frame_settings settings;
-  nghttp3_frame_push_promise push_promise;
-  nghttp3_frame_goaway goaway;
-  nghttp3_frame_max_push_id max_push_id;
-} nghttp3_frame;
 
 /**
  * @function
@@ -1393,7 +1326,7 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
  * for stream denoted by |stream_id| QUIC stack has acknowledged.
  */
 NGHTTP3_EXTERN int nghttp3_conn_add_ack_offset(nghttp3_conn *conn,
-                                               int64_t stream_id, size_t n);
+                                               int64_t stream_id, uint64_t n);
 
 /**
  * @function
@@ -1653,6 +1586,96 @@ NGHTTP3_EXTERN int64_t nghttp3_conn_get_frame_payload_left(nghttp3_conn *conn,
                                                            int64_t stream_id);
 
 /**
+ * @macro
+ *
+ * :macro:`NGHTTP3_DEFAULT_URGENCY` is the default urgency level.
+ */
+#define NGHTTP3_DEFAULT_URGENCY 1
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_URGENCY_HIGH` is the highest urgency level.
+ */
+#define NGHTTP3_URGENCY_HIGH 0
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_URGENCY_LOW` is the lowest urgency level.
+ */
+#define NGHTTP3_URGENCY_LOW 7
+
+/**
+ * @macro
+ *
+ * :macro:`NGHTTP3_URGENCY_LEVELS` is the number of urgency levels.
+ */
+#define NGHTTP3_URGENCY_LEVELS (NGHTTP3_URGENCY_LOW + 1)
+
+/**
+ * @struct
+ *
+ * :type:`nghttp3_pri` represents HTTP priority.
+ */
+typedef struct nghttp3_pri {
+  /**
+   * urgency is the urgency of a stream, it must be in
+   * [NGHTTP3_URGENCY_HIGH, NGHTTP3_URGENCY_LOW], inclusive, and 0 is
+   * the highest urgency.
+   */
+  uint32_t urgency;
+  /**
+   * inc indicates that a content can be processed incrementally or
+   * not.  If inc is 0, it cannot be processed incrementally.  If inc
+   * is 1, it can be processed incrementally.  Other value is not
+   * permitted.
+   */
+  int inc;
+} nghttp3_pri;
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_get_stream_priority` stores stream priority of a
+ * stream denoted by |stream_id| into |*dest|.  Only server can use
+ * this function.
+ *
+ * This function must not be called if |conn| is initialized as
+ * client.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGHTTP3_ERR_STREAM_NOT_FOUND`
+ *     Stream not found.
+ */
+NGHTTP3_EXTERN int nghttp3_conn_get_stream_priority(nghttp3_conn *conn,
+                                                    nghttp3_pri *dest,
+                                                    int64_t stream_id);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_set_stream_priority` updates stream priority of a
+ * stream denoted by |stream_id| by the value pointed by |pri|.
+ *
+ * This function must not be called if |conn| is initialized as
+ * client.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGHTTP3_ERR_STREAM_NOT_FOUND`
+ *     Stream not found.
+ * :enum:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
+ */
+NGHTTP3_EXTERN int nghttp3_conn_set_stream_priority(nghttp3_conn *conn,
+                                                    int64_t stream_id,
+                                                    const nghttp3_pri *pri);
+
+/**
  * @function
  *
  * `nghttp3_conn_is_remote_qpack_encoder_stream` returns nonzero if a
@@ -1709,6 +1732,25 @@ NGHTTP3_EXTERN int nghttp3_check_header_name(const uint8_t *name, size_t len);
  * http://tools.ietf.org/html/rfc7230#section-3.2
  */
 NGHTTP3_EXTERN int nghttp3_check_header_value(const uint8_t *value, size_t len);
+
+/**
+ * @function
+ *
+ * `nghttp3_http_parse_priority` parses priority HTTP header field
+ * stored in the buffer pointed by |value| of length |len|.  If it
+ * successfully processed header field value, it stores the result
+ * into |*dest|.  This function just overwrites what it sees in the
+ * header field value and does not initialize any field in |*dest|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     The function could not parse the provided value.
+ */
+NGHTTP3_EXTERN int nghttp3_http_parse_priority(nghttp3_pri *dest,
+                                               const uint8_t *value,
+                                               size_t len);
 
 /**
  * @macro

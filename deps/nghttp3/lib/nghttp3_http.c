@@ -30,6 +30,7 @@
 
 #include "nghttp3_stream.h"
 #include "nghttp3_macro.h"
+#include "nghttp3_conv.h"
 
 static uint8_t downcase(uint8_t c) {
   return 'A' <= c && c <= 'Z' ? (uint8_t)(c - 'A' + 'a') : c;
@@ -112,9 +113,95 @@ static int check_path(nghttp3_http_state *http) {
            (http->flags & NGHTTP3_HTTP_FLAG_PATH_ASTERISK)));
 }
 
+int nghttp3_http_parse_priority(nghttp3_pri *dest, const uint8_t *value,
+                                size_t len) {
+  nghttp3_pri pri = *dest;
+  const uint8_t *p = value, *end = value + len;
+
+  for (;;) {
+    for (; p != end && (*p == ' ' || *p == '\t'); ++p)
+      ;
+
+    if (p == end) {
+      break;
+    }
+
+    switch (*p) {
+    case 'u':
+      ++p;
+
+      if (p + 2 > end || *p++ != '=') {
+        return NGHTTP3_ERR_INVALID_ARGUMENT;
+      }
+
+      if (!('0' <= *p && *p <= '7')) {
+        return NGHTTP3_ERR_INVALID_ARGUMENT;
+      }
+
+      pri.urgency = (uint32_t)(*p++ - '0');
+
+      if (p == end) {
+        goto fin;
+      }
+
+      if (*p++ != ',') {
+        return NGHTTP3_ERR_INVALID_ARGUMENT;
+      }
+
+      break;
+    case 'i':
+      ++p;
+
+      if (p == end) {
+        pri.inc = 1;
+        goto fin;
+      }
+
+      if (*p == ',') {
+        pri.inc = 1;
+        ++p;
+        break;
+      }
+
+      if (p + 3 > end || *p != '=' || *(p + 1) != '?' ||
+          (*(p + 2) != '0' && *(p + 2) != '1')) {
+        return NGHTTP3_ERR_INVALID_ARGUMENT;
+      }
+
+      pri.inc = *(p + 2) == '1';
+
+      p += 3;
+
+      if (p == end) {
+        goto fin;
+      }
+
+      if (*p++ != ',') {
+        return NGHTTP3_ERR_INVALID_ARGUMENT;
+      }
+
+      break;
+    default:
+      return NGHTTP3_ERR_INVALID_ARGUMENT;
+    }
+
+    if (p == end) {
+      return NGHTTP3_ERR_INVALID_ARGUMENT;
+    }
+  }
+
+fin:
+
+  *dest = pri;
+
+  return 0;
+}
+
 static int http_request_on_header(nghttp3_http_state *http, int64_t frame_type,
                                   nghttp3_qpack_nv *nv, int trailers,
                                   int connect_protocol) {
+  nghttp3_pri pri;
+
   if (nv->name->base[0] == ':') {
     if (trailers ||
         (http->flags & NGHTTP3_HTTP_FLAG_PSEUDO_HEADER_DISALLOWED)) {
@@ -192,6 +279,13 @@ static int http_request_on_header(nghttp3_http_state *http, int64_t frame_type,
     }
     break;
   case NGHTTP3_QPACK_TOKEN_CONTENT_LENGTH: {
+    /* https://tools.ietf.org/html/rfc7230#section-4.1.2: A sender
+       MUST NOT generate a trailer that contains a field necessary for
+       message framing (e.g., Transfer-Encoding and Content-Length),
+       ... */
+    if (trailers) {
+      return NGHTTP3_ERR_REMOVE_HTTP_HEADER;
+    }
     if (http->content_length != -1) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
     }
@@ -211,6 +305,14 @@ static int http_request_on_header(nghttp3_http_state *http, int64_t frame_type,
   case NGHTTP3_QPACK_TOKEN_TE:
     if (!lstrieq("trailers", nv->value->base, nv->value->len)) {
       return NGHTTP3_ERR_MALFORMED_HTTP_HEADER;
+    }
+    break;
+  case NGHTTP3_QPACK_TOKEN_PRIORITY:
+    pri.urgency = nghttp3_pri_uint8_urgency(http->pri);
+    pri.inc = nghttp3_pri_uint8_inc(http->pri);
+    if (nghttp3_http_parse_priority(&pri, nv->value->base, nv->value->len) ==
+        0) {
+      http->pri = nghttp3_pri_to_uint8(&pri);
     }
     break;
   default:
@@ -250,6 +352,13 @@ static int http_response_on_header(nghttp3_http_state *http,
     break;
   }
   case NGHTTP3_QPACK_TOKEN_CONTENT_LENGTH: {
+    /* https://tools.ietf.org/html/rfc7230#section-4.1.2: A sender
+       MUST NOT generate a trailer that contains a field necessary for
+       message framing (e.g., Transfer-Encoding and Content-Length),
+       ... */
+    if (trailers) {
+      return NGHTTP3_ERR_REMOVE_HTTP_HEADER;
+    }
     if (http->status_code == 204) {
       /* content-length header field in 204 response is prohibited by
          RFC 7230.  But some widely used servers send content-length:

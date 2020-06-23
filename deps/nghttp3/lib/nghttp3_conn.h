@@ -48,11 +48,6 @@
    blocked streams for QPACK encoder. */
 #define NGHTTP3_QPACK_ENCODER_MAX_BLOCK_STREAMS 100
 
-typedef struct {
-  nghttp3_map_entry me;
-  nghttp3_tnode node;
-} nghttp3_placeholder;
-
 typedef enum {
   NGHTTP3_PUSH_PROMISE_FLAG_NONE = 0x00,
   /* NGHTTP3_PUSH_PROMISE_FLAG_RECVED is set when PUSH_PROMISE is
@@ -64,7 +59,7 @@ typedef enum {
      opened. */
   NGHTTP3_PUSH_PROMISE_FLAG_RECV_CANCEL = 0x02,
   /* NGHTTP3_PUSH_PROMISE_FLAG_SENT_CANCEL is set when push is
-     canceled by client. */
+     canceled by the local endpoint. */
   NGHTTP3_PUSH_PROMISE_FLAG_SENT_CANCEL = 0x04,
   NGHTTP3_PUSH_PROMISE_FLAG_CANCELLED = NGHTTP3_PUSH_PROMISE_FLAG_RECV_CANCEL |
                                         NGHTTP3_PUSH_PROMISE_FLAG_SENT_CANCEL,
@@ -114,15 +109,15 @@ typedef enum {
 } nghttp3_conn_flag;
 
 struct nghttp3_conn {
-  nghttp3_tnode root;
-  nghttp3_tnode orphan_root;
   nghttp3_conn_callbacks callbacks;
   nghttp3_map streams;
-  nghttp3_map placeholders;
   nghttp3_map pushes;
   nghttp3_qpack_decoder qdec;
   nghttp3_qpack_encoder qenc;
   nghttp3_pq qpack_blocked_streams;
+  struct {
+    nghttp3_pq spq;
+  } sched[NGHTTP3_URGENCY_LEVELS];
   const nghttp3_mem *mem;
   void *user_data;
   int server;
@@ -177,28 +172,15 @@ struct nghttp3_conn {
 
 nghttp3_stream *nghttp3_conn_find_stream(nghttp3_conn *conn, int64_t stream_id);
 
-nghttp3_placeholder *nghttp3_conn_find_placeholder(nghttp3_conn *conn,
-                                                   int64_t ph_id);
-
 nghttp3_push_promise *nghttp3_conn_find_push_promise(nghttp3_conn *conn,
                                                      int64_t push_id);
 
 int nghttp3_conn_create_stream(nghttp3_conn *conn, nghttp3_stream **pstream,
                                int64_t stream_id);
 
-int nghttp3_conn_create_stream_dependency(nghttp3_conn *conn,
-                                          nghttp3_stream **pstream,
-                                          int64_t stream_id, uint32_t weight,
-                                          nghttp3_tnode *parent);
-
-int nghttp3_conn_create_placeholder(nghttp3_conn *conn,
-                                    nghttp3_placeholder **pph, int64_t ph_id,
-                                    uint32_t weight, nghttp3_tnode *parent);
-
 int nghttp3_conn_create_push_promise(nghttp3_conn *conn,
                                      nghttp3_push_promise **ppp,
-                                     int64_t push_id, uint32_t weight,
-                                     nghttp3_tnode *parent);
+                                     int64_t push_id, nghttp3_tnode *parent);
 
 nghttp3_ssize nghttp3_conn_read_bidi(nghttp3_conn *conn, size_t *pnproc,
                                      nghttp3_stream *stream, const uint8_t *src,
@@ -258,21 +240,22 @@ int nghttp3_conn_client_cancel_push(nghttp3_conn *conn, int64_t push_id);
 
 int nghttp3_conn_submit_max_push_id(nghttp3_conn *conn);
 
+int nghttp3_conn_schedule_stream(nghttp3_conn *conn, nghttp3_stream *stream);
+
+int nghttp3_conn_ensure_stream_scheduled(nghttp3_conn *conn,
+                                         nghttp3_stream *stream);
+
+void nghttp3_conn_unschedule_stream(nghttp3_conn *conn, nghttp3_stream *stream);
+
 /*
  * nghttp3_conn_get_next_tx_stream returns next stream to send.  It
  * returns NULL if there is no such stream.
  */
 nghttp3_stream *nghttp3_conn_get_next_tx_stream(nghttp3_conn *conn);
 
-int nghttp3_placeholder_new(nghttp3_placeholder **pph, int64_t ph_id,
-                            uint64_t seq, uint32_t weight,
-                            nghttp3_tnode *parent, const nghttp3_mem *mem);
-
-void nghttp3_placeholder_del(nghttp3_placeholder *ph, const nghttp3_mem *mem);
-
 int nghttp3_push_promise_new(nghttp3_push_promise **ppp, int64_t push_id,
-                             uint64_t seq, uint32_t weight,
-                             nghttp3_tnode *parent, const nghttp3_mem *mem);
+                             uint64_t seq, nghttp3_tnode *parent,
+                             const nghttp3_mem *mem);
 
 void nghttp3_push_promise_del(nghttp3_push_promise *pp, const nghttp3_mem *mem);
 
