@@ -1566,8 +1566,8 @@ void SecureContext::GetNumTickets(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 0);
 
-  uint32_t numTickets = SSL_CTX_get_num_tickets(sc->ctx_.get());
-  args.GetReturnValue().Set(static_cast<uint32_t>(numTickets));
+  uint32_t num_tickets = SSL_CTX_get_num_tickets(sc->ctx_.get());
+  args.GetReturnValue().Set(num_tickets);
 }
 
 
