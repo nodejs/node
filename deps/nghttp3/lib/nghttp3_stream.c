@@ -43,8 +43,7 @@
 #define NGHTTP3_MIN_RBLEN 4
 
 int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
-                       uint64_t seq, uint32_t weight, nghttp3_tnode *parent,
-                       const nghttp3_stream_callbacks *callbacks,
+                       uint64_t seq, const nghttp3_stream_callbacks *callbacks,
                        const nghttp3_mem *mem) {
   int rv;
   nghttp3_stream *stream = nghttp3_mem_calloc(mem, 1, sizeof(nghttp3_stream));
@@ -57,7 +56,7 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
   nghttp3_tnode_init(
       &stream->node,
       nghttp3_node_id_init(&nid, NGHTTP3_NODE_ID_TYPE_STREAM, stream_id), seq,
-      weight, parent, mem);
+      NGHTTP3_DEFAULT_URGENCY);
 
   rv = nghttp3_ringbuf_init(&stream->frq, 0, sizeof(nghttp3_frame_entry), mem);
   if (rv != 0) {
@@ -86,6 +85,7 @@ int nghttp3_stream_new(nghttp3_stream **pstream, int64_t stream_id,
   stream->mem = mem;
   stream->rx.http.status_code = -1;
   stream->rx.http.content_length = -1;
+  stream->rx.http.pri = NGHTTP3_DEFAULT_URGENCY;
   stream->error_code = NGHTTP3_H3_NO_ERROR;
 
   if (callbacks) {
@@ -380,8 +380,8 @@ int nghttp3_stream_write_settings(nghttp3_stream *stream,
   fr.settings.niv = 3;
   iv = &fr.settings.iv[0];
 
-  iv[0].id = NGHTTP3_SETTINGS_ID_MAX_HEADER_LIST_SIZE;
-  iv[0].value = local_settings->max_header_list_size;
+  iv[0].id = NGHTTP3_SETTINGS_ID_MAX_FIELD_SECTION_SIZE;
+  iv[0].value = local_settings->max_field_section_size;
   iv[1].id = NGHTTP3_SETTINGS_ID_QPACK_MAX_TABLE_CAPACITY;
   iv[1].value = local_settings->qpack_max_table_capacity;
   iv[2].id = NGHTTP3_SETTINGS_ID_QPACK_BLOCKED_STREAMS;
@@ -846,16 +846,11 @@ int nghttp3_stream_is_blocked(nghttp3_stream *stream) {
          (stream->flags & NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED);
 }
 
-int nghttp3_stream_is_active(nghttp3_stream *stream) {
+int nghttp3_stream_require_schedule(nghttp3_stream *stream) {
   return (!nghttp3_stream_outq_write_done(stream) &&
           !(stream->flags & NGHTTP3_STREAM_FLAG_FC_BLOCKED)) ||
          (nghttp3_ringbuf_len(&stream->frq) &&
           !(stream->flags & NGHTTP3_STREAM_FLAG_READ_DATA_BLOCKED));
-}
-
-int nghttp3_stream_require_schedule(nghttp3_stream *stream) {
-  return nghttp3_stream_is_active(stream) ||
-         nghttp3_tnode_has_active_descendant(&stream->node);
 }
 
 nghttp3_ssize nghttp3_stream_writev(nghttp3_stream *stream, int *pfin,
@@ -964,9 +959,9 @@ static int stream_pop_outq_entry(nghttp3_stream *stream,
   return 0;
 }
 
-int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, size_t n) {
+int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, uint64_t n) {
   nghttp3_ringbuf *outq = &stream->outq;
-  size_t offset = stream->ack_offset + n;
+  uint64_t offset = stream->ack_offset + n;
   size_t buflen;
   size_t npopped = 0;
   size_t nack;
@@ -978,7 +973,7 @@ int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, size_t n) {
     buflen = nghttp3_buf_len(&tbuf->buf);
 
     if (tbuf->type == NGHTTP3_BUF_TYPE_ALIEN) {
-      nack = nghttp3_min(offset, buflen) - stream->ack_done;
+      nack = (size_t)nghttp3_min(offset, (uint64_t)buflen) - stream->ack_done;
       if (stream->callbacks.acked_data) {
         rv = stream->callbacks.acked_data(stream, stream->node.nid.id, nack,
                                           stream->user_data);
@@ -1020,50 +1015,6 @@ int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, size_t n) {
   stream->ack_offset = offset;
 
   return 0;
-}
-
-static nghttp3_tnode *stream_get_dependency_node(nghttp3_stream *stream) {
-  if (stream->pp) {
-    assert(stream->type == NGHTTP3_STREAM_TYPE_PUSH);
-    return &stream->pp->node;
-  }
-
-  return &stream->node;
-}
-
-int nghttp3_stream_schedule(nghttp3_stream *stream) {
-  int rv;
-
-  rv = nghttp3_tnode_schedule(stream_get_dependency_node(stream),
-                              stream->unscheduled_nwrite);
-  if (rv != 0) {
-    return rv;
-  }
-
-  stream->unscheduled_nwrite = 0;
-
-  return 0;
-}
-
-int nghttp3_stream_ensure_scheduled(nghttp3_stream *stream) {
-  if (nghttp3_tnode_is_scheduled(stream_get_dependency_node(stream))) {
-    return 0;
-  }
-
-  return nghttp3_stream_schedule(stream);
-}
-
-void nghttp3_stream_unschedule(nghttp3_stream *stream) {
-  nghttp3_tnode_unschedule(stream_get_dependency_node(stream));
-}
-
-int nghttp3_stream_squash(nghttp3_stream *stream) {
-  nghttp3_tnode *node = stream_get_dependency_node(stream);
-
-  if (!node->parent) {
-    return 0;
-  }
-  return nghttp3_tnode_squash(stream_get_dependency_node(stream));
 }
 
 int nghttp3_stream_buffer_data(nghttp3_stream *stream, const uint8_t *data,
@@ -1124,17 +1075,6 @@ size_t nghttp3_stream_get_buffered_datalen(nghttp3_stream *stream) {
   }
 
   return n;
-}
-
-void nghttp3_stream_clear_buffered_data(nghttp3_stream *stream) {
-  nghttp3_ringbuf *inq = &stream->inq;
-  nghttp3_buf *buf;
-
-  for (; nghttp3_ringbuf_len(inq);) {
-    buf = nghttp3_ringbuf_get(inq, 0);
-    nghttp3_buf_free(buf, stream->mem);
-    nghttp3_ringbuf_pop_front(inq);
-  }
 }
 
 int nghttp3_stream_transit_rx_http_state(nghttp3_stream *stream,

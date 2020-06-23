@@ -178,4 +178,28 @@ size_t nghttp3_put_varint_len(int64_t n);
  */
 uint64_t nghttp3_ord_stream_id(int64_t stream_id);
 
+/*
+ * NGHTTP3_PRI_INC_MASK is a bit mask to retrieve incremental bit from
+ * a value produced by nghttp3_pri_to_uint8.
+ */
+#define NGHTTP3_PRI_INC_MASK (1 << 7)
+
+/*
+ * nghttp3_pri_to_uint8 encodes |pri| into uint8_t variable.
+ */
+uint8_t nghttp3_pri_to_uint8(const nghttp3_pri *pri);
+
+/*
+ * nghttp3_pri_uint8_urgency extracts urgency from |PRI| which is
+ * supposed to be constructed by nghttp3_pri_to_uint8.
+ */
+#define nghttp3_pri_uint8_urgency(PRI)                                         \
+  ((uint32_t)((PRI) & ~NGHTTP3_PRI_INC_MASK))
+
+/*
+ * nghttp3_pri_uint8_inc extracts inc from |PRI| which is supposed to
+ * be constructed by nghttp3_pri_to_uint8.
+ */
+#define nghttp3_pri_uint8_inc(PRI) (((PRI)&NGHTTP3_PRI_INC_MASK) != 0)
+
 #endif /* NGHTTP3_CONV_H */

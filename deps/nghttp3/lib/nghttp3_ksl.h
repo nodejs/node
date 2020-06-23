@@ -38,7 +38,7 @@
  * Skip List using single key instead of range.
  */
 
-#define NGHTTP3_KSL_DEGR 8
+#define NGHTTP3_KSL_DEGR 16
 /* NGHTTP3_KSL_MAX_NBLK is the maximum number of nodes which a single
    block can contain. */
 #define NGHTTP3_KSL_MAX_NBLK (2 * NGHTTP3_KSL_DEGR - 1)
@@ -49,12 +49,7 @@
 /*
  * nghttp3_ksl_key represents key in nghttp3_ksl.
  */
-typedef union {
-  /* i is defined to retrieve int64_t key for convenience. */
-  const int64_t *i;
-  /* ptr points to the key. */
-  const void *ptr;
-} nghttp3_ksl_key;
+typedef void nghttp3_ksl_key;
 
 struct nghttp3_ksl_node;
 typedef struct nghttp3_ksl_node nghttp3_ksl_node;
@@ -247,11 +242,10 @@ size_t nghttp3_ksl_len(nghttp3_ksl *ksl);
 void nghttp3_ksl_clear(nghttp3_ksl *ksl);
 
 /*
- * nghttp3_ksl_nth_node returns the |n|th node under |blk|.  This
- * function is provided for unit testing.
+ * nghttp3_ksl_nth_node returns the |n|th node under |blk|.
  */
-nghttp3_ksl_node *nghttp3_ksl_nth_node(nghttp3_ksl *ksl, nghttp3_ksl_blk *blk,
-                                       size_t n);
+#define nghttp3_ksl_nth_node(KSL, BLK, N)                                      \
+  ((nghttp3_ksl_node *)(void *)((BLK)->nodes + (KSL)->nodelen * (N)))
 
 /*
  * nghttp3_ksl_print prints its internal state in stderr.  It assumes
@@ -278,7 +272,10 @@ void *nghttp3_ksl_it_get(const nghttp3_ksl_it *it);
  * if this function is called when nghttp3_ksl_it_end(it) returns
  * nonzero.
  */
-void nghttp3_ksl_it_next(nghttp3_ksl_it *it);
+#define nghttp3_ksl_it_next(IT)                                                \
+  (++(IT)->i == (IT)->blk->n && (IT)->blk->next                                \
+       ? ((IT)->blk = (IT)->blk->next, (IT)->i = 0)                            \
+       : 0)
 
 /*
  * nghttp3_ksl_it_prev moves backward the iterator by one.  It is
@@ -291,7 +288,8 @@ void nghttp3_ksl_it_prev(nghttp3_ksl_it *it);
  * nghttp3_ksl_it_end returns nonzero if |it| points to the beyond the
  * last node.
  */
-int nghttp3_ksl_it_end(const nghttp3_ksl_it *it);
+#define nghttp3_ksl_it_end(IT)                                                 \
+  ((IT)->blk->n == (IT)->i && (IT)->blk->next == NULL)
 
 /*
  * nghttp3_ksl_it_begin returns nonzero if |it| points to the first
@@ -305,13 +303,8 @@ int nghttp3_ksl_it_begin(const nghttp3_ksl_it *it);
  * It is undefined to call this function when nghttp3_ksl_it_end(it)
  * returns nonzero.
  */
-nghttp3_ksl_key nghttp3_ksl_it_key(const nghttp3_ksl_it *it);
-
-/*
- * nghttp3_ksl_key_ptr is a convenient function which initializes
- * |key| with |ptr| and returns |key|.
- */
-nghttp3_ksl_key *nghttp3_ksl_key_ptr(nghttp3_ksl_key *key, const void *ptr);
+#define nghttp3_ksl_it_key(IT)                                                 \
+  ((nghttp3_ksl_key *)nghttp3_ksl_nth_node((IT)->ksl, (IT)->blk, (IT)->i)->key)
 
 /*
  * nghttp3_ksl_range_compar is an implementation of
