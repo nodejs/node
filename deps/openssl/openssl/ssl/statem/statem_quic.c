@@ -7,6 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
+#ifndef OPENSSL_NO_QUIC
+
 #include "../ssl_local.h"
 #include "statem_local.h"
 #include "internal/cryptlib.h"
@@ -116,3 +118,5 @@ int quic_get_message(SSL *s, int *mt, size_t *len)
 
     return 1;
 }
+
+#endif  // OPENSSL_NO_QUIC
