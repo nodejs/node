@@ -7,6 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
+#ifndef OPENSSL_NO_QUIC
+
 #include "ssl_local.h"
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
@@ -293,3 +295,5 @@ int SSL_is_quic(SSL* ssl)
 {
     return SSL_IS_QUIC(ssl);
 }
+
+#endif  // OPENSSL_NO_QUIC
