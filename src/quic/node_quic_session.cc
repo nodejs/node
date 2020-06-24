@@ -1663,10 +1663,8 @@ void QuicSession::AddStream(BaseObjectPtr<QuicStream> stream) {
 // not immediately torn down, but is allowed to drain
 // properly per the QUIC spec description of "immediate close".
 void QuicSession::ImmediateClose() {
-  // Calling either ImmediateClose or SilentClose will cause
-  // the QUICSESSION_FLAG_CLOSING to be set. In either case,
-  // we should never re-enter ImmediateClose or SilentClose.
-  CHECK(!is_flag_set(QUICSESSION_FLAG_CLOSING));
+  if (is_flag_set(QUICSESSION_FLAG_CLOSING))
+    return;
   set_flag(QUICSESSION_FLAG_CLOSING);
 
   QuicError err = last_error();
@@ -2368,10 +2366,7 @@ void QuicSession::ResetStream(int64_t stream_id, uint64_t code) {
 // notify the JavaScript side and destroy the connection with
 // a flag set that indicates stateless reset.
 void QuicSession::SilentClose() {
-  // Calling either ImmediateClose or SilentClose will cause
-  // the QUICSESSION_FLAG_CLOSING to be set. In either case,
-  // we should never re-enter ImmediateClose or SilentClose.
-  CHECK(!is_flag_set(QUICSESSION_FLAG_CLOSING));
+  CHECK(!is_flag_set(QUICSESSION_FLAG_SILENT_CLOSE));
   set_flag(QUICSESSION_FLAG_SILENT_CLOSE);
   set_flag(QUICSESSION_FLAG_CLOSING);
 
