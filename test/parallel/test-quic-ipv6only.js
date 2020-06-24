@@ -9,6 +9,9 @@ if (!common.hasIPv6)
 if (!common.hasQuic)
   common.skip('missing quic');
 
+common.skip(
+  'temporarily skip ipv6only check. dual stack support is current broken');
+
 const assert = require('assert');
 const { createQuicSocket } = require('net');
 const { key, cert, ca } = require('../common/quic');
