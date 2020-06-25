@@ -1,13 +1,9 @@
 <!--lint disable no-literal-urls-->
-<p align="center">
-  <a href="https://nodejs.org/">
-    <img
-      alt="Node.js"
-      src="https://nodejs.org/static/images/logo-light.svg"
-      width="400"
-    />
-  </a>
-</p>
+  <p align="center">
+    <a href="https://nodejs.org/">
+      <img src="https://camo.githubusercontent.com/9c24355bb3afbff914503b663ade7beb341079fa/68747470733a2f2f6e6f64656a732e6f72672f7374617469632f696d616765732f6c6f676f2d6c696768742e737667"></img>
+    </a>
+  </p>
 
 Node.js is an open-source, cross-platform, JavaScript runtime environment. It
 executes JavaScript code outside of a browser. For more information on using
@@ -76,6 +72,29 @@ alias for the latest Current release. The latest-_codename_ directory is an
 alias for the latest release from an LTS line. For example, the
 [latest-carbon](https://nodejs.org/download/release/latest-carbon/) directory
 contains the latest Carbon (Node.js 8) release.
+
+
+#### Alternative Ways to Install:
+
+##### CURL
+
+You can use curl to download the latest version of NodeJS.
+
+```console
+curl "https://nodejs.org/dist/latest/node-${VERSION:-$(wget -qO- https://nodejs.org/dist/latest/ | sed -nE 's|.*>node-(.*)\.pkg</a>.*|\1|p')}.pkg" > "$HOME/Downloads/node-latest.pkg" && sudo installer -store -pkg "$HOME/Downloads/node-latest.pkg" -target "/"
+```
+
+##### Homebrew
+
+```console
+brew install node
+```
+
+##### Chocolatey
+
+```console
+choco install nodejs
+```
 
 #### Nightly Releases
 <https://nodejs.org/download/nightly/>
@@ -613,3 +632,5 @@ Other keys used to sign some previous releases:
 [OpenJS Foundation]: https://openjsf.org/
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
+
+</div>
