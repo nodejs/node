@@ -32,9 +32,11 @@ Map.prototype.entries = increaseCallCount;
 Object.keys = increaseCallCount;
 Object.create = increaseCallCount;
 Object.hasOwnProperty = increaseCallCount;
-Object.defineProperty(Object.prototype, 'value', {
-  get: increaseCallCount,
-  set: increaseCallCount
-});
+for (const property of ['_cache', 'lineLengths', 'url']) {
+  Object.defineProperty(Object.prototype, property, {
+    get: increaseCallCount,
+    set: increaseCallCount
+  });
+}
 
 parentPort.postMessage('done');
