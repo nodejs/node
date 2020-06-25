@@ -75,9 +75,9 @@ for (const [key, repr] of keys) {
 
     // TODO(addaleax): Switch this to a 'messageerror' event once MessagePort
     // implements EventTarget fully and in a cross-context manner.
-    port2moved.emit = common.mustCall((name, err) => {
-      assert.strictEqual(name, 'messageerror');
-      assert.strictEqual(err.code, 'ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE');
+    port2moved.onmessageerror = common.mustCall((event) => {
+      assert.strictEqual(event.data.code,
+                         'ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE');
     });
 
     port2moved.start();
