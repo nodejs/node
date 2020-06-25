@@ -78,7 +78,7 @@ contains the latest Carbon (Node.js 8) release.
 
 ##### CURL
 
-You can use curl to download the latest version of NodeJS.
+You can use curl to download the latest version of Node.js
 
 ```console
 curl "https://nodejs.org/dist/latest/node-${VERSION:-$(wget -qO- https://nodejs.org/dist/latest/ | sed -nE 's|.*>node-(.*)\.pkg</a>.*|\1|p')}.pkg" > "$HOME/Downloads/node-latest.pkg" && sudo installer -store -pkg "$HOME/Downloads/node-latest.pkg" -target "/"
