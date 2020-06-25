@@ -746,6 +746,8 @@ void MessagePort::OnMessage() {
 
     Local<Value> payload;
     Local<Value> message_error;
+    Local<Value> argv[2];
+
     {
       // Catch any exceptions from parsing the message itself (not from
       // emitting it) as 'messageeror' events.
@@ -764,16 +766,15 @@ void MessagePort::OnMessage() {
       continue;
     }
 
-    if (MakeCallback(emit_message, 1, &payload).IsEmpty()) {
+    argv[0] = payload;
+    argv[1] = env()->message_string();
+
+    if (MakeCallback(emit_message, arraysize(argv), argv).IsEmpty()) {
     reschedule:
       if (!message_error.IsEmpty()) {
-        // This should become a `messageerror` event in the sense of the
-        // EventTarget API at some point.
-        Local<Value> argv[] = {
-          env()->messageerror_string(),
-          message_error
-        };
-        USE(MakeCallback(env()->emit_string(), arraysize(argv), argv));
+        argv[0] = message_error;
+        argv[1] = env()->messageerror_string();
+        USE(MakeCallback(emit_message, arraysize(argv), argv));
       }
 
       // Re-schedule OnMessage() execution in case of failure.
