@@ -3390,6 +3390,8 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
 ### Other OpenSSL constants
 
+See the [list of SSL OP Flags][] for details.
+
 <table>
   <tr>
     <th>Constant</th>
@@ -3558,3 +3560,4 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
 [stream]: stream.html
+[list of SSL OP Flags]: wiki.openssl.org/index.php/List_of_SSL_OP_Flags#Table_of_Options
