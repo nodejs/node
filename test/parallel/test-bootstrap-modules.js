@@ -99,6 +99,7 @@ if (!common.isMainThread) {
     'NativeModule _stream_transform',
     'NativeModule _stream_writable',
     'NativeModule internal/error_serdes',
+    'NativeModule internal/event_target',
     'NativeModule internal/process/worker_thread_only',
     'NativeModule internal/streams/buffer_list',
     'NativeModule internal/streams/destroy',
@@ -109,6 +110,7 @@ if (!common.isMainThread) {
     'NativeModule internal/worker',
     'NativeModule internal/worker/io',
     'NativeModule stream',
+    'NativeModule util',
     'NativeModule worker_threads',
   ].forEach(expectedModules.add.bind(expectedModules));
 }
