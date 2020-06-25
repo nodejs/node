@@ -632,5 +632,3 @@ Other keys used to sign some previous releases:
 [OpenJS Foundation]: https://openjsf.org/
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
-
-</div>
