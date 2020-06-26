@@ -137,7 +137,8 @@ function badSchedulingOptionTest() {
     assert.strictEqual(err.code, 'ERR_INVALID_OPT_VALUE');
     assert.strictEqual(
       err.message,
-      'The value "filo" is invalid for option "scheduling"'
+      'The value "filo" is invalid for option "scheduling". ' +
+      "Must be one of: 'fifo', 'lifo'"
     );
   }
 }
