@@ -64,7 +64,6 @@ QuicBuffer::QuicBuffer(QuicBuffer&& src) noexcept
   src.ended_ = false;
 }
 
-
 QuicBuffer& QuicBuffer::operator=(QuicBuffer&& src) noexcept {
   if (this == &src) return *this;
   this->~QuicBuffer();
