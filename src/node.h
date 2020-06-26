@@ -408,7 +408,11 @@ enum Flags : uint64_t {
   // Set if this Environment instance is associated with the global inspector
   // handling code (i.e. listening on SIGUSR1).
   // This is set when using kDefaultFlags.
-  kOwnsInspector = 1 << 2
+  kOwnsInspector = 1 << 2,
+  // Set if Node.js should not run its own esm loader. This is needed by some
+  // embedders, because it's possible for the Node.js esm loader to conflict
+  // with another one in an embedder environment, e.g. Blink's in Chromium.
+  kNoRegisterESMLoader = 1 << 3
 };
 }  // namespace EnvironmentFlags
 

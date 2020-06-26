@@ -767,6 +767,10 @@ inline bool Environment::is_main_thread() const {
   return worker_context() == nullptr;
 }
 
+inline bool Environment::should_not_register_esm_loader() const {
+  return flags_ & EnvironmentFlags::kNoRegisterESMLoader;
+}
+
 inline bool Environment::owns_process_state() const {
   return flags_ & EnvironmentFlags::kOwnsProcessState;
 }
