@@ -979,6 +979,12 @@ void Initialize(Local<Object> target,
           context, FIXED_ONE_BYTE_STRING(isolate, "envSettings"), env_settings)
       .Check();
 
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
+            Boolean::New(isolate, env->should_not_register_esm_loader()))
+      .Check();
+
   Local<Object> types = Object::New(isolate);
   NODE_DEFINE_CONSTANT(types, kNoOp);
   NODE_DEFINE_CONSTANT(types, kV8Option);
