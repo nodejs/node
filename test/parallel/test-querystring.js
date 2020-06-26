@@ -321,6 +321,16 @@ assert.strictEqual(qs.stringify([]), '');
 assert.strictEqual(qs.stringify(null), '');
 assert.strictEqual(qs.stringify(true), '');
 
+// map
+{
+  const f = qs.stringify(new Map([
+    ['a', [1, 2]],
+    ['b', '1'],
+    ['b', '2'],
+  ]));
+  assert.strictEqual(f, 'a=1&a=2&b=2');
+}
+
 check(qs.parse(), {});
 
 // empty sep
