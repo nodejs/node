@@ -635,8 +635,8 @@ See [`request.socket`][].
 added: v0.1.90
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/29747
-    description: The `chunk` and `encoding` parameters are doc deprecated.
+    pr-url: https://github.com/nodejs/node/pull/34068
+    description: The `chunk` and `encoding` parameters are deprecated.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `ClientRequest`.

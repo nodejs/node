@@ -411,8 +411,8 @@ Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 added: v0.9.4
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/29747
-    description: The `chunk` and `encoding` parameters are doc deprecated.
+    pr-url: https://github.com/nodejs/node/pull/34068
+    description: The `chunk` and `encoding` parameters are deprecated.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/29747
     description: The `callback` is invoked if 'finish' or 'error' is emitted.
