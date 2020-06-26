@@ -2768,6 +2768,12 @@ call `writable.write(chunk, encoding)` before `writable.end()`.
 
 The same applies for `request.end()`.
 
+Some known issues motivating deprecation:
+
+- `end` is unable to determine whether `undefined` or `null`
+  is an opt-out optional `chunk` argument or not.
+- `callback` will not be invoked with write failure.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
