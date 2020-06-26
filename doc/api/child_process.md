@@ -194,9 +194,9 @@ metacharacters may be used to trigger arbitrary command execution.**
 If a `callback` function is provided, it is called with the arguments
 `(error, stdout, stderr)`. On success, `error` will be `null`. On error,
 `error` will be an instance of [`Error`][]. The `error.code` property will be
-the exit code of the child process while `error.signal` will be set to the
-signal that terminated the process. Any exit code other than `0` is considered
-to be an error.
+the exit code of the process. By convention, any exit code other than `0`
+indicates an error. `error.signal` will be the signal that terminated the
+process.
 
 The `stdout` and `stderr` arguments passed to the callback will contain the
 stdout and stderr output of the child process. By default, Node.js will decode
