@@ -630,26 +630,24 @@ deprecated: v13.0.0
 
 See [`request.socket`][].
 
-### `request.end([data[, encoding]][, callback])`
+### `request.end([callback])`
 <!-- YAML
 added: v0.1.90
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/29747
+    description: The `chunk` and `encoding` parameters are doc deprecated.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18780
     description: This method now returns a reference to `ClientRequest`.
 -->
 
-* `data` {string|Buffer}
-* `encoding` {string}
 * `callback` {Function}
 * Returns: {this}
 
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the stream. If the request is
 chunked, this will send the terminating `'0\r\n\r\n'`.
-
-If `data` is specified, it is equivalent to calling
-[`request.write(data, encoding)`][] followed by `request.end(callback)`.
 
 If `callback` is specified, it will be called when the request stream
 is finished.

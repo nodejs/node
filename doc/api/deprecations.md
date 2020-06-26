@@ -2766,6 +2766,8 @@ The `writable.end()` method has optional `chunk` and `encoding`
 parameters that are subtly broken in various ways. Instead,
 call `writable.write(chunk, encoding)` before `writable.end()`.
 
+The same applies for `request.end()`.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
