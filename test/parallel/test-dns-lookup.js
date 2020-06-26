@@ -72,7 +72,8 @@ assert.throws(() => {
   const err = {
     code: 'ERR_INVALID_OPT_VALUE',
     name: 'TypeError',
-    message: 'The value "20" is invalid for option "family"'
+    message: 'The value "20" is invalid for option "family". ' +
+    'Must be one of: 0, 4, 6'
   };
   const options = {
     hints: 0,
