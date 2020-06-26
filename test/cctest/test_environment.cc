@@ -32,6 +32,56 @@ class EnvironmentTest : public EnvironmentTestFixture {
   }
 };
 
+TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env {handle_scope, argv};
+
+  node::Environment* envi = *env;
+  envi->options()->experimental_vm_modules = true;
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 0);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const { SourceTextModule } = require('vm');"
+      "try {"
+        "new SourceTextModule('export const a = 1;');"
+        "process.exit(0);"
+      "} catch {"
+        "process.exit(42);"
+      "}");
+}
+
+TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env {handle_scope, argv, node::EnvironmentFlags::kNoRegisterESMLoader};
+
+  node::Environment* envi = *env;
+  envi->options()->experimental_vm_modules = true;
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 42);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const { SourceTextModule } = require('vm');"
+      "try {"
+        "new SourceTextModule('export const a = 1;');"
+        "process.exit(0);"
+      "} catch {"
+        "process.exit(42);"
+      "}");
+}
+
 TEST_F(EnvironmentTest, PreExecutionPreparation) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
