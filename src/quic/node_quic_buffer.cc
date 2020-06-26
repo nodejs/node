@@ -17,10 +17,11 @@ void QuicBufferChunk::MemoryInfo(MemoryTracker* tracker) const {
 
 size_t QuicBuffer::Push(uv_buf_t* bufs, size_t nbufs, DoneCB done) {
   size_t len = 0;
-  if (nbufs == 0 || bufs == nullptr || is_empty(bufs[0])) {
+  if (UNLIKELY(nbufs == 0)) {
     done(0);
     return 0;
   }
+  DCHECK_NOT_NULL(bufs);
   size_t n = 0;
   while (nbufs > 1) {
     if (!is_empty(bufs[n])) {
@@ -30,8 +31,14 @@ size_t QuicBuffer::Push(uv_buf_t* bufs, size_t nbufs, DoneCB done) {
     n++;
     nbufs--;
   }
-  len += bufs[n].len;
-  Push(bufs[n], done);
+  if (!is_empty(bufs[n])) {
+    Push(bufs[n], done);
+    len += bufs[n].len;
+  }
+  // Special case if all the bufs were empty.
+  if (UNLIKELY(len == 0))
+    done(0);
+
   return len;
 }
 
