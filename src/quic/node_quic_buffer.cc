@@ -17,7 +17,7 @@ void QuicBufferChunk::MemoryInfo(MemoryTracker* tracker) const {
 
 size_t QuicBuffer::Push(uv_buf_t* bufs, size_t nbufs, DoneCB done) {
   size_t len = 0;
-  if (nbufs == 0 || bufs == nullptr || is_empty(bufs[0])) {
+  if (UNLIKELY(nbufs == 0 || bufs == nullptr || is_empty(bufs[0]))) {
     done(0);
     return 0;
   }

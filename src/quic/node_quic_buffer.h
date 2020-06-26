@@ -24,7 +24,7 @@ using DoneCB = std::function<void(int)>;
 
 // When data is sent over QUIC, we are required to retain it in memory
 // until we receive an acknowledgement that it has been successfully
-// acknowledged. The QuicBuffer object is what we use to handle that
+// received. The QuicBuffer object is what we use to handle that
 // and track until it is acknowledged. To understand the QuicBuffer
 // object itself, it is important to understand how ngtcp2 and nghttp3
 // handle data that is given to it to serialize into QUIC packets.
@@ -52,7 +52,7 @@ using DoneCB = std::function<void(int)>;
 // QuicBuffer is further complicated by design quirks and limitations
 // of the StreamBase API and how it interacts with the JavaScript side.
 //
-// QuicBuffer is essentially a linked list of QuicBufferChunk instances.
+// QuicBuffer is a linked list of QuicBufferChunk instances.
 // A single QuicBufferChunk wraps a single non-zero-length uv_buf_t.
 // When the QuicBufferChunk is created, we capture the total length
 // of the buffer and the total number of bytes remaining to be sent.
@@ -79,7 +79,7 @@ using DoneCB = std::function<void(int)>;
 // along with a callback to be called when the data has
 // been consumed.
 //
-// Any given chunk as a remaining-to-be-acknowledged length (length()) and a
+// Any given chunk has a remaining-to-be-acknowledged length (length()) and a
 // remaining-to-be-read-length (remaining()). The former tracks the number
 // of bytes that have yet to be acknowledged by the QUIC peer. Once the
 // remaining-to-be-acknowledged length reaches zero, the done callback
@@ -88,7 +88,7 @@ using DoneCB = std::function<void(int)>;
 // serialized into QUIC packets and sent.
 // The remaining-to-be-acknowledged length is adjusted using consume(),
 // while the remaining-to-be-ead length is adjusted using seek().
-class QuicBufferChunk : public MemoryRetainer {
+class QuicBufferChunk final : public MemoryRetainer {
  public:
   // Default non-op done handler.
   static void default_done(int status) {}
@@ -149,8 +149,8 @@ class QuicBufferChunk : public MemoryRetainer {
   friend class QuicBuffer;
 };
 
-class QuicBuffer : public bob::SourceImpl<ngtcp2_vec>,
-                   public MemoryRetainer {
+class QuicBuffer final : public bob::SourceImpl<ngtcp2_vec>,
+                         public MemoryRetainer {
  public:
   QuicBuffer() = default;
 
