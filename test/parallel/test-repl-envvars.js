@@ -6,11 +6,11 @@ require('../common');
 const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
-const debug = require('util').debuglog('test');
+const inspect = require('util').inspect;
 
 const tests = [
   {
-    env: { TERM: 'xterm-256' },
+    env: {},
     expected: { terminal: true, useColors: true }
   },
   {
@@ -30,18 +30,14 @@ const tests = [
     expected: { terminal: false, useColors: false }
   },
   {
-    env: { NODE_NO_READLINE: '0', TERM: 'xterm-256' },
+    env: { NODE_NO_READLINE: '0' },
     expected: { terminal: true, useColors: true }
   }
 ];
 
-const originalEnv = process.env;
-
 function run(test) {
   const env = test.env;
   const expected = test.expected;
-
-  process.env = { ...originalEnv, ...env };
 
   const opts = {
     terminal: true,
@@ -49,14 +45,20 @@ function run(test) {
     output: new stream.Writable({ write() {} })
   };
 
-  REPL.createInternalRepl(opts, (repl) => {
-    debug(env);
-    const { terminal, useColors } = repl;
-    assert.deepStrictEqual({ terminal, useColors }, expected);
+  Object.assign(process.env, env);
+
+  REPL.createInternalRepl(process.env, opts, function(err, repl) {
+    assert.ifError(err);
+
+    assert.strictEqual(repl.terminal, expected.terminal,
+                       `Expected ${inspect(expected)} with ${inspect(env)}`);
+    assert.strictEqual(repl.useColors, expected.useColors,
+                       `Expected ${inspect(expected)} with ${inspect(env)}`);
+    for (const key of Object.keys(env)) {
+      delete process.env[key];
+    }
     repl.close();
-    if (tests.length)
-      run(tests.shift());
   });
 }
 
-run(tests.shift());
+tests.forEach(run);

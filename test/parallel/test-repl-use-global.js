@@ -14,19 +14,23 @@ const globalTestCases = [
   [undefined, 'undefined']
 ];
 
-const globalTest = (cb, output) => (repl) => {
+const globalTest = (useGlobal, cb, output) => (err, repl) => {
+  if (err)
+    return cb(err);
+
   let str = '';
   output.on('data', (data) => (str += data));
   global.lunch = 'tacos';
   repl.write('global.lunch;\n');
   repl.close();
   delete global.lunch;
-  cb(str.trim());
+  cb(null, str.trim());
 };
 
 // Test how the global object behaves in each state for useGlobal
 for (const [option, expected] of globalTestCases) {
-  runRepl(option, globalTest, common.mustCall((output) => {
+  runRepl(option, globalTest, common.mustCall((err, output) => {
+    assert.ifError(err);
     assert.strictEqual(output, expected);
   }));
 }
@@ -39,7 +43,10 @@ for (const [option, expected] of globalTestCases) {
 // suite is aware of it, causing a failure to be flagged.
 //
 const processTestCases = [false, undefined];
-const processTest = (cb, output) => (repl) => {
+const processTest = (useGlobal, cb, output) => (err, repl) => {
+  if (err)
+    return cb(err);
+
   let str = '';
   output.on('data', (data) => (str += data));
 
@@ -47,11 +54,12 @@ const processTest = (cb, output) => (repl) => {
   repl.write('let process;\n');
   repl.write('21 * 2;\n');
   repl.close();
-  cb(str.trim());
+  cb(null, str.trim());
 };
 
 for (const option of processTestCases) {
-  runRepl(option, processTest, common.mustCall((output) => {
+  runRepl(option, processTest, common.mustCall((err, output) => {
+    assert.ifError(err);
     assert.strictEqual(output, 'undefined\n42');
   }));
 }
@@ -68,5 +76,8 @@ function runRepl(useGlobal, testFunc, cb) {
     prompt: ''
   };
 
-  repl.createInternalRepl(opts, testFunc(cb, opts.output));
+  repl.createInternalRepl(
+    process.env,
+    opts,
+    testFunc(useGlobal, cb, opts.output));
 }
