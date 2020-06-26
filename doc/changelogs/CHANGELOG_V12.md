@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#12.18.2">12.18.2</a><br/>
 <a href="#12.18.1">12.18.1</a><br/>
 <a href="#12.18.0">12.18.0</a><br/>
 <a href="#12.17.0">12.17.0</a><br/>
@@ -61,6 +62,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="12.18.2"></a>
+## 2020-06-30, Version 12.18.2 'Erbium' (LTS), @BethGriggs
+
+### Notable changes
+
+* **deps**: V8: backport fb26d0bb1835 (Matheus Marchini) [#33573](https://github.com/nodejs/node/pull/33573)
+  * Fixes memory leak in `PrototypeUsers::Add`
+* **src**: use symbol to store `AsyncWrap` resource (Anna Henningsen) [#31745](https://github.com/nodejs/node/pull/31745)
+  * Fixes reported memory leak in [#33468](https://github.com/nodejs/node/issues/33468)
+
+### Commits
+
+* [[`97a3f7b702`](https://github.com/nodejs/node/commit/97a3f7b702)] - **deps**: V8: backport fb26d0bb1835 (Matheus Marchini) [#33573](https://github.com/nodejs/node/pull/33573)
+* [[`30b0339061`](https://github.com/nodejs/node/commit/30b0339061)] - **src**: use symbol to store `AsyncWrap` resource (Anna Henningsen) [#31745](https://github.com/nodejs/node/pull/31745)
 
 <a id="12.18.1"></a>
 ## 2020-06-17, Version 12.18.1 'Erbium' (LTS), @codebytere
