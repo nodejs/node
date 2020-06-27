@@ -55,7 +55,6 @@ void QuicSetCallbacks(const FunctionCallbackInfo<Value>& args) {
   } while (0)
 
   SETFUNCTION("onSocketClose", socket_close);
-  SETFUNCTION("onSocketError", socket_error);
   SETFUNCTION("onSessionReady", session_ready);
   SETFUNCTION("onSessionCert", session_cert);
   SETFUNCTION("onSessionClientHello", session_client_hello);
