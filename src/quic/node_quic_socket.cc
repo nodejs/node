@@ -137,7 +137,7 @@ void JSQuicSocketListener::OnError(ssize_t code) {
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
   Local<Value> arg = Number::New(env->isolate(), static_cast<double>(code));
-  socket()->MakeCallback(env->quic_on_socket_error_function(), 1, &arg);
+  socket()->MakeCallback(env->quic_on_socket_close_function(), 1, &arg);
 }
 
 void JSQuicSocketListener::OnSessionReady(BaseObjectPtr<QuicSession> session) {
