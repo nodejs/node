@@ -1290,6 +1290,10 @@ The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 ## `util.types`
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34055
+    description: Exposed as `require('util/types')`.
 -->
 
 `util.types` provides type checks for different kinds of built-in objects.
@@ -1300,6 +1304,8 @@ their prototype), and usually have the overhead of calling into C++.
 The result generally does not make any guarantees about what kinds of
 properties or behavior a value exposes in JavaScript. They are primarily
 useful for addon developers who prefer to do type checking in JavaScript.
+
+The API is accessible via `require('util').types` or `require('util/types')`.
 
 ### `util.types.isAnyArrayBuffer(value)`
 <!-- YAML
