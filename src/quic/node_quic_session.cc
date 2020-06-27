@@ -2896,8 +2896,8 @@ int QuicSession::OnReceiveCryptoData(
   if (UNLIKELY(session->is_destroyed()))
     return NGTCP2_ERR_CALLBACK_FAILURE;
   QuicSession::Ngtcp2CallbackScope callback_scope(session);
-  return static_cast<int>(
-    session->crypto_context()->Receive(crypto_level, offset, data, datalen));
+  return session->crypto_context()->Receive(
+      crypto_level, offset, data, datalen);
 }
 
 // Called by ngtcp2 for both client and server connections
