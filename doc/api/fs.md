@@ -888,7 +888,7 @@ The numeric group identifier of the group that owns the file (POSIX).
 
 * {number|bigint}
 
-A numeric device identifier if the file is considered "special".
+A numeric device identifier if the file represents a device.
 
 ### `stats.size`
 
