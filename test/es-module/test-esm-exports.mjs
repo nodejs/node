@@ -1,4 +1,3 @@
-// Flags: --experimental-modules
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
 
@@ -119,7 +118,8 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   for (const [specifier, subpath] of invalidSpecifiers) {
     loadFixture(specifier).catch(mustCall((err) => {
       strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
-      assertStartsWith(err.message, 'Package subpath ');
+      assertStartsWith(err.message, 'Invalid module ');
+      assertIncludes(err.message, 'is not a valid subpath');
       assertIncludes(err.message, subpath);
     }));
   }
@@ -162,7 +162,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   // The use of %2F escapes in paths fails loading
   loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_FILE_URL_PATH');
+    strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
   }));
 
   // Package export with numeric index properties must throw a validation error
