@@ -113,7 +113,7 @@ http.get({
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33278
     description: Add `scheduling` option to specify the free socket
                  scheduling strategy.
@@ -304,7 +304,7 @@ can have open per origin. Origin is the returned value of [`agent.getName()`][].
 
 ### `agent.maxTotalSockets`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * {number}
@@ -660,7 +660,7 @@ is finished.
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/32789
     description: The function returns `this` for consistency with other Readable
                  streams.
@@ -765,14 +765,14 @@ added: v0.1.97
 
 ### `request.host`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * {string} The request host.
 
 ### `request.protocol`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * {string} The request protocol.
@@ -1917,7 +1917,7 @@ const req = http.request({
 <!-- YAML
 added: v0.3.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/32789
     description: The function returns `this` for consistency with other Readable
                  streams.

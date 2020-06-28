@@ -1412,7 +1412,7 @@ and will throw an error.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicity setting date headers.
 -->
@@ -1459,7 +1459,7 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicity setting date headers.
   - version: v12.12.0
@@ -1560,7 +1560,7 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicity setting date headers.
   - version: v10.0.0

@@ -488,7 +488,7 @@ These advanced options are available for controlling decompression:
 <!-- YAML
 added: v0.11.1
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33516
     description: The `maxOutputLength` option is supported now.
   - version: v9.4.0
@@ -529,7 +529,7 @@ information.
 <!-- YAML
 added: v11.7.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33516
     description: The `maxOutputLength` option is supported now.
 -->

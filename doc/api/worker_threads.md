@@ -84,7 +84,7 @@ if (isMainThread) {
 
 ## `worker.markAsUntransferable(object)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 Mark an object as not transferable. If `object` occurs in the transfer list of
@@ -343,7 +343,7 @@ to `postMessage()` and no further arguments.
 
 ### Event: `'messageerror'`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `error` {Error} An Error object
@@ -366,10 +366,10 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33360
     description: Added `KeyObject` to the list of cloneable types.
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33772
     description: Added `FileHandle` to the list of transferable types.
 -->
@@ -736,7 +736,7 @@ All messages sent from the worker thread will be emitted before the
 
 ### Event: `'messageerror'`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `error` {Error} An Error object
