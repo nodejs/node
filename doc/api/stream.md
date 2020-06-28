@@ -50,7 +50,8 @@ Additionally, this module includes the utility functions
 
 The `stream/promises` API provides an alternative set of asynchronous utility
 functions for streams that return `Promise` objects rather than using
-callbacks. The API is accessible via `require('stream/promises')`.
+callbacks. The API is accessible via `require('stream/promises')`
+or `require('stream').promises`.
 
 ### Object mode
 

@@ -5,6 +5,7 @@ const stream = require('stream');
 const {
   Readable,
   Writable,
+  promises,
 } = stream;
 const {
   finished,
@@ -14,6 +15,8 @@ const fs = require('fs');
 const assert = require('assert');
 const { promisify } = require('util');
 
+assert.strictEqual(promises.pipeline, pipeline);
+assert.strictEqual(promises.finished, finished);
 assert.strictEqual(pipeline, promisify(stream.pipeline));
 assert.strictEqual(finished, promisify(stream.finished));
 
