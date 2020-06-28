@@ -1708,6 +1708,12 @@ A non-context-aware native addon was loaded in a process that disallows them.
 
 A given value is out of the accepted range.
 
+<a id="ERR_PACKAGE_IMPORT_NOT_DEFINED"></a>
+### `ERR_PACKAGE_IMPORT_NOT_DEFINED`
+
+The `package.json` ["imports" field][] does not define the given internal
+package specifier mapping.
+
 <a id="ERR_PACKAGE_PATH_NOT_EXPORTED"></a>
 ### `ERR_PACKAGE_PATH_NOT_EXPORTED`
 
@@ -2781,3 +2787,4 @@ such as `process.stdout.on('data')`.
 [vm]: vm.html
 [self-reference a package using its name]: esm.html#esm_self_referencing_a_package_using_its_name
 [define a custom subpath]: esm.html#esm_subpath_exports
+["imports" field]: esm.html#internal_package_imports
