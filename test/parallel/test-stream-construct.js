@@ -242,3 +242,14 @@ testDestroy((opts) => new Writable({
     construct: common.mustCall()
   });
 }
+
+{
+  // Readable paused
+  const readable = new Readable({
+    construct: common.mustCall((callback) => {
+      readable.pause();
+      callback();
+    }),
+    read: common.mustNotCall()
+  });
+}
