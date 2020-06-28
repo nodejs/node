@@ -1696,12 +1696,15 @@ changes:
   * `sessionTimeout` {number} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
     [Session Resumption][] for more information. **Default:** `300`.
-  * `SNICallback(servername, cb)` {Function} A function that will be called if
-    the client supports SNI TLS extension. Two arguments will be passed when
-    called: `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`,
-    where `ctx` is a `SecureContext` instance. (`tls.createSecureContext(...)`
-    can be used to get a proper `SecureContext`.) If `SNICallback` wasn't
-    provided the default callback with high-level API will be used (see below).
+  * `SNICallback(servername, callback)` {Function} A function that will be
+    called if the client supports SNI TLS extension. Two arguments will be
+    passed when called: `servername` and `callback`. `callback` is an
+    error-first callback that takes two optional arguments: `error` and `ctx`.
+    `ctx`, if provided, is a `SecureContext` instance.
+    [`tls.createSecureContext()`][] can be used to get a proper `SecureContext`.
+    If `callback` is called with a falsy `ctx` argument, the default secure
+    context of the server will be used. If `SNICallback` wasn't provided the
+    default callback with high-level API will be used (see below).
   * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
     data. See [Session Resumption][] for more information.
   * `pskCallback` {Function}
