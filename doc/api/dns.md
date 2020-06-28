@@ -96,7 +96,7 @@ The following methods from the `dns` module are available:
 <!-- YAML
 added: v8.3.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33472
     description: The constructor now accepts an `options` object.
                  The single supported option is `timeout`.

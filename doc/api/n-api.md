@@ -5304,7 +5304,7 @@ This API may be called from any thread which makes use of `func`.
 added: v10.6.0
 napiVersion: 4
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33453
     description: >
       Support for `napi_would_deadlock` has been reverted.

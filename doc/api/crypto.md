@@ -1216,7 +1216,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33360
     description: Instances of this class can now be passed to worker threads
                  using `postMessage`.

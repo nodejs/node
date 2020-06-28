@@ -2722,9 +2722,9 @@ native modules. It was incomplete so far and instead it's better to rely upon
 ### DEP0143: `module.parent`
 <!-- YAML
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/32217
-    description: Documentation-only deprecation.
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33126
+    description: Runtime deprecation.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])

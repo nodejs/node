@@ -1385,7 +1385,7 @@ Overriding this value to an empty string (`''`) will use the built-in REPL.
 
 ### `NODE_SKIP_PLATFORM_CHECK=value`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 If `value` equals `'1'`, the check for a supported platform is skipped during

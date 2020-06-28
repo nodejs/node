@@ -546,7 +546,7 @@ with REPL instances programmatically.
 
 ## `repl.builtinModules`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * {string[]}
