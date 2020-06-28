@@ -17,10 +17,10 @@ const stream = require('stream');
   }));
   writable.write('asd');
   writable.end(common.mustCall((err) => {
-    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
   writable.end(common.mustCall((err) => {
-    assert.strictEqual(err.message, 'kaboom');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
 }
 

@@ -57,7 +57,7 @@ for (const withPendingData of [ false, true ]) {
     w.destroy();
     assert.strictEqual(chunksWritten, 1);
     callbacks.shift()();
-    assert.strictEqual(chunksWritten, 2);
+    assert.strictEqual(chunksWritten, useEnd && !withPendingData ? 1 : 2);
     assert.strictEqual(callbacks.length, 0);
     assert.strictEqual(drains, 1);
 

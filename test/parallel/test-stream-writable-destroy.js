@@ -354,7 +354,7 @@ const assert = require('assert');
     assert.strictEqual(err.message, 'asd');
   }));
   write.end('asd', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'asd');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
   write.destroy(new Error('asd'));
 }
