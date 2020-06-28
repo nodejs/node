@@ -187,8 +187,6 @@ For information about the governance of the Node.js project, see
 **Matheus Marchini** &lt;mat@mmarchini.me&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
-* [sam-github](https://github.com/sam-github) -
-**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
@@ -226,6 +224,8 @@ For information about the governance of the Node.js project, see
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;r@va.gg&gt;
+* [sam-github](https://github.com/sam-github) -
+**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
@@ -391,8 +391,6 @@ For information about the governance of the Node.js project, see
 **Ujjwal Sharma** &lt;ryzokuken@disroot.org&gt; (he/him)
 * [saghul](https://github.com/saghul) -
 **Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
-* [sam-github](https://github.com/sam-github) -
-**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [santigimeno](https://github.com/santigimeno) -
 **Santiago Gimeno** &lt;santiago.gimeno@gmail.com&gt;
 * [sebdeckers](https://github.com/sebdeckers) -
@@ -530,6 +528,8 @@ For information about the governance of the Node.js project, see
 **Roman Klauke** &lt;romaaan.git@gmail.com&gt;
 * [RReverser](https://github.com/RReverser) -
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
+* [sam-github](https://github.com/sam-github) -
+**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [stefanmb](https://github.com/stefanmb) -
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [tellnes](https://github.com/tellnes) -
