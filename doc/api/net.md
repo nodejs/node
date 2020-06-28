@@ -529,7 +529,11 @@ socket as reported by the operating system:
 ### `socket.bufferSize`
 <!-- YAML
 added: v0.3.8
+deprecated:
+  - REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`writable.writableLength`][] instead.
 
 * {integer}
 
@@ -1268,6 +1272,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
+[`writable.writableLength`]: stream.html#stream_writable_writablelength
 [`writable.destroyed`]: stream.html#stream_writable_destroyed
 [`writable.destroy()`]: stream.html#stream_writable_destroy_error
 [`writable.end()`]: stream.html#stream_writable_end_chunk_encoding_callback
