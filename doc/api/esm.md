@@ -538,6 +538,43 @@ and in a CommonJS one. For example, this code will also work:
 const { something } = require('a-package/foo'); // Loads from ./foo.js.
 ```
 
+### Internal package imports
+
+In addition to the `"exports"` field it is possible to define internal package
+import maps that only apply to import specifiers from within the package itself.
+
+Entries in the imports field must always start with `#` to ensure they are
+clearly disambiguated from package specifiers.
+
+For example, the imports field can be used to gain the benefits of conditional
+exports for internal modules:
+
+```json
+// package.json
+{
+  "imports": {
+    "#dep": {
+      "node": "dep-node-native",
+      "default": "./dep-polyfill.js"
+    }
+  },
+  "dependencies": {
+    "dep-node-native": "^1.0.0"
+  }
+}
+```
+
+where `import '#dep'` would now get the resolution of the external package
+`dep-node-native` (including its exports in turn), and instead get the local
+file `./dep-polyfill.js` relative to the package in other environments.
+
+Unlike the exports field, import maps permit mapping to external packages
+because this provides an important use case for conditional loading and also can
+be done without the risk of cycles, unlike for exports.
+
+Apart from the above, the resolution rules for the imports field are otherwise
+analogous to the exports field.
+
 ### Dual CommonJS/ES module packages
 
 Prior to the introduction of support for ES modules in Node.js, it was a common
@@ -1552,10 +1589,11 @@ The resolver can throw the following errors:
   or package subpath specifier.
 * _Invalid Package Configuration_: package.json configuration is invalid or
   contains an invalid configuration.
-* _Invalid Package Target_: Package exports define a target module within the
-  package that is an invalid type or string target.
+* _Invalid Package Target_: Package exports or imports define a target module
+  for the package that is an invalid type or string target.
 * _Package Path Not Exported_: Package exports do not define or permit a target
   subpath in the package for the given module.
+* _Package Import Not Defined_: Package imports do not define the specifier.
 * _Module Not Found_: The package or module requested does not exist.
 
 <details>
@@ -1567,11 +1605,14 @@ The resolver can throw the following errors:
 > 1. If _specifier_ is a valid URL, then
 >    1. Set _resolvedURL_ to the result of parsing and reserializing
 >       _specifier_ as a URL.
-> 1. Otherwise, if _specifier_ starts with _"/"_, then
->    1. Throw an _Invalid Module Specifier_ error.
-> 1. Otherwise, if _specifier_ starts with _"./"_ or _"../"_, then
+> 1. Otherwise, if _specifier_ starts with _"/"_, _"./"_ or _"../"_, then
 >    1. Set _resolvedURL_ to the URL resolution of _specifier_ relative to
 >       _parentURL_.
+> 1. Otherwise, if _specifier_ starts with _"#"_, then
+>    1. Set _resolvedURL_ to the result of
+>       **PACKAGE_INTERNAL_RESOLVE**(_specifier_, _parentURL_).
+>    1. If _resolvedURL_ is **null** or **undefined**, throw a
+>       _Package Import Not Defined_ error.
 > 1. Otherwise,
 >    1. Note: _specifier_ is now a bare specifier.
 >    1. Set _resolvedURL_ the result of
@@ -1609,7 +1650,7 @@ The resolver can throw the following errors:
 > 1. If _packageSubpath_ contains any _"."_ or _".."_ segments or percent
 >    encoded strings for _"/"_ or _"\\"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
-> 1. Set _selfUrl_ to the result of
+> 1. Let _selfUrl_ be the result of
 >    **SELF_REFERENCE_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
 > 1. If _selfUrl_ isn't empty, return _selfUrl_.
 > 1. If _packageSubpath_ is _undefined_ and _packageName_ is a Node.js builtin
@@ -1632,8 +1673,11 @@ The resolver can throw the following errors:
 >       1. If _pjson_ is not **null** and _pjson_ has an _"exports"_ key, then
 >          1. Let _exports_ be _pjson.exports_.
 >          1. If _exports_ is not **null** or **undefined**, then
->             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_,
->                _packageSubpath_, _pjson.exports_).
+>             1. Let _resolved_ be the result of  **PACKAGE_EXPORTS_RESOLVE**(
+>                _packageURL_, _packageSubpath_, _pjson.exports_).
+>             1. If _resolved_ is **null** or **undefined**, throw a
+>                _Package Path Not Exported_ error.
+>             1. Return _resolved_.
 >       1. Return the URL resolution of _packageSubpath_ in _packageURL_.
 > 1. Throw a _Module Not Found_ error.
 
@@ -1654,8 +1698,11 @@ The resolver can throw the following errors:
 >       1. If _pjson_ is not **null** and _pjson_ has an _"exports"_ key, then
 >          1. Let _exports_ be _pjson.exports_.
 >          1. If _exports_ is not **null** or **undefined**, then
->             1. Return **PACKAGE_EXPORTS_RESOLVE**(_packageURL_, _subpath_,
->                _pjson.exports_).
+>             1. Let _resolved_ be the result of **PACKAGE_EXPORTS_RESOLVE**(
+>                _packageURL_, _subpath_, _pjson.exports_).
+>             1. If _resolved_ is **null** or **undefined**, throw a
+>                _Package Path Not Exported_ error.
+>             1. Return _resolved_.
 >       1. Return the URL resolution of _subpath_ in _packageURL_.
 > 1. Otherwise, return **undefined**.
 
@@ -1668,12 +1715,18 @@ The resolver can throw the following errors:
 >       not starting with _"."_, throw an _Invalid Package Configuration_ error.
 >    1. If _pjson.exports_ is a String or Array, or an Object containing no
 >       keys starting with _"."_, then
->       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
->          _pjson.exports_, _""_).
+>       1. Let _resolved_ be the result of  **PACKAGE_TARGET_RESOLVE**(
+>          _packageURL_, _pjson.exports_, _""_, **false**, _defaultEnv_).
+>       1. If _resolved_ is **null** or **undefined**, throw a
+>          _Package Path Not Exported_ error.
+>       1. Return _resolved_.
 >    1. If _pjson.exports_ is an Object containing a _"."_ property, then
 >       1. Let _mainExport_ be the _"."_ property in _pjson.exports_.
->       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
->          _mainExport_, _""_).
+>       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
+>          _packageURL_, _mainExport_, _""_, **false**, _defaultEnv_).
+>       1. If _resolved_ is **null** or **undefined**, throw a
+>          _Package Path Not Exported_ error.
+>       1. Return _resolved_.
 >    1. Throw a _Package Path Not Exported_ error.
 > 1. Let _legacyMainURL_ be the result applying the legacy
 >    **LOAD_AS_DIRECTORY** CommonJS resolver to _packageURL_, throwing a
@@ -1687,8 +1740,8 @@ The resolver can throw the following errors:
 >    1. Set _packagePath_ to _"./"_ concatenated with _packagePath_.
 >    1. If _packagePath_ is a key of _exports_, then
 >       1. Let _target_ be the value of _exports\[packagePath\]_.
->       1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
->          _""_, _defaultEnv_).
+>       1. Return **PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_,
+>          _""_, **false**, _defaultEnv_).
 >    1. Let _directoryKeys_ be the list of keys of _exports_ ending in
 >       _"/"_, sorted by length descending.
 >    1. For each key _directory_ in _directoryKeys_, do
@@ -1696,22 +1749,28 @@ The resolver can throw the following errors:
 >          1. Let _target_ be the value of _exports\[directory\]_.
 >          1. Let _subpath_ be the substring of _target_ starting at the index
 >             of the length of _directory_.
->          1. Return **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_,
->             _subpath_, _defaultEnv_).
-> 1. Throw a _Package Path Not Exported_ error.
+>          1. Return **PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_,
+>             _subpath_, **false**, _defaultEnv_).
+> 1. Return **null**.
 
-**PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _env_)
+**PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _internal_, _env_)
 
 > 1. If _target_ is a String, then
->    1. If _target_ does not start with _"./"_ or contains any _"node_modules"_
->       segments including _"node_modules"_ percent-encoding, throw an
->       _Invalid Package Target_ error.
+>    1. If _target_ contains any _"node_modules"_ segments including
+>       _"node_modules"_ percent-encoding, throw an _Invalid Package Target_
+>       error.
+>    1. If _subpath_ has non-zero length and _target_ does not end with _"/"_,
+>       throw an _Invalid Module Specifier_ error.
+>    1. If _target_ does not start with _"./"_, then
+>       1. If _target_ does not start with _"../"_ or _"/"_ and is not a valid
+>          URL, then
+>          1. If _internal_ is **true**, return **PACKAGE_RESOLVE**(
+>             _target_ + _subpath_, _packageURL_ + _"/"_)_.
+>       1. Otherwise throw an _Invalid Package Target_ error.
 >    1. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
 >    1. If _resolvedTarget_ is not contained in _packageURL_, throw an
 >       _Invalid Package Target_ error.
->    1. If _subpath_ has non-zero length and _target_ does not end with _"/"_,
->       throw an _Invalid Module Specifier_ error.
 >    1. Let _resolved_ be the URL resolution of the concatenation of
 >       _subpath_ and _resolvedTarget_.
 >    1. If _resolved_ is not contained in _resolvedTarget_, throw an
@@ -1723,21 +1782,47 @@ The resolver can throw the following errors:
 >    1. For each property _p_ of _target_, in object insertion order as,
 >       1. If _p_ equals _"default"_ or _env_ contains an entry for _p_, then
 >          1. Let _targetValue_ be the value of the _p_ property in _target_.
->          1. Return the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**(
->             _packageURL_, _targetValue_, _subpath_, _env_), continuing the
->             loop on any _Package Path Not Exported_ error.
->    1. Throw a _Package Path Not Exported_ error.
+>          1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
+>             _packageURL_, _targetValue_, _subpath_, _internal_, _env_)
+>          1. If _resolved_ is equal to **undefined**, continue the loop.
+>          1. Return _resolved_.
+>    1. Return **undefined**.
 > 1. Otherwise, if _target_ is an Array, then
->    1. If _target.length is zero, throw a _Package Path Not Exported_ error.
+>    1. If _target.length is zero, return **null**.
 >    1. For each item _targetValue_ in _target_, do
->       1. If _targetValue_ is an Array, continue the loop.
->       1. Return the result of **PACKAGE_EXPORTS_TARGET_RESOLVE**(_packageURL_,
->          _targetValue_, _subpath_, _env_), continuing the loop on any
->          _Package Path Not Exported_ or _Invalid Package Target_ error.
->    1. Throw the last fallback resolution error.
-> 1. Otherwise, if _target_ is _null_, throw a _Package Path Not Exported_
->    error.
+>       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
+>          _packageURL_, _targetValue_, _subpath_, _internal_, _env_),
+>          continuing the loop on any _Invalid Package Target_ error.
+>       1. If _resolved_ is **undefined**, continue the loop.
+>       1. Return _resolved_.
+>    1. Return or throw the last fallback resolution **null** return or error.
+> 1. Otherwise, if _target_ is _null_, return **null**.
 > 1. Otherwise throw an _Invalid Package Target_ error.
+
+**PACKAGE_INTERNAL_RESOLVE**(_specifier_, _parentURL_)
+
+> 1. Assert: _specifier_ begins with _"#"_.
+> 1. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
+>    1. Throw an _Invalid Module Specifier_ error.
+> 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
+> 1. If _packageURL_ is not **null**, then
+>    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
+>    1. If _pjson.imports is a non-null Object, then
+>       1. Let _imports_ be _pjson.imports_.
+>       1. If _specifier_ is a key of _imports_, then
+>          1. Let _target_ be the value of _imports\[specifier\]_.
+>          1. Return **PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_,
+>             _""_, **true**, _defaultEnv_).
+>       1. Let _directoryKeys_ be the list of keys of _imports_ ending in
+>          _"/"_, sorted by length descending.
+>       1. For each key _directory_ in _directoryKeys_, do
+>          1. If _specifier_ starts with _directory_, then
+>             1. Let _target_ be the value of _imports\[directory\]_.
+>             1. Let _subpath_ be the substring of _target_ starting at the
+>                index of the length of _directory_.
+>             1. Return **PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_,
+>                _subpath_, **true**, _defaultEnv_).
+> 1. Return **null**.
 
 **ESM_FORMAT**(_url_)
 

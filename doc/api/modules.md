@@ -160,7 +160,9 @@ require(X) from module at path Y
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
    c. THROW "not found"
-4. LOAD_SELF_REFERENCE(X, dirname(Y))
+4. If X begins with '#'
+   a. LOAD_INTERAL_IMPORT(X, Y)
+4. LOAD_SELF_REFERENCE(X, Y)
 5. LOAD_NODE_MODULES(X, dirname(Y))
 6. THROW "not found"
 
@@ -236,6 +238,15 @@ LOAD_PACKAGE_EXPORTS(DIR, X)
 12. Otherwise
    a. If RESOLVED is a file, load it as its file extension format. STOP
 13. Throw "not found"
+
+LOAD_INTERNAL_IMPORT(X, START)
+1. Find the closest package scope to START.
+2. If no scope was found or the `package.json` has no "imports", return.
+3. let RESOLVED =
+  fileURLToPath(PACKAGE_INTERNAL_RESOLVE(X, pathToFileURL(START)), as defined
+  in the ESM resolver.
+4. If RESOLVED is not a valid file, throw "not found"
+5. Load RESOLVED as its file extension format. STOP
 ```
 
 ## Caching
