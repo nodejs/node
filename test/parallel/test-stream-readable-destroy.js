@@ -134,13 +134,13 @@ const assert = require('assert');
   read.on('error', common.mustCall((err) => {
     assert.strictEqual(ticked, true);
     assert.strictEqual(read._readableState.errorEmitted, true);
-    assert.strictEqual(read._readableState.errored, true);
+    assert.strictEqual(read._readableState.errored, expected);
     assert.strictEqual(err, expected);
   }));
 
   read.destroy();
   assert.strictEqual(read._readableState.errorEmitted, false);
-  assert.strictEqual(read._readableState.errored, true);
+  assert.strictEqual(read._readableState.errored, expected);
   assert.strictEqual(read.destroyed, true);
   ticked = true;
 }
@@ -190,15 +190,15 @@ const assert = require('assert');
     assert.strictEqual(err, expected);
   }));
 
-  assert.strictEqual(read._readableState.errored, false);
+  assert.strictEqual(read._readableState.errored, null);
   assert.strictEqual(read._readableState.errorEmitted, false);
 
   read.destroy(expected, common.mustCall(function(err) {
-    assert.strictEqual(read._readableState.errored, true);
+    assert.strictEqual(read._readableState.errored, expected);
     assert.strictEqual(err, expected);
   }));
   assert.strictEqual(read._readableState.errorEmitted, false);
-  assert.strictEqual(read._readableState.errored, true);
+  assert.strictEqual(read._readableState.errored, expected);
   ticked = true;
 }
 
@@ -223,14 +223,14 @@ const assert = require('assert');
 
   readable.destroy();
   assert.strictEqual(readable.destroyed, true);
-  assert.strictEqual(readable._readableState.errored, false);
+  assert.strictEqual(readable._readableState.errored, null);
   assert.strictEqual(readable._readableState.errorEmitted, false);
 
   // Test case where `readable.destroy()` is called again with an error before
   // the `_destroy()` callback is called.
   readable.destroy(new Error('kaboom 2'));
   assert.strictEqual(readable._readableState.errorEmitted, false);
-  assert.strictEqual(readable._readableState.errored, false);
+  assert.strictEqual(readable._readableState.errored, null);
 
   ticked = true;
 }
@@ -252,4 +252,19 @@ const assert = require('assert');
   read.destroy();
   assert.strictEqual(read.destroyed, true);
   read.read();
+}
+
+{
+  const read = new Readable({
+    autoDestroy: false,
+    read() {
+      this.push(null);
+      this.push('asd');
+    }
+  });
+
+  read.on('error', common.mustCall(() => {
+    assert(read._readableState.errored);
+  }));
+  read.resume();
 }
