@@ -2699,7 +2699,7 @@ native modules. It was incomplete so far and instead it's better to rely upon
 ### DEP0143: `Transform._transformState`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33126
     description: Runtime deprecation.
 -->

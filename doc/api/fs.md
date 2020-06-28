@@ -2394,7 +2394,7 @@ Synchronous lchown(2). Returns `undefined`.
 
 ## `fs.lutimes(path, atime, mtime, callback)`
 <!-- YAML
-addded: REPLACEME
+addded: v14.5.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -2413,7 +2413,7 @@ callback.
 
 ## `fs.lutimesSync(path, atime, mtime)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `path` {string|Buffer|URL}
@@ -5045,7 +5045,7 @@ no arguments upon success.
 
 ### `fsPromises.lutimes(path, atime, mtime)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `path` {string|Buffer|URL}

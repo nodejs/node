@@ -937,7 +937,7 @@ composed of the emitted event arguments.
 
 ## `EventTarget` and `Event` API
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -1054,7 +1054,7 @@ The `EventTarget` does not implement any special default handling for
 
 ### Class: `Event`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 The `Event` object is an adaptation of the [`Event` Web API][]. Instances
@@ -1062,7 +1062,7 @@ are created internally by Node.js.
 
 #### `event.bubbles`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {boolean} Always returns `false`.
@@ -1071,7 +1071,7 @@ This is not used in Node.js and is provided purely for completeness.
 
 #### `event.cancelBubble()`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 Alias for `event.stopPropagation()`. This is not used in Node.js and is
@@ -1079,14 +1079,14 @@ provided purely for completeness.
 
 #### `event.cancelable`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {boolean} True if the event was created with the `cancelable` option.
 
 #### `event.composed`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {boolean} Always returns `false`.
@@ -1095,7 +1095,7 @@ This is not used in Node.js and is provided purely for completeness.
 
 #### `event.composedPath()`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 Returns an array containing the current `EventTarget` as the only entry or
@@ -1104,7 +1104,7 @@ Node.js and is provided purely for completeness.
 
 #### `event.currentTarget`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {EventTarget} The `EventTarget` dispatching the event.
@@ -1113,7 +1113,7 @@ Alias for `event.target`.
 
 #### `event.defaultPrevented`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {boolean}
@@ -1123,7 +1123,7 @@ called.
 
 #### `event.eventPhase`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {number} Returns `0` while an event is not being dispatched, `2` while
@@ -1133,7 +1133,7 @@ This is not used in Node.js and is provided purely for completeness.
 
 #### `event.isTrusted`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {boolean} Always returns `false`.
@@ -1142,14 +1142,14 @@ This is not used in Node.js and is provided purely for completeness.
 
 #### `event.preventDefault()`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 Sets the `defaultPrevented` property to `true` if `cancelable` is `true`.
 
 #### `event.returnValue`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {boolean} True if the event has not been canceled.
@@ -1158,7 +1158,7 @@ This is not used in Node.js and is provided purely for completeness.
 
 #### `event.srcElement`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {EventTarget} The `EventTarget` dispatching the event.
@@ -1167,28 +1167,28 @@ Alias for `event.target`.
 
 #### `event.stopImmediatePropagation()`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 Stops the invocation of event listeners after the current one completes.
 
 #### `event.stopPropagation()`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 This is not used in Node.js and is provided purely for completeness.
 
 #### `event.target`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {EventTarget} The `EventTarget` dispatching the event.
 
 #### `event.timeStamp`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {number}
@@ -1197,7 +1197,7 @@ The millisecond timestamp when the `Event` object was created.
 
 #### `event.type`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Type: {string}
@@ -1206,12 +1206,12 @@ The event type identifier.
 
 ### Class: `EventTarget`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 #### `eventTarget.addEventListener(type, listener[, options])`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1253,7 +1253,7 @@ target.removeEventListener('foo', handler, { capture: true });
 
 #### `eventTarget.dispatchEvent(event)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `event` {Object|Event}
@@ -1267,7 +1267,7 @@ were registered.
 
 #### `eventTarget.removeEventListener(type, listener)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1279,7 +1279,7 @@ Removes the `listener` from the list of handlers for event `type`.
 
 ### Class: `NodeEventTarget extends EventTarget`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 The `NodeEventTarget` is a Node.js-specific extension to `EventTarget`
@@ -1287,7 +1287,7 @@ that emulates a subset of the `EventEmitter` API.
 
 #### `nodeEventTarget.addListener(type, listener[, options])`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1304,7 +1304,7 @@ equivalent `EventEmitter` API. The only difference between `addListener()` and
 
 #### `nodeEventTarget.eventNames()`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * Returns: {string[]}
@@ -1314,7 +1314,7 @@ of event `type` names for which event listeners are registered.
 
 #### `nodeEventTarget.listenerCount(type)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1326,7 +1326,7 @@ of event listeners registered for the `type`.
 
 #### `nodeEventTarget.off(type, listener)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1338,7 +1338,7 @@ Node.js-speciic alias for `eventTarget.removeListener()`.
 
 #### `nodeEventTarget.on(type, listener[, options])`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1352,7 +1352,7 @@ Node.js-specific alias for `eventTarget.addListener()`.
 
 #### `nodeEventTarget.once(type, listener[, options])`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1367,7 +1367,7 @@ with the `once` option set to `true`.
 
 #### `nodeEventTarget.removeAllListeners([type])`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
@@ -1378,7 +1378,7 @@ listeners.
 
 #### `nodeEventTarget.removeListener(type, listener)`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * `type` {string}
