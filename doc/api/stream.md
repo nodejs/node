@@ -46,6 +46,12 @@ Additionally, this module includes the utility functions
 [`stream.pipeline()`][], [`stream.finished()`][] and
 [`stream.Readable.from()`][].
 
+### Streams Promises API
+
+The `stream/promises` API provides an alternative set of asynchronous utility
+functions for streams that return `Promise` objects rather than using
+callbacks. The API is accessible via `require('stream/promises')`.
+
 ### Object mode
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
@@ -1563,10 +1569,10 @@ Especially useful in error handling scenarios where a stream is destroyed
 prematurely (like an aborted HTTP request), and will not emit `'end'`
 or `'finish'`.
 
-The `finished` API is promisify-able as well;
+The `finished` API provides promise version:
 
 ```js
-const finished = util.promisify(stream.finished);
+const { finished } = require('stream/promises');
 
 const rs = fs.createReadStream('archive.tar');
 
@@ -1648,10 +1654,10 @@ pipeline(
 );
 ```
 
-The `pipeline` API is promisify-able as well:
+The `pipeline` API provides promise version:
 
 ```js
-const pipeline = util.promisify(stream.pipeline);
+const { pipeline } = require('stream/promises');
 
 async function run() {
   await pipeline(
@@ -1668,7 +1674,7 @@ run().catch(console.error);
 The `pipeline` API also supports async generators:
 
 ```js
-const pipeline = util.promisify(stream.pipeline);
+const { pipeline } = require('stream/promises');
 const fs = require('fs');
 
 async function run() {
@@ -2892,8 +2898,7 @@ the handling of backpressure and backpressure-related errors:
 
 ```js
 const { pipeline } = require('stream');
-const util = require('util');
-const fs = require('fs');
+const { pipeline: pipelinePromise } = require('stream/promises');
 
 const writable = fs.createWriteStream('./file');
 
@@ -2907,7 +2912,6 @@ pipeline(iterator, writable, (err, value) => {
 });
 
 // Promise Pattern
-const pipelinePromise = util.promisify(pipeline);
 pipelinePromise(iterator, writable)
   .then((value) => {
     console.log(value, 'value returned');
