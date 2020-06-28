@@ -5841,10 +5841,10 @@ are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by `CreateFileW`.
 
-The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that path is newly
-created. On POSIX systems, path is considered to exist even if it is a symlink
-to a non-existent file. The exclusive flag may or may not work with network
-file systems.
+The exclusive flag `'x'` (`O_EXCL` flag in open(2)) causes the operation to
+return an error if the path already exists. On POSIX, if the path is a symbolic
+link, using `O_EXCL` returns an error even if the link is to a path that does
+not exist. The exclusive flag may or may not work with network file systems.
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
