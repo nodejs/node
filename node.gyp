@@ -78,6 +78,7 @@
       'lib/readline.js',
       'lib/repl.js',
       'lib/stream.js',
+      'lib/stream/promises.js',
       'lib/_stream_readable.js',
       'lib/_stream_writable.js',
       'lib/_stream_duplex.js',
