@@ -1761,7 +1761,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {Object}
@@ -1791,7 +1791,7 @@ added: v11.12.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1810,7 +1810,7 @@ added: v11.12.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1829,7 +1829,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * `err` {Error} A custom error used for reporting the JavaScript stack.
@@ -1872,7 +1872,7 @@ added: v11.12.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {boolean}
@@ -1890,7 +1890,7 @@ added: v11.12.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {boolean}
@@ -1907,7 +1907,7 @@ added: v11.12.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1925,7 +1925,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * `filename` {string} Name of the file where the report is written. This
