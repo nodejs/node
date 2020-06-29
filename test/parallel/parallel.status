@@ -65,3 +65,13 @@ test-cluster-shared-leak: SKIP
 test-http-writable-true-after-close: SKIP
 test-http2-connect-method: SKIP
 test-net-error-twice: SKIP
+# https://github.com/libuv/libuv/pull/2782
+test-net-allow-half-open: SKIP
+test-net-keepalive: SKIP
+test-net-persistent-keepalive: SKIP
+test-net-socket-close-after-end: SKIP
+test-net-socket-connect-without-cb: SKIP
+test-net-socket-connecting: SKIP
+test-net-socket-ready-without-cb: SKIP
+test-net-write-after-end-nt: SKIP
+test-tls-env-extra-ca: SKIP
