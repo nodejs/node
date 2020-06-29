@@ -715,8 +715,8 @@ instance, when the `readable.resume()` method is called without a listener
 attached to the `'data'` event, or when a `'data'` event handler is removed
 from the stream.
 
-Adding a [`'readable'`][] event handler automatically make the stream to
-stop flowing, and the data to be consumed via
+Adding a [`'readable'`][] event handler automatically makes the stream
+stop flowing, and the data has to be consumed via
 [`readable.read()`][stream-read]. If the [`'readable'`][] event handler is
 removed, then the stream will start flowing again if there is a
 [`'data'`][] event handler.
