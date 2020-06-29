@@ -2054,7 +2054,7 @@ napi_status napi_create_external_buffer(napi_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] length`: Size in bytes of the input buffer (should be the same as the
   size of the new buffer).
-* `[in] data`: Raw pointer to the underlying buffer to copy from.
+* `[in] data`: Raw pointer to the underlying buffer to expose to JavaScript.
 * `[in] finalize_cb`: Optional callback to call when the `ArrayBuffer` is being
   collected. [`napi_finalize`][] provides more details.
 * `[in] finalize_hint`: Optional hint to pass to the finalize callback during
