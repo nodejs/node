@@ -1800,7 +1800,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {Object}
@@ -1834,7 +1834,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1855,7 +1855,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1876,7 +1876,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * `err` {Error} A custom error used for reporting the JavaScript stack.
@@ -1921,7 +1921,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {boolean}
@@ -1941,7 +1941,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {boolean}
@@ -1960,7 +1960,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1980,7 +1980,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * `filename` {string} Name of the file where the report is written. This
