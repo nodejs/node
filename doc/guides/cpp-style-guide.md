@@ -391,15 +391,15 @@ side effects.
 Node.js is built [without C++ exception handling][], so code using `throw` or
 even `try` and `catch` **will** break.
 
-[C++ Core Guidelines]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
+[C++ Core Guidelines]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines
 [Google C++ Style Guide]: https://google.github.io/styleguide/cppguide.html
 [Google’s `cpplint`]: https://github.com/google/styleguide
 [errors]: https://github.com/nodejs/node/blob/master/doc/guides/using-internal-errors.md
-[ES.47]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-nullptr
-[ES.48]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-casts
-[ES.49]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-casts-named
-[R.20]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-owner
-[R.21]: http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-unique
+[ES.47]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-nullptr
+[ES.48]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-casts
+[ES.49]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Res-casts-named
+[R.20]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-owner
+[R.21]: https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rr-unique
 [Run Time Type Information]: https://en.wikipedia.org/wiki/Run-time_type_information
 [cppref_auto_ptr]: https://en.cppreference.com/w/cpp/memory/auto_ptr
 [without C++ exception handling]: https://gcc.gnu.org/onlinedocs/libstdc++/manual/using_exceptions.html#intro.using.exception.no

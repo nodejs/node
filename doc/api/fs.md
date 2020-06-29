@@ -5933,7 +5933,7 @@ the file contents.
 [`fsPromises.open()`]: #fs_fspromises_open_path_flags_mode
 [`fsPromises.opendir()`]: #fs_fspromises_opendir_path_options
 [`fsPromises.utimes()`]: #fs_fspromises_utimes_path_atime_mtime
-[`inotify(7)`]: http://man7.org/linux/man-pages/man7/inotify.7.html
+[`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_options_callback

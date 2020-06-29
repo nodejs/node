@@ -2644,6 +2644,6 @@ cases:
 [process_warning]: #process_event_warning
 [report documentation]: report.html
 [terminal raw mode]: tty.html#tty_readstream_setrawmode_mode
-[uv_rusage_t]: http://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
+[uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
 [wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major

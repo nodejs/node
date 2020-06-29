@@ -2654,7 +2654,7 @@ closed.
 [`dgram.createSocket()`]: dgram.html#dgram_dgram_createsocket_options_callback
 [`dgram.disconnect()`]: dgram.html#dgram_socket_disconnect
 [`dgram.remoteAddress()`]: dgram.html#dgram_socket_remoteaddress
-[`errno`(3) man page]: http://man7.org/linux/man-pages/man3/errno.3.html
+[`errno`(3) man page]: https://man7.org/linux/man-pages/man3/errno.3.html
 [`fs.Dir`]: fs.html#fs_class_fs_dir
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_path_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
@@ -2666,7 +2666,7 @@ closed.
 [`hash.update()`]: crypto.html#crypto_hash_update_data_inputencoding
 [`http`]: http.html
 [`https`]: https.html
-[`libuv Error handling`]: http://docs.libuv.org/en/v1.x/errors.html
+[`libuv Error handling`]: https://docs.libuv.org/en/v1.x/errors.html
 [`net`]: net.html
 [`new URL(input)`]: url.html#url_new_url_input_base
 [`new URLSearchParams(iterable)`]: url.html#url_new_urlsearchparams_iterable
@@ -2702,7 +2702,7 @@ closed.
 [policy]: policy.html
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
 [stream-based]: stream.html
-[syscall]: http://man7.org/linux/man-pages/man2/syscalls.2.html
+[syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html

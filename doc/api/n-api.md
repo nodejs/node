@@ -5537,8 +5537,8 @@ This API may only be called from the main thread.
 [`napi_wrap`]: #n_api_napi_wrap
 [`node_api.h`]: https://github.com/nodejs/node/blob/master/src/node_api.h
 [`process.release`]: process.html#process_process_release
-[`uv_ref`]: http://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
-[`uv_unref`]: http://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
+[`uv_ref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_ref
+[`uv_unref`]: https://docs.libuv.org/en/v1.x/handle.html#c.uv_unref
 [async_hooks `type`]: async_hooks.html#async_hooks_type
 [context-aware addons]: addons.html#addons_context_aware_addons
 [docs]: https://github.com/nodejs/node-addon-api#api-documentation
