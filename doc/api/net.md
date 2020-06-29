@@ -1259,7 +1259,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
-[`socket(7)`]: http://man7.org/linux/man-pages/man7/socket.7.html
+[`socket(7)`]: https://man7.org/linux/man-pages/man7/socket.7.html
 [`socket.connect()`]: #net_socket_connect
 [`socket.connect(options)`]: #net_socket_connect_options_connectlistener
 [`socket.connect(path)`]: #net_socket_connect_path_connectlistener

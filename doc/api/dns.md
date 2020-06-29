@@ -618,7 +618,7 @@ The [`dns.setServers()`][] method affects only [`dns.resolve()`][],
 [`dns.lookup()`][]).
 
 This method works much like
-[resolve.conf](http://man7.org/linux/man-pages/man5/resolv.conf.5.html).
+[resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
 `NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the
@@ -1082,7 +1082,7 @@ The `dnsPromises.setServers()` method must not be called while a DNS query is in
 progress.
 
 This method works much like
-[resolve.conf](http://man7.org/linux/man-pages/man5/resolv.conf.5.html).
+[resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
 `NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the
