@@ -3,12 +3,10 @@ name: Auto Start CI
 
 on:
   schedule:
-    # `schedule` event is used instead of `pull_request` because when a
-    # `pull_requesst` event is triggered on a PR from a fork, GITHUB_TOKEN will
-    # be read-only, and the Action won't have access to any other repository
-    # secrets, which it needs to access Jenkins API. Runs every five minutes
-    # (fastest the scheduler can run). Five minutes is optimistic, it can take
-    # longer to run.
+    # Runs every five minutes (fastest the scheduler can run). Five minutes is
+    # optimistic, it can take longer to run.
+    # To understand why `schedule` is used instead of other events, refer to
+    # ./doc/guides/commit-queue.md
     - cron: "*/5 * * * *"
 
 jobs:
