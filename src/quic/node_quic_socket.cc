@@ -83,10 +83,10 @@ bool IsShortHeader(
 }
 }  // namespace
 
-QuicPacket::QuicPacket(const char* diagnostic_label, size_t len) :
-    data_{0},
-    len_(len),
-    diagnostic_label_(diagnostic_label) {
+QuicPacket::QuicPacket(const char* diagnostic_label, size_t len)
+    : data_{0},
+      len_(len),
+      diagnostic_label_(diagnostic_label) {
   CHECK_LE(len, MAX_PKTLEN);
 }
 
@@ -99,8 +99,6 @@ const char* QuicPacket::diagnostic_label() const {
   return diagnostic_label_ != nullptr ?
       diagnostic_label_ : "unspecified";
 }
-
-void QuicPacket::MemoryInfo(MemoryTracker* tracker) const {}
 
 QuicSocketListener::~QuicSocketListener() {
   if (socket_)
@@ -174,10 +172,10 @@ QuicEndpoint::QuicEndpoint(
     QuicState* quic_state,
     Local<Object> wrap,
     QuicSocket* listener,
-    Local<Object> udp_wrap) :
-    BaseObject(quic_state->env(), wrap),
-    listener_(listener),
-    quic_state_(quic_state) {
+    Local<Object> udp_wrap)
+    : BaseObject(quic_state->env(), wrap),
+      listener_(listener),
+      quic_state_(quic_state) {
   MakeWeak();
   udp_ = static_cast<UDPWrapBase*>(
       udp_wrap->GetAlignedPointerFromInternalField(
@@ -187,7 +185,9 @@ QuicEndpoint::QuicEndpoint(
   strong_ptr_.reset(udp_->GetAsyncWrap());
 }
 
-void QuicEndpoint::MemoryInfo(MemoryTracker* tracker) const {}
+QuicEndpoint::~QuicEndpoint() {
+  udp_->set_listener(nullptr);
+}
 
 uv_buf_t QuicEndpoint::OnAlloc(size_t suggested_size) {
   return AllocatedBuffer::AllocateManaged(env(), suggested_size).release();
@@ -229,6 +229,14 @@ void QuicEndpoint::OnAfterBind() {
   listener_->OnBind(this);
 }
 
+template <typename Fn>
+void QuicSocketStatsTraits::ToString(const QuicSocket& ptr, Fn&& add_field) {
+#define V(_n, name, label)                                                     \
+  add_field(label, ptr.GetStat(&QuicSocketStats::name));
+  SOCKET_STATS(V)
+#undef V
+}
+
 QuicSocket::QuicSocket(
     QuicState* quic_state,
     Local<Object> wrap,
@@ -240,17 +248,17 @@ QuicSocket::QuicSocket(
     QlogMode qlog,
     const uint8_t* session_reset_secret,
     bool disable_stateless_reset)
-  : AsyncWrap(quic_state->env(), wrap, AsyncWrap::PROVIDER_QUICSOCKET),
-    StatsBase(quic_state->env(), wrap),
-    alloc_info_(MakeAllocator()),
-    options_(options),
-    max_connections_(max_connections),
-    max_connections_per_host_(max_connections_per_host),
-    max_stateless_resets_per_host_(max_stateless_resets_per_host),
-    retry_token_expiration_(retry_token_expiration),
-    qlog_(qlog),
-    server_alpn_(NGHTTP3_ALPN_H3),
-    quic_state_(quic_state) {
+    : AsyncWrap(quic_state->env(), wrap, AsyncWrap::PROVIDER_QUICSOCKET),
+      StatsBase(quic_state->env(), wrap),
+      alloc_info_(MakeAllocator()),
+      options_(options),
+      max_connections_(max_connections),
+      max_connections_per_host_(max_connections_per_host),
+      max_stateless_resets_per_host_(max_stateless_resets_per_host),
+      retry_token_expiration_(retry_token_expiration),
+      qlog_(qlog),
+      server_alpn_(NGHTTP3_ALPN_H3),
+      quic_state_(quic_state) {
   MakeWeak();
   PushListener(&default_listener_);
 
@@ -279,15 +287,13 @@ QuicSocket::~QuicSocket() {
   if (listener == listener_)
     RemoveListener(listener_);
 
-  DebugStats();
-}
+  // In a clean shutdown, all QuicSessions associated with the QuicSocket
+  // would have been destroyed explicitly. However, if the QuicSocket is
+  // garbage collected / freed before Destroy having been called, there
+  // may be sessions remaining. This is not really a good thing.
+  Debug(this, "Destroying with %d sessions remaining", sessions_.size());
 
-template <typename Fn>
-void QuicSocketStatsTraits::ToString(const QuicSocket& ptr, Fn&& add_field) {
-#define V(_n, name, label)                                                     \
-  add_field(label, ptr.GetStat(&QuicSocketStats::name));
-  SOCKET_STATS(V)
-#undef V
+  DebugStats();
 }
 
 void QuicSocket::MemoryInfo(MemoryTracker* tracker) const {
@@ -310,7 +316,6 @@ void QuicSocket::Listen(
     const std::string& alpn,
     uint32_t options) {
   CHECK(sc);
-  CHECK(!server_secure_context_);
   CHECK(!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING));
   Debug(this, "Starting to listen");
   server_session_config_.Set(quic_state(), preferred_address);
@@ -323,6 +328,7 @@ void QuicSocket::Listen(
 }
 
 void QuicSocket::OnError(QuicEndpoint* endpoint, ssize_t error) {
+  // TODO(@jasnell): What should we do with the endpoint?
   Debug(this, "Reading data from UDP socket failed. Error %" PRId64, error);
   listener_->OnError(error);
 }
@@ -341,7 +347,7 @@ void QuicSocket::OnEndpointDone(QuicEndpoint* endpoint) {
 }
 
 void QuicSocket::OnBind(QuicEndpoint* endpoint) {
-  const SocketAddress& local_address = endpoint->local_address();
+  SocketAddress local_address = endpoint->local_address();
   bound_endpoints_[local_address] =
       BaseObjectWeakPtr<QuicEndpoint>(endpoint);
   Debug(this, "Endpoint %s bound", local_address);
@@ -545,6 +551,13 @@ void QuicSocket::OnReceive(
       IncrementStat(&QuicSocketStats::packets_ignored);
       return;
     }
+
+    // The QuicSession was destroyed while it was being set up. There's
+    // no further processing we can do here.
+    if (session->is_destroyed()) {
+      IncrementStat(&QuicSocketStats::packets_ignored);
+      return;
+    }
   }
 
   CHECK(session);
@@ -683,6 +696,8 @@ bool QuicSocket::SendRetry(
 }
 
 // Shutdown a connection prematurely, before a QuicSession is created.
+// This should only be called t the start of a session before the crypto
+// keys have been established.
 void QuicSocket::ImmediateConnectionClose(
     const QuicCID& scid,
     const QuicCID& dcid,
@@ -819,6 +834,18 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
 
   listener_->OnSessionReady(session);
 
+  // It's possible that the session was destroyed while processing
+  // the ready callback. If it was, then we need to send an early
+  // CONNECTION_CLOSE.
+  if (session->is_destroyed()) {
+    ImmediateConnectionClose(
+        QuicCID(hd.scid),
+        QuicCID(hd.dcid),
+        local_addr,
+        remote_addr,
+        NGTCP2_CONNECTION_REFUSED);
+  }
+
   return session;
 }
 
@@ -826,9 +853,9 @@ QuicSocket::SendWrap::SendWrap(
     QuicState* quic_state,
     Local<Object> req_wrap_obj,
     size_t total_length)
-  : ReqWrap(quic_state->env(), req_wrap_obj, PROVIDER_QUICSOCKET),
-    total_length_(total_length),
-    quic_state_(quic_state) {
+    : ReqWrap(quic_state->env(), req_wrap_obj, PROVIDER_QUICSOCKET),
+      total_length_(total_length),
+      quic_state_(quic_state) {
 }
 
 std::string QuicSocket::SendWrap::MemoryInfoName() const {
@@ -1093,7 +1120,7 @@ void QuicSocketStopListening(const FunctionCallbackInfo<Value>& args) {
   socket->StopListening();
 }
 
-void QuicSocketset_server_busy(const FunctionCallbackInfo<Value>& args) {
+void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {
   QuicSocket* socket;
   ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
   CHECK_EQ(args.Length(), 1);
@@ -1164,7 +1191,7 @@ void QuicSocket::Initialize(
                       QuicSocketSetDiagnosticPacketLoss);
   env->SetProtoMethod(socket,
                       "setServerBusy",
-                      QuicSocketset_server_busy);
+                      QuicSocketSetServerBusy);
   env->SetProtoMethod(socket,
                       "stopListening",
                       QuicSocketStopListening);
