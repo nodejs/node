@@ -939,9 +939,8 @@ void Init(int* argc,
   }
 
   if (per_process::cli_options->print_v8_help) {
-    // Doesn't return.
     V8::SetFlagsFromString("--help", static_cast<size_t>(6));
-    UNREACHABLE();
+    exit(0);
   }
 
   *argc = argv_.size();
