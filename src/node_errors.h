@@ -33,6 +33,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_BUFFER_TOO_LARGE, Error)                                               \
   V(ERR_CONSTRUCT_CALL_REQUIRED, TypeError)                                    \
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
+  V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH, RangeError)                           \
   V(ERR_CRYPTO_UNKNOWN_CIPHER, Error)                                          \
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE, Error)                            \
@@ -88,6 +89,8 @@ void OnFatalError(const char* location, const char* message);
     "Buffer is not available for the current Context")                         \
   V(ERR_CONSTRUCT_CALL_INVALID, "Constructor cannot be called")                \
   V(ERR_CONSTRUCT_CALL_REQUIRED, "Cannot call constructor without `new`")      \
+  V(ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH,                                       \
+    "Input buffers must have the same byte length")                            \
   V(ERR_CRYPTO_UNKNOWN_CIPHER, "Unknown cipher")                               \
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                           \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
