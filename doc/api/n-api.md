@@ -222,8 +222,7 @@ can be specified explicitly when including the header:
 This restricts the N-API surface to just the functionality that was available in
 the specified (and earlier) versions.
 
-Some of the N-API surface is considered experimental and requires explicit
-opt-in to access those APIs:
+Some of the N-API surface is experimental and requires explicit opt-in:
 
 ```c
 #define NAPI_EXPERIMENTAL
