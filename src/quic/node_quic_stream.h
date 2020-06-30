@@ -256,7 +256,11 @@ class QuicStream : public AsyncWrap,
   // Specifies the kind of headers currently being processed.
   inline void set_headers_kind(QuicStreamHeadersKind kind);
 
-  // Set the final size for the QuicStream
+  // Set the final size for the QuicStream. This only works
+  // the first time it is called. Subsequent calls will be
+  // ignored unless the subsequent size is greater than the
+  // prior set size, in which case we have a bug and we'll
+  // assert.
   inline void set_final_size(uint64_t final_size);
 
   // The final size is the maximum amount of data that has been
