@@ -16,7 +16,8 @@
     "unified": "^7.0.0",
     "unist-util-find": "^1.0.1",
     "unist-util-select": "^1.5.0",
-    "unist-util-visit": "^1.4.0"
+    "unist-util-visit": "^1.4.0",
+    "highlightjs": "^9.10.0"
   },
   "devDependencies": {
     "js-yaml": "^3.13.1"
