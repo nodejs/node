@@ -116,7 +116,6 @@ using Nghttp2SessionCallbacksPointer =
 
 struct Http2HeadersTraits {
   typedef nghttp2_nv nv_t;
-  static const uint8_t kNoneFlag = NGHTTP2_NV_FLAG_NONE;
 };
 
 struct Http2RcBufferPointerTraits {
