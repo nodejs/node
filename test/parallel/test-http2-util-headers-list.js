@@ -9,6 +9,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const { mapToHeaders, toHeaderObject } = require('internal/http2/util');
+const { sensitiveHeaders } = require('http2');
 const { internalBinding } = require('internal/test/binding');
 const {
   HTTP2_HEADER_STATUS,
@@ -102,8 +103,9 @@ const {
 
   assert.deepStrictEqual(
     mapToHeaders(headers),
-    [ [ ':path', 'abc', ':status', '200', 'abc', '1', 'xyz', '1', 'xyz', '2',
-        'xyz', '3', 'xyz', '4', 'bar', '1', '' ].join('\0'), 8 ]
+    [ [ ':path', 'abc\0', ':status', '200\0', 'abc', '1\0', 'xyz', '1\0',
+        'xyz', '2\0', 'xyz', '3\0', 'xyz', '4\0', 'bar', '1\0', '' ].join('\0'),
+      8 ]
   );
 }
 
@@ -118,8 +120,8 @@ const {
 
   assert.deepStrictEqual(
     mapToHeaders(headers),
-    [ [ ':status', '200', ':path', 'abc', 'abc', '1', 'xyz', '1', 'xyz', '2',
-        'xyz', '3', 'xyz', '4', '' ].join('\0'), 7 ]
+    [ [ ':status', '200\0', ':path', 'abc\0', 'abc', '1\0', 'xyz', '1\0',
+        'xyz', '2\0', 'xyz', '3\0', 'xyz', '4\0', '' ].join('\0'), 7 ]
   );
 }
 
@@ -135,8 +137,8 @@ const {
 
   assert.deepStrictEqual(
     mapToHeaders(headers),
-    [ [ ':status', '200', ':path', 'abc', 'abc', '1', 'xyz', '1', 'xyz', '2',
-        'xyz', '3', 'xyz', '4', '' ].join('\0'), 7 ]
+    [ [ ':status', '200\0', ':path', 'abc\0', 'abc', '1\0', 'xyz', '1\0',
+        'xyz', '2\0', 'xyz', '3\0', 'xyz', '4\0', '' ].join('\0'), 7 ]
   );
 }
 
@@ -151,8 +153,8 @@ const {
 
   assert.deepStrictEqual(
     mapToHeaders(headers),
-    [ [ ':status', '200', ':path', 'abc', 'xyz', '1', 'xyz', '2', 'xyz', '3',
-        'xyz', '4', '' ].join('\0'), 6 ]
+    [ [ ':status', '200\0', ':path', 'abc\0', 'xyz', '1\0', 'xyz', '2\0',
+        'xyz', '3\0', 'xyz', '4\0', '' ].join('\0'), 6 ]
   );
 }
 
@@ -164,7 +166,7 @@ const {
   };
   assert.deepStrictEqual(
     mapToHeaders(headers),
-    [ [ 'set-cookie', 'foo=bar', '' ].join('\0'), 1 ]
+    [ [ 'set-cookie', 'foo=bar\0', '' ].join('\0'), 1 ]
   );
 }
 
@@ -180,6 +182,23 @@ const {
     name: 'TypeError',
     message: 'Header field ":status" must only have a single value'
   });
+}
+
+{
+  const headers = {
+    'abc': 1,
+    ':path': 'abc',
+    ':status': [200],
+    ':authority': [],
+    'xyz': [1, 2, 3, 4],
+    [sensitiveHeaders]: ['xyz']
+  };
+
+  assert.deepStrictEqual(
+    mapToHeaders(headers),
+    [ ':status\x00200\x00\x00:path\x00abc\x00\x00abc\x001\x00\x00' +
+      'xyz\x001\x00\x01xyz\x002\x00\x01xyz\x003\x00\x01xyz\x004\x00\x01', 7 ]
+  );
 }
 
 // The following are not allowed to have multiple values
