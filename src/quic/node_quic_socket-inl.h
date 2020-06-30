@@ -79,8 +79,8 @@ void QuicSocket::AssociateStatelessResetToken(
   token_map_[token] = session;
 }
 
-const SocketAddress& QuicSocket::local_address() {
-  CHECK(preferred_endpoint_);
+SocketAddress QuicSocket::local_address() const {
+  DCHECK(preferred_endpoint_);
   return preferred_endpoint_->local_address();
 }
 
@@ -219,10 +219,6 @@ void QuicSocket::AddEndpoint(
   endpoints_.emplace_back(endpoint_);
   if (is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING))
     endpoint_->ReceiveStart();
-}
-
-void QuicSocket::SessionReady(BaseObjectPtr<QuicSession> session) {
-  listener_->OnSessionReady(session);
 }
 
 }  // namespace quic

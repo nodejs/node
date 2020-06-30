@@ -33,6 +33,9 @@ using v8::Value;
 
 namespace quic {
 
+class QuicSocket;
+class QuicEndpoint;
+
 enum QuicSocketOptions : uint32_t {
   // When enabled the QuicSocket will validate the address
   // using a RETRY packet to the peer.
@@ -80,9 +83,6 @@ struct QuicSocketStatsTraits {
   static void ToString(const Base& ptr, Fn&& add_field);
 };
 
-class QuicSocket;
-class QuicEndpoint;
-
 // This is the generic interface for objects that control QuicSocket
 // instances. The default `JSQuicSocketListener` emits events to
 // JavaScript
@@ -96,7 +96,7 @@ class QuicSocketListener {
   virtual void OnEndpointDone(QuicEndpoint* endpoint);
   virtual void OnDestroy();
 
-  QuicSocket* socket() { return socket_.get(); }
+  QuicSocket* socket() const { return socket_.get(); }
 
  private:
   BaseObjectWeakPtr<QuicSocket> socket_;
@@ -104,7 +104,7 @@ class QuicSocketListener {
   friend class QuicSocket;
 };
 
-class JSQuicSocketListener : public QuicSocketListener {
+class JSQuicSocketListener final : public QuicSocketListener {
  public:
   void OnError(ssize_t code) override;
   void OnSessionReady(BaseObjectPtr<QuicSession> session) override;
@@ -121,17 +121,21 @@ constexpr size_t MAX_PKTLEN =
     std::max<size_t>(NGTCP2_MAX_PKTLEN_IPV4, NGTCP2_MAX_PKTLEN_IPV6);
 
 // A serialized QuicPacket to be sent by a QuicSocket instance.
+// QuicPackets are intended to be transient. They are created,
+// filled with the contents of a serialized packet, and passed
+// off immediately to the QuicSocket to be sent. As soon as
+// the packet is sent, it is freed.
 class QuicPacket : public MemoryRetainer {
  public:
   // Creates a new QuicPacket. By default the packet will be
   // stack allocated with a max size of NGTCP2_MAX_PKTLEN_IPV4.
   // If a larger packet size is specified, it will be heap
-  // allocated. Generally speaking, a QUIC packet should never
-  // be larger than the current MTU to avoid IP fragmentation.
+  // allocated. A QUIC packet should never be larger than the
+  // current MTU to avoid IP fragmentation.
   //
-  // The content of a QuicPacket is provided by ngtcp2. The
-  // typical use pattern is to create a QuicPacket instance
-  // and then pass a pointer to it's internal buffer and max
+  // The content of a QuicPacket is provided by ngtcp2 and is
+  // opaque for us. The typical use pattern is to create a QuicPacket
+  // instance and then pass a pointer to it's internal buffer and max
   // size in to an ngtcp2 function that serializes the data.
   // ngtcp2 will fill the buffer as much as possible then return
   // the number of bytes serialized. User code is then responsible
@@ -159,17 +163,22 @@ class QuicPacket : public MemoryRetainer {
 
   QuicPacket(const char* diagnostic_label, size_t len);
   QuicPacket(const QuicPacket& other);
+
   uint8_t* data() { return data_; }
+
   size_t length() const { return len_; }
+
   uv_buf_t buf() const {
     return uv_buf_init(
       const_cast<char*>(reinterpret_cast<const char*>(&data_)),
       length());
   }
+
   inline void set_length(size_t len);
+
   const char* diagnostic_label() const;
 
-  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_NO_MEMORY_INFO();
   SET_MEMORY_INFO_NAME(QuicPacket);
   SET_SELF_SIZE(QuicPacket);
 
@@ -198,8 +207,8 @@ class QuicEndpointListener {
 // A QuicEndpoint wraps a UDPBaseWrap. A single QuicSocket may
 // have multiple QuicEndpoints, the lifecycles of which are
 // attached to the QuicSocket.
-class QuicEndpoint : public BaseObject,
-                     public UDPListener {
+class QuicEndpoint final : public BaseObject,
+                           public UDPListener {
  public:
   static void Initialize(
     Environment* env,
@@ -212,9 +221,10 @@ class QuicEndpoint : public BaseObject,
       QuicSocket* listener,
       Local<Object> udp_wrap);
 
-  const SocketAddress& local_address() const {
-    local_address_ = udp_->GetSockName();
-    return local_address_;
+  ~QuicEndpoint() override;
+
+  SocketAddress local_address() const {
+    return udp_->GetSockName();
   }
 
   // Implementation for UDPListener
@@ -242,17 +252,16 @@ class QuicEndpoint : public BaseObject,
 
   void IncrementPendingCallbacks() { pending_callbacks_++; }
   void DecrementPendingCallbacks() { pending_callbacks_--; }
-  bool has_pending_callbacks() { return pending_callbacks_ > 0; }
+  bool has_pending_callbacks() const { return pending_callbacks_ > 0; }
   inline void WaitForPendingCallbacks();
 
   QuicState* quic_state() const { return quic_state_.get(); }
 
-  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_NO_MEMORY_INFO();
   SET_MEMORY_INFO_NAME(QuicEndpoint)
   SET_SELF_SIZE(QuicEndpoint)
 
  private:
-  mutable SocketAddress local_address_;
   BaseObjectWeakPtr<QuicSocket> listener_;
   UDPWrapBase* udp_;
   BaseObjectPtr<AsyncWrap> strong_ptr_;
@@ -298,7 +307,7 @@ class QuicSocket : public AsyncWrap,
   // Returns the default/preferred local address. Additional
   // QuicEndpoint instances may be associated with the
   // QuicSocket bound to other local addresses.
-  inline const SocketAddress& local_address();
+  inline SocketAddress local_address() const;
 
   void MaybeClose();
 
@@ -341,8 +350,6 @@ class QuicSocket : public AsyncWrap,
       const SocketAddress& remote_addr,
       std::unique_ptr<QuicPacket> packet,
       BaseObjectPtr<QuicSession> session = BaseObjectPtr<QuicSession>());
-
-  inline void SessionReady(BaseObjectPtr<QuicSession> session);
 
   inline void set_server_busy(bool on);
 
