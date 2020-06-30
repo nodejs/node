@@ -6831,10 +6831,30 @@ void StatelessDiffieHellman(const FunctionCallbackInfo<Value>& args) {
 
 
 void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
-  ArrayBufferViewContents<char> buf1(args[0]);
-  ArrayBufferViewContents<char> buf2(args[1]);
+  // Moving the type checking into JS leads to test failures, most likely due
+  // to V8 inlining certain parts of the wrapper. Therefore, keep them in C++.
+  // Refs: https://github.com/nodejs/node/issues/34073.
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsArrayBufferView()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+      env, "The \"buf1\" argument must be an instance of "
+      "Buffer, TypedArray, or DataView.");
+    return;
+  }
+  if (!args[1]->IsArrayBufferView()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+      env, "The \"buf2\" argument must be an instance of "
+      "Buffer, TypedArray, or DataView.");
+    return;
+  }
 
-  CHECK_EQ(buf1.length(), buf2.length());
+  ArrayBufferViewContents<char> buf1(args[0].As<ArrayBufferView>());
+  ArrayBufferViewContents<char> buf2(args[1].As<ArrayBufferView>());
+
+  if (buf1.length() != buf2.length()) {
+    THROW_ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH(env);
+    return;
+  }
 
   return args.GetReturnValue().Set(
       CRYPTO_memcmp(buf1.data(), buf2.data(), buf1.length()) == 0);
