@@ -1634,7 +1634,7 @@ const cleanup = finished(rs, (err) => {
 added: v10.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/
+    pr-url: https://github.com/nodejs/node/pull/34133
     description: Add support for destroyDestOnError options.
   - version: v13.10.0
     pr-url: https://github.com/nodejs/node/pull/31223
@@ -1657,7 +1657,7 @@ changes:
   * `source` {AsyncIterable}
   * Returns: {AsyncIterable|Promise}
 * `options` {Object}
-  * `destroyDestOnError` {Boolean} If value is false, the destination
+  * `destroyDestOnError` {boolean} If value is false, the destination
   is not destroyed when a stream error occurs.
   **Default:** `true`.
 * `callback` {Function} Called when the pipeline is fully done.
@@ -3090,7 +3090,7 @@ contain multi-byte characters.
 [`stream.cork()`]: #stream_writable_cork
 [`stream.finished()`]: #stream_stream_finished_stream_options_callback
 [`stream.pipe()`]: #stream_readable_pipe_destination_options
-[`stream.pipeline()`]: #stream_stream_pipeline_source_transforms_destination_callback
+[`stream.pipeline()`]: #stream_stream_pipeline_source_transforms_destination_options_callback
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
