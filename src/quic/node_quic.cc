@@ -66,7 +66,6 @@ void QuicSetCallbacks(const FunctionCallbackInfo<Value>& args) {
   SETFUNCTION("onSessionUsePreferredAddress", session_use_preferred_address);
   SETFUNCTION("onSessionPathValidation", session_path_validation);
   SETFUNCTION("onSessionQlog", session_qlog);
-  SETFUNCTION("onSessionSilentClose", session_silent_close);
   SETFUNCTION("onSessionStatus", session_status);
   SETFUNCTION("onSessionTicket", session_ticket);
   SETFUNCTION("onSessionVersionNegotiation", session_version_negotiation);

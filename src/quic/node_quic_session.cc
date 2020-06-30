@@ -293,9 +293,9 @@ void QuicSessionListener::OnSessionDestroyed() {
     previous_listener_->OnSessionDestroyed();
 }
 
-void QuicSessionListener::OnSessionClose(QuicError error) {
+void QuicSessionListener::OnSessionClose(QuicError error, int flags) {
   if (previous_listener_ != nullptr)
-    previous_listener_->OnSessionClose(error);
+    previous_listener_->OnSessionClose(error, flags);
 }
 
 void QuicSessionListener::OnStreamReady(BaseObjectPtr<QuicStream> stream) {
@@ -326,13 +326,6 @@ void QuicSessionListener::OnStreamBlocked(int64_t stream_id) {
   if (previous_listener_ != nullptr) {
     previous_listener_->OnStreamBlocked(stream_id);
   }
-}
-
-void QuicSessionListener::OnSessionSilentClose(
-    bool stateless_reset,
-    QuicError error) {
-  if (previous_listener_ != nullptr)
-    previous_listener_->OnSessionSilentClose(stateless_reset, error);
 }
 
 void QuicSessionListener::OnUsePreferredAddress(
@@ -525,14 +518,20 @@ void JSQuicSessionListener::OnSessionDestroyed() {
       env->quic_on_session_destroyed_function(), 0, nullptr);
 }
 
-void JSQuicSessionListener::OnSessionClose(QuicError error) {
+void JSQuicSessionListener::OnSessionClose(QuicError error, int flags) {
   Environment* env = session()->env();
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
   Local<Value> argv[] = {
     Number::New(env->isolate(), static_cast<double>(error.code)),
-    Integer::New(env->isolate(), error.family)
+    Integer::New(env->isolate(), error.family),
+    flags & SESSION_CLOSE_FLAG_SILENT
+        ? v8::True(env->isolate())
+        : v8::False(env->isolate()),
+    flags & SESSION_CLOSE_FLAG_STATELESS_RESET
+        ? v8::True(env->isolate())
+        : v8::False(env->isolate())
   };
 
   // Grab a shared pointer to this to prevent the QuicSession
@@ -662,26 +661,6 @@ void JSQuicSessionListener::OnSessionTicket(int size, SSL_SESSION* sess) {
   session()->MakeCallback(
       env->quic_on_session_ticket_function(),
       arraysize(argv), argv);
-}
-
-void JSQuicSessionListener::OnSessionSilentClose(
-    bool stateless_reset,
-    QuicError error) {
-  Environment* env = session()->env();
-  HandleScope scope(env->isolate());
-  Context::Scope context_scope(env->context());
-
-  Local<Value> argv[] = {
-    stateless_reset ? v8::True(env->isolate()) : v8::False(env->isolate()),
-    Number::New(env->isolate(), static_cast<double>(error.code)),
-    Integer::New(env->isolate(), error.family)
-  };
-
-  // Grab a shared pointer to this to prevent the QuicSession
-  // from being freed while the MakeCallback is running.
-  BaseObjectPtr<QuicSession> ptr(session());
-  session()->MakeCallback(
-      env->quic_on_session_silent_close_function(), arraysize(argv), argv);
 }
 
 void JSQuicSessionListener::OnUsePreferredAddress(
@@ -2377,7 +2356,10 @@ void QuicSession::SilentClose() {
         err.code,
         is_stateless_reset() ? "yes" : "no");
 
-  listener()->OnSessionSilentClose(is_stateless_reset(), err);
+  int flags = QuicSessionListener::SESSION_CLOSE_FLAG_SILENT;
+  if (is_stateless_reset())
+    flags |= QuicSessionListener::SESSION_CLOSE_FLAG_STATELESS_RESET;
+  listener()->OnSessionClose(err, flags);
 }
 // Begin connection close by serializing the CONNECTION_CLOSE packet.
 // There are two variants: one to serialize an application close, the

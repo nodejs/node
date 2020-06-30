@@ -462,7 +462,6 @@ constexpr size_t kFsStatsBufferLength =
   V(quic_on_session_use_preferred_address_function, v8::Function)              \
   V(quic_on_session_qlog_function, v8::Function)                               \
   V(quic_on_session_ready_function, v8::Function)                              \
-  V(quic_on_session_silent_close_function, v8::Function)                       \
   V(quic_on_session_status_function, v8::Function)                             \
   V(quic_on_session_ticket_function, v8::Function)                             \
   V(quic_on_session_version_negotiation_function, v8::Function)                \
