@@ -402,3 +402,18 @@ const assert = require('assert');
   }));
   write.destroy();
 }
+
+{
+  const write = new Writable({
+    autoDestroy: false,
+    write(chunk, enc, cb) {
+      cb();
+      cb();
+    }
+  });
+
+  write.on('error', common.mustCall(() => {
+    assert(write._writableState.errored);
+  }));
+  write.write('asd');
+}

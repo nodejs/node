@@ -253,3 +253,18 @@ const assert = require('assert');
   assert.strictEqual(read.destroyed, true);
   read.read();
 }
+
+{
+  const read = new Readable({
+    autoDestroy: false,
+    read() {
+      this.push(null);
+      this.push('asd');
+    }
+  });
+
+  read.on('error', common.mustCall(() => {
+    assert(read._readableState.errored);
+  }));
+  read.resume();
+}
