@@ -10,23 +10,25 @@ oldStream.pause = () => {};
 oldStream.resume = () => {};
 
 {
+  const err = new Error();
   const r = new Readable({ autoDestroy: true })
     .wrap(oldStream)
     .on('error', common.mustCall(() => {
       assert.strictEqual(r._readableState.errorEmitted, true);
-      assert.strictEqual(r._readableState.errored, true);
+      assert.strictEqual(r._readableState.errored, err);
       assert.strictEqual(r.destroyed, true);
     }));
-  oldStream.emit('error', new Error());
+  oldStream.emit('error', err);
 }
 
 {
+  const err = new Error();
   const r = new Readable({ autoDestroy: false })
     .wrap(oldStream)
     .on('error', common.mustCall(() => {
       assert.strictEqual(r._readableState.errorEmitted, true);
-      assert.strictEqual(r._readableState.errored, true);
+      assert.strictEqual(r._readableState.errored, err);
       assert.strictEqual(r.destroyed, false);
     }));
-  oldStream.emit('error', new Error());
+  oldStream.emit('error', err);
 }
