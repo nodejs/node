@@ -1627,11 +1627,15 @@ const cleanup = finished(rs, (err) => {
 });
 ```
 
-### `stream.pipeline(source[, ...transforms], destination, callback)`
+### `stream.pipeline(source[, ...transforms], destination[,options], callback)`
 ### `stream.pipeline(streams, callback)`
+
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/
+    description: Add support for destroyDestOnError options.
   - version: v13.10.0
     pr-url: https://github.com/nodejs/node/pull/31223
     description: Add support for async generators.
@@ -1652,6 +1656,10 @@ changes:
 * `destination` {Stream|Function}
   * `source` {AsyncIterable}
   * Returns: {AsyncIterable|Promise}
+* `options` {Object}
+  * `options.destroyDestOnError` {Boolean} If value is false, the destination
+  is not destroyed when a stream error occurs.
+  **Default:** `true`.
 * `callback` {Function} Called when the pipeline is fully done.
   * `err` {Error}
   * `val` Resolved value of `Promise` returned by `destination`.

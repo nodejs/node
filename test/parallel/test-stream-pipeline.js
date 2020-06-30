@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const common = require('../common');
 const {
   Stream,
