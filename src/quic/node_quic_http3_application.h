@@ -42,7 +42,6 @@ struct Http3RcBufferPointerTraits {
 
 struct Http3HeadersTraits {
   typedef nghttp3_nv nv_t;
-  static const uint8_t kNoneFlag = NGHTTP3_NV_FLAG_NONE;
 };
 
 using Http3ConnectionPointer = DeleteFnPtr<nghttp3_conn, nghttp3_conn_del>;
