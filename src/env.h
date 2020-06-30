@@ -548,8 +548,6 @@ class IsolateData : public MemoryRetainer {
   inline std::shared_ptr<PerIsolateOptions> options();
   inline void set_options(std::shared_ptr<PerIsolateOptions> options);
 
-  inline bool uses_node_allocator() const;
-  inline v8::ArrayBuffer::Allocator* allocator() const;
   inline NodeArrayBufferAllocator* node_allocator() const;
 
   inline worker::Worker* worker_context() const;
@@ -599,9 +597,7 @@ class IsolateData : public MemoryRetainer {
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
-  v8::ArrayBuffer::Allocator* const allocator_;
   NodeArrayBufferAllocator* const node_allocator_;
-  const bool uses_node_allocator_;
   MultiIsolatePlatform* platform_;
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;

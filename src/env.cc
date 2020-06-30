@@ -189,13 +189,9 @@ IsolateData::IsolateData(Isolate* isolate,
                          const std::vector<size_t>* indexes)
     : isolate_(isolate),
       event_loop_(event_loop),
-      allocator_(isolate->GetArrayBufferAllocator()),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
-      uses_node_allocator_(allocator_ == node_allocator_),
       platform_(platform) {
-  CHECK_NOT_NULL(allocator_);
-
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
 
@@ -222,9 +218,6 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   if (node_allocator_ != nullptr) {
     tracker->TrackFieldWithSize(
         "node_allocator", sizeof(*node_allocator_), "NodeArrayBufferAllocator");
-  } else {
-    tracker->TrackFieldWithSize(
-        "allocator", sizeof(*allocator_), "v8::ArrayBuffer::Allocator");
   }
   tracker->TrackFieldWithSize(
       "platform", sizeof(*platform_), "MultiIsolatePlatform");
