@@ -2323,7 +2323,7 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
   socket->ReceiveStart();
 
   // Step 4: Update ngtcp2
-  auto& local_address = socket->local_address();
+  auto local_address = socket->local_address();
   if (nat_rebinding) {
     ngtcp2_addr addr;
     ngtcp2_addr_init(
