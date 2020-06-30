@@ -48,7 +48,7 @@ assert.throws(
     name: 'TypeError',
     message:
       'The "buf1" argument must be an instance of Buffer, TypedArray, or ' +
-      "DataView. Received type string ('not a buffer')"
+      'DataView.'
   }
 );
 
@@ -59,6 +59,6 @@ assert.throws(
     name: 'TypeError',
     message:
       'The "buf2" argument must be an instance of Buffer, TypedArray, or ' +
-      "DataView. Received type string ('not a buffer')"
+      'DataView.'
   }
 );
