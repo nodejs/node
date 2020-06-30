@@ -638,7 +638,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This option is no longer considered experimental.
+    description: This option is no longer experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: Changed from `--diagnostic-report-directory` to
@@ -653,7 +653,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This option is no longer considered experimental.
+    description: This option is no longer experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-filename` to
@@ -668,7 +668,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32496
-    description: This option is no longer considered experimental.
+    description: This option is no longer experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-on-fatalerror` to
@@ -687,7 +687,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This option is no longer considered experimental.
+    description: This option is no longer experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-on-signal` to
@@ -704,7 +704,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This option is no longer considered experimental.
+    description: This option is no longer experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-signal` to
@@ -720,7 +720,7 @@ added: v11.8.0
 changes:
   - version: v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This option is no longer considered experimental.
+    description: This option is no longer experimental.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/27312
     description: changed from `--diagnostic-report-uncaught-exception` to
