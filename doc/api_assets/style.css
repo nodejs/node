@@ -383,15 +383,18 @@ code {
 }
 
 pre {
-  padding: 1rem;
+  padding: 4px 8px 8px;
   vertical-align: top;
   background-color: #f2f2f2;
   margin: 1rem;
   overflow-x: auto;
+  border: 1px solid #E7E5E8;
+  border-radius: 4px;
 }
 
 pre > code {
   padding: 0;
+  background: none;
 }
 
 pre + h3 {
@@ -652,6 +655,10 @@ td > *:last-child {
   }
 }
 
+#apicontent {
+  overflow: hidden;
+}
+
 @media print {
   html {
     height: auto;
@@ -698,8 +705,5 @@ td > *:last-child {
   }
   a {
     color: inherit;
-  }
-  #apicontent {
-    overflow: hidden;
   }
 }
