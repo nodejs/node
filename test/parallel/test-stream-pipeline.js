@@ -1268,44 +1268,6 @@ const net = require('net');
   }));
 }
 
-// Set destroyDestOnError is false with 3 streams
-{
-  const server = http.createServer(common.mustCall((req, res) => {
-    const r = fs.createReadStream('./notfound');
-    const transform = new PassThrough();
-    const callback = common.mustCall((err) => {
-      assert.ok(!res.destroyed);
-      assert.ok(r.destroyed);
-      assert.ok(transform.destroyed);
-      assert.strictEqual(err.code, 'ENOENT');
-      assert.strictEqual(err.message,
-                         'ENOENT: no such file or directory, ' +
-                         'open \'./notfound\'');
-      res.end(err.message);
-    });
-    pipeline(r, transform, res, { destroyDestOnError: false }, callback);
-  }));
-
-  server.listen(0, common.mustCall(() => {
-    http.request({
-      port: server.address().port
-    }, common.mustCall((res) => {
-      res.setEncoding('utf8');
-      let responseData = '';
-      res.on('data', (chunk) => { responseData += chunk; });
-      res.on('end', common.mustCall(() => {
-        assert.strictEqual(responseData,
-                           'ENOENT: no such file or directory, ' +
-                           'open \'./notfound\'');
-        setImmediate(() => {
-          res.destroy();
-          server.close();
-        });
-      }));
-    })).end();
-  }));
-}
-
 // Set destroyDestOnError is true
 {
   let res = '';
