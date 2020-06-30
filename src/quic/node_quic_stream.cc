@@ -355,7 +355,6 @@ void QuicStream::ReceiveData(
   // When fin != 0, we've received that last chunk of data for this
   // stream, indicating that the stream will no longer be readable.
   if (flags & NGTCP2_STREAM_DATA_FLAG_FIN) {
-    set_flag(QUICSTREAM_FLAG_FIN);
     set_final_size(offset + datalen);
     EmitRead(UV_EOF);
   }
