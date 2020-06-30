@@ -1657,7 +1657,7 @@ changes:
   * `source` {AsyncIterable}
   * Returns: {AsyncIterable|Promise}
 * `options` {Object}
-  * `options.destroyDestOnError` {Boolean} If value is false, the destination
+  * `destroyDestOnError` {Boolean} If value is false, the destination
   is not destroyed when a stream error occurs.
   **Default:** `true`.
 * `callback` {Function} Called when the pipeline is fully done.
