@@ -55,13 +55,14 @@ NgHeaders<T>::NgHeaders(Environment* env, v8::Local<v8::Array> headers) {
       return;
     }
 
-    nva[n].flags = T::kNoneFlag;
     nva[n].name = reinterpret_cast<uint8_t*>(p);
     nva[n].namelen = strlen(p);
     p += nva[n].namelen + 1;
     nva[n].value = reinterpret_cast<uint8_t*>(p);
     nva[n].valuelen = strlen(p);
     p += nva[n].valuelen + 1;
+    nva[n].flags = *p;
+    p++;
   }
 }
 
@@ -187,6 +188,11 @@ std::string NgHeader<T>::value() const {
 template <typename T>
 size_t NgHeader<T>::length() const {
   return name_.len() + value_.len();
+}
+
+template <typename T>
+uint8_t NgHeader<T>::flags() const {
+  return flags_;
 }
 
 }  // namespace node
