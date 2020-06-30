@@ -14,7 +14,9 @@ const makeDuplexPair = require('../common/duplexpair');
       'content-type': 'text/html',
       ':status': 200,
       'cookie': 'donotindex',
-      [http2.sensitiveHeaders]: ['Cookie']
+      'not-sensitive': 'foo',
+      'sensitive': 'bar',
+      [http2.sensitiveHeaders]: ['Sensitive']
     });
     stream.end(testData);
   }));
@@ -31,7 +33,8 @@ const makeDuplexPair = require('../common/duplexpair');
   req.on('response', common.mustCall((headers) => {
     assert.strictEqual(headers[':status'], 200);
     assert.strictEqual(headers.cookie, 'donotindex');
-    assert.deepStrictEqual(headers[http2.sensitiveHeaders], ['cookie']);
+    assert.deepStrictEqual(headers[http2.sensitiveHeaders],
+                           ['cookie', 'sensitive']);
   }));
 
   req.on('end', common.mustCall(() => {

@@ -2513,11 +2513,15 @@ const headers = {
   ':status': '200',
   'content-type': 'text-plain',
   'cookie': 'some-cookie',
-  [http2.sensitiveHeaders]: ['cookie']
+  'other-sensitive-header': 'very secret data'
+  [http2.sensitiveHeaders]: ['cookie', 'other-sensitive-header']
 };
 
 stream.respond(headers);
 ```
+
+For some headers, such as `Authorization` and short `Cookie` headers,
+this flag is set automatically.
 
 ### Settings object
 <!-- YAML
