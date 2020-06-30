@@ -260,6 +260,12 @@ struct QuicSessionStatsTraits {
 
 class QuicSessionListener {
  public:
+  enum SessionCloseFlags {
+    SESSION_CLOSE_FLAG_NONE,
+    SESSION_CLOSE_FLAG_SILENT,
+    SESSION_CLOSE_FLAG_STATELESS_RESET
+  };
+
   virtual ~QuicSessionListener();
 
   virtual void OnKeylog(const char* str, size_t size);
@@ -280,7 +286,9 @@ class QuicSessionListener {
       int64_t stream_id,
       uint64_t app_error_code);
   virtual void OnSessionDestroyed();
-  virtual void OnSessionClose(QuicError error);
+  virtual void OnSessionClose(
+      QuicError error,
+      int flags = SESSION_CLOSE_FLAG_NONE);
   virtual void OnStreamReady(BaseObjectPtr<QuicStream> stream);
   virtual void OnHandshakeCompleted();
   virtual void OnPathValidation(
@@ -291,9 +299,6 @@ class QuicSessionListener {
       int family,
       const PreferredAddress& preferred_address);
   virtual void OnSessionTicket(int size, SSL_SESSION* session);
-  virtual void OnSessionSilentClose(
-      bool stateless_reset,
-      QuicError error);
   virtual void OnStreamBlocked(int64_t stream_id);
   virtual void OnVersionNegotiation(
       uint32_t supported_version,
@@ -329,7 +334,9 @@ class JSQuicSessionListener : public QuicSessionListener {
       int64_t stream_id,
       uint64_t app_error_code) override;
   void OnSessionDestroyed() override;
-  void OnSessionClose(QuicError error) override;
+  void OnSessionClose(
+      QuicError error,
+      int flags = SESSION_CLOSE_FLAG_NONE) override;
   void OnStreamReady(BaseObjectPtr<QuicStream> stream) override;
   void OnHandshakeCompleted() override;
   void OnPathValidation(
@@ -337,7 +344,6 @@ class JSQuicSessionListener : public QuicSessionListener {
       const sockaddr* local,
       const sockaddr* remote) override;
   void OnSessionTicket(int size, SSL_SESSION* session) override;
-  void OnSessionSilentClose(bool stateless_reset, QuicError error) override;
   void OnUsePreferredAddress(
       int family,
       const PreferredAddress& preferred_address) override;
