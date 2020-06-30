@@ -37,7 +37,7 @@ for (const link of toc.match(/<a.*?>/g)) {
     .replace(/[\s\S]*?<div id="toc">\s*<h2>.*?<\/h2>\s*(<ul>\s*)?/, '');
 
   apicontent += data.slice(match.index + match[0].length)
-    .replace(/(<\/div>\s*)*\s*<script[\s\S]*/, '')
+    .replace(/<!-- API END -->[\s\S]*/, '')
     .replace(/<a href="(\w[^#"]*)#/g, (match, href) => {
       return htmlFiles.includes(href) ? '<a href="#' : match;
     })
@@ -66,10 +66,10 @@ all = all.slice(0, tocStart.index + tocStart[0].length) +
 
 // Replace apicontent with the concatenated set of apicontents from each source.
 const apiStart = /<div id="apicontent">\s*/.exec(all);
-const apiEnd = /(\s*<\/div>)*\s*<script /.exec(all);
+const apiEnd = all.lastIndexOf('<!-- API END -->');
 all = all.slice(0, apiStart.index + apiStart[0].length) +
   apicontent +
-  all.slice(apiEnd.index);
+  all.slice(apiEnd);
 
 // Write results.
 fs.writeFileSync(source + '/all.html', all, 'utf8');
