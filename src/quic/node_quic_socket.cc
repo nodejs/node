@@ -843,6 +843,8 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
         local_addr,
         remote_addr,
         NGTCP2_CONNECTION_REFUSED);
+  } else {
+    session->set_wrapped();
   }
 
   return session;

@@ -691,11 +691,13 @@ class QuicApplication : public MemoryRetainer,
 // QUICSESSION_FLAGS are converted into is_{name}() and set_{name}(bool on)
 // accessors on the QuicSession class.
 #define QUICSESSION_FLAGS(V)                                                   \
+    V(WRAPPED, wrapped)                                                        \
     V(CLOSING, closing)                                                        \
     V(GRACEFUL_CLOSING, graceful_closing)                                      \
     V(DESTROYED, destroyed)                                                    \
     V(TRANSPORT_PARAMS_SET, transport_params_set)                              \
     V(NGTCP2_CALLBACK, in_ngtcp2_callback)                                     \
+    V(CONNECTION_CLOSE_SCOPE, in_connection_close_scope)                       \
     V(SILENT_CLOSE, silent_closing)                                            \
     V(STATELESS_RESET, stateless_reset)
 
@@ -847,7 +849,7 @@ class QuicSession : public AsyncWrap,
 #undef V
 
   // Returns true if the QuicSession has entered the
-  // closing period following a call to ImmediateClose.
+  // closing period after sending a CONNECTION_CLOSE.
   // While true, the QuicSession is only permitted to
   // transmit CONNECTION_CLOSE frames until either the
   // idle timeout period elapses or until the QuicSession
@@ -871,7 +873,7 @@ class QuicSession : public AsyncWrap,
   // be immediately closed once there are no remaining streams. Note
   // that no notification is given to the connecting peer that we're
   // in a graceful closing state. A CONNECTION_CLOSE will be sent only
-  // once ImmediateClose() is called.
+  // once Close() is called.
   inline void StartGracefulClose();
 
   QuicError last_error() const { return last_error_; }
@@ -1040,17 +1042,16 @@ class QuicSession : public AsyncWrap,
 
   inline void DecreaseAllocatedSize(size_t size);
 
-  // Triggers an "immediate close" on the QuicSession.
-  // This will round trip through JavaScript, causing
-  // all currently open streams to be closed and ultimately
-  // send a CONNECTION_CLOSE to the connected peer before
-  // terminating the connection.
-  void ImmediateClose();
-
-  // Silently and immediately close the QuicSession. This is
-  // typically only done during an idle timeout or when sending
-  // a retry packet.
-  void SilentClose();
+  // Initiate closing of the QuicSession. This will round trip
+  // through JavaScript, causing all currently opened streams
+  // to be closed. If the SESSION_CLOSE_FLAG_SILENT flag is
+  // set, the connected peer will not be notified, otherwise
+  // an attempt will be made to send a CONNECTION_CLOSE frame
+  // to the peer. If Close is called while within the ngtcp2
+  // callback scope, sending the CONNECTION_CLOSE will be
+  // deferred until the ngtcp2 callback scope exits.
+  inline void Close(
+      int close_flags = QuicSessionListener::SESSION_CLOSE_FLAG_NONE);
 
   void PushListener(QuicSessionListener* listener);
 
@@ -1087,12 +1088,48 @@ class QuicSession : public AsyncWrap,
     }
 
     ~SendSessionScope() {
-      if (!Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()))
-        session_->SendPendingData();
+      if (Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()) ||
+          session_->is_in_closing_period() ||
+          session_->is_in_draining_period()) {
+        return;
+      }
+      session_->SendPendingData();
     }
 
    private:
     BaseObjectPtr<QuicSession> session_;
+  };
+
+  // ConnectionCloseScope triggers sending a CONNECTION_CLOSE
+  // when not executing within the context of an ngtcp2 callback
+  // and the session is in the correct state.
+  class ConnectionCloseScope {
+   public:
+    ConnectionCloseScope(QuicSession* session, bool silent = false)
+        : session_(session),
+          silent_(silent) {
+      CHECK(session_);
+      // If we are already in a ConnectionCloseScope, ignore.
+      if (session_->is_in_connection_close_scope())
+        silent_ = true;
+      else
+        session_->set_in_connection_close_scope();
+    }
+
+    ~ConnectionCloseScope() {
+      if (silent_ ||
+          Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()) ||
+          session_->is_in_closing_period() ||
+          session_->is_in_draining_period()) {
+        return;
+      }
+      session_->set_in_connection_close_scope(false);
+      bool ret = session_->SendConnectionClose();
+    }
+
+   private:
+    BaseObjectPtr<QuicSession> session_;
+    bool silent_ = false;
   };
 
   // Tracks whether or not we are currently within an ngtcp2 callback
