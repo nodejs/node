@@ -49,12 +49,21 @@ TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
   node::LoadEnvironment(
       *env,
       "const { SourceTextModule } = require('vm');"
-      "try {"
-        "new SourceTextModule('export const a = 1;');"
+      "(async () => {"
+        "const stmString = 'globalThis.importResult = import(\"\")';"
+        "const m = new SourceTextModule(stmString, {"
+          "importModuleDynamically: (async () => {"
+            "const m = new SourceTextModule('');"
+            "await m.link(() => 0);"
+            "await m.evaluate();"
+            "return m.namespace;"
+          "}),"
+        "});"
+        "await m.link(() => 0);"
+        "await m.evaluate();"
+        "delete globalThis.importResult;"
         "process.exit(0);"
-      "} catch {"
-        "process.exit(42);"
-      "}");
+      "})()");
 }
 
 TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
@@ -67,19 +76,27 @@ TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
 
   SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
     EXPECT_EQ(*env, env_);
-    EXPECT_EQ(exit_code, 42);
+    EXPECT_EQ(exit_code, 1);
     node::Stop(*env);
   });
 
   node::LoadEnvironment(
       *env,
       "const { SourceTextModule } = require('vm');"
-      "try {"
-        "new SourceTextModule('export const a = 1;');"
-        "process.exit(0);"
-      "} catch {"
-        "process.exit(42);"
-      "}");
+      "(async () => {"
+        "const stmString = 'globalThis.importResult = import(\"\")';"
+        "const m = new SourceTextModule(stmString, {"
+          "importModuleDynamically: (async () => {"
+            "const m = new SourceTextModule('');"
+            "await m.link(() => 0);"
+            "await m.evaluate();"
+            "return m.namespace;"
+          "}),"
+        "});"
+        "await m.link(() => 0);"
+        "await m.evaluate();"
+        "delete globalThis.importResult;"
+      "})()");
 }
 
 TEST_F(EnvironmentTest, PreExecutionPreparation) {
