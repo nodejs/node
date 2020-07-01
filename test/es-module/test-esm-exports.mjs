@@ -162,7 +162,6 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   // The use of %2F escapes in paths fails loading
   loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
-    console.log(err);
     strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
   }));
 
