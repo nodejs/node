@@ -1245,7 +1245,8 @@ const net = require('net');
                          'ENOENT: no such file or directory, ' +
                          'open \'./notfound\'');
       res.end(err.message);
-    }));
+    });
+    pipeline(r, transform, res, { destroyDestOnError: false }, callback);
   }));
 
   server.listen(0, common.mustCall(() => {
@@ -1273,7 +1274,7 @@ const net = require('net');
   const server = http.createServer(common.mustCall((req, res) => {
     const r = fs.createReadStream('./notfound');
     const transform = new PassThrough();
-    pipeline(r, transform, res, { destroyDestOnError: false }, common.mustCall((err) => {
+    const callback = common.mustCall((err) => {
       assert.ok(!res.destroyed);
       assert.ok(r.destroyed);
       assert.ok(transform.destroyed);
