@@ -275,7 +275,7 @@ class QuicStream : public AsyncWrap,
   void Acknowledge(uint64_t offset, size_t datalen);
 
   // Destroy the QuicStream and render it no longer usable.
-  void Destroy();
+  void Destroy(QuicError* error = nullptr);
 
   // Buffers chunks of data to be written to the QUIC connection.
   int DoWrite(
@@ -312,7 +312,9 @@ class QuicStream : public AsyncWrap,
 
   // Resets the QUIC stream, sending a signal to the peer that
   // no additional data will be transmitted for this stream.
-  inline void ResetStream(uint64_t app_error_code = 0);
+  inline void ResetStream(uint64_t app_error_code = NGTCP2_NO_ERROR);
+
+  inline void StopSending(uint64_t app_error_code = NGTCP2_NO_ERROR);
 
   // Submits informational headers. Returns false if headers are not
   // supported on the underlying QuicApplication.

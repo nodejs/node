@@ -93,7 +93,10 @@ bool DefaultApplication::ReceiveStreamData(
   if (!stream) {
     // Shutdown the stream explicitly if the session is being closed.
     if (session()->is_gracefully_closing()) {
-      session()->ResetStream(stream_id, NGTCP2_ERR_CLOSING);
+      ngtcp2_conn_shutdown_stream(
+          session()->connection(),
+          stream_id,
+          NGTCP2_ERR_CLOSING);
       return true;
     }
 

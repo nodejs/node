@@ -2328,11 +2328,6 @@ void QuicSession::ResumeStream(int64_t stream_id) {
   application()->ResumeStream(stream_id);
 }
 
-void QuicSession::ResetStream(int64_t stream_id, uint64_t code) {
-  SendSessionScope scope(this);
-  CHECK_EQ(ngtcp2_conn_shutdown_stream(connection(), stream_id, code), 0);
-}
-
 // Silent Close must start with the JavaScript side, which must
 // clean up state, abort any still existing QuicSessions, then
 // destroy the handle when done. The most important characteristic
