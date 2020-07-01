@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "aliased_buffer.h"
+#include "aliased_struct.h"
 #include "async_wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
@@ -141,67 +142,32 @@ enum QuicClientSessionOptions : uint32_t {
   QUICCLIENTSESSION_OPTION_RESUME = 0x4
 };
 
+#define QUICSESSION_SHARED_STATE(V)                                            \
+  V(KEYLOG_ENABLED, keylog_enabled, uint8_t)                                   \
+  V(CLIENT_HELLO_ENABLED, client_hello_enabled, uint8_t)                       \
+  V(CERT_ENABLED, cert_enabled, uint8_t)                                       \
+  V(PATH_VALIDATED_ENABLED, path_validated_enabled, uint8_t)                   \
+  V(USE_PREFERRED_ADDRESS_ENABLED, use_preferred_address_enabled, uint8_t)     \
+  V(HANDSHAKE_CONFIRMED, handshake_confirmed, uint8_t)                         \
+  V(IDLE_TIMEOUT, idle_timeout, uint8_t)                                       \
+  V(MAX_STREAMS_BIDI, max_streams_bidi, uint64_t)                              \
+  V(MAX_STREAMS_UNI, max_streams_uni, uint64_t)                                \
+  V(MAX_DATA_LEFT, max_data_left, uint64_t)                                    \
+  V(BYTES_IN_FLIGHT, bytes_in_flight, uint64_t)
 
-// The QuicSessionState enums are used with the QuicSession's
-// private state_ array. This is exposed to JavaScript via an
-// aliased buffer and is used to communicate various types of
-// state efficiently across the native/JS boundary.
-enum QuicSessionState : int {
-  // Communicates whether a 'keylog' event listener has been
-  // registered on the JavaScript QuicSession object. The
-  // value will be either 1 or 0. When set to 1, the native
-  // code will emit TLS keylog entries to the JavaScript
-  // side triggering the 'keylog' event once for each line.
-  IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED,
-
-  // Communicates whether a 'clientHello' event listener has
-  // been registered on the JavaScript QuicServerSession.
-  // The value will be either 1 or 0. When set to 1, the
-  // native code will callout to the JavaScript side causing
-  // the 'clientHello' event to be emitted. This is only
-  // used on server QuicSession instances.
-  IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED,
-
-  // Communicates whether a 'cert' event listener has been
-  // registered on the JavaScript QuicSession. The value will
-  // be either 1 or 0. When set to 1, the native code will
-  // callout to the JavaScript side causing the 'cert' event
-  // to be emitted.
-  IDX_QUIC_SESSION_STATE_CERT_ENABLED,
-
-  // Communicates whether a 'pathValidation' event listener
-  // has been registered on the JavaScript QuicSession. The
-  // value will be either 1 or 0. When set to 1, the native
-  // code will callout to the JavaScript side causing the
-  // 'pathValidation' event to be emitted
-  IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED,
-
-  // Communicates the current max cumulative number of
-  // bidi and uni streams that may be opened on the session
-  IDX_QUIC_SESSION_STATE_MAX_STREAMS_BIDI,
-  IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI,
-
-  // Communicates the current maxinum number of bytes that
-  // the local endpoint can send in this connection
-  // (updated immediately after processing sent/received packets)
-  IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT,
-
-  // Communicates the current total number of bytes in flight
-  IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT,
-
-  // Communicates whether a 'usePreferredAddress' event listener
-  // has been registered.
-  IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED,
-
-  IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED,
-
-  // Communicates whether a session was closed due to idle timeout
-  IDX_QUIC_SESSION_STATE_IDLE_TIMEOUT,
-
-  // Just the number of session state enums for use when
-  // creating the AliasedBuffer.
-  IDX_QUIC_SESSION_STATE_COUNT
+#define V(_, name, type) type name;
+struct QuicSessionState {
+  QUICSESSION_SHARED_STATE(V)
 };
+#undef V
+
+#define V(id, name, _)                                                         \
+  IDX_QUICSESSION_STATE_##id = offsetof(QuicSessionState, name),
+enum QuicSessionStateFields {
+  QUICSESSION_SHARED_STATE(V)
+  IDX_QUICSESSION_STATE_END
+};
+#undef V
 
 #define SESSION_STATS(V)                                                       \
   V(CREATED_AT, created_at, "Created At")                                      \
@@ -1163,9 +1129,9 @@ class QuicSession : public AsyncWrap,
 
  private:
   static void RandomConnectionIDStrategy(
-        QuicSession* session,
-        ngtcp2_cid* cid,
-        size_t cidlen);
+      QuicSession* session,
+      ngtcp2_cid* cid,
+      size_t cidlen);
 
   // Initialize the QuicSession as a server
   void InitServer(
@@ -1219,8 +1185,8 @@ class QuicSession : public AsyncWrap,
   inline void HandshakeConfirmed();
 
   void PathValidation(
-    const ngtcp2_path* path,
-    ngtcp2_path_validation_result res);
+      const ngtcp2_path* path,
+      ngtcp2_path_validation_result res);
 
   bool ReceivePacket(ngtcp2_path* path, const uint8_t* data, ssize_t nread);
 
@@ -1484,7 +1450,7 @@ class QuicSession : public AsyncWrap,
 
   StreamsMap streams_;
 
-  AliasedFloat64Array state_;
+  AliasedStruct<QuicSessionState> state_;
 
   struct RemoteTransportParamsDebug {
     QuicSession* session;
