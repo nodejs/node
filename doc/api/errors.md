@@ -391,8 +391,7 @@ doesNotExist;
 ```
 
 Unless an application is dynamically generating and running code,
-`ReferenceError` instances should always be considered a bug in the code
-or its dependencies.
+`ReferenceError` instances indicate a bug in the code or its dependencies.
 
 ## Class: `SyntaxError`
 
