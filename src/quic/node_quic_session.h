@@ -358,6 +358,13 @@ class JSQuicSessionListener : public QuicSessionListener {
   friend class QuicSession;
 };
 
+#define QUICCRYPTOCONTEXT_FLAGS(V)                                             \
+  V(IN_TLS_CALLBACK, in_tls_callback)                                          \
+  V(IN_KEY_UPDATE, in_key_update)                                              \
+  V(IN_OCSP_RESPONSE, in_ocsp_request)                                         \
+  V(IN_CLIENT_HELLO, in_client_hello)                                          \
+  V(EARLY_DATA, early_data)
+
 // The QuicCryptoContext class encapsulates all of the crypto/TLS
 // handshake details on behalf of a QuicSession.
 class QuicCryptoContext : public MemoryRetainer {
@@ -440,6 +447,18 @@ class QuicCryptoContext : public MemoryRetainer {
       options_ &= ~option;
   }
 
+#define V(id, name)                                                            \
+  inline bool is_##name() const {                                              \
+    return flags_ & (1 << QUICCRYPTOCONTEXT_FLAG_##id); }                      \
+  inline void set_##name(bool on = true) {                                     \
+    if (on)                                                                    \
+      flags_ |= (1 << QUICCRYPTOCONTEXT_FLAG_##id);                            \
+    else                                                                       \
+      flags_ &= ~(1 << QUICCRYPTOCONTEXT_FLAG_##id);                           \
+  }
+  QUICCRYPTOCONTEXT_FLAGS(V)
+#undef V
+
   inline bool set_session(crypto::SSLSessionPointer session);
 
   inline void set_tls_alert(int err);
@@ -480,29 +499,32 @@ class QuicCryptoContext : public MemoryRetainer {
   ngtcp2_crypto_side side_;
   crypto::SSLPointer ssl_;
   QuicBuffer handshake_[3];
-  bool in_tls_callback_ = false;
-  bool in_key_update_ = false;
-  bool in_ocsp_request_ = false;
-  bool in_client_hello_ = false;
-  bool early_data_ = false;
   uint32_t options_;
+  uint32_t flags_ = 0;
 
   v8::Global<v8::ArrayBufferView> ocsp_response_;
   crypto::BIOPointer bio_trace_;
+
+#define V(id, _) QUICCRYPTOCONTEXT_FLAG_##id,
+  enum QuicCryptoContextFlags : uint32_t {
+    QUICCRYPTOCONTEXT_FLAGS(V)
+    QUICCRYPTOCONTEXT_FLAG_COUNT
+  };
+#undef V
 
   class TLSCallbackScope {
    public:
     explicit TLSCallbackScope(QuicCryptoContext* context) :
         context_(context) {
-      context_->in_tls_callback_ = true;
+      context_->set_in_tls_callback();
     }
 
     ~TLSCallbackScope() {
-      context_->in_tls_callback_ = false;
+      context_->set_in_tls_callback(false);
     }
 
     static bool is_in_callback(QuicCryptoContext* context) {
-      return context->in_tls_callback_;
+      return context->is_in_tls_callback();
     }
 
    private:
@@ -511,17 +533,18 @@ class QuicCryptoContext : public MemoryRetainer {
 
   class TLSHandshakeScope {
    public:
+    using DoneCB = std::function<void()>;
     TLSHandshakeScope(
         QuicCryptoContext* context,
-        bool* monitor) :
+        DoneCB done) :
         context_(context),
-        monitor_(monitor) {}
+        done_(done) {}
 
     ~TLSHandshakeScope() {
       if (!is_handshake_suspended())
         return;
 
-      *monitor_ = false;
+      done_();
       // Only continue the TLS handshake if we are not currently running
       // synchronously within the TLS handshake function. This can happen
       // when the callback function passed to the clientHello and cert
@@ -533,12 +556,12 @@ class QuicCryptoContext : public MemoryRetainer {
 
    private:
     bool is_handshake_suspended() const {
-      return context_->in_ocsp_request_ || context_->in_client_hello_;
+      return context_->is_in_ocsp_request() || context_->is_in_client_hello();
     }
 
 
     QuicCryptoContext* context_;
-    bool* monitor_;
+    DoneCB done_;
   };
 
   friend class QuicSession;
@@ -662,6 +685,17 @@ class QuicApplication : public MemoryRetainer,
   size_t max_header_pairs_ = 0;
   size_t max_header_length_ = 0;
 };
+
+// QUICSESSION_FLAGS are converted into is_{name}() and set_{name}(bool on)
+// accessors on the QuicSession class.
+#define QUICSESSION_FLAGS(V)                                                   \
+    V(CLOSING, closing)                                                        \
+    V(GRACEFUL_CLOSING, graceful_closing)                                      \
+    V(DESTROYED, destroyed)                                                    \
+    V(TRANSPORT_PARAMS_SET, transport_params_set)                              \
+    V(NGTCP2_CALLBACK, in_ngtcp2_callback)                                     \
+    V(SILENT_CLOSE, silent_closing)                                            \
+    V(STATELESS_RESET, stateless_reset)
 
 // The QuicSession class is an virtual class that serves as
 // the basis for both client and server QuicSession.
@@ -801,15 +835,14 @@ class QuicSession : public AsyncWrap,
 
   inline bool allow_early_data() const;
 
-  // Returns true if StartGracefulClose() has been called and the
-  // QuicSession is currently in the process of a graceful close.
-  inline bool is_gracefully_closing() const;
-
-  // Returns true if Destroy() has been called and the
-  // QuicSession is no longer usable.
-  inline bool is_destroyed() const;
-
-  inline bool is_stateless_reset() const;
+#define V(id, name)                                                            \
+  bool is_##name() const { return flags_ & (1 << QUICSESSION_FLAG_##id); }     \
+  void set_##name(bool on = true) {                                            \
+    if (on) flags_ |= (1 << QUICSESSION_FLAG_##id);                            \
+    else flags_ &= ~(1 << QUICSESSION_FLAG_##id);                              \
+  }
+  QUICSESSION_FLAGS(V)
+#undef V
 
   // Returns true if the QuicSession has entered the
   // closing period following a call to ImmediateClose.
@@ -1089,15 +1122,15 @@ class QuicSession : public AsyncWrap,
     explicit Ngtcp2CallbackScope(QuicSession* session) : session_(session) {
       CHECK(session_);
       CHECK(!InNgtcp2CallbackScope(session));
-      session_->set_flag(QUICSESSION_FLAG_NGTCP2_CALLBACK);
+      session_->set_in_ngtcp2_callback();
     }
 
     ~Ngtcp2CallbackScope() {
-      session_->set_flag(QUICSESSION_FLAG_NGTCP2_CALLBACK, false);
+      session_->set_in_ngtcp2_callback(false);
     }
 
     static bool InNgtcp2CallbackScope(QuicSession* session) {
-      return session->is_flag_set(QUICSESSION_FLAG_NGTCP2_CALLBACK);
+      return session->is_in_ngtcp2_callback();
     }
 
    private:
@@ -1356,55 +1389,12 @@ class QuicSession : public AsyncWrap,
 
   bool StartClosingPeriod();
 
+#define V(id, _) QUICSESSION_FLAG_##id,
   enum QuicSessionFlags : uint32_t {
-    // Initial state when a QuicSession is created but nothing yet done.
-    QUICSESSION_FLAG_INITIAL = 0x1,
-
-    // Set while the QuicSession is in the process of an Immediate
-    // or silent close.
-    QUICSESSION_FLAG_CLOSING = 0x2,
-
-    // Set while the QuicSession is in the process of a graceful close.
-    QUICSESSION_FLAG_GRACEFUL_CLOSING = 0x4,
-
-    // Set when the QuicSession has been destroyed (but not
-    // yet freed)
-    QUICSESSION_FLAG_DESTROYED = 0x8,
-
-    QUICSESSION_FLAG_HAS_TRANSPORT_PARAMS = 0x10,
-
-    // Set while the QuicSession is executing an ngtcp2 callback
-    QUICSESSION_FLAG_NGTCP2_CALLBACK = 0x100,
-
-    // Set if the QuicSession is in the middle of a silent close
-    // (that is, a CONNECTION_CLOSE should not be sent)
-    QUICSESSION_FLAG_SILENT_CLOSE = 0x200,
-
-    QUICSESSION_FLAG_HANDSHAKE_RX = 0x400,
-    QUICSESSION_FLAG_HANDSHAKE_TX = 0x800,
-    QUICSESSION_FLAG_HANDSHAKE_KEYS =
-        QUICSESSION_FLAG_HANDSHAKE_RX |
-        QUICSESSION_FLAG_HANDSHAKE_TX,
-    QUICSESSION_FLAG_SESSION_RX = 0x1000,
-    QUICSESSION_FLAG_SESSION_TX = 0x2000,
-    QUICSESSION_FLAG_SESSION_KEYS =
-        QUICSESSION_FLAG_SESSION_RX |
-        QUICSESSION_FLAG_SESSION_TX,
-
-    // Set if the QuicSession was closed due to stateless reset
-    QUICSESSION_FLAG_STATELESS_RESET = 0x4000
+    QUICSESSION_FLAGS(V)
+    QUICSESSION_FLAG_COUNT
   };
-
-  void set_flag(QuicSessionFlags flag, bool on = true) {
-    if (on)
-      flags_ |= flag;
-    else
-      flags_ &= ~flag;
-  }
-
-  bool is_flag_set(QuicSessionFlags flag) const {
-    return (flags_ & flag) == flag;
-  }
+#undef V
 
   void IncrementConnectionCloseAttempts() {
     if (connection_close_attempts_ < kMaxSizeT)

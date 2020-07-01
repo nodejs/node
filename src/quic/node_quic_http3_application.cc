@@ -603,7 +603,7 @@ BaseObjectPtr<QuicStream> Http3Application::FindOrCreateStream(
     int64_t stream_id) {
   BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
   if (!stream) {
-    if (session()->is_gracefully_closing()) {
+    if (session()->is_graceful_closing()) {
       nghttp3_conn_close_stream(connection(), stream_id, NGTCP2_ERR_CLOSING);
       return {};
     }
