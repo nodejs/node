@@ -173,17 +173,6 @@ void Initialize(Local<Object> target,
   V(IDX_QUIC_SESSION_MAX_ACK_DELAY)                                            \
   V(IDX_QUIC_SESSION_CC_ALGO)                                                  \
   V(IDX_QUIC_SESSION_CONFIG_COUNT)                                             \
-  V(IDX_QUIC_SESSION_STATE_CERT_ENABLED)                                       \
-  V(IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED)                               \
-  V(IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED)                      \
-  V(IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED)                             \
-  V(IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED)                                     \
-  V(IDX_QUIC_SESSION_STATE_MAX_STREAMS_BIDI)                                   \
-  V(IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI)                                    \
-  V(IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT)                                      \
-  V(IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT)                                    \
-  V(IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED)                                \
-  V(IDX_QUIC_SESSION_STATE_IDLE_TIMEOUT)                                       \
   V(MAX_RETRYTOKEN_EXPIRATION)                                                 \
   V(MIN_RETRYTOKEN_EXPIRATION)                                                 \
   V(NGTCP2_APP_NOERROR)                                                        \
@@ -211,6 +200,11 @@ void Initialize(Local<Object> target,
   V(QUICSTREAM_HEADERS_KIND_TRAILING)                                          \
   V(ERR_FAILED_TO_CREATE_SESSION)                                              \
   V(UV_EBADF)
+
+#define V(id, _, __)                                                           \
+  NODE_DEFINE_CONSTANT(constants, IDX_QUICSESSION_STATE_##id);
+  QUICSESSION_SHARED_STATE(V)
+#undef V
 
 #define V(name, _, __)                                                         \
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_##name);

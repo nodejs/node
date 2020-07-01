@@ -1,5 +1,6 @@
 #include "node_quic_session-inl.h"  // NOLINT(build/include)
 #include "aliased_buffer.h"
+#include "aliased_struct-inl.h"
 #include "allocated_buffer-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -919,10 +920,8 @@ void QuicCryptoContext::EnableTrace() {
 // when the peer certificate is received, allowing additional tweaks
 // and verifications to be performed.
 int QuicCryptoContext::OnClientHello() {
-  if (LIKELY(session_->state_[
-          IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED] == 0)) {
+  if (LIKELY(session_->state_->client_hello_enabled == 0))
     return 0;
-  }
 
   TLSCallbackScope callback_scope(this);
 
@@ -952,7 +951,7 @@ int QuicCryptoContext::OnClientHello() {
 // function that must be called in order for the TLS handshake to
 // continue.
 int QuicCryptoContext::OnOCSP() {
-  if (LIKELY(session_->state_[IDX_QUIC_SESSION_STATE_CERT_ENABLED] == 0)) {
+  if (LIKELY(session_->state_->cert_enabled == 0)) {
     Debug(session(), "No OCSPRequest handler registered");
     return 1;
   }
@@ -991,7 +990,7 @@ void QuicCryptoContext::OnOCSPDone(
       [&]() { set_in_ocsp_request(false); });
 
   // Disable the callback at this point so we don't loop continuously
-  session_->state_[IDX_QUIC_SESSION_STATE_CERT_ENABLED] = 0;
+  session_->state_->cert_enabled = 0;
 
   if (context) {
     int err = crypto::UseSNIContext(ssl_, context);
@@ -1446,7 +1445,7 @@ QuicSession::QuicSession(
     idle_(new Timer(socket->env(), [this]() { OnIdleTimeout(); })),
     retransmit_(new Timer(socket->env(), [this]() { MaybeTimeout(); })),
     dcid_(dcid),
-    state_(env()->isolate(), IDX_QUIC_SESSION_STATE_COUNT),
+    state_(env()->isolate()),
     quic_state_(socket->quic_state()) {
   PushListener(&default_listener_);
   set_connection_id_strategy(RandomConnectionIDStrategy);
@@ -1459,13 +1458,10 @@ QuicSession::QuicSession(
           options));
   application_.reset(SelectApplication(this));
 
-  // TODO(@jasnell): For now, the following is a check rather than properly
-  // handled. Before this code moves out of experimental, this should be
-  // properly handled.
   wrap->DefineOwnProperty(
       env()->context(),
       env()->state_string(),
-      state_.GetJSArray(),
+      state_.GetArrayBuffer(),
       PropertyAttribute::ReadOnly).Check();
 
   // TODO(@jasnell): memory accounting
@@ -1814,7 +1810,7 @@ void QuicSession::PathValidation(
 
   // Only emit the callback if there is a handler for the pathValidation
   // event on the JavaScript QuicSession object.
-  if (UNLIKELY(state_[IDX_QUIC_SESSION_STATE_PATH_VALIDATED_ENABLED] == 1)) {
+  if (UNLIKELY(state_->path_validated_enabled == 1)) {
     listener_->OnPathValidation(
         res,
         reinterpret_cast<const sockaddr*>(path->local.addr),
@@ -2190,14 +2186,12 @@ void QuicSession::IgnorePreferredAddressStrategy(
 void QuicSession::UsePreferredAddressStrategy(
     QuicSession* session,
     const PreferredAddress& preferred_address) {
-  static constexpr int idx =
-      IDX_QUIC_SESSION_STATE_USE_PREFERRED_ADDRESS_ENABLED;
   int family = session->socket()->local_address().family();
   if (preferred_address.Use(family)) {
     Debug(session, "Using server preferred address");
     // Emit only if the QuicSession has a usePreferredAddress handler
     // on the JavaScript side.
-    if (UNLIKELY(session->state_[idx] == 1)) {
+    if (UNLIKELY(session->state_->use_preferred_address_enabled == 1)) {
       session->listener()->OnUsePreferredAddress(family, preferred_address);
     }
   } else {
@@ -2550,7 +2544,6 @@ void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("idle", idle_);
   tracker->TrackField("retransmit", retransmit_);
   tracker->TrackField("streams", streams_);
-  tracker->TrackField("state", state_);
   tracker->TrackFieldWithSize("current_ngtcp2_memory", current_ngtcp2_memory_);
   tracker->TrackField("conn_closebuf", conn_closebuf_);
   tracker->TrackField("application", application_);
@@ -2697,14 +2690,12 @@ void QuicSession::UpdateRecoveryStats() {
 void QuicSession::UpdateDataStats() {
   if (is_destroyed())
     return;
-  state_[IDX_QUIC_SESSION_STATE_MAX_DATA_LEFT] =
-    static_cast<double>(ngtcp2_conn_get_max_data_left(connection()));
+  state_->max_data_left = ngtcp2_conn_get_max_data_left(connection());
 
   ngtcp2_conn_stat stat;
   ngtcp2_conn_get_conn_stat(connection(), &stat);
 
-  state_[IDX_QUIC_SESSION_STATE_BYTES_IN_FLIGHT] =
-    static_cast<double>(stat.bytes_in_flight);
+  state_->bytes_in_flight = stat.bytes_in_flight;
   // The max_bytes_in_flight is a highwater mark that can be used
   // in performance analysis operations.
   if (stat.bytes_in_flight > GetStat(&QuicSessionStats::max_bytes_in_flight))
