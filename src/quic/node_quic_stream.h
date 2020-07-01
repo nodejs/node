@@ -78,30 +78,13 @@ struct QuicStreamStatsTraits {
   static void ToString(const Base& ptr, Fn&& add_field);
 };
 
-enum QuicStreamStates : uint32_t {
-  // QuicStream is fully open. Readable and Writable
-  QUICSTREAM_FLAG_INITIAL = 0,
-
-  // QuicStream Read State is closed because a final stream frame
-  // has been received from the peer or the QuicStream is unidirectional
-  // outbound only (i.e. it was never readable)
-  QUICSTREAM_FLAG_READ_CLOSED,
-
-  // JavaScript side has switched into flowing mode (Readable side)
-  QUICSTREAM_FLAG_READ_STARTED,
-
-  // JavaScript side has paused the flow of data (Readable side)
-  QUICSTREAM_FLAG_READ_PAUSED,
-
-  // QuicStream has received a final stream frame (Readable side)
-  QUICSTREAM_FLAG_FIN,
-
-  // QuicStream has sent a final stream frame (Writable side)
-  QUICSTREAM_FLAG_FIN_SENT,
-
-  // QuicStream has been destroyed
-  QUICSTREAM_FLAG_DESTROYED
-};
+#define QUICSTREAM_FLAGS(V)                                                    \
+  V(READ_CLOSED, read_closed)                                                  \
+  V(READ_STARTED, read_started)                                                \
+  V(READ_PAUSED, read_paused)                                                  \
+  V(FIN, fin)                                                                  \
+  V(FIN_SENT, fin_sent)                                                        \
+  V(DESTROYED, destroyed)
 
 enum QuicStreamDirection {
   // The QuicStream is readable and writable in both directions
@@ -228,9 +211,6 @@ class QuicStream : public AsyncWrap,
   // or the server.
   inline QuicStreamOrigin origin() const;
 
-  // The QuicStream has been destroyed and is no longer usable.
-  inline bool is_destroyed() const;
-
   // A QuicStream will not be writable if:
   //  - The streambuf_ is ended
   //  - It is a Unidirectional stream originating from the peer
@@ -240,13 +220,6 @@ class QuicStream : public AsyncWrap,
   //  - The QUICSTREAM_FLAG_READ_CLOSED flag is set or
   //  - It is a Unidirectional stream originating from the local peer.
   inline bool is_readable() const;
-
-  // Records the fact that a final stream frame has been
-  // serialized and sent to the peer. There still may be
-  // unacknowledged data in the outbound queue, but no
-  // additional frames may be sent for the stream other
-  // than reset stream.
-  inline void set_fin_sent();
 
   // IsWriteFinished will return true if a final stream frame
   // has been sent and all data has been acknowledged (the
@@ -342,6 +315,18 @@ class QuicStream : public AsyncWrap,
   // Required for StreamBase
   int ReadStop() override;
 
+#define V(id, name)                                                            \
+  inline bool is_##name() const {                                              \
+    return flags_ & (1 << QUICSTREAM_FLAG_##id); }                             \
+  inline void set_##name(bool on = true) {                                     \
+    if (on)                                                                    \
+      flags_ |= (1 << QUICSTREAM_FLAG_##id);                                   \
+    else                                                                       \
+      flags_ &= ~(1 << QUICSTREAM_FLAG_##id);                                  \
+  }
+  QUICSTREAM_FLAGS(V)
+#undef V
+
   // Required for StreamBase
   int DoShutdown(ShutdownWrap* req_wrap) override;
 
@@ -363,10 +348,6 @@ class QuicStream : public AsyncWrap,
       size_t max_count_hint) override;
 
  private:
-  inline bool is_flag_set(int32_t flag) const;
-
-  inline void set_flag(int32_t flag, bool on = true);
-
   // WasEverWritable returns true if it is a bidirectional stream,
   // or a Unidirectional stream originating from the local peer.
   // If was_ever_writable() is false, then no stream frames should
@@ -380,12 +361,20 @@ class QuicStream : public AsyncWrap,
 
   void IncrementStats(size_t datalen);
 
+#define V(id, _) QUICSTREAM_FLAG_##id,
+  enum QuicStreamStates : uint32_t {
+    QUICSTREAM_FLAGS(V)
+    QUICSTREAM_FLAG_COUNT
+  };
+#undef V
+
   BaseObjectWeakPtr<QuicSession> session_;
   QuicBuffer streambuf_;
 
   int64_t stream_id_ = 0;
   int64_t push_id_ = 0;
-  uint32_t flags_ = QUICSTREAM_FLAG_INITIAL;
+  uint32_t flags_ = 0;
+
   size_t inbound_consumed_data_while_paused_ = 0;
 
   std::vector<std::unique_ptr<QuicHeader>> headers_;

@@ -124,8 +124,8 @@ void QuicStream::Destroy(QuicError* error) {
 
   QuicSession::SendSessionScope send_scope(session());
 
-  set_flag(QUICSTREAM_FLAG_DESTROYED);
-  set_flag(QUICSTREAM_FLAG_READ_CLOSED);
+  set_read_closed();
+  set_destroyed();
 
   // In case this stream is scheduled for sending, remove it
   // from the schedule queue
@@ -234,8 +234,8 @@ bool QuicStream::IsClosing() {
 int QuicStream::ReadStart() {
   CHECK(!is_destroyed());
   CHECK(is_readable());
-  set_flag(QUICSTREAM_FLAG_READ_STARTED);
-  set_flag(QUICSTREAM_FLAG_READ_PAUSED, false);
+  set_read_started();
+  set_read_paused(false);
   IncrementStat(
       &QuicStreamStats::max_offset,
       inbound_consumed_data_while_paused_);
@@ -246,7 +246,7 @@ int QuicStream::ReadStart() {
 int QuicStream::ReadStop() {
   CHECK(!is_destroyed());
   CHECK(is_readable());
-  set_flag(QUICSTREAM_FLAG_READ_PAUSED);
+  set_read_paused();
   return 0;
 }
 
@@ -348,7 +348,7 @@ void QuicStream::ReceiveData(
       datalen -= avail;
       // Capture read_paused before EmitRead in case user code callbacks
       // alter the state when EmitRead is called.
-      bool read_paused = is_flag_set(QUICSTREAM_FLAG_READ_PAUSED);
+      bool read_paused = is_read_paused();
       EmitRead(avail, buf);
       // Reading can be paused while we are processing. If that's
       // the case, we still want to acknowledge the current bytes

@@ -96,9 +96,9 @@ void QuicSocket::DisassociateStatelessResetToken(
 // existing sessions are allowed to close naturally but new
 // sessions are rejected.
 void QuicSocket::StopListening() {
-  if (is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING)) {
+  if (is_server_listening()) {
     Debug(this, "Stop listening");
-    set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING, false);
+    set_server_listening(false);
     // It is important to not call ReceiveStop here as there
     // is ongoing traffic being exchanged by the peers.
   }
@@ -155,9 +155,9 @@ size_t QuicSocket::GetCurrentStatelessResetCounter(const SocketAddress& addr) {
   return it == std::end(reset_counts_) ? 0 : it->second;
 }
 
-void QuicSocket::set_server_busy(bool on) {
+void QuicSocket::ServerBusy(bool on) {
   Debug(this, "Turning Server Busy Response %s", on ? "on" : "off");
-  set_flag(QUICSOCKET_FLAGS_SERVER_BUSY, on);
+  set_server_busy(on);
   listener_->OnServerBusy(on);
 }
 
@@ -174,14 +174,12 @@ void QuicSocket::set_diagnostic_packet_loss(double rx, double tx) {
 }
 
 bool QuicSocket::ToggleStatelessReset() {
-  set_flag(
-      QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET,
-      !is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET));
-  return !is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
+  set_stateless_reset_disabled(!is_stateless_reset_disabled());
+  return !is_stateless_reset_disabled();
 }
 
 void QuicSocket::set_validated_address(const SocketAddress& addr) {
-  if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
+  if (has_option_validate_address_lru()) {
     // Remove the oldest item if we've hit the LRU limit
     validated_addrs_.push_back(SocketAddress::Hash()(addr));
     if (validated_addrs_.size() > kMaxValidateAddressLru)
@@ -190,7 +188,7 @@ void QuicSocket::set_validated_address(const SocketAddress& addr) {
 }
 
 bool QuicSocket::is_validated_address(const SocketAddress& addr) const {
-  if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
+  if (has_option_validate_address_lru()) {
     auto res = std::find(std::begin(validated_addrs_),
                          std::end(validated_addrs_),
                          SocketAddress::Hash()(addr));
@@ -217,7 +215,7 @@ void QuicSocket::AddEndpoint(
   if (preferred || endpoints_.empty())
     preferred_endpoint_ = endpoint_;
   endpoints_.emplace_back(endpoint_);
-  if (is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING))
+  if (is_server_listening())
     endpoint_->ReceiveStart();
 }
 
