@@ -559,7 +559,7 @@ exports for internal modules:
     }
   },
   "dependencies": {
-    "dep-node-native": "1.0.0"
+    "dep-node-native": "^1.0.0"
   }
 }
 ```
@@ -1590,7 +1590,7 @@ The resolver can throw the following errors:
 * _Invalid Package Configuration_: package.json configuration is invalid or
   contains an invalid configuration.
 * _Invalid Package Target_: Package exports or imports define a target module
-  within the package that is an invalid type or string target.
+  for the package that is an invalid type or string target.
 * _Package Path Not Exported_: Package exports do not define or permit a target
   subpath in the package for the given module.
 * _Package Import Not Defined_: Package imports do not define the specifier.
