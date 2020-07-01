@@ -702,7 +702,10 @@ void Http3Application::PushStream(
 void Http3Application::SendStopSending(
     int64_t stream_id,
     uint64_t app_error_code) {
-  session()->ResetStream(stream_id, app_error_code);
+  ngtcp2_conn_shutdown_stream_read(
+      session()->connection(),
+      stream_id,
+      app_error_code);
 }
 
 void Http3Application::EndStream(int64_t stream_id) {

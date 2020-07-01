@@ -957,37 +957,6 @@ class QuicSession : public AsyncWrap,
 
   const StreamsMap& streams() const { return streams_; }
 
-  // ResetStream will cause ngtcp2 to queue a
-  // RESET_STREAM and STOP_SENDING frame, as appropriate,
-  // for the given stream_id. For a locally-initiated
-  // unidirectional stream, only a RESET_STREAM frame
-  // will be scheduled and the stream will be immediately
-  // closed. For a bi-directional stream, a STOP_SENDING
-  // frame will be sent.
-  //
-  // It is important to note that the QuicStream is
-  // not destroyed immediately following ShutdownStream.
-  // The sending QuicSession will not close the stream
-  // until the RESET_STREAM is acknowledged.
-  //
-  // Once the RESET_STREAM is sent, the QuicSession
-  // should not send any new frames for the stream,
-  // and all inbound stream frames should be discarded.
-  // Once ngtcp2 receives the appropriate notification
-  // that the RESET_STREAM has been acknowledged, the
-  // stream will be closed.
-  //
-  // Once the stream has been closed, it will be
-  // destroyed and memory will be freed. User code
-  // can request that a stream be immediately and
-  // abruptly destroyed without calling ShutdownStream.
-  // Likewise, an idle timeout may cause the stream
-  // to be silently destroyed without calling
-  // ShutdownStream.
-  void ResetStream(
-      int64_t stream_id,
-      uint64_t error_code = NGTCP2_APP_NOERROR);
-
   void ResumeStream(int64_t stream_id);
 
   // Submits informational headers to the QUIC Application

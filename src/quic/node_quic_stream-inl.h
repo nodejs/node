@@ -132,17 +132,31 @@ void QuicStream::Commit(size_t amount) {
   streambuf_.Seek(amount);
 }
 
+// ResetStream will cause ngtcp2 to queue a RESET_STREAM and STOP_SENDING
+// frame, as appropriate, for the given stream_id. For a locally-initiated
+// unidirectional stream, only a RESET_STREAM frame will be scheduled and
+// the stream will be immediately closed. For a bidirectional stream, a
+// STOP_SENDING frame will be sent.
 void QuicStream::ResetStream(uint64_t app_error_code) {
-  // On calling shutdown, the stream will no longer be
-  // readable or writable, all any pending data in the
-  // streambuf_ will be canceled, and all data pending
-  // to be acknowledged at the ngtcp2 level will be
-  // abandoned.
-  BaseObjectPtr<QuicSession> ptr(session_);
+  QuicSession::SendSessionScope send_scope(session());
+  ngtcp2_conn_shutdown_stream(
+      session()->connection(),
+      stream_id_,
+      app_error_code);
   set_flag(QUICSTREAM_FLAG_READ_CLOSED);
-  session_->ResetStream(stream_id_, app_error_code);
   streambuf_.Cancel();
   streambuf_.End();
+}
+
+// StopSending will cause ngtcp2 to queue a STOP_SENDING frame if the
+// stream is still inbound readable.
+void QuicStream::StopSending(uint64_t app_error_code) {
+  QuicSession::SendSessionScope send_scope(session());
+  ngtcp2_conn_shutdown_stream_read(
+      session()->connection(),
+      stream_id_,
+      app_error_code);
+  set_flag(QUICSTREAM_FLAG_READ_CLOSED);
 }
 
 void QuicStream::Schedule(Queue* queue) {
