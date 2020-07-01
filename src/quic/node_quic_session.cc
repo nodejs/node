@@ -757,6 +757,10 @@ void QuicSession::RandomConnectionIDStrategy(
 # define HAVE_SSL_TRACE 1
 #endif
 
+QuicCryptoContext::~QuicCryptoContext() {
+  // Free any remaining crypto handshake data (if any)
+  Cancel();
+}
 
 void QuicCryptoContext::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("initial_crypto", handshake_[0]);
@@ -1470,8 +1474,6 @@ QuicSession::QuicSession(
 
 QuicSession::~QuicSession() {
   CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
-  crypto_context_->Cancel();
-  connection_.reset();
 
   QuicSessionListener* listener_ = listener();
   listener_->OnSessionDestroyed();
@@ -1637,7 +1639,9 @@ void QuicSession::AddStream(BaseObjectPtr<QuicStream> stream) {
 // not immediately torn down, but is allowed to drain
 // properly per the QUIC spec description of "immediate close".
 void QuicSession::ImmediateClose() {
-  if (is_closing() || is_silent_closing())
+  // If ImmediateClose or SilentClose has already been called,
+  // do not re-enter.
+  if (is_closing())
     return;
   set_closing();
 
@@ -1647,6 +1651,35 @@ void QuicSession::ImmediateClose() {
         err.family_name());
 
   listener()->OnSessionClose(err);
+}
+
+// Silent Close must start with the JavaScript side, which must
+// clean up state, abort any still existing QuicSessions, then
+// destroy the handle when done. The most important characteristic
+// of the SilentClose is that no frames are sent to the peer.
+//
+// When a valid stateless reset is received, the connection is
+// immediately and unrecoverably closed at the ngtcp2 level.
+// Specifically, it will be put into the draining_period so
+// absolutely no frames can be sent. What we need to do is
+// notify the JavaScript side and destroy the connection with
+// a flag set that indicates stateless reset.
+void QuicSession::SilentClose() {
+  CHECK(!is_silent_closing());
+  set_silent_closing();
+  set_closing();
+
+  QuicError err = last_error();
+  Debug(this,
+        "Silent close with %s code %" PRIu64 " (stateless reset? %s)",
+        err.family_name(),
+        err.code,
+        is_stateless_reset() ? "yes" : "no");
+
+  int flags = QuicSessionListener::SESSION_CLOSE_FLAG_SILENT;
+  if (is_stateless_reset())
+    flags |= QuicSessionListener::SESSION_CLOSE_FLAG_STATELESS_RESET;
+  listener()->OnSessionClose(err, flags);
 }
 
 // Creates a new stream object and passes it off to the javascript side.
@@ -1958,7 +1991,7 @@ bool QuicSession::ReceivePacket(
         // then immediately close the connection.
         if (err == NGTCP2_ERR_RETRY && is_server()) {
           socket()->SendRetry(scid_, dcid_, local_address_, remote_address_);
-          ImmediateClose();
+          SilentClose();
           break;
         }
         set_last_error(QUIC_ERROR_SESSION, err);
@@ -2050,7 +2083,7 @@ void QuicSession::RemoveFromSocket() {
 void QuicSession::RemoveStream(int64_t stream_id) {
   Debug(this, "Removing stream %" PRId64, stream_id);
 
-  // ngtcp2 does no extend the max streams count automatically
+  // ngtcp2 does not extend the max streams count automatically
   // except in very specific conditions, none of which apply
   // once we've gotten this far. We need to manually extend when
   // a remote peer initiated stream is removed.
@@ -2104,6 +2137,8 @@ bool QuicSession::SendConnectionClose() {
   // it multiple times; whereas for clients, we will serialize it
   // once and send once only.
   QuicError error = last_error();
+  Debug(this, "Connection Close code: %" PRIu64 " (family: %s)",
+        error.code, error.family_name());
 
   // If initial keys have not yet been installed, use the alternative
   // ImmediateConnectionClose to send a stateless connection close to
@@ -2322,34 +2357,6 @@ void QuicSession::ResumeStream(int64_t stream_id) {
   application()->ResumeStream(stream_id);
 }
 
-// Silent Close must start with the JavaScript side, which must
-// clean up state, abort any still existing QuicSessions, then
-// destroy the handle when done. The most important characteristic
-// of the SilentClose is that no frames are sent to the peer.
-//
-// When a valid stateless reset is received, the connection is
-// immediately and unrecoverably closed at the ngtcp2 level.
-// Specifically, it will be put into the draining_period so
-// absolutely no frames can be sent. What we need to do is
-// notify the JavaScript side and destroy the connection with
-// a flag set that indicates stateless reset.
-void QuicSession::SilentClose() {
-  CHECK(!is_silent_closing());
-  set_silent_closing();
-  set_closing();
-
-  QuicError err = last_error();
-  Debug(this,
-        "Silent close with %s code %" PRIu64 " (stateless reset? %s)",
-        err.family_name(),
-        err.code,
-        is_stateless_reset() ? "yes" : "no");
-
-  int flags = QuicSessionListener::SESSION_CLOSE_FLAG_SILENT;
-  if (is_stateless_reset())
-    flags |= QuicSessionListener::SESSION_CLOSE_FLAG_STATELESS_RESET;
-  listener()->OnSessionClose(err, flags);
-}
 // Begin connection close by serializing the CONNECTION_CLOSE packet.
 // There are two variants: one to serialize an application close, the
 // other to serialize a protocol close.  The frames are generally
@@ -2508,7 +2515,6 @@ void QuicSession::UpdateIdleTimer() {
 // serialize stream data that is being sent initially.
 bool QuicSession::WritePackets(const char* diagnostic_label) {
   CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
-  CHECK(!is_destroyed());
 
   // During the draining period, we must not send any frames at all.
   if (is_in_draining_period())

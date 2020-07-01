@@ -369,6 +369,14 @@ class JSQuicSessionListener : public QuicSessionListener {
 // handshake details on behalf of a QuicSession.
 class QuicCryptoContext : public MemoryRetainer {
  public:
+  inline QuicCryptoContext(
+      QuicSession* session,
+      BaseObjectPtr<crypto::SecureContext> secure_context,
+      ngtcp2_crypto_side side,
+      uint32_t options);
+
+  ~QuicCryptoContext() override;
+
   inline uint64_t Cancel();
 
   // Outgoing crypto data must be retained in memory until it is
@@ -482,12 +490,6 @@ class QuicCryptoContext : public MemoryRetainer {
   SET_SELF_SIZE(QuicCryptoContext)
 
  private:
-  inline QuicCryptoContext(
-      QuicSession* session,
-      BaseObjectPtr<crypto::SecureContext> secure_context,
-      ngtcp2_crypto_side side,
-      uint32_t options);
-
   bool SetSecrets(
       ngtcp2_crypto_level level,
       const uint8_t* rx_secret,
@@ -1038,37 +1040,16 @@ class QuicSession : public AsyncWrap,
 
   inline void DecreaseAllocatedSize(size_t size);
 
-  // Immediately close the QuicSession. All currently open
-  // streams are implicitly reset and closed with RESET_STREAM
-  // and STOP_SENDING frames transmitted as necessary. A
-  // CONNECTION_CLOSE frame will be sent and the session
-  // will enter the closing period until either the idle
-  // timeout period elapses or until the QuicSession is
-  // explicitly destroyed. During the closing period,
-  // the only frames that may be transmitted to the peer
-  // are repeats of the already sent CONNECTION_CLOSE.
-  //
-  // The CONNECTION_CLOSE will use the error code set using
-  // the most recent call to set_last_error()
+  // Triggers an "immediate close" on the QuicSession.
+  // This will round trip through JavaScript, causing
+  // all currently open streams to be closed and ultimately
+  // send a CONNECTION_CLOSE to the connected peer before
+  // terminating the connection.
   void ImmediateClose();
 
-  // Silently, and immediately close the QuicSession. This is
-  // generally only done during an idle timeout. That is, per
-  // the QUIC specification, if the session remains idle for
-  // longer than both the advertised idle timeout and three
-  // times the current probe timeout (PTO). In such cases, all
-  // currently open streams are implicitly reset and closed
-  // without sending corresponding RESET_STREAM and
-  // STOP_SENDING frames, the connection state is
-  // discarded, and the QuicSession is destroyed without
-  // sending a CONNECTION_CLOSE frame.
-  //
-  // Silent close may also be used to explicitly destroy
-  // a QuicSession that has either already entered the
-  // closing or draining periods; or in response to user
-  // code requests to forcefully terminate a QuicSession
-  // without transmitting any additional frames to the
-  // peer.
+  // Silently and immediately close the QuicSession. This is
+  // typically only done during an idle timeout or when sending
+  // a retry packet.
   void SilentClose();
 
   void PushListener(QuicSessionListener* listener);
