@@ -16,6 +16,7 @@ const makeDuplexPair = require('../common/duplexpair');
       'cookie': 'donotindex',
       'not-sensitive': 'foo',
       'sensitive': 'bar',
+      // sensitiveHeaders entries are case-insensitive
       [http2.sensitiveHeaders]: ['Sensitive']
     });
     stream.end(testData);

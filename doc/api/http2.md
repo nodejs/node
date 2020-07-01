@@ -2523,6 +2523,9 @@ stream.respond(headers);
 For some headers, such as `Authorization` and short `Cookie` headers,
 this flag is set automatically.
 
+This property is also set for received headers. It will contain the names of
+all headers marked as sensitive, including ones marked that way automatically.
+
 ### Settings object
 <!-- YAML
 added: v8.4.0
