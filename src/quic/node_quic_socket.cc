@@ -267,7 +267,7 @@ QuicSocket::QuicSocket(
   EntropySource(token_secret_, kTokenSecretLen);
 
   if (disable_stateless_reset)
-    set_flag(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
+    set_stateless_reset_disabled();
 
   // Set the session reset secret to the one provided or random.
   // Note that a random secret is going to make it exceedingly
@@ -316,13 +316,13 @@ void QuicSocket::Listen(
     const std::string& alpn,
     uint32_t options) {
   CHECK(sc);
-  CHECK(!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING));
+  CHECK(!is_server_listening());
   Debug(this, "Starting to listen");
   server_session_config_.Set(quic_state(), preferred_address);
   server_secure_context_ = sc;
   server_alpn_ = alpn;
   server_options_ = options;
-  set_flag(QUICSOCKET_FLAGS_SERVER_LISTENING);
+  set_server_listening();
   RecordTimestamp(&QuicSocketStats::listen_at);
   ReceiveStart();
 }
@@ -737,7 +737,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   QuicCID ocid;
 
   // If the QuicSocket is not listening, the paket will be ignored.
-  if (!is_flag_set(QUICSOCKET_FLAGS_SERVER_LISTENING)) {
+  if (!is_server_listening()) {
     Debug(this, "QuicSocket is not listening");
     return {};
   }
@@ -762,7 +762,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   // Else, check to see if the number of connections total for this QuicSocket
   // has been exceeded. If the count has been exceeded, shutdown the connection
   // immediately after the initial keys are installed.
-  if (UNLIKELY(is_flag_set(QUICSOCKET_FLAGS_SERVER_BUSY)) ||
+  if (UNLIKELY(is_server_busy()) ||
       sessions_.size() >= max_connections_ ||
       GetCurrentSocketAddressCounter(remote_addr) >=
           max_connections_per_host_) {
@@ -786,8 +786,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   if (!is_validated_address(remote_addr)) {
     switch (hd.type) {
       case NGTCP2_PKT_INITIAL:
-        if (is_option_set(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS) ||
-            hd.token.len > 0) {
+        if (has_option_validate_address() || hd.token.len > 0) {
           Debug(this, "Performing explicit address validation");
           if (hd.token.len == 0) {
             Debug(this, "No retry token was detected. Generating one");
@@ -1124,7 +1123,7 @@ void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {
   QuicSocket* socket;
   ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
   CHECK_EQ(args.Length(), 1);
-  socket->set_server_busy(args[0]->IsTrue());
+  socket->ServerBusy(args[0]->IsTrue());
 }
 
 void QuicSocketToggleStatelessReset(const FunctionCallbackInfo<Value>& args) {

@@ -36,17 +36,23 @@ namespace quic {
 class QuicSocket;
 class QuicEndpoint;
 
-enum QuicSocketOptions : uint32_t {
-  // When enabled the QuicSocket will validate the address
-  // using a RETRY packet to the peer.
-  QUICSOCKET_OPTIONS_VALIDATE_ADDRESS = 0x1,
+#define QUICSOCKET_OPTIONS(V)                                                  \
+    V(VALIDATE_ADDRESS, validate_address)                                      \
+    V(VALIDATE_ADDRESS_LRU, validate_address_lru)
 
-  // When enabled, and the VALIDATE_ADDRESS option is also
-  // set, the QuicSocket will use an LRU cache to track
-  // validated addresses. Address validation will be skipped
-  // if the address is currently in the cache.
-  QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU = 0x2,
+#define V(id, _) QUICSOCKET_OPTIONS_##id,
+enum QuicSocketOptions : uint32_t {
+  QUICSOCKET_OPTIONS(V)
+  QUICSOCKET_OPTIONS_COUNT
 };
+#undef V
+
+#define QUICSOCKET_FLAGS(V)                                                    \
+    V(GRACEFUL_CLOSE, graceful_closing)                                        \
+    V(WAITING_FOR_CALLBACKS, waiting_for_callbacks)                            \
+    V(SERVER_LISTENING, server_listening)                                      \
+    V(SERVER_BUSY, server_busy)                                                \
+    V(DISABLE_STATELESS_RESET, stateless_reset_disabled)
 
 #define SOCKET_STATS(V)                                                        \
   V(CREATED_AT, created_at, "Created At")                                      \
@@ -351,7 +357,25 @@ class QuicSocket : public AsyncWrap,
       std::unique_ptr<QuicPacket> packet,
       BaseObjectPtr<QuicSession> session = BaseObjectPtr<QuicSession>());
 
-  inline void set_server_busy(bool on);
+#define V(id, name)                                                            \
+  inline bool is_##name() const {                                              \
+    return flags_ & (1 << QUICSOCKET_FLAG_##id); }                             \
+  inline void set_##name(bool on = true) {                                     \
+    if (on)                                                                    \
+      flags_ |= (1 << QUICSOCKET_FLAG_##id);                                   \
+    else                                                                       \
+      flags_ &= ~(1 << QUICSOCKET_FLAG_##id);                                  \
+  }
+  QUICSOCKET_FLAGS(V)
+#undef V
+
+#define V(id, name)                                                            \
+  bool has_option_##name() const {                                             \
+    return options_ & (1 << QUICSOCKET_OPTIONS_##id); }
+  QUICSOCKET_OPTIONS(V)
+#undef V
+
+  inline void ServerBusy(bool on);
 
   inline void set_diagnostic_packet_loss(double rx = 0.0, double tx = 0.0);
 
@@ -489,43 +513,12 @@ class QuicSocket : public AsyncWrap,
   // and the current packet should be artificially considered lost.
   inline bool is_diagnostic_packet_loss(double prob) const;
 
-  bool is_stateless_reset_disabled() {
-    return is_flag_set(QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET);
-  }
-
+#define V(id, _) QUICSOCKET_FLAG_##id,
   enum QuicSocketFlags : uint32_t {
-    QUICSOCKET_FLAGS_NONE = 0x0,
-
-    // Indicates that the QuicSocket has entered a graceful
-    // closing phase, indicating that no additional
-    QUICSOCKET_FLAGS_GRACEFUL_CLOSE = 0x1,
-    QUICSOCKET_FLAGS_WAITING_FOR_CALLBACKS = 0x2,
-    QUICSOCKET_FLAGS_SERVER_LISTENING = 0x4,
-    QUICSOCKET_FLAGS_SERVER_BUSY = 0x8,
-    QUICSOCKET_FLAGS_DISABLE_STATELESS_RESET = 0x10
+    QUICSOCKET_FLAGS(V)
+    QUICSOCKET_FLAG_COUNT
   };
-
-  void set_flag(QuicSocketFlags flag, bool on = true) {
-    if (on)
-      flags_ |= flag;
-    else
-      flags_ &= ~flag;
-  }
-
-  bool is_flag_set(QuicSocketFlags flag) const {
-    return flags_ & flag;
-  }
-
-  void set_option(QuicSocketOptions option, bool on = true) {
-    if (on)
-      options_ |= option;
-    else
-      options_ &= ~option;
-  }
-
-  bool is_option_set(QuicSocketOptions option) const {
-    return options_ & option;
-  }
+#undef V
 
   ngtcp2_mem alloc_info_;
 
@@ -533,8 +526,8 @@ class QuicSocket : public AsyncWrap,
   SocketAddress::Map<BaseObjectWeakPtr<QuicEndpoint>> bound_endpoints_;
   BaseObjectWeakPtr<QuicEndpoint> preferred_endpoint_;
 
-  uint32_t flags_ = QUICSOCKET_FLAGS_NONE;
-  uint32_t options_;
+  uint32_t flags_ = 0;
+  uint32_t options_ = 0;
   uint32_t server_options_;
 
   size_t max_connections_ = DEFAULT_MAX_CONNECTIONS;
