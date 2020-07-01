@@ -105,7 +105,7 @@ ngtcp2_crypto_level QuicCryptoContext::write_crypto_level() const {
 // to a keylog file that can be consumed by tools like Wireshark to intercept
 // and decrypt QUIC network traffic.
 void QuicCryptoContext::Keylog(const char* line) {
-  if (UNLIKELY(session_->state_[IDX_QUIC_SESSION_STATE_KEYLOG_ENABLED] == 1))
+  if (UNLIKELY(session_->state_->keylog_enabled))
     session_->listener()->OnKeylog(line, strlen(line));
 }
 
@@ -117,7 +117,7 @@ void QuicCryptoContext::OnClientHelloDone() {
       [&]() { set_in_client_hello(false); });
 
   // Disable the callback at this point so we don't loop continuously
-  session_->state_[IDX_QUIC_SESSION_STATE_CLIENT_HELLO_ENABLED] = 0;
+  session_->state_->client_hello_enabled = 0;
 }
 
 // Following a pause in the handshake for OCSP or client hello, we kickstart
@@ -274,14 +274,12 @@ void QuicSession::ExtendMaxStreamsRemoteBidi(uint64_t max_streams) {
 
 void QuicSession::ExtendMaxStreamsUni(uint64_t max_streams) {
   Debug(this, "Setting max unidirectional streams to %" PRIu64, max_streams);
-  state_[IDX_QUIC_SESSION_STATE_MAX_STREAMS_UNI] =
-      static_cast<double>(max_streams);
+  state_->max_streams_uni = max_streams;
 }
 
 void QuicSession::ExtendMaxStreamsBidi(uint64_t max_streams) {
   Debug(this, "Setting max bidirectional streams to %" PRIu64, max_streams);
-  state_[IDX_QUIC_SESSION_STATE_MAX_STREAMS_BIDI] =
-      static_cast<double>(max_streams);
+  state_->max_streams_bidi = max_streams;
 }
 
 // Extends the stream-level flow control by the given number of bytes.
@@ -327,7 +325,7 @@ void QuicSession::HandshakeCompleted() {
 void QuicSession::HandshakeConfirmed() {
   Debug(this, "Handshake is confirmed");
   RecordTimestamp(&QuicSessionStats::handshake_confirmed_at);
-  state_[IDX_QUIC_SESSION_STATE_HANDSHAKE_CONFIRMED] = 1;
+  state_->handshake_confirmed = 1;
 }
 
 bool QuicSession::is_handshake_completed() const {
@@ -346,7 +344,7 @@ void QuicSession::InitApplication() {
 // the peer. All existing streams are abandoned and closed.
 void QuicSession::OnIdleTimeout() {
   if (!is_destroyed()) {
-    state_[IDX_QUIC_SESSION_STATE_IDLE_TIMEOUT] = 1;
+    state_->idle_timeout = 1;
     Debug(this, "Idle timeout");
     Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
   }
