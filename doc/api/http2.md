@@ -2513,7 +2513,7 @@ const headers = {
   ':status': '200',
   'content-type': 'text-plain',
   'cookie': 'some-cookie',
-  'other-sensitive-header': 'very secret data'
+  'other-sensitive-header': 'very secret data',
   [http2.sensitiveHeaders]: ['cookie', 'other-sensitive-header']
 };
 
