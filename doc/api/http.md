@@ -113,7 +113,7 @@ http.get({
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33617
     description: Add `maxTotalSockets` option to agent constructor.
   - version: v14.5.0
