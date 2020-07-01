@@ -1596,6 +1596,7 @@ const cleanup = finished(rs, (err) => {
 ```
 
 ### `stream.pipeline(source[, ...transforms], destination, callback)`
+### `stream.pipeline(streams, callback)`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1610,6 +1611,7 @@ changes:
                  which are expected to emit `'close'`.
 -->
 
+* `streams` {Stream[]|Iterable[]|AsyncIterable[]|Function[]}
 * `source` {Stream|Iterable|AsyncIterable|Function}
   * Returns: {Iterable|AsyncIterable}
 * `...transforms` {Stream|Function}
