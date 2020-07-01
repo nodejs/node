@@ -191,7 +191,7 @@ const {
     ':status': [200],
     ':authority': [],
     'xyz': [1, 2, 3, 4],
-    [sensitiveHeaders]: 'xyz'
+    [sensitiveHeaders]: ['xyz']
   };
 
   assert.deepStrictEqual(
