@@ -1268,6 +1268,43 @@ const net = require('net');
   }));
 }
 
+// Set destroyDestOnError is false with 3 streams
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    const r = fs.createReadStream('./notfound');
+    const transform = new PassThrough();
+    pipeline(r, transform, res, { destroyDestOnError: false }, common.mustCall((err) => {
+      assert.ok(!res.destroyed);
+      assert.ok(r.destroyed);
+      assert.ok(transform.destroyed);
+      assert.strictEqual(err.code, 'ENOENT');
+      assert.strictEqual(err.message,
+                         'ENOENT: no such file or directory, ' +
+                         'open \'./notfound\'');
+      res.end(err.message);
+    }));
+  }));
+
+  server.listen(0, common.mustCall(() => {
+    http.request({
+      port: server.address().port
+    }, common.mustCall((res) => {
+      res.setEncoding('utf8');
+      let responseData = '';
+      res.on('data', (chunk) => { responseData += chunk; });
+      res.on('end', common.mustCall(() => {
+        assert.strictEqual(responseData,
+                           'ENOENT: no such file or directory, ' +
+                           'open \'./notfound\'');
+        setImmediate(() => {
+          res.destroy();
+          server.close();
+        });
+      }));
+    })).end();
+  }));
+}
+
 // Set destroyDestOnError is true
 {
   let res = '';
@@ -1283,6 +1320,27 @@ const net = require('net');
   }(), w, { destroyDestOnError: true }, common.mustCall((err) => {
     assert.ok(!err);
     assert.ok(w.destroyed);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
+// Set destroyDestOnError is true with 3 streams
+{
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  const transform = new PassThrough();
+  pipeline(function*() {
+    yield 'hello';
+    yield 'world';
+  }(), transform, w, { destroyDestOnError: true }, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.ok(w.destroyed);
+    assert.ok(transform.destroyed);
     assert.strictEqual(res, 'helloworld');
   }));
 }
