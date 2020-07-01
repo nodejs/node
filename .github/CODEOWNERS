@@ -59,12 +59,12 @@
 
 # quic
 
-./deps/ngtcp2/* @nodejs/quic
-./deps/nghttp3/* @nodejs/quic
-./doc/api/quic.md @nodejs/quic
-./lib/internal/quic/* @nodejs/quic
-./src/node_bob* @nodejs/quic
-./src/quic/* @nodejs/quic
+/deps/ngtcp2/ @nodejs/quic
+/deps/nghttp3/ @nodejs/quic
+/doc/api/quic.md @nodejs/quic
+/lib/internal/quic/ @nodejs/quic
+/src/node_bob* @nodejs/quic
+/src/quic/ @nodejs/quic
 
 # modules
 
