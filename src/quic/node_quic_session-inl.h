@@ -348,7 +348,7 @@ void QuicSession::OnIdleTimeout() {
   if (!is_destroyed()) {
     state_[IDX_QUIC_SESSION_STATE_IDLE_TIMEOUT] = 1;
     Debug(this, "Idle timeout");
-    SilentClose();
+    Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
   }
 }
 
