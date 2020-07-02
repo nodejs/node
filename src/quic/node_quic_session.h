@@ -17,6 +17,7 @@
 #include "node_quic_crypto.h"
 #include "node_quic_util.h"
 #include "node_sockaddr.h"
+#include "stream_base.h"
 #include "v8.h"
 #include "uv.h"
 
@@ -224,6 +225,36 @@ struct QuicSessionStatsTraits {
   static void ToString(const Base& ptr, Fn&& add_field);
 };
 
+class QLogStream : public AsyncWrap,
+                   public StreamBase {
+ public:
+  static BaseObjectPtr<QLogStream> Create(Environment* env);
+
+  QLogStream(Environment* env, v8::Local<v8::Object> obj);
+
+  void Emit(const uint8_t* data, size_t len);
+
+  void End() { ended_ = true; }
+
+  int ReadStart() override { return 0; }
+  int ReadStop() override { return 0; }
+  int DoShutdown(ShutdownWrap* req_wrap) override;
+  int DoWrite(WriteWrap* w,
+              uv_buf_t* bufs,
+              size_t count,
+              uv_stream_t* send_handle) override;
+  bool IsAlive() override;
+  bool IsClosing() override;
+  AsyncWrap* GetAsyncWrap() override { return this; }
+
+  SET_NO_MEMORY_INFO();
+  SET_MEMORY_INFO_NAME(QLogStream);
+  SET_SELF_SIZE(QLogStream);
+
+ private:
+  bool ended_ = false;
+};
+
 class QuicSessionListener {
  public:
   enum SessionCloseFlags {
@@ -269,7 +300,7 @@ class QuicSessionListener {
       uint32_t supported_version,
       const uint32_t* versions,
       size_t vcnt);
-  virtual void OnQLog(const uint8_t* data, size_t len);
+  virtual void OnQLog(QLogStream* qlog_stream);
 
   QuicSession* session() const { return session_.get(); }
 
@@ -316,7 +347,7 @@ class JSQuicSessionListener : public QuicSessionListener {
       uint32_t supported_version,
       const uint32_t* versions,
       size_t vcnt) override;
-  void OnQLog(const uint8_t* data, size_t len) override;
+  void OnQLog(QLogStream* qlog_stream) override;
 
  private:
   friend class QuicSession;
@@ -844,6 +875,8 @@ class QuicSession : public AsyncWrap,
 
   size_t max_packet_length() const { return max_pktlen_; }
 
+  BaseObjectPtr<QLogStream> qlog_stream();
+
   // Get the ALPN protocol identifier configured for this QuicSession.
   // For server sessions, this will be compared against the client requested
   // ALPN identifier to determine if there is a protocol match.
@@ -1014,7 +1047,7 @@ class QuicSession : public AsyncWrap,
   // to the peer. If Close is called while within the ngtcp2
   // callback scope, sending the CONNECTION_CLOSE will be
   // deferred until the ngtcp2 callback scope exits.
-  inline void Close(
+  void Close(
       int close_flags = QuicSessionListener::SESSION_CLOSE_FLAG_NONE);
 
   void PushListener(QuicSessionListener* listener);
@@ -1088,7 +1121,7 @@ class QuicSession : public AsyncWrap,
         return;
       }
       session_->set_in_connection_close_scope(false);
-      bool ret = session_->SendConnectionClose();
+      session_->SendConnectionClose();
     }
 
    private:
@@ -1460,6 +1493,7 @@ class QuicSession : public AsyncWrap,
   static const ngtcp2_conn_callbacks callbacks[2];
 
   BaseObjectPtr<QuicState> quic_state_;
+  BaseObjectWeakPtr<QLogStream> qlog_stream_;
 
   friend class QuicCryptoContext;
   friend class QuicSessionListener;
