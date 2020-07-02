@@ -79,5 +79,5 @@
 
 # ./src/node_api* @nodejs/n-api
 # ./src/js_native_api* @nodejs/n-api
-# ./doc/guides/adding-new-napi-api.md
-# ./doc/api/n-api.md
+# ./doc/guides/adding-new-napi-api.md @nodejs/n-api
+# ./doc/api/n-api.md @nodejs/n-api
