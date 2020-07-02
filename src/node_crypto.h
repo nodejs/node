@@ -420,7 +420,7 @@ class KeyObjectData {
   KeyType GetKeyType() const;
 
   // These functions allow unprotected access to the raw key material and should
-  // only be used to implement cryptograohic operations requiring the key.
+  // only be used to implement cryptographic operations requiring the key.
   ManagedEVPPKey GetAsymmetricKey() const;
   const char* GetSymmetricKey() const;
   size_t GetSymmetricKeySize() const;
