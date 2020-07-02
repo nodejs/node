@@ -83,3 +83,50 @@ const {
   document.dispatchEvent(new Event('test'));
   strictEqual(invoked_count, 2, 'Once handler should only be invoked once');
 }
+
+// Manually converted from https://github.com/web-platform-tests/wpt/blob/master/dom/events/AddEventListenerOptions-once.html
+// in order to define the `document` ourselves
+
+{
+  const document = new EventTarget();
+
+  // Should only fire for first event
+  document.addEventListener('test', common.mustCall(1), { once: true });
+  // Should fire for both events
+  document.addEventListener('test', common.mustCall(2));
+  // Fire events
+  document.dispatchEvent(new Event('test'));
+  document.dispatchEvent(new Event('test'));
+}
+{
+  const document = new EventTarget();
+
+  const handler = common.mustCall(2);
+  // Both should only fire on first event
+  document.addEventListener('test', handler.bind(), { once: true });
+  document.addEventListener('test', handler.bind(), { once: true });
+  // Fire events
+  document.dispatchEvent(new Event('test'));
+  document.dispatchEvent(new Event('test'));
+}
+{
+  const document = new EventTarget();
+
+  const handler = common.mustCall(2);
+
+  // Should only fire once on first event
+  document.addEventListener('test', common.mustCall(1), { once: true });
+  // Should fire twice until removed
+  document.addEventListener('test', handler);
+  // Fire two events
+  document.dispatchEvent(new Event('test'));
+  document.dispatchEvent(new Event('test'));
+
+  // Should only fire once on the next event
+  document.addEventListener('test', common.mustCall(1), { once: true });
+  // The previous handler should no longer fire
+  document.removeEventListener('test', handler);
+
+  // Fire final event triggering
+  document.dispatchEvent(new Event('test'));
+}
