@@ -11,6 +11,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#10.22.0">10.22.0</a><br/>
 <a href="#10.21.0">10.21.0</a><br/>
 <a href="#10.20.1">10.20.1</a><br/>
 <a href="#10.20.0">10.20.0</a><br/>
@@ -66,6 +67,41 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="10.22.0"></a>
+## 2020-07-21, Version 10.22.0 'Dubnium' (LTS), @BethGriggs prepared by @richardlau
+
+### Notable changes
+
+* **deps**:
+  * upgrade npm to 6.14.6 (claudiahdz) [#34246](https://github.com/nodejs/node/pull/34246)
+  * upgrade openssl sources to 1.1.1g (Hassaan Pasha) [#32982](https://github.com/nodejs/node/pull/32982)
+* **n-api**:
+  * add `napi_detach_arraybuffer` (legendecas) [#29768](https://github.com/nodejs/node/pull/29768)
+
+### Commits
+
+* [[`9915774d18`](https://github.com/nodejs/node/commit/9915774d18)] - **build**: log detected compilers in --verbose mode (Richard Lau) [#32715](https://github.com/nodejs/node/pull/32715)
+* [[`145dcc2c1c`](https://github.com/nodejs/node/commit/145dcc2c1c)] - **build**: move doc versions JSON file out of out/doc (Richard Lau) [#32728](https://github.com/nodejs/node/pull/32728)
+* [[`24b927ab66`](https://github.com/nodejs/node/commit/24b927ab66)] - **build**: allow clang 10+ in configure.py (Kamil Rytarowski) [#29541](https://github.com/nodejs/node/pull/29541)
+* [[`97b59527c7`](https://github.com/nodejs/node/commit/97b59527c7)] - **deps**: upgrade npm to 6.14.6 (claudiahdz) [#34246](https://github.com/nodejs/node/pull/34246)
+* [[`84fca3c691`](https://github.com/nodejs/node/commit/84fca3c691)] - **deps**: upgrade npm to 6.14.5 (Ruy Adorno) [#33239](https://github.com/nodejs/node/pull/33239)
+* [[`745b329260`](https://github.com/nodejs/node/commit/745b329260)] - **deps**: update archs files for OpenSSL-1.1.1g (Hassaan Pasha) [#32982](https://github.com/nodejs/node/pull/32982)
+* [[`94702c1560`](https://github.com/nodejs/node/commit/94702c1560)] - **deps**: upgrade openssl sources to 1.1.1g (Hassaan Pasha) [#32982](https://github.com/nodejs/node/pull/32982)
+* [[`ef9413be1a`](https://github.com/nodejs/node/commit/ef9413be1a)] - **deps**: upgrade openssl sources to 1.1.1f (Hassaan Pasha) [#32583](https://github.com/nodejs/node/pull/32583)
+* [[`3acc89f8f2`](https://github.com/nodejs/node/commit/3acc89f8f2)] - **deps**: V8: backport cd21f71f9cb5 (Michaël Zasso) [#33862](https://github.com/nodejs/node/pull/33862)
+* [[`89a306bca9`](https://github.com/nodejs/node/commit/89a306bca9)] - **deps**: fix V8 compiler error with clang++-11 (Sam Roberts) [#33094](https://github.com/nodejs/node/pull/33094)
+* [[`00f04e3b79`](https://github.com/nodejs/node/commit/00f04e3b79)] - **doc**: fix quotes in tls.md (Sparsh Garg) [#33641](https://github.com/nodejs/node/pull/33641)
+* [[`193d1d0e84`](https://github.com/nodejs/node/commit/193d1d0e84)] - **doc**: document fs.watchFile() bigint option (cjihrig) [#32128](https://github.com/nodejs/node/pull/32128)
+* [[`5dab101b03`](https://github.com/nodejs/node/commit/5dab101b03)] - **doc,n-api**: mark napi_detach_arraybuffer as experimental (legendecas) [#30703](https://github.com/nodejs/node/pull/30703)
+* [[`069b6e14a4`](https://github.com/nodejs/node/commit/069b6e14a4)] - **http**: disable headersTimeout check when set to zero (Paolo Insogna) [#33307](https://github.com/nodejs/node/pull/33307)
+* [[`aaf2f827c6`](https://github.com/nodejs/node/commit/aaf2f827c6)] - **inspector**: more conservative minimum stack size (Ben Noordhuis) [#27855](https://github.com/nodejs/node/pull/27855)
+* [[`b744ffd586`](https://github.com/nodejs/node/commit/b744ffd586)] - **(SEMVER-MINOR)** **n-api**: implement napi_is_detached_arraybuffer (Denys Otrishko) [#30613](https://github.com/nodejs/node/pull/30613)
+* [[`961598b9be`](https://github.com/nodejs/node/commit/961598b9be)] - **(SEMVER-MINOR)** **n-api**: add `napi_detach_arraybuffer` (legendecas) [#29768](https://github.com/nodejs/node/pull/29768)
+* [[`7a109febc4`](https://github.com/nodejs/node/commit/7a109febc4)] - **test**: remove timers-blocking-callback (Jeremiah Senkpiel) [#32870](https://github.com/nodejs/node/pull/32870)
+* [[`3dbd8cd3a9`](https://github.com/nodejs/node/commit/3dbd8cd3a9)] - ***Revert*** "**test**: mark empty udp tests flaky on OS X" (Luigi Pinca) [#32489](https://github.com/nodejs/node/pull/32489)
+* [[`543656928c`](https://github.com/nodejs/node/commit/543656928c)] - **test**: flaky test-stdout-close-catch on freebsd (Sam Roberts) [#32849](https://github.com/nodejs/node/pull/32849)
+* [[`74b00cca64`](https://github.com/nodejs/node/commit/74b00cca64)] - **tls**: allow empty subject even with altNames defined (Jason Macgowan) [#22906](https://github.com/nodejs/node/pull/22906)
 
 <a id="10.21.0"></a>
 ## 2020-06-02, Version 10.21.0 'Dubnium' (LTS), @BethGriggs
