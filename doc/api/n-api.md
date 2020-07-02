@@ -3330,6 +3330,7 @@ defined in [Section 7.2.14][] of the ECMAScript Language Specification.
 added:
  - v13.0.0
  - v12.16.0
+ - v10.22.0
 -->
 
 > Stability: 1 - Experimental
@@ -3358,6 +3359,7 @@ defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
 added:
  - v13.3.0
  - v12.16.0
+ - v10.22.0
 -->
 
 > Stability: 1 - Experimental
