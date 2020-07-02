@@ -59,6 +59,7 @@ namespace node {
   V(PROCESSWRAP)                                                              \
   V(PROMISE)                                                                  \
   V(QUERYWRAP)                                                                \
+  V(QLOGSTREAM)                                                               \
   V(QUICCLIENTSESSION)                                                        \
   V(QUICSERVERSESSION)                                                        \
   V(QUICSENDWRAP)                                                             \

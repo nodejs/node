@@ -274,7 +274,7 @@ added: REPLACEME
   * `maxStatelessResetsPerHost` {number} The maximum number of stateless
     resets that the `QuicSocket` is permitted to send per remote host.
     Default: `10`.
-  * `qlog` {boolean} Whether to emit ['qlog'][] events for incoming sessions.
+  * `qlog` {boolean} Whether to enable ['qlog'][] for incoming sessions.
     (For outgoing client sessions, set `client.qlog`.) Default: `false`.
   * `retryTokenTimeout` {number} The maximum number of *seconds* for retry token
     validation. Default: `10` seconds.
@@ -632,20 +632,6 @@ The callback will be invoked with three arguments:
 * `remote` {Object} The remote address component of the tested path.
 
 The `'pathValidation'` event will be emitted multiple times.
-
-#### Event: `'qlog'`
-<!-- YAML
-added: REPLACEME
--->
-
-* `jsonChunk` {string} A JSON fragment.
-
-Emitted if the `qlog: true` option was passed to `quicsocket.connect()` or
-`net.createQuicSocket()` functions.
-
-The argument is a JSON fragment according to the [qlog standard][].
-
-The `'qlog'` event will be emitted multiple times.
 
 #### Event: `'secure'`
 <!-- YAML
@@ -1044,6 +1030,19 @@ added: REPLACEME
 A `BigInt` representing the total number of `QuicStreams` initiated by the
 connected peer.
 
+#### quicsession.qlog
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {stream.Readable}
+
+If `qlog` support is enabled for `QuicSession`, the `quicsession.qlog` property
+provides a [`stream.Readable`][] that may be used to access the `qlog` event
+data according to the [qlog standard][]. For client `QuicSessions`, the
+`quicsession.qlog` property will be `undefined` untilt the `'qlog'` event
+is emitted.
+
 #### quicsession.remoteAddress
 <!-- YAML
 added: REPLACEME
@@ -1182,6 +1181,17 @@ The `sessionTicket` and `remoteTransportParams` are useful when creating a new
 `QuicClientSession` to more quickly resume an existing session.
 
 The `'sessionTicket'` event may be emitted multiple times.
+
+#### Event: `'qlog'`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'qlog'` event is emitted when the `QuicClientSession` is ready to begin
+providing `qlog` event data. The callback is invoked with a single argument:
+
+* `qlog` {stream.Readable} A [`stream.Readable`][] that is also available using
+  the `quicsession.qlog` property.
 
 #### Event: `'usePreferredAddress'`
 <!-- YAML
@@ -1573,7 +1583,7 @@ added: REPLACEME
     transport parameters from a previously established session. These would
     have been provided as part of the `'sessionTicket'` event on a previous
     `QuicClientSession` object.
-  * `qlog` {boolean} Whether to emit ['qlog'][] events for this session.
+  * `qlog` {boolean} Whether to enable ['qlog'][] for this session.
     Default: `false`.
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
@@ -2278,6 +2288,7 @@ added: REPLACEME
 Set to `true` if the `QuicStream` is unidirectional.
 
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`stream.Readable`]: #stream_class_stream_readable
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.getCiphers()`]: tls.html#tls_tls_getciphers
 [ALPN]: https://tools.ietf.org/html/rfc7301
@@ -2286,5 +2297,5 @@ Set to `true` if the `QuicStream` is unidirectional.
 [modifying the default cipher suite]: tls.html#tls_modifying_the_default_tls_cipher_suite
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
-['qlog']: #quic_event_qlog
+['qlog']: #quic_quicsession_qlog
 [qlog standard]: https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-00.html

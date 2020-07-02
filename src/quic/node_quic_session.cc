@@ -2,6 +2,7 @@
 #include "aliased_buffer.h"
 #include "aliased_struct-inl.h"
 #include "allocated_buffer-inl.h"
+#include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
 #include "node_crypto_common.h"
@@ -25,9 +26,11 @@
 #include "node_quic_default_application.h"
 #include "node_quic_http3_application.h"
 #include "node_sockaddr-inl.h"
+#include "stream_base-inl.h"
 #include "v8.h"
 #include "uv.h"
 
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <utility>
@@ -339,9 +342,9 @@ void QuicSessionListener::OnVersionNegotiation(
     previous_listener_->OnVersionNegotiation(supported_version, versions, vcnt);
 }
 
-void QuicSessionListener::OnQLog(const uint8_t* data, size_t len) {
+void QuicSessionListener::OnQLog(QLogStream* qlog_stream) {
   if (previous_listener_ != nullptr)
-    previous_listener_->OnQLog(data, len);
+    previous_listener_->OnQLog(qlog_stream);
 }
 
 void JSQuicSessionListener::OnKeylog(const char* line, size_t len) {
@@ -709,13 +712,13 @@ void JSQuicSessionListener::OnVersionNegotiation(
       arraysize(argv), argv);
 }
 
-void JSQuicSessionListener::OnQLog(const uint8_t* data, size_t len) {
+void JSQuicSessionListener::OnQLog(QLogStream* qlog_stream) {
+  CHECK_NOT_NULL(qlog_stream);
   Environment* env = session()->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-
-  Local<Value> str = OneByteString(env->isolate(), data, len);
-  session()->MakeCallback(env->quic_on_session_qlog_function(), 1, &str);
+  Local<Value> obj = qlog_stream->object();
+  session()->MakeCallback(env->quic_on_session_qlog_function(), 1, &obj);
 }
 
 // Generates a new random connection ID.
@@ -1457,6 +1460,10 @@ QuicSession::QuicSession(
 QuicSession::~QuicSession() {
   CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
 
+  // The next write should be the final one
+  if (qlog_stream_)
+    qlog_stream_->End();
+
   QuicSessionListener* listener_ = listener();
   if (listener_ == listener())
     RemoveListener(listener_);
@@ -1680,6 +1687,8 @@ void QuicSession::Close(int close_flags) {
 void QuicSession::Destroy() {
   if (is_destroyed())
     return;
+
+  Debug(this, "Destroying the QuicSession");
 
   // Mark the session destroyed.
   set_destroyed();
@@ -3222,9 +3231,31 @@ int QuicSession::OnStatelessReset(
   return 0;
 }
 
+BaseObjectPtr<QLogStream> QuicSession::qlog_stream() {
+  if (!qlog_stream_) {
+    CHECK(qlog_stream_ = QLogStream::Create(env()));
+    listener_->OnQLog(qlog_stream_.get());
+  }
+  return qlog_stream_;
+}
+
 void QuicSession::OnQlogWrite(void* user_data, const void* data, size_t len) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
-  session->listener()->OnQLog(reinterpret_cast<const uint8_t*>(data), len);
+  Environment* env = session->env();
+
+  // Fun fact... ngtcp2 does not emit the final qlog statement until the
+  // ngtcp2_conn object is destroyed. Ideally, destroying is explicit,
+  // but sometimes the QuicSession object can be garbage collected without
+  // being explicitly destroyed. During those times, we cannot call out
+  // to JavaScript. Because we don't know for sure if we're in in a GC
+  // when this is called, it is safer to just defer writes to immediate.
+  BaseObjectPtr<QLogStream> ptr = session->qlog_stream();
+  std::vector<uint8_t> buffer(len);
+  memcpy(buffer.data(), data, len);
+  env->SetImmediate([ptr = std::move(ptr),
+                     buffer = std::move(buffer)](Environment*) {
+    ptr->Emit(buffer.data(), buffer.size());
+  });
 }
 
 const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
@@ -3295,6 +3326,73 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     nullptr,  // recv_new_token
   }
 };
+
+BaseObjectPtr<QLogStream> QLogStream::Create(Environment* env) {
+  HandleScope scope(env->isolate());
+
+  // TODO(@jasnell): There is identical code in heap_utils for the
+  // HeapSnapshotStream. We can consolidate the two.
+  if (env->qlogoutputstream_constructor_template().IsEmpty()) {
+    // Create FunctionTemplate for QLogStream
+    Local<FunctionTemplate> os = FunctionTemplate::New(env->isolate());
+    os->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    Local<ObjectTemplate> ost = os->InstanceTemplate();
+    ost->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+    os->SetClassName(
+        FIXED_ONE_BYTE_STRING(env->isolate(), "QLogStream"));
+    StreamBase::AddMethods(env, os);
+    env->set_qlogoutputstream_constructor_template(ost);
+  }
+
+  Local<Object> obj;
+  if (!env->qlogoutputstream_constructor_template()
+          ->NewInstance(env->context())
+              .ToLocal(&obj)) {
+    return {};
+  }
+
+  return MakeBaseObject<QLogStream>(env, obj);
+}
+
+QLogStream::QLogStream(Environment* env, v8::Local<Object> obj)
+    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_QLOGSTREAM),
+      StreamBase(env) {
+  MakeWeak();
+  StreamBase::AttachToObject(GetObject());
+}
+
+void QLogStream::Emit(const uint8_t* data, size_t len) {
+  size_t remaining = len;
+  while (remaining != 0) {
+    uv_buf_t buf = EmitAlloc(len);
+    ssize_t avail = std::min<size_t>(remaining, buf.len);
+    memcpy(buf.base, data, avail);
+    remaining -= avail;
+    data += avail;
+    EmitRead(avail, buf);
+  }
+
+  // The last chunk that ngtcp2 writes is 6 bytes. Unfortunately,
+  // this is the only way for us to know that ngtcp2 is definitely
+  // done sending qlog events.
+  if (ended_ && len == 6)
+    EmitRead(UV_EOF);
+}
+
+int QLogStream::DoShutdown(ShutdownWrap* req_wrap) {
+  UNREACHABLE();
+}
+
+int QLogStream::DoWrite(
+    WriteWrap* w,
+    uv_buf_t* bufs,
+    size_t count,
+    uv_stream_t* send_handle) {
+  UNREACHABLE();
+}
+
+bool QLogStream::IsAlive() { return true; }
+bool QLogStream::IsClosing() { return false; }
 
 // JavaScript API
 
