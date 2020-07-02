@@ -84,22 +84,10 @@ See [How to create a Minimal, Complete, and Verifiable example](https://stackove
 
 ## Triaging a Bug Report
 
-Once an issue has been opened, it is not uncommon for there to be discussion
+Once an issue has been opened, it is common for there to be discussion
 around it. Some contributors may have differing opinions about the issue,
 including whether the behavior being seen is a bug or a feature. This discussion
 is part of the process and should be kept focused, helpful, and professional.
-
-Short, clipped responses that provide neither additional context nor supporting
-details are not helpful or professional to many. Such responses are simply
-annoying and unfriendly.
-
-Contributors are encouraged to help one another to make forward progress as much
-as possible, empowering one another to solve issues collaboratively. If you
-choose to comment on an issue that you feel either is not a problem that needs
-to be fixed, or if you encounter information in an issue that you feel is
-incorrect, explain *why* you feel that way with additional supporting context,
-and be willing to be convinced that you may be wrong. By doing so, we can often
-reach the correct outcome much faster.
 
 ## Resolving a Bug Report
 
