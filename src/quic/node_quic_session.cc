@@ -289,11 +289,6 @@ void QuicSessionListener::OnStreamReset(
     previous_listener_->OnStreamReset(stream_id, app_error_code);
 }
 
-void QuicSessionListener::OnSessionDestroyed() {
-  if (previous_listener_ != nullptr)
-    previous_listener_->OnSessionDestroyed();
-}
-
 void QuicSessionListener::OnSessionClose(QuicError error, int flags) {
   if (previous_listener_ != nullptr)
     previous_listener_->OnSessionClose(error, flags);
@@ -507,16 +502,6 @@ void JSQuicSessionListener::OnStreamReset(
       env->quic_on_stream_reset_function(),
       arraysize(argv),
       argv);
-}
-
-void JSQuicSessionListener::OnSessionDestroyed() {
-  Environment* env = session()->env();
-  HandleScope scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  // Emit the 'close' event in JS. This needs to happen after destroying the
-  // connection, because doing so also releases the last qlog data.
-  session()->MakeCallback(
-      env->quic_on_session_destroyed_function(), 0, nullptr);
 }
 
 void JSQuicSessionListener::OnSessionClose(QuicError error, int flags) {
@@ -1412,6 +1397,7 @@ QuicSession::QuicSession(
         QuicCID(),
         options,
         preferred_address_strategy) {
+  set_wrapped();
   InitClient(
       local_addr,
       remote_addr,
@@ -1472,7 +1458,6 @@ QuicSession::~QuicSession() {
   CHECK(!Ngtcp2CallbackScope::InNgtcp2CallbackScope(this));
 
   QuicSessionListener* listener_ = listener();
-  listener_->OnSessionDestroyed();
   if (listener_ == listener())
     RemoveListener(listener_);
 

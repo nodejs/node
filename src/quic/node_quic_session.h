@@ -251,7 +251,6 @@ class QuicSessionListener {
   virtual void OnStreamReset(
       int64_t stream_id,
       uint64_t app_error_code);
-  virtual void OnSessionDestroyed();
   virtual void OnSessionClose(
       QuicError error,
       int flags = SESSION_CLOSE_FLAG_NONE);
@@ -299,7 +298,6 @@ class JSQuicSessionListener : public QuicSessionListener {
   void OnStreamReset(
       int64_t stream_id,
       uint64_t app_error_code) override;
-  void OnSessionDestroyed() override;
   void OnSessionClose(
       QuicError error,
       int flags = SESSION_CLOSE_FLAG_NONE) override;
