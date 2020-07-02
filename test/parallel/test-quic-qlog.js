@@ -55,12 +55,22 @@ server.on('ready', common.mustCall(() => {
   }));
 }));
 
-function gatherQlog(session, id) {
-  let log = '';
-  session.on('qlog', (chunk) => log += chunk);
-  session.on('close', common.mustCall(() => {
-    const { qlog_version, traces } = JSON.parse(log);
+function setupQlog(qlog) {
+  let data = '';
+  qlog.setEncoding('utf8');
+  qlog.on('data', (chunk) => data += chunk);
+  qlog.once('end', common.mustCall(() => {
+    const { qlog_version, traces } = JSON.parse(data);
     assert.strictEqual(typeof qlog_version, 'string');
-    assert.strictEqual(typeof traces[0].events, 'object');
+    assert.strictEqual(typeof traces, 'object');
   }));
+}
+
+function gatherQlog(session, id) {
+  switch (id) {
+    case 'server':
+      setupQlog(session.qlog);
+    case 'client':
+      session.on('qlog', setupQlog);
+  }
 }
