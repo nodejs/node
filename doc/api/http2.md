@@ -3034,8 +3034,7 @@ added: v8.4.0
 * {string}
 
 Request URL string. This contains only the URL that is present in the actual
-HTTP request. If the request is (remember, each header line ends with `\r\n`
-plus a final `\r\n` after the last one indicating the end of the header):
+HTTP request. If the request is:
 
 ```http
 GET /status?name=ryan HTTP/1.1
@@ -3049,7 +3048,7 @@ Then `request.url` will be:
 '/status?name=ryan'
 ```
 
-To parse the url into its parts `require('url').parse(request.url)`
+To parse the url into its parts, `require('url').parse(request.url)`
 can be used:
 
 ```console

@@ -2101,8 +2101,7 @@ added: v0.1.90
 **Only valid for request obtained from [`http.Server`][].**
 
 Request URL string. This contains only the URL that is present in the actual
-HTTP request. If the request is (remember, each header line ends with `\r\n`
-plus a final `\r\n` after the last one indicating the end of the header):
+HTTP request. Take the following request:
 
 ```http
 GET /status?name=ryan HTTP/1.1
