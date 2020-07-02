@@ -837,8 +837,10 @@ class QuicSession : public AsyncWrap,
 #define V(id, name)                                                            \
   bool is_##name() const { return flags_ & (1 << QUICSESSION_FLAG_##id); }     \
   void set_##name(bool on = true) {                                            \
-    if (on) flags_ |= (1 << QUICSESSION_FLAG_##id);                            \
-    else flags_ &= ~(1 << QUICSESSION_FLAG_##id);                              \
+    if (on)                                                                    \
+      flags_ |= (1 << QUICSESSION_FLAG_##id);                                  \
+    else                                                                       \
+      flags_ &= ~(1 << QUICSESSION_FLAG_##id);                                 \
   }
   QUICSESSION_FLAGS(V)
 #undef V

@@ -70,7 +70,9 @@ function gatherQlog(session, id) {
   switch (id) {
     case 'server':
       setupQlog(session.qlog);
+      break;
     case 'client':
       session.on('qlog', setupQlog);
+      break;
   }
 }
