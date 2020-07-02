@@ -77,8 +77,8 @@ const kALPN = 'zzz';
       countdown.dec();
       // Shutdown the remaining open sessions.
       setImmediate(common.mustCall(() => {
-        for (const req of sessions)
-          req.close();
+       for (const req of sessions)
+         req.close();
       }));
     }));
 
