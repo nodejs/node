@@ -1468,6 +1468,13 @@ QuicSession::~QuicSession() {
   if (listener_ == listener())
     RemoveListener(listener_);
 
+  // Stop and free the idle and retransmission timers if they are active.
+  // In a clean shutdown, using Close(), these will have already been
+  // stopped, but if Close() was not called and we're being destroyed
+  // in GC, for instance, we need to make sure they get stopped here.
+  StopIdleTimer();
+  StopRetransmitTimer();
+
   DebugStats();
 }
 
