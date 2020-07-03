@@ -1495,7 +1495,7 @@ class QuicSession : public AsyncWrap,
   static const ngtcp2_conn_callbacks callbacks[2];
 
   BaseObjectPtr<QuicState> quic_state_;
-  BaseObjectPtr<QLogStream> qlog_stream_;
+  BaseObjectWeakPtr<QLogStream> qlog_stream_;
 
   friend class QuicCryptoContext;
   friend class QuicSessionListener;

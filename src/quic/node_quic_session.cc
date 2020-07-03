@@ -3249,18 +3249,20 @@ BaseObjectPtr<QLogStream> QuicSession::qlog_stream() {
 void QuicSession::OnQlogWrite(void* user_data, const void* data, size_t len) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
   Environment* env = session->env();
-  if (env->can_call_into_js()) {
-    // If we're able to call into JavaScript, dispatch the chunk immediately.
-    session->qlog_stream()->Emit(reinterpret_cast<const uint8_t*>(data), len);
-  } else {
-    BaseObjectPtr<QLogStream> ptr = session->qlog_stream();
-    std::vector<uint8_t> buffer(len);
-    memcpy(buffer.data(), data, len);
-    env->SetImmediate([ptr = std::move(ptr),
-                       buffer = std::move(buffer)](Environment*) {
-      ptr->Emit(buffer.data(), buffer.size());
-    });
-  }
+
+  // Fun fact... ngtcp2 does not emit the final qlog statement until the
+  // ngtcp2_conn object is destroyed. Ideally, destroying is explicit,
+  // but sometimes the QuicSession object can be garbage collected without
+  // being explicitly destroyed. During those times, we cannot call out
+  // to JavaScript. Because we don't know for sure if we're in in a GC
+  // when this is called, it is safer to just defer writes to immediate.
+  BaseObjectPtr<QLogStream> ptr = session->qlog_stream();
+  std::vector<uint8_t> buffer(len);
+  memcpy(buffer.data(), data, len);
+  env->SetImmediate([ptr = std::move(ptr),
+                     buffer = std::move(buffer)](Environment*) {
+    ptr->Emit(buffer.data(), buffer.size());
+  });
 }
 
 const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
@@ -3377,7 +3379,10 @@ void QLogStream::Emit(const uint8_t* data, size_t len) {
     EmitRead(avail, buf);
   }
 
-  if (ended_)
+  // The last chunk that ngtcp2 writes is 6 bytes. Unfortunately,
+  // this is the only way for us to know that ngtcp2 is definitely
+  // done sending qlog events.
+  if (ended_ && len == 6)
     EmitRead(UV_EOF);
 }
 
