@@ -326,16 +326,19 @@ int uv_tcp_close_reset(uv_tcp_t* handle, uv_close_cb close_cb) {
 
 
 int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
-  static int single_accept = -1;
+  static int single_accept_cached = -1;
   unsigned long flags;
+  int single_accept;
   int err;
 
   if (tcp->delayed_error)
     return tcp->delayed_error;
 
+  single_accept = uv__load_relaxed(&single_accept_cached);
   if (single_accept == -1) {
     const char* val = getenv("UV_TCP_SINGLE_ACCEPT");
     single_accept = (val != NULL && atoi(val) != 0);  /* Off by default. */
+    uv__store_relaxed(&single_accept_cached, single_accept);
   }
 
   if (single_accept)

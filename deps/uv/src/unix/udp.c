@@ -367,7 +367,7 @@ write_queue_drain:
       return;
     for (i = 0, q = QUEUE_HEAD(&handle->write_queue);
          i < pkts && q != &handle->write_queue;
-         ++i, q = QUEUE_HEAD(q)) {
+         ++i, q = QUEUE_HEAD(&handle->write_queue)) {
       assert(q != NULL);
       req = QUEUE_DATA(q, uv_udp_send_t, queue);
       assert(req != NULL);

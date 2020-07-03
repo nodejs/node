@@ -229,11 +229,7 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
-#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
-  return utimensat(req->file, NULL, ts, 0);
-#else
   return futimens(req->file, ts);
-#endif
 #elif defined(__APPLE__)                                                      \
     || defined(__DragonFly__)                                                 \
     || defined(__FreeBSD__)                                                   \
@@ -316,7 +312,7 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
   uv_once(&once, uv__mkostemp_initonce);
 
 #ifdef O_CLOEXEC
-  if (no_cloexec_support == 0 && uv__mkostemp != NULL) {
+  if (uv__load_relaxed(&no_cloexec_support) == 0 && uv__mkostemp != NULL) {
     r = uv__mkostemp(path, O_CLOEXEC);
 
     if (r >= 0)
@@ -329,7 +325,7 @@ static int uv__fs_mkstemp(uv_fs_t* req) {
 
     /* We set the static variable so that next calls don't even
        try to use mkostemp. */
-    no_cloexec_support = 1;
+    uv__store_relaxed(&no_cloexec_support, 1);
   }
 #endif  /* O_CLOEXEC */
 
@@ -460,7 +456,7 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
     result = preadv(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
 #else
 # if defined(__linux__)
-    if (no_preadv) retry:
+    if (uv__load_relaxed(&no_preadv)) retry:
 # endif
     {
       result = uv__fs_preadv(req->file, req->bufs, req->nbufs, req->off);
@@ -472,7 +468,7 @@ static ssize_t uv__fs_read(uv_fs_t* req) {
                           req->nbufs,
                           req->off);
       if (result == -1 && errno == ENOSYS) {
-        no_preadv = 1;
+        uv__store_relaxed(&no_preadv, 1);
         goto retry;
       }
     }
@@ -1355,7 +1351,7 @@ static int uv__fs_statx(int fd,
   int mode;
   int rc;
 
-  if (no_statx)
+  if (uv__load_relaxed(&no_statx))
     return UV_ENOSYS;
 
   dirfd = AT_FDCWD;
@@ -1388,7 +1384,7 @@ static int uv__fs_statx(int fd,
      * implemented, rc might return 1 with 0 set as the error code in which
      * case we return ENOSYS.
      */
-    no_statx = 1;
+    uv__store_relaxed(&no_statx, 1);
     return UV_ENOSYS;
   }
 
