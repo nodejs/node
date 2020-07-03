@@ -1,3 +1,42 @@
+2020.07.04, Version 1.38.1 (Stable), e8b989ea1f7f9d4083511a2caec7791e9abd1871
+
+Changes since version 1.38.0:
+
+* test: use last matching qemu version (cjihrig)
+
+* win, util: rearrange uv_hrtime (Bartosz Sosnowski)
+
+* test: skip signal_multiple_loops test on QEMU (gengjiawen)
+
+* build: add android build to CI (gengjiawen)
+
+* test: extend fs_event_error_reporting timeout (cjihrig)
+
+* build: link libkvm on netbsd only (Alexander Tokmakov)
+
+* linux: refactor /proc file reader logic (Ben Noordhuis)
+
+* linux: read load average from /proc/loadavg (Ben Noordhuis)
+
+* android: remove patch code for below 21 (gengjiawen)
+
+* win: fix visual studio 2008 build (Arenoros)
+
+* win,tty: fix deadlock caused by inconsistent state (lander0s)
+
+* unix: use relaxed loads/stores for feature checks (Ben Noordhuis)
+
+* build: don't .gitignore m4/ax_pthread.m4 (Ben Noordhuis)
+
+* unix: fix gcc atomics feature check (Ben Noordhuis)
+
+* darwin: work around clock jumping back in time (Ben Noordhuis)
+
+* udp: fix write_queue cleanup on sendmmsg error (Santiago Gimeno)
+
+* src: build fix for Android (David Carlier)
+
+
 2020.05.18, Version 1.38.0 (Stable), 1ab9ea3790378f9f25c4e78e9e2b511c75f9c9ed
 
 Changes since version 1.37.0:
