@@ -5,7 +5,7 @@
 #include "third_party/zlib/google/compression_utils.h"
 
 #include "base/bit_cast.h"
-#include "base/logging.h"
+#include "base/check_op.h"
 #include "base/process/memory.h"
 #include "base/strings/string_piece.h"
 #include "base/sys_byteorder.h"
