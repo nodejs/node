@@ -60,6 +60,14 @@ extern int snprintf(char*, size_t, const char*, ...);
 #define STATIC_ASSERT(expr)                                                   \
   void uv__static_assert(int static_assert_failed[1 - 2 * !(expr)])
 
+#if defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 7)
+#define uv__load_relaxed(p) __atomic_load_n(p, __ATOMIC_RELAXED)
+#define uv__store_relaxed(p, v) __atomic_store_n(p, v, __ATOMIC_RELAXED)
+#else
+#define uv__load_relaxed(p) (*p)
+#define uv__store_relaxed(p, v) do *p = v; while (0)
+#endif
+
 /* Handle flags. Some flags are specific to Windows or UNIX. */
 enum {
   /* Used by all handles. */

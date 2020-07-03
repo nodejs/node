@@ -859,11 +859,11 @@ __attribute__((destructor))
 void uv_library_shutdown(void) {
   static int was_shutdown;
 
-  if (was_shutdown)
+  if (uv__load_relaxed(&was_shutdown))
     return;
 
   uv__process_title_cleanup();
   uv__signal_cleanup();
   uv__threadpool_cleanup();
-  was_shutdown = 1;
+  uv__store_relaxed(&was_shutdown, 1);
 }
