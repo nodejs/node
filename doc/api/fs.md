@@ -654,8 +654,8 @@ added: v0.1.93
 
 * Extends: {stream.Readable}
 
-A successful call to `fs.createReadStream()` will return a new `fs.ReadStream`
-object.
+Instances of `fs.ReadStream` are created and returned using the
+[`fs.createReadStream()`][] function.
 
 ### Event: `'close'`
 <!-- YAML
@@ -1078,6 +1078,9 @@ added: v0.1.93
 -->
 
 * Extends {stream.Writable}
+
+Instances of `fs.WriteStream` are created and returned using the
+[`fs.createWriteStream()`][] function.
 
 ### Event: `'close'`
 <!-- YAML
@@ -5898,6 +5901,7 @@ the file contents.
 [`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_mode_callback
+[`fs.createReadStream()`]: #fs_fs_createreadstream_path_options
 [`fs.createWriteStream()`]: #fs_fs_createwritestream_path_options
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
