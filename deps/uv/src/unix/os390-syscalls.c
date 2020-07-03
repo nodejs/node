@@ -33,7 +33,6 @@
 #pragma linkage(BPX4CTW, OS)
 #pragma linkage(BPX1CTW, OS)
 
-static int number_of_epolls;
 static QUEUE global_epoll_queue;
 static uv_mutex_t global_epoll_lock;
 static uv_once_t once = UV_ONCE_INIT;

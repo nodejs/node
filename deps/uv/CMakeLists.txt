@@ -182,6 +182,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  list(APPEND uv_defines _GNU_SOURCE)
   list(APPEND uv_libraries dl)
   list(APPEND uv_sources
        src/unix/android-ifaddrs.c
@@ -192,8 +193,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android")
        src/unix/pthread-fixes.c
        src/unix/random-getentropy.c
        src/unix/random-getrandom.c
-       src/unix/random-sysctl-linux.c
-       src/unix/sysinfo-loadavg.c)
+       src/unix/random-sysctl-linux.c)
 endif()
 
 if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Android|Linux|OS390")
@@ -206,7 +206,6 @@ endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|NetBSD|OpenBSD")
   list(APPEND uv_sources src/unix/posix-hrtime.c src/unix/bsd-proctitle.c)
-  list(APPEND uv_libraries kvm)
 endif()
 
 if(APPLE OR CMAKE_SYSTEM_NAME MATCHES "DragonFly|FreeBSD|NetBSD|OpenBSD")
@@ -238,12 +237,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
        src/unix/linux-syscalls.c
        src/unix/procfs-exepath.c
        src/unix/random-getrandom.c
-       src/unix/random-sysctl-linux.c
-       src/unix/sysinfo-loadavg.c)
+       src/unix/random-sysctl-linux.c)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
   list(APPEND uv_sources src/unix/netbsd.c)
+  list(APPEND uv_libraries kvm)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
@@ -510,6 +509,7 @@ if(LIBUV_BUILD_TESTS)
        test/test-udp-send-and-recv.c
        test/test-udp-send-hang-loop.c
        test/test-udp-send-immediate.c
+       test/test-udp-sendmmsg-error.c
        test/test-udp-send-unreachable.c
        test/test-udp-try-send.c
        test/test-uname.c
