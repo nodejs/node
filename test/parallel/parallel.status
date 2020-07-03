@@ -25,6 +25,8 @@ test-http2-pipe: PASS,FLAKY
 test-stream-pipeline-http2: PASS,FLAKY
 # https://github.com/nodejs/node/issues/24497
 test-timers-immediate-queue: PASS,FLAKY
+# https://github.com/nodejs/node/issues/34163
+test-vm-timeout-escape-promise-2: PASS,FLAKY
 # https://github.com/nodejs/node/issues/23277
 test-worker-memory: PASS,FLAKY
 # https://github.com/nodejs/node/issues/30846
