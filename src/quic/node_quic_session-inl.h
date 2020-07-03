@@ -375,8 +375,7 @@ QuicCID QuicSession::dcid() const {
 // timer to actually monitor. Here we take the calculated timeout
 // and extend out the libuv timer.
 void QuicSession::UpdateRetransmitTimer(uint64_t timeout) {
-  DCHECK_NOT_NULL(retransmit_);
-  retransmit_->Update(timeout);
+  retransmit_.Update(timeout, timeout);
 }
 
 void QuicSession::CheckAllocatedSize(size_t previous_size) const {
@@ -512,13 +511,11 @@ void QuicSession::set_remote_transport_params() {
 }
 
 void QuicSession::StopIdleTimer() {
-  CHECK_NOT_NULL(idle_);
-  idle_->Stop();
+  idle_.Stop();
 }
 
 void QuicSession::StopRetransmitTimer() {
-  CHECK_NOT_NULL(retransmit_);
-  retransmit_->Stop();
+  retransmit_.Stop();
 }
 
 // Called by the OnVersionNegotiation callback when a version

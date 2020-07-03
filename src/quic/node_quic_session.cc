@@ -1431,8 +1431,8 @@ QuicSession::QuicSession(
     socket_(socket),
     alpn_(alpn),
     hostname_(hostname),
-    idle_(new Timer(socket->env(), [this]() { OnIdleTimeout(); })),
-    retransmit_(new Timer(socket->env(), [this]() { MaybeTimeout(); })),
+    idle_(socket->env(), [this](void* data) { OnIdleTimeout(); }),
+    retransmit_(socket->env(), [this](void* data) { MaybeTimeout(); }),
     dcid_(dcid),
     state_(env()->isolate()),
     quic_state_(socket->quic_state()) {
@@ -2461,14 +2461,13 @@ void QuicSession::UpdateConnectionID(
 // will be silently closed. It is important to update this as activity
 // occurs to keep the idle timer from firing.
 void QuicSession::UpdateIdleTimer() {
-  CHECK_NOT_NULL(idle_);
   uint64_t now = uv_hrtime();
   uint64_t expiry = ngtcp2_conn_get_idle_expiry(connection());
   // nano to millis
   uint64_t timeout = expiry > now ? (expiry - now) / 1000000ULL : 1;
   if (timeout == 0) timeout = 1;
   Debug(this, "Updating idle timeout to %" PRIu64, timeout);
-  idle_->Update(timeout);
+  idle_.Update(timeout, timeout);
 }
 
 
