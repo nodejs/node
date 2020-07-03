@@ -266,7 +266,9 @@ but important side effect: any *additional* listeners registered to the same
 listener that is in the process of being added.
 
 ```js
-const myEmitter = new EventEmitter();
+class MyEmitter extends EventEmitter {}
+
+const myEmitter = new MyEmitter();
 // Only do this once so we don't loop forever
 myEmitter.once('newListener', (event, listener) => {
   if (event === 'event') {
