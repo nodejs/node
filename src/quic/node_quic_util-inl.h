@@ -73,49 +73,6 @@ size_t GetMaxPktLen(const SocketAddress& addr) {
       NGTCP2_MAX_PKTLEN_IPV4;
 }
 
-Timer::Timer(Environment* env, std::function<void()> fn)
-  : env_(env),
-    fn_(fn) {
-  uv_timer_init(env_->event_loop(), &timer_);
-  timer_.data = this;
-}
-
-void Timer::Stop() {
-  if (stopped_)
-    return;
-  stopped_ = true;
-
-  if (timer_.data == this) {
-    uv_timer_stop(&timer_);
-    timer_.data = nullptr;
-  }
-}
-
-// If the timer is not currently active, interval must be either 0 or greater.
-// If the timer is already active, interval is ignored.
-void Timer::Update(uint64_t interval) {
-  if (stopped_)
-    return;
-  uv_timer_start(&timer_, OnTimeout, interval, interval);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&timer_));
-}
-
-void Timer::Free(Timer* timer) {
-  timer->env_->CloseHandle(
-      reinterpret_cast<uv_handle_t*>(&timer->timer_),
-      [&](uv_handle_t* timer) {
-        Timer* t = ContainerOf(
-            &Timer::timer_,
-            reinterpret_cast<uv_timer_t*>(timer));
-        delete t;
-      });
-}
-
-void Timer::OnTimeout(uv_timer_t* timer) {
-  Timer* t = ContainerOf(&Timer::timer_, timer);
-  t->fn_();
-}
-
 QuicError::QuicError(
     int32_t family_,
     uint64_t code_) :

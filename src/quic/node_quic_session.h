@@ -18,6 +18,7 @@
 #include "node_quic_util.h"
 #include "node_sockaddr.h"
 #include "stream_base.h"
+#include "timer_wrap.h"
 #include "v8.h"
 #include "uv.h"
 
@@ -1471,8 +1472,8 @@ class QuicSession : public AsyncWrap,
   QuicSessionListener* listener_ = nullptr;
   JSQuicSessionListener default_listener_;
 
-  TimerPointer idle_;
-  TimerPointer retransmit_;
+  TimerWrapHandle idle_;
+  TimerWrapHandle retransmit_;
 
   QuicCID scid_;
   QuicCID dcid_;

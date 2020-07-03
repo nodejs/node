@@ -338,38 +338,6 @@ class QuicCID : public MemoryRetainer {
   const ngtcp2_cid* ptr_;
 };
 
-// Simple timer wrapper that is used to implement the internals
-// for idle and retransmission timeouts. Call Update to start or
-// reset the timer; Stop to halt the timer.
-class Timer final : public MemoryRetainer {
- public:
-  inline explicit Timer(Environment* env, std::function<void()> fn);
-
-  // Stops the timer with the side effect of the timer no longer being usable.
-  // It will be cleaned up and the Timer object will be destroyed.
-  inline void Stop();
-
-  // If the timer is not currently active, interval must be either 0 or greater.
-  // If the timer is already active, interval is ignored.
-  inline void Update(uint64_t interval);
-
-  static inline void Free(Timer* timer);
-
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(Timer)
-  SET_SELF_SIZE(Timer)
-
- private:
-  static inline void OnTimeout(uv_timer_t* timer);
-
-  bool stopped_ = false;
-  Environment* env_;
-  std::function<void()> fn_;
-  uv_timer_t timer_;
-};
-
-using TimerPointer = DeleteFnPtr<Timer, Timer::Free>;
-
 // A Stateless Reset Token is a mechanism by which a QUIC
 // endpoint can discreetly signal to a peer that it has
 // lost all state associated with a connection. This
