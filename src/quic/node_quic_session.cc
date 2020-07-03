@@ -2548,6 +2548,8 @@ void QuicSession::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("current_ngtcp2_memory", current_ngtcp2_memory_);
   tracker->TrackField("conn_closebuf", conn_closebuf_);
   tracker->TrackField("application", application_);
+  tracker->TrackField("quic_state", quic_state_);
+  tracker->TrackField("qlog_stream", qlog_stream_);
   StatsBase::StatsMemoryInfo(tracker);
 }
 
