@@ -15,6 +15,7 @@
 #include "node_process.h"
 #include "node_url.h"
 #include "util-inl.h"
+#include "timer_wrap.h"
 #include "v8-inspector.h"
 #include "v8-platform.h"
 
@@ -326,86 +327,6 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   bool retaining_context_;
 };
 
-class InspectorTimer {
- public:
-  InspectorTimer(Environment* env,
-                 double interval_s,
-                 V8InspectorClient::TimerCallback callback,
-                 void* data) : env_(env),
-                               callback_(callback),
-                               data_(data) {
-    uv_timer_init(env->event_loop(), &timer_);
-    int64_t interval_ms = 1000 * interval_s;
-    uv_timer_start(&timer_, OnTimer, interval_ms, interval_ms);
-    timer_.data = this;
-  }
-
-  InspectorTimer(const InspectorTimer&) = delete;
-
-  void Stop() {
-    if (timer_.data == nullptr) return;
-
-    timer_.data = nullptr;
-    uv_timer_stop(&timer_);
-    env_->CloseHandle(reinterpret_cast<uv_handle_t*>(&timer_), TimerClosedCb);
-  }
-
-  inline Environment* env() const { return env_; }
-
- private:
-  static void OnTimer(uv_timer_t* uvtimer) {
-    InspectorTimer* timer = node::ContainerOf(&InspectorTimer::timer_, uvtimer);
-    timer->callback_(timer->data_);
-  }
-
-  static void TimerClosedCb(uv_handle_t* uvtimer) {
-    std::unique_ptr<InspectorTimer> timer(
-        node::ContainerOf(&InspectorTimer::timer_,
-                          reinterpret_cast<uv_timer_t*>(uvtimer)));
-    // Unique_ptr goes out of scope here and pointer is deleted.
-  }
-
-  ~InspectorTimer() = default;
-
-  Environment* env_;
-  uv_timer_t timer_;
-  V8InspectorClient::TimerCallback callback_;
-  void* data_;
-
-  friend std::unique_ptr<InspectorTimer>::deleter_type;
-};
-
-class InspectorTimerHandle {
- public:
-  InspectorTimerHandle(Environment* env, double interval_s,
-                       V8InspectorClient::TimerCallback callback, void* data) {
-    timer_ = new InspectorTimer(env, interval_s, callback, data);
-
-    env->AddCleanupHook(CleanupHook, this);
-  }
-
-  InspectorTimerHandle(const InspectorTimerHandle&) = delete;
-
-  ~InspectorTimerHandle() {
-    Stop();
-  }
-
- private:
-  void Stop() {
-    if (timer_ != nullptr) {
-      timer_->env()->RemoveCleanupHook(CleanupHook, this);
-      timer_->Stop();
-    }
-    timer_ = nullptr;
-  }
-
-  static void CleanupHook(void* data) {
-    static_cast<InspectorTimerHandle*>(data)->Stop();
-  }
-
-  InspectorTimer* timer_;
-};
-
 class SameThreadInspectorSession : public InspectorSession {
  public:
   SameThreadInspectorSession(
@@ -602,9 +523,12 @@ class NodeInspectorClient : public V8InspectorClient {
   void startRepeatingTimer(double interval_s,
                            TimerCallback callback,
                            void* data) override {
-    timers_.emplace(std::piecewise_construct, std::make_tuple(data),
-                    std::make_tuple(env_, interval_s, callback,
-                                    data));
+    auto result =
+        timers_.emplace(std::piecewise_construct, std::make_tuple(data),
+                        std::make_tuple(env_, callback, data));
+    CHECK(result.second);
+    uint64_t interval = 1000 * interval_s;
+    result.first->second.Update(interval, interval);
   }
 
   void cancelTimer(void* data) override {
@@ -724,7 +648,7 @@ class NodeInspectorClient : public V8InspectorClient {
   bool running_nested_loop_ = false;
   std::unique_ptr<V8Inspector> client_;
   // Note: ~ChannelImpl may access timers_ so timers_ has to come first.
-  std::unordered_map<void*, InspectorTimerHandle> timers_;
+  std::unordered_map<void*, TimerWrapHandle> timers_;
   std::unordered_map<int, std::unique_ptr<ChannelImpl>> channels_;
   int next_session_id_ = 1;
   bool waiting_for_resume_ = false;
