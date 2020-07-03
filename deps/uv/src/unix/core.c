@@ -79,10 +79,6 @@ extern char** environ;
 # endif
 #endif
 
-#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
-# include <dlfcn.h>  /* for dlsym */
-#endif
-
 #if defined(__MVS__)
 #include <sys/ioctl.h>
 #endif
@@ -220,15 +216,23 @@ int uv__getiovmax(void) {
 #if defined(IOV_MAX)
   return IOV_MAX;
 #elif defined(_SC_IOV_MAX)
-  static int iovmax = -1;
-  if (iovmax == -1) {
-    iovmax = sysconf(_SC_IOV_MAX);
-    /* On some embedded devices (arm-linux-uclibc based ip camera),
-     * sysconf(_SC_IOV_MAX) can not get the correct value. The return
-     * value is -1 and the errno is EINPROGRESS. Degrade the value to 1.
-     */
-    if (iovmax == -1) iovmax = 1;
-  }
+  static int iovmax_cached = -1;
+  int iovmax;
+
+  iovmax = uv__load_relaxed(&iovmax_cached);
+  if (iovmax != -1)
+    return iovmax;
+
+  /* On some embedded devices (arm-linux-uclibc based ip camera),
+   * sysconf(_SC_IOV_MAX) can not get the correct value. The return
+   * value is -1 and the errno is EINPROGRESS. Degrade the value to 1.
+   */
+  iovmax = sysconf(_SC_IOV_MAX);
+  if (iovmax == -1)
+    iovmax = 1;
+
+  uv__store_relaxed(&iovmax_cached, iovmax);
+
   return iovmax;
 #else
   return 1024;
@@ -662,7 +666,7 @@ ssize_t uv__recvmsg(int fd, struct msghdr* msg, int flags) {
   int* end;
 #if defined(__linux__)
   static int no_msg_cmsg_cloexec;
-  if (no_msg_cmsg_cloexec == 0) {
+  if (0 == uv__load_relaxed(&no_msg_cmsg_cloexec)) {
     rc = recvmsg(fd, msg, flags | 0x40000000);  /* MSG_CMSG_CLOEXEC */
     if (rc != -1)
       return rc;
@@ -671,7 +675,7 @@ ssize_t uv__recvmsg(int fd, struct msghdr* msg, int flags) {
     rc = recvmsg(fd, msg, flags);
     if (rc == -1)
       return UV__ERR(errno);
-    no_msg_cmsg_cloexec = 1;
+    uv__store_relaxed(&no_msg_cmsg_cloexec, 1);
   } else {
     rc = recvmsg(fd, msg, flags);
   }
@@ -1142,13 +1146,6 @@ int uv__getpwuid_r(uv_passwd_t* pwd) {
   size_t shell_size;
   long initsize;
   int r;
-#if defined(__ANDROID_API__) && __ANDROID_API__ < 21
-  int (*getpwuid_r)(uid_t, struct passwd*, char*, size_t, struct passwd**);
-
-  getpwuid_r = dlsym(RTLD_DEFAULT, "getpwuid_r");
-  if (getpwuid_r == NULL)
-    return UV_ENOSYS;
-#endif
 
   if (pwd == NULL)
     return UV_EINVAL;
