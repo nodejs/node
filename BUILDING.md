@@ -526,7 +526,7 @@ to run it again before invoking `make -j4`.
 
 ##### Option 1: Manual install
 
-* [Python 2.7](https://www.python.org/downloads/)
+* [Python 3.8](https://www.python.org/downloads/)
 * The "Desktop development with C++" workload from
   [Visual Studio 2019](https://visualstudio.microsoft.com/downloads/) or
   the "Visual C++ build tools" workload from the
