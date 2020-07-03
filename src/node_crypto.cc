@@ -3151,7 +3151,8 @@ static MaybeLocal<Value> WritePrivateKey(
 
   bool err;
 
-  if (config.type_.ToChecked() == kKeyEncodingPKCS1) {
+  PKEncodingType encoding_type = config.type_.ToChecked();
+  if (encoding_type == kKeyEncodingPKCS1) {
     // PKCS#1 is only permitted for RSA keys.
     CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_RSA);
 
@@ -3171,7 +3172,7 @@ static MaybeLocal<Value> WritePrivateKey(
       CHECK_NULL(config.cipher_);
       err = i2d_RSAPrivateKey_bio(bio.get(), rsa.get()) != 1;
     }
-  } else if (config.type_.ToChecked() == kKeyEncodingPKCS8) {
+  } else if (encoding_type == kKeyEncodingPKCS8) {
     if (config.format_ == kKeyFormatPEM) {
       // Encode PKCS#8 as PEM.
       err = PEM_write_bio_PKCS8PrivateKey(
@@ -3191,7 +3192,7 @@ static MaybeLocal<Value> WritePrivateKey(
                 nullptr, nullptr) != 1;
     }
   } else {
-    CHECK_EQ(config.type_.ToChecked(), kKeyEncodingSEC1);
+    CHECK_EQ(encoding_type, kKeyEncodingSEC1);
 
     // SEC1 is only permitted for EC keys.
     CHECK_EQ(EVP_PKEY_id(pkey), EVP_PKEY_EC);
