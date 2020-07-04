@@ -21,6 +21,8 @@
 #include <inttypes.h>
 #include <emmintrin.h>
 #include <immintrin.h>
+#include <smmintrin.h>
+#include <tmmintrin.h>
 #include <wmmintrin.h>
 
 #if !defined(__GNUC__) && !defined(__clang__)
