@@ -50,7 +50,7 @@
 #define NMAX 5552
 
 #if defined(ADLER32_SIMD_SSSE3)
-#ifndef __GNUC__
+#if !defined(__GNUC__) && !defined(__clang__)
 #define __attribute__()
 #endif
 

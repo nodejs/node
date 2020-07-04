@@ -23,7 +23,7 @@
 #include <immintrin.h>
 #include <wmmintrin.h>
 
-#ifndef __GNUC__
+#if !defined(__GNUC__) && !defined(__clang__)
 #define __attribute__()
 #endif
 

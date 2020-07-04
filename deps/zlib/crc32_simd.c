@@ -8,7 +8,7 @@
 #include "crc32_simd.h"
 
 #if defined(CRC32_SIMD_SSE42_PCLMUL)
-#ifndef __GNUC__
+#if !defined(__GNUC__) && !defined(__clang__)
 #define __attribute__()
 #endif
 
