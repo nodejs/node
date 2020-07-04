@@ -919,6 +919,15 @@ for the JS engine are not set up properly.
 A `Promise` that was callbackified via `util.callbackify()` was rejected with a
 falsy value.
 
+<a id="ERR_FEATURE_UNAVAILABLE_ON_PLATFORM"></a>
+#### `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
+<!-- YAML
+added: v14.0.0
+-->
+
+Used when a feature that is not available
+to the current platform which is running Node.js is used.
+
 <a id="ERR_FS_FILE_TOO_LARGE"></a>
 ### `ERR_FS_FILE_TOO_LARGE`
 
@@ -2669,12 +2678,6 @@ while trying to read and parse it.
 #### `ERR_INVALID_REPL_TYPE`
 
 The `--entry-type=...` flag is not compatible with the Node.js REPL.
-
-<a id="ERR_FEATURE_UNAVAILABLE_ON_PLATFORM"></a>
-#### `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
-
-Used when a feature that is not available
-to the current platform which is running Node.js is used.
 
 <a id="ERR_STREAM_HAS_STRINGDECODER"></a>
 #### `ERR_STREAM_HAS_STRINGDECODER`
