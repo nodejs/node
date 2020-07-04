@@ -15,15 +15,12 @@ const astUtils = require("./utils/ast-utils");
 //------------------------------------------------------------------------------
 
 /**
- * Get location should be reported by AST node.
- * @param {ASTNode} node AST Node.
- * @returns {Location} Location information.
+ * Determines if the given arrow function has block body.
+ * @param {ASTNode} node `ArrowFunctionExpression` node.
+ * @returns {boolean} `true` if the function has block body.
  */
-function getLocation(node) {
-    return {
-        start: node.params[0].loc.start,
-        end: node.params[node.params.length - 1].loc.end
-    };
+function hasBlockBody(node) {
+    return node.body.type === "BlockStatement";
 }
 
 //------------------------------------------------------------------------------
@@ -75,126 +72,112 @@ module.exports = {
         const sourceCode = context.getSourceCode();
 
         /**
-         * Determines whether a arrow function argument end with `)`
-         * @param {ASTNode} node The arrow function node.
-         * @returns {void}
+         * Finds opening paren of parameters for the given arrow function, if it exists.
+         * It is assumed that the given arrow function has exactly one parameter.
+         * @param {ASTNode} node `ArrowFunctionExpression` node.
+         * @returns {Token|null} the opening paren, or `null` if the given arrow function doesn't have parens of parameters.
          */
-        function parens(node) {
-            const isAsync = node.async;
-            const firstTokenOfParam = sourceCode.getFirstToken(node, isAsync ? 1 : 0);
-
-            /**
-             * Remove the parenthesis around a parameter
-             * @param {Fixer} fixer Fixer
-             * @returns {string} fixed parameter
-             */
-            function fixParamsWithParenthesis(fixer) {
-                const paramToken = sourceCode.getTokenAfter(firstTokenOfParam);
-
-                /*
-                 * ES8 allows Trailing commas in function parameter lists and calls
-                 * https://github.com/eslint/eslint/issues/8834
-                 */
-                const closingParenToken = sourceCode.getTokenAfter(paramToken, astUtils.isClosingParenToken);
-                const asyncToken = isAsync ? sourceCode.getTokenBefore(firstTokenOfParam) : null;
-                const shouldAddSpaceForAsync = asyncToken && (asyncToken.range[1] === firstTokenOfParam.range[0]);
-
-                return fixer.replaceTextRange([
-                    firstTokenOfParam.range[0],
-                    closingParenToken.range[1]
-                ], `${shouldAddSpaceForAsync ? " " : ""}${paramToken.value}`);
-            }
-
-            /**
-             * Checks whether there are comments inside the params or not.
-             * @returns {boolean} `true` if there are comments inside of parens, else `false`
-             */
-            function hasCommentsInParens() {
-                if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
-                    const closingParenToken = sourceCode.getTokenAfter(node.params[0], astUtils.isClosingParenToken);
-
-                    return closingParenToken && sourceCode.commentsExistBetween(firstTokenOfParam, closingParenToken);
-                }
-                return false;
-
-            }
-
-            if (hasCommentsInParens()) {
-                return;
-            }
-
-            // "as-needed", { "requireForBlockBody": true }: x => x
-            if (
-                requireForBlockBody &&
-                node.params[0].type === "Identifier" &&
-                !node.params[0].typeAnnotation &&
-                node.body.type !== "BlockStatement" &&
-                !node.returnType
-            ) {
-                if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
-                    context.report({
-                        node,
-                        messageId: "unexpectedParensInline",
-                        loc: getLocation(node),
-                        fix: fixParamsWithParenthesis
-                    });
-                }
-                return;
-            }
+        function findOpeningParenOfParams(node) {
+            const tokenBeforeParams = sourceCode.getTokenBefore(node.params[0]);
 
             if (
-                requireForBlockBody &&
-                node.body.type === "BlockStatement"
+                tokenBeforeParams &&
+                astUtils.isOpeningParenToken(tokenBeforeParams) &&
+                node.range[0] <= tokenBeforeParams.range[0]
             ) {
-                if (!astUtils.isOpeningParenToken(firstTokenOfParam)) {
-                    context.report({
-                        node,
-                        messageId: "expectedParensBlock",
-                        loc: getLocation(node),
-                        fix(fixer) {
-                            return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
-                        }
-                    });
-                }
-                return;
+                return tokenBeforeParams;
             }
 
-            // "as-needed": x => x
-            if (asNeeded &&
-                node.params[0].type === "Identifier" &&
-                !node.params[0].typeAnnotation &&
-                !node.returnType
-            ) {
-                if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
-                    context.report({
-                        node,
-                        messageId: "unexpectedParens",
-                        loc: getLocation(node),
-                        fix: fixParamsWithParenthesis
-                    });
-                }
-                return;
-            }
+            return null;
+        }
 
-            if (firstTokenOfParam.type === "Identifier") {
-                const after = sourceCode.getTokenAfter(firstTokenOfParam);
+        /**
+         * Finds closing paren of parameters for the given arrow function.
+         * It is assumed that the given arrow function has parens of parameters and that it has exactly one parameter.
+         * @param {ASTNode} node `ArrowFunctionExpression` node.
+         * @returns {Token} the closing paren of parameters.
+         */
+        function getClosingParenOfParams(node) {
+            return sourceCode.getTokenAfter(node.params[0], astUtils.isClosingParenToken);
+        }
 
-                // (x) => x
-                if (after.value !== ")") {
-                    context.report({
-                        node,
-                        messageId: "expectedParens",
-                        loc: getLocation(node),
-                        fix(fixer) {
-                            return fixer.replaceText(firstTokenOfParam, `(${firstTokenOfParam.value})`);
-                        }
-                    });
-                }
-            }
+        /**
+         * Determines whether the given arrow function has comments inside parens of parameters.
+         * It is assumed that the given arrow function has parens of parameters.
+         * @param {ASTNode} node `ArrowFunctionExpression` node.
+         * @param {Token} openingParen Opening paren of parameters.
+         * @returns {boolean} `true` if the function has at least one comment inside of parens of parameters.
+         */
+        function hasCommentsInParensOfParams(node, openingParen) {
+            return sourceCode.commentsExistBetween(openingParen, getClosingParenOfParams(node));
+        }
+
+        /**
+         * Determines whether the given arrow function has unexpected tokens before opening paren of parameters,
+         * in which case it will be assumed that the existing parens of parameters are necessary.
+         * Only tokens within the range of the arrow function (tokens that are part of the arrow function) are taken into account.
+         * Example: <T>(a) => b
+         * @param {ASTNode} node `ArrowFunctionExpression` node.
+         * @param {Token} openingParen Opening paren of parameters.
+         * @returns {boolean} `true` if the function has at least one unexpected token.
+         */
+        function hasUnexpectedTokensBeforeOpeningParen(node, openingParen) {
+            const expectedCount = node.async ? 1 : 0;
+
+            return sourceCode.getFirstToken(node, { skip: expectedCount }) !== openingParen;
         }
 
         return {
-            "ArrowFunctionExpression[params.length=1]": parens
+            "ArrowFunctionExpression[params.length=1]"(node) {
+                const shouldHaveParens = !asNeeded || requireForBlockBody && hasBlockBody(node);
+                const openingParen = findOpeningParenOfParams(node);
+                const hasParens = openingParen !== null;
+                const [param] = node.params;
+
+                if (shouldHaveParens && !hasParens) {
+                    context.report({
+                        node,
+                        messageId: requireForBlockBody ? "expectedParensBlock" : "expectedParens",
+                        loc: param.loc,
+                        *fix(fixer) {
+                            yield fixer.insertTextBefore(param, "(");
+                            yield fixer.insertTextAfter(param, ")");
+                        }
+                    });
+                }
+
+                if (
+                    !shouldHaveParens &&
+                    hasParens &&
+                    param.type === "Identifier" &&
+                    !param.typeAnnotation &&
+                    !node.returnType &&
+                    !hasCommentsInParensOfParams(node, openingParen) &&
+                    !hasUnexpectedTokensBeforeOpeningParen(node, openingParen)
+                ) {
+                    context.report({
+                        node,
+                        messageId: requireForBlockBody ? "unexpectedParensInline" : "unexpectedParens",
+                        loc: param.loc,
+                        *fix(fixer) {
+                            const tokenBeforeOpeningParen = sourceCode.getTokenBefore(openingParen);
+                            const closingParen = getClosingParenOfParams(node);
+
+                            if (
+                                tokenBeforeOpeningParen &&
+                                tokenBeforeOpeningParen.range[1] === openingParen.range[0] &&
+                                !astUtils.canTokensBeAdjacent(tokenBeforeOpeningParen, sourceCode.getFirstToken(param))
+                            ) {
+                                yield fixer.insertTextBefore(openingParen, " ");
+                            }
+
+                            // remove parens, whitespace inside parens, and possible trailing comma
+                            yield fixer.removeRange([openingParen.range[0], param.range[0]]);
+                            yield fixer.removeRange([param.range[1], closingParen.range[1]]);
+                        }
+                    });
+                }
+            }
         };
     }
 };

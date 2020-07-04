@@ -9,8 +9,6 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const lodash = require("lodash");
-
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -41,6 +39,19 @@ function isTargetMethod(node) {
         node.type === "MemberExpression" &&
         TARGET_METHODS.test(astUtils.getStaticPropertyName(node) || "")
     );
+}
+
+/**
+ * Returns a human-legible description of an array method
+ * @param {string} arrayMethodName A method name to fully qualify
+ * @returns {string} the method name prefixed with `Array.` if it is a class method,
+ *      or else `Array.prototype.` if it is an instance method.
+ */
+function fullMethodName(arrayMethodName) {
+    if (["from", "of", "isArray"].includes(arrayMethodName)) {
+        return "Array.".concat(arrayMethodName);
+    }
+    return "Array.prototype.".concat(arrayMethodName);
 }
 
 /**
@@ -153,10 +164,10 @@ module.exports = {
         ],
 
         messages: {
-            expectedAtEnd: "Expected to return a value at the end of {{name}}.",
-            expectedInside: "Expected to return a value in {{name}}.",
-            expectedReturnValue: "{{name}} expected a return value.",
-            expectedNoReturnValue: "{{name}} did not expect a return value."
+            expectedAtEnd: "{{arrayMethodName}}() expects a value to be returned at the end of {{name}}.",
+            expectedInside: "{{arrayMethodName}}() expects a return value from {{name}}.",
+            expectedReturnValue: "{{arrayMethodName}}() expects a return value from {{name}}.",
+            expectedNoReturnValue: "{{arrayMethodName}}() expects no useless return value from {{name}}."
         }
     },
 
@@ -202,14 +213,13 @@ module.exports = {
             }
 
             if (messageId) {
-                let name = astUtils.getFunctionNameWithKind(node);
+                const name = astUtils.getFunctionNameWithKind(node);
 
-                name = messageId === "expectedNoReturnValue" ? lodash.upperFirst(name) : name;
                 context.report({
                     node,
                     loc: astUtils.getFunctionHeadLoc(node, sourceCode),
                     messageId,
-                    data: { name }
+                    data: { name, arrayMethodName: fullMethodName(funcInfo.arrayMethodName) }
                 });
             }
         }
@@ -273,7 +283,8 @@ module.exports = {
                         node,
                         messageId,
                         data: {
-                            name: lodash.upperFirst(astUtils.getFunctionNameWithKind(funcInfo.node))
+                            name: astUtils.getFunctionNameWithKind(funcInfo.node),
+                            arrayMethodName: fullMethodName(funcInfo.arrayMethodName)
                         }
                     });
                 }

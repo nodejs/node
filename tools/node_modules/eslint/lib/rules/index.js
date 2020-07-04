@@ -56,7 +56,10 @@ module.exports = new LazyLoadingRuleMap(Object.entries({
     "grouped-accessor-pairs": () => require("./grouped-accessor-pairs"),
     "guard-for-in": () => require("./guard-for-in"),
     "handle-callback-err": () => require("./handle-callback-err"),
-    "id-blacklist": () => require("./id-blacklist"),
+
+    // Renamed to id-denylist.
+    "id-blacklist": () => require("./id-denylist"),
+    "id-denylist": () => require("./id-denylist"),
     "id-length": () => require("./id-length"),
     "id-match": () => require("./id-match"),
     "implicit-arrow-linebreak": () => require("./implicit-arrow-linebreak"),
