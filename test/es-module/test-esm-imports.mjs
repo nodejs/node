@@ -58,6 +58,8 @@ const { requireImport, importImport } = importer;
     ['#', '#'],
     // Initial slash target must have a leading name
     ['#/initialslash', '#/initialslash'],
+    // Percent-encoded target paths
+    ['#percent', 'must not include encoded "/"'],
   ]);
 
   for (const [specifier, expected] of invalidImportSpecifiers) {
@@ -81,7 +83,6 @@ const { requireImport, importImport } = importer;
 
   for (const specifier of undefinedImports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      console.log(err);
       strictEqual(err.code, 'ERR_PACKAGE_IMPORT_NOT_DEFINED');
       assertStartsWith(err.message, 'Package import ');
       assertIncludes(err.message, specifier);

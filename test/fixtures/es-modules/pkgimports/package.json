@@ -24,6 +24,7 @@
     "#subpath/nullshadow/": [null],
     "#": "./test.js",
     "#/initialslash": "./test.js",
-    "#notfound": "./notfound.js"
+    "#notfound": "./notfound.js",
+    "#percent": "./..%2F/x.js"
   }
 }
