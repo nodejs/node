@@ -3036,7 +3036,7 @@ def _GetMSBuildLocalProperties(msbuild_toolset):
             [
                 "PropertyGroup",
                 {"Label": "Locals"},
-                ["PlatformToolset", msbuild_toolset],
+                ["PlatformToolset", "ClangCL"],
             ]
         ]
     return properties
