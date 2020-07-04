@@ -556,6 +556,12 @@ UV_EXTERN int uv_tcp_nodelay(uv_tcp_t* handle, int enable);
 UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
                                int enable,
                                unsigned int delay);
+UV_EXTERN int uv_tcp_keepalive_ex(uv_tcp_t* handle,
+                                  int enable,
+                                  unsigned int delay,
+                                  unsigned int interval,
+                                  unsigned int count);
+UV_EXTERN int uv_tcp_timeout(uv_tcp_t* handle, unsigned int timeout);
 UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 
 enum uv_tcp_flags {

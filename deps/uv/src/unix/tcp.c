@@ -443,6 +443,92 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
   return 0;
 }
 
+int uv_tcp_keepalive_ex(uv_tcp_t* handle,
+                        int on,
+                        unsigned int delay,
+                        unsigned int interval,
+                        unsigned int count) {
+  int err;
+
+  if (uv__stream_fd(handle) != -1) {
+    err =uv__tcp_keepalive_ex(uv__stream_fd(handle),
+                              on,
+                              delay,
+                              interval,
+                              count);
+    if (err)
+      return err;
+  }
+
+  if (on)
+    handle->flags |= UV_HANDLE_TCP_KEEPALIVE;
+  else
+    handle->flags &= ~UV_HANDLE_TCP_KEEPALIVE;
+
+  /* TODO Store delay if uv__stream_fd(handle) == -1 but don't want to enlarge
+   *      uv_tcp_t with an int that's almost never used...
+   */
+
+  return 0;
+}
+
+int uv_tcp_timeout(uv_tcp_t* handle, unsigned int timeout) {
+  #ifdef TCP_USER_TIMEOUT
+    int fd = uv__stream_fd(handle);
+    if (fd != -1 && setsockopt(fd,
+                               IPPROTO_TCP,
+                               TCP_USER_TIMEOUT,
+                               &timeout,
+                               sizeof(timeout))) {
+      return UV__ERR(errno); 
+    }
+  #endif
+	return 0;
+} 
+
+int uv__tcp_keepalive_ex(int fd,
+                         int on, 
+                         unsigned int delay,
+                         unsigned int interval,
+                         unsigned int count) {
+  if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
+    return UV__ERR(errno);
+
+#ifdef TCP_KEEPIDLE
+    if (on && delay &&setsockopt(fd,
+                                 IPPROTO_TCP,
+                                 TCP_KEEPIDLE,
+                                 &delay,
+                                 sizeof(delay)))
+      return UV__ERR(errno);
+#endif
+#ifdef TCP_KEEPINTVL
+    if (on && interval && setsockopt(fd,
+                                     IPPROTO_TCP,
+                                     TCP_KEEPINTVL,
+                                     &interval,
+                                     sizeof(interval)))
+      return UV__ERR(errno);
+#endif
+#ifdef TCP_KEEPCNT
+    if (on && count && setsockopt(fd,
+                                  IPPROTO_TCP,
+                                  TCP_KEEPCNT,
+                                  &count,
+                                  sizeof(count)))
+      return UV__ERR(errno);
+#endif
+  /* Solaris/SmartOS, if you don't support keep-alive,
+   * then don't advertise it in your system headers...
+   */
+  /* FIXME(bnoordhuis) That's possibly because sizeof(delay) should be 1. */
+#if defined(TCP_KEEPALIVE) && !defined(__sun)
+  if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &delay, sizeof(delay)))
+    return UV__ERR(errno);
+#endif
+
+  return 0;
+}
 
 int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
   if (enable)

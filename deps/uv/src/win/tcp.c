@@ -68,7 +68,7 @@ static int uv__tcp_keepalive(uv_tcp_t* handle, SOCKET socket, int enable, unsign
 
   if (enable && setsockopt(socket,
                            IPPROTO_TCP,
-                           TCP_KEEPALIVE,
+                           TCP_KEEPIDLE,
                            (const char*)&delay,
                            sizeof delay) == -1) {
     return WSAGetLastError();
@@ -77,6 +77,87 @@ static int uv__tcp_keepalive(uv_tcp_t* handle, SOCKET socket, int enable, unsign
   return 0;
 }
 
+
+/* windows don't support this */
+int uv_tcp_timeout(uv_tcp_t* handle, unsigned int timeout) {
+	return 0;
+} 
+
+
+static int uv__tcp_keepalive_ex(uv_tcp_t* handle, 
+                                SOCKET socket, 
+                                int enable, 
+                                unsigned int delay, 
+                                unsigned int interval, 
+                                unsigned int count) {
+  if (setsockopt(socket,
+                 SOL_SOCKET,
+                 SO_KEEPALIVE,
+                 (const char*)&enable,
+                 sizeof enable) == -1) {
+    return WSAGetLastError();
+  }
+
+ #ifdef TCP_KEEPIDLE
+  if (enable && delay && setsockopt(socket,
+                                    IPPROTO_TCP,
+                                    TCP_KEEPIDLE,
+                                    (const char*)&delay,
+                                    sizeof delay) == -1) {
+    return WSAGetLastError();
+  }
+#endif
+#ifdef TCP_KEEPINTVL
+  if (enable && interval && setsockopt(socket,
+                                       IPPROTO_TCP,
+                                       TCP_KEEPINTVL,
+                                       (const char*)&interval,
+                                       sizeof interval) == -1) {
+    return WSAGetLastError();
+  }
+#endif
+#ifdef TCP_KEEPCNT
+  if (enable && count && setsockopt(socket,
+                                    IPPROTO_TCP,
+                                    TCP_KEEPCNT,
+                                    (const char*)&count,
+                                    sizeof count) == -1) {
+    return WSAGetLastError();
+  }
+#endif
+
+  return 0;
+}
+
+
+int uv_tcp_keepalive_ex(uv_tcp_t* handle,
+                        int enable,
+                        unsigned int delay,
+                        unsigned int interval,
+                        unsigned int count) {
+  int err;
+
+  if (handle->socket != INVALID_SOCKET) {
+    err = uv__tcp_keepalive_ex(handle,
+                               handle->socket,
+                               enable,
+                               delay,
+                               interval,
+                               count);
+    if (err)
+      return err;
+  }
+
+  if (enable) {
+    handle->flags |= UV_HANDLE_TCP_KEEPALIVE;
+  } else {
+    handle->flags &= ~UV_HANDLE_TCP_KEEPALIVE;
+  }
+
+  /* TODO: Store delay if handle->socket isn't created yet. */
+
+  return 0;
+}
 
 static int uv_tcp_set_socket(uv_loop_t* loop,
                              uv_tcp_t* handle,

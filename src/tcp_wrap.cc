@@ -98,7 +98,8 @@ void TCPWrap::Initialize(Local<Object> target,
                       GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   env->SetProtoMethod(t, "setNoDelay", SetNoDelay);
   env->SetProtoMethod(t, "setKeepAlive", SetKeepAlive);
-
+  env->SetProtoMethod(t, "setKeepAliveEx", SetKeepAliveEx);
+  env->SetProtoMethod(t, "setKeepAliveTimeout", SetKeepAliveTimeout);
 #ifdef _WIN32
   env->SetProtoMethod(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
 #endif
@@ -189,6 +190,30 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void TCPWrap::SetKeepAliveEx(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+  Environment* env = wrap->env();
+  int enable;
+  if (!args[0]->Int32Value(env->context()).To(&enable)) return;
+  unsigned int delay = static_cast<unsigned int>(args[1].As<Uint32>()->Value());
+  unsigned int detal = static_cast<unsigned int>(args[2].As<Uint32>()->Value());
+  unsigned int count = static_cast<unsigned int>(args[3].As<Uint32>()->Value());
+  int err = uv_tcp_keepalive_ex(&wrap->handle_, enable, delay, detal, count);
+  args.GetReturnValue().Set(err);
+}
+
+void TCPWrap::SetKeepAliveTimeout(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap,
+                          args.Holder(),
+                          args.GetReturnValue().Set(UV_EBADF));
+  unsigned int time = static_cast<unsigned int>(args[0].As<Uint32>()->Value());
+  int err = uv_tcp_timeout(&wrap->handle_, time);
+  args.GetReturnValue().Set(err);
+}
 
 #ifdef _WIN32
 void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {

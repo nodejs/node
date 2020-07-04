@@ -42,6 +42,12 @@ TEST_IMPL(tcp_flags) {
   r = uv_tcp_keepalive(&handle, 1, 60);
   ASSERT(r == 0);
 
+  r = uv_tcp_keepalive_ex(&handle, 1, 60, 60, 60);
+  ASSERT(r == 0);
+
+  r = uv_tcp_timeout(&handle, 1000);
+  ASSERT(r == 0);
+  
   uv_close((uv_handle_t*)&handle, NULL);
 
   r = uv_run(loop, UV_RUN_DEFAULT);
