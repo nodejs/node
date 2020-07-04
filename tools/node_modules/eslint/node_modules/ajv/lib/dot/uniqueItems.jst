@@ -38,7 +38,7 @@
       for (;i--;) {
         var item = {{=$data}}[i];
         {{ var $method = 'checkDataType' + ($typeIsArray ? 's' : ''); }}
-        if ({{= it.util[$method]($itemType, 'item', true) }}) continue;
+        if ({{= it.util[$method]($itemType, 'item', it.opts.strictNumbers, true) }}) continue;
         {{? $typeIsArray}}
           if (typeof item == 'string') item = '"' + item;
         {{?}}

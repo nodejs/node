@@ -136,7 +136,7 @@ module.exports = {
 
                     context.report({
                         node,
-                        loc: arrowBody.loc.start,
+                        loc: arrowBody.loc,
                         messageId,
                         fix(fixer) {
                             const fixes = [];
@@ -201,7 +201,7 @@ module.exports = {
                 if (always || (asNeeded && requireReturnForObjectLiteral && arrowBody.type === "ObjectExpression")) {
                     context.report({
                         node,
-                        loc: arrowBody.loc.start,
+                        loc: arrowBody.loc,
                         messageId: "expectedBlock",
                         fix(fixer) {
                             const fixes = [];

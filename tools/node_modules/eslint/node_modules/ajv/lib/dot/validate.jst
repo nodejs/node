@@ -140,7 +140,7 @@
       , $method = $typeIsArray ? 'checkDataTypes' : 'checkDataType';
   }}
 
-  if ({{= it.util[$method]($typeSchema, $data, true) }}) {
+  if ({{= it.util[$method]($typeSchema, $data, it.opts.strictNumbers, true) }}) {
 #}}
 
 {{? it.schema.$ref && $refKeywords }}
@@ -192,7 +192,7 @@
   {{~ it.RULES:$rulesGroup }}
     {{? $shouldUseGroup($rulesGroup) }}
       {{? $rulesGroup.type }}
-        if ({{= it.util.checkDataType($rulesGroup.type, $data) }}) {
+        if ({{= it.util.checkDataType($rulesGroup.type, $data, it.opts.strictNumbers) }}) {
       {{?}}
         {{? it.opts.useDefaults }}
           {{? $rulesGroup.type == 'object' && it.schema.properties }}
@@ -252,12 +252,6 @@
   return validate;
 {{??}}
   var {{=$valid}} = errors === errs_{{=$lvl}};
-{{?}}
-
-{{# def.cleanUp }}
-
-{{? $top }}
-  {{# def.finalCleanUp }}
 {{?}}
 
 {{

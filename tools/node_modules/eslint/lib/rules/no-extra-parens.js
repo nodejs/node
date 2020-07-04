@@ -710,6 +710,20 @@ module.exports = {
             reportsBuffer.reports = reportsBuffer.reports.filter(r => r.node !== node);
         }
 
+        /**
+         * Checks whether a node is a MemberExpression at NewExpression's callee.
+         * @param {ASTNode} node node to check.
+         * @returns {boolean} True if the node is a MemberExpression at NewExpression's callee. false otherwise.
+         */
+        function isMemberExpInNewCallee(node) {
+            if (node.type === "MemberExpression") {
+                return node.parent.type === "NewExpression" && node.parent.callee === node
+                    ? true
+                    : node.parent.object === node && isMemberExpInNewCallee(node.parent);
+            }
+            return false;
+        }
+
         return {
             ArrayExpression(node) {
                 node.elements
@@ -950,7 +964,11 @@ module.exports = {
             LogicalExpression: checkBinaryLogical,
 
             MemberExpression(node) {
-                const nodeObjHasExcessParens = hasExcessParens(node.object) &&
+                const shouldAllowWrapOnce = isMemberExpInNewCallee(node) &&
+                  doesMemberExpressionContainCallExpression(node);
+                const nodeObjHasExcessParens = shouldAllowWrapOnce
+                    ? hasDoubleExcessParens(node.object)
+                    : hasExcessParens(node.object) &&
                     !(
                         isImmediateFunctionPrototypeMethodCall(node.parent) &&
                         node.parent.callee === node &&
@@ -974,8 +992,8 @@ module.exports = {
                 }
 
                 if (nodeObjHasExcessParens &&
-                  node.object.type === "CallExpression" &&
-                  node.parent.type !== "NewExpression") {
+                  node.object.type === "CallExpression"
+                ) {
                     report(node.object);
                 }
 
