@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/worker_threads.js -->
+
 The `worker_threads` module enables the use of threads that execute JavaScript
 in parallel. To access it:
 

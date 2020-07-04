@@ -32,18 +32,21 @@ void WriteReport(const FunctionCallbackInfo<Value>& info) {
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
   std::string filename;
-  Local<String> stackstr;
+  Local<Object> error;
 
   CHECK_EQ(info.Length(), 4);
   String::Utf8Value message(isolate, info[0].As<String>());
   String::Utf8Value trigger(isolate, info[1].As<String>());
-  stackstr = info[3].As<String>();
 
   if (info[2]->IsString())
     filename = *String::Utf8Value(isolate, info[2]);
+  if (!info[3].IsEmpty() && info[3]->IsObject())
+    error = info[3].As<Object>();
+  else
+    error = Local<Object>();
 
   filename = TriggerNodeReport(
-      isolate, env, *message, *trigger, filename, stackstr);
+      isolate, env, *message, *trigger, filename, error);
   // Return value is the report filename
   info.GetReturnValue().Set(
       String::NewFromUtf8(isolate, filename.c_str(), v8::NewStringType::kNormal)
@@ -55,10 +58,17 @@ void GetReport(const FunctionCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
   Isolate* isolate = env->isolate();
   HandleScope scope(isolate);
+  Local<Object> error;
   std::ostringstream out;
 
+  CHECK_EQ(info.Length(), 1);
+  if (!info[0].IsEmpty() && info[0]->IsObject())
+    error = info[0].As<Object>();
+  else
+    error = Local<Object>();
+
   GetNodeReport(
-      isolate, env, "JavaScript API", __func__, info[0].As<String>(), out);
+      isolate, env, "JavaScript API", __func__, error, out);
 
   // Return value is the contents of a report as a string.
   info.GetReturnValue().Set(String::NewFromUtf8(isolate,
