@@ -3853,10 +3853,8 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 }
 
 void TurboAssembler::Jump(const ExternalReference& reference) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  li(scratch, reference);
-  Jump(scratch);
+  li(t9, reference);
+  Jump(t9);
 }
 
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
