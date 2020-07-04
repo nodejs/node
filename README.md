@@ -307,8 +307,6 @@ For information about the governance of the Node.js project, see
 **Jiawen Geng** &lt;technicalcute@gmail.com&gt;
 * [GeoffreyBooth](https://github.com/geoffreybooth) -
 **Geoffrey Booth** &lt;webmaster@geoffreybooth.com&gt; (he/him)
-* [gibfahn](https://github.com/gibfahn) -
-**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
 **Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [guybedford](https://github.com/guybedford) -
@@ -460,6 +458,8 @@ For information about the governance of the Node.js project, see
 **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
 * [firedfox](https://github.com/firedfox) -
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
+* [gibfahn](https://github.com/gibfahn) -
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [glentiki](https://github.com/glentiki) -
 **Glen Keane** &lt;glenkeane.94@gmail.com&gt; (he/him)
 * [iarna](https://github.com/iarna) -
