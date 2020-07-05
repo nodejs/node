@@ -5,14 +5,14 @@ if (!common.hasCrypto)
 
 const http2 = require('http2');
 const net = require('net');
-const { Worker, parentPort } = require('worker_threads');
+const { Worker, isMainThread, parentPort } = require('worker_threads');
 
 // Verify that creating a number of invalid HTTP/2 streams will eventually
 // result in the peer closing the session.
 // This test uses separate threads for client and server to avoid
 // the two event loops intermixing, as we are writing in a busy loop here.
 
-if (process.env.HAS_STARTED_WORKER) {
+if (!isMainThread) {
   const server = http2.createServer({ maxSessionInvalidFrames: 100 });
   server.on('stream', (stream) => {
     stream.respond({
@@ -25,7 +25,6 @@ if (process.env.HAS_STARTED_WORKER) {
   return;
 }
 
-process.env.HAS_STARTED_WORKER = 1;
 const worker = new Worker(__filename).on('message', common.mustCall((port) => {
   const h2header = Buffer.alloc(9);
   const conn = net.connect(port);
