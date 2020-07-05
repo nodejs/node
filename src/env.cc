@@ -26,7 +26,6 @@
 namespace node {
 
 using errors::TryCatchScope;
-using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
