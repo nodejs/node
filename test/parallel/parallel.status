@@ -73,3 +73,5 @@ test-net-socket-connecting: SKIP
 test-net-socket-ready-without-cb: SKIP
 test-net-write-after-end-nt: SKIP
 test-tls-env-extra-ca: SKIP
+# https://github.com/nodejs/node/pull/34209
+test-dgram-error-message-address: SKIP
