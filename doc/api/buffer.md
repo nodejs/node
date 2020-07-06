@@ -111,7 +111,8 @@ string into a `Buffer` as decoding.
 
 * `'base64'`: [Base64][] encoding. When creating a `Buffer` from a string,
   this encoding will also correctly accept "URL and Filename Safe Alphabet" as
-  specified in [RFC 4648, Section 5][].
+  specified in [RFC 4648, Section 5][]. Whitespace characters such as spaces,
+  tabs, and new lines contained within the base64-encoded string are ignored.
 
 * `'hex'`: Encode each byte as two hexadecimal characters. Data truncation
   may occur when decoding string that do exclusively contain valid hexadecimal
