@@ -1262,6 +1262,12 @@ A `TypeError` is thrown if `urlString` is not a string.
 
 A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
+Use of the legacy `url.parse()` method is discouraged. Users should
+use the WHATWG `URL` API. Because the `url.parse()` method uses a
+lenient, non-standard algorithm for parsing URL strings, security
+issues can be introduced. Specifically, issues with [host name spoofing][] and
+incorrect handling of usernames and passwords have been identified.
+
 ### `url.resolve(from, to)`
 <!-- YAML
 added: v0.1.25
@@ -1379,6 +1385,7 @@ console.log(myURL.origin);
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [WHATWG URL]: #url_the_whatwg_url_api
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
+[host name spoofing]: https://hackerone.com/reports/678487
 [legacy `urlObject`]: #url_legacy_urlobject
 [percent-encoded]: #whatwg-percent-encoding
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
