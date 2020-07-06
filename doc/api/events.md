@@ -829,7 +829,7 @@ added: v11.13.0
 * Returns: {Promise}
 
 Creates a `Promise` that is fulfilled when the `EventEmitter` emits the given
-event or that is rejected when the `EventEmitter` emits `'error'`.
+event or that is rejected if the `EventEmitter` emits `'error'` while waiting.
 The `Promise` will resolve with an array of all the arguments emitted to the
 given event.
 
@@ -865,7 +865,26 @@ async function run() {
 run();
 ```
 
-## events.captureRejections
+The special handling of the `'error'` event is only used when `events.once()`
+is used to wait for another event. If `events.once()` is used to wait for the
+'`error'` event itself, then it is treated as any other kind of event without
+special handling:
+
+```js
+const { EventEmitter, once } = require('events');
+
+const ee = new EventEmitter();
+
+once(ee, 'error')
+  .then(([err]) => console.log('ok', err.message))
+  .catch((err) => console.log('error', err.message));
+
+ee.emit('error', new Error('boom'));
+
+// Prints: ok boom
+```
+
+## `events.captureRejections`
 <!-- YAML
 added: v12.16.0
 -->
