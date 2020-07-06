@@ -51,7 +51,7 @@ server.on('error', (err) => console.error(err));
 server.on('stream', (stream, headers) => {
   // stream is a Duplex
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.end('<h1>Hello World</h1>');
@@ -271,7 +271,7 @@ session.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     ':status': 200,
-    'content-type': 'text/plain'
+    'content-type': 'text/plain; charset=utf-8'
   });
   stream.write('hello ');
   stream.end('world');
@@ -291,7 +291,7 @@ const server = http2.createServer();
 
 server.on('stream', (stream, headers) => {
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.on('error', (error) => console.error(error));
@@ -888,6 +888,18 @@ the Server or Client side, respectively.
 All `Http2Stream` instances are [`Duplex`][] streams. The `Writable` side of the
 `Duplex` is used to send data to the connected peer, while the `Readable` side
 is used to receive data sent by the connected peer.
+
+The default text character encoding for all `Http2Stream`s is UTF-8. As a best
+practice, it is recommended that when using an `Http2Stream` to send text,
+the `'content-type'` header should be set and should identify the character
+encoding used.
+
+```js
+stream.respond({
+  'content-type': 'text/html; charset=utf-8',
+  ':status': 200
+});
+```
 
 #### `Http2Stream` Lifecycle
 
@@ -1499,7 +1511,7 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain'
+    'content-type': 'text/plain; charset=utf-8'
   };
   stream.respondWithFD(fd, headers);
   stream.on('close', () => fs.closeSync(fd));
@@ -1544,7 +1556,7 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain'
+    'content-type': 'text/plain; charset=utf-8'
   };
   stream.respondWithFD(fd, headers, { waitForTrailers: true });
   stream.on('wantTrailers', () => {
@@ -1611,7 +1623,7 @@ server.on('stream', (stream) => {
   }
 
   stream.respondWithFile('/some/file',
-                         { 'content-type': 'text/plain' },
+                         { 'content-type': 'text/plain; charset=utf-8' },
                          { statCheck, onError });
 });
 ```
@@ -1631,7 +1643,7 @@ server.on('stream', (stream) => {
     return false; // Cancel the send operation
   }
   stream.respondWithFile('/some/file',
-                         { 'content-type': 'text/plain' },
+                         { 'content-type': 'text/plain; charset=utf-8' },
                          { statCheck });
 });
 ```
@@ -1661,7 +1673,7 @@ const http2 = require('http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile('/some/file',
-                         { 'content-type': 'text/plain' },
+                         { 'content-type': 'text/plain; charset=utf-8' },
                          { waitForTrailers: true });
   stream.on('wantTrailers', () => {
     stream.sendTrailers({ ABC: 'some value to send' });
@@ -1753,7 +1765,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8'
   });
   stream.write('hello ');
   stream.end('world');
@@ -1895,7 +1907,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8'
   });
   stream.write('hello ');
   stream.end('world');
@@ -2084,7 +2096,7 @@ const server = http2.createServer();
 
 server.on('stream', (stream, headers) => {
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.end('<h1>Hello World</h1>');
@@ -2209,7 +2221,7 @@ const server = http2.createSecureServer(options);
 
 server.on('stream', (stream, headers) => {
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.end('<h1>Hello World</h1>');
@@ -2697,7 +2709,7 @@ const http2 = require('http2');
 const server = http2.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('ok');
 });
 ```
@@ -3265,7 +3277,7 @@ in the to-be-sent headers, its value will be replaced. Use an array of strings
 here to send multiple headers with the same name.
 
 ```js
-response.setHeader('Content-Type', 'text/html');
+response.setHeader('Content-Type', 'text/html; charset=utf-8');
 ```
 
 or
@@ -3284,9 +3296,9 @@ to [`response.writeHead()`][] given precedence.
 ```js
 // Returns content-type = text/plain
 const server = http2.createServer((req, res) => {
-  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('ok');
 });
 ```
@@ -3466,7 +3478,7 @@ will be emitted.
 const body = 'hello world';
 response.writeHead(200, {
   'Content-Length': Buffer.byteLength(body),
-  'Content-Type': 'text/plain' });
+  'Content-Type': 'text/plain; charset=utf-8' });
 ```
 
 `Content-Length` is given in bytes not characters. The
@@ -3489,9 +3501,9 @@ to [`response.writeHead()`][] given precedence.
 ```js
 // Returns content-type = text/plain
 const server = http2.createServer((req, res) => {
-  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('ok');
 });
 ```
