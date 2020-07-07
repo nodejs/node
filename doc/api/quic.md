@@ -1371,6 +1371,17 @@ Emitted before the `'close'` event if the `QuicSocket` was destroyed with an
 
 The `'error'` event will not be emitted multiple times.
 
+#### Event: `'listening'`
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted after `quicsocket.listen()` is called and the `QuicSocket` has started
+listening for incoming `QuicServerSession`s.  The callback is invoked with
+no arguments.
+
+The `'listening'` event will not be emitted multiple times.
+
 #### Event: `'ready'`
 <!-- YAML
 added: REPLACEME
