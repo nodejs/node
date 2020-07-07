@@ -13,7 +13,7 @@ inline void Initialize(v8::Local<v8::Object> binding) {
   auto isolate = binding->GetIsolate();
   auto context = isolate->GetCurrentContext();
   binding->Set(context, v8::String::NewFromUtf8(
-        isolate, "Class", v8::NewStringType::kNormal).ToLocalChecked(),
+        isolate, "Class").ToLocalChecked(),
                v8::FunctionTemplate::New(isolate, NewClass)
                    ->GetFunction(context)
                    .ToLocalChecked()).FromJust();

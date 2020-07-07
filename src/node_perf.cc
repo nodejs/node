@@ -24,7 +24,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::Map;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -60,16 +59,14 @@ inline void InitObject(const PerformanceEntry& entry, Local<Object> obj) {
   obj->DefineOwnProperty(context,
                          env->name_string(),
                          String::NewFromUtf8(isolate,
-                                             entry.name().c_str(),
-                                             NewStringType::kNormal)
+                                             entry.name().c_str())
                              .ToLocalChecked(),
                          attr)
       .Check();
   obj->DefineOwnProperty(context,
                          env->entry_type_string(),
                          String::NewFromUtf8(isolate,
-                                             entry.type().c_str(),
-                                             NewStringType::kNormal)
+                                             entry.type().c_str())
                              .ToLocalChecked(),
                          attr)
       .Check();
