@@ -23,8 +23,7 @@ void Initialize(Local<Object> exports,
   NODE_SET_METHOD(exports, "getFreeCallCount", GetFreeCallCount);
   exports->Set(context,
                v8::String::NewFromUtf8(
-                   isolate, "buffer", v8::NewStringType::kNormal)
-                   .ToLocalChecked(),
+                   isolate, "buffer").ToLocalChecked(),
                node::Buffer::New(
                    isolate,
                    data,

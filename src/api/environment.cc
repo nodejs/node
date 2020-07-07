@@ -344,6 +344,7 @@ void FreeEnvironment(Environment* env) {
   delete env;
 }
 
+
 Environment* GetCurrentEnvironment(Local<Context> context) {
   return Environment::GetCurrent(context);
 }
