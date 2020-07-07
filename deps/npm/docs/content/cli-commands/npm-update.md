@@ -132,9 +132,9 @@ be _downgraded_.
 
 ### See Also
 
-* [npm install](/cli-commands/install)
-* [npm outdated](/cli-commands/outdated)
-* [npm shrinkwrap](/cli-commands/shrinkwrap)
+* [npm install](/cli-commands/npm-install)
+* [npm outdated](/cli-commands/npm-outdated)
+* [npm shrinkwrap](/cli-commands/npm-shrinkwrap)
 * [npm registry](/using-npm/registry)
 * [npm folders](/configuring-npm/folders)
-* [npm ls](/cli-commands/ls)
+* [npm ls](/cli-commands/npm-ls)
