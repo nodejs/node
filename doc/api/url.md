@@ -1264,7 +1264,7 @@ A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
 Use of the legacy `url.parse()` method is not recommended. All users should
 migrate to the WHATWG `URL` api. Because the `url.parse()` method uses a
-lenient, non-standards compliant algorithm for parsing URL strings, security
+lenient, non-standard algorithm for parsing URL strings, security
 issues can be introduced. Specifically, issues with [hostname spoofing][] and
 incorrect handling of user info (usernames and passwords) have been identified.
 
