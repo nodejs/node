@@ -506,16 +506,16 @@ endif
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info
 test-ci-native: | test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
-		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
+	NODE_DEBUG=test $(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap \
+		--logfile test.tap --mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
 
 .PHONY: test-ci-js
 # This target should not use a native compiler at all
 # Related CI job: node-test-commit-arm-fanned
 test-ci-js: | clear-stalled
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
-		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
+	NODE_DEBUG=test $(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap \
+		--logfile test.tap --mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
 	@echo "Clean up any leftover processes, error if found."
 	ps awwx | grep Release/node | grep -v grep | cat
@@ -529,8 +529,8 @@ test-ci-js: | clear-stalled
 test-ci: LOGLEVEL := info
 test-ci: | clear-stalled build-addons build-js-native-api-tests build-node-api-tests doc-only
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
-	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
-		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
+	NODE_DEBUG=test $(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap \
+		--logfile test.tap --mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
 	out/Release/embedtest 'require("./test/embedding/test-embedding.js")'
 	@echo "Clean up any leftover processes, error if found."
