@@ -35,8 +35,7 @@ inline void RunInNewContext(
 
   context->Global()->Set(
       context,
-      String::NewFromUtf8(isolate, "data", NewStringType::kNormal)
-          .ToLocalChecked(),
+      String::NewFromUtf8(isolate, "data").ToLocalChecked(),
       args[1]).FromJust();
 
   assert(args[0]->IsString());  // source code

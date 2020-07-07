@@ -25,8 +25,7 @@ void Initialize(Local<Object> exports,
 
   exports->Set(context,
                v8::String::NewFromUtf8(
-                   isolate, "buffer", v8::NewStringType::kNormal)
-                   .ToLocalChecked(),
+                   isolate, "buffer").ToLocalChecked(),
                node::Buffer::New(
                    isolate,
                    data,

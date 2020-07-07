@@ -66,7 +66,6 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::NewStringType;
 using v8::Null;
 using v8::Object;
 using v8::String;
@@ -1937,8 +1936,8 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
   char canonical_ip[INET6_ADDRSTRLEN];
   const int af = (rc == 4 ? AF_INET : AF_INET6);
   CHECK_EQ(0, uv_inet_ntop(af, &result, canonical_ip, sizeof(canonical_ip)));
-  Local<String> val = String::NewFromUtf8(isolate, canonical_ip,
-      NewStringType::kNormal).ToLocalChecked();
+  Local<String> val = String::NewFromUtf8(isolate, canonical_ip)
+      .ToLocalChecked();
   args.GetReturnValue().Set(val);
 }
 
