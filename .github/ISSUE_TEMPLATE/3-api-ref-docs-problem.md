@@ -43,7 +43,7 @@ If you are unsure of something, do your best.
 - **Version**: ✍️
 
 <!-- The output of “uname -a” (UNIX) or version
-and x32 or x64 (Windows). -->
+and 32-bit or 64-bit (Windows). -->
 
 - **Platform**: ✍️
 
