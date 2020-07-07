@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "May 2020" "" ""
+.TH "PACKAGE\.JSON" "5" "July 2020" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SS Description
@@ -308,11 +308,7 @@ Conversely, some files are always ignored:
 .IP \(bu 2
 \fB\|\.wafpickle\-N\fP
 .IP \(bu 2
-\fB\|\.*\.swp\fP
-.IP \(bu 2
 \fB\|\.DS_Store\fP
-.IP \(bu 2
-\fB\|\._*\fP
 .IP \(bu 2
 \fBnpm\-debug\.log\fP
 .IP \(bu 2
@@ -322,9 +318,9 @@ Conversely, some files are always ignored:
 .IP \(bu 2
 \fBconfig\.gypi\fP
 .IP \(bu 2
-\fB*\.orig\fP
-.IP \(bu 2
 \fBpackage\-lock\.json\fP (use shrinkwrap instead)
+.IP \(bu 2
+All files containing a \fB*\fP character (incompatible with Windows)
 
 .RE
 .SS main
