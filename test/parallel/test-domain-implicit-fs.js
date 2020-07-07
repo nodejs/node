@@ -26,6 +26,8 @@ const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
 
+process.on('warning', common.mustNotCall());
+
 const d = new domain.Domain();
 
 d.on('error', common.mustCall(function(er) {

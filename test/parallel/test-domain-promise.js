@@ -5,6 +5,8 @@ const domain = require('domain');
 const fs = require('fs');
 const vm = require('vm');
 
+process.on('warning', common.mustNotCall());
+
 {
   const d = domain.create();
 
