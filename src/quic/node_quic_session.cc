@@ -1431,8 +1431,8 @@ QuicSession::QuicSession(
     socket_(socket),
     alpn_(alpn),
     hostname_(hostname),
-    idle_(socket->env(), [this](void* data) { OnIdleTimeout(); }),
-    retransmit_(socket->env(), [this](void* data) { MaybeTimeout(); }),
+    idle_(socket->env(), [this]() { OnIdleTimeout(); }),
+    retransmit_(socket->env(), [this]() { MaybeTimeout(); }),
     dcid_(dcid),
     state_(env()->isolate()),
     quic_state_(socket->quic_state()) {
