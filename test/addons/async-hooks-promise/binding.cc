@@ -15,8 +15,7 @@ using v8::Value;
 static void ThrowError(Isolate* isolate, const char* err_msg) {
   Local<String> str = String::NewFromOneByte(
       isolate,
-      reinterpret_cast<const uint8_t*>(err_msg),
-      NewStringType::kNormal).ToLocalChecked();
+      reinterpret_cast<const uint8_t*>(err_msg)).ToLocalChecked();
   isolate->ThrowException(str);
 }
 

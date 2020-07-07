@@ -1143,7 +1143,7 @@ unsigned int TLSWrap::PskServerCallback(SSL* s,
   HandleScope scope(isolate);
 
   MaybeLocal<String> maybe_identity_str =
-      v8::String::NewFromUtf8(isolate, identity, v8::NewStringType::kNormal);
+      String::NewFromUtf8(isolate, identity);
 
   v8::Local<v8::String> identity_str;
   if (!maybe_identity_str.ToLocal(&identity_str)) return 0;

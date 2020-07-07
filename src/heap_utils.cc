@@ -118,8 +118,7 @@ class JSGraph : public EmbedderGraph {
           name_str += " ";
           name_str += n->Name();
         }
-        if (!String::NewFromUtf8(
-                 isolate_, name_str.c_str(), v8::NewStringType::kNormal)
+        if (!String::NewFromUtf8(isolate_, name_str.c_str())
                  .ToLocal(&value) ||
             obj->Set(context, name_string, value).IsNothing() ||
             obj->Set(context,
@@ -168,9 +167,8 @@ class JSGraph : public EmbedderGraph {
         Local<Value> edge_name_value;
         const char* edge_name = edge.first;
         if (edge_name != nullptr) {
-          if (!String::NewFromUtf8(
-                  isolate_, edge_name, v8::NewStringType::kNormal)
-                  .ToLocal(&edge_name_value)) {
+          if (!String::NewFromUtf8(isolate_, edge_name)
+              .ToLocal(&edge_name_value)) {
             return MaybeLocal<Array>();
           }
         } else {
@@ -377,8 +375,7 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
     if (!WriteSnapshot(isolate, *name))
       return;
-    if (String::NewFromUtf8(isolate, *name, v8::NewStringType::kNormal)
-            .ToLocal(&filename_v)) {
+    if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);
     }
     return;
