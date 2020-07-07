@@ -36,7 +36,7 @@ input. Replace them with your responses.
 
 If you are unsure of something, do your best.
 
---->
+-->
 
 <!-- The output of “node --version”. -->
 
