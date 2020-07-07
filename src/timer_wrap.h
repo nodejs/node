@@ -14,9 +14,9 @@ namespace node {
 // Utility class that makes working with libuv timers a bit easier.
 class TimerWrap final : public MemoryRetainer {
  public:
-  using TimerCb = std::function<void(void*)>;
+  using TimerCb = std::function<void()>;
 
-  TimerWrap(Environment* env, TimerCb fn, void* user_data);
+  TimerWrap(Environment* env, const TimerCb& fn);
   TimerWrap(const TimerWrap&) = delete;
 
   inline Environment* env() const { return env_; }
@@ -43,7 +43,6 @@ class TimerWrap final : public MemoryRetainer {
   Environment* env_;
   TimerCb fn_;
   uv_timer_t timer_;
-  void* user_data_ = nullptr;
 
   friend std::unique_ptr<TimerWrap>::deleter_type;
 };
@@ -52,8 +51,7 @@ class TimerWrapHandle : public MemoryRetainer  {
  public:
   TimerWrapHandle(
       Environment* env,
-      TimerWrap::TimerCb fn,
-      void* user_data = nullptr);
+      const TimerWrap::TimerCb& fn);
 
   TimerWrapHandle(const TimerWrapHandle&) = delete;
 
