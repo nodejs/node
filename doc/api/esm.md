@@ -1184,10 +1184,18 @@ CommonJS modules loaded.
 
 ### Hooks
 
-#### <code>resolve</code> hook
+#### `resolve(specifier, context, defaultResolve)`
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
+
+* `specifier` {string}
+* `context` {Object}
+  * `conditions` {string[]}
+  * `parentURL` {string}
+* `defaultResolve` {Function}
+* Returns: {Object}
+  * `url` {string}
 
 The `resolve` hook returns the resolved file URL for a given module specifier
 and parent URL. The module specifier is the string in an `import` statement or
@@ -1209,11 +1217,11 @@ Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
 /**
  * @param {string} specifier
  * @param {{
+ *   conditions: !Array<string>,
  *   parentURL: !(string | undefined),
- *   conditions: !(Array<string>),
  * }} context
  * @param {Function} defaultResolve
- * @returns {!(Promise<{ url: string }>)}
+ * @returns {Promise<{ url: string }>}
  */
 export async function resolve(specifier, context, defaultResolve) {
   const { parentURL = null } = context;
@@ -1239,29 +1247,34 @@ export async function resolve(specifier, context, defaultResolve) {
 }
 ```
 
-#### <code>getFormat</code> hook
+#### `getFormat(url, context, defaultGetFormat)`
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
+
+* `url` {string}
+* `context` {Object}
+* `defaultGetFormat` {Function}
+* Returns: {Object}
+  * `format` {string}
 
 The `getFormat` hook provides a way to define a custom method of determining how
 a URL should be interpreted. The `format` returned also affects what the
 acceptable forms of source values are for a module when parsing. This can be one
 of the following:
 
-| `format` | Description | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
-| --- | --- | --- |
-| `'builtin'` | Load a Node.js builtin module | Not applicable |
-| `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
-| `'json'` | Load a JSON file | { [ArrayBuffer][], [string][], [TypedArray][] } |
-| `'module'` | Load an ES module | { [ArrayBuffer][], [string][], [TypedArray][] } |
-| `'wasm'` | Load a WebAssembly module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `format`     | Description                    | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
+| ------------ | ------------------------------ | -------------------------------------------------------------------------- |
+| `'builtin'`  | Load a Node.js builtin module  | Not applicable                                                             |
+| `'commonjs'` | Load a Node.js CommonJS module | Not applicable                                                             |
+| `'json'`     | Load a JSON file               | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
+| `'module'`   | Load an ES module              | { [`string`][], [`ArrayBuffer`][], [`TypedArray`][] }                      |
+| `'wasm'`     | Load a WebAssembly module      | { [`ArrayBuffer`][], [`TypedArray`][] }                                    |
 
 Note: These types all correspond to classes defined in ECMAScript.
 
-* The specific [ArrayBuffer][] object is a [SharedArrayBuffer][].
-* The specific [string][] object is not the class constructor, but an instance.
-* The specific [TypedArray][] object is a [Uint8Array][].
+* The specific [`ArrayBuffer`][] object is a [`SharedArrayBuffer`][].
+* The specific [`TypedArray`][] object is a [`Uint8Array`][].
 
 Note: If the source value of a text-based format (i.e., `'json'`, `'module'`) is
 not a string, it will be converted to a string using [`util.TextDecoder`][].
@@ -1287,10 +1300,17 @@ export async function getFormat(url, context, defaultGetFormat) {
 }
 ```
 
-#### <code>getSource</code> hook
+#### `getSource(url, context, defaultGetSource)`
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
+
+* `url` {string}
+* `context` {Object}
+  * `format` {string}
+* `defaultGetSource` {Function}
+* Returns: {Object}
+  * `source` {string|SharedArrayBuffer|Uint8Array}
 
 The `getSource` hook provides a way to define a custom method for retrieving
 the source code of an ES module specifier. This would allow a loader to
@@ -1301,7 +1321,7 @@ potentially avoid reading files from disk.
  * @param {string} url
  * @param {{ format: string }} context
  * @param {Function} defaultGetSource
- * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
+ * @returns {Promise<{ source: !(string | SharedArrayBuffer | Uint8Array) }>}
  */
 export async function getSource(url, context, defaultGetSource) {
   const { format } = context;
@@ -1317,10 +1337,17 @@ export async function getSource(url, context, defaultGetSource) {
 }
 ```
 
-#### <code>transformSource</code> hook
+#### `transformSource(source, context, defaultTransformSource)`
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
+
+* `source` {string|SharedArrayBuffer|Uint8Array}
+* `context` {Object}
+  * `format` {string}
+  * `url` {string}
+* Returns: {Object}
+  * `source` {string|SharedArrayBuffer|Uint8Array}
 
 The `transformSource` hook provides a way to modify the source code of a loaded
 ES module file after the source string has been loaded but before Node.js has
@@ -1332,13 +1359,13 @@ unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
 
 ```js
 /**
- * @param {!(SharedArrayBuffer | string | Uint8Array)} source
+ * @param {!(string | SharedArrayBuffer | Uint8Array)} source
  * @param {{
- *   url: string,
  *   format: string,
+ *   url: string,
  * }} context
  * @param {Function} defaultTransformSource
- * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
+ * @returns {Promise<{ source: !(string | SharedArrayBuffer | Uint8Array) }>}
  */
 export async function transformSource(source, context, defaultTransformSource) {
   const { url, format } = context;
@@ -1354,10 +1381,12 @@ export async function transformSource(source, context, defaultTransformSource) {
 }
 ```
 
-#### <code>getGlobalPreloadCode</code> hook
+#### `getGlobalPreloadCode()`
 
 > Note: The loaders API is being redesigned. This hook may disappear or its
 > signature may change. Do not rely on the API described below.
+
+* Returns: {string}
 
 Sometimes it can be necessary to run some code inside of the same global scope
 that the application will run in. This hook allows to return a string that will
@@ -1909,12 +1938,12 @@ success!
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
-[`transformSource` hook]: #esm_code_transformsource_code_hook
-[ArrayBuffer]: https://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer-constructor
-[SharedArrayBuffer]: https://tc39.es/ecma262/#sec-sharedarraybuffer-constructor
-[string]: https://www.ecma-international.org/ecma-262/6.0/#sec-string-constructor
-[TypedArray]: https://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
-[Uint8Array]: https://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
+[`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
+[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
+[`string`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String
+[`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
+[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
