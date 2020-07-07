@@ -17,6 +17,8 @@
 # include "./archs/darwin-i386-cc/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(__APPLE__) && defined(__MACH__) && defined(__x86_64__)
 # include "./archs/darwin64-x86_64-cc/no-asm/crypto/include/internal/bn_conf.h"
+#elif defined(__APPLE__) && defined(__MACH__) && defined(__arm64__)
+# include "./archs/darwin64-arm64-cc/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(_WIN32) && defined(_M_IX86)
 # include "./archs/VC-WIN32/no-asm/crypto/include/internal/bn_conf.h"
 #elif defined(_WIN32) && defined(_M_X64)
