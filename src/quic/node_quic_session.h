@@ -65,9 +65,9 @@ typedef void(*PreferredAddressStrategy)(
 // stack created and use a combination of an AliasedBuffer to pass
 // the numeric settings quickly (see node_quic_state.h) and passed
 // in non-numeric settings (e.g. preferred_addr).
-class QuicSessionConfig : public ngtcp2_settings {
+class QuicSessionConfig final : public ngtcp2_settings {
  public:
-  QuicSessionConfig() {}
+  QuicSessionConfig() = default;
 
   explicit QuicSessionConfig(QuicState* quic_state) {
     Set(quic_state);
@@ -226,8 +226,8 @@ struct QuicSessionStatsTraits {
   static void ToString(const Base& ptr, Fn&& add_field);
 };
 
-class QLogStream : public AsyncWrap,
-                   public StreamBase {
+class QLogStream final : public AsyncWrap,
+                         public StreamBase {
  public:
   static BaseObjectPtr<QLogStream> Create(Environment* env);
 
@@ -311,7 +311,7 @@ class QuicSessionListener {
   friend class QuicSession;
 };
 
-class JSQuicSessionListener : public QuicSessionListener {
+class JSQuicSessionListener final : public QuicSessionListener {
  public:
   void OnKeylog(const char* str, size_t size) override;
   void OnClientHello(
@@ -363,7 +363,7 @@ class JSQuicSessionListener : public QuicSessionListener {
 
 // The QuicCryptoContext class encapsulates all of the crypto/TLS
 // handshake details on behalf of a QuicSession.
-class QuicCryptoContext : public MemoryRetainer {
+class QuicCryptoContext final : public MemoryRetainer {
  public:
   inline QuicCryptoContext(
       QuicSession* session,
@@ -697,12 +697,7 @@ class QuicApplication : public MemoryRetainer,
     V(SILENT_CLOSE, silent_closing)                                            \
     V(STATELESS_RESET, stateless_reset)
 
-// The QuicSession class is an virtual class that serves as
-// the basis for both client and server QuicSession.
-// It implements the functionality that is shared for both
-// QUIC clients and servers.
-//
-// QUIC sessions are virtual connections that exchange data
+// QUIC sessions are logical connections that exchange data
 // back and forth between peer endpoints via UDP. Every QuicSession
 // has an associated TLS context and all data transfered between
 // the peers is always encrypted. Unlike TLS over TCP, however,
@@ -713,9 +708,11 @@ class QuicApplication : public MemoryRetainer,
 // correction mechanisms to recover from lost packets, and flow
 // control. In other words, there's quite a bit going on within
 // a QuicSession object.
-class QuicSession : public AsyncWrap,
-                    public mem::NgLibMemoryManager<QuicSession, ngtcp2_mem>,
-                    public StatsBase<QuicSessionStatsTraits> {
+class QuicSession final : public AsyncWrap,
+                          public mem::NgLibMemoryManager<
+                              QuicSession,
+                              ngtcp2_mem>,
+                          public StatsBase<QuicSessionStatsTraits> {
  public:
   // The default preferred address strategy is to ignore it
   static void IgnorePreferredAddressStrategy(
@@ -1080,12 +1077,14 @@ class QuicSession : public AsyncWrap,
   // within the context of an ngtcp2 callback. When within an ngtcp2
   // callback, SendPendingData will always be called when the callbacks
   // complete.
-  class SendSessionScope {
+  class SendSessionScope final {
    public:
     explicit SendSessionScope(QuicSession* session)
         : session_(session) {
       CHECK(session_);
     }
+
+    SendSessionScope(const SendSessionScope& other) = delete;
 
     ~SendSessionScope() {
       if (Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()) ||
@@ -1103,7 +1102,7 @@ class QuicSession : public AsyncWrap,
   // ConnectionCloseScope triggers sending a CONNECTION_CLOSE
   // when not executing within the context of an ngtcp2 callback
   // and the session is in the correct state.
-  class ConnectionCloseScope {
+  class ConnectionCloseScope final {
    public:
     ConnectionCloseScope(QuicSession* session, bool silent = false)
         : session_(session),
@@ -1115,6 +1114,8 @@ class QuicSession : public AsyncWrap,
       else
         session_->set_in_connection_close_scope();
     }
+
+    ConnectionCloseScope(const ConnectionCloseScope& other) = delete;
 
     ~ConnectionCloseScope() {
       if (silent_ ||
@@ -1135,13 +1136,15 @@ class QuicSession : public AsyncWrap,
   // Tracks whether or not we are currently within an ngtcp2 callback
   // function. Certain ngtcp2 APIs are not supposed to be called when
   // within a callback. We use this as a gate to check.
-  class Ngtcp2CallbackScope {
+  class Ngtcp2CallbackScope final {
    public:
     explicit Ngtcp2CallbackScope(QuicSession* session) : session_(session) {
       CHECK(session_);
       CHECK(!InNgtcp2CallbackScope(session));
       session_->set_in_ngtcp2_callback();
     }
+
+    Ngtcp2CallbackScope(const Ngtcp2CallbackScope& other) = delete;
 
     ~Ngtcp2CallbackScope() {
       session_->set_in_ngtcp2_callback(false);
