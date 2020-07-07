@@ -939,17 +939,16 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   char* pos[2];
   char** ppos = &pos[0];
 
-  while (p < pe) {
-    char c = *p++;
-    if (c == '\\' && p < pe && *p == '"') p++;
-    if (c != '"') continue;
-    *ppos++ = p;
+  do {
+    if (*p != '"') continue;
+    if (*(p - 1) == '\\') continue;
+    *ppos++ = p + 1;
     if (ppos < &pos[2]) continue;
     ppos = &pos[0];
 
     char* s = &pos[0][0];
     char* se = &pos[1][-1];  // Exclude quote.
-    size_t n = se - s;
+    const size_t n = se - s;
 
     if (n == 4) {
       if (0 == memcmp(s, "main", 4)) break;
@@ -958,7 +957,7 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     } else if (n == 7) {
       if (0 == memcmp(s, "exports", 7)) break;
     }
-  }
+  } while (++p < pe);
 
 
   Local<Value> return_value[] = {
