@@ -56,7 +56,7 @@ const kALPN = 'zzz';
   server.on('session', common.mustCall(() => {}, kMaxConnectionsPerHost));
 
   server.on('close', common.mustCall(() => {
-    assert.strictEqual(server.serverBusyCount, 1n);
+    assert.strictEqual(server.serverBusyCount, 1);
   }));
 
   server.on('ready', common.mustCall(() => {

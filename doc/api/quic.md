@@ -1319,10 +1319,7 @@ added: REPLACEME
 -->
 
 New instances of `QuicSocket` are created using the `net.createQuicSocket()`
-method.
-
-Once created, a `QuicSocket` can be configured to work as both a client and a
-server.
+method, and can be used as both a client and a server.
 
 #### Event: `'busy'`
 <!-- YAML
@@ -1477,46 +1474,60 @@ added: REPLACEME
 
 * Type: {boolean}
 
-Will be `true` if the `QuicSocket` has been successfully bound to the local UDP
-port.
+Will be `true` if the `QuicSocket` has been successfully bound to a local UDP
+port. Initially the value is `false`.
+
+`QuicSocket` instances are not bound to a local UDP port until the first time
+eithe `quicsocket.listen()` or `quicsocket.connect()` is called. The `'ready'`
+event will be emitted once the `QuicSocket` has been bound and the value of
+`quicsocket.bound` will become `true`.
+
+Read-only.
 
 #### quicsocket.boundDuration
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the length of time this `QuicSocket` has been bound
-to a local port.
+The length of time this `QuicSocket` has been bound to a local port.
+
+Read-only.
 
 #### quicsocket.bytesReceived
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of bytes received by this `QuicSocket`.
+The number of bytes received by this `QuicSocket`.
+
+Read-only.
 
 #### quicsocket.bytesSent
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of bytes sent by this `QuicSocket`.
+The number of bytes sent by this `QuicSocket`.
+
+Read-only.
 
 #### quicsocket.clientSessions
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of client `QuicSession` instances that
-have been associated with this `QuicSocket`.
+The number of client `QuicSession` instances that have been associated
+with this `QuicSocket`.
+
+Read-only.
 
 #### quicsocket.close(\[callback\])
 <!-- YAML
@@ -1690,9 +1701,11 @@ Will be `true` if the `QuicSocket` has been destroyed.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the length of time this `QuicSocket` has been active,
+The length of time this `QuicSocket` has been active,
+
+Read-only.
 
 #### quicsocket.endpoints
 <!-- YAML
@@ -1828,10 +1841,11 @@ If a `callback` is given, it is registered as a handler for the
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the length of time this `QuicSocket` has been listening
-for connections.
+The length of time this `QuicSocket` has been listening for connections.
+
+Read-only
 
 #### quicsocket.listening
 <!-- YAML
@@ -1847,29 +1861,33 @@ Set to `true` if the `QuicSocket` is listening for new connections.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of packets received by this `QuicSocket` that
-have been ignored.
+The number of packets received by this `QuicSocket` that have been ignored.
+
+Read-only.
 
 #### quicsocket.packetsReceived
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of packets successfully received by this
-`QuicSocket`.
+The number of packets successfully received by this `QuicSocket`.
+
+Read-only
 
 #### quicsocket.packetsSent
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of packets sent by this `QuicSocket`.
+The number of packets sent by this `QuicSocket`.
+
+Read-only
 
 #### quicsocket.pending
 <!-- YAML
@@ -1902,20 +1920,23 @@ error code. To begin receiving connections again, disable busy mode by setting
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of `QuicSession` instances rejected
-due to server busy status.
+The number of `QuicSession` instances rejected due to server busy status.
+
+Read-only.
 
 #### quicsocket.serverSessions
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of server `QuicSession` instances that
-have been associated with this `QuicSocket`.
+The number of server `QuicSession` instances that have been associated with
+this `QuicSocket`.
+
+Read-only.
 
 #### quicsocket.setDiagnosticPacketLoss(options)
 <!-- YAML
@@ -1939,9 +1960,11 @@ This method is *not* to be used in production applications.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` that represents the number of stateless resets that have been sent.
+The number of stateless resets that have been sent.
+
+Read-only.
 
 #### quicsocket.toggleStatelessReset()
 <!-- YAML

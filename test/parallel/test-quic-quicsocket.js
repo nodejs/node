@@ -31,16 +31,16 @@ assert(!socket.pending);
 // Socket is not destroyed
 assert(!socket.destroyed);
 
-assert.strictEqual(typeof socket.duration, 'bigint');
-assert.strictEqual(typeof socket.boundDuration, 'bigint');
-assert.strictEqual(typeof socket.listenDuration, 'bigint');
-assert.strictEqual(typeof socket.bytesReceived, 'bigint');
-assert.strictEqual(socket.bytesReceived, 0n);
-assert.strictEqual(socket.bytesSent, 0n);
-assert.strictEqual(socket.packetsReceived, 0n);
-assert.strictEqual(socket.packetsSent, 0n);
-assert.strictEqual(socket.serverSessions, 0n);
-assert.strictEqual(socket.clientSessions, 0n);
+assert.strictEqual(typeof socket.duration, 'number');
+assert.strictEqual(typeof socket.boundDuration, 'number');
+assert.strictEqual(typeof socket.listenDuration, 'number');
+assert.strictEqual(typeof socket.bytesReceived, 'number');
+assert.strictEqual(socket.bytesReceived, 0);
+assert.strictEqual(socket.bytesSent, 0);
+assert.strictEqual(socket.packetsReceived, 0);
+assert.strictEqual(socket.packetsSent, 0);
+assert.strictEqual(socket.serverSessions, 0);
+assert.strictEqual(socket.clientSessions, 0);
 
 const endpoint = socket.endpoints[0];
 assert(endpoint);
@@ -83,8 +83,8 @@ assert(endpoint);
   });
 });
 
-[1, 1n, [], {}, null].forEach((args) => {
-  assert.throws(() => socket.setServerBusy(args), {
+[1, 1n, [], {}, null].forEach((arg) => {
+  assert.throws(() => socket.serverBusy = arg, {
     code: 'ERR_INVALID_ARG_TYPE'
   });
 });
@@ -143,12 +143,7 @@ socket.on('close', common.mustCall(() => {
     });
   });
 
-  [
-    'setServerBusy',
-  ].forEach((op) => {
-    assert.throws(() => socket[op](), {
-      code: 'ERR_QUICSOCKET_DESTROYED',
-      message: `Cannot call ${op} after a QuicSocket has been destroyed`
-    });
+  assert.throws(() => { socket.serverBusy = true; }, {
+    code: 'ERR_QUICSOCKET_DESTROYED'
   });
 }));
