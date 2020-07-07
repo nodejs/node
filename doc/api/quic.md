@@ -1330,8 +1330,8 @@ added: REPLACEME
 -->
 
 Emitted when the server busy state has been toggled using
-`quicSocket.setServerBusy()`. The callback is invoked with a single
-boolean argument indicating `true` if busy status is enabled,
+`quicSocket.serverBusy = true | false`. The callback is invoked with a
+single boolean argument indicating `true` if busy status is enabled,
 `false` otherwise. This event is strictly informational.
 
 ```js
@@ -1346,8 +1346,8 @@ socket.on('busy', (busy) => {
     console.log('Server is not busy');
 });
 
-socket.setServerBusy(true);
-socket.setServerBusy(false);
+socket.serverBusy = true;
+socket.serverBusy = false;
 ```
 
 This `'busy'` event may be emitted multiple times.
@@ -1874,6 +1874,18 @@ Set to `true` if the socket is not yet bound to the local UDP port.
 added: REPLACEME
 -->
 
+#### quicsocket.serverBusy
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} When `true`, the `QuicSocket` will reject new connections.
+
+Setting `quicsocket.serverBusy` to `true` will tell the `QuicSocket`
+to reject all new incoming connection requests using the `SERVER_BUSY` QUIC
+error code. To begin receiving connections again, disable busy mode by setting
+`quicsocket.serverBusy = false`.
+
 #### quicsocket.serverBusyCount
 <!-- YAML
 added: REPLACEME
@@ -1910,19 +1922,6 @@ that can be used to *simulate* packet loss conditions for this `QuicSocket`
 by artificially dropping received or transmitted packets.
 
 This method is *not* to be used in production applications.
-
-#### quicsocket.setServerBusy(\[on\])
-<!-- YAML
-added: REPLACEME
--->
-
-* `on` {boolean} When `true`, the `QuicSocket` will reject new connections.
-  **Defaults**: `true`.
-
-Calling `setServerBusy()` or `setServerBusy(true)` will tell the `QuicSocket`
-to reject all new incoming connection requests using the `SERVER_BUSY` QUIC
-error code. To begin receiving connections again, disable busy mode by calling
-`setServerBusy(false)`.
 
 #### quicsocket.statelessResetCount
 <!-- YAML
