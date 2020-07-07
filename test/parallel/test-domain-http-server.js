@@ -20,11 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const domain = require('domain');
 const http = require('http');
 const assert = require('assert');
 const debug = require('util').debuglog('test');
+
+process.on('warning', common.mustNotCall());
 
 const objects = { foo: 'bar', baz: {}, num: 42, arr: [1, 2, 3] };
 objects.baz.asdf = objects;
