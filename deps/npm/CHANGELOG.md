@@ -1,3 +1,25 @@
+## 6.14.6 (2020-07-07)
+
+### BUG FIXES
+* [`a9857b8f6`](https://github.com/npm/cli/commit/a9857b8f6869451ff058789c4631fadfde5bbcbc) chore: remove auth info from logs ([@claudiahdz](https://github.com/claudiahdz))
+* [`b7ad77598`](https://github.com/npm/cli/commit/b7ad77598112908d60195d0fbc472b3c84275fd5) [#1416](https://github.com/npm/cli/pull/1416) fix: wrong `npm doctor` command result ([@vanishcode](https://github.com/vanishcode))
+
+### DEPENDENCIES
+* [`94eca6377`](https://github.com/npm/cli/commit/94eca637756376b949edfb697e179a1fdcc231ee) `npm-registry-fetch@4.0.5` ([@claudiahdz](https://github.com/claudiahdz))
+* [`c49b6ae28`](https://github.com/npm/cli/commit/c49b6ae28791ff7184288be16654f97168aa9705) [#1418](https://github.com/npm/cli/pull/1418) `spdx-license-ids@3.0.5` ([@kemitchell](https://github.com/kemitchell))
+
+### DOCUMENTATION
+* [`2e052984b`](https://github.com/npm/cli/commit/2e052984b08c09115ed75387fb2c961631d85d77)
+  [#1459](https://github.com/npm/cli/pull/1459)
+  chore(docs): fixed links to cli commands ([@claudiahdz](https://github.com/claudiahdz))
+* [`0ca3509ca`](https://github.com/npm/cli/commit/0ca3509ca940865392daeeabb39192f7d5af9f5e)
+  [#1283](https://github.com/npm/cli/pull/1283) Update npm-link.md ([@peterfich](https://github.com/peterfich))
+* [`3dd429e9a`](https://github.com/npm/cli/commit/3dd429e9aad760ce2ff9e522b34ebfebd85b460c)
+  [#1377](https://github.com/npm/cli/pull/1377)
+  Add note about dropped `*` filenames ([@maxwellgerber](https://github.com/maxwellgerber))
+* [`9a2e2e797`](https://github.com/npm/cli/commit/9a2e2e797e5c91e7f4f261583a1906e2c440cc2f)
+  [#1429](https://github.com/npm/cli/pull/1429) Fix typo ([@seanpoulter](https://github.com/seanpoulter))
+
 ## 6.14.5 (2020-05-01)
 
 ### BUG FIXES

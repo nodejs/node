@@ -29,9 +29,19 @@ function logRequest (method, res, startTime, opts) {
   const attempt = res.headers.get('x-fetch-attempts')
   const attemptStr = attempt && attempt > 1 ? ` attempt #${attempt}` : ''
   const cacheStr = res.headers.get('x-local-cache') ? ' (from cache)' : ''
+
+  let urlStr
+  try {
+    const URL = require('url')
+    const url = new URL(res.url)
+    urlStr = res.url.replace(url.password, '***')
+  } catch (er) {
+    urlStr = res.url
+  }
+
   opts.log.http(
     'fetch',
-    `${method.toUpperCase()} ${res.status} ${res.url} ${elapsedTime}ms${attemptStr}${cacheStr}`
+    `${method.toUpperCase()} ${res.status} ${urlStr} ${elapsedTime}ms${attemptStr}${cacheStr}`
   )
 }
 
