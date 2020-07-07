@@ -28,6 +28,7 @@
   var npm = require('../lib/npm.js')
   var npmconf = require('../lib/config/core.js')
   var errorHandler = require('../lib/utils/error-handler.js')
+  var replaceInfo = require('../lib/utils/replace-info.js')
 
   var configDefs = npmconf.defs
   var shorthands = configDefs.shorthands
@@ -40,7 +41,8 @@
     process.argv.splice(1, 1, 'npm', '-g')
   }
 
-  log.verbose('cli', process.argv)
+  var args = replaceInfo(process.argv)
+  log.verbose('cli', args)
 
   var conf = nopt(types, shorthands)
   npm.argv = conf.argv.remain

@@ -12,6 +12,7 @@ var exitCode = 0
 var rollbacks = npm.rollbacks
 var chain = require('slide').chain
 var errorMessage = require('./error-message.js')
+var replaceInfo = require('./replace-info.js')
 var stopMetrics = require('./metrics.js').stop
 
 const cacheFile = require('./cache-file.js')
@@ -175,14 +176,16 @@ function errorHandler (er) {
   ].forEach(function (k) {
     var v = er[k]
     if (!v) return
+    v = replaceInfo(v)
     log.verbose(k, v)
   })
 
   log.verbose('cwd', process.cwd())
 
   var os = require('os')
+  var args = replaceInfo(process.argv)
   log.verbose('', os.type() + ' ' + os.release())
-  log.verbose('argv', process.argv.map(JSON.stringify).join(' '))
+  log.verbose('argv', args.map(JSON.stringify).join(' '))
   log.verbose('node', process.version)
   log.verbose('npm ', 'v' + npm.version)
 

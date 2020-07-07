@@ -131,6 +131,6 @@ configuration setting.
 
 ### See Also
 
-* [npm install](/cli-commands/install)
+* [npm install](/cli-commands/npm-install)
 * [package-locks](/configuring-npm/package-locks)
 * [config](/using-npm/config)

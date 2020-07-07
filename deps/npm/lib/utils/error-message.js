@@ -3,12 +3,17 @@ var npm = require('../npm.js')
 var util = require('util')
 var nameValidator = require('validate-npm-package-name')
 var npmlog = require('npmlog')
+var replaceInfo = require('./replace-info.js')
 
 module.exports = errorMessage
 
 function errorMessage (er) {
   var short = []
   var detail = []
+
+  er.message = replaceInfo(er.message)
+  er.stack = replaceInfo(er.stack)
+
   switch (er.code) {
     case 'ENOAUDIT':
       short.push(['audit', er.message])
