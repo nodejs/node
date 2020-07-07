@@ -22,8 +22,6 @@
 npm install safe-buffer
 ```
 
-[Get supported safe-buffer with the Tidelift Subscription](https://tidelift.com/subscription/pkg/npm-safe-buffer?utm_source=npm-safe-buffer&utm_medium=referral&utm_campaign=readme)
-
 ## usage
 
 The goal of this package is to provide a safe replacement for the node.js `Buffer`.
