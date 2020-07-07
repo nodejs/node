@@ -1453,6 +1453,9 @@ QuicSession::QuicSession(
       state_.GetArrayBuffer(),
       PropertyAttribute::ReadOnly).Check();
 
+  idle_.Unref();
+  retransmit_.Unref();
+
   // TODO(@jasnell): memory accounting
   // env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
 }
