@@ -1385,9 +1385,59 @@ The `'ready'` event will not be emitted multiple times.
 added: REPLACEME
 -->
 
-Emitted when a new `QuicServerSession` has been created.
+Emitted when a new `QuicServerSession` has been created. The callback is
+invoked with a single argument providing the newly created `QuicServerSession`
+object.
+
+```js
+const { createQuicSocket } = require('net');
+
+const options = getOptionsSomehow();
+const server = createQuicSocket({ server: options });
+server.listen();
+
+server.on('session', (session) => {
+  // Attach session event listeners.
+});
+```
 
 The `'session'` event will be emitted multiple times.
+
+The `'session'` event handler *may* be an async function.
+
+If the `'session'` event handler throws an error, or if it returns a `Promise`
+that is rejected, the error will be handled by destroying the `QuicServerSession`
+automatically and emitting a `'sessionError'` event on the `QuicSocket`.
+
+#### Event: `'sessionError'`
+<!--YAML
+added: REPLACEME
+-->
+
+Emitted when an error occurs processing an event related to a specific
+`QuicSession` instance. The callback is invoked with two arguments:
+
+* `error` {Error} The error that was either thrown or rejected.
+* `session` {QuicSession} The `QuicSession` instance that was destroyed.
+
+The `QuicSession` instance will have been destroyed by the time the
+`'sessionError'` event is emitted.
+
+```js
+const { createQuicSocket } = require('net');
+
+const options = getOptionsSomehow();
+const server = createQuicSocket({ server: options });
+server.listen();
+
+server.on('session', (session) => {
+  throw new Error('boom');
+});
+
+server.on('sessionError', (error, session) => {
+  console.log('error:', error.message);
+});
+```
 
 #### quicsocket.addEndpoint(options)
 <!-- YAML
