@@ -386,16 +386,10 @@ void JSQuicSessionListener::OnClientHello(
   };
 
   if (alpn != nullptr) {
-    argv[0] = String::NewFromUtf8(
-        env->isolate(),
-        alpn,
-        v8::NewStringType::kNormal).ToLocalChecked();
+    argv[0] = String::NewFromUtf8(env->isolate(), alpn).ToLocalChecked();
   }
   if (server_name != nullptr) {
-    argv[1] = String::NewFromUtf8(
-        env->isolate(),
-        server_name,
-        v8::NewStringType::kNormal).ToLocalChecked();
+    argv[1] = String::NewFromUtf8(env->isolate(), server_name).ToLocalChecked();
   }
 
   // Grab a shared pointer to this to prevent the QuicSession
@@ -559,10 +553,7 @@ void JSQuicSessionListener::OnHandshakeCompleted() {
   const char* hostname = ctx->servername();
   if (hostname != nullptr) {
     servername =
-        String::NewFromUtf8(
-            env->isolate(),
-            hostname,
-            v8::NewStringType::kNormal).ToLocalChecked();
+        String::NewFromUtf8(env->isolate(), hostname).ToLocalChecked();
   }
 
   int err = ctx->VerifyPeerIdentity(

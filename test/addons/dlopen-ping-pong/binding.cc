@@ -38,7 +38,7 @@ void Ping(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   assert(ping_func != nullptr);
   args.GetReturnValue().Set(String::NewFromUtf8(
-        isolate, ping_func(), NewStringType::kNormal).ToLocalChecked());
+        isolate, ping_func()).ToLocalChecked());
 }
 
 void init(Local<Object> exports) {

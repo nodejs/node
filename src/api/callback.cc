@@ -13,7 +13,6 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::MicrotasksScope;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -214,8 +213,7 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Value> argv[],
                                async_context asyncContext) {
   Local<String> method_string =
-      String::NewFromUtf8(isolate, method, NewStringType::kNormal)
-          .ToLocalChecked();
+      String::NewFromUtf8(isolate, method).ToLocalChecked();
   return MakeCallback(isolate, recv, method_string, argc, argv, asyncContext);
 }
 

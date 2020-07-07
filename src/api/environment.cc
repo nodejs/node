@@ -443,8 +443,7 @@ MaybeLocal<Value> LoadEnvironment(
         // This is a slightly hacky way to convert UTF-8 to UTF-16.
         Local<String> str =
             String::NewFromUtf8(env->isolate(),
-                                main_script_source_utf8,
-                                v8::NewStringType::kNormal).ToLocalChecked();
+                                main_script_source_utf8).ToLocalChecked();
         auto main_utf16 = std::make_unique<String::Value>(env->isolate(), str);
 
         // TODO(addaleax): Avoid having a global table for all scripts.

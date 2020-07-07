@@ -392,8 +392,7 @@ void ThrowCryptoError(Environment* env,
   }
   HandleScope scope(env->isolate());
   Local<String> exception_string =
-      String::NewFromUtf8(env->isolate(), message, NewStringType::kNormal)
-      .ToLocalChecked();
+      String::NewFromUtf8(env->isolate(), message).ToLocalChecked();
   CryptoErrorVector errors;
   errors.Capture();
   Local<Value> exception;
@@ -1017,8 +1016,8 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   for (size_t i = 0; i < arraysize(root_certs); i++) {
     if (!String::NewFromOneByte(
             env->isolate(),
-            reinterpret_cast<const uint8_t*>(root_certs[i]),
-            NewStringType::kNormal).ToLocal(&result[i])) {
+            reinterpret_cast<const uint8_t*>(root_certs[i]))
+            .ToLocal(&result[i])) {
       return;
     }
   }

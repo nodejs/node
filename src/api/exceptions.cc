@@ -15,7 +15,6 @@ using v8::Exception;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -42,8 +41,7 @@ Local<Value> ErrnoException(Isolate* isolate,
   Local<String> path_string;
   if (path != nullptr) {
     // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = String::NewFromUtf8(isolate, path, NewStringType::kNormal)
-                      .ToLocalChecked();
+    path_string = String::NewFromUtf8(isolate, path).ToLocalChecked();
   }
 
   if (path_string.IsEmpty() == false) {
@@ -78,16 +76,13 @@ static Local<String> StringFromPath(Isolate* isolate, const char* path) {
     return String::Concat(
         isolate,
         FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
-        String::NewFromUtf8(isolate, path + 8, NewStringType::kNormal)
-            .ToLocalChecked());
+        String::NewFromUtf8(isolate, path + 8).ToLocalChecked());
   } else if (strncmp(path, "\\\\?\\", 4) == 0) {
-    return String::NewFromUtf8(isolate, path + 4, NewStringType::kNormal)
-        .ToLocalChecked();
+    return String::NewFromUtf8(isolate, path + 4).ToLocalChecked();
   }
 #endif
 
-  return String::NewFromUtf8(isolate, path, NewStringType::kNormal)
-      .ToLocalChecked();
+  return String::NewFromUtf8(isolate, path).ToLocalChecked();
 }
 
 
@@ -206,8 +201,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     Local<String> cons2 = String::Concat(
         isolate,
         cons1,
-        String::NewFromUtf8(isolate, path, NewStringType::kNormal)
-            .ToLocalChecked());
+        String::NewFromUtf8(isolate, path).ToLocalChecked());
     Local<String> cons3 =
         String::Concat(isolate, cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
     e = Exception::Error(cons3);
@@ -222,8 +216,7 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
   if (path != nullptr) {
     obj->Set(env->context(),
              env->path_string(),
-             String::NewFromUtf8(isolate, path, NewStringType::kNormal)
-                 .ToLocalChecked())
+             String::NewFromUtf8(isolate, path).ToLocalChecked())
         .Check();
   }
 

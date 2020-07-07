@@ -14,7 +14,6 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
@@ -58,21 +57,18 @@ Maybe<bool> ProcessEmitWarningGeneric(Environment* env,
 
   // The caller has to be able to handle a failure anyway, so we might as well
   // do proper error checking for string creation.
-  if (!String::NewFromUtf8(env->isolate(), warning, NewStringType::kNormal)
-           .ToLocal(&args[argc++])) {
+  if (!String::NewFromUtf8(env->isolate(), warning).ToLocal(&args[argc++]))
     return Nothing<bool>();
-  }
+
   if (type != nullptr) {
     if (!String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(type),
-                                NewStringType::kNormal)
+                                reinterpret_cast<const uint8_t*>(type))
              .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }
     if (code != nullptr &&
         !String::NewFromOneByte(env->isolate(),
-                                reinterpret_cast<const uint8_t*>(code),
-                                NewStringType::kNormal)
+                                reinterpret_cast<const uint8_t*>(code))
              .ToLocal(&args[argc++])) {
       return Nothing<bool>();
     }

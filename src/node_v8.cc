@@ -37,7 +37,6 @@ using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::ScriptCompiler;
 using v8::String;
@@ -225,9 +224,7 @@ void Initialize(Local<Object> target,
   MaybeStackBuffer<Local<Value>, 16> heap_spaces(number_of_heap_spaces);
   for (size_t i = 0; i < number_of_heap_spaces; i++) {
     env->isolate()->GetHeapSpaceStatistics(&s, i);
-    heap_spaces[i] = String::NewFromUtf8(env->isolate(),
-                                         s.space_name(),
-                                         NewStringType::kNormal)
+    heap_spaces[i] = String::NewFromUtf8(env->isolate(), s.space_name())
                                              .ToLocalChecked();
   }
   target->Set(env->context(),

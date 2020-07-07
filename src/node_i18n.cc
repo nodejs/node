@@ -338,8 +338,7 @@ void ICUErrorName(const FunctionCallbackInfo<Value>& args) {
   UErrorCode status = static_cast<UErrorCode>(args[0].As<Int32>()->Value());
   args.GetReturnValue().Set(
       String::NewFromUtf8(env->isolate(),
-                          u_errorName(status),
-                          NewStringType::kNormal).ToLocalChecked());
+                          u_errorName(status)).ToLocalChecked());
 }
 
 }  // anonymous namespace

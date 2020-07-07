@@ -4,7 +4,7 @@
 static void Method(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   args.GetReturnValue().Set(v8::String::NewFromUtf8(
-        isolate, "world", v8::NewStringType::kNormal).ToLocalChecked());
+        isolate, "world").ToLocalChecked());
 }
 
 // Not using the full NODE_MODULE_INIT() macro here because we want to test the
@@ -21,8 +21,7 @@ static void FakeInit(v8::Local<v8::Object> exports,
                      v8::Local<v8::Context> context) {
   auto isolate = context->GetIsolate();
   auto exception = v8::Exception::Error(v8::String::NewFromUtf8(isolate,
-      "FakeInit should never run!", v8::NewStringType::kNormal)
-          .ToLocalChecked());
+      "FakeInit should never run!").ToLocalChecked());
   isolate->ThrowException(exception);
 }
 

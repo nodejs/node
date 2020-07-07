@@ -9,11 +9,11 @@ void InitializeBinding(v8::Local<v8::Object> exports,
   exports->Set(
       context,
       v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>("key"),
-                                 v8::NewStringType::kNormal).ToLocalChecked(),
+                                 reinterpret_cast<const uint8_t*>("key"))
+                                 .ToLocalChecked(),
       v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>("value"),
-                                 v8::NewStringType::kNormal).ToLocalChecked())
+                                 reinterpret_cast<const uint8_t*>("value"))
+                                 .ToLocalChecked())
       .FromJust();
 }
 
@@ -33,8 +33,8 @@ TEST_F(LinkedBindingTest, SimpleTest) {
   v8::Local<v8::Script> script = v8::Script::Compile(
       context,
       v8::String::NewFromOneByte(isolate_,
-                                 reinterpret_cast<const uint8_t*>(run_script),
-                                 v8::NewStringType::kNormal).ToLocalChecked())
+                                 reinterpret_cast<const uint8_t*>(run_script))
+                                 .ToLocalChecked())
       .ToLocalChecked();
   v8::Local<v8::Value> completion_value = script->Run(context).ToLocalChecked();
   v8::String::Utf8Value utf8val(isolate_, completion_value);
@@ -51,11 +51,11 @@ void InitializeLocalBinding(v8::Local<v8::Object> exports,
   exports->Set(
       context,
       v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>("key"),
-                                 v8::NewStringType::kNormal).ToLocalChecked(),
+                                 reinterpret_cast<const uint8_t*>("key"))
+                                 .ToLocalChecked(),
       v8::String::NewFromOneByte(isolate,
-                                 reinterpret_cast<const uint8_t*>("value"),
-                                 v8::NewStringType::kNormal).ToLocalChecked())
+                                 reinterpret_cast<const uint8_t*>("value"))
+                                 .ToLocalChecked())
       .FromJust();
 }
 
@@ -74,8 +74,8 @@ TEST_F(LinkedBindingTest, LocallyDefinedLinkedBindingTest) {
   v8::Local<v8::Script> script = v8::Script::Compile(
       context,
       v8::String::NewFromOneByte(isolate_,
-                                 reinterpret_cast<const uint8_t*>(run_script),
-                                 v8::NewStringType::kNormal).ToLocalChecked())
+                                 reinterpret_cast<const uint8_t*>(run_script))
+                                 .ToLocalChecked())
       .ToLocalChecked();
   v8::Local<v8::Value> completion_value = script->Run(context).ToLocalChecked();
   v8::String::Utf8Value utf8val(isolate_, completion_value);

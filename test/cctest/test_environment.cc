@@ -114,8 +114,8 @@ TEST_F(EnvironmentTest, PreExecutionPreparation) {
   v8::Local<v8::Script> script = v8::Script::Compile(
       context,
       v8::String::NewFromOneByte(isolate_,
-                                 reinterpret_cast<const uint8_t*>(run_script),
-                                 v8::NewStringType::kNormal).ToLocalChecked())
+                                 reinterpret_cast<const uint8_t*>(run_script))
+                                 .ToLocalChecked())
       .ToLocalChecked();
   v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
   CHECK(result->IsString());
@@ -140,8 +140,8 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithCallback) {
         context,
         v8::String::NewFromOneByte(
             isolate_,
-            reinterpret_cast<const uint8_t*>("argv0"),
-            v8::NewStringType::kNormal).ToLocalChecked()).ToLocalChecked();
+            reinterpret_cast<const uint8_t*>("argv0"))
+            .ToLocalChecked()).ToLocalChecked();
     CHECK(argv0->IsString());
 
     return info.process_object;
@@ -165,15 +165,15 @@ TEST_F(EnvironmentTest, LoadEnvironmentWithSource) {
       context,
       v8::String::NewFromOneByte(
           isolate_,
-          reinterpret_cast<const uint8_t*>("process"),
-          v8::NewStringType::kNormal).ToLocalChecked())
+          reinterpret_cast<const uint8_t*>("process"))
+          .ToLocalChecked())
           .ToLocalChecked()->IsObject());
   CHECK(main_ret.As<v8::Object>()->Get(
       context,
       v8::String::NewFromOneByte(
           isolate_,
-          reinterpret_cast<const uint8_t*>("require"),
-          v8::NewStringType::kNormal).ToLocalChecked())
+          reinterpret_cast<const uint8_t*>("require"))
+          .ToLocalChecked())
           .ToLocalChecked()->IsFunction());
 }
 
@@ -509,8 +509,8 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
           context,
           v8::String::NewFromOneByte(
               isolate_,
-              reinterpret_cast<const uint8_t*>("messageFromWorker"),
-              v8::NewStringType::kNormal).ToLocalChecked())
+              reinterpret_cast<const uint8_t*>("messageFromWorker"))
+              .ToLocalChecked())
               .ToLocalChecked();
   CHECK_EQ(data.extracted_value, 42);
   CHECK_EQ(from_inspector->IntegerValue(context).FromJust(), 42);

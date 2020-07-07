@@ -71,8 +71,7 @@ static void GetHostname(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(), buf, NewStringType::kNormal)
-          .ToLocalChecked());
+      String::NewFromUtf8(env->isolate(), buf).ToLocalChecked());
 }
 
 static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
@@ -192,8 +191,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     // to assume UTF8 as the default as well. It’s what people will expect if
     // they name the interface from any input that uses UTF-8, which should be
     // the most frequent case by far these days.)
-    name = String::NewFromUtf8(isolate, raw_name,
-        NewStringType::kNormal).ToLocalChecked();
+    name = String::NewFromUtf8(isolate, raw_name).ToLocalChecked();
 
     snprintf(mac.data(),
              mac.size(),
