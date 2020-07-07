@@ -525,7 +525,7 @@ class NodeInspectorClient : public V8InspectorClient {
                            void* data) override {
     auto result =
         timers_.emplace(std::piecewise_construct, std::make_tuple(data),
-                        std::make_tuple(env_, callback, data));
+                        std::make_tuple(env_, [=]() { callback(data); }));
     CHECK(result.second);
     uint64_t interval = 1000 * interval_s;
     result.first->second.Update(interval, interval);
