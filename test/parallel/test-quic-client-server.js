@@ -58,6 +58,7 @@ server.listen({
   rejectUnauthorized: false,
   alpn: kALPN,
 });
+
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
 
