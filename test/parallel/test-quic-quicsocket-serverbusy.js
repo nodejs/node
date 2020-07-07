@@ -32,7 +32,7 @@ server.on('busy', common.mustCall((busy) => {
 
 // When the server is set as busy, all connections
 // will be rejected with a SERVER_BUSY response.
-server.setServerBusy();
+server.serverBusy = true;
 server.listen();
 
 server.on('close', common.mustCall());
