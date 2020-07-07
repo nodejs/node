@@ -491,6 +491,14 @@
           ['target_arch=="x64"', {
             'xcode_settings': {'ARCHS': ['x86_64']},
           }],
+          ['target_arch=="arm64"', {
+            'xcode_settings': {
+              'ARCHS': ['arm64'],
+              'OTHER_LDFLAGS!': [
+                '-Wl,-no_pie',
+              ],
+            },
+          }],
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
