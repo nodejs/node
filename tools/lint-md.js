@@ -1,5 +1,8 @@
 'use strict';
 
+// Don't change this file manually,
+// it is generated from tools/node-lint-md-cli-rollup
+
 function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
 
 var stream = _interopDefault(require('stream'));
@@ -43322,10 +43325,65 @@ function stringify$6(options) {
 
 var remark = unified_1().use(remarkParse).use(remarkStringify).freeze();
 
-const name$1 = "remark";
-const version$1 = "12.0.0";
+const _args = [
+	[
+		"remark@12.0.0",
+		"/Users/bytedance/Documents/code/github/node/tools/node-lint-md-cli-rollup"
+	]
+];
+const _from = "remark@12.0.0";
+const _id = "remark@12.0.0";
+const _inBundle = false;
+const _integrity = "sha512-oX4lMIS0csgk8AEbzY0h2jdR0ngiCHOpwwpxjmRa5TqAkeknY+tkhjRJGZqnCmvyuWh55/0SW5WY3R3nn3PH9A==";
+const _location = "/remark";
+const _phantomChildren = {
+};
+const _requested = {
+	type: "version",
+	registry: true,
+	raw: "remark@12.0.0",
+	name: "remark",
+	escapedName: "remark",
+	rawSpec: "12.0.0",
+	saveSpec: null,
+	fetchSpec: "12.0.0"
+};
+const _requiredBy = [
+	"/"
+];
+const _resolved = "https://registry.npmjs.org/remark/-/remark-12.0.0.tgz";
+const _spec = "12.0.0";
+const _where = "/Users/bytedance/Documents/code/github/node/tools/node-lint-md-cli-rollup";
+const author = {
+	name: "Titus Wormer",
+	email: "tituswormer@gmail.com",
+	url: "https://wooorm.com"
+};
+const bugs = {
+	url: "https://github.com/remarkjs/remark/issues"
+};
+const contributors = [
+	{
+		name: "Titus Wormer",
+		email: "tituswormer@gmail.com",
+		url: "https://wooorm.com"
+	}
+];
+const dependencies = {
+	"remark-parse": "^8.0.0",
+	"remark-stringify": "^8.0.0",
+	unified: "^9.0.0"
+};
 const description = "Markdown processor powered by plugins part of the unified collective";
-const license = "MIT";
+const files = [
+	"index.js",
+	"types/index.d.ts"
+];
+const funding = {
+	type: "opencollective",
+	url: "https://opencollective.com/unified"
+};
+const homepage = "https://remark.js.org";
 const keywords = [
 	"unified",
 	"remark",
@@ -43341,77 +43399,79 @@ const keywords = [
 	"compile",
 	"process"
 ];
-const homepage = "https://remark.js.org";
-const repository = "https://github.com/remarkjs/remark/tree/master/packages/remark";
-const bugs = "https://github.com/remarkjs/remark/issues";
-const funding = {
-	type: "opencollective",
-	url: "https://opencollective.com/unified"
-};
-const author = "Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)";
-const contributors = [
-	"Titus Wormer <tituswormer@gmail.com> (https://wooorm.com)"
-];
-const files = [
-	"index.js",
-	"types/index.d.ts"
-];
-const types = "types/index.d.ts";
-const dependencies = {
-	"remark-parse": "^8.0.0",
-	"remark-stringify": "^8.0.0",
-	unified: "^9.0.0"
+const license = "MIT";
+const name$1 = "remark";
+const repository = {
+	type: "git",
+	url: "https://github.com/remarkjs/remark/tree/master/packages/remark"
 };
 const scripts = {
 	test: "tape test.js"
 };
+const types = "types/index.d.ts";
+const version$1 = "12.0.0";
 const xo = false;
-const _resolved = "https://registry.npmjs.org/remark/-/remark-12.0.0.tgz";
-const _integrity = "sha512-oX4lMIS0csgk8AEbzY0h2jdR0ngiCHOpwwpxjmRa5TqAkeknY+tkhjRJGZqnCmvyuWh55/0SW5WY3R3nn3PH9A==";
-const _from = "remark@12.0.0";
 var _package = {
-	name: name$1,
-	version: version$1,
-	description: description,
-	license: license,
-	keywords: keywords,
-	homepage: homepage,
-	repository: repository,
-	bugs: bugs,
-	funding: funding,
-	author: author,
-	contributors: contributors,
-	files: files,
-	types: types,
-	dependencies: dependencies,
-	scripts: scripts,
-	xo: xo,
-	_resolved: _resolved,
+	_args: _args,
+	_from: _from,
+	_id: _id,
+	_inBundle: _inBundle,
 	_integrity: _integrity,
-	_from: _from
+	_location: _location,
+	_phantomChildren: _phantomChildren,
+	_requested: _requested,
+	_requiredBy: _requiredBy,
+	_resolved: _resolved,
+	_spec: _spec,
+	_where: _where,
+	author: author,
+	bugs: bugs,
+	contributors: contributors,
+	dependencies: dependencies,
+	description: description,
+	files: files,
+	funding: funding,
+	homepage: homepage,
+	keywords: keywords,
+	license: license,
+	name: name$1,
+	repository: repository,
+	scripts: scripts,
+	types: types,
+	version: version$1,
+	xo: xo
 };
 
 var _package$1 = /*#__PURE__*/Object.freeze({
   __proto__: null,
-  name: name$1,
-  version: version$1,
-  description: description,
-  license: license,
-  keywords: keywords,
-  homepage: homepage,
-  repository: repository,
-  bugs: bugs,
-  funding: funding,
-  author: author,
-  contributors: contributors,
-  files: files,
-  types: types,
-  dependencies: dependencies,
-  scripts: scripts,
-  xo: xo,
-  _resolved: _resolved,
-  _integrity: _integrity,
+  _args: _args,
   _from: _from,
+  _id: _id,
+  _inBundle: _inBundle,
+  _integrity: _integrity,
+  _location: _location,
+  _phantomChildren: _phantomChildren,
+  _requested: _requested,
+  _requiredBy: _requiredBy,
+  _resolved: _resolved,
+  _spec: _spec,
+  _where: _where,
+  author: author,
+  bugs: bugs,
+  contributors: contributors,
+  dependencies: dependencies,
+  description: description,
+  files: files,
+  funding: funding,
+  homepage: homepage,
+  keywords: keywords,
+  license: license,
+  name: name$1,
+  repository: repository,
+  scripts: scripts,
+  types: types,
+  version: version$1,
+  xo: xo,
   'default': _package
 });
 
