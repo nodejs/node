@@ -5,10 +5,9 @@
 
 namespace node {
 
-TimerWrap::TimerWrap(Environment* env, TimerCb fn, void* user_data)
+TimerWrap::TimerWrap(Environment* env, const TimerCb& fn)
     : env_(env),
-      fn_(fn),
-      user_data_(user_data) {
+      fn_(fn) {
   uv_timer_init(env->event_loop(), &timer_);
   timer_.data = this;
 }
@@ -45,14 +44,13 @@ void TimerWrap::Unref() {
 
 void TimerWrap::OnTimeout(uv_timer_t* timer) {
   TimerWrap* t = ContainerOf(&TimerWrap::timer_, timer);
-  t->fn_(t->user_data_);
+  t->fn_();
 }
 
 TimerWrapHandle::TimerWrapHandle(
     Environment* env,
-    TimerWrap::TimerCb fn,
-    void* user_data) {
-  timer_ = new TimerWrap(env, fn, user_data);
+    const TimerWrap::TimerCb& fn) {
+  timer_ = new TimerWrap(env, fn);
   env->AddCleanupHook(CleanupHook, this);
 }
 
