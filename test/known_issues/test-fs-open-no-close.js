@@ -1,5 +1,6 @@
 'use strict';
 
+// Refs: https://github.com/nodejs/node/issues/34266
 // Failing to close a file should not keep the event loop open.
 
 const common = require('../common');
