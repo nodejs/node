@@ -1628,7 +1628,7 @@ const cleanup = finished(rs, (err) => {
 ```
 
 ### `stream.pipeline(source[, ...transforms], destination[,options], callback)`
-### `stream.pipeline(streams, callback)`
+### `stream.pipeline(streams[,options], callback)`
 
 <!-- YAML
 added: v10.0.0
