@@ -26,7 +26,7 @@ const { createQuicSocket } = require('net');
   const server = createQuicSocket();
   server.listen();
   assert.throws(() => server.listen(), {
-    code: 'ERR_QUICSOCKET_LISTENING'
+    code: 'ERR_INVALID_STATE'
   });
   server.close();
 }
@@ -36,7 +36,7 @@ const { createQuicSocket } = require('net');
   const server = createQuicSocket();
   server.close();
   assert.throws(() => server.listen(), {
-    code: 'ERR_QUICSOCKET_DESTROYED'
+    code: 'ERR_INVALID_STATE'
   });
 }
 

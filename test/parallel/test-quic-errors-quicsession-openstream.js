@@ -77,7 +77,7 @@ server.on('ready', common.mustCall(() => {
     highWaterMark: 10,
     defaultEncoding: 'utf16le'
   }).on('error', common.expectsError({
-    code: 'ERR_QUICSTREAM_OPEN_FAILED'
+    code: 'ERR_OPERATION_FAILED'
   })).on('error', common.mustCall(() => countdown.dec()));
 }));
 
