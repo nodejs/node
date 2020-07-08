@@ -25,8 +25,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const tls = require('tls');
+const createSecurePair = require('../common/securepair');
 
 // neither should hang
-tls.createSecurePair(null, false, false, false);
-tls.createSecurePair(null, true, false, false);
+createSecurePair(null, false, false, false);
+createSecurePair(null, true, false, false);

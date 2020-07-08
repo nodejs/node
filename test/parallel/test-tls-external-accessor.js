@@ -14,9 +14,3 @@ const tls = require('tls');
   assert.throws(() => cctx._external, TypeError);
   pctx._external;
 }
-{
-  const pctx = tls.createSecurePair().credentials.context;
-  const cctx = Object.create(pctx);
-  assert.throws(() => cctx._external, TypeError);
-  pctx._external;
-}

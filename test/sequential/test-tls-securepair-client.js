@@ -37,6 +37,7 @@ const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const tls = require('tls');
 const spawn = require('child_process').spawn;
+const createSecurePair = require('../common/securepair');
 
 test1();
 
@@ -124,7 +125,7 @@ function test(keyPath, certPath, check, next) {
     const sslcontext = tls.createSecureContext({ key, cert });
     sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-    const pair = tls.createSecurePair(sslcontext, false);
+    const pair = createSecurePair(sslcontext, false);
 
     assert.ok(pair.encrypted.writable);
     assert.ok(pair.cleartext.writable);

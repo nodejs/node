@@ -29,6 +29,7 @@ if (!common.opensslCli)
 
 const assert = require('assert');
 const tls = require('tls');
+const createSecurePair = require('../common/securepair');
 const net = require('net');
 const spawn = require('child_process').spawn;
 const fixtures = require('../common/fixtures');
@@ -45,7 +46,7 @@ const server = net.createServer(common.mustCall(function(socket) {
   const sslcontext = tls.createSecureContext({ key, cert });
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-  const pair = tls.createSecurePair(sslcontext, true);
+  const pair = createSecurePair(sslcontext, true);
 
   assert.ok(pair.encrypted.writable);
   assert.ok(pair.cleartext.writable);

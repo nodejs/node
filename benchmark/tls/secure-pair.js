@@ -66,9 +66,6 @@ function main({ dur, size, securing }) {
   function onProxyConnection(conn) {
     const client = net.connect(REDIRECT_PORT, () => {
       switch (securing) {
-        case 'SecurePair':
-          securePair(conn, client);
-          break;
         case 'TLSSocket':
           secureTLSSocket(conn, client);
           break;
@@ -80,30 +77,3 @@ function main({ dur, size, securing }) {
       }
     });
   }
-
-  function securePair(conn, client) {
-    const serverCtx = tls.createSecureContext(options);
-    const serverPair = tls.createSecurePair(serverCtx, true, true, false);
-    conn.pipe(serverPair.encrypted);
-    serverPair.encrypted.pipe(conn);
-    serverPair.on('error', (error) => {
-      throw new Error(`Pair error: ${error}`);
-    });
-    serverPair.cleartext.pipe(client);
-  }
-
-  function secureTLSSocket(conn, client) {
-    const serverSocket = new tls.TLSSocket(conn, options);
-    serverSocket.on('error', (e) => {
-      throw new Error(`Socket error: ${e}`);
-    });
-    serverSocket.pipe(client);
-  }
-
-  let received = 0;
-  function onRedirectConnection(conn) {
-    conn.on('data', (chunk) => {
-      received += chunk.length;
-    });
-  }
-}

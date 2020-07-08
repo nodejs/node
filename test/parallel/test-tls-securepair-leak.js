@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const { createSecureContext } = require('tls');
-const { createSecurePair } = require('tls');
+const createSecurePair = require('../common/securepair');
 
 const before = process.memoryUsage().external;
 {

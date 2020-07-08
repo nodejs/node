@@ -7,13 +7,14 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const createSecurePair = require('../common/securepair');
 
 const sslcontext = tls.createSecureContext({
   cert: fixtures.readKey('rsa_cert.crt'),
   key: fixtures.readKey('rsa_private.pem')
 });
 
-const pair = tls.createSecurePair(sslcontext, true, false, false, {
+const pair = createSecurePair(sslcontext, true, false, false, {
   SNICallback: common.mustCall((servername, cb) => {
     assert.strictEqual(servername, 'www.google.com');
   })
