@@ -333,8 +333,6 @@ For information about the governance of the Node.js project, see
 **Juan José Arboleda** &lt;soyjuanarbol@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
 **Minwoo Jung** &lt;nodecorelab@gmail.com&gt; (he/him)
-* [kfarnung](https://github.com/kfarnung) -
-**Kyle Farnung** &lt;kfarnung@microsoft.com&gt; (he/him)
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt; (he/him)
 * [legendecas](https://github.com/legendecas) -
@@ -482,6 +480,8 @@ For information about the governance of the Node.js project, see
 **Josh Gavant** &lt;josh.gavant@outlook.com&gt;
 * [julianduque](https://github.com/julianduque) -
 **Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
+* [kfarnung](https://github.com/kfarnung) -
+**Kyle Farnung** &lt;kfarnung@microsoft.com&gt; (he/him)
 * [kunalspathak](https://github.com/kunalspathak) -
 **Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lucamaraschi](https://github.com/lucamaraschi) -
