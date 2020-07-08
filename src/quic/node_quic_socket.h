@@ -384,7 +384,7 @@ class QuicSocket : public AsyncWrap,
   // Toggles whether or not stateless reset is enabled or not.
   // Returns true if stateless reset is enabled, false if it
   // is not.
-  inline bool ToggleStatelessReset();
+  inline bool EnableStatelessReset(bool on = true);
 
   BaseObjectPtr<crypto::SecureContext> server_secure_context() const {
     return server_secure_context_;

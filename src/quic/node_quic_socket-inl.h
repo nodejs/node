@@ -173,8 +173,8 @@ void QuicSocket::set_diagnostic_packet_loss(double rx, double tx) {
   tx_loss_ = tx;
 }
 
-bool QuicSocket::ToggleStatelessReset() {
-  set_stateless_reset_disabled(!is_stateless_reset_disabled());
+bool QuicSocket::EnableStatelessReset(bool on) {
+  set_stateless_reset_disabled(!on);
   return !is_stateless_reset_disabled();
 }
 
