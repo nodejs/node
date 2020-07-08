@@ -130,7 +130,7 @@ async function mismatch() {
   });
 
   session.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_QUICCLIENTSESSION_FAILED');
+    assert.strictEqual(err.code, 'ERR_OPERATION_FAILED');
     client.close();
     server.close();
   }));

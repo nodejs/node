@@ -97,7 +97,7 @@ socket.on('ready', common.mustCall(() => {
 
   // QuicSocket is already listening.
   assert.throws(() => socket.listen(), {
-    code: 'ERR_QUICSOCKET_LISTENING'
+    code: 'ERR_INVALID_STATE'
   });
 
   assert.strictEqual(typeof endpoint.address.address, 'string');
@@ -138,12 +138,11 @@ socket.on('close', common.mustCall(() => {
     'dropMembership'
   ].forEach((op) => {
     assert.throws(() => endpoint[op](), {
-      code: 'ERR_QUICSOCKET_DESTROYED',
-      message: `Cannot call ${op} after a QuicSocket has been destroyed`
+      code: 'ERR_INVALID_STATE'
     });
   });
 
   assert.throws(() => { socket.serverBusy = true; }, {
-    code: 'ERR_QUICSOCKET_DESTROYED'
+    code: 'ERR_INVALID_STATE'
   });
 }));

@@ -13,7 +13,6 @@ const { createQuicSocket } = require('net');
   socket.close(common.mustCall());
   socket.on('close', common.mustCall());
   assert.throws(() => socket.close(), {
-    code: 'ERR_QUICSOCKET_DESTROYED',
-    message: 'Cannot call close after a QuicSocket has been destroyed'
+    code: 'ERR_INVALID_STATE'
   });
 }

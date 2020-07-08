@@ -44,9 +44,8 @@ server.on('session', common.mustCall((session) => {
     server.close();
 
     assert.throws(() => server.close(), {
-      code: 'ERR_QUICSOCKET_DESTROYED',
-      name: 'Error',
-      message: 'Cannot call close after a QuicSocket has been destroyed'
+      code: 'ERR_INVALID_STATE',
+      name: 'Error'
     });
   }));
   session.on('stream', common.mustNotCall());

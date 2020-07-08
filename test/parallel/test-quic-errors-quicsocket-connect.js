@@ -194,7 +194,7 @@ const client = createQuicSocket();
 // Test that connect cannot be called after QuicSocket is closed.
 client.close();
 assert.throws(() => client.connect(), {
-  code: 'ERR_QUICSOCKET_DESTROYED'
+  code: 'ERR_INVALID_STATE'
 });
 
 // TODO(@jasnell): Test additional options:

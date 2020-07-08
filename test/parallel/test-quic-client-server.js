@@ -200,18 +200,12 @@ server.on('session', common.mustCall((session) => {
     assert.strictEqual(code, NGTCP2_NO_ERROR);
 
     const err = {
-      code: 'ERR_QUICSESSION_DESTROYED',
+      code: 'ERR_INVALID_STATE',
       name: 'Error'
     };
-    assert.throws(() => session.ping(), { ...err });
-    assert.throws(() => session.openStream(), {
-      ...err,
-      message: 'Cannot call openStream after a QuicSession has been destroyed'
-    });
-    assert.throws(() => session.updateKey(), {
-      ...err,
-      message: 'Cannot call updateKey after a QuicSession has been destroyed'
-    });
+    assert.throws(() => session.ping(), err);
+    assert.throws(() => session.openStream(), err);
+    assert.throws(() => session.updateKey(), err);
   }));
 }));
 

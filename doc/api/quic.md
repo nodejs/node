@@ -1250,7 +1250,7 @@ Migrates the `QuicClientSession` to the given `QuicSocket` instance. If the new
 `QuicSocket` has not yet been bound to a local UDP port, it will be bound prior
 to attempting the migration. If the `QuicClientSession` is not yet ready to
 migrate, the callback will be invoked with an `Error` using the code
-`ERR_QUICCLIENTSESSION_FAILED_SETSOCKET`.
+`ERR_OPERATION_FAILED`.
 
 ### Class: QuicServerSession extends QuicSession
 <!-- YAML
