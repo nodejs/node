@@ -3,6 +3,8 @@
 <!-- introduced_in=v0.10.0 -->
 <!-- type=global -->
 
+<!-- source_link=lib/process.js -->
+
 The `process` object is a `global` that provides information about, and control
 over, the current Node.js process. As a global, it is always available to
 Node.js applications without using `require()`. It can also be explicitly
@@ -12,7 +14,7 @@ accessed using `require()`:
 const process = require('process');
 ```
 
-## Process Events
+## Process events
 
 The `process` object is an instance of [`EventEmitter`][].
 
@@ -122,7 +124,7 @@ not be the same as what is originally sent.
 If the `serialization` option was set to `advanced` used when spawning the
 process, the `message` argument can contain data that JSON is not able
 to represent.
-See [Advanced Serialization for `child_process`][] for more details.
+See [Advanced serialization for `child_process`][] for more details.
 
 ### Event: `'multipleResolves'`
 <!-- YAML
@@ -233,8 +235,9 @@ changes:
 
 * `err` {Error} The uncaught exception.
 * `origin` {string} Indicates if the exception originates from an unhandled
-  rejection or from synchronous errors. Can either be `'uncaughtException'` or
-  `'unhandledRejection'`.
+  rejection or from an synchronous error. Can either be `'uncaughtException'` or
+  `'unhandledRejection'`. The latter is only used in conjunction with the
+  [`--unhandled-rejections`][] flag set to `strict` and an unhandled rejection.
 
 The `'uncaughtException'` event is emitted when an uncaught JavaScript
 exception bubbles all the way back to the event loop. By default, Node.js
@@ -456,7 +459,7 @@ The `*-deprecation` command line flags only affect warnings that use the name
 See the [`process.emitWarning()`][process_emit_warning] method for issuing
 custom or application-specific warnings.
 
-### Signal Events
+### Signal events
 
 <!--type=event-->
 <!--name=SIGINT, SIGHUP, etc.-->
@@ -557,7 +560,7 @@ environment variable.
 
 `process.allowedNodeEnvironmentFlags` extends `Set`, but overrides
 `Set.prototype.has` to recognize several different possible flag
-representations.  `process.allowedNodeEnvironmentFlags.has()` will
+representations. `process.allowedNodeEnvironmentFlags.has()` will
 return `true` in the following cases:
 
 * Flags may omit leading single (`-`) or double (`--`) dashes; e.g.,
@@ -1797,7 +1800,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {Object}
@@ -1831,7 +1834,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1852,7 +1855,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1873,7 +1876,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * `err` {Error} A custom error used for reporting the JavaScript stack.
@@ -1918,7 +1921,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {boolean}
@@ -1938,7 +1941,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {boolean}
@@ -1957,7 +1960,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * {string}
@@ -1977,7 +1980,7 @@ changes:
      - v13.12.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32242
-    description: This API is no longer considered experimental.
+    description: This API is no longer experimental.
 -->
 
 * `filename` {string} Name of the file where the report is written. This
@@ -2278,21 +2281,7 @@ The `process.stdin` property returns a stream connected to
 stream) unless fd `0` refers to a file, in which case it is
 a [Readable][] stream.
 
-```js
-process.stdin.setEncoding('utf8');
-
-process.stdin.on('readable', () => {
-  let chunk;
-  // Use a loop to make sure we read all available data.
-  while ((chunk = process.stdin.read()) !== null) {
-    process.stdout.write(`data: ${chunk}`);
-  }
-});
-
-process.stdin.on('end', () => {
-  process.stdout.write('end');
-});
-```
+For details of how to read from `stdin` see [`readable.read()`][].
 
 As a [Duplex][] stream, `process.stdin` can also be used in "old" mode that
 is compatible with scripts written for Node.js prior to v0.10.
@@ -2554,7 +2543,7 @@ Will generate an object similar to:
   unicode: '11.0' }
 ```
 
-## Exit Codes
+## Exit codes
 
 Node.js will normally exit with a `0` status code when no more async
 operations are pending. The following status codes are used in other
@@ -2604,6 +2593,7 @@ cases:
 [`'exit'`]: #process_event_exit
 [`'message'`]: child_process.html#child_process_event_message
 [`'uncaughtException'`]: #process_event_uncaughtexception
+[`--unhandled-rejections`]: cli.html#cli_unhandled_rejections_mode
 [`Buffer`]: buffer.html
 [`ChildProcess.disconnect()`]: child_process.html#child_process_subprocess_disconnect
 [`ChildProcess.send()`]: child_process.html#child_process_subprocess_send_message_sendhandle_options_callback
@@ -2634,7 +2624,7 @@ cases:
 [`require.resolve()`]: modules.html#modules_require_resolve_request_options
 [`subprocess.kill()`]: child_process.html#child_process_subprocess_kill_signal
 [`v8.setFlagsFromString()`]: v8.html#v8_v8_setflagsfromstring_flags
-[Advanced Serialization for `child_process`]: child_process.html#child_process_advanced_serialization
+[Advanced serialization for `child_process`]: child_process.html#child_process_advanced_serialization
 [Android building]: https://github.com/nodejs/node/blob/master/BUILDING.md#androidandroid-based-devices-eg-firefox-os
 [Child Process]: child_process.html
 [Cluster]: cluster.html
@@ -2642,6 +2632,7 @@ cases:
 [Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
 [LTS]: https://github.com/nodejs/Release
 [Readable]: stream.html#stream_readable_streams
+[`readable.read()`]: stream.html#stream_readable_read_size
 [Signal Events]: #process_signal_events
 [Stream compatibility]: stream.html#stream_compatibility_with_older_node_js_versions
 [TTY]: tty.html#tty_tty
@@ -2653,6 +2644,6 @@ cases:
 [process_warning]: #process_event_warning
 [report documentation]: report.html
 [terminal raw mode]: tty.html#tty_readstream_setrawmode_mode
-[uv_rusage_t]: http://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
+[uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
 [wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major

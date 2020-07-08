@@ -1,8 +1,10 @@
-# Child Process
+# Child process
 
 <!--introduced_in=v0.10.0-->
 
 > Stability: 2 - Stable
+
+<!-- source_link=lib/child_process.js -->
 
 The `child_process` module provides the ability to spawn child processes in
 a manner that is similar, but not identical, to popen(3). This capability
@@ -70,7 +72,7 @@ For certain use cases, such as automating shell scripts, the
 the synchronous methods can have significant impact on performance due to
 stalling the event loop while spawned processes complete.
 
-## Asynchronous Process Creation
+## Asynchronous process creation
 
 The [`child_process.spawn()`][], [`child_process.fork()`][], [`child_process.exec()`][],
 and [`child_process.execFile()`][] methods all follow the idiomatic asynchronous
@@ -153,7 +155,7 @@ changes:
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `encoding` {string} **Default:** `'utf8'`
   * `shell` {string} Shell to execute the command with. See
-    [Shell Requirements][] and [Default Windows Shell][]. **Default:**
+    [Shell requirements][] and [Default Windows shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
   * `timeout` {number} **Default:** `0`
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
@@ -192,9 +194,9 @@ metacharacters may be used to trigger arbitrary command execution.**
 If a `callback` function is provided, it is called with the arguments
 `(error, stdout, stderr)`. On success, `error` will be `null`. On error,
 `error` will be an instance of [`Error`][]. The `error.code` property will be
-the exit code of the child process while `error.signal` will be set to the
-signal that terminated the process. Any exit code other than `0` is considered
-to be an error.
+the exit code of the process. By convention, any exit code other than `0`
+indicates an error. `error.signal` will be the signal that terminated the
+process.
 
 The `stdout` and `stderr` arguments passed to the callback will contain the
 stdout and stderr output of the child process. By default, Node.js will decode
@@ -270,8 +272,8 @@ changes:
     done on Windows. Ignored on Unix. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell requirements][] and
+    [Default Windows shell][]. **Default:** `false` (no shell).
 * `callback` {Function} Called with the output when process terminates.
   * `error` {Error}
   * `stdout` {string|Buffer}
@@ -349,13 +351,13 @@ changes:
   * `detached` {boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
     [`options.detached`][]).
-  * `env` {Object} Environment key-value pairs.  **Default:** `process.env`.
+  * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `execPath` {string} Executable used to create the child process.
   * `execArgv` {string[]} List of string arguments passed to the executable.
     **Default:** `process.execArgv`.
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
-    See [Advanced Serialization][] for more details. **Default:** `'json'`.
+    See [Advanced serialization][] for more details. **Default:** `'json'`.
   * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
@@ -434,11 +436,11 @@ changes:
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
-    See [Advanced Serialization][] for more details. **Default:** `'json'`.
+    See [Advanced serialization][] for more details. **Default:** `'json'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell requirements][] and
+    [Default Windows shell][]. **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -699,7 +701,7 @@ see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
 
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
-## Synchronous Process Creation
+## Synchronous process creation
 
 The [`child_process.spawnSync()`][], [`child_process.execSync()`][], and
 [`child_process.execFileSync()`][] methods are synchronous and will block the
@@ -739,7 +741,7 @@ changes:
   * `stdio` {string|Array} Child's stdio configuration. `stderr` by default will
     be output to the parent process' stderr unless `stdio` is specified.
     **Default:** `'pipe'`.
-  * `env` {Object} Environment key-value pairs.  **Default:** `process.env`.
+  * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -755,8 +757,8 @@ changes:
     normally be created on Windows systems. **Default:** `false`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell requirements][] and
+    [Default Windows shell][]. **Default:** `false` (no shell).
 * Returns: {Buffer|string} The stdout from the command.
 
 The `child_process.execFileSync()` method is generally identical to
@@ -804,7 +806,7 @@ changes:
     **Default:** `'pipe'`.
   * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `shell` {string} Shell to execute the command with. See
-    [Shell Requirements][] and [Default Windows Shell][]. **Default:**
+    [Shell requirements][] and [Default Windows shell][]. **Default:**
     `'/bin/sh'` on Unix, `process.env.ComSpec` on Windows.
   * `uid` {number} Sets the user identity of the process. (See setuid(2)).
   * `gid` {number} Sets the group identity of the process. (See setgid(2)).
@@ -869,7 +871,7 @@ changes:
   * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
   * `stdio` {string|Array} Child's stdio configuration.
-  * `env` {Object} Environment key-value pairs.  **Default:** `process.env`.
+  * `env` {Object} Environment key-value pairs. **Default:** `process.env`.
   * `uid` {number} Sets the user identity of the process (see setuid(2)).
   * `gid` {number} Sets the group identity of the process (see setgid(2)).
   * `timeout` {number} In milliseconds the maximum amount of time the process
@@ -884,8 +886,8 @@ changes:
     **Default:** `'buffer'`.
   * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
-    shell can be specified as a string. See [Shell Requirements][] and
-    [Default Windows Shell][]. **Default:** `false` (no shell).
+    shell can be specified as a string. See [Shell requirements][] and
+    [Default Windows shell][]. **Default:** `false` (no shell).
   * `windowsVerbatimArguments` {boolean} No quoting or escaping of arguments is
     done on Windows. Ignored on Unix. This is set to `true` automatically
     when `shell` is specified and is CMD. **Default:** `false`.
@@ -1025,7 +1027,7 @@ message might not be the same as what is originally sent.
 If the `serialization` option was set to `'advanced'` used when spawning the
 child process, the `message` argument can contain data that JSON is not able
 to represent.
-See [Advanced Serialization][] for more details.
+See [Advanced serialization][] for more details.
 
 ### `subprocess.channel`
 <!-- YAML
@@ -1379,9 +1381,8 @@ process.on('message', (m, socket) => {
 ```
 
 Once a socket has been passed to a child, the parent is no longer capable of
-tracking when the socket is destroyed. To indicate this, the `.connections`
-property becomes `null`. It is recommended not to use `.maxConnections` when
-this occurs.
+tracking when the socket is destroyed. It is recommended not to use
+`.maxConnections` when this occurs.
 
 It is also recommended that any `'message'` handlers in the child process
 verify that `socket` exists, as the connection may have been closed during the
@@ -1544,13 +1545,13 @@ This impacts output that includes multibyte character encodings such as UTF-8 or
 UTF-16. For instance, `console.log('中文测试')` will send 13 UTF-8 encoded bytes
 to `stdout` although there are only 4 characters.
 
-## Shell Requirements
+## Shell requirements
 
 The shell should understand the `-c` switch. If the shell is `'cmd.exe'`, it
 should understand the `/d /s /c` switches and command line parsing should be
 compatible.
 
-## Default Windows Shell
+## Default Windows shell
 
 Although Microsoft specifies `%COMSPEC%` must contain the path to
 `'cmd.exe'` in the root environment, child processes are not always subject to
@@ -1558,7 +1559,7 @@ the same requirement. Thus, in `child_process` functions where a shell can be
 spawned, `'cmd.exe'` is used as a fallback if `process.env.ComSpec` is
 unavailable.
 
-## Advanced Serialization
+## Advanced serialization
 <!-- YAML
 added:
  - v13.2.0
@@ -1579,7 +1580,7 @@ Therefore, this feature requires opting in by setting the
 `serialization` option to `'advanced'` when calling [`child_process.spawn()`][]
 or [`child_process.fork()`][].
 
-[Advanced Serialization]: #child_process_advanced_serialization
+[Advanced serialization]: #child_process_advanced_serialization
 [`'disconnect'`]: process.html#process_event_disconnect
 [`'error'`]: #child_process_event_error
 [`'exit'`]: #child_process_event_exit
@@ -1612,8 +1613,8 @@ or [`child_process.fork()`][].
 [`subprocess.stdio`]: #child_process_subprocess_stdio
 [`subprocess.stdout`]: #child_process_subprocess_stdout
 [`util.promisify()`]: util.html#util_util_promisify_original
-[Default Windows Shell]: #child_process_default_windows_shell
+[Default Windows shell]: #child_process_default_windows_shell
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
-[Shell Requirements]: #child_process_shell_requirements
+[Shell requirements]: #child_process_shell_requirements
 [synchronous counterparts]: #child_process_synchronous_process_creation
 [v8.serdes]: v8.html#v8_serialization_api

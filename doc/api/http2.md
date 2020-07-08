@@ -10,6 +10,8 @@ changes:
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/http2.js -->
+
 The `http2` module provides an implementation of the [HTTP/2][] protocol. It
 can be accessed using:
 
@@ -119,7 +121,7 @@ User code will not create `Http2Session` instances directly. Server-side
 new HTTP/2 connection is received. Client-side `Http2Session` instances are
 created using the `http2.connect()` method.
 
-#### `Http2Session` and Sockets
+#### `Http2Session` and sockets
 
 Every `Http2Session` instance is associated with exactly one [`net.Socket`][] or
 [`tls.TLSSocket`][] when it is created. When either the `Socket` or the
@@ -1410,7 +1412,7 @@ and will throw an error.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicity setting date headers.
 -->
@@ -1457,7 +1459,7 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicity setting date headers.
   - version: v12.12.0
@@ -1558,7 +1560,7 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33160
     description: Allow explicity setting date headers.
   - version: v10.0.0
@@ -2002,6 +2004,12 @@ value only affects new connections to the server, not any existing connections.
 added: v8.4.0
 changes:
   - version:
+     - v14.4.0
+     - v12.18.0
+     - v10.21.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/204
+    description: Added `maxSettings` option with a default of 32.
+  - version:
      - v13.3.0
      - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30534
@@ -2037,6 +2045,8 @@ changes:
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`.
+  * `maxSettings` {number} Sets the maximum number of settings entries per
+    `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
   * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`.
@@ -2047,7 +2057,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    The minimum value is `4`. **Default:** `128`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
+    **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2133,6 +2145,12 @@ server.listen(80);
 added: v8.4.0
 changes:
   - version:
+     - v14.4.0
+     - v12.18.0
+     - v10.21.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/204
+    description: Added `maxSettings` option with a default of 32.
+  - version:
      - v13.3.0
      - v12.16.0
     pr-url: https://github.com/nodejs/node/pull/30534
@@ -2168,6 +2186,8 @@ changes:
     **Default:** `false`.
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`.
+  * `maxSettings` {number} Sets the maximum number of settings entries per
+    `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
   * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`. This is a
@@ -2178,7 +2198,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    The minimum value is `4`. **Default:** `128`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
+    **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2250,6 +2272,12 @@ server.listen(80);
 <!-- YAML
 added: v8.4.0
 changes:
+  - version:
+     - v14.4.0
+     - v12.18.0
+     - v10.21.0
+    pr-url: https://github.com/nodejs-private/node-private/pull/204
+    description: Added `maxSettings` option with a default of 32.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29144
     description: The `PADDING_STRATEGY_CALLBACK` has been made equivalent to
@@ -2273,6 +2301,8 @@ changes:
 * `options` {Object}
   * `maxDeflateDynamicTableSize` {number} Sets the maximum dynamic table size
     for deflating header fields. **Default:** `4Kib`.
+  * `maxSettings` {number} Sets the maximum number of settings entries per
+    `SETTINGS` frame. The minimum value allowed is `1`. **Default:** `32`.
   * `maxSessionMemory`{number} Sets the maximum memory that the `Http2Session`
     is permitted to use. The value is expressed in terms of number of megabytes,
     e.g. `1` equal 1 megabyte. The minimum value allowed is `1`.
@@ -2283,7 +2313,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    The minimum value is `1`. **Default:** `128`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `1`.
+    **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
@@ -2342,7 +2374,7 @@ client.close();
 added: v8.4.0
 -->
 
-#### Error Codes for `RST_STREAM` and `GOAWAY`
+#### Error codes for `RST_STREAM` and `GOAWAY`
 <a id="error_codes"></a>
 
 | Value  | Name                | Constant                                      |
@@ -2408,7 +2440,7 @@ added: v8.4.0
 Returns a [HTTP/2 Settings Object][] containing the deserialized settings from
 the given `Buffer` as generated by `http2.getPackedSettings()`.
 
-### Headers Object
+### Headers object
 
 Headers are represented as own-properties on JavaScript objects. The property
 keys will be serialized to lower-case. Property values should be strings (if
@@ -2456,7 +2488,7 @@ server.on('stream', (stream, headers) => {
 });
 ```
 
-### Settings Object
+### Settings object
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2477,15 +2509,15 @@ properties.
 
 * `headerTableSize` {number} Specifies the maximum number of bytes used for
   header compression. The minimum allowed value is 0. The maximum allowed value
-  is 2<sup>32</sup>-1. **Default:** `4,096 octets`.
+  is 2<sup>32</sup>-1. **Default:** `4096`.
 * `enablePush` {boolean} Specifies `true` if HTTP/2 Push Streams are to be
   permitted on the `Http2Session` instances. **Default:** `true`.
-* `initialWindowSize` {number} Specifies the *senders* initial window size
-  for stream-level flow control. The minimum allowed value is 0. The maximum
-  allowed value is 2<sup>32</sup>-1. **Default:** `65,535 bytes`.
-* `maxFrameSize` {number} Specifies the size of the largest frame payload.
-  The minimum allowed value is 16,384. The maximum allowed value
-  is 2<sup>24</sup>-1. **Default:** `16,384 bytes`.
+* `initialWindowSize` {number} Specifies the *sender's* initial window size in
+  bytes for stream-level flow control. The minimum allowed value is 0. The
+  maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
+* `maxFrameSize` {number} Specifies the size in bytes of the largest frame
+  payload. The minimum allowed value is 16,384. The maximum allowed value is
+  2<sup>24</sup>-1. **Default:** `16384`.
 * `maxConcurrentStreams` {number} Specifies the maximum number of concurrent
   streams permitted on an `Http2Session`. There is no default value which
   implies, at least theoretically, 2<sup>32</sup>-1 streams may be open
@@ -2503,7 +2535,7 @@ properties.
 
 All additional properties on the settings object are ignored.
 
-### Error Handling
+### Error handling
 
 There are several types of error conditions that may arise when using the
 `http2` module:
@@ -2643,7 +2675,7 @@ req.on('end', () => {
 req.end('Jane');
 ```
 
-### The Extended `CONNECT` Protocol
+### The extended `CONNECT` protocol
 
 [RFC 8441][] defines an "Extended CONNECT Protocol" extension to HTTP/2 that
 may be used to bootstrap the use of an `Http2Stream` using the `CONNECT`
@@ -3001,13 +3033,12 @@ added: v8.4.0
 
 * {string}
 
-Request URL string. This contains only the URL that is
-present in the actual HTTP request. If the request is:
+Request URL string. This contains only the URL that is present in the actual
+HTTP request. If the request is:
 
-```txt
-GET /status?name=ryan HTTP/1.1\r\n
-Accept: text/plain\r\n
-\r\n
+```http
+GET /status?name=ryan HTTP/1.1
+Accept: text/plain
 ```
 
 Then `request.url` will be:
@@ -3017,10 +3048,10 @@ Then `request.url` will be:
 '/status?name=ryan'
 ```
 
-To parse the url into its parts `require('url').parse(request.url)`
+To parse the url into its parts, `require('url').parse(request.url)`
 can be used:
 
-```txt
+```console
 $ node
 > require('url').parse('/status?name=ryan')
 Url {
@@ -3530,7 +3561,7 @@ given [`Http2Stream`][] on a newly created `Http2ServerResponse` as the callback
 parameter if successful. When `Http2ServerRequest` is closed, the callback is
 called with an error `ERR_HTTP2_INVALID_STREAM`.
 
-## Collecting HTTP/2 Performance Metrics
+## Collecting HTTP/2 performance metrics
 
 The [Performance Observer][] API can be used to collect basic performance
 metrics for each `Http2Session` and `Http2Stream` instance.
@@ -3615,6 +3646,8 @@ following additional properties:
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.html#errors_class_typeerror
+[`http.ClientRequest#maxHeadersCount`]: http.html#http_request_maxheaderscount
+[`http.Server#maxHeadersCount`]: http.html#http_server_maxheaderscount
 [`http2.SecureServer`]: #http2_class_http2secureserver
 [`http2.Server`]: #http2_class_http2server
 [`http2.createSecureServer()`]: #http2_http2_createsecureserver_options_onrequesthandler

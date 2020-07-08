@@ -156,6 +156,7 @@ BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
   };
 
   v8::Local<v8::FunctionTemplate> t = env->NewFunctionTemplate(constructor);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
   return t;
@@ -335,6 +336,20 @@ T* BaseObjectPtrImpl<T, kIsWeak>::operator->() const {
 template <typename T, bool kIsWeak>
 BaseObjectPtrImpl<T, kIsWeak>::operator bool() const {
   return get() != nullptr;
+}
+
+template <typename T, bool kIsWeak>
+template <typename U, bool kW>
+bool BaseObjectPtrImpl<T, kIsWeak>::operator ==(
+    const BaseObjectPtrImpl<U, kW>& other) const {
+  return get() == other.get();
+}
+
+template <typename T, bool kIsWeak>
+template <typename U, bool kW>
+bool BaseObjectPtrImpl<T, kIsWeak>::operator !=(
+    const BaseObjectPtrImpl<U, kW>& other) const {
+  return get() != other.get();
 }
 
 template <typename T, typename... Args>

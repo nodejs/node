@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/zlib.js -->
+
 The `zlib` module provides compression functionality implemented using Gzip,
 Deflate/Inflate, and Brotli.
 
@@ -93,7 +95,7 @@ do_unzip(buffer)
   });
 ```
 
-## Threadpool Usage and Performance Considerations
+## Threadpool usage and performance considerations
 
 All `zlib` APIs, except those that are explicitly synchronous, use the Node.js
 internal threadpool. This can lead to surprising effects and performance
@@ -133,7 +135,7 @@ message.
 
 The examples given below are drastically simplified to show the basic concept.
 Using `zlib` encoding can be expensive, and the results ought to be cached.
-See [Memory Usage Tuning][] for more information on the speed/memory/compression
+See [Memory usage tuning][] for more information on the speed/memory/compression
 tradeoffs involved in `zlib` usage.
 
 ```js
@@ -252,7 +254,7 @@ possible to determine whether the input ended prematurely or lacks the
 integrity checks, making it necessary to manually check that the
 decompressed result is valid.
 
-## Memory Usage Tuning
+## Memory usage tuning
 
 <!--type=misc-->
 
@@ -486,6 +488,9 @@ These advanced options are available for controlling decompression:
 <!-- YAML
 added: v0.11.1
 changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33516
+    description: The `maxOutputLength` option is supported now.
   - version: v9.4.0
     pr-url: https://github.com/nodejs/node/pull/16042
     description: The `dictionary` option can be an `ArrayBuffer`.
@@ -514,6 +519,8 @@ ignored by the decompression classes.
 * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer} (deflate/inflate only,
   empty dictionary by default)
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`.)
+* `maxOutputLength` {integer} Limits output size when using
+  [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 
 See the [`deflateInit2` and `inflateInit2`][] documentation for more
 information.
@@ -521,6 +528,10 @@ information.
 ## Class: `BrotliOptions`
 <!-- YAML
 added: v11.7.0
+changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33516
+    description: The `maxOutputLength` option is supported now.
 -->
 
 <!--type=misc-->
@@ -531,6 +542,8 @@ Each Brotli-based class takes an `options` object. All options are optional.
 * `finishFlush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_FINISH`
 * `chunkSize` {integer} **Default:** `16 * 1024`
 * `params` {Object} Key-value object containing indexed [Brotli parameters][].
+* `maxOutputLength` {integer} Limits output size when using
+  [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 
 For example:
 
@@ -826,7 +839,7 @@ added: v0.5.8
 
 Creates and returns a new [`Unzip`][] object.
 
-## Convenience Methods
+## Convenience methods
 
 <!--type=misc-->
 
@@ -1160,6 +1173,7 @@ Decompress a chunk of data with [`Unzip`][].
 [`BrotliCompress`]: #zlib_class_zlib_brotlicompress
 [`BrotliDecompress`]: #zlib_class_zlib_brotlidecompress
 [`Buffer`]: buffer.html#buffer_class_buffer
+[`buffer.kMaxLength`]: buffer.html#buffer_buffer_kmaxlength
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`DeflateRaw`]: #zlib_class_zlib_deflateraw
@@ -1174,8 +1188,9 @@ Decompress a chunk of data with [`Unzip`][].
 [`stream.Transform`]: stream.html#stream_class_stream_transform
 [`zlib.bytesWritten`]: #zlib_zlib_byteswritten
 [Brotli parameters]: #zlib_brotli_constants
-[Memory Usage Tuning]: #zlib_memory_usage_tuning
+[Memory usage tuning]: #zlib_memory_usage_tuning
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
 [Streams API]: stream.md
+[convenience methods]: #zlib_convenience_methods
 [zlib documentation]: https://zlib.net/manual.html#Constants
 [zlib.createGzip example]: #zlib_zlib

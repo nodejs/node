@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/crypto.js -->
+
 The `crypto` module provides cryptographic functionality that includes a set of
 wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify functions.
 
@@ -1214,6 +1216,10 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33360
+    description: Instances of this class can now be passed to worker threads
+                 using `postMessage`.
   - version: v11.13.0
     pr-url: https://github.com/nodejs/node/pull/26438
     description: This class is now exported.
@@ -1228,6 +1234,10 @@ keyword.
 
 Most applications should consider using the new `KeyObject` API instead of
 passing keys as strings or `Buffer`s due to improved security features.
+
+`KeyObject` instances can be passed to other threads via [`postMessage()`][].
+The receiver obtains a cloned `KeyObject`, and the `KeyObject` does not need to
+be listed in the `transferList` argument.
 
 ### `keyObject.asymmetricKeyType`
 <!-- YAML
@@ -1579,7 +1589,7 @@ added: v6.3.0
 
 * Returns: {Object} An object containing commonly used constants for crypto and
   security related operations. The specific constants currently defined are
-  described in [Crypto Constants][].
+  described in [Crypto constants][].
 
 ### `crypto.DEFAULT_ENCODING`
 <!-- YAML
@@ -2066,7 +2076,7 @@ added: v0.1.92
 * `options` {Object} [`stream.Writable` options][]
 * Returns: {Sign}
 
-Creates and returns a `Sign` object that uses the given `algorithm`.  Use
+Creates and returns a `Sign` object that uses the given `algorithm`. Use
 [`crypto.getHashes()`][] to obtain the names of the available digest algorithms.
 Optional `options` argument controls the `stream.Writable` behavior.
 
@@ -3045,7 +3055,7 @@ key may be passed for `key`.
 
 ## Notes
 
-### Legacy Streams API (pre Node.js v0.10)
+### Legacy streams API (prior to Node.js 0.10)
 
 The Crypto module was added to Node.js before there was the concept of a
 unified Stream API, and before there were [`Buffer`][] objects for handling
@@ -3056,7 +3066,7 @@ and returned `'latin1'` encoded strings by default rather than `Buffer`s. This
 default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
 instead.
 
-### Recent ECDH Changes
+### Recent ECDH changes
 
 Usage of `ECDH` with non-dynamically generated key pairs has been simplified.
 Now, [`ecdh.setPrivateKey()`][] can be called with a preselected private key
@@ -3164,12 +3174,12 @@ try {
 console.log(receivedPlaintext);
 ```
 
-## Crypto Constants
+## Crypto constants
 
 The following constants exported by `crypto.constants` apply to various uses of
 the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
-### OpenSSL Options
+### OpenSSL options
 
 <table>
   <tr>
@@ -3325,7 +3335,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
 </table>
 
-### OpenSSL Engine Constants
+### OpenSSL engine constants
 
 <table>
   <tr>
@@ -3378,7 +3388,9 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
 </table>
 
-### Other OpenSSL Constants
+### Other OpenSSL constants
+
+See the [list of SSL OP Flags][] for details.
 
 <table>
   <tr>
@@ -3458,7 +3470,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
 </table>
 
-### Node.js Crypto Constants
+### Node.js crypto constants
 
 <table>
   <tr>
@@ -3518,9 +3530,10 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
 [`hmac.update()`]: #crypto_hmac_update_data_inputencoding
 [`keyObject.export()`]: #crypto_keyobject_export_options
+[`postMessage()`]: worker_threads.html#worker_threads_port_postmessage_value_transferlist
 [`sign.sign()`]: #crypto_sign_sign_privatekey_outputencoding
 [`sign.update()`]: #crypto_sign_update_data_inputencoding
-[`stream.Writable` options]: stream.html#stream_constructor_new_stream_writable_options
+[`stream.Writable` options]: stream.html#stream_new_stream_writable_options
 [`stream.transform` options]: stream.html#stream_new_stream_transform_options
 [`util.promisify()`]: util.html#util_util_promisify_original
 [`verify.update()`]: #crypto_verify_update_data_inputencoding
@@ -3528,7 +3541,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #crypto_ccm_mode
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
-[Crypto Constants]: #crypto_crypto_constants_1
+[Crypto constants]: #crypto_crypto_constants_1
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
 [NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
@@ -3547,3 +3560,4 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
 [stream]: stream.html
+[list of SSL OP Flags]: wiki.openssl.org/index.php/List_of_SSL_OP_Flags#Table_of_Options

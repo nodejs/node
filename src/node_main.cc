@@ -27,13 +27,25 @@
 #include <VersionHelpers.h>
 #include <WinError.h>
 
+#define SKIP_CHECK_VAR "NODE_SKIP_PLATFORM_CHECK"
+#define SKIP_CHECK_SIZE 1
+#define SKIP_CHECK_VALUE "1"
+
 int wmain(int argc, wchar_t* wargv[]) {
   // Windows Server 2012 (not R2) is supported until 10/10/2023, so we allow it
   // to run in the experimental support tier.
+  char buf[SKIP_CHECK_SIZE + 1];
   if (!IsWindows8Point1OrGreater() &&
-      !(IsWindowsServer() && IsWindows8OrGreater())) {
-    fprintf(stderr, "This application is only supported on Windows 8.1, "
-                    "Windows Server 2012 R2, or higher.");
+      !(IsWindowsServer() && IsWindows8OrGreater()) &&
+      (GetEnvironmentVariableA(SKIP_CHECK_VAR, buf, sizeof(buf)) !=
+       SKIP_CHECK_SIZE ||
+       strncmp(buf, SKIP_CHECK_VALUE, SKIP_CHECK_SIZE + 1) != 0)) {
+    fprintf(stderr, "Node.js is only supported on Windows 8.1, Windows "
+                    "Server 2012 R2, or higher.\n"
+                    "Setting the " SKIP_CHECK_VAR " environment variable "
+                    "to 1 skips this\ncheck, but Node.js might not execute "
+                    "correctly. Any issues encountered on\nunsupported "
+                    "platforms will not be fixed.");
     exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
   }
 
@@ -77,13 +89,7 @@ int wmain(int argc, wchar_t* wargv[]) {
 #else
 // UNIX
 #ifdef __linux__
-#include <elf.h>
-#ifdef __LP64__
-#define Elf_auxv_t Elf64_auxv_t
-#else
-#define Elf_auxv_t Elf32_auxv_t
-#endif  // __LP64__
-extern char** environ;
+#include <sys/auxv.h>
 #endif  // __linux__
 #if defined(__POSIX__) && defined(NODE_SHARED_MODE)
 #include <string.h>
@@ -112,15 +118,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #if defined(__linux__)
-  char** envp = environ;
-  while (*envp++ != nullptr) {}
-  Elf_auxv_t* auxv = reinterpret_cast<Elf_auxv_t*>(envp);
-  for (; auxv->a_type != AT_NULL; auxv++) {
-    if (auxv->a_type == AT_SECURE) {
-      node::per_process::linux_at_secure = auxv->a_un.a_val;
-      break;
-    }
-  }
+  node::per_process::linux_at_secure = getauxval(AT_SECURE);
 #endif
   // Disable stdio buffering, it interacts poorly with printf()
   // calls elsewhere in the program (e.g., any logging from V8.)

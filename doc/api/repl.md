@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/repl.js -->
+
 The `repl` module provides a Read-Eval-Print-Loop (REPL) implementation that
 is available both as a standalone program or includible in other applications.
 It can be accessed using:
@@ -12,7 +14,7 @@ It can be accessed using:
 const repl = require('repl');
 ```
 
-## Design and Features
+## Design and features
 
 The `repl` module exports the [`repl.REPLServer`][] class. While running,
 instances of [`repl.REPLServer`][] will accept individual lines of user input,
@@ -28,7 +30,7 @@ recovery, and customizable evaluation functions. Terminals that do not support
 ANSI styles and Emacs-style line editing automatically fall back to a limited
 feature set.
 
-### Commands and Special Keys
+### Commands and special keys
 
 The following special commands are supported by all REPL instances:
 
@@ -36,7 +38,7 @@ The following special commands are supported by all REPL instances:
   the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
   further input or processing of that expression.
 * `.clear`: Resets the REPL `context` to an empty object and clears any
-  multi-line expression currently being input.
+  multi-line expression being input.
 * `.exit`: Close the I/O stream, causing the REPL to exit.
 * `.help`: Show this list of special commands.
 * `.save`: Save the current REPL session to a file:
@@ -72,14 +74,14 @@ The following key combinations in the REPL have these special effects:
 For key bindings related to the reverse-i-search, see [`reverse-i-search`][].
 For all other key bindings, see [TTY keybindings][].
 
-### Default Evaluation
+### Default evaluation
 
 By default, all instances of [`repl.REPLServer`][] use an evaluation function
 that evaluates JavaScript expressions and provides access to Node.js built-in
 modules. This default behavior can be overridden by passing in an alternative
 evaluation function when the [`repl.REPLServer`][] instance is created.
 
-#### JavaScript Expressions
+#### JavaScript expressions
 
 The default evaluator supports direct evaluation of JavaScript expressions:
 
@@ -96,7 +98,7 @@ Unless otherwise scoped within blocks or functions, variables declared
 either implicitly or using the `const`, `let`, or `var` keywords
 are declared at the global scope.
 
-#### Global and Local Scope
+#### Global and local scope
 
 The default evaluator provides access to any variables that exist in the global
 scope. It is possible to expose a variable to the REPL explicitly by assigning
@@ -132,7 +134,7 @@ Object.defineProperty(r.context, 'm', {
 });
 ```
 
-#### Accessing Core Node.js Modules
+#### Accessing core Node.js modules
 
 The default evaluator will automatically load Node.js core modules into the
 REPL environment when used. For instance, unless otherwise declared as a
@@ -143,7 +145,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 > fs.createReadStream('./some/file');
 ```
 
-#### Global Uncaught Exceptions
+#### Global uncaught exceptions
 <!-- YAML
 changes:
   - version: v12.3.0
@@ -258,7 +260,7 @@ with the reverse search. Cancelling is possible by pressing `escape` or
 Changing the direction immediately searches for the next entry in the expected
 direction from the current position on.
 
-### Custom Evaluation Functions
+### Custom evaluation functions
 
 When a new [`repl.REPLServer`][] is created, a custom evaluation function may be
 provided. This can be used, for instance, to implement fully customized REPL
@@ -280,7 +282,7 @@ function myEval(cmd, context, filename, callback) {
 repl.start({ prompt: '> ', eval: myEval });
 ```
 
-#### Recoverable Errors
+#### Recoverable errors
 
 As a user is typing input into the REPL prompt, pressing the `<enter>` key will
 send the current line of input to the `eval` function. In order to support
@@ -308,7 +310,7 @@ function isRecoverableError(error) {
 }
 ```
 
-### Customizing REPL Output
+### Customizing REPL output
 
 By default, [`repl.REPLServer`][] instances format output using the
 [`util.inspect()`][] method before writing the output to the provided `Writable`
@@ -544,7 +546,7 @@ with REPL instances programmatically.
 
 ## `repl.builtinModules`
 <!-- YAML
-added: REPLACEME
+added: v14.5.0
 -->
 
 * {string[]}
@@ -649,7 +651,7 @@ undefined
 3
 ```
 
-### Environment Variable Options
+### Environment variable options
 
 Various behaviors of the Node.js REPL can be customized using the following
 environment variables:
@@ -666,7 +668,7 @@ environment variables:
 * `NODE_REPL_MODE`: May be either `'sloppy'` or `'strict'`. **Default:**
   `'sloppy'`, which will allow non-strict mode code to be run.
 
-### Persistent History
+### Persistent history
 
 By default, the Node.js REPL will persist history between `node` REPL sessions
 by saving inputs to a `.node_repl_history` file located in the user's home

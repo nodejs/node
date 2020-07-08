@@ -163,10 +163,11 @@ void WASI::DecreaseAllocatedSize(size_t size) {
 
 void WASI::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 3);
+  CHECK_EQ(args.Length(), 4);
   CHECK(args[0]->IsArray());
   CHECK(args[1]->IsArray());
   CHECK(args[2]->IsArray());
+  CHECK(args[3]->IsArray());
 
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
@@ -174,9 +175,15 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   const uint32_t argc = argv->Length();
   uvwasi_options_t options;
 
-  options.in = 0;
-  options.out = 1;
-  options.err = 2;
+  Local<Array> stdio = args[3].As<Array>();
+  CHECK_EQ(stdio->Length(), 3);
+  options.in = stdio->Get(context, 0).ToLocalChecked()->
+    Int32Value(context).FromJust();
+  options.out = stdio->Get(context, 1).ToLocalChecked()->
+    Int32Value(context).FromJust();
+  options.err = stdio->Get(context, 2).ToLocalChecked()->
+    Int32Value(context).FromJust();
+
   options.fd_table_size = 3;
   options.argc = argc;
   options.argv =
@@ -1672,6 +1679,7 @@ static void Initialize(Local<Object> target,
   auto wasi_wrap_string = FIXED_ONE_BYTE_STRING(env->isolate(), "WASI");
   tmpl->InstanceTemplate()->SetInternalFieldCount(WASI::kInternalFieldCount);
   tmpl->SetClassName(wasi_wrap_string);
+  tmpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(tmpl, "args_get", WASI::ArgsGet);
   env->SetProtoMethod(tmpl, "args_sizes_get", WASI::ArgsSizesGet);

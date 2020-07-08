@@ -68,6 +68,7 @@ set openssl_no_asm=
 set doc=
 set extra_msbuild_args=
 set exit_code=0
+set experimental_quic=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -79,7 +80,6 @@ if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
-if /i "%1"=="vs2017"        set target_env=vs2017&goto arg-ok
 if /i "%1"=="vs2019"        set target_env=vs2019&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
@@ -118,8 +118,6 @@ if /i "%1"=="test-v8-all"       set test_v8=1&set test_v8_intl=1&set test_v8_ben
 if /i "%1"=="lint-cpp"      set lint_cpp=1&goto arg-ok
 if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
-if /i "%1"=="lint-js-ci"    set lint_js_ci=1&goto arg-ok
-if /i "%1"=="jslint-ci"     set lint_js_ci=1&echo Please use lint-js-ci instead of jslint-ci&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
 if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
 if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
@@ -144,6 +142,7 @@ if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
 if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:%config%\node.binlog&goto arg-ok
+if /i "%1"=="experimental-quic" set experimental_quic=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -175,7 +174,6 @@ if defined package set stage_package=1
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
-if "%target_env%"=="vs2017" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2017"
 if "%target_env%"=="vs2019" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2019"
 
 :: skip building if the only argument received was lint
@@ -196,6 +194,7 @@ if defined config_flags     set configure_flags=%configure_flags% %config_flags%
 if defined target_arch      set configure_flags=%configure_flags% --dest-cpu=%target_arch%
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
+if defined experimental_quic set configure_flags=%configure_flags% --experimental-quic
 if "%target_arch%"=="x86" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set configure_flags=%configure_flags% --no-cross-compiling
 if "%target_arch%"=="arm64" set configure_flags=%configure_flags% --cross-compiling
 
@@ -242,25 +241,25 @@ if %target_arch%==x86 if %msvs_host_arch%==x86 set vcvarsall_arg=x86
 
 @rem Look for Visual Studio 2019
 :vs-set-2019
-if defined target_env if "%target_env%" NEQ "vs2019" goto vs-set-2017
+if defined target_env if "%target_env%" NEQ "vs2019" goto msbuild-not-found
 echo Looking for Visual Studio 2019
 @rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 set "VCINSTALLDIR="
 call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)"
-if "_%VCINSTALLDIR%_" == "__" goto vs-set-2017
+if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 set "WIXSDKDIR=%WIX%\SDK\VS2017"
 if defined msi (
   echo Looking for WiX installation for Visual Studio 2019...
   if not exist "%WIXSDKDIR%" (
     echo Failed to find WiX install for Visual Studio 2019
     echo VS2019 support for WiX is only present starting at version 3.11
-    goto vs-set-2017
+    goto msbuild-not-found
   )
   if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
     echo Failed to find the WiX Toolset Visual Studio 2019 Extension
-    goto vs-set-2017
+    goto msbuild-not-found
   )
 )
 @rem check if VS2019 is already setup, and for the requested arch
@@ -272,48 +271,12 @@ set "VSCMD_START_DIR=%CD%"
 set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
 echo calling: %vcvars_call%
 call %vcvars_call%
-if errorlevel 1 goto vs-set-2017
+if errorlevel 1 goto msbuild-not-found
 if defined DEBUG_HELPER @ECHO ON
 :found_vs2019
 echo Found MSVS version %VisualStudioVersion%
 set GYP_MSVS_VERSION=2019
 set PLATFORM_TOOLSET=v142
-goto msbuild-found
-
-@rem Look for Visual Studio 2017
-:vs-set-2017
-if defined target_env if "%target_env%" NEQ "vs2017" goto msbuild-not-found
-echo Looking for Visual Studio 2017
-call tools\msvs\vswhere_usability_wrapper.cmd "[15.0,16.0)"
-if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
-set "WIXSDKDIR=%WIX%\SDK\VS2017"
-if defined msi (
-  echo Looking for WiX installation for Visual Studio 2017...
-  if not exist "%WIXSDKDIR%" (
-    echo Failed to find WiX install for Visual Studio 2017
-    echo VS2017 support for WiX is only present starting at version 3.11
-    goto msbuild-not-found
-  )
-  if not exist "%VCINSTALLDIR%\..\MSBuild\Microsoft\WiX" (
-    echo Failed to find the WiX Toolset Visual Studio 2017 Extension
-    goto msbuild-not-found
-  )
-)
-@rem check if VS2017 is already setup, and for the requested arch
-if "_%VisualStudioVersion%_" == "_15.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2017
-@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
-set "VSINSTALLDIR="
-@rem prevent VsDevCmd.bat from changing the current working directory
-set "VSCMD_START_DIR=%CD%"
-set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
-echo calling: %vcvars_call%
-call %vcvars_call%
-if errorlevel 1 goto msbuild-not-found
-if defined DEBUG_HELPER @ECHO ON
-:found_vs2017
-echo Found MSVS version %VisualStudioVersion%
-set GYP_MSVS_VERSION=2017
-set PLATFORM_TOOLSET=v141
 goto msbuild-found
 
 :msbuild-not-found
@@ -662,16 +625,10 @@ goto lint-js
 goto lint-js
 
 :lint-js
-if defined lint_js_ci goto lint-js-ci
 if not defined lint_js goto lint-md-build
 if not exist tools\node_modules\eslint goto no-lint
 echo running lint-js
 %node_exe% tools\node_modules\eslint\bin\eslint.js --cache --report-unused-disable-directives --rule "linebreak-style: 0" --ext=.js,.mjs,.md .eslintrc.js benchmark doc lib test tools
-goto lint-md-build
-
-:lint-js-ci
-echo running lint-js-ci
-%node_exe% tools\lint-js.js -J -f tap -o test-eslint.tap benchmark doc lib test tools
 goto lint-md-build
 
 :no-lint
@@ -705,7 +662,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2017/vs2019] [download-all] [lint/lint-ci/lint-js/lint-js-ci/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-js-native-api/test-node-api/test-benchmark/test-internet/test-pummel/test-simple/test-message/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-async-hooks/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [noetw] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019] [download-all] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm] [experimental-quic]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

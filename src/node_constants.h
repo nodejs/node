@@ -41,6 +41,9 @@
 #define RSA_PSS_SALTLEN_AUTO -2
 #endif
 
+#if defined(NODE_OPENSSL_DEFAULT_CIPHER_LIST)
+#define DEFAULT_CIPHER_LIST_CORE NODE_OPENSSL_DEFAULT_CIPHER_LIST
+#else
 // TLSv1.3 suites start with TLS_, and are the OpenSSL defaults, see:
 //   https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set_ciphersuites.html
 #define DEFAULT_CIPHER_LIST_CORE \
@@ -68,7 +71,8 @@
                                  "!PSK:"                            \
                                  "!SRP:"                            \
                                  "!CAMELLIA"
-#endif
+#endif  // NODE_OPENSSL_DEFAULT_CIPHER_LIST
+#endif  // HAVE_OPENSSL
 
 namespace node {
 

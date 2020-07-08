@@ -1,5 +1,5 @@
 #include "env.h"
-
+#include "allocated_buffer-inl.h"
 #include "async_wrap.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
@@ -27,7 +27,6 @@
 namespace node {
 
 using errors::TryCatchScope;
-using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::EmbedderGraph;
@@ -189,13 +188,9 @@ IsolateData::IsolateData(Isolate* isolate,
                          const std::vector<size_t>* indexes)
     : isolate_(isolate),
       event_loop_(event_loop),
-      allocator_(isolate->GetArrayBufferAllocator()),
       node_allocator_(node_allocator == nullptr ? nullptr
                                                 : node_allocator->GetImpl()),
-      uses_node_allocator_(allocator_ == node_allocator_),
       platform_(platform) {
-  CHECK_NOT_NULL(allocator_);
-
   options_.reset(
       new PerIsolateOptions(*(per_process::cli_options->per_isolate)));
 
@@ -222,9 +217,6 @@ void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
   if (node_allocator_ != nullptr) {
     tracker->TrackFieldWithSize(
         "node_allocator", sizeof(*node_allocator_), "NodeArrayBufferAllocator");
-  } else {
-    tracker->TrackFieldWithSize(
-        "allocator", sizeof(*allocator_), "v8::ArrayBuffer::Allocator");
   }
   tracker->TrackFieldWithSize(
       "platform", sizeof(*platform_), "MultiIsolatePlatform");
@@ -269,6 +261,7 @@ void Environment::CreateProperties() {
     Local<FunctionTemplate> templ = FunctionTemplate::New(isolate());
     templ->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
+    templ->Inherit(BaseObject::GetConstructorTemplate(this));
 
     set_binding_data_ctor_template(templ);
   }
@@ -484,7 +477,7 @@ Environment::~Environment() {
   CHECK_EQ(base_object_count_, 0);
 }
 
-void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
+void Environment::InitializeLibuv() {
   HandleScope handle_scope(isolate());
   Context::Scope context_scope(context());
 
@@ -498,17 +491,6 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
 
   uv_check_start(immediate_check_handle(), CheckImmediate);
 
-  // Inform V8's CPU profiler when we're idle.  The profiler is sampling-based
-  // but not all samples are created equal; mark the wall clock time spent in
-  // epoll_wait() and friends so profiling tools can filter it out.  The samples
-  // still end up in v8.log but with state=IDLE rather than state=EXTERNAL.
-  // TODO(bnoordhuis) Depends on a libuv implementation detail that we should
-  // probably fortify in the API contract, namely that the last started prepare
-  // or check watcher runs first.  It's not 100% foolproof; if an add-on starts
-  // a prepare or check watcher after us, any samples attributed to its callback
-  // will be recorded with state=IDLE.
-  uv_prepare_init(event_loop(), &idle_prepare_handle_);
-  uv_check_init(event_loop(), &idle_check_handle_);
   uv_async_init(
       event_loop(),
       &task_queues_async_,
@@ -517,8 +499,6 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
             &Environment::task_queues_async_, async);
         env->RunAndClearNativeImmediates();
       });
-  uv_unref(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
-  uv_unref(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   uv_unref(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 
   {
@@ -535,10 +515,6 @@ void Environment::InitializeLibuv(bool start_profiler_idle_notifier) {
   // the one environment per process setup, but will be called in
   // FreeEnvironment.
   RegisterHandleCleanups();
-
-  if (start_profiler_idle_notifier) {
-    StartProfilerIdleNotifier();
-  }
 }
 
 void Environment::ExitEnv() {
@@ -566,8 +542,6 @@ void Environment::RegisterHandleCleanups() {
   register_handle(reinterpret_cast<uv_handle_t*>(timer_handle()));
   register_handle(reinterpret_cast<uv_handle_t*>(immediate_check_handle()));
   register_handle(reinterpret_cast<uv_handle_t*>(immediate_idle_handle()));
-  register_handle(reinterpret_cast<uv_handle_t*>(&idle_prepare_handle_));
-  register_handle(reinterpret_cast<uv_handle_t*>(&idle_check_handle_));
   register_handle(reinterpret_cast<uv_handle_t*>(&task_queues_async_));
 }
 
@@ -597,29 +571,6 @@ void Environment::CleanupHandles() {
          !handle_wrap_queue_.IsEmpty()) {
     uv_run(event_loop(), UV_RUN_ONCE);
   }
-}
-
-void Environment::StartProfilerIdleNotifier() {
-  if (profiler_idle_notifier_started_)
-    return;
-
-  profiler_idle_notifier_started_ = true;
-
-  uv_prepare_start(&idle_prepare_handle_, [](uv_prepare_t* handle) {
-    Environment* env = ContainerOf(&Environment::idle_prepare_handle_, handle);
-    env->isolate()->SetIdle(true);
-  });
-
-  uv_check_start(&idle_check_handle_, [](uv_check_t* handle) {
-    Environment* env = ContainerOf(&Environment::idle_check_handle_, handle);
-    env->isolate()->SetIdle(false);
-  });
-}
-
-void Environment::StopProfilerIdleNotifier() {
-  profiler_idle_notifier_started_ = false;
-  uv_prepare_stop(&idle_prepare_handle_);
-  uv_check_stop(&idle_check_handle_);
 }
 
 void Environment::PrintSyncTrace() const {
@@ -1030,33 +981,16 @@ Environment* Environment::worker_parent_env() const {
   return worker_context()->env();
 }
 
-void MemoryTracker::TrackField(const char* edge_name,
-                               const CleanupHookCallback& value,
-                               const char* node_name) {
-  HandleScope handle_scope(isolate_);
-  // Here, we utilize the fact that CleanupHookCallback instances
-  // are all unique and won't be tracked twice in one BuildEmbedderGraph
-  // callback.
-  MemoryRetainerNode* n =
-      PushNode("CleanupHookCallback", sizeof(value), edge_name);
-  // TODO(joyeecheung): at the moment only arguments of type BaseObject will be
-  // identified and tracked here (based on their deleters),
-  // but we may convert and track other known types here.
-  BaseObject* obj = value.GetBaseObject();
-  if (obj != nullptr && obj->IsDoneInitializing()) {
-    TrackField("arg", obj);
-  }
-  CHECK_EQ(CurrentNode(), n);
-  CHECK_NE(n->size_, 0);
-  PopNode();
-}
-
 void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      EmbedderGraph* graph,
                                      void* data) {
   MemoryTracker tracker(isolate, graph);
   Environment* env = static_cast<Environment*>(data);
   tracker.Track(env);
+  env->ForEachBaseObject([&](BaseObject* obj) {
+    if (obj->IsDoneInitializing())
+      tracker.Track(obj);
+  });
 }
 
 inline size_t Environment::SelfSize() const {
@@ -1083,7 +1017,8 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("should_abort_on_uncaught_toggle",
                       should_abort_on_uncaught_toggle_);
   tracker->TrackField("stream_base_state", stream_base_state_);
-  tracker->TrackField("cleanup_hooks", cleanup_hooks_);
+  tracker->TrackFieldWithSize(
+      "cleanup_hooks", cleanup_hooks_.size() * sizeof(CleanupHookCallback));
   tracker->TrackField("async_hooks", async_hooks_);
   tracker->TrackField("immediate_info", immediate_info_);
   tracker->TrackField("tick_info", tick_info_);
@@ -1104,25 +1039,6 @@ void Environment::MemoryInfo(MemoryTracker* tracker) const {
   // node, we shift its sizeof() size out of the Environment node.
 }
 
-char* Environment::Reallocate(char* data, size_t old_size, size_t size) {
-  if (old_size == size) return data;
-  // If we know that the allocator is our ArrayBufferAllocator, we can let
-  // if reallocate directly.
-  if (isolate_data()->uses_node_allocator()) {
-    return static_cast<char*>(
-        isolate_data()->node_allocator()->Reallocate(data, old_size, size));
-  }
-  // Generic allocators do not provide a reallocation method; we need to
-  // allocate a new chunk of memory and copy the data over.
-  char* new_data = AllocateUnchecked(size);
-  if (new_data == nullptr) return nullptr;
-  memcpy(new_data, data, std::min(size, old_size));
-  if (size > old_size)
-    memset(new_data + old_size, 0, size - old_size);
-  Free(data, old_size);
-  return new_data;
-}
-
 void Environment::RunWeakRefCleanup() {
   isolate()->ClearKeptObjects();
 }
@@ -1141,6 +1057,20 @@ bool BaseObject::IsDoneInitializing() const { return true; }
 
 Local<Object> BaseObject::WrappedObject() const {
   return object();
+}
+
+bool BaseObject::IsRootNode() const {
+  return !persistent_handle_.IsWeak();
+}
+
+Local<FunctionTemplate> BaseObject::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->base_object_ctor_template();
+  if (tmpl.IsEmpty()) {
+    tmpl = env->NewFunctionTemplate(nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "BaseObject"));
+    env->set_base_object_ctor_template(tmpl);
+  }
+  return tmpl;
 }
 
 }  // namespace node

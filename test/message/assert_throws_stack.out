@@ -29,6 +29,6 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
       at *
       at *
       at *,
-  expected: [Object],
+  expected: { bar: true },
   operator: 'throws'
 }

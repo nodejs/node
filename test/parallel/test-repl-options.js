@@ -35,7 +35,7 @@ common.expectWarning({
   DeprecationWarning: {
     DEP0142:
       'repl._builtinLibs is deprecated. Check module.builtinModules instead',
-    DEP0141: 'repl.inputStream and repl.outputStream is deprecated. ' +
+    DEP0141: 'repl.inputStream and repl.outputStream are deprecated. ' +
              'Use repl.input and repl.output instead',
   }
 });

@@ -31,7 +31,6 @@
 #include <cstring>  // memcpy
 
 #include <algorithm>
-#include <vector>
 
 // When creating strings >= this length v8's gc spins up and consumes
 // most of the execution time. For these cases it's more performant to
@@ -274,16 +273,14 @@ size_t StringBytes::WriteUCS2(Isolate* isolate,
     return 0;
   }
 
+  uint16_t* const aligned_dst = AlignUp(dst, sizeof(*dst));
   size_t nchars;
-  size_t alignment = reinterpret_cast<uintptr_t>(dst) % sizeof(*dst);
-  if (alignment == 0) {
+  if (aligned_dst == dst) {
     nchars = str->Write(isolate, dst, 0, max_chars, flags);
     *chars_written = nchars;
     return nchars * sizeof(*dst);
   }
 
-  uint16_t* aligned_dst =
-      reinterpret_cast<uint16_t*>(buf + sizeof(*dst) - alignment);
   CHECK_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
 
   // Write all but the last char
@@ -644,11 +641,11 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
           return MaybeLocal<Value>();
         }
         auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
-        if (maybe_buf.IsEmpty()) {
+        Local<v8::Object> buf;
+        if (!maybe_buf.ToLocal(&buf)) {
           *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
-          return MaybeLocal<Value>();
         }
-        return maybe_buf.ToLocalChecked();
+        return buf;
       }
 
     case ASCII:
@@ -665,15 +662,17 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       }
 
     case UTF8:
-      val = String::NewFromUtf8(isolate,
-                                buf,
-                                v8::NewStringType::kNormal,
-                                buflen);
-      if (val.IsEmpty()) {
-        *error = node::ERR_STRING_TOO_LONG(isolate);
-        return MaybeLocal<Value>();
+      {
+        val = String::NewFromUtf8(isolate,
+                                  buf,
+                                  v8::NewStringType::kNormal,
+                                  buflen);
+        Local<String> str;
+        if (!val.ToLocal(&str)) {
+          *error = node::ERR_STRING_TOO_LONG(isolate);
+        }
+        return str;
       }
-      return val.ToLocalChecked();
 
     case LATIN1:
       return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);

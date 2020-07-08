@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/assert.js -->
+
 The `assert` module provides a set of assertion functions for verifying
 invariants.
 
@@ -11,6 +13,9 @@ invariants.
 <!-- YAML
 added: v9.9.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34001
+    description: Exposed as `require('assert/strict')`
   - version:
       - v13.9.0
       - v12.16.2
@@ -36,6 +41,9 @@ To use strict assertion mode:
 
 ```js
 const assert = require('assert').strict;
+```
+```js
+const assert = require('assert/strict');
 ```
 
 Example error diff:

@@ -178,7 +178,7 @@ situation would trigger the breaking change and what is the exact change.
 
 Sample complete commit message:
 
-```txt
+```text
 subsystem: explain the commit in one line
 
 The body of the commit message should be one or more paragraphs, explaining

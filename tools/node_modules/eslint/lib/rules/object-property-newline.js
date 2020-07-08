@@ -77,7 +77,7 @@ module.exports = {
                     if (lastTokenOfPreviousProperty.loc.end.line === firstTokenOfCurrentProperty.loc.start.line) {
                         context.report({
                             node,
-                            loc: firstTokenOfCurrentProperty.loc.start,
+                            loc: firstTokenOfCurrentProperty.loc,
                             messageId,
                             fix(fixer) {
                                 const comma = sourceCode.getTokenBefore(firstTokenOfCurrentProperty);

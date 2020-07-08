@@ -49,14 +49,6 @@ inline uv_loop_t* IsolateData::event_loop() const {
   return event_loop_;
 }
 
-inline bool IsolateData::uses_node_allocator() const {
-  return uses_node_allocator_;
-}
-
-inline v8::ArrayBuffer::Allocator* IsolateData::allocator() const {
-  return allocator_;
-}
-
 inline NodeArrayBufferAllocator* IsolateData::node_allocator() const {
   return node_allocator_;
 }
@@ -376,10 +368,6 @@ inline T* Environment::AddBindingData(
 
 inline Environment* Environment::GetThreadLocalEnv() {
   return static_cast<Environment*>(uv_key_get(&thread_local_env));
-}
-
-inline bool Environment::profiler_idle_notifier_started() const {
-  return profiler_idle_notifier_started_;
 }
 
 inline v8::Isolate* Environment::isolate() const {
@@ -771,6 +759,10 @@ inline bool Environment::is_main_thread() const {
   return worker_context() == nullptr;
 }
 
+inline bool Environment::should_not_register_esm_loader() const {
+  return flags_ & EnvironmentFlags::kNoRegisterESMLoader;
+}
+
 inline bool Environment::owns_process_state() const {
   return flags_ & EnvironmentFlags::kOwnsProcessState;
 }
@@ -867,117 +859,9 @@ inline IsolateData* Environment::isolate_data() const {
   return isolate_data_;
 }
 
-inline char* Environment::AllocateUnchecked(size_t size) {
-  return static_cast<char*>(
-      isolate_data()->allocator()->AllocateUninitialized(size));
-}
-
-inline char* Environment::Allocate(size_t size) {
-  char* ret = AllocateUnchecked(size);
-  CHECK_NE(ret, nullptr);
-  return ret;
-}
-
-inline void Environment::Free(char* data, size_t size) {
-  if (data != nullptr)
-    isolate_data()->allocator()->Free(data, size);
-}
-
-inline AllocatedBuffer Environment::AllocateManaged(size_t size, bool checked) {
-  char* data = checked ? Allocate(size) : AllocateUnchecked(size);
-  if (data == nullptr) size = 0;
-  return AllocatedBuffer(this, uv_buf_init(data, size));
-}
-
-inline AllocatedBuffer::AllocatedBuffer(Environment* env, uv_buf_t buf)
-    : env_(env), buffer_(buf) {}
-
-inline void AllocatedBuffer::Resize(size_t len) {
-  // The `len` check is to make sure we don't end up with `nullptr` as our base.
-  char* new_data = env_->Reallocate(buffer_.base, buffer_.len,
-                                    len > 0 ? len : 1);
-  CHECK_NOT_NULL(new_data);
-  buffer_ = uv_buf_init(new_data, len);
-}
-
-inline uv_buf_t AllocatedBuffer::release() {
-  uv_buf_t ret = buffer_;
-  buffer_ = uv_buf_init(nullptr, 0);
-  return ret;
-}
-
-inline char* AllocatedBuffer::data() {
-  return buffer_.base;
-}
-
-inline const char* AllocatedBuffer::data() const {
-  return buffer_.base;
-}
-
-inline size_t AllocatedBuffer::size() const {
-  return buffer_.len;
-}
-
-inline AllocatedBuffer::AllocatedBuffer(Environment* env)
-    : env_(env), buffer_(uv_buf_init(nullptr, 0)) {}
-
-inline AllocatedBuffer::AllocatedBuffer(AllocatedBuffer&& other)
-    : AllocatedBuffer() {
-  *this = std::move(other);
-}
-
-inline AllocatedBuffer& AllocatedBuffer::operator=(AllocatedBuffer&& other) {
-  clear();
-  env_ = other.env_;
-  buffer_ = other.release();
-  return *this;
-}
-
-inline AllocatedBuffer::~AllocatedBuffer() {
-  clear();
-}
-
-inline void AllocatedBuffer::clear() {
-  uv_buf_t buf = release();
-  if (buf.base != nullptr) {
-    CHECK_NOT_NULL(env_);
-    env_->Free(buf.base, buf.len);
-  }
-}
-
-// It's a bit awkward to define this Buffer::New() overload here, but it
-// avoids a circular dependency with node_internals.h.
-namespace Buffer {
-v8::MaybeLocal<v8::Object> New(Environment* env,
-                               char* data,
-                               size_t length,
-                               bool uses_malloc);
-}
-
-inline v8::MaybeLocal<v8::Object> AllocatedBuffer::ToBuffer() {
-  CHECK_NOT_NULL(env_);
-  v8::MaybeLocal<v8::Object> obj = Buffer::New(env_, data(), size(), false);
-  if (!obj.IsEmpty()) release();
-  return obj;
-}
-
-inline v8::Local<v8::ArrayBuffer> AllocatedBuffer::ToArrayBuffer() {
-  CHECK_NOT_NULL(env_);
-  uv_buf_t buf = release();
-  auto callback = [](void* data, size_t length, void* deleter_data){
-    CHECK_NOT_NULL(deleter_data);
-
-    static_cast<v8::ArrayBuffer::Allocator*>(deleter_data)
-        ->Free(data, length);
-  };
-  std::unique_ptr<v8::BackingStore> backing =
-      v8::ArrayBuffer::NewBackingStore(buf.base,
-                                       buf.len,
-                                       callback,
-                                       env_->isolate()
-                                          ->GetArrayBufferAllocator());
-  return v8::ArrayBuffer::New(env_->isolate(),
-                              std::move(backing));
+std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
+    Environment::released_allocated_buffers() {
+  return &released_allocated_buffers_;
 }
 
 inline void Environment::ThrowError(const char* errmsg) {

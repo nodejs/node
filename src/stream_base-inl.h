@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
 #include "node.h"

@@ -152,6 +152,7 @@ For information about the governance of the Node.js project, see
 
 ### TSC (Technical Steering Committee)
 
+<!--lint disable prohibited-strings-->
 * [addaleax](https://github.com/addaleax) -
 **Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [apapirovski](https://github.com/apapirovski) -
@@ -186,8 +187,6 @@ For information about the governance of the Node.js project, see
 **Matheus Marchini** &lt;mat@mmarchini.me&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
-* [sam-github](https://github.com/sam-github) -
-**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
@@ -225,6 +224,8 @@ For information about the governance of the Node.js project, see
 **Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;r@va.gg&gt;
+* [sam-github](https://github.com/sam-github) -
+**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
@@ -282,8 +283,6 @@ For information about the governance of the Node.js project, see
 **David Carlier** &lt;devnexen@gmail.com&gt;
 * [devsnek](https://github.com/devsnek) -
 **Gus Caplan** &lt;me@gus.host&gt; (he/him)
-* [digitalinfinity](https://github.com/digitalinfinity) -
-**Hitesh Kanwathirtha** &lt;digitalinfinity@gmail.com&gt; (he/him)
 * [edsadr](https://github.com/edsadr) -
 **Adrian Estrada** &lt;edsadr@gmail.com&gt; (he/him)
 * [eugeneo](https://github.com/eugeneo) -
@@ -306,8 +305,6 @@ For information about the governance of the Node.js project, see
 **Jiawen Geng** &lt;technicalcute@gmail.com&gt;
 * [GeoffreyBooth](https://github.com/geoffreybooth) -
 **Geoffrey Booth** &lt;webmaster@geoffreybooth.com&gt; (he/him)
-* [gibfahn](https://github.com/gibfahn) -
-**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
 **Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [guybedford](https://github.com/guybedford) -
@@ -390,8 +387,6 @@ For information about the governance of the Node.js project, see
 **Ujjwal Sharma** &lt;ryzokuken@disroot.org&gt; (he/him)
 * [saghul](https://github.com/saghul) -
 **Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
-* [sam-github](https://github.com/sam-github) -
-**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [santigimeno](https://github.com/santigimeno) -
 **Santiago Gimeno** &lt;santiago.gimeno@gmail.com&gt;
 * [sebdeckers](https://github.com/sebdeckers) -
@@ -455,12 +450,16 @@ For information about the governance of the Node.js project, see
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [DavidCai1993](https://github.com/DavidCai1993) -
 **David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
+* [digitalinfinity](https://github.com/digitalinfinity) -
+**Hitesh Kanwathirtha** &lt;digitalinfinity@gmail.com&gt; (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
 **Robert Jefe Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) -
 **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
 * [firedfox](https://github.com/firedfox) -
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
+* [gibfahn](https://github.com/gibfahn) -
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [glentiki](https://github.com/glentiki) -
 **Glen Keane** &lt;glenkeane.94@gmail.com&gt; (he/him)
 * [iarna](https://github.com/iarna) -
@@ -529,6 +528,8 @@ For information about the governance of the Node.js project, see
 **Roman Klauke** &lt;romaaan.git@gmail.com&gt;
 * [RReverser](https://github.com/RReverser) -
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
+* [sam-github](https://github.com/sam-github) -
+**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [stefanmb](https://github.com/stefanmb) -
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [tellnes](https://github.com/tellnes) -
@@ -545,6 +546,7 @@ For information about the governance of the Node.js project, see
 **Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
 * [whitlockjc](https://github.com/whitlockjc) -
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
+<!--lint enable prohibited-strings-->
 
 Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
 maintaining the Node.js project.
@@ -608,6 +610,6 @@ Other keys used to sign some previous releases:
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
-[OpenJS Foundation]: http://openjs.foundation/
+[OpenJS Foundation]: https://openjsf.org/
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md

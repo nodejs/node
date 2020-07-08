@@ -4,6 +4,7 @@ internal/modules/run_main.js:*
 
 Error [ERR_MODULE_NOT_FOUND]: Cannot find module '*test*fixtures*node_modules*some_module*obj' imported from *test*fixtures*esm_loader_not_found_cjs_hint_bare.mjs
 Did you mean to import some_module/obj.js?
+    at new NodeError (internal/errors.js:*:*)
     at finalizeResolution (internal/modules/esm/resolve.js:*:*)
     at packageResolve (internal/modules/esm/resolve.js:*:*)
     at moduleResolve (internal/modules/esm/resolve.js:*:*)

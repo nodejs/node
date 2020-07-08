@@ -1,4 +1,4 @@
-# Global Objects
+# Global objects
 
 <!--introduced_in=v0.10.0-->
 <!-- type=misc -->
@@ -16,6 +16,101 @@ to be global but are not. They exist only in the scope of modules, see the
 The objects listed here are specific to Node.js. There are [built-in objects][]
 that are part of the JavaScript language itself, which are also globally
 accessible.
+
+## Class: `AbortController`
+<!--YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+<!-- type=global -->
+
+A utility class used to signal cancelation in selected `Promise`-based APIs.
+The API is based on the Web API [`AbortController`][].
+
+```js
+const ac = new AbortController();
+
+ac.signal.addEventListener('abort', () => console.log('Aborted!'),
+                           { once: true });
+
+ac.abort();
+
+console.log(ac.signal.aborted);  // Prints True
+```
+
+### `abortController.abort()`
+<!-- YAML
+added: REPLACEME
+-->
+
+Triggers the abort signal, causing the `abortController.signal` to emit
+the `'abort'` event.
+
+### `abortController.signal`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {AbortSignal}
+
+### Class: `AbortSignal`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Extends: {EventTarget}
+
+The `AbortSignal` is used to notify observers when the
+`abortController.abort()` method is called.
+
+#### Event: `'abort'`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'abort'` event is emitted when the `abortController.abort()` method
+is called. The callback is invoked with a single object argument with a
+single `type` propety set to `'abort'`:
+
+```js
+const ac = new AbortController();
+
+// Use either the onabort property...
+ac.signal.onabort = () => console.log('aborted!');
+
+// Or the EventTarget API...
+ac.signal.addEventListener('abort', (event) => {
+  console.log(event.type);  // Prints 'abort'
+}, { once: true });
+
+ac.abort();
+```
+
+The `AbortController` with which the `AbortSignal` is associated will only
+ever trigger the `'abort'` event once. Any event listeners attached to the
+`AbortSignal` *should* use the `{ once: true }` option (or, if using the
+`EventEmitter` APIs to attach a listener, use the `once()` method) to ensure
+that the event listener is removed as soon as the `'abort'` event is handled.
+Failure to do so may result in memory leaks.
+
+#### `abortSignal.aborted`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} True after the `AbortController` has been aborted.
+
+#### `abortSignal.onabort`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Function}
+
+An optional callback function that may be set by user code to be notified
+when the `abortController.abort()` function has been called.
 
 ## Class: `Buffer`
 <!-- YAML
@@ -226,6 +321,7 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
+[`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`TextDecoder`]: util.html#util_class_util_textdecoder
 [`TextEncoder`]: util.html#util_class_util_textencoder
 [`URLSearchParams`]: url.html#url_class_urlsearchparams

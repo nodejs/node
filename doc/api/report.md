@@ -1,4 +1,4 @@
-# Diagnostic Report
+# Diagnostic report
 
 <!--introduced_in=v11.8.0-->
 <!-- type=misc -->
@@ -503,7 +503,7 @@ containing `libuv` handle information and an OS platform information section
 showing CPU and memory usage and system limits. An example report can be
 triggered using the Node.js REPL:
 
-```raw
+```console
 $ node
 > process.report.writeReport();
 Writing Node.js report to file: report.20181126.091102.8480.0.001.json
@@ -577,7 +577,7 @@ NODE_OPTIONS="--report-uncaught-exception \
 Specific API documentation can be found under
 [`process API documentation`][] section.
 
-## Interaction with Workers
+## Interaction with workers
 <!-- YAML
 changes:
   - version:

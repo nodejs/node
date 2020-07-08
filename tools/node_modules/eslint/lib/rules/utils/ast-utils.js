@@ -416,6 +416,53 @@ function equalTokens(left, right, sourceCode) {
     return true;
 }
 
+/**
+ * Check if the given node is a true logical expression or not.
+ *
+ * The three binary expressions logical-or (`||`), logical-and (`&&`), and
+ * coalesce (`??`) are known as `ShortCircuitExpression`.
+ * But ESTree represents those by `LogicalExpression` node.
+ *
+ * This function rejects coalesce expressions of `LogicalExpression` node.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} `true` if the node is `&&` or `||`.
+ * @see https://tc39.es/ecma262/#prod-ShortCircuitExpression
+ */
+function isLogicalExpression(node) {
+    return (
+        node.type === "LogicalExpression" &&
+            (node.operator === "&&" || node.operator === "||")
+    );
+}
+
+/**
+ * Check if the given node is a nullish coalescing expression or not.
+ *
+ * The three binary expressions logical-or (`||`), logical-and (`&&`), and
+ * coalesce (`??`) are known as `ShortCircuitExpression`.
+ * But ESTree represents those by `LogicalExpression` node.
+ *
+ * This function finds only coalesce expressions of `LogicalExpression` node.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} `true` if the node is `??`.
+ */
+function isCoalesceExpression(node) {
+    return node.type === "LogicalExpression" && node.operator === "??";
+}
+
+/**
+ * Check if given two nodes are the pair of a logical expression and a coalesce expression.
+ * @param {ASTNode} left A node to check.
+ * @param {ASTNode} right Another node to check.
+ * @returns {boolean} `true` if the two nodes are the pair of a logical expression and a coalesce expression.
+ */
+function isMixedLogicalAndCoalesceExpressions(left, right) {
+    return (
+        (isLogicalExpression(left) && isCoalesceExpression(right)) ||
+            (isCoalesceExpression(left) && isLogicalExpression(right))
+    );
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -779,6 +826,7 @@ module.exports = {
             case "LogicalExpression":
                 switch (node.operator) {
                     case "||":
+                    case "??":
                         return 4;
                     case "&&":
                         return 5;
@@ -1415,7 +1463,7 @@ module.exports = {
 
             try {
                 tokens = espree.tokenize(leftValue, espreeOptions);
-            } catch (e) {
+            } catch {
                 return false;
             }
 
@@ -1444,7 +1492,7 @@ module.exports = {
 
             try {
                 tokens = espree.tokenize(rightValue, espreeOptions);
-            } catch (e) {
+            } catch {
                 return false;
             }
 
@@ -1538,5 +1586,9 @@ module.exports = {
      */
     hasOctalEscapeSequence(rawString) {
         return OCTAL_ESCAPE_PATTERN.test(rawString);
-    }
+    },
+
+    isLogicalExpression,
+    isCoalesceExpression,
+    isMixedLogicalAndCoalesceExpressions
 };

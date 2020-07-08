@@ -1073,8 +1073,10 @@
             '<(V8_ROOT)/src/base/platform/platform-win32.cc',
             '<(V8_ROOT)/src/base/win32-headers.h',
           ],
-
-          'defines': ['_CRT_RAND_S'],  # for rand_s()
+          'conditions': [['target_arch == "arm64"', {
+            'defines': ['_WIN32_WINNT=0x0602'], # For GetCurrentThreadStackLimits on Windows on Arm
+          }]],
+          'defines': ['_CRT_RAND_S'], # for rand_s()
           'direct_dependent_settings': {
             'msvs_settings': {
               'VCLinkerTool': {
@@ -1640,7 +1642,13 @@
           'toolsets': ['host', 'target'],
         }],
         ['OS=="win"', {
-          'defines': ['X86_WINDOWS'],
+          'conditions': [
+            ['"<(target_arch)"=="arm64" and _toolset=="target"', {
+              'defines': ['CPU_NO_SIMD']
+            }, {
+              'defines': ['X86_WINDOWS']
+            }]
+          ]
         }],
       ],
       'direct_dependent_settings': {

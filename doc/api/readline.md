@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/readline.js -->
+
 The `readline` module provides an interface for reading data from a [Readable][]
 stream (such as [`process.stdin`][]) one line at a time. It can be accessed
 using:
@@ -365,7 +367,7 @@ The current input data being processed by node.
 
 This can be used when collecting input from a TTY stream to retrieve the
 current value that has been processed thus far, prior to the `line` event
-being emitted.  Once the `line` event has been emitted, this property will
+being emitted. Once the `line` event has been emitted, this property will
 be an empty string.
 
 Be aware that modifying the value during the instance runtime may have
@@ -399,7 +401,7 @@ added: v0.1.98
 The cursor position relative to `rl.line`.
 
 This will track where the current cursor lands in the input string, when
-reading input from a TTY stream.  The position of cursor determines the
+reading input from a TTY stream. The position of cursor determines the
 portion of the input string that will be modified as input is processed,
 as well as the column where the terminal caret will be rendered.
 
@@ -415,7 +417,7 @@ added:
   * `cols` {number} the screen column the cursor currently lands on
 
 Returns the real position of the cursor in relation to the input
-prompt + string.  Long input (wrapping) strings, as well as multiple
+prompt + string. Long input (wrapping) strings, as well as multiple
 line prompts are included in the calculations.
 
 ## `readline.clearLine(stream, dir[, callback])`
@@ -536,7 +538,7 @@ the best compatibility if it defines an `output.columns` property and emits
 a `'resize'` event on the `output` if or when the columns ever change
 ([`process.stdout`][] does this automatically when it is a TTY).
 
-### Use of the `completer` Function
+### Use of the `completer` function
 
 The `completer` function takes the current line entered by the user
 as an argument, and returns an `Array` with 2 entries:
@@ -661,7 +663,7 @@ rl.on('line', (line) => {
 });
 ```
 
-## Example: Read File Stream Line-by-Line
+## Example: Read file stream line-by-Line
 
 A common use case for `readline` is to consume an input file one line at a
 time. The easiest way to do so is leveraging the [`fs.ReadStream`][] API as

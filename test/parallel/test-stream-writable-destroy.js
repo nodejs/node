@@ -167,9 +167,10 @@ const assert = require('assert');
     assert.strictEqual(write._writableState.errorEmitted, true);
   }));
 
-  write.destroy(new Error('kaboom 1'));
+  const expected = new Error('kaboom 1');
+  write.destroy(expected);
   write.destroy(new Error('kaboom 2'));
-  assert.strictEqual(write._writableState.errored, true);
+  assert.strictEqual(write._writableState.errored, expected);
   assert.strictEqual(write._writableState.errorEmitted, false);
   assert.strictEqual(write.destroyed, true);
   ticked = true;
@@ -200,14 +201,14 @@ const assert = require('assert');
 
   writable.destroy();
   assert.strictEqual(writable.destroyed, true);
-  assert.strictEqual(writable._writableState.errored, false);
+  assert.strictEqual(writable._writableState.errored, null);
   assert.strictEqual(writable._writableState.errorEmitted, false);
 
   // Test case where `writable.destroy()` is called again with an error before
   // the `_destroy()` callback is called.
   writable.destroy(new Error('kaboom 2'));
   assert.strictEqual(writable._writableState.errorEmitted, false);
-  assert.strictEqual(writable._writableState.errored, false);
+  assert.strictEqual(writable._writableState.errored, null);
 
   ticked = true;
 }
@@ -354,7 +355,7 @@ const assert = require('assert');
     assert.strictEqual(err.message, 'asd');
   }));
   write.end('asd', common.mustCall((err) => {
-    assert.strictEqual(err.message, 'asd');
+    assert.strictEqual(err.code, 'ERR_STREAM_DESTROYED');
   }));
   write.destroy(new Error('asd'));
 }
@@ -400,4 +401,19 @@ const assert = require('assert');
     assert.strictEqual(state++, 1);
   }));
   write.destroy();
+}
+
+{
+  const write = new Writable({
+    autoDestroy: false,
+    write(chunk, enc, cb) {
+      cb();
+      cb();
+    }
+  });
+
+  write.on('error', common.mustCall(() => {
+    assert(write._writableState.errored);
+  }));
+  write.write('asd');
 }

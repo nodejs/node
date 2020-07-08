@@ -4,15 +4,16 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/dns.js -->
+
 The `dns` module enables name resolution. For example, use it to look up IP
 addresses of host names.
 
 Although named for the [Domain Name System (DNS)][], it does not always use the
 DNS protocol for lookups. [`dns.lookup()`][] uses the operating system
 facilities to perform name resolution. It may not need to perform any network
-communication. Developers looking to perform name resolution in the same way
-that other applications on the same operating system behave should use
-[`dns.lookup()`][].
+communication. To perform name resolution the way other applications on the same
+system do, use [`dns.lookup()`][].
 
 ```js
 const dns = require('dns');
@@ -26,9 +27,8 @@ dns.lookup('example.org', (err, address, family) => {
 All other functions in the `dns` module connect to an actual DNS server to
 perform name resolution. They will always use the network to perform DNS
 queries. These functions do not use the same set of configuration files used by
-[`dns.lookup()`][] (e.g. `/etc/hosts`). These functions should be used by
-developers who do not want to use the underlying operating system's
-facilities for name resolution, and instead want to always perform DNS queries.
+[`dns.lookup()`][] (e.g. `/etc/hosts`). Use these functions to always perform
+DNS queries, bypassing other name-resolution facilities.
 
 ```js
 const dns = require('dns');
@@ -91,6 +91,22 @@ The following methods from the `dns` module are available:
 * [`resolver.resolveTxt()`][`dns.resolveTxt()`]
 * [`resolver.reverse()`][`dns.reverse()`]
 * [`resolver.setServers()`][`dns.setServers()`]
+
+### `Resolver([options])`
+<!-- YAML
+added: v8.3.0
+changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33472
+    description: The constructor now accepts an `options` object.
+                 The single supported option is `timeout`.
+-->
+
+Create a new resolver.
+
+* `options` {Object}
+  * `timeout` {integer} Query timeout in milliseconds, or `-1` to use the
+    default timeout.
 
 ### `resolver.cancel()`
 <!-- YAML
@@ -211,10 +227,9 @@ changes:
 
 The following flags can be passed as hints to [`dns.lookup()`][].
 
-* `dns.ADDRCONFIG`: Returned address types are determined by the types
-of addresses supported by the current system. For example, IPv4 addresses
-are only returned if the current system has at least one IPv4 address
-configured. Loopback addresses are not considered.
+* `dns.ADDRCONFIG`: Limits returned address types to the types of non-loopback
+addresses configured on the system. For example, IPv4 addresses are only
+returned if the current system has at least one IPv4 address configured.
 * `dns.V4MAPPED`: If the IPv6 family was specified, but no IPv6 addresses were
 found, then return IPv4 mapped IPv6 addresses. It is not supported
 on some operating systems (e.g FreeBSD 10.1).
@@ -603,13 +618,13 @@ The [`dns.setServers()`][] method affects only [`dns.resolve()`][],
 [`dns.lookup()`][]).
 
 This method works much like
-[resolve.conf](http://man7.org/linux/man-pages/man5/resolv.conf.5.html).
+[resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
 `NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the
 earlier ones time out or result in some other error.
 
-## DNS Promises API
+## DNS promises API
 
 The `dns.promises` API provides an alternative set of asynchronous DNS methods
 that return `Promise` objects rather than using callbacks. The API is accessible
@@ -1067,7 +1082,7 @@ The `dnsPromises.setServers()` method must not be called while a DNS query is in
 progress.
 
 This method works much like
-[resolve.conf](http://man7.org/linux/man-pages/man5/resolv.conf.5.html).
+[resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
 `NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the
@@ -1185,6 +1200,6 @@ uses. For instance, _they do not use the configuration from `/etc/hosts`_.
 [DNS error codes]: #dns_error_codes
 [Domain Name System (DNS)]: https://en.wikipedia.org/wiki/Domain_Name_System
 [Implementation considerations section]: #dns_implementation_considerations
-[RFC 8482]: https://tools.ietf.org/html/rfc8482
 [RFC 5952]: https://tools.ietf.org/html/rfc5952#section-6
+[RFC 8482]: https://tools.ietf.org/html/rfc8482
 [supported `getaddrinfo` flags]: #dns_supported_getaddrinfo_flags

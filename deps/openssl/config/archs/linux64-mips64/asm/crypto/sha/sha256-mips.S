@@ -3034,3 +3034,4 @@ K256:
 	.word	0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 .asciiz	"SHA256 for MIPS, CRYPTOGAMS by <appro@openssl.org>"
 .align	5
+

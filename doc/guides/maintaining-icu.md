@@ -40,7 +40,7 @@ main data files do not need to be upgraded in order to apply time zone data file
 fixes.
 
 The [IANA tzdata](https://www.iana.org/time-zones) project releases new versions
-and announces them on the [`tz-announce`](http://mm.icann.org/pipermail/tz-announce/)
+and announces them on the [`tz-announce`](https://mm.icann.org/pipermail/tz-announce/)
 mailing list.
 
 The Unicode project takes new releases and publishes
@@ -98,7 +98,7 @@ Node.js is built.
 
 * Make sure your Node.js workspace is clean (`git status`
 should be sufficient).
-* Configure Node.js with the specific [ICU version](http://icu-project.org/download)
+* Configure Node.js with the specific [ICU version](http://site.icu-project.org/download)
   you want to upgrade to, for example:
 
 ```bash

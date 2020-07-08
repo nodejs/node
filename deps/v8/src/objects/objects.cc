@@ -2305,9 +2305,8 @@ bool HeapObject::NeedsRehashing() const {
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(*this).number_of_entries() > 1;
     case ORDERED_HASH_MAP_TYPE:
-      return OrderedHashMap::cast(*this).NumberOfElements() > 0;
     case ORDERED_HASH_SET_TYPE:
-      return OrderedHashSet::cast(*this).NumberOfElements() > 0;
+      return false;  // We'll rehash from the JSMap or JSSet referencing them.
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
@@ -2317,6 +2316,8 @@ bool HeapObject::NeedsRehashing() const {
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
+    case JS_MAP_TYPE:
+    case JS_SET_TYPE:
       return true;
     default:
       return false;
@@ -2326,10 +2327,13 @@ bool HeapObject::NeedsRehashing() const {
 bool HeapObject::CanBeRehashed() const {
   DCHECK(NeedsRehashing());
   switch (map().instance_type()) {
+    case JS_MAP_TYPE:
+    case JS_SET_TYPE:
+      return true;
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
+      UNREACHABLE();  // We'll rehash from the JSMap or JSSet referencing them.
     case ORDERED_NAME_DICTIONARY_TYPE:
-      // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
       return false;
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
@@ -2353,7 +2357,8 @@ bool HeapObject::CanBeRehashed() const {
   return false;
 }
 
-void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
+void HeapObject::RehashBasedOnMap(Isolate* isolate) {
+  ReadOnlyRoots roots = ReadOnlyRoots(isolate);
   switch (map().instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
@@ -2385,6 +2390,17 @@ void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
     case SMALL_ORDERED_HASH_SET_TYPE:
       DCHECK_EQ(0, SmallOrderedHashSet::cast(*this).NumberOfElements());
       break;
+    case ORDERED_HASH_MAP_TYPE:
+    case ORDERED_HASH_SET_TYPE:
+      UNREACHABLE();  // We'll rehash from the JSMap or JSSet referencing them.
+    case JS_MAP_TYPE: {
+      JSMap::cast(*this).Rehash(isolate);
+      break;
+    }
+    case JS_SET_TYPE: {
+      JSSet::cast(*this).Rehash(isolate);
+      break;
+    }
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       DCHECK_EQ(0, SmallOrderedNameDictionary::cast(*this).NumberOfElements());
       break;
@@ -7864,6 +7880,13 @@ void JSSet::Clear(Isolate* isolate, Handle<JSSet> set) {
   set->set_table(*table);
 }
 
+void JSSet::Rehash(Isolate* isolate) {
+  Handle<OrderedHashSet> table_handle(OrderedHashSet::cast(table()), isolate);
+  Handle<OrderedHashSet> new_table =
+      OrderedHashSet::Rehash(isolate, table_handle).ToHandleChecked();
+  set_table(*new_table);
+}
+
 void JSMap::Initialize(Handle<JSMap> map, Isolate* isolate) {
   Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
   map->set_table(*table);
@@ -7873,6 +7896,13 @@ void JSMap::Clear(Isolate* isolate, Handle<JSMap> map) {
   Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()), isolate);
   table = OrderedHashMap::Clear(isolate, table);
   map->set_table(*table);
+}
+
+void JSMap::Rehash(Isolate* isolate) {
+  Handle<OrderedHashMap> table_handle(OrderedHashMap::cast(table()), isolate);
+  Handle<OrderedHashMap> new_table =
+      OrderedHashMap::Rehash(isolate, table_handle).ToHandleChecked();
+  set_table(*new_table);
 }
 
 void JSWeakCollection::Initialize(Handle<JSWeakCollection> weak_collection,

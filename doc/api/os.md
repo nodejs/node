@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/os.js -->
+
 The `os` module provides operating system-related utility methods and
 properties. It can be accessed using:
 
@@ -45,7 +47,7 @@ added: v6.3.0
 
 Contains commonly used operating system-specific constants for error codes,
 process signals, and so on. The specific constants defined are described in
-[OS Constants](#os_os_constants_1).
+[OS constants](#os_os_constants_1).
 
 ## `os.cpus()`
 <!-- YAML
@@ -405,13 +407,13 @@ On POSIX systems, the operating system release is determined by calling
 `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
-## OS Constants
+## OS constants
 
 The following constants are exported by `os.constants`.
 
 Not all constants will be available on every operating system.
 
-### Signal Constants
+### Signal constants
 <!-- YAML
 changes:
   - version: v5.11.0
@@ -582,11 +584,11 @@ The following signal constants are exported by `os.constants.signals`.
   </tr>
 </table>
 
-### Error Constants
+### Error constants
 
 The following error constants are exported by `os.constants.errno`.
 
-#### POSIX Error Constants
+#### POSIX error constants
 
 <table>
   <tr>
@@ -918,7 +920,7 @@ The following error constants are exported by `os.constants.errno`.
   </tr>
 </table>
 
-#### Windows Specific Error Constants
+#### Windows-specific error constants
 
 The following error codes are specific to the Windows operating system.
 
@@ -1163,7 +1165,7 @@ The following error codes are specific to the Windows operating system.
   </tr>
 </table>
 
-### dlopen Constants
+### dlopen constants
 
 If available on the operating system, the following constants
 are exported in `os.constants.dlopen`. See dlopen(3) for detailed
@@ -1200,7 +1202,7 @@ information.
   </tr>
 </table>
 
-### Priority Constants
+### Priority constants
 <!-- YAML
 added: v10.10.0
 -->
@@ -1254,7 +1256,7 @@ The following process scheduling constants are exported by
   </tr>
 </table>
 
-### libuv Constants
+### libuv constants
 
 <table>
   <tr>

@@ -118,6 +118,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (!unhandled_rejections.empty() &&
+      unhandled_rejections != "warn-with-error-code" &&
+      unhandled_rejections != "throw" &&
       unhandled_rejections != "strict" &&
       unhandled_rejections != "warn" &&
       unhandled_rejections != "none") {
@@ -274,6 +276,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental Source Map V3 support",
             &EnvironmentOptions::enable_source_maps,
             kAllowedInEnvironment);
+  AddOption("--experimental-abortcontroller", "",
+            NoOp{}, kAllowedInEnvironment);
   AddOption("--experimental-json-modules",
             "experimental JSON interop support for the ES Module loader",
             &EnvironmentOptions::experimental_json_modules,
@@ -664,11 +668,12 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "output compact single-line JSON",
             &PerProcessOptions::report_compact,
             kAllowedInEnvironment);
-  AddOption("--report-directory",
+  AddOption("--report-dir",
             "define custom report pathname."
-            " (default: current working directory of Node.js process)",
+            " (default: current working directory)",
             &PerProcessOptions::report_directory,
             kAllowedInEnvironment);
+  AddAlias("--report-directory", "--report-dir");
   AddOption("--report-filename",
             "define custom report file name."
             " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
@@ -828,7 +833,8 @@ std::string GetBashCompletion() {
          "    return 0\n"
          "  fi\n"
          "}\n"
-         "complete -F _node_complete node node_g";
+         "complete -o filenames -o nospace -o bashdefault "
+         "-F _node_complete node node_g";
   return out.str();
 }
 
@@ -971,6 +977,12 @@ void Initialize(Local<Object> target,
   target
       ->Set(
           context, FIXED_ONE_BYTE_STRING(isolate, "envSettings"), env_settings)
+      .Check();
+
+  target
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(env->isolate(), "shouldNotRegisterESMLoader"),
+            Boolean::New(isolate, env->should_not_register_esm_loader()))
       .Check();
 
   Local<Object> types = Object::New(isolate);

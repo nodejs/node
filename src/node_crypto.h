@@ -27,9 +27,11 @@
 // ClientHelloParser
 #include "node_crypto_clienthello.h"
 
+#include "allocated_buffer.h"
 #include "env.h"
 #include "base_object.h"
 #include "util.h"
+#include "node_messaging.h"
 
 #include "v8.h"
 
@@ -342,7 +344,7 @@ class ByteSource {
   static ByteSource NullTerminatedCopy(Environment* env,
                                        v8::Local<v8::Value> value);
 
-  static ByteSource FromSymmetricKeyObject(v8::Local<v8::Value> handle);
+  static ByteSource FromSymmetricKeyObjectHandle(v8::Local<v8::Value> handle);
 
   ByteSource(const ByteSource&) = delete;
   ByteSource& operator=(const ByteSource&) = delete;
@@ -407,35 +409,61 @@ class ManagedEVPPKey {
   EVPKeyPointer pkey_;
 };
 
-class KeyObject : public BaseObject {
+// Objects of this class can safely be shared among threads.
+class KeyObjectData {
+ public:
+  static std::shared_ptr<KeyObjectData> CreateSecret(
+      v8::Local<v8::ArrayBufferView> abv);
+  static std::shared_ptr<KeyObjectData> CreateAsymmetric(
+      KeyType type, const ManagedEVPPKey& pkey);
+
+  KeyType GetKeyType() const;
+
+  // These functions allow unprotected access to the raw key material and should
+  // only be used to implement cryptographic operations requiring the key.
+  ManagedEVPPKey GetAsymmetricKey() const;
+  const char* GetSymmetricKey() const;
+  size_t GetSymmetricKeySize() const;
+
+ private:
+  KeyObjectData(std::unique_ptr<char, std::function<void(char*)>> symmetric_key,
+                unsigned int symmetric_key_len)
+      : key_type_(KeyType::kKeyTypeSecret),
+        symmetric_key_(std::move(symmetric_key)),
+        symmetric_key_len_(symmetric_key_len),
+        asymmetric_key_() {}
+
+  KeyObjectData(KeyType type, const ManagedEVPPKey& pkey)
+      : key_type_(type),
+        symmetric_key_(),
+        symmetric_key_len_(0),
+        asymmetric_key_{pkey} {}
+
+  const KeyType key_type_;
+  const std::unique_ptr<char, std::function<void(char*)>> symmetric_key_;
+  const unsigned int symmetric_key_len_;
+  const ManagedEVPPKey asymmetric_key_;
+};
+
+class KeyObjectHandle : public BaseObject {
  public:
   static v8::Local<v8::Function> Initialize(Environment* env,
                                             v8::Local<v8::Object> target);
 
   static v8::MaybeLocal<v8::Object> Create(Environment* env,
-                                           KeyType type,
-                                           const ManagedEVPPKey& pkey);
+                                           std::shared_ptr<KeyObjectData> data);
 
   // TODO(tniessen): track the memory used by OpenSSL types
   SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(KeyObject)
-  SET_SELF_SIZE(KeyObject)
+  SET_MEMORY_INFO_NAME(KeyObjectHandle)
+  SET_SELF_SIZE(KeyObjectHandle)
 
-  KeyType GetKeyType() const;
-
-  // These functions allow unprotected access to the raw key material and should
-  // only be used to implement cryptograohic operations requiring the key.
-  ManagedEVPPKey GetAsymmetricKey() const;
-  const char* GetSymmetricKey() const;
-  size_t GetSymmetricKeySize() const;
+  const std::shared_ptr<KeyObjectData>& Data();
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
-  void InitSecret(v8::Local<v8::ArrayBufferView> abv);
-  void InitPublic(const ManagedEVPPKey& pkey);
-  void InitPrivate(const ManagedEVPPKey& pkey);
 
   static void GetAsymmetricKeyType(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -451,13 +479,50 @@ class KeyObject : public BaseObject {
   v8::MaybeLocal<v8::Value> ExportPrivateKey(
       const PrivateKeyEncodingConfig& config) const;
 
-  KeyObject(Environment* env, v8::Local<v8::Object> wrap, KeyType key_type);
+  KeyObjectHandle(Environment* env,
+                  v8::Local<v8::Object> wrap);
 
  private:
-  const KeyType key_type_;
-  std::unique_ptr<char, std::function<void(char*)>> symmetric_key_;
-  unsigned int symmetric_key_len_;
-  ManagedEVPPKey asymmetric_key_;
+  std::shared_ptr<KeyObjectData> data_;
+};
+
+class NativeKeyObject : public BaseObject {
+ public:
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(NativeKeyObject)
+  SET_SELF_SIZE(NativeKeyObject)
+
+  class KeyObjectTransferData : public worker::TransferData {
+   public:
+    explicit KeyObjectTransferData(const std::shared_ptr<KeyObjectData>& data)
+        : data_(data) {}
+
+    BaseObjectPtr<BaseObject> Deserialize(
+        Environment* env,
+        v8::Local<v8::Context> context,
+        std::unique_ptr<worker::TransferData> self) override;
+
+    SET_MEMORY_INFO_NAME(KeyObjectTransferData)
+    SET_SELF_SIZE(KeyObjectTransferData)
+    SET_NO_MEMORY_INFO()
+
+   private:
+    std::shared_ptr<KeyObjectData> data_;
+  };
+
+  BaseObject::TransferMode GetTransferMode() const override;
+  std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
+
+ private:
+  NativeKeyObject(Environment* env,
+                  v8::Local<v8::Object> wrap,
+                  const std::shared_ptr<KeyObjectData>& handle_data)
+    : BaseObject(env, wrap),
+      handle_data_(handle_data) {}
+
+  std::shared_ptr<KeyObjectData> handle_data_;
 };
 
 class CipherBase : public BaseObject {

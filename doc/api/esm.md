@@ -1,4 +1,4 @@
-# ECMAScript Modules
+# ECMAScript modules
 
 <!--introduced_in=v8.5.0-->
 <!-- type=misc -->
@@ -121,15 +121,15 @@ files in the package should be interpreted.
 Regardless of the value of the `"type"` field, `.mjs` files are always treated
 as ES modules and `.cjs` files are always treated as CommonJS.
 
-### Package Scope and File Extensions
+### Package scope and file extensions
 
 A folder containing a `package.json` file, and all subfolders below that folder
-down until the next folder containing another `package.json`, is considered a
-_package scope_. The `"type"` field defines how `.js` files should be treated
-within a particular `package.json` file’s package scope. Every package in a
+until the next folder containing another `package.json`, are a
+_package scope_. The `"type"` field defines how to treat `.js` files
+within the package scope. Every package in a
 project’s `node_modules` folder contains its own `package.json` file, so each
-project’s dependencies have their own package scopes. A `package.json` lacking a
-`"type"` field is treated as if it contained `"type": "commonjs"`.
+project’s dependencies have their own package scopes. If a `package.json` file
+does not have a `"type"` field, the default `"type"` is `"commonjs"`.
 
 The package scope applies not only to initial entry points (`node my-app.js`)
 but also to files referenced by `import` statements and `import()` expressions.
@@ -196,7 +196,7 @@ unspecified.
 
 ## Packages
 
-### Package Entry Points
+### Package entry points
 
 In a package’s `package.json` file, two fields can define entry points for a
 package: `"main"` and `"exports"`. The `"main"` field is supported in all
@@ -216,7 +216,7 @@ CommonJS; `"main"` will be overridden by `"exports"` if it exists. As such
 fallback for legacy versions of Node.js that do not support the `"exports"`
 field.
 
-[Conditional Exports][] can be used within `"exports"` to define different
+[Conditional exports][] can be used within `"exports"` to define different
 package entry points per environment, including whether the package is
 referenced via `require` or via `import`. For more information about supporting
 both CommonJS and ES Modules in a single package please consult
@@ -274,7 +274,7 @@ will encapsulation be lost but module consumers will be unable to
 `import feature from 'my-mod/feature'` as they will need to provide the full
 path `import feature from 'my-mod/feature/index.js`.
 
-#### Main Entry Point Export
+#### Main entry point export
 
 To set the main entry point for a package, it is advisable to define both
 `"exports"` and `"main"` in the package’s `package.json` file:
@@ -298,7 +298,7 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-#### Subpath Exports
+#### Subpath exports
 
 When using the `"exports"` field, custom subpaths can be defined along
 with the main entry point by treating the main entry point as the
@@ -355,7 +355,7 @@ module inside the subfolder. Any modules which are not public
 should be moved to another folder to retain the encapsulation
 benefits of exports.
 
-#### Package Exports Fallbacks
+#### Package exports fallbacks
 
 For possible new specifier support in future, array fallbacks are
 supported for all invalid specifiers:
@@ -372,7 +372,7 @@ supported for all invalid specifiers:
 Since `"not:valid"` is not a valid specifier, `"./submodule.js"` is used
 instead as the fallback, as if it were the only target.
 
-#### Exports Sugar
+#### Exports sugar
 
 If the `"."` export is the only export, the `"exports"` field provides sugar
 for this case being the direct `"exports"` field value.
@@ -398,7 +398,7 @@ can be written:
 }
 ```
 
-#### Conditional Exports
+#### Conditional exports
 
 Conditional exports provide a way to map to different paths depending on
 certain conditions. They are supported for both CommonJS and ES module imports.
@@ -419,31 +419,33 @@ For example, a package that wants to provide different ES module exports for
 }
 ```
 
-Node.js supports the following conditions:
+Node.js supports the following conditions out of the box:
 
 * `"import"` - matched when the package is loaded via `import` or
    `import()`. Can reference either an ES module or CommonJS file, as both
    `import` and `import()` can load either ES module or CommonJS sources.
+   _Always matched when the `"require"` condition is not matched._
 * `"require"` - matched when the package is loaded via `require()`.
    As `require()` only supports CommonJS, the referenced file must be CommonJS.
+   _Always matched when the `"import"` condition is not matched._
 * `"node"` - matched for any Node.js environment. Can be a CommonJS or ES
    module file. _This condition should always come after `"import"` or
    `"require"`._
 * `"default"` - the generic fallback that will always match. Can be a CommonJS
    or ES module file. _This condition should always come last._
 
-Condition matching is applied in object order from first to last within the
-`"exports"` object. _The general rule is that conditions should be used
-from most specific to least specific in object order._
+Within the `"exports"` object, key order is significant. During condition
+matching, earlier entries have higher priority and take precedence over later
+entries. _The general rule is that conditions should be from most specific to
+least specific in object order_.
 
 Other conditions such as `"browser"`, `"electron"`, `"deno"`, `"react-native"`,
-etc. are ignored by Node.js but may be used by other runtimes or tools.
-Further restrictions, definitions or guidance on condition names may be
-provided in the future.
+etc. are unknown to, and thus ignored by Node.js. Runtimes or tools other than
+Node.js may use them at their discretion. Further restrictions, definitions, or
+guidance on condition names may occur in the future.
 
 Using the `"import"` and `"require"` conditions can lead to some hazards,
-which are explained further in
-[the dual CommonJS/ES module packages section][].
+which are further explained in [the dual CommonJS/ES module packages section][].
 
 Conditional exports can also be extended to exports subpaths, for example:
 
@@ -536,7 +538,7 @@ and in a CommonJS one. For example, this code will also work:
 const { something } = require('a-package/foo'); // Loads from ./foo.js.
 ```
 
-### Dual CommonJS/ES Module Packages
+### Dual CommonJS/ES module packages
 
 Prior to the introduction of support for ES modules in Node.js, it was a common
 pattern for package authors to include both CommonJS and ES module JavaScript
@@ -549,12 +551,12 @@ ignores) the top-level `"module"` field.
 Node.js can now run ES module entry points, and a package can contain both
 CommonJS and ES module entry points (either via separate specifiers such as
 `'pkg'` and `'pkg/es-module'`, or both at the same specifier via [Conditional
-Exports][]). Unlike in the scenario where `"module"` is only used by bundlers,
+exports][]). Unlike in the scenario where `"module"` is only used by bundlers,
 or ES module files are transpiled into CommonJS on the fly before evaluation by
 Node.js, the files referenced by the ES module entry point are evaluated as ES
 modules.
 
-#### Dual Package Hazard
+#### Dual package hazard
 
 When an application is using a package that provides both CommonJS and ES module
 sources, there is a risk of certain bugs if both versions of the package get
@@ -577,7 +579,7 @@ all-CommonJS or all-ES module environments, respectively, and therefore is
 surprising to users. It also differs from the behavior users are familiar with
 when using transpilation via tools like [Babel][] or [`esm`][].
 
-#### Writing Dual Packages While Avoiding or Minimizing Hazards
+#### Writing dual packages while avoiding or minimizing hazards
 
 First, the hazard described in the previous section occurs when a package
 contains both CommonJS and ES module sources and both sources are provided for
@@ -607,11 +609,11 @@ following conditions:
    browsers.
 1. The hazards described in the previous section are avoided or minimized.
 
-##### Approach #1: Use an ES Module Wrapper
+##### Approach #1: Use an ES module wrapper
 
 Write the package in CommonJS or transpile ES module sources into CommonJS, and
 create an ES module wrapper file that defines the named exports. Using
-[Conditional Exports][], the ES module wrapper is used for `import` and the
+[Conditional exports][], the ES module wrapper is used for `import` and the
 CommonJS entry point for `require`.
 
 <!-- eslint-skip -->
@@ -689,7 +691,7 @@ stateless):
 }
 ```
 
-##### Approach #2: Isolate State
+##### Approach #2: Isolate state
 
 A `package.json` file can define the separate CommonJS and ES module entry
 points directly:
@@ -859,7 +861,7 @@ property:
 
 * `url` {string} The absolute `file:` URL of the module.
 
-## Differences Between ES Modules and CommonJS
+## Differences between ES modules and CommonJS
 
 ### Mandatory file extensions
 
@@ -955,7 +957,7 @@ To include an ES module into CommonJS, use [`import()`][].
 ### `import` statements
 
 An `import` statement can reference an ES module or a CommonJS module. Other
-file types such as JSON or Native modules are not supported. For those, use
+file types such as JSON or native modules are not supported. For those, use
 [`module.createRequire()`][].
 
 `import` statements are permitted only in ES modules. For similar functionality
@@ -991,9 +993,9 @@ It is also possible to
 [Dynamic `import()`][] is supported in both CommonJS and ES modules. It can be
 used to include ES module files from CommonJS code.
 
-## CommonJS, JSON, and Native Modules
+## CommonJS, JSON, and native modules
 
-CommonJS, JSON, and Native modules can be used with
+CommonJS, JSON, and native modules can be used with
 [`module.createRequire()`][].
 
 ```js
@@ -1043,7 +1045,7 @@ syncBuiltinESMExports();
 fs.readFileSync === readFileSync;
 ```
 
-## Experimental JSON Modules
+## Experimental JSON modules
 
 Currently importing JSON modules are only supported in the `commonjs` mode
 and are loaded using the CJS loader. [WHATWG JSON modules specification][] are
@@ -1073,7 +1075,7 @@ node index.mjs # fails
 node --experimental-json-modules index.mjs # works
 ```
 
-## Experimental Wasm Modules
+## Experimental Wasm modules
 
 Importing Web Assembly modules is supported under the
 `--experimental-wasm-modules` flag, allowing any `.wasm` files to be
@@ -1097,7 +1099,7 @@ node --experimental-wasm-modules index.mjs
 
 would provide the exports interface for the instantiation of `module.wasm`.
 
-## Experimental Top-Level `await`
+## Experimental top-level `await`
 
 When the `--experimental-top-level-await` flag is provided, `await` may be used
 in the top level (outside of async functions) within modules. This implements
@@ -1123,7 +1125,7 @@ node b.mjs # fails
 node --experimental-top-level-await b.mjs # works
 ```
 
-## Experimental Loaders
+## Experimental loaders
 
 **Note: This API is currently being redesigned and will still change.**
 
@@ -1148,37 +1150,39 @@ and parent URL. The module specifier is the string in an `import` statement or
 this one, or `undefined` if this is the main entry point for the application.
 
 The `conditions` property on the `context` is an array of conditions for
-[Conditional Exports][] that apply to this resolution request. They can be used
+[Conditional exports][] that apply to this resolution request. They can be used
 for looking up conditional mappings elsewhere or to modify the list when calling
 the default resolution logic.
 
-The [current set of Node.js default conditions][Conditional Exports] will always
-be in the `context.conditions` list passed to the hook. If the hook wants to
-ensure Node.js-compatible resolution logic, all items from this default
-condition list **must** be passed through to the `defaultResolve` function.
+The current [package exports conditions][Conditional Exports] will always be in
+the `context.conditions` array passed into the hook. To guarantee _default
+Node.js module specifier resolution behavior_ when calling `defaultResolve`, the
+`context.conditions` array passed to it _must_ include _all_ elements of the
+`context.conditions` array originally passed into the `resolve` hook.
 
 ```js
 /**
  * @param {string} specifier
- * @param {object} context
- * @param {string} context.parentURL
- * @param {string[]} context.conditions
- * @param {function} defaultResolve
- * @returns {object} response
- * @returns {string} response.url
+ * @param {{
+ *   parentURL: !(string | undefined),
+ *   conditions: !(Array<string>),
+ * }} context
+ * @param {Function} defaultResolve
+ * @returns {!(Promise<{ url: string }>)}
  */
 export async function resolve(specifier, context, defaultResolve) {
   const { parentURL = null } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all specifiers, do some custom logic for resolving.
-    // Always return an object of the form {url: <string>}
+    // Always return an object of the form {url: <string>}.
     return {
-      url: (parentURL) ?
-        new URL(specifier, parentURL).href : new URL(specifier).href
+      url: parentURL ?
+        new URL(specifier, parentURL).href :
+        new URL(specifier).href,
     };
   }
-  if (anotherCondition) {
-    // When calling the defaultResolve, the arguments can be modified. In this
+  if (Math.random() < 0.5) { // Another condition.
+    // When calling `defaultResolve`, the arguments can be modified. In this
     // case it's adding another value for matching conditional exports.
     return defaultResolve(specifier, {
       ...context,
@@ -1220,18 +1224,17 @@ not a string, it will be converted to a string using [`util.TextDecoder`][].
 ```js
 /**
  * @param {string} url
- * @param {object} context (currently empty)
- * @param {function} defaultGetFormat
- * @returns {object} response
- * @returns {string} response.format
+ * @param {Object} context (currently empty)
+ * @param {Function} defaultGetFormat
+ * @returns {Promise<{ format: string }>}
  */
 export async function getFormat(url, context, defaultGetFormat) {
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for determining format.
     // Always return an object of the form {format: <string>}, where the
     // format is one of the strings in the table above.
     return {
-      format: 'module'
+      format: 'module',
     };
   }
   // Defer to Node.js for all other URLs.
@@ -1251,19 +1254,17 @@ potentially avoid reading files from disk.
 ```js
 /**
  * @param {string} url
- * @param {object} context
- * @param {string} context.format
- * @param {function} defaultGetSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {{ format: string }} context
+ * @param {Function} defaultGetSource
+ * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
  */
 export async function getSource(url, context, defaultGetSource) {
   const { format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for retrieving the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other URLs.
@@ -1286,28 +1287,25 @@ unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
 
 ```js
 /**
- * @param {string|buffer} source
- * @param {object} context
- * @param {string} context.url
- * @param {string} context.format
- * @param {function} defaultTransformSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {!(SharedArrayBuffer | string | Uint8Array)} source
+ * @param {{
+ *   url: string,
+ *   format: string,
+ * }} context
+ * @param {Function} defaultTransformSource
+ * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
  */
-export async function transformSource(source,
-                                      context,
-                                      defaultTransformSource) {
+export async function transformSource(source, context, defaultTransformSource) {
   const { url, format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for modifying the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other sources.
-  return defaultTransformSource(
-    source, context, defaultTransformSource);
+  return defaultTransformSource(source, context, defaultTransformSource);
 }
 ```
 
@@ -1517,7 +1515,7 @@ loaded from disk but before Node.js executes it; and so on for any `.coffee`,
 `.litcoffee` or `.coffee.md` files referenced via `import` statements of any
 loaded file.
 
-## Resolution Algorithm
+## Resolution algorithm
 
 ### Features
 
@@ -1530,7 +1528,7 @@ The resolver has the following properties:
 * No folder mains
 * Bare specifier package resolution lookup through node_modules
 
-### Resolver Algorithm
+### Resolver algorithm
 
 The algorithm to load an ES module specifier is given through the
 **ESM_RESOLVE** method below. It returns the resolved URL for a
@@ -1802,7 +1800,7 @@ success!
 
 [Babel]: https://babeljs.io/
 [CommonJS]: modules.html
-[Conditional Exports]: #esm_conditional_exports
+[Conditional exports]: #esm_conditional_exports
 [Dynamic `import()`]: https://wiki.developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Dynamic_Imports
 [ECMAScript-modules implementation]: https://github.com/nodejs/modules/blob/master/doc/plan-for-new-modules-implementation.md
 [ECMAScript Top-Level `await` proposal]: https://github.com/tc39/proposal-top-level-await/
@@ -1819,11 +1817,11 @@ success!
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_code_transformsource_code_hook
-[ArrayBuffer]: http://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer-constructor
+[ArrayBuffer]: https://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer-constructor
 [SharedArrayBuffer]: https://tc39.es/ecma262/#sec-sharedarraybuffer-constructor
-[string]: http://www.ecma-international.org/ecma-262/6.0/#sec-string-constructor
-[TypedArray]: http://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
-[Uint8Array]: http://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
+[string]: https://www.ecma-international.org/ecma-262/6.0/#sec-string-constructor
+[TypedArray]: https://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
+[Uint8Array]: https://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
 [`util.TextDecoder`]: util.html#util_class_util_textdecoder
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme

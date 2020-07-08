@@ -575,6 +575,11 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
                  * In DTLS we get the whole message in one go - header and body
                  */
                 ret = dtls_get_message(s, &mt, &len);
+#ifndef OPENSSL_NO_QUIC
+            } else if (SSL_IS_QUIC(s)) {
+                /* QUIC behaves like DTLS -- all in one go. */
+                ret = quic_get_message(s, &mt, &len);
+#endif
             } else {
                 ret = tls_get_message_header(s, &mt);
             }
@@ -604,8 +609,8 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
                 return SUB_STATE_ERROR;
             }
 
-            /* dtls_get_message already did this */
-            if (!SSL_IS_DTLS(s)
+            /* dtls_get_message/quic_get_message already did this */
+            if (!SSL_IS_DTLS(s) && !SSL_IS_QUIC(s)
                     && s->s3->tmp.message_size > 0
                     && !grow_init_buf(s, s->s3->tmp.message_size
                                          + SSL3_HM_HEADER_LENGTH)) {
@@ -618,8 +623,8 @@ static SUB_STATE_RETURN read_state_machine(SSL *s)
             /* Fall through */
 
         case READ_STATE_BODY:
-            if (!SSL_IS_DTLS(s)) {
-                /* We already got this above for DTLS */
+            if (!SSL_IS_DTLS(s) && !SSL_IS_QUIC(s)) {
+                /* We already got this above for DTLS & QUIC */
                 ret = tls_get_message_body(s, &len);
                 if (ret == 0) {
                     /* Could be non-blocking IO */
@@ -900,6 +905,14 @@ static SUB_STATE_RETURN write_state_machine(SSL *s)
 int statem_flush(SSL *s)
 {
     s->rwstate = SSL_WRITING;
+#ifndef OPENSSL_NO_QUIC
+    if (SSL_IS_QUIC(s)) {
+        if (!s->quic_method->flush_flight(s)) {
+            SSLerr(SSL_F_STATEM_FLUSH, ERR_R_INTERNAL_ERROR);
+            return 0;
+        }
+    } else
+#endif
     if (BIO_flush(s->wbio) <= 0) {
         return 0;
     }

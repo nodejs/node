@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/cluster.js -->
+
 A single instance of Node.js runs in a single thread. To take advantage of
 multi-core systems, the user will sometimes want to launch a cluster of Node.js
 processes to handle the load.
@@ -52,7 +54,7 @@ Worker 5644 started
 
 On Windows, it is not yet possible to set up a named pipe server in a worker.
 
-## How It Works
+## How it works
 
 <!--type=misc-->
 
@@ -415,13 +417,13 @@ if (cluster.isMaster) {
 }
 ```
 
-### `worker.kill([signal='SIGTERM'])`
+### `worker.kill([signal])`
 <!-- YAML
 added: v0.9.12
 -->
 
 * `signal` {string} Name of the kill signal to send to the worker
-  process.
+  process. **Default**: `'SIGTERM'`
 
 This function will kill the worker. In the master, it does this by disconnecting
 the `worker.process`, and once disconnected, killing with `signal`. In the
@@ -753,7 +755,7 @@ changes:
     `undefined` (inherits from parent process).
   * `serialization` {string} Specify the kind of serialization used for sending
     messages between processes. Possible values are `'json'` and `'advanced'`.
-    See [Advanced Serialization for `child_process`][] for more details.
+    See [Advanced serialization for `child_process`][] for more details.
     **Default:** `false`.
   * `silent` {boolean} Whether or not to send output to parent's stdio.
     **Default:** `false`.
@@ -883,5 +885,5 @@ socket.on('data', (id) => {
 [`process` event: `'message'`]: process.html#process_event_message
 [`server.close()`]: net.html#net_event_close
 [`worker.exitedAfterDisconnect`]: #cluster_worker_exitedafterdisconnect
-[Advanced Serialization for `child_process`]: child_process.html#child_process_advanced_serialization
+[Advanced serialization for `child_process`]: child_process.html#child_process_advanced_serialization
 [Child Process module]: child_process.html#child_process_child_process_fork_modulepath_args_options

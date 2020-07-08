@@ -1,10 +1,12 @@
-# File System
+# File system
 
 <!--introduced_in=v0.10.0-->
 
 > Stability: 2 - Stable
 
 <!--name=fs-->
+
+<!-- source_link=lib/fs.js -->
 
 The `fs` module provides an API for interacting with the file system in a
 manner closely modeled around standard POSIX functions.
@@ -242,7 +244,7 @@ fs.readFileSync(new URL('file:///C:/path/%5c'));
 \ or / characters */
 ```
 
-## File Descriptors
+## File descriptors
 
 On POSIX systems, for every process, the kernel maintains a table of currently
 open files and resources. Each open file is assigned a simple numeric
@@ -277,14 +279,14 @@ at any given time so it is critical to close the descriptor when operations
 are completed. Failure to do so will result in a memory leak that will
 eventually cause an application to crash.
 
-## Threadpool Usage
+## Threadpool usage
 
 All file system APIs except `fs.FSWatcher()` and those that are explicitly
 synchronous use libuv's threadpool, which can have surprising and negative
 performance implications for some applications. See the
 [`UV_THREADPOOL_SIZE`][] documentation for more information.
 
-## Class `fs.Dir`
+## Class: `fs.Dir`
 <!-- YAML
 added: v12.12.0
 -->
@@ -652,8 +654,8 @@ added: v0.1.93
 
 * Extends: {stream.Readable}
 
-A successful call to `fs.createReadStream()` will return a new `fs.ReadStream`
-object.
+Instances of `fs.ReadStream` are created and returned using the
+[`fs.createReadStream()`][] function.
 
 ### Event: `'close'`
 <!-- YAML
@@ -886,7 +888,7 @@ The numeric group identifier of the group that owns the file (POSIX).
 
 * {number|bigint}
 
-A numeric device identifier if the file is considered "special".
+A numeric device identifier if the file represents a device.
 
 ### `stats.size`
 
@@ -1030,7 +1032,7 @@ added: v0.11.13
 
 The timestamp indicating the creation time of this file.
 
-### Stat Time Values
+### Stat time values
 
 The `atimeMs`, `mtimeMs`, `ctimeMs`, `birthtimeMs` properties are
 numeric values that hold the corresponding times in milliseconds. Their
@@ -1076,6 +1078,9 @@ added: v0.1.93
 -->
 
 * Extends {stream.Writable}
+
+Instances of `fs.WriteStream` are created and returned using the
+[`fs.createWriteStream()`][] function.
 
 ### Event: `'close'`
 <!-- YAML
@@ -1155,7 +1160,7 @@ changes:
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File Access Constants][] for possible values
+checks to be performed. Check [File access constants][] for possible values
 of `mode`. It is possible to create a mask consisting of the bitwise OR of
 two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
@@ -1297,7 +1302,7 @@ changes:
 
 Synchronously tests a user's permissions for the file or directory specified
 by `path`. The `mode` argument is an optional integer that specifies the
-accessibility checks to be performed. Check [File Access Constants][] for
+accessibility checks to be performed. Check [File access constants][] for
 possible values of `mode`. It is possible to create a mask consisting of
 the bitwise OR of two or more values
 (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
@@ -1623,7 +1628,7 @@ through any other `fs` operation may lead to undefined behavior.
 
 Returns an object containing commonly used constants for file system
 operations. The specific constants currently defined are described in
-[FS Constants][].
+[FS constants][].
 
 ## `fs.copyFile(src, dest[, mode], callback)`
 <!-- YAML
@@ -2396,6 +2401,38 @@ changes:
 
 Synchronous lchown(2). Returns `undefined`.
 
+## `fs.lutimes(path, atime, mtime, callback)`
+<!-- YAML
+addded: v14.5.0
+-->
+
+* `path` {string|Buffer|URL}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
+* `callback` {Function}
+  * `err` {Error}
+
+Changes the access and modification times of a file in the same way as
+[`fs.utimes()`][], with the difference that if the path refers to a symbolic
+link, then the link is not dereferenced: instead, the timestamps of the
+symbolic link itself are changed.
+
+No arguments other than a possible exception are given to the completion
+callback.
+
+## `fs.lutimesSync(path, atime, mtime)`
+<!-- YAML
+added: v14.5.0
+-->
+
+* `path` {string|Buffer|URL}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
+
+Change the file system timestamps of the symbolic link referenced by `path`.
+Returns `undefined`, or throws an exception when parameters are incorrect or
+the operation fails. This is the synchronous version of [`fs.lutimes()`][].
+
 ## `fs.link(existingPath, newPath, callback)`
 <!-- YAML
 added: v0.1.31
@@ -3025,7 +3062,7 @@ fs.readFile('<directory>', (err, data) => {
 The `fs.readFile()` function buffers the entire file. To minimize memory costs,
 when possible prefer streaming via `fs.createReadStream()`.
 
-### File Descriptors
+### File descriptors
 
 1. Any specified file descriptor has to support reading.
 2. If a file descriptor is specified as the `path`, it will not be closed
@@ -3208,6 +3245,9 @@ from the current position.
 
 The callback will be given three arguments: `err`, `bytesRead`, and
 `buffers`. `bytesRead` is how many bytes were read from the file.
+
+If this method is invoked as its [`util.promisify()`][]ed version, it returns
+a `Promise` for an `Object` with `bytesRead` and `buffers` properties.
 
 ## `fs.readvSync(fd, buffers[, position])`
 <!-- YAML
@@ -3564,7 +3604,7 @@ is recommended.
 
 For example, given the following directory structure:
 
-```fundamental
+```text
 - txtDir
 -- file.txt
 - app.js
@@ -3676,14 +3716,14 @@ changes:
   * `err` {Error}
 
 Asynchronous symlink(2) which creates the link called `path` pointing to
-`target`.  No arguments other than a possible exception are given to the
+`target`. No arguments other than a possible exception are given to the
 completion callback.
 
 The `type` argument is only available on Windows and ignored on other platforms.
 It can be set to `'dir'`, `'file'`, or `'junction'`. If the `type` argument is
 not set, Node.js will autodetect `target` type and use `'file'` or `'dir'`. If
 the `target` does not exist, `'file'` will be used. Windows junction points
-require the destination path to be absolute.  When using `'junction'`, the
+require the destination path to be absolute. When using `'junction'`, the
 `target` argument will automatically be normalized to absolute path.
 
 Relative targets are relative to the link’s parent directory.
@@ -4003,7 +4043,7 @@ AIX files retain the same inode for the lifetime of a file. Saving and closing a
 watched file on AIX will result in two notifications (one for adding new
 content, and one for truncation).
 
-#### Filename Argument
+#### Filename argument
 
 <!--type=misc-->
 
@@ -4275,12 +4315,12 @@ It is unsafe to use `fs.writeFile()` multiple times on the same file without
 waiting for the callback. For this scenario, [`fs.createWriteStream()`][] is
 recommended.
 
-### Using `fs.writeFile()` with File Descriptors
+### Using `fs.writeFile()` with file descriptors
 
 When `file` is a file descriptor, the behavior is almost identical to directly
 calling `fs.write()` like:
 
-```javascript
+```js
 fs.write(fd, Buffer.from(data, options.encoding), callback);
 ```
 
@@ -4297,7 +4337,7 @@ before and/or after the newly written data.
 For example, if `fs.writeFile()` is called twice in a row, first to write the
 string `'Hello'`, then to write the string `', World'`, the file would contain
 `'Hello, World'`, and might contain some of the file's original data (depending
-on the size of the original file, and the position of the file descriptor).  If
+on the size of the original file, and the position of the file descriptor). If
 a file name had been used instead of a descriptor, the file would be guaranteed
 to contain only `', World'`.
 
@@ -4437,7 +4477,7 @@ The `fs.promises` API provides an alternative set of asynchronous file system
 methods that return `Promise` objects rather than using callbacks. The
 API is accessible via `require('fs').promises` or `require('fs/promises')`.
 
-### class: `FileHandle`
+### Class: `FileHandle`
 <!-- YAML
 added: v10.0.0
 -->
@@ -4882,7 +4922,7 @@ added: v10.0.0
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
-checks to be performed. Check [File Access Constants][] for possible values
+checks to be performed. Check [File access constants][] for possible values
 of `mode`. It is possible to create a mask consisting of the bitwise OR of
 two or more values (e.g. `fs.constants.W_OK | fs.constants.R_OK`).
 
@@ -5031,6 +5071,23 @@ changes:
 
 Changes the ownership on a symbolic link then resolves the `Promise` with
 no arguments upon success.
+
+### `fsPromises.lutimes(path, atime, mtime)`
+<!-- YAML
+added: v14.5.0
+-->
+
+* `path` {string|Buffer|URL}
+* `atime` {number|string|Date}
+* `mtime` {number|string|Date}
+* Returns: {Promise}
+
+Changes the access and modification times of a file in the same way as
+[`fsPromises.utimes()`][], with the difference that if the path refers to a
+symbolic link, then the link is not dereferenced: instead, the timestamps of
+the symbolic link itself are changed.
+
+Upon success, the `Promise` is resolved without arguments.
 
 ### `fsPromises.link(existingPath, newPath)`
 <!-- YAML
@@ -5452,7 +5509,7 @@ Any specified `FileHandle` has to support writing.
 It is unsafe to use `fsPromises.writeFile()` multiple times on the same file
 without waiting for the `Promise` to be resolved (or rejected).
 
-## FS Constants
+## FS constants
 
 The following constants are exported by `fs.constants`.
 
@@ -5476,7 +5533,7 @@ fs.open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
 });
 ```
 
-### File Access Constants
+### File access constants
 
 The following constants are meant for use with [`fs.access()`][].
 
@@ -5508,7 +5565,7 @@ The following constants are meant for use with [`fs.access()`][].
   </tr>
 </table>
 
-### File Copy Constants
+### File copy constants
 
 The following constants are meant for use with [`fs.copyFile()`][].
 
@@ -5536,7 +5593,7 @@ The following constants are meant for use with [`fs.copyFile()`][].
   </tr>
 </table>
 
-### File Open Constants
+### File open constants
 
 The following constants are meant for use with `fs.open()`.
 
@@ -5630,7 +5687,7 @@ The following constants are meant for use with `fs.open()`.
   </tr>
 </table>
 
-### File Type Constants
+### File type constants
 
 The following constants are meant for use with the [`fs.Stats`][] object's
 `mode` property for determining a file's type.
@@ -5674,7 +5731,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
 </table>
 
-### File Mode Constants
+### File mode constants
 
 The following constants are meant for use with the [`fs.Stats`][] object's
 `mode` property for determining the access permissions for a file.
@@ -5734,7 +5791,7 @@ The following constants are meant for use with the [`fs.Stats`][] object's
   </tr>
 </table>
 
-## File System Flags
+## File system flags
 
 The following flags are available wherever the `flag` option takes a
 string.
@@ -5787,10 +5844,10 @@ are available from `fs.constants`. On Windows, flags are translated to
 their equivalent ones where applicable, e.g. `O_WRONLY` to `FILE_GENERIC_WRITE`,
 or `O_EXCL|O_CREAT` to `CREATE_NEW`, as accepted by `CreateFileW`.
 
-The exclusive flag `'x'` (`O_EXCL` flag in open(2)) ensures that path is newly
-created. On POSIX systems, path is considered to exist even if it is a symlink
-to a non-existent file. The exclusive flag may or may not work with network
-file systems.
+The exclusive flag `'x'` (`O_EXCL` flag in open(2)) causes the operation to
+return an error if the path already exists. On POSIX, if the path is a symbolic
+link, using `O_EXCL` returns an error even if the link is to a path that does
+not exist. The exclusive flag may or may not work with network file systems.
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -5844,12 +5901,14 @@ the file contents.
 [`fs.chmod()`]: #fs_fs_chmod_path_mode_callback
 [`fs.chown()`]: #fs_fs_chown_path_uid_gid_callback
 [`fs.copyFile()`]: #fs_fs_copyfile_src_dest_mode_callback
+[`fs.createReadStream()`]: #fs_fs_createreadstream_path_options
 [`fs.createWriteStream()`]: #fs_fs_createwritestream_path_options
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_options_callback
 [`fs.ftruncate()`]: #fs_fs_ftruncate_fd_len_callback
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_options_callback
+[`fs.lutimes()`]: #fs_fs_lutimes_path_atime_mtime_callback
 [`fs.mkdir()`]: #fs_fs_mkdir_path_options_callback
 [`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
@@ -5873,15 +5932,16 @@ the file contents.
 [`fs.writev()`]: #fs_fs_writev_fd_buffers_position_callback
 [`fsPromises.open()`]: #fs_fspromises_open_path_flags_mode
 [`fsPromises.opendir()`]: #fs_fspromises_opendir_path_options
-[`inotify(7)`]: http://man7.org/linux/man-pages/man7/inotify.7.html
+[`fsPromises.utimes()`]: #fs_fspromises_utimes_path_atime_mtime
+[`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
 [`net.Socket`]: net.html#net_class_net_socket
 [`stat()`]: fs.html#fs_fs_stat_path_options_callback
 [`util.promisify()`]: util.html#util_util_promisify_original
 [Caveats]: #fs_caveats
 [Common System Errors]: errors.html#errors_common_system_errors
-[FS Constants]: #fs_fs_constants_1
-[File Access Constants]: #fs_file_access_constants
+[FS constants]: #fs_fs_constants_1
+[File access constants]: #fs_file_access_constants
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
 [MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths

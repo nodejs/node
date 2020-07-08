@@ -16,6 +16,11 @@ if (common.hasIntl) {
   expected_keys.push('unicode');
 }
 
+if (common.hasQuic) {
+  expected_keys.push('ngtcp2');
+  expected_keys.push('nghttp3');
+}
+
 expected_keys.sort();
 const actual_keys = Object.keys(process.versions).sort();
 

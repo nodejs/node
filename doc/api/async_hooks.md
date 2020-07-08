@@ -1,8 +1,10 @@
-# Async Hooks
+# Async hooks
 
 <!--introduced_in=v8.1.0-->
 
 > Stability: 1 - Experimental
+
+<!-- source_link=lib/async_hooks.js -->
 
 The `async_hooks` module provides an API to track asynchronous resources. It
 can be accessed using:
@@ -127,7 +129,7 @@ class MyAddedCallbacks extends MyAsyncCallbacks {
 const asyncHook = async_hooks.createHook(new MyAddedCallbacks());
 ```
 
-##### Error Handling
+##### Error handling
 
 If any `AsyncHook` callbacks throw, the application will print the stack trace
 and exit. The exit path does follow that of an uncaught exception, but
@@ -201,7 +203,7 @@ be called again until enabled.
 
 For API consistency `disable()` also returns the `AsyncHook` instance.
 
-#### Hook Callbacks
+#### Hook callbacks
 
 Key events in the lifetime of asynchronous events have been categorized into
 four areas: instantiation, before/after the callback is called, and when the
@@ -302,7 +304,7 @@ been initialized. This can contain useful information that can vary based on
 the value of `type`. For instance, for the `GETADDRINFOREQWRAP` resource type,
 `resource` provides the host name used when looking up the IP address for the
 host in `net.Server.listen()`. The API for accessing this information is
-currently not considered public, but using the Embedder API, users can provide
+not supported, but using the Embedder API, users can provide
 and document their own resource objects. For example, such a resource object
 could contain the SQL query being executed.
 
@@ -329,20 +331,17 @@ async_hooks.createHook({
   },
   before(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeFileSync('log.out',
-                     `${indentStr}before:  ${asyncId}\n`, { flag: 'a' });
+    fs.writeSync(process.stdout.fd, `${indentStr}before:  ${asyncId}\n`);
     indent += 2;
   },
   after(asyncId) {
     indent -= 2;
     const indentStr = ' '.repeat(indent);
-    fs.writeFileSync('log.out',
-                     `${indentStr}after:  ${asyncId}\n`, { flag: 'a' });
+    fs.writeSync(process.stdout.fd, `${indentStr}after:  ${asyncId}\n`);
   },
   destroy(asyncId) {
     const indentStr = ' '.repeat(indent);
-    fs.writeFileSync('log.out',
-                     `${indentStr}destroy:  ${asyncId}\n`, { flag: 'a' });
+    fs.writeSync(process.stdout.fd, `${indentStr}destroy:  ${asyncId}\n`);
   },
 }).enable();
 
@@ -378,16 +377,38 @@ the value of the current execution context; which is delineated by calls to
 Only using `execution` to graph resource allocation results in the following:
 
 ```console
-Timeout(7) -> TickObject(6) -> root(1)
+  root(1)
+     ^
+     |
+TickObject(6)
+     ^
+     |
+ Timeout(7)
 ```
 
 The `TCPSERVERWRAP` is not part of this graph, even though it was the reason for
 `console.log()` being called. This is because binding to a port without a host
 name is a *synchronous* operation, but to maintain a completely asynchronous
-API the user's callback is placed in a `process.nextTick()`.
+API the user's callback is placed in a `process.nextTick()`. Which is why
+`TickObject` is present in the output and is a 'parent' for `.listen()`
+callback.
 
 The graph only shows *when* a resource was created, not *why*, so to track
-the *why* use `triggerAsyncId`.
+the *why* use `triggerAsyncId`. Which can be represented with the following
+graph:
+
+```console
+ bootstrap(1)
+     |
+     ˅
+TCPSERVERWRAP(5)
+     |
+     ˅
+ TickObject(6)
+     |
+     ˅
+  Timeout(7)
+```
 
 ##### `before(asyncId)`
 
@@ -509,7 +530,7 @@ createHook({
   }
 }).enable();
 
-const server = createServer(function(req, res) {
+const server = createServer((req, res) => {
   executionAsyncResource()[sym] = { state: req.url };
   setTimeout(function() {
     res.end(JSON.stringify(executionAsyncResource()[sym]));
@@ -628,7 +649,7 @@ only on chained promises. That means promises not created by `then()`/`catch()`
 will not have the `before` and `after` callbacks fired on them. For more details
 see the details of the V8 [PromiseHooks][] API.
 
-## JavaScript Embedder API
+## JavaScript embedder API
 
 Library developers that handle their own asynchronous resources performing tasks
 like I/O, connection pooling, or managing callback queues may use the
@@ -862,6 +883,31 @@ for (let i = 0; i < 10; i++) {
       pool.close();
   });
 }
+```
+
+### Integrating `AsyncResource` with `EventEmitter`
+
+Event listeners triggered by an [`EventEmitter`][] may be run in a different
+execution context than the one that was active when `eventEmitter.on()` was
+called.
+
+The following example shows how to use the `AsyncResource` class to properly
+associate an event listener with the correct execution context. The same
+approach can be applied to a [`Stream`][] or a similar event-driven class.
+
+```js
+const { createServer } = require('http');
+const { AsyncResource, executionAsyncId } = require('async_hooks');
+
+const server = createServer((req, res) => {
+  const asyncResource = new AsyncResource('request');
+  // The listener will always run in the execution context of `asyncResource`.
+  req.on('close', asyncResource.runInAsyncScope.bind(asyncResource, () => {
+    // Prints: true
+    console.log(asyncResource.asyncId() === executionAsyncId());
+  }));
+  res.end();
+}).listen(3000);
 ```
 
 ## Class: `AsyncLocalStorage`
@@ -1116,8 +1162,10 @@ to associate the asynchronous operation with the correct execution context.
 [`destroy` callback]: #async_hooks_destroy_asyncid
 [`init` callback]: #async_hooks_init_asyncid_type_triggerasyncid_resource
 [`promiseResolve` callback]: #async_hooks_promiseresolve_asyncid
+[`EventEmitter`]: events.html#events_class_eventemitter
 [Hook Callbacks]: #async_hooks_hook_callbacks
 [PromiseHooks]: https://docs.google.com/document/d/1rda3yKGHimKIhg5YeoAmCOtyURgsbTH_qaYR79FELlk/edit
+[`Stream`]: stream.html#stream_stream
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [promise execution tracking]: #async_hooks_promise_execution_tracking
 [`util.promisify()`]: util.html#util_util_promisify_original

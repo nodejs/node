@@ -5,6 +5,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/net.js -->
+
 The `net` module provides an asynchronous network API for creating stream-based
 TCP or [IPC][] servers ([`net.createServer()`][]) and clients
 ([`net.createConnection()`][]).
@@ -15,7 +17,7 @@ It can be accessed using:
 const net = require('net');
 ```
 
-## IPC Support
+## IPC support
 
 The `net` module supports IPC with named pipes on Windows, and Unix domain
 sockets on other operating systems.
@@ -155,22 +157,6 @@ when all connections are ended and the server emits a [`'close'`][] event.
 The optional `callback` will be called once the `'close'` event occurs. Unlike
 that event, it will be called with an `Error` as its only argument if the server
 was not open when it was closed.
-
-### `server.connections`
-<!-- YAML
-added: v0.2.0
-deprecated: v0.9.7
--->
-
-> Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
-
-* {integer|null}
-
-The number of concurrent connections on the server.
-
-This becomes `null` when sending a socket to a child with
-[`child_process.fork()`][]. To poll forks and get current number of active
-connections, use asynchronous [`server.getConnections()`][] instead.
 
 ### `server.getConnections(callback)`
 <!-- YAML
@@ -543,7 +529,11 @@ socket as reported by the operating system:
 ### `socket.bufferSize`
 <!-- YAML
 added: v0.3.8
+deprecated:
+  - REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`writable.writableLength`][] instead.
 
 * {integer}
 
@@ -721,7 +711,7 @@ added: v6.1.0
 If `true`,
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`] was
 called and has not yet finished. It will stay `true` until the socket becomes
-connected, then it is set to `false` and the `'connect'` event is emitted.  Note
+connected, then it is set to `false` and the `'connect'` event is emitted. Note
 that the
 [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
 callback is a listener for the `'connect'` event.
@@ -1121,6 +1111,14 @@ immediately initiates connection with
 [`socket.connect(port[, host][, connectListener])`][`socket.connect(port)`],
 then returns the `net.Socket` that starts the connection.
 
+## `net.createQuicSocket([options])`
+<!-- YAML
+added: REPLACEME
+-->
+
+Creates and returns a new `QuicSocket`. Please refer to the [QUIC documentation][]
+for details.
+
 ## `net.createServer([options][, connectionListener])`
 <!-- YAML
 added: v0.5.0
@@ -1229,6 +1227,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [IPC]: #net_ipc_support
 [Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
 [Readable Stream]: stream.html#stream_class_stream_readable
+[QUIC documentation]: quic.html
 [`'close'`]: #net_event_close
 [`'connect'`]: #net_event_connect
 [`'connection'`]: #net_event_connection
@@ -1256,12 +1255,11 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`new net.Socket(options)`]: #net_new_net_socket_options
 [`readable.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [`server.close()`]: #net_server_close_callback
-[`server.getConnections()`]: #net_server_getconnections_callback
 [`server.listen()`]: #net_server_listen
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
-[`socket(7)`]: http://man7.org/linux/man-pages/man7/socket.7.html
+[`socket(7)`]: https://man7.org/linux/man-pages/man7/socket.7.html
 [`socket.connect()`]: #net_socket_connect
 [`socket.connect(options)`]: #net_socket_connect_options_connectlistener
 [`socket.connect(path)`]: #net_socket_connect_path_connectlistener
@@ -1274,6 +1272,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
+[`writable.writableLength`]: stream.html#stream_writable_writablelength
 [`writable.destroyed`]: stream.html#stream_writable_destroyed
 [`writable.destroy()`]: stream.html#stream_writable_destroy_error
 [`writable.end()`]: stream.html#stream_writable_end_chunk_encoding_callback

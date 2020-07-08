@@ -225,7 +225,7 @@ namespace internal {
   F(NewTypeError, 2, 1)                              \
   F(OrdinaryHasInstance, 2, 1)                       \
   F(PromoteScheduledException, 0, 1)                 \
-  F(ReportMessage, 1, 1)                             \
+  F(ReportMessageFromMicrotask, 1, 1)                \
   F(ReThrow, 1, 1)                                   \
   F(RunMicrotaskCallback, 2, 1)                      \
   F(PerformMicrotaskCheckpoint, 0, 1)                \

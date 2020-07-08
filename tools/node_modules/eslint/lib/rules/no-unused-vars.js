@@ -68,7 +68,8 @@ module.exports = {
                             caughtErrorsIgnorePattern: {
                                 type: "string"
                             }
-                        }
+                        },
+                        additionalProperties: false
                     }
                 ]
             }
@@ -619,7 +620,9 @@ module.exports = {
                     // Report the first declaration.
                     if (unusedVar.defs.length > 0) {
                         context.report({
-                            node: unusedVar.identifiers[0],
+                            node: unusedVar.references.length ? unusedVar.references[
+                                unusedVar.references.length - 1
+                            ].identifier : unusedVar.identifiers[0],
                             messageId: "unusedVar",
                             data: unusedVar.references.some(ref => ref.isWrite())
                                 ? getAssignedMessageData(unusedVar)

@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/tls.js -->
+
 The `tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
 The module can be accessed using:
@@ -12,7 +14,7 @@ The module can be accessed using:
 const tls = require('tls');
 ```
 
-## TLS/SSL Concepts
+## TLS/SSL concepts
 
 The TLS/SSL is a public/private key infrastructure (PKI). For most common
 cases, each client and server must have a *private key*.
@@ -64,11 +66,11 @@ Where:
 * `certfile`: is a concatenation of all Certificate Authority (CA) certs into
    a single file, e.g. `cat ca1-cert.pem ca2-cert.pem > ca-cert.pem`
 
-### Perfect Forward Secrecy
+### Perfect forward secrecy
 
 <!-- type=misc -->
 
-The term "[Forward Secrecy][]" or "Perfect Forward Secrecy" describes a feature
+The term _[forward secrecy][]_ or _perfect forward secrecy_ describes a feature
 of key-agreement (i.e., key-exchange) methods. That is, the server and client
 keys are used to negotiate new temporary keys that are used specifically and
 only for the current communication session. Practically, this means that even
@@ -76,11 +78,11 @@ if the server's private key is compromised, communication can only be decrypted
 by eavesdroppers if the attacker manages to obtain the key-pair specifically
 generated for the session.
 
-Perfect Forward Secrecy is achieved by randomly generating a key pair for
+Perfect forward secrecy is achieved by randomly generating a key pair for
 key-agreement on every TLS/SSL handshake (in contrast to using the same key for
 all sessions). Methods implementing this technique are called "ephemeral".
 
-Currently two methods are commonly used to achieve Perfect Forward Secrecy (note
+Currently two methods are commonly used to achieve perfect forward secrecy (note
 the character "E" appended to the traditional abbreviations):
 
 * [DHE][]: An ephemeral version of the Diffie Hellman key-agreement protocol.
@@ -90,7 +92,7 @@ the character "E" appended to the traditional abbreviations):
 Ephemeral methods may have some performance drawbacks, because key generation
 is expensive.
 
-To use Perfect Forward Secrecy using `DHE` with the `tls` module, it is required
+To use perfect forward secrecy using `DHE` with the `tls` module, it is required
 to generate Diffie-Hellman parameters and specify them with the `dhparam`
 option to [`tls.createSecureContext()`][]. The following illustrates the use of
 the OpenSSL command-line interface to generate such parameters:
@@ -99,12 +101,12 @@ the OpenSSL command-line interface to generate such parameters:
 openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
-If using Perfect Forward Secrecy using `ECDHE`, Diffie-Hellman parameters are
+If using perfect forward secrecy using `ECDHE`, Diffie-Hellman parameters are
 not required and a default ECDHE curve will be used. The `ecdhCurve` property
 can be used when creating a TLS Server to specify the list of names of supported
 curves to use, see [`tls.createServer()`][] for more info.
 
-Perfect Forward Secrecy was optional up to TLSv1.2, but it is not optional for
+Perfect forward secrecy was optional up to TLSv1.2, but it is not optional for
 TLSv1.3, because all TLSv1.3 cipher suites use ECDHE.
 
 ### ALPN and SNI
@@ -175,13 +177,15 @@ understanding of the implications and risks.
 
 TLSv1.3 does not support renegotiation.
 
-### Session Resumption
+### Session resumption
 
 Establishing a TLS session can be relatively slow. The process can be sped
 up by saving and later reusing the session state. There are several mechanisms
 to do so, discussed here from oldest to newest (and preferred).
 
-***Session Identifiers*** Servers generate a unique ID for new connections and
+#### Session identifiers
+
+Servers generate a unique ID for new connections and
 send it to the client. Clients and servers save the session state. When
 reconnecting, clients send the ID of their saved session state and if the server
 also has the state for that ID, it can agree to use it. Otherwise, the server
@@ -200,7 +204,9 @@ reuse sessions. To reuse sessions across load balancers or cluster workers,
 servers must use a shared session cache (such as Redis) in their session
 handlers.
 
-***Session Tickets*** The servers encrypt the entire session state and send it
+#### Session tickets
+
+The servers encrypt the entire session state and send it
 to the client as a "ticket". When reconnecting, the state is sent to the server
 in the initial connection. This mechanism avoids the need for server-side
 session cache. If the server doesn't use the ticket, for any reason (failure
@@ -267,35 +273,38 @@ Subsequent connections should say "Reused", for example:
 Reused, TLSv1.2, Cipher is ECDHE-RSA-AES128-GCM-SHA256
 ```
 
-## Modifying the Default TLS Cipher suite
+## Modifying the default TLS cipher suite
 
-Node.js is built with a default suite of enabled and disabled TLS ciphers.
-Currently, the default cipher suite is:
+Node.js is built with a default suite of enabled and disabled TLS ciphers. This
+default cipher list can be configured when building Node.js to allow
+distributions to provide their own default list.
 
-```txt
-TLS_AES_256_GCM_SHA384:
-TLS_CHACHA20_POLY1305_SHA256:
-TLS_AES_128_GCM_SHA256:
-ECDHE-RSA-AES128-GCM-SHA256:
-ECDHE-ECDSA-AES128-GCM-SHA256:
-ECDHE-RSA-AES256-GCM-SHA384:
-ECDHE-ECDSA-AES256-GCM-SHA384:
-DHE-RSA-AES128-GCM-SHA256:
-ECDHE-RSA-AES128-SHA256:
-DHE-RSA-AES128-SHA256:
-ECDHE-RSA-AES256-SHA384:
-DHE-RSA-AES256-SHA384:
-ECDHE-RSA-AES256-SHA256:
-DHE-RSA-AES256-SHA256:
-HIGH:
-!aNULL:
-!eNULL:
-!EXPORT:
-!DES:
-!RC4:
-!MD5:
-!PSK:
-!SRP:
+The following command can be used to show the default cipher suite:
+```console
+node -p crypto.constants.defaultCoreCipherList | tr ':' '\n'
+TLS_AES_256_GCM_SHA384
+TLS_CHACHA20_POLY1305_SHA256
+TLS_AES_128_GCM_SHA256
+ECDHE-RSA-AES128-GCM-SHA256
+ECDHE-ECDSA-AES128-GCM-SHA256
+ECDHE-RSA-AES256-GCM-SHA384
+ECDHE-ECDSA-AES256-GCM-SHA384
+DHE-RSA-AES128-GCM-SHA256
+ECDHE-RSA-AES128-SHA256
+DHE-RSA-AES128-SHA256
+ECDHE-RSA-AES256-SHA384
+DHE-RSA-AES256-SHA384
+ECDHE-RSA-AES256-SHA256
+DHE-RSA-AES256-SHA256
+HIGH
+!aNULL
+!eNULL
+!EXPORT
+!DES
+!RC4
+!MD5
+!PSK
+!SRP
 !CAMELLIA
 ```
 
@@ -305,9 +314,9 @@ instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS
 cipher suite:
 
 ```bash
-node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4" server.js
+node --tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4' server.js
 
-export NODE_OPTIONS=--tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+export NODE_OPTIONS=--tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4'
 node server.js
 ```
 
@@ -318,9 +327,9 @@ in [`tls.createServer()`][], [`tls.connect()`][], and when creating new
 
 The ciphers list can contain a mixture of TLSv1.3 cipher suite names, the ones
 that start with `'TLS_'`, and specifications for TLSv1.2 and below cipher
-suites.  The TLSv1.2 ciphers support a legacy specification format, consult
+suites. The TLSv1.2 ciphers support a legacy specification format, consult
 the OpenSSL [cipher list format][] documentation for details, but those
-specifications do *not* apply to TLSv1.3 ciphers.  The TLSv1.3 suites can only
+specifications do *not* apply to TLSv1.3 ciphers. The TLSv1.3 suites can only
 be enabled by including their full name in the cipher list. They cannot, for
 example, be enabled or disabled by using the legacy TLSv1.2 `'EECDH'` or
 `'!EECDH'` specification.
@@ -337,8 +346,8 @@ of an application. The `--tls-cipher-list` switch and `ciphers` option should by
 used only if absolutely necessary.
 
 The default cipher suite prefers GCM ciphers for [Chrome's 'modern
-cryptography' setting][] and also prefers ECDHE and DHE ciphers for Perfect
-Forward Secrecy, while offering *some* backward compatibility.
+cryptography' setting][] and also prefers ECDHE and DHE ciphers for perfect
+forward secrecy, while offering *some* backward compatibility.
 
 128 bit AES is preferred over 192 and 256 bit AES in light of [specific
 attacks affecting larger AES key sizes][].
@@ -580,18 +589,6 @@ The `server.close()` method stops the server from accepting new connections.
 This function operates asynchronously. The `'close'` event will be emitted
 when the server has no more open connections.
 
-### `server.connections`
-<!-- YAML
-added: v0.3.2
-deprecated: v0.9.7
--->
-
-> Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
-
-* {number}
-
-Returns the current number of concurrent connections on the server.
-
 ### `server.getTicketKeys()`
 <!-- YAML
 added: v3.0.0
@@ -765,12 +762,12 @@ On the client, the `session` can be provided to the `session` option of
 See [Session Resumption][] for more information.
 
 For TLSv1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
-the handshake is complete.  For TLSv1.3, only ticket-based resumption is allowed
+the handshake is complete. For TLSv1.3, only ticket-based resumption is allowed
 by the protocol, multiple tickets are sent, and the tickets aren't sent until
 after the handshake completes. So it is necessary to wait for the
-`'session'` event to get a resumable session.  Applications
+`'session'` event to get a resumable session. Applications
 should use the `'session'` event instead of `getSession()` to ensure
-they will work for all TLS versions.  Applications that only expect to
+they will work for all TLS versions. Applications that only expect to
 get or use one session should listen for this event only once:
 
 ```js
@@ -901,7 +898,7 @@ added: v5.0.0
 * Returns: {Object}
 
 Returns an object representing the type, name, and size of parameter of
-an ephemeral key exchange in [Perfect Forward Secrecy][] on a client
+an ephemeral key exchange in [perfect forward secrecy][] on a client
 connection. It returns an empty object when the key exchange is not
 ephemeral. As this is only supported on a client socket; `null` is returned
 if called on a server socket. The supported types are `'DH'` and `'ECDH'`. The
@@ -943,7 +940,7 @@ If the full certificate chain was requested, each certificate will include an
 `issuerCertificate` property containing an object representing its issuer's
 certificate.
 
-#### Certificate Object
+#### Certificate object
 <!-- YAML
 changes:
   - version: v11.4.0
@@ -1404,6 +1401,12 @@ The `callback` function, if specified, will be added as a listener for the
 
 `tls.connect()` returns a [`tls.TLSSocket`][] object.
 
+Unlike the `https` API, `tls.connect()` does not enable the
+SNI (Server Name Indication) extension by default, which may cause some
+servers to return an incorrect certificate or reject the connection
+altogether. To enable SNI, set the `servername` option in addition
+to `host`.
+
 The following illustrates a client for the echo server example from
 [`tls.createServer()`][]:
 
@@ -1560,7 +1563,7 @@ changes:
   * `crl` {string|string[]|Buffer|Buffer[]} PEM formatted CRLs (Certificate
     Revocation Lists).
   * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
-    [Perfect Forward Secrecy][]. Use `openssl dhparam` to create the parameters.
+    [perfect forward secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits or else an error
     will be thrown. Although 1024 bits is permissible, use 2048 bits or larger
     for stronger security. If omitted or invalid, the parameters are silently
@@ -1618,11 +1621,11 @@ changes:
     [OpenSSL Options][].
   * `secureProtocol` {string} Legacy mechanism to select the TLS protocol
     version to use, it does not support independent control of the minimum and
-    maximum version, and does not support limiting the protocol to TLSv1.3.  Use
-    `minVersion` and `maxVersion` instead.  The possible values are listed as
-    [SSL_METHODS][], use the function names as strings.  For example, use
+    maximum version, and does not support limiting the protocol to TLSv1.3. Use
+    `minVersion` and `maxVersion` instead. The possible values are listed as
+    [SSL_METHODS][], use the function names as strings. For example, use
     `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'` to allow any
-    TLS protocol version up to TLSv1.3.  It is not recommended to use TLS
+    TLS protocol version up to TLSv1.3. It is not recommended to use TLS
     versions less than 1.2, but it may be required for interoperability.
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
@@ -1693,12 +1696,15 @@ changes:
   * `sessionTimeout` {number} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
     [Session Resumption][] for more information. **Default:** `300`.
-  * `SNICallback(servername, cb)` {Function} A function that will be called if
-    the client supports SNI TLS extension. Two arguments will be passed when
-    called: `servername` and `cb`. `SNICallback` should invoke `cb(null, ctx)`,
-    where `ctx` is a `SecureContext` instance. (`tls.createSecureContext(...)`
-    can be used to get a proper `SecureContext`.) If `SNICallback` wasn't
-    provided the default callback with high-level API will be used (see below).
+  * `SNICallback(servername, callback)` {Function} A function that will be
+    called if the client supports SNI TLS extension. Two arguments will be
+    passed when called: `servername` and `callback`. `callback` is an
+    error-first callback that takes two optional arguments: `error` and `ctx`.
+    `ctx`, if provided, is a `SecureContext` instance.
+    [`tls.createSecureContext()`][] can be used to get a proper `SecureContext`.
+    If `callback` is called with a falsy `ctx` argument, the default secure
+    context of the server will be used. If `SNICallback` wasn't provided the
+    default callback with high-level API will be used (see below).
   * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudo-random
     data. See [Session Resumption][] for more information.
   * `pskCallback` {Function}
@@ -1820,7 +1826,7 @@ added: v11.4.0
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
   **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
-  `--tls-max-v1.2` sets the default to `'TLSv1.2'`.  Using `--tls-max-v1.3` sets
+  `--tls-max-v1.2` sets the default to `'TLSv1.2'`. Using `--tls-max-v1.3` sets
   the default to `'TLSv1.3'`. If multiple of the options are provided, the
   highest maximum is used.
 
@@ -1963,7 +1969,6 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`net.Server`]: net.html#net_class_net_server
 [`net.Socket`]: net.html#net_class_net_socket
 [`server.addContext()`]: #tls_server_addcontext_hostname_context
-[`server.getConnections()`]: net.html#net_server_getconnections_callback
 [`server.getTicketKeys()`]: #tls_server_getticketkeys
 [`server.listen()`]: net.html#net_server_listen
 [`server.setTicketKeys()`]: #tls_server_setticketkeys_keys
@@ -1986,11 +1991,11 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Cipher-Suites
 [DHE]: https://en.wikipedia.org/wiki/Diffie%E2%80%93Hellman_key_exchange
 [ECDHE]: https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-[Forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
+[forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.html#crypto_openssl_options
-[Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
+[perfect forward secrecy]: #tls_perfect_forward_secrecy
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 5077]: https://tools.ietf.org/html/rfc5077
 [RFC 5929]: https://tools.ietf.org/html/rfc5929

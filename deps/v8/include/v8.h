@@ -8184,7 +8184,9 @@ class V8_EXPORT Isolate {
           array_buffer_allocator_shared(),
           external_references(nullptr),
           allow_atomics_wait(true),
-          only_terminate_in_safe_scope(false) {}
+          only_terminate_in_safe_scope(false),
+          embedder_wrapper_type_index(-1),
+          embedder_wrapper_object_index(-1) {}
 
     /**
      * Allows the host application to provide the address of a function that is
@@ -8248,6 +8250,14 @@ class V8_EXPORT Isolate {
      * Termination is postponed when there is no active SafeForTerminationScope.
      */
     bool only_terminate_in_safe_scope;
+
+    /**
+     * The following parameters describe the offsets for addressing type info
+     * for wrapped API objects and are used by the fast C API
+     * (for details see v8-fast-api-calls.h).
+     */
+    int embedder_wrapper_type_index;
+    int embedder_wrapper_object_index;
   };
 
 
@@ -9788,6 +9798,11 @@ class V8_EXPORT V8 {
 
 /**
  * Helper class to create a snapshot data blob.
+ *
+ * The Isolate used by a SnapshotCreator is owned by it, and will be entered
+ * and exited by the constructor and destructor, respectively; The destructor
+ * will also destroy the Isolate. Experimental language features, including
+ * those available by default, are not available while creating a snapshot.
  */
 class V8_EXPORT SnapshotCreator {
  public:
@@ -9816,6 +9831,10 @@ class V8_EXPORT SnapshotCreator {
   SnapshotCreator(const intptr_t* external_references = nullptr,
                   StartupData* existing_blob = nullptr);
 
+  /**
+   * Destroy the snapshot creator, and exit and dispose of the Isolate
+   * associated with it.
+   */
   ~SnapshotCreator();
 
   /**

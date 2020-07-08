@@ -101,7 +101,10 @@ void NativeModuleLoader::InitializeModuleCategories() {
       "internal/process/policy",
       "internal/streams/lazy_transform",
 #endif  // !HAVE_OPENSSL
-
+#if !NODE_EXPERIMENTAL_QUIC
+      "internal/quic/core",
+      "internal/quic/util",
+#endif
       "sys",  // Deprecated.
       "wasi",  // Experimental.
       "internal/test/binding",
@@ -260,10 +263,13 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
   Local<Integer> column_offset = Integer::New(isolate, 0);
   ScriptOrigin origin(filename, line_offset, column_offset, True(isolate));
 
-  Mutex::ScopedLock lock(code_cache_mutex_);
-
   ScriptCompiler::CachedData* cached_data = nullptr;
   {
+    // Note: The lock here should not extend into the
+    // `CompileFunctionInContext()` call below, because this function may
+    // recurse if there is a syntax error during bootstrap (because the fatal
+    // exception handler is invoked, which may load built-in modules).
+    Mutex::ScopedLock lock(code_cache_mutex_);
     auto cache_it = code_cache_.find(id);
     if (cache_it != code_cache_.end()) {
       // Transfer ownership to ScriptCompiler::Source later.
@@ -310,8 +316,13 @@ MaybeLocal<Function> NativeModuleLoader::LookupAndCompile(
       ScriptCompiler::CreateCodeCacheForFunction(fun));
   CHECK_NOT_NULL(new_cached_data);
 
-  // The old entry should've been erased by now so we can just emplace
-  code_cache_.emplace(id, std::move(new_cached_data));
+  {
+    Mutex::ScopedLock lock(code_cache_mutex_);
+    // The old entry should've been erased by now so we can just emplace.
+    // If another thread did the same thing in the meantime, that should not
+    // be an issue.
+    code_cache_.emplace(id, std::move(new_cached_data));
+  }
 
   return scope.Escape(fun);
 }

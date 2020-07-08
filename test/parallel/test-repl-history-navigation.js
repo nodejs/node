@@ -596,7 +596,7 @@ function runTest() {
         enumerable: true
       });
     }
-    repl.inputStream.run(opts.test);
+    repl.input.run(opts.test);
   });
 }
 
