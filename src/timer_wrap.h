@@ -21,14 +21,15 @@ class TimerWrap final : public MemoryRetainer {
 
   inline Environment* env() const { return env_; }
 
-  // Completely stops the timer, making it no longer usable.
-  void Stop(bool close = true);
+  // Stop calling the timer callback.
+  void Stop();
+  // Render the timer unusable and delete this object.
+  void Close();
 
   // Starts / Restarts the Timer
   void Update(uint64_t interval, uint64_t repeat = 0);
 
   void Ref();
-
   void Unref();
 
   SET_NO_MEMORY_INFO();
@@ -55,15 +56,15 @@ class TimerWrapHandle : public MemoryRetainer  {
 
   TimerWrapHandle(const TimerWrapHandle&) = delete;
 
-  ~TimerWrapHandle() { Stop(); }
+  ~TimerWrapHandle() { Close(); }
 
   void Update(uint64_t interval, uint64_t repeat = 0);
 
   void Ref();
-
   void Unref();
 
-  void Stop(bool close = true);
+  void Stop();
+  void Close();
 
   void MemoryInfo(node::MemoryTracker* tracker) const override;
 
@@ -72,6 +73,7 @@ class TimerWrapHandle : public MemoryRetainer  {
 
  private:
   static void CleanupHook(void* data);
+
   TimerWrap* timer_;
 };
 

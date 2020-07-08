@@ -511,11 +511,11 @@ void QuicSession::set_remote_transport_params() {
 }
 
 void QuicSession::StopIdleTimer() {
-  idle_.Stop();
+  idle_.Close();
 }
 
 void QuicSession::StopRetransmitTimer() {
-  retransmit_.Stop();
+  retransmit_.Close();
 }
 
 // Called by the OnVersionNegotiation callback when a version
