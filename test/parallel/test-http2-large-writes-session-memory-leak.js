@@ -37,6 +37,7 @@ server.listen(0, common.mustCall(() => {
   // create new streams.
   let streamsLeft = 50;
   function newStream() {
+    console.log(`streamsLeft: ${streamsLeft}`);
     const stream = client.request({ ':path': '/' });
 
     stream.on('data', () => { });
