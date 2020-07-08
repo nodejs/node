@@ -1327,17 +1327,17 @@ added: REPLACEME
 -->
 
 Emitted when the server busy state has been toggled using
-`quicSocket.serverBusy = true | false`. The callback is invoked with a
-single boolean argument indicating `true` if busy status is enabled,
-`false` otherwise. This event is strictly informational.
+`quicSocket.serverBusy = true | false`. The callback is invoked with no
+arguments. Use the `quicsocket.serverBusy` property to determine the
+current status. This event is strictly informational.
 
 ```js
 const { createQuicSocket } = require('net');
 
 const socket = createQuicSocket();
 
-socket.on('busy', (busy) => {
-  if (busy)
+socket.on('busy', () => {
+  if (socket.serverBusy)
     console.log('Server is busy');
   else
     console.log('Server is not busy');

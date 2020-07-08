@@ -1,4 +1,5 @@
 #include "node_quic_socket-inl.h"  // NOLINT(build/include)
+#include "aliased_struct-inl.h"
 #include "allocated_buffer-inl.h"
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
@@ -38,6 +39,7 @@ using v8::Local;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::PropertyAttribute;
 using v8::String;
 using v8::Value;
 
@@ -115,9 +117,9 @@ void QuicSocketListener::OnSessionReady(BaseObjectPtr<QuicSession> session) {
     previous_listener_->OnSessionReady(session);
 }
 
-void QuicSocketListener::OnServerBusy(bool busy) {
+void QuicSocketListener::OnServerBusy() {
   if (previous_listener_ != nullptr)
-    previous_listener_->OnServerBusy(busy);
+    previous_listener_->OnServerBusy();
 }
 
 void QuicSocketListener::OnEndpointDone(QuicEndpoint* endpoint) {
@@ -145,12 +147,12 @@ void JSQuicSocketListener::OnSessionReady(BaseObjectPtr<QuicSession> session) {
   socket()->MakeCallback(env->quic_on_session_ready_function(), 1, &arg);
 }
 
-void JSQuicSocketListener::OnServerBusy(bool busy) {
+void JSQuicSocketListener::OnServerBusy() {
   Environment* env = socket()->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-  Local<Value> arg = Boolean::New(env->isolate(), busy);
-  socket()->MakeCallback(env->quic_on_socket_server_busy_function(), 1, &arg);
+  socket()->MakeCallback(
+      env->quic_on_socket_server_busy_function(), 0, nullptr);
 }
 
 void JSQuicSocketListener::OnEndpointDone(QuicEndpoint* endpoint) {
@@ -252,6 +254,7 @@ QuicSocket::QuicSocket(
       StatsBase(quic_state->env(), wrap),
       alloc_info_(MakeAllocator()),
       options_(options),
+      state_(quic_state->env()->isolate()),
       max_connections_(max_connections),
       max_connections_per_host_(max_connections_per_host),
       max_stateless_resets_per_host_(max_stateless_resets_per_host),
@@ -266,8 +269,14 @@ QuicSocket::QuicSocket(
 
   EntropySource(token_secret_, kTokenSecretLen);
 
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->state_string(),
+      state_.GetArrayBuffer(),
+      PropertyAttribute::ReadOnly).Check();
+
   if (disable_stateless_reset)
-    set_stateless_reset_disabled();
+    state_->stateless_reset_disabled = 1;
 
   // Set the session reset secret to the one provided or random.
   // Note that a random secret is going to make it exceedingly
@@ -316,13 +325,13 @@ void QuicSocket::Listen(
     const std::string& alpn,
     uint32_t options) {
   CHECK(sc);
-  CHECK(!is_server_listening());
+  CHECK_NE(state_->server_listening, 1);
   Debug(this, "Starting to listen");
   server_session_config_.Set(quic_state(), preferred_address);
   server_secure_context_ = sc;
   server_alpn_ = alpn;
   server_options_ = options;
-  set_server_listening();
+  state_->server_listening = 1;
   RecordTimestamp(&QuicSocketStats::listen_at);
   ReceiveStart();
 }
@@ -391,7 +400,7 @@ bool QuicSocket::MaybeStatelessReset(
     const SocketAddress& local_addr,
     const SocketAddress& remote_addr,
     unsigned int flags) {
-  if (UNLIKELY(is_stateless_reset_disabled() || nread < 16))
+  if (UNLIKELY(state_->stateless_reset_disabled || nread < 16))
     return false;
   StatelessResetToken possible_token(
       data + nread - NGTCP2_STATELESS_RESET_TOKENLEN);
@@ -620,7 +629,7 @@ bool QuicSocket::SendStatelessReset(
     const SocketAddress& local_addr,
     const SocketAddress& remote_addr,
     size_t source_len) {
-  if (UNLIKELY(is_stateless_reset_disabled()))
+  if (UNLIKELY(state_->stateless_reset_disabled))
     return false;
   constexpr static size_t kRandlen = NGTCP2_MIN_STATELESS_RESET_RANDLEN * 5;
   constexpr static size_t kMinStatelessResetLen = 41;
@@ -737,7 +746,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   QuicCID ocid;
 
   // If the QuicSocket is not listening, the paket will be ignored.
-  if (!is_server_listening()) {
+  if (!state_->server_listening) {
     Debug(this, "QuicSocket is not listening");
     return {};
   }
@@ -762,7 +771,7 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   // Else, check to see if the number of connections total for this QuicSocket
   // has been exceeded. If the count has been exceeded, shutdown the connection
   // immediately after the initial keys are installed.
-  if (UNLIKELY(is_server_busy()) ||
+  if (UNLIKELY(state_->server_busy == 1) ||
       sessions_.size() >= max_connections_ ||
       GetCurrentSocketAddressCounter(remote_addr) >=
           max_connections_per_host_) {
@@ -1115,26 +1124,6 @@ void QuicSocketListen(const FunctionCallbackInfo<Value>& args) {
       options);
 }
 
-void QuicSocketStopListening(const FunctionCallbackInfo<Value>& args) {
-  QuicSocket* socket;
-  ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
-  socket->StopListening();
-}
-
-void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {
-  QuicSocket* socket;
-  ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
-  CHECK_EQ(args.Length(), 1);
-  socket->ServerBusy(args[0]->IsTrue());
-}
-
-void QuicSocketEnableStatelessReset(const FunctionCallbackInfo<Value>& args) {
-  QuicSocket* socket;
-  ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
-  CHECK_EQ(args.Length(), 1);
-  args.GetReturnValue().Set(socket->EnableStatelessReset(args[0]->IsTrue()));
-}
-
 void QuicEndpointWaitForPendingCallbacks(
     const FunctionCallbackInfo<Value>& args) {
   QuicEndpoint* endpoint;
@@ -1191,15 +1180,6 @@ void QuicSocket::Initialize(
   env->SetProtoMethod(socket,
                       "setDiagnosticPacketLoss",
                       QuicSocketSetDiagnosticPacketLoss);
-  env->SetProtoMethod(socket,
-                      "setServerBusy",
-                      QuicSocketSetServerBusy);
-  env->SetProtoMethod(socket,
-                      "stopListening",
-                      QuicSocketStopListening);
-  env->SetProtoMethod(socket,
-                      "enableStatelessReset",
-                      QuicSocketEnableStatelessReset);
   socket->Inherit(HandleWrap::GetConstructorTemplate(env));
   target->Set(context, class_name,
               socket->GetFunction(env->context()).ToLocalChecked()).FromJust();
