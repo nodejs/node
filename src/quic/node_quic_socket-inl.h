@@ -90,20 +90,6 @@ void QuicSocket::DisassociateStatelessResetToken(
   token_map_.erase(token);
 }
 
-// StopListening is called when the QuicSocket is no longer
-// accepting new server connections. Typically, this is called
-// when the QuicSocket enters a graceful closing state where
-// existing sessions are allowed to close naturally but new
-// sessions are rejected.
-void QuicSocket::StopListening() {
-  if (is_server_listening()) {
-    Debug(this, "Stop listening");
-    set_server_listening(false);
-    // It is important to not call ReceiveStop here as there
-    // is ongoing traffic being exchanged by the peers.
-  }
-}
-
 void QuicSocket::ReceiveStart() {
   for (const auto& endpoint : endpoints_)
     CHECK_EQ(endpoint->ReceiveStart(), 0);
@@ -157,8 +143,8 @@ size_t QuicSocket::GetCurrentStatelessResetCounter(const SocketAddress& addr) {
 
 void QuicSocket::ServerBusy(bool on) {
   Debug(this, "Turning Server Busy Response %s", on ? "on" : "off");
-  set_server_busy(on);
-  listener_->OnServerBusy(on);
+  state_->server_busy = on ? 1 : 0;
+  listener_->OnServerBusy();
 }
 
 bool QuicSocket::is_diagnostic_packet_loss(double prob) const {
@@ -171,11 +157,6 @@ bool QuicSocket::is_diagnostic_packet_loss(double prob) const {
 void QuicSocket::set_diagnostic_packet_loss(double rx, double tx) {
   rx_loss_ = rx;
   tx_loss_ = tx;
-}
-
-bool QuicSocket::EnableStatelessReset(bool on) {
-  set_stateless_reset_disabled(!on);
-  return !is_stateless_reset_disabled();
 }
 
 void QuicSocket::set_validated_address(const SocketAddress& addr) {
@@ -215,7 +196,7 @@ void QuicSocket::AddEndpoint(
   if (preferred || endpoints_.empty())
     preferred_endpoint_ = endpoint_;
   endpoints_.emplace_back(endpoint_);
-  if (is_server_listening())
+  if (state_->server_listening)
     endpoint_->ReceiveStart();
 }
 

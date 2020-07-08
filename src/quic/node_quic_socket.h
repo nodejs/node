@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "aliased_struct.h"
 #include "base_object.h"
 #include "node.h"
 #include "node_crypto.h"
@@ -47,12 +48,24 @@ enum QuicSocketOptions : uint32_t {
 };
 #undef V
 
-#define QUICSOCKET_FLAGS(V)                                                    \
-    V(GRACEFUL_CLOSE, graceful_closing)                                        \
-    V(WAITING_FOR_CALLBACKS, waiting_for_callbacks)                            \
-    V(SERVER_LISTENING, server_listening)                                      \
-    V(SERVER_BUSY, server_busy)                                                \
-    V(DISABLE_STATELESS_RESET, stateless_reset_disabled)
+#define QUICSOCKET_SHARED_STATE(V)                                             \
+    V(SERVER_LISTENING, server_listening, uint8_t)                             \
+    V(SERVER_BUSY, server_busy, uint8_t)                                       \
+    V(STATELESS_RESET_DISABLED, stateless_reset_disabled, uint8_t)
+
+#define V(_, name, type) type name;
+struct QuicSocketState {
+  QUICSOCKET_SHARED_STATE(V)
+};
+#undef V
+
+#define V(id, name, _)                                                         \
+    IDX_QUICSOCKET_STATE_##id = offsetof(QuicSocketState, name),
+enum QuicSocketStateFields {
+  QUICSOCKET_SHARED_STATE(V)
+  IDX_QUICSOCKET_STATE_END
+};
+#undef V
 
 #define SOCKET_STATS(V)                                                        \
   V(CREATED_AT, created_at, "Created At")                                      \
@@ -98,7 +111,7 @@ class QuicSocketListener {
 
   virtual void OnError(ssize_t code);
   virtual void OnSessionReady(BaseObjectPtr<QuicSession> session);
-  virtual void OnServerBusy(bool busy);
+  virtual void OnServerBusy();
   virtual void OnEndpointDone(QuicEndpoint* endpoint);
   virtual void OnDestroy();
 
@@ -114,7 +127,7 @@ class JSQuicSocketListener final : public QuicSocketListener {
  public:
   void OnError(ssize_t code) override;
   void OnSessionReady(BaseObjectPtr<QuicSession> session) override;
-  void OnServerBusy(bool busy) override;
+  void OnServerBusy() override;
   void OnEndpointDone(QuicEndpoint* endpoint) override;
   void OnDestroy() override;
 };
@@ -358,33 +371,17 @@ class QuicSocket : public AsyncWrap,
       BaseObjectPtr<QuicSession> session = BaseObjectPtr<QuicSession>());
 
 #define V(id, name)                                                            \
-  inline bool is_##name() const {                                              \
-    return flags_ & (1 << QUICSOCKET_FLAG_##id); }                             \
-  inline void set_##name(bool on = true) {                                     \
-    if (on)                                                                    \
-      flags_ |= (1 << QUICSOCKET_FLAG_##id);                                   \
-    else                                                                       \
-      flags_ &= ~(1 << QUICSOCKET_FLAG_##id);                                  \
-  }
-  QUICSOCKET_FLAGS(V)
-#undef V
-
-#define V(id, name)                                                            \
   bool has_option_##name() const {                                             \
     return options_ & (1 << QUICSOCKET_OPTIONS_##id); }
   QUICSOCKET_OPTIONS(V)
 #undef V
 
+  // Allows the server busy status to be enabled from C++. A notification
+  // will be sent to the JavaScript side informing that the status has
+  // changed.
   inline void ServerBusy(bool on);
 
   inline void set_diagnostic_packet_loss(double rx = 0.0, double tx = 0.0);
-
-  inline void StopListening();
-
-  // Toggles whether or not stateless reset is enabled or not.
-  // Returns true if stateless reset is enabled, false if it
-  // is not.
-  inline bool EnableStatelessReset(bool on = true);
 
   BaseObjectPtr<crypto::SecureContext> server_secure_context() const {
     return server_secure_context_;
@@ -513,13 +510,6 @@ class QuicSocket : public AsyncWrap,
   // and the current packet should be artificially considered lost.
   inline bool is_diagnostic_packet_loss(double prob) const;
 
-#define V(id, _) QUICSOCKET_FLAG_##id,
-  enum QuicSocketFlags : uint32_t {
-    QUICSOCKET_FLAGS(V)
-    QUICSOCKET_FLAG_COUNT
-  };
-#undef V
-
   ngtcp2_mem alloc_info_;
 
   std::vector<BaseObjectPtr<QuicEndpoint>> endpoints_;
@@ -529,6 +519,8 @@ class QuicSocket : public AsyncWrap,
   uint32_t flags_ = 0;
   uint32_t options_ = 0;
   uint32_t server_options_;
+
+  AliasedStruct<QuicSocketState> state_;
 
   size_t max_connections_ = DEFAULT_MAX_CONNECTIONS;
   size_t max_connections_per_host_ = DEFAULT_MAX_CONNECTIONS_PER_HOST;
