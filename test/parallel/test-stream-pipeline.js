@@ -1245,8 +1245,7 @@ const net = require('net');
                          'ENOENT: no such file or directory, ' +
                          'open \'./notfound\'');
       res.end(err.message);
-    });
-    pipeline(r, transform, res, { destroyDestOnError: false }, callback);
+    }));
   }));
 
   server.listen(0, common.mustCall(() => {
@@ -1283,7 +1282,8 @@ const net = require('net');
                          'ENOENT: no such file or directory, ' +
                          'open \'./notfound\'');
       res.end(err.message);
-    }));
+    });
+    pipeline(r, transform, res, { destroyDestOnError: false }, callback);
   }));
 
   server.listen(0, common.mustCall(() => {
