@@ -52,7 +52,7 @@ def run_gyp(args):
   args.append('-Dlinux_use_gold_flags=0')
 
   # Set the current program to this module. This is done because gyp
-  # will the program path in targets it generates. If this script was called
+  # will use the program path in targets it generates. If this script was called
   # by another script the program name will not be gyp_node.py but whatever
   # the name of the script that called it is, leading to incorrect commands
   # in generated targets (for example cmd_regen_makefile).
