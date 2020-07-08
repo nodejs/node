@@ -1233,6 +1233,27 @@ const net = require('net');
   }));
 }
 
+// Set destroyDestOnError is true to streams
+{
+  const r = new Readable({
+    read() {}
+  });
+  r.push('hello');
+  r.push('world');
+  r.push(null);
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline([r, w], { destroyDestOnError: true }, common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}
+
 // Set destroyDestOnError is false
 {
   const server = http.createServer(common.mustCall((req, res) => {
