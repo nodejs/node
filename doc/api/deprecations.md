@@ -1343,6 +1343,9 @@ officially supported API.
 ### DEP0064: `tls.createSecurePair()`
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34261
+    description: End-of-life.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11349
     description: Runtime deprecation.
@@ -1362,10 +1365,9 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-life
 
-The `tls.createSecurePair()` API was deprecated in documentation in Node.js
-0.11.3. Users should use `tls.Socket` instead.
+The `tls.createSecurePair()` API is removed. Users should use `tls.Socket` instead.
 
 <a id="DEP0065"></a>
 ### DEP0065: `repl.REPL_MODE_MAGIC` and `NODE_REPL_MODE=magic`
