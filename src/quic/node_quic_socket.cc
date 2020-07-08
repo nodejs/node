@@ -1128,10 +1128,11 @@ void QuicSocketSetServerBusy(const FunctionCallbackInfo<Value>& args) {
   socket->ServerBusy(args[0]->IsTrue());
 }
 
-void QuicSocketToggleStatelessReset(const FunctionCallbackInfo<Value>& args) {
+void QuicSocketEnableStatelessReset(const FunctionCallbackInfo<Value>& args) {
   QuicSocket* socket;
   ASSIGN_OR_RETURN_UNWRAP(&socket, args.Holder());
-  args.GetReturnValue().Set(socket->ToggleStatelessReset());
+  CHECK_EQ(args.Length(), 1);
+  args.GetReturnValue().Set(socket->EnableStatelessReset(args[0]->IsTrue()));
 }
 
 void QuicEndpointWaitForPendingCallbacks(
@@ -1197,8 +1198,8 @@ void QuicSocket::Initialize(
                       "stopListening",
                       QuicSocketStopListening);
   env->SetProtoMethod(socket,
-                      "toggleStatelessReset",
-                      QuicSocketToggleStatelessReset);
+                      "enableStatelessReset",
+                      QuicSocketEnableStatelessReset);
   socket->Inherit(HandleWrap::GetConstructorTemplate(env));
   target->Set(context, class_name,
               socket->GetFunction(env->context()).ToLocalChecked()).FromJust();
