@@ -2898,6 +2898,7 @@ handling of backpressure and errors. [`stream.pipeline()`][] abstracts away
 the handling of backpressure and backpressure-related errors:
 
 ```js
+const fs = require('fs');
 const { pipeline } = require('stream');
 const { pipeline: pipelinePromise } = require('stream/promises');
 
