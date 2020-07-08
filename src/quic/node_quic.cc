@@ -205,6 +205,11 @@ void Initialize(Local<Object> target,
   QUICSESSION_SHARED_STATE(V)
 #undef V
 
+#define V(id, _, __)                                                           \
+  NODE_DEFINE_CONSTANT(constants, IDX_QUICSOCKET_STATE_##id);
+  QUICSOCKET_SHARED_STATE(V)
+#undef V
+
 #define V(name, _, __)                                                         \
   NODE_DEFINE_CONSTANT(constants, IDX_QUIC_SESSION_STATS_##name);
   SESSION_STATS(V)
