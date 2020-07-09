@@ -1365,7 +1365,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: End-of-life
+Type: End-of-Life
 
 The `tls.createSecurePair()` API is removed. Users should use `tls.Socket`
 instead.
