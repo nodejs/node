@@ -51,7 +51,7 @@ if (common.isWindows) {
       {
         code: 'ERR_INVALID_FILE_URL_PATH',
         name: 'TypeError',
-        message: 'File URL path must not include encoded "\\" or "/" characters'
+        message: 'File URL path must not include encoded \\ or / characters'
       }
     );
   });
@@ -76,7 +76,7 @@ if (common.isWindows) {
       {
         code: 'ERR_INVALID_FILE_URL_PATH',
         name: 'TypeError',
-        message: 'File URL path must not include encoded "/" characters'
+        message: 'File URL path must not include encoded / characters'
       });
   });
   assert.throws(
