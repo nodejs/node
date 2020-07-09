@@ -1367,7 +1367,8 @@ changes:
 
 Type: End-of-life
 
-The `tls.createSecurePair()` API is removed. Users should use `tls.Socket` instead.
+The `tls.createSecurePair()` API is removed. Users should use `tls.Socket`
+instead.
 
 <a id="DEP0065"></a>
 ### DEP0065: `repl.REPL_MODE_MAGIC` and `NODE_REPL_MODE=magic`
