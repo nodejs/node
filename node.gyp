@@ -165,6 +165,7 @@
       'lib/internal/main/repl.js',
       'lib/internal/main/run_main_module.js',
       'lib/internal/main/worker_thread.js',
+      'lib/internal/mime.js',
       'lib/internal/modules/run_main.js',
       'lib/internal/modules/package_json_reader.js',
       'lib/internal/modules/cjs/helpers.js',

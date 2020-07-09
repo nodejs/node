@@ -1372,6 +1372,12 @@ An invalid HTTP token was supplied.
 
 An IP address is not valid.
 
+<a id="ERR_INVALID_MIME_SYNTAX"></a>
+### `ERR_INVALID_MIME_SYNTAX`
+
+The syntax of a MIME is not valid, see [WHATWG MIME parsing][] for details on
+how MIME syntax is parsed.
+
 <a id="ERR_INVALID_MODULE_SPECIFIER"></a>
 ### `ERR_INVALID_MODULE_SPECIFIER`
 
@@ -2694,6 +2700,7 @@ closed.
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [WHATWG Supported Encodings]: util.html#util_whatwg_supported_encodings
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
+[WHATWG MIME parsing]: url.html#url_the_whatwg_url_api
 [crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
