@@ -222,6 +222,8 @@ server.on('ready', common.mustCall(() => {
   client = createQuicSocket({ client: { key, cert, ca, alpn: kALPN }
   });
 
+  client.on('endpointClose', common.mustCall());
+
   client.on('close', common.mustCall(() => {
     debug('Client closing. Duration', client.duration);
     debug('  Bound duration',

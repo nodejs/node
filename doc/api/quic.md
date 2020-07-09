@@ -1354,6 +1354,21 @@ Emitted after the `QuicSocket` has been destroyed and is no longer usable.
 
 The `'close'` event will not be emitted multiple times.
 
+#### Event: `'endpointClose'`
+<!-- YAML
+added: REPLACEME
+-->
+
+Emitted after a `QuicEndpoint` associated witht the `QuicSocket` closes and
+has been destroyed. The handler will be invoked with two arguments:
+
+* `endpoint` {QuicEndpoint} The `QuicEndpoint` that has been destroyed.
+* `error` {Error} An `Error` object if the `QuicEndpoint` was destroyed because
+  of an error.
+
+When all of the `QuicEndpoint` instances associated with a `QuicSocket` have
+closed, the `QuicEndpoint` will also automatically close.
+
 #### Event: `'error'`
 <!-- YAML
 added: REPLACEME
