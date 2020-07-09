@@ -45,12 +45,6 @@ def run_gyp(args):
   args.append('-Dcomponent=static_library')
   args.append('-Dlibrary=static_library')
 
-  # Don't compile with -B and -fuse-ld=, we don't bundle ld.gold.  Can't be
-  # set in common.gypi due to how deps/v8/build/toolchain.gypi uses them.
-  args.append('-Dlinux_use_bundled_binutils=0')
-  args.append('-Dlinux_use_bundled_gold=0')
-  args.append('-Dlinux_use_gold_flags=0')
-
   rc = gyp.main(args)
   if rc != 0:
     print('Error running GYP')
