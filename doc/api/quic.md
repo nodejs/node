@@ -255,6 +255,8 @@ added: REPLACEME
 * `options` {Object}
   * `client` {Object} A default configuration for QUIC client sessions created
     using `quicsocket.connect()`.
+  * `disableStatelessReset` {boolean} When `true` the `QuicSocket` will not
+    send stateless resets. **Default**: `false`.
   * `endpoint` {Object} An object describing the local address to bind to.
     * `address` {string} The local address to bind to. This may be an IPv4 or
       IPv6 address or a host name. If a host name is given, it will be resolved
@@ -276,6 +278,10 @@ added: REPLACEME
   * `retryTokenTimeout` {number} The maximum number of *seconds* for retry token
     validation. Default: `10` seconds.
   * `server` {Object} A default configuration for QUIC server sessions.
+  * `statelessResetSecret` {Buffer|Uint8Array} A 16-byte `Buffer` or
+    `Uint8Array` providing the secret to use when generating stateless reset
+    tokens. If not specified, a random secret will be generated for the
+    `QuicSocket`. **Default**: `undefined`.
   * `validateAddress` {boolean} When `true`, the `QuicSocket` will use explicit
     address validation using a QUIC `RETRY` frame when listening for new server
     sessions. Default: `false`.
