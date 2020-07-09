@@ -350,9 +350,8 @@ MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
   if (cert == nullptr)
     return Undefined(env->isolate());
 
-  Local<Value> ret;
   MaybeLocal<Object> maybe_cert = X509ToObject(env, cert);
-  return maybe_cert.ToLocal(&ret) ? ret : MaybeLocal<Value>();
+  return maybe_cert.FromMaybe<Value>(Local<Value>());
 }
 
 namespace {
