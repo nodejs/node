@@ -1380,13 +1380,12 @@ process.on('message', (m, socket) => {
 });
 ```
 
-Once a socket has been passed to a child, the parent is no longer capable of
-tracking when the socket is destroyed. It is recommended not to use
-`.maxConnections` when this occurs.
+Do not use `.maxConnections` on a socket that has been passed to a subprocess.
+The parent cannot track when the socket is destroyed.
 
-It is also recommended that any `'message'` handlers in the child process
-verify that `socket` exists, as the connection may have been closed during the
-time it takes to send the connection to the child.
+Any `'message'` handlers in the subprocess should verify that `socket` exists,
+as the connection may have been closed during the time it takes to send the
+connection to the child.
 
 ### `subprocess.signalCode`
 
