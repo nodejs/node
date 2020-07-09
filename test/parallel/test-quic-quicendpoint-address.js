@@ -16,20 +16,22 @@ const { createQuicSocket } = require('net');
 
 async function Test1(options, address) {
   const server = createQuicSocket(options);
-  assert.strictEqual(server.endpoints.length, 1);
-  assert.strictEqual(server.endpoints[0].bound, false);
-  assert.deepStrictEqual({}, server.endpoints[0].address);
+  server.on('close', common.mustCall());
 
-  server.listen({ key, cert, ca, alpn: 'zzz' });
-
-  await once(server, 'ready');
-  assert.strictEqual(server.endpoints.length, 1);
   const endpoint = server.endpoints[0];
+
+  assert.strictEqual(endpoint.bound, false);
+  assert.deepStrictEqual({}, endpoint.address);
+
+  await endpoint.bind();
+
   assert.strictEqual(endpoint.bound, true);
   assert.strictEqual(endpoint.destroyed, false);
   assert.strictEqual(typeof endpoint.address.port, 'number');
   assert.strictEqual(endpoint.address.address, address);
-  server.close();
+
+  await endpoint.close();
+
   assert.strictEqual(endpoint.destroyed, true);
 }
 

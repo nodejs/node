@@ -338,6 +338,34 @@ The object will contain the properties:
 
 If the `QuicEndpoint` is not bound, `quicendpoint.address` is an empty object.
 
+#### quicendpoint.bind(\[options\])
+<!-- YAML
+  added: REPLACEME
+-->
+
+Binds the `QuicEndpoint` if it has not already been bound. User code will
+not typically be responsible for binding a `QuicEndpoint` as the owning
+`QuicSocket` will do that automatically.
+
+* `options` {object}
+  * `signal` {AbortSignal} Optionally allows the `bind()` to be canceled
+    using an `AbortController`.
+* Returns: {Promise}
+
+The `quicendpoint.bind()` function returns `Promise` that will be resolved
+with the address once the bind operation is successful.
+
+If the `QuicEndpoint` has been destroyed, or is destroyed while the `Promise`
+is pending, the `Promise` will be rejected with an `ERR_INVALID_STATE` error.
+
+If an `AbortSignal` is specified in the `options` and it is triggered while
+the `Promise` is pending, the `Promise` will be rejected with an `AbortError`.
+
+If `quicendpoint.bind()` is called again while a previously returned `Promise`
+is still pending or has already successfully resolved, the previously returned
+pending `Promise` will be returned. If the additional call to
+`quicendpoint.bind()` contains an `AbortSignal`, the `signal` will be ignored.
+
 #### quicendpoint.bound
 <!-- YAML
 added: REPLACEME
@@ -346,6 +374,20 @@ added: REPLACEME
 * Type: {boolean}
 
 Set to `true` if the `QuicEndpoint` is bound to the local UDP port.
+
+#### quicendpoint.close()
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes and destroys the `QuicEndpoint`. Returns a `Promise` that is resolved
+once the `QuicEndpoint` has been destroyed, or rejects if the `QuicEndpoint`
+is destroyed with an error.
+
+* Returns: {Promise}
+
+The `Promise` cannot be canceled. Once `quicendpoint.close()` is called, the
+`QuicEndpoint` will be destroyed.
 
 #### quicendpoint.closing
 <!-- YAML
