@@ -47,13 +47,6 @@ const { createQuicSocket } = require('net');
   });
 });
 
-// Test invalid QuicSocket ipv6Only argument option
-[1, NaN, 1n, null, {}, []].forEach((ipv6Only) => {
-  assert.throws(() => createQuicSocket({ endpoint: { ipv6Only } }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
-
 // Test invalid QuicSocket reuseAddr argument option
 [1, NaN, 1n, null, {}, []].forEach((reuseAddr) => {
   assert.throws(() => createQuicSocket({ endpoint: { reuseAddr } }), {
