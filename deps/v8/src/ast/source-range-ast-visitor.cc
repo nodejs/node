@@ -99,11 +99,13 @@ void SourceRangeAstVisitor::MaybeRemoveLastContinuationRange(
 }
 
 namespace {
-Statement* FindLastNonSyntheticReturn(ZonePtrList<Statement>* statements) {
+Statement* FindLastNonSyntheticStatement(ZonePtrList<Statement>* statements) {
   for (int i = statements->length() - 1; i >= 0; --i) {
     Statement* stmt = statements->at(i);
-    if (!stmt->IsReturnStatement()) break;
-    if (stmt->AsReturnStatement()->is_synthetic_async_return()) continue;
+    if (stmt->IsReturnStatement() &&
+        stmt->AsReturnStatement()->is_synthetic_async_return()) {
+      continue;
+    }
     return stmt;
   }
   return nullptr;
@@ -114,11 +116,11 @@ void SourceRangeAstVisitor::MaybeRemoveContinuationRangeOfAsyncReturn(
     TryCatchStatement* try_catch_stmt) {
   // Detect try-catch inserted by NewTryCatchStatementForAsyncAwait in the
   // parser (issued for async functions, including async generators), and
-  // remove the continuation ranges of return statements corresponding to
-  // returns at function end in the untransformed source.
+  // remove the continuation range of the last statement, such that the
+  // range of the enclosing function body is used.
   if (try_catch_stmt->is_try_catch_for_async()) {
     Statement* last_non_synthetic =
-        FindLastNonSyntheticReturn(try_catch_stmt->try_block()->statements());
+      FindLastNonSyntheticStatement(try_catch_stmt->try_block()->statements());
     if (last_non_synthetic) {
       MaybeRemoveContinuationRange(last_non_synthetic);
     }
