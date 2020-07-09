@@ -108,9 +108,7 @@ inline void DirHandle::GCClose() {
   if (ret < 0) {
     // Do not unref this
     env()->SetImmediate([detail](Environment* env) {
-      char msg[70];
-      snprintf(msg, arraysize(msg),
-              "Closing directory handle on garbage collection failed");
+      const char* msg = "Closing directory handle on garbage collection failed";
       // This exception will end up being fatal for the process because
       // it is being thrown from within the SetImmediate handler and
       // there is no JS stack to bubble it to. In other words, tearing
