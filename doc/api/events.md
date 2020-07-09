@@ -884,7 +884,7 @@ const { EventEmitter, once } = require('events');
 const ee = new EventEmitter();
 
 once(ee, 'error')
-  .then((err) => console.log('ok', err.message))
+  .then(([err]) => console.log('ok', err.message))
   .catch((err) => console.log('error', err.message));
 
 ee.emit('error', new Error('boom'));
