@@ -182,6 +182,7 @@ enum QuicSessionStateFields {
   V(SENT_AT, sent_at, "Last Sent At")                                          \
   V(RECEIVED_AT, received_at, "Last Received At")                              \
   V(CLOSING_AT, closing_at, "Closing")                                         \
+  V(DESTROYED_AT, destroyed_at, "Destroyed At")                                \
   V(BYTES_RECEIVED, bytes_received, "Bytes Received")                          \
   V(BYTES_SENT, bytes_sent, "Bytes Sent")                                      \
   V(BIDI_STREAM_COUNT, bidi_stream_count, "Bidi Stream Count")                 \

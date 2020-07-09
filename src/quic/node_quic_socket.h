@@ -71,6 +71,7 @@ enum QuicSocketStateFields {
   V(CREATED_AT, created_at, "Created At")                                      \
   V(BOUND_AT, bound_at, "Bound At")                                            \
   V(LISTEN_AT, listen_at, "Listen At")                                         \
+  V(DESTROYED_AT, destroyed_at, "Destroyed At")                                \
   V(BYTES_RECEIVED, bytes_received, "Bytes Received")                          \
   V(BYTES_SENT, bytes_sent, "Bytes Sent")                                      \
   V(PACKETS_RECEIVED, packets_received, "Packets Received")                    \
