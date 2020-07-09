@@ -50,6 +50,7 @@ enum QuicStreamHeadersKind : int {
   V(RECEIVED_AT, received_at, "Last Received At")                              \
   V(ACKED_AT, acked_at, "Last Acknowledged At")                                \
   V(CLOSING_AT, closing_at, "Closing At")                                      \
+  V(DESTROYED_AT, destroyed_at, "Destroyed At")                                \
   V(BYTES_RECEIVED, bytes_received, "Bytes Received")                          \
   V(BYTES_SENT, bytes_sent, "Bytes Sent")                                      \
   V(MAX_OFFSET, max_offset, "Max Offset")                                      \
