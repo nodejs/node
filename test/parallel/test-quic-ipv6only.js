@@ -19,29 +19,10 @@ const { once } = require('events');
 
 const kALPN = 'zzz';
 
-// Setting `type` to `udp4` while setting `ipv6Only` to `true` is possible.
-// The ipv6Only setting will be ignored.
-async function ipv4() {
-  const server = createQuicSocket({
-    endpoint: {
-      type: 'udp4',
-      ipv6Only: true
-    }
-  });
-  server.on('error', common.mustNotCall());
-  server.listen({ key, cert, ca, alpn: kALPN });
-  await once(server, 'ready');
-  server.close();
-}
-
 // Connecting to ipv6 server using "127.0.0.1" should work when
 // `ipv6Only` is set to `false`.
 async function ipv6() {
-  const server = createQuicSocket({
-    endpoint: {
-      type: 'udp6',
-      ipv6Only: false
-    } });
+  const server = createQuicSocket({ endpoint: { type: 'udp6' } });
   const client = createQuicSocket({ client: { key, cert, ca, alpn: kALPN } });
 
   server.listen({ key, cert, ca, alpn: kALPN });
@@ -54,8 +35,7 @@ async function ipv6() {
 
   const session = client.connect({
     address: common.localhostIPv4,
-    port: server.endpoints[0].address.port,
-    ipv6Only: true,
+    port: server.endpoints[0].address.port
   });
 
   await once(session, 'secure');
@@ -77,11 +57,7 @@ async function ipv6() {
 // When the `ipv6Only` set to `true`, a client cann't connect to it
 // through "127.0.0.1".
 async function ipv6Only() {
-  const server = createQuicSocket({
-    endpoint: {
-      type: 'udp6',
-      ipv6Only: true
-    } });
+  const server = createQuicSocket({ endpoint: { type: 'udp6-only' } });
   const client = createQuicSocket({ client: { key, cert, ca, alpn: kALPN } });
 
   server.listen({ key, cert, ca, alpn: kALPN });
@@ -95,7 +71,6 @@ async function ipv6Only() {
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
     idleTimeout: common.platformTimeout(1),
-    ipv6Only: true,
   });
 
   session.on('secure', common.mustNotCall());
@@ -144,8 +119,7 @@ async function mismatch() {
   ]);
 }
 
-ipv4()
-  .then(ipv6)
+ipv6()
   .then(ipv6Only)
   .then(mismatch)
   .then(common.mustCall());

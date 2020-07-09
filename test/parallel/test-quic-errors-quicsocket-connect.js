@@ -131,12 +131,6 @@ const client = createQuicSocket();
   });
 });
 
-['a', 1n, 1, [], {}].forEach((ipv6Only) => {
-  assert.throws(() => client.connect({ ipv6Only }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
-
 [1, 1n, false, [], {}].forEach((preferredAddressPolicy) => {
   assert.throws(() => client.connect({ preferredAddressPolicy }), {
     code: 'ERR_INVALID_ARG_TYPE'
@@ -202,7 +196,6 @@ assert.throws(() => client.connect(), {
 // Client QuicSession Related:
 //
 //  [x] idleTimeout - must be a number greater than zero
-//  [x] ipv6Only - must be a boolean
 //  [x] activeConnectionIdLimit - must be a number between 2 and 8
 //  [x] maxAckDelay - must be a number greater than zero
 //  [x] maxData - must be a number greater than zero

@@ -260,12 +260,9 @@ added: REPLACEME
       IPv6 address or a host name. If a host name is given, it will be resolved
       to an IP address.
     * `port` {number} The local port to bind to.
-    * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
-      respectively. **Default**: `'udp4'`.
-    * `ipv6Only` {boolean} If `type` is `'udp6'`, then setting `ipv6Only` to
-      `true` will disable dual-stack support on the UDP binding -- that is,
-      binding to address `'::'` will not make `'0.0.0.0'` be bound. The option
-      is ignored if `type` is `'udp4'`. **Default**: `false`.
+    * `type` {string} Can be one of `'udp4'`, `'upd6'`, or `'udp6-only'` to
+      use IPv4, IPv6, or IPv6 with dual-stack mode disabled.
+      **Default**: `'udp4'`.
   * `lookup` {Function} A custom DNS lookup function. Default `dns.lookup()`.
   * `maxConnections` {number} The maximum number of total active inbound
     connections.
@@ -1450,12 +1447,9 @@ added: REPLACEME
     IPv6 address or a host name. If a host name is given, it will be resolved
     to an IP address.
   * `port` {number} The local port to bind to.
-  * `type` {string} Either `'udp4'` or `'upd6'` to use either IPv4 or IPv6,
-    respectively. **Default**: `'udp4'`.
-  * `ipv6Only` {boolean} If `type` is `'udp6'`, then setting `ipv6Only` to
-    `true` will disable dual-stack support on the UDP binding -- that is,
-    binding to address `'::'` will not make `'0.0.0.0'` be bound. The option
-    is ignored if `type` is `'udp4'`. **Default**: `false`.
+  * `type` {string} Can be one of `'udp4'`, `'upd6'`, or `'udp6-only'` to
+    use IPv4, IPv6, or IPv6 with dual-stack mode disabled.
+    **Default**: `'udp4'`.
 * Returns: {QuicEndpoint}
 
 Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance.
@@ -1600,10 +1594,6 @@ added: REPLACEME
     `SSL_OP_CIPHER_SERVER_PREFERENCE` to be set in `secureOptions`, see
     [OpenSSL Options][] for more information.
   * `idleTimeout` {number}
-  * `ipv6Only` {boolean} If `type` is `'udp6'`, then setting `ipv6Only` to
-    `true` will disable dual-stack support on the UDP binding -- that is,
-    binding to address `'::'` will not make `'0.0.0.0'` be bound. The option
-    is ignored if `type` is `'udp4'`. **Default**: `false`.
   * `key` {string|string[]|Buffer|Buffer[]|Object[]} Private keys in PEM format.
     PEM allows the option of private keys being encrypted. Encrypted keys will
     be decrypted with `options.passphrase`. Multiple keys using different
