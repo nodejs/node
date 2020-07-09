@@ -667,10 +667,9 @@ The `'stream'` event may be emitted multiple times.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of retransmissions caused by delayed
-acknowledgements.
+The number of retransmissions caused by delayed acknowledgements.
 
 #### quicsession.address
 <!-- YAML
@@ -716,20 +715,19 @@ representing the reason the peer certificate verification failed.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of bidirectional streams
-created for this `QuicSession`.
+The total number of bidirectional streams created for this `QuicSession`.
 
 #### quicsession.blockCount
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of times the `QuicSession` has
-been blocked from sending stream data due to flow control.
+The total number of times the `QuicSession` has been blocked from sending
+stream data due to flow control.
 
 Such blocks indicate that transmitted stream data is not being consumed
 quickly enough by the connected peer.
@@ -749,18 +747,18 @@ to the connected peer.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of bytes received from the peer.
+The total number of bytes received from the peer.
 
 #### quicsession.bytesSent
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of bytes sent to the peer.
+The total number of bytes sent to the peer.
 
 #### quicsession.cipher
 <!-- YAML
@@ -831,9 +829,9 @@ Set to `true` if the `QuicSession` has been destroyed.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the length of time the `QuicSession` was active.
+The length of time the `QuicSession` was active.
 
 #### quicsession.getCertificate()
 <!-- YAML
@@ -902,9 +900,9 @@ Set to `true` when the TLS handshake completion has been confirmed.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the length of time taken to complete the TLS handshake.
+The length of time taken to complete the TLS handshake.
 
 #### quicsession.idleTimeout
 <!-- YAML
@@ -920,17 +918,16 @@ Set to `true` if the `QuicSession` was closed due to an idle timeout.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of key update operations that have
-occured.
+The number of key update operations that have occured.
 
 #### quicsession.latestRTT
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
 The most recently recorded RTT for this `QuicSession`.
 
@@ -939,10 +936,10 @@ The most recently recorded RTT for this `QuicSession`.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the number of lost-packet retransmissions that have been
-performed on this `QuicSession`.
+The number of lost-packet retransmissions that have been performed on
+this `QuicSession`.
 
 #### quicsession.maxDataLeft
 <!-- YAML
@@ -959,10 +956,9 @@ send to the connected peer.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the maximum number of in-flight bytes recorded
-for this `QuicSession`.
+The maximum number of in-flight bytes recorded for this `QuicSession`.
 
 #### quicsession.maxStreams
 <!-- YAML
@@ -983,7 +979,7 @@ of the `QuicSession` as the connected peer allows new streams to be created.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
 The minimum RTT recorded so far for this `QuicSession`.
 
@@ -1025,10 +1021,9 @@ of the `ping()` operation.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of `QuicStreams` initiated by the
-connected peer.
+The total number of `QuicStreams` initiated by the connected peer.
 
 #### quicsession.qlog
 <!-- YAML
@@ -1061,10 +1056,9 @@ An object containing the remote address information for the connected peer.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of `QuicStream` instances initiated
-by this `QuicSession`.
+The total number of `QuicStream` instances initiated by this `QuicSession`.
 
 #### quicsession.servername
 <!-- YAML
@@ -1080,7 +1074,7 @@ The SNI servername requested for this session by the client.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
 The modified RTT calculated for this `QuicSession`.
 
@@ -1107,10 +1101,9 @@ True if the `QuicSession` was closed due to QUIC stateless reset.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of unidirectional streams
-created on this `QuicSession`.
+The total number of unidirectional streams created on this `QuicSession`.
 
 #### quicsession.updateKey()
 <!-- YAML
@@ -2123,20 +2116,18 @@ Set to `true` if the `QuicStream` is bidirectional.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of bytes received for this
-`QuicStream`.
+The total number of bytes received for this `QuicStream`.
 
 #### quicstream.bytesSent
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the total number of bytes sent by this
-`QuicStream`.
+The total number of bytes sent by this `QuicStream`.
 
 #### quicstream.clientInitiated
 <!-- YAML
@@ -2182,19 +2173,18 @@ TBD
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the length of time the `QuicStream` has been active.
+The length of time the `QuicStream` has been active.
 
 #### quicstream.finalSize
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` specifying the total number of bytes successfully received by the
-`QuicStream`.
+The total number of bytes successfully received by the `QuicStream`.
 
 #### quicstream.id
 <!-- YAML
@@ -2210,29 +2200,27 @@ The numeric identifier of the `QuicStream`.
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the highest acknowledged data offset received
-for this `QuicStream`.
+The highest acknowledged data offset received for this `QuicStream`.
 
 #### quicstream.maxExtendedOffset
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the maximum extended data offset that has been
-reported to the connected peer.
+The maximum extended data offset that has been reported to the connected peer.
 
 #### quicstream.maxReceivedOffset
 <!-- YAML
 added: REPLACEME
 -->
 
-* Type: {bigint}
+* Type: {number}
 
-A `BigInt` representing the maximum received offset for this `QuicStream`.
+The maximum received offset for this `QuicStream`.
 
 #### quicstream.pending
 <!-- YAML
