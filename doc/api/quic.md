@@ -1458,7 +1458,10 @@ added: REPLACEME
     **Default**: `'udp4'`.
 * Returns: {QuicEndpoint}
 
-Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance.
+Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance. An
+error will be thrown if `quicsock.addEndpoint()` is called either after
+the `QuicSocket` has already started binding to the local ports or after
+the `QuicSocket` has been destroyed.
 
 #### quicsocket.bound
 <!-- YAML
