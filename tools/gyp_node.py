@@ -45,18 +45,6 @@ def run_gyp(args):
   args.append('-Dcomponent=static_library')
   args.append('-Dlibrary=static_library')
 
-  # Don't compile with -B and -fuse-ld=, we don't bundle ld.gold.  Can't be
-  # set in common.gypi due to how deps/v8/build/toolchain.gypi uses them.
-  args.append('-Dlinux_use_bundled_binutils=0')
-  args.append('-Dlinux_use_bundled_gold=0')
-  args.append('-Dlinux_use_gold_flags=0')
-
-  # Set the current program to this module. This is done because gyp
-  # will use the program path in targets it generates. If this script was called
-  # by another script the program name will not be gyp_node.py but whatever
-  # the name of the script that called it is, leading to incorrect commands
-  # in generated targets (for example cmd_regen_makefile).
-  sys.argv[0] = os.path.abspath(__file__)
   rc = gyp.main(args)
   if rc != 0:
     print('Error running GYP')
