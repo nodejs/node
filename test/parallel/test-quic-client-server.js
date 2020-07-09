@@ -140,7 +140,7 @@ server.on('session', common.mustCall((session) => {
     uni.on('end', common.mustCall());
     uni.on('data', common.mustNotCall());
     uni.on('close', common.mustCall(() => {
-      assert.strictEqual(uni.finalSize, 0n);
+      assert.strictEqual(uni.finalSize, 0);
     }));
     debug('Unidirectional, Server-initiated stream %d opened', uni.id);
   }));
@@ -183,11 +183,11 @@ server.on('session', common.mustCall((session) => {
     }));
     stream.on('finish', common.mustCall());
     stream.on('close', common.mustCall(() => {
-      assert.strictEqual(typeof stream.duration, 'bigint');
-      assert.strictEqual(typeof stream.bytesReceived, 'bigint');
-      assert.strictEqual(typeof stream.bytesSent, 'bigint');
-      assert.strictEqual(typeof stream.maxExtendedOffset, 'bigint');
-      assert.strictEqual(stream.finalSize, BigInt(filedata.length));
+      assert.strictEqual(typeof stream.duration, 'number');
+      assert.strictEqual(typeof stream.bytesReceived, 'number');
+      assert.strictEqual(typeof stream.bytesSent, 'number');
+      assert.strictEqual(typeof stream.maxExtendedOffset, 'number');
+      assert.strictEqual(stream.finalSize, filedata.length);
     }));
   }));
 
@@ -317,7 +317,7 @@ server.on('ready', common.mustCall(() => {
     }));
     stream.on('close', common.mustCall(() => {
       debug('Bidirectional, Client-initiated stream %d closed', stream.id);
-      assert.strictEqual(stream.finalSize, BigInt(filedata.length));
+      assert.strictEqual(stream.finalSize, filedata.length);
       countdown.dec();
     }));
     debug('Bidirectional, Client-initiated stream %d opened', stream.id);
@@ -334,7 +334,7 @@ server.on('ready', common.mustCall(() => {
     }));
     stream.on('close', common.mustCall(() => {
       debug('Unidirectional, Server-initiated stream %d closed', stream.id);
-      assert.strictEqual(stream.finalSize, 26n);
+      assert.strictEqual(stream.finalSize, 26);
       countdown.dec();
     }));
   }));

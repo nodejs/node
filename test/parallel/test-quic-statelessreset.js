@@ -45,7 +45,7 @@ server.on('session', common.mustCall((session) => {
 server.on('close', common.mustCall(() => {
   // Verify stats recording
   console.log(server.statelessResetCount);
-  assert(server.statelessResetCount >= 1n);
+  assert(server.statelessResetCount >= 1);
 }));
 
 server.on('ready', common.mustCall(() => {
