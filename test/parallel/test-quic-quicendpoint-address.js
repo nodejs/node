@@ -43,6 +43,11 @@ async function Test2() {
 
   server.listen({ key, cert, ca, alpn: 'zzz' });
 
+  // Attempting to add an endpoint after fails.
+  assert.throws(() => server.addEndpoint(), {
+    code: 'ERR_INVALID_STATE'
+  });
+
   await once(server, 'ready');
 
   assert.strictEqual(server.endpoints.length, 2);
