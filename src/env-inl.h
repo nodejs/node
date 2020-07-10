@@ -817,6 +817,10 @@ inline bool Environment::owns_inspector() const {
   return flags_ & EnvironmentFlags::kOwnsInspector;
 }
 
+inline bool Environment::tracks_unmanaged_fds() const {
+  return flags_ & EnvironmentFlags::kTrackUnmanagedFds;
+}
+
 bool Environment::filehandle_close_warning() const {
   return emit_filehandle_warning_;
 }
