@@ -871,6 +871,10 @@ inline bool Environment::owns_inspector() const {
   return flags_ & EnvironmentFlags::kOwnsInspector;
 }
 
+inline bool Environment::tracks_unmanaged_fds() const {
+  return flags_ & EnvironmentFlags::kTrackUnmanagedFds;
+}
+
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }

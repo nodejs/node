@@ -1066,6 +1066,7 @@ class Environment : public MemoryRetainer {
   inline bool should_not_register_esm_loader() const;
   inline bool owns_process_state() const;
   inline bool owns_inspector() const;
+  inline bool tracks_unmanaged_fds() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
   Environment* worker_parent_env() const;
@@ -1277,6 +1278,9 @@ class Environment : public MemoryRetainer {
   void RunAndClearNativeImmediates(bool only_refed = false);
   void RunAndClearInterrupts();
 
+  void AddUnmanagedFd(int fd);
+  void RemoveUnmanagedFd(int fd);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1431,6 +1435,8 @@ class Environment : public MemoryRetainer {
   typedef std::unordered_set<std::shared_ptr<v8::ArrayBuffer::Allocator>>
       ArrayBufferAllocatorList;
   ArrayBufferAllocatorList* keep_alive_allocators_ = nullptr;
+
+  std::unordered_set<int> unmanaged_fds_;
 
   std::function<void(Environment*, int)> process_exit_handler_ {
       DefaultProcessExitHandler };
