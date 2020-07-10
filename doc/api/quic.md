@@ -1584,16 +1584,17 @@ with this `QuicSocket`.
 
 Read-only.
 
-#### quicsocket.close(\[callback\])
+#### quicsocket.close()
 <!-- YAML
 added: REPLACEME
 -->
 
-* `callback` {Function}
+* Returns: {Promise}
 
 Gracefully closes the `QuicSocket`. Existing `QuicSession` instances will be
 permitted to close naturally. New `QuicClientSession` and `QuicServerSession`
-instances will not be allowed.
+instances will not be allowed. The returns `Promise` will be resolved once
+the `QuicSocket` is destroyed.
 
 #### quicsocket.connect(\[options\])
 <!-- YAML
