@@ -23,15 +23,17 @@ const server = createQuicSocket({ server: options });
 
 (async function() {
   server.on('session', common.mustCall((session) => {
-    session.on('close', common.mustCall(() => {
-      client.close();
-      server.close();
-      assert.throws(() => server.close(), {
+    session.on('stream', common.mustNotCall());
+    session.on('close', common.mustCall(async () => {
+      await Promise.all([
+        client.close(),
+        server.close()
+      ]);
+      assert.rejects(server.close(), {
         code: 'ERR_INVALID_STATE',
         name: 'Error'
       });
     }));
-    session.on('stream', common.mustNotCall());
     session.destroy();
   }));
 
