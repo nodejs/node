@@ -114,6 +114,7 @@ class Worker : public AsyncWrap {
   bool stopped_ = true;
 
   bool has_ref_ = true;
+  uint64_t environment_flags_ = EnvironmentFlags::kNoFlags;
 
   // The real Environment of the worker object. It has a lesser
   // lifespan than the worker object itself - comes to life
