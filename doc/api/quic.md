@@ -352,7 +352,7 @@ Binds the `QuicEndpoint` if it has not already been bound. User code will
 not typically be responsible for binding a `QuicEndpoint` as the owning
 `QuicSocket` will do that automatically.
 
-* `options` {object}
+* `options` {Object}
   * `signal` {AbortSignal} Optionally allows the `bind()` to be canceled
     using an `AbortController`.
 * Returns: {Promise}
@@ -821,17 +821,16 @@ added: REPLACEME
 
 Information about the cipher algorithm selected for the session.
 
-#### quicsession.close(\[callback\])
+#### quicsession.close()
 <!-- YAML
 added: REPLACEME
 -->
 
-* `callback` {Function} Callback invoked when the close operation is completed
-
 Begins a graceful close of the `QuicSession`. Existing `QuicStream` instances
 will be permitted to close naturally. New `QuicStream` instances will not be
 permitted. Once all `QuicStream` instances have closed, the `QuicSession`
-instance will be destroyed.
+instance will be destroyed. Returns a `Promise` that is resolved once the
+`QuicSession` instance is destroyed.
 
 #### quicsession.closeCode
 <!-- YAML
