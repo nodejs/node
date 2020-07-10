@@ -389,8 +389,6 @@ For information about the governance of the Node.js project, see
 **Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
 * [santigimeno](https://github.com/santigimeno) -
 **Santiago Gimeno** &lt;santiago.gimeno@gmail.com&gt;
-* [sebdeckers](https://github.com/sebdeckers) -
-**Sebastiaan Deckers** &lt;sebdeckers83@gmail.com&gt;
 * [seishun](https://github.com/seishun) -
 **Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
@@ -532,6 +530,8 @@ For information about the governance of the Node.js project, see
 **Ingvar Stepanyan** &lt;me@rreverser.com&gt;
 * [sam-github](https://github.com/sam-github) -
 **Sam Roberts** &lt;vieuxtech@gmail.com&gt;
+* [sebdeckers](https://github.com/sebdeckers) -
+**Sebastiaan Deckers** &lt;sebdeckers83@gmail.com&gt;
 * [stefanmb](https://github.com/stefanmb) -
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [tellnes](https://github.com/tellnes) -
