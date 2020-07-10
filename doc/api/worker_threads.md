@@ -621,6 +621,10 @@ if (isMainThread) {
 added: v10.5.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: ???
+    description: The `trackUnmanagedFds` option was introduced.
+  - version:
      - v13.13.0
      - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32278
@@ -679,6 +683,12 @@ changes:
     occur as described in the [HTML structured clone algorithm][], and an error
     will be thrown if the object cannot be cloned (e.g. because it contains
     `function`s).
+  * `trackUnmanagedFds` {boolean} If this is set to `true`, then the Worker will
+    track raw file descriptors managed through [`fs.open()`][] and
+    [`fs.close()`][], and close them when the Worker exits, similar to other
+    resources like network sockets or file descriptors managed through
+    the [`FileHandle`][] API. This option is automatically inherited by all
+    nested `Worker`s. **Default**: `false`.
   * `transferList` {Object[]} If one or more `MessagePort`-like objects
     are passed in `workerData`, a `transferList` is required for those
     items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] will be thrown.
@@ -900,6 +910,8 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker`]: #worker_threads_class_worker
 [`cluster` module]: cluster.html
+[`fs.open()`]: fs.html#fs_fs_open_path_flags_mode_callback
+[`fs.close()`]: fs.html#fs_fs_close_fd_callback
 [`markAsUntransferable()`]: #worker_threads_worker_markasuntransferable_object
 [`port.on('message')`]: #worker_threads_event_message
 [`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
