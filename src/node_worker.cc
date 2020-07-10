@@ -305,7 +305,7 @@ void Worker::Run() {
             context,
             std::move(argv_),
             std::move(exec_argv_),
-            EnvironmentFlags::kNoFlags,
+            static_cast<EnvironmentFlags::Flags>(environment_flags_),
             thread_id_,
             std::move(inspector_parent_handle_)));
         if (is_stopped()) return;
@@ -452,7 +452,6 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
   std::vector<std::string> exec_argv_out;
 
-  CHECK_EQ(args.Length(), 4);
   // Argument might be a string or URL
   if (!args[0]->IsNullOrUndefined()) {
     Utf8Value value(
@@ -578,6 +577,10 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(limit_info->Length(), kTotalResourceLimitCount);
   limit_info->CopyContents(worker->resource_limits_,
                            sizeof(worker->resource_limits_));
+
+  CHECK(args[4]->IsBoolean());
+  if (args[4]->IsTrue() || env->tracks_unmanaged_fds())
+    worker->environment_flags_ |= EnvironmentFlags::kTrackUnmanagedFds;
 }
 
 void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
