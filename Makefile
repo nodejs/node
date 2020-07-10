@@ -478,7 +478,7 @@ JS_SUITES ?= default
 NATIVE_SUITES ?= addons js-native-api node-api
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
-CI_JS_SUITES ?= $(JS_SUITES)
+CI_JS_SUITES ?= $(JS_SUITES) pummel
 ifeq ($(node_use_openssl), false)
 	CI_DOC := doctool
 else

@@ -574,7 +574,7 @@ class TestCase(object):
     full_command = self.context.processor(command)
     output = Execute(full_command,
                      self.context,
-                     self.context.GetTimeout(self.mode),
+                     self.context.GetTimeout(self.mode, self.config.section),
                      env,
                      disable_core_files = self.disable_core_files)
     return TestOutput(self,
@@ -940,8 +940,11 @@ class Context(object):
 
     return name
 
-  def GetTimeout(self, mode):
-    return self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
+  def GetTimeout(self, mode, section=''):
+    timeout = self.timeout * TIMEOUT_SCALEFACTOR[ARCH_GUESS or 'ia32'][mode]
+    if section == 'pummel':
+      timeout = timeout * 4
+    return timeout
 
 def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode):
   progress = PROGRESS_INDICATORS[progress](cases_to_run, flaky_tests_mode)
