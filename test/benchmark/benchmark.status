@@ -19,3 +19,7 @@ prefix benchmark
 [$system==aix]
 
 [$arch==arm]
+# https://github.com/nodejs/node/issues/34266
+test-benchmark-fs: SKIP
+# https://github.com/nodejs/build/issues/2382
+test-benchmark-napi: SKIP
