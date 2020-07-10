@@ -5710,21 +5710,20 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Private key is not valid for specified curve.");
   }
 
-  int result = EC_KEY_set_private_key(ecdh->key_.get(), priv.get());
+  ECKeyPointer new_key(EC_KEY_dup(ecdh->key_.get()));
+  CHECK(new_key);
+
+  int result = EC_KEY_set_private_key(new_key.get(), priv.get());
   priv.reset();
 
   if (!result) {
     return env->ThrowError("Failed to convert BN to a private key");
   }
 
-  // To avoid inconsistency, clear the current public key in-case computing
-  // the new one fails for some reason.
-  EC_KEY_set_public_key(ecdh->key_.get(), nullptr);
-
   MarkPopErrorOnReturn mark_pop_error_on_return;
   USE(&mark_pop_error_on_return);
 
-  const BIGNUM* priv_key = EC_KEY_get0_private_key(ecdh->key_.get());
+  const BIGNUM* priv_key = EC_KEY_get0_private_key(new_key.get());
   CHECK_NOT_NULL(priv_key);
 
   ECPointPointer pub(EC_POINT_new(ecdh->group_));
@@ -5735,8 +5734,11 @@ void ECDH::SetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to generate ECDH public key");
   }
 
-  if (!EC_KEY_set_public_key(ecdh->key_.get(), pub.get()))
+  if (!EC_KEY_set_public_key(new_key.get(), pub.get()))
     return env->ThrowError("Failed to set generated public key");
+
+  EC_KEY_copy(ecdh->key_.get(), new_key.get());
+  ecdh->group_ = EC_KEY_get0_group(ecdh->key_.get());
 }
 
 
