@@ -8,24 +8,18 @@ if (!common.hasQuic)
   common.skip('missing quic');
 
 const assert = require('assert');
-const {
-  key,
-  cert,
-  ca,
-  debug,
-  kServerPort,
-  kClientPort
-} = require('../common/quic');
+const { once } = require('events');
+const { key, cert, ca } = require('../common/quic');
 
 const { createQuicSocket } = require('net');
 const options = { key, cert, ca, alpn: 'zzz' };
 
-let client;
-const server = createQuicSocket({
-  endpoint: { port: kServerPort },
-  server: options
-});
+const client = createQuicSocket({ client: options });
+const server = createQuicSocket({ server: options });
 
+client.on('close', common.mustCall());
+server.on('close', common.mustCall());
+server.on('listening', common.mustCall());
 server.on('busy', common.mustCall((busy) => {
   assert.strictEqual(busy, true);
 }));
@@ -33,22 +27,12 @@ server.on('busy', common.mustCall((busy) => {
 // When the server is set as busy, all connections
 // will be rejected with a SERVER_BUSY response.
 server.serverBusy = true;
-server.listen();
 
-server.on('close', common.mustCall());
-server.on('listening', common.mustCall());
-server.on('session', common.mustNotCall());
+(async function() {
+  server.on('session', common.mustNotCall());
+  await server.listen();
 
-server.on('ready', common.mustCall(() => {
-  debug('Server is listening on port %d', server.endpoints[0].address.port);
-  client = createQuicSocket({
-    endpoint: { port: kClientPort },
-    client: options
-  });
-
-  client.on('close', common.mustCall());
-
-  const req = client.connect({
+  const req = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });
@@ -56,7 +40,13 @@ server.on('ready', common.mustCall(() => {
   req.on('secure', common.mustNotCall());
 
   req.on('close', common.mustCall(() => {
+    assert.strictEqual(req.closeCode.code, 2);
     server.close();
     client.close();
   }));
-}));
+
+  await Promise.all([
+    once(server, 'close'),
+    once(client, 'close')
+  ]);
+})().then(common.mustCall());

@@ -13,36 +13,38 @@ const { kUDPHandleForTesting } = require('internal/quic/core');
 
 const { key, cert, ca } = require('../common/quic');
 
+const options = { key, cert, ca, alpn: 'meow' };
+
 const { serverSide, clientSide } = makeUDPPair();
 
 const server = createQuicSocket({
-  endpoint: { [kUDPHandleForTesting]: serverSide._handle }
+  endpoint: { [kUDPHandleForTesting]: serverSide._handle },
+  server: options
 });
-
 serverSide.afterBind();
-server.listen({ key, cert, ca, alpn: 'meow' });
 
-server.on('session', common.mustCall((session) => {
-  session.on('secure', common.mustCall(() => {
-    const stream = session.openStream({ halfOpen: false });
-    stream.end('Hi!');
-    stream.on('data', common.mustNotCall());
-    stream.on('finish', common.mustCall());
-    stream.on('close', common.mustNotCall());
-    stream.on('end', common.mustNotCall());
+const client = createQuicSocket({
+  endpoint: { [kUDPHandleForTesting]: clientSide._handle },
+  client: options
+});
+clientSide.afterBind();
+
+(async function() {
+  server.on('session', common.mustCall((session) => {
+    session.on('secure', common.mustCall(() => {
+      const stream = session.openStream({ halfOpen: false });
+      stream.end('Hi!');
+      stream.on('data', common.mustNotCall());
+      stream.on('finish', common.mustCall());
+      stream.on('close', common.mustNotCall());
+      stream.on('end', common.mustNotCall());
+    }));
+    session.on('close', common.mustNotCall());
   }));
 
-  session.on('close', common.mustNotCall());
-}));
+  await server.listen();
 
-server.on('ready', common.mustCall(() => {
-  const client = createQuicSocket({
-    endpoint: { [kUDPHandleForTesting]: clientSide._handle },
-    client: { key, cert, ca, alpn: 'meow' }
-  });
-  clientSide.afterBind();
-
-  const req = client.connect({
+  const req = await client.connect({
     address: 'localhost',
     port: server.endpoints[0].address.port
   });
@@ -56,6 +58,5 @@ server.on('ready', common.mustCall(() => {
   }));
 
   req.on('close', common.mustNotCall());
-}));
 
-server.on('close', common.mustNotCall());
+})().then(common.mustCall());

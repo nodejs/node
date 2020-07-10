@@ -12,12 +12,10 @@ const { key, cert, ca } = require('../common/quic');
 const { once } = require('events');
 const options = { key, cert, ca, alpn: 'meow' };
 
+const server = createQuicSocket({ server: options });
+const client = createQuicSocket({ client: options });
+
 (async () => {
-  const server = createQuicSocket({ server: options });
-  const client = createQuicSocket({ client: options });
-
-  server.listen();
-
   server.on('session', common.mustCall((session) => {
     // The server can create a stream immediately without waiting
     // for the secure event... however, the data will not actually
@@ -30,9 +28,9 @@ const options = { key, cert, ca, alpn: 'meow' };
     session.on('stream', common.mustNotCall());
   }));
 
-  await once(server, 'ready');
+  await server.listen();
 
-  const req = client.connect({
+  const req = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });

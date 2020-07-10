@@ -6,9 +6,11 @@ if (!common.hasQuic)
 
 const assert = require('assert');
 const { createQuicSocket } = require('net');
+const { once } = require('events');
 const fs = require('fs');
 
 const { key, cert, ca } = require('../common/quic');
+const options = { key, cert, ca, alpn: 'meow' };
 
 const variants = [];
 for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
@@ -19,15 +21,18 @@ for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
   }
 }
 
-for (const { variant, offset, length } of variants) {
-  const server = createQuicSocket();
-  let fd;
+(async function() {
+  await Promise.all(variants.map(test));
+})().then(common.mustCall());
 
-  server.listen({ key, cert, ca, alpn: 'meow' });
+async function test({ variant, offset, length }) {
+  const server = createQuicSocket({ server: options });
+  const client = createQuicSocket({ client: options });
+  let fd;
 
   server.on('session', common.mustCall((session) => {
     session.on('secure', common.mustCall((servername, alpn, cipher) => {
-      const stream = session.openStream({ halfOpen: false });
+      const stream = session.openStream({ halfOpen: true });
 
       stream.on('data', common.mustNotCall());
       stream.on('finish', common.mustCall());
@@ -51,36 +56,33 @@ for (const { variant, offset, length } of variants) {
     session.on('close', common.mustCall());
   }));
 
-  server.on('ready', common.mustCall(() => {
-    const client = createQuicSocket({
-      client: { key, cert, ca, alpn: 'meow' } });
+  await server.listen();
 
-    const req = client.connect({
-      address: 'localhost',
-      port: server.endpoints[0].address.port
-    });
+  const req = await client.connect({
+    address: 'localhost',
+    port: server.endpoints[0].address.port
+  });
 
-    req.on('stream', common.mustCall((stream) => {
-      const data = [];
-      stream.on('data', (chunk) => data.push(chunk));
-      stream.on('end', common.mustCall(() => {
-        let expectedContent = fs.readFileSync(__filename);
-        if (offset !== -1) expectedContent = expectedContent.slice(offset);
-        if (length !== -1) expectedContent = expectedContent.slice(0, length);
-        assert.deepStrictEqual(Buffer.concat(data), expectedContent);
+  req.on('stream', common.mustCall((stream) => {
+    const data = [];
+    stream.on('data', (chunk) => data.push(chunk));
+    stream.on('end', common.mustCall(() => {
+      let expectedContent = fs.readFileSync(__filename);
+      if (offset !== -1) expectedContent = expectedContent.slice(offset);
+      if (length !== -1) expectedContent = expectedContent.slice(0, length);
+      assert.deepStrictEqual(Buffer.concat(data), expectedContent);
 
-        stream.end();
-        client.close();
-        server.close();
-        if (fd !== undefined) {
-          if (fd.close) fd.close().then(common.mustCall());
-          else fs.closeSync(fd);
-        }
-      }));
+      client.close();
+      server.close();
+      if (fd !== undefined) {
+        if (fd.close) fd.close().then(common.mustCall());
+        else fs.closeSync(fd);
+      }
     }));
-
-    req.on('close', common.mustCall());
   }));
 
-  server.on('close', common.mustCall());
+  await Promise.all([
+    once(client, 'close'),
+    once(server, 'close')
+  ]);
 }

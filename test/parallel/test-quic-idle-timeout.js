@@ -21,12 +21,11 @@ const options = { key, cert, ca, alpn: kALPN };
   const server = createQuicSocket({ server: options });
   const client = createQuicSocket({ client: options });
 
-  server.listen();
   server.on('session', common.mustCall());
 
-  await once(server, 'ready');
+  await server.listen();
 
-  const session = client.connect({
+  const session = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
     idleTimeout,
@@ -49,8 +48,6 @@ const options = { key, cert, ca, alpn: kALPN };
   const server = createQuicSocket({ server: options });
   const client = createQuicSocket({ client: options });
 
-  server.listen({ idleTimeout });
-
   server.on('session', common.mustCall(async (session) => {
     await once(session, 'close');
     assert(session.idleTimeout);
@@ -62,9 +59,9 @@ const options = { key, cert, ca, alpn: kALPN };
     ]);
   }));
 
-  await once(server, 'ready');
+  await server.listen({ idleTimeout });
 
-  const session = client.connect({
+  const session = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });

@@ -89,14 +89,16 @@ assert(endpoint);
   });
 });
 
-socket.listen({ alpn: 'zzz' });
-assert(socket.pending);
+(async function() {
+  const p = socket.listen({ alpn: 'zzz' });
+  assert(socket.pending);
 
-socket.on('ready', common.mustCall(() => {
+  await p;
+
   assert(endpoint.bound);
 
   // QuicSocket is already listening.
-  assert.throws(() => socket.listen(), {
+  await assert.rejects(socket.listen(), {
     code: 'ERR_INVALID_STATE'
   });
 
@@ -123,7 +125,7 @@ socket.on('ready', common.mustCall(() => {
 
   socket.destroy();
   assert(socket.destroyed);
-}));
+})().then(common.mustCall());
 
 socket.on('close', common.mustCall(() => {
   [

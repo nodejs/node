@@ -30,13 +30,16 @@ const countdown = new Countdown(1, () => {
   client.close();
 });
 
-server.listen();
-server.on('session', common.mustCall((session) => {
-  session.on('stream', common.mustNotCall());
-}));
+server.on('close', common.mustCall());
+client.on('close', common.mustCall());
 
-server.on('ready', common.mustCall(() => {
-  const req = client.connect({
+(async function() {
+  server.on('session', common.mustCall((session) => {
+    session.on('stream', common.mustNotCall());
+  }));
+  await server.listen();
+
+  const req = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port
   });
@@ -66,9 +69,6 @@ server.on('ready', common.mustCall(() => {
     });
   });
 
-  req.on('ready', common.mustCall());
-  req.on('secure', common.mustCall());
-
   // Unidirectional streams are not allowed. openStream will succeeed
   // but the stream will be destroyed immediately. The underlying
   // QuicStream C++ handle will not be created.
@@ -79,6 +79,5 @@ server.on('ready', common.mustCall(() => {
   }).on('error', common.expectsError({
     code: 'ERR_OPERATION_FAILED'
   })).on('error', common.mustCall(() => countdown.dec()));
-}));
 
-server.on('close', common.mustCall());
+})().then(common.mustCall());

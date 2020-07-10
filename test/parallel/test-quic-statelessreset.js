@@ -22,56 +22,49 @@ const { createQuicSocket } = require('net');
 const kStatelessResetToken =
   Buffer.from('000102030405060708090A0B0C0D0E0F', 'hex');
 
-let client;
+const options = { key, cert, ca, alpn: 'zzz' };
 
-const server = createQuicSocket({ statelessResetSecret: kStatelessResetToken });
-
-server.listen({ key, cert, ca, alpn: 'zzz' });
-
-server.on('session', common.mustCall((session) => {
-  session.on('stream', common.mustCall((stream) => {
-    // silentCloseSession is an internal-only testing tool
-    // that allows us to prematurely destroy a QuicSession
-    // without the proper communication flow with the connected
-    // peer. We call this to simulate a local crash that loses
-    // state, which should trigger the server to send a
-    // stateless reset token to the client.
-    silentCloseSession(session[kHandle]);
-  }));
-
-  session.on('close', common.mustCall());
-}));
+const client = createQuicSocket({ client: options });
+const server = createQuicSocket({
+  statelessResetSecret: kStatelessResetToken,
+  server: options
+});
 
 server.on('close', common.mustCall(() => {
   // Verify stats recording
-  console.log(server.statelessResetCount);
   assert(server.statelessResetCount >= 1);
 }));
 
-server.on('ready', common.mustCall(() => {
-  const endpoint = server.endpoints[0];
+(async function() {
+  server.on('session', common.mustCall((session) => {
+    session.on('stream', common.mustCall((stream) => {
+      // silentCloseSession is an internal-only testing tool
+      // that allows us to prematurely destroy a QuicSession
+      // without the proper communication flow with the connected
+      // peer. We call this to simulate a local crash that loses
+      // state, which should trigger the server to send a
+      // stateless reset token to the client.
+      silentCloseSession(session[kHandle]);
+    }));
 
-  client = createQuicSocket({ client: { key, cert, ca, alpn: 'zzz' } });
+    session.on('close', common.mustCall());
+  }));
 
-  client.on('close', common.mustCall());
+  await server.listen();
 
-  const req = client.connect({
+  const req = await client.connect({
     address: 'localhost',
-    port: endpoint.address.port,
-    servername: 'localhost',
+    port: server.endpoints[0].address.port,
   });
 
-  req.on('secure', common.mustCall(() => {
-    const stream = req.openStream();
-    stream.end('hello');
-    stream.resume();
-    stream.on('close', common.mustCall());
-  }));
+  const stream = req.openStream();
+  stream.end('hello');
+  stream.resume();
+  stream.on('close', common.mustCall());
 
   req.on('close', common.mustCall(() => {
     assert.strictEqual(req.statelessReset, true);
     server.close();
     client.close();
   }));
-
-}));
+})().then(common.mustCall());

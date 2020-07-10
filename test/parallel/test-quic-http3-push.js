@@ -13,78 +13,78 @@ const { key, cert, ca, kHttp3Alpn } = require('../common/quic');
 
 const { createQuicSocket } = require('net');
 
-let client;
-const server = createQuicSocket();
+const options = { key, cert, ca, alpn: kHttp3Alpn };
+
+const client = createQuicSocket({ client: options });
+const server = createQuicSocket({ server: options });
+
+client.on('close', common.mustCall());
+server.on('close', common.mustCall());
 
 const countdown = new Countdown(2, () => {
   server.close();
   client.close();
 });
 
-const options = { key, cert, ca, alpn: kHttp3Alpn };
+(async function() {
+  server.on('session', common.mustCall((session) => {
 
-server.listen(options);
+    session.on('stream', common.mustCall((stream) => {
+      assert(stream.submitInitialHeaders({ ':status': '200' }));
 
-server.on('session', common.mustCall((session) => {
-
-  session.on('stream', common.mustCall((stream) => {
-    assert(stream.submitInitialHeaders({ ':status': '200' }));
-
-    [-1, Number.MAX_SAFE_INTEGER + 1].forEach((highWaterMark) => {
-      assert.throws(() => stream.pushStream({}, { highWaterMark }), {
-        code: 'ERR_OUT_OF_RANGE'
+      [-1, Number.MAX_SAFE_INTEGER + 1].forEach((highWaterMark) => {
+        assert.throws(() => stream.pushStream({}, { highWaterMark }), {
+          code: 'ERR_OUT_OF_RANGE'
+        });
       });
-    });
-    ['', 1n, {}, [], false].forEach((highWaterMark) => {
-      assert.throws(() => stream.pushStream({}, { highWaterMark }), {
-        code: 'ERR_INVALID_ARG_TYPE'
+      ['', 1n, {}, [], false].forEach((highWaterMark) => {
+        assert.throws(() => stream.pushStream({}, { highWaterMark }), {
+          code: 'ERR_INVALID_ARG_TYPE'
+        });
       });
-    });
-    ['', 1, 1n, true, [], {}, 'zebra'].forEach((defaultEncoding) => {
-      assert.throws(() => stream.pushStream({}, { defaultEncoding }), {
-        code: 'ERR_INVALID_ARG_VALUE'
+      ['', 1, 1n, true, [], {}, 'zebra'].forEach((defaultEncoding) => {
+        assert.throws(() => stream.pushStream({}, { defaultEncoding }), {
+          code: 'ERR_INVALID_ARG_VALUE'
+        });
       });
-    });
 
-    const push = stream.pushStream({
-      ':method': 'GET',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      ':path': '/foo'
-    });
-    assert(push);
-    push.submitInitialHeaders({ ':status': '200' });
-    push.end('testing');
-    push.on('close', common.mustCall());
-    push.on('finish', common.mustCall());
+      const push = stream.pushStream({
+        ':method': 'GET',
+        ':scheme': 'https',
+        ':authority': 'localhost',
+        ':path': '/foo'
+      });
+      assert(push);
+      push.submitInitialHeaders({ ':status': '200' });
+      push.end('testing');
+      push.on('close', common.mustCall());
+      push.on('finish', common.mustCall());
 
-    stream.end('hello world');
-    stream.resume();
-    stream.on('end', common.mustCall());
-    stream.on('close', common.mustCall());
-    stream.on('finish', common.mustCall());
+      stream.end('hello world');
+      stream.resume();
+      stream.on('end', common.mustCall());
+      stream.on('close', common.mustCall());
+      stream.on('finish', common.mustCall());
 
-    stream.on('initialHeaders', common.mustCall((headers) => {
-      const expected = [
-        [ ':path', '/' ],
-        [ ':authority', 'localhost' ],
-        [ ':scheme', 'https' ],
-        [ ':method', 'POST' ]
-      ];
-      assert.deepStrictEqual(expected, headers);
+      stream.on('initialHeaders', common.mustCall((headers) => {
+        const expected = [
+          [ ':path', '/' ],
+          [ ':authority', 'localhost' ],
+          [ ':scheme', 'https' ],
+          [ ':method', 'POST' ]
+        ];
+        assert.deepStrictEqual(expected, headers);
+      }));
+      stream.on('informationalHeaders', common.mustNotCall());
+      stream.on('trailingHeaders', common.mustNotCall());
     }));
-    stream.on('informationalHeaders', common.mustNotCall());
-    stream.on('trailingHeaders', common.mustNotCall());
+
+    session.on('close', common.mustCall());
   }));
 
-  session.on('close', common.mustCall());
-}));
+  await server.listen();
 
-server.on('ready', common.mustCall(() => {
-  client = createQuicSocket({ client: options });
-  client.on('close', common.mustCall());
-
-  const req = client.connect({
+  const req = await client.connect({
     address: 'localhost',
     port: server.endpoints[0].address.port,
     maxStreamsUni: 10,
@@ -112,20 +112,34 @@ server.on('ready', common.mustCall(() => {
   }));
 
   req.on('close', common.mustCall());
-  req.on('secure', common.mustCall((servername, alpn, cipher) => {
-    const stream = req.openStream();
 
-    stream.on('pushHeaders', common.mustCall((headers, push_id) => {
-      const expected = [
-        [ ':path', '/foo' ],
-        [ ':authority', 'localhost' ],
-        [ ':scheme', 'https' ],
-        [ ':method', 'GET' ]
-      ];
-      assert.deepStrictEqual(expected, headers);
-      assert.strictEqual(push_id, 0);
-    }));
+  const stream = req.openStream();
 
+  stream.on('pushHeaders', common.mustCall((headers, push_id) => {
+    const expected = [
+      [ ':path', '/foo' ],
+      [ ':authority', 'localhost' ],
+      [ ':scheme', 'https' ],
+      [ ':method', 'GET' ]
+    ];
+    assert.deepStrictEqual(expected, headers);
+    assert.strictEqual(push_id, 0);
+  }));
+
+  stream.on('initialHeaders', common.mustCall((headers) => {
+    const expected = [
+      [ ':status', '200' ]
+    ];
+    assert.deepStrictEqual(expected, headers);
+  }));
+  stream.on('informationalHeaders', common.mustNotCall());
+  stream.on('trailingHeaders', common.mustNotCall());
+
+  stream.on('close', common.mustCall(() => {
+    countdown.dec();
+  }));
+
+  stream.on('ready', () => {
     assert(stream.submitInitialHeaders({
       ':method': 'POST',
       ':scheme': 'https',
@@ -137,21 +151,6 @@ server.on('ready', common.mustCall(() => {
     stream.resume();
     stream.on('finish', common.mustCall());
     stream.on('end', common.mustCall());
+  });
 
-    stream.on('initialHeaders', common.mustCall((headers) => {
-      const expected = [
-        [ ':status', '200' ]
-      ];
-      assert.deepStrictEqual(expected, headers);
-    }));
-    stream.on('informationalHeaders', common.mustNotCall());
-    stream.on('trailingHeaders', common.mustNotCall());
-
-    stream.on('close', common.mustCall(() => {
-      countdown.dec();
-    }));
-  }));
-}));
-
-server.on('listening', common.mustCall());
-server.on('close', common.mustCall());
+})().then(common.mustCall());

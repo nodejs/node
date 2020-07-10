@@ -1,3 +1,4 @@
+// Flags: --no-warnings
 'use strict';
 
 // Tests a simple QUIC client/server round-trip
@@ -28,19 +29,20 @@ const countdown = new Countdown(2, () => {
   client.close();
 });
 
-server.listen();
-server.on('session', common.mustCall((session) => {
-  session.on('secure', common.mustCall(() => {
-    assert(session.usingEarlyData);
-  }));
+(async function() {
+  server.on('session', common.mustCall((session) => {
+    session.on('secure', common.mustCall(() => {
+      assert(session.usingEarlyData);
+    }));
 
-  session.on('stream', common.mustCall((stream) => {
-    stream.resume();
-  }));
-}, 2));
+    session.on('stream', common.mustCall((stream) => {
+      stream.resume();
+    }));
+  }, 2));
 
-server.on('ready', common.mustCall(() => {
-  const req = client.connect({
+  await server.listen();
+
+  const req = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });
@@ -63,13 +65,12 @@ server.on('ready', common.mustCall(() => {
     setImmediate(newSession, ticket, params);
   }, 1));
 
-  function newSession(sessionTicket, remoteTransportParams) {
-    const req = client.connect({
+  async function newSession(sessionTicket, remoteTransportParams) {
+    const req = await client.connect({
       address: common.localhostIPv4,
       port: server.endpoints[0].address.port,
       sessionTicket,
-      remoteTransportParams,
-      autoStart: false,
+      remoteTransportParams
     });
 
     assert(req.allowEarlyData);
@@ -78,8 +79,6 @@ server.on('ready', common.mustCall(() => {
     stream.end('hello');
     stream.on('error', common.mustNotCall());
     stream.on('close', common.mustCall(() => countdown.dec()));
-
-    // req.startHandshake();
 
     // TODO(@jasnell): There's a slight bug in here in that
     // calling end() will uncork the stream, causing data to
@@ -97,4 +96,5 @@ server.on('ready', common.mustCall(() => {
       assert(!req.usingEarlyData);
     }));
   }
-}));
+
+})().then(common.mustCall());

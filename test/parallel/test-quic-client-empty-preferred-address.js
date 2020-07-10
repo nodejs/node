@@ -14,12 +14,11 @@ const { key, cert, ca } = require('../common/quic');
 const { createQuicSocket } = require('net');
 const { once } = require('events');
 
-(async () => {
-  const server = createQuicSocket();
+const options = { key, cert, ca, alpn: 'zzz' };
 
-  let client;
-  const options = { key, cert, ca, alpn: 'zzz' };
-  server.listen(options);
+(async () => {
+  const server = createQuicSocket({ server: options });
+  const client = createQuicSocket({ client: options });
 
   server.on('session', common.mustCall((serverSession) => {
     serverSession.on('stream', common.mustCall(async (stream) => {
@@ -35,17 +34,13 @@ const { once } = require('events');
     }));
   }));
 
-  await once(server, 'ready');
+  await server.listen();
 
-  client = createQuicSocket({ client: options });
-
-  const clientSession = client.connect({
+  const clientSession = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
     preferredAddressPolicy: 'accept',
   });
-
-  await once(clientSession, 'secure');
 
   const stream = clientSession.openStream();
   stream.end('hello');

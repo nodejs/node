@@ -26,14 +26,13 @@ const kKeylogs = [
 
 const options = { key, cert, ca, alpn: 'zzz' };
 
+const server = createQuicSocket({ server: options });
+const client = createQuicSocket({ client: options });
+
+const kServerKeylogs = Array.from(kKeylogs);
+const kClientKeylogs = Array.from(kKeylogs);
+
 (async () => {
-  const server = createQuicSocket({ server: options });
-  const client = createQuicSocket({ client: options });
-
-  const kServerKeylogs = Array.from(kKeylogs);
-  const kClientKeylogs = Array.from(kKeylogs);
-
-  server.listen();
 
   server.on('session', common.mustCall((session) => {
     session.on('keylog', common.mustCall((line) => {
@@ -41,9 +40,9 @@ const options = { key, cert, ca, alpn: 'zzz' };
     }, kServerKeylogs.length));
   }));
 
-  await once(server, 'ready');
+  await server.listen();
 
-  const req = client.connect({
+  const req = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });

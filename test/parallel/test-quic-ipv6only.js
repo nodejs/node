@@ -10,35 +10,35 @@ if (!common.hasQuic)
   common.skip('missing quic');
 
 common.skip(
-  'temporarily skip ipv6only check. dual stack support is current broken');
+  'temporarily skip ipv6only check. dual stack support ' +
+  'is current broken on some platforms');
 
 const assert = require('assert');
 const { createQuicSocket } = require('net');
 const { key, cert, ca } = require('../common/quic');
 const { once } = require('events');
 
-const kALPN = 'zzz';
+const options = { key, cert, ca, alpn: 'zzz' };
 
 // Connecting to ipv6 server using "127.0.0.1" should work when
 // `ipv6Only` is set to `false`.
 async function ipv6() {
-  const server = createQuicSocket({ endpoint: { type: 'udp6' } });
-  const client = createQuicSocket({ client: { key, cert, ca, alpn: kALPN } });
-
-  server.listen({ key, cert, ca, alpn: kALPN });
+  const server = createQuicSocket({
+    endpoint: { type: 'udp6' },
+    server: options
+  });
+  const client = createQuicSocket({ client: options });
 
   server.on('session', common.mustCall((serverSession) => {
     serverSession.on('stream', common.mustCall());
   }));
 
-  await once(server, 'ready');
+  await server.listen();
 
-  const session = client.connect({
+  const session = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port
   });
-
-  await once(session, 'secure');
 
   const stream = session.openStream({ halfOpen: true });
   stream.end('hello');
@@ -57,17 +57,19 @@ async function ipv6() {
 // When the `ipv6Only` set to `true`, a client cann't connect to it
 // through "127.0.0.1".
 async function ipv6Only() {
-  const server = createQuicSocket({ endpoint: { type: 'udp6-only' } });
-  const client = createQuicSocket({ client: { key, cert, ca, alpn: kALPN } });
+  const server = createQuicSocket({
+    endpoint: { type: 'udp6-only' },
+    server: options
+  });
+  const client = createQuicSocket({ client: options });
 
-  server.listen({ key, cert, ca, alpn: kALPN });
   server.on('session', common.mustNotCall());
 
-  await once(server, 'ready');
+  await server.listen();
 
   // This will attempt to connect to the ipv4 localhost address
   // but should fail as the connection idle timeout expires.
-  const session = client.connect({
+  const session = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
     idleTimeout: common.platformTimeout(1),
@@ -89,33 +91,21 @@ async function ipv6Only() {
 // Creating the QuicSession fails when connect type does not match the
 // the connect IP address...
 async function mismatch() {
-  const server = createQuicSocket({ endpoint: { type: 'udp6' } });
-  const client = createQuicSocket({ client: { key, cert, ca, alpn: kALPN } });
+  const client = createQuicSocket({ client: options });
 
-  server.listen({ key, cert, ca, alpn: kALPN });
-  server.on('session', common.mustNotCall());
-
-  await once(server, 'ready');
-
-  const session = client.connect({
+  await assert.rejects(client.connect({
     address: common.localhostIPv4,
-    port: server.endpoints[0].address.port,
+    port: 1234,
     type: 'udp6',
     idleTimeout: common.platformTimeout(1),
+  }), {
+    code: 'ERR_OPERATION_FAILED'
   });
 
-  session.on('error', common.mustCall((err) => {
-    assert.strictEqual(err.code, 'ERR_OPERATION_FAILED');
-    client.close();
-    server.close();
-  }));
-
-  session.on('secure', common.mustNotCall());
-  session.on('close', common.mustCall());
+  client.close();
 
   await Promise.allSettled([
     once(client, 'close'),
-    once(server, 'close')
   ]);
 }
 
