@@ -20,8 +20,6 @@ const server = createQuicSocket({ server: options });
 
 server.on('session', common.mustNotCall());
 
-server.listen();
-
 server.on('error', common.mustCall((error) => {
   assert.strictEqual(error.message, 'boom');
 }));
@@ -31,3 +29,5 @@ server.on('ready', common.mustCall());
 server.on('listening', common.mustCall(() => {
   throw new Error('boom');
 }));
+
+server.listen();

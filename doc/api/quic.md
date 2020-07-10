@@ -25,11 +25,6 @@ const { createQuicSocket } = require('net');
 // Create the QUIC UDP IPv4 socket bound to local IP port 1234
 const socket = createQuicSocket({ endpoint: { port: 1234 } });
 
-// Tell the socket to operate as a server using the given
-// key and certificate to secure new connections, using
-// the fictional 'hello' application protocol.
-socket.listen({ key, cert, alpn: 'hello' });
-
 socket.on('session', (session) => {
   // A new server side session has been created!
 
@@ -53,9 +48,14 @@ socket.on('session', (session) => {
   });
 });
 
-socket.on('listening', () => {
-  // The socket is listening for sessions!
-});
+// Tell the socket to operate as a server using the given
+// key and certificate to secure new connections, using
+// the fictional 'hello' application protocol.
+(async function() {
+  await socket.listen({ key, cert, alpn: 'hello' });
+  console.log('The socket is listening for sessions!');
+})();
+
 ```
 
 ## QUIC Basics
@@ -110,11 +110,13 @@ const { createQuicSocket } = require('net');
 // Create a QuicSocket associated with localhost and port 1234
 const socket = createQuicSocket({ endpoint: { port: 1234 } });
 
-const client = socket.connect({
-  address: 'example.com',
-  port: 4567,
-  alpn: 'foo'
-});
+(async function() {
+  const client = await socket.connect({
+    address: 'example.com',
+    port: 4567,
+    alpn: 'foo'
+  });
+})();
 ```
 
 As soon as the `QuicClientSession` is created, the `address` provided in
@@ -135,20 +137,22 @@ New instances of `QuicServerSession` are created internally by the
 using the `listen()` method.
 
 ```js
+const { createQuicSocket } = require('net');
+
 const key = getTLSKeySomehow();
 const cert = getTLSCertSomehow();
 
-socket.listen({
-  key,
-  cert,
-  alpn: 'foo'
-});
+const socket = createQuicSocket();
 
 socket.on('session', (session) => {
   session.on('secure', () => {
     // The QuicServerSession can now be used for application data
   });
 });
+
+(async function() {
+  await socket.listen({ key, cert, alpn: 'foo' });
+})();
 ```
 
 As with client `QuicSession` instances, the `QuicServerSession` cannot be
@@ -1275,20 +1279,17 @@ added: REPLACEME
 Set to `true` if the `QuicClientSession` is ready for use. False if the
 `QuicSocket` has not yet been bound.
 
-#### quicclientsession.setSocket(socket, callback])
+#### quicclientsession.setSocket(socket])
 <!-- YAML
 added: REPLACEME
 -->
 
 * `socket` {QuicSocket} A `QuicSocket` instance to move this session to.
-* `callback` {Function} A callback function that will be invoked once the
-  migration to the new `QuicSocket` is complete.
+* Returns: {Promise}
 
 Migrates the `QuicClientSession` to the given `QuicSocket` instance. If the new
 `QuicSocket` has not yet been bound to a local UDP port, it will be bound prior
-to attempting the migration. If the `QuicClientSession` is not yet ready to
-migrate, the callback will be invoked with an `Error` using the code
-`ERR_OPERATION_FAILED`.
+to attempting the migration.
 
 ### Class: QuicServerSession extends QuicSession
 <!-- YAML
@@ -1394,7 +1395,7 @@ added: REPLACEME
 
 Emitted after the `QuicSocket` has been destroyed and is no longer usable.
 
-The `'close'` event will not be emitted multiple times.
+The `'close'` event will only ever be emitted once.
 
 #### Event: `'endpointClose'`
 <!-- YAML
@@ -1419,7 +1420,7 @@ added: REPLACEME
 Emitted before the `'close'` event if the `QuicSocket` was destroyed with an
 `error`.
 
-The `'error'` event will not be emitted multiple times.
+The `'error'` event will only ever be emitted once.
 
 #### Event: `'listening'`
 <!-- YAML
@@ -1430,7 +1431,7 @@ Emitted after `quicsocket.listen()` is called and the `QuicSocket` has started
 listening for incoming `QuicServerSession`s.  The callback is invoked with
 no arguments.
 
-The `'listening'` event will not be emitted multiple times.
+The `'listening'` event will only ever be emitted once.
 
 #### Event: `'ready'`
 <!-- YAML
@@ -1439,7 +1440,7 @@ added: REPLACEME
 
 Emitted once the `QuicSocket` has been bound to a local UDP port.
 
-The `'ready'` event will not be emitted multiple times.
+The `'ready'` event will only ever be emitted once.
 
 #### Event: `'session'`
 <!-- YAML
@@ -1455,11 +1456,12 @@ const { createQuicSocket } = require('net');
 
 const options = getOptionsSomehow();
 const server = createQuicSocket({ server: options });
-server.listen();
 
 server.on('session', (session) => {
   // Attach session event listeners.
 });
+
+server.listen();
 ```
 
 The `'session'` event will be emitted multiple times.
@@ -1517,7 +1519,7 @@ added: REPLACEME
 
 Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance. An
 error will be thrown if `quicsock.addEndpoint()` is called either after
-the `QuicSocket` has already started binding to the local ports or after
+the `QuicSocket` has already started binding to the local ports, or after
 the `QuicSocket` has been destroyed.
 
 #### quicsocket.bound
@@ -1721,10 +1723,9 @@ added: REPLACEME
   * `type`: {string} Identifies the type of UDP socket. The value must either
     be `'udp4'`, indicating UDP over IPv4, or `'udp6'`, indicating UDP over
     IPv6. **Default**: `'udp4'`.
+* Returns: {Promise}
 
-Create a new `QuicClientSession`. This function can be called multiple times
-to create sessions associated with different endpoints on the same
-client endpoint.
+Returns a `Promise` that resolves a new `QuicClientSession`.
 
 #### quicsocket.destroy(\[error\])
 <!-- YAML
@@ -1744,6 +1745,8 @@ added: REPLACEME
 * Type: {boolean}
 
 Will be `true` if the `QuicSocket` has been destroyed.
+
+Read-only.
 
 #### quicsocket.duration
 <!-- YAML
@@ -1765,7 +1768,9 @@ added: REPLACEME
 
 An array of `QuicEndpoint` instances associated with the `QuicSocket`.
 
-#### quicsocket.listen(\[options\]\[, callback\])
+Read-only.
+
+#### quicsocket.listen(\[options\])
 <!-- YAML
 added: REPLACEME
 -->
@@ -1877,13 +1882,10 @@ added: REPLACEME
     [OpenSSL Options][].
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
+* Returns: {Promise}
 
-* `callback` {Function}
-
-Listen for new peer-initiated sessions.
-
-If a `callback` is given, it is registered as a handler for the
-`'session'` event.
+Listen for new peer-initiated sessions. Returns a `Promise` that is resolved
+once the `QuicSocket` is actively listening.
 
 #### quicsocket.listenDuration
 <!-- YAML
@@ -1904,6 +1906,8 @@ added: REPLACEME
 * Type: {boolean}
 
 Set to `true` if the `QuicSocket` is listening for new connections.
+
+Read-only.
 
 #### quicsocket.packetsIgnored
 <!-- YAML
@@ -1946,6 +1950,8 @@ added: REPLACEME
 * Type: {boolean}
 
 Set to `true` if the socket is not yet bound to the local UDP port.
+
+Read-only.
 
 #### quicsocket.ref()
 <!-- YAML
@@ -2004,6 +2010,20 @@ by artificially dropping received or transmitted packets.
 
 This method is *not* to be used in production applications.
 
+#### quicsocket.statelessReset
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {boolean} `true` if stateless reset processing is enabled; `false`
+  if disabled.
+
+By default, a listening `QuicSocket` will generate stateless reset tokens when
+appropriate. The `disableStatelessReset` option may be set when the
+`QuicSocket` is created to disable generation of stateless resets. The
+`quicsocket.statelessReset` property allows stateless reset to be turned on and
+off dynamically through the lifetime of the `QuicSocket`.
+
 #### quicsocket.statelessResetCount
 <!-- YAML
 added: REPLACEME
@@ -2014,20 +2034,6 @@ added: REPLACEME
 The number of stateless resets that have been sent.
 
 Read-only.
-
-#### quicsocket.toggleStatelessReset()
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns {boolean} `true` if stateless reset processing is enabled; `false`
-  if disabled.
-
-By default, a listening `QuicSocket` will generate stateless reset tokens when
-appropriate. The `disableStatelessReset` option may be set when the
-`QuicSocket` is created to disable generation of stateless resets. The
-`toggleStatelessReset()` function allows stateless reset to be turned on and
-off dynamically through the lifetime of the `QuicSocket`.
 
 #### quicsocket.unref();
 <!-- YAML

@@ -6,44 +6,48 @@ if (!common.hasQuic)
 
 const path = require('path');
 const { createQuicSocket } = require('net');
+const { once } = require('events');
 
 const { key, cert, ca } = require('../common/quic');
+const options = { key, cert, ca, alpn: 'meow' };
 
-const server = createQuicSocket();
+const server = createQuicSocket({ server: options });
+const client = createQuicSocket({ client: options });
 
-server.listen({ key, cert, ca, alpn: 'meow' });
-
-server.on('session', common.mustCall((session) => {
-  session.on('secure', common.mustCall((servername, alpn, cipher) => {
-    const stream = session.openStream({ halfOpen: false });
-    const nonexistentPath = path.resolve(__dirname, 'nonexistent.file');
-
-    stream.on('error', common.expectsError({
-      code: 'ENOENT',
-      syscall: 'open',
-      path: nonexistentPath
+(async function() {
+  server.on('session', common.mustCall((session) => {
+    session.on('secure', common.mustCall((servername, alpn, cipher) => {
+      const stream = session.openStream({ halfOpen: false });
+      const nonexistentPath = path.resolve(__dirname, 'nonexistent.file');
+      stream.on('error', common.expectsError({
+        code: 'ENOENT',
+        syscall: 'open',
+        path: nonexistentPath
+      }));
+      stream.sendFile(nonexistentPath);
+      session.close();
     }));
 
-    stream.sendFile(nonexistentPath);
-
-    session.close();
-    server.close();
+    session.on('close', common.mustCall());
   }));
 
-  session.on('close', common.mustCall());
-}));
+  await server.listen();
 
-server.on('ready', common.mustCall(() => {
-  const client = createQuicSocket({ client: { key, cert, ca, alpn: 'meow' } });
-
-  const req = client.connect({
+  const req = await client.connect({
     address: 'localhost',
     port: server.endpoints[0].address.port
   });
 
   req.on('stream', common.mustNotCall());
 
-  req.on('close', common.mustCall(() => client.close()));
-}));
+  req.on('close', common.mustCall(() => {
+    server.close();
+    client.close();
+  }));
 
-server.on('close', common.mustCall());
+  await Promise.all([
+    once(server, 'close'),
+    once(client, 'close')
+  ]);
+
+})().then(common.mustCall());

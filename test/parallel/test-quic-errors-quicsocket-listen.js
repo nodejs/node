@@ -11,46 +11,44 @@ if (!common.hasQuic)
 const assert = require('assert');
 const { createQuicSocket } = require('net');
 
-// Test invalid callback function
-{
+async function testAlreadyListening() {
   const server = createQuicSocket();
-  [1, 1n].forEach((cb) => {
-    assert.throws(() => server.listen({}, cb), {
-      code: 'ERR_INVALID_CALLBACK'
-    });
-  });
-}
-
-// Test QuicSocket is already listening
-{
-  const server = createQuicSocket();
-  server.listen();
-  assert.throws(() => server.listen(), {
+  // Can be called multiple times while pending...
+  await Promise.all([server.listen(), server.listen()]);
+  // But fails if called again after resolving
+  await assert.rejects(server.listen(), {
     code: 'ERR_INVALID_STATE'
   });
   server.close();
 }
 
-// Test QuicSocket listen after destroy error
-{
+async function testListenAfterClose() {
   const server = createQuicSocket();
   server.close();
-  assert.throws(() => server.listen(), {
+  await assert.rejects(server.listen(), {
     code: 'ERR_INVALID_STATE'
   });
 }
 
-{
-  // Test incorrect ALPN
-  const server = createQuicSocket();
-  [1, 1n, true, {}, [], null].forEach((alpn) => {
-    assert.throws(() => server.listen({ alpn }), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-  });
+async function rejectsValue(
+  server,
+  name,
+  values,
+  code = 'ERR_INVALID_ARG_TYPE') {
+  for (const v of values) {
+    await assert.rejects(server.listen({ [name]: v }), { code });
+  }
+}
 
-  // Test invalid idle timeout
-  [
+async function testInvalidOptions() {
+  const server = createQuicSocket();
+
+  await rejectsValue(
+    server,
+    'alpn',
+    [1, 1n, true, {}, [], null]);
+
+  for (const prop of [
     'idleTimeout',
     'activeConnectionIdLimit',
     'maxAckDelay',
@@ -62,82 +60,73 @@ const { createQuicSocket } = require('net');
     'maxStreamsBidi',
     'maxStreamsUni',
     'highWaterMark',
-  ].forEach((prop) => {
-    assert.throws(() => server.listen({ [prop]: -1 }), {
-      code: 'ERR_OUT_OF_RANGE'
+  ]) {
+    await rejectsValue(
+      server,
+      prop,
+      [-1],
+      'ERR_OUT_OF_RANGE');
+    await rejectsValue(
+      server,
+      prop,
+      [Number.MAX_SAFE_INTEGER + 1],
+      'ERR_OUT_OF_RANGE');
+    await rejectsValue(
+      server,
+      prop,
+      ['a', 1n, [], {}, false]);
+  }
+
+  await rejectsValue(
+    server,
+    'rejectUnauthorized',
+    [1, 1n, 'test', {}, []]);
+
+  await rejectsValue(
+    server,
+    'requestCert',
+    [1, 1n, 'test', {}, []]);
+
+  await rejectsValue(
+    server,
+    'ciphers',
+    [1, 1n, false, {}, [], null]);
+
+  await rejectsValue(
+    server,
+    'groups',
+    [1, 1n, false, {}, [], null]);
+
+  await rejectsValue(
+    server,
+    'defaultEncoding',
+    [1, 1n, false, {}, [], 'zebra'],
+    'ERR_INVALID_ARG_VALUE');
+
+  await rejectsValue(
+    server,
+    'preferredAddress',
+    [1, 1n, 'test', false]
+  );
+
+  await assert.rejects(
+    server.listen({ preferredAddress: { port: -1 } }), {
+      code: 'ERR_INVALID_ARG_TYPE'
     });
 
-    assert.throws(
-      () => server.listen({ [prop]: Number.MAX_SAFE_INTEGER + 1 }), {
-        code: 'ERR_OUT_OF_RANGE'
-      });
-
-    ['a', 1n, [], {}, false].forEach((val) => {
-      assert.throws(() => server.listen({ [prop]: val }), {
+  for (const address of [1, 1n, null, false, [], {}]) {
+    await assert.rejects(
+      server.listen({ preferredAddress: { address } }), {
         code: 'ERR_INVALID_ARG_TYPE'
       });
-    });
-  });
+  }
 
-  [1, 1n, 'test', {}, []].forEach((rejectUnauthorized) => {
-    assert.throws(() => server.listen({ rejectUnauthorized }), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-  });
-
-  [1, 1n, 'test', {}, []].forEach((requestCert) => {
-    assert.throws(() => server.listen({ requestCert }), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-  });
-
-  [1, 1n, 'test', {}, []].forEach((requestCert) => {
-    assert.throws(() => server.listen({ requestCert }), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-  });
-
-  [1, 1n, 'test', false].forEach((preferredAddress) => {
-    assert.throws(() => server.listen({ preferredAddress }), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-
-    [1, 1n, null, false, {}, []].forEach((address) => {
-      assert.throws(() => server.listen({ preferredAddress: { address } }), {
+  for (const type of [1, 'test', false, null, [], {}]) {
+    await assert.rejects(
+      server.listen({ preferredAddress: { type } }), {
         code: 'ERR_INVALID_ARG_TYPE'
       });
-    });
-
-    [-1].forEach((port) => {
-      assert.throws(() => server.listen({ preferredAddress: { port } }), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    });
-
-    [1, 'test', false, null, {}, []].forEach((type) => {
-      assert.throws(() => server.listen({ preferredAddress: { type } }), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      });
-    });
-  });
-
-  [1, 1n, false, [], {}, null].forEach((ciphers) => {
-    assert.throws(() => server.listen({ ciphers }), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-  });
-
-  [1, 1n, false, [], {}, null].forEach((groups) => {
-    assert.throws(() => server.listen({ groups }), {
-      code: 'ERR_INVALID_ARG_TYPE'
-    });
-  });
-
-  ['', 1n, {}, [], false, 'zebra'].forEach((defaultEncoding) => {
-    assert.throws(() => server.listen({ defaultEncoding }), {
-      code: 'ERR_INVALID_ARG_VALUE'
-    });
-  });
+  }
 
   // Make sure that after all of the validation checks, the socket
   // is not actually marked as listening at all.
@@ -145,6 +134,11 @@ const { createQuicSocket } = require('net');
   assert(!server.listening);
 }
 
+(async function() {
+  await testAlreadyListening();
+  await testListenAfterClose();
+  await testInvalidOptions();
+})().then(common.mustCall());
 
 // Options to check
 // * [x] alpn
