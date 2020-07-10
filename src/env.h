@@ -1050,6 +1050,7 @@ class Environment : public MemoryRetainer {
   inline bool should_not_register_esm_loader() const;
   inline bool owns_process_state() const;
   inline bool owns_inspector() const;
+  inline bool tracks_unmanaged_fds() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
   Environment* worker_parent_env() const;
@@ -1266,6 +1267,9 @@ class Environment : public MemoryRetainer {
   inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
       released_allocated_buffers();
 
+  void AddUnmanagedFd(int fd);
+  void RemoveUnmanagedFd(int fd);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1405,6 +1409,8 @@ class Environment : public MemoryRetainer {
   int64_t base_object_count_ = 0;
   int64_t initial_base_object_count_ = 0;
   std::atomic_bool is_stopping_ { false };
+
+  std::unordered_set<int> unmanaged_fds_;
 
   std::function<void(Environment*, int)> process_exit_handler_ {
       DefaultProcessExitHandler };

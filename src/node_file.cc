@@ -653,6 +653,9 @@ void AfterInteger(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
 
+  if (req->result >= 0 && req_wrap->is_plain_open())
+    req_wrap->env()->AddUnmanagedFd(req->result);
+
   if (after.Proceed())
     req_wrap->Resolve(Integer::New(req_wrap->env()->isolate(), req->result));
 }
@@ -862,6 +865,7 @@ void Close(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsInt32());
   int fd = args[0].As<Int32>()->Value();
+  env->RemoveUnmanagedFd(fd);
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 1);
   if (req_wrap_async != nullptr) {  // close(fd, req)
@@ -1706,6 +1710,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
 
   FSReqBase* req_wrap_async = GetReqWrap(args, 3);
   if (req_wrap_async != nullptr) {  // open(path, flags, mode, req)
+    req_wrap_async->set_is_plain_open(true);
     AsyncCall(env, req_wrap_async, args, "open", UTF8, AfterInteger,
               uv_fs_open, *path, flags, mode);
   } else {  // open(path, flags, mode, undefined, ctx)
@@ -1715,6 +1720,7 @@ static void Open(const FunctionCallbackInfo<Value>& args) {
     int result = SyncCall(env, args[4], &req_wrap_sync, "open",
                           uv_fs_open, *path, flags, mode);
     FS_SYNC_TRACE_END(open);
+    if (result >= 0) env->AddUnmanagedFd(result);
     args.GetReturnValue().Set(result);
   }
 }
