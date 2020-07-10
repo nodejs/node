@@ -1269,16 +1269,6 @@ empty object when the key exchange is not ephemeral. The supported types are
 
 For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
-#### quicclientsession.ready
-<!-- YAML
-added: REPLACEME
--->
-
-* Type: {boolean}
-
-Set to `true` if the `QuicClientSession` is ready for use. False if the
-`QuicSocket` has not yet been bound.
-
 #### quicclientsession.setSocket(socket])
 <!-- YAML
 added: REPLACEME
