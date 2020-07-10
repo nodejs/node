@@ -619,6 +619,12 @@ void Environment::RunCleanup() {
     }
     CleanupHandles();
   }
+
+  for (const int fd : unmanaged_fds_) {
+    uv_fs_t close_req;
+    uv_fs_close(nullptr, &close_req, fd, nullptr);
+    uv_fs_req_cleanup(&close_req);
+  }
 }
 
 void Environment::RunAtExitCallbacks() {
@@ -979,6 +985,24 @@ void Environment::stop_sub_worker_contexts() {
 Environment* Environment::worker_parent_env() const {
   if (worker_context() == nullptr) return nullptr;
   return worker_context()->env();
+}
+
+void Environment::AddUnmanagedFd(int fd) {
+  if (!tracks_unmanaged_fds()) return;
+  auto result = unmanaged_fds_.insert(fd);
+  if (!result.second) {
+    ProcessEmitWarning(
+        this, "File descriptor %d opened in unmanaged mode twice", fd);
+  }
+}
+
+void Environment::RemoveUnmanagedFd(int fd) {
+  if (!tracks_unmanaged_fds()) return;
+  size_t removed_count = unmanaged_fds_.erase(fd);
+  if (removed_count == 0) {
+    ProcessEmitWarning(
+        this, "File descriptor %d closed but not opened in unmanaged mode", fd);
+  }
 }
 
 void Environment::BuildEmbedderGraph(Isolate* isolate,
