@@ -379,6 +379,8 @@ For information about the governance of the Node.js project, see
 **Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [rubys](https://github.com/rubys) -
 **Sam Ruby** &lt;rubys@intertwingly.net&gt;
+* [ruyadorno](https://github.com/ruyadorno) -
+**Ruy Adorno** &lt;ruyadorno@github.com&gt; (he/him)
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [ryzokuken](https://github.com/ryzokuken) -
