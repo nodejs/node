@@ -388,7 +388,7 @@ Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
 
 MaybeLocal<Value> GetCipherValue(Environment* env,
     const SSL_CIPHER* cipher,
-    std::function<const char*(const SSL_CIPHER* cipher)> getstr) {
+    const char* (*getstr)(const SSL_CIPHER* cipher)) {
   if (cipher == nullptr)
     return Undefined(env->isolate());
 
