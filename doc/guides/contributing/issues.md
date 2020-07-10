@@ -89,6 +89,22 @@ around it. Some contributors may have differing opinions about the issue,
 including whether the behavior being seen is a bug or a feature. This discussion
 is part of the process and should be kept focused, helpful, and professional.
 
+The objective of helping with triaging issues (in core and help repos) is to
+help reduce the issue backlog and keep the issue tracker healthy, while enabling
+newcomers another meaningful way to get engaged and contribute.
+
+Anyone with a reasonable understanding of Node.js programming and the
+project's GitHub organization plus a few contributions to the project
+(commenting on issues or PRs) can apply for and become a triager. Open a PR
+on the README.md of this project with: i) a request to be added as a triager,
+ii) the motivation for becoming a triager, and iii) agreement on reading,
+understanding, and adhering to the project's [Code Of Conduct](https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md).
+
+The triage role enables the ability to carry the out most common triage
+activities, such as applying labels and close/repoening/assigning issues.
+For more information on the roles and permissions, see ["Permission levels for
+repositories owned by an organization"](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization).
+
 ## Resolving a Bug Report
 
 In the vast majority of cases, issues are resolved by opening a Pull Request.
