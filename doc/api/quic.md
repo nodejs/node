@@ -269,7 +269,8 @@ added: REPLACEME
     * `type` {string} Can be one of `'udp4'`, `'upd6'`, or `'udp6-only'` to
       use IPv4, IPv6, or IPv6 with dual-stack mode disabled.
       **Default**: `'udp4'`.
-  * `lookup` {Function} A custom DNS lookup function. Default `dns.lookup()`.
+  * `lookup` {Function} A [custom DNS lookup function][].
+    **Default**: undefined.
   * `maxConnections` {number} The maximum number of total active inbound
     connections.
   * `maxConnectionsPerHost` {number} The maximum number of inbound connections
@@ -1505,6 +1506,8 @@ added: REPLACEME
   * `type` {string} Can be one of `'udp4'`, `'upd6'`, or `'udp6-only'` to
     use IPv4, IPv6, or IPv6 with dual-stack mode disabled.
     **Default**: `'udp4'`.
+  * `lookup` {Function} A [custom DNS lookup function][].
+    **Default**: undefined.
 * Returns: {QuicEndpoint}
 
 Creates and adds a new `QuicEndpoint` to the `QuicSocket` instance. An
@@ -1661,6 +1664,8 @@ added: REPLACEME
     passphrase: <string>]}`. The object form can only occur in an array.
     `object.passphrase` is optional. Encrypted keys will be decrypted with
     `object.passphrase` if provided, or `options.passphrase` if it is not.
+  * `lookup` {Function} A [custom DNS lookup function][].
+    **Default**: undefined.
   * `activeConnectionIdLimit` {number} Must be a value between `2` and `8`
     (inclusive). Default: `2`.
   * `congestionAlgorithm` {string} Must be either `'reno'` or `'cubic'`.
@@ -1836,6 +1841,8 @@ added: REPLACEME
     passphrase: <string>]}`. The object form can only occur in an array.
     `object.passphrase` is optional. Encrypted keys will be decrypted with
     `object.passphrase` if provided, or `options.passphrase` if it is not.
+  * `lookup` {Function} A [custom DNS lookup function][].
+    **Default**: undefined.
   * `activeConnectionIdLimit` {number}
   * `congestionAlgorithm` {string} Must be either `'reno'` or `'cubic'`.
     **Default**: `'reno'`.
@@ -2411,6 +2418,36 @@ added: REPLACEME
 
 Set to `true` if the `QuicStream` is unidirectional.
 
+## Additional Notes
+
+### Custom DNS Lookup Functions
+
+By default, the QUIC implementation uses the `dns` module's
+[promisified version of `lookup()`][] to resolve domains names
+into IP addresses. For most typical use cases, this will be
+sufficient. However, it is possible to pass a custom `lookup`
+function as an option in several places throughout the QUIC API:
+
+* `net.createQuicSocket()`
+* `quicsocket.addEndpoint()`
+* `quicsocket.connect()`
+* `quicsocket.listen()`
+
+The custom `lookup` function must teturn a `Promise` that is
+resolved once the lookup is complete. It will be invoked with
+two arguments:
+
+* `address` {string|undefined} The host name to resolve, or
+  `undefined` if no host name was provided.
+* `family` {number} One of `4` or `6`, identifying either
+  IPv4 or IPv6.
+
+```js
+async function myCustomLookup(address, type) {
+  return resolveTheAddressSomehow(address, type);
+}
+```
+
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`stream.Readable`]: #stream_class_stream_readable
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
@@ -2418,8 +2455,10 @@ Set to `true` if the `QuicStream` is unidirectional.
 [ALPN]: https://tools.ietf.org/html/rfc7301
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [Certificate Object]: https://nodejs.org/dist/latest-v12.x/docs/api/tls.html#tls_certificate_object
+[custom DNS lookup function]: #custom_dns_lookups
 [modifying the default cipher suite]: tls.html#tls_modifying_the_default_tls_cipher_suite
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
+[promisified version of `lookup()`]: dns.html#dns_dnspromises_lookup_hostname_options
 ['qlog']: #quic_quicsession_qlog
 [qlog standard]: https://tools.ietf.org/id/draft-marx-qlog-event-definitions-quic-h3-00.html
