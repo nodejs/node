@@ -42,28 +42,35 @@ const countdown = new Countdown(2, () => {
 
   await server.listen();
 
+  let storedTicket;
+  let storedParams;
+
   const req = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });
-
-  const stream = req.openStream({ halfOpen: true });
-  stream.end('hello');
-  stream.resume();
-  stream.on('close', () => countdown.dec());
 
   req.on('sessionTicket', common.mustCall((ticket, params) => {
     assert(ticket instanceof Buffer);
     assert(params instanceof Buffer);
     debug('  Ticket: %s', ticket.toString('hex'));
     debug('  Params: %s', params.toString('hex'));
-
-    // Destroy this initial client session...
-    req.destroy();
-
-    // Wait a tick then start a new one.
-    setImmediate(newSession, ticket, params);
+    storedTicket = ticket;
+    storedParams = params;
   }, 1));
+
+  req.on('secure', () => {
+    const stream = req.openStream({ halfOpen: true });
+    stream.end('hello');
+    stream.resume();
+    stream.on('close', () => {
+      req.close();
+      countdown.dec();
+      // Wait a turn then start a new session using the stored
+      // ticket and transportParameters
+      setImmediate(newSession, storedTicket, storedParams);
+    });
+  });
 
   async function newSession(sessionTicket, remoteTransportParams) {
     const req = await client.connect({
