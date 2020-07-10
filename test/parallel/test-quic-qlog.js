@@ -12,34 +12,32 @@ const { kUDPHandleForTesting } = require('internal/quic/core');
 const { key, cert, ca } = require('../common/quic');
 
 const { serverSide, clientSide } = makeUDPPair();
+const options = { key, cert, ca, alpn: 'meow' };
 
 const server = createQuicSocket({
   validateAddress: true,
   endpoint: { [kUDPHandleForTesting]: serverSide._handle },
+  server: options,
   qlog: true
 });
-
 serverSide.afterBind();
-server.listen({ key, cert, ca, alpn: 'meow' });
 
-server.on('session', common.mustCall((session) => {
-  gatherQlog(session, 'server');
+const client = createQuicSocket({
+  endpoint: { [kUDPHandleForTesting]: clientSide._handle },
+  client: options,
+  qlog: true
+});
+clientSide.afterBind();
 
-  session.on('secure', common.mustCall((servername, alpn, cipher) => {
-    const stream = session.openStream({ halfOpen: true });
-    stream.end('Hi!');
+(async function() {
+  server.on('session', common.mustCall((session) => {
+    gatherQlog(session, 'server');
+    session.openStream({ halfOpen: true }).end('Hi!');
   }));
-}));
 
-server.on('ready', common.mustCall(() => {
-  const client = createQuicSocket({
-    endpoint: { [kUDPHandleForTesting]: clientSide._handle },
-    client: { key, cert, ca, alpn: 'meow' },
-    qlog: true
-  });
-  clientSide.afterBind();
+  await server.listen();
 
-  const req = client.connect({
+  const req = await client.connect({
     address: 'localhost',
     port: server.endpoints[0].address.port,
     qlog: true
@@ -53,7 +51,7 @@ server.on('ready', common.mustCall(() => {
       req.close();
     }));
   }));
-}));
+})().then(common.mustCall());
 
 function setupQlog(qlog) {
   let data = '';

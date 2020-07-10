@@ -20,27 +20,28 @@ if (workerData == null) {
 const { key, cert, ca } = require('../common/quic');
 const options = { key, cert, ca, alpn: 'meow' };
 
+const client = createQuicSocket({ client: options });
 const server = createQuicSocket({ server: options });
+server.on('close', common.mustNotCall());
+client.on('close', common.mustNotCall());
 
-server.listen();
+(async function() {
+  server.on('session', common.mustCall((session) => {
+    session.on('secure', common.mustCall((servername, alpn, cipher) => {
+      const stream = session.openStream({ halfOpen: false });
+      stream.write('Hi!');
+      stream.on('data', common.mustNotCall());
+      stream.on('finish', common.mustNotCall());
+      stream.on('close', common.mustNotCall());
+      stream.on('end', common.mustNotCall());
+    }));
 
-server.on('session', common.mustCall((session) => {
-  session.on('secure', common.mustCall((servername, alpn, cipher) => {
-    const stream = session.openStream({ halfOpen: false });
-    stream.write('Hi!');
-    stream.on('data', common.mustNotCall());
-    stream.on('finish', common.mustNotCall());
-    stream.on('close', common.mustNotCall());
-    stream.on('end', common.mustNotCall());
+    session.on('close', common.mustNotCall());
   }));
 
-  session.on('close', common.mustNotCall());
-}));
+  await server.listen();
 
-server.on('ready', common.mustCall(() => {
-  const client = createQuicSocket({ client: options });
-
-  const req = client.connect({
+  const req = await client.connect({
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port
   });
@@ -52,6 +53,4 @@ server.on('ready', common.mustCall(() => {
   }));
 
   req.on('close', common.mustNotCall());
-}));
-
-server.on('close', common.mustNotCall());
+})().then(common.mustCall());

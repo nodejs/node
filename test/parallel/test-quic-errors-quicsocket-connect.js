@@ -23,173 +23,172 @@ createHook({
 
 const client = createQuicSocket();
 
-// Test invalid minDHSize options argument
-['test', 1n, {}, [], false].forEach((minDHSize) => {
-  assert.throws(() => client.connect({ minDHSize }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+(async function() {
+  await Promise.all(['test', 1n, {}, [], false].map((minDHSize) => {
+    return assert.rejects(client.connect({ minDHSize }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-// Test invalid port argument option
-[-1, 'test', 1n, {}, [], NaN, false, 65536].forEach((port) => {
-  assert.throws(() => client.connect({ port }), {
-    code: 'ERR_SOCKET_BAD_PORT'
-  });
-});
+  await Promise.all([-1, 'test', 1n, {}, [], NaN, false, 65536].map((port) => {
+    return assert.rejects(client.connect({ port }), {
+      code: 'ERR_SOCKET_BAD_PORT'
+    });
+  }));
 
-// Test invalid address argument option
-[-1, 10, 1n, {}, [], true].forEach((address) => {
-  assert.throws(() => client.connect({ address }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  // Test invalid address argument option
+  await Promise.all([-1, 10, 1n, {}, [], true].map((address) => {
+    return assert.rejects(client.connect({ address }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-// Test servername can't be IP address argument option
-[
-  '0.0.0.0',
-  '8.8.8.8',
-  '127.0.0.1',
-  '192.168.0.1',
-  '::',
-  '1::',
-  '::1',
-  '1::8',
-  '1::7:8',
-  '1:2:3:4:5:6:7:8',
-  '1:2:3:4:5:6::8',
-  '2001:0000:1234:0000:0000:C1C0:ABCD:0876',
-  '3ffe:0b00:0000:0000:0001:0000:0000:000a',
-  'a:0:0:0:0:0:0:0',
-  'fe80::7:8%eth0',
-  'fe80::7:8%1'
-].forEach((servername) => {
-  assert.throws(() => client.connect({ servername }), {
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-});
+  // Test servername can't be IP address argument option
+  await Promise.all([
+    '0.0.0.0',
+    '8.8.8.8',
+    '127.0.0.1',
+    '192.168.0.1',
+    '::',
+    '1::',
+    '::1',
+    '1::8',
+    '1::7:8',
+    '1:2:3:4:5:6:7:8',
+    '1:2:3:4:5:6::8',
+    '2001:0000:1234:0000:0000:C1C0:ABCD:0876',
+    '3ffe:0b00:0000:0000:0001:0000:0000:000a',
+    'a:0:0:0:0:0:0:0',
+    'fe80::7:8%eth0',
+    'fe80::7:8%1'
+  ].map((servername) => {
+    return assert.rejects(client.connect({ servername }), {
+      code: 'ERR_INVALID_ARG_VALUE'
+    });
+  }));
 
-[-1, 10, 1n, {}, [], true].forEach((servername) => {
-  assert.throws(() => client.connect({ servername }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  await Promise.all([-1, 10, 1n, {}, [], true].map((servername) => {
+    return assert.rejects(client.connect({ servername }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-// Test invalid remoteTransportParams argument option
-[-1, 'test', 1n, {}, []].forEach((remoteTransportParams) => {
-  assert.throws(() => client.connect({ remoteTransportParams }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  // Test invalid remoteTransportParams argument option
+  await Promise.all([-1, 'test', 1n, {}, []].map((remoteTransportParams) => {
+    return assert.rejects(client.connect({ remoteTransportParams }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-// Test invalid sessionTicket argument option
-[-1, 'test', 1n, {}, []].forEach((sessionTicket) => {
-  assert.throws(() => client.connect({ sessionTicket }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  // Test invalid sessionTicket argument option
+  await Promise.all([-1, 'test', 1n, {}, []].map((sessionTicket) => {
+    return assert.rejects(client.connect({ sessionTicket }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-// Test invalid alpn argument option
-[-1, 10, 1n, {}, [], true].forEach((alpn) => {
-  assert.throws(() => client.connect({ alpn }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  // Test invalid alpn argument option
+  await Promise.all([-1, 10, 1n, {}, [], true].map((alpn) => {
+    return assert.rejects(client.connect({ alpn }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-[
-  'idleTimeout',
-  'activeConnectionIdLimit',
-  'maxAckDelay',
-  'maxData',
-  'maxUdpPayloadSize',
-  'maxStreamDataBidiLocal',
-  'maxStreamDataBidiRemote',
-  'maxStreamDataUni',
-  'maxStreamsBidi',
-  'maxStreamsUni',
-  'highWaterMark',
-].forEach((prop) => {
-  assert.throws(() => client.connect({ [prop]: -1 }), {
-    code: 'ERR_OUT_OF_RANGE'
-  });
-
-  assert.throws(
-    () => client.connect({ [prop]: Number.MAX_SAFE_INTEGER + 1 }), {
+  await Promise.all([
+    'idleTimeout',
+    'activeConnectionIdLimit',
+    'maxAckDelay',
+    'maxData',
+    'maxUdpPayloadSize',
+    'maxStreamDataBidiLocal',
+    'maxStreamDataBidiRemote',
+    'maxStreamDataUni',
+    'maxStreamsBidi',
+    'maxStreamsUni',
+    'highWaterMark',
+  ].map(async (prop) => {
+    await assert.rejects(client.connect({ [prop]: -1 }), {
       code: 'ERR_OUT_OF_RANGE'
     });
 
-  ['a', 1n, [], {}, false].forEach((val) => {
-    assert.throws(() => client.connect({ [prop]: val }), {
+    await assert.rejects(
+      client.connect({ [prop]: Number.MAX_SAFE_INTEGER + 1 }), {
+        code: 'ERR_OUT_OF_RANGE'
+      });
+
+    await Promise.all(['a', 1n, [], {}, false].map((val) => {
+      return assert.rejects(client.connect({ [prop]: val }), {
+        code: 'ERR_INVALID_ARG_TYPE'
+      });
+    }));
+  }));
+
+  // activeConnectionIdLimit must be between 2 and 8, inclusive
+  await Promise.all([1, 9].map((activeConnectionIdLimit) => {
+    return assert.rejects(client.connect({ activeConnectionIdLimit }), {
+      code: 'ERR_OUT_OF_RANGE'
+    });
+  }));
+
+  await Promise.all([1, 1n, false, [], {}].map((preferredAddressPolicy) => {
+    return assert.rejects(client.connect({ preferredAddressPolicy }), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
-  });
-});
+  }));
 
-// activeConnectionIdLimit must be between 2 and 8, inclusive
-[1, 9].forEach((activeConnectionIdLimit) => {
-  assert.throws(() => client.connect({ activeConnectionIdLimit }), {
-    code: 'ERR_OUT_OF_RANGE'
-  });
-});
+  await Promise.all([1, 1n, 'test', [], {}].map((qlog) => {
+    return assert.rejects(client.connect({ qlog }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-[1, 1n, false, [], {}].forEach((preferredAddressPolicy) => {
-  assert.throws(() => client.connect({ preferredAddressPolicy }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  await Promise.all([1, 1n, 'test', [], {}].map((requestOCSP) => {
+    return assert.rejects(client.connect({ requestOCSP }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }));
 
-[1, 1n, 'test', [], {}].forEach((qlog) => {
-  assert.throws(() => client.connect({ qlog }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
+  await Promise.all([1, 1n, false, [], {}, 'aaa'].map((type) => {
+    return assert.rejects(client.connect({ type }), {
+      code: 'ERR_INVALID_ARG_VALUE'
+    });
+  }));
 
-[1, 1n, 'test', [], {}].forEach((requestOCSP) => {
-  assert.throws(() => client.connect({ requestOCSP }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
-
-[1, 1n, false, [], {}, 'aaa'].forEach((type) => {
-  assert.throws(() => client.connect({ type }), {
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-});
-
-
-[
-  'qpackMaxTableCapacity',
-  'qpackBlockedStreams',
-  'maxHeaderListSize',
-  'maxPushes',
-].forEach((prop) => {
-  assert.throws(() => client.connect({ h3: { [prop]: -1 } }), {
-    code: 'ERR_OUT_OF_RANGE'
-  });
-
-  assert.throws(
-    () => client.connect({ h3: { [prop]: Number.MAX_SAFE_INTEGER + 1 } }), {
+  await Promise.all([
+    'qpackMaxTableCapacity',
+    'qpackBlockedStreams',
+    'maxHeaderListSize',
+    'maxPushes',
+  ].map(async (prop) => {
+    await assert.rejects(client.connect({ h3: { [prop]: -1 } }), {
       code: 'ERR_OUT_OF_RANGE'
     });
 
-  ['a', 1n, [], {}, false].forEach((val) => {
-    assert.throws(() => client.connect({ h3: { [prop]: val } }), {
-      code: 'ERR_INVALID_ARG_TYPE'
+    await assert.rejects(
+      client.connect({ h3: { [prop]: Number.MAX_SAFE_INTEGER + 1 } }), {
+        code: 'ERR_OUT_OF_RANGE'
+      });
+
+    await Promise.all(['a', 1n, [], {}, false].map((val) => {
+      return assert.rejects(client.connect({ h3: { [prop]: val } }), {
+        code: 'ERR_INVALID_ARG_TYPE'
+      });
+    }));
+  }));
+
+  await Promise.all(['', 1n, {}, [], false, 'zebra'].map((defaultEncoding) => {
+    return assert.rejects(client.connect({ defaultEncoding }), {
+      code: 'ERR_INVALID_ARG_VALUE'
     });
+  }));
+
+  // Test that connect cannot be called after QuicSocket is closed.
+  client.close();
+
+  await assert.rejects(client.connect(), {
+    code: 'ERR_INVALID_STATE'
   });
-});
-
-['', 1n, {}, [], false, 'zebra'].forEach((defaultEncoding) => {
-  assert.throws(() => client.connect({ defaultEncoding }), {
-    code: 'ERR_INVALID_ARG_VALUE'
-  });
-});
-
-
-// Test that connect cannot be called after QuicSocket is closed.
-client.close();
-assert.throws(() => client.connect(), {
-  code: 'ERR_INVALID_STATE'
-});
+})().then(common.mustCall());
 
 // TODO(@jasnell): Test additional options:
 //
