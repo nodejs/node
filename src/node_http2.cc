@@ -1754,11 +1754,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 
   statistics_.data_received += nread;
 
-  if (LIKELY(stream_buf_offset_ == 0)) {
-    // Shrink to the actual amount of used data.
-    buf.Resize(nread);
-    IncrementCurrentSessionMemory(nread);
-  } else {
+  if (UNLIKELY(stream_buf_offset_ > 0)) {
     // This is a very unlikely case, and should only happen if the ReadStart()
     // call in OnStreamAfterWrite() immediately provides data. If that does
     // happen, we concatenate the data we received with the already-stored
@@ -1769,19 +1765,19 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     memcpy(new_buf.data(), stream_buf_.base + stream_buf_offset_, pending_len);
     memcpy(new_buf.data() + pending_len, buf.data(), nread);
 
-    // The data in stream_buf_ is already accounted for, add nread received
-    // bytes to session memory but remove the already processed
-    // stream_buf_offset_ bytes.
-    // TODO(@jasnell): There are some cases where nread is < stream_buf_offset_
-    // here but things still work. Those need to be investigated.
-    // CHECK_GE(nread, stream_buf_offset_);
-    IncrementCurrentSessionMemory(nread - stream_buf_offset_);
-
     buf = std::move(new_buf);
     nread = buf.size();
     stream_buf_offset_ = 0;
     stream_buf_ab_.Reset();
+
+    // We have now fully processed the stream_buf_ input chunk (by moving the
+    // remaining part into buf, which will be accounted for below).
+    DecrementCurrentSessionMemory(stream_buf_.len);
   }
+
+  // Shrink to the actual amount of used data.
+  buf.Resize(nread);
+  IncrementCurrentSessionMemory(nread);
 
   // Remember the current buffer, so that OnDataChunkReceived knows the
   // offset of a DATA frame's data into the socket read buffer.
