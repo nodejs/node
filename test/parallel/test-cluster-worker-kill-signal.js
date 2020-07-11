@@ -30,6 +30,7 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isWorker) {
+  // Make the worker run something
   const http = require('http');
   const server = http.Server(() => { });
 
@@ -38,23 +39,42 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
   const KILL_SIGNAL = 'SIGKILL';
-  const expected_results = {
-    worker_emitDisconnect: [1, "the worker did not emit 'disconnect'"],
-    worker_emitExit: [1, "the worker did not emit 'exit'"],
-    worker_state: ['disconnected', 'the worker state is incorrect'],
-    worker_exitedAfter: [false, 'the .exitedAfterDisconnect flag is incorrect'],
-    worker_died: [true, 'the worker is still running'],
-    worker_exitCode: [null, 'the worker exited w/ incorrect exitCode'],
-    worker_signalCode: [KILL_SIGNAL,
-                        'the worker exited w/ incorrect signalCode']
+  const expectedResults = {
+    emitDisconnect: {
+      value: 1,
+      message: "the worker did not emit 'disconnect'"
+    },
+    emitExit: {
+      value: 1,
+      message: "the worker did not emit 'exit'"
+    },
+    state: {
+      value: 'disconnected',
+      message: 'the worker state is incorrect'
+    },
+    exitedAfter: {
+      value: false,
+      message: 'the .exitedAfterDisconnect flag is incorrect'
+    },
+    died: {
+      value: true,
+      message: 'the worker is still running'
+    },
+    exitCode: {
+      value: null,
+      message: 'the worker exited w/ incorrect exitCode'
+    },
+    signalCode: {
+      value: KILL_SIGNAL,
+      message: 'the worker exited w/ incorrect signalCode'
+    },
   };
   const results = {
-    worker_emitDisconnect: 0,
-    worker_emitExit: 0
+    emitDisconnect: 0,
+    emitExit: 0
   };
 
-
-  // start worker
+  // Start worker
   const worker = cluster.fork();
 
   // When the worker is up and running, kill it
@@ -64,33 +84,30 @@ if (cluster.isWorker) {
 
   // Check worker events and properties
   worker.on('disconnect', common.mustCall(() => {
-    results.worker_emitDisconnect += 1;
-    results.worker_exitedAfter = worker.exitedAfterDisconnect;
-    results.worker_state = worker.state;
+    results.emitDisconnect += 1;
+    results.exitedAfter = worker.exitedAfterDisconnect;
+    results.state = worker.state;
   }));
 
   // Check that the worker died
   worker.once('exit', common.mustCall((exitCode, signalCode) => {
-    results.worker_exitCode = exitCode;
-    results.worker_signalCode = signalCode;
-    results.worker_emitExit += 1;
-    results.worker_died = !common.isAlive(worker.process.pid);
+    results.exitCode = exitCode;
+    results.signalCode = signalCode;
+    results.emitExit += 1;
+    results.died = !common.isAlive(worker.process.pid);
   }));
 
   process.on('exit', () => {
-    checkResults(expected_results, results);
+    checkResults(expectedResults, results);
   });
 }
 
-// Some helper functions ...
-
-function checkResults(expected_results, results) {
-  for (const k in expected_results) {
-    const actual = results[k];
-    const expected = expected_results[k];
+function checkResults(expectedResults, results) {
+  for (const [key, expected] of Object.entries(expectedResults)) {
+    const actual = results[key];
 
     assert.strictEqual(
-      actual, expected && expected.length ? expected[0] : expected,
-      `${expected[1] || ''} [expected: ${expected[0]} / actual: ${actual}]`);
+      actual, expected.value,
+      `${expected.message} [expected: ${expected.value} / actual: ${actual}]`);
   }
 }
