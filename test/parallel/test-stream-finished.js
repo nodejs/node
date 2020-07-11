@@ -13,6 +13,7 @@ const assert = require('assert');
 const EE = require('events');
 const fs = require('fs');
 const { promisify } = require('util');
+const http = require('http');
 
 {
   const rs = new Readable({
@@ -479,4 +480,22 @@ testClosed((opts) => new Writable({ write() {}, ...opts }));
   p.on('finish', common.mustCall(() => {
     finished(p, common.mustNotCall());
   }));
+}
+
+{
+  const server = http.createServer((req, res) => {
+    res.on('close', () => {
+      finished(res, common.mustCall(() => {
+        server.close();
+      }));
+    });
+    res.end();
+  })
+  .listen(0, function() {
+    http.request({
+      method: 'GET',
+      port: this.address().port
+    }).end()
+      .on('response', common.mustCall());
+  });
 }
