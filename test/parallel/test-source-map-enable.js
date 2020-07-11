@@ -265,6 +265,25 @@ function nextdir() {
   );
 }
 
+// Does not attempt to load source map URLs with leading characters other
+// than /* or //, e.g., const sm = '// sourceMappingUrl ...'.
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    require.resolve('../fixtures/source-map/fake-source-map-url.js')
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  if (output.status !== 0) {
+    console.log(output.stderr.toString());
+  }
+  assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
+  const sourceMap = getSourceMapFromCache(
+    'fake-source-map-url.js',
+    coverageDirectory
+  );
+  assert.strictEqual(sourceMap, undefined);
+}
+
 function getSourceMapFromCache(fixtureFile, coverageDirectory) {
   const jsonFiles = fs.readdirSync(coverageDirectory);
   for (const jsonFile of jsonFiles) {
