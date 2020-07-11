@@ -467,7 +467,7 @@ Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
 could provide different implementations between Node.js and other JS
 environments.
 
-Whenever using environment branches, it is highly recommended to always include
+When using environment branches, include
 a `"defaut"` condition where possible. Always providing a `"default"` condition
 ensures that any unknown JS environments are able to use a universal
 implementation where possible, which helps avoid JS environments from having to
