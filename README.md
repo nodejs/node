@@ -1,5 +1,4 @@
 <!--lint disable no-literal-urls-->
-
 <p align="center">
   <a href="https://nodejs.org/">
     <img
@@ -10,32 +9,31 @@
   </a>
 </p>
 
-Node.js is an open-source, cross-platform, JavaScript runtime environment.
-
-For information on using Node.js, see the [Node.js Website][].
+Node.js is an open-source, cross-platform, JavaScript runtime environment. It
+executes JavaScript code outside of a browser. For more information on using
+Node.js, see the [Node.js Website][].
 
 The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
 
-**This project has a [Code of Conduct][].**
+**This project is bound by a [Code of Conduct][].**
 
-# Table of contents
+# Table of Contents
 
 * [Support](#support)
-* [Release types](#release-types)
+* [Release Types](#release-types)
   * [Download](#download)
-    * [Current and LTS releases](#current-and-lts-releases)
-    * [Nightly releases](#nightly-releases)
-    * [API documentation](#api-documentation)
-  * [Verifying binaries](#verifying-binaries)
+    * [Current and LTS Releases](#current-and-lts-releases)
+    * [Nightly Releases](#nightly-releases)
+    * [API Documentation](#api-documentation)
+  * [Verifying Binaries](#verifying-binaries)
 * [Building Node.js](#building-nodejs)
 * [Security](#security)
 * [Contributing to Node.js](#contributing-to-nodejs)
-* [Current project team members](#current-project-team-members)
+* [Current Project Team Members](#current-project-team-members)
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
-  * [Triagers](#triagers)
-  * [Release keys](#release-keys)
+  * [Release Keys](#release-keys)
 * [License](#license)
 
 ## Support
@@ -43,16 +41,16 @@ The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 Looking for help? Check out the
 [instructions for getting support](.github/SUPPORT.md).
 
-## Release types
+## Release Types
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
-  [v15.x](https://github.com/nodejs/node/tree/v15.x)). Node.js releases a new
+  [v10.x](https://github.com/nodejs/node/tree/v10.x)). Node.js releases a new
   major version every 6 months, allowing for breaking changes. This happens in
   April and October every year. Releases appearing each October have a support
   life of 8 months. Releases appearing each April convert to LTS (see below)
   each October.
-* **LTS**: Releases that receive Long Term Support, with a focus on stability
+* **LTS**: Releases that receive Long-term Support, with a focus on stability
   and security. Every even-numbered major version will become an LTS release.
   LTS releases receive 12 months of _Active LTS_ support and a further 18 months
   of _Maintenance_. LTS release lines have alphabetically-ordered code names,
@@ -71,31 +69,29 @@ For more information, see the
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org/en/download/>.
 
-#### Current and LTS releases
-
+#### Current and LTS Releases
 <https://nodejs.org/download/release/>
 
 The [latest](https://nodejs.org/download/release/latest/) directory is an
 alias for the latest Current release. The latest-_codename_ directory is an
 alias for the latest release from an LTS line. For example, the
-[latest-fermium](https://nodejs.org/download/release/latest-fermium/) directory
-contains the latest Fermium (Node.js 14) release.
+[latest-carbon](https://nodejs.org/download/release/latest-carbon/) directory
+contains the latest Carbon (Node.js 8) release.
 
-#### Nightly releases
-
+#### Nightly Releases
 <https://nodejs.org/download/nightly/>
 
 Each directory name and filename contains a date (in UTC) and the commit
 SHA at the HEAD of the release.
 
-#### API documentation
+#### API Documentation
 
 Documentation for the latest Current release is at <https://nodejs.org/api/>.
 Version-specific documentation is available in each release directory in the
 _docs_ subdirectory. Version-specific documentation is also at
 <https://nodejs.org/download/docs/>.
 
-### Verifying binaries
+### Verifying Binaries
 
 Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
 files.
@@ -115,7 +111,7 @@ $ grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
 
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
 `SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
-`SHASUMS256.txt`. You will first need to import
+`SHASUM256.txt`. You will first need to import
 [the GPG keys of individuals authorized to create releases](#release-keys). To
 import the keys:
 
@@ -148,541 +144,482 @@ For information on reporting security vulnerabilities in Node.js, see
 
 * [Contributing to the project][]
 * [Working Groups][]
-* [Strategic initiatives][]
+* [Strategic Initiatives][]
 * [Technical values and prioritization][]
 
-## Current project team members
+## Current Project Team Members
 
 For information about the governance of the Node.js project, see
 [GOVERNANCE.md](./GOVERNANCE.md).
 
-<!-- node-core-utils and find-inactive-tsc.mjs depend on the format of the TSC
-     list. If the format changes, those utilities need to be tested and
-     updated. -->
-
 ### TSC (Technical Steering Committee)
 
 <!--lint disable prohibited-strings-->
-
-* [aduh95](https://github.com/aduh95) -
-  **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
 * [apapirovski](https://github.com/apapirovski) -
-  **Anatoli Papirovski** <<apapirovski@mac.com>> (he/him)
+**Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [BethGriggs](https://github.com/BethGriggs) -
-  **Beth Griggs** <<bgriggs@redhat.com>> (she/her)
+**Beth Griggs** &lt;bgriggs@redhat.com&gt; (she/her)
 * [BridgeAR](https://github.com/BridgeAR) -
-  **Ruben Bridgewater** <<ruben@bridgewater.de>> (he/him)
+**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt; (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
-  **Сковорода Никита Андреевич** <<chalkerx@gmail.com>> (he/him)
+**Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [cjihrig](https://github.com/cjihrig) -
-  **Colin Ihrig** <<cjihrig@gmail.com>> (he/him)
-* [danielleadams](https://github.com/danielleadams) -
-  **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
+**Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
+* [codebytere](https://github.com/codebytere) -
+**Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
+* [danbev](https://github.com/danbev) -
+**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
 * [fhinkel](https://github.com/fhinkel) -
-  **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
+**Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt; (she/her)
+* [gabrielschulhof](https://github.com/gabrielschulhof) -
+**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
-  **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
+**Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [jasnell](https://github.com/jasnell) -
-  **James M Snell** <<jasnell@gmail.com>> (he/him)
+**James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
-  **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
+**Joyee Cheung** &lt;joyeec9h3@gmail.com&gt; (she/her)
 * [mcollina](https://github.com/mcollina) -
-  **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
+**Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
-  **Michael Dawson** <<midawson@redhat.com>> (he/him)
+**Michael Dawson** &lt;midawson@redhat.com&gt; (he/him)
 * [mmarchini](https://github.com/mmarchini) -
-  **Mary Marchini** <<oss@mmarchini.me>> (she/her)
+**Mary Marchini** &lt;oss@mmarchini.me&gt; (she/her)
 * [MylesBorins](https://github.com/MylesBorins) -
-  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
-* [RaisinTen](https://github.com/RaisinTen) -
-  **Darshan Sen** <<raisinten@gmail.com>> (he/him)
-* [richardlau](https://github.com/richardlau) -
-  **Richard Lau** <<rlau@redhat.com>>
-* [ronag](https://github.com/ronag) -
-  **Robert Nagy** <<ronagy@icloud.com>>
+**Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
 * [targos](https://github.com/targos) -
-  **Michaël Zasso** <<targos@protonmail.com>> (he/him)
+**Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
-  **Tobias Nießen** <<tniessen@tnie.de>> (he/him)
+**Tobias Nießen** &lt;tniessen@tnie.de&gt;
 * [Trott](https://github.com/Trott) -
-  **Rich Trott** <<rtrott@gmail.com>> (he/him)
+**Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 
-<details>
-
-<summary>Emeriti</summary>
-
-### TSC emeriti
+### TSC Emeriti
 
 * [addaleax](https://github.com/addaleax) -
-  **Anna Henningsen** <<anna@addaleax.net>> (she/her)
+**Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [bnoordhuis](https://github.com/bnoordhuis) -
-  **Ben Noordhuis** <<info@bnoordhuis.nl>>
+**Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
 * [chrisdickinson](https://github.com/chrisdickinson) -
-  **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
-* [codebytere](https://github.com/codebytere) -
-  **Shelley Vohr** <<shelley.vohr@gmail.com>> (she/her)
-* [danbev](https://github.com/danbev) -
-  **Daniel Bevenius** <<daniel.bevenius@gmail.com>> (he/him)
+**Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [evanlucas](https://github.com/evanlucas) -
-  **Evan Lucas** <<evanlucas@me.com>> (he/him)
+**Evan Lucas** &lt;evanlucas@me.com&gt; (he/him)
 * [Fishrock123](https://github.com/Fishrock123) -
-  **Jeremiah Senkpiel** <<fishrock123@rocketmail.com>> (he/they)
-* [gabrielschulhof](https://github.com/gabrielschulhof) -
-  **Gabriel Schulhof** <<gabrielschulhof@gmail.com>>
+**Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt; (he/they)
 * [gibfahn](https://github.com/gibfahn) -
-  **Gibson Fahnestock** <<gibfahn@gmail.com>> (he/him)
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [indutny](https://github.com/indutny) -
-  **Fedor Indutny** <<fedor@indutny.com>>
+**Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [isaacs](https://github.com/isaacs) -
-  **Isaac Z. Schlueter** <<i@izs.me>>
+**Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [joshgav](https://github.com/joshgav) -
-  **Josh Gavant** <<josh.gavant@outlook.com>>
+**Josh Gavant** &lt;josh.gavant@outlook.com&gt;
 * [mscdex](https://github.com/mscdex) -
-  **Brian White** <<mscdex@mscdex.net>>
+**Brian White** &lt;mscdex@mscdex.net&gt;
 * [nebrius](https://github.com/nebrius) -
-  **Bryan Hughes** <<bryan@nebri.us>>
+**Bryan Hughes** &lt;bryan@nebri.us&gt;
 * [ofrobots](https://github.com/ofrobots) -
-  **Ali Ijaz Sheikh** <<ofrobots@google.com>> (he/him)
+**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [orangemocha](https://github.com/orangemocha) -
-  **Alexis Campailla** <<orangemocha@nodejs.org>>
+**Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [piscisaureus](https://github.com/piscisaureus) -
-  **Bert Belder** <<bertbelder@gmail.com>>
+**Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [rvagg](https://github.com/rvagg) -
-  **Rod Vagg** <<r@va.gg>>
+**Rod Vagg** &lt;r@va.gg&gt;
 * [sam-github](https://github.com/sam-github) -
-  **Sam Roberts** <<vieuxtech@gmail.com>>
+**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
-  **Shigeki Ohtsu** <<ohtsu@ohtsu.org>> (he/him)
+**Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
-  **Sakthipriyan Vairamani** <<thechargingvolcano@gmail.com>> (he/him)
+**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
 * [TimothyGu](https://github.com/TimothyGu) -
-  **Tiancheng "Timothy" Gu** <<timothygu99@gmail.com>> (he/him)
+**Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [trevnorris](https://github.com/trevnorris) -
-  **Trevor Norris** <<trev.norris@gmail.com>>
-
-</details>
-
-<!-- node-core-utils and find-inactive-collaborators.mjs depend on the format
-     of the collaborator list. If the format changes, those utilities need to be
-     tested and updated. -->
+**Trevor Norris** &lt;trev.norris@gmail.com&gt;
 
 ### Collaborators
 
 * [addaleax](https://github.com/addaleax) -
-  **Anna Henningsen** <<anna@addaleax.net>> (she/her)
+**Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [aduh95](https://github.com/aduh95) -
-  **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
+**Antoine du Hamel** &lt;duhamelantoine1995@gmail.com&gt; (he/him)
 * [ak239](https://github.com/ak239) -
-  **Aleksei Koziatinskii** <<ak239spb@gmail.com>>
+**Aleksei Koziatinskii** &lt;ak239spb@gmail.com&gt;
+* [AndreasMadsen](https://github.com/AndreasMadsen) -
+**Andreas Madsen** &lt;amwebdk@gmail.com&gt; (he/him)
 * [antsmartian](https://github.com/antsmartian) -
-  **Anto Aravinth** <<anto.aravinth.cse@gmail.com>> (he/him)
+**Anto Aravinth** &lt;anto.aravinth.cse@gmail.com&gt; (he/him)
 * [apapirovski](https://github.com/apapirovski) -
-  **Anatoli Papirovski** <<apapirovski@mac.com>> (he/him)
+**Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [AshCripps](https://github.com/AshCripps) -
-  **Ash Cripps** <<acripps@redhat.com>>
-* [Ayase-252](https://github.com/Ayase-252) -
-  **Qingyu Deng** <<i@ayase-lab.com>>
+**Ash Cripps** &lt;acripps@redhat.com&gt;
 * [bcoe](https://github.com/bcoe) -
-  **Ben Coe** <<bencoe@gmail.com>> (he/him)
+**Ben Coe** &lt;bencoe@gmail.com&gt; (he/him)
 * [bengl](https://github.com/bengl) -
-  **Bryan English** <<bryan@bryanenglish.com>> (he/him)
+**Bryan English** &lt;bryan@bryanenglish.com&gt; (he/him)
 * [benjamingr](https://github.com/benjamingr) -
-  **Benjamin Gruenbaum** <<benjamingr@gmail.com>>
+**Benjamin Gruenbaum** &lt;benjamingr@gmail.com&gt;
 * [BethGriggs](https://github.com/BethGriggs) -
-  **Beth Griggs** <<bgriggs@redhat.com>> (she/her)
+**Beth Griggs** &lt;bgriggs@redhat.com&gt; (she/her)
 * [bmeck](https://github.com/bmeck) -
-  **Bradley Farias** <<bradley.meck@gmail.com>>
-* [bnb](https://github.com/bnb) -
-  **Tierney Cyren** <<hello@bnb.im>> (they/he)
+**Bradley Farias** &lt;bradley.meck@gmail.com&gt;
+* [bmeurer](https://github.com/bmeurer) -
+**Benedikt Meurer** &lt;benedikt.meurer@gmail.com&gt;
 * [boneskull](https://github.com/boneskull) -
-  **Christopher Hiller** <<boneskull@boneskull.com>> (he/him)
+**Christopher Hiller** &lt;boneskull@boneskull.com&gt; (he/him)
 * [BridgeAR](https://github.com/BridgeAR) -
-  **Ruben Bridgewater** <<ruben@bridgewater.de>> (he/him)
+**Ruben Bridgewater** &lt;ruben@bridgewater.de&gt; (he/him)
 * [bzoz](https://github.com/bzoz) -
-  **Bartosz Sosnowski** <<bartosz@janeasystems.com>>
+**Bartosz Sosnowski** &lt;bartosz@janeasystems.com&gt;
 * [cclauss](https://github.com/cclauss) -
-  **Christian Clauss** <<cclauss@me.com>> (he/him)
+**Christian Clauss** &lt;cclauss@me.com&gt; (he/him)
 * [ChALkeR](https://github.com/ChALkeR) -
-  **Сковорода Никита Андреевич** <<chalkerx@gmail.com>> (he/him)
+**Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [cjihrig](https://github.com/cjihrig) -
-  **Colin Ihrig** <<cjihrig@gmail.com>> (he/him)
+**Colin Ihrig** &lt;cjihrig@gmail.com&gt; (he/him)
 * [codebytere](https://github.com/codebytere) -
-  **Shelley Vohr** <<shelley.vohr@gmail.com>> (she/her)
+**Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
-  **Daniel Bevenius** <<daniel.bevenius@gmail.com>> (he/him)
+**Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
 * [danielleadams](https://github.com/danielleadams) -
-  **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
-* [DerekNonGeneric](https://github.com/DerekNonGeneric) -
-  **Derek Lewis** <<DerekNonGeneric@inf.is>> (he/him)
+**Danielle Adams** &lt;adamzdanielle@gmail.com&gt; (she/her)
+* [davisjam](https://github.com/davisjam) -
+**Jamie Davis** &lt;davisjam@vt.edu&gt; (he/him)
 * [devnexen](https://github.com/devnexen) -
-  **David Carlier** <<devnexen@gmail.com>>
+**David Carlier** &lt;devnexen@gmail.com&gt;
 * [devsnek](https://github.com/devsnek) -
-  **Gus Caplan** <<me@gus.host>> (they/them)
-* [dmabupt](https://github.com/dmabupt) -
-  **Xu Meng** <<dmabupt@gmail.com>> (he/him)
+**Gus Caplan** &lt;me@gus.host&gt; (they/them)
 * [dnlup](https://github.com/dnlup)
-  **Daniele Belardi** <<dwon.dnl@gmail.com>> (he/him)
+**Daniele Belardi** &lt;dwon.dnl@gmail.com&gt; (he/him)
 * [edsadr](https://github.com/edsadr) -
-  **Adrian Estrada** <<edsadr@gmail.com>> (he/him)
+**Adrian Estrada** &lt;edsadr@gmail.com&gt; (he/him)
+* [eugeneo](https://github.com/eugeneo) -
+**Eugene Ostroukhov** &lt;eostroukhov@google.com&gt;
 * [evanlucas](https://github.com/evanlucas) -
-  **Evan Lucas** <<evanlucas@me.com>> (he/him)
+**Evan Lucas** &lt;evanlucas@me.com&gt; (he/him)
 * [fhinkel](https://github.com/fhinkel) -
-  **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
+**Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt; (she/her)
+* [Fishrock123](https://github.com/Fishrock123) -
+**Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;  (he/they)
 * [Flarna](https://github.com/Flarna) -
-  **Gerhard Stöbich** <<deb2001-github@yahoo.de>>  (he/they)
+**Gerhard Stöbich** &lt;deb2001-github@yahoo.de&gt;  (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
-  **Gabriel Schulhof** <<gabrielschulhof@gmail.com>>
+**Gabriel Schulhof** &lt;gabriel.schulhof@intel.com&gt;
+* [gdams](https://github.com/gdams) -
+**George Adams** &lt;george.adams@uk.ibm.com&gt; (he/him)
+* [geek](https://github.com/geek) -
+**Wyatt Preul** &lt;wpreul@gmail.com&gt;
 * [gengjiawen](https://github.com/gengjiawen) -
-  **Jiawen Geng** <<technicalcute@gmail.com>>
+**Jiawen Geng** &lt;technicalcute@gmail.com&gt;
 * [GeoffreyBooth](https://github.com/geoffreybooth) -
-  **Geoffrey Booth** <<webadmin@geoffreybooth.com>> (he/him)
+**Geoffrey Booth** &lt;webmaster@geoffreybooth.com&gt; (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
-  **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
+**Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [guybedford](https://github.com/guybedford) -
-  **Guy Bedford** <<guybedford@gmail.com>> (he/him)
+**Guy Bedford** &lt;guybedford@gmail.com&gt; (he/him)
 * [HarshithaKP](https://github.com/HarshithaKP) -
-  **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
+**Harshitha K P** &lt;harshitha014@gmail.com&gt; (she/her)
 * [hashseed](https://github.com/hashseed) -
-  **Yang Guo** <<yangguo@chromium.org>> (he/him)
+**Yang Guo** &lt;yangguo@chromium.org&gt; (he/him)
 * [himself65](https://github.com/himself65) -
-  **Zeyu Yang** <<himself65@outlook.com>> (he/him)
+**Zeyu Yang** &lt;himself65@outlook.com&gt; (he/him)
 * [hiroppy](https://github.com/hiroppy) -
-  **Yuta Hiroto** <<hello@hiroppy.me>> (he/him)
+**Yuta Hiroto** &lt;hello@hiroppy.me&gt; (he/him)
 * [iansu](https://github.com/iansu) -
-  **Ian Sutherland** <<ian@iansutherland.ca>>
+**Ian Sutherland** &lt;ian@iansutherland.ca&gt;
 * [indutny](https://github.com/indutny) -
-  **Fedor Indutny** <<fedor@indutny.com>>
+**Fedor Indutny** &lt;fedor.indutny@gmail.com&gt;
 * [JacksonTian](https://github.com/JacksonTian) -
-  **Jackson Tian** <<shyvo1987@gmail.com>>
+**Jackson Tian** &lt;shyvo1987@gmail.com&gt;
 * [jasnell](https://github.com/jasnell) -
-  **James M Snell** <<jasnell@gmail.com>> (he/him)
+**James M Snell** &lt;jasnell@gmail.com&gt; (he/him)
+* [jdalton](https://github.com/jdalton) -
+**John-David Dalton** &lt;john.david.dalton@gmail.com&gt;
 * [jkrems](https://github.com/jkrems) -
-  **Jan Krems** <<jan.krems@gmail.com>> (he/him)
+**Jan Krems** &lt;jan.krems@gmail.com&gt; (he/him)
 * [joaocgreis](https://github.com/joaocgreis) -
-  **João Reis** <<reis@janeasystems.com>>
+**João Reis** &lt;reis@janeasystems.com&gt;
 * [joyeecheung](https://github.com/joyeecheung) -
-  **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
+**Joyee Cheung** &lt;joyeec9h3@gmail.com&gt; (she/her)
 * [juanarbol](https://github.com/juanarbol) -
-  **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
+**Juan José Arboleda** &lt;soyjuanarbol@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
-  **Minwoo Jung** <<nodecorelab@gmail.com>> (he/him)
+**Minwoo Jung** &lt;nodecorelab@gmail.com&gt; (he/him)
+* [lance](https://github.com/lance) -
+**Lance Ball** &lt;lball@redhat.com&gt; (he/him)
 * [legendecas](https://github.com/legendecas) -
-  **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
+**Chengzhong Wu** &lt;legendecas@gmail.com&gt; (he/him)
 * [Leko](https://github.com/Leko) -
-  **Shingo Inoue** <<leko.noor@gmail.com>> (he/him)
-* [linkgoron](https://github.com/linkgoron) -
-  **Nitzan Uziely** <<linkgoron@gmail.com>>
+**Shingo Inoue** &lt;leko.noor@gmail.com&gt; (he/him)
 * [lpinca](https://github.com/lpinca) -
-  **Luigi Pinca** <<luigipinca@gmail.com>> (he/him)
+**Luigi Pinca** &lt;luigipinca@gmail.com&gt; (he/him)
 * [lundibundi](https://github.com/lundibundi) -
-  **Denys Otrishko** <<shishugi@gmail.com>> (he/him)
-* [Lxxyx](https://github.com/Lxxyx) -
-  **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
+**Denys Otrishko** &lt;shishugi@gmail.com&gt; (he/him)
+* [mafintosh](https://github.com/mafintosh) -
+**Mathias Buus** &lt;mathiasbuus@gmail.com&gt; (he/him)
 * [mcollina](https://github.com/mcollina) -
-  **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
-* [Mesteery](https://github.com/Mesteery) -
-  **Mestery** <<mestery@protonmail.com>> (he/him)
+**Matteo Collina** &lt;matteo.collina@gmail.com&gt; (he/him)
 * [mhdawson](https://github.com/mhdawson) -
-  **Michael Dawson** <<midawson@redhat.com>> (he/him)
+**Michael Dawson** &lt;midawson@redhat.com&gt; (he/him)
 * [miladfarca](https://github.com/miladfarca) -
-  **Milad Fa** <<mfarazma@redhat.com>> (he/him)
+**Milad Fa** &lt;mfarazma@redhat.com&gt; (he/him)
 * [mildsunrise](https://github.com/mildsunrise) -
-  **Alba Mendez** <<me@alba.sh>> (she/her)
+**Alba Mendez** &lt;me@alba.sh&gt; (she/her)
+* [misterdjules](https://github.com/misterdjules) -
+**Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mmarchini](https://github.com/mmarchini) -
-  **Mary Marchini** <<oss@mmarchini.me>> (she/her)
+**Mary Marchini** &lt;oss@mmarchini.me&gt; (she/her)
 * [mscdex](https://github.com/mscdex) -
-  **Brian White** <<mscdex@mscdex.net>>
+**Brian White** &lt;mscdex@mscdex.net&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
-  **Myles Borins** <<myles.borins@gmail.com>> (he/him)
+**Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
+* [ofrobots](https://github.com/ofrobots) -
+**Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt; (he/him)
 * [oyyd](https://github.com/oyyd) -
-  **Ouyang Yadong** <<oyydoibh@gmail.com>> (he/him)
+**Ouyang Yadong** &lt;oyydoibh@gmail.com&gt; (he/him)
 * [panva](https://github.com/panva) -
-  **Filip Skokan** <<panva.ip@gmail.com>>
+**Filip Skokan** &lt;panva.ip@gmail.com&gt;
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
-  **Pooja D P** <<Pooja.D.P@ibm.com>> (she/her)
+**Pooja D P** &lt;Pooja.D.P@ibm.com&gt; (she/her)
+* [psmarshall](https://github.com/psmarshall) -
+**Peter Marshall** &lt;petermarshall@chromium.org&gt; (he/him)
 * [puzpuzpuz](https://github.com/puzpuzpuz) -
-  **Andrey Pechkurov** <<apechkurov@gmail.com>> (he/him)
+**Andrey Pechkurov** &lt;apechkurov@gmail.com&gt; (he/him)
 * [Qard](https://github.com/Qard) -
-  **Stephen Belanger** <<admin@stephenbelanger.com>> (he/him)
+**Stephen Belanger** &lt;admin@stephenbelanger.com&gt; (he/him)
 * [RaisinTen](https://github.com/RaisinTen) -
-  **Darshan Sen** <<raisinten@gmail.com>> (he/him)
+**Darshan Sen** &lt;raisinten@gmail.com&gt; (he/him)
+* [refack](https://github.com/refack) -
+**Refael Ackermann (רפאל פלחי)** &lt;refack@gmail.com&gt; (he/him/הוא/אתה)
 * [rexagod](https://github.com/rexagod) -
-  **Pranshu Srivastava** <<rexagod@gmail.com>> (he/him)
+**Pranshu Srivastava** &lt;rexagod@gmail.com&gt; (he/him)
 * [richardlau](https://github.com/richardlau) -
-  **Richard Lau** <<rlau@redhat.com>>
+**Richard Lau** &lt;rlau@redhat.com&gt;
 * [rickyes](https://github.com/rickyes) -
-  **Ricky Zhou** <<0x19951125@gmail.com>> (he/him)
+**Ricky Zhou** &lt;0x19951125@gmail.com&gt; (he/him)
 * [ronag](https://github.com/ronag) -
-  **Robert Nagy** <<ronagy@icloud.com>>
+**Robert Nagy** &lt;ronagy@icloud.com&gt;
+* [rubys](https://github.com/rubys) -
+**Sam Ruby** &lt;rubys@intertwingly.net&gt;
 * [ruyadorno](https://github.com/ruyadorno) -
-  **Ruy Adorno** <<ruyadorno@github.com>> (he/him)
+**Ruy Adorno** &lt;ruyadorno@github.com&gt; (he/him)
 * [rvagg](https://github.com/rvagg) -
-  **Rod Vagg** <<rod@vagg.org>>
+**Rod Vagg** &lt;rod@vagg.org&gt;
 * [ryzokuken](https://github.com/ryzokuken) -
-  **Ujjwal Sharma** <<ryzokuken@disroot.org>> (he/him)
+**Ujjwal Sharma** &lt;ryzokuken@disroot.org&gt; (he/him)
+* [saghul](https://github.com/saghul) -
+**Saúl Ibarra Corretgé** &lt;saghul@gmail.com&gt;
 * [santigimeno](https://github.com/santigimeno) -
-  **Santiago Gimeno** <<santiago.gimeno@gmail.com>>
+**Santiago Gimeno** &lt;santiago.gimeno@gmail.com&gt;
+* [seishun](https://github.com/seishun) -
+**Nikolai Vavilov** &lt;vvnicholas@gmail.com&gt;
 * [shisama](https://github.com/shisama) -
-  **Masashi Hirano** <<shisama07@gmail.com>> (he/him)
+**Masashi Hirano** &lt;shisama07@gmail.com&gt; (he/him)
+* [silverwind](https://github.com/silverwind) -
+**Roman Reiss** &lt;me@silverwind.io&gt;
 * [srl295](https://github.com/srl295) -
-  **Steven R Loomis** <<srloomis@us.ibm.com>>
+**Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
 * [starkwang](https://github.com/starkwang) -
-  **Weijia Wang** <<starkwang@126.com>>
+**Weijia Wang** &lt;starkwang@126.com&gt;
 * [sxa](https://github.com/sxa) -
-  **Stewart X Addison** <<sxa@redhat.com>> (he/him)
+**Stewart X Addison** &lt;sxa@redhat.com&gt; (he/him)
 * [targos](https://github.com/targos) -
-  **Michaël Zasso** <<targos@protonmail.com>> (he/him)
+**Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [TimothyGu](https://github.com/TimothyGu) -
-  **Tiancheng "Timothy" Gu** <<timothygu99@gmail.com>> (he/him)
+**Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
-  **Tobias Nießen** <<tniessen@tnie.de>> (he/him)
+**Tobias Nießen** &lt;tniessen@tnie.de&gt;
 * [trivikr](https://github.com/trivikr) -
-  **Trivikram Kamat** <<trivikr.dev@gmail.com>>
+**Trivikram Kamat** &lt;trivikr.dev@gmail.com&gt;
 * [Trott](https://github.com/Trott) -
-  **Rich Trott** <<rtrott@gmail.com>> (he/him)
+**Rich Trott** &lt;rtrott@gmail.com&gt; (he/him)
 * [vdeturckheim](https://github.com/vdeturckheim) -
-  **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
-* [VoltrexMaster](https://github.com/VoltrexMaster) -
-  **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
+**Vladimir de Turckheim** &lt;vlad2t@hotmail.com&gt; (he/him)
 * [watilde](https://github.com/watilde) -
-  **Daijiro Wachi** <<daijiro.wachi@gmail.com>> (he/him)
+**Daijiro Wachi** &lt;daijiro.wachi@gmail.com&gt; (he/him)
+* [watson](https://github.com/watson) -
+**Thomas Watson** &lt;w@tson.dk&gt;
 * [XadillaX](https://github.com/XadillaX) -
-  **Khaidi Chu** <<i@2333.moe>> (he/him)
+**Khaidi Chu** &lt;i@2333.moe&gt; (he/him)
 * [yashLadha](https://github.com/yashLadha) -
-  **Yash Ladha** <<yash@yashladha.in>> (he/him)
+**Yash Ladha** &lt;yash@yashladha.in&gt; (he/him)
+* [yhwang](https://github.com/yhwang) -
+**Yihong Wang** &lt;yh.wang@ibm.com&gt;
+* [yorkie](https://github.com/yorkie) -
+**Yorkie Liu** &lt;yorkiefixer@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
-  **Yosuke Furukawa** <<yosuke.furukawa@gmail.com>>
+**Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
 * [ZYSzys](https://github.com/ZYSzys) -
-  **Yongsheng Zhang** <<zyszys98@gmail.com>> (he/him)
+**Yongsheng Zhang** &lt;zyszys98@gmail.com&gt; (he/him)
+* [baradm100](https://github.com/baradm100) -
+**Bar Admoni** &lt;admoni.bar1@gmail.com&gt; (he/him)
 
-<details>
-
-<summary>Emeriti</summary>
-
-<!-- find-inactive-collaborators.mjs depends on the format of the emeriti list.
-     If the format changes, those utilities need to be tested and updated. -->
-
-### Collaborator emeriti
+### Collaborator Emeriti
 
 * [andrasq](https://github.com/andrasq) -
-  **Andras** <<andras@kinvey.com>>
+**Andras** &lt;andras@kinvey.com&gt;
 * [AnnaMag](https://github.com/AnnaMag) -
-  **Anna M. Kedzierska** <<anna.m.kedzierska@gmail.com>>
-* [AndreasMadsen](https://github.com/AndreasMadsen) -
-  **Andreas Madsen** <<amwebdk@gmail.com>> (he/him)
+**Anna M. Kedzierska** &lt;anna.m.kedzierska@gmail.com&gt;
 * [aqrln](https://github.com/aqrln) -
-  **Alexey Orlenko** <<eaglexrlnk@gmail.com>> (he/him)
-* [bmeurer](https://github.com/bmeurer) -
-  **Benedikt Meurer** <<benedikt.meurer@gmail.com>>
+**Alexey Orlenko** &lt;eaglexrlnk@gmail.com&gt; (he/him)
 * [bnoordhuis](https://github.com/bnoordhuis) -
-  **Ben Noordhuis** <<info@bnoordhuis.nl>>
+**Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
 * [brendanashworth](https://github.com/brendanashworth) -
-  **Brendan Ashworth** <<brendan.ashworth@me.com>>
+**Brendan Ashworth** &lt;brendan.ashworth@me.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
-  **Calvin Metcalf** <<calvin.metcalf@gmail.com>>
+**Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
 * [chrisdickinson](https://github.com/chrisdickinson) -
-  **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
+**Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
-  **Claudio Rodriguez** <<cjrodr@yahoo.com>>
+**Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [DavidCai1993](https://github.com/DavidCai1993) -
-  **David Cai** <<davidcai1993@yahoo.com>> (he/him)
-* [davisjam](https://github.com/davisjam) -
-  **Jamie Davis** <<davisjam@vt.edu>> (he/him)
+**David Cai** &lt;davidcai1993@yahoo.com&gt; (he/him)
+* [DerekNonGeneric](https://github.com/DerekNonGeneric) -
+**Derek Lewis** &lt;DerekNonGeneric@inf.is&gt; (he/him)
 * [digitalinfinity](https://github.com/digitalinfinity) -
-  **Hitesh Kanwathirtha** <<digitalinfinity@gmail.com>> (he/him)
+**Hitesh Kanwathirtha** &lt;digitalinfinity@gmail.com&gt; (he/him)
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
-  **Robert Jefe Lindstaedt** <<robert.lindstaedt@gmail.com>>
+**Robert Jefe Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) -
-  **Alexander Makarenko** <<estliberitas@gmail.com>>
-* [eugeneo](https://github.com/eugeneo) -
-  **Eugene Ostroukhov** <<eostroukhov@google.com>>
+**Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
 * [firedfox](https://github.com/firedfox) -
-  **Daniel Wang** <<wangyang0123@gmail.com>>
-* [Fishrock123](https://github.com/Fishrock123) -
-  **Jeremiah Senkpiel** <<fishrock123@rocketmail.com>> (he/they)
-* [gdams](https://github.com/gdams) -
-  **George Adams** <<gadams@microsoft.com>> (he/him)
-* [geek](https://github.com/geek) -
-  **Wyatt Preul** <<wpreul@gmail.com>>
+**Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [gibfahn](https://github.com/gibfahn) -
-  **Gibson Fahnestock** <<gibfahn@gmail.com>> (he/him)
+**Gibson Fahnestock** &lt;gibfahn@gmail.com&gt; (he/him)
 * [glentiki](https://github.com/glentiki) -
-  **Glen Keane** <<glenkeane.94@gmail.com>> (he/him)
+**Glen Keane** &lt;glenkeane.94@gmail.com&gt; (he/him)
 * [iarna](https://github.com/iarna) -
-  **Rebecca Turner** <<me@re-becca.org>>
+**Rebecca Turner** &lt;me@re-becca.org&gt;
 * [imran-iq](https://github.com/imran-iq) -
-  **Imran Iqbal** <<imran@imraniqbal.org>>
+**Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [imyller](https://github.com/imyller) -
-  **Ilkka Myller** <<ilkka.myller@nodefield.com>>
+**Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [isaacs](https://github.com/isaacs) -
-  **Isaac Z. Schlueter** <<i@izs.me>>
+**Isaac Z. Schlueter** &lt;i@izs.me&gt;
 * [italoacasas](https://github.com/italoacasas) -
-  **Italo A. Casas** <<me@italoacasas.com>> (he/him)
+**Italo A. Casas** &lt;me@italoacasas.com&gt; (he/him)
 * [jasongin](https://github.com/jasongin) -
-  **Jason Ginchereau** <<jasongin@microsoft.com>>
+**Jason Ginchereau** &lt;jasongin@microsoft.com&gt;
 * [jbergstroem](https://github.com/jbergstroem) -
-  **Johan Bergström** <<bugs@bergstroem.nu>>
-* [jdalton](https://github.com/jdalton) -
-  **John-David Dalton** <<john.david.dalton@gmail.com>>
+**Johan Bergström** &lt;bugs@bergstroem.nu&gt;
 * [jhamhader](https://github.com/jhamhader) -
-  **Yuval Brik** <<yuval@brik.org.il>>
+**Yuval Brik** &lt;yuval@brik.org.il&gt;
 * [joshgav](https://github.com/joshgav) -
-  **Josh Gavant** <<josh.gavant@outlook.com>>
+**Josh Gavant** &lt;josh.gavant@outlook.com&gt;
 * [julianduque](https://github.com/julianduque) -
-  **Julian Duque** <<julianduquej@gmail.com>> (he/him)
+**Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [kfarnung](https://github.com/kfarnung) -
-  **Kyle Farnung** <<kfarnung@microsoft.com>> (he/him)
+**Kyle Farnung** &lt;kfarnung@microsoft.com&gt; (he/him)
 * [kunalspathak](https://github.com/kunalspathak) -
-  **Kunal Pathak** <<kunal.pathak@microsoft.com>>
-* [lance](https://github.com/lance) -
-  **Lance Ball** <<lball@redhat.com>> (he/him)
+**Kunal Pathak** &lt;kunal.pathak@microsoft.com&gt;
 * [lucamaraschi](https://github.com/lucamaraschi) -
-  **Luca Maraschi** <<luca.maraschi@gmail.com>> (he/him)
+**Luca Maraschi** &lt;luca.maraschi@gmail.com&gt; (he/him)
 * [lxe](https://github.com/lxe) -
-  **Aleksey Smolenchuk** <<lxe@lxe.co>>
+**Aleksey Smolenchuk** &lt;lxe@lxe.co&gt;
 * [maclover7](https://github.com/maclover7) -
-  **Jon Moss** <<me@jonathanmoss.me>> (he/him)
-* [mafintosh](https://github.com/mafintosh) -
-  **Mathias Buus** <<mathiasbuus@gmail.com>> (he/him)
+**Jon Moss** &lt;me@jonathanmoss.me&gt; (he/him)
 * [matthewloring](https://github.com/matthewloring) -
-  **Matthew Loring** <<mattloring@google.com>>
+**Matthew Loring** &lt;mattloring@google.com&gt;
 * [micnic](https://github.com/micnic) -
-  **Nicu Micleușanu** <<micnic90@gmail.com>> (he/him)
+**Nicu Micleușanu** &lt;micnic90@gmail.com&gt; (he/him)
 * [mikeal](https://github.com/mikeal) -
-  **Mikeal Rogers** <<mikeal.rogers@gmail.com>>
-* [misterdjules](https://github.com/misterdjules) -
-  **Julien Gilli** <<jgilli@netflix.com>>
+**Mikeal Rogers** &lt;mikeal.rogers@gmail.com&gt;
 * [monsanto](https://github.com/monsanto) -
-  **Christopher Monsanto** <<chris@monsan.to>>
+**Christopher Monsanto** &lt;chris@monsan.to&gt;
 * [MoonBall](https://github.com/MoonBall) -
-  **Chen Gang** <<gangc.cxy@foxmail.com>>
+**Chen Gang** &lt;gangc.cxy@foxmail.com&gt;
 * [not-an-aardvark](https://github.com/not-an-aardvark) -
-  **Teddy Katz** <<teddy.katz@gmail.com>> (he/him)
-* [ofrobots](https://github.com/ofrobots) -
-  **Ali Ijaz Sheikh** <<ofrobots@google.com>> (he/him)
+**Teddy Katz** &lt;teddy.katz@gmail.com&gt; (he/him)
 * [Olegas](https://github.com/Olegas) -
-  **Oleg Elifantiev** <<oleg@elifantiev.ru>>
+**Oleg Elifantiev** &lt;oleg@elifantiev.ru&gt;
 * [orangemocha](https://github.com/orangemocha) -
-  **Alexis Campailla** <<orangemocha@nodejs.org>>
+**Alexis Campailla** &lt;orangemocha@nodejs.org&gt;
 * [othiym23](https://github.com/othiym23) -
-  **Forrest L Norvell** <<ogd@aoaioxxysz.net>> (they/them/themself)
+**Forrest L Norvell** &lt;ogd@aoaioxxysz.net&gt; (he/him)
 * [petkaantonov](https://github.com/petkaantonov) -
-  **Petka Antonov** <<petka_antonov@hotmail.com>>
+**Petka Antonov** &lt;petka_antonov@hotmail.com&gt;
 * [phillipj](https://github.com/phillipj) -
-  **Phillip Johnsen** <<johphi@gmail.com>>
+**Phillip Johnsen** &lt;johphi@gmail.com&gt;
 * [piscisaureus](https://github.com/piscisaureus) -
-  **Bert Belder** <<bertbelder@gmail.com>>
+**Bert Belder** &lt;bertbelder@gmail.com&gt;
 * [pmq20](https://github.com/pmq20) -
-  **Minqi Pan** <<pmq2001@gmail.com>>
+**Minqi Pan** &lt;pmq2001@gmail.com&gt;
 * [princejwesley](https://github.com/princejwesley) -
-  **Prince John Wesley** <<princejohnwesley@gmail.com>>
-* [psmarshall](https://github.com/psmarshall) -
-  **Peter Marshall** <<petermarshall@chromium.org>> (he/him)
-* [refack](https://github.com/refack) -
-  **Refael Ackermann (רפאל פלחי)** <<refack@gmail.com>> (he/him/הוא/אתה)
+**Prince John Wesley** &lt;princejohnwesley@gmail.com&gt;
 * [rlidwka](https://github.com/rlidwka) -
-  **Alex Kocharin** <<alex@kocharin.ru>>
+**Alex Kocharin** &lt;alex@kocharin.ru&gt;
 * [rmg](https://github.com/rmg) -
-  **Ryan Graham** <<r.m.graham@gmail.com>>
+**Ryan Graham** &lt;r.m.graham@gmail.com&gt;
 * [robertkowalski](https://github.com/robertkowalski) -
-  **Robert Kowalski** <<rok@kowalski.gd>>
+**Robert Kowalski** &lt;rok@kowalski.gd&gt;
 * [romankl](https://github.com/romankl) -
-  **Roman Klauke** <<romaaan.git@gmail.com>>
+**Roman Klauke** &lt;romaaan.git@gmail.com&gt;
 * [ronkorving](https://github.com/ronkorving) -
-  **Ron Korving** <<ron@ronkorving.nl>>
+**Ron Korving** &lt;ron@ronkorving.nl&gt;
 * [RReverser](https://github.com/RReverser) -
-  **Ingvar Stepanyan** <<me@rreverser.com>>
-* [rubys](https://github.com/rubys) -
-  **Sam Ruby** <<rubys@intertwingly.net>>
-* [saghul](https://github.com/saghul) -
-  **Saúl Ibarra Corretgé** <<s@saghul.net>>
+**Ingvar Stepanyan** &lt;me@rreverser.com&gt;
 * [sam-github](https://github.com/sam-github) -
-  **Sam Roberts** <<vieuxtech@gmail.com>>
+**Sam Roberts** &lt;vieuxtech@gmail.com&gt;
 * [sebdeckers](https://github.com/sebdeckers) -
-  **Sebastiaan Deckers** <<sebdeckers83@gmail.com>>
-* [seishun](https://github.com/seishun) -
-  **Nikolai Vavilov** <<vvnicholas@gmail.com>>
+**Sebastiaan Deckers** &lt;sebdeckers83@gmail.com&gt;
 * [shigeki](https://github.com/shigeki) -
-  **Shigeki Ohtsu** <<ohtsu@ohtsu.org>> (he/him)
-* [silverwind](https://github.com/silverwind) -
-  **Roman Reiss** <<me@silverwind.io>>
+**Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
 * [stefanmb](https://github.com/stefanmb) -
-  **Stefan Budeanu** <<stefan@budeanu.com>>
+**Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [tellnes](https://github.com/tellnes) -
-  **Christian Tellnes** <<christian@tellnes.no>>
+**Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [thefourtheye](https://github.com/thefourtheye) -
-  **Sakthipriyan Vairamani** <<thechargingvolcano@gmail.com>> (he/him)
+**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
 * [thlorenz](https://github.com/thlorenz) -
-  **Thorsten Lorenz** <<thlorenz@gmx.de>>
+**Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
 * [trevnorris](https://github.com/trevnorris) -
-  **Trevor Norris** <<trev.norris@gmail.com>>
+**Trevor Norris** &lt;trev.norris@gmail.com&gt;
 * [tunniclm](https://github.com/tunniclm) -
-  **Mike Tunnicliffe** <<m.j.tunnicliffe@gmail.com>>
+**Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) -
-  **Vladimir Kurchatkin** <<vladimir.kurchatkin@gmail.com>>
+**Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
 * [vsemozhetbyt](https://github.com/vsemozhetbyt) -
-  **Vse Mozhet Byt** <<vsemozhetbyt@gmail.com>> (he/him)
-* [watson](https://github.com/watson) -
-  **Thomas Watson** <<w@tson.dk>>
+**Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
 * [whitlockjc](https://github.com/whitlockjc) -
-  **Jeremy Whitlock** <<jwhitlock@apache.org>>
-* [yhwang](https://github.com/yhwang) -
-  **Yihong Wang** <<yh.wang@ibm.com>>
-* [yorkie](https://github.com/yorkie) -
-  **Yorkie Liu** <<yorkiefixer@gmail.com>>
-
-</details>
-
+**Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 <!--lint enable prohibited-strings-->
 
-Collaborators follow the [Collaborator Guide](./doc/contributing/collaborator-guide.md) in
+Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
 maintaining the Node.js project.
 
 ### Triagers
 
-* [Ayase-252](https://github.com/Ayase-252) -
-  **Qingyu Deng** <<i@ayase-lab.com>>
-* [himadriganguly](https://github.com/himadriganguly) -
-  **Himadri Ganguly** <<himadri.tech@gmail.com>> (he/him)
-* [iam-frankqiu](https://github.com/iam-frankqiu) -
-  **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
-* [marsonya](https://github.com/marsonya) -
-  **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
-* [Mesteery](https://github.com/Mesteery) -
-  **Mestery** <<mestery@protonmail.com>> (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
-  **Pooja Durgad** <<Pooja.D.P@ibm.com>>
+**Pooja Durgad** &lt;Pooja.D.P@ibm.com&gt;
 * [RaisinTen](https://github.com/RaisinTen) -
-  **Darshan Sen** <<raisinten@gmail.com>>
-* [VoltrexMaster](https://github.com/VoltrexMaster) -
-  **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
+**Darshan Sen** &lt;raisinten@gmail.com&gt;
 
-### Release keys
+### Release Keys
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
-* **Beth Griggs** <<bgriggs@redhat.com>>
-  `4ED778F539E3634C779C87C6D7062848A1AB005C`
-* **Colin Ihrig** <<cjihrig@gmail.com>>
-  `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
-* **Danielle Adams** <<adamzdanielle@gmail.com>>
-  `74F12602B6F1C4E913FAA37AD3A89613643B6201`
-* **James M Snell** <<jasnell@keybase.io>>
-  `71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
-* **Michaël Zasso** <<targos@protonmail.com>>
-  `8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
-* **Myles Borins** <<myles.borins@gmail.com>>
-  `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
-* **Richard Lau** <<rlau@redhat.com>>
-  `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
-* **Rod Vagg** <<rod@vagg.org>>
-  `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
-* **Ruben Bridgewater** <<ruben@bridgewater.de>>
-  `A48C2BEE680E841632CD4E44F07496B3EB3C1762`
-* **Ruy Adorno** <<ruyadorno@hotmail.com>>
-  `108F52B48DB57BB0CC439B2997B01419BD92F80A`
-* **Shelley Vohr** <<shelley.vohr@gmail.com>>
-  `B9E2F5981AA6E0CD28160D9FF13993A75599653C`
+* **Beth Griggs** &lt;bgriggs@redhat.com&gt;
+`4ED778F539E3634C779C87C6D7062848A1AB005C`
+* **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
+`94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
+* **Danielle Adams** &lt;adamzdanielle@gmail.com&gt;
+`74F12602B6F1C4E913FAA37AD3A89613643B6201`
+* **James M Snell** &lt;jasnell@keybase.io&gt;
+`71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
+* **Michaël Zasso** &lt;targos@protonmail.com&gt;
+`8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
+* **Myles Borins** &lt;myles.borins@gmail.com&gt;
+`C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
+* **Richard Lau** &lt;rlau@redhat.com&gt;
+`C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
+* **Rod Vagg** &lt;rod@vagg.org&gt;
+`DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
+* **Ruben Bridgewater** &lt;ruben@bridgewater.de&gt;
+`A48C2BEE680E841632CD4E44F07496B3EB3C1762`
+* **Ruy Adorno** &lt;ruyadorno@hotmail.com&gt;
+`108F52B48DB57BB0CC439B2997B01419BD92F80A`
+* **Shelley Vohr** &lt;shelley.vohr@gmail.com&gt;
+`B9E2F5981AA6E0CD28160D9FF13993A75599653C`
 
 To import the full set of trusted release keys (including subkeys possibly used
 to sign releases):
@@ -704,67 +641,39 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys B9E2F5981AA6E0CD28160D9FF139
 See the section above on [Verifying Binaries](#verifying-binaries) for how to
 use these keys to verify a downloaded file.
 
-<details>
+Other keys used to sign some previous releases:
 
-<summary>Other keys used to sign some previous releases</summary>
-
-* **Chris Dickinson** <<christopher.s.dickinson@gmail.com>>
-  `9554F04D7259F04124DE6B476D5A82AC7E37093B`
-* **Danielle Adams** <<adamzdanielle@gmail.com>>
-  `1C050899334244A8AF75E53792EF661D867B9DFA`
-* **Evan Lucas** <<evanlucas@me.com>>
-  `B9AE9905FFD7803F25714661B63B535A4C206CA9`
-* **Gibson Fahnestock** <<gibfahn@gmail.com>>
-  `77984A986EBC2AA786BC0F66B01FBB92821C587A`
-* **Isaac Z. Schlueter** <<i@izs.me>>
-  `93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
-* **Italo A. Casas** <<me@italoacasas.com>>
-  `56730D5401028683275BD23C23EFEFE93C4CFFFE`
-* **Jeremiah Senkpiel** <<fishrock@keybase.io>>
-  `FD3A5288F042B6850C66B31F09FE44734EB7990E`
-* **Julien Gilli** <<jgilli@fastmail.fm>>
-  `114F43EE0176B71C7BC219DD50A3051F888C628D`
-* **Timothy J Fontaine** <<tjfontaine@gmail.com>>
-  `7937DFD2AB06298B2293C3187D33FF9D0246406D`
-
-</details>
-
-### Security release stewards
-
-When possible, the commitment to take slots in the
-security release steward rotation is made by companies in order
-to ensure individuals who act as security stewards have the
-support and recognition from their employer to be able to
-prioritize security releases. Security release stewards manage security
-releases on a rotation basis as outlined in the
-[security release process](./doc/contributing/security-release-process.md).
-
-* Datadog
-  * [bengl](https://github.com/bengl) -
-    **Bryan English** <<bryan@bryanenglish.com>> (he/him)
-  * [vdeturckheim](https://github.com/vdeturckheim) -
-    **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
-* NearForm
-  * [mcollina](https://github.com/mcollina) -
-    **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
-* Red Hat and IBM
-  * [joesepi](https://github.com/joesepi)-
-    **Joe Sepi** <<joesepi@ibm.com>> (he/him)
-  * [mhdawson](https://github.com/mhdawson) -
-    **Michael Dawson** <<midawson@redhat.com>> (he/him)
+* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
+`9554F04D7259F04124DE6B476D5A82AC7E37093B`
+* **Danielle Adams** &lt;adamzdanielle@gmail.com&gt;
+`1C050899334244A8AF75E53792EF661D867B9DFA`
+* **Evan Lucas** &lt;evanlucas@me.com&gt;
+`B9AE9905FFD7803F25714661B63B535A4C206CA9`
+* **Gibson Fahnestock** &lt;gibfahn@gmail.com&gt;
+`77984A986EBC2AA786BC0F66B01FBB92821C587A`
+* **Isaac Z. Schlueter** &lt;i@izs.me&gt;
+`93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
+* **Italo A. Casas** &lt;me@italoacasas.com&gt;
+`56730D5401028683275BD23C23EFEFE93C4CFFFE`
+* **Jeremiah Senkpiel** &lt;fishrock@keybase.io&gt;
+`FD3A5288F042B6850C66B31F09FE44734EB7990E`
+* **Julien Gilli** &lt;jgilli@fastmail.fm&gt;
+`114F43EE0176B71C7BC219DD50A3051F888C628D`
+* **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
+`7937DFD2AB06298B2293C3187D33FF9D0246406D`
 
 ## License
 
 Node.js is available under the
 [MIT license](https://opensource.org/licenses/MIT). Node.js also includes
 external libraries that are available under a variety of licenses.  See
-[LICENSE](https://github.com/nodejs/node/blob/HEAD/LICENSE) for the full
+[LICENSE](https://github.com/nodejs/node/blob/master/LICENSE) for the full
 license text.
 
-[Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
 [OpenJS Foundation]: https://openjsf.org/
-[Strategic initiatives]: doc/contributing/strategic-initiatives.md
-[Technical values and prioritization]: doc/contributing/technical-values.md
-[Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md
+[Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md
+[Technical values and prioritization]: doc/guides/technical-values.md
+[Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
