@@ -21,8 +21,7 @@ process.on('warning', (warning) => parentPort.postMessage({ warning }));
     const w = new Worker(`${preamble}
     parentPort.postMessage(fs.openSync(__filename));
     `, { eval: true, trackUnmanagedFds: false });
-    const [ fd ] = await once(w, 'message');
-    await once(w, 'exit');
+    const [ [ fd ] ] = await Promise.all([once(w, 'message'), once(w, 'exit')]);
     assert(fd > 2);
     fs.fstatSync(fd); // Does not throw.
     fs.closeSync(fd);
@@ -33,8 +32,7 @@ process.on('warning', (warning) => parentPort.postMessage({ warning }));
     const w = new Worker(`${preamble}
     parentPort.postMessage(fs.openSync(__filename));
     `, { eval: true, trackUnmanagedFds: true });
-    const [ fd ] = await once(w, 'message');
-    await once(w, 'exit');
+    const [ [ fd ] ] = await Promise.all([once(w, 'message'), once(w, 'exit')]);
     assert(fd > 2);
     assert.throws(() => fs.fstatSync(fd), { code: 'EBADF' });
   }
