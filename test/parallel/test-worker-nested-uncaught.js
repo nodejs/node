@@ -9,6 +9,6 @@ const w = new Worker(
   new Worker("throw new Error('uncaught')", { eval:true })`,
   { eval: true });
 w.on('error', common.expectsError({
-    name: 'Error',
-    message: 'uncaught'
-  }));
+  name: 'Error',
+  message: 'uncaught'
+}));
