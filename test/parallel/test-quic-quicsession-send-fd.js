@@ -34,10 +34,13 @@ async function test({ variant, offset, length }) {
     session.on('secure', common.mustCall((servername, alpn, cipher) => {
       const stream = session.openStream({ halfOpen: true });
 
+      // The data and end events won't emit because
+      // the stream is never readable.
       stream.on('data', common.mustNotCall());
+      stream.on('end', common.mustNotCall());
+
       stream.on('finish', common.mustCall());
       stream.on('close', common.mustCall());
-      stream.on('end', common.mustCall());
 
       if (variant === 'sendFD') {
         fd = fs.openSync(__filename, 'r');

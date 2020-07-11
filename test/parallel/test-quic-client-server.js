@@ -149,11 +149,13 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       assert(uni.serverInitiated);
       assert(!uni.clientInitiated);
       assert(!uni.pending);
+      // The data and end events will never emit because
+      // the unidirectional stream is never readable.
+      uni.on('end', common.mustNotCall());
+      uni.on('data', common.mustNotCall());
       uni.write(unidata[0], common.mustCall());
       uni.end(unidata[1], common.mustCall());
       uni.on('finish', common.mustCall());
-      uni.on('end', common.mustCall());
-      uni.on('data', common.mustNotCall());
       uni.on('close', common.mustCall(() => {
         assert.strictEqual(uni.finalSize, 0);
       }));
