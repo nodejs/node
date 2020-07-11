@@ -79,13 +79,10 @@ In busy processes, use the asynchronous versions of these calls. The synchronous
 versions will block the entire process until they complete, halting all
 connections.
 
-While it is not recommended, most fs functions allow the callback argument to
-be omitted, in which case a default callback is used that rethrows errors. To
-get a trace to the original call site, set the `NODE_DEBUG` environment
-variable:
-
-Omitting the callback function on asynchronous fs functions is deprecated and
-may result in an error being thrown in the future.
+Most asynchronous `fs` functions allow the callback argument to be omitted.
+However, this usage is deprecated. When the callback is omitted, a default
+callback is used that rethrows errors. To get a trace to the original call site,
+set the `NODE_DEBUG` environment variable:
 
 ```console
 $ cat script.js
