@@ -1645,7 +1645,7 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
     std::vector<Local<Value>> name_v;
     std::vector<Local<Value>> type_v;
 
-    for (int i = 0; ; i++) {
+    for (;;) {
       uv_dirent_t ent;
 
       r = uv_fs_scandir_next(&(req_wrap_sync.req), &ent);
