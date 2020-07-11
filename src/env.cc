@@ -988,7 +988,7 @@ Environment* Environment::worker_parent_env() const {
 }
 
 void Environment::AddUnmanagedFd(int fd) {
-  if (!(flags_ & EnvironmentFlags::kTrackUnmanagedFds)) return;
+  if (!tracks_unmanaged_fds()) return;
   auto result = unmanaged_fds_.insert(fd);
   if (!result.second) {
     ProcessEmitWarning(
@@ -997,7 +997,7 @@ void Environment::AddUnmanagedFd(int fd) {
 }
 
 void Environment::RemoveUnmanagedFd(int fd) {
-  if (!(flags_ & EnvironmentFlags::kTrackUnmanagedFds)) return;
+  if (!tracks_unmanaged_fds()) return;
   size_t removed_count = unmanaged_fds_.erase(fd);
   if (removed_count == 0) {
     ProcessEmitWarning(
