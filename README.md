@@ -451,8 +451,6 @@ For information about the governance of the Node.js project, see
 **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
 * [ZYSzys](https://github.com/ZYSzys) -
 **Yongsheng Zhang** &lt;zyszys98@gmail.com&gt; (he/him)
-* [baradm100](https://github.com/baradm100) -
-**Bar Admoni** &lt;admoni.bar1@gmail.com&gt; (he/him)
 
 ### Collaborator Emeriti
 
