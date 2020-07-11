@@ -1231,3 +1231,27 @@ const net = require('net');
     assert.strictEqual(res, 'helloworld');
   }));
 }
+
+{
+  let flushed = false;
+  const makeStream = () =>
+    new Transform({
+      transform: (chunk, enc, cb) => cb(null, chunk),
+      flush: (cb) =>
+        setTimeout(() => {
+          flushed = true;
+          cb(null);
+        }, 1),
+    });
+
+  const input = new Readable();
+  input.push(null);
+
+  pipeline(
+    input,
+    makeStream(),
+    common.mustCall(() => {
+      assert.strictEqual(flushed, true);
+    }),
+  );
+}
