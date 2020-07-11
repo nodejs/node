@@ -68,6 +68,10 @@ if (cluster.isWorker) {
       value: KILL_SIGNAL,
       message: 'the worker exited w/ incorrect signalCode'
     },
+    numberOfWorkers: {
+      value: 0,
+      message: 'the number of workers running is wrong'
+    },
   };
   const results = {
     emitDisconnect: 0,
@@ -96,6 +100,7 @@ if (cluster.isWorker) {
     results.signalCode = signalCode;
     results.emitExit += 1;
     results.died = !common.isAlive(worker.process.pid);
+    results.numberOfWorkers = Object.keys(cluster.workers).length;
   }));
 
   cluster.on('exit', common.mustCall(() => {
