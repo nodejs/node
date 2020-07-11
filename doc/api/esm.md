@@ -456,7 +456,7 @@ Conditional exports can also be extended to exports subpaths, for example:
   "exports": {
     ".": "./main.js",
     "./feature": {
-      "browser": "./feature-browser.js",
+      "node": "./feature-node.js",
       "default": "./feature.js"
     }
   }
@@ -464,8 +464,16 @@ Conditional exports can also be extended to exports subpaths, for example:
 ```
 
 Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
-could provide different implementations between the browser and Node.js,
-given third-party tool support for a `"browser"` condition.
+could provide different implementations between Node.js and other JS
+environments.
+
+When using environment branches, always include a `"default"` condition where
+possible. Providing a `"default"` condition ensures that any unknown JS
+environments are able to use this universal implementation, which helps avoid
+these JS environments from having to pretend to be existing environments in
+order to support packages with conditional exports. For this reason, using
+`"node"` and `"default"` condition branches is usually preferable to using
+`"node"` and `"browser"` condition branches.
 
 #### Nested conditions
 
@@ -479,11 +487,11 @@ use in Node.js but not the browser:
 {
   "main": "./main.js",
   "exports": {
-    "browser": "./feature-browser.mjs",
     "node": {
       "import": "./feature-node.mjs",
       "require": "./feature-node.cjs"
-    }
+    },
+    "default": "./feature.mjs",
   }
 }
 ```
