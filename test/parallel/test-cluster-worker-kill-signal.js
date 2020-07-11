@@ -96,7 +96,9 @@ if (cluster.isWorker) {
     results.signalCode = signalCode;
     results.emitExit += 1;
     results.died = !common.isAlive(worker.process.pid);
+  }));
 
+  cluster.on('exit', common.mustCall(() => {
     // Checking if the results are as expected
     for (const [key, expected] of Object.entries(expectedResults)) {
       const actual = results[key];
