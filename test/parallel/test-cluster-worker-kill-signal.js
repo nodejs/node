@@ -91,23 +91,20 @@ if (cluster.isWorker) {
 
   // Check that the worker died
   worker.once('exit', common.mustCall((exitCode, signalCode) => {
+    // Setting the results
     results.exitCode = exitCode;
     results.signalCode = signalCode;
     results.emitExit += 1;
     results.died = !common.isAlive(worker.process.pid);
+
+    // Checking if the results are as expected
+    for (const [key, expected] of Object.entries(expectedResults)) {
+      const actual = results[key];
+
+      assert.strictEqual(
+        actual, expected.value,
+        `${expected.message} [expected: ${expected.value} / actual: ${actual}]`
+      );
+    }
   }));
-
-  process.on('exit', () => {
-    checkResults(expectedResults, results);
-  });
-}
-
-function checkResults(expectedResults, results) {
-  for (const [key, expected] of Object.entries(expectedResults)) {
-    const actual = results[key];
-
-    assert.strictEqual(
-      actual, expected.value,
-      `${expected.message} [expected: ${expected.value} / actual: ${actual}]`);
-  }
 }
