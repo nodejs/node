@@ -42,7 +42,7 @@
 //       We use gcc attributes
 //       (__section__) to put it outside the `.text` section,
 //       (__aligned__) to align it at the 2M boundary, and
-//       (__noline__) to not inline this function.
+//       (__noinline__) to not inline this function.
 //    b) `MoveTextRegionToLargePages` should not call any function(s) that might
 //       be moved.
 //    To move the .text section, perform the following steps:
@@ -55,6 +55,14 @@
 //        be readable and executable.
 //      * Unmap the temporary area.
 
+#if defined(__sun)
+#ifdef _XOPEN_SOURCE
+#undef _XOPEN_SOURCE  // to access older memory mapping api
+#endif
+typedef char* maptype;
+#else
+typedef void* maptype;
+#endif
 #include "node_large_page.h"
 
 #include <cerrno>   // NOLINT(build/include)
@@ -63,7 +71,7 @@
 #if defined(NODE_ENABLE_LARGE_CODE_PAGES) && NODE_ENABLE_LARGE_CODE_PAGES
 #include "debug_utils-inl.h"
 
-#if defined(__linux__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__sun)
 #if defined(__linux__)
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -72,7 +80,7 @@
 #include "uv.h"  // uv_exepath
 #endif  // defined(__linux__)
 #include <link.h>
-#endif  // defined(__linux__) || defined(__FreeBSD__)
+#endif  // defined(__linux__) || defined(__FreeBSD__) || defined(__sun)
 
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -80,6 +88,10 @@
 #include <sys/sysctl.h>
 #elif defined(__APPLE__)
 #include <mach/vm_map.h>
+#elif defined(__sun)
+#define _STRUCTURED_PROC 1  // to get proper mapping types
+#include <sys/procfs.h>  // pr*map structs
+#include <unistd.h>
 #endif
 
 #include <climits>  // PATH_MAX
@@ -89,7 +101,7 @@
 #include <string>
 #include <fstream>
 
-#if defined(__linux__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__sun)
 extern "C" {
 // This symbol must be declared weak because this file becomes part of all
 // Node.js targets (like node_mksnapshot, node_mkcodecache, and cctest) and
@@ -251,6 +263,38 @@ struct text_region FindNodeTextRegion() {
       size = 0;
     }
   }
+#elif defined(__sun)
+  auto size = 1 << 20;
+  auto fd = open("/proc/self/map", O_RDONLY);
+
+  if (fd != -1) {
+    ssize_t r;
+    prmap_t* cur, * map;
+    std::unique_ptr<char[]> pm = std::unique_ptr<char[]>(new char[size]);
+
+    while ((r = pread(fd, pm.get(), size, 0)) == size) {
+      size <<= 1;
+      pm.reset(new char[size]);
+    }
+
+    close(fd);
+
+    map = reinterpret_cast<prmap_t*>(pm.get());
+    for (cur = map; r > 0; cur++, r -= sizeof(prmap_t)) {
+      auto estart = cur->pr_vaddr;
+      auto eend = estart + cur->pr_size;
+      char* start = reinterpret_cast<char*>(hugepage_align_up(estart));
+      char* end = reinterpret_cast<char*>(hugepage_align_down(eend));
+
+      if (end > start && (cur->pr_mflags & MA_READ) != 0 &&
+          (cur->pr_mflags & MA_EXEC) != 0) {
+        nregion.found_text_region = true;
+        nregion.from = start;
+        nregion.to = end;
+        break;
+      }
+    }
+  }
 #endif
   Debug("Found %d huge pages\n", (nregion.to - nregion.from) / hps);
   return nregion;
@@ -294,12 +338,12 @@ class MemoryMapPointer {
  public:
   FORCE_INLINE explicit MemoryMapPointer() {}
   FORCE_INLINE bool operator==(void* rhs) const { return mem_ == rhs; }
-  FORCE_INLINE void* mem() const { return mem_; }
+  FORCE_INLINE maptype mem() const { return mem_; }
   MemoryMapPointer(const MemoryMapPointer&) = delete;
   MemoryMapPointer(MemoryMapPointer&&) = delete;
   void operator= (const MemoryMapPointer&) = delete;
   void operator= (const MemoryMapPointer&&) = delete;
-  FORCE_INLINE void Reset(void* start,
+  FORCE_INLINE void Reset(maptype start,
                           size_t size,
                           int prot,
                           int flags,
@@ -321,7 +365,7 @@ class MemoryMapPointer {
 
  private:
   size_t size_ = 0;
-  void* mem_ = nullptr;
+  maptype mem_ = nullptr;
 };
 
 }  // End of anonymous namespace
@@ -337,7 +381,7 @@ __attribute__((__noinline__))
 MoveTextRegionToLargePages(const text_region& r) {
   MemoryMapPointer nmem;
   MemoryMapPointer tmem;
-  void* start = r.from;
+  maptype start = r.from;
   size_t size = r.to - r.from;
 
   // Allocate a temporary region and back up the code we will re-map.
@@ -364,6 +408,25 @@ MoveTextRegionToLargePages(const text_region& r) {
              MAP_ALIGNED_SUPER);
   if (tmem.mem() == MAP_FAILED) goto fail;
   memcpy(start, nmem.mem(), size);
+#elif defined(__sun)
+// MAP_ALIGN takes start as a hint and is
+// therefore mutually exclusive with MAP_FIXED
+// We map, gives write permission.
+  memcntl_mha mha;
+  mha.mha_flags = 0;
+  mha.mha_pagesize = hps;
+  mha.mha_cmd = MHA_MAPSIZE_VA;
+  tmem.Reset(start, size,
+             PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_PRIVATE | MAP_ANONYMOUS | MAP_ALIGN);
+  if (tmem.mem() == MAP_FAILED) goto fail;
+  memcpy(tmem.mem(), nmem.mem(), size);
+  if (mprotect(start, size, PROT_READ | PROT_WRITE | PROT_EXEC) == -1)
+    goto fail;
+  if (memcntl((caddr_t)tmem.mem(), size,
+    MC_HAT_ADVISE, (caddr_t)&mha, 0, 0) == -1)
+    goto fail;
+  memcpy(start, tmem.mem(), size);
 #elif defined(__APPLE__)
   // There is not enough room to reserve the mapping close
   // to the region address so we content to give a hint
@@ -400,6 +463,8 @@ int MapStaticCodeToLargePages() {
   have_thp = IsTransparentHugePagesEnabled();
 #elif defined(__FreeBSD__)
   have_thp = IsSuperPagesEnabled();
+#elif defined(__sun)
+  have_thp = true;
 #elif defined(__APPLE__)
   // pse-36 flag is present in recent mac x64 products.
   have_thp = true;
