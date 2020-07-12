@@ -452,8 +452,8 @@ added: v6.0.0
 
 * {boolean}
 
-This property is `true` if the worker exited due to `.kill()` or
-`.disconnect()`. If the worker exited any other way, it is `false`. If the
+This property is `true` if the worker exited due to `.disconnect()`.
+If the worker exited any other way, it is `false`. If the
 worker has not exited, it is `undefined`.
 
 The boolean [`worker.exitedAfterDisconnect`][] allows distinguishing between
@@ -582,7 +582,7 @@ the `worker.process`, and once disconnected, killing with `signal`. In the
 worker, it does it by killing the process with `signal`.
 
 The `kill()` function kills the worker process without waiting for a graceful
-disconnect, it have the same behavior of `worker.process.kill()`.
+disconnect, it has the same behavior as `worker.process.kill()`.
 
 This method is aliased as `worker.destroy()` for backwards compatibility.
 
