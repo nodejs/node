@@ -491,6 +491,10 @@ class Utf8Value : public MaybeStackBuffer<char> {
   explicit Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
   inline std::string ToString() const { return std::string(out(), length()); }
+
+  inline bool operator==(const char* a) const {
+    return strcmp(out(), a) == 0;
+  }
 };
 
 class TwoByteValue : public MaybeStackBuffer<uint16_t> {
