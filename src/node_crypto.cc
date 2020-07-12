@@ -1735,9 +1735,7 @@ void SSLWrap<Base>::AddMethods(Environment* env, Local<FunctionTemplate> t) {
                                   GetEphemeralKeyInfo);
   env->SetProtoMethodNoSideEffect(t, "getProtocol", GetProtocol);
 
-#ifdef SSL_set_max_send_fragment
   env->SetProtoMethod(t, "setMaxSendFragment", SetMaxSendFragment);
-#endif  // SSL_set_max_send_fragment
 
   env->SetProtoMethodNoSideEffect(t, "getALPNNegotiatedProtocol",
                                   GetALPNNegotiatedProto);
@@ -2096,8 +2094,6 @@ void SSLWrap<Base>::GetEphemeralKeyInfo(
   // ERR_get_error())
 }
 
-
-#ifdef SSL_set_max_send_fragment
 template <class Base>
 void SSLWrap<Base>::SetMaxSendFragment(
     const FunctionCallbackInfo<Value>& args) {
@@ -2111,7 +2107,6 @@ void SSLWrap<Base>::SetMaxSendFragment(
       args[0]->Int32Value(w->ssl_env()->context()).FromJust());
   args.GetReturnValue().Set(rv);
 }
-#endif  // SSL_set_max_send_fragment
 
 
 template <class Base>
