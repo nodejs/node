@@ -18,44 +18,6 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
   const KILL_SIGNAL = 'SIGKILL';
-  const expectedResults = {
-    emitDisconnect: {
-      value: 1,
-      message: "the worker did not emit 'disconnect'"
-    },
-    emitExit: {
-      value: 1,
-      message: "the worker did not emit 'exit'"
-    },
-    state: {
-      value: 'disconnected',
-      message: 'the worker state is incorrect'
-    },
-    exitedAfter: {
-      value: false,
-      message: 'the .exitedAfterDisconnect flag is incorrect'
-    },
-    died: {
-      value: true,
-      message: 'the worker is still running'
-    },
-    exitCode: {
-      value: null,
-      message: 'the worker exited w/ incorrect exitCode'
-    },
-    signalCode: {
-      value: KILL_SIGNAL,
-      message: 'the worker exited w/ incorrect signalCode'
-    },
-    numberOfWorkers: {
-      value: 0,
-      message: 'the number of workers running is wrong'
-    },
-  };
-  const results = {
-    emitDisconnect: 0,
-    emitExit: 0
-  };
 
   // Start worker
   const worker = cluster.fork();
@@ -67,30 +29,21 @@ if (cluster.isWorker) {
 
   // Check worker events and properties
   worker.on('disconnect', common.mustCall(() => {
-    results.emitDisconnect += 1;
-    results.exitedAfter = worker.exitedAfterDisconnect;
-    results.state = worker.state;
-  }));
+    assert.strictEqual(worker.exitedAfterDisconnect, false);
+    assert.strictEqual(worker.state, 'disconnected');
+  }, 1));
 
   // Check that the worker died
   worker.once('exit', common.mustCall((exitCode, signalCode) => {
-    // Setting the results
-    results.exitCode = exitCode;
-    results.signalCode = signalCode;
-    results.emitExit += 1;
-    results.died = !common.isAlive(worker.process.pid);
-    results.numberOfWorkers = Object.keys(cluster.workers).length;
-  }));
+    const isWorkerProcessStillAlive = common.isAlive(worker.process.pid);
+    const numOfRunningWorkers = Object.keys(cluster.workers).length;
 
-  cluster.on('exit', common.mustCall(() => {
-    // Checking if the results are as expected
-    for (const [key, expected] of Object.entries(expectedResults)) {
-      const actual = results[key];
+    assert.strictEqual(exitCode, null);
+    assert.strictEqual(signalCode, KILL_SIGNAL);
+    assert.strictEqual(isWorkerProcessStillAlive, false);
+    assert.strictEqual(numOfRunningWorkers, 0);
+  }, 1));
 
-      assert.strictEqual(
-        actual, expected.value,
-        `${expected.message} [expected: ${expected.value} / actual: ${actual}]`
-      );
-    }
-  }));
+  // Check if the cluster was killed as well
+  cluster.on('exit', common.mustCall(() => {}, 1));
 }
