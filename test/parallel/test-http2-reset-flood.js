@@ -28,7 +28,7 @@ if (process.env.HAS_STARTED_WORKER) {
 process.env.HAS_STARTED_WORKER = 1;
 const worker = new Worker(__filename).on('message', common.mustCall((port) => {
   const h2header = Buffer.alloc(9);
-  const conn = net.connect(port);
+  const conn = net.connect({ port, allowHalfOpen: true });
 
   conn.write('PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n');
 
