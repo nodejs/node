@@ -134,8 +134,6 @@ inline Environment* AsyncHooks::env() {
 inline void AsyncHooks::push_async_context(double async_id,
                                            double trigger_async_id,
                                            v8::Local<v8::Object> resource) {
-  v8::HandleScope handle_scope(env()->isolate());
-
   // Since async_hooks is experimental, do only perform the check
   // when async_hooks is enabled.
   if (fields_[kCheck] > 0) {
@@ -152,10 +150,6 @@ inline void AsyncHooks::push_async_context(double async_id,
   async_id_fields_[kExecutionAsyncId] = async_id;
   async_id_fields_[kTriggerAsyncId] = trigger_async_id;
 
-#ifdef DEBUG
-  for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
-    CHECK(native_execution_async_resources_[i].IsEmpty());
-#endif
   native_execution_async_resources_.resize(offset + 1);
   native_execution_async_resources_[offset].Reset(env()->isolate(), resource);
 }
@@ -192,13 +186,6 @@ inline bool AsyncHooks::pop_async_context(double async_id) {
 
   if (LIKELY(offset < native_execution_async_resources_.size() &&
              !native_execution_async_resources_[offset].IsEmpty())) {
-#ifdef DEBUG
-    for (uint32_t i = offset + 1;
-         i < native_execution_async_resources_.size();
-         i++) {
-      CHECK(native_execution_async_resources_[i].IsEmpty());
-    }
-#endif
     native_execution_async_resources_.resize(offset);
     if (native_execution_async_resources_.size() <
             native_execution_async_resources_.capacity() / 2 &&
@@ -208,6 +195,7 @@ inline bool AsyncHooks::pop_async_context(double async_id) {
   }
 
   if (UNLIKELY(js_execution_async_resources()->Length() > offset)) {
+    v8::HandleScope handle_scope(env()->isolate());
     USE(js_execution_async_resources()->Set(
         env()->context(),
         env()->length_string(),
