@@ -48,17 +48,14 @@ function pummel() {
 }
 
 function check() {
-  setTimeout(function() {
+  setTimeout(common.mustCall(function() {
     assert.strictEqual(process._getActiveRequests().length, 0);
     const activeHandles = process._getActiveHandles();
     assert.ok(activeHandles.every((val) => val.constructor.name !== 'Socket'));
-    check_called = true;
-  }, 0);
+  }), 0);
 }
-let check_called = false;
 
 process.on('exit', function() {
   assert.strictEqual(rounds, ROUNDS);
   assert.strictEqual(reqs, ROUNDS * ATTEMPTS_PER_ROUND);
-  assert(check_called);
 });
