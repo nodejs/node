@@ -2496,10 +2496,6 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
                                  env->sni_context_string()).ToLocalChecked();
   Local<FunctionTemplate> cons = env->secure_context_constructor_template();
 
-  // Not an object, probably undefined or null
-  if (!ctx->IsObject())
-    goto fire_cb;
-
   if (cons->HasInstance(ctx)) {
     SecureContext* sc = Unwrap<SecureContext>(ctx.As<Object>());
     CHECK_NOT_NULL(sc);
@@ -2512,14 +2508,13 @@ void SSLWrap<Base>::CertCbDone(const FunctionCallbackInfo<Value>& args) {
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
       return ThrowCryptoError(env, err, "CertCbDone");
     }
-  } else {
+  } else if (ctx->IsObject()) {
     // Failure: incorrect SNI context object
     Local<Value> err = Exception::TypeError(env->sni_context_err_string());
     w->MakeCallback(env->onerror_string(), 1, &err);
     return;
   }
 
- fire_cb:
   CertCb cb;
   void* arg;
 
