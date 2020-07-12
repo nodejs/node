@@ -568,84 +568,77 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
 
   if (args[0]->IsString()) {
     const node::Utf8Value sslmethod(env->isolate(), args[0]);
+    const std::string methodstr(*sslmethod);
 
     // Note that SSLv2 and SSLv3 are disallowed but SSLv23_method and friends
     // are still accepted.  They are OpenSSL's way of saying that all known
     // protocols below TLS 1.3 are supported unless explicitly disabled (which
     // we do below for SSLv2 and SSLv3.)
-    if (strcmp(*sslmethod, "SSLv2_method") == 0) {
+    if (methodstr == "SSLv2_method" ||
+        methodstr == "SSLv2_server_method" ||
+        methodstr == "SSLv2_client_method") {
       THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv2 methods disabled");
       return;
-    } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
-      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv2 methods disabled");
-      return;
-    } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
-      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv2 methods disabled");
-      return;
-    } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
+    } else if (methodstr == "SSLv3_method" ||
+               methodstr == "SSLv3_server_method" ||
+               methodstr == "SSLv3_client_method") {
       THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv3 methods disabled");
       return;
-    } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
-      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv3 methods disabled");
-      return;
-    } else if (strcmp(*sslmethod, "SSLv3_client_method") == 0) {
-      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, "SSLv3 methods disabled");
-      return;
-    } else if (strcmp(*sslmethod, "SSLv23_method") == 0) {
+    } else if (methodstr == "SSLv23_method") {
       max_version = TLS1_2_VERSION;
-    } else if (strcmp(*sslmethod, "SSLv23_server_method") == 0) {
+    } else if (methodstr == "SSLv23_server_method") {
       max_version = TLS1_2_VERSION;
       method = TLS_server_method();
-    } else if (strcmp(*sslmethod, "SSLv23_client_method") == 0) {
+    } else if (methodstr == "SSLv23_client_method") {
       max_version = TLS1_2_VERSION;
       method = TLS_client_method();
-    } else if (strcmp(*sslmethod, "TLS_method") == 0) {
+    } else if (methodstr == "TLS_method") {
       min_version = 0;
       max_version = MAX_SUPPORTED_VERSION;
-    } else if (strcmp(*sslmethod, "TLS_server_method") == 0) {
+    } else if (methodstr == "TLS_server_method") {
       min_version = 0;
       max_version = MAX_SUPPORTED_VERSION;
       method = TLS_server_method();
-    } else if (strcmp(*sslmethod, "TLS_client_method") == 0) {
+    } else if (methodstr == "TLS_client_method") {
       min_version = 0;
       max_version = MAX_SUPPORTED_VERSION;
       method = TLS_client_method();
-    } else if (strcmp(*sslmethod, "TLSv1_method") == 0) {
+    } else if (methodstr == "TLSv1_method") {
       min_version = TLS1_VERSION;
       max_version = TLS1_VERSION;
-    } else if (strcmp(*sslmethod, "TLSv1_server_method") == 0) {
+    } else if (methodstr == "TLSv1_server_method") {
       min_version = TLS1_VERSION;
       max_version = TLS1_VERSION;
       method = TLS_server_method();
-    } else if (strcmp(*sslmethod, "TLSv1_client_method") == 0) {
+    } else if (methodstr == "TLSv1_client_method") {
       min_version = TLS1_VERSION;
       max_version = TLS1_VERSION;
       method = TLS_client_method();
-    } else if (strcmp(*sslmethod, "TLSv1_1_method") == 0) {
+    } else if (methodstr == "TLSv1_1_method") {
       min_version = TLS1_1_VERSION;
       max_version = TLS1_1_VERSION;
-    } else if (strcmp(*sslmethod, "TLSv1_1_server_method") == 0) {
+    } else if (methodstr == "TLSv1_1_server_method") {
       min_version = TLS1_1_VERSION;
       max_version = TLS1_1_VERSION;
       method = TLS_server_method();
-    } else if (strcmp(*sslmethod, "TLSv1_1_client_method") == 0) {
+    } else if (methodstr == "TLSv1_1_client_method") {
       min_version = TLS1_1_VERSION;
       max_version = TLS1_1_VERSION;
       method = TLS_client_method();
-    } else if (strcmp(*sslmethod, "TLSv1_2_method") == 0) {
+    } else if (methodstr == "TLSv1_2_method") {
       min_version = TLS1_2_VERSION;
       max_version = TLS1_2_VERSION;
-    } else if (strcmp(*sslmethod, "TLSv1_2_server_method") == 0) {
+    } else if (methodstr == "TLSv1_2_server_method") {
       min_version = TLS1_2_VERSION;
       max_version = TLS1_2_VERSION;
       method = TLS_server_method();
-    } else if (strcmp(*sslmethod, "TLSv1_2_client_method") == 0) {
+    } else if (methodstr == "TLSv1_2_client_method") {
       min_version = TLS1_2_VERSION;
       max_version = TLS1_2_VERSION;
       method = TLS_client_method();
     } else {
       const std::string msg("Unknown method: ");
-      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, (msg + * sslmethod).c_str());
+      THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(env, (msg + methodstr).c_str());
       return;
     }
   }
