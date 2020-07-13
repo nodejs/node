@@ -251,7 +251,7 @@ TBD
 
 ## QUIC JavaScript API
 
-### net.createQuicSocket(\[options\])
+### `net.createQuicSocket(\[options\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -299,7 +299,7 @@ added: REPLACEME
 The `net.createQuicSocket()` function is used to create new `QuicSocket`
 instances associated with a local UDP address.
 
-### Class: QuicEndpoint
+### Class: `QuicEndpoint`
 <!-- YAML
 added: REPLACEME
 -->
@@ -310,7 +310,7 @@ and receive data. A single `QuicSocket` may be bound to multiple
 
 Users will not create instances of `QuicEndpoint` directly.
 
-#### quicendpoint.addMembership(address, iface)
+#### `quicendpoint.addMembership(address, iface)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -325,7 +325,7 @@ choose one interface and will add membership to it. To add membership to every
 available interface, call `addMembership()` multiple times, once per
 interface.
 
-#### quicendpoint.address
+#### `quicendpoint.address`
 <!-- YAML
 added: REPLACEME
 -->
@@ -343,9 +343,9 @@ The object will contain the properties:
 
 If the `QuicEndpoint` is not bound, `quicendpoint.address` is an empty object.
 
-#### quicendpoint.bind(\[options\])
+#### `quicendpoint.bind(\[options\])`
 <!-- YAML
-  added: REPLACEME
+added: REPLACEME
 -->
 
 Binds the `QuicEndpoint` if it has not already been bound. User code will
@@ -371,7 +371,7 @@ is still pending or has already successfully resolved, the previously returned
 pending `Promise` will be returned. If the additional call to
 `quicendpoint.bind()` contains an `AbortSignal`, the `signal` will be ignored.
 
-#### quicendpoint.bound
+#### `quicendpoint.bound`
 <!-- YAML
 added: REPLACEME
 -->
@@ -380,7 +380,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicEndpoint` is bound to the local UDP port.
 
-#### quicendpoint.close()
+#### `quicendpoint.close()`
 <!-- YAML
 added: REPLACEME
 -->
@@ -394,7 +394,7 @@ is destroyed with an error.
 The `Promise` cannot be canceled. Once `quicendpoint.close()` is called, the
 `QuicEndpoint` will be destroyed.
 
-#### quicendpoint.closing
+#### `quicendpoint.closing`
 <!-- YAML
 added: REPLACEME
 -->
@@ -403,7 +403,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicEndpoint` is in the process of closing.
 
-#### quicendpoint.destroy(\[error\])
+#### `quicendpoint.destroy(\[error\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -412,7 +412,7 @@ added: REPLACEME
 
 Closes and destroys the `QuicEndpoint` instance making it usuable.
 
-#### quicendpoint.destroyed
+#### `quicendpoint.destroyed`
 <!-- YAML
 added: REPLACEME
 -->
@@ -421,7 +421,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicEndpoint` has been destroyed.
 
-#### quicendpoint.dropMembership(address, iface)
+#### `quicendpoint.dropMembership(address, iface)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -437,7 +437,7 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-#### quicendpoint.fd
+#### `quicendpoint.fd`
 <!-- YAML
 added: REPLACEME
 -->
@@ -447,7 +447,7 @@ added: REPLACEME
 The system file descriptor the `QuicEndpoint` is bound to. This property
 is not set on Windows.
 
-#### quicendpoint.pending
+#### `quicendpoint.pending`
 <!-- YAML
 added: REPLACEME
 -->
@@ -457,12 +457,12 @@ added: REPLACEME
 Set to `true` if the `QuicEndpoint` is in the process of binding to
 the local UDP port.
 
-#### quicendpoint.ref()
+#### `quicendpoint.ref()`
 <!-- YAML
 added: REPLACEME
 -->
 
-#### quicendpoint.setBroadcast(\[on\])
+#### `quicendpoint.setBroadcast(\[on\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -472,7 +472,7 @@ added: REPLACEME
 Sets or clears the `SO_BROADCAST` socket option. When set to `true`, UDP
 packets may be sent to a local interface's broadcast address.
 
-#### quicendpoint.setMulticastInterface(iface)
+#### `quicendpoint.setMulticastInterface(iface)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -559,7 +559,7 @@ A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`)
 can be used to return control of the sockets default outgoing interface to
 the system for future multicast packets.
 
-#### quicendpoint.setMulticastLoopback(\[on\])
+#### `quicendpoint.setMulticastLoopback(\[on\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -569,7 +569,7 @@ added: REPLACEME
 Sets or clears the `IP_MULTICAST_LOOP` socket option. When set to `true`,
 multicast packets will also be received on the local interface.
 
-#### quicendpoint.setMulticastTTL(ttl)
+#### `quicendpoint.setMulticastTTL(ttl)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -585,7 +585,7 @@ decremented to `0` by a router, it will not be forwarded.
 The argument passed to `setMulticastTTL()` is a number of hops between
 `0` and `255`. The default on most systems is `1` but can vary.
 
-#### quicendpoint.setTTL(ttl)
+#### `quicendpoint.setTTL(ttl)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -601,12 +601,12 @@ Changing TTL values is typically done for network probes or when multicasting.
 The argument to `setTTL()` is a number of hops between `1` and `255`.
 The default on most systems is `64` but can vary.
 
-#### quicendpoint.unref()
+#### `quicendpoint.unref()`
 <!-- YAML
 added: REPLACEME
 -->
 
-### Class: QuicSession extends EventEmitter
+### Class: `QuicSession extends EventEmitter`
 <!-- YAML
 added: REPLACEME
 -->
@@ -712,7 +712,7 @@ Emitted when a new `QuicStream` has been initiated by the connected peer.
 
 The `'stream'` event may be emitted multiple times.
 
-#### quicsession.ackDelayRetransmitCount
+#### `quicsession.ackDelayRetransmitCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -721,7 +721,7 @@ added: REPLACEME
 
 The number of retransmissions caused by delayed acknowledgements.
 
-#### quicsession.address
+#### `quicsession.address`
 <!-- YAML
 added: REPLACEME
 -->
@@ -735,7 +735,7 @@ added: REPLACEME
 An object containing the local address information for the `QuicSocket` to which
 the `QuicSession` is currently associated.
 
-#### quicsession.alpnProtocol
+#### `quicsession.alpnProtocol`
 <!-- YAML
 added: REPLACEME
 -->
@@ -744,7 +744,7 @@ added: REPLACEME
 
 The ALPN protocol identifier negotiated for this session.
 
-#### quicsession.authenticated
+#### `quicsession.authenticated`
 <!--YAML
 added: REPLACEME
 -->
@@ -753,14 +753,14 @@ added: REPLACEME
 True if the certificate provided by the peer during the TLS 1.3
 handshake has been verified.
 
-#### quicsession.authenticationError
+#### `quicsession.authenticationError`
 
 * Type: {Object} An error object
 
 If `quicsession.authenticated` is false, returns an `Error` object
 representing the reason the peer certificate verification failed.
 
-#### quicsession.bidiStreamCount
+#### `quicsession.bidiStreamCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -769,7 +769,7 @@ added: REPLACEME
 
 The total number of bidirectional streams created for this `QuicSession`.
 
-#### quicsession.blockCount
+#### `quicsession.blockCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -782,7 +782,7 @@ stream data due to flow control.
 Such blocks indicate that transmitted stream data is not being consumed
 quickly enough by the connected peer.
 
-#### quicsession.bytesInFlight
+#### `quicsession.bytesInFlight`
 <!-- YAML
 added: REPLACEME
 -->
@@ -792,7 +792,7 @@ added: REPLACEME
 The total number of unacknowledged bytes this QUIC endpoint has transmitted
 to the connected peer.
 
-#### quicsession.bytesReceived
+#### `quicsession.bytesReceived`
 <!-- YAML
 added: REPLACEME
 -->
@@ -801,7 +801,7 @@ added: REPLACEME
 
 The total number of bytes received from the peer.
 
-#### quicsession.bytesSent
+#### `quicsession.bytesSent`
 <!-- YAML
 added: REPLACEME
 -->
@@ -810,7 +810,7 @@ added: REPLACEME
 
 The total number of bytes sent to the peer.
 
-#### quicsession.cipher
+#### `quicsession.cipher`
 <!-- YAML
 added: REPLACEME
 -->
@@ -821,7 +821,7 @@ added: REPLACEME
 
 Information about the cipher algorithm selected for the session.
 
-#### quicsession.close()
+#### `quicsession.close()`
 <!-- YAML
 added: REPLACEME
 -->
@@ -832,7 +832,7 @@ permitted. Once all `QuicStream` instances have closed, the `QuicSession`
 instance will be destroyed. Returns a `Promise` that is resolved once the
 `QuicSession` instance is destroyed.
 
-#### quicsession.closeCode
+#### `quicsession.closeCode`
 <!-- YAML
 added: REPLACEME
 -->
@@ -842,7 +842,7 @@ added: REPLACEME
     protocol level error, `1` indicates a TLS error, `2` represents an
     application level error.)
 
-#### quicsession.closing
+#### `quicsession.closing`
 <!-- YAML
 added: REPLACEME
 -->
@@ -851,7 +851,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicSession` is in the process of a graceful shutdown.
 
-#### quicsession.destroy(\[error\])
+#### `quicsession.destroy(\[error\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -864,7 +864,7 @@ before the `close` event.
 
 Any `QuicStream` instances that are still opened will be abruptly closed.
 
-#### quicsession.destroyed
+#### `quicsession.destroyed`
 <!-- YAML
 added: REPLACEME
 -->
@@ -873,7 +873,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicSession` has been destroyed.
 
-#### quicsession.duration
+#### `quicsession.duration`
 <!-- YAML
 added: REPLACEME
 -->
@@ -882,7 +882,7 @@ added: REPLACEME
 
 The length of time the `QuicSession` was active.
 
-#### quicsession.getCertificate()
+#### `quicsession.getCertificate()`
 <!-- YAML
 added: REPLACEME
 -->
@@ -895,7 +895,7 @@ some properties corresponding to the fields of the certificate.
 If there is no local certificate, or if the `QuicSession` has been destroyed,
 an empty object will be returned.
 
-#### quicsession.getPeerCertificate(\[detailed\])
+#### `quicsession.getPeerCertificate(\[detailed\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -912,21 +912,21 @@ If the full certificate chain was requested (`details` equals `true`), each
 certificate will include an `issuerCertificate` property containing an object
 representing the issuer's certificate.
 
-#### quicsession.handshakeAckHistogram
+#### `quicsession.handshakeAckHistogram`
 <!-- YAML
 added: REPLACEME
 -->
 
 TBD
 
-#### quicsession.handshakeContinuationHistogram
+#### `quicsession.handshakeContinuationHistogram`
 <!-- YAML
 added: REPLACEME
 -->
 
 TBD
 
-#### quicsession.handshakeComplete
+#### `quicsession.handshakeComplete`
 <!-- YAML
 added: REPLACEME
 -->
@@ -935,7 +935,7 @@ added: REPLACEME
 
 Set to `true` if the TLS handshake has completed.
 
-#### quicsession.handshakeConfirmed
+#### `quicsession.handshakeConfirmed`
 <!-- YAML
 added: REPLACEME
 -->
@@ -944,7 +944,7 @@ added: REPLACEME
 
 Set to `true` when the TLS handshake completion has been confirmed.
 
-#### quicsession.handshakeDuration
+#### `quicsession.handshakeDuration`
 <!-- YAML
 added: REPLACEME
 -->
@@ -953,7 +953,7 @@ added: REPLACEME
 
 The length of time taken to complete the TLS handshake.
 
-#### quicsession.idleTimeout
+#### `quicsession.idleTimeout`
 <!-- YAML
 added: REPLACEME
 -->
@@ -962,7 +962,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicSession` was closed due to an idle timeout.
 
-#### quicsession.keyUpdateCount
+#### `quicsession.keyUpdateCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -971,7 +971,7 @@ added: REPLACEME
 
 The number of key update operations that have occured.
 
-#### quicsession.latestRTT
+#### `quicsession.latestRTT`
 <!-- YAML
 added: REPLACEME
 -->
@@ -980,7 +980,7 @@ added: REPLACEME
 
 The most recently recorded RTT for this `QuicSession`.
 
-#### quicsession.lossRetransmitCount
+#### `quicsession.lossRetransmitCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -990,7 +990,7 @@ added: REPLACEME
 The number of lost-packet retransmissions that have been performed on
 this `QuicSession`.
 
-#### quicsession.maxDataLeft
+#### `quicsession.maxDataLeft`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1000,7 +1000,7 @@ added: REPLACEME
 The total number of bytes the `QuicSession` is *currently* allowed to
 send to the connected peer.
 
-#### quicsession.maxInFlightBytes
+#### `quicsession.maxInFlightBytes`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1009,7 +1009,7 @@ added: REPLACEME
 
 The maximum number of in-flight bytes recorded for this `QuicSession`.
 
-#### quicsession.maxStreams
+#### `quicsession.maxStreams`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1023,7 +1023,7 @@ that can currently be opened. The values are set initially by configuration
 parameters when the `QuicSession` is created, then updated over the lifespan
 of the `QuicSession` as the connected peer allows new streams to be created.
 
-#### quicsession.minRTT
+#### `quicsession.minRTT`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1032,7 +1032,7 @@ added: REPLACEME
 
 The minimum RTT recorded so far for this `QuicSession`.
 
-#### quicsession.openStream(\[options\])
+#### `quicsession.openStream(\[options\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1052,7 +1052,7 @@ Returns a new `QuicStream`.
 An error will be thrown if the `QuicSession` has been destroyed or is in the
 process of a graceful shutdown.
 
-#### quicsession.ping()
+#### `quicsession.ping()`
 <!--YAML
 added: REPLACEME
 -->
@@ -1065,7 +1065,7 @@ that ignores any errors that may occur during the serialization and send
 operations. There is no return value and there is no way to monitor the status
 of the `ping()` operation.
 
-#### quicsession.peerInitiatedStreamCount
+#### `quicsession.peerInitiatedStreamCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1074,7 +1074,7 @@ added: REPLACEME
 
 The total number of `QuicStreams` initiated by the connected peer.
 
-#### quicsession.qlog
+#### `quicsession.qlog`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1087,7 +1087,7 @@ data according to the [qlog standard][]. For client `QuicSessions`, the
 `quicsession.qlog` property will be `undefined` untilt the `'qlog'` event
 is emitted.
 
-#### quicsession.remoteAddress
+#### `quicsession.remoteAddress`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1100,7 +1100,7 @@ added: REPLACEME
 
 An object containing the remote address information for the connected peer.
 
-#### quicsession.selfInitiatedStreamCount
+#### `quicsession.selfInitiatedStreamCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1109,7 +1109,7 @@ added: REPLACEME
 
 The total number of `QuicStream` instances initiated by this `QuicSession`.
 
-#### quicsession.servername
+#### `quicsession.servername`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1118,7 +1118,7 @@ added: REPLACEME
 
 The SNI servername requested for this session by the client.
 
-#### quicsession.smoothedRTT
+#### `quicsession.smoothedRTT`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1127,7 +1127,7 @@ added: REPLACEME
 
 The modified RTT calculated for this `QuicSession`.
 
-#### quicsession.socket
+#### `quicsession.socket`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1136,7 +1136,7 @@ added: REPLACEME
 
 The `QuicSocket` the `QuicSession` is associated with.
 
-#### quicsession.statelessReset
+#### `quicsession.statelessReset`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1145,7 +1145,7 @@ added: REPLACEME
 
 True if the `QuicSession` was closed due to QUIC stateless reset.
 
-#### quicsession.uniStreamCount
+#### `quicsession.uniStreamCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1154,7 +1154,7 @@ added: REPLACEME
 
 The total number of unidirectional streams created on this `QuicSession`.
 
-#### quicsession.updateKey()
+#### `quicsession.updateKey()`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1167,7 +1167,7 @@ Initiates QuicSession key update.
 An error will be thrown if called before `quicsession.handshakeConfirmed`
 is equal to `true`.
 
-#### quicsession.usingEarlyData
+#### `quicsession.usingEarlyData`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1179,7 +1179,7 @@ handshake if early data is enabled. On client `QuicSession` instances,
 set to true on handshake completion if early data is enabled *and* was
 accepted by the server.
 
-### Class: QuicClientSession extends QuicSession
+### Class: `QuicClientSession extends QuicSession`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1254,7 +1254,7 @@ This event is purely informational and will be emitted only when
 
 The `'usePreferredAddress'` event will not be emitted more than once.
 
-#### quicclientsession.ephemeralKeyInfo
+#### `quicclientsession.ephemeralKeyInfo`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1269,7 +1269,7 @@ empty object when the key exchange is not ephemeral. The supported types are
 
 For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
-#### quicclientsession.setSocket(socket])
+#### `quicclientsession.setSocket(socket])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1281,7 +1281,7 @@ Migrates the `QuicClientSession` to the given `QuicSocket` instance. If the new
 `QuicSocket` has not yet been bound to a local UDP port, it will be bound prior
 to attempting the migration.
 
-### Class: QuicServerSession extends QuicSession
+### Class: `QuicServerSession extends QuicSession`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1332,7 +1332,7 @@ The callback *must* be invoked in order for the TLS handshake to continue.
 
 The `'OCSPRequest'` event will not be emitted more than once.
 
-#### quicserversession.addContext(servername\[, context\])
+#### `quicserversession.addContext(servername\[, context\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1342,7 +1342,7 @@ added: REPLACEME
 
 TBD
 
-### Class: QuicSocket
+### Class: `QuicSocket`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1392,7 +1392,7 @@ The `'close'` event will only ever be emitted once.
 added: REPLACEME
 -->
 
-Emitted after a `QuicEndpoint` associated witht the `QuicSocket` closes and
+Emitted after a `QuicEndpoint` associated with the `QuicSocket` closes and
 has been destroyed. The handler will be invoked with two arguments:
 
 * `endpoint` {QuicEndpoint} The `QuicEndpoint` that has been destroyed.
@@ -1492,7 +1492,7 @@ server.on('sessionError', (error, session) => {
 });
 ```
 
-#### quicsocket.addEndpoint(options)
+#### `quicsocket.addEndpoint(options)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1514,7 +1514,7 @@ error will be thrown if `quicsock.addEndpoint()` is called either after
 the `QuicSocket` has already started binding to the local ports, or after
 the `QuicSocket` has been destroyed.
 
-#### quicsocket.bound
+#### `quicsocket.bound`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1531,7 +1531,7 @@ event will be emitted once the `QuicSocket` has been bound and the value of
 
 Read-only.
 
-#### quicsocket.boundDuration
+#### `quicsocket.boundDuration`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1542,7 +1542,7 @@ The length of time this `QuicSocket` has been bound to a local port.
 
 Read-only.
 
-#### quicsocket.bytesReceived
+#### `quicsocket.bytesReceived`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1553,7 +1553,7 @@ The number of bytes received by this `QuicSocket`.
 
 Read-only.
 
-#### quicsocket.bytesSent
+#### `quicsocket.bytesSent`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1564,7 +1564,7 @@ The number of bytes sent by this `QuicSocket`.
 
 Read-only.
 
-#### quicsocket.clientSessions
+#### `quicsocket.clientSessions`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1576,7 +1576,7 @@ with this `QuicSocket`.
 
 Read-only.
 
-#### quicsocket.close()
+#### `quicsocket.close()`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1588,7 +1588,7 @@ permitted to close naturally. New `QuicClientSession` and `QuicServerSession`
 instances will not be allowed. The returns `Promise` will be resolved once
 the `QuicSocket` is destroyed.
 
-#### quicsocket.connect(\[options\])
+#### `quicsocket.connect(\[options\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1722,7 +1722,7 @@ added: REPLACEME
 
 Returns a `Promise` that resolves a new `QuicClientSession`.
 
-#### quicsocket.destroy(\[error\])
+#### `quicsocket.destroy(\[error\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1732,7 +1732,7 @@ added: REPLACEME
 Destroys the `QuicSocket` then emits the `'close'` event when done. The `'error'`
 event will be emitted after `'close'` if the `error` is not `undefined`.
 
-#### quicsocket.destroyed
+#### `quicsocket.destroyed`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1743,7 +1743,7 @@ Will be `true` if the `QuicSocket` has been destroyed.
 
 Read-only.
 
-#### quicsocket.duration
+#### `quicsocket.duration`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1754,7 +1754,7 @@ The length of time this `QuicSocket` has been active,
 
 Read-only.
 
-#### quicsocket.endpoints
+#### `quicsocket.endpoints`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1765,7 +1765,7 @@ An array of `QuicEndpoint` instances associated with the `QuicSocket`.
 
 Read-only.
 
-#### quicsocket.listen(\[options\])
+#### `quicsocket.listen(\[options\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1884,7 +1884,7 @@ added: REPLACEME
 Listen for new peer-initiated sessions. Returns a `Promise` that is resolved
 once the `QuicSocket` is actively listening.
 
-#### quicsocket.listenDuration
+#### `quicsocket.listenDuration`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1895,7 +1895,7 @@ The length of time this `QuicSocket` has been listening for connections.
 
 Read-only
 
-#### quicsocket.listening
+#### `quicsocket.listening`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1906,7 +1906,7 @@ Set to `true` if the `QuicSocket` is listening for new connections.
 
 Read-only.
 
-#### quicsocket.packetsIgnored
+#### `quicsocket.packetsIgnored`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1917,7 +1917,7 @@ The number of packets received by this `QuicSocket` that have been ignored.
 
 Read-only.
 
-#### quicsocket.packetsReceived
+#### `quicsocket.packetsReceived`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1928,7 +1928,7 @@ The number of packets successfully received by this `QuicSocket`.
 
 Read-only
 
-#### quicsocket.packetsSent
+#### `quicsocket.packetsSent`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1939,7 +1939,7 @@ The number of packets sent by this `QuicSocket`.
 
 Read-only
 
-#### quicsocket.pending
+#### `quicsocket.pending`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1950,12 +1950,12 @@ Set to `true` if the socket is not yet bound to the local UDP port.
 
 Read-only.
 
-#### quicsocket.ref()
+#### `quicsocket.ref()`
 <!-- YAML
 added: REPLACEME
 -->
 
-#### quicsocket.serverBusy
+#### `quicsocket.serverBusy`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1967,7 +1967,7 @@ to reject all new incoming connection requests using the `SERVER_BUSY` QUIC
 error code. To begin receiving connections again, disable busy mode by setting
 `quicsocket.serverBusy = false`.
 
-#### quicsocket.serverBusyCount
+#### `quicsocket.serverBusyCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1978,7 +1978,7 @@ The number of `QuicSession` instances rejected due to server busy status.
 
 Read-only.
 
-#### quicsocket.serverSessions
+#### `quicsocket.serverSessions`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1990,7 +1990,7 @@ this `QuicSocket`.
 
 Read-only.
 
-#### quicsocket.setDiagnosticPacketLoss(options)
+#### `quicsocket.setDiagnosticPacketLoss(options)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2007,7 +2007,7 @@ by artificially dropping received or transmitted packets.
 
 This method is *not* to be used in production applications.
 
-#### quicsocket.statelessReset
+#### `quicsocket.statelessReset`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2021,7 +2021,7 @@ appropriate. The `disableStatelessReset` option may be set when the
 `quicsocket.statelessReset` property allows stateless reset to be turned on and
 off dynamically through the lifetime of the `QuicSocket`.
 
-#### quicsocket.statelessResetCount
+#### `quicsocket.statelessResetCount`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2032,12 +2032,12 @@ The number of stateless resets that have been sent.
 
 Read-only.
 
-#### quicsocket.unref();
+#### `quicsocket.unref();`
 <!-- YAML
 added: REPLACEME
 -->
 
-### Class: QuicStream extends stream.Duplex
+### Class: `QuicStream extends stream.Duplex`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2153,7 +2153,7 @@ stream('trailingHeaders', (headers) => {
 added: REPLACEME
 -->
 
-#### quicstream.aborted
+#### `quicstream.aborted`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2161,7 +2161,7 @@ added: REPLACEME
 
 True if dataflow on the `QuicStream` was prematurely terminated.
 
-#### quicstream.bidirectional
+#### `quicstream.bidirectional`
 <!--YAML
 added: REPLACEME
 -->
@@ -2170,7 +2170,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicStream` is bidirectional.
 
-#### quicstream.bytesReceived
+#### `quicstream.bytesReceived`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2179,7 +2179,7 @@ added: REPLACEME
 
 The total number of bytes received for this `QuicStream`.
 
-#### quicstream.bytesSent
+#### `quicstream.bytesSent`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2188,7 +2188,7 @@ added: REPLACEME
 
 The total number of bytes sent by this `QuicStream`.
 
-#### quicstream.clientInitiated
+#### `quicstream.clientInitiated`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2198,7 +2198,7 @@ added: REPLACEME
 Set to `true` if the `QuicStream` was initiated by a `QuicClientSession`
 instance.
 
-#### quicstream.close(code)
+#### `quicstream.close(code)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2207,27 +2207,27 @@ added: REPLACEME
 
 Closes the `QuicStream`.
 
-#### quicstream.dataAckHistogram
+#### `quicstream.dataAckHistogram`
 <!-- YAML
 added: REPLACEME
 -->
 
 TBD
 
-#### quicstream.dataRateHistogram
+#### `quicstream.dataRateHistogram`
 <!-- YAML
 added: REPLACEME
 -->
 
 TBD
 
-#### quicstream.dataSizeHistogram
+#### `quicstream.dataSizeHistogram`
 <!-- YAML
 added: REPLACEME
 -->
 TBD
 
-#### quicstream.duration
+#### `quicstream.duration`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2236,7 +2236,7 @@ added: REPLACEME
 
 The length of time the `QuicStream` has been active.
 
-#### quicstream.finalSize
+#### `quicstream.finalSize`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2245,7 +2245,7 @@ added: REPLACEME
 
 The total number of bytes successfully received by the `QuicStream`.
 
-#### quicstream.id
+#### `quicstream.id`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2254,7 +2254,7 @@ added: REPLACEME
 
 The numeric identifier of the `QuicStream`.
 
-#### quicstream.maxAcknowledgedOffset
+#### `quicstream.maxAcknowledgedOffset`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2263,7 +2263,7 @@ added: REPLACEME
 
 The highest acknowledged data offset received for this `QuicStream`.
 
-#### quicstream.maxExtendedOffset
+#### `quicstream.maxExtendedOffset`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2272,7 +2272,7 @@ added: REPLACEME
 
 The maximum extended data offset that has been reported to the connected peer.
 
-#### quicstream.maxReceivedOffset
+#### `quicstream.maxReceivedOffset`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2281,7 +2281,7 @@ added: REPLACEME
 
 The maximum received offset for this `QuicStream`.
 
-#### quicstream.pending
+#### `quicstream.pending`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2291,7 +2291,7 @@ added: REPLACEME
 This property is `true` if the underlying session is not finished yet,
 i.e. before the `'ready'` event is emitted.
 
-#### quicstream.pushStream(headers\[, options\])
+#### `quicstream.pushStream(headers\[, options\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2317,7 +2317,7 @@ Currently only HTTP/3 supports the use of `pushStream()`.
 If the selected QUIC application protocol does not support push streams, an
 error will be thrown.
 
-#### quicstream.serverInitiated
+#### `quicstream.serverInitiated`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2327,7 +2327,7 @@ added: REPLACEME
 Set to `true` if the `QuicStream` was initiated by a `QuicServerSession`
 instance.
 
-#### quicstream.session
+#### `quicstream.session`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2336,7 +2336,7 @@ added: REPLACEME
 
 The `QuicServerSession` or `QuicClientSession`.
 
-#### quicstream.sendFD(fd\[, options\])
+#### `quicstream.sendFD(fd\[, options\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2362,7 +2362,7 @@ Using the same file descriptor concurrently for multiple streams
 is not supported and may result in data loss. Re-using a file descriptor
 after a stream has finished is supported.
 
-#### quicstream.sendFile(path\[, options\])
+#### `quicstream.sendFile(path\[, options\])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2384,7 +2384,7 @@ If `offset` is set to a non-negative number, reading starts from that position.
 If `length` is set to a non-negative number, it gives the maximum number of
 bytes that are read from the file.
 
-#### quicstream.submitInformationalHeaders(headers)
+#### `quicstream.submitInformationalHeaders(headers)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2392,7 +2392,7 @@ added: REPLACEME
 
 TBD
 
-#### quicstream.submitInitialHeaders(headers)
+#### `quicstream.submitInitialHeaders(headers)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2400,7 +2400,7 @@ added: REPLACEME
 
 TBD
 
-#### quicstream.submitTrailingHeaders(headers)
+#### `quicstream.submitTrailingHeaders(headers)`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2408,7 +2408,7 @@ added: REPLACEME
 
 TBD
 
-#### quicstream.unidirectional
+#### `quicstream.unidirectional`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2432,7 +2432,7 @@ function as an option in several places throughout the QUIC API:
 * `quicsocket.connect()`
 * `quicsocket.listen()`
 
-The custom `lookup` function must teturn a `Promise` that is
+The custom `lookup` function must return a `Promise` that is
 resolved once the lookup is complete. It will be invoked with
 two arguments:
 
@@ -2443,6 +2443,7 @@ two arguments:
 
 ```js
 async function myCustomLookup(address, type) {
+  // TODO(@jasnell): Make this example more useful
   return resolveTheAddressSomehow(address, type);
 }
 ```
@@ -2454,7 +2455,7 @@ async function myCustomLookup(address, type) {
 [ALPN]: https://tools.ietf.org/html/rfc7301
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [Certificate Object]: https://nodejs.org/dist/latest-v12.x/docs/api/tls.html#tls_certificate_object
-[custom DNS lookup function]: #custom_dns_lookups
+[custom DNS lookup function]: #quic_custom_dns_lookup_functions
 [modifying the default cipher suite]: tls.html#tls_modifying_the_default_tls_cipher_suite
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
