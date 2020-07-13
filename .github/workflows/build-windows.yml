@@ -11,7 +11,7 @@ env:
   FLAKY_TESTS: dontcare
 
 jobs:
-  build-windows:
+  build-windows-with-quic:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
@@ -24,4 +24,4 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat
+        run: ./vcbuild.bat experimental-quic
