@@ -29,6 +29,7 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
 #include "src/objects/objects-inl.h"
@@ -72,6 +73,7 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-verifiers-tq.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
 #include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {
@@ -279,8 +281,6 @@ void Symbol::SymbolVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsPrivateBrand(), IsPrivateName());
 }
 
-USE_TORQUE_VERIFIER(ByteArray)
-
 void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
   // - All bytecodes are known and well formed.
@@ -295,10 +295,6 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
         source_position_table().IsByteArray());
   CHECK(handler_table().IsByteArray());
 }
-
-USE_TORQUE_VERIFIER(FreeSpace)
-
-USE_TORQUE_VERIFIER(HeapNumber)
 
 USE_TORQUE_VERIFIER(FeedbackVector)
 
@@ -519,18 +515,12 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(FixedArrayBase)
-
-USE_TORQUE_VERIFIER(FixedArray)
-
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::WeakFixedArrayVerify(*this, isolate);
   for (int i = 0; i < length(); i++) {
     MaybeObject::VerifyMaybeObjectPointer(isolate, Get(i));
   }
 }
-
-USE_TORQUE_VERIFIER(WeakArrayList)
 
 void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::PropertyArrayVerify(*this, isolate);
@@ -1097,13 +1087,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
         next_dirty().IsJSFinalizationRegistry());
 }
 
-void JSFinalizationRegistryCleanupIterator::
-    JSFinalizationRegistryCleanupIteratorVerify(Isolate* isolate) {
-  CHECK(IsJSFinalizationRegistryCleanupIterator());
-  JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, finalization_registry());
-}
-
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSWeakMapVerify(*this, isolate);
   CHECK(table().IsEphemeronHashTable() || table().IsUndefined(isolate));
@@ -1317,8 +1300,6 @@ void JSDataView::JSDataViewVerify(Isolate* isolate) {
   }
 }
 
-USE_TORQUE_VERIFIER(Foreign)
-
 void AsyncGeneratorRequest::AsyncGeneratorRequestVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::AsyncGeneratorRequestVerify(*this, isolate);
   CHECK_GE(resume_mode(), JSGeneratorObject::kNext);
@@ -1501,8 +1482,6 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
   // TODO(ishell): check handler integrity
 }
 
-USE_TORQUE_VERIFIER(AccessorInfo)
-
 void CallHandlerInfo::CallHandlerInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::CallHandlerInfoVerify(*this, isolate);
   CHECK(map() == ReadOnlyRoots(isolate).side_effect_call_handler_info_map() ||
@@ -1525,8 +1504,6 @@ void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
         transition_info_or_boilerplate().IsJSObject());
   CHECK(nested_site().IsAllocationSite() || nested_site() == Smi::zero());
 }
-
-USE_TORQUE_VERIFIER(AllocationMemento)
 
 void Script::ScriptVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ScriptVerify(*this, isolate);
@@ -1570,32 +1547,6 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
 }
 
 USE_TORQUE_VERIFIER(InterpreterData)
-
-#ifdef V8_INTL_SUPPORT
-
-USE_TORQUE_VERIFIER(JSV8BreakIterator)
-
-USE_TORQUE_VERIFIER(JSCollator)
-
-USE_TORQUE_VERIFIER(JSDateTimeFormat)
-
-USE_TORQUE_VERIFIER(JSDisplayNames)
-
-USE_TORQUE_VERIFIER(JSListFormat)
-
-USE_TORQUE_VERIFIER(JSLocale)
-
-USE_TORQUE_VERIFIER(JSNumberFormat)
-
-USE_TORQUE_VERIFIER(JSPluralRules)
-
-USE_TORQUE_VERIFIER(JSRelativeTimeFormat)
-
-USE_TORQUE_VERIFIER(JSSegmentIterator)
-
-USE_TORQUE_VERIFIER(JSSegmenter)
-
-#endif  // V8_INTL_SUPPORT
 
 #endif  // VERIFY_HEAP
 

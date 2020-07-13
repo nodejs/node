@@ -248,7 +248,7 @@ class ValueHelper {
     return ArrayVector(uint32_array);
   }
 
-  static constexpr Vector<const int32_t> int32_vector() {
+  static Vector<const int32_t> int32_vector() {
     return Vector<const int32_t>::cast(uint32_vector());
   }
 
@@ -282,7 +282,7 @@ class ValueHelper {
     return ArrayVector(uint64_array);
   }
 
-  static constexpr Vector<const int64_t> int64_vector() {
+  static Vector<const int64_t> int64_vector() {
     return Vector<const int64_t>::cast(uint64_vector());
   }
 
@@ -293,7 +293,7 @@ class ValueHelper {
     return ArrayVector(int16_array);
   }
 
-  static constexpr Vector<const uint16_t> uint16_vector() {
+  static Vector<const uint16_t> uint16_vector() {
     return Vector<const uint16_t>::cast(int16_vector());
   }
 
@@ -304,7 +304,7 @@ class ValueHelper {
     return ArrayVector(int8_array);
   }
 
-  static constexpr Vector<const uint8_t> uint8_vector() {
+  static Vector<const uint8_t> uint8_vector() {
     return Vector<const uint8_t>::cast(ArrayVector(int8_array));
   }
 
@@ -317,41 +317,41 @@ class ValueHelper {
   }
 
   template <typename T>
-  static constexpr Vector<const T> GetVector();
+  static inline Vector<const T> GetVector();
 };
 
 template <>
-constexpr Vector<const int8_t> ValueHelper::GetVector() {
+inline Vector<const int8_t> ValueHelper::GetVector() {
   return int8_vector();
 }
 
 template <>
-constexpr Vector<const uint8_t> ValueHelper::GetVector() {
+inline Vector<const uint8_t> ValueHelper::GetVector() {
   return uint8_vector();
 }
 
 template <>
-constexpr Vector<const int16_t> ValueHelper::GetVector() {
+inline Vector<const int16_t> ValueHelper::GetVector() {
   return int16_vector();
 }
 
 template <>
-constexpr Vector<const uint16_t> ValueHelper::GetVector() {
+inline Vector<const uint16_t> ValueHelper::GetVector() {
   return uint16_vector();
 }
 
 template <>
-constexpr Vector<const int32_t> ValueHelper::GetVector() {
+inline Vector<const int32_t> ValueHelper::GetVector() {
   return int32_vector();
 }
 
 template <>
-constexpr Vector<const uint32_t> ValueHelper::GetVector() {
+inline Vector<const uint32_t> ValueHelper::GetVector() {
   return uint32_vector();
 }
 
 template <>
-constexpr Vector<const int64_t> ValueHelper::GetVector() {
+inline Vector<const int64_t> ValueHelper::GetVector() {
   return int64_vector();
 }
 

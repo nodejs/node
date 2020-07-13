@@ -5,7 +5,7 @@ specific_include_rules = {
   "snapshot-compression.cc": [
     "+third_party/zlib",
   ],
-  "serializer-common.cc": [
+  "snapshot-utils.cc": [
     "+third_party/zlib",
   ],
 }

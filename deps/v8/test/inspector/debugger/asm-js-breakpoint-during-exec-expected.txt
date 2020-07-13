@@ -11,10 +11,10 @@ Paused #1
   - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":14,"columnNumber":4}
   - [1] {"functionName":"callDebugger","lineNumber":5,"columnNumber":6}
   - [2] {"functionName":"redirectFun","lineNumber":8,"columnNumber":6}
-  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":20,"columnNumber":2}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
   - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 First time paused, setting breakpoints!
-Flooding script with breakpoints for all lines (0 - 24)...
+Flooding script with breakpoints for all lines (0 - 22)...
 Setting breakpoint on line 0
 error: undefined
 Setting breakpoint on line 1
@@ -59,27 +59,23 @@ Setting breakpoint on line 20
 error: undefined
 Setting breakpoint on line 21
 error: undefined
-Setting breakpoint on line 22
-error: undefined
-Setting breakpoint on line 23
-error: undefined
 Script nr 3 parsed!
 Resuming...
 Paused #2
   - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":15,"columnNumber":2}
   - [1] {"functionName":"callDebugger","lineNumber":5,"columnNumber":6}
   - [2] {"functionName":"redirectFun","lineNumber":8,"columnNumber":6}
-  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":20,"columnNumber":2}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
   - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Script nr 4 parsed!
 Resuming...
 Paused #3
-  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":22,"columnNumber":17}
+  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":20,"columnNumber":17}
   - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Script nr 5 parsed!
 Resuming...
 Paused #4
-  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":23,"columnNumber":2}
+  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":21,"columnNumber":2}
   - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Script nr 6 parsed!
 Resuming...

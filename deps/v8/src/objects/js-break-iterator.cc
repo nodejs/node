@@ -239,9 +239,7 @@ String JSV8BreakIterator::BreakType(Isolate* isolate,
 }
 
 const std::set<std::string>& JSV8BreakIterator::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::BreakIterator>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
-  return available_locales.Pointer()->Get();
+  return Intl::GetAvailableLocales();
 }
 
 }  // namespace internal

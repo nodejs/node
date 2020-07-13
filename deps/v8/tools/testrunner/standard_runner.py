@@ -259,6 +259,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     for v in user_variants:
       if v not in ALL_VARIANTS:
         print('Unknown variant: %s' % v)
+        print('    Available variants: %s' % ALL_VARIANTS)
+        print('    Available variant aliases: %s' % VARIANT_ALIASES.keys());
         raise base_runner.TestRunnerError()
     assert False, 'Unreachable'
 

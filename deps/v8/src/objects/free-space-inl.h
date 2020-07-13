@@ -18,9 +18,8 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FreeSpace, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(FreeSpace)
 
-SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 int FreeSpace::Size() { return size(); }

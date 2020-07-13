@@ -149,10 +149,10 @@ InterpreterCompilationJob::InterpreterCompilationJob(
     AccountingAllocator* allocator,
     std::vector<FunctionLiteral*>* eager_inner_literals)
     : UnoptimizedCompilationJob(parse_info->stack_limit(), parse_info,
-                                &compilation_info_),
+                                &compilation_info_, CanOffThreadFinalize::kYes),
       zone_(allocator, ZONE_NAME),
       compilation_info_(&zone_, parse_info, literal),
-      generator_(&compilation_info_, parse_info->ast_string_constants(),
+      generator_(&zone_, &compilation_info_, parse_info->ast_string_constants(),
                  eager_inner_literals) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
@@ -191,17 +191,18 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     std::cerr << "Bytecode mismatch";
 #ifdef OBJECT_PRINT
     std::cerr << " found for function: ";
-    Handle<String> name = parse_info()->function_name()->string();
-    if (name->length() == 0) {
-      std::cerr << "anonymous";
-    } else {
+    MaybeHandle<String> maybe_name = parse_info()->literal()->GetName(isolate);
+    Handle<String> name;
+    if (maybe_name.ToHandle(&name) && name->length() != 0) {
       name->StringPrint(std::cerr);
+    } else {
+      std::cerr << "anonymous";
     }
     Object script_name = script->GetNameOrSourceURL();
     if (script_name.IsString()) {
       std::cerr << " ";
       String::cast(script_name).StringPrint(std::cerr);
-      std::cerr << ":" << parse_info()->start_position();
+      std::cerr << ":" << parse_info()->literal()->start_position();
     }
 #endif
     std::cerr << "\nOriginal bytecode:\n";
@@ -286,7 +287,7 @@ Interpreter::NewSourcePositionCollectionJob(
   auto job = std::make_unique<InterpreterCompilationJob>(parse_info, literal,
                                                          allocator, nullptr);
   job->compilation_info()->SetBytecodeArray(existing_bytecode);
-  return std::unique_ptr<UnoptimizedCompilationJob> { static_cast<UnoptimizedCompilationJob*>(job.release()) };
+  return job;
 }
 
 void Interpreter::ForEachBytecode(

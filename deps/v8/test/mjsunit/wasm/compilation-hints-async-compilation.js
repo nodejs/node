@@ -19,7 +19,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertPromiseResult(WebAssembly.compile(bytes)
     .then(assertUnreachable,
           error => assertEquals("WebAssembly.compile(): Invalid compilation " +
-          "hint 0x2d (forbidden downgrade) @+49", error.message)));
+          "hint 0x19 (forbidden downgrade) @+49", error.message)));
 })();
 
 (function testCompileWithBadLazyFunctionBody() {

@@ -12,13 +12,15 @@
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/protectors.h"
-#include "src/heap/heap-inl.h"  // For Page/MemoryChunk. TODO(jkummerow): Drop.
+#include "src/heap/heap-inl.h"  // For MemoryChunk. TODO(jkummerow): Drop.
+#include "src/heap/memory-chunk.h"
 #include "src/logging/counters.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/js-aggregate-error.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table-inl.h"
@@ -144,164 +146,6 @@ TNode<IntPtrT> CodeStubAssembler::IntPtrToParameter<IntPtrT>(
   return value;
 }
 
-void CodeStubAssembler::CollectCallableFeedback(
-    TNode<Object> maybe_target, TNode<Context> context,
-    TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id,
-    CallableFeedbackMode mode) {
-  Label extra_checks(this, Label::kDeferred), done(this);
-
-  // Check if we have monomorphic {target} feedback already.
-  TNode<MaybeObject> feedback =
-      LoadFeedbackVectorSlot(feedback_vector, slot_id);
-  Comment("check if monomorphic");
-  TNode<BoolT> is_monomorphic = IsWeakReferenceToObject(feedback, maybe_target);
-  GotoIf(is_monomorphic, &done);
-
-  // Check if it is a megamorphic {target}.
-  Comment("check if megamorphic");
-  TNode<BoolT> is_megamorphic = TaggedEqual(
-      feedback, HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
-  Branch(is_megamorphic, &done, &extra_checks);
-
-  BIND(&extra_checks);
-  {
-    Label initialize(this), mark_megamorphic(this);
-
-    Comment("check if weak reference");
-    TNode<BoolT> is_uninitialized = TaggedEqual(
-        feedback,
-        HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
-    GotoIf(is_uninitialized, &initialize);
-    CSA_ASSERT(this, IsWeakOrCleared(feedback));
-
-    // If the weak reference is cleared, we have a new chance to become
-    // monomorphic.
-    Comment("check if weak reference is cleared");
-    GotoIf(IsCleared(feedback), &initialize);
-    GotoIf(TaggedIsSmi(maybe_target), &mark_megamorphic);
-
-    if (mode == CallableFeedbackMode::kDontCollectFeedbackCell) {
-      Goto(&mark_megamorphic);
-    } else {
-      Label try_transition_to_feedback_cell(this);
-
-      // Check if {target} is a JSFunction.
-      Comment("check if target is a JSFunction");
-      TNode<HeapObject> target = CAST(maybe_target);
-      GotoIfNot(IsJSFunction(target), &mark_megamorphic);
-
-      // Check if {target}s feedback vector cell matches the {feedback_value}.
-      TNode<HeapObject> feedback_value = GetHeapObjectAssumeWeak(feedback);
-      TNode<Object> target_feedback_cell =
-          LoadObjectField(target, JSFunction::kFeedbackCellOffset);
-      Branch(TaggedEqual(feedback_value, target_feedback_cell), &done,
-             &try_transition_to_feedback_cell);
-
-      BIND(&try_transition_to_feedback_cell);
-      {
-        // Check if {target} and {feedback_value} are both JSFunctions with
-        // the same feedback vector cell, and that those functions were
-        // actually compiled already.
-        GotoIfNot(IsJSFunction(feedback_value), &mark_megamorphic);
-        TNode<HeapObject> feedback_cell = CAST(
-            LoadObjectField(feedback_value, JSFunction::kFeedbackCellOffset));
-        GotoIfNot(TaggedEqual(feedback_cell, target_feedback_cell),
-                  &mark_megamorphic);
-        GotoIfNot(IsFeedbackCell(feedback_cell), &mark_megamorphic);
-
-        // Record the feedback vector cell.
-        Comment("transition to polymorphic");
-        StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id,
-                                           feedback_cell);
-        ReportFeedbackUpdate(feedback_vector, slot_id,
-                             "Call:FeedbackVectorCell");
-        Goto(&done);
-      }
-    }
-
-    BIND(&initialize);
-    {
-      Comment("check if function in same native context");
-      GotoIf(TaggedIsSmi(maybe_target), &mark_megamorphic);
-      TNode<HeapObject> target = CAST(maybe_target);
-      // Check if the {target} is a JSFunction or JSBoundFunction
-      // in the current native context.
-      TVARIABLE(HeapObject, var_current, target);
-      Label loop(this, &var_current), done_loop(this);
-      Goto(&loop);
-      BIND(&loop);
-      {
-        Label if_boundfunction(this), if_function(this);
-        TNode<HeapObject> current = var_current.value();
-        TNode<Uint16T> current_instance_type = LoadInstanceType(current);
-        GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
-               &if_boundfunction);
-        Branch(InstanceTypeEqual(current_instance_type, JS_FUNCTION_TYPE),
-               &if_function, &mark_megamorphic);
-
-        BIND(&if_function);
-        {
-          // Check that the JSFunction {current} is in the current native
-          // context.
-          TNode<Context> current_context =
-              CAST(LoadObjectField(current, JSFunction::kContextOffset));
-          TNode<NativeContext> current_native_context =
-              LoadNativeContext(current_context);
-          Branch(
-              TaggedEqual(LoadNativeContext(context), current_native_context),
-              &done_loop, &mark_megamorphic);
-        }
-        BIND(&if_boundfunction);
-        {
-          // Continue with the [[BoundTargetFunction]] of {target}.
-          var_current = LoadObjectField<HeapObject>(
-              current, JSBoundFunction::kBoundTargetFunctionOffset);
-          Goto(&loop);
-        }
-      }
-      BIND(&done_loop);
-      StoreWeakReferenceInFeedbackVector(feedback_vector, slot_id, target);
-      ReportFeedbackUpdate(feedback_vector, slot_id, "Call:Initialize");
-      Goto(&done);
-    }
-
-    BIND(&mark_megamorphic);
-    {
-      // MegamorphicSentinel is an immortal immovable object so
-      // write-barrier is not needed.
-      Comment("transition to megamorphic");
-      DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kmegamorphic_symbol));
-      StoreFeedbackVectorSlot(
-          feedback_vector, slot_id,
-          HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
-          SKIP_WRITE_BARRIER);
-      ReportFeedbackUpdate(feedback_vector, slot_id,
-                           "Call:TransitionMegamorphic");
-      Goto(&done);
-    }
-  }
-
-  BIND(&done);
-}
-
-void CodeStubAssembler::CollectCallFeedback(
-    TNode<Object> maybe_target, TNode<Context> context,
-    TNode<HeapObject> maybe_feedback_vector, TNode<UintPtrT> slot_id) {
-  Label feedback_done(this);
-  // If feedback_vector is not valid, then nothing to do.
-  GotoIf(IsUndefined(maybe_feedback_vector), &feedback_done);
-
-  // Increment the call count.
-  TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector);
-  IncrementCallCount(feedback_vector, slot_id);
-
-  // Collect the callable {target} feedback.
-  CollectCallableFeedback(maybe_target, context, feedback_vector, slot_id,
-                          CallableFeedbackMode::kCollectFeedbackCell);
-  Goto(&feedback_done);
-
-  BIND(&feedback_done);
-}
 
 void CodeStubAssembler::IncrementCallCount(
     TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot_id) {
@@ -373,7 +217,7 @@ TNode<Smi> CodeStubAssembler::SelectSmiConstant(SloppyTNode<BoolT> condition,
                              SmiConstant(false_value));
 }
 
-TNode<Object> CodeStubAssembler::NoContextConstant() {
+TNode<Smi> CodeStubAssembler::NoContextConstant() {
   return SmiConstant(Context::kNoContext);
 }
 
@@ -762,8 +606,8 @@ TNode<BoolT> CodeStubAssembler::IsValidSmiIndex(TNode<Smi> smi) {
 
 TNode<IntPtrT> CodeStubAssembler::TaggedIndexToIntPtr(
     TNode<TaggedIndex> value) {
-  return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
-                        IntPtrConstant(kSmiTagSize)));
+  return Signed(WordSarShiftOutZeros(BitcastTaggedToWordForTagAndSmiBits(value),
+                                     IntPtrConstant(kSmiTagSize)));
 }
 
 TNode<TaggedIndex> CodeStubAssembler::IntPtrToTaggedIndex(
@@ -858,16 +702,17 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
   if (ToIntPtrConstant(value, &constant_value)) {
     return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
   }
+  TNode<IntPtrT> raw_bits = BitcastTaggedToWordForTagAndSmiBits(value);
   if (COMPRESS_POINTERS_BOOL) {
-    return ChangeInt32ToIntPtr(SmiToInt32(value));
+    // Clear the upper half using sign-extension.
+    raw_bits = ChangeInt32ToIntPtr(TruncateIntPtrToInt32(raw_bits));
   }
-  return Signed(WordSar(BitcastTaggedToWordForTagAndSmiBits(value),
-                        SmiShiftBitsConstant()));
+  return Signed(WordSarShiftOutZeros(raw_bits, SmiShiftBitsConstant()));
 }
 
 TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
   if (COMPRESS_POINTERS_BOOL) {
-    return Signed(Word32Sar(
+    return Signed(Word32SarShiftOutZeros(
         TruncateIntPtrToInt32(BitcastTaggedToWordForTagAndSmiBits(value)),
         SmiShiftBitsConstant32()));
   }
@@ -2226,9 +2071,10 @@ TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
 
 TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
     TNode<JSTypedArray> typed_array) {
-  // Data pointer = external_pointer + static_cast<Tagged_t>(base_pointer).
-  TNode<RawPtrT> external_pointer = LoadObjectField<RawPtrT>(
-      typed_array, JSTypedArray::kExternalPointerOffset);
+  // Data pointer = DecodeExternalPointer(external_pointer) +
+  //                static_cast<Tagged_t>(base_pointer).
+  TNode<RawPtrT> external_pointer =
+      DecodeExternalPointer(LoadJSTypedArrayExternalPointer(typed_array));
 
   TNode<IntPtrT> base_pointer;
   if (COMPRESS_POINTERS_BOOL) {
@@ -3687,6 +3533,17 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(TNode<IntPtrT> start_address,
       kTaggedSize, IndexAdvanceMode::kPost);
 }
 
+void CodeStubAssembler::MakeFixedArrayCOW(TNode<FixedArray> array) {
+  CSA_ASSERT(this, IsFixedArrayMap(LoadMap(array)));
+  Label done(this);
+  // The empty fixed array is not modifiable anyway. And we shouldn't change its
+  // Map.
+  GotoIf(TaggedEqual(array, EmptyFixedArrayConstant()), &done);
+  StoreMap(array, FixedCOWArrayMapConstant());
+  Goto(&done);
+  BIND(&done);
+}
+
 TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
     TNode<IntPtrT> capacity) {
   return UintPtrLessThanOrEqual(capacity,
@@ -4900,6 +4757,12 @@ void CodeStubAssembler::CopyFixedArrayElements(
   Comment("] CopyFixedArrayElements");
 }
 
+TNode<JSAggregateError> CodeStubAssembler::HeapObjectToJSAggregateError(
+    TNode<HeapObject> heap_object, Label* fail) {
+  GotoIfNot(IsJSAggregateError(heap_object), fail);
+  return UncheckedCast<JSAggregateError>(heap_object);
+}
+
 TNode<FixedArray> CodeStubAssembler::HeapObjectToFixedArray(
     TNode<HeapObject> base, Label* cast_fail) {
   Label fixed_array(this);
@@ -5235,6 +5098,22 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
   }
 }
 
+TNode<Int32T> CodeStubAssembler::TruncateNumberToWord32(TNode<Number> number) {
+  TVARIABLE(Int32T, var_result);
+  Label done(this), if_heapnumber(this);
+  GotoIfNot(TaggedIsSmi(number), &if_heapnumber);
+  var_result = SmiToInt32(CAST(number));
+  Goto(&done);
+
+  BIND(&if_heapnumber);
+  TNode<Float64T> value = LoadHeapNumberValue(CAST(number));
+  var_result = Signed(TruncateFloat64ToWord32(value));
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
 TNode<Int32T> CodeStubAssembler::TruncateHeapNumberValueToWord32(
     TNode<HeapNumber> object) {
   TNode<Float64T> value = LoadHeapNumberValue(object);
@@ -5246,6 +5125,38 @@ void CodeStubAssembler::TryHeapNumberToSmi(TNode<HeapNumber> number,
                                            Label* if_smi) {
   TNode<Float64T> value = LoadHeapNumberValue(number);
   TryFloat64ToSmi(value, var_result_smi, if_smi);
+}
+
+void CodeStubAssembler::TryFloat32ToSmi(TNode<Float32T> value,
+                                        TVariable<Smi>* var_result_smi,
+                                        Label* if_smi) {
+  TNode<Int32T> ivalue = TruncateFloat32ToInt32(value);
+  TNode<Float32T> fvalue = RoundInt32ToFloat32(ivalue);
+
+  Label if_int32(this), if_heap_number(this);
+
+  GotoIfNot(Float32Equal(value, fvalue), &if_heap_number);
+  GotoIfNot(Word32Equal(ivalue, Int32Constant(0)), &if_int32);
+  Branch(Int32LessThan(UncheckedCast<Int32T>(BitcastFloat32ToInt32(value)),
+                       Int32Constant(0)),
+         &if_heap_number, &if_int32);
+
+  TVARIABLE(Number, var_result);
+  BIND(&if_int32);
+  {
+    if (SmiValuesAre32Bits()) {
+      *var_result_smi = SmiTag(ChangeInt32ToIntPtr(ivalue));
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(ivalue, ivalue);
+      TNode<BoolT> overflow = Projection<1>(pair);
+      GotoIf(overflow, &if_heap_number);
+      *var_result_smi =
+          BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+    }
+    Goto(if_smi);
+  }
+  BIND(&if_heap_number);
 }
 
 void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
@@ -5278,6 +5189,24 @@ void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
     Goto(if_smi);
   }
   BIND(&if_heap_number);
+}
+
+TNode<Number> CodeStubAssembler::ChangeFloat32ToTagged(TNode<Float32T> value) {
+  Label if_smi(this), done(this);
+  TVARIABLE(Smi, var_smi_result);
+  TVARIABLE(Number, var_result);
+  TryFloat32ToSmi(value, &var_smi_result, &if_smi);
+
+  var_result = AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value));
+  Goto(&done);
+
+  BIND(&if_smi);
+  {
+    var_result = var_smi_result.value();
+    Goto(&done);
+  }
+  BIND(&done);
+  return var_result.value();
 }
 
 TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
@@ -5462,6 +5391,42 @@ TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(TNode<Number> value) {
 
   BIND(&done);
   return result.value();
+}
+
+TNode<Int32T> CodeStubAssembler::ChangeTaggedNonSmiToInt32(
+    TNode<Context> context, TNode<HeapObject> input) {
+  return Select<Int32T>(
+      IsHeapNumber(input),
+      [=] {
+        return Signed(TruncateFloat64ToWord32(LoadHeapNumberValue(input)));
+      },
+      [=] {
+        return TruncateNumberToWord32(
+            CAST(CallBuiltin(Builtins::kNonNumberToNumber, context, input)));
+      });
+}
+
+TNode<Float64T> CodeStubAssembler::ChangeTaggedToFloat64(TNode<Context> context,
+                                                         TNode<Object> input) {
+  TVARIABLE(Float64T, var_result);
+  Label end(this), not_smi(this);
+
+  GotoIfNot(TaggedIsSmi(input), &not_smi);
+  var_result = SmiToFloat64(CAST(input));
+  Goto(&end);
+
+  BIND(&not_smi);
+  var_result = Select<Float64T>(
+      IsHeapNumber(CAST(input)),
+      [=] { return LoadHeapNumberValue(CAST(input)); },
+      [=] {
+        return ChangeNumberToFloat64(
+            CAST(CallBuiltin(Builtins::kNonNumberToNumber, context, input)));
+      });
+  Goto(&end);
+
+  BIND(&end);
+  return var_result.value();
 }
 
 TNode<WordT> CodeStubAssembler::TimesSystemPointerSize(
@@ -5759,12 +5724,10 @@ TNode<BoolT> CodeStubAssembler::IsTypedArraySpeciesProtectorCellInvalid() {
   return TaggedEqual(cell_value, invalid);
 }
 
-TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid(
-    TNode<NativeContext> native_context) {
-  TNode<PropertyCell> cell = CAST(LoadContextElement(
-      native_context, Context::REGEXP_SPECIES_PROTECTOR_INDEX));
-  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+TNode<BoolT> CodeStubAssembler::IsRegExpSpeciesProtectorCellInvalid() {
   TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
+  TNode<PropertyCell> cell = RegExpSpeciesProtectorConstant();
+  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return TaggedEqual(cell_value, invalid);
 }
 
@@ -5988,6 +5951,16 @@ TNode<BoolT> CodeStubAssembler::IsJSObject(SloppyTNode<HeapObject> object) {
   return IsJSObjectMap(LoadMap(object));
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSFinalizationRegistryMap(TNode<Map> map) {
+  return InstanceTypeEqual(LoadMapInstanceType(map),
+                           JS_FINALIZATION_REGISTRY_TYPE);
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSFinalizationRegistry(
+    TNode<HeapObject> object) {
+  return IsJSFinalizationRegistryMap(LoadMap(object));
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSPromiseMap(SloppyTNode<Map> map) {
   CSA_ASSERT(this, IsMap(map));
   return InstanceTypeEqual(LoadMapInstanceType(map), JS_PROMISE_TYPE);
@@ -6027,6 +6000,10 @@ TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapper(
 
 TNode<BoolT> CodeStubAssembler::IsJSPrimitiveWrapperMap(SloppyTNode<Map> map) {
   return IsJSPrimitiveWrapperInstanceType(LoadMapInstanceType(map));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSAggregateError(TNode<HeapObject> object) {
+  return HasInstanceType(object, JS_AGGREGATE_ERROR_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsJSArrayInstanceType(
@@ -6746,12 +6723,13 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
   {
     STATIC_ASSERT(SeqOneByteString::kHeaderSize ==
                   SeqTwoByteString::kHeaderSize);
-    TNode<IntPtrT> result = BitcastTaggedToWord(var_string_.value());
+    TNode<RawPtrT> result =
+        ReinterpretCast<RawPtrT>(BitcastTaggedToWord(var_string_.value()));
     if (ptr_kind == PTR_TO_DATA) {
-      result = IntPtrAdd(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
+      result = RawPtrAdd(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
                                                 kHeapObjectTag));
     }
-    var_result = ReinterpretCast<RawPtrT>(result);
+    var_result = result;
     Goto(&out);
   }
 
@@ -6761,13 +6739,13 @@ TNode<RawPtrT> ToDirectStringAssembler::TryToSequential(
            if_bailout);
 
     TNode<String> string = var_string_.value();
-    TNode<IntPtrT> result =
-        LoadObjectField<IntPtrT>(string, ExternalString::kResourceDataOffset);
+    TNode<RawPtrT> result =
+        DecodeExternalPointer(LoadExternalStringResourceData(CAST(string)));
     if (ptr_kind == PTR_TO_STRING) {
-      result = IntPtrSub(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
+      result = RawPtrSub(result, IntPtrConstant(SeqOneByteString::kHeaderSize -
                                                 kHeapObjectTag));
     }
-    var_result = ReinterpretCast<RawPtrT>(result);
+    var_result = result;
     Goto(&out);
   }
 
@@ -6889,8 +6867,8 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
   BIND(&runtime);
   {
     // No cache entry, go to the runtime.
-    result =
-        CAST(CallRuntime(Runtime::kNumberToString, NoContextConstant(), input));
+    result = CAST(
+        CallRuntime(Runtime::kNumberToStringSlow, NoContextConstant(), input));
     Goto(&done);
   }
   BIND(&done);
@@ -7327,7 +7305,7 @@ TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
 }
 
 TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
-                                              uint32_t shift, uint32_t mask) {
+                                              uint32_t shift, uintptr_t mask) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   return Unsigned(WordAnd(WordShr(word, static_cast<int>(shift)),
                           IntPtrConstant(mask >> shift)));
@@ -7335,25 +7313,39 @@ TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
 
 TNode<Word32T> CodeStubAssembler::UpdateWord32(TNode<Word32T> word,
                                                TNode<Uint32T> value,
-                                               uint32_t shift, uint32_t mask) {
+                                               uint32_t shift, uint32_t mask,
+                                               bool starts_as_zero) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   // Ensure the {value} fits fully in the mask.
   CSA_ASSERT(this, Uint32LessThanOrEqual(value, Uint32Constant(mask >> shift)));
   TNode<Word32T> encoded_value = Word32Shl(value, Int32Constant(shift));
-  TNode<Word32T> inverted_mask = Int32Constant(~mask);
-  return Word32Or(Word32And(word, inverted_mask), encoded_value);
+  TNode<Word32T> masked_word;
+  if (starts_as_zero) {
+    CSA_ASSERT(this, Word32Equal(Word32And(word, Int32Constant(~mask)), word));
+    masked_word = word;
+  } else {
+    masked_word = Word32And(word, Int32Constant(~mask));
+  }
+  return Word32Or(masked_word, encoded_value);
 }
 
 TNode<WordT> CodeStubAssembler::UpdateWord(TNode<WordT> word,
                                            TNode<UintPtrT> value,
-                                           uint32_t shift, uint32_t mask) {
+                                           uint32_t shift, uintptr_t mask,
+                                           bool starts_as_zero) {
   DCHECK_EQ((mask >> shift) << shift, mask);
   // Ensure the {value} fits fully in the mask.
   CSA_ASSERT(this,
              UintPtrLessThanOrEqual(value, UintPtrConstant(mask >> shift)));
   TNode<WordT> encoded_value = WordShl(value, static_cast<int>(shift));
-  TNode<IntPtrT> inverted_mask = IntPtrConstant(~static_cast<intptr_t>(mask));
-  return WordOr(WordAnd(word, inverted_mask), encoded_value);
+  TNode<WordT> masked_word;
+  if (starts_as_zero) {
+    CSA_ASSERT(this, WordEqual(WordAnd(word, UintPtrConstant(~mask)), word));
+    masked_word = word;
+  } else {
+    masked_word = WordAnd(word, UintPtrConstant(~mask));
+  }
+  return WordOr(masked_word, encoded_value);
 }
 
 void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {
@@ -12487,15 +12479,9 @@ void CodeStubAssembler::ThrowIfArrayBufferViewBufferIsDetached(
   ThrowIfArrayBufferIsDetached(context, buffer, method_name);
 }
 
-TNode<Uint32T> CodeStubAssembler::LoadJSArrayBufferBitField(
+TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStorePtr(
     TNode<JSArrayBuffer> array_buffer) {
-  return LoadObjectField<Uint32T>(array_buffer, JSArrayBuffer::kBitFieldOffset);
-}
-
-TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStore(
-    TNode<JSArrayBuffer> array_buffer) {
-  return LoadObjectField<RawPtrT>(array_buffer,
-                                  JSArrayBuffer::kBackingStoreOffset);
+  return DecodeExternalPointer(LoadJSArrayBufferBackingStore(array_buffer));
 }
 
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(
@@ -12670,6 +12656,18 @@ TNode<BoolT> CodeStubAssembler::IsFastElementsKind(
   STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
   return Uint32LessThanOrEqual(elements_kind,
                                Int32Constant(LAST_FAST_ELEMENTS_KIND));
+}
+
+TNode<BoolT> CodeStubAssembler::IsFastOrNonExtensibleOrSealedElementsKind(
+    TNode<Int32T> elements_kind) {
+  STATIC_ASSERT(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
+  STATIC_ASSERT(LAST_FAST_ELEMENTS_KIND + 1 == PACKED_NONEXTENSIBLE_ELEMENTS);
+  STATIC_ASSERT(PACKED_NONEXTENSIBLE_ELEMENTS + 1 ==
+                HOLEY_NONEXTENSIBLE_ELEMENTS);
+  STATIC_ASSERT(HOLEY_NONEXTENSIBLE_ELEMENTS + 1 == PACKED_SEALED_ELEMENTS);
+  STATIC_ASSERT(PACKED_SEALED_ELEMENTS + 1 == HOLEY_SEALED_ELEMENTS);
+  return Uint32LessThanOrEqual(elements_kind,
+                               Int32Constant(HOLEY_SEALED_ELEMENTS));
 }
 
 TNode<BoolT> CodeStubAssembler::IsDoubleElementsKind(
@@ -13238,6 +13236,21 @@ TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
   to_direct.TryToDirect(fail);
   to_direct.PointerToData(fail);
   return CAST(value);
+}
+
+void CodeStubAssembler::RemoveFinalizationRegistryCellFromUnregisterTokenMap(
+    TNode<JSFinalizationRegistry> finalization_registry,
+    TNode<WeakCell> weak_cell) {
+  const TNode<ExternalReference> remove_cell = ExternalConstant(
+      ExternalReference::
+          js_finalization_registry_remove_cell_from_unregister_token_map());
+  const TNode<ExternalReference> isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+
+  CallCFunction(remove_cell, MachineType::Pointer(),
+                std::make_pair(MachineType::Pointer(), isolate_ptr),
+                std::make_pair(MachineType::AnyTagged(), finalization_registry),
+                std::make_pair(MachineType::AnyTagged(), weak_cell));
 }
 
 PrototypeCheckAssembler::PrototypeCheckAssembler(

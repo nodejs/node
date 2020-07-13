@@ -487,8 +487,7 @@ class ParameterArguments {
 
 }  // namespace
 
-
-RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
+RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
@@ -500,7 +499,6 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   HandleArguments argument_getter(arguments.get());
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
 }
-
 
 RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   HandleScope scope(isolate);
@@ -550,37 +548,6 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
     }
   }
   return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
-  StackFrameIterator iterator(isolate);
-
-  // Stub/interpreter handler frame
-  iterator.Advance();
-  DCHECK(iterator.frame()->type() == StackFrame::STUB);
-
-  // Function frame
-  iterator.Advance();
-  JavaScriptFrame* function_frame = JavaScriptFrame::cast(iterator.frame());
-  DCHECK(function_frame->is_java_script());
-  int argc = function_frame->ComputeParametersCount();
-  Address fp = function_frame->fp();
-  if (function_frame->has_adapted_arguments()) {
-    iterator.Advance();
-    ArgumentsAdaptorFrame* adaptor_frame =
-        ArgumentsAdaptorFrame::cast(iterator.frame());
-    argc = adaptor_frame->ComputeParametersCount();
-    fp = adaptor_frame->fp();
-  }
-
-  Address parameters =
-      fp + argc * kSystemPointerSize + StandardFrameConstants::kCallerSPOffset;
-  ParameterArguments argument_getter(parameters);
-  return *NewSloppyArguments(isolate, callee, argument_getter, argc);
 }
 
 RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {

@@ -104,7 +104,7 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
 }  // namespace
 
 // Call from JS to wasm to JS and throw an Error from JS.
-WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
+WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   TestSignatures sigs;
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source =
@@ -153,7 +153,7 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
 }
 
 // Trigger a trap in wasm, stack should contain a source url.
-WASM_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
+WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   // Create a WasmRunner with stack checks and traps enabled.
   WasmRunner<int> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
 
@@ -210,7 +210,7 @@ WASM_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
 }
 
 // Trigger a trap in wasm, stack should be JS -> wasm -> wasm.
-WASM_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
+WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
   for (int pos_shift = 0; pos_shift < 3; ++pos_shift) {
     // Test a position with 1, 2 or 3 bytes needed to represent it.
     int unreachable_pos = 1 << (8 * pos_shift);

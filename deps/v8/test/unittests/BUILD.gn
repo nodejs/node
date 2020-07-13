@@ -44,19 +44,35 @@ v8_source_set("cppgc_unittests_sources") {
   testonly = true
 
   sources = [
-    "heap/cppgc/allocation_unittest.cc",
-    "heap/cppgc/finalizer-trait_unittest.cc",
-    "heap/cppgc/garbage-collected_unittest.cc",
-    "heap/cppgc/gc-info_unittest.cc",
-    "heap/cppgc/heap-object-header_unittest.cc",
-    "heap/cppgc/stack_unittest.cc",
+    "heap/cppgc/custom-spaces-unittest.cc",
+    "heap/cppgc/finalizer-trait-unittest.cc",
+    "heap/cppgc/free-list-unittest.cc",
+    "heap/cppgc/garbage-collected-unittest.cc",
+    "heap/cppgc/gc-info-unittest.cc",
+    "heap/cppgc/heap-object-header-unittest.cc",
+    "heap/cppgc/heap-page-unittest.cc",
+    "heap/cppgc/heap-unittest.cc",
+    "heap/cppgc/logging-unittest.cc",
+    "heap/cppgc/marker-unittest.cc",
+    "heap/cppgc/marking-visitor-unittest.cc",
+    "heap/cppgc/member-unittest.cc",
+    "heap/cppgc/object-start-bitmap-unittest.cc",
+    "heap/cppgc/page-memory-unittest.cc",
+    "heap/cppgc/persistent-unittest.cc",
+    "heap/cppgc/prefinalizer-unittest.cc",
+    "heap/cppgc/source-location-unittest.cc",
+    "heap/cppgc/stack-unittest.cc",
+    "heap/cppgc/sweeper-unittest.cc",
     "heap/cppgc/tests.cc",
     "heap/cppgc/tests.h",
+    "heap/cppgc/visitor-unittest.cc",
+    "heap/cppgc/worklist-unittest.cc",
   ]
 
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
+    "../..:cppgc_base_config",
   ]
 
   deps = [
@@ -124,7 +140,6 @@ v8_source_set("unittests_sources") {
     "base/functional-unittest.cc",
     "base/ieee754-unittest.cc",
     "base/iterator-unittest.cc",
-    "base/list-unittest.cc",
     "base/logging-unittest.cc",
     "base/macros-unittest.cc",
     "base/ostreams-unittest.cc",
@@ -217,6 +232,7 @@ v8_source_set("unittests_sources") {
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
     "heap/item-parallel-job-unittest.cc",
+    "heap/list-unittest.cc",
     "heap/local-heap-unittest.cc",
     "heap/marking-unittest.cc",
     "heap/marking-worklist-unittest.cc",
@@ -243,6 +259,7 @@ v8_source_set("unittests_sources") {
     "interpreter/constant-array-builder-unittest.cc",
     "interpreter/interpreter-assembler-unittest.cc",
     "interpreter/interpreter-assembler-unittest.h",
+    "libplatform/default-job-unittest.cc",
     "libplatform/default-platform-unittest.cc",
     "libplatform/default-worker-threads-task-runner-unittest.cc",
     "libplatform/task-queue-unittest.cc",
@@ -293,11 +310,14 @@ v8_source_set("unittests_sources") {
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-module-sourcemap-unittest.cc",
-    "wasm/wasm-opcodes-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
     "zone/zone-unittest.cc",
   ]
+
+  if (v8_enable_wasm_gdb_remote_debugging) {
+    sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
+  }
 
   if (v8_current_cpu == "arm") {
     sources += [

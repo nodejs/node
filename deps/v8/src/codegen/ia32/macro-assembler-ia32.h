@@ -224,6 +224,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void PushPC();
 
+  enum class PushArrayOrder { kNormal, kReverse };
+  // `array` points to the first element (the lowest address).
+  // `array` and `size` are not modified.
+  void PushArray(Register array, Register size, Register scratch,
+                 PushArrayOrder order = PushArrayOrder::kNormal);
+
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
   // only guaranteed to be correct as long as the scratch register
@@ -280,10 +286,14 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)
   AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Cvtdq2ps, cvtdq2ps, XMMRegister, Operand)
+  AVX_OP2_WITH_TYPE(Sqrtps, sqrtps, XMMRegister, XMMRegister)
+  AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Sqrtpd, sqrtpd, XMMRegister, const Operand&)
   AVX_OP2_WITH_TYPE(Movaps, movaps, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, XMMRegister)
   AVX_OP2_WITH_TYPE(Movapd, movapd, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Pmovmskb, pmovmskb, Register, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movmskps, movmskps, Register, XMMRegister)
 
 #undef AVX_OP2_WITH_TYPE
 
@@ -325,6 +335,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Xorpd, xorpd)
   AVX_OP3_XO(Sqrtss, sqrtss)
   AVX_OP3_XO(Sqrtsd, sqrtsd)
+  AVX_OP3_XO(Orps, orps)
   AVX_OP3_XO(Orpd, orpd)
   AVX_OP3_XO(Andnpd, andnpd)
 
@@ -347,6 +358,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
   AVX_PACKED_OP3(Addpd, addpd)
+  AVX_PACKED_OP3(Subps, subps)
   AVX_PACKED_OP3(Subpd, subpd)
   AVX_PACKED_OP3(Mulpd, mulpd)
   AVX_PACKED_OP3(Divpd, divpd)
@@ -354,8 +366,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_PACKED_OP3(Cmpneqpd, cmpneqpd)
   AVX_PACKED_OP3(Cmpltpd, cmpltpd)
   AVX_PACKED_OP3(Cmplepd, cmplepd)
+  AVX_PACKED_OP3(Minps, minps)
   AVX_PACKED_OP3(Minpd, minpd)
+  AVX_PACKED_OP3(Maxps, maxps)
   AVX_PACKED_OP3(Maxpd, maxpd)
+  AVX_PACKED_OP3(Cmpunordps, cmpunordps)
   AVX_PACKED_OP3(Cmpunordpd, cmpunordpd)
   AVX_PACKED_OP3(Psllw, psllw)
   AVX_PACKED_OP3(Pslld, pslld)

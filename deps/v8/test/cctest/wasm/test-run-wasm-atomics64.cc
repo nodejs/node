@@ -569,7 +569,7 @@ WASM_EXEC_TEST(I64AtomicNonConstIndexCompareExchangeNarrow) {
                WASM_I64_EQ(WASM_I64V(1), WASM_I64V(0)), WASM_GET_LOCAL(0),
                WASM_GET_LOCAL(1), MachineRepresentation::kWord16)));
 
-  uint64_t initial = 4444333322221111, local = 0x9999888877776666;
+  uint64_t initial = 0x4444333322221111, local = 0x9999888877776666;
   r.builder().WriteMemory(&memory[0], initial);
   CHECK_EQ(static_cast<uint16_t>(initial), r.Call(initial, local));
   CHECK_EQ(static_cast<uint16_t>(CompareExchange(initial, initial, local)),
@@ -778,6 +778,35 @@ WASM_EXEC_TEST(I64AtomicCompareExchangeUseOnlyHighWord) {
                WASM_ATOMICS_TERNARY_OP(
                    kExprI64AtomicCompareExchange, WASM_I32V(8), WASM_I64V(1),
                    WASM_I64V(memory[1]), MachineRepresentation::kWord64),
+               WASM_I64V(32))));
+  CHECK_EQ(0x12345678, r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicExchangeUseOnlyLowWord) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  memory[1] = 0x1234567890abcdeful;
+  r.builder().SetHasSharedMemory();
+  // Test that we can use just the low word of an I64AtomicLoad.
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_BINOP(
+               kExprI64AtomicExchange, WASM_I32V(8), WASM_I64V(1),
+               MachineRepresentation::kWord64)));
+  CHECK_EQ(0x90abcdef, r.Call());
+}
+
+WASM_EXEC_TEST(I64AtomicExchangeUseOnlyHighWord) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  uint64_t* memory =
+      r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
+  memory[1] = 0x1234567890abcdeful;
+  r.builder().SetHasSharedMemory();
+  // Test that we can use just the high word of an I64AtomicLoad.
+  BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_ROR(
+               WASM_ATOMICS_BINOP(kExprI64AtomicExchange, WASM_I32V(8),
+                                  WASM_I64V(1), MachineRepresentation::kWord64),
                WASM_I64V(32))));
   CHECK_EQ(0x12345678, r.Call());
 }

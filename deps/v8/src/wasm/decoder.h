@@ -15,6 +15,7 @@
 #include "src/flags/flags.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector.h"
+#include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 #include "src/zone/zone-containers.h"
 
@@ -124,6 +125,40 @@ class Decoder {
                     const char* name = "signed LEB64") {
     return read_leb<int64_t, validate, kNoAdvancePc, kNoTrace>(pc, length,
                                                                name);
+  }
+
+  // Reads a prefixed-opcode, possibly with variable-length index.
+  // The length param is set to the number of bytes this index is encoded with.
+  // For most cases (non variable-length), it will be 1.
+  template <ValidateFlag validate>
+  WasmOpcode read_prefixed_opcode(const byte* pc, uint32_t* length = nullptr,
+                                  const char* name = "prefixed opcode") {
+    uint32_t unused_length;
+    if (length == nullptr) {
+      length = &unused_length;
+    }
+    DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(*pc)));
+    uint32_t index;
+    if (*pc == WasmOpcode::kSimdPrefix) {
+      // SIMD opcodes can be multiple bytes (when LEB128 encoded).
+      index = read_u32v<validate>(pc + 1, length, "prefixed opcode index");
+      // Only support SIMD opcodes that go up to 0xFF (when decoded). Anything
+      // bigger will need 1 more byte, and the '<< 8' below will be wrong.
+      if (validate && V8_UNLIKELY(index > 0xff)) {
+        errorf(pc, "Invalid SIMD opcode %d", index);
+      }
+    } else {
+      if (!validate || validate_size(pc, 2, "expected 2 bytes")) {
+        DCHECK(validate_size(pc, 2, "expected 2 bytes"));
+        index = *(pc + 1);
+        *length = 1;
+      } else {
+        // If kValidate and size validation fails.
+        index = 0;
+        *length = 0;
+      }
+    }
+    return static_cast<WasmOpcode>((*pc) << 8 | index);
   }
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.

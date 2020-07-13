@@ -13,6 +13,8 @@
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/struct-types.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 
@@ -31,11 +33,7 @@ constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kDebugInfoString[] = ".debug_info";
-
-template <size_t N>
-constexpr size_t num_chars(const char (&)[N]) {
-  return N - 1;  // remove null character at end.
-}
+constexpr char kExternalDebugInfoString[] = ".external_debug_info";
 
 const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
@@ -91,6 +89,8 @@ const char* SectionName(SectionCode code) {
       return kSourceMappingURLString;
     case kDebugInfoSectionCode:
       return kDebugInfoString;
+    case kExternalDebugInfoSectionCode:
+      return kExternalDebugInfoString;
     case kCompilationHintsSectionCode:
       return kCompilationHintsString;
     default:
@@ -162,25 +162,21 @@ SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
         static_cast<int>(section_name_start - decoder->start()),
         string.length() < 20 ? string.length() : 20, section_name_start);
 
-  if (string.length() == num_chars(kNameString) &&
-      strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
-              num_chars(kNameString)) == 0) {
-    return kNameSectionCode;
-  } else if (string.length() == num_chars(kSourceMappingURLString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kSourceMappingURLString,
-                     num_chars(kSourceMappingURLString)) == 0) {
-    return kSourceMappingURLSectionCode;
-  } else if (string.length() == num_chars(kCompilationHintsString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kCompilationHintsString,
-                     num_chars(kCompilationHintsString)) == 0) {
-    return kCompilationHintsSectionCode;
-  } else if (string.length() == num_chars(kDebugInfoString) &&
-             strncmp(reinterpret_cast<const char*>(section_name_start),
-                     kDebugInfoString, num_chars(kDebugInfoString)) == 0) {
-    return kDebugInfoSectionCode;
+  using SpecialSectionPair = std::pair<Vector<const char>, SectionCode>;
+  static constexpr SpecialSectionPair kSpecialSections[]{
+      {StaticCharVector(kNameString), kNameSectionCode},
+      {StaticCharVector(kSourceMappingURLString), kSourceMappingURLSectionCode},
+      {StaticCharVector(kCompilationHintsString), kCompilationHintsSectionCode},
+      {StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
+      {StaticCharVector(kExternalDebugInfoString),
+       kExternalDebugInfoSectionCode}};
+
+  auto name_vec =
+      Vector<const char>::cast(VectorOf(section_name_start, string.length()));
+  for (auto& special_section : kSpecialSections) {
+    if (name_vec == special_section.first) return special_section.second;
   }
+
   return kUnknownSectionCode;
 }
 }  // namespace
@@ -450,6 +446,9 @@ class ModuleDecoderImpl : public Decoder {
         // .debug_info is a custom section containing core DWARF information
         // if produced by compiler. Its presence likely means that Wasm was
         // built in a debug mode.
+      case kExternalDebugInfoSectionCode:
+        // .external_debug_info is a custom section containing a reference to an
+        // external symbol file.
       case kCompilationHintsSectionCode:
         // TODO(frgossen): report out of place compilation hints section as a
         // warning.
@@ -506,10 +505,13 @@ class ModuleDecoderImpl : public Decoder {
         break;
       case kDebugInfoSectionCode:
         // If there is an explicit source map, prefer it over DWARF info.
-        if (!has_seen_unordered_section(kSourceMappingURLSectionCode)) {
-          module_->source_map_url.assign("wasm://dwarf");
+        if (module_->debug_symbols.type == WasmDebugSymbols::Type::None) {
+          module_->debug_symbols = {WasmDebugSymbols::Type::EmbeddedDWARF, {}};
         }
         consume_bytes(static_cast<uint32_t>(end_ - start_), ".debug_info");
+        break;
+      case kExternalDebugInfoSectionCode:
+        DecodeExternalDebugInfoSection();
         break;
       case kCompilationHintsSectionCode:
         if (enabled_features_.has_compilation_hints()) {
@@ -550,14 +552,41 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeTypeSection() {
     uint32_t signatures_count = consume_count("types count", kV8MaxWasmTypes);
-    module_->signatures.reserve(signatures_count);
+    module_->types.reserve(signatures_count);
     for (uint32_t i = 0; ok() && i < signatures_count; ++i) {
       TRACE("DecodeSignature[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      const FunctionSig* s = consume_sig(module_->signature_zone.get());
-      module_->signatures.push_back(s);
-      uint32_t id = s ? module_->signature_map.FindOrInsert(*s) : 0;
-      module_->signature_ids.push_back(id);
+      uint8_t kind = consume_u8("type kind");
+      switch (kind) {
+        case kWasmFunctionTypeCode: {
+          const FunctionSig* s = consume_sig(module_->signature_zone.get());
+          module_->add_signature(s);
+          break;
+        }
+        case kWasmStructTypeCode: {
+          if (!enabled_features_.has_gc()) {
+            errorf(pc(), "struct types are part of the GC proposal");
+            break;
+          }
+          const StructType* s = consume_struct(module_->signature_zone.get());
+          module_->add_struct_type(s);
+          // TODO(7748): Should we canonicalize struct types, like
+          // {signature_map} does for function signatures?
+          break;
+        }
+        case kWasmArrayTypeCode: {
+          if (!enabled_features_.has_gc()) {
+            errorf(pc(), "array types are part of the GC proposal");
+            break;
+          }
+          const ArrayType* type = consume_array(module_->signature_zone.get());
+          module_->add_array_type(type);
+          break;
+        }
+        default:
+          errorf(pc(), "unknown type form: %d", kind);
+          break;
+      }
     }
     module_->signature_map.Freeze();
   }
@@ -1034,12 +1063,22 @@ class ModuleDecoderImpl : public Decoder {
     Decoder inner(start_, pc_, end_, buffer_offset_);
     WireBytesRef url = wasm::consume_string(&inner, true, "module name");
     if (inner.ok() &&
-        !has_seen_unordered_section(kSourceMappingURLSectionCode)) {
-      const byte* url_start =
-          inner.start() + inner.GetBufferRelativeOffset(url.offset());
-      module_->source_map_url.assign(reinterpret_cast<const char*>(url_start),
-                                     url.length());
-      set_seen_unordered_section(kSourceMappingURLSectionCode);
+        module_->debug_symbols.type != WasmDebugSymbols::Type::SourceMap) {
+      module_->debug_symbols = {WasmDebugSymbols::Type::SourceMap, url};
+    }
+    set_seen_unordered_section(kSourceMappingURLSectionCode);
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeExternalDebugInfoSection() {
+    Decoder inner(start_, pc_, end_, buffer_offset_);
+    WireBytesRef url =
+        wasm::consume_string(&inner, true, "external symbol file");
+    // If there is an explicit source map, prefer it over DWARF info.
+    if (inner.ok() &&
+        module_->debug_symbols.type != WasmDebugSymbols::Type::SourceMap) {
+      module_->debug_symbols = {WasmDebugSymbols::Type::ExternalDWARF, url};
+      set_seen_unordered_section(kExternalDebugInfoSectionCode);
     }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
@@ -1257,6 +1296,8 @@ class ModuleDecoderImpl : public Decoder {
                                       const WasmModule* module,
                                       std::unique_ptr<WasmFunction> function) {
     pc_ = start_;
+    expect_u8("type form", kWasmFunctionTypeCode);
+    if (!ok()) return FunctionResult{std::move(intermediate_error_)};
     function->sig = consume_sig(zone);
     function->code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
@@ -1274,6 +1315,7 @@ class ModuleDecoderImpl : public Decoder {
   // Decodes a single function signature at {start}.
   const FunctionSig* DecodeFunctionSignature(Zone* zone, const byte* start) {
     pc_ = start;
+    if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
     const FunctionSig* result = consume_sig(zone);
     return ok() ? result : nullptr;
   }
@@ -1438,13 +1480,13 @@ class ModuleDecoderImpl : public Decoder {
   uint32_t consume_sig_index(WasmModule* module, const FunctionSig** sig) {
     const byte* pos = pc_;
     uint32_t sig_index = consume_u32v("signature index");
-    if (sig_index >= module->signatures.size()) {
+    if (!module->has_signature(sig_index)) {
       errorf(pos, "signature index %u out of bounds (%d signatures)", sig_index,
-             static_cast<int>(module->signatures.size()));
+             static_cast<int>(module->types.size()));
       *sig = nullptr;
       return 0;
     }
-    *sig = module->signatures[sig_index];
+    *sig = module->signature(sig_index);
     return sig_index;
   }
 
@@ -1680,44 +1722,14 @@ class ModuleDecoderImpl : public Decoder {
     return val != 0;
   }
 
-  // Reads a single 8-bit integer, interpreting it as a local type.
   ValueType consume_value_type() {
-    byte val = consume_u8("value type");
-    ValueTypeCode t = static_cast<ValueTypeCode>(val);
-    switch (t) {
-      case kLocalI32:
-        return kWasmI32;
-      case kLocalI64:
-        return kWasmI64;
-      case kLocalF32:
-        return kWasmF32;
-      case kLocalF64:
-        return kWasmF64;
-      default:
-        if (origin_ == kWasmOrigin) {
-          switch (t) {
-            case kLocalS128:
-              if (enabled_features_.has_simd()) return kWasmS128;
-              break;
-            case kLocalFuncRef:
-              if (enabled_features_.has_anyref()) return kWasmFuncRef;
-              break;
-            case kLocalAnyRef:
-              if (enabled_features_.has_anyref()) return kWasmAnyRef;
-              break;
-            case kLocalNullRef:
-              if (enabled_features_.has_anyref()) return kWasmNullRef;
-              break;
-            case kLocalExnRef:
-              if (enabled_features_.has_eh()) return kWasmExnRef;
-              break;
-            default:
-              break;
-          }
-        }
-        error(pc_ - 1, "invalid local type");
-        return kWasmStmt;
-    }
+    ValueType result;
+    uint32_t type_length = value_type_reader::read_value_type<kValidate>(
+        this, this->pc(), &result,
+        origin_ == kWasmOrigin ? enabled_features_ : WasmFeatures::None());
+    if (type_length == 0) error(pc_, "invalid value type");
+    consume_bytes(type_length);
+    return result;
   }
 
   // Reads a single 8-bit integer, interpreting it as a reference type.
@@ -1754,8 +1766,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   const FunctionSig* consume_sig(Zone* zone) {
-    if (!expect_u8("type form", kWasmFunctionTypeCode)) return nullptr;
-    // parse parameter types
+    // Parse parameter types.
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
     if (failed()) return nullptr;
@@ -1765,7 +1776,7 @@ class ModuleDecoderImpl : public Decoder {
       params.push_back(param);
     }
     std::vector<ValueType> returns;
-    // parse return types
+    // Parse return types.
     const size_t max_return_count = enabled_features_.has_mv()
                                         ? kV8MaxWasmFunctionMultiReturns
                                         : kV8MaxWasmFunctionReturns;
@@ -1785,6 +1796,28 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
 
     return new (zone) FunctionSig(return_count, param_count, buffer);
+  }
+
+  const StructType* consume_struct(Zone* zone) {
+    // TODO(7748): Introduce a proper maximum.
+    uint32_t field_count = consume_count("field count", 999);
+    if (failed()) return nullptr;
+    std::vector<ValueType> fields;
+    for (uint32_t i = 0; ok() && i < field_count; ++i) {
+      ValueType field = consume_value_type();
+      fields.push_back(field);
+    }
+    if (failed()) return nullptr;
+    ValueType* buffer = zone->NewArray<ValueType>(field_count);
+    for (uint32_t i = 0; i < field_count; i++) buffer[i] = fields[i];
+    uint32_t* offsets = zone->NewArray<uint32_t>(field_count);
+    return new (zone) StructType(field_count, offsets, buffer);
+  }
+
+  const ArrayType* consume_array(Zone* zone) {
+    ValueType field = consume_value_type();
+    if (failed()) return nullptr;
+    return new (zone) ArrayType(field);
   }
 
   // Consume the attribute field of an exception.
@@ -2081,8 +2114,8 @@ FunctionResult DecodeWasmFunctionForTesting(
     const byte* function_end, Counters* counters) {
   size_t size = function_end - function_start;
   CHECK_LE(function_start, function_end);
-  auto size_histogram = SELECT_WASM_COUNTER(counters, module->origin, wasm,
-                                            function_size_bytes);
+  auto size_histogram =
+      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
   // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
   size_histogram->AddSample(static_cast<int>(size));
   if (size > kV8MaxWasmFunctionSize) {
@@ -2257,17 +2290,18 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
   }
 }
 
-void DecodeGlobalNames(
-    const Vector<const WasmImport> import_table,
+void GenerateNamesFromImportsAndExports(
+    ImportExportKindCode kind, const Vector<const WasmImport> import_table,
     const Vector<const WasmExport> export_table,
     std::unordered_map<uint32_t, std::pair<WireBytesRef, WireBytesRef>>*
         names) {
   DCHECK_NOT_NULL(names);
   DCHECK(names->empty());
+  DCHECK(kind == kExternalGlobal || kind == kExternalMemory);
 
   // Extract from import table.
   for (const WasmImport& imp : import_table) {
-    if (imp.kind != kExternalGlobal) continue;
+    if (imp.kind != kind) continue;
     if (!imp.module_name.is_set() || !imp.field_name.is_set()) continue;
     if (names->count(imp.index) == 0) {
       names->insert(std::make_pair(
@@ -2277,7 +2311,7 @@ void DecodeGlobalNames(
 
   // Extract from export table.
   for (const WasmExport& exp : export_table) {
-    if (exp.kind != kExternalGlobal) continue;
+    if (exp.kind != kind) continue;
     if (!exp.name.is_set()) continue;
     if (names->count(exp.index) == 0) {
       names->insert(

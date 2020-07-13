@@ -14,10 +14,11 @@
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/string-constants.h"
 #include "src/codegen/x64/assembler-x64.h"
+#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/heap-inl.h"  // For MemoryChunk.
+#include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
@@ -338,6 +339,14 @@ void TurboAssembler::SaveRegisters(RegList registers) {
     if ((registers >> i) & 1u) {
       pushq(Register::from_code(i));
     }
+  }
+}
+
+void TurboAssembler::LoadExternalPointerField(Register destination,
+                                              Operand field_operand) {
+  movq(destination, field_operand);
+  if (V8_HEAP_SANDBOX_BOOL) {
+    xorq(destination, Immediate(kExternalPointerSalt));
   }
 }
 

@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/backend/code-generator.h"
-
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
+#include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
-#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -1846,6 +1845,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
              i.InputSimd128Register(0).V##FORMAT(),  \
              i.InputSimd128Register(1).V##FORMAT()); \
     break;
+#define SIMD_DESTRUCTIVE_BINOP_CASE(Op, Instr, FORMAT)     \
+  case Op: {                                               \
+    VRegister dst = i.OutputSimd128Register().V##FORMAT(); \
+    DCHECK_EQ(dst, i.InputSimd128Register(0).V##FORMAT()); \
+    __ Instr(dst, i.InputSimd128Register(1).V##FORMAT(),   \
+             i.InputSimd128Register(2).V##FORMAT());       \
+    break;                                                 \
+  }
 
     case kArm64F64x2Splat: {
       __ Dup(i.OutputSimd128Register().V2D(), i.InputSimd128Register(0).D(), 0);
@@ -1892,18 +1899,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).V2D());
       break;
     }
-    case kArm64F64x2Qfma: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Fmla(i.OutputSimd128Register().V2D(), i.InputSimd128Register(1).V2D(),
-              i.InputSimd128Register(2).V2D());
-      break;
-    }
-    case kArm64F64x2Qfms: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Fmls(i.OutputSimd128Register().V2D(), i.InputSimd128Register(1).V2D(),
-              i.InputSimd128Register(2).V2D());
-      break;
-    }
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfma, Fmla, 2D);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F64x2Qfms, Fmls, 2D);
     case kArm64F32x4Splat: {
       __ Dup(i.OutputSimd128Register().V4S(), i.InputSimd128Register(0).S(), 0);
       break;
@@ -1954,18 +1951,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputSimd128Register(0).V4S());
       break;
     }
-    case kArm64F32x4Qfma: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Fmla(i.OutputSimd128Register().V4S(), i.InputSimd128Register(1).V4S(),
-              i.InputSimd128Register(2).V4S());
-      break;
-    }
-    case kArm64F32x4Qfms: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ Fmls(i.OutputSimd128Register().V4S(), i.InputSimd128Register(1).V4S(),
-              i.InputSimd128Register(2).V4S());
-      break;
-    }
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F32x4Qfma, Fmla, 4S);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64F32x4Qfms, Fmls, 4S);
     case kArm64I64x2Splat: {
       __ Dup(i.OutputSimd128Register().V2D(), i.InputRegister64(0));
       break;
@@ -2104,6 +2091,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I32x4AddHoriz, Addp, 4S);
       SIMD_BINOP_CASE(kArm64I32x4Sub, Sub, 4S);
       SIMD_BINOP_CASE(kArm64I32x4Mul, Mul, 4S);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I32x4Mla, Mla, 4S);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I32x4Mls, Mls, 4S);
       SIMD_BINOP_CASE(kArm64I32x4MinS, Smin, 4S);
       SIMD_BINOP_CASE(kArm64I32x4MaxS, Smax, 4S);
       SIMD_BINOP_CASE(kArm64I32x4Eq, Cmeq, 4S);
@@ -2197,6 +2186,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I16x8Sub, Sub, 8H);
       SIMD_BINOP_CASE(kArm64I16x8SubSaturateS, Sqsub, 8H);
       SIMD_BINOP_CASE(kArm64I16x8Mul, Mul, 8H);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I16x8Mla, Mla, 8H);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I16x8Mls, Mls, 8H);
       SIMD_BINOP_CASE(kArm64I16x8MinS, Smin, 8H);
       SIMD_BINOP_CASE(kArm64I16x8MaxS, Smax, 8H);
       SIMD_BINOP_CASE(kArm64I16x8Eq, Cmeq, 8H);
@@ -2310,6 +2301,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_CASE(kArm64I8x16Sub, Sub, 16B);
       SIMD_BINOP_CASE(kArm64I8x16SubSaturateS, Sqsub, 16B);
       SIMD_BINOP_CASE(kArm64I8x16Mul, Mul, 16B);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I8x16Mla, Mla, 16B);
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64I8x16Mls, Mls, 16B);
       SIMD_BINOP_CASE(kArm64I8x16MinS, Smin, 16B);
       SIMD_BINOP_CASE(kArm64I8x16MaxS, Smax, 16B);
       SIMD_BINOP_CASE(kArm64I8x16Eq, Cmeq, 16B);
@@ -2394,13 +2387,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kArm64S128Select: {
-      VRegister dst = i.OutputSimd128Register().V16B();
-      DCHECK_EQ(dst, i.InputSimd128Register(0).V16B());
-      __ Bsl(dst, i.InputSimd128Register(1).V16B(),
-             i.InputSimd128Register(2).V16B());
-      break;
-    }
+      SIMD_DESTRUCTIVE_BINOP_CASE(kArm64S128Select, Bsl, 16B);
       SIMD_BINOP_CASE(kArm64S128AndNot, Bic, 16B);
     case kArm64S32x4Shuffle: {
       Simd128Register dst = i.OutputSimd128Register().V4S(),
@@ -2575,6 +2562,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef SIMD_UNOP_CASE
 #undef SIMD_WIDENING_UNOP_CASE
 #undef SIMD_BINOP_CASE
+#undef SIMD_DESTRUCTIVE_BINOP_CASE
 #undef SIMD_REDUCE_OP_CASE
 #undef ASSEMBLE_SIMD_SHIFT_LEFT
 #undef ASSEMBLE_SIMD_SHIFT_RIGHT
@@ -2684,7 +2672,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         // Therefore we emit a call to C here instead of a call to the runtime.
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ LeaveFrame(StackFrame::WASM);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =
             static_cast<int>(call_descriptor->StackParameterCount());

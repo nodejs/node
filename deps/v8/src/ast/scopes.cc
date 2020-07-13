@@ -598,7 +598,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     allow_deref.emplace();
     info->consumed_preparse_data()->RestoreScopeAllocationData(
-        scope, info->ast_value_factory());
+        scope, info->ast_value_factory(), info->zone());
   }
 
   if (!scope->AllocateVariables(info)) return false;
@@ -1138,7 +1138,8 @@ Variable* Scope::NewTemporary(const AstRawString* name,
   return var;
 }
 
-Declaration* DeclarationScope::CheckConflictingVarDeclarations() {
+Declaration* DeclarationScope::CheckConflictingVarDeclarations(
+    bool* allowed_catch_binding_var_redeclaration) {
   if (has_checked_syntax_) return nullptr;
   for (Declaration* decl : decls_) {
     // Lexical vs lexical conflicts within the same scope have already been
@@ -1152,11 +1153,12 @@ Declaration* DeclarationScope::CheckConflictingVarDeclarations() {
       // Iterate through all scopes until the declaration scope.
       do {
         // There is a conflict if there exists a non-VAR binding.
+        Variable* other_var = current->LookupLocal(decl->var()->raw_name());
         if (current->is_catch_scope()) {
+          *allowed_catch_binding_var_redeclaration |= other_var != nullptr;
           current = current->outer_scope();
           continue;
         }
-        Variable* other_var = current->LookupLocal(decl->var()->raw_name());
         if (other_var != nullptr) {
           DCHECK(IsLexicalVariableMode(other_var->mode()));
           return decl;
@@ -2586,8 +2588,8 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
                                          bool* was_added) {
   Variable* result = EnsureRareData()->private_name_map.Declare(
       zone(), this, name, mode, NORMAL_VARIABLE,
-      InitializationFlag::kNeedsInitialization,
-      MaybeAssignedFlag::kMaybeAssigned, is_static_flag, was_added);
+      InitializationFlag::kNeedsInitialization, MaybeAssignedFlag::kNotAssigned,
+      is_static_flag, was_added);
   if (*was_added) {
     locals_.Add(result);
     has_static_private_methods_ |=
@@ -2683,7 +2685,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
 
   DCHECK(IsConstVariableMode(mode));
   DCHECK_EQ(init_flag, InitializationFlag::kNeedsInitialization);
-  DCHECK_EQ(maybe_assigned_flag, MaybeAssignedFlag::kMaybeAssigned);
+  DCHECK_EQ(maybe_assigned_flag, MaybeAssignedFlag::kNotAssigned);
 
   // Add the found private name to the map to speed up subsequent
   // lookups for the same name.
@@ -2725,7 +2727,7 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
     if (var == nullptr) {
       // It's only possible to fail to resolve private names here if
       // this is at the top level or the private name is accessed through eval.
-      DCHECK(info->is_eval() || outer_scope_->is_script_scope());
+      DCHECK(info->flags().is_eval() || outer_scope_->is_script_scope());
       Scanner::Location loc = proxy->location();
       info->pending_error_handler()->ReportMessageAt(
           loc.beg_pos, loc.end_pos,
@@ -2812,7 +2814,7 @@ Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
   Variable* brand = Declare(zone(), ast_value_factory->dot_brand_string(),
                             VariableMode::kConst, NORMAL_VARIABLE,
                             InitializationFlag::kNeedsInitialization,
-                            MaybeAssignedFlag::kMaybeAssigned, &was_added);
+                            MaybeAssignedFlag::kNotAssigned, &was_added);
   DCHECK(was_added);
   brand->set_is_static_flag(is_static_flag);
   brand->ForceContextAllocation();

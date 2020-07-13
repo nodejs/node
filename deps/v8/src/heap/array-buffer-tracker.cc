@@ -9,6 +9,7 @@
 #include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/memory-chunk-inl.h"
 #include "src/heap/spaces.h"
 
 #define TRACE_BS(...)                                  \

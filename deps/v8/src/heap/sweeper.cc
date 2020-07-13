@@ -9,7 +9,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/mark-compact-inl.h"
-#include "src/heap/remembered-set.h"
+#include "src/heap/remembered-set-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -247,6 +247,78 @@ void Sweeper::EnsureCompleted() {
 
 bool Sweeper::AreSweeperTasksRunning() { return num_sweeping_tasks_ != 0; }
 
+V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
+    Address free_start, Address free_end, Page* page, Space* space,
+    bool non_empty_typed_slots, FreeListRebuildingMode free_list_mode,
+    FreeSpaceTreatmentMode free_space_mode) {
+  CHECK_GT(free_end, free_start);
+  size_t freed_bytes = 0;
+  size_t size = static_cast<size_t>(free_end - free_start);
+  if (free_space_mode == ZAP_FREE_SPACE) {
+    ZapCode(free_start, size);
+  }
+  if (free_list_mode == REBUILD_FREE_LIST) {
+    freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
+        free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
+
+  } else {
+    Heap::CreateFillerObjectAt(ReadOnlyRoots(page->heap()), free_start,
+                               static_cast<int>(size),
+                               ClearFreedMemoryMode::kClearFreedMemory);
+  }
+  if (should_reduce_memory_) page->DiscardUnusedMemory(free_start, size);
+
+  return freed_bytes;
+}
+
+V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
+    Address free_start, Address free_end, Page* page,
+    bool non_empty_typed_slots, FreeRangesMap* free_ranges_map,
+    InvalidatedSlotsCleanup* old_to_new_cleanup) {
+  DCHECK_LE(free_start, free_end);
+  RememberedSetSweeping::RemoveRange(page, free_start, free_end,
+                                     SlotSet::KEEP_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_OLD>::RemoveRange(page, free_start, free_end,
+                                         SlotSet::KEEP_EMPTY_BUCKETS);
+  if (non_empty_typed_slots) {
+    free_ranges_map->insert(std::pair<uint32_t, uint32_t>(
+        static_cast<uint32_t>(free_start - page->address()),
+        static_cast<uint32_t>(free_end - page->address())));
+  }
+
+  old_to_new_cleanup->Free(free_start, free_end);
+}
+
+void Sweeper::CleanupInvalidTypedSlotsOfFreeRanges(
+    Page* page, const FreeRangesMap& free_ranges_map) {
+  if (!free_ranges_map.empty()) {
+    TypedSlotSet* old_to_new = page->typed_slot_set<OLD_TO_NEW>();
+    if (old_to_new != nullptr) {
+      old_to_new->ClearInvalidSlots(free_ranges_map);
+    }
+    TypedSlotSet* old_to_old = page->typed_slot_set<OLD_TO_OLD>();
+    if (old_to_old != nullptr) {
+      old_to_old->ClearInvalidSlots(free_ranges_map);
+    }
+  }
+}
+
+void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(
+    Page* page, size_t live_bytes, FreeListRebuildingMode free_list_mode) {
+  marking_state_->bitmap(page)->Clear();
+  if (free_list_mode == IGNORE_FREE_LIST) {
+    marking_state_->SetLiveBytes(page, 0);
+    // We did not free memory, so have to adjust allocated bytes here.
+    intptr_t freed_bytes = page->area_size() - live_bytes;
+    page->DecreaseAllocatedBytes(freed_bytes);
+  } else {
+    // Keep the old live bytes counter of the page until RefillFreeList, where
+    // the space size is refined.
+    // The allocated_bytes() counter is precisely the total size of objects.
+    DCHECK_EQ(live_bytes, page->allocated_bytes());
+  }
+}
+
 int Sweeper::RawSweep(
     Page* p, FreeListRebuildingMode free_list_mode,
     FreeSpaceTreatmentMode free_space_mode,
@@ -258,7 +330,26 @@ int Sweeper::RawSweep(
          space->identity() == CODE_SPACE || space->identity() == MAP_SPACE);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
 
+  // Phase 1: Prepare the page for sweeping.
+
+  // Before we sweep objects on the page, we free dead array buffers which
+  // requires valid mark bits.
+  ArrayBufferTracker::FreeDead(p, marking_state_);
+
+  // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
+  // counter. The free operations below will decrease allocated_bytes_ to actual
+  // live bytes and keep track of wasted_memory_.
+  p->ResetAllocationStatistics();
+
   CodeObjectRegistry* code_object_registry = p->GetCodeObjectRegistry();
+  if (code_object_registry) code_object_registry->Clear();
+
+  // Phase 2: Free the non-live memory and clean-up the regular remembered set
+  // entires.
+
+  // Liveness and freeing statistics.
+  size_t live_bytes = 0;
+  size_t max_freed_bytes = 0;
 
   // TODO(ulan): we don't have to clear type old-to-old slots in code space
   // because the concurrent marker doesn't mark code objects. This requires
@@ -266,35 +357,21 @@ int Sweeper::RawSweep(
   bool non_empty_typed_slots = p->typed_slot_set<OLD_TO_NEW>() != nullptr ||
                                p->typed_slot_set<OLD_TO_OLD>() != nullptr;
 
-  // The free ranges map is used for filtering typed slots.
-  std::map<uint32_t, uint32_t> free_ranges;
-
-  // Before we sweep objects on the page, we free dead array buffers which
-  // requires valid mark bits.
-  ArrayBufferTracker::FreeDead(p, marking_state_);
-
-  Address free_start = p->area_start();
-  InvalidatedSlotsCleanup old_to_new_cleanup =
-      InvalidatedSlotsCleanup::NoCleanup(p);
-
   // Clean invalidated slots during the final atomic pause. After resuming
   // execution this isn't necessary, invalid old-to-new refs were already
   // removed by mark compact's update pointers phase.
+  InvalidatedSlotsCleanup old_to_new_cleanup =
+      InvalidatedSlotsCleanup::NoCleanup(p);
   if (invalidated_slots_in_free_space ==
       FreeSpaceMayContainInvalidatedSlots::kYes)
     old_to_new_cleanup = InvalidatedSlotsCleanup::OldToNew(p);
 
-  intptr_t live_bytes = 0;
-  intptr_t freed_bytes = 0;
-  intptr_t max_freed_bytes = 0;
+  // The free ranges map is used for filtering typed slots.
+  FreeRangesMap free_ranges_map;
 
-  // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
-  // counter. The free operations below will decrease allocated_bytes_ to actual
-  // live bytes and keep track of wasted_memory_.
-  p->ResetAllocationStatistics();
-
-  if (code_object_registry) code_object_registry->Clear();
-
+  // Iterate over the page using the live objects and free the memory before
+  // the given live object.
+  Address free_start = p->area_start();
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
     HeapObject const object = object_and_size.first;
@@ -303,32 +380,14 @@ int Sweeper::RawSweep(
     DCHECK(marking_state_->IsBlack(object));
     Address free_end = object.address();
     if (free_end != free_start) {
-      CHECK_GT(free_end, free_start);
-      size_t size = static_cast<size_t>(free_end - free_start);
-      if (free_space_mode == ZAP_FREE_SPACE) {
-        ZapCode(free_start, size);
-      }
-      if (free_list_mode == REBUILD_FREE_LIST) {
-        freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
-            free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
-        max_freed_bytes = Max(freed_bytes, max_freed_bytes);
-      } else {
-        p->heap()->CreateFillerObjectAt(
-            free_start, static_cast<int>(size), ClearRecordedSlots::kNo,
-            ClearFreedMemoryMode::kClearFreedMemory);
-      }
-      if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
-      RememberedSetSweeping::RemoveRange(p, free_start, free_end,
-                                         SlotSet::KEEP_EMPTY_BUCKETS);
-      RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, free_end,
-                                             SlotSet::KEEP_EMPTY_BUCKETS);
-      if (non_empty_typed_slots) {
-        free_ranges.insert(std::pair<uint32_t, uint32_t>(
-            static_cast<uint32_t>(free_start - p->address()),
-            static_cast<uint32_t>(free_end - p->address())));
-      }
-
-      old_to_new_cleanup.Free(free_start, free_end);
+      max_freed_bytes =
+          Max(max_freed_bytes,
+              FreeAndProcessFreedMemory(free_start, free_end, p, space,
+                                        non_empty_typed_slots, free_list_mode,
+                                        free_space_mode));
+      CleanupRememberedSetEntriesForFreedMemory(
+          free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
+          &old_to_new_cleanup);
     }
     Map map = object.synchronized_map();
     int size = object.SizeFromMap(map);
@@ -336,65 +395,29 @@ int Sweeper::RawSweep(
     free_start = free_end + size;
   }
 
-  if (free_start != p->area_end()) {
-    CHECK_GT(p->area_end(), free_start);
-    size_t size = static_cast<size_t>(p->area_end() - free_start);
-    if (free_space_mode == ZAP_FREE_SPACE) {
-      ZapCode(free_start, size);
-    }
-    if (free_list_mode == REBUILD_FREE_LIST) {
-      freed_bytes = reinterpret_cast<PagedSpace*>(space)->Free(
-          free_start, size, SpaceAccountingMode::kSpaceUnaccounted);
-      max_freed_bytes = Max(freed_bytes, max_freed_bytes);
-    } else {
-      p->heap()->CreateFillerObjectAt(free_start, static_cast<int>(size),
-                                      ClearRecordedSlots::kNo,
-                                      ClearFreedMemoryMode::kClearFreedMemory);
-    }
-    if (should_reduce_memory_) p->DiscardUnusedMemory(free_start, size);
-    RememberedSetSweeping::RemoveRange(p, free_start, p->area_end(),
-                                       SlotSet::KEEP_EMPTY_BUCKETS);
-    RememberedSet<OLD_TO_OLD>::RemoveRange(p, free_start, p->area_end(),
-                                           SlotSet::KEEP_EMPTY_BUCKETS);
-    if (non_empty_typed_slots) {
-      free_ranges.insert(std::pair<uint32_t, uint32_t>(
-          static_cast<uint32_t>(free_start - p->address()),
-          static_cast<uint32_t>(p->area_end() - p->address())));
-    }
-
-    old_to_new_cleanup.Free(free_start, p->area_end());
+  // If there is free memory after the last live object also free that.
+  Address free_end = p->area_end();
+  if (free_end != free_start) {
+    max_freed_bytes =
+        Max(max_freed_bytes,
+            FreeAndProcessFreedMemory(free_start, free_end, p, space,
+                                      non_empty_typed_slots, free_list_mode,
+                                      free_space_mode));
+    CleanupRememberedSetEntriesForFreedMemory(
+        free_start, free_end, p, non_empty_typed_slots, &free_ranges_map,
+        &old_to_new_cleanup);
   }
 
-  // Clear invalid typed slots after collection all free ranges.
-  if (!free_ranges.empty()) {
-    TypedSlotSet* old_to_new = p->typed_slot_set<OLD_TO_NEW>();
-    if (old_to_new != nullptr) {
-      old_to_new->ClearInvalidSlots(free_ranges);
-    }
-    TypedSlotSet* old_to_old = p->typed_slot_set<OLD_TO_OLD>();
-    if (old_to_old != nullptr) {
-      old_to_old->ClearInvalidSlots(free_ranges);
-    }
-  }
+  // Phase 3: Post process the page.
+  CleanupInvalidTypedSlotsOfFreeRanges(p, free_ranges_map);
+  ClearMarkBitsAndHandleLivenessStatistics(p, live_bytes, free_list_mode);
 
-  marking_state_->bitmap(p)->Clear();
-  if (free_list_mode == IGNORE_FREE_LIST) {
-    marking_state_->SetLiveBytes(p, 0);
-    // We did not free memory, so have to adjust allocated bytes here.
-    intptr_t freed_bytes = p->area_size() - live_bytes;
-    p->DecreaseAllocatedBytes(freed_bytes);
-  } else {
-    // Keep the old live bytes counter of the page until RefillFreeList, where
-    // the space size is refined.
-    // The allocated_bytes() counter is precisely the total size of objects.
-    DCHECK_EQ(live_bytes, p->allocated_bytes());
-  }
   p->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
   if (code_object_registry) code_object_registry->Finalize();
   if (free_list_mode == IGNORE_FREE_LIST) return 0;
 
   return static_cast<int>(
-      p->free_list()->GuaranteedAllocatable(max_freed_bytes));
+      p->owner()->free_list()->GuaranteedAllocatable(max_freed_bytes));
 }
 
 void Sweeper::SweepSpaceFromTask(AllocationSpace identity) {

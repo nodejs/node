@@ -22,6 +22,10 @@ namespace internal {
 // Script describes a script which has been added to the VM.
 class Script : public Struct {
  public:
+  // Script ID used for temporary scripts, which shouldn't be added to the
+  // script list.
+  static constexpr int kTemporaryScriptId = -2;
+
   NEVER_READ_ONLY_SPACE
   // Script types.
   enum Type {
@@ -197,7 +201,7 @@ class Script : public Struct {
   // that matches the function literal.  Return empty handle if not found.
   template <typename LocalIsolate>
   MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
-      LocalIsolate* isolate, const FunctionLiteral* fun);
+      LocalIsolate* isolate, int function_literal_id);
 
   // Iterate over all script objects on the heap.
   class V8_EXPORT_PRIVATE Iterator {

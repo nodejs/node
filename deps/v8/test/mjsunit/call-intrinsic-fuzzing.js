@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-for-fuzzing
+// Flags: --allow-natives-for-fuzzing --fuzzing
 
 // Test whitelisted/blacklisted intrinsics in the context of fuzzing.
 
 // Blacklisted intrinsics are replaced with undefined.
-assertEquals(undefined, %GetOptimizationStatus(function (){}));
+assertEquals(undefined, %ConstructConsString("a", "b"));
 
 // Blacklisted intrinsics can have wrong arguments.
-assertEquals(undefined, %GetOptimizationStatus(1, 2, 3, 4));
+assertEquals(undefined, %ConstructConsString(1, 2, 3, 4));
 
 // We don't care if an intrinsic actually exists.
 assertEquals(undefined, %FooBar());

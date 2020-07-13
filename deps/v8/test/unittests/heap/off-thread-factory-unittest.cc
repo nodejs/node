@@ -15,6 +15,7 @@
 #include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/handles.h"
+#include "src/handles/maybe-handles.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/script.h"
@@ -55,7 +56,13 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
  public:
   OffThreadFactoryTest()
       : TestWithIsolateAndZone(),
-        parse_info_(isolate()),
+        state_(isolate()),
+        parse_info_(
+            isolate(),
+            UnoptimizedCompileFlags::ForToplevelCompile(
+                isolate(), true, construct_language_mode(FLAG_use_strict),
+                REPLMode::kNo),
+            &state_),
         off_thread_isolate_(isolate(), parse_info_.zone()) {}
 
   FunctionLiteral* ParseProgram(const char* source) {
@@ -68,8 +75,6 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 
     parse_info_.set_character_stream(
         ScannerStream::ForTesting(utf16_source.data(), utf16_source.size()));
-    parse_info_.set_toplevel();
-    parse_info_.set_allow_lazy_parsing();
 
     {
       DisallowHeapAllocation no_allocation;
@@ -78,9 +83,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 
       Parser parser(parse_info());
       parser.InitializeEmptyScopeChain(parse_info());
-      parser.ParseOnBackground(parse_info());
-
-      CHECK(DeclarationScope::Analyze(parse_info()));
+      parser.ParseOnBackground(parse_info(), 0, 0, kFunctionLiteralIdTopLevel);
     }
 
     parse_info()->ast_value_factory()->Internalize(off_thread_isolate());
@@ -88,7 +91,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 
     script_ = parse_info_.CreateScript(off_thread_isolate(),
                                        off_thread_factory()->empty_string(),
-                                       ScriptOriginOptions());
+                                       kNullMaybeHandle, ScriptOriginOptions());
 
     // Create the SFI list on the script so that SFI SetScript works.
     Handle<WeakFixedArray> infos = off_thread_factory()->NewWeakFixedArray(
@@ -116,6 +119,7 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
   }
 
  private:
+  UnoptimizedCompileState state_;
   ParseInfo parse_info_;
   OffThreadIsolate off_thread_isolate_;
   Handle<String> source_string_;
@@ -123,11 +127,11 @@ class OffThreadFactoryTest : public TestWithIsolateAndZone {
 };
 
 TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
-  Vector<const uint8_t> string_vector = StaticCharVector("foo");
+  Vector<const uint8_t> string_vector = StaticOneByteVector("foo");
   uint32_t hash_field = StringHasher::HashSequentialString<uint8_t>(
       string_vector.begin(), string_vector.length(), HashSeed(isolate()));
 
-  FixedArray off_thread_wrapper;
+  OffThreadTransferHandle<FixedArray> wrapper;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
@@ -135,15 +139,15 @@ TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
         off_thread_factory()->NewOneByteInternalizedString(string_vector,
                                                            hash_field);
 
-    off_thread_wrapper =
-        *off_thread_factory()->StringWrapperForTest(off_thread_string);
-    off_thread_factory()->FinishOffThread();
+    wrapper =
+        off_thread_isolate()->TransferHandle(WrapString(off_thread_string));
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<FixedArray> wrapper = handle(off_thread_wrapper, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
-  Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
+  Handle<String> string =
+      handle(String::cast(wrapper.ToHandle()->get(0)), isolate());
 
   EXPECT_TRUE(string->IsOneByteEqualTo(CStrVector("foo")));
   EXPECT_TRUE(string->IsInternalizedString());
@@ -162,12 +166,12 @@ TEST_F(OffThreadFactoryTest, OneByteInternalizedString_IsAddedToStringTable) {
 
 TEST_F(OffThreadFactoryTest,
        OneByteInternalizedString_DuplicateIsDeduplicated) {
-  Vector<const uint8_t> string_vector = StaticCharVector("foo");
+  Vector<const uint8_t> string_vector = StaticOneByteVector("foo");
   uint32_t hash_field = StringHasher::HashSequentialString<uint8_t>(
       string_vector.begin(), string_vector.length(), HashSeed(isolate()));
 
-  FixedArray off_thread_wrapper_1;
-  FixedArray off_thread_wrapper_2;
+  OffThreadTransferHandle<FixedArray> wrapper_1;
+  OffThreadTransferHandle<FixedArray> wrapper_2;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
@@ -178,17 +182,19 @@ TEST_F(OffThreadFactoryTest,
         off_thread_factory()->NewOneByteInternalizedString(string_vector,
                                                            hash_field);
 
-    off_thread_wrapper_1 = *WrapString(off_thread_string_1);
-    off_thread_wrapper_2 = *WrapString(off_thread_string_2);
-    off_thread_factory()->FinishOffThread();
+    wrapper_1 =
+        off_thread_isolate()->TransferHandle(WrapString(off_thread_string_1));
+    wrapper_2 =
+        off_thread_isolate()->TransferHandle(WrapString(off_thread_string_2));
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<FixedArray> wrapper_1 = handle(off_thread_wrapper_1, isolate());
-  Handle<FixedArray> wrapper_2 = handle(off_thread_wrapper_2, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
-  Handle<String> string_1 = handle(String::cast(wrapper_1->get(0)), isolate());
-  Handle<String> string_2 = handle(String::cast(wrapper_2->get(0)), isolate());
+  Handle<String> string_1 =
+      handle(String::cast(wrapper_1.ToHandle()->get(0)), isolate());
+  Handle<String> string_2 =
+      handle(String::cast(wrapper_2.ToHandle()->get(0)), isolate());
 
   EXPECT_TRUE(string_1->IsOneByteEqualTo(CStrVector("foo")));
   EXPECT_TRUE(string_1->IsInternalizedString());
@@ -201,20 +207,21 @@ TEST_F(OffThreadFactoryTest, AstRawString_IsInternalized) {
 
   const AstRawString* raw_string = ast_value_factory.GetOneByteString("foo");
 
-  FixedArray off_thread_wrapper;
+  OffThreadTransferHandle<FixedArray> wrapper;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
     ast_value_factory.Internalize(off_thread_isolate());
 
-    off_thread_wrapper = *WrapString(raw_string->string());
-    off_thread_factory()->FinishOffThread();
+    wrapper =
+        off_thread_isolate()->TransferHandle(WrapString(raw_string->string()));
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<FixedArray> wrapper = handle(off_thread_wrapper, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
-  Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
+  Handle<String> string =
+      handle(String::cast(wrapper.ToHandle()->get(0)), isolate());
 
   EXPECT_TRUE(string->IsOneByteEqualTo(CStrVector("foo")));
   EXPECT_TRUE(string->IsInternalizedString());
@@ -224,7 +231,7 @@ TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
   AstValueFactory ast_value_factory(zone(), isolate()->ast_string_constants(),
                                     HashSeed(isolate()));
 
-  FixedArray off_thread_wrapper;
+  OffThreadTransferHandle<FixedArray> wrapper;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
@@ -236,15 +243,15 @@ TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
 
     ast_value_factory.Internalize(off_thread_isolate());
 
-    off_thread_wrapper =
-        *WrapString(foobar_string->GetString(off_thread_isolate()));
-    off_thread_factory()->FinishOffThread();
+    wrapper = off_thread_isolate()->TransferHandle(
+        WrapString(foobar_string->GetString(off_thread_isolate())));
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<FixedArray> wrapper = handle(off_thread_wrapper, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
 
-  Handle<String> string = handle(String::cast(wrapper->get(0)), isolate());
+  Handle<String> string =
+      handle(String::cast(wrapper.ToHandle()->get(0)), isolate());
 
   EXPECT_TRUE(string->IsConsString());
   EXPECT_TRUE(string->Equals(*isolate()->factory()->NewStringFromStaticChars(
@@ -254,18 +261,19 @@ TEST_F(OffThreadFactoryTest, AstConsString_CreatesConsString) {
 TEST_F(OffThreadFactoryTest, EmptyScript) {
   FunctionLiteral* program = ParseProgram("");
 
-  SharedFunctionInfo shared;
+  OffThreadTransferHandle<SharedFunctionInfo> shared;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
-    shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
-        program, script(), true);
+    shared = off_thread_isolate()->TransferHandle(
+        off_thread_factory()->NewSharedFunctionInfoForLiteral(program, script(),
+                                                              true));
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<SharedFunctionInfo> root_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
+  Handle<SharedFunctionInfo> root_sfi = shared.ToHandle();
 
   EXPECT_EQ(root_sfi->function_literal_id(), 0);
 }
@@ -278,18 +286,19 @@ TEST_F(OffThreadFactoryTest, LazyFunction) {
                               ->AsFunctionDeclaration()
                               ->fun();
 
-  SharedFunctionInfo shared;
+  OffThreadTransferHandle<SharedFunctionInfo> shared;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
-    shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
-        lazy, script(), true);
+    shared = off_thread_isolate()->TransferHandle(
+        off_thread_factory()->NewSharedFunctionInfoForLiteral(lazy, script(),
+                                                              true));
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<SharedFunctionInfo> lazy_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
+  Handle<SharedFunctionInfo> lazy_sfi = shared.ToHandle();
 
   EXPECT_EQ(lazy_sfi->function_literal_id(), 1);
   EXPECT_TRUE(lazy_sfi->Name().IsOneByteEqualTo(CStrVector("lazy")));
@@ -299,24 +308,28 @@ TEST_F(OffThreadFactoryTest, LazyFunction) {
 
 TEST_F(OffThreadFactoryTest, EagerFunction) {
   FunctionLiteral* program = ParseProgram("(function eager() {})");
+  // Rewritten to `.result = (function eager() {}); return .result`
   FunctionLiteral* eager = program->body()
                                ->at(0)
                                ->AsExpressionStatement()
                                ->expression()
+                               ->AsAssignment()
+                               ->value()
                                ->AsFunctionLiteral();
 
-  SharedFunctionInfo shared;
+  OffThreadTransferHandle<SharedFunctionInfo> shared;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
-    shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
-        eager, script(), true);
+    shared = off_thread_isolate()->TransferHandle(
+        off_thread_factory()->NewSharedFunctionInfoForLiteral(eager, script(),
+                                                              true));
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<SharedFunctionInfo> eager_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
+  Handle<SharedFunctionInfo> eager_sfi = shared.ToHandle();
 
   EXPECT_EQ(eager_sfi->function_literal_id(), 1);
   EXPECT_TRUE(eager_sfi->Name().IsOneByteEqualTo(CStrVector("eager")));
@@ -339,18 +352,19 @@ TEST_F(OffThreadFactoryTest, ImplicitNameFunction) {
                                        ->value()
                                        ->AsFunctionLiteral();
 
-  SharedFunctionInfo shared;
+  OffThreadTransferHandle<SharedFunctionInfo> shared;
   {
     OffThreadHandleScope handle_scope(off_thread_isolate());
 
-    shared = *off_thread_factory()->NewSharedFunctionInfoForLiteral(
-        implicit_name, script(), true);
+    shared = off_thread_isolate()->TransferHandle(
+        off_thread_factory()->NewSharedFunctionInfoForLiteral(implicit_name,
+                                                              script(), true));
 
-    off_thread_factory()->FinishOffThread();
+    off_thread_isolate()->FinishOffThread();
   }
 
-  Handle<SharedFunctionInfo> implicit_name_sfi = handle(shared, isolate());
-  off_thread_factory()->Publish(isolate());
+  off_thread_isolate()->Publish(isolate());
+  Handle<SharedFunctionInfo> implicit_name_sfi = shared.ToHandle();
 
   EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
   EXPECT_TRUE(

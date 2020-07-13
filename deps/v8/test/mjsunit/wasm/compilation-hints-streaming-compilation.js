@@ -49,7 +49,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                                                        {mod: {pow: Math.pow}})
     .then(assertUnreachable,
           error => assertEquals("WebAssembly.instantiateStreaming(): Invalid " +
-                                "compilation hint 0x2d (forbidden downgrade) " +
+                                "compilation hint 0x19 (forbidden downgrade) " +
                                 "@+78",
                                 error.message)));
 })();

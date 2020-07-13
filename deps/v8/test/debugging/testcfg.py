@@ -79,7 +79,8 @@ class PYTestLoader(testsuite.GenericTestLoader):
 
   @property
   def excluded_files(self):
-    return {'gdb_rsp.py', 'testcfg.py', '__init__.py'}
+    return {'gdb_rsp.py', 'testcfg.py', '__init__.py', 'test_basic.py',
+            'test_float.py', 'test_memory.py', 'test_trap.py'}
 
   @property
   def extensions(self):

@@ -20,6 +20,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/init/bootstrapper.h"
@@ -165,6 +166,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->initialize_flags(kind_, has_unwinding_info, is_turbofanned_,
                            stack_slots_, kIsNotOffHeapTrampoline);
     code->set_builtin_index(builtin_index_);
+    code->set_inlined_bytecode_size(inlined_bytecode_size_);
     code->set_code_data_container(*data_container);
     code->set_deoptimization_data(*deoptimization_data_);
     code->set_source_position_table(*source_position_table_);
@@ -530,19 +532,19 @@ Handle<String> Factory::InternalizeUtf8String(
       Vector<const uc16>(buffer.get(), decoder.utf16_length()));
 }
 
-template <typename Char>
-Handle<String> Factory::InternalizeString(const Vector<const Char>& string,
+Handle<String> Factory::InternalizeString(Vector<const uint8_t> string,
                                           bool convert_encoding) {
-  SequentialStringKey<Char> key(string, HashSeed(isolate()), convert_encoding);
+  SequentialStringKey<uint8_t> key(string, HashSeed(isolate()),
+                                   convert_encoding);
   return InternalizeStringWithKey(&key);
 }
 
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeString(
-        const Vector<const uint8_t>& string, bool convert_encoding);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Handle<String> Factory::InternalizeString(
-        const Vector<const uint16_t>& string, bool convert_encoding);
+Handle<String> Factory::InternalizeString(Vector<const uint16_t> string,
+                                          bool convert_encoding) {
+  SequentialStringKey<uint16_t> key(string, HashSeed(isolate()),
+                                    convert_encoding);
+  return InternalizeStringWithKey(&key);
+}
 
 template <typename SeqString>
 Handle<String> Factory::InternalizeString(Handle<SeqString> string, int from,
@@ -1049,8 +1051,9 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_errors_thrown(Smi::zero());
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());
-  context->set_microtask_queue(nullptr);
+  context->set_microtask_queue(isolate(), nullptr);
   context->set_osr_code_cache(*empty_weak_fixed_array());
+  context->set_retained_maps(*empty_weak_array_list());
   return context;
 }
 
@@ -1272,15 +1275,15 @@ Handle<CallbackTask> Factory::NewCallbackTask(Handle<Foreign> callback,
 }
 
 Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
-    Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
-    Handle<JSReceiver> thenable, Handle<Context> context) {
+    Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> thenable,
+    Handle<JSReceiver> then, Handle<Context> context) {
   DCHECK(then->IsCallable());
   Handle<PromiseResolveThenableJobTask> microtask =
       Handle<PromiseResolveThenableJobTask>::cast(
           NewStruct(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE));
   microtask->set_promise_to_resolve(*promise_to_resolve);
-  microtask->set_then(*then);
   microtask->set_thenable(*thenable);
+  microtask->set_then(*then);
   microtask->set_context(*context);
   return microtask;
 }
@@ -1292,7 +1295,7 @@ Handle<Foreign> Factory::NewForeign(Address addr) {
   HeapObject result = AllocateRawWithImmortalMap(map.instance_size(),
                                                  AllocationType::kYoung, map);
   Handle<Foreign> foreign(Foreign::cast(result), isolate());
-  foreign->set_foreign_address(addr);
+  foreign->set_foreign_address(isolate(), addr);
   return foreign;
 }
 
@@ -1434,7 +1437,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   // Must be called only after |instance_type|, |instance_size| and
   // |layout_descriptor| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
-  map.set_bit_field(0);
+  map.set_relaxed_bit_field(0);
   map.set_bit_field2(Map::Bits2::NewTargetIsBaseBit::encode(true));
   int bit_field3 =
       Map::Bits3::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
@@ -2437,6 +2440,13 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
   return Handle<JSGeneratorObject>::cast(NewJSObjectFromMap(map));
 }
 
+Handle<WasmStruct> Factory::NewWasmStruct(Handle<Map> map) {
+  int size = map->instance_size();
+  HeapObject result = AllocateRaw(size, AllocationType::kYoung);
+  result.set_map_after_allocation(*map);
+  return handle(WasmStruct::cast(result), isolate());
+}
+
 Handle<SourceTextModule> Factory::NewSourceTextModule(
     Handle<SharedFunctionInfo> code) {
   Handle<SourceTextModuleInfo> module_info(
@@ -2666,7 +2676,8 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
       Handle<JSTypedArray>::cast(NewJSArrayBufferView(
           map, empty_byte_array(), buffer, byte_offset, byte_length));
   typed_array->set_length(length);
-  typed_array->SetOffHeapDataPtr(buffer->backing_store(), byte_offset);
+  typed_array->SetOffHeapDataPtr(isolate(), buffer->backing_store(),
+                                 byte_offset);
   return typed_array;
 }
 
@@ -2677,8 +2688,8 @@ Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
                   isolate());
   Handle<JSDataView> obj = Handle<JSDataView>::cast(NewJSArrayBufferView(
       map, empty_fixed_array(), buffer, byte_offset, byte_length));
-  obj->set_data_pointer(static_cast<uint8_t*>(buffer->backing_store()) +
-                        byte_offset);
+  obj->set_data_pointer(
+      isolate(), static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
   return obj;
 }
 
@@ -2761,12 +2772,8 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
   map->set_is_access_check_needed(true);
   map->set_may_have_interesting_symbols(true);
   LOG(isolate(), MapDetails(*map));
-  Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(
+  return Handle<JSGlobalProxy>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
-  // Create identity hash early in case there is any JS collection containing
-  // a global proxy key and needs to be rehashed after deserialization.
-  proxy->GetOrCreateIdentityHash(isolate());
-  return proxy;
 }
 
 void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
@@ -2862,38 +2869,42 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
 }
 
 namespace {
-inline int NumberToStringCacheHash(Handle<FixedArray> cache, Smi number) {
+V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, Smi number) {
   int mask = (cache->length() >> 1) - 1;
   return number.value() & mask;
 }
-inline int NumberToStringCacheHash(Handle<FixedArray> cache, double number) {
+
+V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, double number) {
   int mask = (cache->length() >> 1) - 1;
   int64_t bits = bit_cast<int64_t>(number);
   return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
 }
-}  // namespace
 
-Handle<String> Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
-                                               const char* string,
-                                               bool check_cache) {
+V8_INLINE Handle<String> CharToString(Factory* factory, const char* string,
+                                      NumberCacheMode mode) {
   // We tenure the allocated string since it is referenced from the
   // number-string cache which lives in the old space.
-  Handle<String> js_string = NewStringFromAsciiChecked(
-      string, check_cache ? AllocationType::kOld : AllocationType::kYoung);
-  if (!check_cache) return js_string;
+  AllocationType type = mode == NumberCacheMode::kIgnore
+                            ? AllocationType::kYoung
+                            : AllocationType::kOld;
+  return factory->NewStringFromAsciiChecked(string, type);
+}
 
+}  // namespace
+
+void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
+                                     Handle<String> js_string) {
   if (!number_string_cache()->get(hash * 2).IsUndefined(isolate())) {
     int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
     if (number_string_cache()->length() != full_size) {
       Handle<FixedArray> new_cache =
           NewFixedArray(full_size, AllocationType::kOld);
       isolate()->heap()->set_number_string_cache(*new_cache);
-      return js_string;
+      return;
     }
   }
   number_string_cache()->set(hash * 2, *number);
   number_string_cache()->set(hash * 2 + 1, *js_string);
-  return js_string;
 }
 
 Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
@@ -2908,27 +2919,29 @@ Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
 }
 
 Handle<String> Factory::NumberToString(Handle<Object> number,
-                                       bool check_cache) {
-  if (number->IsSmi()) return SmiToString(Smi::cast(*number), check_cache);
+                                       NumberCacheMode mode) {
+  if (number->IsSmi()) return SmiToString(Smi::cast(*number), mode);
 
   double double_value = Handle<HeapNumber>::cast(number)->value();
   // Try to canonicalize doubles.
   int smi_value;
   if (DoubleToSmiInteger(double_value, &smi_value)) {
-    return SmiToString(Smi::FromInt(smi_value), check_cache);
+    return SmiToString(Smi::FromInt(smi_value), mode);
   }
   return HeapNumberToString(Handle<HeapNumber>::cast(number), double_value,
-                            check_cache);
+                            mode);
 }
 
 // Must be large enough to fit any double, int, or size_t.
 static const int kNumberToStringBufferSize = 32;
 
 Handle<String> Factory::HeapNumberToString(Handle<HeapNumber> number,
-                                           double value, bool check_cache) {
+                                           double value, NumberCacheMode mode) {
   int hash = 0;
-  if (check_cache) {
+  if (mode != NumberCacheMode::kIgnore) {
     hash = NumberToStringCacheHash(number_string_cache(), value);
+  }
+  if (mode == NumberCacheMode::kBoth) {
     Handle<Object> cached = NumberToStringCacheGet(*number, hash);
     if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
@@ -2936,14 +2949,16 @@ Handle<String> Factory::HeapNumberToString(Handle<HeapNumber> number,
   char arr[kNumberToStringBufferSize];
   Vector<char> buffer(arr, arraysize(arr));
   const char* string = DoubleToCString(value, buffer);
-
-  return NumberToStringCacheSet(number, hash, string, check_cache);
+  Handle<String> result = CharToString(this, string, mode);
+  if (mode != NumberCacheMode::kIgnore) {
+    NumberToStringCacheSet(number, hash, result);
+  }
+  return result;
 }
 
-Handle<String> Factory::SmiToString(Smi number, bool check_cache) {
-  int hash = 0;
-  if (check_cache) {
-    hash = NumberToStringCacheHash(number_string_cache(), number);
+inline Handle<String> Factory::SmiToString(Smi number, NumberCacheMode mode) {
+  int hash = NumberToStringCacheHash(number_string_cache(), number);
+  if (mode == NumberCacheMode::kBoth) {
     Handle<Object> cached = NumberToStringCacheGet(number, hash);
     if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
   }
@@ -2951,9 +2966,11 @@ Handle<String> Factory::SmiToString(Smi number, bool check_cache) {
   char arr[kNumberToStringBufferSize];
   Vector<char> buffer(arr, arraysize(arr));
   const char* string = IntToCString(number.value(), buffer);
+  Handle<String> result = CharToString(this, string, mode);
+  if (mode != NumberCacheMode::kIgnore) {
+    NumberToStringCacheSet(handle(number, isolate()), hash, result);
+  }
 
-  Handle<String> result = NumberToStringCacheSet(handle(number, isolate()),
-                                                 hash, string, check_cache);
   // Compute the hash here (rather than letting the caller take care of it) so
   // that the "cache hit" case above doesn't have to bother with it.
   STATIC_ASSERT(Smi::kMaxValue <= std::numeric_limits<uint32_t>::max());
@@ -2967,15 +2984,16 @@ Handle<String> Factory::SmiToString(Smi number, bool check_cache) {
 
 Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
   Handle<String> result;
+  NumberCacheMode cache_mode =
+      check_cache ? NumberCacheMode::kBoth : NumberCacheMode::kIgnore;
   if (value <= Smi::kMaxValue) {
     int32_t int32v = static_cast<int32_t>(static_cast<uint32_t>(value));
     // SmiToString sets the hash when needed, we can return immediately.
-    return SmiToString(Smi::FromInt(int32v), check_cache);
+    return SmiToString(Smi::FromInt(int32v), cache_mode);
   } else if (value <= kMaxSafeInteger) {
     // TODO(jkummerow): Refactor the cache to not require Objects as keys.
     double double_value = static_cast<double>(value);
-    result =
-        HeapNumberToString(NewHeapNumber(double_value), value, check_cache);
+    result = HeapNumberToString(NewHeapNumber(double_value), value, cache_mode);
   } else {
     char arr[kNumberToStringBufferSize];
     Vector<char> buffer(arr, arraysize(arr));
@@ -3021,6 +3039,15 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   shared->SetDebugInfo(*debug_info);
 
   return debug_info;
+}
+
+Handle<WasmValue> Factory::NewWasmValue(int value_type, Handle<Object> ref) {
+  DCHECK(value_type == 6 || ref->IsByteArray());
+  Handle<WasmValue> wasm_value =
+      Handle<WasmValue>::cast(NewStruct(WASM_VALUE_TYPE, AllocationType::kOld));
+  wasm_value->set_value_type(value_type);
+  wasm_value->set_bytes_or_ref(*ref);
+  return wasm_value;
 }
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {

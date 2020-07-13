@@ -28,6 +28,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/assert-scope.h"
+#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/date/date.h"
@@ -96,10 +97,8 @@
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/snapshot/partial-serializer.h"
-#include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/snapshot.h"
-#include "src/snapshot/startup-serializer.h"
+#include "src/snapshot/startup-serializer.h"  // For SerializedHandleChecker.
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/strings/unicode-inl.h"
@@ -328,6 +327,7 @@ class CallDepthScope {
   bool CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
       i::MicrotaskQueue* microtask_queue) {
     bool did_perform_microtask_checkpoint =
+        isolate_->thread_local_top()->CallDepthIsZero() &&
         do_callback && microtask_queue &&
         microtask_queue->microtasks_policy() == MicrotasksPolicy::kAuto;
     return !did_perform_microtask_checkpoint ||
@@ -598,7 +598,6 @@ SnapshotCreator::SnapshotCreator(Isolate* isolate,
                                  const intptr_t* external_references,
                                  StartupData* existing_snapshot) {
   SnapshotCreatorData* data = new SnapshotCreatorData(isolate);
-  data->isolate_ = isolate;
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->set_array_buffer_allocator(&data->allocator_);
   internal_isolate->set_api_external_references(external_references);
@@ -657,10 +656,6 @@ size_t SnapshotCreator::AddContext(Local<Context> context,
   data->contexts_.Append(context);
   data->embedder_fields_serializers_.push_back(callback);
   return index;
-}
-
-size_t SnapshotCreator::AddTemplate(Local<Template> template_obj) {
-  return AddData(template_obj);
 }
 
 size_t SnapshotCreator::AddData(i::Address object) {
@@ -737,8 +732,11 @@ StartupData SnapshotCreator::CreateBlob(
   DCHECK(!data->created_);
   DCHECK(!data->default_context_.IsEmpty());
 
-  int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+  const int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+  const int num_contexts = num_additional_contexts + 1;  // The default context.
 
+  // Create and store lists of embedder-provided data needed during
+  // serialization.
   {
     i::HandleScope scope(isolate);
     // Convert list of context-independent data to FixedArray.
@@ -777,48 +775,15 @@ StartupData SnapshotCreator::CreateBlob(
     isolate->heap()->CompactWeakArrayLists(internal::AllocationType::kOld);
   }
 
-  if (function_code_handling == FunctionCodeHandling::kClear) {
-    // Clear out re-compilable data from all shared function infos. Any
-    // JSFunctions using these SFIs will have their code pointers reset by the
-    // partial serializer.
-    //
-    // We have to iterate the heap and collect handles to each clearable SFI,
-    // before we disable allocation, since we have to allocate UncompiledDatas
-    // to be able to recompile them.
-    //
-    // Compiled irregexp code is also flushed by collecting and clearing any
-    // seen JSRegExp objects.
-    i::HandleScope scope(isolate);
-    std::vector<i::Handle<i::SharedFunctionInfo>> sfis_to_clear;
-
-    {  // Heap allocation is disallowed within this scope.
-      i::HeapObjectIterator heap_iterator(isolate->heap());
-      for (i::HeapObject current_obj = heap_iterator.Next();
-           !current_obj.is_null(); current_obj = heap_iterator.Next()) {
-        if (current_obj.IsSharedFunctionInfo()) {
-          i::SharedFunctionInfo shared =
-              i::SharedFunctionInfo::cast(current_obj);
-          if (shared.CanDiscardCompiled()) {
-            sfis_to_clear.emplace_back(shared, isolate);
-          }
-        } else if (current_obj.IsJSRegExp()) {
-          i::JSRegExp regexp = i::JSRegExp::cast(current_obj);
-          if (regexp.HasCompiledCode()) {
-            regexp.DiscardCompiledCodeForSerialization();
-          }
-        }
-      }
-    }
-
-    // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
-    for (i::Handle<i::SharedFunctionInfo> shared : sfis_to_clear) {
-      i::SharedFunctionInfo::DiscardCompiled(isolate, shared);
-    }
-  }
+  i::Snapshot::ClearReconstructableDataForSerialization(
+      isolate, function_code_handling == FunctionCodeHandling::kClear);
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 
-  int num_contexts = num_additional_contexts + 1;
+  // Create a vector with all contexts and clear associated Persistent fields.
+  // Note these contexts may be dead after calling Clear(), but will not be
+  // collected until serialization completes and the DisallowHeapAllocation
+  // scope above goes out of scope.
   std::vector<i::Context> contexts;
   contexts.reserve(num_contexts);
   {
@@ -838,82 +803,19 @@ StartupData SnapshotCreator::CreateBlob(
   i::SerializedHandleChecker handle_checker(isolate, &contexts);
   CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
-  i::HeapObjectIterator heap_iterator(isolate->heap());
-  for (i::HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
-       current_obj = heap_iterator.Next()) {
-    if (current_obj.IsJSFunction()) {
-      i::JSFunction fun = i::JSFunction::cast(current_obj);
-
-      // Complete in-object slack tracking for all functions.
-      fun.CompleteInobjectSlackTrackingIfActive();
-
-      // Also, clear out feedback vectors, or any optimized code.
-      // Note that checking for fun.IsOptimized() || fun.IsInterpreted() is not
-      // sufficient because the function can have a feedback vector even if it
-      // is not compiled (e.g. when the bytecode was flushed). On the other
-      // hand, only checking for the feedback vector is not sufficient because
-      // there can be multiple functions sharing the same feedback vector. So we
-      // need all these checks.
-      if (fun.IsOptimized() || fun.IsInterpreted() ||
-          !fun.raw_feedback_cell().value().IsUndefined()) {
-        fun.raw_feedback_cell().set_value(
-            i::ReadOnlyRoots(isolate).undefined_value());
-        fun.set_code(isolate->builtins()->builtin(i::Builtins::kCompileLazy));
-      }
-      if (function_code_handling == FunctionCodeHandling::kClear) {
-        DCHECK(fun.shared().HasWasmExportedFunctionData() ||
-               fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
-               fun.shared().HasUncompiledDataWithoutPreparseData());
-      }
-    }
+  // Create a vector with all embedder fields serializers.
+  std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers;
+  embedder_fields_serializers.reserve(num_contexts);
+  embedder_fields_serializers.push_back(
+      data->default_embedder_fields_serializer_);
+  for (int i = 0; i < num_additional_contexts; i++) {
+    embedder_fields_serializers.push_back(
+        data->embedder_fields_serializers_[i]);
   }
 
-  i::ReadOnlySerializer read_only_serializer(isolate);
-  read_only_serializer.SerializeReadOnlyRoots();
-
-  i::StartupSerializer startup_serializer(isolate, &read_only_serializer);
-  startup_serializer.SerializeStrongReferences();
-
-  // Serialize each context with a new partial serializer.
-  std::vector<i::SnapshotData*> context_snapshots;
-  context_snapshots.reserve(num_contexts);
-
-  // TODO(6593): generalize rehashing, and remove this flag.
-  bool can_be_rehashed = true;
-
-  for (int i = 0; i < num_contexts; i++) {
-    bool is_default_context = i == 0;
-    i::PartialSerializer partial_serializer(
-        isolate, &startup_serializer,
-        is_default_context ? data->default_embedder_fields_serializer_
-                           : data->embedder_fields_serializers_[i - 1]);
-    partial_serializer.Serialize(&contexts[i], !is_default_context);
-    can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
-    context_snapshots.push_back(new i::SnapshotData(&partial_serializer));
-  }
-
-  startup_serializer.SerializeWeakReferencesAndDeferred();
-  can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
-
-  startup_serializer.CheckNoDirtyFinalizationRegistries();
-
-  read_only_serializer.FinalizeSerialization();
-  can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
-
-  i::SnapshotData read_only_snapshot(&read_only_serializer);
-  i::SnapshotData startup_snapshot(&startup_serializer);
-  StartupData result =
-      i::Snapshot::CreateSnapshotBlob(&startup_snapshot, &read_only_snapshot,
-                                      context_snapshots, can_be_rehashed);
-
-  // Delete heap-allocated context snapshot instances.
-  for (const auto context_snapshot : context_snapshots) {
-    delete context_snapshot;
-  }
   data->created_ = true;
-
-  DCHECK(i::Snapshot::VerifyChecksum(&result));
-  return result;
+  return i::Snapshot::Create(isolate, &contexts, embedder_fields_serializers,
+                             no_gc_from_here_on);
 }
 
 bool StartupData::CanBeRehashed() const {
@@ -1345,21 +1247,25 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
 
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
-  HandleScope handle_scope(GetIsolate());
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::HandleScope handle_scope(isolate);
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return nullptr;
   void* result;
-  Utils::ApiCheck(i::EmbedderDataSlot(*data, index).ToAlignedPointer(&result),
-                  location, "Pointer is not aligned");
+  Utils::ApiCheck(
+      i::EmbedderDataSlot(*data, index).ToAlignedPointer(isolate, &result),
+      location, "Pointer is not aligned");
   return result;
 }
 
 void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
-  bool ok = i::EmbedderDataSlot(*data, index).store_aligned_pointer(value);
+  bool ok =
+      i::EmbedderDataSlot(*data, index).store_aligned_pointer(isolate, value);
   Utils::ApiCheck(ok, location, "Pointer is not aligned");
   DCHECK_EQ(value, GetAlignedPointerFromEmbedderData(index));
 }
@@ -1521,21 +1427,6 @@ Local<FunctionTemplate> FunctionTemplate::New(
                           Local<Private>(), side_effect_type, c_function);
   if (behavior == ConstructorBehavior::kThrow) templ->RemovePrototype();
   return templ;
-}
-
-MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
-                                                            size_t index) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
-  int int_index = static_cast<int>(index);
-  if (int_index < serialized_objects.length()) {
-    i::Object info = serialized_objects.get(int_index);
-    if (info.IsFunctionTemplateInfo()) {
-      return Utils::ToLocal(i::Handle<i::FunctionTemplateInfo>(
-          i::FunctionTemplateInfo::cast(info), i_isolate));
-    }
-  }
-  return Local<FunctionTemplate>();
 }
 
 Local<FunctionTemplate> FunctionTemplate::NewWithCache(
@@ -1729,21 +1620,6 @@ static Local<ObjectTemplate> ObjectTemplateNew(
 Local<ObjectTemplate> ObjectTemplate::New(
     i::Isolate* isolate, v8::Local<FunctionTemplate> constructor) {
   return ObjectTemplateNew(isolate, constructor, false);
-}
-
-MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
-                                                        size_t index) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
-  int int_index = static_cast<int>(index);
-  if (int_index < serialized_objects.length()) {
-    i::Object info = serialized_objects.get(int_index);
-    if (info.IsObjectTemplateInfo()) {
-      return Utils::ToLocal(i::Handle<i::ObjectTemplateInfo>(
-          i::ObjectTemplateInfo::cast(info), i_isolate));
-    }
-  }
-  return Local<ObjectTemplate>();
 }
 
 // Ensure that the object template has a constructor.  If no
@@ -3810,6 +3686,12 @@ void v8::debug::AccessorPair::CheckCast(Value* that) {
                   "Value is not a debug::AccessorPair");
 }
 
+void v8::debug::WasmValue::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsWasmValue(), "v8::WasmValue::Cast",
+                  "Value is not a debug::WasmValue");
+}
+
 v8::BackingStore::~BackingStore() {
   auto i_this = reinterpret_cast<const i::BackingStore*>(this);
   i_this->~BackingStore();  // manually call internal destructor
@@ -5528,7 +5410,9 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   }
 
   if (i::StringShape(str).IsExternalTwoByte()) {
-    void* value = I::ReadRawField<void*>(str.ptr(), I::kStringResourceOffset);
+    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(str.ptr());
+    internal::Address value = I::ReadExternalPointerField(
+        isolate, str.ptr(), I::kStringResourceOffset);
     return reinterpret_cast<String::ExternalStringResource*>(value);
   }
   return nullptr;
@@ -5550,8 +5434,10 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    void* value = I::ReadRawField<void*>(string, I::kStringResourceOffset);
-    resource = static_cast<ExternalStringResourceBase*>(value);
+    internal::Isolate* isolate = I::GetIsolateForHeapSandbox(string);
+    internal::Address value =
+        I::ReadExternalPointerField(isolate, string, I::kStringResourceOffset);
+    resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   }
   return resource;
 }
@@ -5669,7 +5555,7 @@ void* v8::Object::SlowGetAlignedPointerFromInternalField(int index) {
   if (!InternalFieldOK(obj, index, location)) return nullptr;
   void* result;
   Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
-                      .ToAlignedPointer(&result),
+                      .ToAlignedPointer(obj->GetIsolate(), &result),
                   location, "Unaligned pointer");
   return result;
 }
@@ -5679,7 +5565,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
   const char* location = "v8::Object::SetAlignedPointerInInternalField()";
   if (!InternalFieldOK(obj, index, location)) return;
   Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
-                      .store_aligned_pointer(value),
+                      .store_aligned_pointer(obj->GetIsolate(), value),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
 }
@@ -5698,9 +5584,9 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
       return;
     }
     void* value = values[i];
-    Utils::ApiCheck(
-        i::EmbedderDataSlot(js_obj, index).store_aligned_pointer(value),
-        location, "Unaligned pointer");
+    Utils::ApiCheck(i::EmbedderDataSlot(js_obj, index)
+                        .store_aligned_pointer(obj->GetIsolate(), value),
+                    location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
 }
@@ -5722,7 +5608,34 @@ void v8::V8::InitializePlatform(Platform* platform) {
 
 void v8::V8::ShutdownPlatform() { i::V8::ShutdownPlatform(); }
 
-bool v8::V8::Initialize() {
+bool v8::V8::Initialize(const int build_config) {
+  const bool kEmbedderPointerCompression =
+      (build_config & kPointerCompression) != 0;
+  if (kEmbedderPointerCompression != COMPRESS_POINTERS_BOOL) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "pointer compression is %s while on V8 side it's %s.",
+        kEmbedderPointerCompression ? "ENABLED" : "DISABLED",
+        COMPRESS_POINTERS_BOOL ? "ENABLED" : "DISABLED");
+  }
+
+  const int kEmbedderSmiValueSize = (build_config & k31BitSmis) ? 31 : 32;
+  if (kEmbedderSmiValueSize != internal::kSmiValueSize) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "Smi value size is %d while on V8 side it's %d.",
+        kEmbedderSmiValueSize, internal::kSmiValueSize);
+  }
+
+  const bool kEmbedderHeapSandbox = (build_config & kHeapSandbox) != 0;
+  if (kEmbedderHeapSandbox != V8_HEAP_SANDBOX_BOOL) {
+    FATAL(
+        "Embedder-vs-V8 build configuration mismatch. On embedder side "
+        "heap sandbox is %s while on V8 side it's %s.",
+        kEmbedderHeapSandbox ? "ENABLED" : "DISABLED",
+        V8_HEAP_SANDBOX_BOOL ? "ENABLED" : "DISABLED");
+  }
+
   i::V8::Initialize();
   return true;
 }
@@ -5840,17 +5753,7 @@ void v8::V8::InitializeExternalStartupDataFromFile(const char* snapshot_blob) {
 const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 
 void V8::GetSharedMemoryStatistics(SharedMemoryStatistics* statistics) {
-#ifdef V8_SHARED_RO_HEAP
-  i::ReadOnlySpace* ro_space = i::ReadOnlyHeap::Instance()->read_only_space();
-  statistics->read_only_space_size_ = ro_space->CommittedMemory();
-  statistics->read_only_space_used_size_ = ro_space->SizeOfObjects();
-  statistics->read_only_space_physical_size_ =
-      ro_space->CommittedPhysicalMemory();
-#else
-  statistics->read_only_space_size_ = 0;
-  statistics->read_only_space_used_size_ = 0;
-  statistics->read_only_space_physical_size_ = 0;
-#endif  // V8_SHARED_RO_HEAP
+  i::ReadOnlyHeap::PopulateReadOnlySpaceStatistics(statistics);
 }
 
 template <typename ObjectType>
@@ -7263,8 +7166,10 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 }
 
 CompiledWasmModule::CompiledWasmModule(
-    std::shared_ptr<internal::wasm::NativeModule> native_module)
-    : native_module_(std::move(native_module)) {
+    std::shared_ptr<internal::wasm::NativeModule> native_module,
+    const char* source_url, size_t url_length)
+    : native_module_(std::move(native_module)),
+      source_url_(source_url, url_length) {
   CHECK_NOT_NULL(native_module_);
 }
 
@@ -7285,7 +7190,13 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
 CompiledWasmModule WasmModuleObject::GetCompiledModule() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
-  return Utils::Convert(obj->shared_native_module());
+  auto source_url = i::String::cast(obj->script().source_url());
+  int length;
+  std::unique_ptr<char[]> cstring = source_url.ToCString(
+      i::DISALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &length);
+  i::Handle<i::String> url(source_url, obj->GetIsolate());
+  return CompiledWasmModule(std::move(obj->shared_native_module()),
+                            cstring.get(), length);
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
@@ -7293,7 +7204,8 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmModuleObject> module_object =
       i_isolate->wasm_engine()->ImportNativeModule(
-          i_isolate, Utils::Open(compiled_module));
+          i_isolate, compiled_module.native_module_,
+          i::VectorOf(compiled_module.source_url()));
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 }
@@ -8075,12 +7987,6 @@ void Isolate::ReportExternalAllocationLimitReached() {
   heap->ReportExternalMemoryPressure();
 }
 
-void Isolate::CheckMemoryPressure() {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
-  if (heap->gc_state() != i::Heap::NOT_IN_GC) return;
-  heap->CheckMemoryPressure();
-}
-
 HeapProfiler* Isolate::GetHeapProfiler() {
   i::HeapProfiler* heap_profiler =
       reinterpret_cast<i::Isolate*>(this)->heap_profiler();
@@ -8387,29 +8293,6 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
     AbortOnUncaughtExceptionCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->SetAbortOnUncaughtExceptionCallback(callback);
-}
-
-void Isolate::SetHostCleanupFinalizationGroupCallback(
-    HostCleanupFinalizationGroupCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->SetHostCleanupFinalizationGroupCallback(callback);
-}
-
-Maybe<bool> FinalizationGroup::Cleanup(
-    Local<FinalizationGroup> finalization_group) {
-  i::Handle<i::JSFinalizationRegistry> fr =
-      Utils::OpenHandle(*finalization_group);
-  i::Isolate* isolate = fr->native_context().GetIsolate();
-  i::Handle<i::Context> i_context(fr->native_context(), isolate);
-  Local<Context> context = Utils::ToLocal(i_context);
-  ENTER_V8(isolate, context, FinalizationGroup, Cleanup, Nothing<bool>(),
-           i::HandleScope);
-  i::Handle<i::Object> callback(fr->cleanup(), isolate);
-  fr->set_scheduled_for_cleanup(false);
-  has_pending_exception =
-      i::JSFinalizationRegistry::Cleanup(isolate, fr, callback).IsNothing();
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(true);
 }
 
 void Isolate::SetHostImportModuleDynamicallyCallback(
@@ -8746,11 +8629,7 @@ void Isolate::EnqueueMicrotask(Local<Function> v8_function) {
 
 void Isolate::EnqueueMicrotask(MicrotaskCallback callback, void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::HandleScope scope(isolate);
-  i::Handle<i::CallbackTask> microtask = isolate->factory()->NewCallbackTask(
-      isolate->factory()->NewForeign(reinterpret_cast<i::Address>(callback)),
-      isolate->factory()->NewForeign(reinterpret_cast<i::Address>(data)));
-  isolate->default_microtask_queue()->EnqueueMicrotask(*microtask);
+  isolate->default_microtask_queue()->EnqueueMicrotask(this, callback, data);
 }
 
 void Isolate::SetMicrotasksPolicy(MicrotasksPolicy policy) {
@@ -9027,6 +8906,9 @@ CALLBACK_SETTER(WasmThreadsEnabledCallback, WasmThreadsEnabledCallback,
 CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
                 wasm_load_source_map_callback)
 
+CALLBACK_SETTER(WasmSimdEnabledCallback, WasmSimdEnabledCallback,
+                wasm_simd_enabled_callback)
+
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                        void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -9154,6 +9036,7 @@ void v8::Isolate::LocaleConfigurationChangeNotification() {
 
 #ifdef V8_INTL_SUPPORT
   i_isolate->ResetDefaultLocale();
+  i_isolate->ClearCachedIcuObjects();
 #endif  // V8_INTL_SUPPORT
 }
 
@@ -9272,6 +9155,9 @@ DEFINE_ERROR(RangeError, range_error)
 DEFINE_ERROR(ReferenceError, reference_error)
 DEFINE_ERROR(SyntaxError, syntax_error)
 DEFINE_ERROR(TypeError, type_error)
+DEFINE_ERROR(WasmCompileError, wasm_compile_error)
+DEFINE_ERROR(WasmLinkError, wasm_link_error)
+DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 DEFINE_ERROR(Error, error)
 
 #undef DEFINE_ERROR
@@ -9781,6 +9667,37 @@ v8::Platform* debug::GetCurrentPlatform() {
 debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
   CHECK(script->IsWasm());
   return static_cast<WasmScript*>(script);
+}
+
+debug::WasmScript::DebugSymbolsType debug::WasmScript::GetDebugSymbolType()
+    const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  switch (script->wasm_native_module()->module()->debug_symbols.type) {
+    case i::wasm::WasmDebugSymbols::Type::None:
+      return debug::WasmScript::DebugSymbolsType::None;
+    case i::wasm::WasmDebugSymbols::Type::EmbeddedDWARF:
+      return debug::WasmScript::DebugSymbolsType::EmbeddedDWARF;
+    case i::wasm::WasmDebugSymbols::Type::ExternalDWARF:
+      return debug::WasmScript::DebugSymbolsType::ExternalDWARF;
+    case i::wasm::WasmDebugSymbols::Type::SourceMap:
+      return debug::WasmScript::DebugSymbolsType::SourceMap;
+  }
+}
+
+MemorySpan<const char> debug::WasmScript::ExternalSymbolsURL() const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+
+  const i::wasm::WasmDebugSymbols& symbols =
+      script->wasm_native_module()->module()->debug_symbols;
+  if (symbols.external_url.is_empty()) return {};
+
+  internal::wasm::ModuleWireBytes wire_bytes(
+      script->wasm_native_module()->wire_bytes());
+  i::wasm::WasmName external_url =
+      wire_bytes.GetNameOrNull(symbols.external_url);
+  return {external_url.data(), external_url.size()};
 }
 
 int debug::WasmScript::NumFunctions() const {
@@ -10379,6 +10296,51 @@ Local<Value> debug::AccessorPair::setter() {
 bool debug::AccessorPair::IsAccessorPair(Local<Value> that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(*that);
   return obj->IsAccessorPair();
+}
+
+int debug::WasmValue::value_type() {
+  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
+  return obj->value_type();
+}
+
+v8::Local<v8::Array> debug::WasmValue::bytes() {
+  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
+  // Should only be called on i32, i64, f32, f64, s128.
+  DCHECK_GE(1, obj->value_type());
+  DCHECK_LE(5, obj->value_type());
+
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
+  i::Handle<i::ByteArray> bytes(i::Handle<i::ByteArray>::cast(bytes_or_ref));
+
+  int length = bytes->length();
+
+  i::Handle<i::FixedArray> fa = isolate->factory()->NewFixedArray(length);
+  i::Handle<i::JSArray> arr = obj->GetIsolate()->factory()->NewJSArray(
+      i::PACKED_SMI_ELEMENTS, length, length);
+  i::JSArray::SetContent(arr, fa);
+
+  for (int i = 0; i < length; i++) {
+    fa->set(i, i::Smi::FromInt(bytes->get(i)));
+  }
+
+  return Utils::ToLocal(arr);
+}
+
+v8::Local<v8::Value> debug::WasmValue::ref() {
+  i::Handle<i::WasmValue> obj = Utils::OpenHandle(this);
+  // Should only be called on anyref.
+  DCHECK_EQ(6, obj->value_type());
+
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Handle<i::Object> bytes_or_ref(obj->bytes_or_ref(), isolate);
+
+  return Utils::ToLocal(bytes_or_ref);
+}
+
+bool debug::WasmValue::IsWasmValue(Local<Value> that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
+  return obj->IsWasmValue();
 }
 
 MaybeLocal<Message> debug::GetMessageFromPromise(Local<Promise> p) {
@@ -11190,8 +11152,11 @@ void InvokeFinalizationRegistryCleanupFromTask(
   Local<v8::Context> api_context = Utils::ToLocal(context);
   CallDepthScope<true> call_depth_scope(isolate, api_context);
   VMState<OTHER> state(isolate);
-  if (JSFinalizationRegistry::Cleanup(isolate, finalization_registry, callback)
-          .IsNothing()) {
+  Handle<Object> argv[] = {callback};
+  if (Execution::CallBuiltin(isolate,
+                             isolate->finalization_registry_cleanup_some(),
+                             finalization_registry, arraysize(argv), argv)
+          .is_null()) {
     call_depth_scope.Escape();
   }
 }

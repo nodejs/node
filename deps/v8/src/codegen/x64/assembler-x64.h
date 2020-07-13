@@ -1124,6 +1124,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movmskpd(Register dst, XMMRegister src);
 
+  void pmovmskb(Register dst, XMMRegister src);
+
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
   void insertps(XMMRegister dst, Operand src, byte imm8);
@@ -1393,6 +1395,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     XMMRegister idst = XMMRegister::from_code(dst.code());
     vpd(0x50, idst, xmm0, src);
   }
+  void vpmovmskb(Register dst, XMMRegister src);
   void vcmpps(XMMRegister dst, XMMRegister src1, XMMRegister src2, int8_t cmp) {
     vps(0xC2, dst, src1, src2);
     emit(cmp);

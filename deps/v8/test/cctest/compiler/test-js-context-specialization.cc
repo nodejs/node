@@ -179,6 +179,9 @@ TEST(ReduceJSLoadContext0) {
     CHECK(match.HasValue());
     CHECK_EQ(*expected, *match.Value());
   }
+
+  // Clean up so that verifiers don't complain.
+  native->set(slot, Smi::zero());
 }
 
 TEST(ReduceJSLoadContext1) {
@@ -477,6 +480,9 @@ TEST(ReduceJSStoreContext0) {
     CHECK_EQ(0, static_cast<int>(access.depth()));
     CHECK_EQ(false, access.immutable());
   }
+
+  // Clean up so that verifiers don't complain.
+  native->set(slot, Smi::zero());
 }
 
 TEST(ReduceJSStoreContext1) {

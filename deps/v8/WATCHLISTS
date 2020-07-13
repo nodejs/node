@@ -33,10 +33,6 @@
 
 {
   'WATCHLIST_DEFINITIONS': {
-    'api': {
-      'filepath': 'include/' \
-                  '|src/api\.(cc|h)$',
-    },
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
@@ -94,9 +90,6 @@
   },
 
   'WATCHLISTS': {
-    'api': [
-      'yangguo+watch@chromium.org',
-    ],
     'csa': [
       'jgruber+watch@chromium.org',
     ],

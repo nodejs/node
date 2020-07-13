@@ -317,7 +317,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   BIND(&if_generic);
   {
     Label if_iterator_fn_not_callable(this, Label::kDeferred),
-        if_iterator_is_null_or_undefined(this, Label::kDeferred);
+        if_iterator_is_null_or_undefined(this, Label::kDeferred),
+        throw_spread_error(this, Label::kDeferred);
+    TVARIABLE(Smi, message_id);
 
     GotoIf(IsNullOrUndefined(spread), &if_iterator_is_null_or_undefined);
 
@@ -336,10 +338,18 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
            &if_smiorobject, &if_double);
 
     BIND(&if_iterator_fn_not_callable);
-    ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
+    message_id = SmiConstant(
+        static_cast<int>(MessageTemplate::kIteratorSymbolNonCallable)),
+    Goto(&throw_spread_error);
 
     BIND(&if_iterator_is_null_or_undefined);
-    CallRuntime(Runtime::kThrowSpreadArgIsNullOrUndefined, context, spread);
+    message_id = SmiConstant(
+        static_cast<int>(MessageTemplate::kNotIterableNoSymbolLoad));
+    Goto(&throw_spread_error);
+
+    BIND(&throw_spread_error);
+    CallRuntime(Runtime::kThrowSpreadArgError, context, message_id.value(),
+                spread);
     Unreachable();
   }
 
@@ -565,7 +575,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   TNode<Foreign> foreign = LoadObjectField<Foreign>(
       call_handler_info, CallHandlerInfo::kJsCallbackOffset);
   TNode<RawPtrT> callback =
-      LoadObjectField<RawPtrT>(foreign, Foreign::kForeignAddressOffset);
+      DecodeExternalPointer(LoadForeignForeignAddress(foreign));
   TNode<Object> call_data =
       LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
   TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback, argc,

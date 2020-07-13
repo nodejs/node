@@ -816,10 +816,8 @@ TEST_F(Int64LoweringTest, I64Ror) {
   Matcher<Node*> shift_matcher =
       IsWord32And(IsParameter(0), IsInt32Constant(0x1F));
 
-  Matcher<Node*> bit_mask_matcher = IsWord32Shl(
-      IsWord32Sar(IsInt32Constant(std::numeric_limits<int32_t>::min()),
-                  shift_matcher),
-      IsInt32Constant(1));
+  Matcher<Node*> bit_mask_matcher = IsWord32Xor(
+      IsWord32Shr(IsInt32Constant(-1), shift_matcher), IsInt32Constant(-1));
 
   Matcher<Node*> inv_mask_matcher =
       IsWord32Xor(bit_mask_matcher, IsInt32Constant(-1));

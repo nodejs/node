@@ -17,6 +17,7 @@ using SafepointTest = TestWithIsolate;
 
 TEST_F(SafepointTest, ReachSafepointWithoutLocalHeaps) {
   Heap* heap = i_isolate()->heap();
+  FLAG_local_heaps = true;
   bool run = false;
   {
     SafepointScope scope(heap);
@@ -47,6 +48,7 @@ class ParkedThread final : public v8::base::Thread {
 
 TEST_F(SafepointTest, StopParkedThreads) {
   Heap* heap = i_isolate()->heap();
+  FLAG_local_heaps = true;
 
   int safepoints = 0;
 
@@ -105,6 +107,7 @@ class RunningThread final : public v8::base::Thread {
 
 TEST_F(SafepointTest, StopRunningThreads) {
   Heap* heap = i_isolate()->heap();
+  FLAG_local_heaps = true;
 
   const int kThreads = 10;
   const int kRuns = 5;

@@ -405,6 +405,15 @@
 #endif
 
 
+#if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 6)
+# define V8_ENUM_DEPRECATED(message)
+# define V8_ENUM_DEPRECATE_SOON(message)
+#else
+# define V8_ENUM_DEPRECATED(message) V8_DEPRECATED(message)
+# define V8_ENUM_DEPRECATE_SOON(message) V8_DEPRECATE_SOON(message)
+#endif
+
+
 // A macro to provide the compiler with branch prediction information.
 #if V8_HAS_BUILTIN_EXPECT
 # define V8_UNLIKELY(condition) (__builtin_expect(!!(condition), 0))

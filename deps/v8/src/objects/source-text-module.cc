@@ -583,6 +583,16 @@ Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
   return Module::GetModuleNamespace(isolate, requested_module);
 }
 
+Handle<JSObject> SourceTextModule::GetImportMeta(
+    Isolate* isolate, Handle<SourceTextModule> module) {
+  Handle<HeapObject> import_meta(module->import_meta(), isolate);
+  if (import_meta->IsTheHole(isolate)) {
+    import_meta = isolate->RunHostInitializeImportMetaObjectCallback(module);
+    module->set_import_meta(*import_meta);
+  }
+  return Handle<JSObject>::cast(import_meta);
+}
+
 MaybeHandle<Object> SourceTextModule::EvaluateMaybeAsync(
     Isolate* isolate, Handle<SourceTextModule> module) {
   // In the event of errored evaluation, return a rejected promise.

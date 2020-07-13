@@ -16,7 +16,7 @@
 #include "src/codegen/register-configuration.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/heap-inl.h"  // For MemoryChunk.
+#include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/objects/heap-number.h"
@@ -2729,7 +2729,7 @@ void TurboAssembler::BranchMSA(Label* target, MSABranchDF df,
 void TurboAssembler::BranchShortMSA(MSABranchDF df, Label* target,
                                     MSABranchCondition cond, MSARegister wt,
                                     BranchDelaySlot bd) {
-  if (kArchVariant == kMips64r6) {
+  if (IsEnabled(MIPS_SIMD)) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     if (target) {
       switch (cond) {
@@ -2775,6 +2775,8 @@ void TurboAssembler::BranchShortMSA(MSABranchDF df, Label* target,
           UNREACHABLE();
       }
     }
+  } else {
+    UNREACHABLE();
   }
   if (bd == PROTECT) {
     nop();

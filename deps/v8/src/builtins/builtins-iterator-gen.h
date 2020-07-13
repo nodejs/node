@@ -12,6 +12,8 @@ namespace internal {
 
 using compiler::Node;
 
+class GrowableFixedArray;
+
 class IteratorBuiltinsAssembler : public CodeStubAssembler {
  public:
   explicit IteratorBuiltinsAssembler(compiler::CodeAssemblerState* state)
@@ -50,20 +52,20 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
       TNode<Context> context, TNode<JSReceiver> result,
       base::Optional<TNode<Map>> fast_iterator_result_map = base::nullopt);
 
-  // https://tc39.github.io/ecma262/#sec-iteratorclose
-  void IteratorCloseOnException(TNode<Context> context,
-                                const IteratorRecord& iterator,
-                                Label* if_exception,
-                                TVariable<Object>* exception);
-  void IteratorCloseOnException(TNode<Context> context,
-                                const IteratorRecord& iterator,
-                                TNode<Object> exception);
-
   // #sec-iterabletolist
   // Build a JSArray by iterating over {iterable} using {iterator_fn},
   // following the ECMAscript operation with the same name.
   TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
                                 TNode<Object> iterator_fn);
+
+  TNode<FixedArray> IterableToFixedArray(TNode<Context> context,
+                                         TNode<Object> iterable,
+                                         TNode<Object> iterator_fn);
+
+  void FillFixedArrayFromIterable(TNode<Context> context,
+                                  TNode<Object> iterable,
+                                  TNode<Object> iterator_fn,
+                                  GrowableFixedArray* values);
 
   // Currently at https://tc39.github.io/proposal-intl-list-format/
   // #sec-createstringlistfromiterable

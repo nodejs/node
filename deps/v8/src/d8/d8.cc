@@ -49,6 +49,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
 #include "src/sanitizer/msan.h"
+#include "src/snapshot/snapshot.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -452,54 +453,6 @@ ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
-// Dummy external source stream which returns the whole source in one go.
-class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
- public:
-  DummySourceStream(Local<String> source, Isolate* isolate) : done_(false) {
-    source_length_ = source->Utf8Length(isolate);
-    source_buffer_.reset(new uint8_t[source_length_]);
-    source->WriteUtf8(isolate, reinterpret_cast<char*>(source_buffer_.get()),
-                      source_length_);
-  }
-
-  size_t GetMoreData(const uint8_t** src) override {
-    if (done_) {
-      return 0;
-    }
-    *src = source_buffer_.release();
-    done_ = true;
-
-    return source_length_;
-  }
-
- private:
-  int source_length_;
-  std::unique_ptr<uint8_t[]> source_buffer_;
-  bool done_;
-};
-
-class BackgroundCompileThread : public base::Thread {
- public:
-  BackgroundCompileThread(Isolate* isolate, Local<String> source)
-      : base::Thread(GetThreadOptions("BackgroundCompileThread")),
-        source_(source),
-        streamed_source_(std::make_unique<DummySourceStream>(source, isolate),
-                         v8::ScriptCompiler::StreamedSource::UTF8),
-        task_(v8::ScriptCompiler::StartStreamingScript(isolate,
-                                                       &streamed_source_)) {}
-
-  void Run() override { task_->Run(); }
-
-  v8::ScriptCompiler::StreamedSource* streamed_source() {
-    return &streamed_source_;
-  }
-
- private:
-  Local<String> source_;
-  v8::ScriptCompiler::StreamedSource streamed_source_;
-  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task_;
-};
-
 ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
                                                    Local<Value> source) {
   base::MutexGuard lock_guard(cached_code_mutex_.Pointer());
@@ -544,16 +497,22 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     i::Handle<i::String> str = Utils::OpenHandle(*(source));
 
     // Set up ParseInfo.
-    i::ParseInfo parse_info(i_isolate);
-    parse_info.set_toplevel();
-    parse_info.set_allow_lazy_parsing();
-    parse_info.set_language_mode(
-        i::construct_language_mode(i::FLAG_use_strict));
+    i::UnoptimizedCompileState compile_state(i_isolate);
 
-    i::Handle<i::Script> script =
-        parse_info.CreateScript(i_isolate, str, options.compile_options);
-    if (!i::parsing::ParseProgram(&parse_info, script, i::kNullMaybeHandle,
-                                  i_isolate)) {
+    i::UnoptimizedCompileFlags flags =
+        i::UnoptimizedCompileFlags::ForToplevelCompile(
+            i_isolate, true, i::construct_language_mode(i::FLAG_use_strict),
+            i::REPLMode::kNo);
+
+    if (options.compile_options == v8::ScriptCompiler::kEagerCompile) {
+      flags.set_is_eager(true);
+    }
+
+    i::ParseInfo parse_info(i_isolate, flags, &compile_state);
+
+    i::Handle<i::Script> script = parse_info.CreateScript(
+        i_isolate, str, i::kNullMaybeHandle, ScriptOriginOptions());
+    if (!i::parsing::ParseProgram(&parse_info, script, i_isolate)) {
       fprintf(stderr, "Failed parsing\n");
       return false;
     }
@@ -588,23 +547,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         maybe_script = ScriptCompiler::Compile(
             context, &script_source, ScriptCompiler::kNoCompileOptions);
       }
-    } else if (options.stress_background_compile) {
-      // Start a background thread compiling the script.
-      BackgroundCompileThread background_compile_thread(isolate, source);
-      CHECK(background_compile_thread.Start());
-
-      // In parallel, compile on the main thread to flush out any data races.
-      {
-        TryCatch ignore_try_catch(isolate);
-        ScriptCompiler::Source script_source(source, origin);
-        USE(ScriptCompiler::Compile(context, &script_source,
-                                    ScriptCompiler::kNoCompileOptions));
-      }
-
-      // Join with background thread and finalize compilation.
-      background_compile_thread.Join();
-      maybe_script = v8::ScriptCompiler::Compile(
-          context, background_compile_thread.streamed_source(), source, origin);
     } else {
       ScriptCompiler::Source script_source(source, origin);
       maybe_script = ScriptCompiler::Compile(context, &script_source,
@@ -2239,7 +2181,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
 
     if (i::FLAG_dump_counters_nvp) {
       // Dump counters as name-value pairs.
-      for (auto pair : counters) {
+      for (const auto& pair : counters) {
         std::string key = pair.first;
         Counter* counter = pair.second;
         if (counter->is_histogram()) {
@@ -2260,7 +2202,7 @@ void Shell::OnExit(v8::Isolate* isolate) {
                 << std::string(kValueBoxSize - 6, ' ') << "|\n";
       std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
                 << std::string(kValueBoxSize, '-') << "+\n";
-      for (auto pair : counters) {
+      for (const auto& pair : counters) {
         std::string key = pair.first;
         Counter* counter = pair.second;
         if (counter->is_histogram()) {
@@ -2909,12 +2851,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strcmp(argv[i], "--no-stress-opt") == 0) {
       options.stress_opt = false;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-background-compile") == 0) {
-      options.stress_background_compile = true;
+    } else if (strcmp(argv[i], "--stress-snapshot") == 0) {
+      options.stress_snapshot = true;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--nostress-background-compile") == 0 ||
-               strcmp(argv[i], "--no-stress-background-compile") == 0) {
-      options.stress_background_compile = false;
+    } else if (strcmp(argv[i], "--nostress-snapshot") == 0 ||
+               strcmp(argv[i], "--no-stress-snapshot") == 0) {
+      options.stress_snapshot = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--noalways-opt") == 0 ||
                strcmp(argv[i], "--no-always-opt") == 0) {
@@ -3080,7 +3022,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
-int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
+int Shell::RunMain(Isolate* isolate, bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
@@ -3108,6 +3050,18 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       DisposeModuleEmbedderData(context);
     }
     WriteLcovData(isolate, options.lcov_file);
+    if (last_run && options.stress_snapshot) {
+      static constexpr bool kClearRecompilableData = true;
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+      // TODO(jgruber,v8:10500): Don't deoptimize once we support serialization
+      // of optimized code.
+      i::Deoptimizer::DeoptimizeAll(i_isolate);
+      i::Snapshot::ClearReconstructableDataForSerialization(
+          i_isolate, kClearRecompilableData);
+      i::Snapshot::SerializeDeserializeAndVerifyForTesting(i_isolate,
+                                                           i_context);
+    }
   }
   CollectGarbage(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
@@ -3174,6 +3128,17 @@ bool ProcessMessages(
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {
       MicrotasksScope::PerformCheckpoint(isolate);
+
+      if (i::FLAG_verify_predictable) {
+        // In predictable mode we push all background tasks into the foreground
+        // task queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue}
+        // isolate. We execute the tasks after one foreground task has been
+        // executed.
+        while (v8::platform::PumpMessageLoop(
+            g_default_platform,
+            kProcessGlobalPredictablePlatformWorkerTaskQueue, behavior())) {
+        }
+      }
     }
     if (g_default_platform->IdleTasksEnabled(isolate)) {
       v8::platform::RunIdleTasks(g_default_platform, isolate,
@@ -3675,7 +3640,7 @@ int Shell::Main(int argc, char* argv[]) {
                options.stress_runs);
         D8Testing::PrepareStressRun(i);
         bool last_run = i == options.stress_runs - 1;
-        result = RunMain(isolate, argc, argv, last_run);
+        result = RunMain(isolate, last_run);
       }
       printf("======== Full Deoptimization =======\n");
       D8Testing::DeoptimizeAll(isolate);
@@ -3685,7 +3650,7 @@ int Shell::Main(int argc, char* argv[]) {
         printf("============ Run %d/%d ============\n", i + 1,
                options.stress_runs);
         bool last_run = i == options.stress_runs - 1;
-        result = RunMain(isolate, argc, argv, last_run);
+        result = RunMain(isolate, last_run);
       }
     } else if (options.code_cache_options !=
                ShellOptions::CodeCacheOptions::kNoProduceCache) {
@@ -3702,7 +3667,7 @@ int Shell::Main(int argc, char* argv[]) {
         PerIsolateData data(isolate2);
         Isolate::Scope isolate_scope(isolate2);
 
-        result = RunMain(isolate2, argc, argv, false);
+        result = RunMain(isolate2, false);
       }
       isolate2->Dispose();
 
@@ -3715,11 +3680,11 @@ int Shell::Main(int argc, char* argv[]) {
 
       printf("============ Run: Consume code cache ============\n");
       // Second run to consume the cache in current isolate
-      result = RunMain(isolate, argc, argv, true);
+      result = RunMain(isolate, true);
       options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
     } else {
       bool last_run = true;
-      result = RunMain(isolate, argc, argv, last_run);
+      result = RunMain(isolate, last_run);
     }
 
     // Run interactive shell if explicitly requested or if no script has been

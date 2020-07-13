@@ -17,34 +17,23 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
 
  protected:
   // Perform steps to resume generator after `value` is resolved.
-  // `on_reject_context_index` is an index into the Native Context, which should
-  // point to a SharedFunctioninfo instance used to create the closure. The
-  // value following the reject index should be a similar value for the resolve
-  // closure. Returns the Promise-wrapped `value`.
+  // `on_reject` is the SharedFunctioninfo instance used to create the reject
+  // closure. `on_resolve` is the SharedFunctioninfo instance used to create the
+  // resolve closure. Returns the Promise-wrapped `value`.
   TNode<Object> Await(TNode<Context> context,
                       TNode<JSGeneratorObject> generator, TNode<Object> value,
                       TNode<JSPromise> outer_promise,
-                      TNode<IntPtrT> on_resolve_context_index,
-                      TNode<IntPtrT> on_reject_context_index,
+                      TNode<SharedFunctionInfo> on_resolve_sfi,
+                      TNode<SharedFunctionInfo> on_reject_sfi,
                       TNode<Oddball> is_predicted_as_caught);
   TNode<Object> Await(TNode<Context> context,
                       TNode<JSGeneratorObject> generator, TNode<Object> value,
                       TNode<JSPromise> outer_promise,
-                      int on_resolve_context_index, int on_reject_context_index,
-                      TNode<Oddball> is_predicted_as_caught) {
-    return Await(context, generator, value, outer_promise,
-                 IntPtrConstant(on_resolve_context_index),
-                 IntPtrConstant(on_reject_context_index),
-                 is_predicted_as_caught);
-  }
-  TNode<Object> Await(TNode<Context> context,
-                      TNode<JSGeneratorObject> generator, TNode<Object> value,
-                      TNode<JSPromise> outer_promise,
-                      int on_resolve_context_index, int on_reject_context_index,
+                      TNode<SharedFunctionInfo> on_resolve_sfi,
+                      TNode<SharedFunctionInfo> on_reject_sfi,
                       bool is_predicted_as_caught) {
-    return Await(context, generator, value, outer_promise,
-                 on_resolve_context_index, on_reject_context_index,
-                 BooleanConstant(is_predicted_as_caught));
+    return Await(context, generator, value, outer_promise, on_resolve_sfi,
+                 on_reject_sfi, BooleanConstant(is_predicted_as_caught));
   }
 
   // Return a new built-in function object as defined in
@@ -56,22 +45,22 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   void InitializeNativeClosure(TNode<Context> context,
                                TNode<NativeContext> native_context,
                                TNode<HeapObject> function,
-                               TNode<IntPtrT> context_index);
+                               TNode<SharedFunctionInfo> shared_info);
   TNode<Context> AllocateAsyncIteratorValueUnwrapContext(
       TNode<NativeContext> native_context, TNode<Oddball> done);
 
   TNode<Object> AwaitOld(TNode<Context> context,
                          TNode<JSGeneratorObject> generator,
                          TNode<Object> value, TNode<JSPromise> outer_promise,
-                         TNode<IntPtrT> on_resolve_context_index,
-                         TNode<IntPtrT> on_reject_context_index,
+                         TNode<SharedFunctionInfo> on_resolve_sfi,
+                         TNode<SharedFunctionInfo> on_reject_sfi,
                          TNode<Oddball> is_predicted_as_caught);
   TNode<Object> AwaitOptimized(TNode<Context> context,
                                TNode<JSGeneratorObject> generator,
                                TNode<JSPromise> promise,
                                TNode<JSPromise> outer_promise,
-                               TNode<IntPtrT> on_resolve_context_index,
-                               TNode<IntPtrT> on_reject_context_index,
+                               TNode<SharedFunctionInfo> on_resolve_sfi,
+                               TNode<SharedFunctionInfo> on_reject_sfi,
                                TNode<Oddball> is_predicted_as_caught);
 };
 

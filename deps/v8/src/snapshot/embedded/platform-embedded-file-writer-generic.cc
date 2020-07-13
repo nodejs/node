@@ -114,10 +114,6 @@ void PlatformEmbeddedFileWriterGeneric::DeclareFunctionBegin(const char* name,
 
 void PlatformEmbeddedFileWriterGeneric::DeclareFunctionEnd(const char* name) {}
 
-int PlatformEmbeddedFileWriterGeneric::HexLiteral(uint64_t value) {
-  return fprintf(fp_, "0x%" PRIx64, value);
-}
-
 void PlatformEmbeddedFileWriterGeneric::FilePrologue() {
   // TODO(v8:10026): Add ELF note required for BTI.
 }
@@ -144,6 +140,18 @@ void PlatformEmbeddedFileWriterGeneric::FileEpilogue() {
 int PlatformEmbeddedFileWriterGeneric::IndentedDataDirective(
     DataDirective directive) {
   return fprintf(fp_, "  %s ", DirectiveAsString(directive));
+}
+
+DataDirective PlatformEmbeddedFileWriterGeneric::ByteChunkDataDirective()
+    const {
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+  // MIPS uses a fixed 4 byte instruction set, using .long
+  // to prevent any unnecessary padding.
+  return kLong;
+#else
+  // Other ISAs just listen to the base
+  return PlatformEmbeddedFileWriterBase::ByteChunkDataDirective();
+#endif
 }
 
 #undef SYMBOL_PREFIX

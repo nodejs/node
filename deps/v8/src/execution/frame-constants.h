@@ -258,14 +258,14 @@ class CWasmEntryFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(1);
 };
 
-class WasmCompiledFrameConstants : public TypedFrameConstants {
+class WasmFrameConstants : public TypedFrameConstants {
  public:
   // FP-relative.
   static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   DEFINE_TYPED_FRAME_SIZES(1);
 };
 
-class WasmExitFrameConstants : public WasmCompiledFrameConstants {
+class WasmExitFrameConstants : public WasmFrameConstants {
  public:
   // FP-relative.
   static const int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);

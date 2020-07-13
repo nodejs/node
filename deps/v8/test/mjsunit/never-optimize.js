@@ -25,38 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --opt --no-always-opt --no-use-osr
+// Flags: --interrupt-budget=1024
 
-function o1() {
-}
+function o1() { }
 %PrepareFunctionForOptimization(o1);
-
 o1(); o1();
 %OptimizeFunctionOnNextCall(o1);
 o1();
-
-// Check that the given function was optimized.
 assertOptimized(o1);
 
 // Test the %NeverOptimizeFunction runtime call.
+function u1(i) { return i+1 }
+function u2(i) { return i+1 }
 %NeverOptimizeFunction(u1);
-function u1() {
-}
-
-function u2() {
+for (let i = 0; i < 1000; ++i) {
   u1();
+  u2();
 }
-%PrepareFunctionForOptimization(u1);
-%PrepareFunctionForOptimization(u2);
-
-u1(); u1();
-u2(); u2();
-
-%OptimizeFunctionOnNextCall(u1);
-%OptimizeFunctionOnNextCall(u2);
-
-u1(); u1();
-u2(); u2();
-
 assertUnoptimized(u1);
 assertOptimized(u2);

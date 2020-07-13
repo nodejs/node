@@ -85,8 +85,8 @@ Debug.setListener(listener2);
 f();
 Debug.setListener(null);
 
-assertEquals(break_count, 3);
-assertEquals(js_break_line, 3);
-assertEquals(wasm_break_count, 4);
-assertEquals(break_count2, 2);
+assertEquals(3, break_count);
+assertEquals(3, js_break_line);
+assertEquals(4, wasm_break_count);
+assertEquals(2, break_count2);
 assertNull(exception);

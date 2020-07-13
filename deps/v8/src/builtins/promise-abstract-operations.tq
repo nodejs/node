@@ -6,544 +6,534 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace runtime {
-  extern transitioning runtime
-  RejectPromise(implicit context: Context)(JSPromise, JSAny, Boolean): JSAny;
+extern transitioning runtime
+RejectPromise(implicit context: Context)(JSPromise, JSAny, Boolean): JSAny;
 
-  extern transitioning runtime
-  PromiseRevokeReject(implicit context: Context)(JSPromise): JSAny;
+extern transitioning runtime
+PromiseRevokeReject(implicit context: Context)(JSPromise): JSAny;
 
-  extern transitioning runtime
-  PromiseRejectAfterResolved(implicit context: Context)(JSPromise, JSAny):
-      JSAny;
+extern transitioning runtime
+PromiseRejectAfterResolved(implicit context: Context)(JSPromise, JSAny): JSAny;
 
-  extern transitioning runtime
-  PromiseResolveAfterResolved(implicit context: Context)(JSPromise, JSAny):
-      JSAny;
+extern transitioning runtime
+PromiseResolveAfterResolved(implicit context: Context)(JSPromise, JSAny): JSAny;
 
-  extern transitioning runtime
-  PromiseRejectEventFromStack(implicit context: Context)(JSPromise, JSAny):
-      JSAny;
+extern transitioning runtime
+PromiseRejectEventFromStack(implicit context: Context)(JSPromise, JSAny): JSAny;
 }
 
 // https://tc39.es/ecma262/#sec-promise-abstract-operations
 namespace promise {
-  extern macro AllocateFunctionWithMapAndContext(
-      Map, SharedFunctionInfo, Context): JSFunction;
+extern macro AllocateFunctionWithMapAndContext(
+    Map, SharedFunctionInfo, Context): JSFunction;
 
-  extern macro PromiseReactionMapConstant(): Map;
-  extern macro PromiseFulfillReactionJobTaskMapConstant(): Map;
-  extern macro PromiseRejectReactionJobTaskMapConstant(): Map;
-  extern transitioning builtin
-  ResolvePromise(Context, JSPromise, JSAny): JSAny;
+extern macro PromiseReactionMapConstant(): Map;
+extern macro PromiseFulfillReactionJobTaskMapConstant(): Map;
+extern macro PromiseRejectReactionJobTaskMapConstant(): Map;
+extern transitioning builtin
+ResolvePromise(Context, JSPromise, JSAny): JSAny;
 
-  extern transitioning builtin
-  EnqueueMicrotask(Context, Microtask): Undefined;
+extern transitioning builtin
+EnqueueMicrotask(Context, Microtask): Undefined;
 
-  macro
-  ExtractHandlerContextInternal(implicit context: Context)(handler: Callable|
-                                                           Undefined):
-      Context labels NotFound {
-    let iter: JSAny = handler;
-    while (true) {
-      typeswitch (iter) {
-        case (b: JSBoundFunction): {
-          iter = b.bound_target_function;
-        }
-        case (p: JSProxy): {
-          iter = p.target;
-        }
-        case (f: JSFunction): {
-          return f.context;
-        }
-        case (JSAny): {
-          break;
-        }
+macro
+ExtractHandlerContextInternal(implicit context: Context)(
+    handler: Callable|Undefined): Context labels NotFound {
+  let iter: JSAny = handler;
+  while (true) {
+    typeswitch (iter) {
+      case (b: JSBoundFunction): {
+        iter = b.bound_target_function;
+      }
+      case (p: JSProxy): {
+        iter = p.target;
+      }
+      case (f: JSFunction): {
+        return f.context;
+      }
+      case (JSAny): {
+        break;
       }
     }
-    goto NotFound;
+  }
+  goto NotFound;
+}
+
+macro
+ExtractHandlerContext(implicit context: Context)(handler: Callable|
+                                                 Undefined): Context {
+  try {
+    return ExtractHandlerContextInternal(handler) otherwise NotFound;
+  } label NotFound deferred {
+    return context;
+  }
+}
+
+macro
+ExtractHandlerContext(implicit context: Context)(
+    primary: Callable|Undefined, secondary: Callable|Undefined): Context {
+  try {
+    return ExtractHandlerContextInternal(primary) otherwise NotFound;
+  } label NotFound deferred {
+    return ExtractHandlerContextInternal(secondary) otherwise Default;
+  } label Default deferred {
+    return context;
+  }
+}
+
+transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
+    promiseReaction: PromiseReaction, argument: JSAny,
+    reactionType: constexpr PromiseReactionType): void {
+  let primaryHandler: Callable|Undefined;
+  let secondaryHandler: Callable|Undefined;
+  if constexpr (reactionType == kPromiseReactionFulfill) {
+    primaryHandler = promiseReaction.fulfill_handler;
+    secondaryHandler = promiseReaction.reject_handler;
+  } else {
+    StaticAssert(reactionType == kPromiseReactionReject);
+    primaryHandler = promiseReaction.reject_handler;
+    secondaryHandler = promiseReaction.fulfill_handler;
   }
 
-  macro
-  ExtractHandlerContext(implicit context: Context)(handler: Callable|
-                                                   Undefined): Context {
-    try {
-      return ExtractHandlerContextInternal(handler) otherwise NotFound;
-    }
-    label NotFound deferred {
-      return context;
-    }
-  }
+  // According to HTML, we use the context of the appropriate handler as the
+  // context of the microtask. See step 3 of HTML's EnqueueJob:
+  // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
+  const handlerContext: Context =
+      ExtractHandlerContext(primaryHandler, secondaryHandler);
 
-  macro
-  ExtractHandlerContext(implicit context: Context)(
-      primary: Callable|Undefined, secondary: Callable|Undefined): Context {
-    try {
-      return ExtractHandlerContextInternal(primary) otherwise NotFound;
-    }
-    label NotFound deferred {
-      return ExtractHandlerContextInternal(secondary) otherwise Default;
-    }
-    label Default deferred {
-      return context;
-    }
-  }
-
-  transitioning macro MorphAndEnqueuePromiseReaction(implicit context: Context)(
-      promiseReaction: PromiseReaction, argument: JSAny,
-      reactionType: constexpr PromiseReactionType): void {
-    let primaryHandler: Callable|Undefined;
-    let secondaryHandler: Callable|Undefined;
-    if constexpr (reactionType == kPromiseReactionFulfill) {
-      primaryHandler = promiseReaction.fulfill_handler;
-      secondaryHandler = promiseReaction.reject_handler;
-    } else {
-      StaticAssert(reactionType == kPromiseReactionReject);
-      primaryHandler = promiseReaction.reject_handler;
-      secondaryHandler = promiseReaction.fulfill_handler;
-    }
-
-    // According to HTML, we use the context of the appropriate handler as the
-    // context of the microtask. See step 3 of HTML's EnqueueJob:
-    // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
-    const handlerContext: Context =
-        ExtractHandlerContext(primaryHandler, secondaryHandler);
-
-    // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
-    // and schedule that on the microtask queue. We try to minimize the number
-    // of stores here to avoid screwing up the store buffer.
+  // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
+  // and schedule that on the microtask queue. We try to minimize the number
+  // of stores here to avoid screwing up the store buffer.
+  StaticAssert(
+      kPromiseReactionSize ==
+      kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks);
+  if constexpr (reactionType == kPromiseReactionFulfill) {
+    * UnsafeConstCast(& promiseReaction.map) =
+        PromiseFulfillReactionJobTaskMapConstant();
+    const promiseReactionJobTask =
+        UnsafeCast<PromiseFulfillReactionJobTask>(promiseReaction);
+    promiseReactionJobTask.argument = argument;
+    promiseReactionJobTask.context = handlerContext;
+    EnqueueMicrotask(handlerContext, promiseReactionJobTask);
     StaticAssert(
-        kPromiseReactionSize ==
-        kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks);
-    if constexpr (reactionType == kPromiseReactionFulfill) {
-      * UnsafeConstCast(& promiseReaction.map) =
-          PromiseFulfillReactionJobTaskMapConstant();
-      const promiseReactionJobTask =
-          UnsafeCast<PromiseFulfillReactionJobTask>(promiseReaction);
-      promiseReactionJobTask.argument = argument;
-      promiseReactionJobTask.context = handlerContext;
-      EnqueueMicrotask(handlerContext, promiseReactionJobTask);
-      StaticAssert(
-          kPromiseReactionFulfillHandlerOffset ==
-          kPromiseReactionJobTaskHandlerOffset);
-      StaticAssert(
-          kPromiseReactionPromiseOrCapabilityOffset ==
-          kPromiseReactionJobTaskPromiseOrCapabilityOffset);
-    } else {
-      StaticAssert(reactionType == kPromiseReactionReject);
-      * UnsafeConstCast(& promiseReaction.map) =
-          PromiseRejectReactionJobTaskMapConstant();
-      const promiseReactionJobTask =
-          UnsafeCast<PromiseRejectReactionJobTask>(promiseReaction);
-      promiseReactionJobTask.argument = argument;
-      promiseReactionJobTask.context = handlerContext;
-      promiseReactionJobTask.handler = primaryHandler;
-      EnqueueMicrotask(handlerContext, promiseReactionJobTask);
-      StaticAssert(
-          kPromiseReactionPromiseOrCapabilityOffset ==
-          kPromiseReactionJobTaskPromiseOrCapabilityOffset);
-    }
+        kPromiseReactionFulfillHandlerOffset ==
+        kPromiseReactionJobTaskHandlerOffset);
+    StaticAssert(
+        kPromiseReactionPromiseOrCapabilityOffset ==
+        kPromiseReactionJobTaskPromiseOrCapabilityOffset);
+  } else {
+    StaticAssert(reactionType == kPromiseReactionReject);
+    * UnsafeConstCast(& promiseReaction.map) =
+        PromiseRejectReactionJobTaskMapConstant();
+    const promiseReactionJobTask =
+        UnsafeCast<PromiseRejectReactionJobTask>(promiseReaction);
+    promiseReactionJobTask.argument = argument;
+    promiseReactionJobTask.context = handlerContext;
+    promiseReactionJobTask.handler = primaryHandler;
+    EnqueueMicrotask(handlerContext, promiseReactionJobTask);
+    StaticAssert(
+        kPromiseReactionPromiseOrCapabilityOffset ==
+        kPromiseReactionJobTaskPromiseOrCapabilityOffset);
   }
+}
 
-  // https://tc39.es/ecma262/#sec-triggerpromisereactions
-  transitioning macro TriggerPromiseReactions(implicit context: Context)(
-      reactions: Zero|PromiseReaction, argument: JSAny,
-      reactionType: constexpr PromiseReactionType): void {
-    // We need to reverse the {reactions} here, since we record them on the
-    // JSPromise in the reverse order.
-    let current = reactions;
-    let reversed: Zero|PromiseReaction = kZero;
+// https://tc39.es/ecma262/#sec-triggerpromisereactions
+transitioning macro TriggerPromiseReactions(implicit context: Context)(
+    reactions: Zero|PromiseReaction, argument: JSAny,
+    reactionType: constexpr PromiseReactionType): void {
+  // We need to reverse the {reactions} here, since we record them on the
+  // JSPromise in the reverse order.
+  let current = reactions;
+  let reversed: Zero|PromiseReaction = kZero;
 
-    // As an additional safety net against misuse of the V8 Extras API, we
-    // sanity check the {reactions} to make sure that they are actually
-    // PromiseReaction instances and not actual JavaScript values (which
-    // would indicate that we're rejecting or resolving an already settled
-    // promise), see https://crbug.com/931640 for details on this.
-    while (true) {
-      typeswitch (current) {
-        case (Zero): {
-          break;
-        }
-        case (currentReaction: PromiseReaction): {
-          current = currentReaction.next;
-          currentReaction.next = reversed;
-          reversed = currentReaction;
-        }
+  // As an additional safety net against misuse of the V8 Extras API, we
+  // sanity check the {reactions} to make sure that they are actually
+  // PromiseReaction instances and not actual JavaScript values (which
+  // would indicate that we're rejecting or resolving an already settled
+  // promise), see https://crbug.com/931640 for details on this.
+  while (true) {
+    typeswitch (current) {
+      case (Zero): {
+        break;
       }
-    }
-    // Morph the {reactions} into PromiseReactionJobTasks and push them
-    // onto the microtask queue.
-    current = reversed;
-    while (true) {
-      typeswitch (current) {
-        case (Zero): {
-          break;
-        }
-        case (currentReaction: PromiseReaction): {
-          current = currentReaction.next;
-          MorphAndEnqueuePromiseReaction(
-              currentReaction, argument, reactionType);
-        }
+      case (currentReaction: PromiseReaction): {
+        current = currentReaction.next;
+        currentReaction.next = reversed;
+        reversed = currentReaction;
       }
     }
   }
-
-  // https://tc39.es/ecma262/#sec-fulfillpromise
-  transitioning builtin
-  FulfillPromise(implicit context: Context)(promise: JSPromise, value: JSAny):
-      Undefined {
-    // Assert: The value of promise.[[PromiseState]] is "pending".
-    assert(promise.Status() == PromiseState::kPending);
-
-    // 2. Let reactions be promise.[[PromiseFulfillReactions]].
-    const reactions =
-        UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
-
-    // 3. Set promise.[[PromiseResult]] to value.
-    // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
-    // 5. Set promise.[[PromiseRejectReactions]] to undefined.
-    promise.reactions_or_result = value;
-
-    // 6. Set promise.[[PromiseState]] to "fulfilled".
-    promise.SetStatus(PromiseState::kFulfilled);
-
-    // 7. Return TriggerPromiseReactions(reactions, value).
-    TriggerPromiseReactions(reactions, value, kPromiseReactionFulfill);
-    return Undefined;
-  }
-
-  extern macro PromiseBuiltinsAssembler::
-      IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(): bool;
-
-  // https://tc39.es/ecma262/#sec-rejectpromise
-  transitioning builtin
-  RejectPromise(implicit context: Context)(
-      promise: JSPromise, reason: JSAny, debugEvent: Boolean): JSAny {
-    // If promise hook is enabled or the debugger is active, let
-    // the runtime handle this operation, which greatly reduces
-    // the complexity here and also avoids a couple of back and
-    // forth between JavaScript and C++ land.
-    if (IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
-        !promise.HasHandler()) {
-      // 7. If promise.[[PromiseIsHandled]] is false, perform
-      //    HostPromiseRejectionTracker(promise, "reject").
-      // We don't try to handle rejecting {promise} without handler
-      // here, but we let the C++ code take care of this completely.
-      return runtime::RejectPromise(promise, reason, debugEvent);
+  // Morph the {reactions} into PromiseReactionJobTasks and push them
+  // onto the microtask queue.
+  current = reversed;
+  while (true) {
+    typeswitch (current) {
+      case (Zero): {
+        break;
+      }
+      case (currentReaction: PromiseReaction): {
+        current = currentReaction.next;
+        MorphAndEnqueuePromiseReaction(currentReaction, argument, reactionType);
+      }
     }
+  }
+}
 
-    // 2. Let reactions be promise.[[PromiseRejectReactions]].
-    const reactions =
-        UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
+// https://tc39.es/ecma262/#sec-fulfillpromise
+transitioning builtin
+FulfillPromise(implicit context: Context)(
+    promise: JSPromise, value: JSAny): Undefined {
+  // Assert: The value of promise.[[PromiseState]] is "pending".
+  assert(promise.Status() == PromiseState::kPending);
 
-    // 3. Set promise.[[PromiseResult]] to reason.
-    // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
-    // 5. Set promise.[[PromiseRejectReactions]] to undefined.
-    promise.reactions_or_result = reason;
+  // 2. Let reactions be promise.[[PromiseFulfillReactions]].
+  const reactions =
+      UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
 
-    // 6. Set promise.[[PromiseState]] to "rejected".
-    promise.SetStatus(PromiseState::kRejected);
+  // 3. Set promise.[[PromiseResult]] to value.
+  // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
+  // 5. Set promise.[[PromiseRejectReactions]] to undefined.
+  promise.reactions_or_result = value;
 
-    // 8. Return TriggerPromiseReactions(reactions, reason).
-    TriggerPromiseReactions(reactions, reason, kPromiseReactionReject);
-    return Undefined;
+  // 6. Set promise.[[PromiseState]] to "fulfilled".
+  promise.SetStatus(PromiseState::kFulfilled);
+
+  // 7. Return TriggerPromiseReactions(reactions, value).
+  TriggerPromiseReactions(reactions, value, kPromiseReactionFulfill);
+  return Undefined;
+}
+
+extern macro PromiseBuiltinsAssembler::
+    IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(): bool;
+
+// https://tc39.es/ecma262/#sec-rejectpromise
+transitioning builtin
+RejectPromise(implicit context: Context)(
+    promise: JSPromise, reason: JSAny, debugEvent: Boolean): JSAny {
+  // If promise hook is enabled or the debugger is active, let
+  // the runtime handle this operation, which greatly reduces
+  // the complexity here and also avoids a couple of back and
+  // forth between JavaScript and C++ land.
+  if (IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate() ||
+      !promise.HasHandler()) {
+    // 7. If promise.[[PromiseIsHandled]] is false, perform
+    //    HostPromiseRejectionTracker(promise, "reject").
+    // We don't try to handle rejecting {promise} without handler
+    // here, but we let the C++ code take care of this completely.
+    return runtime::RejectPromise(promise, reason, debugEvent);
   }
 
-  const kPromiseCapabilitySize:
-      constexpr int31 generates 'PromiseCapability::kSize';
-  const kPromiseBuiltinsCapabilitiesContextLength: constexpr int31
-  generates 'PromiseBuiltins::kCapabilitiesContextLength';
-  const kPromiseBuiltinsCapabilitySlot: constexpr ContextSlot
-  generates 'PromiseBuiltins::kCapabilitySlot';
-  const kPromiseBuiltinsPromiseSlot: constexpr ContextSlot
-  generates 'PromiseBuiltins::kPromiseSlot';
-  const kPromiseBuiltinsAlreadyResolvedSlot: constexpr ContextSlot
-  generates 'PromiseBuiltins::kAlreadyResolvedSlot';
-  const kPromiseBuiltinsDebugEventSlot: constexpr ContextSlot
-  generates 'PromiseBuiltins::kDebugEventSlot';
+  // 2. Let reactions be promise.[[PromiseRejectReactions]].
+  const reactions =
+      UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
 
-  @export
-  macro CreatePromiseCapabilitiesExecutorContext(
-      nativeContext: NativeContext, capability: PromiseCapability): Context {
-    const executorContext = AllocateSyntheticFunctionContext(
-        nativeContext, kPromiseBuiltinsCapabilitiesContextLength);
+  // 3. Set promise.[[PromiseResult]] to reason.
+  // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
+  // 5. Set promise.[[PromiseRejectReactions]] to undefined.
+  promise.reactions_or_result = reason;
 
-    executorContext[kPromiseBuiltinsCapabilitySlot] = capability;
-    return executorContext;
-  }
+  // 6. Set promise.[[PromiseState]] to "rejected".
+  promise.SetStatus(PromiseState::kRejected);
 
-  @export
-  macro CreatePromiseCapability(
-      promise: JSReceiver|Undefined, resolve: JSFunction|Undefined,
-      reject: JSFunction|Undefined): PromiseCapability {
-    return new PromiseCapability{
-      map: kPromiseCapabilityMap,
-      promise: promise,
-      resolve: resolve,
-      reject: reject
-    };
-  }
+  // 8. Return TriggerPromiseReactions(reactions, reason).
+  TriggerPromiseReactions(reactions, reason, kPromiseReactionReject);
+  return Undefined;
+}
 
-  @export
-  struct PromiseResolvingFunctions {
-    resolve: JSFunction;
-    reject: JSFunction;
-  }
+const kPromiseCapabilitySize:
+    constexpr int31 generates 'PromiseCapability::kSize';
+const kPromiseBuiltinsCapabilitiesContextLength: constexpr int31
+    generates 'PromiseBuiltins::kCapabilitiesContextLength';
+const kPromiseBuiltinsCapabilitySlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kCapabilitySlot';
+const kPromiseBuiltinsPromiseSlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kPromiseSlot';
+const kPromiseBuiltinsAlreadyResolvedSlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kAlreadyResolvedSlot';
+const kPromiseBuiltinsDebugEventSlot: constexpr ContextSlot
+    generates 'PromiseBuiltins::kDebugEventSlot';
 
-  @export
-  macro CreatePromiseResolvingFunctions(implicit context: Context)(
-      promise: JSPromise, debugEvent: Object, nativeContext: NativeContext):
-      PromiseResolvingFunctions {
-    const promiseContext = CreatePromiseResolvingFunctionsContext(
-        promise, debugEvent, nativeContext);
-    const map = UnsafeCast<Map>(
+@export
+macro CreatePromiseCapabilitiesExecutorContext(
+    nativeContext: NativeContext, capability: PromiseCapability): Context {
+  const executorContext = AllocateSyntheticFunctionContext(
+      nativeContext, kPromiseBuiltinsCapabilitiesContextLength);
+
+  executorContext[kPromiseBuiltinsCapabilitySlot] = capability;
+  return executorContext;
+}
+
+@export
+macro CreatePromiseCapability(
+    promise: JSReceiver|Undefined, resolve: JSFunction|Undefined,
+    reject: JSFunction|Undefined): PromiseCapability {
+  return new PromiseCapability{
+    map: kPromiseCapabilityMap,
+    promise: promise,
+    resolve: resolve,
+    reject: reject
+  };
+}
+
+@export
+struct PromiseResolvingFunctions {
+  resolve: JSFunction;
+  reject: JSFunction;
+}
+
+@export
+macro CreatePromiseResolvingFunctions(implicit context: Context)(
+    promise: JSPromise, debugEvent: Object, nativeContext: NativeContext):
+    PromiseResolvingFunctions {
+  const promiseContext = CreatePromiseResolvingFunctionsContext(
+      promise, debugEvent, nativeContext);
+  const map = UnsafeCast<Map>(
+      nativeContext
+          [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
+  const resolveInfo = PromiseCapabilityDefaultResolveSharedFunConstant();
+
+  const resolve: JSFunction =
+      AllocateFunctionWithMapAndContext(map, resolveInfo, promiseContext);
+  const rejectInfo = PromiseCapabilityDefaultRejectSharedFunConstant();
+  const reject: JSFunction =
+      AllocateFunctionWithMapAndContext(map, rejectInfo, promiseContext);
+  return PromiseResolvingFunctions{resolve: resolve, reject: reject};
+}
+
+transitioning macro
+InnerNewPromiseCapability(implicit context: Context)(
+    constructor: HeapObject, debugEvent: Object): PromiseCapability {
+  const nativeContext = LoadNativeContext(context);
+  if (TaggedEqual(
+          constructor,
+          nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX])) {
+    const promise = NewJSPromise();
+
+    const pair =
+        CreatePromiseResolvingFunctions(promise, debugEvent, nativeContext);
+
+    return CreatePromiseCapability(promise, pair.resolve, pair.reject);
+  } else {
+    // We have to create the capability before the associated promise
+    // because the builtin PromiseConstructor uses the executor.
+    const capability = CreatePromiseCapability(Undefined, Undefined, Undefined);
+    const executorContext =
+        CreatePromiseCapabilitiesExecutorContext(nativeContext, capability);
+
+    const executorInfo = PromiseGetCapabilitiesExecutorSharedFunConstant();
+    const functionMap = UnsafeCast<Map>(
         nativeContext
             [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-    const resolveInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[NativeContextSlot::
-                          PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX]);
-    const resolve: JSFunction =
-        AllocateFunctionWithMapAndContext(map, resolveInfo, promiseContext);
-    const rejectInfo = UnsafeCast<SharedFunctionInfo>(
-        nativeContext[NativeContextSlot::
-                          PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX]);
-    const reject: JSFunction =
-        AllocateFunctionWithMapAndContext(map, rejectInfo, promiseContext);
-    return PromiseResolvingFunctions{resolve: resolve, reject: reject};
-  }
+    const executor = AllocateFunctionWithMapAndContext(
+        functionMap, executorInfo, executorContext);
 
-  transitioning macro
-  InnerNewPromiseCapability(implicit context: Context)(
-      constructor: HeapObject, debugEvent: Object): PromiseCapability {
-    const nativeContext = LoadNativeContext(context);
-    if (TaggedEqual(
-            constructor,
-            nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX])) {
-      const promise = NewJSPromise();
+    const promiseConstructor = UnsafeCast<Constructor>(constructor);
+    const promise = Construct(promiseConstructor, executor);
+    capability.promise = promise;
 
-      const pair =
-          CreatePromiseResolvingFunctions(promise, debugEvent, nativeContext);
-
-      return CreatePromiseCapability(promise, pair.resolve, pair.reject);
-    } else {
-      // We have to create the capability before the associated promise
-      // because the builtin PromiseConstructor uses the executor.
-      const capability =
-          CreatePromiseCapability(Undefined, Undefined, Undefined);
-      const executorContext =
-          CreatePromiseCapabilitiesExecutorContext(nativeContext, capability);
-
-      const executorInfo = UnsafeCast<SharedFunctionInfo>(
-          nativeContext[NativeContextSlot::
-                            PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN]);
-      const functionMap = UnsafeCast<Map>(
-          nativeContext
-              [NativeContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX]);
-      const executor = AllocateFunctionWithMapAndContext(
-          functionMap, executorInfo, executorContext);
-
-      const promiseConstructor = UnsafeCast<Constructor>(constructor);
-      const promise = Construct(promiseConstructor, executor);
-      capability.promise = promise;
-
-      if (!TaggedIsCallable(capability.resolve) ||
-          !TaggedIsCallable(capability.reject)) {
-        ThrowTypeError(MessageTemplate::kPromiseNonCallable);
-      }
-      return capability;
+    if (!Is<Callable>(capability.resolve) || !Is<Callable>(capability.reject)) {
+      ThrowTypeError(MessageTemplate::kPromiseNonCallable);
     }
+    return capability;
   }
+}
 
-  // https://tc39.es/ecma262/#sec-newpromisecapability
-  transitioning builtin
-  NewPromiseCapability(implicit context: Context)(
-      maybeConstructor: Object, debugEvent: Object): PromiseCapability {
-    typeswitch (maybeConstructor) {
-      case (Smi): {
+// https://tc39.es/ecma262/#sec-newpromisecapability
+transitioning builtin
+NewPromiseCapability(implicit context: Context)(
+    maybeConstructor: Object, debugEvent: Object): PromiseCapability {
+  typeswitch (maybeConstructor) {
+    case (Smi): {
+      ThrowTypeError(MessageTemplate::kNotConstructor, maybeConstructor);
+    }
+    case (constructor: HeapObject): {
+      if (!IsConstructor(constructor)) {
         ThrowTypeError(MessageTemplate::kNotConstructor, maybeConstructor);
       }
-      case (constructor: HeapObject): {
-        if (!IsConstructor(constructor)) {
-          ThrowTypeError(MessageTemplate::kNotConstructor, maybeConstructor);
-        }
-        return InnerNewPromiseCapability(constructor, debugEvent);
-      }
+      return InnerNewPromiseCapability(constructor, debugEvent);
     }
   }
+}
 
-  // https://tc39.es/ecma262/#sec-promise-reject-functions
-  transitioning javascript builtin
-  PromiseCapabilityDefaultReject(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(reason: JSAny): JSAny {
-    // 2. Let promise be F.[[Promise]].
-    const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
+// https://tc39.es/ecma262/#sec-promise-reject-functions
+transitioning javascript builtin
+PromiseCapabilityDefaultReject(
+    js-implicit context: NativeContext, receiver: JSAny)(reason: JSAny): JSAny {
+  // 2. Let promise be F.[[Promise]].
+  const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
 
-    // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-    const alreadyResolved =
-        UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
+  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
+  const alreadyResolved =
+      UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
 
-    // 4. If alreadyResolved.[[Value]] is true, return undefined.
-    if (alreadyResolved == True) {
-      return runtime::PromiseRejectAfterResolved(promise, reason);
-    }
-
-    // 5. Set alreadyResolved.[[Value]] to true.
-    context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
-
-    // 6. Return RejectPromise(promise, reason).
-    const debugEvent =
-        UnsafeCast<Boolean>(context[kPromiseBuiltinsDebugEventSlot]);
-    return RejectPromise(promise, reason, debugEvent);
+  // 4. If alreadyResolved.[[Value]] is true, return undefined.
+  if (alreadyResolved == True) {
+    return runtime::PromiseRejectAfterResolved(promise, reason);
   }
 
-  // https://tc39.es/ecma262/#sec-promise-resolve-functions
-  transitioning javascript builtin
-  PromiseCapabilityDefaultResolve(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(resolution: JSAny): JSAny {
-    // 2. Let promise be F.[[Promise]].
-    const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
+  // 5. Set alreadyResolved.[[Value]] to true.
+  context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
 
-    // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-    const alreadyResolved =
-        UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
+  // 6. Return RejectPromise(promise, reason).
+  const debugEvent =
+      UnsafeCast<Boolean>(context[kPromiseBuiltinsDebugEventSlot]);
+  return RejectPromise(promise, reason, debugEvent);
+}
 
-    // 4. If alreadyResolved.[[Value]] is true, return undefined.
-    if (alreadyResolved == True) {
-      return runtime::PromiseResolveAfterResolved(promise, resolution);
-    }
+// https://tc39.es/ecma262/#sec-promise-resolve-functions
+transitioning javascript builtin
+PromiseCapabilityDefaultResolve(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(resolution: JSAny): JSAny {
+  // 2. Let promise be F.[[Promise]].
+  const promise = UnsafeCast<JSPromise>(context[kPromiseBuiltinsPromiseSlot]);
 
-    // 5. Set alreadyResolved.[[Value]] to true.
-    context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
+  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
+  const alreadyResolved =
+      UnsafeCast<Boolean>(context[kPromiseBuiltinsAlreadyResolvedSlot]);
 
-    // The rest of the logic (and the catch prediction) is
-    // encapsulated in the dedicated ResolvePromise builtin.
-    return ResolvePromise(context, promise, resolution);
+  // 4. If alreadyResolved.[[Value]] is true, return undefined.
+  if (alreadyResolved == True) {
+    return runtime::PromiseResolveAfterResolved(promise, resolution);
   }
 
-  @export
-  transitioning macro PerformPromiseThenImpl(implicit context: Context)(
-      promise: JSPromise, onFulfilled: Callable|Undefined,
-      onRejected: Callable|Undefined,
-      resultPromiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
-    if (promise.Status() == PromiseState::kPending) {
-      // The {promise} is still in "Pending" state, so we just record a new
-      // PromiseReaction holding both the onFulfilled and onRejected callbacks.
-      // Once the {promise} is resolved we decide on the concrete handler to
-      // push onto the microtask queue.
-      const handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
-      const promiseReactions =
-          UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
-      const reaction = NewPromiseReaction(
-          handlerContext, promiseReactions, resultPromiseOrCapability,
-          onFulfilled, onRejected);
-      promise.reactions_or_result = reaction;
-    } else {
-      const reactionsOrResult = promise.reactions_or_result;
-      let microtask: PromiseReactionJobTask;
-      let handlerContext: Context;
-      if (promise.Status() == PromiseState::kFulfilled) {
-        handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
-        microtask = NewPromiseFulfillReactionJobTask(
-            handlerContext, reactionsOrResult, onFulfilled,
-            resultPromiseOrCapability);
-      } else
-        deferred {
-          assert(promise.Status() == PromiseState::kRejected);
-          handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
-          microtask = NewPromiseRejectReactionJobTask(
-              handlerContext, reactionsOrResult, onRejected,
-              resultPromiseOrCapability);
-          if (!promise.HasHandler()) {
-            runtime::PromiseRevokeReject(promise);
-          }
-        }
-      EnqueueMicrotask(handlerContext, microtask);
-    }
-    promise.SetHasHandler();
-  }
+  // 5. Set alreadyResolved.[[Value]] to true.
+  context[kPromiseBuiltinsAlreadyResolvedSlot] = True;
 
-  // https://tc39.es/ecma262/#sec-performpromisethen
-  transitioning builtin
-  PerformPromiseThen(implicit context: Context)(
-      promise: JSPromise, onFulfilled: Callable|Undefined,
-      onRejected: Callable|Undefined,
-      resultPromise: JSPromise|Undefined): JSAny {
-    PerformPromiseThenImpl(promise, onFulfilled, onRejected, resultPromise);
-    return resultPromise;
-  }
+  // The rest of the logic (and the catch prediction) is
+  // encapsulated in the dedicated ResolvePromise builtin.
+  return ResolvePromise(context, promise, resolution);
+}
 
-  // https://tc39.es/ecma262/#sec-promise-reject-functions
-  transitioning javascript builtin
-  PromiseReject(js-implicit context: NativeContext, receiver: JSAny)(
-      reason: JSAny): JSAny {
-    // 1. Let C be the this value.
-    // 2. If Type(C) is not Object, throw a TypeError exception.
-    const receiver = Cast<JSReceiver>(receiver) otherwise
-    ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'PromiseReject');
-
-    const promiseFun = context[NativeContextSlot::PROMISE_FUNCTION_INDEX];
-    if (promiseFun == receiver) {
-      const promise = NewJSPromise(PromiseState::kRejected, reason);
-      runtime::PromiseRejectEventFromStack(promise, reason);
-      return promise;
-    } else {
-      // 3. Let promiseCapability be ? NewPromiseCapability(C).
-      const capability = NewPromiseCapability(receiver, True);
-
-      // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
-      const reject = UnsafeCast<Callable>(capability.reject);
-      Call(context, reject, Undefined, reason);
-
-      // 5. Return promiseCapability.[[Promise]].
-      return capability.promise;
-    }
-  }
-
-  const kPromiseExecutorAlreadyInvoked: constexpr MessageTemplate
-  generates 'MessageTemplate::kPromiseExecutorAlreadyInvoked';
-
-  // https://tc39.es/ecma262/#sec-getcapabilitiesexecutor-functions
-  transitioning javascript builtin
-  PromiseGetCapabilitiesExecutor(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(resolve: JSAny, reject: JSAny): JSAny {
-    const capability =
-        UnsafeCast<PromiseCapability>(context[kPromiseBuiltinsCapabilitySlot]);
-    if (capability.resolve != Undefined || capability.reject != Undefined)
-      deferred {
-        ThrowTypeError(kPromiseExecutorAlreadyInvoked);
-      }
-
-    capability.resolve = resolve;
-    capability.reject = reject;
-    return Undefined;
-  }
-
-  transitioning macro CallResolve(implicit context: Context)(
-      constructor: Constructor, resolve: JSAny, value: JSAny): JSAny {
-    // Undefined can never be a valid value for the resolve function,
-    // instead it is used as a special marker for the fast path.
-    if (resolve == Undefined) {
-      return PromiseResolve(constructor, value);
+@export
+transitioning macro PerformPromiseThenImpl(implicit context: Context)(
+    promise: JSPromise, onFulfilled: Callable|Undefined,
+    onRejected: Callable|Undefined,
+    resultPromiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
+  if (promise.Status() == PromiseState::kPending) {
+    // The {promise} is still in "Pending" state, so we just record a new
+    // PromiseReaction holding both the onFulfilled and onRejected callbacks.
+    // Once the {promise} is resolved we decide on the concrete handler to
+    // push onto the microtask queue.
+    const handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
+    const promiseReactions =
+        UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
+    const reaction = NewPromiseReaction(
+        handlerContext, promiseReactions, resultPromiseOrCapability,
+        onFulfilled, onRejected);
+    promise.reactions_or_result = reaction;
+  } else {
+    const reactionsOrResult = promise.reactions_or_result;
+    let microtask: PromiseReactionJobTask;
+    let handlerContext: Context;
+    if (promise.Status() == PromiseState::kFulfilled) {
+      handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
+      microtask = NewPromiseFulfillReactionJobTask(
+          handlerContext, reactionsOrResult, onFulfilled,
+          resultPromiseOrCapability);
     } else
       deferred {
-        return Call(context, UnsafeCast<Callable>(resolve), constructor, value);
+        assert(promise.Status() == PromiseState::kRejected);
+        handlerContext = ExtractHandlerContext(onRejected, onFulfilled);
+        microtask = NewPromiseRejectReactionJobTask(
+            handlerContext, reactionsOrResult, onRejected,
+            resultPromiseOrCapability);
+        if (!promise.HasHandler()) {
+          runtime::PromiseRevokeReject(promise);
+        }
       }
+    EnqueueMicrotask(handlerContext, microtask);
   }
+  promise.SetHasHandler();
+}
 
-  transitioning javascript builtin
-  PromiseConstructorLazyDeoptContinuation(
-      js-implicit context: NativeContext, receiver: JSAny)(
-      promise: JSAny, reject: JSAny, exception: JSAny|TheHole,
-      _result: JSAny): JSAny {
-    typeswitch (exception) {
-      case (TheHole): {
-      }
-      case (e: JSAny): {
-        Call(context, reject, Undefined, e);
-      }
-    }
+// https://tc39.es/ecma262/#sec-performpromisethen
+transitioning builtin
+PerformPromiseThen(implicit context: Context)(
+    promise: JSPromise, onFulfilled: Callable|Undefined,
+    onRejected: Callable|Undefined, resultPromise: JSPromise|Undefined): JSAny {
+  PerformPromiseThenImpl(promise, onFulfilled, onRejected, resultPromise);
+  return resultPromise;
+}
+
+// https://tc39.es/ecma262/#sec-promise-reject-functions
+transitioning javascript builtin
+PromiseReject(
+    js-implicit context: NativeContext, receiver: JSAny)(reason: JSAny): JSAny {
+  // 1. Let C be the this value.
+  // 2. If Type(C) is not Object, throw a TypeError exception.
+  const receiver = Cast<JSReceiver>(receiver) otherwise
+  ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'PromiseReject');
+
+  const promiseFun = context[NativeContextSlot::PROMISE_FUNCTION_INDEX];
+  if (promiseFun == receiver) {
+    const promise = NewJSPromise(PromiseState::kRejected, reason);
+    runtime::PromiseRejectEventFromStack(promise, reason);
     return promise;
+  } else {
+    // 3. Let promiseCapability be ? NewPromiseCapability(C).
+    const capability = NewPromiseCapability(receiver, True);
+
+    // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
+    const reject = UnsafeCast<Callable>(capability.reject);
+    Call(context, reject, Undefined, reason);
+
+    // 5. Return promiseCapability.[[Promise]].
+    return capability.promise;
   }
+}
+
+const kPromiseExecutorAlreadyInvoked: constexpr MessageTemplate
+    generates 'MessageTemplate::kPromiseExecutorAlreadyInvoked';
+
+// https://tc39.es/ecma262/#sec-getcapabilitiesexecutor-functions
+transitioning javascript builtin
+PromiseGetCapabilitiesExecutor(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    resolve: JSAny, reject: JSAny): JSAny {
+  const capability =
+      UnsafeCast<PromiseCapability>(context[kPromiseBuiltinsCapabilitySlot]);
+  if (capability.resolve != Undefined || capability.reject != Undefined)
+    deferred {
+      ThrowTypeError(kPromiseExecutorAlreadyInvoked);
+    }
+
+  capability.resolve = resolve;
+  capability.reject = reject;
+  return Undefined;
+}
+
+transitioning macro CallResolve(implicit context: Context)(
+    constructor: Constructor, resolve: JSAny, value: JSAny): JSAny {
+  // Undefined can never be a valid value for the resolve function,
+  // instead it is used as a special marker for the fast path.
+  if (resolve == Undefined) {
+    return PromiseResolve(constructor, value);
+  } else
+    deferred {
+      return Call(context, UnsafeCast<Callable>(resolve), constructor, value);
+    }
+}
+
+transitioning javascript builtin
+PromiseConstructorLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    promise: JSAny, reject: JSAny, exception: JSAny|TheHole,
+    _result: JSAny): JSAny {
+  typeswitch (exception) {
+    case (TheHole): {
+    }
+    case (e: JSAny): {
+      Call(context, reject, Undefined, e);
+    }
+  }
+  return promise;
+}
+
+extern macro PromiseCapabilityDefaultRejectSharedFunConstant():
+    SharedFunctionInfo;
+extern macro PromiseCapabilityDefaultResolveSharedFunConstant():
+    SharedFunctionInfo;
+extern macro PromiseGetCapabilitiesExecutorSharedFunConstant():
+    SharedFunctionInfo;
 }

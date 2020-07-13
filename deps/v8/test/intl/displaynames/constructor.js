@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-displaynames
 // DisplayNames constructor can't be called as function.
 assertThrows(() => Intl.DisplayNames('sr'), TypeError);
 

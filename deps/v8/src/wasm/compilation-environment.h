@@ -60,15 +60,11 @@ struct CompilationEnv {
 
   const LowerSimd lower_simd;
 
-  // Whether the debugger is active.
-  const bool debug;
-
   constexpr CompilationEnv(const WasmModule* module,
                            UseTrapHandler use_trap_handler,
                            RuntimeExceptionSupport runtime_exception_support,
                            const WasmFeatures& enabled_features,
-                           LowerSimd lower_simd = kNoLowerSimd,
-                           bool debug = false)
+                           LowerSimd lower_simd = kNoLowerSimd)
       : module(module),
         use_trap_handler(use_trap_handler),
         runtime_exception_support(runtime_exception_support),
@@ -79,8 +75,7 @@ struct CompilationEnv {
                              : max_initial_mem_pages()) *
                         uint64_t{kWasmPageSize}),
         enabled_features(enabled_features),
-        lower_simd(lower_simd),
-        debug(debug) {}
+        lower_simd(lower_simd) {}
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)
@@ -129,11 +124,11 @@ class CompilationState {
   // delete} with {size_t} argument. The {size_t} argument would be incorrect.
   void operator delete(void* ptr) { ::operator delete(ptr); }
 
+  CompilationState() = delete;
+
  private:
   // NativeModule is allowed to call the static {New} method.
   friend class NativeModule;
-
-  CompilationState() = delete;
 
   // The CompilationState keeps a {std::weak_ptr} back to the {NativeModule}
   // such that it can keep it alive (by regaining a {std::shared_ptr}) in

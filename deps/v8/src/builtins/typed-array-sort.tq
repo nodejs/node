@@ -5,141 +5,140 @@
 #include 'src/builtins/builtins-typed-array-gen.h'
 
 namespace typed_array {
-  const kBuiltinNameSort: constexpr string = '%TypedArray%.prototype.sort';
+const kBuiltinNameSort: constexpr string = '%TypedArray%.prototype.sort';
 
-  extern runtime TypedArraySortFast(Context, JSAny): JSTypedArray;
+extern runtime TypedArraySortFast(Context, JSAny): JSTypedArray;
 
-  transitioning macro CallCompare(
-      implicit context: Context, array: JSTypedArray,
-      comparefn: Callable)(a: JSAny, b: JSAny): Number {
-    // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
-    const v: Number =
-        ToNumber_Inline(Call(context, comparefn, Undefined, a, b));
+transitioning macro CallCompare(
+    implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+    a: JSAny, b: JSAny): Number {
+  // a. Let v be ? ToNumber(? Call(comparefn, undefined, x, y)).
+  const v: Number = ToNumber_Inline(Call(context, comparefn, Undefined, a, b));
 
-    // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
-    if (IsDetachedBuffer(array.buffer)) {
-      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSort);
-    }
-
-    // c. If v is NaN, return +0.
-    if (NumberIsNaN(v)) return 0;
-
-    // d. return v.
-    return v;
+  // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+  if (IsDetachedBuffer(array.buffer)) {
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSort);
   }
 
-  // Merges two sorted runs [from, middle) and [middle, to)
-  // from "source" into "target".
-  transitioning macro
-  TypedArrayMerge(
-      implicit context: Context, array: JSTypedArray, comparefn: Callable)(
-      source: FixedArray, from: uintptr, middle: uintptr, to: uintptr,
-      target: FixedArray) {
-    let left: uintptr = from;
-    let right: uintptr = middle;
+  // c. If v is NaN, return +0.
+  if (NumberIsNaN(v)) return 0;
 
-    for (let targetIndex: uintptr = from; targetIndex < to; ++targetIndex) {
-      if (left < middle && right >= to) {
-        // If the left run has elements, but the right does not, we take
-        // from the left.
-        target.objects[targetIndex] = source.objects[left++];
-      } else if (left < middle) {
-        // If both have elements, we need to compare.
-        const leftElement = UnsafeCast<JSAny>(source.objects[left]);
-        const rightElement = UnsafeCast<JSAny>(source.objects[right]);
-        if (CallCompare(leftElement, rightElement) <= 0) {
-          target.objects[targetIndex] = leftElement;
-          left++;
-        } else {
-          target.objects[targetIndex] = rightElement;
-          right++;
-        }
+  // d. return v.
+  return v;
+}
+
+// Merges two sorted runs [from, middle) and [middle, to)
+// from "source" into "target".
+transitioning macro
+TypedArrayMerge(
+    implicit context: Context, array: JSTypedArray, comparefn: Callable)(
+    source: FixedArray, from: uintptr, middle: uintptr, to: uintptr,
+    target: FixedArray) {
+  let left: uintptr = from;
+  let right: uintptr = middle;
+
+  for (let targetIndex: uintptr = from; targetIndex < to; ++targetIndex) {
+    if (left < middle && right >= to) {
+      // If the left run has elements, but the right does not, we take
+      // from the left.
+      target.objects[targetIndex] = source.objects[left++];
+    } else if (left < middle) {
+      // If both have elements, we need to compare.
+      const leftElement = UnsafeCast<JSAny>(source.objects[left]);
+      const rightElement = UnsafeCast<JSAny>(source.objects[right]);
+      if (CallCompare(leftElement, rightElement) <= 0) {
+        target.objects[targetIndex] = leftElement;
+        left++;
       } else {
-        // No elements on the left, but the right does, so we take
-        // from the right.
-        assert(left == middle);
-        target.objects[targetIndex] = source.objects[right++];
+        target.objects[targetIndex] = rightElement;
+        right++;
       }
+    } else {
+      // No elements on the left, but the right does, so we take
+      // from the right.
+      assert(left == middle);
+      target.objects[targetIndex] = source.objects[right++];
     }
   }
+}
 
-  transitioning builtin
-  TypedArrayMergeSort(implicit context: Context)(
-      source: FixedArray, from: uintptr, to: uintptr, target: FixedArray,
-      array: JSTypedArray, comparefn: Callable): JSAny {
-    assert(to - from > 1);
-    const middle: uintptr = from + ((to - from) >>> 1);
+transitioning builtin
+TypedArrayMergeSort(implicit context: Context)(
+    source: FixedArray, from: uintptr, to: uintptr, target: FixedArray,
+    array: JSTypedArray, comparefn: Callable): JSAny {
+  assert(to - from > 1);
+  const middle: uintptr = from + ((to - from) >>> 1);
 
-    // On the next recursion step source becomes target and vice versa.
-    // This saves the copy of the relevant range from the original
-    // array into a work array on each recursion step.
-    if (middle - from > 1) {
-      TypedArrayMergeSort(target, from, middle, source, array, comparefn);
-    }
-    if (to - middle > 1) {
-      TypedArrayMergeSort(target, middle, to, source, array, comparefn);
-    }
-
-    TypedArrayMerge(source, from, middle, to, target);
-
-    return Undefined;
+  // On the next recursion step source becomes target and vice versa.
+  // This saves the copy of the relevant range from the original
+  // array into a work array on each recursion step.
+  if (middle - from > 1) {
+    TypedArrayMergeSort(target, from, middle, source, array, comparefn);
+  }
+  if (to - middle > 1) {
+    TypedArrayMergeSort(target, middle, to, source, array, comparefn);
   }
 
-  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
-  transitioning javascript builtin TypedArrayPrototypeSort(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): JSTypedArray {
-    // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
-    //    throw a TypeError exception.
-    const comparefnObj: JSAny = arguments.length > 0 ? arguments[0] : Undefined;
-    if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
-      ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
-    }
+  TypedArrayMerge(source, from, middle, to, target);
 
-    // 2. Let obj be the this value.
-    const obj: JSAny = receiver;
+  return Undefined;
+}
 
-    // 3. Let buffer be ? ValidateTypedArray(obj).
-    //    ValidateTypedArray currently returns the array, not the ViewBuffer.
-    const array: JSTypedArray =
-        ValidateTypedArray(context, obj, kBuiltinNameSort);
-
-    // 4. Let len be obj.[[ArrayLength]].
-    const len: uintptr = array.length;
-
-    // Arrays of length 1 or less are considered sorted.
-    if (len < 2) return array;
-
-    // Default sorting is done in C++ using std::sort
-    if (comparefnObj == Undefined) {
-      return TypedArraySortFast(context, obj);
-    }
-
-    const comparefn: Callable =
-        Cast<Callable>(comparefnObj) otherwise unreachable;
-    const accessor: TypedArrayAccessor =
-        GetTypedArrayAccessor(array.elements_kind);
-
-    // Prepare the two work arrays. All numbers are converted to tagged
-    // objects first, and merge sorted between the two FixedArrays.
-    // The result is then written back into the JSTypedArray.
-    const work1: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
-    const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
-
-    for (let i: uintptr = 0; i < len; ++i) {
-      const element: Numeric = accessor.LoadNumeric(context, array, i);
-      work1.objects[i] = element;
-      work2.objects[i] = element;
-    }
-
-    TypedArrayMergeSort(work2, 0, len, work1, array, comparefn);
-
-    // work1 contains the sorted numbers. Write them back.
-    for (let i: uintptr = 0; i < len; ++i) {
-      accessor.StoreNumeric(
-          context, array, i, UnsafeCast<Numeric>(work1.objects[i]));
-    }
-
-    return array;
+// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
+transitioning javascript builtin TypedArrayPrototypeSort(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(...arguments): JSTypedArray {
+  // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
+  //    throw a TypeError exception.
+  const comparefnObj: JSAny = arguments[0];
+  if (comparefnObj != Undefined && !Is<Callable>(comparefnObj)) {
+    ThrowTypeError(MessageTemplate::kBadSortComparisonFunction, comparefnObj);
   }
+
+  // 2. Let obj be the this value.
+  const obj: JSAny = receiver;
+
+  // 3. Let buffer be ? ValidateTypedArray(obj).
+  //    ValidateTypedArray currently returns the array, not the ViewBuffer.
+  const array: JSTypedArray =
+      ValidateTypedArray(context, obj, kBuiltinNameSort);
+
+  // 4. Let len be obj.[[ArrayLength]].
+  const len: uintptr = array.length;
+
+  // Arrays of length 1 or less are considered sorted.
+  if (len < 2) return array;
+
+  // Default sorting is done in C++ using std::sort
+  if (comparefnObj == Undefined) {
+    return TypedArraySortFast(context, obj);
+  }
+
+  const comparefn: Callable =
+      Cast<Callable>(comparefnObj) otherwise unreachable;
+  const accessor: TypedArrayAccessor =
+      GetTypedArrayAccessor(array.elements_kind);
+
+  // Prepare the two work arrays. All numbers are converted to tagged
+  // objects first, and merge sorted between the two FixedArrays.
+  // The result is then written back into the JSTypedArray.
+  const work1: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+  const work2: FixedArray = AllocateZeroedFixedArray(Convert<intptr>(len));
+
+  for (let i: uintptr = 0; i < len; ++i) {
+    const element: Numeric = accessor.LoadNumeric(array, i);
+    work1.objects[i] = element;
+    work2.objects[i] = element;
+  }
+
+  TypedArrayMergeSort(work2, 0, len, work1, array, comparefn);
+
+  // work1 contains the sorted numbers. Write them back.
+  for (let i: uintptr = 0; i < len; ++i) {
+    accessor.StoreNumeric(
+        context, array, i, UnsafeCast<Numeric>(work1.objects[i]));
+  }
+
+  return array;
+}
 }

@@ -66,7 +66,7 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
 }  // namespace
 
 // Trigger a trap for executing unreachable.
-WASM_EXEC_TEST(Unreachable) {
+WASM_COMPILED_EXEC_TEST(Unreachable) {
   // Create a WasmRunner with stack checks and traps enabled.
   WasmRunner<void> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
   TestSignatures sigs;
@@ -100,7 +100,7 @@ WASM_EXEC_TEST(Unreachable) {
 }
 
 // Trigger a trap for loading from out-of-bounds.
-WASM_EXEC_TEST(IllegalLoad) {
+WASM_COMPILED_EXEC_TEST(IllegalLoad) {
   WasmRunner<void> r(execution_tier, nullptr, "main", kRuntimeExceptionSupport);
   TestSignatures sigs;
 

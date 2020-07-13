@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-unsafe-function-constructor
+// Flags: --allow-unsafe-function-constructor --harmony-promise-any
 
 
 (function testReflectConstructArity() {
@@ -311,6 +311,7 @@
   var realm2 = Realm.create();
 
   var well_known_intrinsic_constructors = [
+    ["AggregateError", [[]]],
       "Array",
       "ArrayBuffer",
       "Boolean",

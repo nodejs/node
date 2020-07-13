@@ -48,7 +48,6 @@ class FrameWriter {
 
   void PushRawValue(intptr_t value, const char* debug_hint) {
     PushValue(value);
-
     if (trace_scope_ != nullptr) {
       DebugPrintOutputValue(value, debug_hint);
     }
@@ -83,13 +82,10 @@ class FrameWriter {
   void PushTranslatedValue(const TranslatedFrame::iterator& iterator,
                            const char* debug_hint = "") {
     Object obj = iterator->GetRawValue();
-
     PushRawObject(obj, debug_hint);
-
     if (trace_scope_) {
       PrintF(trace_scope_->file(), " (input #%d)\n", iterator.input_index());
     }
-
     deoptimizer_->QueueValueForMaterialization(output_address(top_offset_), obj,
                                                iterator);
   }
@@ -2428,6 +2424,11 @@ int TranslatedValue::object_index() const {
 Object TranslatedValue::GetRawValue() const {
   // If we have a value, return it.
   if (materialization_state() == kFinished) {
+    int smi;
+    if (storage_->IsHeapNumber() &&
+        DoubleToSmiInteger(storage_->Number(), &smi)) {
+      return Smi::FromInt(smi);
+    }
     return *storage_;
   }
 
@@ -2470,6 +2471,22 @@ Object TranslatedValue::GetRawValue() const {
       }
     }
 
+    case kFloat: {
+      int smi;
+      if (DoubleToSmiInteger(float_value().get_scalar(), &smi)) {
+        return Smi::FromInt(smi);
+      }
+      break;
+    }
+
+    case kDouble: {
+      int smi;
+      if (DoubleToSmiInteger(double_value().get_scalar(), &smi)) {
+        return Smi::FromInt(smi);
+      }
+      break;
+    }
+
     default:
       break;
   }
@@ -2479,106 +2496,76 @@ Object TranslatedValue::GetRawValue() const {
   return ReadOnlyRoots(isolate()).arguments_marker();
 }
 
-void TranslatedValue::set_initialized_storage(Handle<Object> storage) {
+void TranslatedValue::set_initialized_storage(Handle<HeapObject> storage) {
   DCHECK_EQ(kUninitialized, materialization_state());
   storage_ = storage;
   materialization_state_ = kFinished;
 }
 
 Handle<Object> TranslatedValue::GetValue() {
-  // If we already have a value, then get it.
-  if (materialization_state() == kFinished) return storage_;
+  Handle<Object> value(GetRawValue(), isolate());
+  if (materialization_state() == kFinished) return value;
+
+  if (value->IsSmi()) {
+    // Even though stored as a Smi, this number might instead be needed as a
+    // HeapNumber when materializing a JSObject with a field of HeapObject
+    // representation. Since we don't have this information available here, we
+    // just always allocate a HeapNumber and later extract the Smi again if we
+    // don't need a HeapObject.
+    set_initialized_storage(
+        isolate()->factory()->NewHeapNumber(value->Number()));
+    return value;
+  }
+
+  if (*value != ReadOnlyRoots(isolate()).arguments_marker()) {
+    set_initialized_storage(Handle<HeapObject>::cast(value));
+    return storage_;
+  }
 
   // Otherwise we have to materialize.
+
+  if (kind() == TranslatedValue::kCapturedObject ||
+      kind() == TranslatedValue::kDuplicatedObject) {
+    // We need to materialize the object (or possibly even object graphs).
+    // To make the object verifier happy, we materialize in two steps.
+
+    // 1. Allocate storage for reachable objects. This makes sure that for
+    //    each object we have allocated space on heap. The space will be
+    //    a byte array that will be later initialized, or a fully
+    //    initialized object if it is safe to allocate one that will
+    //    pass the verifier.
+    container_->EnsureObjectAllocatedAt(this);
+
+    // 2. Initialize the objects. If we have allocated only byte arrays
+    //    for some objects, we now overwrite the byte arrays with the
+    //    correct object fields. Note that this phase does not allocate
+    //    any new objects, so it does not trigger the object verifier.
+    return container_->InitializeObjectAt(this);
+  }
+
+  double number;
   switch (kind()) {
-    case TranslatedValue::kTagged:
     case TranslatedValue::kInt32:
-    case TranslatedValue::kInt64:
-    case TranslatedValue::kUInt32:
-    case TranslatedValue::kBoolBit:
-    case TranslatedValue::kFloat:
-    case TranslatedValue::kDouble: {
-      MaterializeSimple();
-      return storage_;
-    }
-
-    case TranslatedValue::kCapturedObject:
-    case TranslatedValue::kDuplicatedObject: {
-      // We need to materialize the object (or possibly even object graphs).
-      // To make the object verifier happy, we materialize in two steps.
-
-      // 1. Allocate storage for reachable objects. This makes sure that for
-      //    each object we have allocated space on heap. The space will be
-      //    a byte array that will be later initialized, or a fully
-      //    initialized object if it is safe to allocate one that will
-      //    pass the verifier.
-      container_->EnsureObjectAllocatedAt(this);
-
-      // 2. Initialize the objects. If we have allocated only byte arrays
-      //    for some objects, we now overwrite the byte arrays with the
-      //    correct object fields. Note that this phase does not allocate
-      //    any new objects, so it does not trigger the object verifier.
-      return container_->InitializeObjectAt(this);
-    }
-
-    case TranslatedValue::kInvalid:
-      FATAL("unexpected case");
-      return Handle<Object>::null();
-  }
-
-  FATAL("internal error: value missing");
-  return Handle<Object>::null();
-}
-
-void TranslatedValue::MaterializeSimple() {
-  // If we already have materialized, return.
-  if (materialization_state() == kFinished) return;
-
-  Object raw_value = GetRawValue();
-  if (raw_value != ReadOnlyRoots(isolate()).arguments_marker()) {
-    // We can get the value without allocation, just return it here.
-    set_initialized_storage(Handle<Object>(raw_value, isolate()));
-    return;
-  }
-
-  switch (kind()) {
-    case kInt32:
-      set_initialized_storage(
-          Handle<Object>(isolate()->factory()->NewNumber(int32_value())));
-      return;
-
-    case kInt64:
-      set_initialized_storage(Handle<Object>(
-          isolate()->factory()->NewNumber(static_cast<double>(int64_value()))));
-      return;
-
-    case kUInt32:
-      set_initialized_storage(
-          Handle<Object>(isolate()->factory()->NewNumber(uint32_value())));
-      return;
-
-    case kFloat: {
-      double scalar_value = float_value().get_scalar();
-      set_initialized_storage(
-          Handle<Object>(isolate()->factory()->NewNumber(scalar_value)));
-      return;
-    }
-
-    case kDouble: {
-      double scalar_value = double_value().get_scalar();
-      set_initialized_storage(
-          Handle<Object>(isolate()->factory()->NewNumber(scalar_value)));
-      return;
-    }
-
-    case kCapturedObject:
-    case kDuplicatedObject:
-    case kInvalid:
-    case kTagged:
-    case kBoolBit:
-      FATAL("internal error: unexpected materialization.");
+      number = int32_value();
       break;
+    case TranslatedValue::kInt64:
+      number = int64_value();
+      break;
+    case TranslatedValue::kUInt32:
+      number = uint32_value();
+      break;
+    case TranslatedValue::kFloat:
+      number = float_value().get_scalar();
+      break;
+    case TranslatedValue::kDouble:
+      number = double_value().get_scalar();
+      break;
+    default:
+      UNREACHABLE();
   }
+  DCHECK(!IsSmiDouble(number));
+  set_initialized_storage(isolate()->factory()->NewHeapNumber(number));
+  return storage_;
 }
 
 bool TranslatedValue::IsMaterializedObject() const {
@@ -2634,8 +2621,9 @@ Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
 }
 
 void TranslatedValue::Handlify() {
-  if (kind() == kTagged) {
-    set_initialized_storage(Handle<Object>(raw_literal(), isolate()));
+  if (kind() == kTagged && raw_literal().IsHeapObject()) {
+    set_initialized_storage(
+        Handle<HeapObject>(HeapObject::cast(raw_literal()), isolate()));
     raw_literal_ = Object();
   }
 }
@@ -3386,7 +3374,7 @@ TranslatedValue* TranslatedState::GetValueByObjectIndex(int object_index) {
   return &(frames_[pos.frame_index_].values_[pos.value_index_]);
 }
 
-Handle<Object> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
+Handle<HeapObject> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
   slot = ResolveCapturedObject(slot);
 
   DisallowHeapAllocation no_allocation;
@@ -3401,7 +3389,7 @@ Handle<Object> TranslatedState::InitializeObjectAt(TranslatedValue* slot) {
       InitializeCapturedObjectAt(index, &worklist, no_allocation);
     }
   }
-  return slot->GetStorage();
+  return slot->storage();
 }
 
 void TranslatedState::InitializeCapturedObjectAt(
@@ -3501,11 +3489,17 @@ void TranslatedState::EnsureObjectAllocatedAt(TranslatedValue* slot) {
   }
 }
 
+int TranslatedValue::GetSmiValue() const {
+  Object value = GetRawValue();
+  CHECK(value.IsSmi());
+  return Smi::cast(value).value();
+}
+
 void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
                                                   int* value_index,
                                                   TranslatedValue* slot,
                                                   Handle<Map> map) {
-  int length = Smi::cast(frame->values_[*value_index].GetRawValue()).value();
+  int length = frame->values_[*value_index].GetSmiValue();
   (*value_index)++;
   Handle<FixedDoubleArray> array = Handle<FixedDoubleArray>::cast(
       isolate()->factory()->NewFixedDoubleArray(length));
@@ -3539,10 +3533,10 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
 
 namespace {
 
-enum DoubleStorageKind : uint8_t {
+enum StorageKind : uint8_t {
   kStoreTagged,
   kStoreUnboxedDouble,
-  kStoreMutableHeapNumber,
+  kStoreHeapObject
 };
 
 }  // namespace
@@ -3614,9 +3608,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case STRING_TABLE_TYPE: {
       // Check we have the right size.
-      int array_length =
-          Smi::cast(frame->values_[value_index].GetRawValue()).value();
-
+      int array_length = frame->values_[value_index].GetSmiValue();
       int instance_size = FixedArray::SizeFor(array_length);
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kTaggedSize);
 
@@ -3635,13 +3627,13 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
 
     case PROPERTY_ARRAY_TYPE: {
       // Check we have the right size.
-      int length_or_hash =
-          Smi::cast(frame->values_[value_index].GetRawValue()).value();
+      int length_or_hash = frame->values_[value_index].GetSmiValue();
       int array_length = PropertyArray::LengthField::decode(length_or_hash);
       int instance_size = PropertyArray::SizeFor(array_length);
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kTaggedSize);
 
       slot->set_storage(AllocateStorageFor(slot));
+
       // Make sure all the remaining children (after the map) are allocated.
       return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
                                      &value_index, worklist);
@@ -3686,7 +3678,7 @@ void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
     } else {
       // Make sure the simple values (heap numbers, etc.) are properly
       // initialized.
-      child_slot->MaterializeSimple();
+      child_slot->GetValue();
     }
     SkipSlots(1, frame, value_index);
   }
@@ -3701,16 +3693,17 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
   properties_slot->mark_allocated();
   properties_slot->set_storage(object_storage);
 
-  // Set markers for the double properties.
+  // Set markers for out-of-object properties.
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-    if (descriptors->GetDetails(i).representation().IsDouble() &&
-        !index.is_inobject()) {
+    Representation representation = descriptors->GetDetails(i).representation();
+    if (!index.is_inobject() &&
+        (representation.IsDouble() || representation.IsHeapObject())) {
       CHECK(!map->IsUnboxedDoubleField(index));
       int outobject_index = index.outobject_array_index();
       int array_index = outobject_index * kTaggedSize;
-      object_storage->set(array_index, kStoreMutableHeapNumber);
+      object_storage->set(array_index, kStoreHeapObject);
     }
   }
 }
@@ -3736,31 +3729,44 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
   // Now we handle the interesting (JSObject) case.
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate());
 
-  // Set markers for the double properties.
+  // Set markers for in-object properties.
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-    if (descriptors->GetDetails(i).representation().IsDouble() &&
-        index.is_inobject()) {
+    Representation representation = descriptors->GetDetails(i).representation();
+    if (index.is_inobject() &&
+        (representation.IsDouble() || representation.IsHeapObject())) {
       CHECK_GE(index.index(), FixedArray::kHeaderSize / kTaggedSize);
       int array_index = index.index() * kTaggedSize - FixedArray::kHeaderSize;
-      uint8_t marker = map->IsUnboxedDoubleField(index)
-                           ? kStoreUnboxedDouble
-                           : kStoreMutableHeapNumber;
+      uint8_t marker = map->IsUnboxedDoubleField(index) ? kStoreUnboxedDouble
+                                                        : kStoreHeapObject;
       object_storage->set(array_index, marker);
     }
   }
   slot->set_storage(object_storage);
 }
 
-Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
-                                                   int* value_index) {
-  TranslatedValue* slot = frame->ValueAt(*value_index);
-  SkipSlots(1, frame, value_index);
+TranslatedValue* TranslatedState::GetResolvedSlot(TranslatedFrame* frame,
+                                                  int value_index) {
+  TranslatedValue* slot = frame->ValueAt(value_index);
   if (slot->kind() == TranslatedValue::kDuplicatedObject) {
     slot = ResolveCapturedObject(slot);
   }
-  CHECK_NE(TranslatedValue::kUninitialized, slot->materialization_state());
-  return slot->GetStorage();
+  CHECK_NE(slot->materialization_state(), TranslatedValue::kUninitialized);
+  return slot;
+}
+
+TranslatedValue* TranslatedState::GetResolvedSlotAndAdvance(
+    TranslatedFrame* frame, int* value_index) {
+  TranslatedValue* slot = GetResolvedSlot(frame, *value_index);
+  SkipSlots(1, frame, value_index);
+  return slot;
+}
+
+Handle<Object> TranslatedState::GetValueAndAdvance(TranslatedFrame* frame,
+                                                   int* value_index) {
+  TranslatedValue* slot = GetResolvedSlot(frame, *value_index);
+  SkipSlots(1, frame, value_index);
+  return slot->GetValue();
 }
 
 void TranslatedState::InitializeJSObjectAt(
@@ -3788,29 +3794,25 @@ void TranslatedState::InitializeJSObjectAt(
   // marker to see if we store an unboxed double.
   DCHECK_EQ(kTaggedSize, JSObject::kPropertiesOrHashOffset);
   for (int i = 2; i < slot->GetChildrenCount(); i++) {
-    // Initialize and extract the value from its slot.
-    Handle<Object> field_value = GetValueAndAdvance(frame, value_index);
-
+    TranslatedValue* slot = GetResolvedSlotAndAdvance(frame, value_index);
     // Read out the marker and ensure the field is consistent with
     // what the markers in the storage say (note that all heap numbers
     // should be fully initialized by now).
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     if (marker == kStoreUnboxedDouble) {
-      double double_field_value;
-      if (field_value->IsSmi()) {
-        double_field_value = Smi::cast(*field_value).value();
-      } else {
-        CHECK(field_value->IsHeapNumber());
-        double_field_value = HeapNumber::cast(*field_value).value();
-      }
-      object_storage->WriteField<double>(offset, double_field_value);
-    } else if (marker == kStoreMutableHeapNumber) {
+      Handle<HeapObject> field_value = slot->storage();
       CHECK(field_value->IsHeapNumber());
+      object_storage->WriteField<double>(offset, field_value->Number());
+    } else if (marker == kStoreHeapObject) {
+      Handle<HeapObject> field_value = slot->storage();
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);
     } else {
       CHECK_EQ(kStoreTagged, marker);
+      Handle<Object> field_value = slot->GetValue();
+      DCHECK_IMPLIES(field_value->IsHeapNumber(),
+                     !IsSmiDouble(field_value->Number()));
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);
     }
@@ -3836,15 +3838,18 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
 
   // Write the fields to the object.
   for (int i = 1; i < slot->GetChildrenCount(); i++) {
-    Handle<Object> field_value = GetValueAndAdvance(frame, value_index);
+    TranslatedValue* slot = GetResolvedSlotAndAdvance(frame, value_index);
     int offset = i * kTaggedSize;
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
-    if (i > 1 && marker == kStoreMutableHeapNumber) {
-      CHECK(field_value->IsHeapNumber());
+    Handle<Object> field_value;
+    if (i > 1 && marker == kStoreHeapObject) {
+      field_value = slot->storage();
     } else {
       CHECK(marker == kStoreTagged || i == 1);
+      field_value = slot->GetValue();
+      DCHECK_IMPLIES(field_value->IsHeapNumber(),
+                     !IsSmiDouble(field_value->Number()));
     }
-
     WRITE_FIELD(*object_storage, offset, *field_value);
     WRITE_BARRIER(*object_storage, offset, *field_value);
   }
@@ -3911,10 +3916,7 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
           // argument (the receiver).
           static constexpr int kTheContext = 1;
           const int height = frames_[i].height() + kTheContext;
-          Object argc_object = frames_[i].ValueAt(height - 1)->GetRawValue();
-          CHECK(argc_object.IsSmi());
-          *args_count = Smi::ToInt(argc_object);
-
+          *args_count = frames_[i].ValueAt(height - 1)->GetSmiValue();
           DCHECK_EQ(*args_count, 1);
         } else {
           *args_count = InternalFormalParameterCountWithReceiver(
@@ -3956,21 +3958,30 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
 
     CHECK(value_info->IsMaterializedObject());
 
-    // Skip duplicate objects (i.e., those that point to some
-    // other object id).
+    // Skip duplicate objects (i.e., those that point to some other object id).
     if (value_info->object_index() != i) continue;
 
+    Handle<Object> previous_value(previously_materialized_objects->get(i),
+                                  isolate_);
     Handle<Object> value(value_info->GetRawValue(), isolate_);
 
-    if (!value.is_identical_to(marker)) {
-      if (previously_materialized_objects->get(i) == *marker) {
+    if (value.is_identical_to(marker)) {
+      DCHECK_EQ(*previous_value, *marker);
+    } else {
+      if (*previous_value == *marker) {
+        if (value->IsSmi()) {
+          value = isolate()->factory()->NewHeapNumber(value->Number());
+        }
         previously_materialized_objects->set(i, *value);
         value_changed = true;
       } else {
-        CHECK(previously_materialized_objects->get(i) == *value);
+        CHECK(*previous_value == *value ||
+              (previous_value->IsHeapNumber() && value->IsSmi() &&
+               previous_value->Number() == value->Number()));
       }
     }
   }
+
   if (new_store && value_changed) {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
@@ -4004,8 +4015,10 @@ void TranslatedState::UpdateFromPreviouslyMaterializedObjects() {
       CHECK(value_info->IsMaterializedObject());
 
       if (value_info->kind() == TranslatedValue::kCapturedObject) {
-        value_info->set_initialized_storage(
-            Handle<Object>(previously_materialized_objects->get(i), isolate_));
+        Handle<Object> object(previously_materialized_objects->get(i),
+                              isolate_);
+        CHECK(object->IsHeapObject());
+        value_info->set_initialized_storage(Handle<HeapObject>::cast(object));
       }
     }
   }
@@ -4019,7 +4032,7 @@ void TranslatedState::VerifyMaterializedObjects() {
     if (slot->kind() == TranslatedValue::kCapturedObject) {
       CHECK_EQ(slot, GetValueByObjectIndex(slot->object_index()));
       if (slot->materialization_state() == TranslatedValue::kFinished) {
-        slot->GetStorage()->ObjectVerify(isolate());
+        slot->storage()->ObjectVerify(isolate());
       } else {
         CHECK_EQ(slot->materialization_state(),
                  TranslatedValue::kUninitialized);

@@ -17,6 +17,7 @@ group("v8_test262") {
     "harness-adapt.js",
     "harness-adapt-donotevaluate.js",
     "harness-agent.js",
+    "harness-ishtmldda.js",
     "test262.status",
     "testcfg.py",
     "local-tests/",

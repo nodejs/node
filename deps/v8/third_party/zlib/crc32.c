@@ -497,7 +497,7 @@ uLong ZEXPORT crc32_combine64(crc1, crc2, len2)
 
 ZLIB_INTERNAL void crc_reset(deflate_state *const s)
 {
-#ifdef ADLER32_SIMD_SSSE3
+#ifdef CRC32_SIMD_SSE42_PCLMUL
     if (x86_cpu_enable_simd) {
         crc_fold_init(s);
         return;
@@ -508,7 +508,7 @@ ZLIB_INTERNAL void crc_reset(deflate_state *const s)
 
 ZLIB_INTERNAL void crc_finalize(deflate_state *const s)
 {
-#ifdef ADLER32_SIMD_SSSE3
+#ifdef CRC32_SIMD_SSE42_PCLMUL
     if (x86_cpu_enable_simd)
         s->strm->adler = crc_fold_512to32(s);
 #endif
@@ -516,7 +516,7 @@ ZLIB_INTERNAL void crc_finalize(deflate_state *const s)
 
 ZLIB_INTERNAL void copy_with_crc(z_streamp strm, Bytef *dst, long size)
 {
-#ifdef ADLER32_SIMD_SSSE3
+#ifdef CRC32_SIMD_SSE42_PCLMUL
     if (x86_cpu_enable_simd) {
         crc_fold_copy(strm->state, dst, strm->next_in, size);
         return;

@@ -121,12 +121,14 @@ namespace compiler {
   V(PPC_LoadWord64)                  \
   V(PPC_LoadFloat32)                 \
   V(PPC_LoadDouble)                  \
+  V(PPC_LoadSimd128)                 \
   V(PPC_StoreWord8)                  \
   V(PPC_StoreWord16)                 \
   V(PPC_StoreWord32)                 \
   V(PPC_StoreWord64)                 \
   V(PPC_StoreFloat32)                \
   V(PPC_StoreDouble)                 \
+  V(PPC_StoreSimd128)                \
   V(PPC_ByteRev32)                   \
   V(PPC_ByteRev64)                   \
   V(PPC_CompressSigned)              \
@@ -187,7 +189,25 @@ namespace compiler {
   V(PPC_AtomicXorInt8)               \
   V(PPC_AtomicXorInt16)              \
   V(PPC_AtomicXorInt32)              \
-  V(PPC_AtomicXorInt64)
+  V(PPC_AtomicXorInt64)              \
+  V(PPC_F64x2Splat)                  \
+  V(PPC_F64x2ExtractLane)            \
+  V(PPC_F32x4Splat)                  \
+  V(PPC_F32x4ExtractLane)            \
+  V(PPC_I64x2Splat)                  \
+  V(PPC_I64x2ExtractLane)            \
+  V(PPC_I32x4Splat)                  \
+  V(PPC_I32x4ExtractLane)            \
+  V(PPC_I16x8Splat)                  \
+  V(PPC_I16x8ExtractLaneU)           \
+  V(PPC_I16x8ExtractLaneS)           \
+  V(PPC_I8x16Splat)                  \
+  V(PPC_I8x16ExtractLaneU)           \
+  V(PPC_I8x16ExtractLaneS)           \
+  V(PPC_StoreCompressTagged)         \
+  V(PPC_LoadDecompressTaggedSigned)  \
+  V(PPC_LoadDecompressTaggedPointer) \
+  V(PPC_LoadDecompressAnyTagged)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -12,6 +12,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-comments.h"
 #include "src/codegen/code-reference.h"
+#include "src/codegen/external-reference-encoder.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -20,7 +21,6 @@
 #include "src/ic/ic.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/serializer-common.h"
 #include "src/strings/string-stream.h"
 #include "src/utils/vector.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -222,7 +222,11 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
   } else if (RelocInfo::IsEmbeddedObjectMode(rmode)) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    relocinfo->target_object().ShortPrint(&accumulator);
+    if (relocinfo->host().is_null()) {
+      relocinfo->target_object_no_host(isolate).ShortPrint(&accumulator);
+    } else {
+      relocinfo->target_object().ShortPrint(&accumulator);
+    }
     std::unique_ptr<char[]> obj_name = accumulator.ToCString();
     const bool is_compressed = RelocInfo::IsCompressedEmbeddedObject(rmode);
     out->AddFormatted("    ;; %sobject: %s",
@@ -245,9 +249,9 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     }
   } else if (RelocInfo::IsWasmStubCall(rmode) && host.is_wasm_code()) {
     // Host is isolate-independent, try wasm native module instead.
-    const char* runtime_stub_name =
-        host.as_wasm_code()->native_module()->GetRuntimeStubName(
-            relocinfo->wasm_stub_call_address());
+    const char* runtime_stub_name = GetRuntimeStubName(
+        host.as_wasm_code()->native_module()->GetRuntimeStubId(
+            relocinfo->wasm_stub_call_address()));
     out->AddFormatted("    ;; wasm stub: %s", runtime_stub_name);
   } else if (RelocInfo::IsRuntimeEntry(rmode) && isolate &&
              isolate->deoptimizer_data() != nullptr) {

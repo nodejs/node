@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
+#include "include/v8-inspector.h"
 #include "src/base/safe_conversions.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
@@ -24,8 +25,6 @@
 #include "src/inspector/v8-runtime-agent-impl.h"
 #include "src/inspector/v8-stack-trace-impl.h"
 #include "src/inspector/v8-value-utils.h"
-
-#include "include/v8-inspector.h"
 
 namespace v8_inspector {
 
@@ -1150,6 +1149,55 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
       result, exceptionDetails);
 }
 
+Response V8DebuggerAgentImpl::executeWasmEvaluator(
+    const String16& callFrameId, const protocol::Binary& evaluator,
+    Maybe<double> timeout,
+    std::unique_ptr<protocol::Runtime::RemoteObject>* result,
+    Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
+  if (!v8::debug::StackTraceIterator::SupportsWasmDebugEvaluate()) {
+    return Response::ServerError(
+        "--wasm-expose-debug-eval is required to execte evaluator modules");
+  }
+  if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
+  InjectedScript::CallFrameScope scope(m_session, callFrameId);
+  Response response = scope.initialize();
+  if (!response.IsSuccess()) return response;
+
+  int frameOrdinal = static_cast<int>(scope.frameOrdinal());
+  std::unique_ptr<v8::debug::StackTraceIterator> it =
+      v8::debug::StackTraceIterator::Create(m_isolate, frameOrdinal);
+  if (it->Done()) {
+    return Response::ServerError("Could not find call frame with given id");
+  }
+  if (!it->GetScript()->IsWasm()) {
+    return Response::ServerError(
+        "executeWasmEvaluator can only be called on WebAssembly frames");
+  }
+
+  v8::MaybeLocal<v8::Value> maybeResultValue;
+  {
+    V8InspectorImpl::EvaluateScope evaluateScope(scope);
+    if (timeout.isJust()) {
+      response = evaluateScope.setTimeout(timeout.fromJust() / 1000.0);
+      if (!response.IsSuccess()) return response;
+    }
+    v8::MaybeLocal<v8::String> eval_result =
+        it->EvaluateWasm({evaluator.data(), evaluator.size()}, frameOrdinal);
+    if (!eval_result.IsEmpty()) maybeResultValue = eval_result.ToLocalChecked();
+  }
+
+  // Re-initialize after running client's code, as it could have destroyed
+  // context or session.
+  response = scope.initialize();
+  if (!response.IsSuccess()) return response;
+
+  String16 object_group = "";
+  InjectedScript* injected_script = scope.injectedScript();
+  return injected_script->wrapEvaluateResult(maybeResultValue, scope.tryCatch(),
+                                             object_group, WrapMode::kNoPreview,
+                                             result, exceptionDetails);
+}
+
 Response V8DebuggerAgentImpl::setVariableValue(
     int scopeNumber, const String16& variableName,
     std::unique_ptr<protocol::Runtime::CallArgument> newValueArgument,
@@ -1423,6 +1471,39 @@ static String16 getScriptLanguage(const V8DebuggerScript& script) {
   }
 }
 
+static const char* getDebugSymbolTypeName(
+    v8::debug::WasmScript::DebugSymbolsType type) {
+  switch (type) {
+    case v8::debug::WasmScript::DebugSymbolsType::None:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::None;
+    case v8::debug::WasmScript::DebugSymbolsType::SourceMap:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
+          SourceMap;
+    case v8::debug::WasmScript::DebugSymbolsType::EmbeddedDWARF:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
+          EmbeddedDWARF;
+    case v8::debug::WasmScript::DebugSymbolsType::ExternalDWARF:
+      return v8_inspector::protocol::Debugger::DebugSymbols::TypeEnum::
+          ExternalDWARF;
+  }
+}
+
+static std::unique_ptr<protocol::Debugger::DebugSymbols> getDebugSymbols(
+    const V8DebuggerScript& script) {
+  v8::debug::WasmScript::DebugSymbolsType type;
+  if (!script.getDebugSymbolsType().To(&type)) return {};
+
+  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
+      v8_inspector::protocol::Debugger::DebugSymbols::create()
+          .setType(getDebugSymbolTypeName(type))
+          .build();
+  String16 externalUrl;
+  if (script.getExternalDebugSymbolsURL().To(&externalUrl)) {
+    debugSymbols->setExternalURL(externalUrl);
+  }
+  return debugSymbols;
+}
+
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
@@ -1458,6 +1539,8 @@ void V8DebuggerAgentImpl::didParseSource(
       script->getLanguage() == V8DebuggerScript::Language::JavaScript
           ? Maybe<int>()
           : script->codeOffset();
+  std::unique_ptr<protocol::Debugger::DebugSymbols> debugSymbols =
+      getDebugSymbols(*script);
 
   m_scripts[scriptId] = std::move(script);
   // Release the strong reference to get notified when debugger is the only
@@ -1505,8 +1588,8 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
         std::move(executionContextAuxDataParam), isLiveEditParam,
         std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
-        std::move(stackTrace), std::move(codeOffset),
-        std::move(scriptLanguage));
+        std::move(stackTrace), std::move(codeOffset), std::move(scriptLanguage),
+        std::move(debugSymbols));
   } else {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
@@ -1514,7 +1597,8 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
         isModuleParam, scriptRef->length(), std::move(stackTrace),
-        std::move(codeOffset), std::move(scriptLanguage));
+        std::move(codeOffset), std::move(scriptLanguage),
+        std::move(debugSymbols));
   }
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;

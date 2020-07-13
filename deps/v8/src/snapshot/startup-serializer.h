@@ -18,15 +18,16 @@ class ReadOnlySerializer;
 
 class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
  public:
-  StartupSerializer(Isolate* isolate, ReadOnlySerializer* read_only_serializer);
+  StartupSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
+                    ReadOnlySerializer* read_only_serializer);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
   // 1) Strong roots
   // 2) Builtins and bytecode handlers
-  // 3) Partial snapshot cache
+  // 3) Startup object cache
   // 4) Weak references (e.g. the string table)
-  void SerializeStrongReferences();
+  void SerializeStrongReferences(const DisallowHeapAllocation& no_gc);
   void SerializeWeakReferencesAndDeferred();
 
   // If |obj| can be serialized in the read-only snapshot then add it to the
@@ -36,10 +37,9 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
   bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink,
                                          HeapObject obj);
 
-  // Adds |obj| to the partial snapshot object cache if not already present and
-  // emits a PartialSnapshotCache bytecode into |sink|.
-  void SerializeUsingPartialSnapshotCache(SnapshotByteSink* sink,
-                                          HeapObject obj);
+  // Adds |obj| to the startup object object cache if not already present and
+  // emits a StartupObjectCache bytecode into |sink|.
+  void SerializeUsingStartupObjectCache(SnapshotByteSink* sink, HeapObject obj);
 
   // The per-heap dirty FinalizationRegistry list is weak and not serialized. No
   // JSFinalizationRegistries should be used during startup.

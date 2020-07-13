@@ -331,8 +331,7 @@ struct CheckListPattern {
 }  // namespace
 
 const std::set<std::string>& JSListFormat::GetAvailableLocales() {
-  static base::LazyInstance<
-      Intl::AvailableLocales<icu::Locale, CheckListPattern>>::type
+  static base::LazyInstance<Intl::AvailableLocales<CheckListPattern>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

@@ -23,6 +23,7 @@ bitfield struct JSDateTimeFormatFlags extends uint31 {
   time_style: DateTimeStyle: 3 bit;
 }
 
+@generateCppClass
 extern class JSDateTimeFormat extends JSObject {
   locale: String;
   icu_locale: Foreign;                // Managed<icu::Locale>
@@ -40,6 +41,7 @@ bitfield struct JSDisplayNamesFlags extends uint31 {
   fallback: JSDisplayNamesFallback: 1 bit;
 }
 
+@generateCppClass
 extern class JSDisplayNames extends JSObject {
   internal: Foreign;  // Managed<DisplayNamesInternal>
   flags: SmiTagged<JSDisplayNamesFlags>;
@@ -52,12 +54,14 @@ bitfield struct JSListFormatFlags extends uint31 {
   Type: JSListFormatType: 2 bit;  // "type" is a reserved word.
 }
 
+@generateCppClass
 extern class JSListFormat extends JSObject {
   locale: String;
   icu_formatter: Foreign;  // Managed<icu::ListFormatter>
   flags: SmiTagged<JSListFormatFlags>;
 }
 
+@generateCppClass
 extern class JSNumberFormat extends JSObject {
   locale: String;
   icu_number_formatter:
@@ -70,6 +74,7 @@ bitfield struct JSPluralRulesFlags extends uint31 {
   Type: JSPluralRulesType: 1 bit;  // "type" is a reserved word.
 }
 
+@generateCppClass
 extern class JSPluralRules extends JSObject {
   locale: String;
   flags: SmiTagged<JSPluralRulesFlags>;
@@ -84,6 +89,7 @@ bitfield struct JSRelativeTimeFormatFlags extends uint31 {
   numeric: JSRelativeTimeFormatNumeric: 1 bit;
 }
 
+@generateCppClass
 extern class JSRelativeTimeFormat extends JSObject {
   locale: String;
   numberingSystem: String;
@@ -91,6 +97,7 @@ extern class JSRelativeTimeFormat extends JSObject {
   flags: SmiTagged<JSRelativeTimeFormatFlags>;
 }
 
+@generateCppClass
 extern class JSLocale extends JSObject {
   icu_locale: Foreign;  // Managed<icu::Locale>
 }
@@ -101,6 +108,7 @@ bitfield struct JSSegmenterFlags extends uint31 {
   granularity: JSSegmenterGranularity: 2 bit;
 }
 
+@generateCppClass
 extern class JSSegmenter extends JSObject {
   locale: String;
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
@@ -112,12 +120,14 @@ bitfield struct JSSegmentIteratorFlags extends uint31 {
   break_type_set: bool: 1 bit;
 }
 
+@generateCppClass
 extern class JSSegmentIterator extends JSObject {
   icu_break_iterator: Foreign;  // Managed<icu::BreakIterator>
   unicode_string: Foreign;      // Managed<icu::UnicodeString>
   flags: SmiTagged<JSSegmentIteratorFlags>;
 }
 
+@generateCppClass
 extern class JSV8BreakIterator extends JSObject {
   locale: String;
   break_iterator: Foreign;  // Managed<icu::BreakIterator>;
@@ -129,6 +139,7 @@ extern class JSV8BreakIterator extends JSObject {
   bound_break_type: Undefined|JSFunction;
 }
 
+@generateCppClass
 extern class JSCollator extends JSObject {
   icu_collator: Foreign;  // Managed<icu::Collator>
   bound_compare: Undefined|JSFunction;

@@ -90,7 +90,10 @@ class Variable final : public ZoneObject {
   }
   void SetMaybeAssigned() {
     if (mode() == VariableMode::kConst) return;
-
+    // Private names are only initialized once by us.
+    if (name_->IsPrivateName()) {
+      return;
+    }
     // If this variable is dynamically shadowing another variable, then that
     // variable could also be assigned (in the non-shadowing case).
     if (has_local_if_not_shadowed()) {

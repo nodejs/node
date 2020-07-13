@@ -2043,9 +2043,9 @@ struct MulDPInst {
   Node* (RawMachineAssembler::*mul_constructor)(Node*, Node*);
   Node* (RawMachineAssembler::*add_constructor)(Node*, Node*);
   Node* (RawMachineAssembler::*sub_constructor)(Node*, Node*);
-  ArchOpcode add_arch_opcode;
-  ArchOpcode sub_arch_opcode;
-  ArchOpcode neg_arch_opcode;
+  ArchOpcode multiply_add_arch_opcode;
+  ArchOpcode multiply_sub_arch_opcode;
+  ArchOpcode multiply_neg_arch_opcode;
   MachineType machine_type;
 };
 
@@ -2077,7 +2077,7 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, AddWithMul) {
     m.Return((m.*mdpi.add_constructor)(m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(mdpi.add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2087,7 +2087,7 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, AddWithMul) {
     m.Return((m.*mdpi.add_constructor)(n, m.Parameter(2)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(mdpi.add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2103,7 +2103,7 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, SubWithMul) {
     m.Return((m.*mdpi.sub_constructor)(m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(mdpi.sub_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.multiply_sub_arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(3U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2120,7 +2120,7 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, NegativeMul) {
     m.Return((m.*mdpi.mul_constructor)(n, m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(mdpi.neg_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.multiply_neg_arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2131,7 +2131,7 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, NegativeMul) {
     m.Return((m.*mdpi.mul_constructor)(m.Parameter(0), n));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(mdpi.neg_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(mdpi.multiply_neg_arch_opcode, s[0]->arch_opcode());
     EXPECT_EQ(2U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
@@ -2140,6 +2140,85 @@ TEST_P(InstructionSelectorIntDPWithIntMulTest, NegativeMul) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorIntDPWithIntMulTest,
                          ::testing::ValuesIn(kMulDPInstructions));
+
+namespace {
+
+struct SIMDMulDPInst {
+  const char* mul_constructor_name;
+  const Operator* (MachineOperatorBuilder::*mul_operator)(void);
+  const Operator* (MachineOperatorBuilder::*add_operator)(void);
+  const Operator* (MachineOperatorBuilder::*sub_operator)(void);
+  ArchOpcode multiply_add_arch_opcode;
+  ArchOpcode multiply_sub_arch_opcode;
+  MachineType machine_type;
+};
+
+std::ostream& operator<<(std::ostream& os, const SIMDMulDPInst& inst) {
+  return os << inst.mul_constructor_name;
+}
+
+}  // namespace
+
+static const SIMDMulDPInst kSIMDMulDPInstructions[] = {
+    {"I32x4Mul", &MachineOperatorBuilder::I32x4Mul,
+     &MachineOperatorBuilder::I32x4Add, &MachineOperatorBuilder::I32x4Sub,
+     kArm64I32x4Mla, kArm64I32x4Mls, MachineType::Simd128()},
+    {"I16x8Mul", &MachineOperatorBuilder::I16x8Mul,
+     &MachineOperatorBuilder::I16x8Add, &MachineOperatorBuilder::I16x8Sub,
+     kArm64I16x8Mla, kArm64I16x8Mls, MachineType::Simd128()},
+    {"I8x16Mul", &MachineOperatorBuilder::I8x16Mul,
+     &MachineOperatorBuilder::I8x16Add, &MachineOperatorBuilder::I8x16Sub,
+     kArm64I8x16Mla, kArm64I8x16Mls, MachineType::Simd128()}};
+
+using InstructionSelectorSIMDDPWithSIMDMulTest =
+    InstructionSelectorTestWithParam<SIMDMulDPInst>;
+
+TEST_P(InstructionSelectorSIMDDPWithSIMDMulTest, AddWithMul) {
+  const SIMDMulDPInst mdpi = GetParam();
+  const MachineType type = mdpi.machine_type;
+  {
+    StreamBuilder m(this, type, type, type, type);
+    Node* n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(1),
+                        m.Parameter(2));
+    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), m.Parameter(0), n));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, type, type, type, type);
+    Node* n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(0),
+                        m.Parameter(1));
+    m.Return(m.AddNode((m.machine()->*mdpi.add_operator)(), n, m.Parameter(2)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(mdpi.multiply_add_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+TEST_P(InstructionSelectorSIMDDPWithSIMDMulTest, SubWithMul) {
+  const SIMDMulDPInst mdpi = GetParam();
+  const MachineType type = mdpi.machine_type;
+  {
+    StreamBuilder m(this, type, type, type, type);
+    Node* n = m.AddNode((m.machine()->*mdpi.mul_operator)(), m.Parameter(1),
+                        m.Parameter(2));
+    m.Return(m.AddNode((m.machine()->*mdpi.sub_operator)(), m.Parameter(0), n));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(mdpi.multiply_sub_arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
+                         InstructionSelectorSIMDDPWithSIMDMulTest,
+                         ::testing::ValuesIn(kSIMDMulDPInstructions));
 
 TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   // x * (2^k + 1) -> x + (x << k)

@@ -10,6 +10,8 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/execution/isolate.h"
+#include "src/heap/concurrent-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -17,10 +19,13 @@ namespace internal {
 class Heap;
 class Safepoint;
 class LocalHandles;
+class PersistentHandles;
 
 class LocalHeap {
  public:
-  V8_EXPORT_PRIVATE explicit LocalHeap(Heap* heap);
+  V8_EXPORT_PRIVATE explicit LocalHeap(
+      Heap* heap,
+      std::unique_ptr<PersistentHandles> persistent_handles = nullptr);
   V8_EXPORT_PRIVATE ~LocalHeap();
 
   // Invoked by main thread to signal this thread that it needs to halt in a
@@ -32,6 +37,16 @@ class LocalHeap {
   V8_EXPORT_PRIVATE void Safepoint();
 
   LocalHandles* handles() { return handles_.get(); }
+
+  V8_EXPORT_PRIVATE Handle<Object> NewPersistentHandle(Address value);
+  V8_EXPORT_PRIVATE std::unique_ptr<PersistentHandles>
+  DetachPersistentHandles();
+
+  bool IsParked();
+
+  Heap* heap() { return heap_; }
+
+  ConcurrentAllocator* old_space_allocator() { return &old_space_allocator_; }
 
  private:
   enum class ThreadState {
@@ -53,6 +68,9 @@ class LocalHeap {
 
   void EnterSafepoint();
 
+  void FreeLinearAllocationArea();
+  void MakeLinearAllocationAreaIterable();
+
   Heap* heap_;
 
   base::Mutex state_mutex_;
@@ -61,14 +79,20 @@ class LocalHeap {
 
   std::atomic<bool> safepoint_requested_;
 
+  bool allocation_failed_;
+
   LocalHeap* prev_;
   LocalHeap* next_;
 
   std::unique_ptr<LocalHandles> handles_;
+  std::unique_ptr<PersistentHandles> persistent_handles_;
+
+  ConcurrentAllocator old_space_allocator_;
 
   friend class Heap;
-  friend class Safepoint;
+  friend class GlobalSafepoint;
   friend class ParkedScope;
+  friend class ConcurrentAllocator;
 };
 
 class ParkedScope {

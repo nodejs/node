@@ -148,23 +148,3 @@
   let proxy = new Proxy(obj, handler);
   let wr = new WeakRef(proxy);
 })();
-
-(function TestCleanupSomeWithoutFinalizationRegistry() {
-  assertThrows(() => FinalizationRegistry.prototype.cleanupSome.call({}), TypeError);
-  // Does not throw:
-  let fg = new FinalizationRegistry(() => {});
-  let rv = FinalizationRegistry.prototype.cleanupSome.call(fg);
-  assertEquals(undefined, rv);
-})();
-
-(function TestCleanupSomeWithNonCallableCallback() {
-  let fg = new FinalizationRegistry(() => {});
-  assertThrows(() => fg.cleanupSome(1), TypeError);
-  assertThrows(() => fg.cleanupSome(1n), TypeError);
-  assertThrows(() => fg.cleanupSome(Symbol()), TypeError);
-  assertThrows(() => fg.cleanupSome({}), TypeError);
-  assertThrows(() => fg.cleanupSome('foo'), TypeError);
-  assertThrows(() => fg.cleanupSome(true), TypeError);
-  assertThrows(() => fg.cleanupSome(false), TypeError);
-  assertThrows(() => fg.cleanupSome(null), TypeError);
-})();

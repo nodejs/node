@@ -65,7 +65,6 @@ class JSSegmenter;
 class JSV8BreakIterator;
 class JSWeakCollection;
 class JSFinalizationRegistry;
-class JSFinalizationRegistryCleanupIterator;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
@@ -76,8 +75,8 @@ class PromiseReactionJobTask;
 class PromiseRejectReactionJobTask;
 class WasmDebugInfo;
 class Zone;
-#define MAKE_FORWARD_DECLARATION(V, NAME, Name, name) class Name;
-TORQUE_INTERNAL_CLASS_LIST_GENERATOR(MAKE_FORWARD_DECLARATION, UNUSED)
+#define MAKE_FORWARD_DECLARATION(Name) class Name;
+TORQUE_INTERNAL_CLASS_LIST(MAKE_FORWARD_DECLARATION)
 #undef MAKE_FORWARD_DECLARATION
 
 template <typename T>
@@ -274,6 +273,7 @@ class CodeAssemblerParameterizedLabel;
   V(WordShl, WordT, WordT, IntegralT)                                   \
   V(WordShr, WordT, WordT, IntegralT)                                   \
   V(WordSar, WordT, WordT, IntegralT)                                   \
+  V(WordSarShiftOutZeros, WordT, WordT, IntegralT)                      \
   V(Word32Or, Word32T, Word32T, Word32T)                                \
   V(Word32And, Word32T, Word32T, Word32T)                               \
   V(Word32Xor, Word32T, Word32T, Word32T)                               \
@@ -281,6 +281,7 @@ class CodeAssemblerParameterizedLabel;
   V(Word32Shl, Word32T, Word32T, Word32T)                               \
   V(Word32Shr, Word32T, Word32T, Word32T)                               \
   V(Word32Sar, Word32T, Word32T, Word32T)                               \
+  V(Word32SarShiftOutZeros, Word32T, Word32T, Word32T)                  \
   V(Word64And, Word64T, Word64T, Word64T)                               \
   V(Word64Or, Word64T, Word64T, Word64T)                                \
   V(Word64Xor, Word64T, Word64T, Word64T)                               \
@@ -321,6 +322,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(BitcastMaybeObjectToWord, IntPtrT, MaybeObject)            \
   V(BitcastWordToTagged, Object, WordT)                        \
   V(BitcastWordToTaggedSigned, Smi, WordT)                     \
+  V(TruncateFloat32ToInt32, Int32T, Float32T)                  \
   V(TruncateFloat64ToFloat32, Float32T, Float64T)              \
   V(TruncateFloat64ToWord32, Uint32T, Float64T)                \
   V(TruncateInt64ToInt32, Int32T, Int64T)                      \
@@ -533,6 +535,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<String> StringConstant(const char* str);
   TNode<Oddball> BooleanConstant(bool value);
   TNode<ExternalReference> ExternalConstant(ExternalReference address);
+  TNode<Float32T> Float32Constant(double value);
   TNode<Float64T> Float64Constant(double value);
   TNode<BoolT> Int32TrueConstant() {
     return ReinterpretCast<BoolT>(Int32Constant(1));
@@ -572,6 +575,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<Int32T> value);
   void Return(TNode<Uint32T> value);
   void Return(TNode<WordT> value);
+  void Return(TNode<Float32T> value);
+  void Return(TNode<Float64T> value);
   void Return(TNode<WordT> value1, TNode<WordT> value2);
   void PopAndReturn(Node* pop, Node* value);
 

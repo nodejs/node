@@ -52,6 +52,7 @@ extern macro MakeWeak(HeapObject): WeakHeapObject;
 extern macro GetHeapObjectAssumeWeak(WeakHeapObject):
     HeapObject labels ClearedWeakPointer;
 extern macro IsWeakOrCleared(MaybeObject): bool;
+extern macro IsWeakReferenceToObject(MaybeObject, Object): bool;
 
 macro StrongToWeak<T: type>(x: T): Weak<T> {
   return %RawDownCast<Weak<T>>(MakeWeak(x));
@@ -147,6 +148,8 @@ type ObjectHashTable extends HashTable
 extern class NumberDictionary extends HashTable;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'void*';
+type ExternalPointer
+    generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
 extern class Code extends HeapObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 
@@ -253,10 +256,12 @@ constexpr 'CodeStubAssembler::ExtractFixedArrayFlag' {
 const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 
 extern enum MessageTemplate {
+  kAllPromisesRejected,
   kInvalidArrayBufferLength,
   kInvalidArrayLength,
   kInvalidIndex,
   kNotConstructor,
+  kNotGeneric,
   kCalledNonCallable,
   kCalledOnNullOrUndefined,
   kProtoObjectOrNull,
@@ -287,12 +292,11 @@ extern enum MessageTemplate {
   kPromiseNonCallable,
   kNotAPromise,
   kResolverNotAFunction,
-  kTooManyElementsInPromiseAll,
+  kTooManyElementsInPromiseCombinator,
   kToRadixFormatRange,
   kCalledOnNonObject,
   kRegExpGlobalInvokedOnNonGlobal,
   kProxyNonObject,
-  kProxyHandlerOrTargetRevoked,
   kProxyRevoked,
   kProxyTrapReturnedFalsishFor,
   kProxyPrivate,
@@ -303,6 +307,24 @@ extern enum MessageTemplate {
   kProxyGetPrototypeOfNonExtensible,
   kProxySetPrototypeOfNonExtensible,
   kProxyDeletePropertyNonExtensible,
+  kWeakRefsCleanupMustBeCallable,
+  kWasmTrapUnreachable,
+  kWasmTrapMemOutOfBounds,
+  kWasmTrapUnalignedAccess,
+  kWasmTrapDivByZero,
+  kWasmTrapDivUnrepresentable,
+  kWasmTrapRemByZero,
+  kWasmTrapFloatUnrepresentable,
+  kWasmTrapFuncInvalid,
+  kWasmTrapFuncSigMismatch,
+  kWasmTrapDataSegmentDropped,
+  kWasmTrapElemSegmentDropped,
+  kWasmTrapTableOutOfBounds,
+  kWasmTrapBrOnExnNullRef,
+  kWasmTrapRethrowNullRef,
+  kWasmTrapNullDereference,
+  kWasmTrapIllegalCast,
+  kWasmTrapArrayOutOfBounds,
   ...
 }
 
@@ -329,6 +351,8 @@ const kStringMaxLengthUintptr:
     constexpr uintptr generates 'String::kMaxLength';
 const kFixedArrayMaxLength:
     constexpr int31 generates 'FixedArray::kMaxLength';
+const kFixedDoubleArrayMaxLength:
+    constexpr int31 generates 'FixedDoubleArray::kMaxLength';
 const kObjectAlignmentMask: constexpr intptr
     generates 'kObjectAlignmentMask';
 const kMinAddedElementsCapacity:
@@ -363,19 +387,20 @@ type Boolean = True|False;
 
 type NumberOrUndefined = Number|Undefined;
 
-extern macro TheHoleConstant(): TheHole;
-extern macro NullConstant(): Null;
-extern macro UndefinedConstant(): Undefined;
-extern macro TrueConstant(): True;
-extern macro FalseConstant(): False;
-extern macro Int32TrueConstant(): bool;
-extern macro Int32FalseConstant(): bool;
 extern macro EmptyStringConstant(): EmptyString;
-extern macro LengthStringConstant(): String;
-extern macro NanConstant(): NaN;
+extern macro FalseConstant(): False;
+extern macro Int32FalseConstant(): bool;
+extern macro Int32TrueConstant(): bool;
 extern macro IteratorSymbolConstant(): PublicSymbol;
+extern macro LengthStringConstant(): String;
 extern macro MatchSymbolConstant(): Symbol;
+extern macro MessageStringConstant(): String;
+extern macro NanConstant(): NaN;
+extern macro NullConstant(): Null;
 extern macro ReturnStringConstant(): String;
+extern macro TheHoleConstant(): TheHole;
+extern macro TrueConstant(): True;
+extern macro UndefinedConstant(): Undefined;
 
 const TheHole: TheHole = TheHoleConstant();
 const Null: Null = NullConstant();
@@ -384,6 +409,7 @@ const True: True = TrueConstant();
 const False: False = FalseConstant();
 const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
+const kMessageString: String = MessageStringConstant();
 const kReturnString: String = ReturnStringConstant();
 
 const kNaN: NaN = NanConstant();
@@ -491,9 +517,9 @@ extern transitioning macro ToThisValue(implicit context: Context)(
 extern transitioning macro GetProperty(implicit context: Context)(
     JSAny, JSAny): JSAny;
 extern transitioning builtin SetProperty(implicit context: Context)(
-    JSAny, JSAny, JSAny);
+    JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin SetPropertyInLiteral(implicit context: Context)(
-    JSAny, JSAny, JSAny);
+    JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin DeleteProperty(implicit context: Context)(
     JSAny, JSAny | PrivateSymbol, LanguageModeSmi): Boolean;
 extern transitioning builtin HasProperty(implicit context: Context)(
@@ -502,8 +528,6 @@ extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, JSAny): Boolean;
 extern builtin LoadIC(
     Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
-extern macro CollectCallFeedback(
-    JSAny, Context, Undefined | FeedbackVector, uintptr);
 
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
@@ -640,6 +664,7 @@ extern macro IsFastAliasedArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsSlowAliasedArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsSloppyArgumentsMap(implicit context: Context)(Map): bool;
 extern macro IsStrictArgumentsMap(implicit context: Context)(Map): bool;
+extern macro IsTuple2Map(Map): bool;
 
 extern macro SmiAbove(Smi, Smi): bool;
 
@@ -701,7 +726,8 @@ macro Float64IsNaN(n: float64): bool {
 }
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
-type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Map|EmptyString;
+type TaggedWithIdentity =
+    JSReceiver|FixedArrayBase|Oddball|Map|WeakCell|Context|EmptyString;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
@@ -877,9 +903,13 @@ extern macro TruncateIntPtrToInt32(intptr): int32;
 extern macro SmiTag(intptr): Smi;
 extern macro SmiFromInt32(int32): Smi;
 extern macro SmiFromUint32(uint32): Smi;
+extern macro SmiFromIntPtr(intptr): Smi;
 extern macro SmiUntag(Smi): intptr;
 macro SmiUntag<T: type>(value: SmiTagged<T>): T {
   return %RawDownCast<T>(Unsigned(SmiToInt32(Convert<Smi>(value))));
+}
+macro SmiTag<T : type extends uint31>(value: T): SmiTagged<T> {
+  return %RawDownCast<SmiTagged<T>>(SmiFromUint32(value));
 }
 extern macro SmiToInt32(Smi): int32;
 extern macro TaggedIndexToIntPtr(TaggedIndex): intptr;
@@ -889,9 +919,13 @@ extern macro SmiToTaggedIndex(Smi): TaggedIndex;
 extern macro RoundIntPtrToFloat64(intptr): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
+extern macro ChangeTaggedNonSmiToInt32(implicit context: Context)(JSAnyNotSmi):
+    int32;
+extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;
 extern macro ChangeFloat64ToTagged(float64): Number;
 extern macro ChangeFloat64ToUintPtr(float64): uintptr;
 extern macro ChangeFloat64ToIntPtr(float64): intptr;
+extern macro ChangeInt32ToFloat64(int32): float64;
 extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
@@ -1241,8 +1275,7 @@ macro ChangeUintPtrNumberToUintPtr(value: Number): uintptr {
   try {
     return TryNumberToUintPtr(value, kModeValueIsSafeIntegerUintPtr)
         otherwise InvalidValue, InvalidValue, InvalidValue;
-  }
-  label InvalidValue {
+  } label InvalidValue {
     unreachable;
   }
 }
@@ -1253,8 +1286,7 @@ macro ChangeSafeIntegerNumberToUintPtr(value: Number):
   try {
     return TryNumberToUintPtr(value, kModeValueIsSafeInteger)
         otherwise InvalidValue, IfUIntPtrOverflow, InvalidValue;
-  }
-  label InvalidValue {
+  } label InvalidValue {
     unreachable;
   }
 }
@@ -1300,8 +1332,7 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
         goto ToLength(GetProperty(o, kLengthString));
       }
     }
-  }
-  label ToLength(length: JSAny) deferred {
+  } label ToLength(length: JSAny) deferred {
     return ToLength_Inline(length);
   }
 }
@@ -1321,8 +1352,7 @@ transitioning macro GetMethod(implicit context: Context)(
     o: JSAny, name: String): Callable labels IfNullOrUndefined {
   try {
     return GetMethod(o, name) otherwise IfNullOrUndefined, IfMethodNotCallable;
-  }
-  label IfMethodNotCallable(value: JSAny) deferred {
+  } label IfMethodNotCallable(value: JSAny) deferred {
     ThrowTypeError(MessageTemplate::kPropertyNotFunction, value, name, o);
   }
 }
@@ -1428,7 +1458,7 @@ macro ClampToIndexRange(indexNumber: Number, limit: uintptr): uintptr {
   }
 }
 
-extern builtin ObjectToString(Context, JSAny): JSAny;
+extern builtin ObjectToString(Context, JSAny): String;
 extern builtin StringRepeat(Context, String, Number): String;
 
 @export
@@ -1485,8 +1515,8 @@ extern transitioning runtime
 CreateDataProperty(implicit context: Context)(JSReceiver, JSAny, JSAny);
 
 namespace runtime {
-  extern runtime
-  GetDerivedMap(Context, JSFunction, JSReceiver): Map;
+extern runtime
+GetDerivedMap(Context, JSFunction, JSReceiver): Map;
 }
 
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
@@ -1537,8 +1567,7 @@ transitioning builtin FastCreateDataProperty(implicit context: Context)(
         elements[index] = value;
       }
     }
-  }
-  label Slow {
+  } label Slow {
     CreateDataProperty(receiver, key, value);
   }
   return Undefined;

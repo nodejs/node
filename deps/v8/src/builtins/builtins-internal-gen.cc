@@ -7,7 +7,8 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/execution/frame-constants.h"
+#include "src/heap/memory-chunk.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"

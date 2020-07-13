@@ -32,7 +32,9 @@ class TypeVisitor {
   static void VisitStructMethods(StructType* struct_type,
                                  const StructDeclaration* struct_declaration);
   static Signature MakeSignature(const CallableDeclaration* declaration);
-  static const StructType* ComputeTypeForStructExpression(
+  // Can return either StructType or BitFieldStructType, since they can both be
+  // used in struct expressions like `MyStruct{ a: 0, b: foo }`
+  static const Type* ComputeTypeForStructExpression(
       TypeExpression* type_expression,
       const std::vector<const Type*>& term_argument_types);
 

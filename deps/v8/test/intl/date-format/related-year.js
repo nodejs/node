@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-other-calendars
 // Test it will output relatedYear and yearName
 
 let df = new Intl.DateTimeFormat("zh-u-ca-chinese", {year: "numeric"})

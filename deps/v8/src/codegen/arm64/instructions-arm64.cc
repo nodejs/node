@@ -343,6 +343,10 @@ void NEONFormatDecoder::SetFormatMaps(const NEONFormatMap* format0,
   formats_[0] = format0;
   formats_[1] = (format1 == nullptr) ? formats_[0] : format1;
   formats_[2] = (format2 == nullptr) ? formats_[1] : format2;
+  // Support four parameters form (e.i. ld4r)
+  // to avoid using positional arguments in DisassemblingDecoder.
+  // See: https://crbug.com/v8/10365
+  formats_[3] = formats_[2];
 }
 
 void NEONFormatDecoder::SetFormatMap(unsigned index,
@@ -353,15 +357,18 @@ void NEONFormatDecoder::SetFormatMap(unsigned index,
 }
 
 const char* NEONFormatDecoder::SubstitutePlaceholders(const char* string) {
-  return Substitute(string, kPlaceholder, kPlaceholder, kPlaceholder);
+  return Substitute(string, kPlaceholder, kPlaceholder, kPlaceholder,
+                    kPlaceholder);
 }
 
 const char* NEONFormatDecoder::Substitute(const char* string,
                                           SubstitutionMode mode0,
                                           SubstitutionMode mode1,
-                                          SubstitutionMode mode2) {
+                                          SubstitutionMode mode2,
+                                          SubstitutionMode mode3) {
   snprintf(form_buffer_, sizeof(form_buffer_), string, GetSubstitute(0, mode0),
-           GetSubstitute(1, mode1), GetSubstitute(2, mode2));
+           GetSubstitute(1, mode1), GetSubstitute(2, mode2),
+           GetSubstitute(3, mode3));
   return form_buffer_;
 }
 

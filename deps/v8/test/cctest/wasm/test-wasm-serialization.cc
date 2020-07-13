@@ -69,10 +69,11 @@ class WasmSerializationTest {
     base::WriteUnalignedValue<uint32_t>(num_functions_slot, 0);
   }
 
-  MaybeHandle<WasmModuleObject> Deserialize() {
+  MaybeHandle<WasmModuleObject> Deserialize(
+      Vector<const char> source_url = {}) {
     return DeserializeNativeModule(CcTest::i_isolate(),
                                    VectorOf(serialized_bytes_),
-                                   VectorOf(wire_bytes_), {});
+                                   VectorOf(wire_bytes_), source_url);
   }
 
   void DeserializeAndRun() {
@@ -196,6 +197,19 @@ TEST(DeserializeValidModule) {
   {
     HandleScope scope(CcTest::i_isolate());
     test.DeserializeAndRun();
+  }
+  test.CollectGarbage();
+}
+
+TEST(DeserializeWithSourceUrl) {
+  WasmSerializationTest test;
+  {
+    HandleScope scope(CcTest::i_isolate());
+    const std::string url = "http://example.com/example.wasm";
+    Handle<WasmModuleObject> module_object;
+    CHECK(test.Deserialize(VectorOf(url)).ToHandle(&module_object));
+    String source_url = String::cast(module_object->script().source_url());
+    CHECK_EQ(url, source_url.ToCString().get());
   }
   test.CollectGarbage();
 }

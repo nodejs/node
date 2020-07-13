@@ -41,19 +41,14 @@ class StringUtil {
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
-// Though the templates for generating the protocol bindings reference
-// this type, js_protocol.pdl doesn't have a field of type 'binary', so
-// therefore it's unnecessary to provide an implementation here.
-class Binary {
+class V8_EXPORT Binary {
  public:
   Binary() = default;
 
   const uint8_t* data() const { return bytes_->data(); }
   size_t size() const { return bytes_->size(); }
-  String toBase64() const { UNIMPLEMENTED(); }
-  static Binary fromBase64(const String& base64, bool* success) {
-    UNIMPLEMENTED();
-  }
+  String toBase64() const;
+  static Binary fromBase64(const String& base64, bool* success);
   static Binary fromSpan(const uint8_t* data, size_t size) {
     return Binary(std::make_shared<std::vector<uint8_t>>(data, data + size));
   }

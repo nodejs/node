@@ -158,31 +158,26 @@ TNode<Object> HandlerBuiltinsAssembler::EmitKeyedSloppyArguments(
 
     TNode<IntPtrT> backing_store_length =
         LoadAndUntagFixedArrayBaseLength(backing_store);
-    if (access_mode == ArgumentsAccessMode::kHas) {
-      Label out_of_bounds(this);
-      GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length),
-             &out_of_bounds);
-      TNode<Object> result = LoadFixedArrayElement(backing_store, key);
-      var_result =
-          SelectBooleanConstant(TaggedNotEqual(result, TheHoleConstant()));
-      Goto(&end);
 
-      BIND(&out_of_bounds);
-      var_result = FalseConstant();
-      Goto(&end);
+    // Out-of-bounds access may involve prototype chain walk and is handled
+    // in runtime.
+    GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length), bailout);
+
+    // The key falls into unmapped range.
+    if (access_mode == ArgumentsAccessMode::kStore) {
+      StoreFixedArrayElement(backing_store, key, *value);
     } else {
-      GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length), bailout);
+      TNode<Object> value = LoadFixedArrayElement(backing_store, key);
+      GotoIf(TaggedEqual(value, TheHoleConstant()), bailout);
 
-      // The key falls into unmapped range.
-      if (access_mode == ArgumentsAccessMode::kLoad) {
-        TNode<Object> result = LoadFixedArrayElement(backing_store, key);
-        GotoIf(TaggedEqual(result, TheHoleConstant()), bailout);
-        var_result = result;
+      if (access_mode == ArgumentsAccessMode::kHas) {
+        var_result = TrueConstant();
       } else {
-        StoreFixedArrayElement(backing_store, key, *value);
+        DCHECK_EQ(access_mode, ArgumentsAccessMode::kLoad);
+        var_result = value;
       }
-      Goto(&end);
     }
+    Goto(&end);
   }
 
   BIND(&end);

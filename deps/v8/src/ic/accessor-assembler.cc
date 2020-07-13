@@ -208,7 +208,7 @@ void AccessorAssembler::HandleLoadAccessor(
   TNode<Foreign> foreign = LoadObjectField<Foreign>(
       call_handler_info, CallHandlerInfo::kJsCallbackOffset);
   TNode<RawPtrT> callback =
-      LoadObjectField<RawPtrT>(foreign, Foreign::kForeignAddressOffset);
+      DecodeExternalPointer(LoadForeignForeignAddress(foreign));
   TNode<Object> data =
       LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 
@@ -1655,7 +1655,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<Foreign> foreign = LoadObjectField<Foreign>(
           call_handler_info, CallHandlerInfo::kJsCallbackOffset);
       TNode<RawPtrT> callback =
-          LoadObjectField<RawPtrT>(foreign, Foreign::kForeignAddressOffset);
+          DecodeExternalPointer(LoadForeignForeignAddress(foreign));
       TNode<Object> data =
           LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 
@@ -3653,6 +3653,9 @@ void AccessorAssembler::GenerateLoadIC_Megamorphic() {
   ExitPoint direct_exit(this);
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
+
+  CSA_ASSERT(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                               MegamorphicSymbolConstant()));
 
   TryProbeStubCache(isolate()->load_stub_cache(), receiver, CAST(name),
                     &if_handler, &var_handler, &miss);

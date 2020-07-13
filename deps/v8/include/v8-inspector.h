@@ -11,7 +11,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "v8.h"  // NOLINT(build/include)
+#include "v8.h"  // NOLINT(build/include_directory)
 
 namespace v8_inspector {
 

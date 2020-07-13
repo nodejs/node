@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern class HeapNumber extends PrimitiveHeapObject { value: float64; }
+@generateCppClass
+extern class HeapNumber extends PrimitiveHeapObject {
+  value: float64;
+}
 
 // The HeapNumber value NaN
 type NaN extends HeapNumber;

@@ -31,14 +31,16 @@ class JSArrayBuffer;
 
 namespace wasm {
 
+#ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+namespace gdb_server {
+class GdbServer;
+}
+#endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
 class AsyncCompileJob;
 class ErrorThrower;
 struct ModuleWireBytes;
 class WasmFeatures;
-
-namespace gdb_server {
-class GdbServer;
-}
 
 class V8_EXPORT_PRIVATE CompilationResultResolver {
  public:
@@ -193,10 +195,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
   void CompileFunction(Isolate* isolate, NativeModule* native_module,
                        uint32_t function_index, ExecutionTier tier);
 
-  // Recompiles all functions at a specific compilation tier.
-  void RecompileAllFunctions(Isolate* isolate, NativeModule* native_module,
-                             ExecutionTier tier);
-
   void TierDownAllModulesPerIsolate(Isolate* isolate);
   void TierUpAllModulesPerIsolate(Isolate* isolate);
 
@@ -208,7 +206,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Imports the shared part of a module from a different Context/Isolate using
   // the the same engine, recreating a full module object in the given Isolate.
   Handle<WasmModuleObject> ImportNativeModule(
-      Isolate* isolate, std::shared_ptr<NativeModule> shared_module);
+      Isolate* isolate, std::shared_ptr<NativeModule> shared_module,
+      Vector<const char> source_url);
 
   WasmCodeManager* code_manager() { return &code_manager_; }
 
@@ -334,6 +333,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   using DeadCodeMap = std::unordered_map<NativeModule*, std::vector<WasmCode*>>;
   void FreeDeadCode(const DeadCodeMap&);
   void FreeDeadCodeLocked(const DeadCodeMap&);
+
+  Handle<Script> GetOrCreateScript(Isolate*,
+                                   const std::shared_ptr<NativeModule>&,
+                                   Vector<const char> source_url = {});
 
   // Call on process start and exit.
   static void InitializeOncePerProcess();

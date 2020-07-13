@@ -1131,28 +1131,6 @@ RegExpMacroAssembler::IrregexpImplementation
   return kARM64Implementation;
 }
 
-void RegExpMacroAssemblerARM64::LoadCurrentCharacterImpl(int cp_offset,
-                                                         Label* on_end_of_input,
-                                                         bool check_bounds,
-                                                         int characters,
-                                                         int eats_at_least) {
-  // It's possible to preload a small number of characters when each success
-  // path requires a large number of characters, but not the reverse.
-  DCHECK_GE(eats_at_least, characters);
-
-  // TODO(pielan): Make sure long strings are caught before this, and not
-  // just asserted in debug mode.
-  // Be sane! (And ensure that an int32_t can be used to index the string)
-  DCHECK(cp_offset < (1<<30));
-  if (check_bounds) {
-    if (cp_offset >= 0) {
-      CheckPosition(cp_offset + eats_at_least - 1, on_end_of_input);
-    } else {
-      CheckPosition(cp_offset, on_end_of_input);
-    }
-  }
-  LoadCurrentCharacterUnchecked(cp_offset, characters);
-}
 
 void RegExpMacroAssemblerARM64::PopCurrentPosition() {
   Pop(current_input_offset());

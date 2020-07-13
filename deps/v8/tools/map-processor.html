@@ -16,6 +16,29 @@ h1, h2, h3, section {
   padding-left: 15px;
 }
 
+kbd {
+  background-color: #eee;
+  border-radius: 3px;
+  border: 1px solid black;
+  display: inline-block;
+  font-size: .9em;
+  font-weight: bold;
+  padding: 0px 4px 2px 4px;
+  white-space: nowrap;
+}
+dl {
+  display: grid;
+  grid-template-columns: min-content auto;
+  grid-gap: 10px;
+}
+dt {
+  text-align: right;
+  white-space: nowrap;
+}
+dd {
+  margin: 0;
+}
+
 #content {
   opacity: 0.0;
   height: 0px;
@@ -102,25 +125,35 @@ h1, h2, h3, section {
   border: 1px black solid;
 }
 
+#stats {
+  display: flex;
+  height: 250px;
+}
+
 #stats table {
-  display: inline-block;
+  flex: 1;
   padding-right: 50px;
+  max-height: 250px;
+  display: inline-block;
 }
 #stats table td {
   cursor: pointer;
 }
 #stats .transitionTable {
-  max-height: 200px;
   overflow-y: scroll;
 }
+#stats .transitionTable tr {
+  max-width: 200px;
 
+}
 #stats .transitionType {
   text-align: right;
+  max-width: 380px;
 }
 #stats .transitionType tr td:nth-child(2) {
   text-align: left;
 }
-#stats .transitionType tr:nth-child(1) td {
+#stats table thead td {
   border-bottom: 1px black dotted;
 }
 
@@ -452,19 +485,6 @@ function tr() {
   return document.createElement("tr");
 }
 
-function define(prototype, name, fn) {
-  Object.defineProperty(prototype, name, {value:fn, enumerable:false});
-}
-
-define(Array.prototype, "max", function(fn) {
-  if (this.length == 0) return undefined;
-  if (fn == undefined) fn = (each) => each;
-  let max = fn(this[0]);
-  for (let i = 1; i < this.length; i++) {
-    max = Math.max(max, fn(this[i]));
-  }
-  return max;
-})
 define(Array.prototype, "histogram", function(mapFn) {
   let histogram = [];
   for (let i = 0; i < this.length; i++) {
@@ -482,9 +502,6 @@ define(Array.prototype, "histogram", function(mapFn) {
   }
   return histogram;
 });
-
-define(Array.prototype, "first", function() { return this[0] });
-define(Array.prototype, "last", function() { return this[this.length - 1] });
 
 // =========================================================================
 // EventHandlers
@@ -698,6 +715,7 @@ class View {
       timeNode.style.left = ((time-start) * timeToPixel) + "px";
       chunksNode.appendChild(timeNode);
     };
+    let backgroundTodo = [];
     for (let i = 0; i < chunks.length; i++) {
       let chunk = chunks[i];
       let height = (chunk.size() / max * kChunkHeight);
@@ -711,10 +729,13 @@ class View {
       node.addEventListener("mousemove", e => this.handleChunkMouseMove(e));
       node.addEventListener("click", e => this.handleChunkClick(e));
       node.addEventListener("dblclick", e => this.handleChunkDoubleClick(e));
-      this.setTimelineChunkBackground(chunk, node);
+      backgroundTodo.push([chunk, node])
       chunksNode.appendChild(node);
       chunk.markers.forEach(marker => addTimestamp(marker.time, marker.name));
     }
+
+    this.asyncSetTimelineChunkBackground(backgroundTodo)
+
     // Put a time marker roughly every 20 chunks.
     let expected  = duration / chunks.length * 20;
     let interval = (10 ** Math.floor(Math.log10(expected)));
@@ -753,6 +774,22 @@ class View {
     this.transitionView.showMaps(chunk.getUniqueTransitions());
   }
 
+  asyncSetTimelineChunkBackground(backgroundTodo) {
+    const kIncrement = 100;
+    let start = 0;
+    let delay = 1;
+    while (start < backgroundTodo.length) {
+      let end = Math.min(start+kIncrement, backgroundTodo.length);
+      setTimeout((from, to) => {
+        for (let i = from; i < to; i++) {
+          let [chunk, node] = backgroundTodo[i];
+          this.setTimelineChunkBackground(chunk, node);
+        }
+      }, delay++, start, end);
+      start = end;
+    }
+  }
+
   setTimelineChunkBackground(chunk, node) {
     // Render the types of transitions as bar charts
     const kHeight = chunk.height;
@@ -779,7 +816,7 @@ class View {
       });
     }
 
-    let imageData = this.backgroundCanvas.toDataURL("image/png");
+    let imageData = this.backgroundCanvas.toDataURL("image/webp", 0.2);
     node.style.backgroundImage = "url(" + imageData + ")";
   }
 
@@ -818,7 +855,7 @@ class View {
     ctx.stroke();
     ctx.closePath();
     ctx.fill();
-    let imageData = canvas.toDataURL("image/png");
+    let imageData = canvas.toDataURL("image/webp", 0.2);
     $("timelineOverview").style.backgroundImage = "url(" + imageData + ")";
   }
 
@@ -1101,7 +1138,7 @@ class StatsView {
   }
   updateGeneralStats() {
     let pairs = [
-      ["Maps", null, e => true],
+      ["Total", null, e => true],
       ["Transitions", 'black', e => e.edge && e.edge.isTransition()],
       ["Fast to Slow", 'violet', e => e.edge && e.edge.isFastToSlow()],
       ["Slow to Fast", 'orange', e => e.edge && e.edge.isSlowToFast()],
@@ -1115,6 +1152,7 @@ class StatsView {
 
     let text = "";
     let tableNode = table("transitionType");
+    tableNode.innerHTML = "<thead><tr><td>Color</td><td>Type</td><td>Count</td><td>Percent</td></tr></thead>";
     let name, filter;
     let total = this.timeline.size();
     pairs.forEach(([name, color, filter]) => {
@@ -1122,11 +1160,16 @@ class StatsView {
       if (color !== null) {
         row.appendChild(td(div(['colorbox', color])));
       } else {
-       row.appendChild(td(""));
+        row.appendChild(td(""));
       }
-      row.maps = this.timeline.filterUniqueTransitions(filter);
-      row.onclick =
-          (e) => this.transitionView.showMaps(e.target.parentNode.maps);
+      row.onclick = (e) => {
+        // lazily compute the stats
+        let node = e.target.parentNode;
+        if (node.maps == undefined) {
+          node.maps = this.timeline.filterUniqueTransitions(filter);
+        }
+        this.transitionView.showMaps(node.maps);
+      }
       row.appendChild(td(name));
       let count = this.timeline.count(filter);
       row.appendChild(td(count));
@@ -1139,6 +1182,7 @@ class StatsView {
   updateNamedTransitionsStats() {
     let tableNode = table("transitionTable");
     let nameMapPairs = Array.from(this.timeline.transitions.entries());
+    tableNode.innerHTML = "<thead><tr><td>Propery Name</td><td>#</td></tr></thead>";
     nameMapPairs
       .sort((a,b) => b[1].length - a[1].length)
       .forEach(([name, maps]) => {
@@ -1213,9 +1257,35 @@ function transitionTypeToColor(type) {
     <section id="mapDetails"></section>
   </div>
 
-  <h2>Instructions</h2>
   <section>
+    <h2>Instructions</h2>
     <p>Visualize Map trees that have been gathered using <code>--trace-maps</code>.</p>
+    <h3>Keyboard Shortcuts</h3>
+    <dl>
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Up</kbd></dt>
+      <dd>Follow Map transition forward (first child)</dd>
+
+      <dt><kbd>SHIFT</kbd> + <kbd>Arrow Down</kbd></dt>
+      <dd>Follow Map transition backwards</dd>
+
+      <dt><kbd>Arrow Up</kbd></dt>
+      <dd>Go to previous Map chunk</dd>
+
+      <dt><kbd>Arrow Down</kbd></dt>
+      <dd>Go to next Map in chunk</dd>
+
+      <dt><kbd>Arrow Left</kbd></dt>
+      <dd>Go to previous chunk</dd>
+
+      <dt><kbd>Arrow Right</kbd></dt>
+      <dd>Go to next chunk</dd>
+
+      <dt><kbd>+</kbd></dt>
+      <dd>Timeline zoom in</dd>
+
+      <dt><kbd>-</kbd></dt>
+      <dd>Timeline zoom out</dd>
+    </dl>
   </section>
 
   <div id="tooltip">

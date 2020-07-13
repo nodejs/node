@@ -54,13 +54,15 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
 }
 
 std::unique_ptr<ParseInfo> OuterParseInfoForShared(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+    UnoptimizedCompileState* state) {
   Script script = Script::cast(shared->script());
-  std::unique_ptr<ParseInfo> result =
-      std::make_unique<ParseInfo>(isolate, script);
+  std::unique_ptr<ParseInfo> result = std::make_unique<ParseInfo>(
+      isolate, i::UnoptimizedCompileFlags::ForScriptCompile(isolate, script),
+      state);
 
   // Create a character stream to simulate the parser having done so for the
-  // to-level ParseProgram.
+  // top-level ParseProgram.
   Handle<String> source(String::cast(script.source()), isolate);
   std::unique_ptr<Utf16CharacterStream> stream(
       ScannerStream::For(isolate, source));
