@@ -1633,7 +1633,8 @@ BaseObjectPtr<QuicStream> QuicSession::CreateStream(int64_t stream_id) {
 
 // Initiate a shutdown of the QuicSession.
 void QuicSession::Close(int close_flags) {
-  CHECK(!is_destroyed());
+  if (is_destroyed())
+    return;
   bool silent = close_flags & QuicSessionListener::SESSION_CLOSE_FLAG_SILENT;
   bool stateless_reset = is_stateless_reset();
 
@@ -1735,13 +1736,16 @@ bool QuicSession::GetNewConnectionID(
 }
 
 void QuicSession::HandleError() {
-  if (is_destroyed() || (is_in_closing_period() && !is_server()))
+  if (is_destroyed())
     return;
 
-  if (!SendConnectionClose()) {
-    set_last_error(QUIC_ERROR_SESSION, NGTCP2_ERR_INTERNAL);
-    Close();
-  }
+  // If the QuicSession is a server, send a CONNECTION_CLOSE. In either
+  // case, the closing timer will be set and the QuicSession will be
+  // destroyed.
+  if (is_server())
+    SendConnectionClose();
+  else
+    UpdateClosingTimer();
 }
 
 // The the retransmit libuv timer fires, it will call MaybeTimeout,
@@ -1751,20 +1755,25 @@ void QuicSession::MaybeTimeout() {
   if (is_destroyed())
     return;
   uint64_t now = uv_hrtime();
-  bool transmit = false;
+
   if (ngtcp2_conn_loss_detection_expiry(connection()) <= now) {
     Debug(this, "Retransmitting due to loss detection");
-    CHECK_EQ(ngtcp2_conn_on_loss_detection_timer(connection(), now), 0);
     IncrementStat(&QuicSessionStats::loss_retransmit_count);
-    transmit = true;
-  } else if (ngtcp2_conn_ack_delay_expiry(connection()) <= now) {
-    Debug(this, "Retransmitting due to ack delay");
-    ngtcp2_conn_cancel_expired_ack_delay_timer(connection(), now);
-    IncrementStat(&QuicSessionStats::ack_delay_retransmit_count);
-    transmit = true;
   }
-  if (transmit)
-    SendPendingData();
+
+  if (ngtcp2_conn_ack_delay_expiry(connection()) <= now) {
+    Debug(this, "Retransmitting due to ack delay");
+    IncrementStat(&QuicSessionStats::ack_delay_retransmit_count);
+  }
+
+  int rv = ngtcp2_conn_handle_expiry(connection(), now);
+  if (rv != 0) {
+    Debug(this, "Error handling retransmit timeout: %s", ngtcp2_strerror(rv));
+    set_last_error(QUIC_ERROR_SESSION, rv);
+    HandleError();
+  }
+
+  SendPendingData();
 }
 
 bool QuicSession::OpenBidirectionalStream(int64_t* stream_id) {
@@ -1847,16 +1856,7 @@ bool QuicSession::Receive(
   Debug(this, "Receiving QUIC packet");
   IncrementStat(&QuicSessionStats::bytes_received, nread);
 
-  // Closing period starts once ngtcp2 has detected that the session
-  // is being shutdown locally. Note that this is different that the
-  // is_graceful_closing() function, which
-  // indicates a graceful shutdown that allows the session and streams
-  // to finish naturally. When is_in_closing_period is true, ngtcp2 is
-  // actively in the process of shutting down the connection and a
-  // CONNECTION_CLOSE has already been sent. The only thing we can do
-  // at this point is either ignore the packet or send another
-  // CONNECTION_CLOSE.
-  if (is_in_closing_period()) {
+  if (is_in_closing_period() && is_server()) {
     Debug(this, "QUIC packet received while in closing period");
     IncrementConnectionCloseAttempts();
     // For server QuicSession instances, we serialize the connection close
@@ -1866,29 +1866,12 @@ bool QuicSession::Receive(
     // every received packet, however, so we use an exponential
     // backoff, increasing the ratio of packets received to connection
     // close frame sent with every one we send.
-    if (!ShouldAttemptConnectionClose()) {
-      Debug(this, "Not sending connection close");
+    if (UNLIKELY(ShouldAttemptConnectionClose() &&
+                 !SendConnectionClose())) {
+      Debug(this, "Failure trying to send another connection close");
       return false;
     }
-    Debug(this, "Sending connection close");
-    return SendConnectionClose();
   }
-
-  // When is_in_draining_period is true, ngtcp2 has received a
-  // connection close and we are simply discarding received packets.
-  // No outbound packets may be sent. Return true here because
-  // the packet was correctly processed, even tho it is being
-  // ignored.
-  if (is_in_draining_period()) {
-    Debug(this, "QUIC packet received while in draining period");
-    return true;
-  }
-
-  // It's possible for the remote address to change from one
-  // packet to the next so we have to look at the addr on
-  // every packet.
-  remote_address_ = remote_addr;
-  QuicPath path(local_addr, remote_address_);
 
   {
     // These are within a scope to ensure that the InternalCallbackScope
@@ -1901,24 +1884,12 @@ bool QuicSession::Receive(
     Debug(this, "Processing received packet");
     HandleScope handle_scope(env()->isolate());
     InternalCallbackScope callback_scope(this);
+    remote_address_ = remote_addr;
+    QuicPath path(local_addr, remote_address_);
     if (!ReceivePacket(&path, data, nread)) {
-      Debug(this, "Failure processing received packet (code %" PRIu64 ")",
-            last_error().code);
       HandleError();
       return false;
     }
-  }
-
-  if (is_destroyed()) {
-    Debug(this, "Session was destroyed while processing the received packet");
-    // If the QuicSession has been destroyed but it is not
-    // in the closing period, a CONNECTION_CLOSE has not yet
-    // been sent to the peer. Let's attempt to send one.
-    if (!is_in_closing_period() && !is_in_draining_period()) {
-      set_last_error();
-      SendConnectionClose();
-    }
-    return true;
   }
 
   // Only send pending data if we haven't entered draining mode.
@@ -1928,11 +1899,13 @@ bool QuicSession::Receive(
     Debug(this, "In draining period after processing packet");
     // If processing the packet puts us into draining period, there's
     // absolutely nothing left for us to do except silently close
-    // and destroy this QuicSession.
+    // and destroy this QuicSession, which we do by updating the
+    // closing timer.
     GetConnectionCloseInfo();
-    Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
+    UpdateClosingTimer();
     return true;
   }
+
   Debug(this, "Sending pending data after processing packet");
   SendPendingData();
   UpdateIdleTimer();
@@ -1965,20 +1938,32 @@ bool QuicSession::ReceivePacket(
       case NGTCP2_ERR_DRAINING:
       case NGTCP2_ERR_RECV_VERSION_NEGOTIATION:
         break;
+      case NGTCP2_ERR_RETRY:
+        // This should only ever happen on the server
+        CHECK(is_server());
+        socket()->SendRetry(scid_, dcid_, local_address_, remote_address_);
+        Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
+        break;
+      case NGTCP2_ERR_DROP_CONN:
+        Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
+        break;
       default:
-        // Per ngtcp2: If NGTCP2_ERR_RETRY is returned,
-        // QuicSession must be a server and must perform
-        // address validation by sending a Retry packet
-        // then immediately close the connection.
-        if (err == NGTCP2_ERR_RETRY && is_server()) {
-          socket()->SendRetry(scid_, dcid_, local_address_, remote_address_);
-          Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
-          break;
-        }
         set_last_error(QUIC_ERROR_SESSION, err);
         return false;
     }
   }
+
+  if (is_destroyed()) {
+    Debug(this, "Session was destroyed while processing the received packet");
+    // If the QuicSession has been destroyed but it is not
+    // in the closing period, a CONNECTION_CLOSE has not yet
+    // been sent to the peer. Let's attempt to send one. This
+    // will have the effect of setting the idle timer to the
+    // closing/draining period, after which the QuicSession
+    // will be destroyed.
+    return is_in_closing_period() ? true : SendConnectionClose();
+  }
+
   return true;
 }
 
@@ -2121,6 +2106,9 @@ bool QuicSession::SendConnectionClose() {
   Debug(this, "Connection Close code: %" PRIu64 " (family: %s)",
         error.code, error.family_name());
 
+  Debug(this, "Setting the connection/draining period timer");
+  UpdateClosingTimer();
+
   // If initial keys have not yet been installed, use the alternative
   // ImmediateConnectionClose to send a stateless connection close to
   // the peer.
@@ -2135,11 +2123,12 @@ bool QuicSession::SendConnectionClose() {
     return true;
   }
 
-  UpdateIdleTimer();
   switch (crypto_context_->side()) {
     case NGTCP2_CRYPTO_SIDE_SERVER: {
-      if (!is_in_closing_period() && !StartClosingPeriod())
+      if (!is_in_closing_period() && !StartClosingPeriod()) {
+        Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
         return false;
+      }
       CHECK_GT(conn_closebuf_->length(), 0);
       return SendPacket(QuicPacket::Copy(conn_closebuf_));
     }
@@ -2157,6 +2146,7 @@ bool QuicSession::SendConnectionClose() {
       if (UNLIKELY(nwrite < 0)) {
         Debug(this, "Error writing connection close: %d", nwrite);
         set_last_error(QUIC_ERROR_SESSION, static_cast<int>(nwrite));
+        Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
         return false;
       }
       packet->set_length(nwrite);
@@ -2330,16 +2320,12 @@ bool QuicSession::StartClosingPeriod() {
   if (is_in_closing_period())
     return true;
 
-  StopRetransmitTimer();
-  UpdateIdleTimer();
-
   QuicError error = last_error();
   Debug(this, "Closing period has started. Error %d", error.code);
 
   // Once the CONNECTION_CLOSE packet is written,
   // is_in_closing_period will return true.
-  conn_closebuf_ = QuicPacket::Create(
-      "server connection close");
+  conn_closebuf_ = QuicPacket::Create("server connection close");
   ssize_t nwrite =
       SelectCloseFn(error.family)(
           connection(),
@@ -2349,12 +2335,7 @@ bool QuicSession::StartClosingPeriod() {
           error.code,
           uv_hrtime());
   if (nwrite < 0) {
-    if (nwrite == NGTCP2_ERR_PKT_NUM_EXHAUSTED) {
-      set_last_error(QUIC_ERROR_SESSION, NGTCP2_ERR_PKT_NUM_EXHAUSTED);
-      Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
-    } else {
-      set_last_error(QUIC_ERROR_SESSION, static_cast<int>(nwrite));
-    }
+    set_last_error(QUIC_ERROR_SESSION, static_cast<int>(nwrite));
     return false;
   }
   conn_closebuf_->set_length(nwrite);
@@ -2450,6 +2431,8 @@ void QuicSession::UpdateConnectionID(
 // will be silently closed. It is important to update this as activity
 // occurs to keep the idle timer from firing.
 void QuicSession::UpdateIdleTimer() {
+  if (is_closing_timer_enabled())
+    return;
   uint64_t now = uv_hrtime();
   uint64_t expiry = ngtcp2_conn_get_idle_expiry(connection());
   // nano to millis
@@ -2459,6 +2442,15 @@ void QuicSession::UpdateIdleTimer() {
   idle_.Update(timeout, timeout);
 }
 
+void QuicSession::UpdateClosingTimer() {
+  set_closing_timer_enabled(true);
+  uint64_t timeout =
+      is_server() ? (ngtcp2_conn_get_pto(connection()) / 1000000ULL) * 3 : 0;
+  Debug(this, "Setting closing timeout to %" PRIu64, timeout);
+  retransmit_.Stop();
+  idle_.Update(timeout, 0);
+  idle_.Ref();
+}
 
 // Write any packets current pending for the ngtcp2 connection based on
 // the current state of the QuicSession. If the QuicSession is in the
