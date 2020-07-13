@@ -467,13 +467,13 @@ Defines a package where `require('pkg/feature')` and `import 'pkg/feature'`
 could provide different implementations between Node.js and other JS
 environments.
 
-When using environment branches, include
-a `"defaut"` condition where possible. Always providing a `"default"` condition
-ensures that any unknown JS environments are able to use a universal
-implementation where possible, which helps avoid JS environments from having to
-pretend to be existing environments to support packages with conditional
-exports. Where possible, `"node"` and `"default"` conditions can be preferable
-to `"browser"` conditions.
+When using environment branches, always include a `"default"` condition where
+possible. Providing a `"default"` condition ensures that any unknown JS
+environments are able to use this universal implementation, which helps avoid
+these JS environments from having to pretend to be existing environments in
+order to support packages with conditional exports. For this reason, using
+`"node"` and `"default"` condition branches is usually preferable to using
+`"node"` and `"browser"` condition branches.
 
 #### Nested conditions
 
