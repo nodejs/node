@@ -31,12 +31,17 @@ const ATTEMPTS_PER_ROUND = 50;
 let rounds = 1;
 let reqs = 0;
 
-pummel();
+let port;
+const server = net.createServer().listen(0, common.mustCall(() => {
+  port = server.address().port;
+  server.close(common.mustCall(pummel));
+}));
 
 function pummel() {
   let pending;
   for (pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
-    net.createConnection(common.PORT).on('error', function(err) {
+    net.createConnection(port).on('error', function(err) {
+      console.log('pending', pending, 'rounds', rounds);
       assert.strictEqual(err.code, 'ECONNREFUSED');
       if (--pending > 0) return;
       if (rounds === ROUNDS) return check();
