@@ -696,7 +696,8 @@ class QuicApplication : public MemoryRetainer,
     V(NGTCP2_CALLBACK, in_ngtcp2_callback)                                     \
     V(CONNECTION_CLOSE_SCOPE, in_connection_close_scope)                       \
     V(SILENT_CLOSE, silent_closing)                                            \
-    V(STATELESS_RESET, stateless_reset)
+    V(STATELESS_RESET, stateless_reset)                                        \
+    V(CLOSING_TIMER_ENABLED, closing_timer_enabled)
 
 // QUIC sessions are logical connections that exchange data
 // back and forth between peer endpoints via UDP. Every QuicSession
@@ -1402,6 +1403,8 @@ class QuicSession final : public AsyncWrap,
   static void OnQlogWrite(void* user_data, const void* data, size_t len);
 
   void UpdateIdleTimer();
+
+  void UpdateClosingTimer();
 
   inline void UpdateRetransmitTimer(uint64_t timeout);
 
