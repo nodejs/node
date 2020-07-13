@@ -401,6 +401,8 @@ For information about the governance of the Node.js project, see
 **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
 * [starkwang](https://github.com/starkwang) -
 **Weijia Wang** &lt;starkwang@126.com&gt;
+* [sxa](https://github.com/sxa) -
+**Stewart X Addison** &lt;sxa@uk.ibm.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
