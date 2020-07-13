@@ -42,7 +42,7 @@ assert.strictEqual(
   child_process.spawnSync('/usr/bin/codesign', [
     '--entitlements', fixtures.path(
       'macos-app-sandbox', 'node_sandboxed.entitlements'),
-    '-s', '-',
+    '--force', '-s', '-',
     appBundlePath
   ]).status,
   0);
