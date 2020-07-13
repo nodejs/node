@@ -150,8 +150,19 @@ inline void AsyncHooks::push_async_context(double async_id,
   async_id_fields_[kExecutionAsyncId] = async_id;
   async_id_fields_[kTriggerAsyncId] = trigger_async_id;
 
-  native_execution_async_resources_.resize(offset + 1);
-  native_execution_async_resources_[offset].Reset(env()->isolate(), resource);
+#ifdef DEBUG
+  for (uint32_t i = offset; i < native_execution_async_resources_.size(); i++)
+    CHECK(native_execution_async_resources_[i].IsEmpty());
+#endif
+
+  // When this call comes from JS (as a way of increasing the stack size),
+  // `resource` will be empty, because JS caches these values anyway, and
+  // we should avoid creating strong global references that might keep
+  // these JS resource objects alive longer than necessary.
+  if (!resource.IsEmpty()) {
+    native_execution_async_resources_.resize(offset + 1);
+    native_execution_async_resources_[offset].Reset(env()->isolate(), resource);
+  }
 }
 
 // Remember to keep this code aligned with popAsyncContext() in JS.
@@ -186,6 +197,13 @@ inline bool AsyncHooks::pop_async_context(double async_id) {
 
   if (LIKELY(offset < native_execution_async_resources_.size() &&
              !native_execution_async_resources_[offset].IsEmpty())) {
+#ifdef DEBUG
+    for (uint32_t i = offset + 1;
+         i < native_execution_async_resources_.size();
+         i++) {
+      CHECK(native_execution_async_resources_[i].IsEmpty());
+    }
+#endif
     native_execution_async_resources_.resize(offset);
     if (native_execution_async_resources_.size() <
             native_execution_async_resources_.capacity() / 2 &&
