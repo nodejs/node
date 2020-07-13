@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <iostream>
-
 #include "src/torque/types.h"
 
+#include <cmath>
+#include <iostream>
+
 #include "src/base/bits.h"
+#include "src/base/optional.h"
 #include "src/torque/ast.h"
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
@@ -471,25 +473,16 @@ void StructType::Finalize() const {
   CheckForDuplicateFields();
 }
 
-constexpr ClassFlags ClassType::kInternalFlags;
-
 ClassType::ClassType(const Type* parent, Namespace* nspace,
                      const std::string& name, ClassFlags flags,
                      const std::string& generates, const ClassDeclaration* decl,
                      const TypeAlias* alias)
     : AggregateType(Kind::kClassType, parent, nspace, name),
       size_(ResidueClass::Unknown()),
-      flags_(flags & ~(kInternalFlags)),
+      flags_(flags),
       generates_(generates),
       decl_(decl),
-      alias_(alias) {
-  DCHECK_EQ(flags & kInternalFlags, 0);
-}
-
-bool ClassType::HasIndexedField() const {
-  if (!is_finalized_) Finalize();
-  return flags_ & ClassFlag::kHasIndexedField;
-}
+      alias_(alias) {}
 
 std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
   return generates_;
@@ -510,11 +503,6 @@ void ClassType::Finalize() const {
   if (is_finalized_) return;
   CurrentScope::Scope scope_activator(alias_->ParentScope());
   CurrentSourcePosition::Scope position_activator(decl_->pos);
-  if (parent()) {
-    if (const ClassType* super_class = ClassType::DynamicCast(parent())) {
-      if (super_class->HasIndexedField()) flags_ |= ClassFlag::kHasIndexedField;
-    }
-  }
   TypeVisitor::VisitClassFieldsAndMethods(const_cast<ClassType*>(this),
                                           this->decl_);
   is_finalized_ = true;
@@ -540,6 +528,122 @@ std::vector<Field> ClassType::ComputeAllFields() const {
   const std::vector<Field>& fields = this->fields();
   all_fields.insert(all_fields.end(), fields.begin(), fields.end());
   return all_fields;
+}
+
+std::vector<Field> ClassType::ComputeHeaderFields() const {
+  std::vector<Field> result;
+  for (Field& field : ComputeAllFields()) {
+    if (field.index) break;
+    DCHECK(*field.offset < header_size());
+    result.push_back(std::move(field));
+  }
+  return result;
+}
+
+std::vector<Field> ClassType::ComputeArrayFields() const {
+  std::vector<Field> result;
+  for (Field& field : ComputeAllFields()) {
+    if (!field.index) {
+      DCHECK(*field.offset < header_size());
+      continue;
+    }
+    result.push_back(std::move(field));
+  }
+  return result;
+}
+
+void ClassType::InitializeInstanceTypes(
+    base::Optional<int> own, base::Optional<std::pair<int, int>> range) const {
+  DCHECK(!own_instance_type_.has_value());
+  DCHECK(!instance_type_range_.has_value());
+  own_instance_type_ = own;
+  instance_type_range_ = range;
+}
+
+base::Optional<int> ClassType::OwnInstanceType() const {
+  DCHECK(GlobalContext::IsInstanceTypesInitialized());
+  return own_instance_type_;
+}
+
+base::Optional<std::pair<int, int>> ClassType::InstanceTypeRange() const {
+  DCHECK(GlobalContext::IsInstanceTypesInitialized());
+  return instance_type_range_;
+}
+
+namespace {
+void ComputeSlotKindsHelper(std::vector<ObjectSlotKind>* slots,
+                            size_t start_offset,
+                            const std::vector<Field>& fields) {
+  size_t offset = start_offset;
+  for (const Field& field : fields) {
+    size_t field_size = std::get<0>(field.GetFieldSizeInformation());
+    size_t slot_index = offset / TargetArchitecture::TaggedSize();
+    // Rounding-up division to find the number of slots occupied by all the
+    // fields up to and including the current one.
+    size_t used_slots =
+        (offset + field_size + TargetArchitecture::TaggedSize() - 1) /
+        TargetArchitecture::TaggedSize();
+    while (used_slots > slots->size()) {
+      slots->push_back(ObjectSlotKind::kNoPointer);
+    }
+    const Type* type = field.name_and_type.type;
+    if (auto struct_type = type->StructSupertype()) {
+      ComputeSlotKindsHelper(slots, offset, (*struct_type)->fields());
+    } else {
+      ObjectSlotKind kind;
+      if (type->IsSubtypeOf(TypeOracle::GetObjectType())) {
+        if (field.is_weak) {
+          kind = ObjectSlotKind::kCustomWeakPointer;
+        } else {
+          kind = ObjectSlotKind::kStrongPointer;
+        }
+      } else if (type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        DCHECK(!field.is_weak);
+        kind = ObjectSlotKind::kMaybeObjectPointer;
+      } else {
+        kind = ObjectSlotKind::kNoPointer;
+      }
+      DCHECK(slots->at(slot_index) == ObjectSlotKind::kNoPointer);
+      slots->at(slot_index) = kind;
+    }
+
+    offset += field_size;
+  }
+}
+}  // namespace
+
+std::vector<ObjectSlotKind> ClassType::ComputeHeaderSlotKinds() const {
+  std::vector<ObjectSlotKind> result;
+  std::vector<Field> header_fields = ComputeHeaderFields();
+  ComputeSlotKindsHelper(&result, 0, header_fields);
+  DCHECK_EQ(std::ceil(static_cast<double>(header_size()) /
+                      TargetArchitecture::TaggedSize()),
+            result.size());
+  return result;
+}
+
+base::Optional<ObjectSlotKind> ClassType::ComputeArraySlotKind() const {
+  std::vector<ObjectSlotKind> kinds;
+  ComputeSlotKindsHelper(&kinds, 0, ComputeArrayFields());
+  if (kinds.empty()) return base::nullopt;
+  std::sort(kinds.begin(), kinds.end());
+  if (kinds.front() == kinds.back()) return {kinds.front()};
+  if (kinds.front() == ObjectSlotKind::kStrongPointer &&
+      kinds.back() == ObjectSlotKind::kMaybeObjectPointer) {
+    return ObjectSlotKind::kMaybeObjectPointer;
+  }
+  Error("Array fields mix types with different GC visitation requirements.")
+      .Throw();
+}
+
+bool ClassType::HasNoPointerSlots() const {
+  for (ObjectSlotKind slot : ComputeHeaderSlotKinds()) {
+    if (slot != ObjectSlotKind::kNoPointer) return false;
+  }
+  if (auto slot = ComputeArraySlotKind()) {
+    if (*slot != ObjectSlotKind::kNoPointer) return false;
+  }
+  return true;
 }
 
 void ClassType::GenerateAccessors() {
@@ -620,11 +724,11 @@ void ClassType::GenerateAccessors() {
 }
 
 bool ClassType::HasStaticSize() const {
-  if (IsShape()) return true;
-  if (IsSubtypeOf(TypeOracle::GetJSObjectType())) return false;
-  if (IsAbstract()) return false;
-  if (HasIndexedField()) return false;
-  return true;
+  // Abstract classes don't have instances directly, so asking this question
+  // doesn't make sense.
+  DCHECK(!IsAbstract());
+  if (IsSubtypeOf(TypeOracle::GetJSObjectType()) && !IsShape()) return false;
+  return size().SingleValue().has_value();
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
@@ -717,6 +821,21 @@ bool Signature::HasSameTypesAs(const Signature& other,
     }
   }
   return true;
+}
+
+namespace {
+bool FirstTypeIsContext(const std::vector<const Type*> parameter_types) {
+  return !parameter_types.empty() &&
+         parameter_types[0] == TypeOracle::GetContextType();
+}
+}  // namespace
+
+bool Signature::HasContextParameter() const {
+  return FirstTypeIsContext(types());
+}
+
+bool BuiltinPointerType::HasContextParameter() const {
+  return FirstTypeIsContext(parameter_types());
 }
 
 bool IsAssignableFrom(const Type* to, const Type* from) {
@@ -814,6 +933,8 @@ size_t AbstractType::AlignmentLog2() const {
     alignment = TargetArchitecture::TaggedSize();
   } else if (this == TypeOracle::GetRawPtrType()) {
     alignment = TargetArchitecture::RawPtrSize();
+  } else if (this == TypeOracle::GetExternalPointerType()) {
+    alignment = TargetArchitecture::ExternalPointerSize();
   } else if (this == TypeOracle::GetVoidType()) {
     alignment = 1;
   } else if (this == TypeOracle::GetInt8Type()) {
@@ -881,6 +1002,9 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
     size = TargetArchitecture::RawPtrSize();
     size_string = "kSystemPointerSize";
+  } else if (type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+    size = TargetArchitecture::ExternalPointerSize();
+    size_string = "kExternalPointerSize";
   } else if (type->IsSubtypeOf(TypeOracle::GetVoidType())) {
     size = 0;
     size_string = "0";
@@ -942,10 +1066,17 @@ bool IsAllowedAsBitField(const Type* type) {
   // Any integer-ish type, including bools and enums which inherit from integer
   // types, are allowed. Note, however, that we always zero-extend during
   // decoding regardless of signedness.
+  return IsPointerSizeIntegralType(type) || Is32BitIntegralType(type);
+}
+
+bool IsPointerSizeIntegralType(const Type* type) {
+  return type->IsSubtypeOf(TypeOracle::GetUIntPtrType()) ||
+         type->IsSubtypeOf(TypeOracle::GetIntPtrType());
+}
+
+bool Is32BitIntegralType(const Type* type) {
   return type->IsSubtypeOf(TypeOracle::GetUint32Type()) ||
-         type->IsSubtypeOf(TypeOracle::GetUIntPtrType()) ||
          type->IsSubtypeOf(TypeOracle::GetInt32Type()) ||
-         type->IsSubtypeOf(TypeOracle::GetIntPtrType()) ||
          type->IsSubtypeOf(TypeOracle::GetBoolType());
 }
 
@@ -958,6 +1089,13 @@ base::Optional<NameAndType> ExtractSimpleFieldArraySize(
     return {};
   if (!class_type.HasField(identifier->name->value)) return {};
   return class_type.LookupField(identifier->name->value).name_and_type;
+}
+
+std::string Type::GetRuntimeType() const {
+  // TODO(tebbi): Other types are currently unsupported, since there the TNode
+  // types and the C++ runtime types disagree.
+  DCHECK(this->IsSubtypeOf(TypeOracle::GetTaggedType()));
+  return GetGeneratedTNodeTypeName();
 }
 
 }  // namespace torque

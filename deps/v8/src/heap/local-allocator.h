@@ -12,27 +12,28 @@
 namespace v8 {
 namespace internal {
 
-// Allocator encapsulating thread-local allocation. Assumes that all other
-// allocations also go through LocalAllocator.
-class LocalAllocator {
+// Allocator encapsulating thread-local allocation durning collection. Assumes
+// that all other allocations also go through EvacuationAllocator.
+class EvacuationAllocator {
  public:
   static const int kLabSize = 32 * KB;
   static const int kMaxLabObjectSize = 8 * KB;
 
-  explicit LocalAllocator(Heap* heap, LocalSpaceKind local_space_kind)
+  explicit EvacuationAllocator(Heap* heap, LocalSpaceKind local_space_kind)
       : heap_(heap),
         new_space_(heap->new_space()),
         compaction_spaces_(heap, local_space_kind),
         new_space_lab_(LocalAllocationBuffer::InvalidBuffer()),
         lab_allocation_will_fail_(false) {}
 
-  // Needs to be called from the main thread to finalize this LocalAllocator.
+  // Needs to be called from the main thread to finalize this
+  // EvacuationAllocator.
   void Finalize() {
     heap_->old_space()->MergeLocalSpace(compaction_spaces_.Get(OLD_SPACE));
     heap_->code_space()->MergeLocalSpace(compaction_spaces_.Get(CODE_SPACE));
-    // Give back remaining LAB space if this LocalAllocator's new space LAB
+    // Give back remaining LAB space if this EvacuationAllocator's new space LAB
     // sits right next to new space allocation top.
-    const LinearAllocationArea info = new_space_lab_.Close();
+    const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
     const Address top = new_space_->top();
     if (info.limit() != kNullAddress && info.limit() == top) {
       DCHECK_NE(info.top(), kNullAddress);

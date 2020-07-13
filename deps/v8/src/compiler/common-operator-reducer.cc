@@ -307,8 +307,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     // hence checkpoints can be cut out of the effect chain flowing into it.
     effect = NodeProperties::GetEffectInput(effect);
     NodeProperties::ReplaceEffectInput(node, effect);
-    Reduction const reduction = ReduceReturn(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceReturn(node));
   }
   // TODO(ahaas): Extend the reduction below to multiple return values.
   if (ValueInputCountOfReturn(node->op()) != 1) {

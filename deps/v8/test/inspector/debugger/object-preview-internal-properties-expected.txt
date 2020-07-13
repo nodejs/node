@@ -42,7 +42,7 @@ expression: Promise.resolve(42)
 {
     name : [[PromiseStatus]]
     type : string
-    value : resolved
+    value : fulfilled
 }
 {
     name : [[PromiseValue]]
@@ -251,7 +251,7 @@ expression: Promise.resolve(42)
 {
     name : [[PromiseStatus]]
     type : string
-    value : resolved
+    value : fulfilled
 }
 {
     name : [[PromiseValue]]

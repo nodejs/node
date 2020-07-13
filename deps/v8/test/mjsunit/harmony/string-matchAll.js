@@ -36,7 +36,7 @@ TestNoMatch('a', 'b');
 
 
 function TestGlobalRegex(regex_or_string) {
-  const iter = 'ab'.matchAll(/./g);
+  const iter = 'ab'.matchAll(regex_or_string);
   let next_result = iter.next();
   assertEquals(['a'], next_result.value);
   assertFalse(next_result.done);

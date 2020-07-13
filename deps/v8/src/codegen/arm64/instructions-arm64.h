@@ -619,7 +619,8 @@ class NEONFormatDecoder {
   // substitution mode.
   const char* Substitute(const char* string, SubstitutionMode mode0 = kFormat,
                          SubstitutionMode mode1 = kFormat,
-                         SubstitutionMode mode2 = kFormat);
+                         SubstitutionMode mode2 = kFormat,
+                         SubstitutionMode mode3 = kFormat);
 
   // Append a "2" to a mnemonic string based of the state of the Q bit.
   const char* Mnemonic(const char* mnemonic);
@@ -738,7 +739,7 @@ class NEONFormatDecoder {
   uint8_t PickBits(const uint8_t bits[]);
 
   Instr instrbits_;
-  const NEONFormatMap* formats_[3];
+  const NEONFormatMap* formats_[4];
   char form_buffer_[64];
   char mne_buffer_[16];
 };

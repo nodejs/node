@@ -1567,7 +1567,7 @@ Running test: testPromise
                 [0] : {
                     name : [[PromiseStatus]]
                     type : string
-                    value : resolved
+                    value : fulfilled
                 }
                 [1] : {
                     name : [[PromiseValue]]

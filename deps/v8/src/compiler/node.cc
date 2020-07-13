@@ -314,22 +314,32 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
   return mask == 3;
 }
 
-void Node::Print() const {
+void Node::Print(int depth) const {
   StdoutStream os;
-  Print(os);
+  Print(os, depth);
 }
 
-void Node::Print(std::ostream& os) const {
-  os << *this << std::endl;
-  for (Node* input : this->inputs()) {
+namespace {
+void PrintNode(const Node* node, std::ostream& os, int depth,
+               int indentation = 0) {
+  for (int i = 0; i < indentation; ++i) {
     os << "  ";
-    if (input) {
-      os << *input;
-    } else {
-      os << "(NULL)";
-    }
-    os << std::endl;
   }
+  if (node) {
+    os << *node;
+  } else {
+    os << "(NULL)";
+  }
+  os << std::endl;
+  if (depth <= 0) return;
+  for (Node* input : node->inputs()) {
+    PrintNode(input, os, depth - 1, indentation + 1);
+  }
+}
+}  // namespace
+
+void Node::Print(std::ostream& os, int depth) const {
+  PrintNode(this, os, depth);
 }
 
 std::ostream& operator<<(std::ostream& os, const Node& n) {

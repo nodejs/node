@@ -98,22 +98,5 @@ TEST_F(RemoteObjectTest, TypeOfRemoteObject) {
   EXPECT_STREQ("object", *result);
 }
 
-TEST_F(RemoteObjectTest, ClassOf) {
-  Local<FunctionTemplate> constructor_template =
-      FunctionTemplate::New(isolate(), Constructor);
-  constructor_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
-      AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
-      IndexedPropertyHandlerConfiguration());
-  constructor_template->SetClassName(
-      String::NewFromUtf8Literal(isolate(), "test_class"));
-
-  Local<Object> remote_object =
-      constructor_template->NewRemoteInstance().ToLocalChecked();
-  Local<String> class_name = Utils::ToLocal(
-      i::handle(Utils::OpenHandle(*remote_object)->class_name(), i_isolate()));
-  String::Utf8Value result(isolate(), class_name);
-  EXPECT_STREQ("test_class", *result);
-}
-
 }  // namespace remote_object_unittest
 }  // namespace v8

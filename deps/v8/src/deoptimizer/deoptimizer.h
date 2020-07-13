@@ -39,13 +39,17 @@ enum class BuiltinContinuationMode;
 
 class TranslatedValue {
  public:
-  // Allocation-less getter of the value.
+  // Allocation-free getter of the value.
   // Returns ReadOnlyRoots::arguments_marker() if allocation would be necessary
-  // to get the value.
+  // to get the value. In the case of numbers, returns a Smi if possible.
   Object GetRawValue() const;
 
-  // Getter for the value, takes care of materializing the subgraph
-  // reachable from this value.
+  // Convenience wrapper around GetRawValue (checked).
+  int GetSmiValue() const;
+
+  // Returns the value, possibly materializing it first (and the whole subgraph
+  // reachable from this value). In the case of numbers, returns a Smi if
+  // possible.
   Handle<Object> GetValue();
 
   bool IsMaterializedObject() const;
@@ -102,15 +106,14 @@ class TranslatedValue {
   static TranslatedValue NewInvalid(TranslatedState* container);
 
   Isolate* isolate() const;
-  void MaterializeSimple();
 
   void set_storage(Handle<HeapObject> storage) { storage_ = storage; }
-  void set_initialized_storage(Handle<Object> storage);
+  void set_initialized_storage(Handle<HeapObject> storage);
   void mark_finished() { materialization_state_ = kFinished; }
   void mark_allocated() { materialization_state_ = kAllocated; }
 
-  Handle<Object> GetStorage() {
-    DCHECK_NE(kUninitialized, materialization_state());
+  Handle<HeapObject> storage() {
+    DCHECK_NE(materialization_state(), kUninitialized);
     return storage_;
   }
 
@@ -120,9 +123,9 @@ class TranslatedValue {
                                 // objects and constructing handles (to get
                                 // to the isolate).
 
-  Handle<Object> storage_;  // Contains the materialized value or the
-                            // byte-array that will be later morphed into
-                            // the materialized object.
+  Handle<HeapObject> storage_;  // Contains the materialized value or the
+                                // byte-array that will be later morphed into
+                                // the materialized object.
 
   struct MaterializedObjectInfo {
     int id_;
@@ -376,7 +379,7 @@ class TranslatedState {
                                int* value_index, std::stack<int>* worklist);
   void EnsureCapturedObjectAllocatedAt(int object_index,
                                        std::stack<int>* worklist);
-  Handle<Object> InitializeObjectAt(TranslatedValue* slot);
+  Handle<HeapObject> InitializeObjectAt(TranslatedValue* slot);
   void InitializeCapturedObjectAt(int object_index, std::stack<int>* worklist,
                                   const DisallowHeapAllocation& no_allocation);
   void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
@@ -392,6 +395,9 @@ class TranslatedState {
   TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
   TranslatedValue* GetValueByObjectIndex(int object_index);
   Handle<Object> GetValueAndAdvance(TranslatedFrame* frame, int* value_index);
+  TranslatedValue* GetResolvedSlot(TranslatedFrame* frame, int value_index);
+  TranslatedValue* GetResolvedSlotAndAdvance(TranslatedFrame* frame,
+                                             int* value_index);
 
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
   static uint64_t GetUInt64Slot(Address fp, int slot_index);
@@ -773,7 +779,7 @@ class FrameDescription {
   intptr_t continuation_;
 
   // This must be at the end of the object as the object is allocated larger
-  // than it's definition indicate to extend this array.
+  // than its definition indicates to extend this array.
   intptr_t frame_content_[1];
 
   intptr_t* GetFrameSlotPointer(unsigned offset) {

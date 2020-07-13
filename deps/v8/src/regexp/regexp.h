@@ -27,7 +27,7 @@ struct RegExpCompileData {
 
   // Either the generated code as produced by the compiler or a trampoline
   // to the interpreter.
-  Object code;
+  Handle<Object> code;
 
   // True, iff the pattern is a 'simple' atom with zero captures. In other
   // words, the pattern consists of a string with no metacharacters and special

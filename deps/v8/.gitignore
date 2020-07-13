@@ -61,6 +61,8 @@
 !/third_party/antlr4
 !/third_party/binutils
 !/third_party/inspector_protocol
+!/third_party/jsoncpp
+/third_party/jsoncpp/source
 !/third_party/colorama
 /third_party/colorama/src
 !/third_party/googletest

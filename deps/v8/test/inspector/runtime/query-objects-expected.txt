@@ -98,6 +98,9 @@ Dump each object constructor name.
 Running test: testQueryObjectsWithFeedbackVector
 Before/After difference: 1
 
+Running test: testQueryObjectsWithArrayBuffer
+Test that queryObjects does not crash for on-heap TypedArrays
+
 Running test: testWithObjectGroup
 Query for Array.prototype 3 times
 Results since initial: 0

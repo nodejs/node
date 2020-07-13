@@ -6,13 +6,21 @@
 
 #include "src/api/api-inl.h"
 #include "src/debug/debug-evaluate.h"
+#include "src/debug/debug-interface.h"
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/frames.h"
 #include "src/execution/isolate.h"
+#include "src/wasm/wasm-debug-evaluate.h"
+#include "src/wasm/wasm-debug.h"
 
 namespace v8 {
+
+bool debug::StackTraceIterator::SupportsWasmDebugEvaluate() {
+  return i::FLAG_wasm_expose_debug_eval;
+}
 
 std::unique_ptr<debug::StackTraceIterator> debug::StackTraceIterator::Create(
     v8::Isolate* isolate, int index) {
@@ -160,8 +168,8 @@ DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());
   StandardFrame* frame = iterator_.frame();
   if (frame->is_wasm()) {
-    return std::make_unique<DebugWasmScopeIterator>(isolate_, iterator_.frame(),
-                                                    inlined_frame_index_);
+    return std::make_unique<DebugWasmScopeIterator>(isolate_,
+                                                    WasmFrame::cast(frame));
   }
   return std::make_unique<DebugScopeIterator>(isolate_, frame_inspector_.get());
 }
@@ -183,6 +191,27 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::Evaluate(
            .ToHandle(&value)) {
     isolate_->OptionalRescheduleException(false);
     return v8::MaybeLocal<v8::Value>();
+  }
+  return Utils::ToLocal(value);
+}
+
+v8::MaybeLocal<v8::String> DebugStackTraceIterator::EvaluateWasm(
+    internal::Vector<const internal::byte> source, int frame_index) {
+  DCHECK(!Done());
+  if (!i::FLAG_wasm_expose_debug_eval || !iterator_.is_wasm()) {
+    return v8::MaybeLocal<v8::String>();
+  }
+  Handle<String> value;
+  i::SafeForInterruptsScope safe_for_interrupt_scope(isolate_);
+
+  FrameSummary summary = FrameSummary::Get(iterator_.frame(), 0);
+  const FrameSummary::WasmFrameSummary& wasmSummary = summary.AsWasm();
+  Handle<WasmInstanceObject> instance = wasmSummary.wasm_instance();
+
+  if (!v8::internal::wasm::DebugEvaluate(source, instance, iterator_.frame())
+           .ToHandle(&value)) {
+    isolate_->OptionalRescheduleException(false);
+    return v8::MaybeLocal<v8::String>();
   }
   return Utils::ToLocal(value);
 }

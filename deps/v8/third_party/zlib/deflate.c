@@ -1213,7 +1213,7 @@ ZLIB_INTERNAL unsigned deflate_read_buf(strm, buf, size)
 #ifdef GZIP
     if (strm->state->wrap == 2)
         copy_with_crc(strm, buf, len);
-    else 
+    else
 #endif
     {
         zmemcpy(buf, strm->next_in, len);
@@ -1521,7 +1521,7 @@ local void fill_window_c(deflate_state *s);
 
 local void fill_window(deflate_state *s)
 {
-#ifdef ADLER32_SIMD_SSSE3
+#ifdef DEFLATE_FILL_WINDOW_SSE2
     if (x86_cpu_enable_simd) {
         fill_window_sse(s);
         return;

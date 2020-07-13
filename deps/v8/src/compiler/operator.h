@@ -66,8 +66,6 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
            size_t value_in, size_t effect_in, size_t control_in,
            size_t value_out, size_t effect_out, size_t control_out);
 
-  virtual ~Operator() = default;
-
   // A small integer unique to all instances of a particular kind of operator,
   // useful for quick matching for specific kinds of operators. For fast access
   // the opcode is stored directly in the operator object.

@@ -113,7 +113,11 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int kMaxCaptures = 1 << 16;
 
   // Number of captures (without the match itself).
-  inline int CaptureCount();
+  inline int CaptureCount() const;
+  // Each capture (including the match itself) needs two registers.
+  static int RegistersForCaptureCount(int count) { return (count + 1) * 2; }
+
+  inline int MaxRegisterCount() const;
   inline Flags GetFlags();
   inline String Pattern();
   inline Object CaptureNameMap();
@@ -131,9 +135,10 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   }
 
   // This could be a Smi kUninitializedValue or Code.
-  Object Code(bool is_latin1) const;
+  V8_EXPORT_PRIVATE Object Code(bool is_latin1) const;
   // This could be a Smi kUninitializedValue or ByteArray.
-  Object Bytecode(bool is_latin1) const;
+  V8_EXPORT_PRIVATE Object Bytecode(bool is_latin1) const;
+
   bool ShouldProduceBytecode();
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();

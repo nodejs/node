@@ -528,7 +528,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
         data, JSRegExp::kIrregexpCaptureCountIndex));
     // capture_count is the number of captures without the match itself.
     // Required registers = (capture_count + 1) * 2.
-    STATIC_ASSERT(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) << 1));
+    STATIC_ASSERT(Internals::IsValidSmi((JSRegExp::kMaxCaptures + 1) * 2));
     TNode<Smi> register_count =
         SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
 
@@ -729,13 +729,9 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(
 
   // This should only be needed for String.p.(split||matchAll), but we are
   // conservative here.
-  // Note: we are using the current native context here, which may or may not
-  // match the object's native context. That's fine: in case of a mismatch, we
-  // will bail in the next step when comparing the object's map against the
-  // current native context's initial regexp map.
-  TNode<NativeContext> native_context = LoadNativeContext(context);
-  GotoIf(IsRegExpSpeciesProtectorCellInvalid(native_context), if_ismodified);
+  GotoIf(IsRegExpSpeciesProtectorCellInvalid(), if_ismodified);
 
+  TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<JSFunction> regexp_fun =
       CAST(LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX));
   TNode<Map> initial_map = CAST(
@@ -1336,10 +1332,10 @@ TNode<Object> RegExpMatchAllAssembler::CreateRegExpStringIterator(
   // 9. Set iterator.[[Done]] to false.
   TNode<Int32T> global_flag =
       Word32Shl(ReinterpretCast<Int32T>(global),
-                Int32Constant(JSRegExpStringIterator::kGlobalBit));
+                Int32Constant(JSRegExpStringIterator::GlobalBit::kShift));
   TNode<Int32T> unicode_flag =
       Word32Shl(ReinterpretCast<Int32T>(full_unicode),
-                Int32Constant(JSRegExpStringIterator::kUnicodeBit));
+                Int32Constant(JSRegExpStringIterator::UnicodeBit::kShift));
   TNode<Int32T> iterator_flags = Word32Or(global_flag, unicode_flag);
   StoreObjectFieldNoWriteBarrier(iterator, JSRegExpStringIterator::kFlagsOffset,
                                  SmiFromInt32(iterator_flags));

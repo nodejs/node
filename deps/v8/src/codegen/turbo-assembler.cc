@@ -6,9 +6,9 @@
 
 #include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
+#include "src/codegen/external-reference-encoder.h"
 #include "src/execution/isolate-data.h"
 #include "src/execution/isolate-inl.h"
-#include "src/snapshot/serializer-common.h"
 
 namespace v8 {
 namespace internal {

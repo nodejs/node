@@ -13,6 +13,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"
+#include "src/parsing/parse-info.h"
 #include "src/parsing/scanner-inl.h"
 #include "src/zone/zone.h"
 
@@ -89,12 +90,10 @@ bool Scanner::BookmarkScope::HasBeenApplied() const {
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(Utf16CharacterStream* source, bool is_module)
-    : source_(source),
+Scanner::Scanner(Utf16CharacterStream* source, UnoptimizedCompileFlags flags)
+    : flags_(flags),
+      source_(source),
       found_html_comment_(false),
-      allow_harmony_optional_chaining_(false),
-      allow_harmony_nullish_(false),
-      is_module_(is_module),
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone) {
   DCHECK_NOT_NULL(source);
@@ -190,7 +189,7 @@ Token::Value Scanner::PeekAhead() {
 }
 
 Token::Value Scanner::SkipSingleHTMLComment() {
-  if (is_module_) {
+  if (flags_.is_module()) {
     ReportScannerError(source_pos(), MessageTemplate::kHtmlCommentInModule);
     return Token::ILLEGAL;
   }
@@ -233,9 +232,9 @@ void Scanner::TryToParseSourceURLComment() {
   if (!name.is_one_byte()) return;
   Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
-  if (name_literal == StaticCharVector("sourceURL")) {
+  if (name_literal == StaticOneByteVector("sourceURL")) {
     value = &source_url_;
-  } else if (name_literal == StaticCharVector("sourceMappingURL")) {
+  } else if (name_literal == StaticOneByteVector("sourceMappingURL")) {
     value = &source_mapping_url_;
   } else {
     return;

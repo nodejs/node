@@ -5,65 +5,61 @@
 #include 'src/builtins/builtins-typed-array-gen.h'
 
 namespace typed_array {
-  const kBuiltinNameReduce: constexpr string = '%TypedArray%.prototype.reduce';
+const kBuiltinNameReduce: constexpr string = '%TypedArray%.prototype.reduce';
 
-  transitioning macro ReduceAllElements(implicit context: Context)(
-      array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
-      initialValue: JSAny|TheHole): JSAny {
-    let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
-    const length: uintptr = witness.Get().length;
-    let accumulator = initialValue;
-    for (let k: uintptr = 0; k < length; k++) {
-      // BUG(4895): We should throw on detached buffers rather than simply exit.
-      witness.Recheck() otherwise break;
-      const value: JSAny = witness.Load(k);
-      typeswitch (accumulator) {
-        case (TheHole): {
-          accumulator = value;
-        }
-        case (accumulatorNotHole: JSAny): {
-          // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
-          // indices to optimize Convert<Number>(k) for the most common case.
-          accumulator = Call(
-              context, callbackfn, Undefined, accumulatorNotHole, value,
-              Convert<Number>(k), witness.GetStable());
-        }
-      }
-    }
+transitioning macro ReduceAllElements(implicit context: Context)(
+    array: typed_array::AttachedJSTypedArray, callbackfn: Callable,
+    initialValue: JSAny|TheHole): JSAny {
+  let witness = typed_array::NewAttachedJSTypedArrayWitness(array);
+  const length: uintptr = witness.Get().length;
+  let accumulator = initialValue;
+  for (let k: uintptr = 0; k < length; k++) {
+    // BUG(4895): We should throw on detached buffers rather than simply exit.
+    witness.Recheck() otherwise break;
+    const value: JSAny = witness.Load(k);
     typeswitch (accumulator) {
       case (TheHole): {
-        ThrowTypeError(MessageTemplate::kReduceNoInitial, kBuiltinNameReduce);
+        accumulator = value;
       }
-      case (accumulator: JSAny): {
-        return accumulator;
+      case (accumulatorNotHole: JSAny): {
+        // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
+        // indices to optimize Convert<Number>(k) for the most common case.
+        accumulator = Call(
+            context, callbackfn, Undefined, accumulatorNotHole, value,
+            Convert<Number>(k), witness.GetStable());
       }
     }
   }
-
-  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduce
-  transitioning javascript builtin
-  TypedArrayPrototypeReduce(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): JSAny {
-    // arguments[0] = callback
-    // arguments[1] = initialValue.
-    try {
-      const array: JSTypedArray = Cast<JSTypedArray>(receiver)
-          otherwise NotTypedArray;
-      const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
-
-      const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
-      const initialValue = arguments.length >= 2 ? arguments[1] : TheHole;
-      return ReduceAllElements(uarray, callbackfn, initialValue);
+  typeswitch (accumulator) {
+    case (TheHole): {
+      ThrowTypeError(MessageTemplate::kReduceNoInitial, kBuiltinNameReduce);
     }
-    label NotCallable deferred {
-      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
-    }
-    label NotTypedArray deferred {
-      ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduce);
-    }
-    label IsDetached deferred {
-      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameReduce);
+    case (accumulator: JSAny): {
+      return accumulator;
     }
   }
+}
+
+// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduce
+transitioning javascript builtin
+TypedArrayPrototypeReduce(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // arguments[0] = callback
+  // arguments[1] = initialValue.
+  try {
+    const array: JSTypedArray = Cast<JSTypedArray>(receiver)
+        otherwise NotTypedArray;
+    const uarray = typed_array::EnsureAttached(array) otherwise IsDetached;
+
+    const callbackfn = Cast<Callable>(arguments[0]) otherwise NotCallable;
+    const initialValue = arguments.length >= 2 ? arguments[1] : TheHole;
+    return ReduceAllElements(uarray, callbackfn, initialValue);
+  } label NotCallable deferred {
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+  } label NotTypedArray deferred {
+    ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduce);
+  } label IsDetached deferred {
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameReduce);
+  }
+}
 }

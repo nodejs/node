@@ -21,6 +21,10 @@ inline LinkageLocation regloc(Register reg, MachineType type) {
   return LinkageLocation::ForRegister(reg.code(), type);
 }
 
+inline LinkageLocation regloc(DoubleRegister reg, MachineType type) {
+  return LinkageLocation::ForRegister(reg.code(), type);
+}
+
 }  // namespace
 
 
@@ -149,7 +153,7 @@ int CallDescriptor::CalculateFixedFrameSize(Code::Kind code_kind) const {
       return TypedFrameConstants::kFixedSlotCount;
     case kCallWasmFunction:
     case kCallWasmImportWrapper:
-      return WasmCompiledFrameConstants::kFixedSlotCount;
+      return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
   }
@@ -380,20 +384,33 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
   // Add returns.
-  if (locations.return_count_ > 0) {
-    locations.AddReturn(regloc(kReturnRegister0, descriptor.GetReturnType(0)));
-  }
-  if (locations.return_count_ > 1) {
-    locations.AddReturn(regloc(kReturnRegister1, descriptor.GetReturnType(1)));
-  }
-  if (locations.return_count_ > 2) {
-    locations.AddReturn(regloc(kReturnRegister2, descriptor.GetReturnType(2)));
+  static constexpr Register return_registers[] = {
+      kReturnRegister0, kReturnRegister1, kReturnRegister2};
+  size_t num_returns = 0;
+  size_t num_fp_returns = 0;
+  for (size_t i = 0; i < locations.return_count_; i++) {
+    MachineType type = descriptor.GetReturnType(static_cast<int>(i));
+    if (IsFloatingPoint(type.representation())) {
+      DCHECK_LT(num_fp_returns, 1);  // Only 1 FP return is supported.
+      locations.AddReturn(regloc(kFPReturnRegister0, type));
+      num_fp_returns++;
+    } else {
+      DCHECK_LT(num_returns, arraysize(return_registers));
+      locations.AddReturn(regloc(return_registers[num_returns], type));
+      num_returns++;
+    }
   }
 
   // Add parameters in registers and on the stack.
   for (int i = 0; i < js_parameter_count; i++) {
     if (i < register_parameter_count) {
       // The first parameters go in registers.
+      // TODO(bbudge) Add floating point registers to the InterfaceDescriptor
+      // and use them for FP types. Currently, this works because on most
+      // platforms, all FP registers are available for use. On ia32, xmm0 is
+      // not allocatable and so we must work around that with platform-specific
+      // descriptors, adjusting the GP register set to avoid eax, which has
+      // register code 0.
       Register reg = descriptor.GetRegisterParameter(i);
       MachineType type = descriptor.GetParameterType(i);
       locations.AddParam(regloc(reg, type));

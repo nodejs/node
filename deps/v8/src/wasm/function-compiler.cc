@@ -115,7 +115,6 @@ ExecutionTier WasmCompilationUnit::GetBaselineExecutionTier(
   // Liftoff does not support the special asm.js opcodes, thus always compile
   // asm.js modules with TurboFan.
   if (is_asmjs_module(module)) return ExecutionTier::kTurbofan;
-  if (FLAG_wasm_interpret_all) return ExecutionTier::kInterpreter;
   return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
 }
 
@@ -131,7 +130,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
                                         counters, detected);
   }
 
-  if (result.succeeded()) {
+  if (result.succeeded() && counters) {
     counters->wasm_generated_code_size()->Increment(
         result.code_desc.instr_size);
     counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
@@ -164,12 +163,16 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end()};
 
-  auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin, wasm,
-                                            function_size_bytes);
-  size_histogram->AddSample(static_cast<int>(func_body.end - func_body.start));
-  auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
-                                             wasm_compile, function_time);
-  TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
+  base::Optional<TimedHistogramScope> wasm_compile_function_time_scope;
+  if (counters) {
+    auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
+                                              wasm, function_size_bytes);
+    size_histogram->AddSample(
+        static_cast<int>(func_body.end - func_body.start));
+    auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
+                                               wasm_compile, function_time);
+    wasm_compile_function_time_scope.emplace(timed_histogram);
+  }
 
   if (FLAG_trace_wasm_compiler) {
     PrintF("Compiling wasm function %d with %s\n", func_index_,
@@ -188,9 +191,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       if (V8_LIKELY(FLAG_wasm_tier_mask_for_testing == 0) ||
           func_index_ >= 32 ||
           ((FLAG_wasm_tier_mask_for_testing & (1 << func_index_)) == 0)) {
-        result =
-            ExecuteLiftoffCompilation(wasm_engine->allocator(), env, func_body,
-                                      func_index_, counters, detected);
+        result = ExecuteLiftoffCompilation(wasm_engine->allocator(), env,
+                                           func_body, func_index_,
+                                           for_debugging_, counters, detected);
         if (result.succeeded()) break;
       }
 
@@ -202,12 +205,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     case ExecutionTier::kTurbofan:
       result = compiler::ExecuteTurbofanWasmCompilation(
           wasm_engine, env, func_body, func_index_, counters, detected);
+      result.for_debugging = for_debugging_;
       break;
 
     case ExecutionTier::kInterpreter:
-      result = compiler::ExecuteInterpreterEntryCompilation(
-          wasm_engine, env, func_body, func_index_, counters, detected);
-      break;
+      UNREACHABLE();
   }
 
   return result;
@@ -250,7 +252,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
 
   DCHECK_LE(native_module->num_imported_functions(), function->func_index);
   DCHECK_LT(function->func_index, native_module->num_functions());
-  WasmCompilationUnit unit(function->func_index, tier);
+  WasmCompilationUnit unit(function->func_index, tier, kNoDebugging);
   CompilationEnv env = native_module->CreateCompilationEnv();
   WasmCompilationResult result = unit.ExecuteCompilation(
       isolate->wasm_engine(), &env,
@@ -258,7 +260,8 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
       isolate->counters(), detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
-    native_module->AddCompiledCode(std::move(result));
+    native_module->PublishCode(
+        native_module->AddCompiledCode(std::move(result)));
   } else {
     native_module->compilation_state()->SetError();
   }

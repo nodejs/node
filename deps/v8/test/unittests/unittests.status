@@ -48,4 +48,9 @@
   'DecompressionOptimizerTest.*': [SKIP],
 }], # not pointer_compression
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

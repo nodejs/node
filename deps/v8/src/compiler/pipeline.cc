@@ -988,7 +988,9 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   Status FinalizeJobImpl(Isolate* isolate) final;
 
   // Registers weak object to optimized code dependencies.
-  void RegisterWeakObjectsInOptimizedCode(Handle<Code> code, Isolate* isolate);
+  void RegisterWeakObjectsInOptimizedCode(Isolate* isolate,
+                                          Handle<NativeContext> context,
+                                          Handle<Code> code);
 
  private:
   Zone zone_;
@@ -1167,13 +1169,14 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   }
 
   compilation_info()->SetCode(code);
-  compilation_info()->native_context().AddOptimizedCode(*code);
-  RegisterWeakObjectsInOptimizedCode(code, isolate);
+  Handle<NativeContext> context(compilation_info()->native_context(), isolate);
+  context->AddOptimizedCode(*code);
+  RegisterWeakObjectsInOptimizedCode(isolate, context, code);
   return SUCCEEDED;
 }
 
 void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
-    Handle<Code> code, Isolate* isolate) {
+    Isolate* isolate, Handle<NativeContext> context, Handle<Code> code) {
   std::vector<Handle<Map>> maps;
   DCHECK(code->is_optimized_code());
   {
@@ -1191,7 +1194,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
     }
   }
   for (Handle<Map> map : maps) {
-    isolate->heap()->AddRetainedMap(map);
+    isolate->heap()->AddRetainedMap(context, map);
   }
   code->set_can_have_weak_objects(true);
 }
@@ -1409,6 +1412,7 @@ struct InliningPhase {
       AddReducer(data, &graph_reducer, &inlining);
     }
     graph_reducer.ReduceGraph();
+    info->set_inlined_bytecode_size(inlining.total_inlined_bytecode_size());
   }
 };
 
@@ -1951,10 +1955,12 @@ struct CsaOptimizationPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->broker(), data->common(),
                                          data->machine(), temp_zone);
+    ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -2322,7 +2328,6 @@ struct VerifyGraphPhase {
       case Code::WASM_TO_CAPI_FUNCTION:
       case Code::WASM_TO_JS_FUNCTION:
       case Code::JS_TO_WASM_FUNCTION:
-      case Code::WASM_INTERPRETER_ENTRY:
       case Code::C_WASM_ENTRY:
         code_type = Verifier::kWasm;
         break;

@@ -2756,6 +2756,42 @@ TEST(PrivateClassFields) {
                      LoadGolden("PrivateClassFields.golden")));
 }
 
+TEST(PrivateClassFieldAccess) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+  printer.set_wrap(false);
+  printer.set_test_function_name("test");
+
+  const char* snippets[] = {
+      "class A {\n"
+      "  #a;\n"
+      "  #b;\n"
+      "  constructor() {\n"
+      "    this.#a = this.#b;\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "var test = A;\n"
+      "new test;\n",
+
+      "class B {\n"
+      "  #a;\n"
+      "  #b;\n"
+      "  constructor() {\n"
+      "    this.#a = this.#b;\n"
+      "  }\n"
+      "  force(str) {\n"
+      "    eval(str);\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "var test = B;\n"
+      "new test;\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrivateClassFieldAccess.golden")));
+}
+
 TEST(PrivateMethodDeclaration) {
   bool old_methods_flag = i::FLAG_harmony_private_methods;
   i::FLAG_harmony_private_methods = true;

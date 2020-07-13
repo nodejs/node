@@ -11,11 +11,33 @@
 #include <memory>
 #include <string>
 
-#include "v8config.h"  // NOLINT(build/include)
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
 
 class Isolate;
+
+// Valid priorities supported by the task scheduling infrastructure.
+enum class TaskPriority : uint8_t {
+  /**
+   * Best effort tasks are not critical for performance of the application. The
+   * platform implementation should preempt such tasks if higher priority tasks
+   * arrive.
+   */
+  kBestEffort,
+  /**
+   * User visible tasks are long running background tasks that will
+   * improve performance and memory usage of the application upon completion.
+   * Example: background compilation and garbage collection.
+   */
+  kUserVisible,
+  /**
+   * User blocking tasks are highest priority tasks that block the execution
+   * thread (e.g. major garbage collection). They must be finished as soon as
+   * possible.
+   */
+  kUserBlocking,
+};
 
 /**
  * A Task represents a unit of work.
@@ -114,6 +136,82 @@ class TaskRunner {
 };
 
 /**
+ * Delegate that's passed to Job's worker task, providing an entry point to
+ * communicate with the scheduler.
+ */
+class JobDelegate {
+ public:
+  /**
+   * Returns true if this thread should return from the worker task on the
+   * current thread ASAP. Workers should periodically invoke ShouldYield (or
+   * YieldIfNeeded()) as often as is reasonable.
+   */
+  virtual bool ShouldYield() = 0;
+
+  /**
+   * Notifies the scheduler that max concurrency was increased, and the number
+   * of worker should be adjusted accordingly. See Platform::PostJob() for more
+   * details.
+   */
+  virtual void NotifyConcurrencyIncrease() = 0;
+};
+
+/**
+ * Handle returned when posting a Job. Provides methods to control execution of
+ * the posted Job.
+ */
+class JobHandle {
+ public:
+  virtual ~JobHandle() = default;
+
+  /**
+   * Notifies the scheduler that max concurrency was increased, and the number
+   * of worker should be adjusted accordingly. See Platform::PostJob() for more
+   * details.
+   */
+  virtual void NotifyConcurrencyIncrease() = 0;
+
+  /**
+   * Contributes to the job on this thread. Doesn't return until all tasks have
+   * completed and max concurrency becomes 0. When Join() is called and max
+   * concurrency reaches 0, it should not increase again. This also promotes
+   * this Job's priority to be at least as high as the calling thread's
+   * priority.
+   */
+  virtual void Join() = 0;
+
+  /**
+   * Forces all existing workers to yield ASAP. Waits until they have all
+   * returned from the Job's callback before returning.
+   */
+  virtual void Cancel() = 0;
+
+  /**
+   * Returns true if associated with a Job and other methods may be called.
+   * Returns false after Join() or Cancel() was called.
+   */
+  virtual bool IsRunning() = 0;
+};
+
+/**
+ * A JobTask represents work to run in parallel from Platform::PostJob().
+ */
+class JobTask {
+ public:
+  virtual ~JobTask() = default;
+
+  virtual void Run(JobDelegate* delegate) = 0;
+
+  /**
+   * Controls the maximum number of threads calling Run() concurrently. Run() is
+   * only invoked if the number of threads previously running Run() was less
+   * than the value returned. Since GetMaxConcurrency() is a leaf function, it
+   * must not call back any JobHandle methods.
+   */
+  virtual size_t GetMaxConcurrency() const = 0;
+};
+
+/**
  * The interface represents complex arguments to trace events.
  */
 class ConvertableToTraceFormat {
@@ -138,6 +236,10 @@ class TracingController {
  public:
   virtual ~TracingController() = default;
 
+  // In Perfetto mode, trace events are written using Perfetto's Track Event
+  // API directly without going through the embedder. However, it is still
+  // possible to observe tracing being enabled and disabled.
+#if !defined(V8_USE_PERFETTO)
   /**
    * Called by TRACE_EVENT* macros, don't call this directly.
    * The name parameter is a category group for example:
@@ -183,6 +285,7 @@ class TracingController {
    **/
   virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                         const char* name, uint64_t handle) {}
+#endif  // !defined(V8_USE_PERFETTO)
 
   class TraceStateObserver {
    public:
@@ -367,6 +470,64 @@ class Platform {
    * Returns true if idle tasks are enabled for the given |isolate|.
    */
   virtual bool IdleTasksEnabled(Isolate* isolate) { return false; }
+
+  /**
+   * Posts |job_task| to run in parallel. Returns a JobHandle associated with
+   * the Job, which can be joined or canceled.
+   * This avoids degenerate cases:
+   * - Calling CallOnWorkerThread() for each work item, causing significant
+   *   overhead.
+   * - Fixed number of CallOnWorkerThread() calls that split the work and might
+   *   run for a long time. This is problematic when many components post
+   *   "num cores" tasks and all expect to use all the cores. In these cases,
+   *   the scheduler lacks context to be fair to multiple same-priority requests
+   *   and/or ability to request lower priority work to yield when high priority
+   *   work comes in.
+   * A canonical implementation of |job_task| looks like:
+   * class MyJobTask : public JobTask {
+   *  public:
+   *   MyJobTask(...) : worker_queue_(...) {}
+   *   // JobTask:
+   *   void Run(JobDelegate* delegate) override {
+   *     while (!delegate->ShouldYield()) {
+   *       // Smallest unit of work.
+   *       auto work_item = worker_queue_.TakeWorkItem(); // Thread safe.
+   *       if (!work_item) return;
+   *       ProcessWork(work_item);
+   *     }
+   *   }
+   *
+   *   size_t GetMaxConcurrency() const override {
+   *     return worker_queue_.GetSize(); // Thread safe.
+   *   }
+   * };
+   * auto handle = PostJob(TaskPriority::kUserVisible,
+   *                       std::make_unique<MyJobTask>(...));
+   * handle->Join();
+   *
+   * PostJob() and methods of the returned JobHandle/JobDelegate, must never be
+   * called while holding a lock that could be acquired by JobTask::Run or
+   * JobTask::GetMaxConcurrency -- that could result in a deadlock. This is
+   * because [1] JobTask::GetMaxConcurrency may be invoked while holding
+   * internal lock (A), hence JobTask::GetMaxConcurrency can only use a lock (B)
+   * if that lock is *never* held while calling back into JobHandle from any
+   * thread (A=>B/B=>A deadlock) and [2] JobTask::Run or
+   * JobTask::GetMaxConcurrency may be invoked synchronously from JobHandle
+   * (B=>JobHandle::foo=>B deadlock).
+   *
+   * A sufficient PostJob() implementation that uses the default Job provided in
+   * libplatform looks like:
+   *  std::unique_ptr<JobHandle> PostJob(
+   *      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+   *    return std::make_unique<DefaultJobHandle>(
+   *        std::make_shared<DefaultJobState>(
+   *            this, std::move(job_task), kNumThreads));
+   * }
+   */
+  virtual std::unique_ptr<JobHandle> PostJob(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
+    return nullptr;
+  }
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in

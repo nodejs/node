@@ -84,7 +84,7 @@ int CompressHelper(WrapperType wrapper_type,
                    int compression_level,
                    void* (*malloc_fn)(size_t),
                    void (*free_fn)(void*)) {
-  if (compression_level < 1 || compression_level > 9) {
+  if (compression_level < 0 || compression_level > 9) {
     compression_level = Z_DEFAULT_COMPRESSION;
   }
 

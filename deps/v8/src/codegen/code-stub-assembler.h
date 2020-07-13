@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/common/external-pointer.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
@@ -20,7 +21,6 @@
 #include "src/objects/smi.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
-
 #include "torque-generated/exported-macros-assembler-tq.h"
 
 namespace v8 {
@@ -34,27 +34,78 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V)                                 \
-  V(ArrayIteratorProtector, array_iterator_protector, ArrayIteratorProtector) \
-  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector)    \
-  V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)       \
-  V(NoElementsProtector, no_elements_protector, NoElementsProtector)          \
-  V(NumberStringCache, number_string_cache, NumberStringCache)                \
-  V(PromiseResolveProtector, promise_resolve_protector,                       \
-    PromiseResolveProtector)                                                  \
-  V(PromiseSpeciesProtector, promise_species_protector,                       \
-    PromiseSpeciesProtector)                                                  \
-  V(PromiseThenProtector, promise_then_protector, PromiseThenProtector)       \
-  V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)       \
-  V(SingleCharacterStringCache, single_character_string_cache,                \
-    SingleCharacterStringCache)                                               \
-  V(StringIteratorProtector, string_iterator_protector,                       \
-    StringIteratorProtector)                                                  \
-  V(TypedArraySpeciesProtector, typed_array_species_protector,                \
+#define HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V)                                  \
+  V(ArrayIteratorProtector, array_iterator_protector, ArrayIteratorProtector)  \
+  V(ArraySpeciesProtector, array_species_protector, ArraySpeciesProtector)     \
+  V(AsyncFunctionAwaitRejectSharedFun, async_function_await_reject_shared_fun, \
+    AsyncFunctionAwaitRejectSharedFun)                                         \
+  V(AsyncFunctionAwaitResolveSharedFun,                                        \
+    async_function_await_resolve_shared_fun,                                   \
+    AsyncFunctionAwaitResolveSharedFun)                                        \
+  V(AsyncGeneratorAwaitRejectSharedFun,                                        \
+    async_generator_await_reject_shared_fun,                                   \
+    AsyncGeneratorAwaitRejectSharedFun)                                        \
+  V(AsyncGeneratorAwaitResolveSharedFun,                                       \
+    async_generator_await_resolve_shared_fun,                                  \
+    AsyncGeneratorAwaitResolveSharedFun)                                       \
+  V(AsyncGeneratorReturnClosedRejectSharedFun,                                 \
+    async_generator_return_closed_reject_shared_fun,                           \
+    AsyncGeneratorReturnClosedRejectSharedFun)                                 \
+  V(AsyncGeneratorReturnClosedResolveSharedFun,                                \
+    async_generator_return_closed_resolve_shared_fun,                          \
+    AsyncGeneratorReturnClosedResolveSharedFun)                                \
+  V(AsyncGeneratorReturnResolveSharedFun,                                      \
+    async_generator_return_resolve_shared_fun,                                 \
+    AsyncGeneratorReturnResolveSharedFun)                                      \
+  V(AsyncGeneratorYieldResolveSharedFun,                                       \
+    async_generator_yield_resolve_shared_fun,                                  \
+    AsyncGeneratorYieldResolveSharedFun)                                       \
+  V(AsyncIteratorValueUnwrapSharedFun, async_iterator_value_unwrap_shared_fun, \
+    AsyncIteratorValueUnwrapSharedFun)                                         \
+  V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)        \
+  V(NoElementsProtector, no_elements_protector, NoElementsProtector)           \
+  V(NumberStringCache, number_string_cache, NumberStringCache)                 \
+  V(PromiseAllResolveElementSharedFun, promise_all_resolve_element_shared_fun, \
+    PromiseAllResolveElementSharedFun)                                         \
+  V(PromiseAllSettledRejectElementSharedFun,                                   \
+    promise_all_settled_reject_element_shared_fun,                             \
+    PromiseAllSettledRejectElementSharedFun)                                   \
+  V(PromiseAllSettledResolveElementSharedFun,                                  \
+    promise_all_settled_resolve_element_shared_fun,                            \
+    PromiseAllSettledResolveElementSharedFun)                                  \
+  V(PromiseAnyRejectElementSharedFun, promise_any_reject_element_shared_fun,   \
+    PromiseAnyRejectElementSharedFun)                                          \
+  V(PromiseCapabilityDefaultRejectSharedFun,                                   \
+    promise_capability_default_reject_shared_fun,                              \
+    PromiseCapabilityDefaultRejectSharedFun)                                   \
+  V(PromiseCapabilityDefaultResolveSharedFun,                                  \
+    promise_capability_default_resolve_shared_fun,                             \
+    PromiseCapabilityDefaultResolveSharedFun)                                  \
+  V(PromiseCatchFinallySharedFun, promise_catch_finally_shared_fun,            \
+    PromiseCatchFinallySharedFun)                                              \
+  V(PromiseGetCapabilitiesExecutorSharedFun,                                   \
+    promise_get_capabilities_executor_shared_fun,                              \
+    PromiseGetCapabilitiesExecutorSharedFun)                                   \
+  V(PromiseResolveProtector, promise_resolve_protector,                        \
+    PromiseResolveProtector)                                                   \
+  V(PromiseSpeciesProtector, promise_species_protector,                        \
+    PromiseSpeciesProtector)                                                   \
+  V(PromiseThenFinallySharedFun, promise_then_finally_shared_fun,              \
+    PromiseThenFinallySharedFun)                                               \
+  V(PromiseThenProtector, promise_then_protector, PromiseThenProtector)        \
+  V(PromiseThrowerFinallySharedFun, promise_thrower_finally_shared_fun,        \
+    PromiseThrowerFinallySharedFun)                                            \
+  V(PromiseValueThunkFinallySharedFun, promise_value_thunk_finally_shared_fun, \
+    PromiseValueThunkFinallySharedFun)                                         \
+  V(ProxyRevokeSharedFun, proxy_revoke_shared_fun, ProxyRevokeSharedFun)       \
+  V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector)  \
+  V(SetIteratorProtector, set_iterator_protector, SetIteratorProtector)        \
+  V(SingleCharacterStringCache, single_character_string_cache,                 \
+    SingleCharacterStringCache)                                                \
+  V(StringIteratorProtector, string_iterator_protector,                        \
+    StringIteratorProtector)                                                   \
+  V(TypedArraySpeciesProtector, typed_array_species_protector,                 \
     TypedArraySpeciesProtector)
-
-#define TORQUE_INTERNAL_CLASS_LIST_CSA_ADAPTER(V, NAME, Name, name) \
-  V(Name##Map, name##_map, Name##Map)
 
 #define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \
   V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                       \
@@ -106,6 +157,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)          \
   V(match_symbol, match_symbol, MatchSymbol)                                   \
   V(megamorphic_symbol, megamorphic_symbol, MegamorphicSymbol)                 \
+  V(message_string, message_string, MessageString)                             \
   V(MetaMap, meta_map, MetaMap)                                                \
   V(minus_Infinity_string, minus_Infinity_string, MinusInfinityString)         \
   V(MinusZeroValue, minus_zero_value, MinusZero)                               \
@@ -178,8 +230,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)           \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)                \
   V(zero_string, zero_string, ZeroString)                                      \
-  TORQUE_INTERNAL_CLASS_LIST_GENERATOR(TORQUE_INTERNAL_CLASS_LIST_CSA_ADAPTER, \
-                                       V)
+  TORQUE_INTERNAL_MAP_CSA_LIST(V)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(V) \
@@ -430,6 +481,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<HeapObject>(value);
   }
 
+  TNode<JSAggregateError> HeapObjectToJSAggregateError(
+      TNode<HeapObject> heap_object, Label* fail);
+
   TNode<JSArray> HeapObjectToJSArray(TNode<HeapObject> heap_object,
                                      Label* fail) {
     GotoIfNot(IsJSArray(heap_object), fail);
@@ -576,7 +630,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Word32BinaryNot(TaggedEqual(a, b));
   }
 
-  TNode<Object> NoContextConstant();
+  TNode<Smi> NoContextConstant();
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
   TNode<std::remove_pointer<std::remove_reference<decltype(            \
@@ -1064,6 +1118,31 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //
   // Works only with V8_ENABLE_FORCE_SLOW_PATH compile time flag. Nop otherwise.
   void GotoIfForceSlowPath(Label* if_true);
+
+  // Convert external pointer from on-V8-heap representation to an actual
+  // external pointer value.
+  TNode<RawPtrT> DecodeExternalPointer(
+      TNode<ExternalPointerT> encoded_pointer) {
+    STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+    TNode<RawPtrT> value = ReinterpretCast<RawPtrT>(encoded_pointer);
+    if (V8_HEAP_SANDBOX_BOOL) {
+      value = UncheckedCast<RawPtrT>(
+          WordXor(value, UintPtrConstant(kExternalPointerSalt)));
+    }
+    return value;
+  }
+
+  // Convert external pointer value to on-V8-heap representation.
+  // This should eventually become a call to a non-allocating runtime function.
+  TNode<ExternalPointerT> EncodeExternalPointer(TNode<RawPtrT> pointer) {
+    STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+    TNode<RawPtrT> encoded_pointer = pointer;
+    if (V8_HEAP_SANDBOX_BOOL) {
+      encoded_pointer = UncheckedCast<RawPtrT>(
+          WordXor(encoded_pointer, UintPtrConstant(kExternalPointerSalt)));
+    }
+    return ReinterpretCast<ExternalPointerT>(encoded_pointer);
+  }
 
   // Load value from current parent frame by given offset in bytes.
   TNode<Object> LoadFromParentFrame(int offset);
@@ -1781,6 +1860,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  TNode<IntPtrT> end_address,
                                  TNode<Object> value);
 
+  // Marks the FixedArray copy-on-write without moving it.
+  void MakeFixedArrayCOW(TNode<FixedArray> array);
+
   TNode<Cell> AllocateCellWithValue(
       TNode<Object> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   TNode<Cell> AllocateSmiCell(int value = 0) {
@@ -2046,35 +2128,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       ParameterMode mode = INTPTR_PARAMETERS);
 
   enum class DestroySource { kNo, kYes };
-
-  // Collect the callable |maybe_target| feedback for either a CALL_IC or
-  // an INSTANCEOF_IC in the |feedback_vector| at |slot_id|. There are
-  // two modes for feedback collection:
-  //
-  //   kCollectFeedbackCell -     collect JSFunctions, but devolve to the
-  //                              FeedbackCell as long as all JSFunctions
-  //                              seen share the same one.
-  //   kDontCollectFeedbackCell - collect JSFunctions without devolving
-  //                              to the FeedbackCell in case a
-  //                              different JSFunction appears. Go directly
-  //                              to the Megamorphic sentinel value in this
-  //                              case.
-  enum class CallableFeedbackMode {
-    kCollectFeedbackCell,
-    kDontCollectFeedbackCell
-  };
-  void CollectCallableFeedback(TNode<Object> maybe_target,
-                               TNode<Context> context,
-                               TNode<FeedbackVector> feedback_vector,
-                               TNode<UintPtrT> slot_id,
-                               CallableFeedbackMode mode);
-
-  // Collect CALL_IC feedback for |maybe_target| function in the
-  // |feedback_vector| at |slot_id|, and the call counts in
-  // the |feedback_vector| at |slot_id+1|.
-  void CollectCallFeedback(TNode<Object> maybe_target, TNode<Context> context,
-                           TNode<HeapObject> maybe_feedback_vector,
-                           TNode<UintPtrT> slot_id);
 
   // Increment the call count for a CALL_IC or construct call.
   // The call count is located at feedback_vector[slot_id + 1].
@@ -2415,20 +2468,29 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           TVariable<BigInt>* var_maybe_bigint,
                                           TVariable<Smi>* var_feedback);
 
+  TNode<Int32T> TruncateNumberToWord32(TNode<Number> value);
   // Truncate the floating point value of a HeapNumber to an Int32.
   TNode<Int32T> TruncateHeapNumberValueToWord32(TNode<HeapNumber> object);
 
   // Conversions.
   void TryHeapNumberToSmi(TNode<HeapNumber> number, TVariable<Smi>* output,
                           Label* if_smi);
+  void TryFloat32ToSmi(TNode<Float32T> number, TVariable<Smi>* output,
+                       Label* if_smi);
   void TryFloat64ToSmi(TNode<Float64T> number, TVariable<Smi>* output,
                        Label* if_smi);
+  TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
   TNode<Number> ChangeFloat64ToTagged(SloppyTNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
   TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(TNode<Number> value);
+
+  TNode<Int32T> ChangeTaggedNonSmiToInt32(TNode<Context> context,
+                                          TNode<HeapObject> input);
+  TNode<Float64T> ChangeTaggedToFloat64(TNode<Context> context,
+                                        TNode<Object> input);
 
   void TaggedToNumeric(TNode<Context> context, TNode<Object> value,
                        TVariable<Numeric>* var_numeric);
@@ -2546,6 +2608,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsOddball(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOddballInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsIndirectStringInstanceType(SloppyTNode<Int32T> instance_type);
+  TNode<BoolT> IsJSAggregateError(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayBuffer(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSDataView(TNode<HeapObject> object);
   TNode<BoolT> IsJSArrayInstanceType(SloppyTNode<Int32T> instance_type);
@@ -2565,6 +2628,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSObjectInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsJSObjectMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSObject(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsJSFinalizationRegistryMap(TNode<Map> map);
+  TNode<BoolT> IsJSFinalizationRegistry(TNode<HeapObject> object);
   TNode<BoolT> IsJSPromiseMap(SloppyTNode<Map> map);
   TNode<BoolT> IsJSPromise(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsJSProxy(SloppyTNode<HeapObject> object);
@@ -2643,8 +2708,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsPromiseThenProtectorCellInvalid();
   TNode<BoolT> IsArraySpeciesProtectorCellInvalid();
   TNode<BoolT> IsTypedArraySpeciesProtectorCellInvalid();
-  TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid(
-      TNode<NativeContext> native_context);
+  TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
 
   TNode<BoolT> IsMockArrayBufferAllocatorFlag() {
@@ -2698,6 +2762,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   bool IsFastElementsKind(ElementsKind kind) {
     return v8::internal::IsFastElementsKind(kind);
   }
+  TNode<BoolT> IsFastOrNonExtensibleOrSealedElementsKind(
+      TNode<Int32T> elements_kind);
+
   TNode<BoolT> IsDictionaryElementsKind(TNode<Int32T> elements_kind) {
     return ElementsKindEqual(elements_kind, Int32Constant(DICTIONARY_ELEMENTS));
   }
@@ -2812,43 +2879,52 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Decodes an unsigned (!) value from |word| to a word-size node.
   TNode<UintPtrT> DecodeWord(SloppyTNode<WordT> word, uint32_t shift,
-                             uint32_t mask);
+                             uintptr_t mask);
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
-  TNode<Word32T> UpdateWord32(TNode<Word32T> word, TNode<Uint32T> value) {
-    return UpdateWord32(word, value, BitField::kShift, BitField::kMask);
+  TNode<Word32T> UpdateWord32(TNode<Word32T> word, TNode<Uint32T> value,
+                              bool starts_as_zero = false) {
+    return UpdateWord32(word, value, BitField::kShift, BitField::kMask,
+                        starts_as_zero);
   }
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
-  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<UintPtrT> value) {
-    return UpdateWord(word, value, BitField::kShift, BitField::kMask);
+  TNode<WordT> UpdateWord(TNode<WordT> word, TNode<UintPtrT> value,
+                          bool starts_as_zero = false) {
+    return UpdateWord(word, value, BitField::kShift, BitField::kMask,
+                      starts_as_zero);
   }
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
-  TNode<Word32T> UpdateWordInWord32(TNode<Word32T> word,
-                                    TNode<UintPtrT> value) {
-    return UncheckedCast<Uint32T>(TruncateIntPtrToInt32(
-        Signed(UpdateWord<BitField>(ChangeUint32ToWord(word), value))));
+  TNode<Word32T> UpdateWordInWord32(TNode<Word32T> word, TNode<UintPtrT> value,
+                                    bool starts_as_zero = false) {
+    return UncheckedCast<Uint32T>(
+        TruncateIntPtrToInt32(Signed(UpdateWord<BitField>(
+            ChangeUint32ToWord(word), value, starts_as_zero))));
   }
 
   // Returns a node that contains the updated values of a |BitField|.
   template <typename BitField>
-  TNode<WordT> UpdateWord32InWord(TNode<WordT> word, TNode<Uint32T> value) {
-    return UpdateWord<BitField>(word, ChangeUint32ToWord(value));
+  TNode<WordT> UpdateWord32InWord(TNode<WordT> word, TNode<Uint32T> value,
+                                  bool starts_as_zero = false) {
+    return UpdateWord<BitField>(word, ChangeUint32ToWord(value),
+                                starts_as_zero);
   }
 
   // Returns a node that contains the updated {value} inside {word} starting
   // at {shift} and fitting in {mask}.
   TNode<Word32T> UpdateWord32(TNode<Word32T> word, TNode<Uint32T> value,
-                              uint32_t shift, uint32_t mask);
+                              uint32_t shift, uint32_t mask,
+                              bool starts_as_zero = false);
 
   // Returns a node that contains the updated {value} inside {word} starting
   // at {shift} and fitting in {mask}.
   TNode<WordT> UpdateWord(TNode<WordT> word, TNode<UintPtrT> value,
-                          uint32_t shift, uint32_t mask);
+                          uint32_t shift, uintptr_t mask,
+                          bool starts_as_zero = false);
 
   // Returns true if any of the |T|'s bits in given |word32| are set.
   template <typename T>
@@ -3593,8 +3669,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsDebugActive();
 
   // JSArrayBuffer helpers
-  TNode<Uint32T> LoadJSArrayBufferBitField(TNode<JSArrayBuffer> array_buffer);
-  TNode<RawPtrT> LoadJSArrayBufferBackingStore(
+  TNode<RawPtrT> LoadJSArrayBufferBackingStorePtr(
       TNode<JSArrayBuffer> array_buffer);
   void ThrowIfArrayBufferIsDetached(SloppyTNode<Context> context,
                                     TNode<JSArrayBuffer> array_buffer,
@@ -3671,10 +3746,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> MakeTypeError(MessageTemplate message,
                                   TNode<Context> context, TArgs... args) {
     STATIC_ASSERT(sizeof...(TArgs) <= 3);
-    const TNode<Object> make_type_error = LoadContextElement(
-        LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
-    return CAST(Call(context, make_type_error, UndefinedConstant(),
-                     SmiConstant(message), args...));
+    return CAST(CallRuntime(Runtime::kNewTypeError, context,
+                            SmiConstant(message), args...));
   }
 
   void Abort(AbortReason reason) {
@@ -3843,6 +3916,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> CloneIfMutablePrimitive(TNode<Object> object);
 
   TNode<Smi> RefillMathRandom(TNode<NativeContext> native_context);
+
+  void RemoveFinalizationRegistryCellFromUnregisterTokenMap(
+      TNode<JSFinalizationRegistry> finalization_registry,
+      TNode<WeakCell> weak_cell);
 
  private:
   friend class CodeStubArguments;

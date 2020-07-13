@@ -1090,6 +1090,9 @@ bool SerializerForBackgroundCompilation::BailoutOnUninitialized(
     // OSR entry point. TODO(neis): Support OSR?
     return false;
   }
+  if (FLAG_turboprop && feedback.slot_kind() == FeedbackSlotKind::kCall) {
+    return false;
+  }
   if (feedback.IsInsufficient()) {
     environment()->Kill();
     return true;
@@ -2299,6 +2302,12 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
         if (arguments.size() >= 1) {
           ProcessMapHintsForPromises(arguments[0]);
         }
+        SharedFunctionInfoRef(
+            broker(),
+            broker()->isolate()->factory()->promise_catch_finally_shared_fun());
+        SharedFunctionInfoRef(
+            broker(),
+            broker()->isolate()->factory()->promise_then_finally_shared_fun());
       }
       break;
     }
@@ -2433,6 +2442,17 @@ void SerializerForBackgroundCompilation::ProcessBuiltinCall(
               kMissingArgumentsAreUnknown, result_hints);
         }
       }
+      SharedFunctionInfoRef(
+          broker(), broker()
+                        ->isolate()
+                        ->factory()
+                        ->promise_capability_default_reject_shared_fun());
+      SharedFunctionInfoRef(
+          broker(), broker()
+                        ->isolate()
+                        ->factory()
+                        ->promise_capability_default_resolve_shared_fun());
+
       break;
     case Builtins::kFunctionPrototypeCall:
       if (arguments.size() >= 1) {

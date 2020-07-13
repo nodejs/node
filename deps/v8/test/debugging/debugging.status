@@ -2,4 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-[]
+[
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+]

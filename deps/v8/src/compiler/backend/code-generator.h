@@ -51,12 +51,16 @@ class InstructionOperandIterator {
   size_t pos_;
 };
 
-enum class DeoptimizationLiteralKind { kObject, kNumber, kString };
+enum class DeoptimizationLiteralKind { kObject, kNumber, kString, kInvalid };
 
 // Either a non-null Handle<Object>, a double or a StringConstantBase.
 class DeoptimizationLiteral {
  public:
-  DeoptimizationLiteral() : object_(), number_(0), string_(nullptr) {}
+  DeoptimizationLiteral()
+      : kind_(DeoptimizationLiteralKind::kInvalid),
+        object_(),
+        number_(0),
+        string_(nullptr) {}
   explicit DeoptimizationLiteral(Handle<Object> object)
       : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
     CHECK(!object_.is_null());
@@ -77,7 +81,14 @@ class DeoptimizationLiteral {
 
   Handle<Object> Reify(Isolate* isolate) const;
 
-  DeoptimizationLiteralKind kind() const { return kind_; }
+  void Validate() const {
+    CHECK_NE(kind_, DeoptimizationLiteralKind::kInvalid);
+  }
+
+  DeoptimizationLiteralKind kind() const {
+    Validate();
+    return kind_;
+  }
 
  private:
   DeoptimizationLiteralKind kind_;

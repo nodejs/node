@@ -9,7 +9,16 @@ extern class CallHandlerInfo extends Struct {
   data: Object;
 }
 
+bitfield struct InterceptorInfoFlags extends uint31 {
+  can_intercept_symbols: bool: 1 bit;
+  all_can_read: bool: 1 bit;
+  non_masking: bool: 1 bit;
+  named: bool: 1 bit;
+  has_no_side_effect: bool: 1 bit;
+}
+
 @generateCppClass
+@generatePrint
 extern class InterceptorInfo extends Struct {
   getter: NonNullForeign|Zero|Undefined;
   setter: NonNullForeign|Zero|Undefined;
@@ -19,10 +28,11 @@ extern class InterceptorInfo extends Struct {
   enumerator: NonNullForeign|Zero|Undefined;
   definer: NonNullForeign|Zero|Undefined;
   data: Object;
-  flags: Smi;
+  flags: SmiTagged<InterceptorInfoFlags>;
 }
 
 @generateCppClass
+@generatePrint
 extern class AccessCheckInfo extends Struct {
   callback: Foreign|Zero|Undefined;
   named_interceptor: InterceptorInfo|Zero|Undefined;
@@ -44,12 +54,16 @@ bitfield struct AccessorInfoFlags extends uint31 {
   initial_attributes: PropertyAttributes: 3 bit;
 }
 
+@generateCppClass
+@generatePrint
 extern class AccessorInfo extends Struct {
-  name: Object;
+  name: Name;
   flags: SmiTagged<AccessorInfoFlags>;
   expected_receiver_type: Object;
   setter: NonNullForeign|Zero;
   getter: NonNullForeign|Zero;
+  // This either points at the same as above, or a trampoline in case we are
+  // running with the simulator. Use these entries from generated code.
   js_getter: NonNullForeign|Zero;
   data: Object;
 }

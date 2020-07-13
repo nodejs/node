@@ -563,14 +563,12 @@ bool ValidateResource(const icu::Locale locale, const char* path,
 }  // namespace
 
 std::set<std::string> Intl::BuildLocaleSet(
-    const icu::Locale* icu_available_locales, int32_t count, const char* path,
+    const std::vector<std::string>& icu_available_locales, const char* path,
     const char* validate_key) {
   std::set<std::string> locales;
-  for (int32_t i = 0; i < count; ++i) {
-    std::string locale =
-        Intl::ToLanguageTag(icu_available_locales[i]).FromJust();
+  for (const std::string& locale : icu_available_locales) {
     if (path != nullptr || validate_key != nullptr) {
-      if (!ValidateResource(icu_available_locales[i], path, validate_key)) {
+      if (!ValidateResource(icu::Locale(locale.c_str()), path, validate_key)) {
         continue;
       }
     }
@@ -2107,9 +2105,9 @@ Maybe<bool> Intl::GetNumberingSystem(Isolate* isolate,
   return Just(false);
 }
 
-const std::set<std::string>& Intl::GetAvailableLocalesForLocale() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::Locale>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
+const std::set<std::string>& Intl::GetAvailableLocales() {
+  static base::LazyInstance<Intl::AvailableLocales<>>::type available_locales =
+      LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }
 
@@ -2123,8 +2121,7 @@ struct CheckCalendar {
 }  // namespace
 
 const std::set<std::string>& Intl::GetAvailableLocalesForDateFormat() {
-  static base::LazyInstance<
-      Intl::AvailableLocales<icu::DateFormat, CheckCalendar>>::type
+  static base::LazyInstance<Intl::AvailableLocales<CheckCalendar>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

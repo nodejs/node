@@ -9,6 +9,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-chunk.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

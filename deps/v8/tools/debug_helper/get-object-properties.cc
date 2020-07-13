@@ -7,7 +7,8 @@
 #include "debug-helper-internal.h"
 #include "heap-constants.h"
 #include "include/v8-internal.h"
-#include "src/common/ptr-compr-inl.h"
+#include "src/common/external-pointer.h"
+#include "src/execution/isolate-utils.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/unicode-inl.h"
 #include "torque-generated/class-debug-readers-tq.h"
@@ -323,8 +324,15 @@ class ReadStringVisitor : public TqObjectVisitor {
     // require knowledge of the embedder. For now, we only read cached external
     // strings.
     if (IsExternalStringCached(object)) {
-      uintptr_t data_address = reinterpret_cast<uintptr_t>(
-          GetOrFinish(object->GetResourceDataValue(accessor_)));
+      ExternalPointer_t resource_data =
+          GetOrFinish(object->GetResourceDataValue(accessor_));
+#ifdef V8_COMPRESS_POINTERS
+      uintptr_t data_address = static_cast<uintptr_t>(DecodeExternalPointer(
+          Isolate::FromRoot(GetIsolateRoot(heap_addresses_.any_heap_pointer)),
+          resource_data));
+#else
+      uintptr_t data_address = reinterpret_cast<uintptr_t>(resource_data);
+#endif  // V8_COMPRESS_POINTERS
       if (done_) return;
       ReadStringCharacters<TChar>(object, data_address);
     } else {

@@ -253,7 +253,6 @@ class SystemTest(unittest.TestCase):
     # Check relevant properties of the json output.
     with open(actual_json) as f:
       json_output = json.load(f)[0]
-      pretty_json = json.dumps(json_output, indent=2, sort_keys=True)
 
     # Replace duration in actual output as it's non-deterministic. Also
     # replace the python executable prefix as it has a different absolute
@@ -268,10 +267,15 @@ class SystemTest(unittest.TestCase):
     for data in json_output['results']:
       replace_variable_data(data)
     json_output['duration_mean'] = 1
+    # We need lexicographic sorting here to avoid non-deterministic behaviour
+    # The original sorting key is duration, but in our fake test we have
+    # non-deterministic durations before we reset them to 1
+    json_output['slowest_tests'].sort(key= lambda x: str(x))
 
     with open(os.path.join(TEST_DATA_ROOT, expected_results_name)) as f:
       expected_test_results = json.load(f)
 
+    pretty_json = json.dumps(json_output, indent=2, sort_keys=True)
     msg = None  # Set to pretty_json for bootstrapping.
     self.assertDictEqual(json_output, expected_test_results, msg)
 

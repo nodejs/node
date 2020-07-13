@@ -242,12 +242,10 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(
       request, AsyncGeneratorRequest::kPromiseOffset);
 
-  const int resolve_index = Context::ASYNC_GENERATOR_AWAIT_RESOLVE_SHARED_FUN;
-  const int reject_index = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
-
   SetGeneratorAwaiting(async_generator_object);
-  Await(context, async_generator_object, value, outer_promise, resolve_index,
-        reject_index, is_catchable);
+  Await(context, async_generator_object, value, outer_promise,
+        AsyncGeneratorAwaitResolveSharedFunConstant(),
+        AsyncGeneratorAwaitRejectSharedFunConstant(), is_catchable);
   Return(UndefinedConstant());
 }
 
@@ -573,12 +571,10 @@ TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
   const TNode<JSPromise> outer_promise =
       LoadPromiseFromAsyncGeneratorRequest(request);
 
-  const int on_resolve = Context::ASYNC_GENERATOR_YIELD_RESOLVE_SHARED_FUN;
-  const int on_reject = Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN;
-
   SetGeneratorAwaiting(generator);
-  Await(context, generator, value, outer_promise, on_resolve, on_reject,
-        is_caught);
+  Await(context, generator, value, outer_promise,
+        AsyncGeneratorYieldResolveSharedFunConstant(),
+        AsyncGeneratorAwaitRejectSharedFunConstant(), is_caught);
   Return(UndefinedConstant());
 }
 
@@ -623,19 +619,17 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
       CAST(LoadFirstAsyncGeneratorRequestFromQueue(generator));
 
   Label perform_await(this);
-  TVARIABLE(IntPtrT, var_on_resolve,
-            IntPtrConstant(
-                Context::ASYNC_GENERATOR_RETURN_CLOSED_RESOLVE_SHARED_FUN));
-  TVARIABLE(
-      IntPtrT, var_on_reject,
-      IntPtrConstant(Context::ASYNC_GENERATOR_RETURN_CLOSED_REJECT_SHARED_FUN));
+  TVARIABLE(SharedFunctionInfo, var_on_resolve,
+            AsyncGeneratorReturnClosedResolveSharedFunConstant());
+
+  TVARIABLE(SharedFunctionInfo, var_on_reject,
+            AsyncGeneratorReturnClosedRejectSharedFunConstant());
 
   const TNode<Smi> state = LoadGeneratorState(generator);
   GotoIf(IsGeneratorStateClosed(state), &perform_await);
-  var_on_resolve =
-      IntPtrConstant(Context::ASYNC_GENERATOR_RETURN_RESOLVE_SHARED_FUN);
-  var_on_reject =
-      IntPtrConstant(Context::ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN);
+  var_on_resolve = AsyncGeneratorReturnResolveSharedFunConstant();
+  var_on_reject = AsyncGeneratorAwaitRejectSharedFunConstant();
+
   Goto(&perform_await);
 
   BIND(&perform_await);

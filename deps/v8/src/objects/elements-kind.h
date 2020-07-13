@@ -127,6 +127,14 @@ inline bool IsDictionaryElementsKind(ElementsKind kind) {
   return kind == DICTIONARY_ELEMENTS;
 }
 
+inline bool IsFastArgumentsElementsKind(ElementsKind kind) {
+  return kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
+}
+
+inline bool IsSlowArgumentsElementsKind(ElementsKind kind) {
+  return kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
+}
+
 inline bool IsSloppyArgumentsElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, FAST_SLOPPY_ARGUMENTS_ELEMENTS,
                          SLOW_SLOPPY_ARGUMENTS_ELEMENTS);

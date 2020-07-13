@@ -79,6 +79,10 @@ namespace internal {
      V8.WasmModuleNumberOfCodeGCsTriggered, 1, 128, 20)                        \
   /* number of code spaces reserved per wasm module */                         \
   HR(wasm_module_num_code_spaces, V8.WasmModuleNumberOfCodeSpaces, 1, 128, 20) \
+  /* number of live modules per isolate */                                     \
+  HR(wasm_modules_per_isolate, V8.WasmModulesPerIsolate, 1, 1024, 30)          \
+  /* number of live modules per engine (i.e. whole process) */                 \
+  HR(wasm_modules_per_engine, V8.WasmModulesPerEngine, 1, 1024, 30)            \
   /* bailout reason if Liftoff failed, or {kSuccess} (per function) */         \
   HR(liftoff_bailout_reasons, V8.LiftoffBailoutReasons, 0, 20, 21)             \
   /* Ticks observed in a single Turbofan compilation, in 1K */                 \
@@ -237,8 +241,6 @@ namespace internal {
 #define STATS_COUNTER_LIST_1(SC)                                   \
   /* Global Handle Count*/                                         \
   SC(global_handles, V8.GlobalHandles)                             \
-  /* OS Memory allocated */                                        \
-  SC(memory_allocated, V8.OsMemoryAllocated)                       \
   SC(maps_normalized, V8.MapsNormalized)                           \
   SC(maps_created, V8.MapsCreated)                                 \
   SC(elements_transitions, V8.ObjectElementsTransitions)           \
@@ -264,7 +266,7 @@ namespace internal {
   SC(total_compile_size, V8.TotalCompileSize)                      \
   /* Number of contexts created from scratch. */                   \
   SC(contexts_created_from_scratch, V8.ContextsCreatedFromScratch) \
-  /* Number of contexts created by partial snapshot. */            \
+  /* Number of contexts created by context snapshot. */            \
   SC(contexts_created_by_snapshot, V8.ContextsCreatedBySnapshot)   \
   /* Number of code objects found from pc. */                      \
   SC(pc_to_code, V8.PcToCode)                                      \

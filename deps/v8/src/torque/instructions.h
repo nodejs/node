@@ -349,14 +349,13 @@ struct StoreReferenceInstruction : InstructionBase {
 // Pops a bitfield struct; pushes a bitfield value extracted from it.
 struct LoadBitFieldInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  LoadBitFieldInstruction(const BitFieldStructType* bit_field_struct_type,
-                          BitField bit_field)
+  LoadBitFieldInstruction(const Type* bit_field_struct_type, BitField bit_field)
       : bit_field_struct_type(bit_field_struct_type),
         bit_field(std::move(bit_field)) {}
 
   DefinitionLocation GetValueDefinition() const;
 
-  const BitFieldStructType* bit_field_struct_type;
+  const Type* bit_field_struct_type;
   BitField bit_field;
 };
 
@@ -364,15 +363,18 @@ struct LoadBitFieldInstruction : InstructionBase {
 // containing the updated value.
 struct StoreBitFieldInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  StoreBitFieldInstruction(const BitFieldStructType* bit_field_struct_type,
-                           BitField bit_field)
+  StoreBitFieldInstruction(const Type* bit_field_struct_type,
+                           BitField bit_field, bool starts_as_zero)
       : bit_field_struct_type(bit_field_struct_type),
-        bit_field(std::move(bit_field)) {}
+        bit_field(std::move(bit_field)),
+        starts_as_zero(starts_as_zero) {}
 
   DefinitionLocation GetValueDefinition() const;
 
-  const BitFieldStructType* bit_field_struct_type;
+  const Type* bit_field_struct_type;
   BitField bit_field;
+  // Allows skipping the mask step if we know the starting value is zero.
+  bool starts_as_zero;
 };
 
 struct CallIntrinsicInstruction : InstructionBase {

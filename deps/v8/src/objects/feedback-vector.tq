@@ -6,13 +6,15 @@ extern class FeedbackVector extends HeapObject {
   shared_function_info: SharedFunctionInfo;
   optimized_code_weak_or_smi: Weak<Code>|Smi;
   closure_feedback_cell_array: FixedArray;
-  length: int32;
+  const length: int32;
   invocation_count: int32;
   profiler_ticks: int32;
   // TODO(v8:9287) The padding is not necessary on platforms with 4 bytes
   // tagged pointers, we should make it conditional; however, platform-specific
   // interacts badly with GCMole, so we need to address that first.
   padding: uint32;
+  // TODO(tebbi): The variable-length feedback_slots field should be declared
+  // here once it is possible to declare tagged slots after untagged slots.
 }
 
 extern class FeedbackMetadata extends HeapObject;

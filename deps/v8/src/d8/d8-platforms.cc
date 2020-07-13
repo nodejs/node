@@ -43,9 +43,17 @@ class PredictablePlatform : public Platform {
   int NumberOfWorkerThreads() override { return 0; }
 
   void CallOnWorkerThread(std::unique_ptr<Task> task) override {
-    // It's not defined when background tasks are being executed, so we can just
-    // execute them right away.
-    task->Run();
+    // We post worker tasks on the foreground task runner of the
+    // {kProcessGlobalPredictablePlatformWorkerTaskQueue} isolate. The task
+    // queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue} isolate
+    // is then executed on the main thread to achieve predictable behavior.
+    //
+    // In this context here it is okay to call {GetForegroundTaskRunner} from a
+    // background thread. The reason is that code is executed sequentially with
+    // the PredictablePlatform, and that the {DefaultPlatform} does not access
+    // the isolate but only uses it as the key in a HashMap.
+    GetForegroundTaskRunner(kProcessGlobalPredictablePlatformWorkerTaskQueue)
+        ->PostTask(std::move(task));
   }
 
   void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,

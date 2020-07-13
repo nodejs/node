@@ -819,7 +819,7 @@ class SideTable : public ZoneObject {
           BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
-            imm.sig = module->signatures[imm.sig_index];
+            imm.sig = module->signature(imm.sig_index);
           }
           TRACE("control @%u: %s, arity %d->%d\n", i.pc_offset(),
                 is_loop ? "Loop" : "Block", imm.in_arity(), imm.out_arity());
@@ -835,7 +835,7 @@ class SideTable : public ZoneObject {
           BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
-            imm.sig = module->signatures[imm.sig_index];
+            imm.sig = module->signature(imm.sig_index);
           }
           TRACE("control @%u: If, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
@@ -870,7 +870,7 @@ class SideTable : public ZoneObject {
           BlockTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(), &i,
                                                        i.pc());
           if (imm.type == kWasmBottom) {
-            imm.sig = module->signatures[imm.sig_index];
+            imm.sig = module->signature(imm.sig_index);
           }
           TRACE("control @%u: Try, arity %d->%d\n", i.pc_offset(),
                 imm.in_arity(), imm.out_arity());
@@ -1468,7 +1468,10 @@ class ThreadImpl {
         case ValueType::kAnyRef:
         case ValueType::kFuncRef:
         case ValueType::kNullRef:
-        case ValueType::kExnRef: {
+        case ValueType::kExnRef:
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef: {
           val = WasmValue(isolate_->factory()->null_value());
           break;
         }
@@ -1748,7 +1751,7 @@ class ThreadImpl {
       DoTrap(kTrapUnalignedAccess, pc);
       return false;
     }
-    *len = 2 + imm.length;
+    *len += imm.length;
     return true;
   }
 
@@ -1777,7 +1780,7 @@ class ThreadImpl {
       DoTrap(kTrapUnalignedAccess, pc);
       return false;
     }
-    *len = 2 + imm.length;
+    *len += imm.length;
     return true;
   }
 
@@ -2167,7 +2170,7 @@ class ThreadImpl {
 #undef ATOMIC_STORE_CASE
       case kExprAtomicFence:
         std::atomic_thread_fence(std::memory_order_seq_cst);
-        *len += 2;
+        *len += 1;
         break;
       case kExprI32AtomicWait: {
         int32_t val;
@@ -2223,7 +2226,7 @@ class ThreadImpl {
   }
 
   bool ExecuteSimdOp(WasmOpcode opcode, Decoder* decoder, InterpreterCode* code,
-                     pc_t pc, int* const len) {
+                     pc_t pc, int* const len, uint32_t opcode_length) {
     switch (opcode) {
 #define SPLAT_CASE(format, sType, valType, num) \
   case kExpr##format##Splat: {                  \
@@ -2241,50 +2244,54 @@ class ThreadImpl {
       SPLAT_CASE(I16x8, int8, int32_t, 8)
       SPLAT_CASE(I8x16, int16, int32_t, 16)
 #undef SPLAT_CASE
-#define EXTRACT_LANE_CASE(format, name)                                 \
-  case kExpr##format##ExtractLane: {                                    \
-    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    *len += 1;                                                          \
-    WasmValue val = Pop();                                              \
-    Simd128 s = val.to_s128();                                          \
-    auto ss = s.to_##name();                                            \
-    Push(WasmValue(ss.val[LANE(imm.lane, ss)]));                        \
-    return true;                                                        \
+#define EXTRACT_LANE_CASE(format, name)                                \
+  case kExpr##format##ExtractLane: {                                   \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc), \
+                                                opcode_length);        \
+    *len += 1;                                                         \
+    WasmValue val = Pop();                                             \
+    Simd128 s = val.to_s128();                                         \
+    auto ss = s.to_##name();                                           \
+    Push(WasmValue(ss.val[LANE(imm.lane, ss)]));                       \
+    return true;                                                       \
   }
       EXTRACT_LANE_CASE(F64x2, f64x2)
       EXTRACT_LANE_CASE(F32x4, f32x4)
       EXTRACT_LANE_CASE(I64x2, i64x2)
       EXTRACT_LANE_CASE(I32x4, i32x4)
 #undef EXTRACT_LANE_CASE
-#define EXTRACT_LANE_EXTEND_CASE(format, name, sign, type)              \
-  case kExpr##format##ExtractLane##sign: {                              \
-    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    *len += 1;                                                          \
-    WasmValue val = Pop();                                              \
-    Simd128 s = val.to_s128();                                          \
-    auto ss = s.to_##name();                                            \
-    Push(WasmValue(static_cast<type>(ss.val[LANE(imm.lane, ss)])));     \
-    return true;                                                        \
+#define EXTRACT_LANE_EXTEND_CASE(format, name, sign, type)             \
+  case kExpr##format##ExtractLane##sign: {                             \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc), \
+                                                opcode_length);        \
+    *len += 1;                                                         \
+    WasmValue val = Pop();                                             \
+    Simd128 s = val.to_s128();                                         \
+    auto ss = s.to_##name();                                           \
+    Push(WasmValue(static_cast<type>(ss.val[LANE(imm.lane, ss)])));    \
+    return true;                                                       \
   }
       EXTRACT_LANE_EXTEND_CASE(I16x8, i16x8, S, int32_t)
       EXTRACT_LANE_EXTEND_CASE(I16x8, i16x8, U, uint32_t)
       EXTRACT_LANE_EXTEND_CASE(I8x16, i8x16, S, int32_t)
       EXTRACT_LANE_EXTEND_CASE(I8x16, i8x16, U, uint32_t)
 #undef EXTRACT_LANE_EXTEND_CASE
-#define BINOP_CASE(op, name, stype, count, expr) \
-  case kExpr##op: {                              \
-    WasmValue v2 = Pop();                        \
-    WasmValue v1 = Pop();                        \
-    stype s1 = v1.to_s128().to_##name();         \
-    stype s2 = v2.to_s128().to_##name();         \
-    stype res;                                   \
-    for (size_t i = 0; i < count; ++i) {         \
-      auto a = s1.val[LANE(i, s1)];              \
-      auto b = s2.val[LANE(i, s1)];              \
-      res.val[LANE(i, s1)] = expr;               \
-    }                                            \
-    Push(WasmValue(Simd128(res)));               \
-    return true;                                 \
+#define BINOP_CASE(op, name, stype, count, expr)              \
+  case kExpr##op: {                                           \
+    WasmValue v2 = Pop();                                     \
+    WasmValue v1 = Pop();                                     \
+    stype s1 = v1.to_s128().to_##name();                      \
+    stype s2 = v2.to_s128().to_##name();                      \
+    stype res;                                                \
+    for (size_t i = 0; i < count; ++i) {                      \
+      auto a = s1.val[LANE(i, s1)];                           \
+      auto b = s2.val[LANE(i, s1)];                           \
+      auto result = expr;                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result); \
+      res.val[LANE(i, s1)] = expr;                            \
+    }                                                         \
+    Push(WasmValue(Simd128(res)));                            \
+    return true;                                              \
   }
       BINOP_CASE(F64x2Add, f64x2, float2, 2, a + b)
       BINOP_CASE(F64x2Sub, f64x2, float2, 2, a - b)
@@ -2292,12 +2299,16 @@ class ThreadImpl {
       BINOP_CASE(F64x2Div, f64x2, float2, 2, base::Divide(a, b))
       BINOP_CASE(F64x2Min, f64x2, float2, 2, JSMin(a, b))
       BINOP_CASE(F64x2Max, f64x2, float2, 2, JSMax(a, b))
+      BINOP_CASE(F64x2Pmin, f64x2, float2, 2, std::min(a, b))
+      BINOP_CASE(F64x2Pmax, f64x2, float2, 2, std::max(a, b))
       BINOP_CASE(F32x4Add, f32x4, float4, 4, a + b)
       BINOP_CASE(F32x4Sub, f32x4, float4, 4, a - b)
       BINOP_CASE(F32x4Mul, f32x4, float4, 4, a * b)
       BINOP_CASE(F32x4Div, f32x4, float4, 4, a / b)
       BINOP_CASE(F32x4Min, f32x4, float4, 4, JSMin(a, b))
       BINOP_CASE(F32x4Max, f32x4, float4, 4, JSMax(a, b))
+      BINOP_CASE(F32x4Pmin, f32x4, float4, 4, std::min(a, b))
+      BINOP_CASE(F32x4Pmax, f32x4, float4, 4, std::max(a, b))
       BINOP_CASE(I64x2Add, i64x2, int2, 2, base::AddWithWraparound(a, b))
       BINOP_CASE(I64x2Sub, i64x2, int2, 2, base::SubWithWraparound(a, b))
       BINOP_CASE(I64x2Mul, i64x2, int2, 2, base::MulWithWraparound(a, b))
@@ -2353,17 +2364,19 @@ class ThreadImpl {
       BINOP_CASE(I8x16RoundingAverageU, i8x16, int16, 16,
                  base::RoundingAverageUnsigned<uint8_t>(a, b))
 #undef BINOP_CASE
-#define UNOP_CASE(op, name, stype, count, expr) \
-  case kExpr##op: {                             \
-    WasmValue v = Pop();                        \
-    stype s = v.to_s128().to_##name();          \
-    stype res;                                  \
-    for (size_t i = 0; i < count; ++i) {        \
-      auto a = s.val[i];                        \
-      res.val[i] = expr;                        \
-    }                                           \
-    Push(WasmValue(Simd128(res)));              \
-    return true;                                \
+#define UNOP_CASE(op, name, stype, count, expr)               \
+  case kExpr##op: {                                           \
+    WasmValue v = Pop();                                      \
+    stype s = v.to_s128().to_##name();                        \
+    stype res;                                                \
+    for (size_t i = 0; i < count; ++i) {                      \
+      auto a = s.val[i];                                      \
+      auto result = expr;                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result); \
+      res.val[i] = result;                                    \
+    }                                                         \
+    Push(WasmValue(Simd128(res)));                            \
+    return true;                                              \
   }
       UNOP_CASE(F64x2Abs, f64x2, float2, 2, std::abs(a))
       UNOP_CASE(F64x2Neg, f64x2, float2, 2, -a)
@@ -2402,20 +2415,22 @@ class ThreadImpl {
       BITMASK_CASE(I32x4BitMask, i32x4, int4, 4)
 #undef BITMASK_CASE
 
-#define CMPOP_CASE(op, name, stype, out_stype, count, expr) \
-  case kExpr##op: {                                         \
-    WasmValue v2 = Pop();                                   \
-    WasmValue v1 = Pop();                                   \
-    stype s1 = v1.to_s128().to_##name();                    \
-    stype s2 = v2.to_s128().to_##name();                    \
-    out_stype res;                                          \
-    for (size_t i = 0; i < count; ++i) {                    \
-      auto a = s1.val[i];                                   \
-      auto b = s2.val[i];                                   \
-      res.val[i] = expr ? -1 : 0;                           \
-    }                                                       \
-    Push(WasmValue(Simd128(res)));                          \
-    return true;                                            \
+#define CMPOP_CASE(op, name, stype, out_stype, count, expr)   \
+  case kExpr##op: {                                           \
+    WasmValue v2 = Pop();                                     \
+    WasmValue v1 = Pop();                                     \
+    stype s1 = v1.to_s128().to_##name();                      \
+    stype s2 = v2.to_s128().to_##name();                      \
+    out_stype res;                                            \
+    for (size_t i = 0; i < count; ++i) {                      \
+      auto a = s1.val[i];                                     \
+      auto b = s2.val[i];                                     \
+      auto result = expr;                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result); \
+      res.val[i] = result ? -1 : 0;                           \
+    }                                                         \
+    Push(WasmValue(Simd128(res)));                            \
+    return true;                                              \
   }
       CMPOP_CASE(F64x2Eq, f64x2, float2, int2, 2, a == b)
       CMPOP_CASE(F64x2Ne, f64x2, float2, int2, 2, a != b)
@@ -2486,16 +2501,17 @@ class ThreadImpl {
       CMPOP_CASE(I8x16LeU, i8x16, int16, int16, 16,
                  static_cast<uint8_t>(a) <= static_cast<uint8_t>(b))
 #undef CMPOP_CASE
-#define REPLACE_LANE_CASE(format, name, stype, ctype)                   \
-  case kExpr##format##ReplaceLane: {                                    \
-    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc)); \
-    *len += 1;                                                          \
-    WasmValue new_val = Pop();                                          \
-    WasmValue simd_val = Pop();                                         \
-    stype s = simd_val.to_s128().to_##name();                           \
-    s.val[LANE(imm.lane, s)] = new_val.to<ctype>();                     \
-    Push(WasmValue(Simd128(s)));                                        \
-    return true;                                                        \
+#define REPLACE_LANE_CASE(format, name, stype, ctype)                  \
+  case kExpr##format##ReplaceLane: {                                   \
+    SimdLaneImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc), \
+                                                opcode_length);        \
+    *len += 1;                                                         \
+    WasmValue new_val = Pop();                                         \
+    WasmValue simd_val = Pop();                                        \
+    stype s = simd_val.to_s128().to_##name();                          \
+    s.val[LANE(imm.lane, s)] = new_val.to<ctype>();                    \
+    Push(WasmValue(Simd128(s)));                                       \
+    return true;                                                       \
   }
       REPLACE_LANE_CASE(F64x2, f64x2, float2, double)
       REPLACE_LANE_CASE(F32x4, f32x4, float4, float)
@@ -2507,11 +2523,11 @@ class ThreadImpl {
       case kExprS128LoadMem:
         return ExecuteLoad<Simd128, Simd128>(decoder, code, pc, len,
                                              MachineRepresentation::kSimd128,
-                                             /*prefix_len=*/1);
+                                             /*prefix_len=*/opcode_length);
       case kExprS128StoreMem:
         return ExecuteStore<Simd128, Simd128>(decoder, code, pc, len,
                                               MachineRepresentation::kSimd128,
-                                              /*prefix_len=*/1);
+                                              /*prefix_len=*/opcode_length);
 #define SHIFT_CASE(op, name, stype, count, expr) \
   case kExpr##op: {                              \
     uint32_t shift = Pop().to<uint32_t>();       \
@@ -2554,6 +2570,8 @@ class ThreadImpl {
     dst_type res;                                                             \
     for (size_t i = 0; i < count; ++i) {                                      \
       ctype a = s.val[LANE(start_index + i, s)];                              \
+      auto result = expr;                                                     \
+      possible_nondeterminism_ |= has_nondeterminism(result);                 \
       res.val[LANE(i, res)] = expr;                                           \
     }                                                                         \
     Push(WasmValue(Simd128(res)));                                            \
@@ -2622,21 +2640,23 @@ class ThreadImpl {
         Push(WasmValue(Simd128(res)));
         return true;
       }
-#define ADD_HORIZ_CASE(op, name, stype, count)                   \
-  case kExpr##op: {                                              \
-    WasmValue v2 = Pop();                                        \
-    WasmValue v1 = Pop();                                        \
-    stype s1 = v1.to_s128().to_##name();                         \
-    stype s2 = v2.to_s128().to_##name();                         \
-    stype res;                                                   \
-    for (size_t i = 0; i < count / 2; ++i) {                     \
-      res.val[LANE(i, s1)] =                                     \
-          s1.val[LANE(i * 2, s1)] + s1.val[LANE(i * 2 + 1, s1)]; \
-      res.val[LANE(i + count / 2, s1)] =                         \
-          s2.val[LANE(i * 2, s1)] + s2.val[LANE(i * 2 + 1, s1)]; \
-    }                                                            \
-    Push(WasmValue(Simd128(res)));                               \
-    return true;                                                 \
+#define ADD_HORIZ_CASE(op, name, stype, count)                              \
+  case kExpr##op: {                                                         \
+    WasmValue v2 = Pop();                                                   \
+    WasmValue v1 = Pop();                                                   \
+    stype s1 = v1.to_s128().to_##name();                                    \
+    stype s2 = v2.to_s128().to_##name();                                    \
+    stype res;                                                              \
+    for (size_t i = 0; i < count / 2; ++i) {                                \
+      auto result1 = s1.val[LANE(i * 2, s1)] + s1.val[LANE(i * 2 + 1, s1)]; \
+      possible_nondeterminism_ |= has_nondeterminism(result1);              \
+      res.val[LANE(i, s1)] = result1;                                       \
+      auto result2 = s2.val[LANE(i * 2, s1)] + s2.val[LANE(i * 2 + 1, s1)]; \
+      possible_nondeterminism_ |= has_nondeterminism(result2);              \
+      res.val[LANE(i + count / 2, s1)] = result2;                           \
+    }                                                                       \
+    Push(WasmValue(Simd128(res)));                                          \
+    return true;                                                            \
   }
         ADD_HORIZ_CASE(I32x4AddHoriz, i32x4, int4, 4)
         ADD_HORIZ_CASE(F32x4AddHoriz, f32x4, float4, 4)
@@ -2655,8 +2675,8 @@ class ThreadImpl {
         return true;
       }
       case kExprS8x16Shuffle: {
-        Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(decoder,
-                                                           code->at(pc));
+        Simd8x16ShuffleImmediate<Decoder::kNoValidate> imm(
+            decoder, code->at(pc), opcode_length);
         *len += 16;
         int16 v2 = Pop().to_s128().to_i8x16();
         int16 v1 = Pop().to_s128().to_i8x16();
@@ -2759,8 +2779,11 @@ class ThreadImpl {
   template <typename s_type, typename result_type, typename load_type>
   bool DoSimdLoadSplat(Decoder* decoder, InterpreterCode* code, pc_t pc,
                        int* const len, MachineRepresentation rep) {
+    // len is the number of bytes the make up this op, including prefix byte, so
+    // the prefix_len for ExecuteLoad is len, minus the prefix byte itself.
+    // Think of prefix_len as: number of extra bytes that make up this op.
     if (!ExecuteLoad<result_type, load_type>(decoder, code, pc, len, rep,
-                                             /*prefix_len=*/1)) {
+                                             /*prefix_len=*/*len - 1)) {
       return false;
     }
     result_type v = Pop().to<result_type>();
@@ -2776,7 +2799,7 @@ class ThreadImpl {
     static_assert(sizeof(wide_type) == sizeof(narrow_type) * 2,
                   "size mismatch for wide and narrow types");
     if (!ExecuteLoad<uint64_t, uint64_t>(decoder, code, pc, len, rep,
-                                         /*prefix_len=*/1)) {
+                                         /*prefix_len=*/*len - 1)) {
       return false;
     }
     constexpr int lanes = kSimd128Size / sizeof(wide_type);
@@ -2890,6 +2913,11 @@ class ThreadImpl {
           encoded_values->set(encoded_index++, *anyref);
           break;
         }
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
         case ValueType::kStmt:
         case ValueType::kBottom:
           UNREACHABLE();
@@ -2995,6 +3023,11 @@ class ThreadImpl {
           value = WasmValue(anyref);
           break;
         }
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef:
+          // TODO(7748): Implement these.
+          UNIMPLEMENTED();
         case ValueType::kStmt:
         case ValueType::kBottom:
           UNREACHABLE();
@@ -3035,16 +3068,21 @@ class ThreadImpl {
       // Do first check for a breakpoint, in order to set hit_break correctly.
       const char* skip = "        ";
       int len = 1;
+      // We need to store this, because SIMD opcodes are LEB encoded, and later
+      // on when executing, we need to know where to read immediates from.
+      uint32_t simd_opcode_length = 0;
       byte orig = code->start[pc];
       WasmOpcode opcode = static_cast<WasmOpcode>(orig);
       if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-        opcode = static_cast<WasmOpcode>(opcode << 8 | code->start[pc + 1]);
+        opcode = decoder.read_prefixed_opcode<Decoder::kNoValidate>(
+            &code->start[pc], &simd_opcode_length);
+        len += simd_opcode_length;
       }
       if (V8_UNLIKELY(orig == kInternalBreakpoint)) {
         orig = code->orig_start[pc];
         if (WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(orig))) {
-          opcode =
-              static_cast<WasmOpcode>(orig << 8 | code->orig_start[pc + 1]);
+          opcode = decoder.read_prefixed_opcode<Decoder::kNoValidate>(
+              &code->start[pc]);
         }
         if (SkipBreakpoint(code, pc)) {
           // skip breakpoint by switching on original code.
@@ -3149,7 +3187,8 @@ class ThreadImpl {
           break;
         }
         case kExprSelectWithType: {
-          SelectTypeImmediate<Decoder::kNoValidate> imm(&decoder, code->at(pc));
+          SelectTypeImmediate<Decoder::kNoValidate> imm(WasmFeatures::All(),
+                                                        &decoder, code->at(pc));
           len = 1 + imm.length;
           V8_FALLTHROUGH;
         }
@@ -3453,7 +3492,11 @@ class ThreadImpl {
             case ValueType::kAnyRef:
             case ValueType::kFuncRef:
             case ValueType::kNullRef:
-            case ValueType::kExnRef: {
+            case ValueType::kExnRef:
+            case ValueType::kRef:
+            case ValueType::kOptRef:
+            case ValueType::kEqRef: {
+              // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
               Handle<FixedArray> global_buffer;    // The buffer of the global.
               uint32_t global_index;               // The index into the buffer.
@@ -3647,7 +3690,6 @@ class ThreadImpl {
           break;
         }
         case kNumericPrefix: {
-          ++len;
           if (!ExecuteNumericOp(opcode, &decoder, code, pc, &len)) return;
           break;
         }
@@ -3656,8 +3698,9 @@ class ThreadImpl {
           break;
         }
         case kSimdPrefix: {
-          ++len;
-          if (!ExecuteSimdOp(opcode, &decoder, code, pc, &len)) return;
+          if (!ExecuteSimdOp(opcode, &decoder, code, pc, &len,
+                             simd_opcode_length))
+            return;
           break;
         }
 
@@ -3867,7 +3910,10 @@ class ThreadImpl {
         case ValueType::kFuncRef:
         case ValueType::kExnRef:
         case ValueType::kNullRef:
-          PrintF("(func|null|exn)ref:unimplemented");
+        case ValueType::kRef:
+        case ValueType::kOptRef:
+        case ValueType::kEqRef:
+          PrintF("(func|null|exn|opt|eq|)ref:unimplemented");
           break;
         case ValueType::kBottom:
           UNREACHABLE();
@@ -4025,7 +4071,7 @@ class ThreadImpl {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     uint32_t expected_sig_id = module()->signature_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
-              module()->signature_map.Find(*module()->signatures[sig_index]));
+              module()->signature_map.Find(*module()->signature(sig_index)));
     // Bounds check against table size.
     if (entry_index >=
         static_cast<uint32_t>(WasmInstanceObject::IndirectFunctionTableSize(
@@ -4040,7 +4086,7 @@ class ThreadImpl {
       return {ExternalCallResult::SIGNATURE_MISMATCH};
     }
 
-    const FunctionSig* signature = module()->signatures[sig_index];
+    const FunctionSig* signature = module()->signature(sig_index);
     Handle<Object> object_ref = handle(entry.object_ref(), isolate_);
     WasmCode* code = GetTargetCode(isolate_, entry.target());
 
@@ -4053,8 +4099,7 @@ class ThreadImpl {
       return CallExternalWasmFunction(isolate_, object_ref, code, signature);
     }
 
-    DCHECK(code->kind() == WasmCode::kInterpreterEntry ||
-           code->kind() == WasmCode::kFunction);
+    DCHECK_EQ(WasmCode::kFunction, code->kind());
     return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
   }
 

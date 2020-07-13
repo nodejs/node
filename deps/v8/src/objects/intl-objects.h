@@ -49,7 +49,7 @@ class Intl {
   // script; eg, pa_Guru_IN (language=Panjabi, script=Gurmukhi, country-India)
   // would include pa_IN.
   static std::set<std::string> BuildLocaleSet(
-      const icu::Locale* icu_available_locales, int32_t count, const char* path,
+      const std::vector<std::string>& locales, const char* path,
       const char* validate_key);
 
   static Maybe<std::string> ToLanguageTag(const icu::Locale& locale);
@@ -276,21 +276,34 @@ class Intl {
     static const char* path() { return nullptr; }
   };
 
-  template <typename T, typename C = SkipResourceCheck>
+  template <typename C = SkipResourceCheck>
   class AvailableLocales {
    public:
     AvailableLocales() {
-      int32_t num_locales = 0;
-      const icu::Locale* icu_available_locales =
-          T::getAvailableLocales(num_locales);
-      set = Intl::BuildLocaleSet(icu_available_locales, num_locales, C::path(),
-                                 C::key());
+      UErrorCode status = U_ZERO_ERROR;
+      UEnumeration* uenum =
+          uloc_openAvailableByType(ULOC_AVAILABLE_WITH_LEGACY_ALIASES, &status);
+      DCHECK(U_SUCCESS(status));
+
+      std::vector<std::string> all_locales;
+      const char* loc;
+      while ((loc = uenum_next(uenum, NULL, &status)) != nullptr) {
+        DCHECK(U_SUCCESS(status));
+        std::string locstr(loc);
+        std::replace(locstr.begin(), locstr.end(), '_', '-');
+        // Handle special case
+        if (locstr == "en-US-POSIX") locstr = "en-US-u-va-posix";
+        all_locales.push_back(locstr);
+      }
+      uenum_close(uenum);
+
+      set_ = Intl::BuildLocaleSet(all_locales, C::path(), C::key());
     }
     virtual ~AvailableLocales() {}
-    const std::set<std::string>& Get() const { return set; }
+    const std::set<std::string>& Get() const { return set_; }
 
    private:
-    std::set<std::string> set;
+    std::set<std::string> set_;
   };
 
   // Utility function to set text to BreakIterator.
@@ -311,7 +324,7 @@ class Intl {
 
   static String ConvertOneByteToLower(String src, String dst);
 
-  static const std::set<std::string>& GetAvailableLocalesForLocale();
+  static const std::set<std::string>& GetAvailableLocales();
 
   static const std::set<std::string>& GetAvailableLocalesForDateFormat();
 };

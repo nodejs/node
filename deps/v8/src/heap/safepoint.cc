@@ -5,19 +5,21 @@
 #include "src/heap/safepoint.h"
 
 #include "src/handles/local-handles.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 
 namespace v8 {
 namespace internal {
 
-Safepoint::Safepoint(Heap* heap) : heap_(heap), local_heaps_head_(nullptr) {}
+GlobalSafepoint::GlobalSafepoint(Heap* heap)
+    : heap_(heap), local_heaps_head_(nullptr), is_active_(false) {}
 
-void Safepoint::Start() { StopThreads(); }
+void GlobalSafepoint::Start() { StopThreads(); }
 
-void Safepoint::End() { ResumeThreads(); }
+void GlobalSafepoint::End() { ResumeThreads(); }
 
-void Safepoint::StopThreads() {
+void GlobalSafepoint::StopThreads() {
   local_heaps_mutex_.Lock();
 
   barrier_.Arm();
@@ -35,9 +37,13 @@ void Safepoint::StopThreads() {
       current->state_change_.Wait(&current->state_mutex_);
     }
   }
+
+  is_active_ = true;
 }
 
-void Safepoint::ResumeThreads() {
+void GlobalSafepoint::ResumeThreads() {
+  is_active_ = false;
+
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->state_mutex_.Unlock();
@@ -48,7 +54,7 @@ void Safepoint::ResumeThreads() {
   local_heaps_mutex_.Unlock();
 }
 
-void Safepoint::EnterFromThread(LocalHeap* local_heap) {
+void GlobalSafepoint::EnterFromThread(LocalHeap* local_heap) {
   {
     base::MutexGuard guard(&local_heap->state_mutex_);
     local_heap->state_ = LocalHeap::ThreadState::Safepoint;
@@ -63,20 +69,20 @@ void Safepoint::EnterFromThread(LocalHeap* local_heap) {
   }
 }
 
-void Safepoint::Barrier::Arm() {
+void GlobalSafepoint::Barrier::Arm() {
   base::MutexGuard guard(&mutex_);
   CHECK(!armed_);
   armed_ = true;
 }
 
-void Safepoint::Barrier::Disarm() {
+void GlobalSafepoint::Barrier::Disarm() {
   base::MutexGuard guard(&mutex_);
   CHECK(armed_);
   armed_ = false;
   cond_.NotifyAll();
 }
 
-void Safepoint::Barrier::Wait() {
+void GlobalSafepoint::Barrier::Wait() {
   base::MutexGuard guard(&mutex_);
   while (armed_) {
     cond_.Wait(&mutex_);
@@ -84,12 +90,14 @@ void Safepoint::Barrier::Wait() {
 }
 
 SafepointScope::SafepointScope(Heap* heap) : safepoint_(heap->safepoint()) {
-  safepoint_->StopThreads();
+  if (FLAG_local_heaps) safepoint_->StopThreads();
 }
 
-SafepointScope::~SafepointScope() { safepoint_->ResumeThreads(); }
+SafepointScope::~SafepointScope() {
+  if (FLAG_local_heaps) safepoint_->ResumeThreads();
+}
 
-void Safepoint::AddLocalHeap(LocalHeap* local_heap) {
+void GlobalSafepoint::AddLocalHeap(LocalHeap* local_heap) {
   base::MutexGuard guard(&local_heaps_mutex_);
   if (local_heaps_head_) local_heaps_head_->prev_ = local_heap;
   local_heap->prev_ = nullptr;
@@ -97,7 +105,7 @@ void Safepoint::AddLocalHeap(LocalHeap* local_heap) {
   local_heaps_head_ = local_heap;
 }
 
-void Safepoint::RemoveLocalHeap(LocalHeap* local_heap) {
+void GlobalSafepoint::RemoveLocalHeap(LocalHeap* local_heap) {
   base::MutexGuard guard(&local_heaps_mutex_);
   if (local_heap->next_) local_heap->next_->prev_ = local_heap->prev_;
   if (local_heap->prev_)
@@ -106,7 +114,7 @@ void Safepoint::RemoveLocalHeap(LocalHeap* local_heap) {
     local_heaps_head_ = local_heap->next_;
 }
 
-bool Safepoint::ContainsLocalHeap(LocalHeap* local_heap) {
+bool GlobalSafepoint::ContainsLocalHeap(LocalHeap* local_heap) {
   base::MutexGuard guard(&local_heaps_mutex_);
   LocalHeap* current = local_heaps_head_;
 
@@ -118,12 +126,13 @@ bool Safepoint::ContainsLocalHeap(LocalHeap* local_heap) {
   return false;
 }
 
-bool Safepoint::ContainsAnyLocalHeap() {
+bool GlobalSafepoint::ContainsAnyLocalHeap() {
   base::MutexGuard guard(&local_heaps_mutex_);
   return local_heaps_head_ != nullptr;
 }
 
-void Safepoint::Iterate(RootVisitor* visitor) {
+void GlobalSafepoint::Iterate(RootVisitor* visitor) {
+  DCHECK(IsActive());
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
     current->handles()->Iterate(visitor);

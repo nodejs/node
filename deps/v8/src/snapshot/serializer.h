@@ -7,13 +7,15 @@
 
 #include <map>
 
+#include "src/codegen/external-reference-encoder.h"
 #include "src/execution/isolate.h"
 #include "src/logging/log.h"
 #include "src/objects/objects.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-allocator.h"
-#include "src/snapshot/serializer-common.h"
+#include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -157,8 +159,7 @@ class ObjectCacheIndexMap {
 
 class Serializer : public SerializerDeserializer {
  public:
-  explicit Serializer(Isolate* isolate);
-  ~Serializer() override;
+  Serializer(Isolate* isolate, Snapshot::SerializerFlags flags);
 
   std::vector<SerializedData::Reservation> EncodeReservations() const {
     return allocator_.EncodeReservations();
@@ -198,10 +199,10 @@ class Serializer : public SerializerDeserializer {
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
-  void SerializeRootObject(Object object);
+  void SerializeRootObject(FullObjectSlot slot);
 
   void PutRoot(RootIndex root_index, HeapObject object);
-  void PutSmi(Smi smi);
+  void PutSmiRoot(FullObjectSlot slot);
   void PutBackReference(HeapObject object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   // Emit alignment prefix if necessary, return required padding space in bytes.
@@ -223,6 +224,10 @@ class Serializer : public SerializerDeserializer {
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
+  }
+  Maybe<ExternalReferenceEncoder::Value> TryEncodeExternalReference(
+      Address addr) {
+    return external_reference_encoder_.TryEncode(addr);
   }
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
@@ -260,21 +265,29 @@ class Serializer : public SerializerDeserializer {
 
   SnapshotByteSink sink_;  // Used directly by subclasses.
 
+  bool allow_unknown_external_references_for_testing() const {
+    return (flags_ & Snapshot::kAllowUnknownExternalReferencesForTesting) != 0;
+  }
+  bool allow_active_isolate_for_testing() const {
+    return (flags_ & Snapshot::kAllowActiveIsolateForTesting) != 0;
+  }
+
  private:
   Isolate* isolate_;
   SerializerReferenceMap reference_map_;
   ExternalReferenceEncoder external_reference_encoder_;
   RootIndexMap root_index_map_;
-  CodeAddressMap* code_address_map_ = nullptr;
+  std::unique_ptr<CodeAddressMap> code_address_map_;
   std::vector<byte> code_buffer_;
   std::vector<HeapObject> deferred_objects_;  // To handle stack overflow.
   int recursion_depth_ = 0;
+  const Snapshot::SerializerFlags flags_;
   SerializerAllocator allocator_;
 
 #ifdef OBJECT_PRINT
-  static const int kInstanceTypes = LAST_TYPE + 1;
-  int* instance_type_count_[kNumberOfSpaces];
-  size_t* instance_type_size_[kNumberOfSpaces];
+  static constexpr int kInstanceTypes = LAST_TYPE + 1;
+  std::unique_ptr<int[]> instance_type_count_[kNumberOfSpaces];
+  std::unique_ptr<size_t[]> instance_type_size_[kNumberOfSpaces];
 #endif  // OBJECT_PRINT
 
 #ifdef DEBUG
@@ -327,6 +340,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   // This function outputs or skips the raw data between the last pointer and
   // up to the current position.
   void SerializeContent(Map map, int size);
+  void OutputExternalReference(Address target, int target_size,
+                               bool sandboxify);
   void OutputRawData(Address up_to);
   void OutputCode(int size);
   uint32_t SerializeBackingStore(void* backing_store, int32_t byte_length);

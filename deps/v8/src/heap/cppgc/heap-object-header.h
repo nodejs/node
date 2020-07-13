@@ -6,9 +6,10 @@
 #define V8_HEAP_CPPGC_HEAP_OBJECT_HEADER_H_
 
 #include <stdint.h>
+
 #include <atomic>
 
-#include "include/cppgc/gc-info.h"
+#include "include/cppgc/internal/gc-info.h"
 #include "src/base/bit-field.h"
 #include "src/heap/cppgc/globals.h"
 
@@ -41,12 +42,13 @@ namespace internal {
 //   stored in |LargeObjectPage::PayloadSize()|.
 // - |mark bit| and |in construction| bits are located in separate 16-bit halves
 //    to allow potentially accessing them non-atomically.
-class HeapObjectHeader final {
+class HeapObjectHeader {
  public:
   enum class AccessMode : uint8_t { kNonAtomic, kAtomic };
 
   static constexpr size_t kSizeLog2 = 17;
   static constexpr size_t kMaxSize = (size_t{1} << kSizeLog2) - 1;
+  static constexpr uint16_t kLargeObjectSizeInHeader = 0;
 
   inline static HeapObjectHeader& FromPayload(void* address);
   inline static const HeapObjectHeader& FromPayload(const void* address);
@@ -77,12 +79,14 @@ class HeapObjectHeader final {
   void Unmark();
   inline bool TryMarkAtomic();
 
+  template <AccessMode = AccessMode::kNonAtomic>
+  bool IsFree() const;
+
+  inline bool IsFinalizable() const;
   void Finalize();
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
-
-  static constexpr uint16_t kLargeObjectSizeInHeader = 0;
 
   // Used in |encoded_high_|.
   using FullyConstructedField = v8::base::BitField16<bool, 0, 1>;
@@ -102,7 +106,7 @@ class HeapObjectHeader final {
   static constexpr uint16_t EncodeSize(size_t size) {
     // Essentially, gets optimized to >> 1.
     using SizeField = UnusedField2::Next<size_t, 14>;
-    return SizeField::encode(size) / kAllocationGranularity;
+    return SizeField::encode(size / kAllocationGranularity);
   }
 
   V8_EXPORT_PRIVATE void CheckApiConstants();

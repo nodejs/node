@@ -90,6 +90,10 @@ FromConstexpr<LanguageModeSmi, constexpr LanguageMode>(
     c: constexpr LanguageMode): LanguageModeSmi {
   return %RawDownCast<LanguageModeSmi>(SmiConstant(c));
 }
+FromConstexpr<PromiseState, constexpr PromiseState>(c: constexpr PromiseState):
+    PromiseState {
+  return %RawDownCast<PromiseState>(Int32Constant(c));
+}
 
 macro Convert<To: type, From: type>(i: From): To {
   return i;
@@ -208,6 +212,9 @@ Convert<float64, Number>(n: Number): float64 {
 }
 Convert<uintptr, Number>(n: Number): uintptr {
   return ChangeUintPtrNumberToUintPtr(n);
+}
+Convert<float64, int32>(f: int32): float64 {
+  return ChangeInt32ToFloat64(f);
 }
 Convert<float64, float32>(f: float32): float64 {
   return ChangeFloat32ToFloat64(f);

@@ -33,6 +33,10 @@ class JSInliningHeuristic final : public AdvancedReducer {
   // and inlines call sites that the heuristic determines to be important.
   void Finalize() final;
 
+  int total_inlined_bytecode_size() const {
+    return total_inlined_bytecode_size_;
+  }
+
  private:
   // This limit currently matches what the old compiler did. We may want to
   // re-evaluate and come up with a proper limit for TurboFan.

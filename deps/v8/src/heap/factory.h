@@ -98,6 +98,8 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
+enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
+
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
@@ -184,10 +186,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return InternalizeUtf8String(CStrVector(str));
   }
 
-  template <typename Char>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<String> InternalizeString(const Vector<const Char>& str,
+  Handle<String> InternalizeString(Vector<const uint8_t> str,
                                    bool convert_encoding = false);
+  Handle<String> InternalizeString(Vector<const uint16_t> str,
+                                   bool convert_encoding = false);
+  Handle<String> InternalizeString(Vector<const char> str,
+                                   bool convert_encoding = false) {
+    return InternalizeString(Vector<const uint8_t>::cast(str));
+  }
 
   template <typename SeqString>
   Handle<String> InternalizeString(Handle<SeqString>, int from, int length,
@@ -230,7 +236,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const char (&str)[N],
       AllocationType allocation = AllocationType::kYoung) {
     DCHECK_EQ(N, strlen(str) + 1);
-    return NewStringFromOneByte(StaticCharVector(str), allocation)
+    return NewStringFromOneByte(StaticOneByteVector(str), allocation)
         .ToHandleChecked();
   }
 
@@ -370,8 +376,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<CallbackTask> NewCallbackTask(Handle<Foreign> callback,
                                        Handle<Foreign> data);
   Handle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
-      Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
-      Handle<JSReceiver> thenable, Handle<Context> context);
+      Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> thenable,
+      Handle<JSReceiver> then, Handle<Context> context);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr);
@@ -542,6 +548,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSModuleNamespace> NewJSModuleNamespace();
 
+  Handle<WasmStruct> NewWasmStruct(Handle<Map> map);
+
   Handle<SourceTextModule> NewSourceTextModule(Handle<SharedFunctionInfo> code);
   Handle<SyntheticModule> NewSyntheticModule(
       Handle<String> module_name, Handle<FixedArray> export_names,
@@ -675,10 +683,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DECLARE_ERROR(WasmRuntimeError)
 #undef DECLARE_ERROR
 
-  Handle<String> NumberToString(Handle<Object> number, bool check_cache = true);
-  Handle<String> SmiToString(Smi number, bool check_cache = true);
-  Handle<String> HeapNumberToString(Handle<HeapNumber> number, double value,
-                                    bool check_cache = true);
+  Handle<String> NumberToString(Handle<Object> number,
+                                NumberCacheMode mode = NumberCacheMode::kBoth);
+  Handle<String> SmiToString(Smi number,
+                             NumberCacheMode mode = NumberCacheMode::kBoth);
+  Handle<String> HeapNumberToString(
+      Handle<HeapNumber> number, double value,
+      NumberCacheMode mode = NumberCacheMode::kBoth);
 
   Handle<String> SizeToString(size_t value, bool check_cache = true);
   inline Handle<String> Uint32ToString(uint32_t value,
@@ -733,6 +744,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       int bytecode_offset, Handle<Script> script, Handle<Object> stack_frames);
 
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
+
+  Handle<WasmValue> NewWasmValue(int32_t value_type, Handle<Object> ref);
 
   // Return a map for given number of properties using the map cache in the
   // native context.
@@ -801,6 +814,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       return *this;
     }
 
+    CodeBuilder& set_inlined_bytecode_size(uint32_t size) {
+      inlined_bytecode_size_ = size;
+      return *this;
+    }
+
     CodeBuilder& set_source_position_table(Handle<ByteArray> table) {
       DCHECK(!table.is_null());
       source_position_table_ = table;
@@ -852,6 +870,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
     MaybeHandle<Object> self_reference_;
     int32_t builtin_index_ = Builtins::kNoBuiltinId;
+    uint32_t inlined_bytecode_size_ = 0;
     int32_t kind_specific_flags_ = 0;
     Handle<ByteArray> source_position_table_;
     Handle<DeoptimizationData> deoptimization_data_ =
@@ -927,11 +946,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
-  Handle<Object> NumberToStringCacheGet(Object number, int hash);
+  V8_INLINE Handle<Object> NumberToStringCacheGet(Object number, int hash);
 
   // Update the cache with a new number-string pair.
-  Handle<String> NumberToStringCacheSet(Handle<Object> number, int hash,
-                                        const char* string, bool check_cache);
+  V8_INLINE void NumberToStringCacheSet(Handle<Object> number, int hash,
+                                        Handle<String> js_string);
 
   // Creates a new JSArray with the given backing storage. Performs no
   // verification of the backing storage because it may not yet be filled.

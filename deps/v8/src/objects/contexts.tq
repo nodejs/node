@@ -6,7 +6,7 @@
 extern class Context extends HeapObject {
   length: Smi;
   scope_info: ScopeInfo;
-  previous: Object;
+  previous: Context|Zero|Undefined;
 }
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
@@ -24,6 +24,7 @@ const MIN_CONTEXT_SLOTS: constexpr int31
     generates 'Context::MIN_CONTEXT_SLOTS';
 
 extern enum NativeContextSlot extends intptr constexpr 'Context::Field' {
+  AGGREGATE_ERROR_FUNCTION_INDEX,
   ARRAY_BUFFER_FUN_INDEX,
   ARRAY_BUFFER_NOINIT_FUN_INDEX,
   ARRAY_BUFFER_MAP_INDEX,
@@ -47,17 +48,7 @@ extern enum NativeContextSlot extends intptr constexpr 'Context::Field' {
 
   PROMISE_FUNCTION_INDEX,
   PROMISE_THEN_INDEX,
-  PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN,
-  PROMISE_ALL_SETTLED_REJECT_ELEMENT_SHARED_FUN,
-  PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN,
-  PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX,
-  PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX,
-  PROMISE_CATCH_FINALLY_SHARED_FUN,
-  PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN,
   PROMISE_PROTOTYPE_INDEX,
-  PROMISE_THROWER_FINALLY_SHARED_FUN,
-  PROMISE_THEN_FINALLY_SHARED_FUN,
-  PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN,
   STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
 
   CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX,
@@ -78,3 +69,9 @@ extern operator '[]=' macro StoreContextElement(
 
 extern operator '[]' macro LoadContextElement(Context, intptr): Object;
 extern operator '[]' macro LoadContextElement(Context, Smi): Object;
+
+// A dummy used instead of a context constant for runtime calls that don't need
+// a context.
+type NoContext extends Smi;
+extern macro NoContextConstant(): NoContext;
+const kNoContext: NoContext = NoContextConstant();

@@ -8,8 +8,7 @@
 // Since cleanup tasks are top-level tasks, errors thrown from them don't stop
 // future cleanup tasks from running.
 
-function callback(iter) {
-  [...iter];
+function callback(holdings) {
   throw new Error('callback');
 };
 

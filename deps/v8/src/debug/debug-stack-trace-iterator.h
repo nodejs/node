@@ -34,6 +34,8 @@ class DebugStackTraceIterator final : public debug::StackTraceIterator {
   bool Restart() override;
   v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                      bool throw_on_side_effect) override;
+  v8::MaybeLocal<v8::String> EvaluateWasm(
+      internal::Vector<const internal::byte> source, int frame_index) override;
 
  private:
   Isolate* isolate_;

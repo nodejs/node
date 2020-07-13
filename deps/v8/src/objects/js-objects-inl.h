@@ -816,7 +816,7 @@ DEF_GETTER(JSObject, HasFastPackedElements, bool) {
 }
 
 DEF_GETTER(JSObject, HasDictionaryElements, bool) {
-  return GetElementsKind(isolate) == DICTIONARY_ELEMENTS;
+  return IsDictionaryElementsKind(GetElementsKind(isolate));
 }
 
 DEF_GETTER(JSObject, HasPackedElements, bool) {
@@ -836,11 +836,11 @@ DEF_GETTER(JSObject, HasNonextensibleElements, bool) {
 }
 
 DEF_GETTER(JSObject, HasFastArgumentsElements, bool) {
-  return GetElementsKind(isolate) == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
+  return IsFastArgumentsElementsKind(GetElementsKind(isolate));
 }
 
 DEF_GETTER(JSObject, HasSlowArgumentsElements, bool) {
-  return GetElementsKind(isolate) == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
+  return IsSlowArgumentsElementsKind(GetElementsKind(isolate));
 }
 
 DEF_GETTER(JSObject, HasSloppyArgumentsElements, bool) {

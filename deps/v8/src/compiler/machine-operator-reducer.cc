@@ -4,6 +4,7 @@
 
 #include "src/compiler/machine-operator-reducer.h"
 #include <cmath>
+#include <limits>
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
@@ -14,6 +15,7 @@
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/opcodes.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8 {
@@ -43,6 +45,14 @@ class Word32Adapter {
     return x.IsWord32Shl();
   }
   template <typename T>
+  static bool IsWordNShr(const T& x) {
+    return x.IsWord32Shr();
+  }
+  template <typename T>
+  static bool IsWordNSar(const T& x) {
+    return x.IsWord32Sar();
+  }
+  template <typename T>
   static bool IsWordNXor(const T& x) {
     return x.IsWord32Xor();
   }
@@ -65,6 +75,7 @@ class Word32Adapter {
   Reduction TryMatchWordNRor(Node* node) { return r_->TryMatchWord32Ror(node); }
 
   Node* IntNConstant(int32_t value) { return r_->Int32Constant(value); }
+  Node* UintNConstant(uint32_t value) { return r_->Uint32Constant(value); }
   Node* WordNAnd(Node* lhs, Node* rhs) { return r_->Word32And(lhs, rhs); }
 
  private:
@@ -94,6 +105,14 @@ class Word64Adapter {
     return x.IsWord64Shl();
   }
   template <typename T>
+  static bool IsWordNShr(const T& x) {
+    return x.IsWord64Shr();
+  }
+  template <typename T>
+  static bool IsWordNSar(const T& x) {
+    return x.IsWord64Sar();
+  }
+  template <typename T>
   static bool IsWordNXor(const T& x) {
     return x.IsWord64Xor();
   }
@@ -119,6 +138,7 @@ class Word64Adapter {
   }
 
   Node* IntNConstant(int64_t value) { return r_->Int64Constant(value); }
+  Node* UintNConstant(uint64_t value) { return r_->Uint64Constant(value); }
   Node* WordNAnd(Node* lhs, Node* rhs) { return r_->Word64And(lhs, rhs); }
 
  private:
@@ -246,6 +266,12 @@ Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
   return quotient;
 }
 
+Node* MachineOperatorReducer::TruncateInt64ToInt32(Node* value) {
+  Node* const node = graph()->NewNode(machine()->TruncateInt64ToInt32(), value);
+  Reduction const reduction = ReduceTruncateInt64ToInt32(node);
+  return reduction.Changed() ? reduction.replacement() : node;
+}
+
 // Perform constant folding and strength reduction on machine operators.
 Reduction MachineOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -297,25 +323,20 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
-      if (m.left().IsWord32And() && m.right().HasValue()) {
-        Uint32BinopMatcher mand(m.left().node());
-        if ((mand.left().IsWord32Shr() || mand.left().IsWord32Sar()) &&
-            mand.right().HasValue()) {
-          Uint32BinopMatcher mshift(mand.left().node());
-          // ((x >> K1) & K2) == K3 => (x & (K2 << K1)) == (K3 << K1)
-          if (mshift.right().HasValue()) {
-            auto shift_bits = mshift.right().Value();
-            auto mask = mand.right().Value();
-            auto rhs = static_cast<uint32_t>(m.right().Value());
-            // Make sure that we won't shift data off the end.
-            if (shift_bits <= base::bits::CountLeadingZeros(mask) &&
-                shift_bits <= base::bits::CountLeadingZeros(rhs)) {
-              node->ReplaceInput(
-                  0, Word32And(mshift.left().node(), mask << shift_bits));
-              node->ReplaceInput(1, Int32Constant(rhs << shift_bits));
-              return Changed(node);
-            }
-          }
+      if (m.right().HasValue()) {
+        base::Optional<std::pair<Node*, uint32_t>> replacements;
+        if (m.left().IsTruncateInt64ToInt32()) {
+          replacements = ReduceWord32EqualForConstantRhs<Word64Adapter>(
+              NodeProperties::GetValueInput(m.left().node(), 0),
+              static_cast<uint32_t>(m.right().Value()));
+        } else {
+          replacements = ReduceWord32EqualForConstantRhs<Word32Adapter>(
+              m.left().node(), static_cast<uint32_t>(m.right().Value()));
+        }
+        if (replacements) {
+          node->ReplaceInput(0, replacements->first);
+          node->ReplaceInput(1, Uint32Constant(replacements->second));
+          return Changed(node);
         }
       }
       break;
@@ -361,8 +382,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         node->ReplaceInput(
             1, Int32Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
         NodeProperties::ChangeOp(node, machine()->Word32Shl());
-        Reduction reduction = ReduceWord32Shl(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(ReduceWord32Shl(node));
       }
       break;
     }
@@ -405,7 +425,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           return ReplaceBool(true);
         }
       }
-      break;
+      return ReduceWord32Comparisons(node);
     }
     case IrOpcode::kInt32LessThanOrEqual: {
       Int32BinopMatcher m(node);
@@ -413,7 +433,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceBool(m.left().Value() <= m.right().Value());
       }
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x <= x => true
-      break;
+      return ReduceWord32Comparisons(node);
     }
     case IrOpcode::kUint32LessThan: {
       Uint32BinopMatcher m(node);
@@ -438,7 +458,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           // TODO(turbofan): else the comparison is always true.
         }
       }
-      break;
+      return ReduceWord32Comparisons(node);
     }
     case IrOpcode::kUint32LessThanOrEqual: {
       Uint32BinopMatcher m(node);
@@ -448,7 +468,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceBool(m.left().Value() <= m.right().Value());
       }
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x <= x => true
-      break;
+      return ReduceWord32Comparisons(node);
     }
     case IrOpcode::kFloat32Sub: {
       Float32BinopMatcher m(node);
@@ -804,12 +824,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
       return NoChange();
     }
-    case IrOpcode::kTruncateInt64ToInt32: {
-      Int64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
-      if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
-      break;
-    }
+    case IrOpcode::kTruncateInt64ToInt32:
+      return ReduceTruncateInt64ToInt32(node);
     case IrOpcode::kTruncateFloat64ToFloat32: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) {
@@ -859,9 +875,21 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kTrapIf:
     case IrOpcode::kTrapUnless:
       return ReduceConditional(node);
+    case IrOpcode::kInt64LessThan:
+    case IrOpcode::kInt64LessThanOrEqual:
+    case IrOpcode::kUint64LessThan:
+    case IrOpcode::kUint64LessThanOrEqual:
+      return ReduceWord64Comparisons(node);
     default:
       break;
   }
+  return NoChange();
+}
+
+Reduction MachineOperatorReducer::ReduceTruncateInt64ToInt32(Node* node) {
+  Int64Matcher m(node->InputAt(0));
+  if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
+  if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
   return NoChange();
 }
 
@@ -879,8 +907,7 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
       node->ReplaceInput(0, m.right().node());
       node->ReplaceInput(1, mleft.right().node());
       NodeProperties::ChangeOp(node, machine()->Int32Sub());
-      Reduction const reduction = ReduceInt32Sub(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceInt32Sub(node));
     }
   }
   if (m.right().IsInt32Sub()) {
@@ -888,8 +915,7 @@ Reduction MachineOperatorReducer::ReduceInt32Add(Node* node) {
     if (mright.left().Is(0)) {  // y + (0 - x) => y - x
       node->ReplaceInput(1, mright.right().node());
       NodeProperties::ChangeOp(node, machine()->Int32Sub());
-      Reduction const reduction = ReduceInt32Sub(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceInt32Sub(node));
     }
   }
   // (x + Int32Constant(a)) + Int32Constant(b)) => x + Int32Constant(a + b)
@@ -940,8 +966,7 @@ Reduction MachineOperatorReducer::ReduceInt32Sub(Node* node) {
     node->ReplaceInput(
         1, Int32Constant(base::NegateWithWraparound(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Int32Add());
-    Reduction const reduction = ReduceInt32Add(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceInt32Add(node));
   }
   return NoChange();
 }
@@ -959,8 +984,7 @@ Reduction MachineOperatorReducer::ReduceInt64Sub(Node* node) {
     node->ReplaceInput(
         1, Int64Constant(base::NegateWithWraparound(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Int64Add());
-    Reduction const reduction = ReduceInt64Add(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceInt64Add(node));
   }
   return NoChange();
 }
@@ -984,8 +1008,7 @@ Reduction MachineOperatorReducer::ReduceInt64Mul(Node* node) {
     node->ReplaceInput(
         1, Int64Constant(base::bits::WhichPowerOfTwo(m.right().Value())));
     NodeProperties::ChangeOp(node, machine()->Word64Shl());
-    Reduction reduction = ReduceWord64Shl(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceWord64Shl(node));
   }
   return NoChange();
 }
@@ -1231,6 +1254,78 @@ Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
   return NoChange();
 }
 
+Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kInt32LessThan ||
+         node->opcode() == IrOpcode::kInt32LessThanOrEqual ||
+         node->opcode() == IrOpcode::kUint32LessThan ||
+         node->opcode() == IrOpcode::kUint32LessThanOrEqual);
+  Int32BinopMatcher m(node);
+  // (x >>> K) < (y >>> K) => x < y   if only zeros shifted out
+  if (m.left().op() == machine()->Word32SarShiftOutZeros() &&
+      m.right().op() == machine()->Word32SarShiftOutZeros()) {
+    Int32BinopMatcher mleft(m.left().node());
+    Int32BinopMatcher mright(m.right().node());
+    if (mleft.right().HasValue() && mright.right().Is(mleft.right().Value())) {
+      node->ReplaceInput(0, mleft.left().node());
+      node->ReplaceInput(1, mright.left().node());
+      return Changed(node);
+    }
+  }
+  return NoChange();
+}
+
+const Operator* MachineOperatorReducer::Map64To32Comparison(
+    const Operator* op, bool sign_extended) {
+  switch (op->opcode()) {
+    case IrOpcode::kInt64LessThan:
+      return sign_extended ? machine()->Int32LessThan()
+                           : machine()->Uint32LessThan();
+    case IrOpcode::kInt64LessThanOrEqual:
+      return sign_extended ? machine()->Int32LessThanOrEqual()
+                           : machine()->Uint32LessThanOrEqual();
+    case IrOpcode::kUint64LessThan:
+      return machine()->Uint32LessThan();
+    case IrOpcode::kUint64LessThanOrEqual:
+      return machine()->Uint32LessThanOrEqual();
+    default:
+      UNREACHABLE();
+  }
+}
+
+Reduction MachineOperatorReducer::ReduceWord64Comparisons(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kInt64LessThan ||
+         node->opcode() == IrOpcode::kInt64LessThanOrEqual ||
+         node->opcode() == IrOpcode::kUint64LessThan ||
+         node->opcode() == IrOpcode::kUint64LessThanOrEqual);
+  Int64BinopMatcher m(node);
+
+  bool sign_extended =
+      m.left().IsChangeInt32ToInt64() && m.right().IsChangeInt32ToInt64();
+  if (sign_extended || (m.left().IsChangeUint32ToUint64() &&
+                        m.right().IsChangeUint32ToUint64())) {
+    node->ReplaceInput(0, NodeProperties::GetValueInput(m.left().node(), 0));
+    node->ReplaceInput(1, NodeProperties::GetValueInput(m.right().node(), 0));
+    NodeProperties::ChangeOp(node,
+                             Map64To32Comparison(node->op(), sign_extended));
+    return Changed(node).FollowedBy(Reduce(node));
+  }
+
+  // (x >>> K) < (y >>> K) => x < y   if only zeros shifted out
+  // This is useful for Smi untagging, which results in such a shift.
+  if (m.left().op() == machine()->Word64SarShiftOutZeros() &&
+      m.right().op() == machine()->Word64SarShiftOutZeros()) {
+    Int64BinopMatcher mleft(m.left().node());
+    Int64BinopMatcher mright(m.right().node());
+    if (mleft.right().HasValue() && mright.right().Is(mleft.right().Value())) {
+      node->ReplaceInput(0, mleft.left().node());
+      node->ReplaceInput(1, mright.left().node());
+      return Changed(node);
+    }
+  }
+
+  return NoChange();
+}
+
 Reduction MachineOperatorReducer::ReduceWord32Shifts(Node* node) {
   DCHECK((node->opcode() == IrOpcode::kWord32Shl) ||
          (node->opcode() == IrOpcode::kWord32Shr) ||
@@ -1259,17 +1354,44 @@ Reduction MachineOperatorReducer::ReduceWord32Shl(Node* node) {
         base::ShlWithWraparound(m.left().Value(), m.right().Value()));
   }
   if (m.right().IsInRange(1, 31)) {
-    // (x >>> K) << K => x & ~(2^K - 1)
-    // (x >> K) << K => x & ~(2^K - 1)
     if (m.left().IsWord32Sar() || m.left().IsWord32Shr()) {
       Int32BinopMatcher mleft(m.left().node());
+
+      // If x >> K only shifted out zeros:
+      // (x >> K) << L => x           if K == L
+      // (x >> K) << L => x >> (K-L) if K > L
+      // (x >> K) << L => x << (L-K)  if K < L
+      // Since this is used for Smi untagging, we currently only need it for
+      // signed shifts.
+      if (mleft.op() == machine()->Word32SarShiftOutZeros() &&
+          mleft.right().IsInRange(1, 31)) {
+        Node* x = mleft.left().node();
+        int k = mleft.right().Value();
+        int l = m.right().Value();
+        if (k == l) {
+          return Replace(x);
+        } else if (k > l) {
+          node->ReplaceInput(0, x);
+          node->ReplaceInput(1, Uint32Constant(k - l));
+          NodeProperties::ChangeOp(node, machine()->Word32Sar());
+          return Changed(node).FollowedBy(ReduceWord32Sar(node));
+        } else {
+          DCHECK(k < l);
+          node->ReplaceInput(0, x);
+          node->ReplaceInput(1, Uint32Constant(l - k));
+          return Changed(node);
+        }
+      }
+
+      // (x >>> K) << K => x & ~(2^K - 1)
+      // (x >> K) << K => x & ~(2^K - 1)
       if (mleft.right().Is(m.right().Value())) {
         node->ReplaceInput(0, mleft.left().node());
         node->ReplaceInput(1,
-                           Uint32Constant(~((1U << m.right().Value()) - 1U)));
+                           Uint32Constant(std::numeric_limits<uint32_t>::max()
+                                          << m.right().Value()));
         NodeProperties::ChangeOp(node, machine()->Word32And());
-        Reduction reduction = ReduceWord32And(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(ReduceWord32And(node));
       }
     }
   }
@@ -1283,6 +1405,46 @@ Reduction MachineOperatorReducer::ReduceWord64Shl(Node* node) {
   if (m.IsFoldable()) {                                  // K << K => K
     return ReplaceInt64(
         base::ShlWithWraparound(m.left().Value(), m.right().Value()));
+  }
+  if (m.right().IsInRange(1, 63) &&
+      (m.left().IsWord64Sar() || m.left().IsWord64Shr())) {
+    Int64BinopMatcher mleft(m.left().node());
+
+    // If x >> K only shifted out zeros:
+    // (x >> K) << L => x           if K == L
+    // (x >> K) << L => x >> (K-L) if K > L
+    // (x >> K) << L => x << (L-K)  if K < L
+    // Since this is used for Smi untagging, we currently only need it for
+    // signed shifts.
+    if (mleft.op() == machine()->Word64SarShiftOutZeros() &&
+        mleft.right().IsInRange(1, 63)) {
+      Node* x = mleft.left().node();
+      int64_t k = mleft.right().Value();
+      int64_t l = m.right().Value();
+      if (k == l) {
+        return Replace(x);
+      } else if (k > l) {
+        node->ReplaceInput(0, x);
+        node->ReplaceInput(1, Uint64Constant(k - l));
+        NodeProperties::ChangeOp(node, machine()->Word64Sar());
+        return Changed(node).FollowedBy(ReduceWord64Sar(node));
+      } else {
+        DCHECK(k < l);
+        node->ReplaceInput(0, x);
+        node->ReplaceInput(1, Uint64Constant(l - k));
+        return Changed(node);
+      }
+    }
+
+    // (x >>> K) << K => x & ~(2^K - 1)
+    // (x >> K) << K => x & ~(2^K - 1)
+    if (mleft.right().Is(m.right().Value())) {
+      node->ReplaceInput(0, mleft.left().node());
+      node->ReplaceInput(1, Uint64Constant(std::numeric_limits<uint64_t>::max()
+                                           << m.right().Value()));
+      NodeProperties::ChangeOp(node, machine()->Word64And());
+      return Changed(node).FollowedBy(ReduceWord64And(node));
+    }
   }
   return NoChange();
 }
@@ -1331,8 +1493,7 @@ Reduction MachineOperatorReducer::ReduceWord32Sar(Node* node) {
         node->ReplaceInput(0, Int32Constant(0));
         node->ReplaceInput(1, mleft.left().node());
         NodeProperties::ChangeOp(node, machine()->Int32Sub());
-        Reduction const reduction = ReduceInt32Sub(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(ReduceInt32Sub(node));
       }
     } else if (mleft.left().IsLoad()) {
       LoadRepresentation const rep =
@@ -1382,8 +1543,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
       node->ReplaceInput(0, mleft.left().node());
       node->ReplaceInput(
           1, a.IntNConstant(m.right().Value() & mleft.right().Value()));
-      Reduction const reduction = a.ReduceWordNAnd(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(a.ReduceWordNAnd(node));
     }
   }
   if (m.right().IsNegativePowerOf2()) {
@@ -1406,8 +1566,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
                            a.WordNAnd(mleft.left().node(), m.right().node()));
         node->ReplaceInput(1, mleft.right().node());
         NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-        Reduction const reduction = a.ReduceIntNAdd(node);
-        return reduction.Changed() ? reduction : Changed(node);
+        return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
       }
       if (A::IsIntNMul(mleft.left())) {
         typename A::IntNBinopMatcher mleftleft(mleft.left().node());
@@ -1417,8 +1576,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
               0, a.WordNAnd(mleft.right().node(), m.right().node()));
           node->ReplaceInput(1, mleftleft.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
       if (A::IsIntNMul(mleft.right())) {
@@ -1429,8 +1587,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
                              a.WordNAnd(mleft.left().node(), m.right().node()));
           node->ReplaceInput(1, mleftright.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
       if (A::IsWordNShl(mleft.left())) {
@@ -1441,8 +1598,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
               0, a.WordNAnd(mleft.right().node(), m.right().node()));
           node->ReplaceInput(1, mleftleft.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
       if (A::IsWordNShl(mleft.right())) {
@@ -1453,8 +1609,7 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
                              a.WordNAnd(mleft.left().node(), m.right().node()));
           node->ReplaceInput(1, mleftright.node());
           NodeProperties::ChangeOp(node, a.IntNAdd(machine()));
-          Reduction const reduction = a.ReduceIntNAdd(node);
-          return reduction.Changed() ? reduction : Changed(node);
+          return Changed(node).FollowedBy(a.ReduceIntNAdd(node));
         }
       }
     } else if (A::IsIntNMul(m.left())) {
@@ -1542,6 +1697,20 @@ Reduction MachineOperatorReducer::ReduceWordNOr(Node* node) {
     return a.ReplaceIntN(m.left().Value() | m.right().Value());
   }
   if (m.LeftEqualsRight()) return Replace(m.left().node());  // x | x => x
+
+  // (x & K1) | K2 => x | K2 if K2 has ones for every zero bit in K1.
+  // This case can be constructed by UpdateWord and UpdateWord32 in CSA.
+  if (m.right().HasValue()) {
+    if (A::IsWordNAnd(m.left())) {
+      typename A::IntNBinopMatcher mand(m.left().node());
+      if (mand.right().HasValue()) {
+        if ((m.right().Value() | mand.right().Value()) == -1) {
+          node->ReplaceInput(0, mand.left().node());
+          return Changed(node);
+        }
+      }
+    }
+  }
 
   return a.TryMatchWordNRor(node);
 }
@@ -1696,25 +1865,64 @@ Reduction MachineOperatorReducer::ReduceConditional(Node* node) {
   // Reductions involving control flow happen elsewhere. Non-zero inputs are
   // considered true in all conditional ops.
   NodeMatcher condition(NodeProperties::GetValueInput(node, 0));
-  if (condition.IsWord32And()) {
-    Uint32BinopMatcher mand(condition.node());
-    if ((mand.left().IsWord32Shr() || mand.left().IsWord32Sar()) &&
+  if (condition.IsTruncateInt64ToInt32()) {
+    if (auto replacement =
+            ReduceConditionalN<Word64Adapter>(condition.node())) {
+      NodeProperties::ReplaceValueInput(node, *replacement, 0);
+      return Changed(node);
+    }
+  } else if (auto replacement = ReduceConditionalN<Word32Adapter>(node)) {
+    NodeProperties::ReplaceValueInput(node, *replacement, 0);
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+template <typename WordNAdapter>
+base::Optional<Node*> MachineOperatorReducer::ReduceConditionalN(Node* node) {
+  NodeMatcher condition(NodeProperties::GetValueInput(node, 0));
+  // Branch conditions are 32-bit comparisons against zero, so they are the
+  // opposite of a 32-bit `x == 0` node. To avoid repetition, we can reuse logic
+  // for Word32Equal: if `x == 0` can reduce to `y == 0`, then branch(x) can
+  // reduce to branch(y).
+  auto replacements =
+      ReduceWord32EqualForConstantRhs<WordNAdapter>(condition.node(), 0);
+  if (replacements && replacements->second == 0) return replacements->first;
+  return {};
+}
+
+template <typename WordNAdapter>
+base::Optional<std::pair<Node*, uint32_t>>
+MachineOperatorReducer::ReduceWord32EqualForConstantRhs(Node* lhs,
+                                                        uint32_t rhs) {
+  if (WordNAdapter::IsWordNAnd(NodeMatcher(lhs))) {
+    typename WordNAdapter::UintNBinopMatcher mand(lhs);
+    if ((WordNAdapter::IsWordNShr(mand.left()) ||
+         WordNAdapter::IsWordNSar(mand.left())) &&
         mand.right().HasValue()) {
-      Uint32BinopMatcher mshift(mand.left().node());
-      // Branch condition (x >> K1) & K2 => x & (K2 << K1)
+      typename WordNAdapter::UintNBinopMatcher mshift(mand.left().node());
+      // ((x >> K1) & K2) == K3 => (x & (K2 << K1)) == (K3 << K1)
       if (mshift.right().HasValue()) {
         auto shift_bits = mshift.right().Value();
         auto mask = mand.right().Value();
-        // Make sure that we won't shift data off the end.
-        if (shift_bits <= base::bits::CountLeadingZeros(mask)) {
-          NodeProperties::ReplaceValueInput(
-              node, Word32And(mshift.left().node(), mask << shift_bits), 0);
-          return Changed(node);
+        // Make sure that we won't shift data off the end, and that all of the
+        // data ends up in the lower 32 bits for 64-bit mode.
+        if (shift_bits <= base::bits::CountLeadingZeros(mask) &&
+            shift_bits <= base::bits::CountLeadingZeros(rhs) &&
+            mask << shift_bits <= std::numeric_limits<uint32_t>::max()) {
+          Node* new_input = mshift.left().node();
+          uint32_t new_mask = static_cast<uint32_t>(mask << shift_bits);
+          uint32_t new_rhs = rhs << shift_bits;
+          if (WordNAdapter::WORD_SIZE == 64) {
+            // We can truncate before performing the And.
+            new_input = TruncateInt64ToInt32(new_input);
+          }
+          return std::make_pair(Word32And(new_input, new_mask), new_rhs);
         }
       }
     }
   }
-  return NoChange();
+  return {};
 }
 
 CommonOperatorBuilder* MachineOperatorReducer::common() const {

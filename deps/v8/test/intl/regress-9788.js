@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-add-calendar-numbering-system
-
 // Well-formed but invalid numberingSystem should not throw RangeError.
 var numberingSystem = "abc";
 var len = 3;

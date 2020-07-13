@@ -37,8 +37,6 @@ class PlatformEmbeddedFileWriterAIX : public PlatformEmbeddedFileWriterBase {
   void DeclareFunctionBegin(const char* name, uint32_t size) override;
   void DeclareFunctionEnd(const char* name) override;
 
-  int HexLiteral(uint64_t value) override;
-
   void Comment(const char* string) override;
 
   void FilePrologue() override;
@@ -48,7 +46,6 @@ class PlatformEmbeddedFileWriterAIX : public PlatformEmbeddedFileWriterBase {
   int IndentedDataDirective(DataDirective directive) override;
 
   DataDirective ByteChunkDataDirective() const override;
-  int WriteByteChunk(const uint8_t* data) override;
 
  private:
   void DeclareSymbolGlobal(const char* name);

@@ -5,9 +5,9 @@
 #ifndef V8_V8_INSPECTOR_PROTOCOL_H_
 #define V8_V8_INSPECTOR_PROTOCOL_H_
 
-#include "inspector/Debugger.h"  // NOLINT(build/include)
-#include "inspector/Runtime.h"   // NOLINT(build/include)
-#include "inspector/Schema.h"    // NOLINT(build/include)
-#include "v8-inspector.h"        // NOLINT(build/include)
+#include "inspector/Debugger.h"  // NOLINT(build/include_directory)
+#include "inspector/Runtime.h"   // NOLINT(build/include_directory)
+#include "inspector/Schema.h"    // NOLINT(build/include_directory)
+#include "v8-inspector.h"        // NOLINT(build/include_directory)
 
 #endif  // V8_V8_INSPECTOR_PROTOCOL_H_

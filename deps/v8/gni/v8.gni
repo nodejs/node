@@ -54,8 +54,7 @@ declare_args() {
   # Expose symbols for dynamic linking.
   v8_expose_symbols = false
 
-  # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
-  # currently implemented.
+  # Implement tracing using Perfetto (https://perfetto.dev).
   v8_use_perfetto = false
 
   # Override global symbol level setting for v8
@@ -80,6 +79,12 @@ if (v8_use_multi_snapshots) {
 
 if (v8_enable_backtrace == "") {
   v8_enable_backtrace = is_debug && !v8_optimized_debug
+}
+
+# If chromium is configured to use the perfetto client library, v8 should also
+# use perfetto for tracing.
+if (build_with_chromium && use_perfetto_client_library) {
+  v8_use_perfetto = true
 }
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute

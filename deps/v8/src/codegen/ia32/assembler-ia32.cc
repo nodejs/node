@@ -1091,6 +1091,25 @@ void Assembler::rcr(Register dst, uint8_t imm8) {
   }
 }
 
+void Assembler::rol(Operand dst, uint8_t imm8) {
+  EnsureSpace ensure_space(this);
+  DCHECK(is_uint5(imm8));  // illegal shift count
+  if (imm8 == 1) {
+    EMIT(0xD1);
+    emit_operand(eax, dst);
+  } else {
+    EMIT(0xC1);
+    emit_operand(eax, dst);
+    EMIT(imm8);
+  }
+}
+
+void Assembler::rol_cl(Operand dst) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD3);
+  emit_operand(eax, dst);
+}
+
 void Assembler::ror(Operand dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   DCHECK(is_uint5(imm8));  // illegal shift count
@@ -2266,6 +2285,14 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::pmovmskb(Register dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0xD7);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::maxsd(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
@@ -2892,6 +2919,22 @@ void Assembler::vpinsrd(XMMRegister dst, XMMRegister src1, Operand src2,
                         uint8_t offset) {
   vinstr(0x22, dst, src1, src2, k66, k0F3A, kWIG);
   EMIT(offset);
+}
+
+void Assembler::vmovmskps(Register dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(xmm0, kL128, kNone, k0F, kWIG);
+  EMIT(0x50);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::vpmovmskb(Register dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(xmm0, kL128, k66, k0F, kWIG);
+  EMIT(0xD7);
+  emit_sse_operand(dst, src);
 }
 
 void Assembler::bmi1(byte op, Register reg, Register vreg, Operand rm) {

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/common/globals.h"
 #include "src/compiler/heap-refs.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -609,6 +610,7 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector() const { return has_feedback_vector_; }
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
+  bool IsOptimized() const { return is_optimized_; }
   bool PrototypeRequiresRuntimeLookup() const {
     return PrototypeRequiresRuntimeLookup_;
   }
@@ -622,6 +624,7 @@ class JSFunctionData : public JSObjectData {
   ObjectData* prototype() const { return prototype_; }
   SharedFunctionInfoData* shared() const { return shared_; }
   FeedbackVectorData* feedback_vector() const { return feedback_vector_; }
+  CodeData* code() const { return code_; }
   int initial_map_instance_size_with_min_slack() const {
     CHECK(serialized_);
     return initial_map_instance_size_with_min_slack_;
@@ -631,6 +634,7 @@ class JSFunctionData : public JSObjectData {
   bool has_feedback_vector_;
   bool has_initial_map_;
   bool has_prototype_;
+  bool is_optimized_;
   bool PrototypeRequiresRuntimeLookup_;
 
   bool serialized_ = false;
@@ -641,6 +645,7 @@ class JSFunctionData : public JSObjectData {
   ObjectData* prototype_ = nullptr;
   SharedFunctionInfoData* shared_ = nullptr;
   FeedbackVectorData* feedback_vector_ = nullptr;
+  CodeData* code_ = nullptr;
   int initial_map_instance_size_with_min_slack_;
 };
 
@@ -1260,6 +1265,7 @@ JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
       has_initial_map_(object->has_prototype_slot() &&
                        object->has_initial_map()),
       has_prototype_(object->has_prototype_slot() && object->has_prototype()),
+      is_optimized_(object->IsOptimized()),
       PrototypeRequiresRuntimeLookup_(
           object->PrototypeRequiresRuntimeLookup()) {}
 
@@ -1276,6 +1282,7 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
   DCHECK_NULL(feedback_vector_);
+  DCHECK_NULL(code_);
 
   context_ = broker->GetOrCreateData(function->context())->AsContext();
   native_context_ =
@@ -1285,6 +1292,7 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
                          ? broker->GetOrCreateData(function->feedback_vector())
                                ->AsFeedbackVector()
                          : nullptr;
+  code_ = broker->GetOrCreateData(function->code())->AsCode();
   initial_map_ = has_initial_map()
                      ? broker->GetOrCreateData(function->initial_map())->AsMap()
                      : nullptr;
@@ -2023,7 +2031,13 @@ class TemplateObjectDescriptionData : public HeapObjectData {
 class CodeData : public HeapObjectData {
  public:
   CodeData(JSHeapBroker* broker, ObjectData** storage, Handle<Code> object)
-      : HeapObjectData(broker, storage, object) {}
+      : HeapObjectData(broker, storage, object),
+        inlined_bytecode_size_(object->inlined_bytecode_size()) {}
+
+  unsigned inlined_bytecode_size() const { return inlined_bytecode_size_; }
+
+ private:
+  unsigned const inlined_bytecode_size_;
 };
 
 #define DEFINE_IS_AND_AS(Name)                                          \
@@ -2845,28 +2859,6 @@ int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
   return data()->AsJSFunction()->initial_map_instance_size_with_min_slack();
 }
 
-// Not needed for TypedLowering.
-base::Optional<ScriptContextTableRef::LookupResult>
-ScriptContextTableRef::lookup(const NameRef& name) const {
-  AllowHandleAllocationIf allow_handle_allocation(data()->kind(),
-                                                  broker()->mode());
-  AllowHandleDereferenceIf allow_handle_dereference(data()->kind(),
-                                                    broker()->mode());
-  if (!name.IsString()) return {};
-  ScriptContextTable::LookupResult lookup_result;
-  auto table = object();
-  if (!ScriptContextTable::Lookup(broker()->isolate(), *table,
-                                  *name.AsString().object(), &lookup_result)) {
-    return {};
-  }
-  Handle<Context> script_context = ScriptContextTable::GetContext(
-      broker()->isolate(), table, lookup_result.context_index);
-  LookupResult result{ContextRef(broker(), script_context),
-                      lookup_result.mode == VariableMode::kConst,
-                      lookup_result.slot_index};
-  return result;
-}
-
 OddballType MapRef::oddball_type() const {
   if (instance_type() != ODDBALL_TYPE) {
     return OddballType::kNone;
@@ -3370,6 +3362,7 @@ BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
+BIMODAL_ACCESSOR_C(JSFunction, bool, IsOptimized)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
@@ -3377,6 +3370,7 @@ BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
+BIMODAL_ACCESSOR(JSFunction, Code, code)
 
 BIMODAL_ACCESSOR_C(JSGlobalObject, bool, IsDetached)
 
@@ -3411,6 +3405,8 @@ BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)
 BIMODAL_ACCESSOR(Map, HeapObject, GetBackPointer)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
+
+BIMODAL_ACCESSOR_C(Code, unsigned, inlined_bytecode_size)
 
 #define DEF_NATIVE_CONTEXT_ACCESSOR(type, name) \
   BIMODAL_ACCESSOR(NativeContext, type, name)
@@ -4490,7 +4486,6 @@ GlobalAccessFeedback::GlobalAccessFeedback(PropertyCellRef cell,
 
 GlobalAccessFeedback::GlobalAccessFeedback(FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kGlobalAccess, slot_kind),
-      cell_or_context_(base::nullopt),
       index_and_immutable_(0 /* doesn't matter */) {
   DCHECK(IsGlobalICKind(slot_kind));
 }
@@ -4669,17 +4664,25 @@ bool JSHeapBroker::FeedbackIsInsufficient(FeedbackSource const& source) const {
 }
 
 namespace {
-MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapHandles const& maps) {
-  MapHandles result;
-  for (Handle<Map> map : maps) {
+// Remove unupdatable and abandoned prototype maps in-place.
+void FilterRelevantReceiverMaps(Isolate* isolate, MapHandles* maps) {
+  auto in = maps->begin();
+  auto out = in;
+  auto end = maps->end();
+
+  for (; in != end; ++in) {
+    Handle<Map> map = *in;
     if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
         !map->is_abandoned_prototype_map()) {
       DCHECK(!map->is_deprecated());
-      result.push_back(map);
+      *out = *in;
+      ++out;
     }
   }
-  return result;
-}  // namespace
+
+  // Remove everything between the last valid map and the end of the vector.
+  maps->erase(out, end);
+}
 }  // namespace
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
@@ -4691,14 +4694,19 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
 
   MapHandles maps;
   nexus.ExtractMaps(&maps);
-  if (!maps.empty()) {
-    maps = GetRelevantReceiverMaps(isolate(), maps);
-    if (maps.empty()) return *new (zone()) InsufficientFeedback(kind);
+  FilterRelevantReceiverMaps(isolate(), &maps);
+
+  // If no maps were found for a non-megamorphic access, then our maps died and
+  // we should soft-deopt.
+  if (maps.empty() && nexus.ic_state() != MEGAMORPHIC) {
+    return *new (zone()) InsufficientFeedback(kind);
   }
 
   base::Optional<NameRef> name =
       static_name.has_value() ? static_name : GetNameFeedback(nexus);
   if (name.has_value()) {
+    // We rely on this invariant in JSGenericLowering.
+    DCHECK_IMPLIES(maps.empty(), nexus.ic_state() == MEGAMORPHIC);
     return *new (zone()) NamedAccessFeedback(
         *name, ZoneVector<Handle<Map>>(maps.begin(), maps.end(), zone()), kind);
   } else if (nexus.GetKeyType() == ELEMENT && !maps.empty()) {
@@ -4707,8 +4715,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
   } else {
     // No actionable feedback.
     DCHECK(maps.empty());
-    // TODO(neis): Investigate if we really want to treat cleared the same as
-    // megamorphic (also for global accesses).
+    DCHECK_EQ(nexus.ic_state(), MEGAMORPHIC);
     // TODO(neis): Using ElementAccessFeedback here is kind of an abuse.
     return *new (zone())
         ElementAccessFeedback(zone(), KeyedAccessMode::FromNexus(nexus), kind);

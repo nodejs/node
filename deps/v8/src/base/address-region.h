@@ -15,6 +15,14 @@ namespace base {
 // Helper class representing an address region of certain size.
 class AddressRegion {
  public:
+  // Function object that compares the start address of two regions. Usable as
+  // compare function on std data structures and algorithms.
+  struct StartAddressLess {
+    bool operator()(base::AddressRegion a, base::AddressRegion b) const {
+      return a.begin() < b.begin();
+    }
+  };
+
   using Address = uintptr_t;
 
   AddressRegion() = default;

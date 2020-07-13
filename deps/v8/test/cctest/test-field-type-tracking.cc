@@ -31,11 +31,9 @@ namespace test_field_type_tracking {
 // and observed transitions caused generalization of all fields).
 const bool IS_PROTO_TRANS_ISSUE_FIXED = false;
 
-
 // TODO(ishell): fix this once TransitionToAccessorProperty is able to always
 // keep map in fast mode.
 const bool IS_ACCESSOR_FIELD_SUPPORTED = false;
-
 
 // Number of properties used in the tests.
 const int kPropCount = 7;
@@ -606,6 +604,33 @@ Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
       .Build();
 }
 
+static void CheckCodeObjectForDeopt(const CRFTData& from,
+                                    const CRFTData& expected,
+                                    Handle<Code> code_field_type,
+                                    Handle<Code> code_field_repr,
+                                    Handle<Code> code_field_const,
+                                    bool expected_deopt) {
+  if (!from.type->Equals(*expected.type)) {
+    CHECK_EQ(expected_deopt, code_field_type->marked_for_deoptimization());
+  } else {
+    CHECK(!code_field_type->marked_for_deoptimization());
+  }
+
+  if (!from.representation.Equals(expected.representation)) {
+    CHECK_EQ(expected_deopt, code_field_repr->marked_for_deoptimization());
+  } else {
+    CHECK(!code_field_repr->marked_for_deoptimization());
+  }
+
+  if (!code_field_const.is_null()) {
+    if (from.constness != expected.constness) {
+      CHECK_EQ(expected_deopt, code_field_const->marked_for_deoptimization());
+    } else {
+      CHECK(!code_field_const->marked_for_deoptimization());
+    }
+  }
+}
+
 // This test ensures that field generalization at |property_index| is done
 // correctly independently of the fact that the |map| is detached from
 // transition tree or not.
@@ -668,13 +693,23 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
 
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
-  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_type = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_repr = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(property_index)), isolate);
-  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
-                                   field_owner,
-                                   DependentCode::kFieldOwnerGroup);
-  CHECK(!code->marked_for_deoptimization());
+  DependentCode::InstallDependency(isolate,
+                                   MaybeObjectHandle::Weak(code_field_type),
+                                   field_owner, DependentCode::kFieldTypeGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_repr), field_owner,
+      DependentCode::kFieldRepresentationGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_const), field_owner,
+      DependentCode::kFieldConstGroup);
+  CHECK(!code_field_type->marked_for_deoptimization());
+  CHECK(!code_field_repr->marked_for_deoptimization());
+  CHECK(!code_field_const->marked_for_deoptimization());
 
   // Create new maps by generalizing representation of propX field.
   Handle<Map> new_map =
@@ -687,28 +722,27 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
 
+  bool should_deopt = false;
   if (is_detached_map) {
     CHECK(!map->is_stable());
     CHECK(map->is_deprecated());
     CHECK_NE(*map, *new_map);
-    CHECK_EQ(expected_field_owner_dependency && !field_owner->is_deprecated(),
-             code->marked_for_deoptimization());
-
+    should_deopt =
+        expected_field_owner_dependency && !field_owner->is_deprecated();
   } else if (expected_deprecation) {
     CHECK(!map->is_stable());
     CHECK(map->is_deprecated());
     CHECK(field_owner->is_deprecated());
-    CHECK_NE(*map, *new_map);
-    CHECK(!code->marked_for_deoptimization());
-
+    should_deopt = false;
   } else {
     CHECK(!field_owner->is_deprecated());
     CHECK(map->is_stable());  // Map did not change, must be left stable.
     CHECK_EQ(*map, *new_map);
-
-    CHECK_EQ(expected_field_owner_dependency,
-             code->marked_for_deoptimization());
+    should_deopt = expected_field_owner_dependency;
   }
+
+  CheckCodeObjectForDeopt(from, expected, code_field_type, code_field_repr,
+                          code_field_const, should_deopt);
 
   {
     // Check that all previous maps are not stable.
@@ -1002,7 +1036,6 @@ TEST(GeneralizeFieldWithAccessorProperties) {
   }
 }
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // A set of tests for attribute reconfiguration case.
 //
@@ -1035,7 +1068,6 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-
   // Create another branch in transition tree (property at index |kSplitProp|
   // has different attributes), initialize expectations.
   const int kSplitProp = kPropCount / 2;
@@ -1059,13 +1091,23 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
 
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
-  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_type = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_repr = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(kSplitProp)), isolate);
-  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
-                                   field_owner,
-                                   DependentCode::kFieldOwnerGroup);
-  CHECK(!code->marked_for_deoptimization());
+  DependentCode::InstallDependency(isolate,
+                                   MaybeObjectHandle::Weak(code_field_type),
+                                   field_owner, DependentCode::kFieldTypeGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_repr), field_owner,
+      DependentCode::kFieldRepresentationGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_const), field_owner,
+      DependentCode::kFieldConstGroup);
+  CHECK(!code_field_type->marked_for_deoptimization());
+  CHECK(!code_field_repr->marked_for_deoptimization());
+  CHECK(!code_field_const->marked_for_deoptimization());
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1085,7 +1127,9 @@ void TestReconfigureDataFieldAttribute_GeneralizeField(
                               expected.type);
   }
   CHECK(map->is_deprecated());
-  CHECK(!code->marked_for_deoptimization());
+  CHECK(!code_field_type->marked_for_deoptimization());
+  CHECK(!code_field_repr->marked_for_deoptimization());
+  CHECK(!code_field_const->marked_for_deoptimization());
   CHECK_NE(*map, *new_map);
 
   CHECK(!new_map->is_deprecated());
@@ -1125,7 +1169,6 @@ void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-
   // Create another branch in transition tree (property at index |kSplitProp|
   // has different attributes), initialize expectations.
   const int kSplitProp = kPropCount / 2;
@@ -1149,13 +1192,23 @@ void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
 
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
-  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_type = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_repr = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(kSplitProp)), isolate);
-  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
-                                   field_owner,
-                                   DependentCode::kFieldOwnerGroup);
-  CHECK(!code->marked_for_deoptimization());
+  DependentCode::InstallDependency(isolate,
+                                   MaybeObjectHandle::Weak(code_field_type),
+                                   field_owner, DependentCode::kFieldTypeGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_repr), field_owner,
+      DependentCode::kFieldRepresentationGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_const), field_owner,
+      DependentCode::kFieldConstGroup);
+  CHECK(!code_field_type->marked_for_deoptimization());
+  CHECK(!code_field_repr->marked_for_deoptimization());
+  CHECK(!code_field_const->marked_for_deoptimization());
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1179,7 +1232,8 @@ void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   }
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
-  CHECK_EQ(expected_field_owner_dependency, code->marked_for_deoptimization());
+  CheckCodeObjectForDeopt(from, expected, code_field_type, code_field_repr,
+                          code_field_const, expected_field_owner_dependency);
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
@@ -1364,7 +1418,6 @@ TEST(ReconfigureDataFieldAttribute_GeneralizeHeapObjectFieldToTagged) {
       {PropertyConstness::kMutable, Representation::Tagged(), any_type});
 }
 
-
 // Checks that given |map| is deprecated and that it updates to given |new_map|
 // which in turn should match expectations.
 struct CheckDeprecated {
@@ -1382,7 +1435,6 @@ struct CheckDeprecated {
     CheckMigrationTarget(isolate, *map, *updated_map);
   }
 };
-
 
 // Checks that given |map| is NOT deprecated, equals to given |new_map| and
 // matches expectations.
@@ -1402,7 +1454,6 @@ struct CheckSameMap {
     CHECK_EQ(*new_map, *updated_map);
   }
 };
-
 
 // Checks that given |map| is NOT deprecated and matches expectations.
 // |new_map| is unrelated to |map|.
@@ -1471,7 +1522,6 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-
   // Create branch to |map1|.
   Handle<Map> map1 = map;
   Expectations expectations1 = expectations;
@@ -1487,7 +1537,6 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   CHECK(!map1->is_deprecated());
   CHECK(map1->is_stable());
   CHECK(expectations1.Check(*map1));
-
 
   // Create another branch in transition tree (property at index |kSplitProp|
   // has different attributes), initialize expectations.
@@ -1507,7 +1556,6 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   CHECK(!map2->is_deprecated());
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
-
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1555,7 +1603,6 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
   TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
 }
 
-
 TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1599,7 +1646,6 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
   CheckSameMap checker;
   TestReconfigureProperty_CustomPropertyAfterTargetMap(&config, &checker);
 }
-
 
 TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
   CcTest::InitializeVM();
@@ -1795,13 +1841,23 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
 
   // Create dummy optimized code object to test correct dependencies
   // on the field owner.
-  Handle<Code> code = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_type = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_repr = CreateDummyOptimizedCode(isolate);
+  Handle<Code> code_field_const = CreateDummyOptimizedCode(isolate);
   Handle<Map> field_owner(
       map->FindFieldOwner(isolate, InternalIndex(kDiffProp)), isolate);
-  DependentCode::InstallDependency(isolate, MaybeObjectHandle::Weak(code),
-                                   field_owner,
-                                   DependentCode::kFieldOwnerGroup);
-  CHECK(!code->marked_for_deoptimization());
+  DependentCode::InstallDependency(isolate,
+                                   MaybeObjectHandle::Weak(code_field_type),
+                                   field_owner, DependentCode::kFieldTypeGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_repr), field_owner,
+      DependentCode::kFieldRepresentationGroup);
+  DependentCode::InstallDependency(
+      isolate, MaybeObjectHandle::Weak(code_field_const), field_owner,
+      DependentCode::kFieldConstGroup);
+  CHECK(!code_field_type->marked_for_deoptimization());
+  CHECK(!code_field_repr->marked_for_deoptimization());
+  CHECK(!code_field_const->marked_for_deoptimization());
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1823,7 +1879,9 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
   CHECK_EQ(IsGeneralizableTo(to.constness, from.constness),
-           !code->marked_for_deoptimization());
+           !code_field_const->marked_for_deoptimization());
+  CheckCodeObjectForDeopt(from, expected, code_field_type, code_field_repr,
+                          Handle<Code>(), false);
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));
@@ -2287,7 +2345,6 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
         FLAG_unbox_double_fields || !FLAG_modify_field_representation_inplace);
   }
 }
-
 
 TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
   CcTest::InitializeVM();

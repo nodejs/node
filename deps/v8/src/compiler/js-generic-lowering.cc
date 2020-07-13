@@ -412,7 +412,7 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
   CreateArgumentsType const type = CreateArgumentsTypeOf(node->op());
   switch (type) {
     case CreateArgumentsType::kMappedArguments:
-      ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments_Generic);
+      ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments);
       break;
     case CreateArgumentsType::kUnmappedArguments:
       ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments);

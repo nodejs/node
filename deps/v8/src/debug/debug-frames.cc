@@ -43,12 +43,6 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
     DCHECK_NOT_NULL(js_frame);
     deoptimized_frame_.reset(Deoptimizer::DebuggerInspectableFrame(
         js_frame, inlined_frame_index, isolate));
-  } else if (frame_->is_wasm_interpreter_entry()) {
-    wasm_interpreted_frame_ =
-        WasmInterpreterEntryFrame::cast(frame_)
-            ->debug_info()
-            .GetInterpretedFrame(frame_->fp(), inlined_frame_index);
-    DCHECK(wasm_interpreted_frame_);
   }
 }
 
@@ -63,14 +57,11 @@ JavaScriptFrame* FrameInspector::javascript_frame() {
 
 int FrameInspector::GetParametersCount() {
   if (is_optimized_) return deoptimized_frame_->parameters_count();
-  if (wasm_interpreted_frame_)
-    return wasm_interpreted_frame_->GetParameterCount();
   return frame_->ComputeParametersCount();
 }
 
 Handle<Object> FrameInspector::GetParameter(int index) {
   if (is_optimized_) return deoptimized_frame_->GetParameter(index);
-  // TODO(clemensb): Handle wasm_interpreted_frame_.
   return handle(frame_->GetParameter(index), isolate_);
 }
 

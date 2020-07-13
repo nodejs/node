@@ -42,6 +42,10 @@
 
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
+
+  # Currently fails because breakpoint information is inconsistent after
+  # disabling and re-enabling the debugger (https://crbug.com/v8/10403).
+  'debug/wasm/debug-step-into-wasm': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
@@ -49,12 +53,6 @@
   # Slow tests: https://crbug.com/v8/7783
   'debug/debug-stepout-scope-part*': [SKIP],
 }],  # variant == stress and (arch == arm or arch == arm64) and simulator_run
-
-##############################################################################
-['variant == stress_incremental_marking', {
-  # BUG(chromium:772010).
-  'debug/debug-*': [PASS, ['system == windows', SKIP]],
-}],  # variant == stress_incremental_marking
 
 ##############################################################################
 ['gc_stress == True', {
@@ -88,6 +86,11 @@
   # https://crbug.com/v8/8147
   'debug/debug-liveedit-*': [SKIP],
   'debug/debug-set-variable-value': [SKIP],
+
+  # Rely on (blocking) concurrent compilation.
+  'debug/regress/regress-opt-after-debug-deopt': [SKIP],
+  'debug/regress/regress-prepare-break-while-recompile': [SKIP],
+  'regress/regress-7421': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
@@ -149,15 +152,9 @@
   'debug/wasm/frame-inspection': [SKIP],
 }],
 
-##############################################################################
-['isolates', {
-  # WebAssembly debugging does not work reliably when multiple isolates are
-  # involved (https://crbug.com/v8/10359).
-  # (this list might need to be extended by more debugging tests as they
-  # start flaking)
-  'debug/wasm/debug-enabled-tier-down-wasm': [SKIP],
-  'debug/wasm/debug-enabled-tier-down-wasm-unsupported-liftoff': [SKIP],
-  'regress/regress-crbug-1032042': [SKIP],
-}],  # 'isolates'
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
 
 ]

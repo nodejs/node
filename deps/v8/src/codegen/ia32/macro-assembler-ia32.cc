@@ -15,7 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
-#include "src/heap/heap-inl.h"  // For MemoryChunk.
+#include "src/heap/memory-chunk.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
 #include "src/runtime/runtime.h"
@@ -133,6 +133,31 @@ void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
     cmp(value, Immediate(higher_limit));
   }
   j(below_equal, on_in_range, near_jump);
+}
+
+void TurboAssembler::PushArray(Register array, Register size, Register scratch,
+                               PushArrayOrder order) {
+  DCHECK(!AreAliased(array, size, scratch));
+  Register counter = scratch;
+  Label loop, entry;
+  if (order == PushArrayOrder::kReverse) {
+    mov(counter, 0);
+    jmp(&entry);
+    bind(&loop);
+    Push(Operand(array, counter, times_system_pointer_size, 0));
+    inc(counter);
+    bind(&entry);
+    cmp(counter, size);
+    j(less, &loop, Label::kNear);
+  } else {
+    mov(counter, size);
+    jmp(&entry);
+    bind(&loop);
+    Push(Operand(array, counter, times_system_pointer_size, 0));
+    bind(&entry);
+    dec(counter);
+    j(greater_equal, &loop, Label::kNear);
+  }
 }
 
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,

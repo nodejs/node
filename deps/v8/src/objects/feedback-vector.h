@@ -651,7 +651,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   int ExtractMaps(MapHandles* maps) const;
   int ExtractMapsAndHandlers(std::vector<MapAndHandler>* maps_and_handlers,
-                             bool drop_deprecated = false) const;
+                             bool try_update_deprecated = false) const;
   MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
 
   bool IsCleared() const {

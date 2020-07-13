@@ -340,7 +340,7 @@ void EraseIf(Container* container, F f) {
 
 class NullStreambuf : public std::streambuf {
  public:
-  virtual int overflow(int c) {
+  int overflow(int c) override {
     setp(buffer_, buffer_ + sizeof(buffer_));
     return (c == traits_type::eof()) ? '\0' : c;
   }

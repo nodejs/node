@@ -134,6 +134,12 @@ struct MaybeBoolFlag {
 #define COMPRESS_POINTERS_BOOL false
 #endif
 
+#ifdef V8_HEAP_SANDBOX
+#define V8_HEAP_SANDBOX_BOOL true
+#else
+#define V8_HEAP_SANDBOX_BOOL false
+#endif
+
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL true
 #else
@@ -207,16 +213,17 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 // Enabling import.meta requires to also enable import()
 DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
+// Enabling FinalizationRegistry#cleanupSome also enables weak refs
+DEFINE_IMPLICATION(harmony_weak_refs_with_cleanup_some, harmony_weak_refs)
 
 // Update bootstrapper.cc whenever adding a new feature flag.
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS_BASE(V)                                    \
-  V(harmony_string_replaceall, "harmony String.prototype.replaceAll") \
-  V(harmony_regexp_sequence, "RegExp Unicode sequence properties")    \
-  V(harmony_weak_refs, "harmony weak references")                     \
-  V(harmony_regexp_match_indices, "harmony regexp match indices")     \
-  V(harmony_top_level_await, "harmony top level await")
+#define HARMONY_INPROGRESS_BASE(V)                                             \
+  V(harmony_regexp_sequence, "RegExp Unicode sequence properties")             \
+  V(harmony_weak_refs_with_cleanup_some,                                       \
+    "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
+  V(harmony_regexp_match_indices, "harmony regexp match indices")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                       \
@@ -227,39 +234,38 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                                     \
-  V(harmony_private_methods, "harmony private methods in class literals")
+#define HARMONY_STAGED_BASE(V)                                        \
+  V(harmony_string_replaceall, "harmony String.prototype.replaceAll") \
+  V(harmony_logical_assignment, "harmony logical assignment")         \
+  V(harmony_promise_any, "harmony Promise.any")                       \
+  V(harmony_top_level_await, "harmony top level await")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                                  \
   HARMONY_STAGED_BASE(V)                                   \
   V(harmony_intl_dateformat_day_period,                    \
     "Add dayPeriod option to DateTimeFormat")              \
-  V(harmony_intl_dateformat_fractional_second_digits,      \
-    "Add fractionalSecondDigits option to DateTimeFormat") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                               \
-  V(harmony_namespace_exports,                                 \
-    "harmony namespace exports (export * as foo from 'bar')")  \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")    \
-  V(harmony_import_meta, "harmony import.meta property")       \
-  V(harmony_dynamic_import, "harmony dynamic import")          \
-  V(harmony_promise_all_settled, "harmony Promise.allSettled") \
-  V(harmony_nullish, "harmony nullish operator")               \
-  V(harmony_optional_chaining, "harmony optional chaining syntax")
+#define HARMONY_SHIPPING_BASE(V)                                          \
+  V(harmony_namespace_exports,                                            \
+    "harmony namespace exports (export * as foo from 'bar')")             \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")               \
+  V(harmony_import_meta, "harmony import.meta property")                  \
+  V(harmony_dynamic_import, "harmony dynamic import")                     \
+  V(harmony_promise_all_settled, "harmony Promise.allSettled")            \
+  V(harmony_private_methods, "harmony private methods in class literals") \
+  V(harmony_weak_refs, "harmony weak references")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                               \
-  HARMONY_SHIPPING_BASE(V)                                \
-  V(harmony_intl_add_calendar_numbering_system,           \
-    "Add calendar and numberingSystem to DateTimeFormat") \
-  V(harmony_intl_displaynames, "Intl.DisplayNames")       \
-  V(harmony_intl_other_calendars, "DateTimeFormat other calendars")
+#define HARMONY_SHIPPING(V)                           \
+  HARMONY_SHIPPING_BASE(V)                            \
+  V(harmony_intl_dateformat_fractional_second_digits, \
+    "Add fractionalSecondDigits option to DateTimeFormat")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
@@ -368,6 +374,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 
 DEFINE_IMPLICATION(future, write_protect_code_memory)
+DEFINE_IMPLICATION(future, finalize_streaming_on_background)
 
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
@@ -433,11 +440,6 @@ DEFINE_NEG_IMPLICATION(jitless, track_heap_object_fields)
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 // asm.js validation is disabled since it triggers wasm code generation.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
-// Wasm is put into interpreter-only mode. We repeat flag implications down
-// here to ensure they're applied correctly by setting the --jitless flag.
-DEFINE_IMPLICATION(jitless, wasm_interpret_all)
-DEFINE_NEG_IMPLICATION(jitless, asm_wasm_lazy_compilation)
-DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
 // --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
 
 // Flags for inline caching and feedback vectors.
@@ -495,6 +497,7 @@ DEFINE_BOOL(turboprop, false,
 DEFINE_NEG_IMPLICATION(turboprop, turbo_inlining)
 DEFINE_IMPLICATION(turboprop, concurrent_inlining)
 DEFINE_VALUE_IMPLICATION(turboprop, interrupt_budget, 15 * KB)
+DEFINE_VALUE_IMPLICATION(turboprop, reuse_opt_code_count, 2)
 
 // Flags for concurrent recompilation.
 DEFINE_BOOL(concurrent_recompilation, true,
@@ -645,6 +648,17 @@ DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
 DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
+DEFINE_INT(reuse_opt_code_count, 0,
+           "don't discard optimized code for the specified number of deopts.")
+
+// Native context independent (NCI) code.
+DEFINE_BOOL(turbo_nci, false,
+            "enable experimental native context independent code.")
+DEFINE_BOOL(turbo_nci_as_highest_tier, false,
+            "replace default TF with NCI code as the highest tier for testing "
+            "purposes.")
+DEFINE_BOOL(print_nci_code, false, "print native context independent code.")
+DEFINE_BOOL(trace_turbo_nci, false, "trace native context independent code.")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, false,
@@ -691,6 +705,7 @@ DEFINE_BOOL(wasm_tier_up, true,
             "enable tier up to the optimizing compiler (requires --liftoff to "
             "have an effect)")
 DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
+DEFINE_IMPLICATION(trace_wasm_decoder, single_threaded)
 DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
                   "trace interpretation of wasm code")
@@ -718,10 +733,8 @@ DEFINE_BOOL(trace_wasm_memory, false,
 DEFINE_INT(wasm_tier_mask_for_testing, 0,
            "bitmask of functions to compile with TurboFan instead of Liftoff")
 
-DEFINE_BOOL(debug_in_liftoff, false,
-            "use Liftoff instead of the C++ interpreter for debugging "
-            "WebAssembly (experimental)")
-DEFINE_IMPLICATION(future, debug_in_liftoff)
+DEFINE_BOOL(wasm_expose_debug_eval, false,
+            "Expose wasm evaluator support on the CDP")
 
 DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
 DEFINE_BOOL(suppress_asm_messages, false,
@@ -770,9 +783,8 @@ DEFINE_BOOL(wasm_fuzzer_gen_test, false,
             "generate a test case when running a wasm fuzzer")
 DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
 DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
+DEFINE_IMPLICATION(print_wasm_code, single_threaded)
 DEFINE_BOOL(print_wasm_stub_code, false, "Print WebAssembly stub code")
-DEFINE_BOOL(wasm_interpret_all, false,
-            "execute all wasm code in the wasm interpreter")
 DEFINE_BOOL(asm_wasm_lazy_compilation, false,
             "enable lazy compilation for asm-wasm modules")
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
@@ -794,10 +806,6 @@ DEFINE_BOOL(wasm_simd_post_mvp, false,
             "included in the current proposal")
 DEFINE_IMPLICATION(wasm_simd_post_mvp, experimental_wasm_simd)
 
-// wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
-DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
-DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
-DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_tier_up)
 DEFINE_BOOL(wasm_code_gc, true, "enable garbage collection of wasm code")
 DEFINE_BOOL(trace_wasm_code_gc, false, "trace garbage collection of wasm code")
 DEFINE_BOOL(stress_wasm_code_gc, false,
@@ -889,8 +897,20 @@ DEFINE_BOOL(trace_mutator_utilization, false,
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
+DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
+DEFINE_INT(incremental_marking_soft_trigger, 0,
+           "threshold for starting incremental marking via a task in percent "
+           "of available space: limit - size")
+DEFINE_INT(incremental_marking_hard_trigger, 0,
+           "threshold for starting incremental marking immediately in percent "
+           "of available space: limit - size")
 DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
+DEFINE_BOOL(scavenge_task, true, "schedule scavenge tasks")
+DEFINE_INT(scavenge_task_trigger, 80,
+           "scavenge task trigger in percent of the current heap limit")
+DEFINE_BOOL(scavenge_separate_stack_scanning, true,
+            "use a separate phase for stack scanning in scavenge")
 DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_BOOL(write_protect_code_memory, true, "write protect code memory")
 #ifdef V8_CONCURRENT_MARKING
@@ -910,7 +930,9 @@ DEFINE_BOOL_READONLY(array_buffer_extension, V8_ARRAY_BUFFER_EXTENSION_BOOL,
 DEFINE_IMPLICATION(array_buffer_extension, always_promote_young_mc)
 DEFINE_BOOL(concurrent_array_buffer_sweeping, true,
             "concurrently sweep array buffers")
+DEFINE_BOOL(concurrent_allocation, false, "concurrently allocate in old space")
 DEFINE_BOOL(local_heaps, false, "allow heap access from background tasks")
+DEFINE_NEG_NEG_IMPLICATION(array_buffer_extension, local_heaps)
 DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_INT(ephemeron_fixpoint_iterations, 10,
            "number of fixpoint iterations it takes to switch to linear "
@@ -1078,6 +1100,8 @@ DEFINE_BOOL(enable_regexp_unaligned_accesses, true,
 
 // api.cc
 DEFINE_BOOL(script_streaming, true, "enable parsing on background")
+DEFINE_BOOL(stress_background_compile, false,
+            "stress test parsing on background")
 DEFINE_BOOL(
     finalize_streaming_on_background, false,
     "perform the script streaming finalization on the background thread")
@@ -1358,8 +1382,13 @@ DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
 // Test flag for a check in %OptimizeFunctionOnNextCall
 DEFINE_BOOL(
     testing_d8_test_runner, false,
-    "test runner turns on this flag to enable a check that the funciton was "
+    "test runner turns on this flag to enable a check that the function was "
     "prepared for optimization before marking it for optimization")
+
+DEFINE_BOOL(
+    fuzzing, false,
+    "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
+    "intrinsics to fail silently (e.g. return undefined) on invalid usage.")
 
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,
@@ -1419,6 +1448,7 @@ DEFINE_BOOL(multi_mapped_mock_allocator, false,
 #define DEFAULT_WASM_GDB_REMOTE_PORT 8765
 DEFINE_BOOL(wasm_gdb_remote, false,
             "enable GDB-remote for WebAssembly debugging")
+DEFINE_NEG_IMPLICATION(wasm_gdb_remote, wasm_tier_up)
 DEFINE_INT(wasm_gdb_remote_port, DEFAULT_WASM_GDB_REMOTE_PORT,
            "default port for WebAssembly debugging with LLDB.")
 DEFINE_BOOL(wasm_pause_waiting_for_debugger, false,

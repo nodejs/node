@@ -40,6 +40,18 @@ class PromiseBuiltins {
     kPromiseAllResolveElementLength
   };
 
+  enum PromiseAnyRejectElementContextSlots {
+    // Remaining elements count
+    kPromiseAnyRejectElementRemainingSlot = Context::MIN_CONTEXT_SLOTS,
+
+    // Promise capability from Promise.any
+    kPromiseAnyRejectElementCapabilitySlot,
+
+    // errors array from Promise.any
+    kPromiseAnyRejectElementErrorsArraySlot,
+    kPromiseAnyRejectElementLength
+  };
+
   enum FunctionContextSlot {
     kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
 

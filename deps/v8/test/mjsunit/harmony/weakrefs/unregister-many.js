@@ -6,11 +6,9 @@
 
 let cleanup_call_count = 0;
 let cleanup_holdings_count = 0;
-let cleanup = function(iter) {
-  for (holdings of iter) {
-    assertEquals("holdings2", holdings);
-    ++cleanup_holdings_count;
-  }
+let cleanup = function(holdings) {
+  assertEquals("holdings2", holdings);
+  ++cleanup_holdings_count;
   ++cleanup_call_count;
 }
 

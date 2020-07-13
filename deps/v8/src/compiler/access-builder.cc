@@ -420,7 +420,8 @@ FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
                         JSTypedArray::kExternalPointerOffset,
                         MaybeHandle<Name>(),
                         MaybeHandle<Map>(),
-                        Type::ExternalPointer(),
+                        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
+                                             : Type::ExternalPointer(),
                         MachineType::Pointer(),
                         kNoWriteBarrier,
                         LoadSensitivity::kCritical};
@@ -429,9 +430,13 @@ FieldAccess AccessBuilder::ForJSTypedArrayExternalPointer() {
 
 // static
 FieldAccess AccessBuilder::ForJSDataViewDataPointer() {
-  FieldAccess access = {kTaggedBase,           JSDataView::kDataPointerOffset,
-                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
-                        Type::OtherInternal(), MachineType::Pointer(),
+  FieldAccess access = {kTaggedBase,
+                        JSDataView::kDataPointerOffset,
+                        MaybeHandle<Name>(),
+                        MaybeHandle<Map>(),
+                        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
+                                             : Type::ExternalPointer(),
+                        MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;
 }
@@ -690,7 +695,8 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
                         ExternalString::kResourceDataOffset,
                         Handle<Name>(),
                         MaybeHandle<Map>(),
-                        Type::ExternalPointer(),
+                        V8_HEAP_SANDBOX_BOOL ? Type::SandboxedExternalPointer()
+                                             : Type::ExternalPointer(),
                         MachineType::Pointer(),
                         kNoWriteBarrier};
   return access;

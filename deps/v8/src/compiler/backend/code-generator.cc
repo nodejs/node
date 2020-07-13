@@ -93,7 +93,6 @@ CodeGenerator::CodeGenerator(
   if (code_kind == Code::WASM_FUNCTION ||
       code_kind == Code::WASM_TO_CAPI_FUNCTION ||
       code_kind == Code::WASM_TO_JS_FUNCTION ||
-      code_kind == Code::WASM_INTERPRETER_ENTRY ||
       code_kind == Code::JS_TO_WASM_FUNCTION) {
     tasm_.set_abort_hard(true);
   }
@@ -499,6 +498,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   MaybeHandle<Code> maybe_code =
       Factory::CodeBuilder(isolate(), desc, info()->code_kind())
           .set_builtin_index(info()->builtin_index())
+          .set_inlined_bytecode_size(info()->inlined_bytecode_size())
           .set_source_position_table(source_positions)
           .set_deoptimization_data(deopt_data)
           .set_is_turbofanned()
@@ -996,8 +996,10 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 }
 
 int CodeGenerator::DefineDeoptimizationLiteral(DeoptimizationLiteral literal) {
+  literal.Validate();
   int result = static_cast<int>(deoptimization_literals_.size());
   for (unsigned i = 0; i < deoptimization_literals_.size(); ++i) {
+    deoptimization_literals_[i].Validate();
     if (deoptimization_literals_[i] == literal) return i;
   }
   deoptimization_literals_.push_back(literal);
@@ -1349,6 +1351,7 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
 OutOfLineCode::~OutOfLineCode() = default;
 
 Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+  Validate();
   switch (kind_) {
     case DeoptimizationLiteralKind::kObject: {
       return object_;
@@ -1358,6 +1361,9 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
     }
     case DeoptimizationLiteralKind::kString: {
       return string_->AllocateStringConstant(isolate);
+    }
+    case DeoptimizationLiteralKind::kInvalid: {
+      UNREACHABLE();
     }
   }
   UNREACHABLE();

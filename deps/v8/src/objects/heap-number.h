@@ -15,12 +15,9 @@ namespace internal {
 
 // The HeapNumber class describes heap allocated numbers that cannot be
 // represented in a Smi (small integer).
-class HeapNumber : public PrimitiveHeapObject {
+class HeapNumber
+    : public TorqueGeneratedHeapNumber<HeapNumber, PrimitiveHeapObject> {
  public:
-  // [value]: number value.
-  inline double value() const;
-  inline void set_value(double value);
-
   inline uint64_t value_as_bits() const;
   inline void set_value_as_bits(uint64_t bits);
 
@@ -28,7 +25,6 @@ class HeapNumber : public PrimitiveHeapObject {
   inline int get_sign();
 
   // Layout description.
-  static const int kValueOffset = PrimitiveHeapObject::kHeaderSize;
   // IEEE doubles are two 32 bit words.  The first is just mantissa, the second
   // is a mixture of sign, exponent and mantissa. The offsets of two 32 bit
   // words within double numbers are endian dependent and they are set
@@ -43,7 +39,6 @@ class HeapNumber : public PrimitiveHeapObject {
 #error Unknown byte ordering
 #endif
 
-  static const int kSize = kValueOffset + kDoubleSize;
   static const uint32_t kSignMask = 0x80000000u;
   static const uint32_t kExponentMask = 0x7ff00000u;
   static const uint32_t kMantissaMask = 0xfffffu;
@@ -56,12 +51,10 @@ class HeapNumber : public PrimitiveHeapObject {
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 
-  DECL_CAST(HeapNumber)
-  DECL_VERIFIER(HeapNumber)
   DECL_PRINTER(HeapNumber)
   V8_EXPORT_PRIVATE void HeapNumberShortPrint(std::ostream& os);
 
-  OBJECT_CONSTRUCTORS(HeapNumber, PrimitiveHeapObject);
+  TQ_OBJECT_CONSTRUCTORS(HeapNumber)
 };
 
 }  // namespace internal

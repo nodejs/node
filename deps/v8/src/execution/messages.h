@@ -269,6 +269,10 @@ class ErrorUtils : public AllStatic {
   // |kNone| is useful when you don't need the stack information at all, for
   // example when creating a deserialized error.
   enum class StackTraceCollection { kDetailed, kSimple, kNone };
+  static MaybeHandle<JSObject> Construct(Isolate* isolate,
+                                         Handle<JSFunction> target,
+                                         Handle<Object> new_target,
+                                         Handle<Object> message);
   static MaybeHandle<JSObject> Construct(
       Isolate* isolate, Handle<JSFunction> target, Handle<Object> new_target,
       Handle<Object> message, FrameSkipMode mode, Handle<Object> caller,
@@ -293,8 +297,8 @@ class ErrorUtils : public AllStatic {
                                                   Handle<Object> source);
   static Handle<Object> NewConstructedNonConstructable(Isolate* isolate,
                                                        Handle<Object> source);
-  static Object ThrowSpreadArgIsNullOrUndefinedError(Isolate* isolate,
-                                                     Handle<Object> object);
+  static Object ThrowSpreadArgError(Isolate* isolate, MessageTemplate id,
+                                    Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
                                              Handle<Object> object);
   static Object ThrowLoadFromNullOrUndefined(Isolate* isolate,
@@ -313,7 +317,9 @@ class MessageFormatter {
                                                       Handle<String> arg2);
 
   static Handle<String> Format(Isolate* isolate, MessageTemplate index,
-                               Handle<Object> arg);
+                               Handle<Object> arg0,
+                               Handle<Object> arg1 = Handle<Object>(),
+                               Handle<Object> arg2 = Handle<Object>());
 };
 
 // A message handler is a convenience interface for accessing the list

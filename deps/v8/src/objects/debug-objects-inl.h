@@ -51,6 +51,9 @@ BytecodeArray DebugInfo::DebugBytecodeArray() {
   return BytecodeArray::cast(debug_bytecode_array());
 }
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmValue)
+NEVER_READ_ONLY_SPACE_IMPL(WasmValue)
+
 }  // namespace internal
 }  // namespace v8
 

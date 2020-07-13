@@ -9,8 +9,9 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-#include <immintrin.h>
 #include "deflate.h"
+
+#ifdef DEFLATE_FILL_WINDOW_SSE2
 
 #define UPDATE_HASH(s,h,i) \
     {\
@@ -27,6 +28,8 @@
     }\
 
 extern int deflate_read_buf OF((z_streamp strm, Bytef *buf, unsigned size));
+
+#include <immintrin.h>
 
 void fill_window_sse(deflate_state *s)
 {
@@ -175,3 +178,5 @@ void fill_window_sse(deflate_state *s)
     Assert((ulg)s->strstart <= s->window_size - MIN_LOOKAHEAD,
            "not enough room for search");
 }
+
+#endif  /* DEFLATE_FILL_WINDOW_SSE2 */

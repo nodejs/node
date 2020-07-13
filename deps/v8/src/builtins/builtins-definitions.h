@@ -498,11 +498,6 @@ namespace internal {
   CPP(ErrorConstructor)                                                        \
   CPP(ErrorCaptureStackTrace)                                                  \
   CPP(ErrorPrototypeToString)                                                  \
-  CPP(MakeError)                                                               \
-  CPP(MakeRangeError)                                                          \
-  CPP(MakeSyntaxError)                                                         \
-  CPP(MakeTypeError)                                                           \
-  CPP(MakeURIError)                                                            \
                                                                                \
   /* Function */                                                               \
   CPP(FunctionConstructor)                                                     \
@@ -579,7 +574,9 @@ namespace internal {
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
   TFS(IterableToList, kIterable, kIteratorFn)                                  \
+  TFS(IterableToFixedArray, kIterable, kIteratorFn)                            \
   TFS(IterableToListWithSymbolLookup, kIterable)                               \
+  TFS(IterableToFixedArrayWithSymbolLookupSlow, kIterable)                     \
   TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
   TFS(IterableToFixedArrayForWasm, kIterable, kExpectedLength)                 \
                                                                                \
@@ -678,18 +675,12 @@ namespace internal {
   TFJ(ObjectKeys, 1, kReceiver, kObject)                                       \
   CPP(ObjectLookupGetter)                                                      \
   CPP(ObjectLookupSetter)                                                      \
-  /* ES6 #sec-object.prototype.tostring */                                     \
-  TFJ(ObjectPrototypeToString, 0, kReceiver)                                   \
-  /* ES6 #sec-object.prototype.valueof */                                      \
-  TFJ(ObjectPrototypeValueOf, 0, kReceiver)                                    \
   /* ES6 #sec-object.prototype.hasownproperty */                               \
   TFJ(ObjectPrototypeHasOwnProperty, 1, kReceiver, kKey)                       \
   TFJ(ObjectPrototypeIsPrototypeOf, 1, kReceiver, kValue)                      \
   CPP(ObjectPrototypePropertyIsEnumerable)                                     \
   CPP(ObjectPrototypeGetProto)                                                 \
   CPP(ObjectPrototypeSetProto)                                                 \
-  /* ES #sec-object.prototype.tolocalestring */                                \
-  TFJ(ObjectPrototypeToLocaleString, 0, kReceiver)                             \
   CPP(ObjectSeal)                                                              \
   TFS(ObjectToString, kReceiver)                                               \
   TFJ(ObjectValues, 1, kReceiver, kObject)                                     \
@@ -701,9 +692,6 @@ namespace internal {
   /* for-in */                                                                 \
   TFS(ForInEnumerate, kReceiver)                                               \
   TFS(ForInFilter, kKey, kObject)                                              \
-                                                                               \
-  /* Promise */                                                                \
-  CPP(IsPromise)                                                               \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply, JSTrampoline)                                              \
@@ -851,35 +839,17 @@ namespace internal {
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy, Dummy)                                                  \
   ASM(WasmDebugBreak, Dummy)                                                   \
+  TFC(WasmFloat32ToNumber, WasmFloat32ToNumber)                                \
+  TFC(WasmFloat64ToNumber, WasmFloat64ToNumber)                                \
+  TFS(WasmAllocateArray, kMapIndex, kLength, kElementSize)                     \
+  TFS(WasmAllocateStruct, kMapIndex)                                           \
   TFC(WasmAtomicNotify, WasmAtomicNotify)                                      \
   TFC(WasmI32AtomicWait32, WasmI32AtomicWait32)                                \
   TFC(WasmI32AtomicWait64, WasmI32AtomicWait64)                                \
   TFC(WasmI64AtomicWait32, WasmI64AtomicWait32)                                \
   TFC(WasmI64AtomicWait64, WasmI64AtomicWait64)                                \
-  TFC(WasmMemoryGrow, WasmMemoryGrow)                                          \
   TFC(WasmTableInit, WasmTableInit)                                            \
   TFC(WasmTableCopy, WasmTableCopy)                                            \
-  TFC(WasmTableGet, WasmTableGet)                                              \
-  TFC(WasmTableSet, WasmTableSet)                                              \
-  TFC(WasmStackGuard, NoContext)                                               \
-  TFC(WasmStackOverflow, NoContext)                                            \
-  TFC(WasmThrow, WasmThrow)                                                    \
-  TFC(WasmRethrow, WasmThrow)                                                  \
-  TFS(WasmTraceMemory, kMemoryTracingInfo)                                     \
-  TFS(ThrowWasmTrapUnreachable)                                                \
-  TFS(ThrowWasmTrapMemOutOfBounds)                                             \
-  TFS(ThrowWasmTrapUnalignedAccess)                                            \
-  TFS(ThrowWasmTrapDivByZero)                                                  \
-  TFS(ThrowWasmTrapDivUnrepresentable)                                         \
-  TFS(ThrowWasmTrapRemByZero)                                                  \
-  TFS(ThrowWasmTrapFloatUnrepresentable)                                       \
-  TFS(ThrowWasmTrapFuncInvalid)                                                \
-  TFS(ThrowWasmTrapFuncSigMismatch)                                            \
-  TFS(ThrowWasmTrapDataSegmentDropped)                                         \
-  TFS(ThrowWasmTrapElemSegmentDropped)                                         \
-  TFS(ThrowWasmTrapTableOutOfBounds)                                           \
-  TFS(ThrowWasmTrapBrOnExnNullRef)                                             \
-  TFS(ThrowWasmTrapRethrowNullRef)                                             \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \
@@ -976,8 +946,6 @@ namespace internal {
   CPP(Trace)                                                                   \
                                                                                \
   /* Weak refs */                                                              \
-  CPP(FinalizationRegistryCleanupIteratorNext)                                 \
-  CPP(FinalizationRegistryCleanupSome)                                         \
   CPP(FinalizationRegistryConstructor)                                         \
   CPP(FinalizationRegistryRegister)                                            \
   CPP(FinalizationRegistryUnregister)                                          \
@@ -1164,6 +1132,7 @@ namespace internal {
   V(AsyncGeneratorAwaitCaught)                       \
   V(AsyncGeneratorAwaitUncaught)                     \
   V(PromiseAll)                                      \
+  V(PromiseAny)                                      \
   V(PromiseConstructor)                              \
   V(PromiseConstructorLazyDeoptContinuation)         \
   V(PromiseFulfillReactionJob)                       \

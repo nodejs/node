@@ -216,13 +216,26 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
                                 debug::QueryObjectPredicate* predicate,
                                 PersistentValueVector<v8::Object>* objects) {
   {
-    CombinedHeapObjectIterator function_heap_iterator(
+    HandleScope handle_scope(isolate());
+    std::vector<Handle<JSTypedArray>> on_heap_typed_arrays;
+    CombinedHeapObjectIterator heap_iterator(
         heap(), HeapObjectIterator::kFilterUnreachable);
-    for (HeapObject heap_obj = function_heap_iterator.Next();
-         !heap_obj.is_null(); heap_obj = function_heap_iterator.Next()) {
+    for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
+         heap_obj = heap_iterator.Next()) {
       if (heap_obj.IsFeedbackVector()) {
         FeedbackVector::cast(heap_obj).ClearSlots(isolate());
+      } else if (heap_obj.IsJSTypedArray() &&
+                 JSTypedArray::cast(heap_obj).is_on_heap()) {
+        // Cannot call typed_array->GetBuffer() here directly because it may
+        // trigger GC. Defer that call by collecting the object in a vector.
+        on_heap_typed_arrays.push_back(
+            handle(JSTypedArray::cast(heap_obj), isolate()));
       }
+    }
+    for (auto& typed_array : on_heap_typed_arrays) {
+      // Convert the on-heap typed array into off-heap typed array, so that
+      // its ArrayBuffer becomes valid and can be returned in the result.
+      typed_array->GetBuffer();
     }
   }
   // We should return accurate information about live objects, so we need to

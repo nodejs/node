@@ -23,7 +23,7 @@ class Handle;
 class JSObject;
 template <typename T>
 class Vector;
-class WasmCompiledFrame;
+class WasmFrame;
 class WasmInstanceObject;
 
 namespace wasm {
@@ -33,6 +33,7 @@ class LocalNames;
 class NativeModule;
 class WasmCode;
 class WireBytesRef;
+class WasmValue;
 
 // Side table storing information used to inspect Liftoff frames at runtime.
 // This table is only created on demand for debugging, so it is not optimized
@@ -130,19 +131,27 @@ class DebugSideTable {
   std::vector<Entry> entries_;
 };
 
-// Get the global scope for a given instance. This will contain the wasm memory
+// Get the module scope for a given instance. This will contain the wasm memory
 // (if the instance has a memory) and the values of all globals.
-Handle<JSObject> GetGlobalScopeObject(Handle<WasmInstanceObject>);
+Handle<JSObject> GetModuleScopeObject(Handle<WasmInstanceObject>);
 
 // Debug info per NativeModule, created lazily on demand.
 // Implementation in {wasm-debug.cc} using PIMPL.
-class DebugInfo {
+class V8_EXPORT_PRIVATE DebugInfo {
  public:
   explicit DebugInfo(NativeModule*);
   ~DebugInfo();
 
+  // For the frame inspection methods below:
   // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
   // the {WasmDebugBreak} frame (if any).
+  int GetNumLocals(Isolate*, Address pc);
+  WasmValue GetLocalValue(int local, Isolate*, Address pc, Address fp,
+                          Address debug_break_fp);
+  int GetStackDepth(Isolate*, Address pc);
+  WasmValue GetStackValue(int index, Isolate*, Address pc, Address fp,
+                          Address debug_break_fp);
+
   Handle<JSObject> GetLocalScopeObject(Isolate*, Address pc, Address fp,
                                        Address debug_break_fp);
 
@@ -157,7 +166,7 @@ class DebugInfo {
 
   void ClearStepping();
 
-  bool IsStepping(WasmCompiledFrame*);
+  bool IsStepping(WasmFrame*);
 
   void RemoveBreakpoint(int func_index, int offset, Isolate* current_isolate);
 

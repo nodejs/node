@@ -96,10 +96,6 @@ void PlatformEmbeddedFileWriterAIX::DeclareFunctionBegin(const char* name,
 
 void PlatformEmbeddedFileWriterAIX::DeclareFunctionEnd(const char* name) {}
 
-int PlatformEmbeddedFileWriterAIX::HexLiteral(uint64_t value) {
-  return fprintf(fp_, "0x%" PRIx64, value);
-}
-
 void PlatformEmbeddedFileWriterAIX::FilePrologue() {}
 
 void PlatformEmbeddedFileWriterAIX::DeclareExternalFilename(
@@ -120,12 +116,6 @@ DataDirective PlatformEmbeddedFileWriterAIX::ByteChunkDataDirective() const {
   // PPC uses a fixed 4 byte instruction set, using .long
   // to prevent any unnecessary padding.
   return kLong;
-}
-
-int PlatformEmbeddedFileWriterAIX::WriteByteChunk(const uint8_t* data) {
-  DCHECK_EQ(ByteChunkDataDirective(), kLong);
-  const uint32_t* long_ptr = reinterpret_cast<const uint32_t*>(data);
-  return HexLiteral(*long_ptr);
 }
 
 #undef SYMBOL_PREFIX

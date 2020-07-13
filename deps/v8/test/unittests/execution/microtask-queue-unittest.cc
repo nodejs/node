@@ -65,7 +65,7 @@ using TestWithNativeContextAndFinalizationRegistry =  //
         WithContextMixin<                             //
             WithFinalizationRegistryMixin<            //
                 WithIsolateScopeMixin<                //
-                    WithSharedIsolateMixin<           //
+                    WithIsolateMixin<                 //
                         ::testing::Test>>>>>;
 
 namespace {
@@ -89,7 +89,7 @@ class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationRegistry,
 
   void SetUp() override {
     microtask_queue_ = MicrotaskQueue::New(isolate());
-    native_context()->set_microtask_queue(microtask_queue());
+    native_context()->set_microtask_queue(isolate(), microtask_queue());
 
     if (GetParam()) {
       // Use a PromiseHook to switch the implementation to ResolvePromise
@@ -254,9 +254,9 @@ TEST_P(MicrotaskQueueTest, PromiseHandlerContext) {
   Handle<Context> context2 = Utils::OpenHandle(*v8_context2, isolate());
   Handle<Context> context3 = Utils::OpenHandle(*v8_context3, isolate());
   Handle<Context> context4 = Utils::OpenHandle(*v8_context3, isolate());
-  context2->native_context().set_microtask_queue(microtask_queue());
-  context3->native_context().set_microtask_queue(microtask_queue());
-  context4->native_context().set_microtask_queue(microtask_queue());
+  context2->native_context().set_microtask_queue(isolate(), microtask_queue());
+  context3->native_context().set_microtask_queue(isolate(), microtask_queue());
+  context4->native_context().set_microtask_queue(isolate(), microtask_queue());
 
   Handle<JSFunction> handler;
   Handle<JSProxy> proxy;
@@ -587,7 +587,7 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_InactiveHandler) {
   Local<v8::Context> sub_context = v8::Context::New(v8_isolate());
   Utils::OpenHandle(*sub_context)
       ->native_context()
-      .set_microtask_queue(microtask_queue());
+      .set_microtask_queue(isolate(), microtask_queue());
 
   Handle<JSArray> result;
   Handle<JSFunction> stale_handler;

@@ -29,7 +29,8 @@ class ListFormatter;
 namespace v8 {
 namespace internal {
 
-class JSListFormat : public JSObject {
+class JSListFormat
+    : public TorqueGeneratedJSListFormat<JSListFormat, JSObject> {
  public:
   // Creates relative time format object with properties derived from input
   // locales and options.
@@ -55,10 +56,7 @@ class JSListFormat : public JSObject {
   Handle<String> StyleAsString() const;
   Handle<String> TypeAsString() const;
 
-  DECL_CAST(JSListFormat)
-
   // ListFormat accessors.
-  DECL_ACCESSORS(locale, String)
   DECL_ACCESSORS(icu_formatter, Managed<icu::ListFormatter>)
 
   // Style: identifying the relative time format style used.
@@ -93,17 +91,9 @@ class JSListFormat : public JSObject {
   STATIC_ASSERT(Type::DISJUNCTION <= TypeBits::kMax);
   STATIC_ASSERT(Type::UNIT <= TypeBits::kMax);
 
-  // [flags] Bit field containing various flags about the function.
-  DECL_INT_ACCESSORS(flags)
-
   DECL_PRINTER(JSListFormat)
-  DECL_VERIFIER(JSListFormat)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_LIST_FORMAT_FIELDS)
-
-  OBJECT_CONSTRUCTORS(JSListFormat, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSListFormat)
 };
 
 }  // namespace internal

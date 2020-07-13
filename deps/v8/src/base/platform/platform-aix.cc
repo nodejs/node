@@ -129,5 +129,34 @@ void OS::SignalCodeMovingGC() {}
 
 void OS::AdjustSchedulingParams() {}
 
+// static
+void* Stack::GetStackStart() {
+  // pthread_getthrds_np creates 3 values:
+  // __pi_stackaddr, __pi_stacksize, __pi_stackend
+
+  // higher address ----- __pi_stackend, stack base
+  //
+  //   |
+  //   |  __pi_stacksize, stack grows downwards
+  //   |
+  //   V
+  //
+  // lower address -----  __pi_stackaddr, current sp
+
+  pthread_t tid = pthread_self();
+  struct __pthrdsinfo buf;
+  // clear buf
+  memset(&buf, 0, sizeof(buf));
+  char regbuf[1];
+  int regbufsize = sizeof(regbuf);
+  const int rc = pthread_getthrds_np(&tid, PTHRDSINFO_QUERY_ALL, &buf,
+                                     sizeof(buf), regbuf, &regbufsize);
+  CHECK(!rc);
+  if (buf.__pi_stackend == NULL || buf.__pi_stackaddr == NULL) {
+    return nullptr;
+  }
+  return reinterpret_cast<void*>(buf.__pi_stackend);
+}
+
 }  // namespace base
 }  // namespace v8

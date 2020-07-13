@@ -253,6 +253,12 @@ class LiftoffCompiler {
 
   using Value = ValueBase;
 
+  static constexpr auto kI32 = ValueType::kI32;
+  static constexpr auto kI64 = ValueType::kI64;
+  static constexpr auto kF32 = ValueType::kF32;
+  static constexpr auto kF64 = ValueType::kF64;
+  static constexpr auto kS128 = ValueType::kS128;
+
   struct ElseState {
     MovableLabel label;
     LiftoffAssembler::CacheState state;
@@ -272,6 +278,17 @@ class LiftoffCompiler {
 
   using FullDecoder = WasmFullDecoder<validate, LiftoffCompiler>;
 
+  // For debugging, we need to spill registers before a trap, to be able to
+  // inspect them.
+  struct SpilledRegistersBeforeTrap {
+    struct Entry {
+      int offset;
+      LiftoffRegister reg;
+      ValueType type;
+    };
+    std::vector<Entry> entries;
+  };
+
   struct OutOfLineCode {
     MovableLabel label;
     MovableLabel continuation;
@@ -279,20 +296,30 @@ class LiftoffCompiler {
     WasmCodePosition position;
     LiftoffRegList regs_to_save;
     uint32_t pc;  // for trap handler.
+    // These two pointers will only be used for debug code:
     DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder;
+    std::unique_ptr<SpilledRegistersBeforeTrap> spilled_registers;
 
     // Named constructors:
     static OutOfLineCode Trap(
         WasmCode::RuntimeStubId s, WasmCodePosition pos, uint32_t pc,
-        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
+        DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder,
+        std::unique_ptr<SpilledRegistersBeforeTrap> spilled_registers) {
       DCHECK_LT(0, pos);
-      return {{}, {}, s, pos, {}, pc, debug_sidetable_entry_builder};
+      return {{},
+              {},
+              s,
+              pos,
+              {},
+              pc,
+              debug_sidetable_entry_builder,
+              std::move(spilled_registers)};
     }
     static OutOfLineCode StackCheck(
         WasmCodePosition pos, LiftoffRegList regs,
         DebugSideTableBuilder::EntryBuilder* debug_sidetable_entry_builder) {
-      return {{},   {}, WasmCode::kWasmStackGuard,    pos,
-              regs, 0,  debug_sidetable_entry_builder};
+      return {{},   {}, WasmCode::kWasmStackGuard,     pos,
+              regs, 0,  debug_sidetable_entry_builder, {}};
     }
   };
 
@@ -300,13 +327,14 @@ class LiftoffCompiler {
                   CompilationEnv* env, Zone* compilation_zone,
                   std::unique_ptr<AssemblerBuffer> buffer,
                   DebugSideTableBuilder* debug_sidetable_builder,
-                  Vector<int> breakpoints = {},
+                  ForDebugging for_debugging, Vector<int> breakpoints = {},
                   Vector<int> extra_source_pos = {})
       : asm_(std::move(buffer)),
         descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
         debug_sidetable_builder_(debug_sidetable_builder),
+        for_debugging_(for_debugging),
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_),
         next_breakpoint_ptr_(breakpoints.begin()),
@@ -445,45 +473,8 @@ class LiftoffCompiler {
       LiftoffRegister in_reg = kGpCacheRegList.GetFirstRegSet();
       if (param_loc.IsRegister()) {
         DCHECK(!param_loc.IsAnyRegister());
-        int reg_code = param_loc.AsRegister();
-        if (!kSimpleFPAliasing && type == kWasmF32) {
-          // Liftoff assumes a one-to-one mapping between float registers and
-          // double registers, and so does not distinguish between f32 and f64
-          // registers. The f32 register code must therefore be halved in order
-          // to pass the f64 code to Liftoff.
-          DCHECK_EQ(0, reg_code % 2);
-          reg_code /= 2;
-        } else if (kNeedS128RegPair && type == kWasmS128) {
-          // Similarly for double registers and SIMD registers, the SIMD code
-          // needs to be doubled to pass the f64 code to Liftoff.
-          reg_code *= 2;
-        }
-        RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
-                                          : kLiftoffAssemblerFpCacheRegs;
-        if (cache_regs & (1ULL << reg_code)) {
-          // This is a cache register, just use it.
-          if (kNeedS128RegPair && rc == kFpRegPair) {
-            in_reg =
-                LiftoffRegister::ForFpPair(DoubleRegister::from_code(reg_code));
-          } else {
-            in_reg = LiftoffRegister::from_code(rc, reg_code);
-          }
-        } else {
-          // Move to a cache register (spill one if necessary).
-          // Note that we cannot create a {LiftoffRegister} for reg_code, since
-          // {LiftoffRegister} can only store cache regs.
-          in_reg = __ GetUnusedRegister(rc, pinned);
-          if (rc == kGpReg) {
-            __ Move(in_reg.gp(), Register::from_code(reg_code), lowered_type);
-          } else if (kNeedS128RegPair && rc == kFpRegPair) {
-            __ Move(in_reg.low_fp(), DoubleRegister::from_code(reg_code),
-                    lowered_type);
-          } else {
-            DCHECK_EQ(kFpReg, rc);
-            __ Move(in_reg.fp(), DoubleRegister::from_code(reg_code),
-                    lowered_type);
-          }
-        }
+        in_reg = LiftoffRegister::from_external_code(rc, type,
+                                                     param_loc.AsRegister());
       } else if (param_loc.IsCallerFrameSlot()) {
         in_reg = __ GetUnusedRegister(rc, pinned);
         __ LoadCallerFrameSlot(in_reg, -param_loc.AsCallerFrameSlot(),
@@ -552,7 +543,7 @@ class LiftoffCompiler {
     __ CodeEntry();
 
     DEBUG_CODE_COMMENT("enter frame");
-    __ EnterFrame(StackFrame::WASM_COMPILED);
+    __ EnterFrame(StackFrame::WASM);
     __ set_has_frame(true);
     pc_offset_stack_frame_construction_ = __ PrepareStackFrame();
     // {PrepareStackFrame} is the first platform-specific assembler method.
@@ -604,7 +595,7 @@ class LiftoffCompiler {
 
     // If we are generating debug code, do check the "hook on function call"
     // flag. If set, trigger a break.
-    if (V8_UNLIKELY(env_->debug)) {
+    if (V8_UNLIKELY(for_debugging_)) {
       // If there is a breakpoint set on the first instruction (== start of the
       // function), then skip the check for "hook on function call", since we
       // will unconditionally break there anyway.
@@ -628,6 +619,8 @@ class LiftoffCompiler {
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
+    DEBUG_CODE_COMMENT(
+        (std::string("Out of line: ") + GetRuntimeStubName(ool->stub)).c_str());
     __ bind(ool->label.get());
     const bool is_stack_check = ool->stub == WasmCode::kWasmStackGuard;
     const bool is_mem_out_of_bounds =
@@ -647,13 +640,21 @@ class LiftoffCompiler {
       DCHECK(!is_stack_check);
       __ CallTrapCallbackForTesting();
       DEBUG_CODE_COMMENT("leave frame");
-      __ LeaveFrame(StackFrame::WASM_COMPILED);
+      __ LeaveFrame(StackFrame::WASM);
       __ DropStackSlotsAndRet(
           static_cast<uint32_t>(descriptor_->StackParameterCount()));
       return;
     }
 
-    if (!ool->regs_to_save.is_empty()) __ PushRegisters(ool->regs_to_save);
+    // We cannot both push and spill registers.
+    DCHECK(ool->regs_to_save.is_empty() || ool->spilled_registers == nullptr);
+    if (!ool->regs_to_save.is_empty()) {
+      __ PushRegisters(ool->regs_to_save);
+    } else if (V8_UNLIKELY(ool->spilled_registers != nullptr)) {
+      for (auto& entry : ool->spilled_registers->entries) {
+        __ Spill(entry.offset, entry.reg, entry.type);
+      }
+    }
 
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool->position), true);
@@ -722,10 +723,8 @@ class LiftoffCompiler {
     TraceCacheState(decoder);
 #ifdef DEBUG
     SLOW_DCHECK(__ ValidateCacheState());
-    if (WasmOpcodes::IsPrefixOpcode(opcode) &&
-        decoder->pc() + 1 < decoder->end()) {
-      byte op_index = *(decoder->pc() + 1);
-      opcode = static_cast<WasmOpcode>(opcode << 8 | op_index);
+    if (WasmOpcodes::IsPrefixOpcode(opcode)) {
+      opcode = decoder->read_prefixed_opcode<Decoder::kValidate>(decoder->pc());
     }
     DEBUG_CODE_COMMENT(WasmOpcodes::OpcodeName(opcode));
 #endif
@@ -733,7 +732,7 @@ class LiftoffCompiler {
 
   void EmitBreakpoint(FullDecoder* decoder) {
     DEBUG_CODE_COMMENT("breakpoint");
-    DCHECK(env_->debug);
+    DCHECK(for_debugging_);
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
     __ CallRuntimeStub(WasmCode::kWasmDebugBreak);
@@ -744,16 +743,14 @@ class LiftoffCompiler {
   void Block(FullDecoder* decoder, Control* block) {}
 
   void Loop(FullDecoder* decoder, Control* loop) {
-    if (loop->start_merge.arity > 0 || loop->end_merge.arity > 1) {
-      return unsupported(decoder, kMultiValue, "multi-value loop");
-    }
-
     // Before entering a loop, spill all locals to the stack, in order to free
     // the cache registers, and to avoid unnecessarily reloading stack values
     // into registers at branches.
     // TODO(clemensb): Come up with a better strategy here, involving
     // pre-analysis of the function.
     __ SpillLocals();
+
+    __ PrepareLoopArgs(loop->start_merge.arity);
 
     // Loop labels bind at the beginning of the block.
     __ bind(loop->label.get());
@@ -776,10 +773,6 @@ class LiftoffCompiler {
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     DCHECK_EQ(if_block, decoder->control_at(0));
     DCHECK(if_block->is_if());
-
-    if (if_block->start_merge.arity > 0 || if_block->end_merge.arity > 1) {
-      return unsupported(decoder, kMultiValue, "multi-value if");
-    }
 
     // Allocate the else state.
     if_block->else_state = std::make_unique<ElseState>();
@@ -819,9 +812,9 @@ class LiftoffCompiler {
       // No merge yet at the end of the if, but we need to create a merge for
       // the both arms of this if. Thus init the merge point from the else
       // state, then merge the if state into that.
-      DCHECK_EQ(0, c->end_merge.arity);
-      c->label_state.InitMerge(c->else_state->state, __ num_locals(), 0,
-                               c->stack_depth);
+      DCHECK_EQ(c->start_merge.arity, c->end_merge.arity);
+      c->label_state.InitMerge(c->else_state->state, __ num_locals(),
+                               c->start_merge.arity, c->stack_depth);
       __ MergeFullStackWith(c->label_state, *__ cache_state());
       __ emit_jump(c->label.get());
       // Merge the else state into the end state.
@@ -878,6 +871,52 @@ class LiftoffCompiler {
              ext_ref);
   }
 
+  template <typename EmitFn, typename... Args>
+  typename std::enable_if<!std::is_member_function_pointer<EmitFn>::value>::type
+  CallEmitFn(EmitFn fn, Args... args) {
+    fn(args...);
+  }
+
+  template <typename EmitFn, typename... Args>
+  typename std::enable_if<std::is_member_function_pointer<EmitFn>::value>::type
+  CallEmitFn(EmitFn fn, Args... args) {
+    (asm_.*fn)(ConvertAssemblerArg(args)...);
+  }
+
+  // Wrap a {LiftoffRegister} with implicit conversions to {Register} and
+  // {DoubleRegister}.
+  struct AssemblerRegisterConverter {
+    LiftoffRegister reg;
+    operator LiftoffRegister() { return reg; }
+    operator Register() { return reg.gp(); }
+    operator DoubleRegister() { return reg.fp(); }
+  };
+
+  // Convert {LiftoffRegister} to {AssemblerRegisterConverter}, other types stay
+  // unchanged.
+  template <typename T>
+  typename std::conditional<std::is_same<LiftoffRegister, T>::value,
+                            AssemblerRegisterConverter, T>::type
+  ConvertAssemblerArg(T t) {
+    return {t};
+  }
+
+  template <typename EmitFn, typename ArgType>
+  struct EmitFnWithFirstArg {
+    EmitFn fn;
+    ArgType first_arg;
+  };
+
+  template <typename EmitFn, typename ArgType>
+  EmitFnWithFirstArg<EmitFn, ArgType> BindFirst(EmitFn fn, ArgType arg) {
+    return {fn, arg};
+  }
+
+  template <typename EmitFn, typename T, typename... Args>
+  void CallEmitFn(EmitFnWithFirstArg<EmitFn, T> bound_fn, Args... args) {
+    CallEmitFn(bound_fn.fn, bound_fn.first_arg, ConvertAssemblerArg(args)...);
+  }
+
   template <ValueType::Kind src_type, ValueType::Kind result_type, class EmitFn>
   void EmitUnOp(EmitFn fn) {
     constexpr RegClass src_rc = reg_class_for(src_type);
@@ -886,7 +925,7 @@ class LiftoffCompiler {
     LiftoffRegister dst = src_rc == result_rc
                               ? __ GetUnusedRegister(result_rc, {src})
                               : __ GetUnusedRegister(result_rc);
-    fn(dst, src);
+    CallEmitFn(fn, dst, src);
     __ PushRegister(ValueType(result_type), dst);
   }
 
@@ -942,38 +981,23 @@ class LiftoffCompiler {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-#define CASE_I32_UNOP(opcode, fn)                       \
-  case kExpr##opcode:                                   \
-    EmitUnOp<ValueType::kI32, ValueType::kI32>(         \
-        [=](LiftoffRegister dst, LiftoffRegister src) { \
-          __ emit_##fn(dst.gp(), src.gp());             \
-        });                                             \
-    break;
-#define CASE_I64_UNOP(opcode, fn)                       \
-  case kExpr##opcode:                                   \
-    EmitUnOp<ValueType::kI64, ValueType::kI64>(         \
-        [=](LiftoffRegister dst, LiftoffRegister src) { \
-          __ emit_##fn(dst, src);                       \
-        });                                             \
-    break;
-#define CASE_FLOAT_UNOP(opcode, type, fn)               \
-  case kExpr##opcode:                                   \
-    EmitUnOp<ValueType::k##type, ValueType::k##type>(   \
-        [=](LiftoffRegister dst, LiftoffRegister src) { \
-          __ emit_##fn(dst.fp(), src.fp());             \
-        });                                             \
-    break;
-#define CASE_FLOAT_UNOP_WITH_CFALLBACK(opcode, type, fn)              \
-  case kExpr##opcode:                                                 \
-    EmitFloatUnOpWithCFallback<ValueType::k##type>(                   \
-        &LiftoffAssembler::emit_##fn, &ExternalReference::wasm_##fn); \
-    break;
+#define CASE_I32_UNOP(opcode, fn) \
+  case kExpr##opcode:             \
+    return EmitUnOp<kI32, kI32>(&LiftoffAssembler::emit_##fn);
+#define CASE_I64_UNOP(opcode, fn) \
+  case kExpr##opcode:             \
+    return EmitUnOp<kI64, kI64>(&LiftoffAssembler::emit_##fn);
+#define CASE_FLOAT_UNOP(opcode, type, fn) \
+  case kExpr##opcode:                     \
+    return EmitUnOp<k##type, k##type>(&LiftoffAssembler::emit_##fn);
+#define CASE_FLOAT_UNOP_WITH_CFALLBACK(opcode, type, fn)                     \
+  case kExpr##opcode:                                                        \
+    return EmitFloatUnOpWithCFallback<k##type>(&LiftoffAssembler::emit_##fn, \
+                                               &ExternalReference::wasm_##fn);
 #define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref, can_trap) \
   case kExpr##opcode:                                                       \
-    EmitTypeConversion<ValueType::k##dst_type, ValueType::k##src_type,      \
-                       can_trap>(kExpr##opcode, ext_ref,                    \
-                                 can_trap ? decoder->position() : 0);       \
-    break;
+    return EmitTypeConversion<k##dst_type, k##src_type, can_trap>(          \
+        kExpr##opcode, ext_ref, can_trap ? decoder->position() : 0);
     switch (opcode) {
       CASE_I32_UNOP(I32Clz, i32_clz)
       CASE_I32_UNOP(I32Ctz, i32_ctz)
@@ -1038,19 +1062,11 @@ class LiftoffCompiler {
           outstanding_op_ = kExprI32Eqz;
           break;
         }
-        EmitUnOp<ValueType::kI32, ValueType::kI32>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_i32_eqz(dst.gp(), src.gp());
-            });
-        break;
+        return EmitUnOp<kI32, kI32>(&LiftoffAssembler::emit_i32_eqz);
       case kExprI64Eqz:
-        EmitUnOp<ValueType::kI64, ValueType::kI32>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_i64_eqz(dst.gp(), src);
-            });
-        break;
+        return EmitUnOp<kI64, kI32>(&LiftoffAssembler::emit_i64_eqz);
       case kExprI32Popcnt:
-        EmitUnOp<ValueType::kI32, ValueType::kI32>(
+        return EmitUnOp<kI32, kI32>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
               ValueType sig_i_i_reps[] = {kWasmI32, kWasmI32};
@@ -1058,9 +1074,8 @@ class LiftoffCompiler {
               GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src,
                             ExternalReference::wasm_word32_popcnt());
             });
-        break;
       case kExprI64Popcnt:
-        EmitUnOp<ValueType::kI64, ValueType::kI64>(
+        return EmitUnOp<kI64, kI64>(
             [=](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i64_popcnt(dst, src)) return;
               // The c function returns i32. We will zero-extend later.
@@ -1073,7 +1088,6 @@ class LiftoffCompiler {
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
                                       nullptr);
             });
-        break;
       case kExprI32SConvertSatF32:
       case kExprI32UConvertSatF32:
       case kExprI32SConvertSatF64:
@@ -1111,22 +1125,16 @@ class LiftoffCompiler {
                                 ? __ GetUnusedRegister(result_rc, {lhs})
                                 : __ GetUnusedRegister(result_rc);
 
-      fnImm(dst, lhs, imm);
+      CallEmitFn(fnImm, dst, lhs, imm);
       __ PushRegister(ValueType(result_type), dst);
     } else {
       // The RHS was not an immediate.
-      LiftoffRegister rhs = __ PopToRegister();
-      LiftoffRegister lhs = __ PopToRegister(LiftoffRegList::ForRegs(rhs));
-      LiftoffRegister dst = src_rc == result_rc
-                                ? __ GetUnusedRegister(result_rc, {lhs, rhs})
-                                : __ GetUnusedRegister(result_rc);
-      fn(dst, lhs, rhs);
-      __ PushRegister(ValueType(result_type), dst);
+      EmitBinOp<src_type, result_type>(fn);
     }
   }
 
   template <ValueType::Kind src_type, ValueType::Kind result_type,
-            typename EmitFn>
+            bool swap_lhs_rhs = false, typename EmitFn>
   void EmitBinOp(EmitFn fn) {
     static constexpr RegClass src_rc = reg_class_for(src_type);
     static constexpr RegClass result_rc = reg_class_for(result_type);
@@ -1135,7 +1143,10 @@ class LiftoffCompiler {
     LiftoffRegister dst = src_rc == result_rc
                               ? __ GetUnusedRegister(result_rc, {lhs, rhs})
                               : __ GetUnusedRegister(result_rc);
-    fn(dst, lhs, rhs);
+
+    if (swap_lhs_rhs) std::swap(lhs, rhs);
+
+    CallEmitFn(fn, dst, lhs, rhs);
     __ PushRegister(ValueType(result_type), dst);
   }
 
@@ -1163,89 +1174,32 @@ class LiftoffCompiler {
     }
   }
 
+  template <WasmOpcode opcode>
+  void EmitI32CmpOp(FullDecoder* decoder) {
+    DCHECK(decoder->lookahead(0, opcode));
+    if (decoder->lookahead(1, kExprBrIf)) {
+      DCHECK(!has_outstanding_op());
+      outstanding_op_ = opcode;
+      return;
+    }
+    return EmitBinOp<kI32, kI32>(BindFirst(&LiftoffAssembler::emit_i32_set_cond,
+                                           GetCompareCondition(opcode)));
+  }
+
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-#define CASE_I32_BINOP(opcode, fn)                                           \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<ValueType::kI32, ValueType::kI32>(                      \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
-        });
-#define CASE_I32_BINOPI(opcode, fn)                                          \
-  case kExpr##opcode:                                                        \
-    return EmitBinOpImm<ValueType::kI32, ValueType::kI32>(                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
-        },                                                                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, int32_t imm) {         \
-          __ emit_##fn(dst.gp(), lhs.gp(), imm);                             \
-        });
-#define CASE_I64_BINOP(opcode, fn)                                           \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<ValueType::kI64, ValueType::kI64>(                      \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst, lhs, rhs);                                       \
-        });
-#define CASE_I64_BINOPI(opcode, fn)                                          \
-  case kExpr##opcode:                                                        \
-    return EmitBinOpImm<ValueType::kI64, ValueType::kI64>(                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst, lhs, rhs);                                       \
-        },                                                                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, int32_t imm) {         \
-          __ emit_##fn(dst, lhs, imm);                                       \
-        });
-#define CASE_FLOAT_BINOP(opcode, type, fn)                                   \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<ValueType::k##type, ValueType::k##type>(                \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst.fp(), lhs.fp(), rhs.fp());                        \
-        });
-#define CASE_I32_CMPOP(opcode)                                               \
-  case kExpr##opcode:                                                        \
-    DCHECK(decoder->lookahead(0, kExpr##opcode));                            \
-    if (decoder->lookahead(1, kExprBrIf)) {                                  \
-      DCHECK(!has_outstanding_op());                                         \
-      outstanding_op_ = kExpr##opcode;                                       \
-      break;                                                                 \
-    }                                                                        \
-    return EmitBinOp<ValueType::kI32, ValueType::kI32>(                      \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          constexpr Condition cond = GetCompareCondition(kExpr##opcode);     \
-          __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());          \
-        });
-#define CASE_I64_CMPOP(opcode, cond)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<ValueType::kI64, ValueType::kI32>(                      \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_i64_set_cond(cond, dst.gp(), lhs, rhs);                    \
-        });
-#define CASE_F32_CMPOP(opcode, cond)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<ValueType::kF32, ValueType::kI32>(                      \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_f32_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
-        });
-#define CASE_F64_CMPOP(opcode, cond)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOp<ValueType::kF64, ValueType::kI32>(                      \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_f64_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
-        });
 #define CASE_I64_SHIFTOP(opcode, fn)                                         \
   case kExpr##opcode:                                                        \
-    return EmitBinOpImm<ValueType::kI64, ValueType::kI64>(                   \
+    return EmitBinOpImm<kI64, kI64>(                                         \
         [=](LiftoffRegister dst, LiftoffRegister src,                        \
             LiftoffRegister amount) {                                        \
           __ emit_##fn(dst, src,                                             \
                        amount.is_gp_pair() ? amount.low_gp() : amount.gp()); \
         },                                                                   \
-        [=](LiftoffRegister dst, LiftoffRegister src, int32_t amount) {      \
-          __ emit_##fn(dst, src, amount);                                    \
-        });
+        &LiftoffAssembler::emit_##fn##i);
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
   case kExpr##opcode:                                                        \
-    return EmitBinOp<ValueType::k##type, ValueType::k##type>(                \
+    return EmitBinOp<k##type, k##type>(                                      \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           LiftoffRegister args[] = {lhs, rhs};                               \
           auto ext_ref = ExternalReference::ext_ref_fn();                    \
@@ -1256,79 +1210,172 @@ class LiftoffCompiler {
           GenerateCCall(&dst, &sig, out_arg_type, args, ext_ref);            \
         });
     switch (opcode) {
-      CASE_I32_BINOPI(I32Add, i32_add)
-      CASE_I32_BINOP(I32Sub, i32_sub)
-      CASE_I32_BINOP(I32Mul, i32_mul)
-      CASE_I32_BINOPI(I32And, i32_and)
-      CASE_I32_BINOPI(I32Ior, i32_or)
-      CASE_I32_BINOPI(I32Xor, i32_xor)
-      CASE_I64_BINOPI(I64And, i64_and)
-      CASE_I64_BINOPI(I64Ior, i64_or)
-      CASE_I64_BINOPI(I64Xor, i64_xor)
-      CASE_I32_CMPOP(I32Eq)
-      CASE_I32_CMPOP(I32Ne)
-      CASE_I32_CMPOP(I32LtS)
-      CASE_I32_CMPOP(I32LtU)
-      CASE_I32_CMPOP(I32GtS)
-      CASE_I32_CMPOP(I32GtU)
-      CASE_I32_CMPOP(I32LeS)
-      CASE_I32_CMPOP(I32LeU)
-      CASE_I32_CMPOP(I32GeS)
-      CASE_I32_CMPOP(I32GeU)
-      CASE_I64_BINOPI(I64Add, i64_add)
-      CASE_I64_BINOP(I64Sub, i64_sub)
-      CASE_I64_BINOP(I64Mul, i64_mul)
-      CASE_I64_CMPOP(I64Eq, kEqual)
-      CASE_I64_CMPOP(I64Ne, kUnequal)
-      CASE_I64_CMPOP(I64LtS, kSignedLessThan)
-      CASE_I64_CMPOP(I64LtU, kUnsignedLessThan)
-      CASE_I64_CMPOP(I64GtS, kSignedGreaterThan)
-      CASE_I64_CMPOP(I64GtU, kUnsignedGreaterThan)
-      CASE_I64_CMPOP(I64LeS, kSignedLessEqual)
-      CASE_I64_CMPOP(I64LeU, kUnsignedLessEqual)
-      CASE_I64_CMPOP(I64GeS, kSignedGreaterEqual)
-      CASE_I64_CMPOP(I64GeU, kUnsignedGreaterEqual)
-      CASE_F32_CMPOP(F32Eq, kEqual)
-      CASE_F32_CMPOP(F32Ne, kUnequal)
-      CASE_F32_CMPOP(F32Lt, kUnsignedLessThan)
-      CASE_F32_CMPOP(F32Gt, kUnsignedGreaterThan)
-      CASE_F32_CMPOP(F32Le, kUnsignedLessEqual)
-      CASE_F32_CMPOP(F32Ge, kUnsignedGreaterEqual)
-      CASE_F64_CMPOP(F64Eq, kEqual)
-      CASE_F64_CMPOP(F64Ne, kUnequal)
-      CASE_F64_CMPOP(F64Lt, kUnsignedLessThan)
-      CASE_F64_CMPOP(F64Gt, kUnsignedGreaterThan)
-      CASE_F64_CMPOP(F64Le, kUnsignedLessEqual)
-      CASE_F64_CMPOP(F64Ge, kUnsignedGreaterEqual)
-      CASE_I32_BINOPI(I32Shl, i32_shl)
-      CASE_I32_BINOPI(I32ShrS, i32_sar)
-      CASE_I32_BINOPI(I32ShrU, i32_shr)
-      CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
-      CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
-      CASE_I64_SHIFTOP(I64Shl, i64_shl)
-      CASE_I64_SHIFTOP(I64ShrS, i64_sar)
-      CASE_I64_SHIFTOP(I64ShrU, i64_shr)
-      CASE_CCALL_BINOP(I64Rol, I64, wasm_word64_rol)
-      CASE_CCALL_BINOP(I64Ror, I64, wasm_word64_ror)
-      CASE_FLOAT_BINOP(F32Add, F32, f32_add)
-      CASE_FLOAT_BINOP(F32Sub, F32, f32_sub)
-      CASE_FLOAT_BINOP(F32Mul, F32, f32_mul)
-      CASE_FLOAT_BINOP(F32Div, F32, f32_div)
-      CASE_FLOAT_BINOP(F32Min, F32, f32_min)
-      CASE_FLOAT_BINOP(F32Max, F32, f32_max)
-      CASE_FLOAT_BINOP(F32CopySign, F32, f32_copysign)
-      CASE_FLOAT_BINOP(F64Add, F64, f64_add)
-      CASE_FLOAT_BINOP(F64Sub, F64, f64_sub)
-      CASE_FLOAT_BINOP(F64Mul, F64, f64_mul)
-      CASE_FLOAT_BINOP(F64Div, F64, f64_div)
-      CASE_FLOAT_BINOP(F64Min, F64, f64_min)
-      CASE_FLOAT_BINOP(F64Max, F64, f64_max)
-      CASE_FLOAT_BINOP(F64CopySign, F64, f64_copysign)
+      case kExprI32Add:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_add,
+                                        &LiftoffAssembler::emit_i32_addi);
+      case kExprI32Sub:
+        return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_sub);
+      case kExprI32Mul:
+        return EmitBinOp<kI32, kI32>(&LiftoffAssembler::emit_i32_mul);
+      case kExprI32And:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_and,
+                                        &LiftoffAssembler::emit_i32_andi);
+      case kExprI32Ior:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_or,
+                                        &LiftoffAssembler::emit_i32_ori);
+      case kExprI32Xor:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_xor,
+                                        &LiftoffAssembler::emit_i32_xori);
+      case kExprI32Eq:
+        return EmitI32CmpOp<kExprI32Eq>(decoder);
+      case kExprI32Ne:
+        return EmitI32CmpOp<kExprI32Ne>(decoder);
+      case kExprI32LtS:
+        return EmitI32CmpOp<kExprI32LtS>(decoder);
+      case kExprI32LtU:
+        return EmitI32CmpOp<kExprI32LtU>(decoder);
+      case kExprI32GtS:
+        return EmitI32CmpOp<kExprI32GtS>(decoder);
+      case kExprI32GtU:
+        return EmitI32CmpOp<kExprI32GtU>(decoder);
+      case kExprI32LeS:
+        return EmitI32CmpOp<kExprI32LeS>(decoder);
+      case kExprI32LeU:
+        return EmitI32CmpOp<kExprI32LeU>(decoder);
+      case kExprI32GeS:
+        return EmitI32CmpOp<kExprI32GeS>(decoder);
+      case kExprI32GeU:
+        return EmitI32CmpOp<kExprI32GeU>(decoder);
+      case kExprI64Add:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_add,
+                                        &LiftoffAssembler::emit_i64_addi);
+      case kExprI64Sub:
+        return EmitBinOp<kI64, kI64>(&LiftoffAssembler::emit_i64_sub);
+      case kExprI64Mul:
+        return EmitBinOp<kI64, kI64>(&LiftoffAssembler::emit_i64_mul);
+      case kExprI64And:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_and,
+                                        &LiftoffAssembler::emit_i64_andi);
+      case kExprI64Ior:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_or,
+                                        &LiftoffAssembler::emit_i64_ori);
+      case kExprI64Xor:
+        return EmitBinOpImm<kI64, kI64>(&LiftoffAssembler::emit_i64_xor,
+                                        &LiftoffAssembler::emit_i64_xori);
+      case kExprI64Eq:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kEqual));
+      case kExprI64Ne:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kUnequal));
+      case kExprI64LtS:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kSignedLessThan));
+      case kExprI64LtU:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kUnsignedLessThan));
+      case kExprI64GtS:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kSignedGreaterThan));
+      case kExprI64GtU:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedGreaterThan));
+      case kExprI64LeS:
+        return EmitBinOp<kI64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_i64_set_cond, kSignedLessEqual));
+      case kExprI64LeU:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedLessEqual));
+      case kExprI64GeS:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kSignedGreaterEqual));
+      case kExprI64GeU:
+        return EmitBinOp<kI64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_i64_set_cond, kUnsignedGreaterEqual));
+      case kExprF32Eq:
+        return EmitBinOp<kF32, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kEqual));
+      case kExprF32Ne:
+        return EmitBinOp<kF32, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kUnequal));
+      case kExprF32Lt:
+        return EmitBinOp<kF32, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f32_set_cond, kUnsignedLessThan));
+      case kExprF32Gt:
+        return EmitBinOp<kF32, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedGreaterThan));
+      case kExprF32Le:
+        return EmitBinOp<kF32, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedLessEqual));
+      case kExprF32Ge:
+        return EmitBinOp<kF32, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f32_set_cond, kUnsignedGreaterEqual));
+      case kExprF64Eq:
+        return EmitBinOp<kF64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kEqual));
+      case kExprF64Ne:
+        return EmitBinOp<kF64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kUnequal));
+      case kExprF64Lt:
+        return EmitBinOp<kF64, kI32>(
+            BindFirst(&LiftoffAssembler::emit_f64_set_cond, kUnsignedLessThan));
+      case kExprF64Gt:
+        return EmitBinOp<kF64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedGreaterThan));
+      case kExprF64Le:
+        return EmitBinOp<kF64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedLessEqual));
+      case kExprF64Ge:
+        return EmitBinOp<kF64, kI32>(BindFirst(
+            &LiftoffAssembler::emit_f64_set_cond, kUnsignedGreaterEqual));
+      case kExprI32Shl:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_shl,
+                                        &LiftoffAssembler::emit_i32_shli);
+      case kExprI32ShrS:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_sar,
+                                        &LiftoffAssembler::emit_i32_sari);
+      case kExprI32ShrU:
+        return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_shr,
+                                        &LiftoffAssembler::emit_i32_shri);
+        CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
+        CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
+        CASE_I64_SHIFTOP(I64Shl, i64_shl)
+        CASE_I64_SHIFTOP(I64ShrS, i64_sar)
+        CASE_I64_SHIFTOP(I64ShrU, i64_shr)
+        CASE_CCALL_BINOP(I64Rol, I64, wasm_word64_rol)
+        CASE_CCALL_BINOP(I64Ror, I64, wasm_word64_ror)
+      case kExprF32Add:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_add);
+      case kExprF32Sub:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_sub);
+      case kExprF32Mul:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_mul);
+      case kExprF32Div:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_div);
+      case kExprF32Min:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_min);
+      case kExprF32Max:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_max);
+      case kExprF32CopySign:
+        return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_copysign);
+      case kExprF64Add:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_add);
+      case kExprF64Sub:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_sub);
+      case kExprF64Mul:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_mul);
+      case kExprF64Div:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_div);
+      case kExprF64Min:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_min);
+      case kExprF64Max:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_max);
+      case kExprF64CopySign:
+        return EmitBinOp<kF64, kF64>(&LiftoffAssembler::emit_f64_copysign);
       case kExprI32DivS:
-        EmitBinOp<ValueType::kI32, ValueType::kI32>([this, decoder](
-                                                        LiftoffRegister dst,
-                                                        LiftoffRegister lhs,
-                                                        LiftoffRegister rhs) {
+        return EmitBinOp<kI32, kI32>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
           WasmCodePosition position = decoder->position();
           AddOutOfLineTrap(position, WasmCode::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
@@ -1340,39 +1387,34 @@ class LiftoffCompiler {
           __ emit_i32_divs(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero,
                            div_unrepresentable);
         });
-        break;
       case kExprI32DivU:
-        EmitBinOp<ValueType::kI32, ValueType::kI32>(
+        return EmitBinOp<kI32, kI32>(
             [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs) {
               Label* div_by_zero = AddOutOfLineTrap(
                   decoder->position(), WasmCode::kThrowWasmTrapDivByZero);
               __ emit_i32_divu(dst.gp(), lhs.gp(), rhs.gp(), div_by_zero);
             });
-        break;
       case kExprI32RemS:
-        EmitBinOp<ValueType::kI32, ValueType::kI32>(
+        return EmitBinOp<kI32, kI32>(
             [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs) {
               Label* rem_by_zero = AddOutOfLineTrap(
                   decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
               __ emit_i32_rems(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
             });
-        break;
       case kExprI32RemU:
-        EmitBinOp<ValueType::kI32, ValueType::kI32>(
+        return EmitBinOp<kI32, kI32>(
             [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs) {
               Label* rem_by_zero = AddOutOfLineTrap(
                   decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
               __ emit_i32_remu(dst.gp(), lhs.gp(), rhs.gp(), rem_by_zero);
             });
-        break;
       case kExprI64DivS:
-        EmitBinOp<ValueType::kI64, ValueType::kI64>([this, decoder](
-                                                        LiftoffRegister dst,
-                                                        LiftoffRegister lhs,
-                                                        LiftoffRegister rhs) {
+        return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
           WasmCodePosition position = decoder->position();
           AddOutOfLineTrap(position, WasmCode::kThrowWasmTrapDivByZero);
           // Adding the second trap might invalidate the pointer returned for
@@ -1388,12 +1430,10 @@ class LiftoffCompiler {
                                 div_unrepresentable);
           }
         });
-        break;
       case kExprI64DivU:
-        EmitBinOp<ValueType::kI64, ValueType::kI64>([this, decoder](
-                                                        LiftoffRegister dst,
-                                                        LiftoffRegister lhs,
-                                                        LiftoffRegister rhs) {
+        return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
           Label* div_by_zero = AddOutOfLineTrap(
               decoder->position(), WasmCode::kThrowWasmTrapDivByZero);
           if (!__ emit_i64_divu(dst, lhs, rhs, div_by_zero)) {
@@ -1401,9 +1441,8 @@ class LiftoffCompiler {
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, div_by_zero);
           }
         });
-        break;
       case kExprI64RemS:
-        EmitBinOp<ValueType::kI64, ValueType::kI64>(
+        return EmitBinOp<kI64, kI64>(
             [this, decoder](LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs) {
               Label* rem_by_zero = AddOutOfLineTrap(
@@ -1413,12 +1452,10 @@ class LiftoffCompiler {
                 EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
               }
             });
-        break;
       case kExprI64RemU:
-        EmitBinOp<ValueType::kI64, ValueType::kI64>([this, decoder](
-                                                        LiftoffRegister dst,
-                                                        LiftoffRegister lhs,
-                                                        LiftoffRegister rhs) {
+        return EmitBinOp<kI64, kI64>([this, decoder](LiftoffRegister dst,
+                                                     LiftoffRegister lhs,
+                                                     LiftoffRegister rhs) {
           Label* rem_by_zero = AddOutOfLineTrap(
               decoder->position(), WasmCode::kThrowWasmTrapRemByZero);
           if (!__ emit_i64_remu(dst, lhs, rhs, rem_by_zero)) {
@@ -1426,19 +1463,9 @@ class LiftoffCompiler {
             EmitDivOrRem64CCall(dst, lhs, rhs, ext_ref, rem_by_zero);
           }
         });
-        break;
       default:
         UNREACHABLE();
     }
-#undef CASE_I32_BINOP
-#undef CASE_I32_BINOPI
-#undef CASE_I64_BINOP
-#undef CASE_I64_BINOPI
-#undef CASE_FLOAT_BINOP
-#undef CASE_I32_CMPOP
-#undef CASE_I64_CMPOP
-#undef CASE_F32_CMPOP
-#undef CASE_F64_CMPOP
 #undef CASE_I64_SHIFTOP
 #undef CASE_CCALL_BINOP
   }
@@ -1482,6 +1509,10 @@ class LiftoffCompiler {
     unsupported(decoder, kAnyRef, "func");
   }
 
+  void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    unsupported(decoder, kAnyRef, "ref.as_non_null");
+  }
+
   void Drop(FullDecoder* decoder, const Value& value) {
     auto& slot = __ cache_state()->stack_state.back();
     // If the dropped slot contains a register, decrement it's use count.
@@ -1491,12 +1522,9 @@ class LiftoffCompiler {
 
   void ReturnImpl(FullDecoder* decoder) {
     size_t num_returns = decoder->sig_->return_count();
-    if (num_returns > 1) {
-      return unsupported(decoder, kMultiValue, "multi-return");
-    }
-    if (num_returns > 0) __ MoveToReturnRegisters(decoder->sig_);
+    if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
     DEBUG_CODE_COMMENT("leave frame");
-    __ LeaveFrame(StackFrame::WASM_COMPILED);
+    __ LeaveFrame(StackFrame::WASM);
     __ DropStackSlotsAndRet(
         static_cast<uint32_t>(descriptor_->StackParameterCount()));
   }
@@ -1791,13 +1819,28 @@ class LiftoffCompiler {
     __ cache_state()->Steal(c->else_state->state);
   }
 
+  std::unique_ptr<SpilledRegistersBeforeTrap> GetSpilledRegistersBeforeTrap() {
+    if (V8_LIKELY(!for_debugging_)) return nullptr;
+    // If we are generating debugging code, we really need to spill all
+    // registers to make them inspectable when stopping at the trap.
+    auto spilled = std::make_unique<SpilledRegistersBeforeTrap>();
+    for (uint32_t i = 0, e = __ cache_state()->stack_height(); i < e; ++i) {
+      auto& slot = __ cache_state()->stack_state[i];
+      if (!slot.is_reg()) continue;
+      spilled->entries.push_back(SpilledRegistersBeforeTrap::Entry{
+          slot.offset(), slot.reg(), slot.type()});
+    }
+    return spilled;
+  }
+
   Label* AddOutOfLineTrap(WasmCodePosition position,
                           WasmCode::RuntimeStubId stub, uint32_t pc = 0) {
     DCHECK(FLAG_wasm_bounds_checks);
 
     out_of_line_code_.push_back(OutOfLineCode::Trap(
         stub, position, pc,
-        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling)));
+        RegisterDebugSideTableEntry(DebugSideTableBuilder::kAssumeSpilling),
+        GetSpilledRegistersBeforeTrap()));
     return out_of_line_code_.back().label.get();
   }
 
@@ -1882,12 +1925,12 @@ class LiftoffCompiler {
       // AND of two operands. We could introduce a new variant of
       // {emit_cond_jump} to use the "test" instruction without the "and" here.
       // Then we can also avoid using the temp register here.
-      __ emit_i32_and(address, index, align_mask);
+      __ emit_i32_andi(address, index, align_mask);
       __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
       return;
     }
-    __ emit_i32_add(address, index, offset);
-    __ emit_i32_and(address, address, align_mask);
+    __ emit_i32_addi(address, index, offset);
+    __ emit_i32_andi(address, address, align_mask);
 
     __ emit_cond_jump(kUnequal, trap_label, kWasmI32, address);
   }
@@ -1950,7 +1993,7 @@ class LiftoffCompiler {
       if (index != old_index) __ Move(index, old_index, kWasmI32);
     }
     Register tmp = __ GetUnusedRegister(kGpReg, *pinned).gp();
-    __ emit_ptrsize_add(index, index, *offset);
+    __ emit_ptrsize_addi(index, index, *offset);
     LOAD_INSTANCE_FIELD(tmp, MemoryMask, kSystemPointerSize);
     __ emit_ptrsize_and(index, index, tmp);
     *offset = 0;
@@ -2034,7 +2077,7 @@ class LiftoffCompiler {
   void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
     Register mem_size = __ GetUnusedRegister(kGpReg).gp();
     LOAD_INSTANCE_FIELD(mem_size, MemorySize, kSystemPointerSize);
-    __ emit_ptrsize_shr(mem_size, mem_size, kWasmPageSizeLog2);
+    __ emit_ptrsize_shri(mem_size, mem_size, kWasmPageSizeLog2);
     __ PushRegister(kWasmI32, LiftoffRegister(mem_size));
   }
 
@@ -2081,13 +2124,10 @@ class LiftoffCompiler {
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    if (imm.sig->return_count() > 1) {
-      return unsupported(decoder, kMultiValue, "multi-return");
-    }
-    if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
-                            "return")) {
-      return;
+    for (ValueType ret : imm.sig->returns()) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
+        return;
+      }
     }
 
     auto call_descriptor =
@@ -2143,16 +2183,13 @@ class LiftoffCompiler {
   void CallIndirect(FullDecoder* decoder, const Value& index_val,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    if (imm.sig->return_count() > 1) {
-      return unsupported(decoder, kMultiValue, "multi-return");
-    }
     if (imm.table_index != 0) {
       return unsupported(decoder, kAnyRef, "table index != 0");
     }
-    if (imm.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
-                            "return")) {
-      return;
+    for (ValueType ret : imm.sig->returns()) {
+      if (!CheckSupportedType(decoder, kSupportedTypes, ret, "return")) {
+        return;
+      }
     }
 
     // Place the source position before any stack manipulation, since this will
@@ -2207,7 +2244,7 @@ class LiftoffCompiler {
       // 3) mask = diff & neg_index
       __ emit_i32_and(mask, diff, neg_index);
       // 4) mask = mask >> 31
-      __ emit_i32_sar(mask, mask, 31);
+      __ emit_i32_sari(mask, mask, 31);
 
       // Apply mask.
       __ emit_i32_and(index, index, mask);
@@ -2218,7 +2255,7 @@ class LiftoffCompiler {
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
     // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
     STATIC_ASSERT((1 << 2) == kInt32Size);
-    __ emit_i32_shl(index, index, 2);
+    __ emit_i32_shli(index, index, 2);
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
             pinned);
 
@@ -2288,156 +2325,357 @@ class LiftoffCompiler {
     unsupported(decoder, kTailCall, "return_call_indirect");
   }
 
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+    unsupported(decoder, kAnyRef, "br_on_null");
+  }
+
+  template <ValueType::Kind src_type, ValueType::Kind result_type,
+            typename EmitFn>
+  void EmitTerOp(EmitFn fn) {
+    static constexpr RegClass src_rc = reg_class_for(src_type);
+    static constexpr RegClass result_rc = reg_class_for(result_type);
+    LiftoffRegister src3 = __ PopToRegister();
+    LiftoffRegister src2 = __ PopToRegister(LiftoffRegList::ForRegs(src3));
+    LiftoffRegister src1 =
+        __ PopToRegister(LiftoffRegList::ForRegs(src3, src2));
+    // Reusing src1 and src2 will complicate codegen for select for some
+    // backend, so we allow only reusing src3 (the mask), and pin src1 and src2.
+    LiftoffRegister dst =
+        src_rc == result_rc
+            ? __ GetUnusedRegister(result_rc, {src3},
+                                   LiftoffRegList::ForRegs(src1, src2))
+            : __ GetUnusedRegister(result_rc);
+    CallEmitFn(fn, dst, src1, src2, src3);
+    __ PushRegister(ValueType(result_type), dst);
+  }
+
+  template <typename EmitFn, typename EmitFnImm>
+  void EmitSimdShiftOp(EmitFn fn, EmitFnImm fnImm) {
+    static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+
+    LiftoffAssembler::VarState rhs_slot = __ cache_state()->stack_state.back();
+    // Check if the RHS is an immediate.
+    if (rhs_slot.is_const()) {
+      __ cache_state()->stack_state.pop_back();
+      int32_t imm = rhs_slot.i32_const();
+
+      LiftoffRegister operand = __ PopToRegister();
+      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand});
+
+      CallEmitFn(fnImm, dst, operand, imm);
+      __ PushRegister(kWasmS128, dst);
+    } else {
+      LiftoffRegister count = __ PopToRegister();
+      LiftoffRegister operand = __ PopToRegister();
+      LiftoffRegister dst = __ GetUnusedRegister(result_rc, {operand});
+
+      CallEmitFn(fn, dst, operand, count);
+      __ PushRegister(kWasmS128, dst);
+    }
+  }
+
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
       return unsupported(decoder, kSimd, "simd");
     }
     switch (opcode) {
-      case wasm::kExprF64x2Splat:
-        EmitUnOp<ValueType::kF64, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_f64x2_splat(dst, src);
-            });
-        break;
-      case wasm::kExprF64x2Add:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_f64x2_add(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprF64x2Sub:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_f64x2_sub(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprF64x2Mul:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_f64x2_mul(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprF32x4Splat:
-        EmitUnOp<ValueType::kF32, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_f32x4_splat(dst, src);
-            });
-        break;
-      case wasm::kExprF32x4Add:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_f32x4_add(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprF32x4Sub:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_f32x4_sub(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprF32x4Mul:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_f32x4_mul(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI64x2Splat:
-        EmitUnOp<ValueType::kI64, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_i64x2_splat(dst, src);
-            });
-        break;
-      case wasm::kExprI64x2Add:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i64x2_add(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI64x2Sub:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i64x2_sub(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI64x2Mul:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i64x2_mul(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI32x4Splat:
-        EmitUnOp<ValueType::kI32, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_i32x4_splat(dst, src);
-            });
-        break;
-      case wasm::kExprI32x4Add:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i32x4_add(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI32x4Sub:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i32x4_sub(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI32x4Mul:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i32x4_mul(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI16x8Splat:
-        EmitUnOp<ValueType::kI32, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_i16x8_splat(dst, src);
-            });
-        break;
-      case wasm::kExprI16x8Add:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i16x8_add(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI16x8Sub:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i16x8_sub(dst, lhs, rhs);
-            });
-        break;
-      case wasm::kExprI16x8Mul:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i16x8_mul(dst, lhs, rhs);
-            });
-        break;
       case wasm::kExprI8x16Splat:
-        EmitUnOp<ValueType::kI32, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister src) {
-              __ emit_i8x16_splat(dst, src);
-            });
-        break;
+        return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i8x16_splat);
+      case wasm::kExprI16x8Splat:
+        return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i16x8_splat);
+      case wasm::kExprI32x4Splat:
+        return EmitUnOp<kI32, kS128>(&LiftoffAssembler::emit_i32x4_splat);
+      case wasm::kExprI64x2Splat:
+        return EmitUnOp<kI64, kS128>(&LiftoffAssembler::emit_i64x2_splat);
+      case wasm::kExprF32x4Splat:
+        return EmitUnOp<kF32, kS128>(&LiftoffAssembler::emit_f32x4_splat);
+      case wasm::kExprF64x2Splat:
+        return EmitUnOp<kF64, kS128>(&LiftoffAssembler::emit_f64x2_splat);
+      case wasm::kExprI8x16Eq:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_eq);
+      case wasm::kExprI8x16Ne:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_ne);
+      case wasm::kExprI8x16LtS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i8x16_gt_s);
+      case wasm::kExprI8x16LtU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i8x16_gt_u);
+      case wasm::kExprI8x16GtS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_gt_s);
+      case wasm::kExprI8x16GtU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_gt_u);
+      case wasm::kExprI8x16LeS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i8x16_ge_s);
+      case wasm::kExprI8x16LeU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i8x16_ge_u);
+      case wasm::kExprI8x16GeS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_ge_s);
+      case wasm::kExprI8x16GeU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_ge_u);
+      case wasm::kExprI16x8Eq:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_eq);
+      case wasm::kExprI16x8Ne:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_ne);
+      case wasm::kExprI16x8LtS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i16x8_gt_s);
+      case wasm::kExprI16x8LtU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i16x8_gt_u);
+      case wasm::kExprI16x8GtS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_gt_s);
+      case wasm::kExprI16x8GtU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_gt_u);
+      case wasm::kExprI16x8LeS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i16x8_ge_s);
+      case wasm::kExprI16x8LeU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i16x8_ge_u);
+      case wasm::kExprI16x8GeS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_ge_s);
+      case wasm::kExprI16x8GeU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_ge_u);
+      case wasm::kExprI32x4Eq:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_eq);
+      case wasm::kExprI32x4Ne:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_ne);
+      case wasm::kExprI32x4LtS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i32x4_gt_s);
+      case wasm::kExprI32x4LtU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i32x4_gt_u);
+      case wasm::kExprI32x4GtS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_gt_s);
+      case wasm::kExprI32x4GtU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_gt_u);
+      case wasm::kExprI32x4LeS:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i32x4_ge_s);
+      case wasm::kExprI32x4LeU:
+        return EmitBinOp<kS128, kS128, true>(
+            &LiftoffAssembler::emit_i32x4_ge_u);
+      case wasm::kExprI32x4GeS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_ge_s);
+      case wasm::kExprI32x4GeU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_ge_u);
+      case wasm::kExprF32x4Eq:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_eq);
+      case wasm::kExprF32x4Ne:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_ne);
+      case wasm::kExprF32x4Lt:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_lt);
+      case wasm::kExprF32x4Gt:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f32x4_lt);
+      case wasm::kExprF32x4Le:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_le);
+      case wasm::kExprF32x4Ge:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f32x4_le);
+      case wasm::kExprF64x2Eq:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_eq);
+      case wasm::kExprF64x2Ne:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_ne);
+      case wasm::kExprF64x2Lt:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_lt);
+      case wasm::kExprF64x2Gt:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f64x2_lt);
+      case wasm::kExprF64x2Le:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_le);
+      case wasm::kExprF64x2Ge:
+        return EmitBinOp<kS128, kS128, true>(&LiftoffAssembler::emit_f64x2_le);
+      case wasm::kExprS128Not:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_s128_not);
+      case wasm::kExprS128And:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_and);
+      case wasm::kExprS128Or:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_or);
+      case wasm::kExprS128Xor:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_xor);
+      case wasm::kExprS128Select:
+        return EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_select);
+      case wasm::kExprI8x16Neg:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_neg);
+      case wasm::kExprI8x16Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i8x16_shl,
+                               &LiftoffAssembler::emit_i8x16_shli);
       case wasm::kExprI8x16Add:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i8x16_add(dst, lhs, rhs);
-            });
-        break;
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_add);
+      case wasm::kExprI8x16AddSaturateS:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_add_saturate_s);
+      case wasm::kExprI8x16AddSaturateU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_add_saturate_u);
       case wasm::kExprI8x16Sub:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i8x16_sub(dst, lhs, rhs);
-            });
-        break;
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_sub);
+      case wasm::kExprI8x16SubSaturateS:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_sub_saturate_s);
+      case wasm::kExprI8x16SubSaturateU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_sub_saturate_u);
       case wasm::kExprI8x16Mul:
-        EmitBinOp<ValueType::kS128, ValueType::kS128>(
-            [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-              __ emit_i8x16_mul(dst, lhs, rhs);
-            });
-        break;
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_mul);
+      case wasm::kExprI8x16MinS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_min_s);
+      case wasm::kExprI8x16MinU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_min_u);
+      case wasm::kExprI8x16MaxS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_max_s);
+      case wasm::kExprI8x16MaxU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_max_u);
+      case wasm::kExprI16x8Neg:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_neg);
+      case wasm::kExprI16x8Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i16x8_shl,
+                               &LiftoffAssembler::emit_i16x8_shli);
+      case wasm::kExprI16x8Add:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_add);
+      case wasm::kExprI16x8AddSaturateS:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_add_saturate_s);
+      case wasm::kExprI16x8AddSaturateU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_add_saturate_u);
+      case wasm::kExprI16x8Sub:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_sub);
+      case wasm::kExprI16x8SubSaturateS:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_sub_saturate_s);
+      case wasm::kExprI16x8SubSaturateU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_sub_saturate_u);
+      case wasm::kExprI16x8Mul:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_mul);
+      case wasm::kExprI16x8MinS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_min_s);
+      case wasm::kExprI16x8MinU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_min_u);
+      case wasm::kExprI16x8MaxS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_max_s);
+      case wasm::kExprI16x8MaxU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_max_u);
+      case wasm::kExprI32x4Neg:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_neg);
+      case wasm::kExprI32x4Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i32x4_shl,
+                               &LiftoffAssembler::emit_i32x4_shli);
+      case wasm::kExprI32x4Add:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_add);
+      case wasm::kExprI32x4Sub:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_sub);
+      case wasm::kExprI32x4Mul:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_mul);
+      case wasm::kExprI32x4MinS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_min_s);
+      case wasm::kExprI32x4MinU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_min_u);
+      case wasm::kExprI32x4MaxS:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_max_s);
+      case wasm::kExprI32x4MaxU:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_max_u);
+      case wasm::kExprI64x2Neg:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_neg);
+      case wasm::kExprI64x2Shl:
+        return EmitSimdShiftOp(&LiftoffAssembler::emit_i64x2_shl,
+                               &LiftoffAssembler::emit_i64x2_shli);
+      case wasm::kExprI64x2Add:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_add);
+      case wasm::kExprI64x2Sub:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_sub);
+      case wasm::kExprI64x2Mul:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_i64x2_mul);
+      case wasm::kExprF32x4Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_abs);
+      case wasm::kExprF32x4Neg:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_neg);
+      case wasm::kExprF32x4Sqrt:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_sqrt);
+      case wasm::kExprF32x4Add:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_add);
+      case wasm::kExprF32x4Sub:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_sub);
+      case wasm::kExprF32x4Mul:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_mul);
+      case wasm::kExprF32x4Div:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_div);
+      case wasm::kExprF32x4Min:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_min);
+      case wasm::kExprF32x4Max:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f32x4_max);
+      case wasm::kExprF64x2Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_abs);
+      case wasm::kExprF64x2Neg:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_neg);
+      case wasm::kExprF64x2Sqrt:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_sqrt);
+      case wasm::kExprF64x2Add:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_add);
+      case wasm::kExprF64x2Sub:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_sub);
+      case wasm::kExprF64x2Mul:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_mul);
+      case wasm::kExprF64x2Div:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_div);
+      case wasm::kExprF64x2Min:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_min);
+      case wasm::kExprF64x2Max:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_f64x2_max);
+      case wasm::kExprI8x16SConvertI16x8:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_sconvert_i16x8);
+      case wasm::kExprI8x16UConvertI16x8:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_uconvert_i16x8);
+      case wasm::kExprI16x8SConvertI32x4:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_sconvert_i32x4);
+      case wasm::kExprI16x8UConvertI32x4:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_uconvert_i32x4);
+      case wasm::kExprI16x8SConvertI8x16Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_sconvert_i8x16_low);
+      case wasm::kExprI16x8SConvertI8x16High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_sconvert_i8x16_high);
+      case wasm::kExprI16x8UConvertI8x16Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_uconvert_i8x16_low);
+      case wasm::kExprI16x8UConvertI8x16High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_uconvert_i8x16_high);
+      case wasm::kExprI32x4SConvertI16x8Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_sconvert_i16x8_low);
+      case wasm::kExprI32x4SConvertI16x8High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_sconvert_i16x8_high);
+      case wasm::kExprI32x4UConvertI16x8Low:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_uconvert_i16x8_low);
+      case wasm::kExprI32x4UConvertI16x8High:
+        return EmitUnOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i32x4_uconvert_i16x8_high);
+      case wasm::kExprS128AndNot:
+        return EmitBinOp<kS128, kS128>(&LiftoffAssembler::emit_s128_and_not);
+      case wasm::kExprI8x16RoundingAverageU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i8x16_rounding_average_u);
+      case wasm::kExprI16x8RoundingAverageU:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_rounding_average_u);
+      case wasm::kExprI8x16Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i8x16_abs);
+      case wasm::kExprI16x8Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i16x8_abs);
+      case wasm::kExprI32x4Abs:
+        return EmitUnOp<kS128, kS128>(&LiftoffAssembler::emit_i32x4_abs);
       default:
         unsupported(decoder, kSimd, "simd");
     }
@@ -2460,9 +2698,9 @@ class LiftoffCompiler {
   template <ValueType::Kind src2_type, typename EmitFn>
   void EmitSimdReplaceLaneOp(EmitFn fn,
                              const SimdLaneImmediate<validate>& imm) {
-    static constexpr RegClass src1_rc = reg_class_for(ValueType::kS128);
+    static constexpr RegClass src1_rc = reg_class_for(kS128);
     static constexpr RegClass src2_rc = reg_class_for(src2_type);
-    static constexpr RegClass result_rc = reg_class_for(ValueType::kS128);
+    static constexpr RegClass result_rc = reg_class_for(kS128);
     // On backends which need fp pair, src1_rc and result_rc end up being
     // kFpRegPair, which is != kFpReg, but we still want to pin src2 when it is
     // kFpReg, since it can overlap with those pairs.
@@ -2492,36 +2730,36 @@ class LiftoffCompiler {
     switch (opcode) {
 #define CASE_SIMD_EXTRACT_LANE_OP(opcode, type, fn)                           \
   case wasm::kExpr##opcode:                                                   \
-    EmitSimdExtractLaneOp<ValueType::kS128, ValueType::k##type>(              \
+    EmitSimdExtractLaneOp<kS128, k##type>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, uint8_t imm_lane_idx) { \
           __ emit_##fn(dst, lhs, imm_lane_idx);                               \
         },                                                                    \
         imm);                                                                 \
     break;
-      CASE_SIMD_EXTRACT_LANE_OP(F64x2ExtractLane, F64, f64x2_extract_lane)
-      CASE_SIMD_EXTRACT_LANE_OP(F32x4ExtractLane, F32, f32x4_extract_lane)
-      CASE_SIMD_EXTRACT_LANE_OP(I64x2ExtractLane, I64, i64x2_extract_lane)
-      CASE_SIMD_EXTRACT_LANE_OP(I32x4ExtractLane, I32, i32x4_extract_lane)
-      CASE_SIMD_EXTRACT_LANE_OP(I16x8ExtractLaneU, I32, i16x8_extract_lane_u)
-      CASE_SIMD_EXTRACT_LANE_OP(I16x8ExtractLaneS, I32, i16x8_extract_lane_s)
-      CASE_SIMD_EXTRACT_LANE_OP(I8x16ExtractLaneU, I32, i8x16_extract_lane_u)
       CASE_SIMD_EXTRACT_LANE_OP(I8x16ExtractLaneS, I32, i8x16_extract_lane_s)
+      CASE_SIMD_EXTRACT_LANE_OP(I8x16ExtractLaneU, I32, i8x16_extract_lane_u)
+      CASE_SIMD_EXTRACT_LANE_OP(I16x8ExtractLaneS, I32, i16x8_extract_lane_s)
+      CASE_SIMD_EXTRACT_LANE_OP(I16x8ExtractLaneU, I32, i16x8_extract_lane_u)
+      CASE_SIMD_EXTRACT_LANE_OP(I32x4ExtractLane, I32, i32x4_extract_lane)
+      CASE_SIMD_EXTRACT_LANE_OP(I64x2ExtractLane, I64, i64x2_extract_lane)
+      CASE_SIMD_EXTRACT_LANE_OP(F32x4ExtractLane, F32, f32x4_extract_lane)
+      CASE_SIMD_EXTRACT_LANE_OP(F64x2ExtractLane, F64, f64x2_extract_lane)
 #undef CASE_SIMD_EXTRACT_LANE_OP
 #define CASE_SIMD_REPLACE_LANE_OP(opcode, type, fn)                          \
   case wasm::kExpr##opcode:                                                  \
-    EmitSimdReplaceLaneOp<ValueType::k##type>(                               \
+    EmitSimdReplaceLaneOp<k##type>(                                          \
         [=](LiftoffRegister dst, LiftoffRegister src1, LiftoffRegister src2, \
             uint8_t imm_lane_idx) {                                          \
           __ emit_##fn(dst, src1, src2, imm_lane_idx);                       \
         },                                                                   \
         imm);                                                                \
     break;
-      CASE_SIMD_REPLACE_LANE_OP(F64x2ReplaceLane, F64, f64x2_replace_lane)
-      CASE_SIMD_REPLACE_LANE_OP(F32x4ReplaceLane, F32, f32x4_replace_lane)
-      CASE_SIMD_REPLACE_LANE_OP(I64x2ReplaceLane, I64, i64x2_replace_lane)
-      CASE_SIMD_REPLACE_LANE_OP(I32x4ReplaceLane, I32, i32x4_replace_lane)
-      CASE_SIMD_REPLACE_LANE_OP(I16x8ReplaceLane, I32, i16x8_replace_lane)
       CASE_SIMD_REPLACE_LANE_OP(I8x16ReplaceLane, I32, i8x16_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(I16x8ReplaceLane, I32, i16x8_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(I32x4ReplaceLane, I32, i32x4_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(I64x2ReplaceLane, I64, i64x2_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(F32x4ReplaceLane, F32, f32x4_replace_lane)
+      CASE_SIMD_REPLACE_LANE_OP(F64x2ReplaceLane, F64, f64x2_replace_lane)
 #undef CASE_SIMD_REPLACE_LANE_OP
       default:
         unsupported(decoder, kSimd, "simd");
@@ -2601,10 +2839,12 @@ class LiftoffCompiler {
                    const MemoryAccessImmediate<validate>& imm,
                    void (LiftoffAssembler::*emit_fn)(Register, Register,
                                                      uint32_t, LiftoffRegister,
+                                                     LiftoffRegister,
                                                      StoreType)) {
     ValueType result_type = type.value_type();
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
+#ifdef V8_TARGET_ARCH_IA32
     // We have to reuse the value register as the result register so that we
     //  don't run out of registers on ia32. For this we use the value register
     //  as the result register if it has no other uses. Otherwise  we allocate
@@ -2614,7 +2854,12 @@ class LiftoffCompiler {
       result = pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
       __ Move(result, value, result_type);
       pinned.clear(value);
+      value = result;
     }
+#else
+    LiftoffRegister result =
+        pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
+#endif
     Register index = pinned.set(__ PopToRegister(pinned)).gp();
     if (BoundsCheckMem(decoder, type.size(), imm.offset, index, pinned,
                        kDoForceCheck)) {
@@ -2627,7 +2872,7 @@ class LiftoffCompiler {
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize);
 
-    (asm_.*emit_fn)(addr, index, offset, result, type);
+    (asm_.*emit_fn)(addr, index, offset, value, result, type);
     __ PushRegister(result_type, result);
   }
 
@@ -2688,7 +2933,7 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index_reg = AddMemoryMasking(index_reg, &offset, &pinned);
-    if (offset != 0) __ emit_i32_add(index_reg, index_reg, offset);
+    if (offset != 0) __ emit_i32_addi(index_reg, index_reg, offset);
 
     LiftoffAssembler::VarState timeout =
         __ cache_state()->stack_state.end()[-1];
@@ -2758,7 +3003,7 @@ class LiftoffCompiler {
 
     uint32_t offset = imm.offset;
     index = AddMemoryMasking(index, &offset, &pinned);
-    if (offset) __ emit_i32_add(index, index, offset);
+    if (offset) __ emit_i32_addi(index, index, offset);
 
     // TODO(ahaas): Use PrepareCall to prepare parameters.
     __ SpillAllRegisters();
@@ -3137,6 +3382,52 @@ class LiftoffCompiler {
     unsupported(decoder, kAnyRef, "table.fill");
   }
 
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value args[],
+                 Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.new");
+  }
+  void StructGet(FullDecoder* decoder, const Value& struct_obj,
+                 const FieldIndexImmediate<validate>& field, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.get");
+  }
+  void StructSet(FullDecoder* decoder, const Value& struct_obj,
+                 const FieldIndexImmediate<validate>& field,
+                 const Value& field_value) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "struct.set");
+  }
+
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length, const Value& initial_value,
+                Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "array.new");
+  }
+  void ArrayGet(FullDecoder* decoder, const Value& array_obj,
+                const ArrayIndexImmediate<validate>& imm, const Value& index,
+                Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "array.get");
+  }
+  void ArraySet(FullDecoder* decoder, const Value& array_obj,
+                const ArrayIndexImmediate<validate>& imm, const Value& index,
+                const Value& value) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "array.set");
+  }
+  void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "array.len");
+  }
+
+  void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
+    // TODO(7748): Implement.
+    unsupported(decoder, kGC, "");
+  }
+
  private:
   // Emit additional source positions for return addresses. Used by debugging to
   // OSR frames with different sets of breakpoints.
@@ -3164,7 +3455,7 @@ class LiftoffCompiler {
       //   0    foo
       //   1    nop  // top frame return address
       //        bar
-      // {WasmCompiledFrame::position} would then return "0" as the source
+      // {WasmFrame::position} would then return "0" as the source
       // position of the top frame instead of "1".  This is fixed by explicitly
       // emitting the missing position before the return address, with a nop so
       // that code offsets do not collide.
@@ -3191,6 +3482,7 @@ class LiftoffCompiler {
   compiler::CallDescriptor* const descriptor_;
   CompilationEnv* const env_;
   DebugSideTableBuilder* const debug_sidetable_builder_;
+  const ForDebugging for_debugging_;
   LiftoffBailoutReason bailout_reason_ = kSuccess;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder source_position_table_builder_;
@@ -3239,8 +3531,8 @@ class LiftoffCompiler {
 
 WasmCompilationResult ExecuteLiftoffCompilation(
     AccountingAllocator* allocator, CompilationEnv* env,
-    const FunctionBody& func_body, int func_index, Counters* counters,
-    WasmFeatures* detected, Vector<int> breakpoints,
+    const FunctionBody& func_body, int func_index, ForDebugging for_debugging,
+    Counters* counters, WasmFeatures* detected, Vector<int> breakpoints,
     std::unique_ptr<DebugSideTable>* debug_sidetable,
     Vector<int> extra_source_pos) {
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
@@ -3269,7 +3561,8 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, env->module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone, instruction_buffer->CreateView(),
-      debug_sidetable_builder.get(), breakpoints, extra_source_pos);
+      debug_sidetable_builder.get(), for_debugging, breakpoints,
+      extra_source_pos);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
@@ -3303,6 +3596,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result.func_index = func_index;
   result.result_tier = ExecutionTier::kLiftoff;
+  result.for_debugging = for_debugging;
   if (debug_sidetable) {
     *debug_sidetable = debug_sidetable_builder->GenerateDebugSideTable();
   }
@@ -3322,7 +3616,7 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
       &zone, env->module, env->enabled_features, &detected, func_body,
       call_descriptor, env, &zone,
       NewAssemblerBuffer(AssemblerBase::kDefaultBufferSize),
-      &debug_sidetable_builder);
+      &debug_sidetable_builder, kForDebugging);
   decoder.Decode();
   DCHECK(decoder.ok());
   DCHECK(!decoder.interface().did_bailout());

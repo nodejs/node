@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/backend/code-generator.h"
-
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
+#include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -4285,7 +4284,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ PrepareCallCFunction(0, 0, cp);
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ LeaveFrame(StackFrame::WASM);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =
             static_cast<int>(call_descriptor->StackParameterCount());

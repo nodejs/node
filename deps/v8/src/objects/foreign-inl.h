@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_FOREIGN_INL_H_
 #define V8_OBJECTS_FOREIGN_INL_H_
 
+#include "src/common/globals.h"
 #include "src/objects/foreign.h"
 
+#include "src/common/external-pointer-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -16,9 +18,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Foreign, HeapObject)
-
-CAST_ACCESSOR(Foreign)
+TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
 
 // static
 bool Foreign::IsNormalized(Object value) {
@@ -26,12 +26,16 @@ bool Foreign::IsNormalized(Object value) {
   return Foreign::cast(value).foreign_address() != kNullAddress;
 }
 
-Address Foreign::foreign_address() {
-  return ReadField<Address>(kForeignAddressOffset);
+DEF_GETTER(Foreign, foreign_address, Address) {
+  ExternalPointer_t encoded_value =
+      ReadField<ExternalPointer_t>(kForeignAddressOffset);
+  Address value = DecodeExternalPointer(isolate, encoded_value);
+  return value;
 }
 
-void Foreign::set_foreign_address(Address value) {
-  WriteField<Address>(kForeignAddressOffset, value);
+void Foreign::set_foreign_address(Isolate* isolate, Address value) {
+  ExternalPointer_t encoded_value = EncodeExternalPointer(isolate, value);
+  WriteField<ExternalPointer_t>(kForeignAddressOffset, encoded_value);
 }
 
 }  // namespace internal

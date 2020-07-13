@@ -53,7 +53,6 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSLoadGlobal:
     case IrOpcode::kJSLoadMessage:
     case IrOpcode::kJSStackCheck:
-    case IrOpcode::kJSStoreGlobal:
     case IrOpcode::kJSStoreMessage:
     case IrOpcode::kJSGetIterator:
       return false;
@@ -83,6 +82,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreContext:
     case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSStoreGlobal:
     case IrOpcode::kJSStoreInArrayLiteral:
     case IrOpcode::kJSStoreModule:
     case IrOpcode::kJSStoreNamed:

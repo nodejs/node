@@ -24,26 +24,16 @@ namespace internal {
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
-class AccessorInfo : public Struct {
+class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
  public:
-  DECL_ACCESSORS(name, Name)
-  DECL_INT_ACCESSORS(flags)
-  DECL_ACCESSORS(expected_receiver_type, Object)
   // This directly points at a foreign C function to be used from the runtime.
   DECL_ACCESSORS(getter, Object)
   inline bool has_getter();
   DECL_ACCESSORS(setter, Object)
   inline bool has_setter();
-  // This either points at the same as above, or a trampoline in case we are
-  // running with the simulator. Use these entries from generated code.
-  DECL_ACCESSORS(js_getter, Object)
-  DECL_ACCESSORS(data, Object)
 
   static Address redirect(Address address, AccessorComponent component);
   Address redirected_getter() const;
-
-  // Dispatched behavior.
-  DECL_PRINTER(AccessorInfo)
 
   DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(all_can_write)
@@ -68,19 +58,10 @@ class AccessorInfo : public Struct {
                                       Handle<Map> map);
   inline bool IsCompatibleReceiver(Object receiver);
 
-  DECL_CAST(AccessorInfo)
-
-  // Dispatched behavior.
-  DECL_VERIFIER(AccessorInfo)
-
   // Append all descriptors to the array that are not already there.
   // Return number added.
   static int AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                           Handle<FixedArray> array, int valid_descriptors);
-
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_ACCESSOR_INFO_FIELDS)
 
  private:
   inline bool HasExpectedReceiverType();
@@ -88,15 +69,12 @@ class AccessorInfo : public Struct {
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
 
-  OBJECT_CONSTRUCTORS(AccessorInfo, Struct);
+  TQ_OBJECT_CONSTRUCTORS(AccessorInfo)
 };
 
 class AccessCheckInfo
     : public TorqueGeneratedAccessCheckInfo<AccessCheckInfo, Struct> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(AccessCheckInfo)
-
   static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
   TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
@@ -111,14 +89,7 @@ class InterceptorInfo
   DECL_BOOLEAN_ACCESSORS(is_named)
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
 
-  // Dispatched behavior.
-  DECL_PRINTER(InterceptorInfo)
-
-  static const int kCanInterceptSymbolsBit = 0;
-  static const int kAllCanReadBit = 1;
-  static const int kNonMasking = 2;
-  static const int kNamed = 3;
-  static const int kHasNoSideEffect = 4;
+  DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
 
   TQ_OBJECT_CONSTRUCTORS(InterceptorInfo)
 };

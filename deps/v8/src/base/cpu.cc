@@ -605,7 +605,11 @@ CPU::CPU()
 #endif
 
 #elif V8_HOST_ARCH_ARM64
-// Implementer, variant and part are currently unused under ARM64.
+#ifdef V8_OS_WIN
+  // Windows makes high-resolution thread timing information available in
+  // user-space.
+  has_non_stop_time_stamp_counter_ = true;
+#endif  // V8_OS_WIN
 
 #elif V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64
 

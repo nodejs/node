@@ -26,14 +26,14 @@ frame size: 7
 parameter count: 1
 bytecode array length: 97
 bytecodes: [
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
   /*   67 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   76 S> */ B(LdaCurrentContextSlot), U8(2),
+  /*   76 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star), R(4),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
   /*   81 E> */ B(LdaKeyedProperty), R(this), U8(0),
                 B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(4), U8(1),
                 B(Star), R(5),
@@ -45,16 +45,16 @@ bytecodes: [
                 B(CallProperty1), R(6), R(this), R(5), U8(5),
   /*   91 S> */ B(LdaSmi), I8(1),
                 B(Star), R(3),
-                B(LdaCurrentContextSlot), U8(2),
+                B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star), R(5),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
   /*   96 E> */ B(LdaKeyedProperty), R(this), U8(7),
                 B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(5), U8(1),
                 B(Star), R(6),
                 B(CallProperty1), R(6), R(this), R(3), U8(9),
-  /*  108 S> */ B(LdaCurrentContextSlot), U8(2),
+  /*  108 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star), R(4),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
   /*  120 E> */ B(LdaKeyedProperty), R(this), U8(11),
                 B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(4), U8(1),
                 B(Star), R(5),
@@ -79,12 +79,12 @@ frame size: 5
 parameter count: 1
 bytecode array length: 31
 bytecodes: [
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
   /*   48 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(266),
+  /*   53 S> */ B(Wide), B(LdaSmi), I16(265),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -110,12 +110,12 @@ frame size: 5
 parameter count: 1
 bytecode array length: 31
 bytecodes: [
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
   /*   41 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(265),
+  /*   46 S> */ B(Wide), B(LdaSmi), I16(264),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -141,12 +141,12 @@ frame size: 5
 parameter count: 1
 bytecode array length: 31
 bytecodes: [
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
   /*   48 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   53 S> */ B(Wide), B(LdaSmi), I16(266),
+  /*   53 S> */ B(Wide), B(LdaSmi), I16(265),
                 B(Star), R(3),
                 B(LdaConstant), U8(0),
                 B(Star), R(4),
@@ -172,12 +172,12 @@ frame size: 6
 parameter count: 1
 bytecode array length: 31
 bytecodes: [
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaImmutableCurrentContextSlot), U8(3),
                 B(Star), R(1),
                 B(Mov), R(this), R(0),
                 B(Mov), R(context), R(2),
   /*   41 E> */ B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(0), U8(3),
-  /*   46 S> */ B(Wide), B(LdaSmi), I16(265),
+  /*   46 S> */ B(Wide), B(LdaSmi), I16(264),
                 B(Star), R(4),
                 B(LdaConstant), U8(0),
                 B(Star), R(5),

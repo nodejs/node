@@ -5,6 +5,7 @@
 #include "src/torque/csa-generator.h"
 
 #include "src/common/globals.h"
+#include "src/torque/global-context.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
@@ -511,8 +512,14 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
       LowerType(instruction.builtin->signature().return_type);
   if (instruction.is_tailcall) {
     out() << "   CodeStubAssembler(state_).TailCallBuiltin(Builtins::k"
-          << instruction.builtin->ExternalName() << ", ";
-    PrintCommaSeparatedList(out(), arguments);
+          << instruction.builtin->ExternalName();
+    if (!instruction.builtin->signature().HasContextParameter()) {
+      // Add dummy context parameter to satisfy the TailCallBuiltin signature.
+      out() << ", TNode<Object>()";
+    }
+    for (const std::string& argument : arguments) {
+      out() << ", " << argument;
+    }
     out() << ");\n";
   } else {
     std::string result_name;
@@ -524,25 +531,24 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
     std::string catch_name =
         PreCallableExceptionPreparation(instruction.catch_block);
     Stack<std::string> pre_call_stack = *stack;
-    if (result_types.size() == 1) {
-      std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
-      stack->Push(result_name);
-      out() << "    " << result_name << " = ";
-      if (generated_type != "Object") out() << "TORQUE_CAST(";
-      out() << "CodeStubAssembler(state_).CallBuiltin(Builtins::k"
-            << instruction.builtin->ExternalName() << ", ";
-      PrintCommaSeparatedList(out(), arguments);
-      if (generated_type != "Object") out() << ")";
-      out() << ");\n";
-    } else {
-      DCHECK_EQ(0, result_types.size());
-      // TODO(tebbi): Actually, builtins have to return a value, so we should
-      // not have to handle this case.
-      out() << "    CodeStubAssembler(state_).CallBuiltin(Builtins::k"
-            << instruction.builtin->ExternalName() << ", ";
-      PrintCommaSeparatedList(out(), arguments);
-      out() << ");\n";
+
+    DCHECK_EQ(1, result_types.size());
+    std::string generated_type = result_types[0]->GetGeneratedTNodeTypeName();
+    stack->Push(result_name);
+    out() << "    " << result_name << " = ";
+    if (generated_type != "Object") out() << "TORQUE_CAST(";
+    out() << "CodeStubAssembler(state_).CallBuiltin(Builtins::k"
+          << instruction.builtin->ExternalName();
+    if (!instruction.builtin->signature().HasContextParameter()) {
+      // Add dummy context parameter to satisfy the CallBuiltin signature.
+      out() << ", TNode<Object>()";
     }
+    for (const std::string& argument : arguments) {
+      out() << ", " << argument;
+    }
+    if (generated_type != "Object") out() << ")";
+    out() << ");\n";
+
     PostCallableExceptionPreparation(
         catch_name,
         result_types.size() == 0 ? TypeOracle::GetVoidType() : result_types[0],
@@ -554,8 +560,8 @@ void CSAGenerator::EmitInstruction(const CallBuiltinInstruction& instruction,
 void CSAGenerator::EmitInstruction(
     const CallBuiltinPointerInstruction& instruction,
     Stack<std::string>* stack) {
-  std::vector<std::string> function_and_arguments =
-      stack->PopMany(1 + instruction.argc);
+  std::vector<std::string> arguments = stack->PopMany(instruction.argc);
+  std::string function = stack->Pop();
   std::vector<const Type*> result_types =
       LowerType(instruction.type->return_type());
   if (result_types.size() != 1) {
@@ -575,8 +581,15 @@ void CSAGenerator::EmitInstruction(
            "CallableFor(ca_."
            "isolate(),"
            "ExampleBuiltinForTorqueFunctionPointerType("
-        << instruction.type->function_pointer_type_id() << ")).descriptor(), ";
-  PrintCommaSeparatedList(out(), function_and_arguments);
+        << instruction.type->function_pointer_type_id() << ")).descriptor(), "
+        << function;
+  if (!instruction.type->HasContextParameter()) {
+    // Add dummy context parameter to satisfy the CallBuiltinPointer signature.
+    out() << ", TNode<Object>()";
+  }
+  for (const std::string& argument : arguments) {
+    out() << ", " << argument;
+  }
   out() << ")";
   if (generated_type != "Object") out() << ")";
   out() << ";\n";
@@ -858,13 +871,20 @@ void CSAGenerator::EmitInstruction(const StoreReferenceInstruction& instruction,
 }
 
 namespace {
-std::string GetBitFieldSpecialization(const BitFieldStructType* container,
+std::string GetBitFieldSpecialization(const Type* container,
                                       const BitField& field) {
+  auto smi_tagged_type =
+      Type::MatchUnaryGeneric(container, TypeOracle::GetSmiTaggedGeneric());
+  std::string container_type = smi_tagged_type
+                                   ? "uintptr_t"
+                                   : container->GetConstexprGeneratedTypeName();
+  int offset = smi_tagged_type
+                   ? field.offset + TargetArchitecture::SmiTagAndShiftSize()
+                   : field.offset;
   std::stringstream stream;
   stream << "base::BitField<"
          << field.name_and_type.type->GetConstexprGeneratedTypeName() << ", "
-         << field.offset << ", " << field.num_bits << ", "
-         << container->GetConstexprGeneratedTypeName() << ">";
+         << offset << ", " << field.num_bits << ", " << container_type << ">";
   return stream.str();
 }
 }  // namespace
@@ -877,23 +897,36 @@ void CSAGenerator::EmitInstruction(const LoadBitFieldInstruction& instruction,
   std::string bit_field_struct = stack->Pop();
   stack->Push(result_name);
 
-  const BitFieldStructType* source_type = instruction.bit_field_struct_type;
-  const Type* result_type = instruction.bit_field.name_and_type.type;
-  bool source_uintptr = source_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
-  bool result_uintptr = result_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
-  std::string source_word_type = source_uintptr ? "WordT" : "Word32T";
+  const Type* struct_type = instruction.bit_field_struct_type;
+  const Type* field_type = instruction.bit_field.name_and_type.type;
+  auto smi_tagged_type =
+      Type::MatchUnaryGeneric(struct_type, TypeOracle::GetSmiTaggedGeneric());
+  bool struct_is_pointer_size =
+      IsPointerSizeIntegralType(struct_type) || smi_tagged_type;
+  DCHECK_IMPLIES(!struct_is_pointer_size, Is32BitIntegralType(struct_type));
+  bool field_is_pointer_size = IsPointerSizeIntegralType(field_type);
+  DCHECK_IMPLIES(!field_is_pointer_size, Is32BitIntegralType(field_type));
+  std::string struct_word_type = struct_is_pointer_size ? "WordT" : "Word32T";
   std::string decoder =
-      source_uintptr
-          ? (result_uintptr ? "DecodeWord" : "DecodeWord32FromWord")
-          : (result_uintptr ? "DecodeWordFromWord32" : "DecodeWord32");
+      struct_is_pointer_size
+          ? (field_is_pointer_size ? "DecodeWord" : "DecodeWord32FromWord")
+          : (field_is_pointer_size ? "DecodeWordFromWord32" : "DecodeWord32");
 
-  decls() << "  " << result_type->GetGeneratedTypeName() << " " << result_name
+  decls() << "  " << field_type->GetGeneratedTypeName() << " " << result_name
           << ";\n";
+
+  if (smi_tagged_type) {
+    // If the container is a SMI, then UncheckedCast is insufficient and we must
+    // use a bit cast.
+    bit_field_struct =
+        "ca_.BitcastTaggedToWordForTagAndSmiBits(" + bit_field_struct + ")";
+  }
+
   out() << "    " << result_name << " = ca_.UncheckedCast<"
-        << result_type->GetGeneratedTNodeTypeName()
+        << field_type->GetGeneratedTNodeTypeName()
         << ">(CodeStubAssembler(state_)." << decoder << "<"
-        << GetBitFieldSpecialization(source_type, instruction.bit_field)
-        << ">(ca_.UncheckedCast<" << source_word_type << ">("
+        << GetBitFieldSpecialization(struct_type, instruction.bit_field)
+        << ">(ca_.UncheckedCast<" << struct_word_type << ">("
         << bit_field_struct << ")));\n";
 }
 
@@ -906,25 +939,47 @@ void CSAGenerator::EmitInstruction(const StoreBitFieldInstruction& instruction,
   std::string bit_field_struct = stack->Pop();
   stack->Push(result_name);
 
-  const BitFieldStructType* struct_type = instruction.bit_field_struct_type;
+  const Type* struct_type = instruction.bit_field_struct_type;
   const Type* field_type = instruction.bit_field.name_and_type.type;
-  bool struct_uintptr = struct_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
-  bool field_uintptr = field_type->IsSubtypeOf(TypeOracle::GetUIntPtrType());
-  std::string struct_word_type = struct_uintptr ? "WordT" : "Word32T";
-  std::string field_word_type = field_uintptr ? "UintPtrT" : "Uint32T";
+  auto smi_tagged_type =
+      Type::MatchUnaryGeneric(struct_type, TypeOracle::GetSmiTaggedGeneric());
+  bool struct_is_pointer_size =
+      IsPointerSizeIntegralType(struct_type) || smi_tagged_type;
+  DCHECK_IMPLIES(!struct_is_pointer_size, Is32BitIntegralType(struct_type));
+  bool field_is_pointer_size = IsPointerSizeIntegralType(field_type);
+  DCHECK_IMPLIES(!field_is_pointer_size, Is32BitIntegralType(field_type));
+  std::string struct_word_type = struct_is_pointer_size ? "WordT" : "Word32T";
+  std::string field_word_type = field_is_pointer_size ? "UintPtrT" : "Uint32T";
   std::string encoder =
-      struct_uintptr ? (field_uintptr ? "UpdateWord" : "UpdateWord32InWord")
-                     : (field_uintptr ? "UpdateWordInWord32" : "UpdateWord32");
+      struct_is_pointer_size
+          ? (field_is_pointer_size ? "UpdateWord" : "UpdateWord32InWord")
+          : (field_is_pointer_size ? "UpdateWordInWord32" : "UpdateWord32");
 
   decls() << "  " << struct_type->GetGeneratedTypeName() << " " << result_name
           << ";\n";
+
+  if (smi_tagged_type) {
+    // If the container is a SMI, then UncheckedCast is insufficient and we must
+    // use a bit cast.
+    bit_field_struct =
+        "ca_.BitcastTaggedToWordForTagAndSmiBits(" + bit_field_struct + ")";
+  }
+
+  std::string result_expression =
+      "CodeStubAssembler(state_)." + encoder + "<" +
+      GetBitFieldSpecialization(struct_type, instruction.bit_field) +
+      ">(ca_.UncheckedCast<" + struct_word_type + ">(" + bit_field_struct +
+      "), ca_.UncheckedCast<" + field_word_type + ">(" + value + ")" +
+      (instruction.starts_as_zero ? ", true" : "") + ")";
+
+  if (smi_tagged_type) {
+    result_expression =
+        "ca_.BitcastWordToTaggedSigned(" + result_expression + ")";
+  }
+
   out() << "    " << result_name << " = ca_.UncheckedCast<"
-        << struct_type->GetGeneratedTNodeTypeName()
-        << ">(CodeStubAssembler(state_)." << encoder << "<"
-        << GetBitFieldSpecialization(struct_type, instruction.bit_field)
-        << ">(ca_.UncheckedCast<" << struct_word_type << ">("
-        << bit_field_struct << "), ca_.UncheckedCast<" << field_word_type
-        << ">(" << value << ")));\n";
+        << struct_type->GetGeneratedTNodeTypeName() << ">(" << result_expression
+        << ");\n";
 }
 
 // static

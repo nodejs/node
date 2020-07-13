@@ -82,6 +82,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kMips64F64x2Ne:
     case kMips64F64x2Lt:
     case kMips64F64x2Le:
+    case kMips64I64x2Splat:
+    case kMips64I64x2ExtractLane:
+    case kMips64I64x2ReplaceLane:
     case kMips64I64x2Add:
     case kMips64I64x2Sub:
     case kMips64I64x2Mul:

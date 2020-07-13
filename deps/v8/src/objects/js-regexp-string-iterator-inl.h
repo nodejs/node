@@ -17,9 +17,9 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSRegExpStringIterator)
 
-BOOL_ACCESSORS(JSRegExpStringIterator, flags, done, kDoneBit)
-BOOL_ACCESSORS(JSRegExpStringIterator, flags, global, kGlobalBit)
-BOOL_ACCESSORS(JSRegExpStringIterator, flags, unicode, kUnicodeBit)
+BOOL_ACCESSORS(JSRegExpStringIterator, flags, done, DoneBit::kShift)
+BOOL_ACCESSORS(JSRegExpStringIterator, flags, global, GlobalBit::kShift)
+BOOL_ACCESSORS(JSRegExpStringIterator, flags, unicode, UnicodeBit::kShift)
 
 }  // namespace internal
 }  // namespace v8

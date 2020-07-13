@@ -3,9 +3,15 @@
 # found in the LICENSE file.
 
 [
+
 ['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   '*': [SKIP],
 }], # lite_mode or variant == jitless
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
 
 ]

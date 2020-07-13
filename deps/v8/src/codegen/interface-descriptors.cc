@@ -85,6 +85,8 @@ void CallDescriptors::InitializeOncePerProcess() {
   DCHECK(!AllocateDescriptor{}.HasContextParameter());
   DCHECK(!AllocateHeapNumberDescriptor{}.HasContextParameter());
   DCHECK(!AbortDescriptor{}.HasContextParameter());
+  DCHECK(!WasmFloat32ToNumberDescriptor{}.HasContextParameter());
+  DCHECK(!WasmFloat64ToNumberDescriptor{}.HasContextParameter());
 }
 
 void CallDescriptors::TearDown() {
@@ -375,10 +377,19 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-void WasmMemoryGrowDescriptor::InitializePlatformSpecific(
+#if !V8_TARGET_ARCH_IA32
+// We need a custom descriptor on ia32 to avoid using xmm0.
+void WasmFloat32ToNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
+
+// We need a custom descriptor on ia32 to avoid using xmm0.
+void WasmFloat64ToNumberDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+#endif  // !V8_TARGET_ARCH_IA32
 
 void WasmTableInitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -390,21 +401,6 @@ void WasmTableCopyDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data,
                                     kParameterCount - kStackArgumentsCount);
-}
-
-void WasmTableGetDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
-void WasmTableSetDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
-}
-
-void WasmThrowDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
 void WasmAtomicNotifyDescriptor::InitializePlatformSpecific(

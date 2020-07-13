@@ -34,7 +34,7 @@ JSRegExp::Type JSRegExp::TypeTag() const {
   return static_cast<JSRegExp::Type>(smi.value());
 }
 
-int JSRegExp::CaptureCount() {
+int JSRegExp::CaptureCount() const {
   switch (TypeTag()) {
     case ATOM:
       return 0;
@@ -43,6 +43,11 @@ int JSRegExp::CaptureCount() {
     default:
       UNREACHABLE();
   }
+}
+
+int JSRegExp::MaxRegisterCount() const {
+  CHECK_EQ(TypeTag(), IRREGEXP);
+  return Smi::ToInt(DataAt(kIrregexpMaxRegisterCountIndex));
 }
 
 JSRegExp::Flags JSRegExp::GetFlags() {

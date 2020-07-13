@@ -34,6 +34,23 @@ namespace internal {
 
 namespace {
 
+std::string ToHourCycleString(JSDateTimeFormat::HourCycle hc) {
+  switch (hc) {
+    case JSDateTimeFormat::HourCycle::kH11:
+      return "h11";
+    case JSDateTimeFormat::HourCycle::kH12:
+      return "h12";
+    case JSDateTimeFormat::HourCycle::kH23:
+      return "h23";
+    case JSDateTimeFormat::HourCycle::kH24:
+      return "h24";
+    case JSDateTimeFormat::HourCycle::kUndefined:
+      return "";
+    default:
+      UNREACHABLE();
+  }
+}
+
 JSDateTimeFormat::HourCycle ToHourCycle(const std::string& hc) {
   if (hc == "h11") return JSDateTimeFormat::HourCycle::kH11;
   if (hc == "h12") return JSDateTimeFormat::HourCycle::kH12;
@@ -261,7 +278,7 @@ const std::vector<PatternData>& GetPatternData(
   }
 }
 
-std::string GetGMTTzID(Isolate* isolate, const std::string& input) {
+std::string GetGMTTzID(const std::string& input) {
   std::string ret = "Etc/GMT";
   switch (input.length()) {
     case 8:
@@ -304,10 +321,8 @@ char LocaleIndependentAsciiToLower(char ch) {
 // or ho_cHi_minH -> Ho_Chi_Minh. It is locale-agnostic and only
 // deals with ASCII only characters.
 // 'of', 'au' and 'es' are special-cased and lowercased.
-// Also "Antarctica/DumontDUrville" is special case.
 // ICU's timezone parsing is case sensitive, but ECMAScript is case insensitive
-std::string ToTitleCaseTimezoneLocation(Isolate* isolate,
-                                        const std::string& input) {
+std::string ToTitleCaseTimezoneLocation(const std::string& input) {
   std::string title_cased;
   int word_length = 0;
   for (char ch : input) {
@@ -332,34 +347,102 @@ std::string ToTitleCaseTimezoneLocation(Isolate* isolate,
       return std::string();
     }
   }
-  // Special case
-  if (title_cased == "Antarctica/Dumontdurville") {
-    return "Antarctica/DumontDUrville";
-  }
+
   return title_cased;
 }
 
+class SpecialTimeZoneMap {
+ public:
+  SpecialTimeZoneMap() {
+    Add("America/Argentina/ComodRivadavia");
+    Add("America/Knox_IN");
+    Add("Antarctica/McMurdo");
+    Add("Australia/ACT");
+    Add("Australia/LHI");
+    Add("Australia/NSW");
+    Add("Antarctica/DumontDUrville");
+    Add("Brazil/DeNoronha");
+    Add("CET");
+    Add("CST6CDT");
+    Add("Chile/EasterIsland");
+    Add("EET");
+    Add("EST");
+    Add("EST5EDT");
+    Add("GB");
+    Add("GB-Eire");
+    Add("HST");
+    Add("MET");
+    Add("MST");
+    Add("MST7MDT");
+    Add("Mexico/BajaNorte");
+    Add("Mexico/BajaSur");
+    Add("NZ");
+    Add("NZ-CHAT");
+    Add("PRC");
+    Add("PST8PDT");
+    Add("ROC");
+    Add("ROK");
+    Add("UCT");
+    Add("W-SU");
+    Add("WET");
+  }
+
+  std::string Find(const std::string& id) {
+    auto it = map_.find(id);
+    if (it != map_.end()) {
+      return it->second;
+    }
+    return "";
+  }
+
+ private:
+  void Add(const char* id) {
+    std::string upper(id);
+    transform(upper.begin(), upper.end(), upper.begin(),
+              LocaleIndependentAsciiToUpper);
+    map_.insert({upper, id});
+  }
+  std::map<std::string, std::string> map_;
+};
+
 // Return the time zone id which match ICU's expectation of title casing
 // return empty string when error.
-std::string CanonicalizeTimeZoneID(Isolate* isolate, const std::string& input) {
+std::string CanonicalizeTimeZoneID(const std::string& input) {
   std::string upper = input;
   transform(upper.begin(), upper.end(), upper.begin(),
             LocaleIndependentAsciiToUpper);
-  if (upper == "UTC" || upper == "GMT" || upper == "ETC/UTC" ||
-      upper == "ETC/GMT") {
-    return "UTC";
+  if (upper.length() >= 3) {
+    if (memcmp(upper.c_str(), "ETC", 3) == 0) {
+      if (upper == "ETC/UTC" || upper == "ETC/GMT" || upper == "ETC/UCT") {
+        return "UTC";
+      }
+      if (strncmp(upper.c_str(), "ETC/GMT", 7) == 0) {
+        return GetGMTTzID(input);
+      }
+    } else if (memcmp(upper.c_str(), "GMT", 3) == 0) {
+      if (upper == "GMT" || upper == "GMT0" || upper == "GMT+0" ||
+          upper == "GMT-0") {
+        return "UTC";
+      }
+    } else if (memcmp(upper.c_str(), "US/", 3) == 0) {
+      std::string title = ToTitleCaseTimezoneLocation(input);
+      // Change "Us/" to "US/"
+      title[1] = 'S';
+      return title;
+    } else if (upper == "UTC") {
+      return "UTC";
+    }
   }
   // We expect only _, '-' and / beside ASCII letters.
-  // All inputs should conform to Area/Location(/Location)*, or Etc/GMT* .
-  // TODO(jshin): 1. Support 'GB-Eire", 'EST5EDT", "ROK', 'US/*', 'NZ' and many
-  // other aliases/linked names when moving timezone validation code to C++.
-  // See crbug.com/364374 and crbug.com/v8/8007 .
-  // 2. Resolve the difference betwee CLDR/ICU and IANA time zone db.
-  // See http://unicode.org/cldr/trac/ticket/9892 and crbug.com/645807 .
-  if (strncmp(upper.c_str(), "ETC/GMT", 7) == 0) {
-    return GetGMTTzID(isolate, input);
+
+  static base::LazyInstance<SpecialTimeZoneMap>::type special_time_zone_map =
+      LAZY_INSTANCE_INITIALIZER;
+
+  std::string special_case = special_time_zone_map.Pointer()->Find(upper);
+  if (!special_case.empty()) {
+    return special_case;
   }
-  return ToTitleCaseTimezoneLocation(isolate, input);
+  return ToTitleCaseTimezoneLocation(input);
 }
 
 Handle<String> DateTimeStyleAsString(Isolate* isolate,
@@ -479,6 +562,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   //    [[Minute]]           "minute"
   //    [[Second]]           "second"
   //    [[TimeZoneName]]     "timeZoneName"
+  //    [[FractionalSecondDigits]]     "fractionalSecondDigits"
   CHECK(JSReceiver::CreateDataProperty(isolate, options,
                                        factory->locale_string(), locale,
                                        Just(kDontThrow))
@@ -549,6 +633,13 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
         }
       }
     }
+    if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
+      int fsd = FractionalSecondDigitsFromPattern(pattern);
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, options, factory->fractionalSecondDigits_string(),
+                factory->NewNumberFromInt(fsd), Just(kDontThrow))
+                .FromJust());
+    }
   }
 
   // dateStyle
@@ -568,14 +659,6 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
               Just(kDontThrow))
               .FromJust());
   }
-  if (FLAG_harmony_intl_dateformat_fractional_second_digits) {
-    int fsd = FractionalSecondDigitsFromPattern(pattern);
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->fractionalSecondDigits_string(),
-              factory->NewNumberFromInt(fsd), Just(kDontThrow))
-              .FromJust());
-  }
-
   return options;
 }
 
@@ -868,15 +951,14 @@ bool IsValidTimeZoneName(const icu::TimeZone& tz) {
          canonical != icu::UnicodeString("Etc/Unknown", -1, US_INV);
 }
 
-std::unique_ptr<icu::TimeZone> CreateTimeZone(Isolate* isolate,
-                                              const char* timezone) {
+std::unique_ptr<icu::TimeZone> CreateTimeZone(const char* timezone) {
   // Create time zone as specified by the user. We have to re-create time zone
   // since calendar takes ownership.
   if (timezone == nullptr) {
     // 19.a. Else / Let timeZone be DefaultTimeZone().
     return std::unique_ptr<icu::TimeZone>(icu::TimeZone::createDefault());
   }
-  std::string canonicalized = CanonicalizeTimeZoneID(isolate, timezone);
+  std::string canonicalized = CanonicalizeTimeZoneID(timezone);
   if (canonicalized.empty()) return std::unique_ptr<icu::TimeZone>();
   std::unique_ptr<icu::TimeZone> tz(
       icu::TimeZone::createTimeZone(canonicalized.c_str()));
@@ -1078,10 +1160,18 @@ icu::DateIntervalFormat* LazyCreateDateIntervalFormat(
   icu::SimpleDateFormat* icu_simple_date_format =
       date_time_format->icu_simple_date_format().raw();
   UErrorCode status = U_ZERO_ERROR;
+
+  icu::Locale loc = *(date_time_format->icu_locale().raw());
+  // We need to pass in the hc to DateIntervalFormat by using Unicode 'hc'
+  // extension.
+  std::string hcString = ToHourCycleString(date_time_format->hour_cycle());
+  if (!hcString.empty()) {
+    loc.setUnicodeKeywordValue("hc", hcString, status);
+  }
+
   std::unique_ptr<icu::DateIntervalFormat> date_interval_format(
       icu::DateIntervalFormat::createInstance(
-          SkeletonFromDateFormat(*icu_simple_date_format),
-          *(date_time_format->icu_locale().raw()), status));
+          SkeletonFromDateFormat(*icu_simple_date_format), loc, status));
   if (U_FAILURE(status)) {
     return nullptr;
   }
@@ -1262,17 +1352,15 @@ class DateTimePatternGeneratorCache {
  public:
   // Return a clone copy that the caller have to free.
   icu::DateTimePatternGenerator* CreateGenerator(const icu::Locale& locale) {
-    std::string key(FLAG_harmony_intl_other_calendars ? locale.getName()
-                                                      : locale.getBaseName());
+    std::string key(locale.getName());
     base::MutexGuard guard(&mutex_);
     auto it = map_.find(key);
     if (it != map_.end()) {
       return it->second->clone();
     }
     UErrorCode status = U_ZERO_ERROR;
-    map_[key].reset(icu::DateTimePatternGenerator::createInstance(
-        FLAG_harmony_intl_other_calendars ? locale : icu::Locale(key.c_str()),
-        status));
+    map_[key].reset(
+        icu::DateTimePatternGenerator::createInstance(locale, status));
     // Fallback to use "root".
     if (U_FAILURE(status)) {
       status = U_ZERO_ERROR;
@@ -1321,31 +1409,28 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
 
   std::unique_ptr<char[]> calendar_str = nullptr;
   std::unique_ptr<char[]> numbering_system_str = nullptr;
-  if (FLAG_harmony_intl_add_calendar_numbering_system) {
-    const std::vector<const char*> empty_values = {};
-    // 6. Let calendar be ? GetOption(options, "calendar",
-    //    "string", undefined, undefined).
-    Maybe<bool> maybe_calendar = Intl::GetStringOption(
-        isolate, options, "calendar", empty_values, service, &calendar_str);
-    MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
-    if (maybe_calendar.FromJust() && calendar_str != nullptr) {
-      icu::Locale default_locale;
-      if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewRangeError(
-                MessageTemplate::kInvalid, factory->calendar_string(),
-                factory->NewStringFromAsciiChecked(calendar_str.get())),
-            JSDateTimeFormat);
-      }
+  const std::vector<const char*> empty_values = {};
+  // 6. Let calendar be ? GetOption(options, "calendar",
+  //    "string", undefined, undefined).
+  Maybe<bool> maybe_calendar = Intl::GetStringOption(
+      isolate, options, "calendar", empty_values, service, &calendar_str);
+  MAYBE_RETURN(maybe_calendar, MaybeHandle<JSDateTimeFormat>());
+  if (maybe_calendar.FromJust() && calendar_str != nullptr) {
+    icu::Locale default_locale;
+    if (!Intl::IsWellFormedCalendar(calendar_str.get())) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalid, factory->calendar_string(),
+                        factory->NewStringFromAsciiChecked(calendar_str.get())),
+          JSDateTimeFormat);
     }
-
-    // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
-    //    "string", undefined, undefined).
-    Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
-        isolate, options, service, &numbering_system_str);
-    MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
   }
+
+  // 8. Let numberingSystem be ? GetOption(options, "numberingSystem",
+  //    "string", undefined, undefined).
+  Maybe<bool> maybe_numberingSystem = Intl::GetNumberingSystem(
+      isolate, options, service, &numbering_system_str);
+  MAYBE_RETURN(maybe_numberingSystem, MaybeHandle<JSDateTimeFormat>());
 
   // 6. Let hour12 be ? GetOption(options, "hour12", "boolean", undefined,
   // undefined).
@@ -1424,13 +1509,12 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   }
 
   // 17. Let timeZone be ? Get(options, "timeZone").
-  const std::vector<const char*> empty_values;
   std::unique_ptr<char[]> timezone = nullptr;
   Maybe<bool> maybe_timezone = Intl::GetStringOption(
       isolate, options, "timeZone", empty_values, service, &timezone);
   MAYBE_RETURN(maybe_timezone, Handle<JSDateTimeFormat>());
 
-  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone.get());
+  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(timezone.get());
   if (tz.get() == nullptr) {
     THROW_NEW_ERROR(
         isolate,

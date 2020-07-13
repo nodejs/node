@@ -1233,6 +1233,8 @@ void InstructionSelector::VisitWord32PairSar(Node* node) {
   VisitWord32PairShift(this, kArmAsrPair, node);
 }
 
+void InstructionSelector::VisitWord32Rol(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitShift(this, node, TryMatchROR);
 }
@@ -2437,23 +2439,24 @@ void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
                          AddressingModeField::encode(addressing_mode);
   Node* projection0 = NodeProperties::FindProjection(node, 0);
   Node* projection1 = NodeProperties::FindProjection(node, 1);
-  if (projection1) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r6),
-                                    g.DefineAsFixed(projection1, r7)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
-  } else if (projection0) {
-    InstructionOperand outputs[] = {g.DefineAsFixed(projection0, r6)};
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                  g.TempRegister(r7)};
-    Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
-         arraysize(temps), temps);
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  InstructionOperand temps[4];
+  size_t temp_count = 0;
+  temps[temp_count++] = g.TempRegister();
+  temps[temp_count++] = g.TempRegister();
+  if (projection0) {
+    outputs[output_count++] = g.DefineAsFixed(projection0, r6);
   } else {
-    InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
-                                  g.TempRegister(r6), g.TempRegister(r7)};
-    Emit(code, 0, nullptr, arraysize(inputs), inputs, arraysize(temps), temps);
+    temps[temp_count++] = g.TempRegister(r6);
   }
+  if (projection1) {
+    outputs[output_count++] = g.DefineAsFixed(projection1, r7);
+  } else {
+    temps[temp_count++] = g.TempRegister(r7);
+  }
+  Emit(code, output_count, outputs, arraysize(inputs), inputs, temp_count,
+       temps);
 }
 
 void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {

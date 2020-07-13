@@ -3,175 +3,170 @@
 // found in the LICENSE file.
 
 namespace array {
-  macro LoadElement<ElementsAccessor : type extends ElementsKind, T: type>(
-      elements: FixedArrayBase, index: Smi): T;
+macro LoadElement<ElementsAccessor : type extends ElementsKind, T: type>(
+    elements: FixedArrayBase, index: Smi): T;
 
-  LoadElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi): Smi {
-    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
-    return UnsafeCast<Smi>(elements.objects[index]);
+LoadElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
+    elements: FixedArrayBase, index: Smi): Smi {
+  const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+  return UnsafeCast<Smi>(elements.objects[index]);
+}
+
+LoadElement<array::FastPackedObjectElements, JSAny>(implicit context: Context)(
+    elements: FixedArrayBase, index: Smi): JSAny {
+  const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+  return UnsafeCast<JSAny>(elements.objects[index]);
+}
+
+LoadElement<array::FastPackedDoubleElements, float64>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi): float64 {
+  const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
+  // This macro is only used for PACKED_DOUBLE, loading the hole should
+  // be impossible.
+  return elements.floats[index].Value() otherwise unreachable;
+}
+
+macro StoreElement<ElementsAccessor : type extends ElementsKind, T: type>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi, value: T);
+
+StoreElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
+    elements: FixedArrayBase, index: Smi, value: Smi) {
+  const elems: FixedArray = UnsafeCast<FixedArray>(elements);
+  StoreFixedArrayElement(elems, index, value, SKIP_WRITE_BARRIER);
+}
+
+StoreElement<array::FastPackedObjectElements, JSAny>(implicit context: Context)(
+    elements: FixedArrayBase, index: Smi, value: JSAny) {
+  const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+  elements.objects[index] = value;
+}
+
+StoreElement<array::FastPackedDoubleElements, float64>(
+    implicit context: Context)(
+    elements: FixedArrayBase, index: Smi, value: float64) {
+  const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
+  StoreFixedDoubleArrayElementSmi(elems, index, value);
+}
+
+// Fast-path for all PACKED_* elements kinds. These do not need to check
+// whether a property is present, so we can simply swap them using fast
+// FixedArray loads/stores.
+macro FastPackedArrayReverse<Accessor: type, T: type>(
+    implicit context: Context)(elements: FixedArrayBase, length: Smi) {
+  let lower: Smi = 0;
+  let upper: Smi = length - 1;
+
+  while (lower < upper) {
+    const lowerValue: T = LoadElement<Accessor, T>(elements, lower);
+    const upperValue: T = LoadElement<Accessor, T>(elements, upper);
+    StoreElement<Accessor>(elements, lower, upperValue);
+    StoreElement<Accessor>(elements, upper, lowerValue);
+    ++lower;
+    --upper;
   }
+}
 
-  LoadElement<array::FastPackedObjectElements, JSAny>(
-      implicit context: Context)(elements: FixedArrayBase, index: Smi): JSAny {
-    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
-    return UnsafeCast<JSAny>(elements.objects[index]);
-  }
+transitioning macro GenericArrayReverse(
+    context: Context, receiver: JSAny): JSAny {
+  // 1. Let O be ? ToObject(this value).
+  const object: JSReceiver = ToObject_Inline(context, receiver);
 
-  LoadElement<array::FastPackedDoubleElements, float64>(
-      implicit context: Context)(elements: FixedArrayBase, index: Smi):
-      float64 {
-    const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-    // This macro is only used for PACKED_DOUBLE, loading the hole should
-    // be impossible.
-    return elements.floats[index].Value() otherwise unreachable;
-  }
+  // 2. Let len be ? ToLength(? Get(O, "length")).
+  const length: Number = GetLengthProperty(object);
 
-  macro StoreElement<ElementsAccessor : type extends ElementsKind, T: type>(
-      implicit context:
-          Context)(elements: FixedArrayBase, index: Smi, value: T);
+  // 3. Let middle be floor(len / 2).
+  // 4. Let lower be 0.
+  // 5. Repeat, while lower != middle.
+  //   a. Let upper be len - lower - 1.
 
-  StoreElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
-      elements: FixedArrayBase, index: Smi, value: Smi) {
-    const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    StoreFixedArrayElement(elems, index, value, SKIP_WRITE_BARRIER);
-  }
+  // Instead of calculating the middle value, we simply initialize upper
+  // with len - 1 and decrement it after each iteration.
+  let lower: Number = 0;
+  let upper: Number = length - 1;
 
-  StoreElement<array::FastPackedObjectElements, JSAny>(
-      implicit context:
-          Context)(elements: FixedArrayBase, index: Smi, value: JSAny) {
-    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
-    elements.objects[index] = value;
-  }
+  while (lower < upper) {
+    let lowerValue: JSAny = Undefined;
+    let upperValue: JSAny = Undefined;
 
-  StoreElement<array::FastPackedDoubleElements, float64>(
-      implicit context:
-          Context)(elements: FixedArrayBase, index: Smi, value: float64) {
-    const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-    StoreFixedDoubleArrayElementSmi(elems, index, value);
-  }
+    // b. Let upperP be ! ToString(upper).
+    // c. Let lowerP be ! ToString(lower).
+    // d. Let lowerExists be ? HasProperty(O, lowerP).
+    const lowerExists: Boolean = HasProperty(object, lower);
 
-  // Fast-path for all PACKED_* elements kinds. These do not need to check
-  // whether a property is present, so we can simply swap them using fast
-  // FixedArray loads/stores.
-  macro FastPackedArrayReverse<Accessor: type, T: type>(
-      implicit context: Context)(elements: FixedArrayBase, length: Smi) {
-    let lower: Smi = 0;
-    let upper: Smi = length - 1;
-
-    while (lower < upper) {
-      const lowerValue: T = LoadElement<Accessor, T>(elements, lower);
-      const upperValue: T = LoadElement<Accessor, T>(elements, upper);
-      StoreElement<Accessor>(elements, lower, upperValue);
-      StoreElement<Accessor>(elements, upper, lowerValue);
-      ++lower;
-      --upper;
-    }
-  }
-
-  transitioning macro GenericArrayReverse(context: Context, receiver: JSAny):
-      JSAny {
-    // 1. Let O be ? ToObject(this value).
-    const object: JSReceiver = ToObject_Inline(context, receiver);
-
-    // 2. Let len be ? ToLength(? Get(O, "length")).
-    const length: Number = GetLengthProperty(object);
-
-    // 3. Let middle be floor(len / 2).
-    // 4. Let lower be 0.
-    // 5. Repeat, while lower != middle.
-    //   a. Let upper be len - lower - 1.
-
-    // Instead of calculating the middle value, we simply initialize upper
-    // with len - 1 and decrement it after each iteration.
-    let lower: Number = 0;
-    let upper: Number = length - 1;
-
-    while (lower < upper) {
-      let lowerValue: JSAny = Undefined;
-      let upperValue: JSAny = Undefined;
-
-      // b. Let upperP be ! ToString(upper).
-      // c. Let lowerP be ! ToString(lower).
-      // d. Let lowerExists be ? HasProperty(O, lowerP).
-      const lowerExists: Boolean = HasProperty(object, lower);
-
-      // e. If lowerExists is true, then.
-      if (lowerExists == True) {
-        // i. Let lowerValue be ? Get(O, lowerP).
-        lowerValue = GetProperty(object, lower);
-      }
-
-      // f. Let upperExists be ? HasProperty(O, upperP).
-      const upperExists: Boolean = HasProperty(object, upper);
-
-      // g. If upperExists is true, then.
-      if (upperExists == True) {
-        // i. Let upperValue be ? Get(O, upperP).
-        upperValue = GetProperty(object, upper);
-      }
-
-      // h. If lowerExists is true and upperExists is true, then
-      if (lowerExists == True && upperExists == True) {
-        // i. Perform ? Set(O, lowerP, upperValue, true).
-        SetProperty(object, lower, upperValue);
-
-        // ii. Perform ? Set(O, upperP, lowerValue, true).
-        SetProperty(object, upper, lowerValue);
-      } else if (lowerExists == False && upperExists == True) {
-        // i. Perform ? Set(O, lowerP, upperValue, true).
-        SetProperty(object, lower, upperValue);
-
-        // ii. Perform ? DeletePropertyOrThrow(O, upperP).
-        DeleteProperty(object, upper, LanguageMode::kStrict);
-      } else if (lowerExists == True && upperExists == False) {
-        // i. Perform ? DeletePropertyOrThrow(O, lowerP).
-        DeleteProperty(object, lower, LanguageMode::kStrict);
-
-        // ii. Perform ? Set(O, upperP, lowerValue, true).
-        SetProperty(object, upper, lowerValue);
-      }
-
-      // l. Increase lower by 1.
-      ++lower;
-      --upper;
+    // e. If lowerExists is true, then.
+    if (lowerExists == True) {
+      // i. Let lowerValue be ? Get(O, lowerP).
+      lowerValue = GetProperty(object, lower);
     }
 
-    // 6. Return O.
-    return object;
+    // f. Let upperExists be ? HasProperty(O, upperP).
+    const upperExists: Boolean = HasProperty(object, upper);
+
+    // g. If upperExists is true, then.
+    if (upperExists == True) {
+      // i. Let upperValue be ? Get(O, upperP).
+      upperValue = GetProperty(object, upper);
+    }
+
+    // h. If lowerExists is true and upperExists is true, then
+    if (lowerExists == True && upperExists == True) {
+      // i. Perform ? Set(O, lowerP, upperValue, true).
+      SetProperty(object, lower, upperValue);
+
+      // ii. Perform ? Set(O, upperP, lowerValue, true).
+      SetProperty(object, upper, lowerValue);
+    } else if (lowerExists == False && upperExists == True) {
+      // i. Perform ? Set(O, lowerP, upperValue, true).
+      SetProperty(object, lower, upperValue);
+
+      // ii. Perform ? DeletePropertyOrThrow(O, upperP).
+      DeleteProperty(object, upper, LanguageMode::kStrict);
+    } else if (lowerExists == True && upperExists == False) {
+      // i. Perform ? DeletePropertyOrThrow(O, lowerP).
+      DeleteProperty(object, lower, LanguageMode::kStrict);
+
+      // ii. Perform ? Set(O, upperP, lowerValue, true).
+      SetProperty(object, upper, lowerValue);
+    }
+
+    // l. Increase lower by 1.
+    ++lower;
+    --upper;
   }
 
-  macro TryFastPackedArrayReverse(implicit context: Context)(receiver: JSAny)
-      labels Slow {
-    const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+  // 6. Return O.
+  return object;
+}
 
-    const kind: ElementsKind = array.map.elements_kind;
-    if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
-      array::EnsureWriteableFastElements(array);
-      FastPackedArrayReverse<array::FastPackedSmiElements, Smi>(
-          array.elements, array.length);
-    } else if (kind == ElementsKind::PACKED_ELEMENTS) {
-      array::EnsureWriteableFastElements(array);
-      FastPackedArrayReverse<array::FastPackedObjectElements, JSAny>(
-          array.elements, array.length);
-    } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
-      FastPackedArrayReverse<array::FastPackedDoubleElements, float64>(
-          array.elements, array.length);
-    } else {
-      goto Slow;
-    }
-  }
+macro TryFastPackedArrayReverse(implicit context: Context)(receiver: JSAny)
+    labels Slow {
+  const array: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
-  // https://tc39.github.io/ecma262/#sec-array.prototype.reverse
-  transitioning javascript builtin ArrayPrototypeReverse(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): JSAny {
-    try {
-      TryFastPackedArrayReverse(receiver) otherwise Baseline;
-      return receiver;
-    }
-    label Baseline {
-      return GenericArrayReverse(context, receiver);
-    }
+  const kind: ElementsKind = array.map.elements_kind;
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+    array::EnsureWriteableFastElements(array);
+    FastPackedArrayReverse<array::FastPackedSmiElements, Smi>(
+        array.elements, array.length);
+  } else if (kind == ElementsKind::PACKED_ELEMENTS) {
+    array::EnsureWriteableFastElements(array);
+    FastPackedArrayReverse<array::FastPackedObjectElements, JSAny>(
+        array.elements, array.length);
+  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+    FastPackedArrayReverse<array::FastPackedDoubleElements, float64>(
+        array.elements, array.length);
+  } else {
+    goto Slow;
   }
+}
+
+// https://tc39.github.io/ecma262/#sec-array.prototype.reverse
+transitioning javascript builtin ArrayPrototypeReverse(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    TryFastPackedArrayReverse(receiver) otherwise Baseline;
+    return receiver;
+  } label Baseline {
+    return GenericArrayReverse(context, receiver);
+  }
+}
 }

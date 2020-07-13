@@ -11,6 +11,22 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "Operators",
+      "path": ["Operators"],
+      "main": "run.js",
+      "resources": [
+        "run.js",
+        "abstract-equality.js"
+      ],
+      "results_regexp": "^Operators\\-%s\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Equal-SmiNumber"},
+        {"name": "Equal-SmiOddball"},
+        {"name": "Equal-NumberOddball"},
+        {"name": "Equal-OddballOddball"}
+      ]
+    },
+    {
       "name": "Collections",
       "path": ["Collections"],
       "main": "run.js",

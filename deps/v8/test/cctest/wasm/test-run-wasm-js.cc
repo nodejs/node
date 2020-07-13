@@ -71,7 +71,7 @@ ManuallyImportedJSFunction CreateJSSelector(FunctionSig* sig, int which) {
 }
 }  // namespace
 
-WASM_EXEC_TEST(Run_Int32Sub_jswrapped) {
+WASM_COMPILED_EXEC_TEST(Run_Int32Sub_jswrapped) {
   WasmRunner<int, int, int> r(execution_tier);
   BUILD(r, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
@@ -79,7 +79,7 @@ WASM_EXEC_TEST(Run_Int32Sub_jswrapped) {
   r.CheckCallViaJS(-8723487, -8000000, 723487);
 }
 
-WASM_EXEC_TEST(Run_Float32Div_jswrapped) {
+WASM_COMPILED_EXEC_TEST(Run_Float32Div_jswrapped) {
   WasmRunner<float, float, float> r(execution_tier);
   BUILD(r, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
@@ -87,7 +87,7 @@ WASM_EXEC_TEST(Run_Float32Div_jswrapped) {
   r.CheckCallViaJS(64, -16, -0.25);
 }
 
-WASM_EXEC_TEST(Run_Float64Add_jswrapped) {
+WASM_COMPILED_EXEC_TEST(Run_Float64Add_jswrapped) {
   WasmRunner<double, double, double> r(execution_tier);
   BUILD(r, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
@@ -95,7 +95,7 @@ WASM_EXEC_TEST(Run_Float64Add_jswrapped) {
   r.CheckCallViaJS(-5.5, -5.25, -0.25);
 }
 
-WASM_EXEC_TEST(Run_I32Popcount_jswrapped) {
+WASM_COMPILED_EXEC_TEST(Run_I32Popcount_jswrapped) {
   WasmRunner<int, int> r(execution_tier);
   BUILD(r, WASM_I32_POPCNT(WASM_GET_LOCAL(0)));
 
@@ -104,7 +104,7 @@ WASM_EXEC_TEST(Run_I32Popcount_jswrapped) {
   r.CheckCallViaJS(6, 0x3F);
 }
 
-WASM_EXEC_TEST(Run_CallJS_Add_jswrapped) {
+WASM_COMPILED_EXEC_TEST(Run_CallJS_Add_jswrapped) {
   TestSignatures sigs;
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source = "(function(a) { return a + 99; })";
@@ -121,7 +121,7 @@ WASM_EXEC_TEST(Run_CallJS_Add_jswrapped) {
   r.CheckCallViaJS(-666666801, -666666900);
 }
 
-WASM_EXEC_TEST(Run_IndirectCallJSFunction) {
+WASM_COMPILED_EXEC_TEST(Run_IndirectCallJSFunction) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
   TestSignatures sigs;
@@ -192,42 +192,42 @@ void RunJSSelectTest(ExecutionTier tier, int which) {
   }
 }
 
-WASM_EXEC_TEST(Run_JSSelect_0) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_0) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 0);
 }
 
-WASM_EXEC_TEST(Run_JSSelect_1) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_1) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 1);
 }
 
-WASM_EXEC_TEST(Run_JSSelect_2) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_2) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 2);
 }
 
-WASM_EXEC_TEST(Run_JSSelect_3) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_3) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 3);
 }
 
-WASM_EXEC_TEST(Run_JSSelect_4) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_4) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 4);
 }
 
-WASM_EXEC_TEST(Run_JSSelect_5) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_5) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 5);
 }
 
-WASM_EXEC_TEST(Run_JSSelect_6) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_6) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 6);
 }
 
-WASM_EXEC_TEST(Run_JSSelect_7) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelect_7) {
   CcTest::InitializeVM();
   RunJSSelectTest(execution_tier, 7);
 }
@@ -262,42 +262,42 @@ void RunWASMSelectTest(ExecutionTier tier, int which) {
   }
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_0) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_0) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 0);
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_1) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_1) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 1);
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_2) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_2) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 2);
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_3) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_3) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 3);
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_4) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_4) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 4);
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_5) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_5) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 5);
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_6) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_6) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 6);
 }
 
-WASM_EXEC_TEST(Run_WASMSelect_7) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelect_7) {
   CcTest::InitializeVM();
   RunWASMSelectTest(execution_tier, 7);
 }
@@ -334,44 +334,44 @@ void RunWASMSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
   }
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_0) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_0) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 0, 1);
   RunWASMSelectAlignTest(execution_tier, 0, 2);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_1) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_1) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 1, 2);
   RunWASMSelectAlignTest(execution_tier, 1, 3);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_2) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_2) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 2, 3);
   RunWASMSelectAlignTest(execution_tier, 2, 4);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_3) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_3) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 3, 3);
   RunWASMSelectAlignTest(execution_tier, 3, 4);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_4) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_4) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 4, 3);
   RunWASMSelectAlignTest(execution_tier, 4, 4);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_7) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_7) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 7, 5);
   RunWASMSelectAlignTest(execution_tier, 7, 6);
   RunWASMSelectAlignTest(execution_tier, 7, 7);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_8) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_8) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 8, 5);
   RunWASMSelectAlignTest(execution_tier, 8, 6);
@@ -379,7 +379,7 @@ WASM_EXEC_TEST(Run_WASMSelectAlign_8) {
   RunWASMSelectAlignTest(execution_tier, 8, 8);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_9) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_9) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 9, 6);
   RunWASMSelectAlignTest(execution_tier, 9, 7);
@@ -387,7 +387,7 @@ WASM_EXEC_TEST(Run_WASMSelectAlign_9) {
   RunWASMSelectAlignTest(execution_tier, 9, 9);
 }
 
-WASM_EXEC_TEST(Run_WASMSelectAlign_10) {
+WASM_COMPILED_EXEC_TEST(Run_WASMSelectAlign_10) {
   CcTest::InitializeVM();
   RunWASMSelectAlignTest(execution_tier, 10, 7);
   RunWASMSelectAlignTest(execution_tier, 10, 8);
@@ -449,37 +449,37 @@ void RunJSSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
   }
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_0) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_0) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 0, 1);
   RunJSSelectAlignTest(execution_tier, 0, 2);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_1) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_1) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 1, 2);
   RunJSSelectAlignTest(execution_tier, 1, 3);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_2) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_2) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 2, 3);
   RunJSSelectAlignTest(execution_tier, 2, 4);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_3) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_3) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 3, 3);
   RunJSSelectAlignTest(execution_tier, 3, 4);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_4) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_4) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 4, 3);
   RunJSSelectAlignTest(execution_tier, 4, 4);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_7) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_7) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 7, 3);
   RunJSSelectAlignTest(execution_tier, 7, 4);
@@ -487,7 +487,7 @@ WASM_EXEC_TEST(Run_JSSelectAlign_7) {
   RunJSSelectAlignTest(execution_tier, 7, 4);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_8) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_8) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 8, 5);
   RunJSSelectAlignTest(execution_tier, 8, 6);
@@ -495,7 +495,7 @@ WASM_EXEC_TEST(Run_JSSelectAlign_8) {
   RunJSSelectAlignTest(execution_tier, 8, 8);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_9) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_9) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 9, 6);
   RunJSSelectAlignTest(execution_tier, 9, 7);
@@ -503,7 +503,7 @@ WASM_EXEC_TEST(Run_JSSelectAlign_9) {
   RunJSSelectAlignTest(execution_tier, 9, 9);
 }
 
-WASM_EXEC_TEST(Run_JSSelectAlign_10) {
+WASM_COMPILED_EXEC_TEST(Run_JSSelectAlign_10) {
   CcTest::InitializeVM();
   RunJSSelectAlignTest(execution_tier, 10, 7);
   RunJSSelectAlignTest(execution_tier, 10, 8);
@@ -560,11 +560,11 @@ void RunPickerTest(ExecutionTier tier, bool indirect) {
   r.CheckCallApplyViaJS(right, rc_fn.function_index(), args_right, 1);
 }
 
-WASM_EXEC_TEST(Run_ReturnCallImportedFunction) {
+WASM_COMPILED_EXEC_TEST(Run_ReturnCallImportedFunction) {
   RunPickerTest(execution_tier, false);
 }
 
-WASM_EXEC_TEST(Run_ReturnCallIndirectImportedFunction) {
+WASM_COMPILED_EXEC_TEST(Run_ReturnCallIndirectImportedFunction) {
   RunPickerTest(execution_tier, true);
 }
 

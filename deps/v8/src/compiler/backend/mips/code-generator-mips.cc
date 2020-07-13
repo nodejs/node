@@ -11,7 +11,7 @@
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
@@ -3508,7 +3508,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ PrepareCallCFunction(0, 0, cp);
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ LeaveFrame(StackFrame::WASM);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         int pop_count =
             static_cast<int>(call_descriptor->StackParameterCount());

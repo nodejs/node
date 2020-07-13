@@ -3,16 +3,16 @@
 // found in the LICENSE file.
 
 namespace console {
-  extern builtin ConsoleAssert(implicit context:
-                                   Context)(JSFunction, JSAny, int32): JSAny;
+extern builtin ConsoleAssert(implicit context: Context)(
+    JSFunction, JSAny, int32): JSAny;
 
-  javascript builtin FastConsoleAssert(
-      js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
-      target: JSFunction)(...arguments): JSAny {
-    if (ToBoolean(arguments[0])) {
-      return Undefined;
-    } else {
-      tail ConsoleAssert(target, newTarget, Convert<int32>(arguments.length));
-    }
+javascript builtin FastConsoleAssert(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(...arguments): JSAny {
+  if (ToBoolean(arguments[0])) {
+    return Undefined;
+  } else {
+    tail ConsoleAssert(target, newTarget, Convert<int32>(arguments.length));
   }
+}
 }

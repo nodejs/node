@@ -17,12 +17,12 @@ namespace internal {
 class Processor final : public AstVisitor<Processor> {
  public:
   Processor(uintptr_t stack_limit, DeclarationScope* closure_scope,
-            Variable* result, AstValueFactory* ast_value_factory)
+            Variable* result, AstValueFactory* ast_value_factory, Zone* zone)
       : result_(result),
         replacement_(nullptr),
-        zone_(ast_value_factory->zone()),
+        zone_(zone),
         closure_scope_(closure_scope),
-        factory_(ast_value_factory, ast_value_factory->zone()),
+        factory_(ast_value_factory, zone),
         result_assigned_(false),
         is_set_(false),
         breakable_(false) {
@@ -31,10 +31,10 @@ class Processor final : public AstVisitor<Processor> {
   }
 
   Processor(Parser* parser, DeclarationScope* closure_scope, Variable* result,
-            AstValueFactory* ast_value_factory)
+            AstValueFactory* ast_value_factory, Zone* zone)
       : result_(result),
         replacement_(nullptr),
-        zone_(ast_value_factory->zone()),
+        zone_(zone),
         closure_scope_(closure_scope),
         factory_(ast_value_factory, zone_),
         result_assigned_(false),
@@ -392,7 +392,7 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
     Variable* result = scope->AsDeclarationScope()->NewTemporary(
         info->ast_value_factory()->dot_result_string());
     Processor processor(info->stack_limit(), scope->AsDeclarationScope(),
-                        result, info->ast_value_factory());
+                        result, info->ast_value_factory(), info->zone());
     processor.Process(body);
 
     DCHECK_IMPLIES(scope->is_module_scope(), processor.result_assigned());
@@ -400,7 +400,7 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
       int pos = kNoSourcePosition;
       VariableProxy* result_value =
           processor.factory()->NewVariableProxy(result, pos);
-      if (!info->is_repl_mode()) {
+      if (!info->flags().is_repl_mode()) {
         Statement* result_statement =
             processor.factory()->NewReturnStatement(result_value, pos);
         body->Add(result_statement, info->zone());
@@ -408,7 +408,10 @@ base::Optional<VariableProxy*> Rewriter::RewriteBody(
       return result_value;
     }
 
-    if (processor.HasStackOverflow()) return base::nullopt;
+    if (processor.HasStackOverflow()) {
+      info->pending_error_handler()->set_stack_overflow();
+      return base::nullopt;
+    }
   }
   return nullptr;
 }

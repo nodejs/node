@@ -22,61 +22,60 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   // determines the initial buffer size. The buffer is owned by the assembler
   // and deallocated upon destruction of the assembler.
   RegExpBytecodeGenerator(Isolate* isolate, Zone* zone);
-  virtual ~RegExpBytecodeGenerator();
+  ~RegExpBytecodeGenerator() override;
   // The byte-code interpreter checks on each push anyway.
-  virtual int stack_limit_slack() { return 1; }
-  virtual bool CanReadUnaligned() { return false; }
-  virtual void Bind(Label* label);
-  virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
-  virtual void PopCurrentPosition();
-  virtual void PushCurrentPosition();
-  virtual void Backtrack();
-  virtual void GoTo(Label* label);
-  virtual void PushBacktrack(Label* label);
-  virtual bool Succeed();
-  virtual void Fail();
-  virtual void PopRegister(int register_index);
-  virtual void PushRegister(int register_index,
-                            StackCheckFlag check_stack_limit);
-  virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
-  virtual void SetCurrentPositionFromEnd(int by);
-  virtual void SetRegister(int register_index, int to);
-  virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
-  virtual void ClearRegisters(int reg_from, int reg_to);
-  virtual void ReadCurrentPositionFromRegister(int reg);
-  virtual void WriteStackPointerToRegister(int reg);
-  virtual void ReadStackPointerFromRegister(int reg);
-  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
-                                        bool check_bounds, int characters,
-                                        int eats_at_least);
-  virtual void CheckCharacter(unsigned c, Label* on_equal);
-  virtual void CheckCharacterAfterAnd(unsigned c, unsigned mask,
-                                      Label* on_equal);
-  virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
-  virtual void CheckCharacterLT(uc16 limit, Label* on_less);
-  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
-  virtual void CheckAtStart(int cp_offset, Label* on_at_start);
-  virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start);
-  virtual void CheckNotCharacter(unsigned c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterAnd(unsigned c, unsigned mask,
-                                         Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusAnd(uc16 c, uc16 minus, uc16 mask,
-                                              Label* on_not_equal);
-  virtual void CheckCharacterInRange(uc16 from, uc16 to, Label* on_in_range);
-  virtual void CheckCharacterNotInRange(uc16 from, uc16 to,
-                                        Label* on_not_in_range);
-  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
-  virtual void CheckNotBackReference(int start_reg, bool read_backward,
-                                     Label* on_no_match);
-  virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward,
-                                               Label* on_no_match);
-  virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
-  virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
-  virtual void IfRegisterEqPos(int register_index, Label* if_eq);
+  int stack_limit_slack() override { return 1; }
+  bool CanReadUnaligned() override { return false; }
+  void Bind(Label* label) override;
+  void AdvanceCurrentPosition(int by) override;  // Signed cp change.
+  void PopCurrentPosition() override;
+  void PushCurrentPosition() override;
+  void Backtrack() override;
+  void GoTo(Label* label) override;
+  void PushBacktrack(Label* label) override;
+  bool Succeed() override;
+  void Fail() override;
+  void PopRegister(int register_index) override;
+  void PushRegister(int register_index,
+                    StackCheckFlag check_stack_limit) override;
+  void AdvanceRegister(int reg, int by) override;  // r[reg] += by.
+  void SetCurrentPositionFromEnd(int by) override;
+  void SetRegister(int register_index, int to) override;
+  void WriteCurrentPositionToRegister(int reg, int cp_offset) override;
+  void ClearRegisters(int reg_from, int reg_to) override;
+  void ReadCurrentPositionFromRegister(int reg) override;
+  void WriteStackPointerToRegister(int reg) override;
+  void ReadStackPointerFromRegister(int reg) override;
+  void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                bool check_bounds, int characters,
+                                int eats_at_least) override;
+  void CheckCharacter(unsigned c, Label* on_equal) override;
+  void CheckCharacterAfterAnd(unsigned c, unsigned mask,
+                              Label* on_equal) override;
+  void CheckCharacterGT(uc16 limit, Label* on_greater) override;
+  void CheckCharacterLT(uc16 limit, Label* on_less) override;
+  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckAtStart(int cp_offset, Label* on_at_start) override;
+  void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
+  void CheckNotCharacter(unsigned c, Label* on_not_equal) override;
+  void CheckNotCharacterAfterAnd(unsigned c, unsigned mask,
+                                 Label* on_not_equal) override;
+  void CheckNotCharacterAfterMinusAnd(uc16 c, uc16 minus, uc16 mask,
+                                      Label* on_not_equal) override;
+  void CheckCharacterInRange(uc16 from, uc16 to, Label* on_in_range) override;
+  void CheckCharacterNotInRange(uc16 from, uc16 to,
+                                Label* on_not_in_range) override;
+  void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
+  void CheckNotBackReference(int start_reg, bool read_backward,
+                             Label* on_no_match) override;
+  void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
+                                       Label* on_no_match) override;
+  void IfRegisterLT(int register_index, int comparand, Label* if_lt) override;
+  void IfRegisterGE(int register_index, int comparand, Label* if_ge) override;
+  void IfRegisterEqPos(int register_index, Label* if_eq) override;
 
-  virtual IrregexpImplementation Implementation();
-  virtual Handle<HeapObject> GetCode(Handle<String> source);
+  IrregexpImplementation Implementation() override;
+  Handle<HeapObject> GetCode(Handle<String> source) override;
 
  private:
   void Expand();

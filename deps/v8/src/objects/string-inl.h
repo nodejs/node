@@ -5,8 +5,9 @@
 #ifndef V8_OBJECTS_STRING_INL_H_
 #define V8_OBJECTS_STRING_INL_H_
 
-#include "src/objects/string.h"
-
+#include "src/common/external-pointer-inl.h"
+#include "src/common/external-pointer.h"
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions-inl.h"
@@ -14,6 +15,7 @@
 #include "src/objects/name-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
+#include "src/objects/string.h"
 #include "src/strings/string-hasher-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -569,12 +571,13 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   WriteField<uint16_t>(kHeaderSize + index * kShortSize, value);
 }
 
-int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
-  return SizeFor(length());
+// Due to ThinString rewriting, concurrent visitors need to read the length with
+// acquire semantics.
+inline int SeqOneByteString::AllocatedSize() {
+  return SizeFor(synchronized_length());
 }
-
-int SeqOneByteString::SeqOneByteStringSize(InstanceType instance_type) {
-  return SizeFor(length());
+inline int SeqTwoByteString::AllocatedSize() {
+  return SizeFor(synchronized_length());
 }
 
 void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
@@ -599,54 +602,71 @@ bool ExternalString::is_uncached() const {
   return (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
-Address ExternalString::resource_as_address() {
-  return ReadField<Address>(kResourceOffset);
+DEF_GETTER(ExternalString, resource_as_address, Address) {
+  ExternalPointer_t encoded_address =
+      ReadField<ExternalPointer_t>(kResourceOffset);
+  return DecodeExternalPointer(isolate, encoded_address);
 }
 
-void ExternalString::set_address_as_resource(Address address) {
-  WriteField<Address>(kResourceOffset, address);
+void ExternalString::set_address_as_resource(Isolate* isolate,
+                                             Address address) {
+  const ExternalPointer_t encoded_address =
+      EncodeExternalPointer(isolate, address);
+  WriteField<ExternalPointer_t>(kResourceOffset, encoded_address);
   if (IsExternalOneByteString()) {
-    ExternalOneByteString::cast(*this).update_data_cache();
+    ExternalOneByteString::cast(*this).update_data_cache(isolate);
   } else {
-    ExternalTwoByteString::cast(*this).update_data_cache();
+    ExternalTwoByteString::cast(*this).update_data_cache(isolate);
   }
 }
 
 uint32_t ExternalString::resource_as_uint32() {
-  return static_cast<uint32_t>(ReadField<Address>(kResourceOffset));
+  ExternalPointer_t encoded_address =
+      ReadField<ExternalPointer_t>(kResourceOffset);
+  return static_cast<uint32_t>(encoded_address);
 }
 
-void ExternalString::set_uint32_as_resource(uint32_t value) {
-  WriteField<Address>(kResourceOffset, value);
+void ExternalString::set_uint32_as_resource(Isolate* isolate, uint32_t value) {
+  WriteField<ExternalPointer_t>(kResourceOffset, value);
   if (is_uncached()) return;
-  WriteField<Address>(kResourceDataOffset, kNullAddress);
+  WriteField<ExternalPointer_t>(kResourceDataOffset,
+                                EncodeExternalPointer(isolate, kNullAddress));
 }
 
-void ExternalString::DisposeResource() {
+void ExternalString::DisposeResource(Isolate* isolate) {
+  const ExternalPointer_t encoded_address =
+      ReadField<ExternalPointer_t>(kResourceOffset);
   v8::String::ExternalStringResourceBase* resource =
       reinterpret_cast<v8::String::ExternalStringResourceBase*>(
-          ReadField<Address>(ExternalString::kResourceOffset));
+          DecodeExternalPointer(isolate, encoded_address));
 
   // Dispose of the C++ object if it has not already been disposed.
   if (resource != nullptr) {
     resource->Dispose();
-    WriteField<Address>(ExternalString::kResourceOffset, kNullAddress);
+    const ExternalPointer_t encoded_address =
+        EncodeExternalPointer(isolate, kNullAddress);
+    WriteField<ExternalPointer_t>(kResourceOffset, encoded_address);
   }
 }
 
-const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
-  return reinterpret_cast<Resource*>(ReadField<Address>(kResourceOffset));
+DEF_GETTER(ExternalOneByteString, resource,
+           const ExternalOneByteString::Resource*) {
+  const ExternalPointer_t encoded_address =
+      ReadField<ExternalPointer_t>(kResourceOffset);
+  return reinterpret_cast<Resource*>(
+      DecodeExternalPointer(isolate, encoded_address));
 }
 
-void ExternalOneByteString::update_data_cache() {
+void ExternalOneByteString::update_data_cache(Isolate* isolate) {
   if (is_uncached()) return;
-  WriteField<Address>(kResourceDataOffset,
-                      reinterpret_cast<Address>(resource()->data()));
+  const ExternalPointer_t encoded_resource_data = EncodeExternalPointer(
+      isolate, reinterpret_cast<Address>(resource()->data()));
+  WriteField<ExternalPointer_t>(kResourceDataOffset, encoded_resource_data);
 }
 
 void ExternalOneByteString::SetResource(
     Isolate* isolate, const ExternalOneByteString::Resource* resource) {
-  set_resource(resource);
+  set_resource(isolate, resource);
   size_t new_payload = resource == nullptr ? 0 : resource->length();
   if (new_payload > 0) {
     isolate->heap()->UpdateExternalString(*this, 0, new_payload);
@@ -654,9 +674,11 @@ void ExternalOneByteString::SetResource(
 }
 
 void ExternalOneByteString::set_resource(
-    const ExternalOneByteString::Resource* resource) {
-  WriteField<Address>(kResourceOffset, reinterpret_cast<Address>(resource));
-  if (resource != nullptr) update_data_cache();
+    Isolate* isolate, const ExternalOneByteString::Resource* resource) {
+  const ExternalPointer_t encoded_address =
+      EncodeExternalPointer(isolate, reinterpret_cast<Address>(resource));
+  WriteField<ExternalPointer_t>(kResourceOffset, encoded_address);
+  if (resource != nullptr) update_data_cache(isolate);
 }
 
 const uint8_t* ExternalOneByteString::GetChars() {
@@ -668,19 +690,24 @@ uint8_t ExternalOneByteString::Get(int index) {
   return GetChars()[index];
 }
 
-const ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
-  return reinterpret_cast<Resource*>(ReadField<Address>(kResourceOffset));
+DEF_GETTER(ExternalTwoByteString, resource,
+           const ExternalTwoByteString::Resource*) {
+  const ExternalPointer_t encoded_address =
+      ReadField<ExternalPointer_t>(kResourceOffset);
+  return reinterpret_cast<Resource*>(
+      DecodeExternalPointer(isolate, encoded_address));
 }
 
-void ExternalTwoByteString::update_data_cache() {
+void ExternalTwoByteString::update_data_cache(Isolate* isolate) {
   if (is_uncached()) return;
-  WriteField<Address>(kResourceDataOffset,
-                      reinterpret_cast<Address>(resource()->data()));
+  const ExternalPointer_t encoded_resource_data = EncodeExternalPointer(
+      isolate, reinterpret_cast<Address>(resource()->data()));
+  WriteField<ExternalPointer_t>(kResourceDataOffset, encoded_resource_data);
 }
 
 void ExternalTwoByteString::SetResource(
     Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
-  set_resource(resource);
+  set_resource(isolate, resource);
   size_t new_payload = resource == nullptr ? 0 : resource->length() * 2;
   if (new_payload > 0) {
     isolate->heap()->UpdateExternalString(*this, 0, new_payload);
@@ -688,9 +715,11 @@ void ExternalTwoByteString::SetResource(
 }
 
 void ExternalTwoByteString::set_resource(
-    const ExternalTwoByteString::Resource* resource) {
-  WriteField<Address>(kResourceOffset, reinterpret_cast<Address>(resource));
-  if (resource != nullptr) update_data_cache();
+    Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
+  const ExternalPointer_t encoded_address =
+      EncodeExternalPointer(isolate, reinterpret_cast<Address>(resource));
+  WriteField<ExternalPointer_t>(kResourceOffset, encoded_address);
+  if (resource != nullptr) update_data_cache(isolate);
 }
 
 const uint16_t* ExternalTwoByteString::GetChars() { return resource()->data(); }

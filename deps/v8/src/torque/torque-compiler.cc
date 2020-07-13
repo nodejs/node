@@ -73,6 +73,7 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   ImplementationVisitor implementation_visitor;
   implementation_visitor.SetDryRun(output_directory.length() == 0);
 
+  implementation_visitor.GenerateInstanceTypes(output_directory);
   implementation_visitor.BeginCSAFiles();
 
   implementation_visitor.VisitAllDeclarables();
@@ -91,7 +92,6 @@ void CompileCurrentAst(TorqueCompilerOptions options) {
   implementation_visitor.GenerateBodyDescriptors(output_directory);
   implementation_visitor.GenerateExportedMacrosAssembler(output_directory);
   implementation_visitor.GenerateCSATypes(output_directory);
-  implementation_visitor.GenerateInstanceTypes(output_directory);
 
   implementation_visitor.EndCSAFiles();
   implementation_visitor.GenerateImplementation(output_directory);

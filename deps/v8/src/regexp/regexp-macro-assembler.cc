@@ -111,6 +111,24 @@ NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Isolate* isolate,
 
 NativeRegExpMacroAssembler::~NativeRegExpMacroAssembler() = default;
 
+void NativeRegExpMacroAssembler::LoadCurrentCharacterImpl(
+    int cp_offset, Label* on_end_of_input, bool check_bounds, int characters,
+    int eats_at_least) {
+  // It's possible to preload a small number of characters when each success
+  // path requires a large number of characters, but not the reverse.
+  DCHECK_GE(eats_at_least, characters);
+
+  DCHECK(base::IsInRange(cp_offset, kMinCPOffset, kMaxCPOffset));
+  if (check_bounds) {
+    if (cp_offset >= 0) {
+      CheckPosition(cp_offset + eats_at_least - 1, on_end_of_input);
+    } else {
+      CheckPosition(cp_offset, on_end_of_input);
+    }
+  }
+  LoadCurrentCharacterUnchecked(cp_offset, characters);
+}
+
 bool NativeRegExpMacroAssembler::CanReadUnaligned() {
   return FLAG_enable_regexp_unaligned_accesses && !slow_safe();
 }

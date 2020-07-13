@@ -1075,20 +1075,23 @@ template<typename Constructor, typename Accessor>
 static void TestFunctionTemplateAccessor(Constructor constructor,
                                          Accessor accessor) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
 
   Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(env->GetIsolate(), constructor);
-  fun_templ->SetClassName(v8_str("funky"));
+      v8::FunctionTemplate::New(isolate, constructor);
+  fun_templ->PrototypeTemplate()->Set(
+      v8::Symbol::GetToStringTag(isolate), v8_str("funky"),
+      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
   fun_templ->InstanceTemplate()->SetAccessor(v8_str("m"), accessor);
+
   Local<Function> fun = fun_templ->GetFunction(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), fun).FromJust());
-  Local<Value> result =
-      v8_compile("(new obj()).toString()")->Run(env.local()).ToLocalChecked();
+  Local<Value> result = CompileRun("(new obj()).toString()");
   CHECK(v8_str("[object funky]")->Equals(env.local(), result).FromJust());
   CompileRun("var obj_instance = new obj();");
-  Local<Script> script;
-  script = v8_compile("obj_instance.x");
+
+  Local<Script> script = v8_compile("obj_instance.x");
   for (int i = 0; i < 30; i++) {
     CHECK_EQ(1, v8_run_int32value(script));
   }
@@ -12633,22 +12636,20 @@ THREADED_TEST(NewTargetHandler) {
 }
 
 THREADED_TEST(ObjectProtoToString) {
+  LocalContext context;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
   templ->SetClassName(v8_str("MyClass"));
 
-  LocalContext context;
 
   Local<String> customized_tostring = v8_str("customized toString");
 
   // Replace Object.prototype.toString
-  v8_compile(
-      "Object.prototype.toString = function() {"
-      "  return 'customized toString';"
-      "}")
-      ->Run(context.local())
-      .ToLocalChecked();
+  CompileRun(R"(
+      Object.prototype.toString = function() {
+        return 'customized toString';
+      })");
 
   // Normal ToString call should call replaced Object.prototype.toString
   Local<v8::Object> instance = templ->GetFunction(context.local())
@@ -12659,56 +12660,11 @@ THREADED_TEST(ObjectProtoToString) {
   CHECK(value->IsString() &&
         value->Equals(context.local(), customized_tostring).FromJust());
 
-  // ObjectProtoToString should not call replace toString function.
+  // ObjectProtoToString should not call replace toString function. It should
+  // not look at the class name either.
   value = instance->ObjectProtoToString(context.local()).ToLocalChecked();
   CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object MyClass]")).FromJust());
-
-  // Check global
-  value =
-      context->Global()->ObjectProtoToString(context.local()).ToLocalChecked();
-  CHECK(value->IsString() &&
         value->Equals(context.local(), v8_str("[object Object]")).FromJust());
-
-  // Check ordinary object
-  Local<Value> object =
-      v8_compile("new Object()")->Run(context.local()).ToLocalChecked();
-  value = object.As<v8::Object>()
-              ->ObjectProtoToString(context.local())
-              .ToLocalChecked();
-  CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object Object]")).FromJust());
-}
-
-
-TEST(ObjectProtoToStringES6) {
-  LocalContext context;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  templ->SetClassName(v8_str("MyClass"));
-
-  Local<String> customized_tostring = v8_str("customized toString");
-
-  // Replace Object.prototype.toString
-  CompileRun(
-      "Object.prototype.toString = function() {"
-      "  return 'customized toString';"
-      "}");
-
-  // Normal ToString call should call replaced Object.prototype.toString
-  Local<v8::Object> instance = templ->GetFunction(context.local())
-                                   .ToLocalChecked()
-                                   ->NewInstance(context.local())
-                                   .ToLocalChecked();
-  Local<String> value = instance->ToString(context.local()).ToLocalChecked();
-  CHECK(value->IsString() &&
-        value->Equals(context.local(), customized_tostring).FromJust());
-
-  // ObjectProtoToString should not call replace toString function.
-  value = instance->ObjectProtoToString(context.local()).ToLocalChecked();
-  CHECK(value->IsString() &&
-        value->Equals(context.local(), v8_str("[object MyClass]")).FromJust());
 
   // Check global
   value =
@@ -12723,9 +12679,48 @@ TEST(ObjectProtoToStringES6) {
               .ToLocalChecked();
   CHECK(value->IsString() &&
         value->Equals(context.local(), v8_str("[object Object]")).FromJust());
+}
 
-  // Check that ES6 semantics using @@toStringTag work
+
+TEST(ObjectProtoToStringES6) {
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  // Check that ES6 semantics using @@toStringTag work.
   Local<v8::Symbol> toStringTag = v8::Symbol::GetToStringTag(isolate);
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->SetClassName(v8_str("MyClass"));
+  templ->PrototypeTemplate()->Set(
+      toStringTag, v8_str("MyClassToStringTag"),
+      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+  Local<String> customized_tostring = v8_str("customized toString");
+
+  // Replace Object.prototype.toString
+  CompileRun(R"(
+      Object.prototype.toString = function() {
+        return 'customized toString';
+      })");
+
+  // Normal ToString call should call replaced Object.prototype.toString
+  Local<v8::Object> instance = templ->GetFunction(context.local())
+                                   .ToLocalChecked()
+                                   ->NewInstance(context.local())
+                                   .ToLocalChecked();
+  Local<String> value = instance->ToString(context.local()).ToLocalChecked();
+  CHECK(value->IsString() &&
+        value->Equals(context.local(), customized_tostring).FromJust());
+
+  // ObjectProtoToString should not call replace toString function. Instead it
+  // should look at the @@toStringTag property.
+  value = instance->ObjectProtoToString(context.local()).ToLocalChecked();
+  CHECK(value->IsString() &&
+        value->Equals(context.local(), v8_str("[object MyClassToStringTag]"))
+            .FromJust());
+
+  Local<Value> object;
 
 #define TEST_TOSTRINGTAG(type, tag, expected)                              \
   do {                                                                     \
@@ -16357,18 +16352,7 @@ TEST(PromiseHook) {
   CHECK_EQ(v8::Promise::kPending, GetPromise("p")->State());
   CompileRun("resolve(Promise.resolve(value));\n");
   CHECK_EQ(v8::Promise::kFulfilled, GetPromise("p")->State());
-  CHECK_EQ(11, promise_hook_data->promise_hook_count);
-
-  promise_hook_data->Reset();
-  source =
-      "var p = Promise.resolve({\n"
-      "  then(r) {\n"
-      "    r();\n"
-      "  }\n"
-      "});";
-  CompileRun(source);
-  CHECK_EQ(GetPromise("p")->State(), v8::Promise::kFulfilled);
-  CHECK_EQ(promise_hook_data->promise_hook_count, 5);
+  CHECK_EQ(9, promise_hook_data->promise_hook_count);
 
   delete promise_hook_data;
   isolate->SetPromiseHook(nullptr);
@@ -19365,6 +19349,52 @@ TEST(ModifyCodeGenFromStrings) {
   CHECK(result.IsEmpty());
   CHECK(try_catch.HasCaught());
   try_catch.Reset();
+}
+
+v8::ModifyCodeGenerationFromStringsResult RejectStringsIncrementNumbers(
+    Local<Context> context, Local<Value> source) {
+  if (source->IsString()) {
+    return {false, v8::MaybeLocal<String>()};
+  }
+
+  Local<v8::Number> number;
+  if (!source->ToNumber(context).ToLocal(&number)) {
+    return {true, v8::MaybeLocal<String>()};
+  }
+
+  Local<v8::String> incremented =
+      String::NewFromUtf8(context->GetIsolate(),
+                          std::to_string(number->Value() + 1).c_str(),
+                          v8::NewStringType::kNormal)
+          .ToLocalChecked();
+
+  return {true, incremented};
+}
+
+TEST(AllowFromStringsOrModifyCodegen) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  context->GetIsolate()->SetModifyCodeGenerationFromStringsCallback(
+      &RejectStringsIncrementNumbers);
+
+  context->AllowCodeGenerationFromStrings(false);
+
+  TryCatch try_catch(CcTest::isolate());
+  Local<Value> result = CompileRun("eval('40+2')");
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  result = CompileRun("eval(42)");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
+
+  context->AllowCodeGenerationFromStrings(true);
+
+  result = CompileRun("eval('40+2')");
+  CHECK_EQ(42, result->Int32Value(context.local()).FromJust());
+
+  result = CompileRun("eval(42)");
+  CHECK_EQ(43, result->Int32Value(context.local()).FromJust());
 }
 
 TEST(SetErrorMessageForCodeGenFromStrings) {
@@ -24464,8 +24494,6 @@ TEST(TurboAsmDisablesDetach) {
       "}"
       "var buffer = new ArrayBuffer(4096);"
       "var module = Module(this, {}, buffer);"
-      "%PrepareFunctionForOptimization(module.load);"
-      "%OptimizeFunctionOnNextCall(module.load);"
       "module.load();"
       "buffer";
 
@@ -24481,8 +24509,6 @@ TEST(TurboAsmDisablesDetach) {
       "}"
       "var buffer = new ArrayBuffer(4096);"
       "var module = Module(this, {}, buffer);"
-      "%PrepareFunctionForOptimization(module.store);"
-      "%OptimizeFunctionOnNextCall(module.store);"
       "module.store();"
       "buffer";
 
@@ -25734,7 +25760,6 @@ void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,
                                                   Local<Module> module,
                                                   Local<Object> meta) {
   CHECK(!module.IsEmpty());
-
   meta->CreateDataProperty(context, v8_str("foo"), v8_str("bar")).ToChecked();
 }
 
@@ -25758,10 +25783,9 @@ TEST(ImportMeta) {
   v8::ScriptCompiler::Source source(source_text, origin);
   Local<Module> module =
       v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  i::Handle<i::Object> meta =
-      i_isolate->RunHostInitializeImportMetaObjectCallback(
-          i::Handle<i::SourceTextModule>::cast(v8::Utils::OpenHandle(*module)));
-  CHECK(meta->IsJSObject());
+  i::Handle<i::JSObject> meta = i::SourceTextModule::GetImportMeta(
+      i_isolate,
+      i::Handle<i::SourceTextModule>::cast(v8::Utils::OpenHandle(*module)));
   Local<Object> meta_obj = Local<Object>::Cast(v8::Utils::ToLocal(meta));
   CHECK(meta_obj->Get(context.local(), v8_str("foo"))
             .ToLocalChecked()
@@ -26890,8 +26914,8 @@ static void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& args) {
       v8::Local<v8::Context>::New(isolate_2, context_2);
   v8::Context::Scope context_scope(context);
   reinterpret_cast<i::Isolate*>(isolate_2)->heap()->CollectAllGarbage(
-      i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
-      v8::kGCCallbackFlagForced);
+      i::Heap::kForcedGC, i::GarbageCollectionReason::kTesting,
+      v8::kNoGCCallbackFlags);
   CompileRun("f2() //# sourceURL=isolate2b");
 }
 

@@ -32,8 +32,8 @@ struct MockIdleTask : public IdleTask {
 
 class DefaultPlatformWithMockTime : public DefaultPlatform {
  public:
-  DefaultPlatformWithMockTime()
-      : DefaultPlatform(IdleTaskSupport::kEnabled, nullptr) {
+  explicit DefaultPlatformWithMockTime(int thread_pool_size = 0)
+      : DefaultPlatform(thread_pool_size, IdleTaskSupport::kEnabled, nullptr) {
     mock_time_ = 0.0;
     SetTimeFunctionForTesting([]() { return mock_time_; });
   }
@@ -240,8 +240,7 @@ class TestBackgroundTask : public Task {
 }  // namespace
 
 TEST(CustomDefaultPlatformTest, RunBackgroundTask) {
-  DefaultPlatform platform;
-  platform.SetThreadPoolSize(1);
+  DefaultPlatform platform(1);
 
   base::Semaphore sem(0);
   bool task_executed = false;
@@ -256,12 +255,11 @@ TEST(CustomDefaultPlatformTest, RunBackgroundTask) {
 TEST(CustomDefaultPlatformTest, PostForegroundTaskAfterPlatformTermination) {
   std::shared_ptr<TaskRunner> foreground_taskrunner;
   {
-    DefaultPlatformWithMockTime platform;
+    DefaultPlatformWithMockTime platform(1);
 
     int dummy;
     Isolate* isolate = reinterpret_cast<Isolate*>(&dummy);
 
-    platform.SetThreadPoolSize(1);
     foreground_taskrunner = platform.GetForegroundTaskRunner(isolate);
   }
   // It should still be possible to post foreground tasks, even when the

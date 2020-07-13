@@ -84,12 +84,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Probe for additional features at runtime.
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
-#if defined(_MIPS_ARCH_MIPS64R6)
 #if defined(_MIPS_MSA)
   supported_ |= 1u << MIPS_SIMD;
 #else
   if (cpu.has_msa()) supported_ |= 1u << MIPS_SIMD;
-#endif
 #endif
 #endif
 }
@@ -261,6 +259,9 @@ Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
       scratch_register_list_(at.bit()) {
+  if (CpuFeatures::IsSupported(MIPS_SIMD)) {
+    EnableCpuFeature(MIPS_SIMD);
+  }
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
   last_trampoline_pool_end_ = 0;
@@ -1169,7 +1170,7 @@ void Assembler::GenInstrJump(Opcode opcode, uint32_t address) {
 // MSA instructions
 void Assembler::GenInstrMsaI8(SecondaryField operation, uint32_t imm8,
                               MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(ws.is_valid() && wd.is_valid() && is_uint8(imm8));
   Instr instr = MSA | operation | ((imm8 & kImm8Mask) << kWtShift) |
                 (ws.code() << kWsShift) | (wd.code() << kWdShift);
@@ -1178,7 +1179,7 @@ void Assembler::GenInstrMsaI8(SecondaryField operation, uint32_t imm8,
 
 void Assembler::GenInstrMsaI5(SecondaryField operation, SecondaryField df,
                               int32_t imm5, MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(ws.is_valid() && wd.is_valid());
   DCHECK((operation == MAXI_S) || (operation == MINI_S) ||
                  (operation == CEQI) || (operation == CLTI_S) ||
@@ -1192,7 +1193,7 @@ void Assembler::GenInstrMsaI5(SecondaryField operation, SecondaryField df,
 
 void Assembler::GenInstrMsaBit(SecondaryField operation, SecondaryField df,
                                uint32_t m, MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(ws.is_valid() && wd.is_valid() && is_valid_msa_df_m(df, m));
   Instr instr = MSA | operation | df | (m << kWtShift) |
                 (ws.code() << kWsShift) | (wd.code() << kWdShift);
@@ -1201,7 +1202,7 @@ void Assembler::GenInstrMsaBit(SecondaryField operation, SecondaryField df,
 
 void Assembler::GenInstrMsaI10(SecondaryField operation, SecondaryField df,
                                int32_t imm10, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(wd.is_valid() && is_int10(imm10));
   Instr instr = MSA | operation | df | ((imm10 & kImm10Mask) << kWsShift) |
                 (wd.code() << kWdShift);
@@ -1211,7 +1212,7 @@ void Assembler::GenInstrMsaI10(SecondaryField operation, SecondaryField df,
 template <typename RegType>
 void Assembler::GenInstrMsa3R(SecondaryField operation, SecondaryField df,
                               RegType t, MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(t.is_valid() && ws.is_valid() && wd.is_valid());
   Instr instr = MSA | operation | df | (t.code() << kWtShift) |
                 (ws.code() << kWsShift) | (wd.code() << kWdShift);
@@ -1221,7 +1222,7 @@ void Assembler::GenInstrMsa3R(SecondaryField operation, SecondaryField df,
 template <typename DstType, typename SrcType>
 void Assembler::GenInstrMsaElm(SecondaryField operation, SecondaryField df,
                                uint32_t n, SrcType src, DstType dst) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(src.is_valid() && dst.is_valid() && is_valid_msa_df_n(df, n));
   Instr instr = MSA | operation | df | (n << kWtShift) |
                 (src.code() << kWsShift) | (dst.code() << kWdShift) |
@@ -1231,7 +1232,7 @@ void Assembler::GenInstrMsaElm(SecondaryField operation, SecondaryField df,
 
 void Assembler::GenInstrMsa3RF(SecondaryField operation, uint32_t df,
                                MSARegister wt, MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(wt.is_valid() && ws.is_valid() && wd.is_valid());
   DCHECK_LT(df, 2);
   Instr instr = MSA | operation | (df << 21) | (wt.code() << kWtShift) |
@@ -1241,7 +1242,7 @@ void Assembler::GenInstrMsa3RF(SecondaryField operation, uint32_t df,
 
 void Assembler::GenInstrMsaVec(SecondaryField operation, MSARegister wt,
                                MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(wt.is_valid() && ws.is_valid() && wd.is_valid());
   Instr instr = MSA | operation | (wt.code() << kWtShift) |
                 (ws.code() << kWsShift) | (wd.code() << kWdShift) |
@@ -1251,7 +1252,7 @@ void Assembler::GenInstrMsaVec(SecondaryField operation, MSARegister wt,
 
 void Assembler::GenInstrMsaMI10(SecondaryField operation, int32_t s10,
                                 Register rs, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(rs.is_valid() && wd.is_valid() && is_int10(s10));
   Instr instr = MSA | operation | ((s10 & kImm10Mask) << kWtShift) |
                 (rs.code() << kWsShift) | (wd.code() << kWdShift);
@@ -1260,7 +1261,7 @@ void Assembler::GenInstrMsaMI10(SecondaryField operation, int32_t s10,
 
 void Assembler::GenInstrMsa2R(SecondaryField operation, SecondaryField df,
                               MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(ws.is_valid() && wd.is_valid());
   Instr instr = MSA | MSA_2R_FORMAT | operation | df | (ws.code() << kWsShift) |
                 (wd.code() << kWdShift) | MSA_VEC_2R_2RF_MINOR;
@@ -1269,7 +1270,7 @@ void Assembler::GenInstrMsa2R(SecondaryField operation, SecondaryField df,
 
 void Assembler::GenInstrMsa2RF(SecondaryField operation, SecondaryField df,
                                MSARegister ws, MSARegister wd) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(ws.is_valid() && wd.is_valid());
   Instr instr = MSA | MSA_2RF_FORMAT | operation | df |
                 (ws.code() << kWsShift) | (wd.code() << kWdShift) |
@@ -1279,7 +1280,7 @@ void Assembler::GenInstrMsa2RF(SecondaryField operation, SecondaryField df,
 
 void Assembler::GenInstrMsaBranch(SecondaryField operation, MSARegister wt,
                                   int32_t offset16) {
-  DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));
+  DCHECK(IsEnabled(MIPS_SIMD));
   DCHECK(wt.is_valid() && is_int16(offset16));
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Instr instr =
@@ -3157,28 +3158,29 @@ MSA_BRANCH_LIST(MSA_BRANCH)
 #undef MSA_BRANCH_LIST
 
 #define MSA_LD_ST_LIST(V) \
-  V(ld_b, LD_B)           \
-  V(ld_h, LD_H)           \
-  V(ld_w, LD_W)           \
-  V(ld_d, LD_D)           \
-  V(st_b, ST_B)           \
-  V(st_h, ST_H)           \
-  V(st_w, ST_W)           \
-  V(st_d, ST_D)
+  V(ld_b, LD_B, 1)        \
+  V(ld_h, LD_H, 2)        \
+  V(ld_w, LD_W, 4)        \
+  V(ld_d, LD_D, 8)        \
+  V(st_b, ST_B, 1)        \
+  V(st_h, ST_H, 2)        \
+  V(st_w, ST_W, 4)        \
+  V(st_d, ST_D, 8)
 
-#define MSA_LD_ST(name, opcode)                                  \
-  void Assembler::name(MSARegister wd, const MemOperand& rs) {   \
-    MemOperand source = rs;                                      \
-    AdjustBaseAndOffset(&source);                                 \
-    if (is_int10(source.offset())) {                             \
-      GenInstrMsaMI10(opcode, source.offset(), source.rm(), wd); \
-    } else {                                                     \
-      UseScratchRegisterScope temps(this);                       \
-      Register scratch = temps.Acquire();                        \
-      DCHECK(rs.rm() != scratch);                                \
-      daddiu(scratch, source.rm(), source.offset());             \
-      GenInstrMsaMI10(opcode, 0, scratch, wd);                   \
-    }                                                            \
+#define MSA_LD_ST(name, opcode, b)                                   \
+  void Assembler::name(MSARegister wd, const MemOperand& rs) {       \
+    MemOperand source = rs;                                          \
+    AdjustBaseAndOffset(&source);                                    \
+    if (is_int10(source.offset())) {                                 \
+      DCHECK_EQ(source.offset() % b, 0);                             \
+      GenInstrMsaMI10(opcode, source.offset() / b, source.rm(), wd); \
+    } else {                                                         \
+      UseScratchRegisterScope temps(this);                           \
+      Register scratch = temps.Acquire();                            \
+      DCHECK_NE(rs.rm(), scratch);                                   \
+      daddiu(scratch, source.rm(), source.offset());                 \
+      GenInstrMsaMI10(opcode, 0, scratch, wd);                       \
+    }                                                                \
   }
 
 MSA_LD_ST_LIST(MSA_LD_ST)
@@ -3291,7 +3293,7 @@ MSA_2R_LIST(MSA_2R)
 
 #define MSA_FILL(format)                                              \
   void Assembler::fill_##format(MSARegister wd, Register rs) {        \
-    DCHECK((kArchVariant == kMips64r6) && IsEnabled(MIPS_SIMD));      \
+    DCHECK(IsEnabled(MIPS_SIMD));                                     \
     DCHECK(rs.is_valid() && wd.is_valid());                           \
     Instr instr = MSA | MSA_2R_FORMAT | FILL | MSA_2R_DF_##format |   \
                   (rs.code() << kWsShift) | (wd.code() << kWdShift) | \

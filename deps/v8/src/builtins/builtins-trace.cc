@@ -10,6 +10,10 @@
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 
+#if defined(V8_USE_PERFETTO)
+#include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -69,6 +73,7 @@ class MaybeUtf8 {
   std::unique_ptr<uint8_t> allocated_;
 };
 
+#if !defined(V8_USE_PERFETTO)
 class JsonTraceValue : public ConvertableToTraceFormat {
  public:
   explicit JsonTraceValue(Isolate* isolate, Handle<String> object) {
@@ -91,6 +96,7 @@ const uint8_t* GetCategoryGroupEnabled(Isolate* isolate,
   MaybeUtf8 category(isolate, string);
   return TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(*category);
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 #undef MAX_STACK_LENGTH
 
@@ -104,8 +110,15 @@ BUILTIN(IsTraceCategoryEnabled) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kTraceEventCategoryError));
   }
-  return isolate->heap()->ToBoolean(
-      *GetCategoryGroupEnabled(isolate, Handle<String>::cast(category)));
+  bool enabled;
+#if defined(V8_USE_PERFETTO)
+  MaybeUtf8 category_str(isolate, Handle<String>::cast(category));
+  perfetto::DynamicCategory dynamic_category{*category_str};
+  enabled = TRACE_EVENT_CATEGORY_ENABLED(dynamic_category);
+#else
+  enabled = *GetCategoryGroupEnabled(isolate, Handle<String>::cast(category));
+#endif
+  return isolate->heap()->ToBoolean(enabled);
 }
 
 // Builtins::kTrace(phase, category, name, id, data) : bool
@@ -118,18 +131,23 @@ BUILTIN(Trace) {
   Handle<Object> id_arg = args.atOrUndefined(isolate, 4);
   Handle<Object> data_arg = args.atOrUndefined(isolate, 5);
 
+  // Exit early if the category group is not enabled.
+#if defined(V8_USE_PERFETTO)
+  MaybeUtf8 category_str(isolate, Handle<String>::cast(category));
+  perfetto::DynamicCategory dynamic_category{*category_str};
+  if (!TRACE_EVENT_CATEGORY_ENABLED(dynamic_category))
+    return ReadOnlyRoots(isolate).false_value();
+#else
   const uint8_t* category_group_enabled =
       GetCategoryGroupEnabled(isolate, Handle<String>::cast(category));
-
-  // Exit early if the category group is not enabled.
-  if (!*category_group_enabled) {
-    return ReadOnlyRoots(isolate).false_value();
-  }
+  if (!*category_group_enabled) return ReadOnlyRoots(isolate).false_value();
+#endif
 
   if (!phase_arg->IsNumber()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kTraceEventPhaseError));
   }
+  char phase = static_cast<char>(DoubleToInt32(phase_arg->Number()));
   if (!category->IsString()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kTraceEventCategoryError));
@@ -160,32 +178,67 @@ BUILTIN(Trace) {
   // We support passing one additional trace event argument with the
   // name "data". Any JSON serializable value may be passed.
   static const char* arg_name = "data";
+  Handle<Object> arg_json;
   int32_t num_args = 0;
-  uint8_t arg_type;
-  uint64_t arg_value;
-
   if (!data_arg->IsUndefined(isolate)) {
     // Serializes the data argument as a JSON string, which is then
     // copied into an object. This eliminates duplicated code but
     // could have perf costs. It is also subject to all the same
     // limitations as JSON.stringify() as it relates to circular
     // references and value limitations (e.g. BigInt is not supported).
-    Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
+        isolate, arg_json,
         JsonStringify(isolate, data_arg, isolate->factory()->undefined_value(),
                       isolate->factory()->undefined_value()));
-    std::unique_ptr<JsonTraceValue> traced_value;
-    traced_value.reset(
-        new JsonTraceValue(isolate, Handle<String>::cast(result)));
-    tracing::SetTraceValue(std::move(traced_value), &arg_type, &arg_value);
     num_args++;
   }
 
+#if defined(V8_USE_PERFETTO)
+  auto trace_args = [&](perfetto::EventContext ctx) {
+    // TODO(skyostil): Use interned names to reduce trace size.
+    if (phase != TRACE_EVENT_PHASE_END) {
+      ctx.event()->set_name(*name);
+    }
+    if (num_args) {
+      MaybeUtf8 arg_contents(isolate, Handle<String>::cast(arg_json));
+      auto annotation = ctx.event()->add_debug_annotations();
+      annotation->set_name(arg_name);
+      annotation->set_legacy_json_value(*arg_contents);
+    }
+    if (flags & TRACE_EVENT_FLAG_HAS_ID) {
+      auto legacy_event = ctx.event()->set_legacy_event();
+      legacy_event->set_global_id(id);
+    }
+  };
+
+  switch (phase) {
+    case TRACE_EVENT_PHASE_BEGIN:
+      TRACE_EVENT_BEGIN(dynamic_category, nullptr, trace_args);
+      break;
+    case TRACE_EVENT_PHASE_END:
+      TRACE_EVENT_END(dynamic_category, trace_args);
+      break;
+    case TRACE_EVENT_PHASE_INSTANT:
+      TRACE_EVENT_INSTANT(dynamic_category, nullptr, trace_args);
+      break;
+    default:
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kTraceEventPhaseError));
+  }
+
+#else   // !defined(V8_USE_PERFETTO)
+  uint8_t arg_type;
+  uint64_t arg_value;
+  if (num_args) {
+    std::unique_ptr<JsonTraceValue> traced_value(
+        new JsonTraceValue(isolate, Handle<String>::cast(arg_json)));
+    tracing::SetTraceValue(std::move(traced_value), &arg_type, &arg_value);
+  }
+
   TRACE_EVENT_API_ADD_TRACE_EVENT(
-      static_cast<char>(DoubleToInt32(phase_arg->Number())),
-      category_group_enabled, *name, tracing::kGlobalScope, id, tracing::kNoId,
-      num_args, &arg_name, &arg_type, &arg_value, flags);
+      phase, category_group_enabled, *name, tracing::kGlobalScope, id,
+      tracing::kNoId, num_args, &arg_name, &arg_type, &arg_value, flags);
+#endif  // !defined(V8_USE_PERFETTO)
 
   return ReadOnlyRoots(isolate).true_value();
 }

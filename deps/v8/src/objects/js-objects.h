@@ -206,15 +206,17 @@ class JSReceiver : public HeapObject {
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsExtensible(
       Handle<JSReceiver> object);
 
-  // Returns the class name ([[Class]] property in the specification).
+  // Returns the class name.
   V8_EXPORT_PRIVATE String class_name();
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
   static MaybeHandle<JSFunction> GetConstructor(Handle<JSReceiver> receiver);
 
-  // Returns the constructor name (the name (possibly, inferred name) of the
-  // function that was used to instantiate the object).
+  // Returns the constructor name (the (possibly inferred) name of the function
+  // that was used to instantiate the object), if any. If a FunctionTemplate is
+  // used to instantiate the object, the class_name of the FunctionTemplate is
+  // returned instead.
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
   V8_EXPORT_PRIVATE Handle<NativeContext> GetCreationContext();
@@ -1278,7 +1280,8 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   // {raw_date} is a tagged Object pointer.
   // {smi_index} is a tagged Smi.
   // The return value is a tagged Object pointer.
-  static Address GetField(Address raw_date, Address smi_index);
+  static Address GetField(Isolate* isolate, Address raw_date,
+                          Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 
@@ -1318,8 +1321,7 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   };
 
  private:
-  inline Object DoGetField(FieldIndex index);
-
+  Object DoGetField(Isolate* isolate, FieldIndex index);
   Object GetUTCField(FieldIndex index, double value, DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.

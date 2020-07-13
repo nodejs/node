@@ -86,7 +86,8 @@ class SharedEngineIsolate {
 
   Handle<WasmInstanceObject> ImportInstance(SharedModule shared_module) {
     Handle<WasmModuleObject> module_object =
-        isolate()->wasm_engine()->ImportNativeModule(isolate(), shared_module);
+        isolate()->wasm_engine()->ImportNativeModule(isolate(), shared_module,
+                                                     {});
     ErrorThrower thrower(isolate(), "ImportInstance");
     MaybeHandle<WasmInstanceObject> instance =
         isolate()->wasm_engine()->SyncInstantiate(isolate(), &thrower,

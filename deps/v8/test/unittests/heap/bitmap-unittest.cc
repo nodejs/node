@@ -41,7 +41,7 @@ TEST_F(NonAtomicBitmapTest, Cells) {
 }
 
 TEST_F(NonAtomicBitmapTest, CellsCount) {
-  int last_cell_index = bitmap()->CellsCount() - 1;
+  size_t last_cell_index = bitmap()->CellsCount() - 1;
   bitmap()->cells()[last_cell_index] = kBlackCell;
   // Manually verify on raw memory.
   uint8_t* raw = raw_bitmap();

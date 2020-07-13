@@ -14,12 +14,25 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
 
 // Mock Math.random.
 (function() {
-  let index = 0
+  let index = 1;
   Math.random = function() {
-    index = (index + 1) % 10;
-    return index / 10.0;
+      const x = Math.sin(index++) * 10000;
+      return x - Math.floor(x);
   }
 })();
+
+// Mock Math.pow. Work around an optimization for -0.5.
+(function() {
+  const origMathPow = Math.pow;
+  Math.pow = function(a, b) {
+    if (b === -0.5) {
+      return 0;
+    } else {
+      return origMathPow(a, b);
+    }
+  }
+})();
+
 
 // Mock Date.
 (function() {
@@ -159,3 +172,14 @@ Object.defineProperty(
     }
   };
 })();
+
+// Mock Realm.
+Realm.eval = function(realm, code) { return eval(code) };
+
+// Mock the nondeterministic parts of WeakRef and FinalizationRegistry.
+WeakRef.prototype.deref = function() { };
+FinalizationRegistry = function(callback) { };
+FinalizationRegistry.prototype.register = function(target, holdings) { };
+FinalizationRegistry.prototype.unregister = function(unregisterToken) { };
+FinalizationRegistry.prototype.cleanupSome = function() { };
+FinalizationRegistry.prototype[Symbol.toStringTag] = "FinalizationRegistry";

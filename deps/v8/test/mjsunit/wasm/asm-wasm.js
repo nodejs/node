@@ -1397,3 +1397,27 @@ assertWasm(3.25, TestFloatGlobals);
   assertEquals(42, m.bar());
   assertEquals(42, m.baz());
 })();
+
+(function TestGenerator() {
+  function* asmModule() {
+    "use asm";
+    function foo() {
+      return 42;
+    }
+    return {foo: foo};
+  }
+  asmModule();
+  assertFalse(%IsAsmWasmCode(asmModule));
+})();
+
+(function TestAsyncFunction() {
+  async function asmModule() {
+    "use asm";
+    function foo() {
+      return 42;
+    }
+    return {foo: foo};
+  }
+  asmModule();
+  assertFalse(%IsAsmWasmCode(asmModule));
+})();

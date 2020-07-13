@@ -62,6 +62,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Node* Int32Mul(Node* lhs, Node* rhs);
   Node* Int32Div(Node* dividend, int32_t divisor);
   Node* Uint32Div(Node* dividend, uint32_t divisor);
+  Node* TruncateInt64ToInt32(Node* value);
 
   Reduction ReplaceBool(bool value) { return ReplaceInt32(value ? 1 : 0); }
   Reduction ReplaceFloat32(volatile float value) {
@@ -91,6 +92,9 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceUint32Mod(Node* node);
   Reduction ReduceStore(Node* node);
   Reduction ReduceProjection(size_t index, Node* node);
+  const Operator* Map64To32Comparison(const Operator* op, bool sign_extended);
+  Reduction ReduceWord32Comparisons(Node* node);
+  Reduction ReduceWord64Comparisons(Node* node);
   Reduction ReduceWord32Shifts(Node* node);
   Reduction ReduceWord32Shl(Node* node);
   Reduction ReduceWord64Shl(Node* node);
@@ -109,6 +113,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);
   Reduction ReduceFloat64RoundDown(Node* node);
+  Reduction ReduceTruncateInt64ToInt32(Node* node);
   Reduction ReduceConditional(Node* node);
 
   Graph* graph() const;
@@ -124,6 +129,18 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceWordNOr(Node* node);
   template <typename WordNAdapter>
   Reduction ReduceWordNXor(Node* node);
+
+  // Helper for ReduceConditional. Does not perform the actual reduction; just
+  // returns a new Node that could be used as the input to the condition.
+  template <typename WordNAdapter>
+  base::Optional<Node*> ReduceConditionalN(Node* node);
+
+  // Helper for finding a reduced equality condition. Does not perform the
+  // actual reduction; just returns a new pair that could be compared for the
+  // same outcome.
+  template <typename WordNAdapter>
+  base::Optional<std::pair<Node*, uint32_t>> ReduceWord32EqualForConstantRhs(
+      Node* lhs, uint32_t rhs);
 
   MachineGraph* mcgraph_;
   bool allow_signalling_nan_;

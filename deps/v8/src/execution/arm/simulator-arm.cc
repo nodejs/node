@@ -4589,7 +4589,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           case 0: {
             // vmov.i32 Qd, #<imm>
             int vd = instr->VFPDRegValue(kSimd128Precision);
-            uint64_t imm = instr->Bit(24, 24) << 7;  // i
+            uint64_t imm = instr->Bit(24) << 7;      // i
             imm |= instr->Bits(18, 16) << 4;         // imm3
             imm |= instr->Bits(3, 0);                // imm4
             imm |= imm << 32;
@@ -5405,7 +5405,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
           bool dst_unsigned = instr->Bit(6) != 0;
-          bool src_unsigned = instr->Bit(7, 6) == 0b11;
+          bool src_unsigned = instr->Bits(7, 6) == 0b11;
           DCHECK_IMPLIES(src_unsigned, dst_unsigned);
           switch (size) {
             case Neon8: {

@@ -46,14 +46,14 @@ class CsvParser {
     while (nextPos !== -1) {
       let escapeIdentifier = string.charAt(nextPos + 1);
       pos = nextPos + 2;
-      if (escapeIdentifier == 'n') {
+      if (escapeIdentifier === 'n') {
         result += '\n';
         nextPos = pos;
-      } else if (escapeIdentifier == '\\') {
+      } else if (escapeIdentifier === '\\') {
         result += '\\';
         nextPos = pos;
       } else {
-        if (escapeIdentifier == 'x') {
+        if (escapeIdentifier === 'x') {
           // \x00 ascii range escapes consume 2 chars.
           nextPos = pos + 2;
         } else {
@@ -71,7 +71,7 @@ class CsvParser {
       // If there are no more escape sequences consume the rest of the string.
       if (nextPos === -1) {
         result += string.substr(pos);
-      } else if (pos != nextPos) {
+      } else if (pos !== nextPos) {
         result += string.substring(pos, nextPos);
       }
     }

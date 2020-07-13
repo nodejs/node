@@ -163,9 +163,7 @@ Handle<String> JSSegmenter::GranularityAsString() const {
 }
 
 const std::set<std::string>& JSSegmenter::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::BreakIterator>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
-  return available_locales.Pointer()->Get();
+  return Intl::GetAvailableLocales();
 }
 
 }  // namespace internal

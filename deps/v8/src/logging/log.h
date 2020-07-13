@@ -117,7 +117,7 @@ class Logger : public CodeEventListener {
   };
 
   explicit Logger(Isolate* isolate);
-  ~Logger();
+  ~Logger() override;
 
   // The separator is used to write an unescaped "," into the log.
   static const LogSeparator kNext;

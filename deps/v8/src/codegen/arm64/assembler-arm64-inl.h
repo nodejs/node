@@ -660,6 +660,7 @@ Address RelocInfo::constant_pool_entry_address() {
 HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
+    CHECK(!host_.is_null());
     return HeapObject::cast(Object(DecompressTaggedAny(
         host_.address(),
         Assembler::target_compressed_address_at(pc_, constant_pool_))));

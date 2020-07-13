@@ -6,5 +6,6 @@ omerkatz@chromium.org
 ulan@chromium.org
 
 per-file *factory*=leszeks@chromium.org
+per-file read-only-*=delphick@chromium.org
 
 # COMPONENT: Blink>JavaScript>GC

@@ -5,8 +5,7 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_called = false;
-function cleanup(iter) {
-  [...iter];
+function cleanup(holdings) {
   cleanup_called = true;
 };
 (function() {

@@ -106,6 +106,9 @@ void V8::InitializeOncePerProcessImpl() {
 
   if (FLAG_random_seed) SetRandomMmapSeed(FLAG_random_seed);
 
+#if defined(V8_USE_PERFETTO)
+  TrackEvent::Register();
+#endif
   Isolate::InitializeOncePerProcess();
 
 #if defined(USE_SIMULATOR)

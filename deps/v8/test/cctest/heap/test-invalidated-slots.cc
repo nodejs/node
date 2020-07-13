@@ -4,12 +4,12 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/invalidated-slots.h"
+#include "src/heap/memory-chunk.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"

@@ -3,31 +3,49 @@
 // found in the LICENSE file.
 
 @abstract
+@generateCppClass
 extern class FixedArrayBase extends HeapObject {
+  // length of the array.
   const length: Smi;
 }
 
-extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
+@generateBodyDescriptor
+@generateCppClass
+extern class FixedArray extends FixedArrayBase {
+  objects[length]: Object;
+}
 
 type EmptyFixedArray extends FixedArray;
 
+@generateCppClass
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
-extern class WeakFixedArray extends HeapObject { length: Smi; }
+@generateBodyDescriptor
+@generateCppClass
+extern class WeakFixedArray extends HeapObject {
+  const length: Smi;
+  objects[length]: MaybeObject;
+}
 
-extern class ByteArray extends FixedArrayBase {}
+@generateCppClass
+extern class ByteArray extends FixedArrayBase {
+  bytes[length]: uint8;
+}
 
 @hasSameInstanceTypeAsParent
+@generateCppClass
 extern class ArrayList extends FixedArray {
 }
 
 @hasSameInstanceTypeAsParent
-@noVerifier
+@generateCppClass
 extern class TemplateList extends FixedArray {
 }
 
+@generateBodyDescriptor
+@generateCppClass
 extern class WeakArrayList extends HeapObject {
   const capacity: Smi;
   length: Smi;
@@ -120,8 +138,15 @@ macro ExtractFixedDoubleArray(
           ConstantIterator(kDoubleHole)));
 }
 
+namespace runtime {
+extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
+}
+
 macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
   if (length == 0) return kEmptyFixedArray;
+  if (length > kFixedArrayMaxLength) deferred {
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
   return new
   FixedArray{map: kFixedArrayMap, length: Convert<Smi>(length), objects: ...it};
 }
@@ -129,6 +154,9 @@ macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
 macro NewFixedDoubleArray<Iterator: type>(
     length: intptr, it: Iterator): FixedDoubleArray|EmptyFixedArray {
   if (length == 0) return kEmptyFixedArray;
+  if (length > kFixedDoubleArrayMaxLength) deferred {
+      runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);
+    }
   return new FixedDoubleArray{
     map: kFixedDoubleArrayMap,
     length: Convert<Smi>(length),

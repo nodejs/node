@@ -32,7 +32,7 @@ class BytecodeJumpTable;
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   explicit BytecodeGenerator(
-      UnoptimizedCompilationInfo* info,
+      Zone* zone, UnoptimizedCompilationInfo* info,
       const AstStringConstants* ast_string_constants,
       std::vector<FunctionLiteral*>* eager_inner_literals);
 

@@ -29,8 +29,8 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
   DCHECK(isolate->handle_scope_implementer()->blocks()->empty());
   // Read-only object cache is not yet populated.
   DCHECK(!ro_heap->read_only_object_cache_is_initialized());
-  // Partial snapshot cache is not yet populated.
-  DCHECK(isolate->partial_snapshot_cache()->empty());
+  // Startup object cache is not yet populated.
+  DCHECK(isolate->startup_object_cache()->empty());
   // Builtins are not yet created.
   DCHECK(!isolate->builtins()->is_initialized());
 

@@ -7,6 +7,8 @@
 namespace v8 {
 namespace internal {
 
+const size_t Bitmap::kSize = Bitmap::CellsCount() * Bitmap::kBytesPerCell;
+
 template <>
 bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsSetInRange(
     uint32_t start_index, uint32_t end_index) {
@@ -77,7 +79,7 @@ class CellPrinter {
  public:
   CellPrinter() : seq_start(0), seq_type(0), seq_length(0) {}
 
-  void Print(uint32_t pos, uint32_t cell) {
+  void Print(size_t pos, uint32_t cell) {
     if (cell == seq_type) {
       seq_length++;
       return;
@@ -92,14 +94,14 @@ class CellPrinter {
       return;
     }
 
-    PrintF("%d: ", pos);
+    PrintF("%zu: ", pos);
     PrintWord(cell);
     PrintF("\n");
   }
 
   void Flush() {
     if (seq_length > 0) {
-      PrintF("%d: %dx%d\n", seq_start, seq_type == 0 ? 0 : 1,
+      PrintF("%zu: %dx%zu\n", seq_start, seq_type == 0 ? 0 : 1,
              seq_length * Bitmap::kBitsPerCell);
       seq_length = 0;
     }
@@ -108,9 +110,9 @@ class CellPrinter {
   static bool IsSeq(uint32_t cell) { return cell == 0 || cell == 0xFFFFFFFF; }
 
  private:
-  uint32_t seq_start;
+  size_t seq_start;
   uint32_t seq_type;
-  uint32_t seq_length;
+  size_t seq_length;
 };
 
 }  // anonymous namespace
@@ -118,7 +120,7 @@ class CellPrinter {
 template <>
 void ConcurrentBitmap<AccessMode::NON_ATOMIC>::Print() {
   CellPrinter printer;
-  for (int i = 0; i < CellsCount(); i++) {
+  for (size_t i = 0; i < CellsCount(); i++) {
     printer.Print(i, cells()[i]);
   }
   printer.Flush();
@@ -127,7 +129,7 @@ void ConcurrentBitmap<AccessMode::NON_ATOMIC>::Print() {
 
 template <>
 bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::IsClean() {
-  for (int i = 0; i < CellsCount(); i++) {
+  for (size_t i = 0; i < CellsCount(); i++) {
     if (cells()[i] != 0) {
       return false;
     }

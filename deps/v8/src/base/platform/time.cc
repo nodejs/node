@@ -125,12 +125,6 @@ V8_INLINE bool IsHighResolutionTimer(clockid_t clk_id) {
 }
 
 #elif V8_OS_WIN
-V8_INLINE bool IsQPCReliable() {
-  v8::base::CPU cpu;
-  // On Athlon X2 CPUs (e.g. model 15) QueryPerformanceCounter is unreliable.
-  return strcmp(cpu.vendor(), "AuthenticAMD") == 0 && cpu.family() == 15;
-}
-
 // Returns the current value of the performance counter.
 V8_INLINE uint64_t QPCNowRaw() {
   LARGE_INTEGER perf_counter_now = {};
@@ -645,11 +639,6 @@ TimeDelta QPCValueToTimeDelta(LONGLONG qpc_value) {
 
 TimeTicks QPCNow() { return TimeTicks() + QPCValueToTimeDelta(QPCNowRaw()); }
 
-bool IsBuggyAthlon(const CPU& cpu) {
-  // On Athlon X2 CPUs (e.g. model 15) QueryPerformanceCounter is unreliable.
-  return strcmp(cpu.vendor(), "AuthenticAMD") == 0 && cpu.family() == 15;
-}
-
 void InitializeTimeTicksNowFunctionPointer() {
   LARGE_INTEGER ticks_per_sec = {};
   if (!QueryPerformanceFrequency(&ticks_per_sec)) ticks_per_sec.QuadPart = 0;
@@ -667,8 +656,7 @@ void InitializeTimeTicksNowFunctionPointer() {
   // ~72% of users fall within this category.
   TimeTicksNowFunction now_function;
   CPU cpu;
-  if (ticks_per_sec.QuadPart <= 0 || !cpu.has_non_stop_time_stamp_counter() ||
-      IsBuggyAthlon(cpu)) {
+  if (ticks_per_sec.QuadPart <= 0 || !cpu.has_non_stop_time_stamp_counter()) {
     now_function = &RolloverProtectedNow;
   } else {
     now_function = &QPCNow;
@@ -800,8 +788,7 @@ ThreadTicks ThreadTicks::GetForThread(const HANDLE& thread_handle) {
 
 // static
 bool ThreadTicks::IsSupportedWin() {
-  static bool is_supported = base::CPU().has_non_stop_time_stamp_counter() &&
-                             !IsQPCReliable();
+  static bool is_supported = base::CPU().has_non_stop_time_stamp_counter();
   return is_supported;
 }
 

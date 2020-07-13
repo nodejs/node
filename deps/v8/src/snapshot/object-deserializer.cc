@@ -41,16 +41,15 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     Object root;
-    VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
-                     FullObjectSlot(&root));
+    VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(&root));
     DeserializeDeferredObjects();
     FlushICache();
     LinkAllocationSites();
     LogNewMapEvents();
     result = handle(HeapObject::cast(root), isolate);
+    Rehash();
     allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }
-  Rehash();
   CommitPostProcessedObjects();
   return scope.CloseAndEscape(result);
 }
@@ -91,8 +90,7 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
   }
 
   for (Handle<JSArrayBuffer> buffer : new_off_heap_array_buffers()) {
-    // Serializer writes backing store ref in |backing_store| field.
-    size_t store_index = reinterpret_cast<size_t>(buffer->backing_store());
+    uint32_t store_index = buffer->GetBackingStoreRefForDeserialization();
     auto bs = backing_store(store_index);
     SharedFlag shared =
         bs && bs->is_shared() ? SharedFlag::kShared : SharedFlag::kNotShared;

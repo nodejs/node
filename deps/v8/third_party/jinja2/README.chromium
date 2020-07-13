@@ -2,6 +2,7 @@ Name: Jinja2 Python Template Engine
 Short Name: jinja2
 URL: http://jinja.pocoo.org/
 Version: 2.10
+CPEPrefix: cpe:/a:pocoo:jinja2:2.10
 License: BSD 3-Clause
 License File: LICENSE
 Security Critical: no

@@ -32,6 +32,7 @@ class GrowableFixedArray : public CodeStubAssembler {
 
   void Push(const TNode<Object> value);
 
+  TNode<FixedArray> ToFixedArray();
   TNode<JSArray> ToJSArray(const TNode<Context> context);
 
  private:

@@ -24,6 +24,7 @@
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module-sourcemap.h"
@@ -46,47 +47,59 @@ namespace wasm {
 
 using trap_handler::ProtectedInstructionData;
 
-base::AddressRegion DisjointAllocationPool::Merge(base::AddressRegion region) {
-  auto dest_it = regions_.begin();
-  auto dest_end = regions_.end();
+base::AddressRegion DisjointAllocationPool::Merge(
+    base::AddressRegion new_region) {
+  // Find the possible insertion position by identifying the first region whose
+  // start address is not less than that of {new_region}. Since there cannot be
+  // any overlap between regions, this also means that the start of {above} is
+  // bigger or equal than the *end* of {new_region}.
+  auto above = regions_.lower_bound(new_region);
+  DCHECK(above == regions_.end() || above->begin() >= new_region.end());
 
-  // Skip over dest regions strictly before {region}.
-  while (dest_it != dest_end && dest_it->end() < region.begin()) ++dest_it;
-
-  // After last dest region: insert and done.
-  if (dest_it == dest_end) {
-    regions_.push_back(region);
-    return region;
-  }
-
-  // Adjacent (from below) to dest: merge and done.
-  if (dest_it->begin() == region.end()) {
-    base::AddressRegion merged_region{region.begin(),
-                                      region.size() + dest_it->size()};
-    DCHECK_EQ(merged_region.end(), dest_it->end());
-    *dest_it = merged_region;
+  // Check whether to merge with {above}.
+  if (above != regions_.end() && new_region.end() == above->begin()) {
+    base::AddressRegion merged_region{new_region.begin(),
+                                      new_region.size() + above->size()};
+    DCHECK_EQ(merged_region.end(), above->end());
+    // Check whether to also merge with the region below.
+    if (above != regions_.begin()) {
+      auto below = above;
+      --below;
+      if (below->end() == new_region.begin()) {
+        merged_region = {below->begin(), below->size() + merged_region.size()};
+        regions_.erase(below);
+      }
+    }
+    auto insert_pos = regions_.erase(above);
+    regions_.insert(insert_pos, merged_region);
     return merged_region;
   }
 
-  // Before dest: insert and done.
-  if (dest_it->begin() > region.end()) {
-    regions_.insert(dest_it, region);
-    return region;
+  // No element below, and not adjavent to {above}: insert and done.
+  if (above == regions_.begin()) {
+    regions_.insert(above, new_region);
+    return new_region;
   }
 
-  // Src is adjacent from above. Merge and check whether the merged region is
-  // now adjacent to the next region.
-  DCHECK_EQ(dest_it->end(), region.begin());
-  dest_it->set_size(dest_it->size() + region.size());
-  DCHECK_EQ(dest_it->end(), region.end());
-  auto next_dest = dest_it;
-  ++next_dest;
-  if (next_dest != dest_end && dest_it->end() == next_dest->begin()) {
-    dest_it->set_size(dest_it->size() + next_dest->size());
-    DCHECK_EQ(dest_it->end(), next_dest->end());
-    regions_.erase(next_dest);
+  auto below = above;
+  --below;
+  // Sanity check:
+  DCHECK(above == regions_.end() || below->end() < above->begin());
+
+  // Adjacent to {below}: merge and done.
+  if (below->end() == new_region.begin()) {
+    base::AddressRegion merged_region{below->begin(),
+                                      below->size() + new_region.size()};
+    DCHECK_EQ(merged_region.end(), new_region.end());
+    regions_.erase(below);
+    regions_.insert(above, merged_region);
+    return merged_region;
   }
-  return *dest_it;
+
+  // Not adjacent to any existing region: insert between {below} and {above}.
+  DCHECK_LT(below->end(), new_region.begin());
+  regions_.insert(above, new_region);
+  return new_region;
 }
 
 base::AddressRegion DisjointAllocationPool::Allocate(size_t size) {
@@ -96,24 +109,31 @@ base::AddressRegion DisjointAllocationPool::Allocate(size_t size) {
 
 base::AddressRegion DisjointAllocationPool::AllocateInRegion(
     size_t size, base::AddressRegion region) {
-  for (auto it = regions_.begin(), end = regions_.end(); it != end; ++it) {
+  // Get an iterator to the first contained region whose start address is not
+  // smaller than the start address of {region}. Start the search from the
+  // region one before that (the last one whose start address is smaller).
+  auto it = regions_.lower_bound(region);
+  if (it != regions_.begin()) --it;
+
+  for (auto end = regions_.end(); it != end; ++it) {
     base::AddressRegion overlap = it->GetOverlap(region);
     if (size > overlap.size()) continue;
     base::AddressRegion ret{overlap.begin(), size};
-    if (size == it->size()) {
-      // We use the full region --> erase the region from {regions_}.
-      regions_.erase(it);
-    } else if (ret.begin() == it->begin()) {
-      // We return a region at the start --> shrink remaining region from front.
-      *it = base::AddressRegion{it->begin() + size, it->size() - size};
-    } else if (ret.end() == it->end()) {
+    base::AddressRegion old = *it;
+    auto insert_pos = regions_.erase(it);
+    if (size == old.size()) {
+      // We use the full region --> nothing to add back.
+    } else if (ret.begin() == old.begin()) {
+      // We return a region at the start --> shrink old region from front.
+      regions_.insert(insert_pos, {old.begin() + size, old.size() - size});
+    } else if (ret.end() == old.end()) {
       // We return a region at the end --> shrink remaining region.
-      *it = base::AddressRegion{it->begin(), it->size() - size};
+      regions_.insert(insert_pos, {old.begin(), old.size() - size});
     } else {
-      // We return something in the middle --> split the remaining region.
-      regions_.insert(
-          it, base::AddressRegion{it->begin(), ret.begin() - it->begin()});
-      *it = base::AddressRegion{ret.end(), it->end() - ret.end()};
+      // We return something in the middle --> split the remaining region
+      // (insert the region with smaller address first).
+      regions_.insert(insert_pos, {old.begin(), ret.begin() - old.begin()});
+      regions_.insert(insert_pos, {ret.end(), old.end() - ret.end()});
     }
     return ret;
   }
@@ -195,24 +215,31 @@ void WasmCode::LogCode(Isolate* isolate) const {
   if (IsAnonymous()) return;
 
   ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-  WireBytesRef name_ref = native_module()->module()->function_names.Lookup(
-      wire_bytes, index(), VectorOf(native_module()->module()->export_table));
+  WireBytesRef name_ref =
+      native_module()->module()->lazily_generated_names.LookupFunctionName(
+          wire_bytes, index(),
+          VectorOf(native_module()->module()->export_table));
   WasmName name = wire_bytes.GetNameOrNull(name_ref);
 
-  const std::string& source_map_url = native_module()->module()->source_map_url;
+  const WasmDebugSymbols& debug_symbols =
+      native_module()->module()->debug_symbols;
   auto load_wasm_source_map = isolate->wasm_load_source_map_callback();
   auto source_map = native_module()->GetWasmSourceMap();
-  if (!source_map && !source_map_url.empty() && load_wasm_source_map) {
+  if (!source_map && debug_symbols.type == WasmDebugSymbols::Type::SourceMap &&
+      !debug_symbols.external_url.is_empty() && load_wasm_source_map) {
+    WasmName external_url =
+        wire_bytes.GetNameOrNull(debug_symbols.external_url);
+    std::string external_url_string(external_url.data(), external_url.size());
     HandleScope scope(isolate);
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     Local<v8::String> source_map_str =
-        load_wasm_source_map(v8_isolate, source_map_url.c_str());
+        load_wasm_source_map(v8_isolate, external_url_string.c_str());
     native_module()->SetWasmSourceMap(
         std::make_unique<WasmModuleSourceMap>(v8_isolate, source_map_str));
   }
 
   std::string name_buffer;
-  if (kind_ == kWasmToJsWrapper) {
+  if (kind() == kWasmToJsWrapper) {
     name_buffer = "wasm-to-js:";
     size_t prefix_len = name_buffer.size();
     constexpr size_t kMaxSigLength = 128;
@@ -245,6 +272,8 @@ void WasmCode::LogCode(Isolate* isolate) const {
 
 void WasmCode::Validate() const {
 #ifdef DEBUG
+  // Scope for foreign WasmCode pointers.
+  WasmCodeRefScope code_ref_scope;
   // We expect certain relocation info modes to never appear in {WasmCode}
   // objects or to be restricted to a small set of valid values. Hence the
   // iteration below does not use a mask, but visits all relocation data.
@@ -305,7 +334,7 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
                            Address current_pc) const {
   if (name) os << "name: " << name << "\n";
   if (!IsAnonymous()) os << "index: " << index() << "\n";
-  os << "kind: " << GetWasmCodeKindAsString(kind_) << "\n";
+  os << "kind: " << GetWasmCodeKindAsString(kind()) << "\n";
   os << "compiler: " << (is_liftoff() ? "Liftoff" : "TurboFan") << "\n";
   size_t padding = instructions().size() - unpadded_binary_size_;
   os << "Body (size = " << instructions().size() << " = "
@@ -401,8 +430,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "wasm-to-capi";
     case WasmCode::kWasmToJsWrapper:
       return "wasm-to-js";
-    case WasmCode::kInterpreterEntry:
-      return "interpreter entry";
     case WasmCode::kJumpTable:
       return "jump table";
   }
@@ -442,6 +469,16 @@ void WasmCode::DecrementRefCount(Vector<WasmCode* const> code_vec) {
 
   DCHECK_EQ(dead_code.empty(), engine == nullptr);
   if (engine) engine->FreeDeadCode(dead_code);
+}
+
+int WasmCode::GetSourcePositionBefore(int offset) {
+  int position = kNoSourcePosition;
+  for (SourcePositionTableIterator iterator(source_positions());
+       !iterator.done() && iterator.code_offset() < offset;
+       iterator.Advance()) {
+    position = iterator.source_position().ScriptOffset();
+  }
+  return position;
 }
 
 WasmCodeAllocator::OptionalLock::~OptionalLock() {
@@ -800,10 +837,8 @@ void NativeModule::LogWasmCodes(Isolate* isolate) {
 }
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
-  // Protect concurrent accesses to {tier_down_}.
-  base::MutexGuard guard(&allocation_mutex_);
-  return {module(),          use_trap_handler_, kRuntimeExceptionSupport,
-          enabled_features_, kNoLowerSimd,      tier_down_};
+  return {module(), use_trap_handler_, kRuntimeExceptionSupport,
+          enabled_features_, kNoLowerSimd};
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
@@ -886,7 +921,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
                    reloc_info.as_vector(),  // reloc_info
                    source_pos.as_vector(),  // source positions
                    WasmCode::kFunction,     // kind
-                   ExecutionTier::kNone}};  // tier
+                   ExecutionTier::kNone,    // tier
+                   kNoDebugging}};          // for_debugging
   new_code->MaybePrint(nullptr);
   new_code->Validate();
 
@@ -932,23 +968,23 @@ std::unique_ptr<WasmCode> NativeModule::AddCode(
     int index, const CodeDesc& desc, int stack_slots,
     int tagged_parameter_slots, Vector<const byte> protected_instructions_data,
     Vector<const byte> source_position_table, WasmCode::Kind kind,
-    ExecutionTier tier) {
+    ExecutionTier tier, ForDebugging for_debugging) {
   Vector<byte> code_space =
       code_allocator_.AllocateForCode(this, desc.instr_size);
   auto jump_table_ref =
       FindJumpTablesForRegion(base::AddressRegionOf(code_space));
   return AddCodeWithCodeSpace(index, desc, stack_slots, tagged_parameter_slots,
                               protected_instructions_data,
-                              source_position_table, kind, tier, code_space,
-                              jump_table_ref);
+                              source_position_table, kind, tier, for_debugging,
+                              code_space, jump_table_ref);
 }
 
 std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     int index, const CodeDesc& desc, int stack_slots,
     int tagged_parameter_slots, Vector<const byte> protected_instructions_data,
     Vector<const byte> source_position_table, WasmCode::Kind kind,
-    ExecutionTier tier, Vector<uint8_t> dst_code_bytes,
-    const JumpTablesRef& jump_tables) {
+    ExecutionTier tier, ForDebugging for_debugging,
+    Vector<uint8_t> dst_code_bytes, const JumpTablesRef& jump_tables) {
   Vector<byte> reloc_info{desc.buffer + desc.buffer_size - desc.reloc_size,
                           static_cast<size_t>(desc.reloc_size)};
 
@@ -998,7 +1034,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, instr_size, protected_instructions_data, reloc_info,
-      source_position_table, kind, tier}};
+      source_position_table, kind, tier, for_debugging}};
   code->MaybePrint();
   code->Validate();
 
@@ -1010,12 +1046,22 @@ WasmCode* NativeModule::PublishCode(std::unique_ptr<WasmCode> code) {
   return PublishCodeLocked(std::move(code));
 }
 
+std::vector<WasmCode*> NativeModule::PublishCode(
+    Vector<std::unique_ptr<WasmCode>> codes) {
+  std::vector<WasmCode*> published_code;
+  published_code.reserve(codes.size());
+  base::MutexGuard lock(&allocation_mutex_);
+  // The published code is put into the top-most surrounding {WasmCodeRefScope}.
+  for (auto& code : codes) {
+    published_code.push_back(PublishCodeLocked(std::move(code)));
+  }
+  return published_code;
+}
+
 WasmCode::Kind GetCodeKind(const WasmCompilationResult& result) {
   switch (result.kind) {
     case WasmCompilationResult::kWasmToJsWrapper:
       return WasmCode::Kind::kWasmToJsWrapper;
-    case WasmCompilationResult::kInterpreterEntry:
-      return WasmCode::Kind::kInterpreterEntry;
     case WasmCompilationResult::kFunction:
       return WasmCode::Kind::kFunction;
     default:
@@ -1040,16 +1086,16 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
                       ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                   "Assume an order on execution tiers");
 
-    // Unless tier down to Liftoff: update code table but avoid to fall back to
-    // less optimized code. We use the new code if it was compiled with a higher
-    // tier.
     uint32_t slot_idx = declared_function_index(module(), code->index());
     WasmCode* prior_code = code_table_[slot_idx];
-    // TODO(clemensb): Revisit this logic once tier down is fully working.
-    const bool prefer_liftoff = tier_down_ || debug_info_;
+    // If we are tiered down, install all debugging code (except for stepping
+    // code, which is only used for a single frame and never installed in the
+    // code table of jump table). Otherwise, install code if it was compiled
+    // with a higher tier.
     const bool update_code_table =
-        prefer_liftoff ? !prior_code || code->tier() == ExecutionTier::kLiftoff
-                       : !prior_code || prior_code->tier() < code->tier();
+        tiering_state_ == kTieredDown
+            ? !prior_code || code->for_debugging() == kForDebugging
+            : !prior_code || prior_code->tier() < code->tier();
     if (update_code_table) {
       code_table_[slot_idx] = code.get();
       if (prior_code) {
@@ -1058,21 +1104,7 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
         // count cannot drop to zero here.
         CHECK(!prior_code->DecRef());
       }
-    }
 
-    // Populate optimized code to the jump table unless there is an active
-    // redirection to the interpreter that should be preserved.
-    DCHECK_NOT_NULL(main_jump_table_);
-    bool update_jump_table =
-        update_code_table && !has_interpreter_redirection(code->index());
-
-    // Ensure that interpreter entries always populate to the jump table.
-    if (code->kind_ == WasmCode::Kind::kInterpreterEntry) {
-      SetInterpreterRedirection(code->index());
-      update_jump_table = true;
-    }
-
-    if (update_jump_table) {
       PatchJumpTablesLocked(slot_idx, code->instruction_start());
     }
   }
@@ -1098,7 +1130,7 @@ WasmCode* NativeModule::AddDeserializedCode(
       this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size, protected_instructions_data,
-      reloc_info, source_position_table, kind, tier}};
+      reloc_info, source_position_table, kind, tier, kNoDebugging}};
 
   // Note: we do not flush the i-cache here, since the code needs to be
   // relocated anyway. The caller is responsible for flushing the i-cache later.
@@ -1150,21 +1182,22 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegion(
   DCHECK(!code_space.empty());
   ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{
-      new WasmCode{this,                    // native_module
-                   kAnonymousFuncIndex,     // index
-                   code_space,              // instructions
-                   0,                       // stack_slots
-                   0,                       // tagged_parameter_slots
-                   0,                       // safepoint_table_offset
-                   jump_table_size,         // handler_table_offset
-                   jump_table_size,         // constant_pool_offset
-                   jump_table_size,         // code_comments_offset
-                   jump_table_size,         // unpadded_binary_size
-                   {},                      // protected_instructions
-                   {},                      // reloc_info
-                   {},                      // source_pos
-                   WasmCode::kJumpTable,    // kind
-                   ExecutionTier::kNone}};  // tier
+      new WasmCode{this,                  // native_module
+                   kAnonymousFuncIndex,   // index
+                   code_space,            // instructions
+                   0,                     // stack_slots
+                   0,                     // tagged_parameter_slots
+                   0,                     // safepoint_table_offset
+                   jump_table_size,       // handler_table_offset
+                   jump_table_size,       // constant_pool_offset
+                   jump_table_size,       // code_comments_offset
+                   jump_table_size,       // unpadded_binary_size
+                   {},                    // protected_instructions
+                   {},                    // reloc_info
+                   {},                    // source_pos
+                   WasmCode::kJumpTable,  // kind
+                   ExecutionTier::kNone,  // tier
+                   kNoDebugging}};        // for_debugging
   return PublishCode(std::move(code));
 }
 
@@ -1450,22 +1483,6 @@ WasmCode::RuntimeStubId NativeModule::GetRuntimeStubId(Address target) const {
 
   // Invalid address.
   return WasmCode::kRuntimeStubCount;
-}
-
-const char* NativeModule::GetRuntimeStubName(Address target) const {
-  WasmCode::RuntimeStubId stub_id = GetRuntimeStubId(target);
-
-#define RUNTIME_STUB_NAME(Name) #Name,
-#define RUNTIME_STUB_NAME_TRAP(Name) "ThrowWasm" #Name,
-  constexpr const char* runtime_stub_names[] = {WASM_RUNTIME_STUB_LIST(
-      RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP) "<unknown>"};
-#undef RUNTIME_STUB_NAME
-#undef RUNTIME_STUB_NAME_TRAP
-  STATIC_ASSERT(arraysize(runtime_stub_names) ==
-                WasmCode::kRuntimeStubCount + 1);
-
-  DCHECK_GT(arraysize(runtime_stub_names), stub_id);
-  return runtime_stub_names[stub_id];
 }
 
 NativeModule::~NativeModule() {
@@ -1779,11 +1796,13 @@ void NativeModule::SampleCodeSize(
   histogram->AddSample(code_size_mb);
 }
 
-WasmCode* NativeModule::AddCompiledCode(WasmCompilationResult result) {
-  return AddCompiledCode({&result, 1})[0];
+std::unique_ptr<WasmCode> NativeModule::AddCompiledCode(
+    WasmCompilationResult result) {
+  std::vector<std::unique_ptr<WasmCode>> code = AddCompiledCode({&result, 1});
+  return std::move(code[0]);
 }
 
-std::vector<WasmCode*> NativeModule::AddCompiledCode(
+std::vector<std::unique_ptr<WasmCode>> NativeModule::AddCompiledCode(
     Vector<WasmCompilationResult> results) {
   DCHECK(!results.empty());
   // First, allocate code space for all the results.
@@ -1811,68 +1830,37 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), GetCodeKind(result),
-        result.result_tier, this_code_space, jump_tables));
+        result.result_tier, result.for_debugging, this_code_space,
+        jump_tables));
   }
   DCHECK_EQ(0, code_space.size());
 
-  // Under the {allocation_mutex_}, publish the code. The published code is put
-  // into the top-most surrounding {WasmCodeRefScope} by {PublishCodeLocked}.
-  std::vector<WasmCode*> code_vector;
-  code_vector.reserve(results.size());
-  {
-    base::MutexGuard lock(&allocation_mutex_);
-    for (auto& result : generated_code)
-      code_vector.push_back(PublishCodeLocked(std::move(result)));
-  }
-
-  return code_vector;
+  return generated_code;
 }
 
-bool NativeModule::IsRedirectedToInterpreter(uint32_t func_index) {
-  base::MutexGuard lock(&allocation_mutex_);
-  return has_interpreter_redirection(func_index);
-}
-
-bool NativeModule::SetTieredDown() {
-  // Do not tier down asm.js.
-  if (module()->origin != kWasmOrigin) return false;
+void NativeModule::SetTieringState(TieringState new_tiering_state) {
+  // Do not tier down asm.js (just never change the tiering state).
+  if (module()->origin != kWasmOrigin) return;
 
   base::MutexGuard lock(&allocation_mutex_);
-  if (tier_down_) return true;
-  tier_down_ = true;
-  return false;
+  tiering_state_ = new_tiering_state;
 }
 
 bool NativeModule::IsTieredDown() {
   base::MutexGuard lock(&allocation_mutex_);
-  return tier_down_;
+  return tiering_state_ == kTieredDown;
 }
 
-void NativeModule::TierDown(Isolate* isolate) {
-  // Do not tier down asm.js.
-  if (module()->origin != kWasmOrigin) return;
-
-  // Set the flag. Return if it is already set.
-  if (SetTieredDown()) return;
-
-  // Tier down all functions.
-  isolate->wasm_engine()->RecompileAllFunctions(isolate, this,
-                                                ExecutionTier::kLiftoff);
-}
-
-void NativeModule::TierUp(Isolate* isolate) {
-  // Do not tier up asm.js.
-  if (module()->origin != kWasmOrigin) return;
-
-  // Set the flag.
+void NativeModule::TriggerRecompilation() {
+  // Read the tiering state under the lock, then trigger recompilation after
+  // releasing the lock. If the tiering state was changed when the triggered
+  // compilation units finish, code installation will handle that correctly.
+  TieringState current_state;
   {
     base::MutexGuard lock(&allocation_mutex_);
-    tier_down_ = false;
+    current_state = tiering_state_;
   }
-
-  // Tier up all functions.
-  isolate->wasm_engine()->RecompileAllFunctions(isolate, this,
-                                                ExecutionTier::kTurbofan);
+  RecompileNativeModule(this, current_state);
 }
 
 void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
@@ -1996,6 +1984,20 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   auto entry = current_scope->code_ptrs_.insert(code);
   // If we added a new entry, increment the ref counter.
   if (entry.second) code->IncRef();
+}
+
+const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {
+#define RUNTIME_STUB_NAME(Name) #Name,
+#define RUNTIME_STUB_NAME_TRAP(Name) "ThrowWasm" #Name,
+  constexpr const char* runtime_stub_names[] = {WASM_RUNTIME_STUB_LIST(
+      RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP) "<unknown>"};
+#undef RUNTIME_STUB_NAME
+#undef RUNTIME_STUB_NAME_TRAP
+  STATIC_ASSERT(arraysize(runtime_stub_names) ==
+                WasmCode::kRuntimeStubCount + 1);
+
+  DCHECK_GT(arraysize(runtime_stub_names), stub_id);
+  return runtime_stub_names[stub_id];
 }
 
 }  // namespace wasm

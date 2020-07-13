@@ -28,6 +28,7 @@ namespace internal {
 class Heap;
 class Isolate;
 class MajorNonAtomicMarkingState;
+class MemoryChunk;
 struct WeakObjects;
 
 struct MemoryChunkData {

@@ -7,11 +7,6 @@
 
 #include "src/base/macros.h"
 
-// TODO(chromium:1056170): Implement all platforms.
-#if defined(V8_TARGET_ARCH_X64)
-#define CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN 1
-#endif
-
 namespace cppgc {
 namespace internal {
 
@@ -33,13 +28,12 @@ class V8_EXPORT_PRIVATE Stack final {
 
   // Word-aligned iteration of the stack. Slot values are passed on to
   // |visitor|.
-#ifdef CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
   void IteratePointers(StackVisitor* visitor) const;
-#endif  // CPPGC_SUPPORTS_CONSERVATIVE_STACK_SCAN
+
+  // Returns the start of the stack.
+  const void* stack_start() const { return stack_start_; }
 
  private:
-  void IteratePointersImpl(StackVisitor* visitor, intptr_t* stack_end) const;
-
   const void* stack_start_;
 };
 

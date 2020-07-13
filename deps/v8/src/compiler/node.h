@@ -144,8 +144,9 @@ class V8_EXPORT_PRIVATE Node final {
   // Returns true if {owner1} and {owner2} are the only users of {this} node.
   bool OwnedBy(Node const* owner1, Node const* owner2) const;
 
-  void Print() const;
-  void Print(std::ostream&) const;
+  void Print() const { Print(1); }
+  void Print(int depth) const;
+  void Print(std::ostream&, int depth = 1) const;
 
  private:
   struct Use;

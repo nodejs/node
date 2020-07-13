@@ -102,6 +102,7 @@ BUILTIN(DataViewConstructor) {
   // 13. Set O's [[ByteOffset]] internal slot to offset.
   Handle<JSDataView>::cast(result)->set_byte_offset(view_byte_offset);
   Handle<JSDataView>::cast(result)->set_data_pointer(
+      isolate,
       static_cast<uint8_t*>(array_buffer->backing_store()) + view_byte_offset);
 
   // 14. Return O.

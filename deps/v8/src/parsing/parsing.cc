@@ -12,6 +12,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
@@ -19,10 +20,27 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
+namespace {
+
+void MaybeReportErrorsAndStatistics(ParseInfo* info, Handle<Script> script,
+                                    Isolate* isolate, Parser* parser,
+                                    ReportErrorsAndStatisticsMode mode) {
+  if (mode == ReportErrorsAndStatisticsMode::kYes) {
+    if (info->literal() == nullptr) {
+      info->pending_error_handler()->PrepareErrors(isolate,
+                                                   info->ast_value_factory());
+      info->pending_error_handler()->ReportErrors(isolate, script);
+    }
+    parser->UpdateStatistics(isolate, script);
+  }
+}
+
+}  // namespace
+
 bool ParseProgram(ParseInfo* info, Handle<Script> script,
                   MaybeHandle<ScopeInfo> maybe_outer_scope_info,
                   Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
-  DCHECK(info->is_toplevel());
+  DCHECK(info->flags().is_toplevel());
   DCHECK_NULL(info->literal());
 
   VMState<PARSER> state(isolate);
@@ -36,27 +54,11 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script,
 
   Parser parser(info);
 
-  FunctionLiteral* result = nullptr;
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
-
-  result = parser.ParseProgram(isolate, script, info, maybe_outer_scope_info);
-  info->set_literal(result);
-  if (result) {
-    info->set_language_mode(info->literal()->language_mode());
-    if (info->is_eval()) {
-      info->set_allow_eval_cache(parser.allow_eval_cache());
-    }
-  }
-
-  if (mode == ReportErrorsAndStatisticsMode::kYes) {
-    if (result == nullptr) {
-      info->pending_error_handler()->ReportErrors(isolate, script,
-                                                  info->ast_value_factory());
-    }
-    parser.UpdateStatistics(isolate, script);
-  }
-  return (result != nullptr);
+  parser.ParseProgram(isolate, script, info, maybe_outer_scope_info);
+  MaybeReportErrorsAndStatistics(info, script, isolate, &parser, mode);
+  return info->literal() != nullptr;
 }
 
 bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
@@ -66,9 +68,11 @@ bool ParseProgram(ParseInfo* info, Handle<Script> script, Isolate* isolate,
 
 bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
                    Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
-  DCHECK(!info->is_toplevel());
+  DCHECK(!info->flags().is_toplevel());
   DCHECK(!shared_info.is_null());
   DCHECK_NULL(info->literal());
+
+  VMState<PARSER> state(isolate);
 
   // Create a character stream for the parser.
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
@@ -79,37 +83,19 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
                          shared_info->EndPosition()));
   info->set_character_stream(std::move(stream));
 
-  VMState<PARSER> state(isolate);
-
   Parser parser(info);
 
-  FunctionLiteral* result = nullptr;
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
-
-  result = parser.ParseFunction(isolate, info, shared_info);
-  info->set_literal(result);
-  if (result) {
-    info->ast_value_factory()->Internalize(isolate);
-    if (info->is_eval()) {
-      info->set_allow_eval_cache(parser.allow_eval_cache());
-    }
-  }
-
-  if (mode == ReportErrorsAndStatisticsMode::kYes) {
-    if (result == nullptr) {
-      info->pending_error_handler()->ReportErrors(isolate, script,
-                                                  info->ast_value_factory());
-    }
-    parser.UpdateStatistics(isolate, script);
-  }
-  return (result != nullptr);
+  parser.ParseFunction(isolate, info, shared_info);
+  MaybeReportErrorsAndStatistics(info, script, isolate, &parser, mode);
+  return info->literal() != nullptr;
 }
 
 bool ParseAny(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
               Isolate* isolate, ReportErrorsAndStatisticsMode mode) {
   DCHECK(!shared_info.is_null());
-  if (info->is_toplevel()) {
+  if (info->flags().is_toplevel()) {
     MaybeHandle<ScopeInfo> maybe_outer_scope_info;
     if (shared_info->HasOuterScopeInfo()) {
       maybe_outer_scope_info =

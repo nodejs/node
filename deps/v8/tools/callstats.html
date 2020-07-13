@@ -1107,7 +1107,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function handleLoadText(text, append, fileName) {
-      handleLoadJSON(JSON.parse(text), append, fileName);
+      try {
+        handleLoadJSON(JSON.parse(text), append, fileName);
+      } catch(e) {
+        if (!fileName.endsWith('.txt')) {
+          alert(`Error parsing "${fileName}"`);
+          console.error(e);
+        }
+        handleLoadTXT(text, append, fileName);
+      }
     }
 
     function getStateFromParams() {
@@ -1128,17 +1136,37 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       if (append && !isFirstLoad) {
         json = createUniqueVersions(json)
       }
-      var state = getStateFromParams();
       if (!append || isFirstLoad) {
         pages = new Pages();
         versions = Versions.fromJSON(json);
       } else {
         Versions.fromJSON(json).forEach(e => versions.add(e))
       }
+      displayResultsAfterLoading(isFirstLoad)
+    }
+
+    function handleLoadTXT(txt, append, fileName) {
+      let isFirstLoad = pages === undefined;
+      // Load raw RCS output which contains a single page
+      if (!append || isFirstLoad) {
+        pages = new Pages();
+        versions = new Versions()
+      }
+      versions.add(Version.fromTXT(fileName, txt))
+      displayResultsAfterLoading()
+
+    }
+
+    function displayResultsAfterLoading(isFirstLoad) {
+      let state = getStateFromParams();
       initialize()
       if (isFirstLoad && !popHistoryState(state)) {
         showEntry(selectedPage.total);
+        return;
       }
+      selectedPage = versions.versions[0].pages[0]
+      if (selectedPage == undefined) return;
+      showPage(selectedPage);
     }
 
     function fixClusterTelemetryResults(json) {
@@ -1358,14 +1386,15 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           if (page !== undefined) return page;
         }
       }
-    }
-    Versions.fromJSON = function(json) {
-      var versions = new Versions();
-      for (var version in json) {
-        versions.add(Version.fromJSON(version, json[version]));
+
+      static fromJSON(json) {
+        var versions = new Versions();
+        for (var version in json) {
+          versions.add(Version.fromJSON(version, json[version]));
+        }
+        versions.sort();
+        return versions;
       }
-      versions.sort();
-      return versions;
     }
 
     class Version {
@@ -1475,14 +1504,22 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       sort() {
         this.pages.sort(NameComparator)
       }
-    }
-    Version.fromJSON = function(name, data) {
-      var version = new Version(name);
-      for (var pageName in data) {
-        version.add(PageVersion.fromJSON(version, pageName, data[pageName]));
+
+      static fromJSON(name, data) {
+        var version = new Version(name);
+        for (var pageName in data) {
+          version.add(PageVersion.fromJSON(version, pageName, data[pageName]));
+        }
+        version.sort();
+        return version;
       }
-      version.sort();
-      return version;
+
+      static fromTXT(name, txt) {
+        let version = new Version(name);
+        let pageName = "RAW DATA";
+        version.add(PageVersion.fromTXT(version, pageName, txt));
+        return version;
+      }
     }
 
     class Pages extends Map {
@@ -1610,24 +1647,39 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       getNextPage() {
         return this.version.getNextPage(this);
       }
-    }
-    PageVersion.fromJSON = function(version, name, data) {
-      let page = new PageVersion(version, pages.get(name));
-      // Distinguish between the legacy format which just uses Arrays,
-      // or the new object style.
-      if (Array.isArray(data)) {
-        for (let i = 0; i < data.length; i++) {
-          page.add(Entry.fromLegacyJSON(i, data[data.length - i - 1]));
+
+      static fromJSON(version, name, data) {
+        let page = new PageVersion(version, pages.get(name));
+        // Distinguish between the legacy format which just uses Arrays,
+        // or the new object style.
+        if (Array.isArray(data)) {
+          for (let i = 0; i < data.length; i++) {
+            page.add(Entry.fromLegacyJSON(i, data[data.length - i - 1]));
+          }
+        } else {
+          let position = 0;
+          for (let metric_name in data) {
+            page.add(Entry.fromJSON(position, metric_name, data[metric_name]));
+            position++;
+          }
         }
-      } else {
-        let position = 0;
-        for (let metric_name in data) {
-          page.add(Entry.fromJSON(position, metric_name, data[metric_name]));
-          position++;
-        }
+        page.sort();
+        return page
       }
-      page.sort();
-      return page
+
+      static fromTXT(version, name, txt) {
+        let pageVersion = new PageVersion(version, pages.get(name));
+        let lines = txt.split('\n');
+        let split = / +/g
+        // Skip the first two lines (HEADER and SEPARATOR)
+        for (let i = 2; i < lines.length; i++) {
+          let line = lines[i].trim().split(split)
+          if (line.length != 5) continue;
+          let position = i-2;
+          pageVersion.add(Entry.fromTXT(position, line));
+        }
+        return pageVersion;
+      }
     }
 
 
@@ -1716,15 +1768,27 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       get timeVariancePercent() {
         return this._timeVariancePercent
       }
-    }
-    Entry.fromLegacyJSON = function(position, data) {
-      return new Entry(position, ...data);
-    }
-    Entry.fromJSON = function(position, name, data) {
-      let time = data.duration;
-      let count = data.count;
-      return new Entry(position, name, time.average, time.stddev, 
-                       count.average, count.stddev);
+
+      static fromLegacyJSON(position, data) {
+        return new Entry(position, ...data);
+      }
+
+      static fromJSON(position, name, data) {
+        let time = data.duration;
+        let count = data.count;
+        return new Entry(position, name, time.average, time.stddev, 0,
+                        count.average, count.stddev, 0);
+      }
+
+      static fromTXT(position, splitLine) {
+        let [name, time, timePercent, count, countPercent] = splitLine;
+        time = time.split('ms')
+        let timeDeviation = 0, countDeviation = 0;
+        let timeDeviationPercent = 0, countDeviationPercent = 0
+        return new Entry(position, name,
+          Number.parseFloat(time), timeDeviation, timeDeviationPercent,
+          Number.parseInt(count), countDeviation, countDeviationPercent)
+      }
     }
 
     class Group {
@@ -1899,11 +1963,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       <form name="fileForm">
         <p>
           <label for="uploadInput">Load File:</label>
-          <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json">
+          <input id="uploadInput" type="file" name="files" onchange="handleLoadFile();" accept=".json,.txt">
         </p>
         <p>
           <label for="appendInput">Append File:</label>
-          <input id="appendInput" type="file" name="files" onchange="handleAppendFile();" accept=".json">
+          <input id="appendInput" type="file" name="files" onchange="handleAppendFile();" accept=".json,.txt">
         </p>
       </form>
     </div>

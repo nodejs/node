@@ -122,6 +122,21 @@ class ActualScript : public V8DebuggerScript {
     return v8::Just(v8::debug::WasmScript::Cast(*script)->Bytecode());
   }
   Language getLanguage() const override { return m_language; }
+  v8::Maybe<v8::debug::WasmScript::DebugSymbolsType> getDebugSymbolsType()
+      const override {
+    auto script = this->script();
+    if (!script->IsWasm())
+      return v8::Nothing<v8::debug::WasmScript::DebugSymbolsType>();
+    return v8::Just(v8::debug::WasmScript::Cast(*script)->GetDebugSymbolType());
+  }
+  v8::Maybe<String16> getExternalDebugSymbolsURL() const override {
+    auto script = this->script();
+    if (!script->IsWasm()) return v8::Nothing<String16>();
+    v8::MemorySpan<const char> external_url =
+        v8::debug::WasmScript::Cast(*script)->ExternalSymbolsURL();
+    if (external_url.size() == 0) return v8::Nothing<String16>();
+    return v8::Just(String16(external_url.data(), external_url.size()));
+  }
   int startLine() const override { return m_startLine; }
   int startColumn() const override { return m_startColumn; }
   int endLine() const override { return m_endLine; }

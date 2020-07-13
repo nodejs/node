@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
+#include "src/base/macros.h"
 #include "src/objects/shared-function-info.h"
 
 #include "src/handles/handles-inl.h"
@@ -250,6 +251,7 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
+  STATIC_ASSERT(FunctionKindBits::kSize == kFunctionKindBitSize);
   return FunctionKindBits::decode(flags());
 }
 

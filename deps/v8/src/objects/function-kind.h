@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FUNCTION_KIND_H_
 
 #include "src/base/bounds.h"
+#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +56,9 @@ enum FunctionKind : uint8_t {
 
   kLastFunctionKind = kClassMembersInitializerFunction,
 };
+
+constexpr int kFunctionKindBitSize = 5;
+STATIC_ASSERT(kLastFunctionKind < (1 << kFunctionKindBitSize));
 
 inline bool IsArrowFunction(FunctionKind kind) {
   return base::IsInRange(kind, FunctionKind::kArrowFunction,

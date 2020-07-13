@@ -14,8 +14,6 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/label.h"
 #include "src/common/globals.h"
-#include "src/execution/isolate.h"
-#include "src/execution/off-thread-isolate.h"
 #include "src/heap/factory.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/function-syntax-kind.h"
@@ -117,6 +115,9 @@ namespace internal {
   EXPRESSION_NODE_LIST(V)
 
 // Forward declarations
+class Isolate;
+class OffThreadIsolate;
+
 class AstNode;
 class AstNodeFactory;
 class Declaration;
@@ -1445,9 +1446,7 @@ class VariableProxy final : public Expression {
         HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
   }
 
-  bool IsPrivateName() const {
-    return raw_name()->length() > 0 && raw_name()->FirstCharacter() == '#';
-  }
+  bool IsPrivateName() const { return raw_name()->IsPrivateName(); }
 
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
@@ -2242,7 +2241,7 @@ class FunctionLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  FunctionLiteral(Zone* zone, const AstRawString* name,
+  FunctionLiteral(Zone* zone, const AstConsString* name,
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
                   const ScopedPtrList<Statement>& body,
                   int expected_property_count, int parameter_count,
@@ -2258,7 +2257,7 @@ class FunctionLiteral final : public Expression {
         function_token_position_(kNoSourcePosition),
         suspend_count_(0),
         function_literal_id_(function_literal_id),
-        raw_name_(name ? ast_value_factory->NewConsString(name) : nullptr),
+        raw_name_(name),
         scope_(scope),
         body_(0, nullptr),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
@@ -3109,7 +3108,8 @@ class AstNodeFactory final {
       bool has_braces, int function_literal_id,
       ProducedPreparseData* produced_preparse_data = nullptr) {
     return new (zone_) FunctionLiteral(
-        zone_, name, ast_value_factory_, scope, body, expected_property_count,
+        zone_, name ? ast_value_factory_->NewConsString(name) : nullptr,
+        ast_value_factory_, scope, body, expected_property_count,
         parameter_count, function_length, function_syntax_kind,
         has_duplicate_parameters, eager_compile_hint, position, has_braces,
         function_literal_id, produced_preparse_data);
@@ -3122,8 +3122,8 @@ class AstNodeFactory final {
       DeclarationScope* scope, const ScopedPtrList<Statement>& body,
       int expected_property_count, int parameter_count) {
     return new (zone_) FunctionLiteral(
-        zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
-        body, expected_property_count, parameter_count, parameter_count,
+        zone_, ast_value_factory_->empty_cons_string(), ast_value_factory_,
+        scope, body, expected_property_count, parameter_count, parameter_count,
         FunctionSyntaxKind::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, /* has_braces */ false,

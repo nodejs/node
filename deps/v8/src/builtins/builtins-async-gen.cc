@@ -27,8 +27,8 @@ class ValueUnwrapContext {
 TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
     TNode<Context> context, TNode<JSGeneratorObject> generator,
     TNode<Object> value, TNode<JSPromise> outer_promise,
-    TNode<IntPtrT> on_resolve_context_index,
-    TNode<IntPtrT> on_reject_context_index,
+    TNode<SharedFunctionInfo> on_resolve_sfi,
+    TNode<SharedFunctionInfo> on_reject_sfi,
     TNode<Oddball> is_predicted_as_caught) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
@@ -90,12 +90,12 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
   // Initialize resolve handler
   TNode<HeapObject> on_resolve = InnerAllocate(base, kResolveClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
-                          on_resolve_context_index);
+                          on_resolve_sfi);
 
   // Initialize reject handler
   TNode<HeapObject> on_reject = InnerAllocate(base, kRejectClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_reject,
-                          on_reject_context_index);
+                          on_reject_sfi);
 
   TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
@@ -122,8 +122,8 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOld(
 TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
     TNode<Context> context, TNode<JSGeneratorObject> generator,
     TNode<JSPromise> promise, TNode<JSPromise> outer_promise,
-    TNode<IntPtrT> on_resolve_context_index,
-    TNode<IntPtrT> on_reject_context_index,
+    TNode<SharedFunctionInfo> on_resolve_sfi,
+    TNode<SharedFunctionInfo> on_reject_sfi,
     TNode<Oddball> is_predicted_as_caught) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
@@ -161,12 +161,12 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
   // Initialize resolve handler
   TNode<HeapObject> on_resolve = InnerAllocate(base, kResolveClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_resolve,
-                          on_resolve_context_index);
+                          on_resolve_sfi);
 
   // Initialize reject handler
   TNode<HeapObject> on_reject = InnerAllocate(base, kRejectClosureOffset);
   InitializeNativeClosure(closure_context, native_context, on_reject,
-                          on_reject_context_index);
+                          on_reject_sfi);
 
   TVARIABLE(HeapObject, var_throwaway, UndefinedConstant());
 
@@ -190,8 +190,8 @@ TNode<Object> AsyncBuiltinsAssembler::AwaitOptimized(
 TNode<Object> AsyncBuiltinsAssembler::Await(
     TNode<Context> context, TNode<JSGeneratorObject> generator,
     TNode<Object> value, TNode<JSPromise> outer_promise,
-    TNode<IntPtrT> on_resolve_context_index,
-    TNode<IntPtrT> on_reject_context_index,
+    TNode<SharedFunctionInfo> on_resolve_sfi,
+    TNode<SharedFunctionInfo> on_reject_sfi,
     TNode<Oddball> is_predicted_as_caught) {
   TVARIABLE(Object, result);
   Label if_old(this), if_new(this), done(this),
@@ -230,15 +230,14 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
   }
 
   BIND(&if_old);
-  result = AwaitOld(context, generator, value, outer_promise,
-                    on_resolve_context_index, on_reject_context_index,
-                    is_predicted_as_caught);
+  result = AwaitOld(context, generator, value, outer_promise, on_resolve_sfi,
+                    on_reject_sfi, is_predicted_as_caught);
   Goto(&done);
 
   BIND(&if_new);
-  result = AwaitOptimized(context, generator, CAST(value), outer_promise,
-                          on_resolve_context_index, on_reject_context_index,
-                          is_predicted_as_caught);
+  result =
+      AwaitOptimized(context, generator, CAST(value), outer_promise,
+                     on_resolve_sfi, on_reject_sfi, is_predicted_as_caught);
   Goto(&done);
 
   BIND(&done);
@@ -247,7 +246,7 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
 
 void AsyncBuiltinsAssembler::InitializeNativeClosure(
     TNode<Context> context, TNode<NativeContext> native_context,
-    TNode<HeapObject> function, TNode<IntPtrT> context_index) {
+    TNode<HeapObject> function, TNode<SharedFunctionInfo> shared_info) {
   TNode<Map> function_map = CAST(LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   // Ensure that we don't have to initialize prototype_or_initial_map field of
@@ -265,8 +264,6 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   StoreObjectFieldRoot(function, JSFunction::kFeedbackCellOffset,
                        RootIndex::kManyClosuresCell);
 
-  TNode<SharedFunctionInfo> shared_info =
-      CAST(LoadContextElement(native_context, context_index));
   StoreObjectFieldNoWriteBarrier(
       function, JSFunction::kSharedFunctionInfoOffset, shared_info);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kContextOffset, context);
@@ -286,8 +283,8 @@ TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
     TNode<NativeContext> native_context, TNode<Oddball> done) {
   const TNode<Map> map = CAST(LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> on_fulfilled_shared = CAST(LoadContextElement(
-      native_context, Context::ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN));
+  const TNode<SharedFunctionInfo> on_fulfilled_shared =
+      AsyncIteratorValueUnwrapSharedFunConstant();
   const TNode<Context> closure_context =
       AllocateAsyncIteratorValueUnwrapContext(native_context, done);
   return AllocateFunctionWithMapAndContext(map, on_fulfilled_shared,

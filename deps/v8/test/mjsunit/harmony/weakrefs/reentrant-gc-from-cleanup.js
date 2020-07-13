@@ -5,9 +5,7 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let call_count = 0;
-let reentrant_gc =
-    function(iter) {
-  [...iter];
+let reentrant_gc = function(holdings) {
   gc();
   call_count++;
 }

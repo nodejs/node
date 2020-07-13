@@ -185,10 +185,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // property. Similar spots in CSA would use BranchIfFastRegExp_Strict in this
   // case.
 
-  if (!Protectors::IsRegExpSpeciesLookupChainProtectorIntact(
-          recv.GetCreationContext())) {
-    return false;
-  }
+  if (!Protectors::IsRegExpSpeciesLookupChainIntact(isolate)) return false;
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.

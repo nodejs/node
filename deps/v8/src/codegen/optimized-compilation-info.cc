@@ -162,15 +162,13 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
     case Code::BUILTIN:
       return StackFrame::STUB;
     case Code::WASM_FUNCTION:
-      return StackFrame::WASM_COMPILED;
+      return StackFrame::WASM;
     case Code::WASM_TO_CAPI_FUNCTION:
       return StackFrame::WASM_EXIT;
     case Code::JS_TO_WASM_FUNCTION:
       return StackFrame::JS_TO_WASM;
     case Code::WASM_TO_JS_FUNCTION:
       return StackFrame::WASM_TO_JS;
-    case Code::WASM_INTERPRETER_ENTRY:
-      return StackFrame::WASM_INTERPRETER_ENTRY;
     case Code::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
     default:

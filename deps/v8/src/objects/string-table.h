@@ -16,7 +16,7 @@ namespace internal {
 
 class StringTableKey {
  public:
-  virtual ~StringTableKey() {}
+  virtual ~StringTableKey() = default;
   inline StringTableKey(uint32_t hash_field, int length);
 
   virtual Handle<String> AsHandle(Isolate* isolate) = 0;

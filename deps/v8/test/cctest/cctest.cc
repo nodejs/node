@@ -40,7 +40,7 @@
 #include "test/cctest/trace-extension.h"
 
 #ifdef V8_USE_PERFETTO
-#include "perfetto/tracing.h"
+#include "src/tracing/trace-event.h"
 #endif  // V8_USE_PERFETTO
 
 #if V8_OS_WIN

@@ -53,7 +53,7 @@ class ValueTypeFieldIterator {
     if (const auto type_wrapped_in_smi =
             Type::MatchUnaryGeneric(type_, TypeOracle::GetSmiTaggedGeneric())) {
       type = *type_wrapped_in_smi;
-      bitfield_start_offset = kSmiTagSize + kSmiShiftSize;
+      bitfield_start_offset = TargetArchitecture::SmiTagAndShiftSize();
     }
     if (const BitFieldStructType* bit_field_struct_type =
             BitFieldStructType::DynamicCast(type)) {

@@ -123,10 +123,9 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
-
 #include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
 #include "torque-generated/internal-class-definitions-tq-inl.h"
-#include "torque-generated/objects-body-descriptors-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -2278,12 +2277,11 @@ int HeapObject::SizeFromMap(Map map) const {
     PreparseData data = PreparseData::unchecked_cast(*this);
     return PreparseData::SizeFor(data.data_length(), data.children_length());
   }
-#define MAKE_TORQUE_SIZE_FOR(TYPE, TypeName)             \
-  if (instance_type == TYPE) {                           \
-    TypeName instance = TypeName::unchecked_cast(*this); \
-    return TypeName::SizeFor(instance);                  \
+#define MAKE_TORQUE_SIZE_FOR(TYPE, TypeName)                \
+  if (instance_type == TYPE) {                              \
+    return TypeName::unchecked_cast(*this).AllocatedSize(); \
   }
-  TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_SIZE_FOR)
+  TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(MAKE_TORQUE_SIZE_FOR)
 #undef MAKE_TORQUE_SIZE_FOR
 
   if (instance_type == CODE_TYPE) {
@@ -2292,6 +2290,9 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_type == COVERAGE_INFO_TYPE) {
     return CoverageInfo::SizeFor(
         CoverageInfo::unchecked_cast(*this).slot_count());
+  }
+  if (instance_type == WASM_ARRAY_TYPE) {
+    return WasmArray::SizeFor(map, WasmArray::cast(*this).length());
   }
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
   return EmbedderDataArray::SizeFor(
@@ -2305,8 +2306,9 @@ bool HeapObject::NeedsRehashing() const {
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(*this).number_of_entries() > 1;
     case ORDERED_HASH_MAP_TYPE:
+      return OrderedHashMap::cast(*this).NumberOfElements() > 0;
     case ORDERED_HASH_SET_TYPE:
-      return false;  // We'll rehash from the JSMap or JSSet referencing them.
+      return OrderedHashSet::cast(*this).NumberOfElements() > 0;
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
@@ -2316,8 +2318,6 @@ bool HeapObject::NeedsRehashing() const {
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-    case JS_MAP_TYPE:
-    case JS_SET_TYPE:
       return true;
     default:
       return false;
@@ -2327,13 +2327,10 @@ bool HeapObject::NeedsRehashing() const {
 bool HeapObject::CanBeRehashed() const {
   DCHECK(NeedsRehashing());
   switch (map().instance_type()) {
-    case JS_MAP_TYPE:
-    case JS_SET_TYPE:
-      return true;
     case ORDERED_HASH_MAP_TYPE:
     case ORDERED_HASH_SET_TYPE:
-      UNREACHABLE();  // We'll rehash from the JSMap or JSSet referencing them.
     case ORDERED_NAME_DICTIONARY_TYPE:
+      // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
       return false;
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
@@ -2357,8 +2354,7 @@ bool HeapObject::CanBeRehashed() const {
   return false;
 }
 
-void HeapObject::RehashBasedOnMap(Isolate* isolate) {
-  ReadOnlyRoots roots = ReadOnlyRoots(isolate);
+void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
   switch (map().instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
@@ -2390,17 +2386,6 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
     case SMALL_ORDERED_HASH_SET_TYPE:
       DCHECK_EQ(0, SmallOrderedHashSet::cast(*this).NumberOfElements());
       break;
-    case ORDERED_HASH_MAP_TYPE:
-    case ORDERED_HASH_SET_TYPE:
-      UNREACHABLE();  // We'll rehash from the JSMap or JSSet referencing them.
-    case JS_MAP_TYPE: {
-      JSMap::cast(*this).Rehash(isolate);
-      break;
-    }
-    case JS_SET_TYPE: {
-      JSSet::cast(*this).Rehash(isolate);
-      break;
-    }
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       DCHECK_EQ(0, SmallOrderedNameDictionary::cast(*this).NumberOfElements());
       break;
@@ -3122,18 +3107,8 @@ MaybeHandle<JSProxy> JSProxy::New(Isolate* isolate, Handle<Object> target,
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject),
                     JSProxy);
   }
-  if (target->IsJSProxy() && JSProxy::cast(*target).IsRevoked()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked),
-                    JSProxy);
-  }
   if (!handler->IsJSReceiver()) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject),
-                    JSProxy);
-  }
-  if (handler->IsJSProxy() && JSProxy::cast(*handler).IsRevoked()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked),
                     JSProxy);
   }
   return isolate->factory()->NewJSProxy(Handle<JSReceiver>::cast(target),
@@ -4228,7 +4203,8 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
     Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture_count) {
   DCHECK_GE(match_info->length(), kLastMatchOverhead);
 
-  int capture_register_count = (capture_count + 1) * 2;
+  int capture_register_count =
+      JSRegExp::RegistersForCaptureCount(capture_count);
   const int required_length = kFirstCaptureIndex + capture_register_count;
   Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(
       EnsureSpaceInFixedArray(isolate, match_info, required_length));
@@ -4263,9 +4239,8 @@ Handle<FrameArray> FrameArray::AppendWasmFrame(
     int wasm_function_index, wasm::WasmCode* code, int offset, int flags) {
   // This must be either a compiled or interpreted wasm frame, or an asm.js
   // frame (which is always compiled).
-  DCHECK_EQ(1, ((flags & kIsWasmInterpretedFrame) != 0) +
-                   ((flags & kIsWasmCompiledFrame) != 0) +
-                   ((flags & kIsAsmJsWasmFrame) != 0));
+  DCHECK_EQ(1,
+            ((flags & kIsWasmFrame) != 0) + ((flags & kIsAsmJsWasmFrame) != 0));
   Isolate* isolate = wasm_instance->GetIsolate();
   const int frame_count = in->FrameCount();
   const int new_length = LengthFor(frame_count + 1);
@@ -4935,14 +4910,14 @@ Object Script::GetNameOrSourceURL() {
 
 template <typename LocalIsolate>
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    LocalIsolate* isolate, const FunctionLiteral* fun) {
-  CHECK_NE(fun->function_literal_id(), kFunctionLiteralIdInvalid);
+    LocalIsolate* isolate, int function_literal_id) {
+  CHECK_NE(function_literal_id, kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
-  CHECK_LT(fun->function_literal_id(), shared_function_infos().length());
-  MaybeObject shared = shared_function_infos().Get(fun->function_literal_id());
+  CHECK_LT(function_literal_id, shared_function_infos().length());
+  MaybeObject shared = shared_function_infos().Get(function_literal_id);
   HeapObject heap_object;
   if (!shared->GetHeapObject(&heap_object) ||
       heap_object.IsUndefined(isolate)) {
@@ -4951,9 +4926,9 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   return handle(SharedFunctionInfo::cast(heap_object), isolate);
 }
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    Isolate* isolate, const FunctionLiteral* fun);
+    Isolate* isolate, int function_literal_id);
 template MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    OffThreadIsolate* isolate, const FunctionLiteral* fun);
+    OffThreadIsolate* isolate, int function_literal_id);
 
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}
@@ -5195,9 +5170,9 @@ bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
 }
 
 bool SharedFunctionInfo::HasSourceCode() const {
-  Isolate* isolate = GetIsolate();
-  return !script().IsUndefined(isolate) &&
-         !Script::cast(script()).source().IsUndefined(isolate);
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  return !script().IsUndefined(roots) &&
+         !Script::cast(script()).source().IsUndefined(roots);
 }
 
 void SharedFunctionInfo::DiscardCompiledMetadata(
@@ -5891,13 +5866,13 @@ class StringSharedKey : public HashTableKey {
 };
 
 v8::Promise::PromiseState JSPromise::status() const {
-  int value = flags() & kStatusMask;
+  int value = flags() & StatusBits::kMask;
   DCHECK(value == 0 || value == 1 || value == 2);
   return static_cast<v8::Promise::PromiseState>(value);
 }
 
 void JSPromise::set_status(Promise::PromiseState status) {
-  int value = flags() & ~kStatusMask;
+  int value = flags() & ~StatusBits::kMask;
   set_flags(value | status);
 }
 
@@ -5905,7 +5880,7 @@ void JSPromise::set_status(Promise::PromiseState status) {
 const char* JSPromise::Status(v8::Promise::PromiseState status) {
   switch (status) {
     case v8::Promise::kFulfilled:
-      return "resolved";
+      return "fulfilled";
     case v8::Promise::kPending:
       return "pending";
     case v8::Promise::kRejected:
@@ -5915,11 +5890,11 @@ const char* JSPromise::Status(v8::Promise::PromiseState status) {
 }
 
 int JSPromise::async_task_id() const {
-  return AsyncTaskIdField::decode(flags());
+  return AsyncTaskIdBits::decode(flags());
 }
 
 void JSPromise::set_async_task_id(int id) {
-  set_flags(AsyncTaskIdField::update(flags(), id));
+  set_flags(AsyncTaskIdBits::update(flags(), id));
 }
 
 // static
@@ -5999,6 +5974,7 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
                                  PromiseReaction::kReject);
 }
 
+// https://tc39.es/ecma262/#sec-promise-resolve-functions
 // static
 MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                                        Handle<Object> resolution) {
@@ -6007,7 +5983,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());
 
-  // 6. If SameValue(resolution, promise) is true, then
+  // 7. If SameValue(resolution, promise) is true, then
   if (promise.is_identical_to(resolution)) {
     // a. Let selfResolutionError be a newly created TypeError object.
     Handle<Object> self_resolution_error = isolate->factory()->NewTypeError(
@@ -6016,13 +5992,13 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     return Reject(promise, self_resolution_error);
   }
 
-  // 7. If Type(resolution) is not Object, then
+  // 8. If Type(resolution) is not Object, then
   if (!resolution->IsJSReceiver()) {
     // a. Return FulfillPromise(promise, resolution).
     return Fulfill(promise, resolution);
   }
 
-  // 8. Let then be Get(resolution, "then").
+  // 9. Let then be Get(resolution, "then").
   MaybeHandle<Object> then;
   Handle<JSReceiver> receiver(Handle<JSReceiver>::cast(resolution));
 
@@ -6045,7 +6021,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                                    isolate->factory()->then_string());
   }
 
-  // 9. If then is an abrupt completion, then
+  // 10. If then is an abrupt completion, then
   Handle<Object> then_action;
   if (!then.ToHandle(&then_action)) {
     // a. Return RejectPromise(promise, then.[[Value]]).
@@ -6054,19 +6030,15 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     return Reject(promise, reason, false);
   }
 
-  // 10. Let thenAction be then.[[Value]].
-  // 11. If IsCallable(thenAction) is false, then
+  // 11. Let thenAction be then.[[Value]].
+  // 12. If IsCallable(thenAction) is false, then
   if (!then_action->IsCallable()) {
     // a. Return FulfillPromise(promise, resolution).
     return Fulfill(promise, resolution);
   }
 
-  // 12. Perform EnqueueJob("PromiseJobs", PromiseResolveThenableJob,
-  //                        «promise, resolution, thenAction»).
-
-  // According to HTML, we use the context of the then function (|thenAction|)
-  // as the context of the microtask. See step 3 of HTML's EnqueueJob:
-  // https://html.spec.whatwg.org/C/#enqueuejob(queuename,-job,-arguments)
+  // 13. Let job be NewPromiseResolveThenableJob(promise, resolution,
+  //                                             thenAction).
   Handle<NativeContext> then_context;
   if (!JSReceiver::GetContextForMicrotask(Handle<JSReceiver>::cast(then_action))
            .ToHandle(&then_context)) {
@@ -6075,8 +6047,8 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
 
   Handle<PromiseResolveThenableJobTask> task =
       isolate->factory()->NewPromiseResolveThenableJobTask(
-          promise, Handle<JSReceiver>::cast(then_action),
-          Handle<JSReceiver>::cast(resolution), then_context);
+          promise, Handle<JSReceiver>::cast(resolution),
+          Handle<JSReceiver>::cast(then_action), then_context);
   if (isolate->debug()->is_active() && resolution->IsJSPromise()) {
     // Mark the dependency of the new {promise} on the {resolution}.
     Object::SetProperty(isolate, resolution,
@@ -6087,7 +6059,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
   MicrotaskQueue* microtask_queue = then_context->microtask_queue();
   if (microtask_queue) microtask_queue->EnqueueMicrotask(*task);
 
-  // 13. Return undefined.
+  // 15. Return undefined.
   return isolate->factory()->undefined_value();
 }
 
@@ -7172,7 +7144,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
     Handle<Context> native_context, LanguageMode language_mode) {
   // We use the empty function SFI as part of the key. Although the
   // empty_function is native context dependent, the SFI is de-duped on
-  // snapshot builds by the PartialSnapshotCache, and so this does not prevent
+  // snapshot builds by the StartupObjectCache, and so this does not prevent
   // reuse of scripts in the compilation cache across native contexts.
   Handle<SharedFunctionInfo> shared(native_context->empty_function().shared(),
                                     native_context->GetIsolate());
@@ -7230,7 +7202,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   Isolate* isolate = native_context->GetIsolate();
   // We use the empty function SFI as part of the key. Although the
   // empty_function is native context dependent, the SFI is de-duped on
-  // snapshot builds by the PartialSnapshotCache, and so this does not prevent
+  // snapshot builds by the StartupObjectCache, and so this does not prevent
   // reuse of scripts in the compilation cache across native contexts.
   Handle<SharedFunctionInfo> shared(native_context->empty_function().shared(),
                                     isolate);
@@ -7880,13 +7852,6 @@ void JSSet::Clear(Isolate* isolate, Handle<JSSet> set) {
   set->set_table(*table);
 }
 
-void JSSet::Rehash(Isolate* isolate) {
-  Handle<OrderedHashSet> table_handle(OrderedHashSet::cast(table()), isolate);
-  Handle<OrderedHashSet> new_table =
-      OrderedHashSet::Rehash(isolate, table_handle).ToHandleChecked();
-  set_table(*new_table);
-}
-
 void JSMap::Initialize(Handle<JSMap> map, Isolate* isolate) {
   Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
   map->set_table(*table);
@@ -7896,13 +7861,6 @@ void JSMap::Clear(Isolate* isolate, Handle<JSMap> map) {
   Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()), isolate);
   table = OrderedHashMap::Clear(isolate, table);
   map->set_table(*table);
-}
-
-void JSMap::Rehash(Isolate* isolate) {
-  Handle<OrderedHashMap> table_handle(OrderedHashMap::cast(table()), isolate);
-  Handle<OrderedHashMap> new_table =
-      OrderedHashMap::Rehash(isolate, table_handle).ToHandleChecked();
-  set_table(*new_table);
 }
 
 void JSWeakCollection::Initialize(Handle<JSWeakCollection> weak_collection,
@@ -8339,48 +8297,50 @@ EXTERN_DEFINE_BASE_NAME_DICTIONARY(GlobalDictionary, GlobalDictionaryShape)
 #undef EXTERN_DEFINE_DICTIONARY
 #undef EXTERN_DEFINE_BASE_NAME_DICTIONARY
 
-Maybe<bool> JSFinalizationRegistry::Cleanup(
-    Isolate* isolate, Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<Object> cleanup) {
-  DCHECK(cleanup->IsCallable());
-  // Attempt to shrink key_map now, as unregister tokens are held weakly and the
-  // map is not shrinkable when sweeping dead tokens during GC itself.
-  if (!finalization_registry->key_map().IsUndefined(isolate)) {
-    Handle<SimpleNumberDictionary> key_map =
-        handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
-               isolate);
-    key_map = SimpleNumberDictionary::Shrink(isolate, key_map);
-    finalization_registry->set_key_map(*key_map);
-  }
+void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
+    Isolate* isolate, Address raw_finalization_registry,
+    Address raw_weak_cell) {
+  DisallowHeapAllocation no_gc;
+  JSFinalizationRegistry finalization_registry =
+      JSFinalizationRegistry::cast(Object(raw_finalization_registry));
+  WeakCell weak_cell = WeakCell::cast(Object(raw_weak_cell));
+  DCHECK(!weak_cell.unregister_token().IsUndefined(isolate));
 
-  // It's possible that the cleared_cells list is empty, since
-  // FinalizationRegistry.unregister() removed all its elements before this task
-  // ran. In that case, don't call the cleanup function.
-  if (!finalization_registry->cleared_cells().IsUndefined(isolate)) {
-    // Construct the iterator.
-    Handle<JSFinalizationRegistryCleanupIterator> iterator;
-    {
-      Handle<Map> cleanup_iterator_map(
-          isolate->native_context()
-              ->js_finalization_registry_cleanup_iterator_map(),
-          isolate);
-      iterator = Handle<JSFinalizationRegistryCleanupIterator>::cast(
-          isolate->factory()->NewJSObjectFromMap(
-              cleanup_iterator_map, AllocationType::kYoung,
-              Handle<AllocationSite>::null()));
-      iterator->set_finalization_registry(*finalization_registry);
+  // Remove weak_cell from the linked list of other WeakCells with the same
+  // unregister token and remove its unregister token from key_map if necessary
+  // without shrinking it. Since shrinking may allocate, it is performed by the
+  // caller after looping, or on exception.
+  if (weak_cell.key_list_prev().IsUndefined(isolate)) {
+    SimpleNumberDictionary key_map =
+        SimpleNumberDictionary::cast(finalization_registry.key_map());
+    Object unregister_token = weak_cell.unregister_token();
+    uint32_t key = Smi::ToInt(unregister_token.GetHash());
+    InternalIndex entry = key_map.FindEntry(isolate, key);
+    DCHECK(entry.is_found());
+
+    if (weak_cell.key_list_next().IsUndefined(isolate)) {
+      // weak_cell is the only one associated with its key; remove the key
+      // from the hash table.
+      key_map.ClearEntry(entry);
+      key_map.ElementRemoved();
+    } else {
+      // weak_cell is the list head for its key; we need to change the value
+      // of the key in the hash table.
+      WeakCell next = WeakCell::cast(weak_cell.key_list_next());
+      DCHECK_EQ(next.key_list_prev(), weak_cell);
+      next.set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+      weak_cell.set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
+      key_map.ValueAtPut(entry, next);
     }
-    Handle<Object> args[] = {iterator};
-    if (Execution::Call(
-            isolate, cleanup,
-            handle(ReadOnlyRoots(isolate).undefined_value(), isolate), 1, args)
-            .is_null()) {
-      return Nothing<bool>();
+  } else {
+    // weak_cell is somewhere in the middle of its key list.
+    WeakCell prev = WeakCell::cast(weak_cell.key_list_prev());
+    prev.set_key_list_next(weak_cell.key_list_next());
+    if (!weak_cell.key_list_next().IsUndefined()) {
+      WeakCell next = WeakCell::cast(weak_cell.key_list_next());
+      next.set_key_list_prev(weak_cell.key_list_prev());
     }
-    // TODO(marja): (spec): Should the iterator be invalidated after the
-    // function returns?
   }
-  return Just(true);
 }
 
 }  // namespace internal

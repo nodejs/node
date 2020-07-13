@@ -30,6 +30,8 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/factory.h"
+#include "src/heap/large-spaces.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/free-space.h"

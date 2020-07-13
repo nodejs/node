@@ -568,6 +568,13 @@ Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackSlot slot, Node* effect,
   if (!(flags() & kBailoutOnUninitialized)) return nullptr;
 
   FeedbackSource source(feedback_vector(), slot);
+  // TODO(mythria): Think of adding flags to specify if we need a soft deopt for
+  // calls instead of using FLAG_turboprop here.
+  if (FLAG_turboprop &&
+      broker()->GetFeedbackSlotKind(source) == FeedbackSlotKind::kCall) {
+    return nullptr;
+  }
+
   if (!broker()->FeedbackIsInsufficient(source)) return nullptr;
 
   Node* deoptimize = jsgraph()->graph()->NewNode(

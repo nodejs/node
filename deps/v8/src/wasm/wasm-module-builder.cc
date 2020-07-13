@@ -2,21 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/codegen/signature.h"
+#include "src/wasm/wasm-module-builder.h"
 
+#include "src/base/memory.h"
+#include "src/codegen/signature.h"
 #include "src/handles/handles.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/zone/zone-containers.h"
-
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-constants.h"
-#include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
-
-#include "src/base/memory.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -55,6 +53,8 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       direct_calls_(builder->zone()),
       asm_offsets_(builder->zone(), 8) {}
 
+void WasmFunctionBuilder::EmitByte(byte val) { body_.write_u8(val); }
+
 void WasmFunctionBuilder::EmitI32V(int32_t val) { body_.write_i32v(val); }
 
 void WasmFunctionBuilder::EmitU32V(uint32_t val) { body_.write_u32v(val); }
@@ -91,7 +91,12 @@ void WasmFunctionBuilder::Emit(WasmOpcode opcode) { body_.write_u8(opcode); }
 void WasmFunctionBuilder::EmitWithPrefix(WasmOpcode opcode) {
   DCHECK_NE(0, opcode & 0xff00);
   body_.write_u8(opcode >> 8);
-  body_.write_u8(opcode);
+  if ((opcode >> 8) == WasmOpcode::kSimdPrefix) {
+    // SIMD opcodes are LEB encoded
+    body_.write_u32v(opcode & 0xff);
+  } else {
+    body_.write_u8(opcode);
+  }
 }
 
 void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode, const byte immediate) {
@@ -234,7 +239,7 @@ void WasmFunctionBuilder::WriteAsmWasmOffsetTable(ZoneBuffer* buffer) const {
 
 WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
     : zone_(zone),
-      signatures_(zone),
+      types_(zone),
       function_imports_(zone),
       global_imports_(zone),
       exports_(zone),
@@ -269,9 +274,21 @@ void WasmModuleBuilder::AddDataSegment(const byte* data, uint32_t size,
 uint32_t WasmModuleBuilder::AddSignature(FunctionSig* sig) {
   auto sig_entry = signature_map_.find(*sig);
   if (sig_entry != signature_map_.end()) return sig_entry->second;
-  uint32_t index = static_cast<uint32_t>(signatures_.size());
+  uint32_t index = static_cast<uint32_t>(types_.size());
   signature_map_.emplace(*sig, index);
-  signatures_.push_back(sig);
+  types_.push_back(Type(sig));
+  return index;
+}
+
+uint32_t WasmModuleBuilder::AddStructType(StructType* type) {
+  uint32_t index = static_cast<uint32_t>(types_.size());
+  types_.push_back(Type(type));
+  return index;
+}
+
+uint32_t WasmModuleBuilder::AddArrayType(ArrayType* type) {
+  uint32_t index = static_cast<uint32_t>(types_.size());
+  types_.push_back(Type(type));
   return index;
 }
 
@@ -334,16 +351,17 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
-uint32_t WasmModuleBuilder::AddImport(Vector<const char> name,
-                                      FunctionSig* sig) {
+uint32_t WasmModuleBuilder::AddImport(Vector<const char> name, FunctionSig* sig,
+                                      Vector<const char> module) {
   DCHECK(adding_imports_allowed_);
-  function_imports_.push_back({name, AddSignature(sig)});
+  function_imports_.push_back({module, name, AddSignature(sig)});
   return static_cast<uint32_t>(function_imports_.size() - 1);
 }
 
 uint32_t WasmModuleBuilder::AddGlobalImport(Vector<const char> name,
-                                            ValueType type, bool mutability) {
-  global_imports_.push_back({name, type.value_type_code(), mutability});
+                                            ValueType type, bool mutability,
+                                            Vector<const char> module) {
+  global_imports_.push_back({module, name, type.value_type_code(), mutability});
   return static_cast<uint32_t>(global_imports_.size() - 1);
 }
 
@@ -393,25 +411,56 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
 
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 
+namespace {
+void WriteValueType(ZoneBuffer* buffer, const ValueType& type) {
+  buffer->write_u8(type.value_type_code());
+  if (type.has_immediate()) {
+    buffer->write_u32v(type.ref_index());
+  }
+}
+
+}  // namespace
+
 void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
   // == Emit magic =============================================================
   buffer->write_u32(kWasmMagic);
   buffer->write_u32(kWasmVersion);
 
-  // == Emit signatures ========================================================
-  if (signatures_.size() > 0) {
+  // == Emit types =============================================================
+  if (types_.size() > 0) {
     size_t start = EmitSection(kTypeSectionCode, buffer);
-    buffer->write_size(signatures_.size());
+    buffer->write_size(types_.size());
 
-    for (FunctionSig* sig : signatures_) {
-      buffer->write_u8(kWasmFunctionTypeCode);
-      buffer->write_size(sig->parameter_count());
-      for (auto param : sig->parameters()) {
-        buffer->write_u8(param.value_type_code());
-      }
-      buffer->write_size(sig->return_count());
-      for (auto ret : sig->returns()) {
-        buffer->write_u8(ret.value_type_code());
+    for (const Type& type : types_) {
+      switch (type.kind) {
+        case Type::kFunctionSig: {
+          FunctionSig* sig = type.sig;
+          buffer->write_u8(kWasmFunctionTypeCode);
+          buffer->write_size(sig->parameter_count());
+          for (auto param : sig->parameters()) {
+            WriteValueType(buffer, param);
+          }
+          buffer->write_size(sig->return_count());
+          for (auto ret : sig->returns()) {
+            WriteValueType(buffer, ret);
+          }
+          break;
+        }
+        case Type::kStructType: {
+          StructType* struct_type = type.struct_type;
+          buffer->write_u8(kWasmStructTypeCode);
+          buffer->write_size(struct_type->field_count());
+          for (auto field : struct_type->fields()) {
+            WriteValueType(buffer, field);
+          }
+          break;
+        }
+        case Type::kArrayType: {
+          ArrayType* array_type = type.array_type;
+          buffer->write_u8(kWasmArrayTypeCode);
+          WriteValueType(buffer, array_type->element_type());
+          break;
+        }
       }
     }
     FixupSection(buffer, start);
@@ -422,15 +471,15 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kImportSectionCode, buffer);
     buffer->write_size(global_imports_.size() + function_imports_.size());
     for (auto import : global_imports_) {
-      buffer->write_u32v(0);              // module name (length)
-      buffer->write_string(import.name);  // field name
+      buffer->write_string(import.module);  // module name
+      buffer->write_string(import.name);    // field name
       buffer->write_u8(kExternalGlobal);
       buffer->write_u8(import.type_code);
       buffer->write_u8(import.mutability ? 1 : 0);
     }
     for (auto import : function_imports_) {
-      buffer->write_u32v(0);              // module name (length)
-      buffer->write_string(import.name);  // field name
+      buffer->write_string(import.module);  // module name
+      buffer->write_string(import.name);    // field name
       buffer->write_u8(kExternalFunction);
       buffer->write_u32v(import.sig_index);
     }
@@ -486,7 +535,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     buffer->write_size(globals_.size());
 
     for (const WasmGlobal& global : globals_) {
-      buffer->write_u8(global.type.value_type_code());
+      WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
       switch (global.init.kind) {
         case WasmInitExpr::kI32Const:
@@ -539,6 +588,12 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
             case ValueType::kF64:
               buffer->write_u8(kExprF64Const);
               buffer->write_f64(0.);
+              break;
+            case ValueType::kOptRef:
+            case ValueType::kFuncRef:
+            case ValueType::kExnRef:
+            case ValueType::kEqRef:
+              buffer->write_u8(kExprRefNull);
               break;
             default:
               UNREACHABLE();

@@ -162,12 +162,9 @@ class AllocationSite : public Struct {
   OBJECT_CONSTRUCTORS(AllocationSite, Struct);
 };
 
-class AllocationMemento : public Struct {
+class AllocationMemento
+    : public TorqueGeneratedAllocationMemento<AllocationMemento, Struct> {
  public:
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_ALLOCATION_MEMENTO_FIELDS)
-
   DECL_ACCESSORS(allocation_site, Object)
 
   inline bool IsValid() const;
@@ -175,11 +172,8 @@ class AllocationMemento : public Struct {
   inline Address GetAllocationSiteUnchecked() const;
 
   DECL_PRINTER(AllocationMemento)
-  DECL_VERIFIER(AllocationMemento)
 
-  DECL_CAST(AllocationMemento)
-
-  OBJECT_CONSTRUCTORS(AllocationMemento, Struct);
+  TQ_OBJECT_CONSTRUCTORS(AllocationMemento)
 };
 
 }  // namespace internal

@@ -42,11 +42,6 @@ enum ContextLookupFlags {
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal) \
   V(ASYNC_MODULE_EVALUATE_INTERNAL, JSFunction,                   \
     async_module_evaluate_internal)                               \
-  V(MAKE_ERROR_INDEX, JSFunction, make_error)                     \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)         \
-  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)       \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)           \
-  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)             \
   V(OBJECT_CREATE, JSFunction, object_create)                     \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)               \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)       \
@@ -54,7 +49,6 @@ enum ContextLookupFlags {
   V(MATH_POW_INDEX, JSFunction, math_pow)                         \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,               \
     promise_internal_constructor)                                 \
-  V(IS_PROMISE_INDEX, JSFunction, is_promise)                     \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
 #define NATIVE_CONTEXT_FIELDS(V)                                               \
@@ -76,28 +70,10 @@ enum ContextLookupFlags {
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
   V(ARRAY_JOIN_STACK_INDEX, HeapObject, array_join_stack)                      \
   V(ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX, Map, async_from_sync_iterator_map)     \
-  V(ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, SharedFunctionInfo,                \
-    async_function_await_reject_shared_fun)                                    \
-  V(ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,               \
-    async_function_await_resolve_shared_fun)                                   \
   V(ASYNC_FUNCTION_FUNCTION_INDEX, JSFunction, async_function_constructor)     \
   V(ASYNC_FUNCTION_OBJECT_MAP_INDEX, Map, async_function_object_map)           \
   V(ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                       \
     async_generator_function_function)                                         \
-  V(ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN, SharedFunctionInfo,                \
-    async_iterator_value_unwrap_shared_fun)                                    \
-  V(ASYNC_GENERATOR_AWAIT_REJECT_SHARED_FUN, SharedFunctionInfo,               \
-    async_generator_await_reject_shared_fun)                                   \
-  V(ASYNC_GENERATOR_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,              \
-    async_generator_await_resolve_shared_fun)                                  \
-  V(ASYNC_GENERATOR_YIELD_RESOLVE_SHARED_FUN, SharedFunctionInfo,              \
-    async_generator_yield_resolve_shared_fun)                                  \
-  V(ASYNC_GENERATOR_RETURN_RESOLVE_SHARED_FUN, SharedFunctionInfo,             \
-    async_generator_return_resolve_shared_fun)                                 \
-  V(ASYNC_GENERATOR_RETURN_CLOSED_RESOLVE_SHARED_FUN, SharedFunctionInfo,      \
-    async_generator_return_closed_resolve_shared_fun)                          \
-  V(ASYNC_GENERATOR_RETURN_CLOSED_REJECT_SHARED_FUN, SharedFunctionInfo,       \
-    async_generator_return_closed_reject_shared_fun)                           \
   V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
   V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
   V(BIGINT64_ARRAY_FUN_INDEX, JSFunction, bigint64_array_fun)                  \
@@ -191,8 +167,6 @@ enum ContextLookupFlags {
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
   V(WEAK_CELL_MAP_INDEX, Map, weak_cell_map)                                   \
-  V(JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_MAP_INDEX, Map,                  \
-    js_finalization_registry_cleanup_iterator_map)                             \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
@@ -226,27 +200,6 @@ enum ContextLookupFlags {
   V(PROXY_FUNCTION_INDEX, JSFunction, proxy_function)                          \
   V(PROXY_MAP_INDEX, Map, proxy_map)                                           \
   V(PROXY_REVOCABLE_RESULT_MAP_INDEX, Map, proxy_revocable_result_map)         \
-  V(PROXY_REVOKE_SHARED_FUN, SharedFunctionInfo, proxy_revoke_shared_fun)      \
-  V(PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN, SharedFunctionInfo,          \
-    promise_get_capabilities_executor_shared_fun)                              \
-  V(PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX, SharedFunctionInfo,    \
-    promise_capability_default_reject_shared_fun)                              \
-  V(PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX, SharedFunctionInfo,   \
-    promise_capability_default_resolve_shared_fun)                             \
-  V(PROMISE_THEN_FINALLY_SHARED_FUN, SharedFunctionInfo,                       \
-    promise_then_finally_shared_fun)                                           \
-  V(PROMISE_CATCH_FINALLY_SHARED_FUN, SharedFunctionInfo,                      \
-    promise_catch_finally_shared_fun)                                          \
-  V(PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN, SharedFunctionInfo,                \
-    promise_value_thunk_finally_shared_fun)                                    \
-  V(PROMISE_THROWER_FINALLY_SHARED_FUN, SharedFunctionInfo,                    \
-    promise_thrower_finally_shared_fun)                                        \
-  V(PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,                \
-    promise_all_resolve_element_shared_fun)                                    \
-  V(PROMISE_ALL_SETTLED_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,        \
-    promise_all_settled_resolve_element_shared_fun)                            \
-  V(PROMISE_ALL_SETTLED_REJECT_ELEMENT_SHARED_FUN, SharedFunctionInfo,         \
-    promise_all_settled_reject_element_shared_fun)                             \
   V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
@@ -343,12 +296,15 @@ enum ContextLookupFlags {
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                          \
   V(ERROR_TO_STRING, JSFunction, error_to_string)                              \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)                \
+  V(AGGREGATE_ERROR_FUNCTION_INDEX, JSFunction, aggregate_error_function)      \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                        \
   V(GLOBAL_PROXY_FUNCTION_INDEX, JSFunction, global_proxy_function)            \
   V(MAP_DELETE_INDEX, JSFunction, map_delete)                                  \
   V(MAP_GET_INDEX, JSFunction, map_get)                                        \
   V(MAP_HAS_INDEX, JSFunction, map_has)                                        \
   V(MAP_SET_INDEX, JSFunction, map_set)                                        \
+  V(FINALIZATION_REGISTRY_CLEANUP_SOME, JSFunction,                            \
+    finalization_registry_cleanup_some)                                        \
   V(FUNCTION_HAS_INSTANCE_INDEX, JSFunction, function_has_instance)            \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                            \
   V(OBJECT_VALUE_OF_FUNCTION_INDEX, JSFunction, object_value_of_function)      \
@@ -371,6 +327,7 @@ enum ContextLookupFlags {
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                                \
   V(WEAKMAP_GET_INDEX, JSFunction, weakmap_get)                                \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
+  V(RETAINED_MAPS, WeakArrayList, retained_maps)                               \
   V(OSR_CODE_CACHE_INDEX, WeakFixedArray, osr_code_cache)
 
 // A table of all script contexts. Every loaded top-level script with top-level
@@ -694,7 +651,8 @@ class NativeContext : public Context {
   // TODO(neis): Move some stuff from Context here.
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
-  DECL_PRIMITIVE_ACCESSORS(microtask_queue, MicrotaskQueue*)
+  DECL_GETTER(microtask_queue, MicrotaskQueue*)
+  inline void set_microtask_queue(Isolate* isolate, MicrotaskQueue* queue);
 
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)

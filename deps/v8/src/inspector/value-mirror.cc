@@ -1602,6 +1602,10 @@ std::unique_ptr<ValueMirror> ValueMirror::create(v8::Local<v8::Context> context,
   if (value->IsSymbol()) {
     return std::make_unique<SymbolMirror>(value.As<v8::Symbol>());
   }
+  if (v8::debug::WasmValue::IsWasmValue(value)) {
+    // TODO(v8:10347) WasmValue is not created anywhere yet.
+    UNIMPLEMENTED();
+  }
   auto clientSubtype = (value->IsUndefined() || value->IsObject())
                            ? clientFor(context)->valueSubtype(value)
                            : nullptr;

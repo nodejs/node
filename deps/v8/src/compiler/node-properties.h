@@ -140,6 +140,11 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   static void MergeControlToEnd(Graph* graph, CommonOperatorBuilder* common,
                                 Node* node);
 
+  // Removes the control node {node} from the end of the graph, reducing the
+  // existing merge node's input count.
+  static void RemoveControlFromEnd(Graph* graph, CommonOperatorBuilder* common,
+                                   Node* node);
+
   // Replace all uses of {node} with the given replacement nodes. All occurring
   // use kinds need to be replaced, {nullptr} is only valid if a use kind is
   // guaranteed not to exist.

@@ -23,5 +23,3 @@ var foo = (function(stdlib, foreign, heap) {
 
 assertEquals(0x1234, foo());
 assertEquals(0x1234, foo());
-%OptimizeFunctionOnNextCall(foo);
-assertEquals(0x1234, foo());

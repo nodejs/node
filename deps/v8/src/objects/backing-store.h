@@ -9,6 +9,7 @@
 
 #include "include/v8-internal.h"
 #include "include/v8.h"
+#include "src/base/optional.h"
 #include "src/handles/handles.h"
 
 namespace v8 {
@@ -84,8 +85,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   bool free_on_destruct() const { return free_on_destruct_; }
 
   // Attempt to grow this backing store in place.
-  bool GrowWasmMemoryInPlace(Isolate* isolate, size_t delta_pages,
-                             size_t max_pages);
+  base::Optional<size_t> GrowWasmMemoryInPlace(Isolate* isolate,
+                                               size_t delta_pages,
+                                               size_t max_pages);
 
   // Wrapper around ArrayBuffer::Allocator::Reallocate.
   bool Reallocate(Isolate* isolate, size_t new_byte_length);
@@ -104,8 +106,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // after the backing store has been grown. Memory objects in this
   // isolate are updated synchronously.
   static void BroadcastSharedWasmMemoryGrow(Isolate* isolate,
-                                            std::shared_ptr<BackingStore>,
-                                            size_t new_pages);
+                                            std::shared_ptr<BackingStore>);
 
   // TODO(wasm): address space limitations should be enforced in page alloc.
   // These methods enforce a limit on the total amount of address space,
@@ -243,8 +244,7 @@ class GlobalBackingStoreRegistry {
 
   // Broadcast updates to all attached memory objects.
   static void BroadcastSharedWasmMemoryGrow(
-      Isolate* isolate, std::shared_ptr<BackingStore> backing_store,
-      size_t new_pages);
+      Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
 
   // Update all shared memory objects in the given isolate.
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);

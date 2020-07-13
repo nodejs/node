@@ -459,6 +459,10 @@ class V8_EXPORT_PRIVATE UsePosition final
   bool RegisterIsBeneficial() const {
     return RegisterBeneficialField::decode(flags_);
   }
+  bool SpillDetrimental() const {
+    return SpillDetrimentalField::decode(flags_);
+  }
+
   UsePositionType type() const { return TypeField::decode(flags_); }
   void set_type(UsePositionType type, bool register_beneficial);
 
@@ -470,6 +474,9 @@ class V8_EXPORT_PRIVATE UsePosition final
   // For hinting only.
   void set_assigned_register(int register_code) {
     flags_ = AssignedRegisterField::update(flags_, register_code);
+  }
+  void set_spill_detrimental() {
+    flags_ = SpillDetrimentalField::update(flags_, true);
   }
 
   UsePositionHintType hint_type() const {
@@ -489,6 +496,7 @@ class V8_EXPORT_PRIVATE UsePosition final
   using HintTypeField = base::BitField<UsePositionHintType, 2, 3>;
   using RegisterBeneficialField = base::BitField<bool, 5, 1>;
   using AssignedRegisterField = base::BitField<int32_t, 6, 6>;
+  using SpillDetrimentalField = base::BitField<int32_t, 12, 1>;
 
   InstructionOperand* const operand_;
   void* hint_;
@@ -584,6 +592,10 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   UsePosition* PreviousUsePositionRegisterIsBeneficial(
       LifetimePosition start) const;
 
+  // Returns use position for which spilling is detrimental in this live
+  // range and which follows both start and last processed use position
+  UsePosition* NextUsePositionSpillDetrimental(LifetimePosition start) const;
+
   // Can this live range be spilled at this position.
   bool CanBeSpilled(LifetimePosition pos) const;
 
@@ -675,7 +687,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   using RepresentationField = base::BitField<MachineRepresentation, 13, 8>;
   using RecombineField = base::BitField<bool, 21, 1>;
   using ControlFlowRegisterHint = base::BitField<uint8_t, 22, 6>;
-  // Bit 28 is used by TopLevelLiveRange.
+  // Bits 28,29 are used by TopLevelLiveRange.
 
   // Unique among children and splinters of the same virtual register.
   int relative_id_;
@@ -784,6 +796,12 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   bool is_non_loop_phi() const { return IsNonLoopPhiField::decode(bits_); }
   void set_is_non_loop_phi(bool value) {
     bits_ = IsNonLoopPhiField::update(bits_, value);
+  }
+  bool SpillAtLoopHeaderNotBeneficial() const {
+    return SpillAtLoopHeaderNotBeneficialField::decode(bits_);
+  }
+  void set_spilling_at_loop_header_not_beneficial() {
+    bits_ = SpillAtLoopHeaderNotBeneficialField::update(bits_, true);
   }
 
   enum SlotUseKind { kNoSlotUse, kDeferredSlotUse, kGeneralSlotUse };
@@ -991,6 +1009,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   using IsNonLoopPhiField = base::BitField<bool, 4, 1>;
   using SpillTypeField = base::BitField<SpillType, 5, 2>;
   using DeferredFixedField = base::BitField<bool, 28, 1>;
+  using SpillAtLoopHeaderNotBeneficialField = base::BitField<bool, 29, 1>;
 
   int vreg_;
   int last_child_id_;

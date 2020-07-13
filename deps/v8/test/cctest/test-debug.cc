@@ -3601,34 +3601,30 @@ TEST(NoDebugBreakInAfterCompileEventListener) {
 
 
 // Test that the debug break flag works with function.apply.
-TEST(DebugBreakFunctionApply) {
+TEST(RepeatDebugBreak) {
+  // Test that we can repeatedly set a break without JS execution continuing.
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::Local<v8::Context> context = env.local();
 
   // Create a function for testing breaking in apply.
-  v8::Local<v8::Function> foo = CompileFunction(
-      &env,
-      "function baz(x) { }"
-      "function bar(x) { baz(); }"
-      "function foo(){ bar.apply(this, [1]); }",
-      "foo");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo() {}", "foo");
 
-  // Register a debug event listener which steps and counts.
+  // Register a debug delegate which repeatedly sets a break and counts.
   DebugEventBreakMax delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 
   // Set the debug break flag before calling the code using function.apply.
   v8::debug::SetBreakOnNextFunctionCall(env->GetIsolate());
 
-  // Limit the number of debug breaks. This is a regression test for issue 493
-  // where this test would enter an infinite loop.
+  // Trigger a break by calling into foo().
   break_point_hit_count = 0;
-  max_break_point_hit_count = 10000;  // 10000 => infinite loop.
+  max_break_point_hit_count = 10000;
   foo->Call(context, env->Global(), 0, nullptr).ToLocalChecked();
 
   // When keeping the debug break several break will happen.
-  CHECK_GT(break_point_hit_count, 1);
+  CHECK_EQ(break_point_hit_count, max_break_point_hit_count);
 
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
@@ -3697,7 +3693,7 @@ void DebugBreakLoop(const char* loop_header, const char** loop_bodies,
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  // Register a debug event listener which sets the break flag and counts.
+  // Register a debug delegate which repeatedly sets the break flag and counts.
   DebugEventBreakMax delegate;
   v8::debug::SetDebugDelegate(env->GetIsolate(), &delegate);
 

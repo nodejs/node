@@ -50,11 +50,14 @@ void DateBuiltinsAssembler::Generate_DatePrototype_GetField(
       BIND(&stamp_mismatch);
     }
 
+    TNode<ExternalReference> isolate_ptr =
+        ExternalConstant(ExternalReference::isolate_address(isolate()));
     TNode<Smi> field_index_smi = SmiConstant(field_index);
     TNode<ExternalReference> function =
         ExternalConstant(ExternalReference::get_date_field_function());
     TNode<Object> result = CAST(CallCFunction(
         function, MachineType::AnyTagged(),
+        std::make_pair(MachineType::Pointer(), isolate_ptr),
         std::make_pair(MachineType::AnyTagged(), date_receiver),
         std::make_pair(MachineType::AnyTagged(), field_index_smi)));
     Return(result);

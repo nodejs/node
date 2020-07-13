@@ -182,6 +182,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(RAWPTR_TYPE_STRING);
   }
 
+  static const Type* GetExternalPointerType() {
+    return Get().GetBuiltinType(EXTERNALPTR_TYPE_STRING);
+  }
+
   static const Type* GetMapType() {
     return Get().GetBuiltinType(MAP_TYPE_STRING);
   }
@@ -298,6 +302,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetContextType() {
     return Get().GetBuiltinType(CONTEXT_TYPE_STRING);
+  }
+
+  static const Type* GetNoContextType() {
+    return Get().GetBuiltinType(NO_CONTEXT_TYPE_STRING);
   }
 
   static const Type* GetNativeContextType() {

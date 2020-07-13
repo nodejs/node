@@ -66,14 +66,18 @@ class EmbedderDataSlot
   // the pointer-like value. Note, that some Smis could still look like an
   // aligned pointers.
   // Returns true on success.
-  V8_INLINE bool ToAlignedPointer(void** out_result) const;
+  V8_INLINE bool ToAlignedPointer(const Isolate* isolate,
+                                  void** out_result) const;
 
   // Returns true if the pointer was successfully stored or false it the pointer
   // was improperly aligned.
-  V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(void* ptr);
+  V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(Isolate* isolate,
+                                                             void* ptr);
 
-  V8_INLINE RawData load_raw(const DisallowHeapAllocation& no_gc) const;
-  V8_INLINE void store_raw(RawData data, const DisallowHeapAllocation& no_gc);
+  V8_INLINE RawData load_raw(Isolate* isolate,
+                             const DisallowHeapAllocation& no_gc) const;
+  V8_INLINE void store_raw(Isolate* isolate, RawData data,
+                           const DisallowHeapAllocation& no_gc);
 
  private:
   // Stores given value to the embedder data slot in a concurrent-marker

@@ -750,7 +750,6 @@ class CollectFunctionLiterals final
 bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
                  bool compile_as_well, std::vector<FunctionLiteral*>* literals,
                  debug::LiveEditResult* result) {
-  parse_info->set_eager();
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   Handle<SharedFunctionInfo> shared;
   bool success = false;
@@ -759,10 +758,6 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
                   .ToHandle(&shared);
   } else {
     success = parsing::ParseProgram(parse_info, script, isolate);
-    if (success) {
-      success = Compiler::Analyze(parse_info);
-      parse_info->ast_value_factory()->Internalize(isolate);
-    }
   }
   if (!success) {
     isolate->OptionalRescheduleException(false);
@@ -1058,15 +1053,23 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     return;
   }
 
-  ParseInfo parse_info(isolate, *script);
+  UnoptimizedCompileState compile_state(isolate);
+  UnoptimizedCompileFlags flags =
+      UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_eager(true);
+  ParseInfo parse_info(isolate, flags, &compile_state);
   std::vector<FunctionLiteral*> literals;
   if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
     return;
 
   Handle<Script> new_script = isolate->factory()->CloneScript(script);
   new_script->set_source(*new_source);
+  UnoptimizedCompileState new_compile_state(isolate);
+  UnoptimizedCompileFlags new_flags =
+      UnoptimizedCompileFlags::ForScriptCompile(isolate, *new_script);
+  new_flags.set_is_eager(true);
+  ParseInfo new_parse_info(isolate, new_flags, &new_compile_state);
   std::vector<FunctionLiteral*> new_literals;
-  ParseInfo new_parse_info(isolate, *new_script);
   if (!ParseScript(isolate, new_script, &new_parse_info, true, &new_literals,
                    result)) {
     return;

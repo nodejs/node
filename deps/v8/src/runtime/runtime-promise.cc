@@ -260,5 +260,62 @@ RUNTIME_FUNCTION(Runtime_ResolvePromise) {
   return *result;
 }
 
+// A helper function to be called when constructing AggregateError objects. This
+// takes care of the Error-related construction, e.g., stack traces.
+RUNTIME_FUNCTION(Runtime_ConstructAggregateErrorHelper) {
+  DCHECK(FLAG_harmony_promise_any);
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, new_target, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, message, 2);
+
+  DCHECK_EQ(*target, *isolate->aggregate_error_function());
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      ErrorUtils::Construct(isolate, target, new_target, message));
+  return *result;
+}
+
+// A helper function to be called when constructing AggregateError objects. This
+// takes care of the Error-related construction, e.g., stack traces.
+RUNTIME_FUNCTION(Runtime_ConstructInternalAggregateErrorHelper) {
+  DCHECK(FLAG_harmony_promise_any);
+  HandleScope scope(isolate);
+  DCHECK_GE(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, message, 0);
+
+  Handle<Object> arg0;
+  if (args.length() >= 2) {
+    DCHECK(args[1].IsObject());
+    arg0 = args.at<Object>(1);
+  }
+
+  Handle<Object> arg1;
+  if (args.length() >= 3) {
+    DCHECK(args[2].IsObject());
+    arg1 = args.at<Object>(2);
+  }
+
+  Handle<Object> arg2;
+  if (args.length() >= 4) {
+    CHECK(args[3].IsObject());
+    arg2 = args.at<Object>(3);
+  }
+
+  Handle<Object> message_string = MessageFormatter::Format(
+      isolate, MessageTemplate(message->value()), arg0, arg1, arg2);
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      ErrorUtils::Construct(isolate, isolate->aggregate_error_function(),
+                            isolate->aggregate_error_function(),
+                            message_string));
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8

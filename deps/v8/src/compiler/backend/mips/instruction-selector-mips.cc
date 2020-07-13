@@ -714,6 +714,8 @@ void InstructionSelector::VisitWord32PairSar(Node* node) {
   VisitWord32PairShift(this, kMipsSarPair, node);
 }
 
+void InstructionSelector::VisitWord32Rol(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitRRO(this, kMipsRor, node);
 }

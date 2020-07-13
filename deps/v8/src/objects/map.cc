@@ -13,6 +13,7 @@
 #include "src/logging/counters-inl.h"
 #include "src/logging/log.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/layout-descriptor.h"
@@ -84,11 +85,11 @@ Map Map::GetInstanceTypeMap(ReadOnlyRoots roots, InstanceType type) {
     break;
     STRUCT_LIST(MAKE_CASE)
 #undef MAKE_CASE
-#define MAKE_CASE(_, TYPE, Name, name) \
-  case TYPE:                           \
-    map = roots.name##_map();          \
+#define MAKE_CASE(TYPE, Name, name) \
+  case TYPE:                        \
+    map = roots.name##_map();       \
     break;
-    TORQUE_INTERNAL_CLASS_LIST_GENERATOR(MAKE_CASE, _)
+    TORQUE_INTERNAL_INSTANCE_TYPE_LIST(MAKE_CASE)
 #undef MAKE_CASE
     default:
       UNREACHABLE();
@@ -142,7 +143,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return kVisitEmbedderDataArray;
 
-    case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
@@ -174,10 +174,6 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case EPHEMERON_HASH_TABLE_TYPE:
       return kVisitEphemeronHashTable;
-
-    case WEAK_FIXED_ARRAY_TYPE:
-    case WEAK_ARRAY_LIST_TYPE:
-      return kVisitWeakArray;
 
     case FIXED_DOUBLE_ARRAY_TYPE:
       return kVisitFixedDoubleArray;
@@ -272,6 +268,7 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
+    case JS_AGGREGATE_ERROR_TYPE:
     case JS_ARGUMENTS_OBJECT_TYPE:
     case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -295,7 +292,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_PROMISE_TYPE:
     case JS_REG_EXP_TYPE:
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
-    case JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE:
     case JS_FINALIZATION_REGISTRY_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
@@ -367,10 +363,15 @@ VisitorId Map::GetVisitorId(Map map) {
     case SYNTHETIC_MODULE_TYPE:
       return kVisitSyntheticModule;
 
+    case WASM_ARRAY_TYPE:
+      return kVisitWasmArray;
+    case WASM_STRUCT_TYPE:
+      return kVisitWasmStruct;
+
 #define MAKE_TQ_CASE(TYPE, Name) \
   case TYPE:                     \
     return kVisit##Name;
-      TORQUE_BODY_DESCRIPTOR_LIST(MAKE_TQ_CASE)
+      TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(MAKE_TQ_CASE)
 #undef MAKE_TQ_CASE
 
     default:
@@ -794,8 +795,21 @@ void Map::GeneralizeField(Isolate* isolate, Handle<Map> map,
   MaybeObjectHandle wrapped_type(WrapFieldType(isolate, new_field_type));
   field_owner->UpdateFieldType(isolate, modify_index, name, new_constness,
                                new_representation, wrapped_type);
-  field_owner->dependent_code().DeoptimizeDependentCodeGroup(
-      DependentCode::kFieldOwnerGroup);
+
+  if (new_constness != old_constness) {
+    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
+        DependentCode::kFieldConstGroup);
+  }
+
+  if (!new_field_type->Equals(*old_field_type)) {
+    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
+        DependentCode::kFieldTypeGroup);
+  }
+
+  if (!new_representation.Equals(old_representation)) {
+    field_owner->dependent_code().DeoptimizeDependentCodeGroup(
+        DependentCode::kFieldRepresentationGroup);
+  }
 
   if (FLAG_trace_generalization) {
     map->PrintGeneralization(
@@ -1405,27 +1419,26 @@ bool Map::OnlyHasSimpleProperties() const {
          !IsSpecialReceiverMap() && !is_dictionary_map();
 }
 
-bool Map::DictionaryElementsInPrototypeChainOnly(Isolate* isolate) {
-  if (IsDictionaryElementsKind(elements_kind())) {
-    return false;
-  }
-
+bool Map::MayHaveReadOnlyElementsInPrototypeChain(Isolate* isolate) {
   for (PrototypeIterator iter(isolate, *this); !iter.IsAtEnd();
        iter.Advance()) {
-    // Be conservative, don't walk into proxies.
-    if (iter.GetCurrent().IsJSProxy()) return true;
-    // String wrappers have non-configurable, non-writable elements.
-    if (iter.GetCurrent().IsStringWrapper()) return true;
-    JSObject current = iter.GetCurrent<JSObject>();
+    // Be conservative, don't look into any JSReceivers that may have custom
+    // elements. For example, into JSProxies, String wrappers (which have have
+    // non-configurable, non-writable elements), API objects, etc.
+    if (iter.GetCurrent().map().IsCustomElementsReceiverMap()) return true;
 
-    if (current.HasDictionaryElements() &&
-        current.element_dictionary().requires_slow_elements()) {
+    JSObject current = iter.GetCurrent<JSObject>();
+    ElementsKind elements_kind = current.GetElementsKind(isolate);
+    if (IsFrozenElementsKind(elements_kind)) return true;
+
+    if (IsDictionaryElementsKind(elements_kind) &&
+        current.element_dictionary(isolate).requires_slow_elements()) {
       return true;
     }
 
-    if (current.HasSlowArgumentsElements()) {
-      FixedArray parameter_map = FixedArray::cast(current.elements());
-      Object arguments = parameter_map.get(1);
+    if (IsSlowArgumentsElementsKind(elements_kind)) {
+      FixedArray parameter_map = FixedArray::cast(current.elements(isolate));
+      Object arguments = parameter_map.get(isolate, 1);
       if (NumberDictionary::cast(arguments).requires_slow_elements()) {
         return true;
       }
@@ -1443,7 +1456,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
   Handle<HeapObject> prototype(map->prototype(), isolate);
   Map::SetPrototype(isolate, result, prototype);
   result->set_constructor_or_backpointer(map->GetConstructor());
-  result->set_bit_field(map->bit_field());
+  result->set_relaxed_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
   int new_bit_field3 = map->bit_field3();
   new_bit_field3 = Bits3::OwnsDescriptorsBit::update(new_bit_field3, true);

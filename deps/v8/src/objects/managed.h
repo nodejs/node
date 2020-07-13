@@ -92,11 +92,12 @@ class Managed : public Foreign {
   // Create a {Managed<CppType>} from an existing {std::shared_ptr<CppType>}.
   static Handle<Managed<CppType>> FromSharedPtr(
       Isolate* isolate, size_t estimated_size,
-      const std::shared_ptr<CppType>& shared_ptr) {
+      std::shared_ptr<CppType> shared_ptr) {
     reinterpret_cast<v8::Isolate*>(isolate)
         ->AdjustAmountOfExternalAllocatedMemory(estimated_size);
     auto destructor = new ManagedPtrDestructor(
-        estimated_size, new std::shared_ptr<CppType>{shared_ptr}, Destructor);
+        estimated_size, new std::shared_ptr<CppType>{std::move(shared_ptr)},
+        Destructor);
     Handle<Managed<CppType>> handle = Handle<Managed<CppType>>::cast(
         isolate->factory()->NewForeign(reinterpret_cast<Address>(destructor)));
     Handle<Object> global_handle = isolate->global_handles()->Create(*handle);

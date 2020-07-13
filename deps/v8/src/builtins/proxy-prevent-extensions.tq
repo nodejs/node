@@ -6,61 +6,59 @@
 
 namespace proxy {
 
-  // ES #sec-proxy-object-internal-methods-and-internal-slots-preventextensions
-  // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-preventextensions
-  transitioning builtin
-  ProxyPreventExtensions(implicit context:
-                             Context)(proxy: JSProxy, doThrow: Boolean): JSAny {
-    PerformStackCheck();
-    const kTrapName: constexpr string = 'preventExtensions';
-    try {
-      // 1. Let handler be O.[[ProxyHandler]].
-      // 2. If handler is null, throw a TypeError exception.
-      // 3. Assert: Type(handler) is Object.
-      assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
-      const handler =
-          Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
+// ES #sec-proxy-object-internal-methods-and-internal-slots-preventextensions
+// https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-preventextensions
+transitioning builtin
+ProxyPreventExtensions(implicit context: Context)(
+    proxy: JSProxy, doThrow: Boolean): JSAny {
+  PerformStackCheck();
+  const kTrapName: constexpr string = 'preventExtensions';
+  try {
+    // 1. Let handler be O.[[ProxyHandler]].
+    // 2. If handler is null, throw a TypeError exception.
+    // 3. Assert: Type(handler) is Object.
+    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    const handler =
+        Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 
-      // 4. Let target be O.[[ProxyTarget]].
-      const target = proxy.target;
+    // 4. Let target be O.[[ProxyTarget]].
+    const target = proxy.target;
 
-      // 5. Let trap be ? GetMethod(handler, "preventExtensions").
-      // 6. If trap is undefined, then (see 6.a below).
-      const trap: Callable = GetMethod(handler, kTrapName)
-          otherwise goto TrapUndefined(target);
+    // 5. Let trap be ? GetMethod(handler, "preventExtensions").
+    // 6. If trap is undefined, then (see 6.a below).
+    const trap: Callable = GetMethod(handler, kTrapName)
+        otherwise goto TrapUndefined(target);
 
-      // 7. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «
-      // target»)).
-      const trapResult = Call(context, trap, handler, target);
+    // 7. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «
+    // target»)).
+    const trapResult = Call(context, trap, handler, target);
 
-      // 8. If booleanTrapResult is true, then
-      //    8.a. Let extensibleTarget be ? IsExtensible(target).
-      //    8.b If extensibleTarget is true, throw a TypeError exception.
-      if (ToBoolean(trapResult)) {
-        const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
-        assert(extensibleTarget == True || extensibleTarget == False);
-        if (extensibleTarget == True) {
-          ThrowTypeError(MessageTemplate::kProxyPreventExtensionsExtensible);
-        }
-      } else {
-        if (doThrow == True) {
-          ThrowTypeError(MessageTemplate::kProxyTrapReturnedFalsish, kTrapName);
-        }
-        return False;
+    // 8. If booleanTrapResult is true, then
+    //    8.a. Let extensibleTarget be ? IsExtensible(target).
+    //    8.b If extensibleTarget is true, throw a TypeError exception.
+    if (ToBoolean(trapResult)) {
+      const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
+      assert(extensibleTarget == True || extensibleTarget == False);
+      if (extensibleTarget == True) {
+        ThrowTypeError(MessageTemplate::kProxyPreventExtensionsExtensible);
       }
-
-      // 9. Return booleanTrapResult.
-      return True;
-    }
-    label TrapUndefined(target: JSAny) {
-      // 6.a. Return ? target.[[PreventExtensions]]().
+    } else {
       if (doThrow == True) {
-        return object::ObjectPreventExtensionsThrow(target);
+        ThrowTypeError(MessageTemplate::kProxyTrapReturnedFalsish, kTrapName);
       }
-      return object::ObjectPreventExtensionsDontThrow(target);
+      return False;
     }
-    label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
+
+    // 9. Return booleanTrapResult.
+    return True;
+  } label TrapUndefined(target: JSAny) {
+    // 6.a. Return ? target.[[PreventExtensions]]().
+    if (doThrow == True) {
+      return object::ObjectPreventExtensionsThrow(target);
     }
+    return object::ObjectPreventExtensionsDontThrow(target);
+  } label ThrowProxyHandlerRevoked deferred {
+    ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
   }
+}
 }  // namespace proxy

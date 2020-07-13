@@ -13,30 +13,38 @@
 #include "src/base/platform/time.h"
 
 #ifdef V8_USE_PERFETTO
-#include "base/trace_event/common/trace_event_common.h"
-#include "perfetto/tracing.h"
-#include "protos/perfetto/trace/chrome/chrome_trace_event.pbzero.h"
-#include "protos/perfetto/trace/trace_packet.pbzero.h"
+#include "perfetto/ext/trace_processor/export_json.h"
+#include "perfetto/trace_processor/trace_processor.h"
+#include "perfetto/tracing/tracing.h"
+#include "protos/perfetto/config/data_source_config.gen.h"
+#include "protos/perfetto/config/trace_config.gen.h"
+#include "protos/perfetto/config/track_event/track_event_config.gen.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
-#include "src/libplatform/tracing/json-trace-event-listener.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
 #endif  // V8_USE_PERFETTO
 
 #ifdef V8_USE_PERFETTO
-class V8DataSource : public perfetto::DataSource<V8DataSource> {
+class JsonOutputWriter : public perfetto::trace_processor::json::OutputWriter {
  public:
-  void OnSetup(const SetupArgs&) override {}
-  void OnStart(const StartArgs&) override {}
-  void OnStop(const StopArgs&) override {}
-};
+  explicit JsonOutputWriter(std::ostream* stream) : stream_(stream) {}
 
-PERFETTO_DEFINE_DATA_SOURCE_STATIC_MEMBERS(V8DataSource);
+  perfetto::trace_processor::util::Status AppendString(
+      const std::string& string) override {
+    *stream_ << string;
+    return perfetto::trace_processor::util::OkStatus();
+  }
+
+ private:
+  std::ostream* stream_;
+};
 #endif  // V8_USE_PERFETTO
 
 namespace v8 {
 namespace platform {
 namespace tracing {
 
+#if !defined(V8_USE_PERFETTO)
 static const size_t kMaxCategoryGroups = 200;
 
 // Parallel arrays g_category_groups and g_category_group_enabled are separate
@@ -60,12 +68,14 @@ const int g_num_builtin_categories = 3;
 
 // Skip default categories.
 v8::base::AtomicWord g_category_index = g_num_builtin_categories;
+#endif  // !defined(V8_USE_PERFETTO)
 
-TracingController::TracingController() = default;
+TracingController::TracingController() { mutex_.reset(new base::Mutex()); }
 
 TracingController::~TracingController() {
   StopTracing();
 
+#if !defined(V8_USE_PERFETTO)
   {
     // Free memory for category group names allocated via strdup.
     base::MutexGuard lock(mutex_.get());
@@ -76,11 +86,7 @@ TracingController::~TracingController() {
     }
     g_category_index = g_num_builtin_categories;
   }
-}
-
-void TracingController::Initialize(TraceBuffer* trace_buffer) {
-  trace_buffer_.reset(trace_buffer);
-  mutex_.reset(new base::Mutex());
+#endif  // !defined(V8_USE_PERFETTO)
 }
 
 #ifdef V8_USE_PERFETTO
@@ -88,14 +94,16 @@ void TracingController::InitializeForPerfetto(std::ostream* output_stream) {
   output_stream_ = output_stream;
   DCHECK_NOT_NULL(output_stream);
   DCHECK(output_stream->good());
-  mutex_.reset(new base::Mutex());
 }
 
 void TracingController::SetTraceEventListenerForTesting(
     TraceEventListener* listener) {
   listener_for_testing_ = listener;
 }
-#endif
+#else   // !V8_USE_PERFETTO
+void TracingController::Initialize(TraceBuffer* trace_buffer) {
+  trace_buffer_.reset(trace_buffer);
+}
 
 int64_t TracingController::CurrentTimestampMicroseconds() {
   return base::TimeTicks::HighResolutionNow().ToInternalValue();
@@ -104,60 +112,6 @@ int64_t TracingController::CurrentTimestampMicroseconds() {
 int64_t TracingController::CurrentCpuTimestampMicroseconds() {
   return base::ThreadTicks::Now().ToInternalValue();
 }
-
-namespace {
-
-#ifdef V8_USE_PERFETTO
-void AddArgsToTraceProto(
-    ::perfetto::protos::pbzero::ChromeTraceEvent* event, int num_args,
-    const char** arg_names, const uint8_t* arg_types,
-    const uint64_t* arg_values,
-    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables) {
-  for (int i = 0; i < num_args; i++) {
-    ::perfetto::protos::pbzero::ChromeTraceEvent_Arg* arg = event->add_args();
-    // TODO(petermarshall): Set name_index instead if need be.
-    arg->set_name(arg_names[i]);
-
-    TraceObject::ArgValue arg_value;
-    arg_value.as_uint = arg_values[i];
-    switch (arg_types[i]) {
-      case TRACE_VALUE_TYPE_CONVERTABLE: {
-        // TODO(petermarshall): Support AppendToProto for Convertables.
-        std::string json_value;
-        arg_convertables[i]->AppendAsTraceFormat(&json_value);
-        arg->set_json_value(json_value.c_str());
-        break;
-      }
-      case TRACE_VALUE_TYPE_BOOL:
-        arg->set_bool_value(arg_value.as_uint);
-        break;
-      case TRACE_VALUE_TYPE_UINT:
-        arg->set_uint_value(arg_value.as_uint);
-        break;
-      case TRACE_VALUE_TYPE_INT:
-        arg->set_int_value(arg_value.as_int);
-        break;
-      case TRACE_VALUE_TYPE_DOUBLE:
-        arg->set_double_value(arg_value.as_double);
-        break;
-      case TRACE_VALUE_TYPE_POINTER:
-        arg->set_pointer_value(arg_value.as_uint);
-        break;
-      // There is no difference between copy strings and regular strings for
-      // Perfetto; the set_string_value(const char*) API will copy the string
-      // into the protobuf by default.
-      case TRACE_VALUE_TYPE_COPY_STRING:
-      case TRACE_VALUE_TYPE_STRING:
-        arg->set_string_value(arg_value.as_string);
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-}
-#endif  // V8_USE_PERFETTO
-
-}  // namespace
 
 uint64_t TracingController::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
@@ -182,42 +136,6 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
     unsigned int flags, int64_t timestamp) {
   int64_t cpu_now_us = CurrentCpuTimestampMicroseconds();
 
-#ifdef V8_USE_PERFETTO
-    // Don't use COMPLETE events with perfetto - instead transform them into
-    // BEGIN/END pairs. This avoids the need for a thread-local stack of pending
-    // trace events as perfetto does not support handles into the trace buffer.
-    if (phase == TRACE_EVENT_PHASE_COMPLETE) phase = TRACE_EVENT_PHASE_BEGIN;
-
-    V8DataSource::Trace([&](V8DataSource::TraceContext ctx) {
-      auto packet = ctx.NewTracePacket();
-      auto* trace_event_bundle = packet->set_chrome_events();
-      auto* trace_event = trace_event_bundle->add_trace_events();
-
-      trace_event->set_name(name);
-      trace_event->set_timestamp(timestamp);
-      trace_event->set_phase(phase);
-      trace_event->set_thread_id(base::OS::GetCurrentThreadId());
-      trace_event->set_duration(0);
-      trace_event->set_thread_duration(0);
-      if (scope) trace_event->set_scope(scope);
-      trace_event->set_id(id);
-      trace_event->set_flags(flags);
-      if (category_enabled_flag) {
-        const char* category_group_name =
-            GetCategoryGroupName(category_enabled_flag);
-        DCHECK_NOT_NULL(category_group_name);
-        trace_event->set_category_group_name(category_group_name);
-      }
-      trace_event->set_process_id(base::OS::GetCurrentProcessId());
-      trace_event->set_thread_timestamp(cpu_now_us);
-      trace_event->set_bind_id(bind_id);
-
-      AddArgsToTraceProto(trace_event, num_args, arg_names, arg_types,
-                          arg_values, arg_convertables);
-    });
-    return 0;
-#else
-
   uint64_t handle = 0;
   if (recording_.load(std::memory_order_acquire)) {
     TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
@@ -232,7 +150,6 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
     }
   }
   return handle;
-#endif  // V8_USE_PERFETTO
 }
 
 void TracingController::UpdateTraceEventDuration(
@@ -240,24 +157,9 @@ void TracingController::UpdateTraceEventDuration(
   int64_t now_us = CurrentTimestampMicroseconds();
   int64_t cpu_now_us = CurrentCpuTimestampMicroseconds();
 
-#ifdef V8_USE_PERFETTO
-  V8DataSource::Trace([&](V8DataSource::TraceContext ctx) {
-    auto packet = ctx.NewTracePacket();
-    auto* trace_event_bundle = packet->set_chrome_events();
-    auto* trace_event = trace_event_bundle->add_trace_events();
-
-    trace_event->set_phase(TRACE_EVENT_PHASE_END);
-    trace_event->set_thread_id(base::OS::GetCurrentThreadId());
-    trace_event->set_timestamp(now_us);
-    trace_event->set_process_id(base::OS::GetCurrentProcessId());
-    trace_event->set_thread_timestamp(cpu_now_us);
-  });
-#else
-
   TraceObject* trace_object = trace_buffer_->GetEventByHandle(handle);
   if (!trace_object) return;
   trace_object->UpdateDuration(now_us, cpu_now_us);
-#endif  // V8_USE_PERFETTO
 }
 
 const char* TracingController::GetCategoryGroupName(
@@ -275,23 +177,26 @@ const char* TracingController::GetCategoryGroupName(
       (category_ptr - category_begin) / sizeof(g_category_group_enabled[0]);
   return g_category_groups[category_index];
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 void TracingController::StartTracing(TraceConfig* trace_config) {
 #ifdef V8_USE_PERFETTO
   DCHECK_NOT_NULL(output_stream_);
   DCHECK(output_stream_->good());
-  json_listener_ = std::make_unique<JSONTraceEventListener>(output_stream_);
+  perfetto::trace_processor::Config processor_config;
+  trace_processor_ =
+      perfetto::trace_processor::TraceProcessorStorage::CreateInstance(
+          processor_config);
 
-  // TODO(petermarshall): Set other the params for the config.
   ::perfetto::TraceConfig perfetto_trace_config;
   perfetto_trace_config.add_buffers()->set_size_kb(4096);
-  auto* ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
-  ds_config->set_name("v8.trace_events");
-
-  perfetto::DataSourceDescriptor dsd;
-  dsd.set_name("v8.trace_events");
-  bool registered = V8DataSource::Register(dsd);
-  CHECK(registered);
+  auto ds_config = perfetto_trace_config.add_data_sources()->mutable_config();
+  ds_config->set_name("track_event");
+  perfetto::protos::gen::TrackEventConfig te_config;
+  te_config.add_disabled_categories("*");
+  for (const auto& category : trace_config->GetEnabledCategories())
+    te_config.add_enabled_categories(category);
+  ds_config->set_track_event_config_raw(te_config.SerializeAsString());
 
   tracing_session_ =
       perfetto::Tracing::NewTrace(perfetto::BackendType::kUnspecifiedBackend);
@@ -305,7 +210,9 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
   {
     base::MutexGuard lock(mutex_.get());
     recording_.store(true, std::memory_order_release);
+#ifndef V8_USE_PERFETTO
     UpdateCategoryGroupEnabledFlags();
+#endif
     observers_copy = observers_;
   }
   for (auto o : observers_copy) {
@@ -318,7 +225,9 @@ void TracingController::StopTracing() {
   if (!recording_.compare_exchange_strong(expected, false)) {
     return;
   }
+#ifndef V8_USE_PERFETTO
   UpdateCategoryGroupEnabledFlags();
+#endif
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
     base::MutexGuard lock(mutex_.get());
@@ -329,23 +238,21 @@ void TracingController::StopTracing() {
   }
 
 #ifdef V8_USE_PERFETTO
-  // Emit a fake trace event from the main thread. The final trace event is
-  // sometimes skipped because perfetto can't guarantee that the caller is
-  // totally finished writing to it without synchronization. To avoid the
-  // situation where we lose the last trace event, add a fake one here that will
-  // be sacrificed.
-  // TODO(petermarshall): Use the Client API to flush here rather than this
-  // workaround when that becomes available.
-  V8DataSource::Trace([&](V8DataSource::TraceContext ctx) {
-    auto packet = ctx.NewTracePacket();
-  });
   tracing_session_->StopBlocking();
 
   std::vector<char> trace = tracing_session_->ReadTraceBlocking();
-  json_listener_->ParseFromArray(trace);
+  std::unique_ptr<uint8_t[]> trace_bytes(new uint8_t[trace.size()]);
+  std::copy(&trace[0], &trace[0] + trace.size(), &trace_bytes[0]);
+  trace_processor_->Parse(std::move(trace_bytes), trace.size());
+  trace_processor_->NotifyEndOfFile();
+  JsonOutputWriter output_writer(output_stream_);
+  auto status = perfetto::trace_processor::json::ExportJson(
+      trace_processor_.get(), &output_writer, nullptr, nullptr, nullptr);
+  DCHECK(status.ok());
+
   if (listener_for_testing_) listener_for_testing_->ParseFromArray(trace);
 
-  json_listener_.reset();
+  trace_processor_.reset();
 #else
 
   {
@@ -356,6 +263,7 @@ void TracingController::StopTracing() {
 #endif  // V8_USE_PERFETTO
 }
 
+#if !defined(V8_USE_PERFETTO)
 void TracingController::UpdateCategoryGroupEnabledFlag(size_t category_index) {
   unsigned char enabled_flag = 0;
   const char* category_group = g_category_groups[category_index];
@@ -433,6 +341,7 @@ const uint8_t* TracingController::GetCategoryGroupEnabled(
   }
   return category_group_enabled;
 }
+#endif  // !defined(V8_USE_PERFETTO)
 
 void TracingController::AddTraceStateObserver(
     v8::TracingController::TraceStateObserver* observer) {

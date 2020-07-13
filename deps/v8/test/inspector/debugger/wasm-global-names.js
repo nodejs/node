@@ -58,16 +58,16 @@ function test(moduleBytes) {
     InspectorTest.log('Paused in debugger.');
     let scopeChain = callFrames[0].scopeChain;
     for (let scope of scopeChain) {
-      if (scope.type != 'global') continue;
-
-      let globalObjectProps = (await Protocol.Runtime.getProperties({
+      if (scope.type != 'module') continue;
+      let moduleObjectProps = (await Protocol.Runtime.getProperties({
                                 'objectId': scope.object.objectId
                               })).result.result;
 
-      for (let prop of globalObjectProps) {
+      for (let prop of moduleObjectProps) {
+        if (prop.name != 'globals') continue;
         let subProps = (await Protocol.Runtime.getProperties({
-                         objectId: prop.value.objectId
-                       })).result.result;
+                        objectId: prop.value.objectId
+                      })).result.result;
         let values = subProps.map((value) => `"${value.name}"`).join(', ');
         InspectorTest.log(`   ${prop.name}: {${values}}`);
       }

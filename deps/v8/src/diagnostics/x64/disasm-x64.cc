@@ -1490,6 +1490,10 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         current += PrintRightXMMOperand(current);
         AppendToBuffer(",0x%x", *current++);
         break;
+      case 0xD7:
+        AppendToBuffer("vpmovmskb %s,", NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
 #define DECLARE_SSE_AVX_DIS_CASE(instruction, notUsed1, notUsed2, opcode) \
   case 0x##opcode: {                                                      \
     AppendToBuffer("v" #instruction " %s,%s,", NameOfXMMRegister(regop),  \
@@ -2124,7 +2128,10 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         } else {
           UnimplementedInstruction();
         }
-        AppendToBuffer("%s %s,", mnemonic, NameOfXMMRegister(regop));
+        // Not every opcode here has an XMM register as the dst operand.
+        const char* regop_reg = opcode == 0xD7 ? NameOfCPURegister(regop)
+                                               : NameOfXMMRegister(regop);
+        AppendToBuffer("%s %s,", mnemonic, regop_reg);
         current += PrintRightXMMOperand(current);
         if (opcode == 0xC2) {
           const char* const pseudo_op[] = {"eq",  "lt",  "le",  "unord",

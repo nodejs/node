@@ -120,30 +120,86 @@ Address RelocInfo::constant_pool_entry_address() {
   UNREACHABLE();
 }
 
-int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
+void Assembler::set_target_compressed_address_at(
+    Address pc, Address constant_pool, Tagged_t target,
+    ICacheFlushMode icache_flush_mode) {
+  Assembler::set_target_address_at(
+      pc, constant_pool, static_cast<Address>(target), icache_flush_mode);
+}
+
+int RelocInfo::target_address_size() {
+  if (IsCodedSpecially()) {
+    return Assembler::kSpecialTargetSize;
+  } else {
+    return kSystemPointerSize;
+  }
+}
+
+Tagged_t Assembler::target_compressed_address_at(Address pc,
+                                                 Address constant_pool) {
+  return static_cast<Tagged_t>(target_address_at(pc, constant_pool));
+}
+
+Handle<Object> Assembler::code_target_object_handle_at(Address pc,
+                                                       Address constant_pool) {
+  int index =
+      static_cast<int>(target_address_at(pc, constant_pool)) & 0xFFFFFFFF;
+  return GetCodeTarget(index);
+}
 
 HeapObject RelocInfo::target_object() {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
-  return HeapObject::cast(
-      Object(Assembler::target_address_at(pc_, constant_pool_)));
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    return HeapObject::cast(Object(DecompressTaggedAny(
+        host_.address(),
+        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+  } else {
+    return HeapObject::cast(
+        Object(Assembler::target_address_at(pc_, constant_pool_)));
+  }
 }
 
 HeapObject RelocInfo::target_object_no_host(Isolate* isolate) {
-  return target_object();
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    return HeapObject::cast(Object(DecompressTaggedAny(
+        isolate,
+        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+  } else {
+    return target_object();
+  }
+}
+
+Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
+    Address pc, Address const_pool) {
+  return GetEmbeddedObject(target_compressed_address_at(pc, const_pool));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
-  return Handle<HeapObject>(reinterpret_cast<Address*>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCodeTarget(rmode_)) {
+    return Handle<HeapObject>::cast(
+        origin->code_target_object_handle_at(pc_, constant_pool_));
+  } else {
+    if (IsCompressedEmbeddedObject(rmode_)) {
+      return origin->compressed_embedded_object_handle_at(pc_, constant_pool_);
+    }
+    return Handle<HeapObject>(reinterpret_cast<Address*>(
+        Assembler::target_address_at(pc_, constant_pool_)));
+  }
 }
 
 void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || rmode_ == FULL_EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                   icache_flush_mode);
+  DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
+  if (IsCompressedEmbeddedObject(rmode_)) {
+    Assembler::set_target_compressed_address_at(
+        pc_, constant_pool_, CompressTagged(target.ptr()), icache_flush_mode);
+  } else {
+    DCHECK(IsFullEmbeddedObject(rmode_));
+    Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
+                                     icache_flush_mode);
+  }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
       !FLAG_disable_write_barriers) {
     WriteBarrierForCode(host(), this, target);
@@ -181,13 +237,16 @@ Address RelocInfo::target_off_heap_target() {
 }
 
 void RelocInfo::WipeOut() {
-  DCHECK(IsFullEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
+  DCHECK(IsEmbeddedObjectMode(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_) ||
          IsOffHeapTarget(rmode_));
   if (IsInternalReference(rmode_)) {
     // Jump table entry
     Memory<Address>(pc_) = kNullAddress;
+  } else if (IsCompressedEmbeddedObject(rmode_)) {
+    Assembler::set_target_compressed_address_at(pc_, constant_pool_,
+                                                kNullAddress);
   } else if (IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_)) {
     // mov sequence
     // Currently used only by deserializer, no need to flush.

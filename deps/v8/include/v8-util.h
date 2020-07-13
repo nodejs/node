@@ -5,7 +5,7 @@
 #ifndef V8_UTIL_H_
 #define V8_UTIL_H_
 
-#include "v8.h"  // NOLINT(build/include)
+#include "v8.h"  // NOLINT(build/include_directory)
 #include <assert.h>
 #include <map>
 #include <vector>

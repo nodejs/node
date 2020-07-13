@@ -9,6 +9,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/allocation-builder.h"
+#include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
@@ -540,16 +541,14 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       NodeProperties::ChangeOp(node, javascript()->ToString());
       NodeProperties::SetType(
           node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
-      Reduction const reduction = ReduceJSToString(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSToString(node));
     } else if (r.RightInputIs(empty_string_type_)) {
       // JSAdd(x:primitive, "") => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.left());
       NodeProperties::ChangeOp(node, javascript()->ToString());
       NodeProperties::SetType(
           node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
-      Reduction const reduction = ReduceJSToString(node);
-      return reduction.Changed() ? reduction : Changed(node);
+      return Changed(node).FollowedBy(ReduceJSToString(node));
     }
   }
 
@@ -780,9 +779,9 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
   if (r.BothInputsAre(Type::Receiver())) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
-  if (r.OneInputIs(Type::Undetectable())) {
+  if (r.OneInputIs(Type::NullOrUndefined())) {
     RelaxEffectsAndControls(node);
-    node->RemoveInput(r.LeftInputIs(Type::Undetectable()) ? 0 : 1);
+    node->RemoveInput(r.LeftInputIs(Type::NullOrUndefined()) ? 0 : 1);
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->ObjectIsUndetectable());
     return Changed(node);
@@ -810,32 +809,40 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
     // Known that both sides are Receiver, Null or Undefined, the
     // abstract equality operation can be performed like this:
     //
-    //   if ObjectIsUndetectable(left)
-    //     then ObjectIsUndetectable(right)
-    //     else ReferenceEqual(left, right)
-    //
-    Node* left = r.left();
-    Node* right = r.right();
-    Node* effect = r.effect();
-    Node* control = r.control();
+    // if left == undefined || left == null
+    //    then ObjectIsUndetectable(right)
+    // else if right == undefined || right == null
+    //    then ObjectIsUndetectable(left)
+    // else ReferenceEqual(left, right)
+#define __ gasm.
+    JSGraphAssembler gasm(jsgraph(), jsgraph()->zone());
+    gasm.InitializeEffectControl(r.effect(), r.control());
 
-    Node* check = graph()->NewNode(simplified()->ObjectIsUndetectable(), left);
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+    auto lhs = TNode<Object>::UncheckedCast(r.left());
+    auto rhs = TNode<Object>::UncheckedCast(r.right());
 
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* vtrue = graph()->NewNode(simplified()->ObjectIsUndetectable(), right);
+    auto done = __ MakeLabel(MachineRepresentation::kTagged);
+    auto check_undetectable = __ MakeLabel(MachineRepresentation::kTagged);
 
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* vfalse =
-        graph()->NewNode(simplified()->ReferenceEqual(), left, right);
+    __ GotoIf(__ ReferenceEqual(lhs, __ UndefinedConstant()),
+              &check_undetectable, rhs);
+    __ GotoIf(__ ReferenceEqual(lhs, __ NullConstant()), &check_undetectable,
+              rhs);
+    __ GotoIf(__ ReferenceEqual(rhs, __ UndefinedConstant()),
+              &check_undetectable, lhs);
+    __ GotoIf(__ ReferenceEqual(rhs, __ NullConstant()), &check_undetectable,
+              lhs);
+    __ Goto(&done, __ ReferenceEqual(lhs, rhs));
 
-    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    Node* value =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         vtrue, vfalse, control);
-    ReplaceWithValue(node, value, effect, control);
+    __ Bind(&check_undetectable);
+    __ Goto(&done,
+            __ ObjectIsUndetectable(check_undetectable.PhiAt<Object>(0)));
+
+    __ Bind(&done);
+    Node* value = done.PhiAt(0);
+    ReplaceWithValue(node, value, gasm.effect(), gasm.control());
     return Replace(value);
+#undef __
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();
     return r.ChangeToPureOperator(simplified()->StringEqual());
@@ -1009,8 +1016,7 @@ Reduction JSTypedLowering::ReduceJSToNumeric(Node* node) {
   if (input_type.Is(Type::NonBigIntPrimitive())) {
     // ToNumeric(x:primitive\bigint) => ToNumber(x)
     NodeProperties::ChangeOp(node, javascript()->ToNumber());
-    Reduction const reduction = ReduceJSToNumber(node);
-    return reduction.Changed() ? reduction : Changed(node);
+    return Changed(node).FollowedBy(ReduceJSToNumber(node));
   }
   return NoChange();
 }

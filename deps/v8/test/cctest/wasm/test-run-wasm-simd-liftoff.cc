@@ -84,6 +84,41 @@ WASM_SIMD_LIFTOFF_TEST(S128Return) {
   CHECK_EQ(1, r.Call());
 }
 
+// Exercise Liftoff's logic for zero-initializing stack slots. We were using an
+// incorrect instruction for storing zeroes into the slot when the slot offset
+// was too large to fit in the instruction as an immediate.
+WASM_SIMD_LIFTOFF_TEST(FillStackSlotsWithZero_CheckStartOffset) {
+  WasmRunner<int64_t> r(ExecutionTier::kLiftoff, kNoLowerSimd);
+  // Function that takes in 32 i64 arguments, returns i64. This gets us a large
+  // enough starting offset from which we spill locals.
+  // start = 32 * 8 + 16 (instance) = 272 (cannot fit in signed int9).
+  FunctionSig* sig =
+      r.CreateSig<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
+                  int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
+                  int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
+                  int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
+                  int64_t, int64_t, int64_t, int64_t, int64_t>();
+  WasmFunctionCompiler& simd_func = r.NewFunction(sig);
+
+  // We zero 16 bytes at a time using stp, so allocate locals such that we get a
+  // remainder, 8 in this case, so we hit the case where we use str.
+  simd_func.AllocateLocal(kWasmS128);
+  simd_func.AllocateLocal(kWasmI64);
+  BUILD(simd_func, WASM_I64V_1(1));
+
+  BUILD(r, WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1), WASM_I64V_1(1),
+        WASM_CALL_FUNCTION0(simd_func.function_index()));
+
+  CHECK_EQ(1, r.Call());
+}
+
 #undef WASM_SIMD_LIFTOFF_TEST
 
 }  // namespace test_run_wasm_simd_liftoff

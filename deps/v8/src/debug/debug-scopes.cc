@@ -40,7 +40,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   TryParseAndRetrieveScopes(strategy);
 }
 
-ScopeIterator::~ScopeIterator() { delete info_; }
+ScopeIterator::~ScopeIterator() = default;
 
 Handle<Object> ScopeIterator::GetFunctionDebugName() const {
   if (!function_.is_null()) return JSFunction::GetDebugName(function_);
@@ -236,37 +236,43 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   // Depending on the choosen strategy, the whole script or just
   // the closure is re-parsed for function scopes.
   Handle<Script> script(Script::cast(shared_info->script()), isolate_);
-  if (scope_info->scope_type() == FUNCTION_SCOPE &&
-      strategy == ReparseStrategy::kFunctionLiteral) {
-    info_ = new ParseInfo(isolate_, *shared_info);
-  } else {
-    info_ = new ParseInfo(isolate_, *script);
-    info_->set_eager();
-  }
+
+  // Pick between flags for a single function compilation, or an eager
+  // compilation of the whole script.
+  UnoptimizedCompileFlags flags =
+      (scope_info->scope_type() == FUNCTION_SCOPE &&
+       strategy == ReparseStrategy::kFunctionLiteral)
+          ? UnoptimizedCompileFlags::ForFunctionCompile(isolate_, *shared_info)
+          : UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script)
+                .set_is_eager(true);
 
   MaybeHandle<ScopeInfo> maybe_outer_scope;
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {
-    info_->set_eval();
+    flags.set_is_eval(true);
     if (!context_->IsNativeContext()) {
       maybe_outer_scope = handle(context_->scope_info(), isolate_);
     }
     // Language mode may be inherited from the eval caller.
     // Retrieve it from shared function info.
-    info_->set_language_mode(shared_info->language_mode());
+    flags.set_outer_language_mode(shared_info->language_mode());
   } else if (scope_info->scope_type() == MODULE_SCOPE) {
-    DCHECK(info_->is_module());
+    DCHECK(flags.is_module());
   } else {
     DCHECK(scope_info->scope_type() == SCRIPT_SCOPE ||
            scope_info->scope_type() == FUNCTION_SCOPE);
   }
 
-  const bool parse_result =
-      info_->is_toplevel()
-          ? parsing::ParseProgram(info_, script, maybe_outer_scope, isolate_)
-          : parsing::ParseFunction(info_, shared_info, isolate_);
+  UnoptimizedCompileState compile_state(isolate_);
 
-  if (parse_result && Rewriter::Rewrite(info_)) {
-    info_->ast_value_factory()->Internalize(isolate_);
+  info_ = std::make_unique<ParseInfo>(isolate_, flags, &compile_state);
+
+  const bool parse_result =
+      flags.is_toplevel()
+          ? parsing::ParseProgram(info_.get(), script, maybe_outer_scope,
+                                  isolate_)
+          : parsing::ParseFunction(info_.get(), shared_info, isolate_);
+
+  if (parse_result) {
     DeclarationScope* literal_scope = info_->literal()->scope();
 
     ScopeChainRetriever scope_chain_retriever(literal_scope, function_,
@@ -280,10 +286,12 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
                          ? scope_chain_retriever.ClosureScope()
                          : literal_scope;
 
-    CHECK(DeclarationScope::Analyze(info_));
     if (ignore_nested_scopes) {
       current_scope_ = closure_scope_;
       start_scope_ = current_scope_;
+      // ignore_nested_scopes is only used for the return-position breakpoint,
+      // so we can safely assume that the closure context for the current
+      // function exists if it needs one.
       if (closure_scope_->NeedsContext()) {
         context_ = handle(context_->closure_context(), isolate_);
       }
@@ -305,7 +313,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
 }
 
 void ScopeIterator::UnwrapEvaluationContext() {
-  if (context_->is_null() || !context_->IsDebugEvaluateContext()) return;
+  if (!context_->IsDebugEvaluateContext()) return;
   Context current = *context_;
   do {
     Object wrapped = current.get(Context::WRAPPED_CONTEXT_INDEX);
@@ -374,11 +382,25 @@ bool ScopeIterator::DeclaresLocals(Mode mode) const {
 }
 
 bool ScopeIterator::HasContext() const {
-  return !InInnerScope() || current_scope_->NeedsContext();
+  return !InInnerScope() || NeedsAndHasContext();
+}
+
+bool ScopeIterator::NeedsAndHasContext() const {
+  if (!current_scope_->NeedsContext()) return false;
+  // Generally, if a scope needs a context, then we can assume that it has a
+  // context. However, the stack check during function entry happens before the
+  // function has a chance to create and push its own context, so we must check
+  // for the case where the function is executing in its parent context. This
+  // case is only possible in function scopes; top-level code (modules and
+  // non-module scripts) begin execution in the context they need and don't have
+  // a separate step to push the correct context.
+  return !(current_scope_ == closure_scope_ &&
+           current_scope_->is_function_scope() && !function_.is_null() &&
+           function_->context() == *context_);
 }
 
 void ScopeIterator::AdvanceOneScope() {
-  if (current_scope_->NeedsContext()) {
+  if (NeedsAndHasContext()) {
     DCHECK(!context_->previous().is_null());
     context_ = handle(context_->previous(), isolate_);
   }
@@ -406,7 +428,7 @@ void ScopeIterator::AdvanceContext() {
 
     current_scope_ = current_scope_->outer_scope();
     CollectLocalsFromCurrentScope();
-  } while (!current_scope_->NeedsContext());
+  } while (!NeedsAndHasContext());
 }
 
 void ScopeIterator::Next() {
@@ -422,28 +444,31 @@ void ScopeIterator::Next() {
     return;
   }
 
-  bool inner = InInnerScope();
-  if (current_scope_ == closure_scope_) function_ = Handle<JSFunction>();
+  bool leaving_closure = current_scope_ == closure_scope_;
 
   if (scope_type == ScopeTypeScript) {
-    DCHECK_IMPLIES(InInnerScope(), current_scope_->is_script_scope());
+    DCHECK_IMPLIES(InInnerScope() && !leaving_closure,
+                   current_scope_->is_script_scope());
     seen_script_scope_ = true;
     if (context_->IsScriptContext()) {
       context_ = handle(context_->previous(), isolate_);
     }
-  } else if (!inner) {
+  } else if (!InInnerScope()) {
     AdvanceContext();
   } else {
     DCHECK_NOT_NULL(current_scope_);
     AdvanceToNonHiddenScope();
 
-    if (!InInnerScope() && current_scope_ != closure_scope_) {
+    if (leaving_closure) {
+      DCHECK(current_scope_ != closure_scope_);
       // Edge case when we just go past {closure_scope_}. This case
       // already needs to start collecting locals for the blacklist.
       locals_ = StringSet::New(isolate_);
       CollectLocalsFromCurrentScope();
     }
   }
+
+  if (leaving_closure) function_ = Handle<JSFunction>();
 
   UnwrapEvaluationContext();
 }
@@ -454,34 +479,29 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
   if (InInnerScope()) {
     switch (current_scope_->scope_type()) {
       case FUNCTION_SCOPE:
-        DCHECK_IMPLIES(current_scope_->NeedsContext(),
+        DCHECK_IMPLIES(NeedsAndHasContext(),
                        context_->IsFunctionContext() ||
                            context_->IsDebugEvaluateContext());
         return ScopeTypeLocal;
       case MODULE_SCOPE:
-        DCHECK_IMPLIES(current_scope_->NeedsContext(),
-                       context_->IsModuleContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsModuleContext());
         return ScopeTypeModule;
       case SCRIPT_SCOPE:
-        DCHECK_IMPLIES(
-            current_scope_->NeedsContext(),
-            context_->IsScriptContext() || context_->IsNativeContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsScriptContext() ||
+                                                 context_->IsNativeContext());
         return ScopeTypeScript;
       case WITH_SCOPE:
-        DCHECK_IMPLIES(current_scope_->NeedsContext(),
-                       context_->IsWithContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsWithContext());
         return ScopeTypeWith;
       case CATCH_SCOPE:
         DCHECK(context_->IsCatchContext());
         return ScopeTypeCatch;
       case BLOCK_SCOPE:
       case CLASS_SCOPE:
-        DCHECK_IMPLIES(current_scope_->NeedsContext(),
-                       context_->IsBlockContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsBlockContext());
         return ScopeTypeBlock;
       case EVAL_SCOPE:
-        DCHECK_IMPLIES(current_scope_->NeedsContext(),
-                       context_->IsEvalContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsEvalContext());
         return ScopeTypeEval;
     }
     UNREACHABLE();
@@ -583,7 +603,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
         DCHECK_EQ(ScopeTypeLocal, Type());
         if (SetLocalVariableValue(name, value)) return true;
         // There may not be an associated context since we're InInnerScope().
-        if (!current_scope_->NeedsContext()) return false;
+        if (!NeedsAndHasContext()) return false;
       } else {
         DCHECK_EQ(ScopeTypeClosure, Type());
         if (SetContextVariableValue(name, value)) return true;
@@ -627,7 +647,7 @@ void ScopeIterator::DebugPrint() {
 
     case ScopeIterator::ScopeTypeLocal: {
       os << "Local:\n";
-      if (current_scope_->NeedsContext()) {
+      if (NeedsAndHasContext()) {
         context_->Print(os);
         if (context_->has_extension()) {
           Handle<HeapObject> extension(context_->extension(), isolate_);
@@ -766,7 +786,9 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
     Variable* function_var =
         current_scope_->AsDeclarationScope()->function_var();
     if (function_var != nullptr) {
-      Handle<JSFunction> function = frame_inspector_->GetFunction();
+      Handle<JSFunction> function = frame_inspector_ == nullptr
+                                        ? function_
+                                        : frame_inspector_->GetFunction();
       Handle<String> name = function_var->name();
       if (visitor(name, function)) return true;
     }

@@ -1,0 +1,273 @@
+// Copyright 2020 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-wasm-gen.h'
+
+namespace runtime {
+extern runtime WasmMemoryGrow(Context, WasmInstanceObject, Smi): Smi;
+extern runtime WasmRefFunc(Context, WasmInstanceObject, Smi): JSAny;
+extern runtime WasmFunctionTableGet(
+    Context, WasmInstanceObject, Smi, Smi): JSAny;
+extern runtime WasmFunctionTableSet(
+    Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
+extern runtime ThrowWasmError(Context, Smi): JSAny;
+extern runtime Throw(Context, Object): JSAny;
+extern runtime ReThrow(Context, Object): JSAny;
+extern runtime WasmStackGuard(Context): JSAny;
+extern runtime ThrowWasmStackOverflow(Context): JSAny;
+extern runtime WasmTraceMemory(Context, Smi): JSAny;
+}
+
+namespace wasm {
+const kFuncTableType:
+    constexpr int31 generates 'wasm::ValueType::Kind::kFuncRef';
+
+extern macro WasmBuiltinsAssembler::LoadInstanceFromFrame(): WasmInstanceObject;
+
+// WasmInstanceObject has a field layout that Torque can't handle yet.
+// TODO(bbudge) Eliminate these functions when Torque is ready.
+extern macro WasmBuiltinsAssembler::LoadContextFromInstance(WasmInstanceObject):
+    NativeContext;
+extern macro WasmBuiltinsAssembler::LoadTablesFromInstance(WasmInstanceObject):
+    FixedArray;
+extern macro WasmBuiltinsAssembler::LoadExternalFunctionsFromInstance(
+    WasmInstanceObject): FixedArray;
+
+macro LoadContextFromFrame(): NativeContext {
+  return LoadContextFromInstance(LoadInstanceFromFrame());
+}
+
+builtin WasmInt32ToHeapNumber(val: int32): HeapNumber {
+  return AllocateHeapNumberWithValue(Convert<float64>(val));
+}
+
+builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: JSAnyNotSmi):
+    int32 {
+  return ChangeTaggedNonSmiToInt32(val);
+}
+
+builtin WasmTaggedToFloat64(implicit context: Context)(val: JSAny): float64 {
+  return ChangeTaggedToFloat64(val);
+}
+
+builtin WasmMemoryGrow(numPages: int32): int32 {
+  if (!IsValidPositiveSmi(ChangeInt32ToIntPtr(numPages)))
+    return Int32Constant(-1);
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const context: NativeContext = LoadContextFromInstance(instance);
+  const result: Smi =
+      runtime::WasmMemoryGrow(context, instance, SmiFromInt32(numPages));
+  return SmiToInt32(result);
+}
+
+builtin WasmTableGet(tableIndex: intptr, index: int32): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  try {
+    assert(IsValidPositiveSmi(tableIndex));
+    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+    const tables: FixedArray = LoadTablesFromInstance(instance);
+    const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+        LoadFixedArrayElement(tables, tableIndex));
+    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+    const entries: FixedArray = table.entries;
+    const entry: Object = LoadFixedArrayElement(entries, entryIndex);
+
+    try {
+      const entryObject: HeapObject =
+          TaggedToHeapObject<HeapObject>(entry) otherwise ReturnEntry;
+      if (IsTuple2Map(entryObject.map)) goto CallRuntime;
+      goto ReturnEntry;
+    } label ReturnEntry {
+      return entry;
+    }
+  } label CallRuntime deferred {
+    tail runtime::WasmFunctionTableGet(
+        LoadContextFromInstance(instance), instance, SmiFromIntPtr(tableIndex),
+        SmiFromIntPtr(entryIndex));
+  } label IndexOutOfRange deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmTableSet(tableIndex: intptr, index: int32, value: Object): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  const entryIndex: intptr = ChangeInt32ToIntPtr(index);
+  try {
+    assert(IsValidPositiveSmi(tableIndex));
+    if (!IsValidPositiveSmi(entryIndex)) goto IndexOutOfRange;
+
+    const tables: FixedArray = LoadTablesFromInstance(instance);
+    const table: WasmTableObject = %RawDownCast<WasmTableObject>(
+        LoadFixedArrayElement(tables, tableIndex));
+
+    // Fall back to the runtime to set funcrefs, since we have to update
+    // function dispatch tables.
+    const tableType: Smi = table.raw_type;
+    if (tableType == SmiConstant(kFuncTableType)) goto CallRuntime;
+
+    const entriesCount: intptr = Convert<intptr, Smi>(table.current_length);
+    if (entryIndex >= entriesCount) goto IndexOutOfRange;
+
+    const entries: FixedArray = table.entries;
+    StoreFixedArrayElement(entries, entryIndex, value);
+    return Undefined;
+  } label CallRuntime deferred {
+    tail runtime::WasmFunctionTableSet(
+        LoadContextFromInstance(instance), instance, SmiFromIntPtr(tableIndex),
+        SmiFromIntPtr(entryIndex), value);
+  } label IndexOutOfRange deferred {
+    tail ThrowWasmTrapTableOutOfBounds();
+  }
+}
+
+builtin WasmRefFunc(index: uint32): Object {
+  const instance: WasmInstanceObject = LoadInstanceFromFrame();
+  try {
+    const table: FixedArray = LoadExternalFunctionsFromInstance(instance);
+    if (table == Undefined) goto CallRuntime;
+    const functionIndex: intptr = Signed(ChangeUint32ToWord(index));
+    const result: Object = LoadFixedArrayElement(table, functionIndex);
+    if (result == Undefined) goto CallRuntime;
+    return result;
+  } label CallRuntime deferred {
+    tail runtime::WasmRefFunc(
+        LoadContextFromInstance(instance), instance, SmiFromUint32(index));
+  }
+}
+
+builtin WasmThrow(exception: Object): JSAny {
+  tail runtime::Throw(LoadContextFromFrame(), exception);
+}
+
+builtin WasmRethrow(exception: Object): JSAny {
+  if (exception == Null) tail ThrowWasmTrapRethrowNullRef();
+  tail runtime::ReThrow(LoadContextFromFrame(), exception);
+}
+
+builtin WasmStackGuard(): JSAny {
+  tail runtime::WasmStackGuard(LoadContextFromFrame());
+}
+
+builtin WasmStackOverflow(): JSAny {
+  tail runtime::ThrowWasmStackOverflow(LoadContextFromFrame());
+}
+
+builtin WasmTraceMemory(info: Smi): JSAny {
+  tail runtime::WasmTraceMemory(LoadContextFromFrame(), info);
+}
+
+builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
+  const map: Map = GetFastPackedElementsJSArrayMap();
+  return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
+}
+
+extern macro TryHasOwnProperty(HeapObject, Map, InstanceType, Name): never
+    labels Found, NotFound, Bailout;
+type OnNonExistent constexpr 'OnNonExistent';
+const kReturnUndefined: constexpr OnNonExistent
+    generates 'OnNonExistent::kReturnUndefined';
+extern macro SmiConstant(constexpr OnNonExistent): Smi;
+extern transitioning builtin GetPropertyWithReceiver(implicit context: Context)(
+    JSAny, Name, JSAny, Smi): JSAny;
+
+transitioning builtin WasmGetOwnProperty(implicit context: Context)(
+    object: Object, uniqueName: Name): JSAny {
+  try {
+    const heapObject: HeapObject =
+        TaggedToHeapObject(object) otherwise NotFound;
+    const receiver: JSReceiver =
+        Cast<JSReceiver>(heapObject) otherwise NotFound;
+    try {
+      TryHasOwnProperty(
+          receiver, receiver.map, receiver.instanceType, uniqueName)
+          otherwise Found, NotFound, Bailout;
+    } label Found {
+      tail GetPropertyWithReceiver(
+          receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
+    }
+  } label NotFound deferred {
+    return Undefined;
+  } label Bailout deferred {
+    unreachable;
+  }
+}
+
+// Trap builtins.
+
+builtin WasmTrap(error: Smi): JSAny {
+  tail runtime::ThrowWasmError(LoadContextFromFrame(), error);
+}
+
+builtin ThrowWasmTrapUnreachable(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapUnreachable));
+}
+
+builtin ThrowWasmTrapMemOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapMemOutOfBounds));
+}
+
+builtin ThrowWasmTrapUnalignedAccess(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapUnalignedAccess));
+}
+
+builtin ThrowWasmTrapDivByZero(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDivByZero));
+}
+
+builtin ThrowWasmTrapDivUnrepresentable(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDivUnrepresentable));
+}
+
+builtin ThrowWasmTrapRemByZero(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRemByZero));
+}
+
+builtin ThrowWasmTrapFloatUnrepresentable(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFloatUnrepresentable));
+}
+
+builtin ThrowWasmTrapFuncInvalid(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncInvalid));
+}
+
+builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
+}
+
+builtin ThrowWasmTrapDataSegmentDropped(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentDropped));
+}
+
+builtin ThrowWasmTrapElemSegmentDropped(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapElemSegmentDropped));
+}
+
+builtin ThrowWasmTrapTableOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapTableOutOfBounds));
+}
+
+builtin ThrowWasmTrapBrOnExnNullRef(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapBrOnExnNullRef));
+}
+
+builtin ThrowWasmTrapRethrowNullRef(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapRethrowNullRef));
+}
+
+builtin ThrowWasmTrapNullDereference(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapNullDereference));
+}
+
+builtin ThrowWasmTrapIllegalCast(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapIllegalCast));
+}
+
+builtin ThrowWasmTrapArrayOutOfBounds(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapArrayOutOfBounds));
+}
+}

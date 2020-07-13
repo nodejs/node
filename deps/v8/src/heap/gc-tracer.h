@@ -25,19 +25,20 @@ inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
+#define TRACE_GC_CATEGORIES \
+  "devtools.timeline," TRACE_DISABLED_BY_DEFAULT("v8.gc")
+
 #define TRACE_GC(tracer, scope_id)                             \
   GCTracer::Scope::ScopeId gc_tracer_scope_id(scope_id);       \
   GCTracer::Scope gc_tracer_scope(tracer, gc_tracer_scope_id); \
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),             \
-               GCTracer::Scope::Name(gc_tracer_scope_id))
+  TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::Scope::Name(gc_tracer_scope_id))
 
 #define TRACE_BACKGROUND_GC(tracer, scope_id)                                 \
   WorkerThreadRuntimeCallStatsScope runtime_call_stats_scope(                 \
       tracer->worker_thread_runtime_call_stats());                            \
   GCTracer::BackgroundScope background_scope(tracer, scope_id,                \
                                              runtime_call_stats_scope.Get()); \
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),                            \
-               GCTracer::BackgroundScope::Name(scope_id))
+  TRACE_EVENT0(TRACE_GC_CATEGORIES, GCTracer::BackgroundScope::Name(scope_id))
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
@@ -218,9 +219,11 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Start collecting data.
   void Start(GarbageCollector collector, GarbageCollectionReason gc_reason,
              const char* collector_reason);
+  void StartInSafepoint();
 
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
+  void StopInSafepoint();
 
   void NotifySweepingCompleted();
 

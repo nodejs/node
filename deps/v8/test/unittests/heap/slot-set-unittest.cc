@@ -85,7 +85,7 @@ TEST(SlotSet, Iterate) {
   }
 
   set->Iterate(
-      kNullAddress, SlotSet::kBucketsRegularPage,
+      kNullAddress, 0, SlotSet::kBucketsRegularPage,
       [](MaybeObjectSlot slot) {
         if (slot.address() % 3 == 0) {
           return KEEP_SLOT;
@@ -97,6 +97,40 @@ TEST(SlotSet, Iterate) {
 
   for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
     if (i % 21 == 0) {
+      EXPECT_TRUE(set->Lookup(i));
+    } else {
+      EXPECT_FALSE(set->Lookup(i));
+    }
+  }
+
+  SlotSet::Delete(set, SlotSet::kBucketsRegularPage);
+}
+
+TEST(SlotSet, IterateFromHalfway) {
+  SlotSet* set = SlotSet::Allocate(SlotSet::kBucketsRegularPage);
+
+  for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
+    if (i % 7 == 0) {
+      set->Insert<AccessMode::ATOMIC>(i);
+    }
+  }
+
+  set->Iterate(
+      kNullAddress, SlotSet::kBucketsRegularPage / 2,
+      SlotSet::kBucketsRegularPage,
+      [](MaybeObjectSlot slot) {
+        if (slot.address() % 3 == 0) {
+          return KEEP_SLOT;
+        } else {
+          return REMOVE_SLOT;
+        }
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+
+  for (int i = 0; i < Page::kPageSize; i += kTaggedSize) {
+    if (i < Page::kPageSize / 2 && i % 7 == 0) {
+      EXPECT_TRUE(set->Lookup(i));
+    } else if (i >= Page::kPageSize / 2 && i % 21 == 0) {
       EXPECT_TRUE(set->Lookup(i));
     } else {
       EXPECT_FALSE(set->Lookup(i));

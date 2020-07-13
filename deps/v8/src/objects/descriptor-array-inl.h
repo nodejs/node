@@ -24,12 +24,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(DescriptorArray, HeapObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(DescriptorArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(EnumCache)
 
-CAST_ACCESSOR(DescriptorArray)
-
-ACCESSORS(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
                         kNumberOfAllDescriptorsOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,

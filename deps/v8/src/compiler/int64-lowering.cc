@@ -670,6 +670,9 @@ void Int64Lowering::LowerNode(Node* node) {
       ReplaceNode(node, low_node, high_node);
       break;
     }
+    case IrOpcode::kWord64Rol:
+      DCHECK(machine()->Word32Rol().IsSupported());
+      V8_FALLTHROUGH;
     case IrOpcode::kWord64Ror: {
       DCHECK_EQ(2, node->InputCount());
       Node* input = node->InputAt(0);
@@ -702,14 +705,19 @@ void Int64Lowering::LowerNode(Node* node) {
           Node* inv_shift = graph()->NewNode(
               common()->Int32Constant(32 - masked_shift_value));
 
-          Node* low_node = graph()->NewNode(
-              machine()->Word32Or(),
-              graph()->NewNode(machine()->Word32Shr(), low_input, masked_shift),
-              graph()->NewNode(machine()->Word32Shl(), high_input, inv_shift));
-          Node* high_node = graph()->NewNode(
-              machine()->Word32Or(), graph()->NewNode(machine()->Word32Shr(),
-                                                      high_input, masked_shift),
-              graph()->NewNode(machine()->Word32Shl(), low_input, inv_shift));
+          auto* op1 = machine()->Word32Shr();
+          auto* op2 = machine()->Word32Shl();
+          bool is_ror = node->opcode() == IrOpcode::kWord64Ror;
+          if (!is_ror) std::swap(op1, op2);
+
+          Node* low_node =
+              graph()->NewNode(machine()->Word32Or(),
+                               graph()->NewNode(op1, low_input, masked_shift),
+                               graph()->NewNode(op2, high_input, inv_shift));
+          Node* high_node =
+              graph()->NewNode(machine()->Word32Or(),
+                               graph()->NewNode(op1, high_input, masked_shift),
+                               graph()->NewNode(op2, low_input, inv_shift));
           ReplaceNode(node, low_node, high_node);
         }
       } else {
@@ -720,15 +728,19 @@ void Int64Lowering::LowerNode(Node* node) {
                                graph()->NewNode(common()->Int32Constant(0x1F)));
         }
 
-        // By creating this bit-mask with SAR and SHL we do not have to deal
-        // with shift == 0 as a special case.
-        Node* inv_mask = graph()->NewNode(
-            machine()->Word32Shl(),
-            graph()->NewNode(machine()->Word32Sar(),
-                             graph()->NewNode(common()->Int32Constant(
-                                 std::numeric_limits<int32_t>::min())),
+        bool is_ror = node->opcode() == IrOpcode::kWord64Ror;
+        Node* inv_mask =
+            is_ror ? graph()->NewNode(
+                         machine()->Word32Xor(),
+                         graph()->NewNode(
+                             machine()->Word32Shr(),
+                             graph()->NewNode(common()->Int32Constant(-1)),
                              safe_shift),
-            graph()->NewNode(common()->Int32Constant(1)));
+                         graph()->NewNode(common()->Int32Constant(-1)))
+                   : graph()->NewNode(
+                         machine()->Word32Shl(),
+                         graph()->NewNode(common()->Int32Constant(-1)),
+                         safe_shift);
 
         Node* bit_mask =
             graph()->NewNode(machine()->Word32Xor(), inv_mask,
@@ -759,21 +771,24 @@ void Int64Lowering::LowerNode(Node* node) {
             lt32.Phi(MachineRepresentation::kWord32, GetReplacementHigh(input),
                      GetReplacementLow(input));
 
-        Node* rotate_low =
-            graph()->NewNode(machine()->Word32Ror(), input_low, safe_shift);
-        Node* rotate_high =
-            graph()->NewNode(machine()->Word32Ror(), input_high, safe_shift);
+        const Operator* oper =
+            is_ror ? machine()->Word32Ror() : machine()->Word32Rol().op();
+
+        Node* rotate_low = graph()->NewNode(oper, input_low, safe_shift);
+        Node* rotate_high = graph()->NewNode(oper, input_high, safe_shift);
+
+        auto* mask1 = bit_mask;
+        auto* mask2 = inv_mask;
+        if (!is_ror) std::swap(mask1, mask2);
 
         Node* low_node = graph()->NewNode(
             machine()->Word32Or(),
-            graph()->NewNode(machine()->Word32And(), rotate_low, bit_mask),
-            graph()->NewNode(machine()->Word32And(), rotate_high, inv_mask));
-
+            graph()->NewNode(machine()->Word32And(), rotate_low, mask1),
+            graph()->NewNode(machine()->Word32And(), rotate_high, mask2));
         Node* high_node = graph()->NewNode(
             machine()->Word32Or(),
-            graph()->NewNode(machine()->Word32And(), rotate_high, bit_mask),
-            graph()->NewNode(machine()->Word32And(), rotate_low, inv_mask));
-
+            graph()->NewNode(machine()->Word32And(), rotate_high, mask1),
+            graph()->NewNode(machine()->Word32And(), rotate_low, mask2));
         ReplaceNode(node, low_node, high_node);
       }
       break;

@@ -18,7 +18,6 @@
 #include "src/objects/oddball.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/wasm/wasm-objects.h"
-#include "torque-generated/objects-body-descriptors-tq-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -61,8 +60,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
       return visitor->VisitStruct(map, object);
     case kVisitFreeSpace:
       return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
-    case kVisitWeakArray:
-      return visitor->VisitWeakArray(map, object);
     case kDataOnlyVisitorIdCount:
     case kVisitorIdCount:
       UNREACHABLE();
@@ -167,19 +164,6 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
     visitor->VisitMapPointer(object);
   }
   return static_cast<ResultType>(object.size());
-}
-
-template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWeakArray(
-    Map map, HeapObject object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
-  int size = WeakArrayBodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer()) {
-    visitor->VisitMapPointer(object);
-  }
-  WeakArrayBodyDescriptor::IterateBody(map, object, size, visitor);
-  return size;
 }
 
 template <typename ConcreteVisitor>
