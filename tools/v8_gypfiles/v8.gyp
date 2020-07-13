@@ -125,6 +125,7 @@
       "<(V8_ROOT)/src/builtins/typed-array-values.tq",
       "<(V8_ROOT)/src/builtins/typed-array.tq",
       "<(V8_ROOT)/src/builtins/wasm.tq",
+      "<(V8_ROOT)/src/builtins/weak-ref.tq",
       "<(V8_ROOT)/src/ic/handler-configuration.tq",
       "<(V8_ROOT)/src/objects/allocation-site.tq",
       "<(V8_ROOT)/src/objects/api-callbacks.tq",
@@ -616,6 +617,7 @@
       ],
       'direct_dependent_settings': {
         'sources': [
+          '<(V8_ROOT)/include/v8-cppgc.h',
           '<(V8_ROOT)/include/v8-fast-api-calls.h',
           '<(V8_ROOT)/include/v8-internal.h',
           '<(V8_ROOT)/include/v8.h',
