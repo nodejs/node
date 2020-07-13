@@ -209,8 +209,7 @@ encoding, `Buffer` objects will be passed to the callback instead.
 const { exec } = require('child_process');
 exec('cat *.js missing_file | wc -l', (error, stdout, stderr) => {
   if (error) {
-    console.error(`exec error: ${error}`);
-    return;
+    console.error(`exit(${error.code}): ${error}`);
   }
   console.log(`stdout: ${stdout}`);
   console.error(`stderr: ${stderr}`);
@@ -223,6 +222,8 @@ child runs longer than `timeout` milliseconds.
 
 Unlike the exec(3) POSIX system call, `child_process.exec()` does not replace
 the existing process and uses a shell to execute the command.
+
+#### exec with promisify
 
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
 a `Promise` for an `Object` with `stdout` and `stderr` properties. The returned
@@ -306,19 +307,34 @@ can be used to specify the character encoding used to decode the stdout and
 stderr output. If `encoding` is `'buffer'`, or an unrecognized character
 encoding, `Buffer` objects will be passed to the callback instead.
 
+#### execFile with promisify
+
 If this method is invoked as its [`util.promisify()`][]ed version, it returns
-a `Promise` for an `Object` with `stdout` and `stderr` properties. The returned
-`ChildProcess` instance is attached to the `Promise` as a `child` property. In
-case of an error (including any error resulting in an exit code other than 0), a
-rejected promise is returned, with the same `error` object given in the
-callback, but with two additional properties `stdout` and `stderr`.
+a `Promise`, with an additional property `child` with the `ChildProcess` that
+would normally be returned by `execFile`.
+
+On a successful exit (a zero status code), the promise resolves to an object
+with `child`, `stdout`, and `stderr` properties.
+
+On an unsuccessful exit, the promise resolves to the same `error` returned in
+the callback, with three additional properties `child`, `stdout`, `stderr`,
+which provide the output of the process. As with `exec`, the exit code is
+attached to the `code` property.
 
 ```js
-const util = require('util');
-const execFile = util.promisify(require('child_process').execFile);
+const { promisify } = require('util');
+const execFile = promisify(require('child_process').execFile);
 async function getVersion() {
-  const { stdout } = await execFile('node', ['--version']);
-  console.log(stdout);
+  try {
+    const { stdout, stderr, child } = await execFile('node', ['--version']);
+    console.log(`pid ${child.pid} exit`);
+    console.log(`stdout: ${stdout}`);
+    console.error(`stderr: ${stderr}`);
+  } catch (error) {
+    console.error(`pid ${error.child.pid} exit(${error.code}): ${error}`);
+    console.log(`stdout: ${error.stdout}`);
+    console.error(`stderr: ${error.stderr}`);
+  }
 }
 getVersion();
 ```

@@ -12,7 +12,9 @@ const execFile = promisify(child_process.execFile);
 
   assert(promise.child instanceof child_process.ChildProcess);
   promise.then(common.mustCall((obj) => {
-    assert.deepStrictEqual(obj, { stdout: '42\n', stderr: '' });
+    assert(obj.child instanceof child_process.ChildProcess);
+    assert.strictEqual(obj.stdout, '42\n');
+    assert.strictEqual(obj.stderr, '');
   }));
 }
 
@@ -21,7 +23,9 @@ const execFile = promisify(child_process.execFile);
 
   assert(promise.child instanceof child_process.ChildProcess);
   promise.then(common.mustCall((obj) => {
-    assert.deepStrictEqual(obj, { stdout: '42\n', stderr: '' });
+    assert(obj.child instanceof child_process.ChildProcess);
+    assert.strictEqual(obj.stdout, '42\n');
+    assert.strictEqual(obj.stderr, '');
   }));
 }
 
@@ -31,6 +35,7 @@ const execFile = promisify(child_process.execFile);
   assert(promise.child instanceof child_process.ChildProcess);
   promise.catch(common.mustCall((err) => {
     assert(err.message.includes('doesntexist'));
+    assert(err.child instanceof child_process.ChildProcess);
   }));
 }
 
@@ -40,6 +45,7 @@ const execFile = promisify(child_process.execFile);
   assert(promise.child instanceof child_process.ChildProcess);
   promise.catch(common.mustCall((err) => {
     assert(err.message.includes('doesntexist'));
+    assert(err.child instanceof child_process.ChildProcess);
   }));
 }
 const failingCodeWithStdoutErr =
@@ -47,6 +53,7 @@ const failingCodeWithStdoutErr =
 {
   exec(`${process.execPath} -e "${failingCodeWithStdoutErr}"`)
     .catch(common.mustCall((err) => {
+      assert(err.child instanceof child_process.ChildProcess);
       assert.strictEqual(err.code, 1);
       assert.strictEqual(err.stdout, '42\n');
       assert.strictEqual(err.stderr, '43\n');
@@ -56,6 +63,7 @@ const failingCodeWithStdoutErr =
 {
   execFile(process.execPath, ['-e', failingCodeWithStdoutErr])
     .catch(common.mustCall((err) => {
+      assert(err.child instanceof child_process.ChildProcess);
       assert.strictEqual(err.code, 1);
       assert.strictEqual(err.stdout, '42\n');
       assert.strictEqual(err.stderr, '43\n');
