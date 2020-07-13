@@ -157,7 +157,7 @@ int QuicBuffer::DoPull(
       status,
       data,
       len,
-      std::move([this](size_t len) { Seek(len); }));
+      [this](size_t len) { Seek(len); });
 
   return status;
 }
