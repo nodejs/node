@@ -145,7 +145,7 @@ const { promisify } = require('util');
     () => finished(rs, 'foo', () => {}),
     {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /opts/
+      message: /options/
     }
   );
   assert.throws(
