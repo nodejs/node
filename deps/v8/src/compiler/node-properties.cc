@@ -158,6 +158,21 @@ void NodeProperties::MergeControlToEnd(Graph* graph,
   graph->end()->set_op(common->End(graph->end()->InputCount()));
 }
 
+void NodeProperties::RemoveControlFromEnd(Graph* graph,
+                                          CommonOperatorBuilder* common,
+                                          Node* node) {
+  int index_to_remove = -1;
+  for (int i = 0; i < graph->end()->op()->ControlInputCount(); i++) {
+    int index = NodeProperties::FirstControlIndex(graph->end()) + i;
+    if (graph->end()->InputAt(index) == node) {
+      index_to_remove = index;
+      break;
+    }
+  }
+  CHECK_NE(-1, index_to_remove);
+  graph->end()->RemoveInput(index_to_remove);
+  graph->end()->set_op(common->End(graph->end()->InputCount()));
+}
 
 // static
 void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,

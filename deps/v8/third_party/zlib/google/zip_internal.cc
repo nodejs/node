@@ -5,6 +5,7 @@
 #include "third_party/zlib/google/zip_internal.h"
 
 #include <stddef.h>
+#include <string.h>
 
 #include <algorithm>
 

@@ -8,7 +8,7 @@
 #include <limits>
 #include <memory>
 
-#include "include/cppgc/gc-info.h"
+#include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/platform.h"
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"

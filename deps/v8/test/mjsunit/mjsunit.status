@@ -65,6 +65,14 @@
   # BUG(v8:10197)
   'regress/regress-748069': [SKIP],
 
+  # https://crbug.com/1043058
+  # Enable once serializing a running isolate is fully implemented.
+  'serialize-deserialize-now': [SKIP],
+
+  # https://crbug.com/v8/issues/10486
+  # Enable once multi-byte prefixed opcodes are correctly handled
+  'regress/wasm/regress-1065599': [SKIP],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
@@ -86,6 +94,7 @@
   # Long-running tests.
   # We really should find better solutions for these.
   'es6/promise-all-overflow-1': [SKIP],
+  'harmony/promise-any-overflow-1': [SKIP],
   'migrations': [SKIP],
   'regress/regress-2073': [SKIP],
 
@@ -113,6 +122,7 @@
   'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/regress-9017': [PASS, SLOW],
   'es6/promise-all-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
+  'harmony/promise-any-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/futex': [PASS, SLOW],
@@ -237,6 +247,7 @@
   'es6/block-let-crankshaft': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
+  'compiler/number-divide': [SKIP],
   'regress/regress-crbug-137689': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-2249': [SKIP],
@@ -380,6 +391,7 @@
 
   # Flag --interpreted-frames-native-stack incompatible with jitless
   'regress/regress-10138': [SKIP],
+  'regress/regress-1078913': [SKIP],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
@@ -822,10 +834,6 @@
   'wasm/module-memory': [SKIP],
   'wasm/shared-memory-gc-stress': [SKIP],
 
-  # Redirection to the interpreter is non-deterministic with multiple isolates.
-  'wasm/interpreter-mixed': [SKIP],
-  'wasm/worker-interpreter': [SKIP],
-
   # The {FreezeWasmLazyCompilation} runtime function sets a flag in the native
   # module, which causes a data-race if the native module is shared between
   # isolates.
@@ -937,16 +945,22 @@
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
-  # Relies on async compilation which requires background tasks.
-  'wasm/streaming-error-position': [SKIP],
+
+  # Rely on (blocking) concurrent compilation.
+  'compiler/concurrent-invalidate-transition-map': [SKIP],
+  'compiler/concurrent-proto-change': [SKIP],
+  'compiler/manual-concurrent-recompile': [SKIP],
+  'compiler/regress-905555-2': [SKIP],
+  'compiler/regress-905555': [SKIP],
+  'compiler/regress-9945-1': [SKIP],
+  'concurrent-initial-prototype-change': [SKIP],
+  'regress/regress-356053': [SKIP],
+  'regress/regress-embedded-cons-string': [SKIP],
+
   # Intentionally non-deterministic using shared arraybuffers.
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/futex': [SKIP],
-
-  # Deadlocks on predictable platform (https://crbug.com/v8/9760).
-  'wasm/async-compile': [SKIP],
-  'wasm/streaming-compile': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
@@ -1134,9 +1148,20 @@
   'compiler/opt-higher-order-functions': [SKIP],
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+  'es6/iterator-eager-deopt': [SKIP],
 
   # interrupt_budget overrides don't work with TurboProp.
   'interrupt-budget-override': [SKIP],
+  'never-optimize': [SKIP],
+
+  # In turboprop we reuse the optimized code on soft deopt. The following tests
+  # test for a soft deopt and they won't work in TurboProp.
+  'deopt-recursive-soft-once': [SKIP],
+  'regress/regress-3709': [SKIP],
+  'regress/regress-5790': [SKIP],
+
+  # const field tracking is disabled in turboprop
+  'const-field-tracking': [SKIP],
 }],  # variant == turboprop
 
 ##############################################################################
@@ -1159,5 +1184,73 @@
   'compiler/number-abs': [SKIP],
   'compiler/number-toboolean': [SKIP],
 }],  # variant == assert_types
+
+##############################################################################
+['variant == stress_snapshot and arch != x64', {
+  # Deserialization fails due to read-only snapshot checksum verification.
+  # https://crbug.com/v8/10491
+  '*': [SKIP],
+}],
+
+['variant == stress_snapshot and arch == x64', {
+  # Crashes the serializer due to recursion.
+  'deep-recursion': [SKIP],
+  'string-replace-gc': [SKIP],
+  # Debug check failed:
+  # map == GetReadOnlyRoots(isolate).fixed_array_map() || map == GetReadOnlyRoots(isolate).fixed_cow_array_map().
+  # This means a mismatch of elements kinds / elements on the global object.
+  'es6/block-sloppy-function': [SKIP],
+  'es6/reflect-get-own-property-descriptor': [SKIP],
+  'es6/reflect': [SKIP],
+  'get-own-property-descriptor': [SKIP],
+  'global-properties': [SKIP],
+  'indexed-accessors': [SKIP],
+  'object-freeze-global': [SKIP],
+  'object-seal-global': [SKIP],
+  'regress/regress-1103': [SKIP],
+  'regress/regress-1112': [SKIP],
+  'regress/regress-1120': [SKIP],
+  'regress/regress-2346': [SKIP],
+  'regress/regress-489151': [SKIP],
+  'regress/regress-crbug-1002628': [SKIP],
+  'regress/regress-crbug-454091': [SKIP],
+  'regress/regress-crbug-663750': [SKIP],
+  'regress/regress-freeze-setter': [SKIP],
+  # TODO(v8:10494): asm Code objects can't be flushed and end up in the isolate
+  # serializer.
+  'asm/*': [SKIP],
+  'compiler/regress-439743': [SKIP],
+  'regress/regress-441099': [SKIP],
+  'regress/regress-617526': [SKIP],
+  'regress/regress-6196': [SKIP],
+  'regress/regress-677685': [SKIP],
+  'regress/regress-7893': [SKIP],
+  'regress/regress-799690': [SKIP],
+  'regress/regress-8377': [SKIP],
+  'regress/regress-crbug-1047368': [SKIP],
+  'regress/regress-crbug-898974': [SKIP],
+  'regress/regress-crbug-935800': [SKIP],
+  'regress/regress-crbug-976934': [SKIP],
+  'regress/wasm/*': [SKIP],
+  'wasm/*': [SKIP],
+  # Investigate (IsScript).
+  'harmony/import-from-compilation-errored': [SKIP],
+  'harmony/private-fields-special-object': [SKIP],
+  # Investigate (JSFunction in startup serializer).
+  'regress/regress-1034394': [SKIP],
+  'regress/regress-863810': [SKIP],
+  'regress/regress-crbug-772056': [SKIP],
+  # Investigate (Check failed: buffer.byte_length() <= Smi::kMaxValue)
+  'regress/regress-319722-ArrayBuffer': [SKIP],
+  'regress/regress-599717': [SKIP],
+  'regress/regress-667603': [SKIP],
+  # Investigate (IsFixedArrayBase).
+  'regress/regress-786784': [SKIP],
+  'regress/regress-v8-9656': [SKIP],
+  # Investigate (startup_serializer_->ReferenceMapContains(obj)).
+  'regress/regress-813440': [SKIP],
+  # Investigate (segfault).
+  'regress/regress-crbug-397662': [SKIP],
+}],  # variant == stress_snapshot
 
 ]

@@ -31,6 +31,9 @@ namespace internal {
 /* Binary operators */
 /* ADD and SUB are at the end since they are UnaryOp */
 #define BINARY_OP_TOKEN_LIST(T, E) \
+  E(T, NULLISH, "??", 3)           \
+  E(T, OR, "||", 4)                \
+  E(T, AND, "&&", 5)               \
   E(T, BIT_OR, "|", 6)             \
   E(T, BIT_XOR, "^", 7)            \
   E(T, BIT_AND, "&", 8)            \
@@ -97,9 +100,6 @@ namespace internal {
   /* IsBinaryOp() relies on this block of enum values */           \
   /* being contiguous and sorted in the same order! */             \
   T(COMMA, ",", 1)                                                 \
-  T(NULLISH, "??", 3)                                              \
-  T(OR, "||", 4)                                                   \
-  T(AND, "&&", 5)                                                  \
                                                                    \
   /* Unary operators, starting at ADD in BINARY_OP_TOKEN_LIST  */  \
   /* IsUnaryOp() relies on this block of enum values */            \
@@ -297,8 +297,8 @@ class V8_EXPORT_PRIVATE Token {
   }
 
   static Value BinaryOpForAssignment(Value op) {
-    DCHECK(base::IsInRange(op, ASSIGN_BIT_OR, ASSIGN_SUB));
-    Value result = static_cast<Value>(op - ASSIGN_BIT_OR + BIT_OR);
+    DCHECK(base::IsInRange(op, ASSIGN_NULLISH, ASSIGN_SUB));
+    Value result = static_cast<Value>(op - ASSIGN_NULLISH + NULLISH);
     DCHECK(IsBinaryOp(result));
     return result;
   }

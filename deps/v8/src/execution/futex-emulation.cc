@@ -188,7 +188,7 @@ Object FutexEmulation::Wait(Isolate* isolate,
     return isolate->PromoteScheduledException();
   }
 
-  Object result;
+  Handle<Object> result;
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   do {  // Not really a loop, just makes it easier to break out early.
@@ -206,7 +206,7 @@ Object FutexEmulation::Wait(Isolate* isolate,
 
     T* p = reinterpret_cast<T*>(static_cast<int8_t*>(backing_store) + addr);
     if (*p != value) {
-      result = Smi::FromInt(WaitReturnValue::kNotEqual);
+      result = handle(Smi::FromInt(WaitReturnValue::kNotEqual), isolate);
       callback_result = AtomicsWaitEvent::kNotEqual;
       break;
     }
@@ -244,7 +244,7 @@ Object FutexEmulation::Wait(Isolate* isolate,
       if (interrupted) {
         Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
         if (interrupt_object.IsException(isolate)) {
-          result = interrupt_object;
+          result = handle(interrupt_object, isolate);
           callback_result = AtomicsWaitEvent::kTerminatedExecution;
           mutex_.Pointer()->Lock();
           break;
@@ -264,7 +264,7 @@ Object FutexEmulation::Wait(Isolate* isolate,
       }
 
       if (!node->waiting_) {
-        result = Smi::FromInt(WaitReturnValue::kOk);
+        result = handle(Smi::FromInt(WaitReturnValue::kOk), isolate);
         break;
       }
 
@@ -272,7 +272,7 @@ Object FutexEmulation::Wait(Isolate* isolate,
       if (use_timeout) {
         current_time = base::TimeTicks::Now();
         if (current_time >= timeout_time) {
-          result = Smi::FromInt(WaitReturnValue::kTimedOut);
+          result = handle(Smi::FromInt(WaitReturnValue::kTimedOut), isolate);
           callback_result = AtomicsWaitEvent::kTimedOut;
           break;
         }
@@ -297,10 +297,10 @@ Object FutexEmulation::Wait(Isolate* isolate,
 
   if (isolate->has_scheduled_exception()) {
     CHECK_NE(callback_result, AtomicsWaitEvent::kTerminatedExecution);
-    result = isolate->PromoteScheduledException();
+    result = handle(isolate->PromoteScheduledException(), isolate);
   }
 
-  return result;
+  return *result;
 }
 
 Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,

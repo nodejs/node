@@ -16,7 +16,7 @@
 #include "src/objects/map.h"
 #include "src/objects/string.h"
 #include "src/snapshot/deserializer-allocator.h"
-#include "src/snapshot/serializer-common.h"
+#include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
 namespace v8 {
@@ -132,6 +132,9 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   template <typename TSlot>
   inline TSlot WriteAddress(TSlot dest, Address value);
 
+  template <typename TSlot>
+  inline TSlot WriteExternalPointer(TSlot dest, Address value);
+
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or nullptr if we are not writing into an
@@ -194,11 +197,6 @@ class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
   std::vector<HeapObject> to_rehash_;
-  // Store the objects whose maps are deferred and thus initialized as filler
-  // maps during deserialization, so that they can be processed later when the
-  // maps become available.
-  std::unordered_map<HeapObject, SnapshotSpace, Object::Hasher>
-      fillers_to_post_process_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;

@@ -7,6 +7,9 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/handles/persistent-handles.h"
+#include "src/heap/local-heap.h"
+#include "src/objects/visitors.h"
 
 namespace v8 {
 namespace internal {
@@ -15,9 +18,11 @@ class Heap;
 class LocalHeap;
 class RootVisitor;
 
-class Safepoint {
+// Used to bring all background threads with heap access to a safepoint such
+// that e.g. a garbage collection can be performed.
+class GlobalSafepoint {
  public:
-  explicit Safepoint(Heap* heap);
+  explicit GlobalSafepoint(Heap* heap);
 
   // Enter the safepoint from a thread
   void EnterFromThread(LocalHeap* local_heap);
@@ -28,9 +33,21 @@ class Safepoint {
   // Iterate handles in local heaps
   void Iterate(RootVisitor* visitor);
 
+  // Iterate local heaps
+  template <typename Callback>
+  void IterateLocalHeaps(Callback callback) {
+    DCHECK(IsActive());
+    for (LocalHeap* current = local_heaps_head_; current;
+         current = current->next_) {
+      callback(current);
+    }
+  }
+
   // Use these methods now instead of the more intrusive SafepointScope
   void Start();
   void End();
+
+  bool IsActive() { return is_active_; }
 
  private:
   class Barrier {
@@ -58,8 +75,11 @@ class Safepoint {
   base::Mutex local_heaps_mutex_;
   LocalHeap* local_heaps_head_;
 
+  bool is_active_;
+
   friend class SafepointScope;
   friend class LocalHeap;
+  friend class PersistentHandles;
 };
 
 class SafepointScope {
@@ -68,7 +88,7 @@ class SafepointScope {
   V8_EXPORT_PRIVATE ~SafepointScope();
 
  private:
-  Safepoint* safepoint_;
+  GlobalSafepoint* safepoint_;
 };
 
 }  // namespace internal

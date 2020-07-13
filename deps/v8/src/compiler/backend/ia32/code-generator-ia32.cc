@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/backend/code-generator.h"
-
 #include "src/base/overflowing-math.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
@@ -11,12 +9,13 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
+#include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
-#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
 #include "src/objects/smi.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
@@ -493,20 +492,21 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ cmov(zero, dst, tmp);                         \
   } while (false)
 
-#define ASSEMBLE_SIMD_SHIFT(opcode, width)                          \
-  do {                                                              \
-    XMMRegister dst = i.OutputSimd128Register();                    \
-    DCHECK_EQ(dst, i.InputSimd128Register(0));                      \
-    if (HasImmediateInput(instr, 1)) {                              \
-      __ opcode(dst, dst, static_cast<byte>(i.InputInt##width(1))); \
-    } else {                                                        \
-      XMMRegister tmp = i.TempSimd128Register(0);                   \
-      Register shift = i.InputRegister(1);                          \
-      constexpr int mask = (1 << width) - 1;                        \
-      __ and_(shift, Immediate(mask));                              \
-      __ Movd(tmp, shift);                                          \
-      __ opcode(dst, dst, tmp);                                     \
-    }                                                               \
+#define ASSEMBLE_SIMD_SHIFT(opcode, width)             \
+  do {                                                 \
+    XMMRegister dst = i.OutputSimd128Register();       \
+    DCHECK_EQ(dst, i.InputSimd128Register(0));         \
+    if (HasImmediateInput(instr, 1)) {                 \
+      __ opcode(dst, dst, byte{i.InputInt##width(1)}); \
+    } else {                                           \
+      XMMRegister tmp = i.TempSimd128Register(0);      \
+      Register tmp_shift = i.TempRegister(1);          \
+      constexpr int mask = (1 << width) - 1;           \
+      __ mov(tmp_shift, i.InputRegister(1));           \
+      __ and_(tmp_shift, Immediate(mask));             \
+      __ Movd(tmp, tmp_shift);                         \
+      __ opcode(dst, dst, tmp);                        \
+    }                                                  \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
@@ -1232,6 +1232,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         // Shift has been loaded into CL by the register allocator.
         __ SarPair_cl(i.InputRegister(1), i.InputRegister(0));
+      }
+      break;
+    case kIA32Rol:
+      if (HasImmediateInput(instr, 1)) {
+        __ rol(i.OutputOperand(), i.InputInt5(1));
+      } else {
+        __ rol_cl(i.OutputOperand());
       }
       break;
     case kIA32Ror:
@@ -2013,6 +2020,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(1));
       break;
     }
+    case kIA32F64x2Pmin: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Minpd(dst, dst, i.InputSimd128Register(1));
+      break;
+    }
+    case kIA32F64x2Pmax: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Maxpd(dst, dst, i.InputSimd128Register(1));
+      break;
+    }
     case kIA32I64x2SplatI32Pair: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Pinsrd(dst, i.InputRegister(0), 0);
@@ -2224,12 +2243,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEF32x4Sqrt: {
-      __ sqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ sqrtps(i.OutputSimd128Register(), i.InputOperand(0));
       break;
     }
     case kAVXF32x4Sqrt: {
       CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vsqrtps(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ vsqrtps(i.OutputSimd128Register(), i.InputOperand(0));
       break;
     }
     case kIA32F32x4RecipApprox: {
@@ -2317,11 +2336,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAVXF32x4Min: {
       CpuFeatureScope avx_scope(tasm(), AVX);
       XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src0 = i.InputSimd128Register(0);
       Operand src1 = i.InputOperand(1);
       // See comment above for correction of minps.
       __ movups(kScratchDoubleReg, src1);
       __ vminps(kScratchDoubleReg, kScratchDoubleReg, dst);
-      __ vminps(dst, dst, src1);
+      __ vminps(dst, src0, src1);
       __ vorps(dst, dst, kScratchDoubleReg);
       __ vcmpneqps(kScratchDoubleReg, dst, dst);
       __ vorps(dst, dst, kScratchDoubleReg);
@@ -2408,6 +2428,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vcmpleps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                   i.InputOperand(1));
+      break;
+    }
+    case kIA32F32x4Pmin: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Minps(dst, dst, i.InputSimd128Register(1));
+      break;
+    }
+    case kIA32F32x4Pmax: {
+      XMMRegister dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      __ Maxps(dst, dst, i.InputSimd128Register(1));
       break;
     }
     case kIA32I32x4Splat: {
@@ -2759,6 +2791,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pabsd(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kIA32I32x4BitMask: {
+      __ Movmskps(i.OutputRegister(), i.InputSimd128Register(0));
+      break;
+    }
     case kIA32I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
@@ -3093,6 +3129,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Pabsw(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kIA32I16x8BitMask: {
+      Register dst = i.OutputRegister();
+      XMMRegister tmp = i.TempSimd128Register(0);
+      __ Packsswb(tmp, i.InputSimd128Register(0));
+      __ Pmovmskb(dst, tmp);
+      __ shr(dst, 8);
+      break;
+    }
     case kIA32I8x16Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
@@ -3155,7 +3199,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasImmediateInput(instr, 1)) {
         // Perform 16-bit shift, then mask away low bits.
         uint8_t shift = i.InputInt3(1);
-        __ Psllw(dst, dst, static_cast<byte>(shift));
+        __ Psllw(dst, dst, byte{shift});
 
         uint8_t bmask = static_cast<uint8_t>(0xff << shift);
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
@@ -3164,18 +3208,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Pshufd(tmp_simd, tmp_simd, 0);
         __ Pand(dst, tmp_simd);
       } else {
-        Register shift = i.InputRegister(1);
         // Take shift value modulo 8.
-        __ and_(shift, 7);
+        __ mov(tmp, i.InputRegister(1));
+        __ and_(tmp, 7);
         // Mask off the unwanted bits before word-shifting.
         __ Pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
-        __ mov(tmp, shift);
         __ add(tmp, Immediate(8));
         __ Movd(tmp_simd, tmp);
         __ Psrlw(kScratchDoubleReg, kScratchDoubleReg, tmp_simd);
         __ Packuswb(kScratchDoubleReg, kScratchDoubleReg);
         __ Pand(dst, kScratchDoubleReg);
-        __ Movd(tmp_simd, shift);
+        // TODO(zhin): sub here to avoid asking for another temporary register,
+        // examine codegen for other i8x16 shifts, they use less instructions.
+        __ sub(tmp, Immediate(8));
+        __ Movd(tmp_simd, tmp);
         __ Psllw(dst, dst, tmp_simd);
       }
       break;
@@ -3454,7 +3500,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (HasImmediateInput(instr, 1)) {
         // Perform 16-bit shift, then mask away high bits.
         uint8_t shift = i.InputInt3(1);
-        __ Psrlw(dst, dst, static_cast<byte>(shift));
+        __ Psrlw(dst, dst, byte{shift});
 
         uint8_t bmask = 0xff >> shift;
         uint32_t mask = bmask << 24 | bmask << 16 | bmask << 8 | bmask;
@@ -3544,6 +3590,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kIA32I8x16Abs: {
       __ Pabsb(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kIA32I8x16BitMask: {
+      __ Pmovmskb(i.OutputRegister(), i.InputSimd128Register(0));
       break;
     }
     case kIA32S128Zero: {
@@ -3696,7 +3746,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32S16x8LoadSplat: {
       __ Pinsrw(i.OutputSimd128Register(), i.MemoryOperand(), 0);
       __ Pshuflw(i.OutputSimd128Register(), i.OutputSimd128Register(),
-                 static_cast<uint8_t>(0));
+                 uint8_t{0});
       __ Punpcklqdq(i.OutputSimd128Register(), i.OutputSimd128Register());
       break;
     }
@@ -4354,7 +4404,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ PrepareCallCFunction(0, esi);
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ LeaveFrame(StackFrame::WASM);
         auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
         size_t pop_size =
             call_descriptor->StackParameterCount() * kSystemPointerSize;

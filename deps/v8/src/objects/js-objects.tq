@@ -79,8 +79,7 @@ macro GetDerivedMap(implicit context: Context)(
     }
 
     return map;
-  }
-  label SlowPath {
+  } label SlowPath {
     return runtime::GetDerivedMap(context, target, newTarget);
   }
 }

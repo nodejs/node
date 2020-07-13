@@ -62,16 +62,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4709
   'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
 
-  # Intl tests which require flags.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9154
-  'intl402/NumberFormat/numbering-system-options': ['--harmony-intl-add-calendar-numbering-system'],
-  'intl402/DateTimeFormat/constructor-calendar-numberingSystem-order': ['--harmony-intl-add-calendar-numbering-system'],
-  'intl402/DateTimeFormat/numbering-system-calendar-options': ['--harmony-intl-add-calendar-numbering-system'],
-  'intl402/DateTimeFormat/constructor-options-throwing-getters': ['--harmony-intl-add-calendar-numbering-system'],
-  'intl402/NumberFormat/constructor-options-throwing-getters': ['--harmony-intl-add-calendar-numbering-system'],
-  'intl402/NumberFormat/constructor-numberingSystem-order': ['--harmony-intl-add-calendar-numbering-system'],
-  'intl402/DateTimeFormat/prototype/formatToParts/pattern-on-calendar': ['--harmony-intl-other-calendars'],
-  'intl402/DateTimeFormat/prototype/formatToParts/related-year': ['--harmony-intl-other-calendars'],
+  # https://github.com/tc39/test262/issues/2591
+  'intl402/DateTimeFormat/prototype/resolvedOptions/order': ['--no-harmony-intl_dateformat_fractional_second_digits'],
+  'intl402/DateTimeFormat/prototype/resolvedOptions/order-dayPeriod': ['--no-harmony-intl_dateformat_fractional_second_digits'],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9084
   'intl402/supportedLocalesOf-consistent-with-resolvedOptions': [FAIL],
@@ -364,11 +357,8 @@
   'language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier-u': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier-u': [FAIL_PHASE_ONLY],
-  'language/literals/regexp/named-groups/invalid-u-escape-in-groupspecifier': [FAIL_PHASE_ONLY],
-  'language/literals/regexp/named-groups/invalid-u-escape-in-groupspecifier-2': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier': [FAIL_PHASE_ONLY],
   'language/literals/regexp/named-groups/invalid-unterminated-groupspecifier-u': [FAIL_PHASE_ONLY],
-  'language/literals/regexp/u-dec-esc': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-invalid-class-escape': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-invalid-extended-pattern-char': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-invalid-identity-escape': [FAIL_PHASE_ONLY],
@@ -389,6 +379,9 @@
   'language/literals/regexp/u-unicode-esc-bounds': [FAIL_PHASE_ONLY],
   'language/literals/regexp/u-unicode-esc-non-hex': [FAIL_PHASE_ONLY],
   'language/literals/regexp/unicode-escape-nls-err': [FAIL_PHASE_ONLY],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10379
+  'built-ins/RegExp/named-groups/non-unicode-property-names-valid': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
@@ -451,11 +444,6 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7184
-  'annexB/language/expressions/yield/star-iterable-return-emulates-undefined-throws-when-called': [FAIL],
-  'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
-  'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
@@ -501,22 +489,26 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=9049
   'language/comments/hashbang/use-strict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8179
-  'built-ins/FinalizationRegistry/FinalizationRegistryCleanupIteratorPrototype/next-job-not-active-throws': [FAIL],
-  'built-ins/FinalizationRegistry/prototype/cleanupSome/cleanup-throws-in-callback': [FAIL],
-  'built-ins/FinalizationRegistry/prototype/cleanupSome/poisoned-callback-throws': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10313
-  'built-ins/Date/parse/without-utc-offset': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=9613
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
   'intl402/Intl/getCanonicalLocales/grandfathered': [FAIL],
-  'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-grandfathered': [FAIL],
   'intl402/Intl/getCanonicalLocales/preferred-variant': [FAIL],
-  'intl402/Locale/constructor-non-iana-canon': [FAIL],
+  'intl402/Locale/constructor-apply-options-canonicalizes-twice': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
+
+  # http://crbug/v8/10447
+  'intl402/Intl/getCanonicalLocales/complex-language-subtag-replacement': [FAIL],
+  'intl402/Intl/getCanonicalLocales/complex-region-subtag-replacement': [FAIL],
+  'intl402/Intl/getCanonicalLocales/transformed-ext-canonical': [FAIL],
+  'intl402/Intl/getCanonicalLocales/transformed-ext-invalid': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-region': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-subdivision': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-canonicalize-yes-to-true': [FAIL],
+  'intl402/Intl/getCanonicalLocales/unicode-ext-key-with-digit': [FAIL],
+
+  # http://crbug/v8/10448
+  'intl402/Locale/prototype/minimize/removing-likely-subtags-first-adds-likely-subtags': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=9646
   'built-ins/ThrowTypeError/name': [FAIL],
@@ -528,34 +520,79 @@
   # https://github.com/tc39/test262/pull/2349
   'intl402/Locale/constructor-options-region-valid': [FAIL],
 
+  # http://crbug/v8/10443
+  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-long': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-narrow': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/format/pl-pl-style-short': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-long': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-narrow': [FAIL],
+  'intl402/RelativeTimeFormat/prototype/formatToParts/pl-pl-style-short': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=9818
   'built-ins/AsyncFunction/proto-from-ctor-realm': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9808
-  'built-ins/AggregateError/*': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=10111
   # super() should evaluate arguments before checking IsConstructable
   'language/expressions/super/call-proto-not-ctor': [FAIL],
 
-  # Intl.NumberFormat(..., {signDisplay:'exceptZero'}).format(0.0001)
-  # produce +0 due to rounding
-  # https://bugs.chromium.org/p/v8/issues/detail?id=9515
-  'intl402/NumberFormat/prototype/format/signDisplay-en-US': [FAIL],
-  'intl402/NumberFormat/prototype/format/signDisplay-de-DE': [FAIL],
-  'intl402/NumberFormat/prototype/format/signDisplay-ja-JP': [FAIL],
-  'intl402/NumberFormat/prototype/format/signDisplay-ko-KR': [FAIL],
-  'intl402/NumberFormat/prototype/format/signDisplay-zh-TW': [FAIL],
-  'intl402/NumberFormat/prototype/format/signDisplay-rounding': [FAIL],
-  'intl402/NumberFormat/prototype/formatToParts/signDisplay-en-US': [FAIL],
-  'intl402/NumberFormat/prototype/formatToParts/signDisplay-de-DE': [FAIL],
-  'intl402/NumberFormat/prototype/formatToParts/signDisplay-ja-JP': [FAIL],
-  'intl402/NumberFormat/prototype/formatToParts/signDisplay-ko-KR': [FAIL],
-  'intl402/NumberFormat/prototype/formatToParts/signDisplay-zh-TW': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10381
+  'built-ins/Array/prototype/concat/arg-length-near-integer-limit': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10272
-  'intl402/DateTimeFormat/invalid-numbering-system-calendar-options': [FAIL],
-  'intl402/NumberFormat/invalid-numbering-system-options': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10383
+  'built-ins/RegExp/prototype/Symbol.replace/fn-invoke-args-empty-result': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=10395
+  'built-ins/AsyncFromSyncIteratorPrototype/next/absent-value-not-passed': [FAIL],
+  'built-ins/AsyncFromSyncIteratorPrototype/return/absent-value-not-passed': [FAIL],
+
+  # http://crbug/v8/10449
+  'built-ins/Atomics/waitAsync/bad-range': [FAIL],
+  'built-ins/Atomics/waitAsync/descriptor': [FAIL],
+  'built-ins/Atomics/waitAsync/false-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/is-function': [FAIL],
+  'built-ins/Atomics/waitAsync/length': [FAIL],
+  'built-ins/Atomics/waitAsync/name': [FAIL],
+  'built-ins/Atomics/waitAsync/nan-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/negative-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/negative-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/null-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/object-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/poisoned-object-for-timeout-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-ok': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-promise-resolves-to-timed-out': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-not-equal': [FAIL],
+  'built-ins/Atomics/waitAsync/returns-result-object-value-is-string-timed-out': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-index-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-index-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-timeout-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-timeout-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-value-throws': [FAIL],
+  'built-ins/Atomics/waitAsync/symbol-for-value-throws-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/true-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/undefined-for-timeout-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/undefined-for-timeout': [FAIL],
+  'built-ins/Atomics/waitAsync/undefined-index-defaults-to-zero-agent': [FAIL],
+  'built-ins/Atomics/waitAsync/value-not-equal': [FAIL],
+  'built-ins/Atomics/waitAsync/waiterlist-block-indexedposition-wake': [FAIL],
+  'built-ins/Atomics/waitAsync/was-woken-before-timeout': [FAIL],
+
+  # SKIP the following TIMEOUT tests instead of FAIL
+  'built-ins/Atomics/waitAsync/false-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/good-views': [SKIP],
+  'built-ins/Atomics/waitAsync/negative-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-no-operation': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-add': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-and': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-compareExchange': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-exchange': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-or': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-store': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-sub': [SKIP],
+  'built-ins/Atomics/waitAsync/no-spurious-wakeup-on-xor': [SKIP],
+  'built-ins/Atomics/waitAsync/null-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/object-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/true-for-timeout-agent': [SKIP],
+  'built-ins/Atomics/waitAsync/value-not-equal-agent': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -572,7 +609,10 @@
   # https://github.com/tc39/ecma262/pull/889
   'annexB/language/function-code/block-decl-func-skip-arguments': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6538
+  # Non-simple assignment targets are runtime errors instead of syntax errors for web compat.
+  'language/expressions/logical-assignment/lgcl-or-assignment-operator-non-simple-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-and-assignment-operator-non-simple-lhs': [FAIL],
+  'language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-simple-lhs': [FAIL],
 
   ############################ INVALID TESTS #############################
 
@@ -630,6 +670,9 @@
   # Unicode regexp case mapping is not available with i18n turned off.
   'language/literals/regexp/u-case-mapping': [SKIP],
 
+  # Unicode in capture group
+  'built-ins/RegExp/prototype/Symbol.replace/named-groups': [FAIL],
+
   # BUG(v8:4437).
   'built-ins/String/prototype/normalize/return-normalized-string': [SKIP],
   'built-ins/String/prototype/normalize/return-normalized-string-from-coerced-form': [SKIP],
@@ -656,7 +699,18 @@
   # Unicode features unavaible without i18n, ie property escapes.
   'built-ins/RegExp/property-escapes/*': [SKIP],
   'built-ins/RegExp/named-groups/unicode-property-names': [SKIP],
+  'built-ins/RegExp/named-groups/unicode-property-names-valid': [SKIP],
   'built-ins/RegExp/match-indices/indices-array-unicode-property-names': [SKIP],
+
+  # Unicode in identifiers
+  'language/identifiers/part-unicode-*': [FAIL],
+  'language/identifiers/start-unicode-1*': [FAIL],
+  'language/identifiers/start-unicode-5*': [FAIL],
+  'language/identifiers/start-unicode-6*': [FAIL],
+  'language/identifiers/start-unicode-7*': [FAIL],
+  'language/identifiers/start-unicode-8*': [FAIL],
+  'language/identifiers/start-unicode-9*': [FAIL],
+
 }],  # no_i18n == True
 
 ['arch == arm or arch == mipsel or arch == mips or arch == arm64 or arch == mips64 or arch == mips64el', {
@@ -718,5 +772,10 @@
   # https://crbug.com/856119
   'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
 }],  # system == windows
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
 
 ]

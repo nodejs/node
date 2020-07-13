@@ -82,4 +82,9 @@
   'octane/typescript': [SKIP],
 }],  # 'predictable'
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

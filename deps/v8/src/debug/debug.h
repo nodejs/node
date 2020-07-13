@@ -248,6 +248,8 @@ class V8_EXPORT_PRIVATE Debug {
   void RemoveBreakpoint(int id);
   void RemoveBreakpointForWasmScript(Handle<Script> script, int id);
 
+  void RecordWasmScriptWithBreakpoints(Handle<Script> script);
+
   // Find breakpoints from the debug info and the break location and check
   // whether they are hit. Return an empty handle if not, or a FixedArray with
   // hit BreakPoint objects.
@@ -545,6 +547,9 @@ class V8_EXPORT_PRIVATE Debug {
 
   // Storage location for registers when handling debug break calls
   ThreadLocal thread_local_;
+
+  // This is a global handle, lazily initialized.
+  Handle<WeakArrayList> wasm_scripts_with_breakpoints_;
 
   Isolate* isolate_;
 

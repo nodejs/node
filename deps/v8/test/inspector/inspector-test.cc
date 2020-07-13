@@ -1070,7 +1070,6 @@ int main(int argc, char* argv[]) {
       printf("Embedding script '%s'\n", argv[i]);
       startup_data = i::CreateSnapshotDataBlobInternal(
           v8::SnapshotCreator::FunctionCodeHandling::kClear, argv[i], nullptr);
-      v8::internal::ReadOnlyHeap::ClearSharedHeapForTest();
       argv[i] = nullptr;
     }
   }

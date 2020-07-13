@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#include "include/cppgc/gc-info.h"
+#include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/platform.h"
 #include "include/v8config.h"
 #include "src/base/logging.h"

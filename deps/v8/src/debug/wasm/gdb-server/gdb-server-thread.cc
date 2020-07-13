@@ -32,7 +32,7 @@ bool GdbServerThread::StartAndInitialize() {
   // this operation happensat most once per process and only when the
   // --wasm-gdb-remote flag is set.
   start_semaphore_.Wait();
-  return true;
+  return !!target_;
 }
 
 void GdbServerThread::CleanupThread() {

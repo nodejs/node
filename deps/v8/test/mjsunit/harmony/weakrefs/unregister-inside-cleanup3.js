@@ -6,35 +6,39 @@
 
 let cleanup_call_count = 0;
 let cleanup_holdings_count = 0;
-let cleanup = function(iter) {
-  for (holdings of iter) {
-    assertEquals(holdings, "holdings");
-    ++cleanup_holdings_count;
-  }
-  // Unregister an already iterated over weak reference.
+let cleanup = function(holdings) {
+  assertEquals(holdings, "holdings");
+
+  // There's one more object with the same key that we haven't
+  // cleaned up yet so we should be able to unregister the
+  // callback for that one.
   let success = fg.unregister(key);
-  assertFalse(success);
+
+  assertTrue(success);
+
+  ++cleanup_holdings_count;
   ++cleanup_call_count;
 }
 
 let fg = new FinalizationRegistry(cleanup);
-let key = {"k": "this is the key"};
-
 // Create an object and register it in the FinalizationRegistry. The object needs to be inside
 // a closure so that we can reliably kill them!
+let key = {"k": "this is the key"};
 
 (function() {
   let object = {};
+  let object2 = {};
   fg.register(object, "holdings", key);
+  fg.register(object2, "holdings", key);
 
   // object goes out of scope.
 })();
 
-// This GC will reclaim the target object and schedule cleanup.
+// This GC will discover dirty WeakCells and schedule cleanup.
 gc();
 assertEquals(0, cleanup_call_count);
 
-// Assert that the cleanup function was called and iterated the holdings.
+// Assert that the cleanup function was called.
 let timeout_func = function() {
   assertEquals(1, cleanup_call_count);
   assertEquals(1, cleanup_holdings_count);

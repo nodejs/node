@@ -5,14 +5,13 @@
 #ifndef V8_HEAP_MARK_COMPACT_INL_H_
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
-#include "src/heap/mark-compact.h"
-
 #include "src/base/bits.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting-inl.h"
-#include "src/heap/remembered-set.h"
+#include "src/heap/remembered-set-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/slots-inl.h"

@@ -281,7 +281,8 @@ TEST(GarbageCollectionForTesting) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
 
   int saved_gc_counter = i_isolate->heap()->gc_count();
-  tracer.GarbageCollectionForTesting(EmbedderHeapTracer::kUnknown);
+  tracer.GarbageCollectionForTesting(
+      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
   CHECK_GT(i_isolate->heap()->gc_count(), saved_gc_counter);
 }
 

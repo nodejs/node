@@ -3,200 +3,197 @@
 // found in the LICENSE file.
 
 namespace array {
-  transitioning javascript builtin
-  ArrayFilterLoopEagerDeoptContinuation(
-      js-implicit context: NativeContext, receiver: JSAny)(
-      callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
-      length: JSAny, initialTo: JSAny): JSAny {
-    // All continuation points in the optimized filter implementation are
-    // after the ToObject(O) call that ensures we are dealing with a
-    // JSReceiver.
-    //
-    // Also, this great mass of casts is necessary because the signature
-    // of Torque javascript builtins requires JSAny type for all parameters
-    // other than {context}.
-    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
-    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
-    const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
-    const numberK = Cast<Number>(initialK) otherwise unreachable;
-    const numberTo = Cast<Number>(initialTo) otherwise unreachable;
-    const numberLength = Cast<Number>(length) otherwise unreachable;
+transitioning javascript builtin
+ArrayFilterLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
+    length: JSAny, initialTo: JSAny): JSAny {
+  // All continuation points in the optimized filter implementation are
+  // after the ToObject(O) call that ensures we are dealing with a
+  // JSReceiver.
+  //
+  // Also, this great mass of casts is necessary because the signature
+  // of Torque javascript builtins requires JSAny type for all parameters
+  // other than {context}.
+  const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+  const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+  const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
+  const numberK = Cast<Number>(initialK) otherwise unreachable;
+  const numberTo = Cast<Number>(initialTo) otherwise unreachable;
+  const numberLength = Cast<Number>(length) otherwise unreachable;
 
-    return ArrayFilterLoopContinuation(
-        jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
-        numberLength, numberTo);
+  return ArrayFilterLoopContinuation(
+      jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
+      numberLength, numberTo);
+}
+
+transitioning javascript builtin
+ArrayFilterLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
+    length: JSAny, valueK: JSAny, initialTo: JSAny, result: JSAny): JSAny {
+  // All continuation points in the optimized filter implementation are
+  // after the ToObject(O) call that ensures we are dealing with a
+  // JSReceiver.
+  const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+  const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+  const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
+  let numberK = Cast<Number>(initialK) otherwise unreachable;
+  let numberTo = Cast<Number>(initialTo) otherwise unreachable;
+  const numberLength = Cast<Number>(length) otherwise unreachable;
+
+  // This custom lazy deopt point is right after the callback. filter() needs
+  // to pick up at the next step, which is setting the callback
+  // result in the output array. After incrementing k and to, we can glide
+  // into the loop continuation builtin.
+  if (ToBoolean(result)) {
+    FastCreateDataProperty(outputArray, numberTo, valueK);
+    numberTo = numberTo + 1;
   }
 
-  transitioning javascript builtin
-  ArrayFilterLoopLazyDeoptContinuation(
-      js-implicit context: NativeContext, receiver: JSAny)(
-      callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
-      length: JSAny, valueK: JSAny, initialTo: JSAny, result: JSAny): JSAny {
-    // All continuation points in the optimized filter implementation are
-    // after the ToObject(O) call that ensures we are dealing with a
-    // JSReceiver.
-    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
-    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
-    const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
-    let numberK = Cast<Number>(initialK) otherwise unreachable;
-    let numberTo = Cast<Number>(initialTo) otherwise unreachable;
-    const numberLength = Cast<Number>(length) otherwise unreachable;
+  numberK = numberK + 1;
 
-    // This custom lazy deopt point is right after the callback. filter() needs
-    // to pick up at the next step, which is setting the callback
-    // result in the output array. After incrementing k and to, we can glide
-    // into the loop continuation builtin.
-    if (ToBoolean(result)) {
-      FastCreateDataProperty(outputArray, numberTo, valueK);
-      numberTo = numberTo + 1;
-    }
+  return ArrayFilterLoopContinuation(
+      jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
+      numberLength, numberTo);
+}
 
-    numberK = numberK + 1;
+transitioning builtin ArrayFilterLoopContinuation(implicit context: Context)(
+    _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny,
+    array: JSReceiver, o: JSReceiver, initialK: Number, length: Number,
+    initialTo: Number): JSAny {
+  let to: Number = initialTo;
+  // 5. Let k be 0.
+  // 6. Repeat, while k < len
+  for (let k: Number = initialK; k < length; k++) {
+    // 6a. Let Pk be ! ToString(k).
+    // k is guaranteed to be a positive integer, hence ToString is
+    // side-effect free and HasProperty/GetProperty do the conversion inline.
 
-    return ArrayFilterLoopContinuation(
-        jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
-        numberLength, numberTo);
-  }
+    // 6b. Let kPresent be ? HasProperty(O, Pk).
+    const kPresent: Boolean = HasProperty_Inline(o, k);
 
-  transitioning builtin ArrayFilterLoopContinuation(implicit context: Context)(
-      _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny,
-      array: JSReceiver, o: JSReceiver, initialK: Number, length: Number,
-      initialTo: Number): JSAny {
-    let to: Number = initialTo;
-    // 5. Let k be 0.
-    // 6. Repeat, while k < len
-    for (let k: Number = initialK; k < length; k++) {
-      // 6a. Let Pk be ! ToString(k).
-      // k is guaranteed to be a positive integer, hence ToString is
-      // side-effect free and HasProperty/GetProperty do the conversion inline.
+    // 6c. If kPresent is true, then
+    if (kPresent == True) {
+      // 6c. i. Let kValue be ? Get(O, Pk).
+      const kValue: JSAny = GetProperty(o, k);
 
-      // 6b. Let kPresent be ? HasProperty(O, Pk).
-      const kPresent: Boolean = HasProperty_Inline(o, k);
+      // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
+      const result: JSAny = Call(context, callbackfn, thisArg, kValue, k, o);
 
-      // 6c. If kPresent is true, then
-      if (kPresent == True) {
-        // 6c. i. Let kValue be ? Get(O, Pk).
-        const kValue: JSAny = GetProperty(o, k);
-
-        // 6c. ii. Perform ? Call(callbackfn, T, <kValue, k, O>).
-        const result: JSAny = Call(context, callbackfn, thisArg, kValue, k, o);
-
-        // iii. If selected is true, then...
-        if (ToBoolean(result)) {
-          // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
-          FastCreateDataProperty(array, to, kValue);
-          // 2. Increase to by 1.
-          to = to + 1;
-        }
-      }
-
-      // 6d. Increase k by 1. (done by the loop).
-    }
-    return array;
-  }
-
-  transitioning macro FastArrayFilter(implicit context: Context)(
-      fastO: FastJSArray, len: Smi, callbackfn: Callable, thisArg: JSAny,
-      output: FastJSArray) labels Bailout(Number, Number) {
-    let k: Smi = 0;
-    let to: Smi = 0;
-    let fastOW = NewFastJSArrayWitness(fastO);
-    let fastOutputW = NewFastJSArrayWitness(output);
-
-    fastOutputW.EnsureArrayPushable() otherwise goto Bailout(k, to);
-
-    // Build a fast loop over the array.
-    for (; k < len; k++) {
-      fastOW.Recheck() otherwise goto Bailout(k, to);
-
-      // Ensure that we haven't walked beyond a possibly updated length.
-      if (k >= fastOW.Get().length) goto Bailout(k, to);
-      const value: JSAny = fastOW.LoadElementNoHole(k) otherwise continue;
-      const result: JSAny =
-          Call(context, callbackfn, thisArg, value, k, fastOW.Get());
+      // iii. If selected is true, then...
       if (ToBoolean(result)) {
-        try {
-          // Since the call to {callbackfn} is observable, we can't
-          // use the Bailout label until we've successfully stored.
-          // Hence the {SlowStore} label.
-          fastOutputW.Recheck() otherwise SlowStore;
-          if (fastOutputW.Get().length != to) goto SlowStore;
-          fastOutputW.Push(value) otherwise SlowStore;
-        }
-        label SlowStore {
-          FastCreateDataProperty(fastOutputW.stable, to, value);
-        }
+        // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
+        FastCreateDataProperty(array, to, kValue);
+        // 2. Increase to by 1.
         to = to + 1;
       }
     }
+
+    // 6d. Increase k by 1. (done by the loop).
   }
+  return array;
+}
 
-  // This method creates a 0-length array with the ElementsKind of the
-  // receiver if possible, otherwise, bails out. It makes sense for the
-  // caller to know that the slow case needs to be invoked.
-  macro FastFilterSpeciesCreate(implicit context: Context)(
-      receiver: JSReceiver): JSReceiver labels Slow {
-    const len: Smi = 0;
-    if (IsArraySpeciesProtectorCellInvalid()) goto Slow;
-    const o = Cast<FastJSArray>(receiver) otherwise Slow;
-    const newMap: Map =
-        LoadJSArrayElementsMap(o.map.elements_kind, LoadNativeContext(context));
-    return AllocateJSArray(ElementsKind::PACKED_SMI_ELEMENTS, newMap, len, len);
-  }
+transitioning macro FastArrayFilter(implicit context: Context)(
+    fastO: FastJSArray, len: Smi, callbackfn: Callable, thisArg: JSAny,
+    output: FastJSArray) labels
+Bailout(Number, Number) {
+  let k: Smi = 0;
+  let to: Smi = 0;
+  let fastOW = NewFastJSArrayWitness(fastO);
+  let fastOutputW = NewFastJSArrayWitness(output);
 
-  // https://tc39.github.io/ecma262/#sec-array.prototype.filter
-  transitioning javascript builtin
-  ArrayFilter(js-implicit context: NativeContext, receiver: JSAny)(
-      ...arguments): JSAny {
-    try {
-      RequireObjectCoercible(receiver, 'Array.prototype.filter');
+  fastOutputW.EnsureArrayPushable() otherwise goto Bailout(k, to);
 
-      // 1. Let O be ? ToObject(this value).
-      const o: JSReceiver = ToObject_Inline(context, receiver);
+  // Build a fast loop over the array.
+  for (; k < len; k++) {
+    fastOW.Recheck() otherwise goto Bailout(k, to);
 
-      // 2. Let len be ? ToLength(? Get(O, "length")).
-      const len: Number = GetLengthProperty(o);
-
-      // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
-      if (arguments.length == 0) {
-        goto TypeError;
-      }
-      const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
-
-      // 4. If thisArg is present, let T be thisArg; else let T be undefined.
-      const thisArg: JSAny = arguments.length > 1 ? arguments[1] : Undefined;
-      let output: JSReceiver;
-
-      // Special cases.
-      let k: Number = 0;
-      let to: Number = 0;
+    // Ensure that we haven't walked beyond a possibly updated length.
+    if (k >= fastOW.Get().length) goto Bailout(k, to);
+    const value: JSAny = fastOW.LoadElementNoHole(k) otherwise continue;
+    const result: JSAny =
+        Call(context, callbackfn, thisArg, value, k, fastOW.Get());
+    if (ToBoolean(result)) {
       try {
-        output = FastFilterSpeciesCreate(o) otherwise SlowSpeciesCreate;
-
-        try {
-          const smiLen: Smi = Cast<Smi>(len) otherwise goto Bailout(k, to);
-          const fastOutput =
-              Cast<FastJSArray>(output) otherwise goto Bailout(k, to);
-          const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
-
-          FastArrayFilter(fastO, smiLen, callbackfn, thisArg, fastOutput)
-              otherwise Bailout;
-          return output;
-        }
-        label Bailout(kValue: Number, toValue: Number) deferred {
-          k = kValue;
-          to = toValue;
-        }
+        // Since the call to {callbackfn} is observable, we can't
+        // use the Bailout label until we've successfully stored.
+        // Hence the {SlowStore} label.
+        fastOutputW.Recheck() otherwise SlowStore;
+        if (fastOutputW.Get().length != to) goto SlowStore;
+        fastOutputW.Push(value) otherwise SlowStore;
+      } label SlowStore {
+        FastCreateDataProperty(fastOutputW.stable, to, value);
       }
-      label SlowSpeciesCreate {
-        output = ArraySpeciesCreate(context, receiver, 0);
-      }
-
-      return ArrayFilterLoopContinuation(
-          o, callbackfn, thisArg, output, o, k, len, to);
-    }
-    label TypeError deferred {
-      ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+      to = to + 1;
     }
   }
+}
+
+// This method creates a 0-length array with the ElementsKind of the
+// receiver if possible, otherwise, bails out. It makes sense for the
+// caller to know that the slow case needs to be invoked.
+macro FastFilterSpeciesCreate(implicit context: Context)(receiver: JSReceiver):
+    JSReceiver labels Slow {
+  const len: Smi = 0;
+  if (IsArraySpeciesProtectorCellInvalid()) goto Slow;
+  const o = Cast<FastJSArray>(receiver) otherwise Slow;
+  const newMap: Map =
+      LoadJSArrayElementsMap(o.map.elements_kind, LoadNativeContext(context));
+  return AllocateJSArray(ElementsKind::PACKED_SMI_ELEMENTS, newMap, len, len);
+}
+
+// https://tc39.github.io/ecma262/#sec-array.prototype.filter
+transitioning javascript builtin
+ArrayFilter(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  try {
+    RequireObjectCoercible(receiver, 'Array.prototype.filter');
+
+    // 1. Let O be ? ToObject(this value).
+    const o: JSReceiver = ToObject_Inline(context, receiver);
+
+    // 2. Let len be ? ToLength(? Get(O, "length")).
+    const len: Number = GetLengthProperty(o);
+
+    // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    if (arguments.length == 0) {
+      goto TypeError;
+    }
+    const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
+
+    // 4. If thisArg is present, let T be thisArg; else let T be undefined.
+    const thisArg: JSAny = arguments[1];
+    let output: JSReceiver;
+
+    // Special cases.
+    let k: Number = 0;
+    let to: Number = 0;
+    try {
+      output = FastFilterSpeciesCreate(o) otherwise SlowSpeciesCreate;
+
+      try {
+        const smiLen: Smi = Cast<Smi>(len) otherwise goto Bailout(k, to);
+        const fastOutput =
+            Cast<FastJSArray>(output) otherwise goto Bailout(k, to);
+        const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
+
+        FastArrayFilter(fastO, smiLen, callbackfn, thisArg, fastOutput)
+            otherwise Bailout;
+        return output;
+      } label Bailout(kValue: Number, toValue: Number) deferred {
+        k = kValue;
+        to = toValue;
+      }
+    } label SlowSpeciesCreate {
+      output = ArraySpeciesCreate(context, receiver, 0);
+    }
+
+    return ArrayFilterLoopContinuation(
+        o, callbackfn, thisArg, output, o, k, len, to);
+  } label TypeError deferred {
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+  }
+}
 }

@@ -613,7 +613,7 @@ BaseConsumedPreparseData<Data>::GetDataForSkippableFunction(
 
 template <class Data>
 void BaseConsumedPreparseData<Data>::RestoreScopeAllocationData(
-    DeclarationScope* scope, AstValueFactory* ast_value_factory) {
+    DeclarationScope* scope, AstValueFactory* ast_value_factory, Zone* zone) {
   DCHECK_EQ(scope->scope_type(), ScopeType::FUNCTION_SCOPE);
   typename ByteData::ReadingScope reading_scope(this);
 
@@ -628,7 +628,7 @@ void BaseConsumedPreparseData<Data>::RestoreScopeAllocationData(
   DCHECK_EQ(end_position_from_data, scope->end_position());
 #endif
 
-  RestoreDataForScope(scope, ast_value_factory);
+  RestoreDataForScope(scope, ast_value_factory, zone);
 
   // Check that we consumed all scope data.
   DCHECK_EQ(scope_data_->RemainingBytes(), 0);
@@ -636,7 +636,7 @@ void BaseConsumedPreparseData<Data>::RestoreScopeAllocationData(
 
 template <typename Data>
 void BaseConsumedPreparseData<Data>::RestoreDataForScope(
-    Scope* scope, AstValueFactory* ast_value_factory) {
+    Scope* scope, AstValueFactory* ast_value_factory, Zone* zone) {
   if (scope->is_declaration_scope() &&
       scope->AsDeclarationScope()->is_skipped_function()) {
     return;
@@ -670,7 +670,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     if (scope->AsClassScope()->is_anonymous_class()) {
       var = scope->AsClassScope()->DeclareClassVariable(
           ast_value_factory, nullptr, kNoSourcePosition);
-      AstNodeFactory factory(ast_value_factory, ast_value_factory->zone());
+      AstNodeFactory factory(ast_value_factory, zone);
       Declaration* declaration =
           factory.NewVariableDeclaration(kNoSourcePosition);
       scope->declarations()->Add(declaration);
@@ -692,7 +692,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     if (IsSerializableVariableMode(var->mode())) RestoreDataForVariable(var);
   }
 
-  RestoreDataForInnerScopes(scope, ast_value_factory);
+  RestoreDataForInnerScopes(scope, ast_value_factory, zone);
 }
 
 template <typename Data>
@@ -732,10 +732,10 @@ void BaseConsumedPreparseData<Data>::RestoreDataForVariable(Variable* var) {
 
 template <typename Data>
 void BaseConsumedPreparseData<Data>::RestoreDataForInnerScopes(
-    Scope* scope, AstValueFactory* ast_value_factory) {
+    Scope* scope, AstValueFactory* ast_value_factory, Zone* zone) {
   for (Scope* inner = scope->inner_scope(); inner != nullptr;
        inner = inner->sibling()) {
-    RestoreDataForScope(inner, ast_value_factory);
+    RestoreDataForScope(inner, ast_value_factory, zone);
   }
 }
 

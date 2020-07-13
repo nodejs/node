@@ -24,6 +24,7 @@ class EvacuationJobTraits;
 class HeapObjectVisitor;
 class ItemParallelJob;
 class MigrationObserver;
+class ReadOnlySpace;
 class RecordMigratedSlotVisitor;
 class UpdatingItem;
 class YoungGenerationMarkingVisitor;

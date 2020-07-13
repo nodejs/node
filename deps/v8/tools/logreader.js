@@ -190,7 +190,6 @@ LogReader.prototype.dispatchLogRow_ = function(fields) {
   var command = fields[0];
   var dispatch = this.dispatchTable_[command];
   if (dispatch === undefined) return;
-
   if (dispatch === null || this.skipDispatch(dispatch)) {
     return;
   }
@@ -241,7 +240,7 @@ LogReader.prototype.processLogLine_ = function(line) {
       var fields = this.csvParser_.parseLine(line);
       this.dispatchLogRow_(fields);
     } catch (e) {
-      this.printError('line ' + (this.lineNum_ + 1) + ': ' + (e.message || e));
+      this.printError('line ' + (this.lineNum_ + 1) + ': ' + (e.message || e) + '\n' + e.stack);
     }
   }
   this.lineNum_++;

@@ -37,6 +37,9 @@ class Node;
 using ::testing::Matcher;
 
 Matcher<Node*> IsDead();
+Matcher<Node*> IsUnreachable();
+Matcher<Node*> IsThrow();
+Matcher<Node*> IsStart();
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher);
 Matcher<Node*> IsEnd(const Matcher<Node*>& control0_matcher,
                      const Matcher<Node*>& control1_matcher);
@@ -412,6 +415,10 @@ Matcher<Node*> IsInt64Mul(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt64Div(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt64LessThan(const Matcher<Node*>& lhs_matcher,
+                               const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsUint64LessThan(const Matcher<Node*>& lhs_matcher,
+                                const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSAdd(const Matcher<Node*>& lhs_matcher,
                        const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSParseInt(const Matcher<Node*>& lhs_matcher,

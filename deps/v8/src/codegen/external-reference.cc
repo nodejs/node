@@ -902,6 +902,10 @@ static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
 
 FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper)
 
+FUNCTION_REFERENCE(
+    js_finalization_registry_remove_cell_from_unregister_token_map,
+    JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap)
+
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();
 }

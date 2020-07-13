@@ -5,105 +5,98 @@
 #include 'src/builtins/builtins-iterator-gen.h'
 
 namespace iterator {
-  // Returned from IteratorBuiltinsAssembler::GetIterator().
-  @export
-  struct IteratorRecord {
-    // iteratorRecord.[[Iterator]]
-    object: JSReceiver;
+// Returned from IteratorBuiltinsAssembler::GetIterator().
+@export
+struct IteratorRecord {
+  // iteratorRecord.[[Iterator]]
+  object: JSReceiver;
 
-    // iteratorRecord.[[NextMethod]]
-    next: JSAny;
-  }
+  // iteratorRecord.[[NextMethod]]
+  next: JSAny;
+}
 
-  extern macro IteratorBuiltinsAssembler::FastIterableToList(
-      implicit context: Context)(JSAny): JSArray labels Slow;
+extern macro IteratorBuiltinsAssembler::FastIterableToList(
+    implicit context: Context)(JSAny): JSArray labels Slow;
 
-  extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
-      implicit context: Context)(JSAny): JSAny;
-  extern macro IteratorBuiltinsAssembler::GetIterator(
-      implicit context: Context)(JSAny): IteratorRecord;
-  extern macro IteratorBuiltinsAssembler::GetIterator(
-      implicit context: Context)(JSAny, JSAny): IteratorRecord;
+extern macro IteratorBuiltinsAssembler::GetIteratorMethod(
+    implicit context: Context)(JSAny): JSAny;
+extern macro IteratorBuiltinsAssembler::GetIterator(implicit context: Context)(
+    JSAny): IteratorRecord;
+extern macro IteratorBuiltinsAssembler::GetIterator(implicit context: Context)(
+    JSAny, JSAny): IteratorRecord;
 
-  extern macro IteratorBuiltinsAssembler::IteratorStep(
-      implicit context: Context)(IteratorRecord): JSReceiver
-      labels Done;
-  extern macro IteratorBuiltinsAssembler::IteratorStep(
-      implicit context: Context)(IteratorRecord, Map): JSReceiver
-      labels Done;
+extern macro IteratorBuiltinsAssembler::IteratorStep(implicit context: Context)(
+    IteratorRecord): JSReceiver
+    labels Done;
+extern macro IteratorBuiltinsAssembler::IteratorStep(implicit context: Context)(
+    IteratorRecord, Map): JSReceiver
+    labels Done;
 
-  extern macro IteratorBuiltinsAssembler::IteratorValue(
-      implicit context: Context)(JSReceiver): JSAny;
-  extern macro IteratorBuiltinsAssembler::IteratorValue(
-      implicit context: Context)(JSReceiver, Map): JSAny;
+extern macro IteratorBuiltinsAssembler::IteratorValue(
+    implicit context: Context)(JSReceiver): JSAny;
+extern macro IteratorBuiltinsAssembler::IteratorValue(
+    implicit context: Context)(JSReceiver, Map): JSAny;
 
-  extern macro IteratorBuiltinsAssembler::IteratorCloseOnException(
-      implicit context: Context)(IteratorRecord, JSAny): never;
+extern macro IteratorBuiltinsAssembler::IterableToList(
+    implicit context: Context)(JSAny, JSAny): JSArray;
 
-  extern macro IteratorBuiltinsAssembler::IterableToList(
-      implicit context: Context)(JSAny, JSAny): JSArray;
+extern macro IteratorBuiltinsAssembler::StringListFromIterable(
+    implicit context: Context)(JSAny): JSArray;
 
-  extern macro IteratorBuiltinsAssembler::StringListFromIterable(
-      implicit context: Context)(JSAny): JSArray;
+extern builtin IterableToListWithSymbolLookup(implicit context: Context)(JSAny):
+    JSArray;
+extern builtin IterableToFixedArrayWithSymbolLookupSlow(
+    implicit context: Context)(JSAny): FixedArray;
 
-  extern builtin IterableToListMayPreserveHoles(implicit context:
-                                                    Context)(JSAny, JSAny);
-  extern builtin IterableToListWithSymbolLookup(implicit context:
-                                                    Context)(JSAny);
-
-  transitioning builtin GetIteratorWithFeedback(
-      context: Context, receiver: JSAny, loadSlot: TaggedIndex,
-      callSlot: TaggedIndex, feedback: Undefined|FeedbackVector): JSAny {
-    let iteratorMethod: JSAny;
-    typeswitch (feedback) {
-      case (Undefined): {
-        iteratorMethod = GetProperty(receiver, IteratorSymbolConstant());
-      }
-      case (feedback: FeedbackVector): {
-        iteratorMethod = LoadIC(
-            context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
-      }
+transitioning builtin GetIteratorWithFeedback(
+    context: Context, receiver: JSAny, loadSlot: TaggedIndex,
+    callSlot: TaggedIndex, feedback: Undefined|FeedbackVector): JSAny {
+  let iteratorMethod: JSAny;
+  typeswitch (feedback) {
+    case (Undefined): {
+      iteratorMethod = GetProperty(receiver, IteratorSymbolConstant());
     }
-    // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
-    const callSlotSmi: Smi = TaggedIndexToSmi(callSlot);
-    return CallIteratorWithFeedback(
-        context, receiver, iteratorMethod, callSlotSmi, feedback);
-  }
-
-  transitioning builtin CallIteratorWithFeedback(
-      context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
-      feedback: Undefined|FeedbackVector): JSAny {
-    const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
-    CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
-    const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
-        otherwise ThrowCalledNonCallable(iteratorMethod);
-    return Call(context, iteratorCallable, receiver);
-  }
-
-  transitioning
-  macro IteratorCloseOnException(implicit context: Context)(
-      iterator: IteratorRecord, exception: Object): never labels
-  IfException(Object) {
-    // Let return be ? GetMethod(iterator, "return").
-    let method: JSAny;
-    try {
-      method = GetProperty(iterator.object, kReturnString);
-    } catch (e) {
-      goto IfException(e);
+    case (feedback: FeedbackVector): {
+      iteratorMethod = LoadIC(
+          context, receiver, IteratorSymbolConstant(), loadSlot, feedback);
     }
+  }
+  // TODO(v8:10047): Use TaggedIndex here once TurboFan supports it.
+  const callSlotSmi: Smi = TaggedIndexToSmi(callSlot);
+  return CallIteratorWithFeedback(
+      context, receiver, iteratorMethod, callSlotSmi, feedback);
+}
 
-    // If return is undefined, return Completion(completion).
-    if (method == Undefined || method == Null) goto IfException(exception);
+transitioning builtin CallIteratorWithFeedback(
+    context: Context, receiver: JSAny, iteratorMethod: JSAny, callSlot: Smi,
+    feedback: Undefined|FeedbackVector): JSAny {
+  const callSlotUnTagged: uintptr = Unsigned(SmiUntag(callSlot));
+  ic::CollectCallFeedback(iteratorMethod, context, feedback, callSlotUnTagged);
+  const iteratorCallable: Callable = Cast<Callable>(iteratorMethod)
+      otherwise ThrowCalledNonCallable(iteratorMethod);
+  return Call(context, iteratorCallable, receiver);
+}
 
-    // Let innerResult be Call(return, iterator, « »).
+// https://tc39.es/ecma262/#sec-iteratorclose
+@export
+transitioning macro IteratorCloseOnException(implicit context: Context)(
+    iterator: IteratorRecord) {
+  try {
+    // 4. Let innerResult be GetMethod(iterator, "return").
+    const method = GetProperty(iterator.object, kReturnString);
+
+    // 5. If innerResult.[[Type]] is normal, then
+    //   a. Let return be innerResult.[[Value]].
+    //   b. If return is undefined, return Completion(completion).
+    if (method == Undefined || method == Null) return;
+
+    //   c. Set innerResult to Call(return, iterator).
     // If an exception occurs, the original exception remains bound
-    try {
-      Call(context, method, iterator.object);
-    } catch (_e) {
-      goto IfException(exception);
-    }
-
-    // (If completion.[[Type]] is throw) return Completion(completion).
-    goto IfException(exception);
+    Call(context, method, iterator.object);
+  } catch (_e) {
+    // Swallow the exception.
   }
+
+  // (If completion.[[Type]] is throw) return Completion(completion).
+}
 }

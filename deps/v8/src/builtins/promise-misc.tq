@@ -6,246 +6,267 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace runtime {
-  extern transitioning runtime
-  AllowDynamicFunction(implicit context: Context)(JSAny): JSAny;
+extern transitioning runtime
+AllowDynamicFunction(implicit context: Context)(JSAny): JSAny;
 }
 
 // Unsafe functions that should be used very carefully.
 namespace promise_internal {
-  extern macro PromiseBuiltinsAssembler::ZeroOutEmbedderOffsets(JSPromise):
-      void;
+extern macro PromiseBuiltinsAssembler::ZeroOutEmbedderOffsets(JSPromise): void;
 
-  extern macro PromiseBuiltinsAssembler::AllocateJSPromise(Context): HeapObject;
+extern macro PromiseBuiltinsAssembler::AllocateJSPromise(Context): HeapObject;
 }
 
 namespace promise {
-  extern macro IsFunctionWithPrototypeSlotMap(Map): bool;
+extern macro IsFunctionWithPrototypeSlotMap(Map): bool;
 
-  @export
-  macro PromiseHasHandler(promise: JSPromise): bool {
-    return promise.HasHandler();
+@export
+macro PromiseHasHandler(promise: JSPromise): bool {
+  return promise.HasHandler();
+}
+
+@export
+macro PromiseInit(promise: JSPromise): void {
+  promise.reactions_or_result = kZero;
+  promise.flags = SmiTag(JSPromiseFlags{
+    status: PromiseState::kPending,
+    has_handler: false,
+    handled_hint: false,
+    async_task_id: 0
+  });
+  promise_internal::ZeroOutEmbedderOffsets(promise);
+}
+
+macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
+  const nativeContext = LoadNativeContext(context);
+  const promiseFun = UnsafeCast<JSFunction>(
+      nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
+  assert(IsFunctionWithPrototypeSlotMap(promiseFun.map));
+  const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
+  const promiseHeapObject = promise_internal::AllocateJSPromise(context);
+  * UnsafeConstCast(& promiseHeapObject.map) = promiseMap;
+  const promise = UnsafeCast<JSPromise>(promiseHeapObject);
+  promise.properties_or_hash = kEmptyFixedArray;
+  promise.elements = kEmptyFixedArray;
+  promise.reactions_or_result = kZero;
+  promise.flags = SmiTag(JSPromiseFlags{
+    status: PromiseState::kPending,
+    has_handler: false,
+    handled_hint: false,
+    async_task_id: 0
+  });
+  return promise;
+}
+
+macro NewPromiseFulfillReactionJobTask(implicit context: Context)(
+    handlerContext: Context, argument: Object, handler: Callable|Undefined,
+    promiseOrCapability: JSPromise|PromiseCapability|
+    Undefined): PromiseFulfillReactionJobTask {
+  const nativeContext = LoadNativeContext(handlerContext);
+  return new PromiseFulfillReactionJobTask{
+    map: PromiseFulfillReactionJobTaskMapConstant(),
+    argument,
+    context: handlerContext,
+    handler,
+    promise_or_capability: promiseOrCapability,
+    continuation_preserved_embedder_data: nativeContext
+        [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+  };
+}
+
+macro NewPromiseRejectReactionJobTask(implicit context: Context)(
+    handlerContext: Context, argument: Object, handler: Callable|Undefined,
+    promiseOrCapability: JSPromise|PromiseCapability|
+    Undefined): PromiseRejectReactionJobTask {
+  const nativeContext = LoadNativeContext(handlerContext);
+  return new PromiseRejectReactionJobTask{
+    map: PromiseRejectReactionJobTaskMapConstant(),
+    argument,
+    context: handlerContext,
+    handler,
+    promise_or_capability: promiseOrCapability,
+    continuation_preserved_embedder_data: nativeContext
+        [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+  };
+}
+
+// These allocate and initialize a promise with pending state and
+// undefined fields.
+//
+// This uses the given parent as the parent promise for the promise
+// init hook.
+@export
+transitioning macro NewJSPromise(implicit context: Context)(parent: Object):
+    JSPromise {
+  const instance = InnerNewJSPromise();
+  PromiseInit(instance);
+  if (IsPromiseHookEnabledOrHasAsyncEventDelegate()) {
+    runtime::PromiseHookInit(instance, parent);
   }
+  return instance;
+}
 
-  @export
-  macro PromiseInit(promise: JSPromise): void {
-    assert(PromiseState::kPending == 0);
-    promise.reactions_or_result = kZero;
-    promise.flags = 0;
-    promise_internal::ZeroOutEmbedderOffsets(promise);
+// This uses undefined as the parent promise for the promise init
+// hook.
+@export
+transitioning macro NewJSPromise(implicit context: Context)(): JSPromise {
+  return NewJSPromise(Undefined);
+}
+
+// This allocates and initializes a promise with the given state and
+// fields.
+@export
+transitioning macro NewJSPromise(implicit context: Context)(
+    status: constexpr PromiseState, result: JSAny): JSPromise {
+  assert(status != PromiseState::kPending);
+
+  const instance = InnerNewJSPromise();
+  instance.reactions_or_result = result;
+  instance.SetStatus(status);
+  promise_internal::ZeroOutEmbedderOffsets(instance);
+
+  if (IsPromiseHookEnabledOrHasAsyncEventDelegate()) {
+    runtime::PromiseHookInit(instance, Undefined);
   }
+  return instance;
+}
 
-  macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
-    const nativeContext = LoadNativeContext(context);
-    const promiseFun = UnsafeCast<JSFunction>(
-        nativeContext[NativeContextSlot::PROMISE_FUNCTION_INDEX]);
-    assert(IsFunctionWithPrototypeSlotMap(promiseFun.map));
-    const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
-    const promiseHeapObject = promise_internal::AllocateJSPromise(context);
-    * UnsafeConstCast(& promiseHeapObject.map) = promiseMap;
-    const promise = UnsafeCast<JSPromise>(promiseHeapObject);
-    promise.properties_or_hash = kEmptyFixedArray;
-    promise.elements = kEmptyFixedArray;
-    promise.reactions_or_result = kZero;
-    promise.flags = 0;
-    return promise;
-  }
+macro NewPromiseReaction(implicit context: Context)(
+    handlerContext: Context, next: Zero|PromiseReaction,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    fulfillHandler: Callable|Undefined,
+    rejectHandler: Callable|Undefined): PromiseReaction {
+  const nativeContext = LoadNativeContext(handlerContext);
+  return new PromiseReaction{
+    map: PromiseReactionMapConstant(),
+    next: next,
+    reject_handler: rejectHandler,
+    fulfill_handler: fulfillHandler,
+    promise_or_capability: promiseOrCapability,
+    continuation_preserved_embedder_data: nativeContext
+        [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
+  };
+}
 
-  macro NewPromiseFulfillReactionJobTask(implicit context: Context)(
-      handlerContext: Context, argument: Object, handler: Callable|Undefined,
-      promiseOrCapability: JSPromise|PromiseCapability|
-      Undefined): PromiseFulfillReactionJobTask {
-    const nativeContext = LoadNativeContext(handlerContext);
-    return new PromiseFulfillReactionJobTask{
-      map: PromiseFulfillReactionJobTaskMapConstant(),
-      argument,
-      context: handlerContext,
-      handler,
-      promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data: nativeContext
-          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
-    };
-  }
+extern macro PromiseResolveThenableJobTaskMapConstant(): Map;
 
-  macro NewPromiseRejectReactionJobTask(implicit context: Context)(
-      handlerContext: Context, argument: Object, handler: Callable|Undefined,
-      promiseOrCapability: JSPromise|PromiseCapability|
-      Undefined): PromiseRejectReactionJobTask {
-    const nativeContext = LoadNativeContext(handlerContext);
-    return new PromiseRejectReactionJobTask{
-      map: PromiseRejectReactionJobTaskMapConstant(),
-      argument,
-      context: handlerContext,
-      handler,
-      promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data: nativeContext
-          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
-    };
-  }
-
-  // These allocate and initialize a promise with pending state and
-  // undefined fields.
+// https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
+macro NewPromiseResolveThenableJobTask(implicit context: Context)(
+    promiseToResolve: JSPromise, thenable: JSReceiver,
+    then: Callable): PromiseResolveThenableJobTask {
+  // 2. Let getThenRealmResult be GetFunctionRealm(then).
+  // 3. If getThenRealmResult is a normal completion, then let thenRealm be
+  //    getThenRealmResult.[[Value]].
+  // 4. Otherwise, let thenRealm be null.
   //
-  // This uses the given parent as the parent promise for the promise
-  // init hook.
-  @export
-  transitioning macro NewJSPromise(implicit context: Context)(parent: Object):
-      JSPromise {
-    const instance = InnerNewJSPromise();
-    PromiseInit(instance);
-    if (IsPromiseHookEnabledOrHasAsyncEventDelegate()) {
-      runtime::PromiseHookInit(instance, parent);
-    }
-    return instance;
-  }
+  // The only cases where |thenRealm| can be null is when |then| is a revoked
+  // Proxy object, which would throw when it is called anyway. So instead of
+  // setting the context to null as the spec does, we just use the current
+  // realm.
+  const thenContext: Context = ExtractHandlerContext(then);
+  const nativeContext = LoadNativeContext(thenContext);
 
-  // This uses undefined as the parent promise for the promise init
-  // hook.
-  @export
-  transitioning macro NewJSPromise(implicit context: Context)(): JSPromise {
-    return NewJSPromise(Undefined);
-  }
+  // 1. Let job be a new Job abstract closure with no parameters that
+  //    captures promiseToResolve, thenable, and then...
+  // 5. Return { [[Job]]: job, [[Realm]]: thenRealm }.
+  return new PromiseResolveThenableJobTask{
+    map: PromiseResolveThenableJobTaskMapConstant(),
+    context: nativeContext,
+    promise_to_resolve: promiseToResolve,
+    thenable,
+    then
+  };
+}
 
-  // This allocates and initializes a promise with the given state and
-  // fields.
-  @export
-  transitioning macro NewJSPromise(implicit context: Context)(
-      status: constexpr PromiseState, result: JSAny): JSPromise {
-    assert(status != PromiseState::kPending);
-    assert(kJSPromiseStatusShift == 0);
-
-    const instance = InnerNewJSPromise();
-    instance.reactions_or_result = result;
-    instance.SetStatus(status);
-    promise_internal::ZeroOutEmbedderOffsets(instance);
-
-    if (IsPromiseHookEnabledOrHasAsyncEventDelegate()) {
-      runtime::PromiseHookInit(instance, Undefined);
-    }
-    return instance;
-  }
-
-  macro NewPromiseReaction(implicit context: Context)(
-      handlerContext: Context, next: Zero|PromiseReaction,
-      promiseOrCapability: JSPromise|PromiseCapability|Undefined,
-      fulfillHandler: Callable|Undefined,
-      rejectHandler: Callable|Undefined): PromiseReaction {
-    const nativeContext = LoadNativeContext(handlerContext);
-    return new PromiseReaction{
-      map: PromiseReactionMapConstant(),
-      next: next,
-      reject_handler: rejectHandler,
-      fulfill_handler: fulfillHandler,
-      promise_or_capability: promiseOrCapability,
-      continuation_preserved_embedder_data: nativeContext
-          [NativeContextSlot::CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX]
-    };
-  }
-
-  extern macro PromiseResolveThenableJobTaskMapConstant(): Map;
-
-  macro NewPromiseResolveThenableJobTask(implicit context: Context)(
-      promiseToResolve: JSPromise, then: JSReceiver, thenable: JSReceiver,
-      thenContext: Context): PromiseResolveThenableJobTask {
-    return new PromiseResolveThenableJobTask{
-      map: PromiseResolveThenableJobTaskMapConstant(),
-      context: thenContext,
-      promise_to_resolve: promiseToResolve,
-      then: then,
-      thenable: thenable
-    };
-  }
-
-  struct InvokeThenOneArgFunctor {
-    transitioning
-    macro Call(
-        nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
-        _arg2: JSAny): JSAny {
-      return Call(nativeContext, then, receiver, arg1);
-    }
-  }
-
-  struct InvokeThenTwoArgFunctor {
-    transitioning
-    macro Call(
-        nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
-        arg2: JSAny): JSAny {
-      return Call(nativeContext, then, receiver, arg1, arg2);
-    }
-  }
-
+struct InvokeThenOneArgFunctor {
   transitioning
-  macro InvokeThen<F: type>(implicit context: Context)(
-      nativeContext: NativeContext, receiver: JSAny, arg1: JSAny, arg2: JSAny,
-      callFunctor: F): JSAny {
-    // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
-    // is the (initial) Promise.prototype and the Promise#then protector
-    // is intact, as that guards the lookup path for the "then" property
-    // on JSPromise instances which have the (initial) %PromisePrototype%.
-    if (!Is<Smi>(receiver) &&
-        IsPromiseThenLookupChainIntact(
-            nativeContext, UnsafeCast<HeapObject>(receiver).map)) {
-      const then = UnsafeCast<JSAny>(
-          nativeContext[NativeContextSlot::PROMISE_THEN_INDEX]);
-      return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
-    } else
-      deferred {
-        const then = UnsafeCast<JSAny>(GetProperty(receiver, kThenString));
-        return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
-      }
+  macro Call(
+      nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
+      _arg2: JSAny): JSAny {
+    return Call(nativeContext, then, receiver, arg1);
   }
+}
 
+struct InvokeThenTwoArgFunctor {
   transitioning
-  macro InvokeThen(implicit context: Context)(
-      nativeContext: NativeContext, receiver: JSAny, arg: JSAny): JSAny {
-    return InvokeThen(
-        nativeContext, receiver, arg, Undefined, InvokeThenOneArgFunctor{});
-  }
-
-  transitioning
-  macro InvokeThen(implicit context: Context)(
-      nativeContext: NativeContext, receiver: JSAny, arg1: JSAny,
+  macro Call(
+      nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
       arg2: JSAny): JSAny {
-    return InvokeThen(
-        nativeContext, receiver, arg1, arg2, InvokeThenTwoArgFunctor{});
+    return Call(nativeContext, then, receiver, arg1, arg2);
   }
+}
 
-  transitioning
-  macro BranchIfAccessCheckFailed(implicit context: Context)(
-      nativeContext: NativeContext, promiseConstructor: JSAny,
-      executor: JSAny): void labels IfNoAccess {
-    try {
-      // If executor is a bound function, load the bound function until we've
-      // reached an actual function.
-      let foundExecutor = executor;
-      while (true) {
-        typeswitch (foundExecutor) {
-          case (f: JSFunction): {
-            // Load the context from the function and compare it to the Promise
-            // constructor's context. If they match, everything is fine,
-            // otherwise, bail out to the runtime.
-            const functionContext = f.context;
-            const nativeFunctionContext = LoadNativeContext(functionContext);
-            if (TaggedEqual(nativeContext, nativeFunctionContext)) {
-              goto HasAccess;
-            } else {
-              goto CallRuntime;
-            }
-          }
-          case (b: JSBoundFunction): {
-            foundExecutor = b.bound_target_function;
-          }
-          case (Object): {
+transitioning
+macro InvokeThen<F: type>(implicit context: Context)(
+    nativeContext: NativeContext, receiver: JSAny, arg1: JSAny, arg2: JSAny,
+    callFunctor: F): JSAny {
+  // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the Promise#then protector
+  // is intact, as that guards the lookup path for the "then" property
+  // on JSPromise instances which have the (initial) %PromisePrototype%.
+  if (!Is<Smi>(receiver) &&
+      IsPromiseThenLookupChainIntact(
+          nativeContext, UnsafeCast<HeapObject>(receiver).map)) {
+    const then =
+        UnsafeCast<JSAny>(nativeContext[NativeContextSlot::PROMISE_THEN_INDEX]);
+    return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
+  } else
+    deferred {
+      const then = UnsafeCast<JSAny>(GetProperty(receiver, kThenString));
+      return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
+    }
+}
+
+transitioning
+macro InvokeThen(implicit context: Context)(
+    nativeContext: NativeContext, receiver: JSAny, arg: JSAny): JSAny {
+  return InvokeThen(
+      nativeContext, receiver, arg, Undefined, InvokeThenOneArgFunctor{});
+}
+
+transitioning
+macro InvokeThen(implicit context: Context)(
+    nativeContext: NativeContext, receiver: JSAny, arg1: JSAny,
+    arg2: JSAny): JSAny {
+  return InvokeThen(
+      nativeContext, receiver, arg1, arg2, InvokeThenTwoArgFunctor{});
+}
+
+transitioning
+macro BranchIfAccessCheckFailed(implicit context: Context)(
+    nativeContext: NativeContext, promiseConstructor: JSAny,
+    executor: JSAny): void labels IfNoAccess {
+  try {
+    // If executor is a bound function, load the bound function until we've
+    // reached an actual function.
+    let foundExecutor = executor;
+    while (true) {
+      typeswitch (foundExecutor) {
+        case (f: JSFunction): {
+          // Load the context from the function and compare it to the Promise
+          // constructor's context. If they match, everything is fine,
+          // otherwise, bail out to the runtime.
+          const functionContext = f.context;
+          const nativeFunctionContext = LoadNativeContext(functionContext);
+          if (TaggedEqual(nativeContext, nativeFunctionContext)) {
+            goto HasAccess;
+          } else {
             goto CallRuntime;
           }
         }
+        case (b: JSBoundFunction): {
+          foundExecutor = b.bound_target_function;
+        }
+        case (Object): {
+          goto CallRuntime;
+        }
       }
     }
-    label CallRuntime deferred {
-      const result = runtime::AllowDynamicFunction(promiseConstructor);
-      if (result != True) {
-        goto IfNoAccess;
-      }
+  } label CallRuntime deferred {
+    const result = runtime::AllowDynamicFunction(promiseConstructor);
+    if (result != True) {
+      goto IfNoAccess;
     }
-    label HasAccess {}
-  }
+  } label HasAccess {}
+}
 }

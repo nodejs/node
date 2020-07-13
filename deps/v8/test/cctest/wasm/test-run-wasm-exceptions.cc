@@ -12,7 +12,7 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_exceptions {
 
-WASM_EXEC_TEST(TryCatchThrow) {
+WASM_COMPILED_EXEC_TEST(TryCatchThrow) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -32,7 +32,7 @@ WASM_EXEC_TEST(TryCatchThrow) {
   r.CheckCallViaJS(kResult1, 1);
 }
 
-WASM_EXEC_TEST(TryCatchCallDirect) {
+WASM_COMPILED_EXEC_TEST(TryCatchCallDirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -60,7 +60,7 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
   r.CheckCallViaJS(kResult1, 1);
 }
 
-WASM_EXEC_TEST(TryCatchCallIndirect) {
+WASM_COMPILED_EXEC_TEST(TryCatchCallIndirect) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier);
@@ -97,7 +97,7 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
   r.CheckCallViaJS(kResult1, 1);
 }
 
-WASM_EXEC_TEST(TryCatchCallExternal) {
+WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   HandleScope scope(CcTest::InitIsolateOnce());
@@ -127,7 +127,7 @@ WASM_EXEC_TEST(TryCatchCallExternal) {
   r.CheckCallViaJS(kResult1, 1);
 }
 
-WASM_EXEC_TEST(TryCatchTrapTypeError) {
+WASM_COMPILED_EXEC_TEST(TryCatchTrapTypeError) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   HandleScope scope(CcTest::InitIsolateOnce());
@@ -189,22 +189,22 @@ void TestTrapNotCaught(byte* code, size_t code_size,
 
 }  // namespace
 
-WASM_EXEC_TEST(TryCatchTrapUnreachable) {
+WASM_COMPILED_EXEC_TEST(TryCatchTrapUnreachable) {
   byte code[] = {WASM_UNREACHABLE};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
-WASM_EXEC_TEST(TryCatchTrapMemOutOfBounds) {
+WASM_COMPILED_EXEC_TEST(TryCatchTrapMemOutOfBounds) {
   byte code[] = {WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-1))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
-WASM_EXEC_TEST(TryCatchTrapDivByZero) {
+WASM_COMPILED_EXEC_TEST(TryCatchTrapDivByZero) {
   byte code[] = {WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }
 
-WASM_EXEC_TEST(TryCatchTrapRemByZero) {
+WASM_COMPILED_EXEC_TEST(TryCatchTrapRemByZero) {
   byte code[] = {WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_I32V_1(0))};
   TestTrapNotCaught(code, arraysize(code), execution_tier);
 }

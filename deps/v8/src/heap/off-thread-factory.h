@@ -28,15 +28,6 @@ class AstRawString;
 class AstConsString;
 class OffThreadIsolate;
 
-struct RelativeSlot {
-  RelativeSlot() = default;
-  RelativeSlot(Address object_address, int slot_offset)
-      : object_address(object_address), slot_offset(slot_offset) {}
-
-  Address object_address;
-  int slot_offset;
-};
-
 class V8_EXPORT_PRIVATE OffThreadFactory
     : public FactoryBase<OffThreadFactory> {
  public:
@@ -55,9 +46,6 @@ class V8_EXPORT_PRIVATE OffThreadFactory
 
   Handle<String> InternalizeString(const Vector<const uint8_t>& string);
   Handle<String> InternalizeString(const Vector<const uint16_t>& string);
-
-  void FinishOffThread();
-  void Publish(Isolate* isolate);
 
   // The parser shouldn't allow the OffThreadFactory to get into a state where
   // it generates errors.
@@ -93,11 +81,6 @@ class V8_EXPORT_PRIVATE OffThreadFactory
   // ------
 
   ReadOnlyRoots roots_;
-  OffThreadSpace space_;
-  OffThreadLargeObjectSpace lo_space_;
-  std::vector<RelativeSlot> string_slots_;
-  std::vector<Script> script_list_;
-  bool is_finished = false;
 };
 
 }  // namespace internal

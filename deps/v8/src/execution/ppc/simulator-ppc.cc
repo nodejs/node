@@ -481,7 +481,7 @@ void PPCDebugger::Debug() {
         PrintF("FPSCR: %08x\n", sim_->fp_condition_reg_);
       } else if (strcmp(cmd, "stop") == 0) {
         intptr_t value;
-        intptr_t stop_pc = sim_->get_pc() - (kInstrSize + kPointerSize);
+        intptr_t stop_pc = sim_->get_pc() - (kInstrSize + kSystemPointerSize);
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
         Instruction* msg_address =
             reinterpret_cast<Instruction*>(stop_pc + kInstrSize);
@@ -1230,7 +1230,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           }
           DebugAtNextPC();
         } else {
-          set_pc(get_pc() + kInstrSize + kPointerSize);
+          set_pc(get_pc() + kInstrSize + kSystemPointerSize);
         }
       } else {
         // This is not a valid svc code.

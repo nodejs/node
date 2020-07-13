@@ -41,7 +41,7 @@ RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   Handle<SourceTextModule> module(isolate->context().module(), isolate);
-  return *isolate->RunHostInitializeImportMetaObjectCallback(module);
+  return *SourceTextModule::GetImportMeta(isolate, module);
 }
 
 }  // namespace internal

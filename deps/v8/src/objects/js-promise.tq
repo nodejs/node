@@ -2,40 +2,36 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// JSPromise constants
-const kJSPromiseStatusMask: constexpr int31
-    generates 'JSPromise::kStatusMask';
-const kJSPromiseStatusShift: constexpr int31
-    generates 'JSPromise::kStatusShift';
-const kJSPromiseHasHandlerMask: constexpr int31
-    generates 'JSPromise::kHasHandlerMask';
+bitfield struct JSPromiseFlags extends uint31 {
+  status: PromiseState: 2 bit;
+  has_handler: bool: 1 bit;
+  handled_hint: bool: 1 bit;
+  async_task_id: int32: 22 bit;
+}
 
 @generateCppClass
 extern class JSPromise extends JSObject {
   macro Status(): PromiseState {
-    StaticAssert(kJSPromiseStatusShift == 0);
-    const status: int32 = Convert<int32>(this.flags) & kJSPromiseStatusMask;
-    return Convert<PromiseState>(status);
+    return this.flags.status;
   }
 
   macro SetStatus(status: constexpr PromiseState): void {
     assert(this.Status() == PromiseState::kPending);
     assert(status != PromiseState::kPending);
 
-    const mask: Smi = SmiConstant(status);
-    this.flags = this.flags | mask;
+    this.flags.status = status;
   }
 
   macro HasHandler(): bool {
-    return (this.flags & kJSPromiseHasHandlerMask) != 0;
+    return this.flags.has_handler;
   }
 
   macro SetHasHandler(): void {
-    this.flags |= kJSPromiseHasHandlerMask;
+    this.flags.has_handler = true;
   }
 
   // Smi 0 terminated list of PromiseReaction objects in case the JSPromise was
   // not settled yet, otherwise the result.
   reactions_or_result: Zero|PromiseReaction|JSAny;
-  flags: Smi;
+  flags: SmiTagged<JSPromiseFlags>;
 }

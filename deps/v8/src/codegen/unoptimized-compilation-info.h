@@ -12,6 +12,7 @@
 #include "src/handles/handles.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects.h"
+#include "src/parsing/parse-info.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -33,23 +34,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
   UnoptimizedCompilationInfo(Zone* zone, ParseInfo* parse_info,
                              FunctionLiteral* literal);
 
-  Zone* zone() { return zone_; }
-
-  // Compilation flag accessors.
-
-  void MarkAsEval() { SetFlag(kIsEval); }
-  bool is_eval() const { return GetFlag(kIsEval); }
-
-  void MarkAsCollectTypeProfile() { SetFlag(kCollectTypeProfile); }
-  bool collect_type_profile() const { return GetFlag(kCollectTypeProfile); }
-
-  void MarkAsForceCollectSourcePositions() { SetFlag(kCollectSourcePositions); }
-  bool collect_source_positions() const {
-    return GetFlag(kCollectSourcePositions);
-  }
-
-  void MarkAsMightAlwaysOpt() { SetFlag(kMightAlwaysOpt); }
-  bool might_always_opt() const { return GetFlag(kMightAlwaysOpt); }
+  const UnoptimizedCompileFlags& flags() const { return flags_; }
 
   // Accessors for the input data of the function being compiled.
 
@@ -97,24 +82,8 @@ class V8_EXPORT_PRIVATE UnoptimizedCompilationInfo final {
   FeedbackVectorSpec* feedback_vector_spec() { return &feedback_vector_spec_; }
 
  private:
-  // Various configuration flags for a compilation, as well as some properties
-  // of the compiled code produced by a compilation.
-  enum Flag {
-    kIsEval = 1 << 0,
-    kCollectTypeProfile = 1 << 1,
-    kMightAlwaysOpt = 1 << 2,
-    kCollectSourcePositions = 1 << 3,
-  };
-
-  void SetFlag(Flag flag) { flags_ |= flag; }
-  bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
-
   // Compilation flags.
-  unsigned flags_;
-
-  // The zone from which the compilation pipeline working on this
-  // OptimizedCompilationInfo allocates.
-  Zone* zone_;
+  const UnoptimizedCompileFlags flags_;
 
   // The root AST node of the function literal being compiled.
   FunctionLiteral* literal_;

@@ -12,18 +12,16 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 69: Wasm opcode 0x41
 Scope:
 at func (0:69):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 4 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -33,19 +31,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 71: Wasm opcode 0x21
 Scope:
 at func (0:71):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 4 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: "0": 11 (number)
  - scope (wasm-expression-stack):
    0: 11 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -55,18 +51,16 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 73: Wasm opcode 0x41
 Scope:
 at func (0:73):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -76,19 +70,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 75: Wasm opcode 0x21
 Scope:
 at func (0:75):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 0 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: "0": 47 (number)
  - scope (wasm-expression-stack):
    0: 47 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -98,18 +90,16 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 77: Wasm opcode 0x42
 Scope:
 at func (0:77):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -119,19 +109,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 88: Wasm opcode 0x21
 Scope:
 at func (0:88):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 0 (number), "unicode☼f64": 0 (number)
-   stack: "0": 9223372036854775807 (string)
  - scope (wasm-expression-stack):
    0: 9223372036854775807 (string)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -141,18 +129,16 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 90: Wasm opcode 0x42
 Scope:
 at func (0:90):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -162,19 +148,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 101: Wasm opcode 0x21
 Scope:
 at func (0:101):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": 9223372036854775807 (string), "unicode☼f64": 0 (number)
-   stack: "0": -9223372036854775808 (string)
  - scope (wasm-expression-stack):
    0: -9223372036854775808 (string)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -184,18 +168,16 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 103: Wasm opcode 0x41
 Scope:
 at func (0:103):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -205,19 +187,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 105: Wasm opcode 0xb8
 Scope:
 at func (0:105):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -227,19 +207,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 106: Wasm opcode 0x41
 Scope:
 at func (0:106):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -249,20 +227,18 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 108: Wasm opcode 0xb8
 Scope:
 at func (0:108):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number), "1": 7 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
    1: 7 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -272,20 +248,18 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 109: Wasm opcode 0xa3
 Scope:
 at func (0:109):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 1 (number), "1": 7 (number)
  - scope (wasm-expression-stack):
    0: 1 (number)
    1: 7 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -295,19 +269,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 110: Wasm opcode 0x21
 Scope:
 at func (0:110):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0 (number)
-   stack: "0": 0.14285714285714285 (number)
  - scope (wasm-expression-stack):
    0: 0.14285714285714285 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -317,18 +289,16 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 112: Wasm opcode 0x41
 Scope:
 at func (0:112):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -338,19 +308,17 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 114: Wasm opcode 0x24
 Scope:
 at func (0:114):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
-   stack: "0": 15 (number)
  - scope (wasm-expression-stack):
    0: 15 (number)
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 0 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -360,18 +328,16 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 116: Wasm opcode 0x0b
 Scope:
 at func (0:116):
- - scope (global):
+ - scope (module):
    globals: "global0": 15 (number)
  - scope (local):
    locals: "0": 0 (number), "i32Arg": 11 (number), "var1": 47 (number), "i64_local": -9223372036854775808 (string), "unicode☼f64": 0.14285714285714285 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at call_func (0:58):
- - scope (global):
+ - scope (module):
    globals: "global0": 15 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):
@@ -381,11 +347,10 @@ Paused:
 Script wasm://wasm/d374ef0a byte offset 60: Wasm opcode 0x0b
 Scope:
 at call_func (0:60):
- - scope (global):
+ - scope (module):
    globals: "global0": 15 (number)
  - scope (local):
    locals: "var0": 4 (number), "var1": 7.199999809265137 (number)
-   stack: 
  - scope (wasm-expression-stack):
 at (anonymous) (0:17):
  - scope (global):

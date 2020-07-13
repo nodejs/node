@@ -215,6 +215,8 @@ class StatsCounter;
   V(atomic_pair_exchange_function, "atomic_pair_exchange_function")           \
   V(atomic_pair_compare_exchange_function,                                    \
     "atomic_pair_compare_exchange_function")                                  \
+  V(js_finalization_registry_remove_cell_from_unregister_token_map,           \
+    "JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap")               \
   EXTERNAL_REFERENCE_LIST_INTL(V)
 
 #ifdef V8_INTL_SUPPORT

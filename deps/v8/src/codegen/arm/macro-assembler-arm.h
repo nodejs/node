@@ -156,6 +156,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     }
   }
 
+  enum class PushArrayOrder { kNormal, kReverse };
+  // `array` points to the first element (the lowest address).
+  // `array` and `size` are not modified.
+  void PushArray(Register array, Register size, Register scratch,
+                 PushArrayOrder order = PushArrayOrder::kNormal);
+
   void Pop(Register dst) { pop(dst); }
 
   // Pop two registers. Pops rightmost register first (from lower address).
@@ -719,6 +725,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // comparison.
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
+
+  // It assumes that the arguments are located below the stack pointer.
+  // argc is the number of arguments not including the receiver.
+  // TODO(victorgomes): Remove this function once we stick with the reversed
+  // arguments order.
+  MemOperand ReceiverOperand(Register argc) {
+#ifdef V8_REVERSE_JSARGS
+    return MemOperand(sp, 0);
+#else
+    return MemOperand(sp, argc, LSL, kSystemPointerSizeLog2);
+#endif
+  }
 
   // ---------------------------------------------------------------------------
   // Runtime calls

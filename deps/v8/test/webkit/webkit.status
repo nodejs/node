@@ -136,5 +136,9 @@
   'fast/js/string-capitalization': [FAIL],
 }],  # variant == no_wasm_traps
 
-##############################################################################
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

@@ -325,7 +325,6 @@ const std::set<std::string>& JSPluralRules::GetAvailableLocales() {
   static base::LazyInstance<PluralRulesAvailableLocales>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
-  // return Intl::GetAvailableLocalesForLocale();
 }
 
 }  // namespace internal

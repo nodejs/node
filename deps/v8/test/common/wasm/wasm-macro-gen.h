@@ -89,10 +89,15 @@
 #define WASM_BLOCK_F(...) kExprBlock, kLocalF32, __VA_ARGS__, kExprEnd
 #define WASM_BLOCK_D(...) kExprBlock, kLocalF64, __VA_ARGS__, kExprEnd
 
+#define TYPE_IMM(t) \
+  static_cast<byte>((t).value_type_code()), U32V_1((t).ref_index())
+
 #define WASM_BLOCK_T(t, ...) \
   kExprBlock, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
-#define WASM_BLOCK_X(index, ...)                                  \
+#define WASM_BLOCK_R(t, ...) kExprBlock, TYPE_IMM(t), __VA_ARGS__, kExprEnd
+
+#define WASM_BLOCK_X(index, ...) \
   kExprBlock, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_INFINITE_LOOP kExprLoop, kLocalVoid, kExprBr, DEPTH_0, kExprEnd
@@ -106,13 +111,18 @@
 #define WASM_LOOP_T(t, ...) \
   kExprLoop, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
 
-#define WASM_LOOP_X(index, ...)                                   \
+#define WASM_LOOP_R(t, ...) kExprLoop, TYPE_IMM(t), __VA_ARGS__, kExprEnd
+
+#define WASM_LOOP_X(index, ...) \
   kExprLoop, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_IF(cond, ...) cond, kExprIf, kLocalVoid, __VA_ARGS__, kExprEnd
 
 #define WASM_IF_T(t, cond, ...) \
   cond, kExprIf, static_cast<byte>((t).value_type_code()), __VA_ARGS__, kExprEnd
+
+#define WASM_IF_R(t, cond, ...) \
+  cond, kExprIf, TYPE_IMM(t), __VA_ARGS__, kExprEnd
 
 #define WASM_IF_X(index, cond, ...)                                   \
   cond, kExprIf, static_cast<byte>(index), __VA_ARGS__, kExprEnd
@@ -133,12 +143,17 @@
   cond, kExprIf, static_cast<byte>((t).value_type_code()), tstmt, kExprElse, \
       fstmt, kExprEnd
 
+#define WASM_IF_ELSE_R(t, cond, tstmt, fstmt) \
+  cond, kExprIf, TYPE_IMM(t), tstmt, kExprElse, fstmt, kExprEnd
+
 #define WASM_IF_ELSE_X(index, cond, tstmt, fstmt)                            \
   cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
 
 #define WASM_TRY_CATCH_T(t, trystmt, catchstmt)                            \
   kExprTry, static_cast<byte>((t).value_type_code()), trystmt, kExprCatch, \
       catchstmt, kExprEnd
+#define WASM_TRY_CATCH_R(t, trystmt, catchstmt) \
+  kExprTry, TYPE_IMM(t), trystmt, kExprCatch, catchstmt, kExprEnd
 
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 #define WASM_SELECT_I(tval, fval, cond) \
@@ -358,10 +373,6 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 48), \
       static_cast<byte>(bit_cast<uint64_t>(static_cast<double>(val)) >> 56)
 
-#define WASM_REF_NULL kExprRefNull
-#define WASM_REF_FUNC(val) kExprRefFunc, val
-#define WASM_REF_IS_NULL(val) val, kExprRefIsNull
-
 #define WASM_GET_LOCAL(index) kExprLocalGet, static_cast<byte>(index)
 #define WASM_SET_LOCAL(index, val) val, kExprLocalSet, static_cast<byte>(index)
 #define WASM_TEE_LOCAL(index, val) val, kExprLocalTee, static_cast<byte>(index)
@@ -409,6 +420,35 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 
 #define TABLE_ZERO 0
 
+//------------------------------------------------------------------------------
+// Heap-allocated object operations.
+//------------------------------------------------------------------------------
+#define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
+#define WASM_STRUCT_NEW(index, ...) \
+  __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
+#define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
+  struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
+      static_cast<byte>(fieldidx)
+#define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value)                \
+  struct_obj, value, WASM_GC_OP(kExprStructSet), static_cast<byte>(typeidx), \
+      static_cast<byte>(fieldidx)
+#define WASM_REF_NULL kExprRefNull
+#define WASM_REF_FUNC(val) kExprRefFunc, val
+#define WASM_REF_IS_NULL(val) val, kExprRefIsNull
+#define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
+#define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
+
+#define WASM_ARRAY_NEW(index, default_value, length) \
+  default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
+#define WASM_ARRAY_GET(typeidx, array, index) \
+  array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
+#define WASM_ARRAY_SET(typeidx, array, index, value) \
+  array, index, value, WASM_GC_OP(kExprArraySet), static_cast<byte>(typeidx)
+#define WASM_ARRAY_LEN(typeidx, array) \
+  array, WASM_GC_OP(kExprArrayLen), static_cast<byte>(typeidx)
+
+#define WASM_BR_ON_NULL(depth, ref_object) \
+  ref_object, kExprBrOnNull, static_cast<byte>(depth)
 // Pass: sig_index, ...args, func_index
 #define WASM_CALL_INDIRECT(sig_index, ...) \
   __VA_ARGS__, kExprCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
@@ -686,7 +726,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_ATOMICS_FENCE WASM_ATOMICS_OP(kExprAtomicFence), ZERO_OFFSET
 
 //------------------------------------------------------------------------------
-// Sign Externsion Operations.
+// Sign Extension Operations.
 //------------------------------------------------------------------------------
 #define WASM_I32_SIGN_EXT_I8(x) x, kExprI32SExtendI8
 #define WASM_I32_SIGN_EXT_I16(x) x, kExprI32SExtendI16
@@ -695,18 +735,100 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I64_SIGN_EXT_I32(x) x, kExprI64SExtendI32
 
 //------------------------------------------------------------------------------
+// SIMD Operations.
+//------------------------------------------------------------------------------
+#define TO_BYTE(val) static_cast<byte>(val)
+// Encode all simd ops as a 2-byte LEB.
+#define WASM_SIMD_OP(op) kSimdPrefix, U32V_2(op & 0xff)
+#define WASM_SIMD_SPLAT(Type, ...) __VA_ARGS__, WASM_SIMD_OP(kExpr##Type##Splat)
+#define WASM_SIMD_UNOP(op, x) x, WASM_SIMD_OP(op)
+#define WASM_SIMD_BINOP(op, x, y) x, y, WASM_SIMD_OP(op)
+#define WASM_SIMD_SHIFT_OP(op, x, y) x, y, WASM_SIMD_OP(op)
+#define WASM_SIMD_CONCAT_OP(op, bytes, x, y) \
+  x, y, WASM_SIMD_OP(op), TO_BYTE(bytes)
+#define WASM_SIMD_SELECT(format, x, y, z) x, y, z, WASM_SIMD_OP(kExprS128Select)
+
+#define WASM_SIMD_F64x2_SPLAT(x) WASM_SIMD_SPLAT(F64x2, x)
+#define WASM_SIMD_F64x2_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprF64x2ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_F64x2_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprF64x2ReplaceLane), TO_BYTE(lane)
+
+#define WASM_SIMD_F32x4_SPLAT(x) WASM_SIMD_SPLAT(F32x4, x)
+#define WASM_SIMD_F32x4_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprF32x4ReplaceLane), TO_BYTE(lane)
+
+#define WASM_SIMD_I64x2_SPLAT(x) WASM_SIMD_SPLAT(I64x2, x)
+#define WASM_SIMD_I64x2_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprI64x2ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_I64x2_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprI64x2ReplaceLane), TO_BYTE(lane)
+
+#define WASM_SIMD_I32x4_SPLAT(x) WASM_SIMD_SPLAT(I32x4, x)
+#define WASM_SIMD_I32x4_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprI32x4ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_I32x4_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprI32x4ReplaceLane), TO_BYTE(lane)
+
+#define WASM_SIMD_I16x8_SPLAT(x) WASM_SIMD_SPLAT(I16x8, x)
+#define WASM_SIMD_I16x8_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprI16x8ExtractLaneS), TO_BYTE(lane)
+#define WASM_SIMD_I16x8_EXTRACT_LANE_U(lane, x) \
+  x, WASM_SIMD_OP(kExprI16x8ExtractLaneU), TO_BYTE(lane)
+#define WASM_SIMD_I16x8_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprI16x8ReplaceLane), TO_BYTE(lane)
+
+#define WASM_SIMD_I8x16_SPLAT(x) WASM_SIMD_SPLAT(I8x16, x)
+#define WASM_SIMD_I8x16_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprI8x16ExtractLaneS), TO_BYTE(lane)
+#define WASM_SIMD_I8x16_EXTRACT_LANE_U(lane, x) \
+  x, WASM_SIMD_OP(kExprI8x16ExtractLaneU), TO_BYTE(lane)
+#define WASM_SIMD_I8x16_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprI8x16ReplaceLane), TO_BYTE(lane)
+
+#define WASM_SIMD_S8x16_SHUFFLE_OP(opcode, m, x, y)                        \
+  x, y, WASM_SIMD_OP(opcode), TO_BYTE(m[0]), TO_BYTE(m[1]), TO_BYTE(m[2]), \
+      TO_BYTE(m[3]), TO_BYTE(m[4]), TO_BYTE(m[5]), TO_BYTE(m[6]),          \
+      TO_BYTE(m[7]), TO_BYTE(m[8]), TO_BYTE(m[9]), TO_BYTE(m[10]),         \
+      TO_BYTE(m[11]), TO_BYTE(m[12]), TO_BYTE(m[13]), TO_BYTE(m[14]),      \
+      TO_BYTE(m[15])
+
+#define WASM_SIMD_LOAD_MEM(index) \
+  index, WASM_SIMD_OP(kExprS128LoadMem), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_MEM_OFFSET(offset, index) \
+  index, WASM_SIMD_OP(kExprS128LoadMem), ZERO_ALIGNMENT, offset
+#define WASM_SIMD_STORE_MEM(index, val) \
+  index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_STORE_MEM_OFFSET(offset, index, val) \
+  index, val, WASM_SIMD_OP(kExprS128StoreMem), ZERO_ALIGNMENT, offset
+
+#define WASM_SIMD_F64x2_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF64x2Qfma)
+#define WASM_SIMD_F64x2_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF64x2Qfms)
+#define WASM_SIMD_F32x4_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfma)
+#define WASM_SIMD_F32x4_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfms)
+
+#define WASM_SIMD_LOAD_SPLAT(opcode, index) \
+  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_SPLAT_OFFSET(opcode, index, offset) \
+  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, offset
+#define WASM_SIMD_LOAD_EXTEND(opcode, index) \
+  index, WASM_SIMD_OP(opcode), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_SIMD_LOAD_EXTEND_ALIGNMENT(opcode, index, alignment) \
+  index, WASM_SIMD_OP(opcode), alignment, ZERO_OFFSET
+
+//------------------------------------------------------------------------------
 // Compilation Hints.
 //------------------------------------------------------------------------------
 #define COMPILE_STRATEGY_DEFAULT (0x00)
 #define COMPILE_STRATEGY_LAZY (0x01)
 #define COMPILE_STRATEGY_EAGER (0x02)
 #define BASELINE_TIER_DEFAULT (0x00 << 2)
-#define BASELINE_TIER_INTERPRETER (0x01 << 2)
-#define BASELINE_TIER_BASELINE (0x02 << 2)
-#define BASELINE_TIER_OPTIMIZED (0x03 << 2)
+#define BASELINE_TIER_BASELINE (0x01 << 2)
+#define BASELINE_TIER_OPTIMIZED (0x02 << 2)
 #define TOP_TIER_DEFAULT (0x00 << 4)
-#define TOP_TIER_INTERPRETER (0x01 << 4)
-#define TOP_TIER_BASELINE (0x02 << 4)
-#define TOP_TIER_OPTIMIZED (0x03 << 4)
+#define TOP_TIER_BASELINE (0x01 << 4)
+#define TOP_TIER_OPTIMIZED (0x02 << 4)
 
 #endif  // V8_WASM_MACRO_GEN_H_

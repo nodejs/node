@@ -256,6 +256,9 @@ int SolveInstanceTypeConstraints(
     root->start = root->value;
   }
   root->num_values = root->end - root->start + 1;
+  root->type->InitializeInstanceTypes(
+      root->value == -1 ? base::Optional<int>{} : root->value,
+      std::make_pair(root->start, root->end));
 
   if (root->num_values > 0) {
     destination->push_back(std::move(root));
@@ -433,46 +436,60 @@ void ImplementationVisitor::GenerateInstanceTypes(
     header << only_declared_range_instance_types.str();
     header << "\n";
 
-    header << "// Instance types for non-extern Torque classes.\n";
-    header << "#define TORQUE_INSTANCE_TYPES(V) \\\n";
-    for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->IsExtern()) continue;
-      std::string type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-      header << "  V(" << type_name << ") \\\n";
-    }
-    header << "\n";
+    std::stringstream torque_internal_class_list;
+    std::stringstream torque_internal_varsize_instance_type_list;
+    std::stringstream torque_internal_fixed_instance_type_list;
+    std::stringstream torque_internal_map_csa_list;
+    std::stringstream torque_internal_map_root_list;
 
-    header << "// Map list macros for non-extern Torque classes.\n";
-    header << "#define TORQUE_INTERNAL_VARSIZE_CLASS_LIST_GENERATOR(V, _) \\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->IsExtern()) continue;
-      if (!type->HasIndexedField()) continue;
-      std::string type_name =
+      std::string upper_case_name = type->name();
+      std::string lower_case_name = SnakeifyString(type->name());
+      std::string instance_type_name =
           CapifyStringWithUnderscores(type->name()) + "_TYPE";
-      std::string variable_name = SnakeifyString(type->name());
-      header << "  V(_, " << type_name << ", " << type->name() << ", "
-             << variable_name << ") \\\n";
-    }
-    header << "\n";
-    header << "#define TORQUE_INTERNAL_FIXED_CLASS_LIST_GENERATOR(V, _) \\\n";
-    for (const ClassType* type : TypeOracle::GetClasses()) {
+
       if (type->IsExtern()) continue;
-      if (type->HasIndexedField()) continue;
-      std::string type_name =
-          CapifyStringWithUnderscores(type->name()) + "_TYPE";
-      std::string variable_name = SnakeifyString(type->name());
-      header << "  V(_, " << type_name << ", " << type->name() << ", "
-             << variable_name << ") \\\n";
+      torque_internal_class_list << "  V(" << upper_case_name << ") \\\n";
+
+      if (type->IsAbstract()) continue;
+      torque_internal_map_csa_list << "  V(" << upper_case_name << "Map, "
+                                   << lower_case_name << "_map, "
+                                   << upper_case_name << "Map) \\\n";
+      torque_internal_map_root_list << "  V(Map, " << lower_case_name
+                                    << "_map, " << upper_case_name
+                                    << "Map) \\\n";
+      std::stringstream& list =
+          type->HasStaticSize() ? torque_internal_fixed_instance_type_list
+                                : torque_internal_varsize_instance_type_list;
+      list << "  V(" << instance_type_name << ", " << upper_case_name << ", "
+           << lower_case_name << ") \\\n";
     }
+
+    header << "// Non-extern Torque classes.\n";
+    header << "#define TORQUE_INTERNAL_CLASS_LIST(V) \\\n";
+    header << torque_internal_class_list.str();
     header << "\n";
-    header << "#define TORQUE_INTERNAL_CLASS_LIST_GENERATOR(V, _) \\\n";
-    header << "  TORQUE_INTERNAL_VARSIZE_CLASS_LIST_GENERATOR(V, _) \\\n";
-    header << "  TORQUE_INTERNAL_FIXED_CLASS_LIST_GENERATOR(V, _)\n";
+    header << "#define TORQUE_INTERNAL_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
+    header << torque_internal_varsize_instance_type_list.str();
+    header << "\n";
+    header << "#define TORQUE_INTERNAL_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
+    header << torque_internal_fixed_instance_type_list.str();
+    header << "\n";
+    header << "#define TORQUE_INTERNAL_INSTANCE_TYPE_LIST(V) \\\n";
+    header << "  TORQUE_INTERNAL_VARSIZE_INSTANCE_TYPE_LIST(V) \\\n";
+    header << "  TORQUE_INTERNAL_FIXED_INSTANCE_TYPE_LIST(V) \\\n";
+    header << "\n";
+    header << "#define TORQUE_INTERNAL_MAP_CSA_LIST(V) \\\n";
+    header << torque_internal_map_csa_list.str();
+    header << "\n";
+    header << "#define TORQUE_INTERNAL_MAP_ROOT_LIST(V) \\\n";
+    header << torque_internal_map_root_list.str();
     header << "\n";
   }
   std::string output_header_path = output_directory + "/" + file_name;
   WriteFile(output_header_path, header.str());
+
+  GlobalContext::SetInstanceTypesInitialized();
 }
 
 }  // namespace torque

@@ -5,70 +5,68 @@
 #include 'src/builtins/builtins-regexp-gen.h'
 
 namespace runtime {
-  extern transitioning runtime
-  RegExpSplit(implicit context: Context)(JSReceiver, String, Object): JSAny;
+extern transitioning runtime
+RegExpSplit(implicit context: Context)(JSReceiver, String, Object): JSAny;
 }  // namespace runtime
 
 namespace regexp {
 
-  const kMaxValueSmi: constexpr int31
-  generates 'Smi::kMaxValue';
+const kMaxValueSmi: constexpr int31
+    generates 'Smi::kMaxValue';
 
-  extern transitioning macro RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
-      implicit context: Context)(JSRegExp, String, Smi): JSArray;
+extern transitioning macro RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(
+    implicit context: Context)(JSRegExp, String, Smi): JSArray;
 
-  // Helper that skips a few initial checks.
-  transitioning builtin
-  RegExpSplit(implicit context: Context)(
-      regexp: FastJSRegExp, string: String, limit: JSAny): JSAny {
-    let sanitizedLimit: Smi;
+// Helper that skips a few initial checks.
+transitioning builtin
+RegExpSplit(implicit context: Context)(
+    regexp: FastJSRegExp, string: String, limit: JSAny): JSAny {
+  let sanitizedLimit: Smi;
 
-    // We need to be extra-strict and require the given limit to be either
-    // undefined or a positive smi. We can't call ToUint32(maybe_limit) since
-    // that might move us onto the slow path, resulting in ordering spec
-    // violations (see https://crbug.com/801171).
+  // We need to be extra-strict and require the given limit to be either
+  // undefined or a positive smi. We can't call ToUint32(maybe_limit) since
+  // that might move us onto the slow path, resulting in ordering spec
+  // violations (see https://crbug.com/801171).
 
-    if (limit == Undefined) {
-      // TODO(jgruber): In this case, we can probably avoid generation of limit
-      // checks in Generate_RegExpPrototypeSplitBody.
-      sanitizedLimit = SmiConstant(kMaxValueSmi);
-    } else if (!TaggedIsPositiveSmi(limit)) {
-      return runtime::RegExpSplit(regexp, string, limit);
-    } else {
-      sanitizedLimit = UnsafeCast<Smi>(limit);
-    }
-
-    // Due to specific shortcuts we take on the fast path (specifically, we
-    // don't allocate a new regexp instance as specced), we need to ensure that
-    // the given regexp is non-sticky to avoid invalid results. See
-    // crbug.com/v8/6706.
-
-    if (FastFlagGetter(regexp, Flag::kSticky)) {
-      return runtime::RegExpSplit(regexp, string, sanitizedLimit);
-    }
-
-    // We're good to go on the fast path, which is inlined here.
-    return RegExpPrototypeSplitBody(regexp, string, sanitizedLimit);
+  if (limit == Undefined) {
+    // TODO(jgruber): In this case, we can probably avoid generation of limit
+    // checks in Generate_RegExpPrototypeSplitBody.
+    sanitizedLimit = SmiConstant(kMaxValueSmi);
+  } else if (!TaggedIsPositiveSmi(limit)) {
+    return runtime::RegExpSplit(regexp, string, limit);
+  } else {
+    sanitizedLimit = UnsafeCast<Smi>(limit);
   }
 
-  // ES#sec-regexp.prototype-@@split
-  // RegExp.prototype [ @@split ] ( string, limit )
-  transitioning javascript builtin RegExpPrototypeSplit(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): JSAny {
-    ThrowIfNotJSReceiver(
-        receiver, MessageTemplate::kIncompatibleMethodReceiver,
-        'RegExp.prototype.@@split');
-    const receiver = UnsafeCast<JSReceiver>(receiver);
-    const string: String = ToString_Inline(arguments[0]);
-    const limit = arguments[1];
+  // Due to specific shortcuts we take on the fast path (specifically, we
+  // don't allocate a new regexp instance as specced), we need to ensure that
+  // the given regexp is non-sticky to avoid invalid results. See
+  // crbug.com/v8/6706.
 
-    // Strict: Reads the flags property.
-    // TODO(jgruber): Handle slow flag accesses on the fast path and make this
-    // permissive.
-    const fastRegExp = Cast<FastJSRegExp>(receiver)
-        otherwise return runtime::RegExpSplit(receiver, string, limit);
-    return RegExpSplit(fastRegExp, string, limit);
+  if (FastFlagGetter(regexp, Flag::kSticky)) {
+    return runtime::RegExpSplit(regexp, string, sanitizedLimit);
   }
 
+  // We're good to go on the fast path, which is inlined here.
+  return RegExpPrototypeSplitBody(regexp, string, sanitizedLimit);
+}
+
+// ES#sec-regexp.prototype-@@split
+// RegExp.prototype [ @@split ] ( string, limit )
+transitioning javascript builtin RegExpPrototypeSplit(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  ThrowIfNotJSReceiver(
+      receiver, MessageTemplate::kIncompatibleMethodReceiver,
+      'RegExp.prototype.@@split');
+  const receiver = UnsafeCast<JSReceiver>(receiver);
+  const string: String = ToString_Inline(arguments[0]);
+  const limit = arguments[1];
+
+  // Strict: Reads the flags property.
+  // TODO(jgruber): Handle slow flag accesses on the fast path and make this
+  // permissive.
+  const fastRegExp = Cast<FastJSRegExp>(receiver)
+      otherwise return runtime::RegExpSplit(receiver, string, limit);
+  return RegExpSplit(fastRegExp, string, limit);
+}
 }

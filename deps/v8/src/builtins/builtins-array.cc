@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/logging.h"
 #include "src/builtins/builtins-utils-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
@@ -471,6 +472,15 @@ BUILTIN(ArrayPop) {
     uint32_t new_length = len - 1;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, JSReceiver::GetElement(isolate, array, new_length));
+
+    // The length could have become read-only during the last GetElement() call,
+    // so check again.
+    if (JSArray::HasReadOnlyLength(array)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kStrictReadOnlyProperty,
+                                isolate->factory()->length_string(),
+                                Object::TypeOf(isolate, array), array));
+    }
     JSArray::SetLength(array, new_length);
   }
 

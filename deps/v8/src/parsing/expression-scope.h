@@ -53,15 +53,36 @@ class ExpressionScope {
       AsExpressionParsingScope()->TrackVariable(result);
     } else {
       Variable* var = Declare(name, pos);
-      if (IsVarDeclaration() && !parser()->scope()->is_declaration_scope()) {
-        // Make sure we'll properly resolve the variable since we might be in a
-        // with or catch scope. In those cases the proxy isn't guaranteed to
-        // refer to the declared variable, so consider it unresolved.
-        parser()->scope()->AddUnresolved(result);
-      } else {
-        DCHECK_NOT_NULL(var);
-        result->BindTo(var);
+      if (IsVarDeclaration()) {
+        bool passed_through_with = false;
+        for (Scope* scope = parser()->scope(); !scope->is_declaration_scope();
+             scope = scope->outer_scope()) {
+          if (scope->is_with_scope()) {
+            passed_through_with = true;
+          } else if (scope->is_catch_scope()) {
+            Variable* var = scope->LookupLocal(name);
+            // If a variable is declared in a catch scope with a masking
+            // catch-declared variable, the initializing assignment is an
+            // assignment to the catch-declared variable instead.
+            // https://tc39.es/ecma262/#sec-variablestatements-in-catch-blocks
+            if (var != nullptr) {
+              result->set_is_assigned();
+              if (passed_through_with) break;
+              result->BindTo(var);
+              var->SetMaybeAssigned();
+              return result;
+            }
+          }
+        }
+        if (passed_through_with) {
+          // If a variable is declared in a with scope, the initializing
+          // assignment might target a with-declared variable instead.
+          parser()->scope()->AddUnresolved(result);
+          return result;
+        }
       }
+      DCHECK_NOT_NULL(var);
+      result->BindTo(var);
     }
     return result;
   }

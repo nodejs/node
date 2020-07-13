@@ -42,7 +42,8 @@ function TestOptimizedCode() {
   assertSame(Infinity, 1 / a1.byteOffset);
 }
 
-%OptimizeFunctionOnNextCall(Uint8Array);
-for (var i = 0; i < 1000; i++) {
-  TestOptimizedCode();
-}
+%PrepareFunctionForOptimization(TestOptimizedCode);
+TestOptimizedCode();
+TestOptimizedCode();
+%OptimizeFunctionOnNextCall(TestOptimizedCode);
+TestOptimizedCode();

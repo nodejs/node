@@ -6,48 +6,35 @@
 
 namespace proxy {
 
-  extern macro ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
-      implicit context: Context)(JSProxy): JSFunction;
+extern macro ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
+    implicit context: Context)(JSProxy): JSFunction;
 
-  // Proxy.revocable(target, handler)
-  // https://tc39.github.io/ecma262/#sec-proxy.revocable
-  transitioning javascript builtin
-  ProxyRevocable(js-implicit context: NativeContext)(
-      target: JSAny, handler: JSAny): JSProxyRevocableResult {
-    try {
-      const targetJSReceiver =
-          Cast<JSReceiver>(target) otherwise ThrowProxyNonObject;
-      if (IsRevokedProxy(targetJSReceiver)) {
-        goto ThrowProxyHandlerOrTargetRevoked;
-      }
+// Proxy.revocable(target, handler)
+// https://tc39.github.io/ecma262/#sec-proxy.revocable
+transitioning javascript builtin
+ProxyRevocable(js-implicit context: NativeContext)(
+    target: JSAny, handler: JSAny): JSProxyRevocableResult {
+  try {
+    // 1. Let p be ? ProxyCreate(target, handler).
+    const targetJSReceiver =
+        Cast<JSReceiver>(target) otherwise ThrowProxyNonObject;
+    const handlerJSReceiver =
+        Cast<JSReceiver>(handler) otherwise ThrowProxyNonObject;
+    const proxy: JSProxy = AllocateProxy(targetJSReceiver, handlerJSReceiver);
 
-      const handlerJSReceiver =
-          Cast<JSReceiver>(handler) otherwise ThrowProxyNonObject;
-      if (IsRevokedProxy(handlerJSReceiver)) {
-        goto ThrowProxyHandlerOrTargetRevoked;
-      }
+    // 2. Let steps be the algorithm steps defined in Proxy Revocation
+    // Functions.
+    // 3. Let revoker be CreateBuiltinFunction(steps, « [[RevocableProxy]] »).
+    // 4. Set revoker.[[RevocableProxy]] to p.
+    const revoke: JSFunction = AllocateProxyRevokeFunction(proxy);
 
-      // 1. Let p be ? ProxyCreate(target, handler).
-      const proxy: JSProxy = AllocateProxy(targetJSReceiver, handlerJSReceiver);
-
-      // 2. Let steps be the algorithm steps defined in Proxy Revocation
-      // Functions.
-      // 3. Let revoker be CreateBuiltinFunction(steps, « [[RevocableProxy]] »).
-      // 4. Set revoker.[[RevocableProxy]] to p.
-      const revoke: JSFunction = AllocateProxyRevokeFunction(proxy);
-
-      // 5. Let result be ObjectCreate(%ObjectPrototype%).
-      // 6. Perform CreateDataProperty(result, "proxy", p).
-      // 7. Perform CreateDataProperty(result, "revoke", revoker).
-      // 8. Return result.
-      return NewJSProxyRevocableResult(proxy, revoke);
-    }
-    label ThrowProxyNonObject deferred {
-      ThrowTypeError(MessageTemplate::kProxyNonObject, 'Proxy.revocable');
-    }
-    label ThrowProxyHandlerOrTargetRevoked deferred {
-      ThrowTypeError(
-          MessageTemplate::kProxyHandlerOrTargetRevoked, 'Proxy.revocable');
-    }
+    // 5. Let result be ObjectCreate(%ObjectPrototype%).
+    // 6. Perform CreateDataProperty(result, "proxy", p).
+    // 7. Perform CreateDataProperty(result, "revoke", revoker).
+    // 8. Return result.
+    return NewJSProxyRevocableResult(proxy, revoke);
+  } label ThrowProxyNonObject deferred {
+    ThrowTypeError(MessageTemplate::kProxyNonObject, 'Proxy.revocable');
   }
+}
 }

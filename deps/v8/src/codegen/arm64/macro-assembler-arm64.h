@@ -703,7 +703,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void CopySlots(Register dst, Register src, Register slot_count);
 
   // Copy count double words from the address in register src to the address
-  // in register dst. There are two modes for this function:
+  // in register dst. There are three modes for this function:
   // 1) Address dst must be less than src, or the gap between them must be
   //    greater than or equal to count double words, otherwise the result is
   //    unpredictable. This is the default mode.
@@ -711,10 +711,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   //    greater than or equal to count double words, otherwise the result is
   //    undpredictable. In this mode, src and dst specify the last (highest)
   //    address of the regions to copy from and to.
+  // 3) The same as mode 1, but the words are copied in the reversed order.
   // The case where src == dst is not supported.
   // The function may corrupt its register arguments. The registers must not
   // alias each other.
-  enum CopyDoubleWordsMode { kDstLessThanSrc, kSrcLessThanDst };
+  enum CopyDoubleWordsMode {
+    kDstLessThanSrc,
+    kSrcLessThanDst,
+    kDstLessThanSrcAndReverse
+  };
   void CopyDoubleWords(Register dst, Register src, Register count,
                        CopyDoubleWordsMode mode = kDstLessThanSrc);
 
@@ -1761,6 +1766,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void DecodeField(Register reg) {
     DecodeField<Field>(reg, reg);
   }
+
+  // TODO(victorgomes): inline this function once we remove V8_REVERSE_JSARGS
+  // flag.
+  Operand ReceiverOperand(const Register arg_count);
 
   // ---- SMI and Number Utilities ----
 

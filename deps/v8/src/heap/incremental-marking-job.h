@@ -28,14 +28,14 @@ class IncrementalMarkingJob final {
 
   double CurrentTimeToTask(Heap* heap) const;
 
+ private:
+  class Task;
+  static constexpr double kDelayInSeconds = 10.0 / 1000.0;
+
   bool IsTaskPending(TaskType task_type) const {
     return task_type == TaskType::kNormal ? normal_task_pending_
                                           : delayed_task_pending_;
   }
-
- private:
-  class Task;
-  static constexpr double kDelayInSeconds = 10.0 / 1000.0;
 
   void SetTaskPending(TaskType task_type, bool value) {
     if (task_type == TaskType::kNormal) {
@@ -45,6 +45,7 @@ class IncrementalMarkingJob final {
     }
   }
 
+  base::Mutex mutex_;
   double scheduled_time_ = 0.0;
   bool normal_task_pending_ = false;
   bool delayed_task_pending_ = false;

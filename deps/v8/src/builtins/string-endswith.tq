@@ -3,79 +3,78 @@
 // found in the LICENSE file.
 
 namespace string {
-  macro TryFastStringCompareSequence(
-      string: String, searchStr: String, start: uintptr,
-      searchLength: uintptr): Boolean labels Slow {
-    const directString = Cast<DirectString>(string) otherwise Slow;
-    const directSearchStr = Cast<DirectString>(searchStr) otherwise Slow;
+macro TryFastStringCompareSequence(
+    string: String, searchStr: String, start: uintptr,
+    searchLength: uintptr): Boolean labels Slow {
+  const directString = Cast<DirectString>(string) otherwise Slow;
+  const directSearchStr = Cast<DirectString>(searchStr) otherwise Slow;
 
-    let searchIndex: uintptr = 0;
-    let stringIndex: uintptr = start;
+  let searchIndex: uintptr = 0;
+  let stringIndex: uintptr = start;
 
-    while (searchIndex < searchLength) {
-      if (StringCharCodeAt(directSearchStr, searchIndex) !=
-          StringCharCodeAt(directString, stringIndex)) {
-        return False;
-      }
-
-      searchIndex++;
-      stringIndex++;
+  while (searchIndex < searchLength) {
+    if (StringCharCodeAt(directSearchStr, searchIndex) !=
+        StringCharCodeAt(directString, stringIndex)) {
+      return False;
     }
-    return True;
+
+    searchIndex++;
+    stringIndex++;
+  }
+  return True;
+}
+
+// https://tc39.github.io/ecma262/#sec-string.prototype.endswith
+transitioning javascript builtin StringPrototypeEndsWith(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(...arguments): Boolean {
+  const searchString: JSAny = arguments[0];
+  const endPosition: JSAny = arguments[1];
+  const kBuiltinName: constexpr string = 'String.prototype.endsWith';
+
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const string: String = ToThisString(receiver, kBuiltinName);
+
+  // 3. Let isRegExp be ? IsRegExp(searchString).
+  // 4. If isRegExp is true, throw a TypeError exception.
+  if (regexp::IsRegExp(searchString)) {
+    ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, kBuiltinName);
   }
 
-  // https://tc39.github.io/ecma262/#sec-string.prototype.endswith
-  transitioning javascript builtin StringPrototypeEndsWith(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): Boolean {
-    const searchString: JSAny = arguments[0];
-    const endPosition: JSAny = arguments[1];
-    const kBuiltinName: constexpr string = 'String.prototype.endsWith';
+  // 5. Let searchStr be ? ToString(searchString).
+  const searchStr: String = ToString_Inline(searchString);
 
-    // 1. Let O be ? RequireObjectCoercible(this value).
-    // 2. Let S be ? ToString(O).
-    const string: String = ToThisString(receiver, kBuiltinName);
+  // 6. Let len be the length of S.
+  const len: uintptr = string.length_uintptr;
 
-    // 3. Let isRegExp be ? IsRegExp(searchString).
-    // 4. If isRegExp is true, throw a TypeError exception.
-    if (regexp::IsRegExp(searchString)) {
-      ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, kBuiltinName);
-    }
+  // 7. If endPosition is undefined, let pos be len,
+  // else let pos be ? ToInteger(endPosition).
+  // 8. Let end be min(max(pos, 0), len).
+  const end: uintptr =
+      (endPosition != Undefined) ? ClampToIndexRange(endPosition, len) : len;
 
-    // 5. Let searchStr be ? ToString(searchString).
-    const searchStr: String = ToString_Inline(searchString);
+  // 9. Let searchLength be the length of searchStr.
+  const searchLength: uintptr = searchStr.length_uintptr;
 
-    // 6. Let len be the length of S.
-    const len: uintptr = string.length_uintptr;
+  // 10. Let start be end - searchLength.
+  const start: uintptr = end - searchLength;
 
-    // 7. If endPosition is undefined, let pos be len,
-    // else let pos be ? ToInteger(endPosition).
-    // 8. Let end be min(max(pos, 0), len).
-    const end: uintptr =
-        (endPosition != Undefined) ? ClampToIndexRange(endPosition, len) : len;
+  // 11. If start is less than 0, return false.
+  if (Signed(start) < 0) return False;
 
-    // 9. Let searchLength be the length of searchStr.
-    const searchLength: uintptr = searchStr.length_uintptr;
-
-    // 10. Let start be end - searchLength.
-    const start: uintptr = end - searchLength;
-
-    // 11. If start is less than 0, return false.
-    if (Signed(start) < 0) return False;
-
-    // 12. If the sequence of code units of S starting at start of length
-    // searchLength is the same as the full code unit sequence of searchStr,
-    // return true.
-    // 13. Otherwise, return false.
-    try {
-      // Fast Path: If both strings are direct and relevant indices are Smis.
-      return TryFastStringCompareSequence(
-          string, searchStr, start, searchLength) otherwise Slow;
-    }
-    label Slow {
-      // Slow Path: If either of the string is indirect, bail into runtime.
-      return StringCompareSequence(
-          context, string, searchStr, Convert<Number>(start));
-    }
+  // 12. If the sequence of code units of S starting at start of length
+  // searchLength is the same as the full code unit sequence of searchStr,
+  // return true.
+  // 13. Otherwise, return false.
+  try {
+    // Fast Path: If both strings are direct and relevant indices are Smis.
+    return TryFastStringCompareSequence(string, searchStr, start, searchLength)
+        otherwise Slow;
+  } label Slow {
+    // Slow Path: If either of the string is indirect, bail into runtime.
+    return StringCompareSequence(
+        context, string, searchStr, Convert<Number>(start));
   }
+}
 }

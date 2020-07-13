@@ -314,7 +314,7 @@ void VisitRROSimdShift(InstructionSelector* selector, Node* node,
   } else {
     InstructionOperand operand0 = g.UseUniqueRegister(node->InputAt(0));
     InstructionOperand operand1 = g.UseUniqueRegister(node->InputAt(1));
-    InstructionOperand temps[] = {g.TempSimd128Register()};
+    InstructionOperand temps[] = {g.TempSimd128Register(), g.TempRegister()};
     selector->Emit(opcode, g.DefineSameAsFirst(node), operand0, operand1,
                    arraysize(temps), temps);
   }
@@ -893,6 +893,10 @@ void InstructionSelector::VisitWord32PairShr(Node* node) {
 
 void InstructionSelector::VisitWord32PairSar(Node* node) {
   VisitWord32PairShift(this, kIA32SarPair, node);
+}
+
+void InstructionSelector::VisitWord32Rol(Node* node) {
+  VisitShift(this, node, kIA32Rol);
 }
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
@@ -2109,6 +2113,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I32x4UConvertI16x8Low)  \
   V(I32x4UConvertI16x8High) \
   V(I32x4Abs)               \
+  V(I32x4BitMask)           \
   V(I16x8SConvertI8x16Low)  \
   V(I16x8SConvertI8x16High) \
   V(I16x8Neg)               \
@@ -2116,7 +2121,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8UConvertI8x16High) \
   V(I16x8Abs)               \
   V(I8x16Neg)               \
-  V(I8x16Abs)
+  V(I8x16Abs)               \
+  V(I8x16BitMask)
 
 #define SIMD_UNOP_PREFIX_LIST(V) \
   V(F32x4Abs)                    \
@@ -2437,6 +2443,13 @@ void VisitPack(InstructionSelector* selector, Node* node, ArchOpcode avx_opcode,
 
 void InstructionSelector::VisitI16x8UConvertI32x4(Node* node) {
   VisitPack(this, node, kAVXI16x8UConvertI32x4, kSSEI16x8UConvertI32x4);
+}
+
+void InstructionSelector::VisitI16x8BitMask(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  Emit(kIA32I16x8BitMask, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
@@ -2797,12 +2810,40 @@ void InstructionSelector::VisitS8x16Swizzle(Node* node) {
        arraysize(temps), temps);
 }
 
+namespace {
+void VisitPminOrPmax(InstructionSelector* selector, Node* node,
+                     ArchOpcode opcode) {
+  // Due to the way minps/minpd work, we want the dst to be same as the second
+  // input: b = pmin(a, b) directly maps to minps b a.
+  IA32OperandGenerator g(selector);
+  selector->Emit(opcode, g.DefineSameAsFirst(node),
+                 g.UseRegister(node->InputAt(1)),
+                 g.UseRegister(node->InputAt(0)));
+}
+}  // namespace
+
+void InstructionSelector::VisitF32x4Pmin(Node* node) {
+  VisitPminOrPmax(this, node, kIA32F32x4Pmin);
+}
+
+void InstructionSelector::VisitF32x4Pmax(Node* node) {
+  VisitPminOrPmax(this, node, kIA32F32x4Pmax);
+}
+
+void InstructionSelector::VisitF64x2Pmin(Node* node) {
+  VisitPminOrPmax(this, node, kIA32F64x2Pmin);
+}
+
+void InstructionSelector::VisitF64x2Pmax(Node* node) {
+  VisitPminOrPmax(this, node, kIA32F64x2Pmax);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe |
-      MachineOperatorBuilder::kWord32Ctz;
+      MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord32Rol;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt;
   }

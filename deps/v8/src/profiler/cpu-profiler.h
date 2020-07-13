@@ -5,30 +5,28 @@
 #ifndef V8_PROFILER_CPU_PROFILER_H_
 #define V8_PROFILER_CPU_PROFILER_H_
 
+#include <atomic>
 #include <memory>
 
-#include "src/base/atomic-utils.h"
-#include "src/base/atomicops.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/execution/isolate.h"
-#include "src/handles/maybe-handles.h"
-#include "src/libsampler/sampler.h"
 #include "src/profiler/circular-queue.h"
 #include "src/profiler/profiler-listener.h"
 #include "src/profiler/tick-sample.h"
-#include "src/utils/allocation.h"
 #include "src/utils/locked-queue.h"
 
 namespace v8 {
+namespace sampler {
+class Sampler;
+}
 namespace internal {
 
 // Forward declarations.
 class CodeEntry;
 class CodeMap;
-class CpuProfile;
 class CpuProfilesCollection;
+class Isolate;
 class ProfileGenerator;
 
 #define CODE_EVENTS_TYPE_LIST(V)                 \
@@ -110,6 +108,8 @@ class NativeContextMoveEventRecord : public CodeEventRecord {
   Address to_address;
 };
 
+// A record type for sending samples from the main thread/signal handler to the
+// profiling thread.
 class TickSampleEventRecord {
  public:
   // The parameterless constructor is used when we dequeue data from
@@ -121,7 +121,8 @@ class TickSampleEventRecord {
   TickSample sample;
 };
 
-
+// A record type for sending code events (e.g. create, move, delete) to the
+// profiling thread.
 class CodeEventsContainer {
  public:
   explicit CodeEventsContainer(
@@ -162,7 +163,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
   // Thread control.
   void Run() override = 0;
   void StopSynchronously();
-  V8_INLINE bool running() { return !!base::Relaxed_Load(&running_); }
+  bool running() { return running_.load(std::memory_order_relaxed); }
   void Enqueue(const CodeEventsContainer& event);
 
   // Puts current stack into the tick sample events buffer.
@@ -189,7 +190,7 @@ class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
 
   ProfileGenerator* generator_;
   ProfilerCodeObserver* code_observer_;
-  base::Atomic32 running_;
+  std::atomic_bool running_{true};
   base::ConditionVariable running_cond_;
   base::Mutex running_mutex_;
   LockedQueue<CodeEventsContainer> events_buffer_;
@@ -276,6 +277,26 @@ class V8_EXPORT_PRIVATE ProfilerCodeObserver : public CodeEventObserver {
   ProfilerEventsProcessor* processor_;
 };
 
+// The CpuProfiler is a sampling CPU profiler for JS frames. It corresponds to
+// v8::CpuProfiler at the API level. It spawns an additional thread which is
+// responsible for triggering samples and then symbolizing the samples with
+// function names. To symbolize on a background thread, the profiler copies
+// metadata about generated code off-heap.
+//
+// Sampling is done using posix signals (except on Windows). The profiling
+// thread sends a signal to the main thread, based on a timer. The signal
+// handler can interrupt the main thread between any abitrary instructions.
+// This means we are very careful about reading stack values during the signal
+// handler as we could be in the middle of an operation that is modifying the
+// stack.
+//
+// The story on Windows is similar except we use thread suspend and resume.
+//
+// Samples are passed to the profiling thread via a circular buffer. The
+// profiling thread symbolizes the samples by looking up the code pointers
+// against its own list of code objects. The profiling thread also listens for
+// code creation/move/deletion events (from the GC), to maintain its list of
+// code objects accurately.
 class V8_EXPORT_PRIVATE CpuProfiler {
  public:
   explicit CpuProfiler(Isolate* isolate, CpuProfilingNamingMode = kDebugNaming,
@@ -314,7 +335,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   ProfilerEventsProcessor* processor() const { return processor_.get(); }
   Isolate* isolate() const { return isolate_; }
 
-  ProfilerListener* profiler_listener_for_test() {
+  ProfilerListener* profiler_listener_for_test() const {
     return profiler_listener_.get();
   }
 

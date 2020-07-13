@@ -1040,10 +1040,10 @@ static bool IsInEagerLiterals(
 #endif  // DEBUG
 
 BytecodeGenerator::BytecodeGenerator(
-    UnoptimizedCompilationInfo* info,
+    Zone* compile_zone, UnoptimizedCompilationInfo* info,
     const AstStringConstants* ast_string_constants,
     std::vector<FunctionLiteral*>* eager_inner_literals)
-    : zone_(info->zone()),
+    : zone_(compile_zone),
       builder_(zone(), info->num_parameters_including_this(),
                info->scope()->num_stack_slots(), info->feedback_vector_spec(),
                info->SourcePositionRecordingMode()),
@@ -1332,7 +1332,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   if (FLAG_trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
   // Emit type profile call.
-  if (info()->collect_type_profile()) {
+  if (info()->flags().collect_type_profile()) {
     feedback_spec()->AddTypeProfileSlot();
     int num_parameters = closure_scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
@@ -2134,7 +2134,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   DCHECK(expr->scope()->outer_scope() == current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),
-      info()->might_always_opt());
+      info()->flags().might_always_opt());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   builder()->CreateClosure(entry, GetCachedCreateClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
@@ -3197,7 +3197,7 @@ void BytecodeGenerator::BuildReturn(int source_position) {
     builder()->StoreAccumulatorInRegister(result).CallRuntime(
         Runtime::kTraceExit, result);
   }
-  if (info()->collect_type_profile()) {
+  if (info()->flags().collect_type_profile()) {
     builder()->CollectTypeProfile(info()->literal()->return_position());
   }
   builder()->SetReturnPosition(source_position, info()->literal());
@@ -3538,16 +3538,15 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
 // In pseudo-code, this builds:
 //
 // if (!done) {
-//   let method = iterator.return
-//   if (method !== null && method !== undefined) {
-//     try {
-//       if (typeof(method) !== "function") throw TypeError
+//   try {
+//     let method = iterator.return
+//     if (method !== null && method !== undefined) {
 //       let return_val = method.call(iterator)
 //       if (!%IsObject(return_val)) throw TypeError
-//     } catch (e) {
-//       if (iteration_continuation != RETHROW)
-//         rethrow e
 //     }
+//   } catch (e) {
+//     if (iteration_continuation != RETHROW)
+//       rethrow e
 //   }
 // }
 //
@@ -3562,44 +3561,24 @@ void BytecodeGenerator::BuildFinalizeIteration(
   builder()->LoadAccumulatorWithRegister(done).JumpIfTrue(
       ToBooleanMode::kConvertToBoolean, iterator_is_done.New());
 
-  //   method = iterator.return
-  //   if (method !== null && method !== undefined) {
-  Register method = register_allocator()->NewRegister();
-  builder()
-      ->LoadNamedProperty(iterator.object(),
-                          ast_string_constants()->return_string(),
-                          feedback_index(feedback_spec()->AddLoadICSlot()))
-      .StoreAccumulatorInRegister(method)
-      .JumpIfUndefinedOrNull(iterator_is_done.New());
-
   {
     RegisterAllocationScope register_scope(this);
     BuildTryCatch(
         // try {
-        //   if (typeof(method) !== "function") throw TypeError
-        //   let return_val = method.call(iterator)
-        //   if (!%IsObject(return_val)) throw TypeError
+        //   let method = iterator.return
+        //   if (method !== null && method !== undefined) {
+        //     let return_val = method.call(iterator)
+        //     if (!%IsObject(return_val)) throw TypeError
+        //   }
         // }
         [&]() {
-          BytecodeLabel if_callable;
+          Register method = register_allocator()->NewRegister();
           builder()
-              ->CompareTypeOf(TestTypeOfFlags::LiteralFlag::kFunction)
-              .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &if_callable);
-          {
-            // throw %NewTypeError(kReturnMethodNotCallable)
-            RegisterAllocationScope register_scope(this);
-            RegisterList new_type_error_args =
-                register_allocator()->NewRegisterList(2);
-            builder()
-                ->LoadLiteral(
-                    Smi::FromEnum(MessageTemplate::kReturnMethodNotCallable))
-                .StoreAccumulatorInRegister(new_type_error_args[0])
-                .LoadLiteral(ast_string_constants()->empty_string())
-                .StoreAccumulatorInRegister(new_type_error_args[1])
-                .CallRuntime(Runtime::kNewTypeError, new_type_error_args)
-                .Throw();
-          }
-          builder()->Bind(&if_callable);
+              ->LoadNamedProperty(
+                  iterator.object(), ast_string_constants()->return_string(),
+                  feedback_index(feedback_spec()->AddLoadICSlot()))
+              .JumpIfUndefinedOrNull(iterator_is_done.New())
+              .StoreAccumulatorInRegister(method);
 
           RegisterList args(iterator.object());
           builder()->CallProperty(
@@ -4142,9 +4121,23 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
     }
   }
 
-  BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
+  BinaryOperation* binop = expr->binary_operation();
   FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
-  if (expr->value()->IsSmiLiteral()) {
+  BytecodeLabel short_circuit;
+  if (binop->op() == Token::NULLISH) {
+    BytecodeLabel nullish;
+    builder()
+        ->JumpIfUndefinedOrNull(&nullish)
+        .Jump(&short_circuit)
+        .Bind(&nullish);
+    VisitForAccumulatorValue(expr->value());
+  } else if (binop->op() == Token::OR) {
+    builder()->JumpIfTrue(ToBooleanMode::kConvertToBoolean, &short_circuit);
+    VisitForAccumulatorValue(expr->value());
+  } else if (binop->op() == Token::AND) {
+    builder()->JumpIfFalse(ToBooleanMode::kConvertToBoolean, &short_circuit);
+    VisitForAccumulatorValue(expr->value());
+  } else if (expr->value()->IsSmiLiteral()) {
     builder()->BinaryOperationSmiLiteral(
         binop->op(), expr->value()->AsLiteral()->AsSmiLiteral(),
         feedback_index(slot));
@@ -4154,9 +4147,9 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
     VisitForAccumulatorValue(expr->value());
     builder()->BinaryOperation(binop->op(), old_value, feedback_index(slot));
   }
-
   builder()->SetExpressionPosition(expr);
   BuildAssignment(lhs_data, expr->op(), expr->lookup_hoisting_mode());
+  builder()->Bind(&short_circuit);
 }
 
 // Suspends the generator to resume at the next suspend_id, with output stored

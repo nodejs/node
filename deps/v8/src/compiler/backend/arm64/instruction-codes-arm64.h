@@ -238,6 +238,8 @@ namespace compiler {
   V(Arm64I32x4AddHoriz)                     \
   V(Arm64I32x4Sub)                          \
   V(Arm64I32x4Mul)                          \
+  V(Arm64I32x4Mla)                          \
+  V(Arm64I32x4Mls)                          \
   V(Arm64I32x4MinS)                         \
   V(Arm64I32x4MaxS)                         \
   V(Arm64I32x4Eq)                           \
@@ -270,6 +272,8 @@ namespace compiler {
   V(Arm64I16x8Sub)                          \
   V(Arm64I16x8SubSaturateS)                 \
   V(Arm64I16x8Mul)                          \
+  V(Arm64I16x8Mla)                          \
+  V(Arm64I16x8Mls)                          \
   V(Arm64I16x8MinS)                         \
   V(Arm64I16x8MaxS)                         \
   V(Arm64I16x8Eq)                           \
@@ -302,6 +306,8 @@ namespace compiler {
   V(Arm64I8x16Sub)                          \
   V(Arm64I8x16SubSaturateS)                 \
   V(Arm64I8x16Mul)                          \
+  V(Arm64I8x16Mla)                          \
+  V(Arm64I8x16Mls)                          \
   V(Arm64I8x16MinS)                         \
   V(Arm64I8x16MaxS)                         \
   V(Arm64I8x16Eq)                           \

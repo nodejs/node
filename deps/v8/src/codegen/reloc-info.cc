@@ -6,11 +6,12 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/code-reference.h"
+#include "src/codegen/external-reference-encoder.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code-inl.h"
-#include "src/snapshot/snapshot.h"
+#include "src/snapshot/embedded/embedded-data.h"
 
 namespace v8 {
 namespace internal {

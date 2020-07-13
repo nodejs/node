@@ -12,6 +12,7 @@
 #include "src/heap/invalidated-slots-inl.h"
 #include "src/heap/item-parallel-job.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/memory-chunk-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/sweeper.h"
@@ -295,7 +296,18 @@ void ScavengerCollector::CollectGarbage() {
     {
       // Copy roots.
       TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
-      heap_->IterateRoots(&root_scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
+      // Scavenger treats all weak roots except for global handles as strong.
+      // That is why we don't set skip_weak = true here and instead visit
+      // global handles separately.
+      base::EnumSet<SkipRoot> options({SkipRoot::kExternalStringTable,
+                                       SkipRoot::kGlobalHandles,
+                                       SkipRoot::kOldGeneration});
+      if (V8_UNLIKELY(FLAG_scavenge_separate_stack_scanning)) {
+        options.Add(SkipRoot::kStack);
+      }
+      heap_->IterateRoots(&root_scavenge_visitor, options);
+      isolate_->global_handles()->IterateYoungStrongAndDependentRoots(
+          &root_scavenge_visitor);
     }
     {
       // Parallel phase scavenging all copied and promoted objects.
@@ -304,6 +316,14 @@ void ScavengerCollector::CollectGarbage() {
       DCHECK(copied_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());
     }
+
+    if (V8_UNLIKELY(FLAG_scavenge_separate_stack_scanning)) {
+      IterateStackAndScavenge(&root_scavenge_visitor, scavengers,
+                              num_scavenge_tasks, kMainThreadId);
+      DCHECK(copied_list.IsEmpty());
+      DCHECK(promotion_list.IsEmpty());
+    }
+
     {
       // Scavenge weak global handles.
       TRACE_GC(heap_->tracer(),
@@ -393,6 +413,39 @@ void ScavengerCollector::CollectGarbage() {
 
   // Update how much has survived scavenge.
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
+}
+
+void ScavengerCollector::IterateStackAndScavenge(
+    RootScavengeVisitor* root_scavenge_visitor, Scavenger** scavengers,
+    int num_scavenge_tasks, int main_thread_id) {
+  // Scan the stack, scavenge the newly discovered objects, and report
+  // the survival statistics before and afer the stack scanning.
+  // This code is not intended for production.
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_STACK_ROOTS);
+  size_t survived_bytes_before = 0;
+  for (int i = 0; i < num_scavenge_tasks; i++) {
+    survived_bytes_before +=
+        scavengers[i]->bytes_copied() + scavengers[i]->bytes_promoted();
+  }
+  heap_->IterateStackRoots(root_scavenge_visitor);
+  scavengers[main_thread_id]->Process();
+  size_t survived_bytes_after = 0;
+  for (int i = 0; i < num_scavenge_tasks; i++) {
+    survived_bytes_after +=
+        scavengers[i]->bytes_copied() + scavengers[i]->bytes_promoted();
+  }
+  TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "V8.GCScavengerStackScanning", "survived_bytes_before",
+               survived_bytes_before, "survived_bytes_after",
+               survived_bytes_after);
+  if (FLAG_trace_gc_verbose && !FLAG_trace_gc_ignore_scavenger) {
+    isolate_->PrintWithTimestamp(
+        "Scavenge stack scanning: survived_before=%4zuKB, "
+        "survived_after=%4zuKB delta=%.1f%%\n",
+        survived_bytes_before / KB, survived_bytes_after / KB,
+        (survived_bytes_after - survived_bytes_before) * 100.0 /
+            survived_bytes_after);
+  }
 }
 
 void ScavengerCollector::SweepArrayBufferExtensions() {

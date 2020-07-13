@@ -30,7 +30,7 @@ namespace wasm {
 // static
 const uint32_t WasmElemSegment::kNullIndex;
 
-WireBytesRef DecodedFunctionNames::Lookup(
+WireBytesRef LazilyGeneratedNames::LookupFunctionName(
     const ModuleWireBytes& wire_bytes, uint32_t function_index,
     Vector<const WasmExport> export_table) const {
   base::MutexGuard lock(&mutex_);
@@ -44,18 +44,23 @@ WireBytesRef DecodedFunctionNames::Lookup(
   return it->second;
 }
 
-std::pair<WireBytesRef, WireBytesRef> DecodedGlobalNames::Lookup(
-    uint32_t global_index, Vector<const WasmImport> import_table,
+std::pair<WireBytesRef, WireBytesRef>
+LazilyGeneratedNames::LookupNameFromImportsAndExports(
+    ImportExportKindCode kind, uint32_t index,
+    Vector<const WasmImport> import_table,
     Vector<const WasmExport> export_table) const {
   base::MutexGuard lock(&mutex_);
-  if (!global_names_) {
-    global_names_.reset(
+  DCHECK(kind == kExternalGlobal || kind == kExternalMemory);
+  auto& names = kind == kExternalGlobal ? global_names_ : memory_names_;
+  if (!names) {
+    names.reset(
         new std::unordered_map<uint32_t,
                                std::pair<WireBytesRef, WireBytesRef>>());
-    DecodeGlobalNames(import_table, export_table, global_names_.get());
+    GenerateNamesFromImportsAndExports(kind, import_table, export_table,
+                                       names.get());
   }
-  auto it = global_names_->find(global_index);
-  if (it == global_names_->end()) return {};
+  auto it = names->find(index);
+  if (it == names->end()) return {};
   return it->second;
 }
 
@@ -118,7 +123,7 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
   return func_index;
 }
 
-void DecodedFunctionNames::AddForTesting(int function_index,
+void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);
   if (!function_names_) {
@@ -129,7 +134,7 @@ void DecodedFunctionNames::AddForTesting(int function_index,
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(
     Vector<const byte> encoded_offsets)
-    : encoded_offsets_(OwnedVector<uint8_t>::Of(encoded_offsets)) {}
+    : encoded_offsets_(OwnedVector<const uint8_t>::Of(encoded_offsets)) {}
 
 AsmJsOffsetInformation::~AsmJsOffsetInformation() = default;
 
@@ -192,7 +197,7 @@ WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
 // Get a string stored in the module bytes representing a function name.
 WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
                                         const WasmModule* module) const {
-  return GetNameOrNull(module->function_names.Lookup(
+  return GetNameOrNull(module->lazily_generated_names.LookupFunctionName(
       *this, function->func_index, VectorOf(module->export_table)));
 }
 
@@ -652,11 +657,11 @@ size_t EstimateStoredSize(const WasmModule* module) {
   return sizeof(WasmModule) + VectorSize(module->globals) +
          (module->signature_zone ? module->signature_zone->allocation_size()
                                  : 0) +
-         VectorSize(module->signatures) + VectorSize(module->signature_ids) +
-         VectorSize(module->functions) + VectorSize(module->data_segments) +
-         VectorSize(module->tables) + VectorSize(module->import_table) +
-         VectorSize(module->export_table) + VectorSize(module->exceptions) +
-         VectorSize(module->elem_segments);
+         VectorSize(module->types) + VectorSize(module->type_kinds) +
+         VectorSize(module->signature_ids) + VectorSize(module->functions) +
+         VectorSize(module->data_segments) + VectorSize(module->tables) +
+         VectorSize(module->import_table) + VectorSize(module->export_table) +
+         VectorSize(module->exceptions) + VectorSize(module->elem_segments);
 }
 
 size_t PrintSignature(Vector<char> buffer, const wasm::FunctionSig* sig) {

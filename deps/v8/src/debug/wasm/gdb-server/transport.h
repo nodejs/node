@@ -8,7 +8,7 @@
 #include <sstream>
 #include <vector>
 #include "src/base/macros.h"
-#include "src/debug/wasm/gdb-server/util.h"
+#include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 
 #if _WIN32
 #include <windows.h>
@@ -47,7 +47,7 @@ namespace internal {
 namespace wasm {
 namespace gdb_server {
 
-class Transport;
+class SocketTransport;
 
 // Acts as a factory for Transport objects bound to a specified TCP port.
 class SocketBinding {
@@ -61,7 +61,7 @@ class SocketBinding {
   bool IsValid() const { return socket_handle_ != InvalidSocket; }
 
   // Create a transport object from this socket binding
-  std::unique_ptr<Transport> CreateTransport();
+  std::unique_ptr<SocketTransport> CreateTransport();
 
   // Get port the socket is bound to.
   uint16_t GetBoundPort();
@@ -70,10 +70,12 @@ class SocketBinding {
   SocketHandle socket_handle_;
 };
 
-class TransportBase {
+class V8_EXPORT_PRIVATE TransportBase {
  public:
-  explicit TransportBase(SocketHandle s);
-  virtual ~TransportBase();
+  virtual ~TransportBase() {}
+
+  // Waits for an incoming connection on the bound port.
+  virtual bool AcceptConnection() = 0;
 
   // Read {len} bytes from this transport, possibly blocking until enough data
   // is available.
@@ -81,23 +83,48 @@ class TransportBase {
   // Returns true on success.
   // Returns false if the connection is closed; in that case the {dst} may have
   // been partially overwritten.
-  bool Read(char* dst, int32_t len);
+  virtual bool Read(char* dst, int32_t len) = 0;
 
   // Write {len} bytes to this transport.
   // Return true on success, false if the connection is closed.
-  bool Write(const char* src, int32_t len);
+  virtual bool Write(const char* src, int32_t len) = 0;
 
   // Return true if there is data to read.
-  bool IsDataAvailable() const;
+  virtual bool IsDataAvailable() const = 0;
+
+  // If we are connected to a debugger, gracefully closes the connection.
+  // This should be called when a debugging session gets closed.
+  virtual void Disconnect() = 0;
 
   // Shuts down this transport, gracefully closing the existing connection and
   // also closing the listening socket. This should be called when the GDB stub
   // shuts down, when the program terminates.
-  void Close();
+  virtual void Close() = 0;
 
-  // If a socket connection with a debugger is present, gracefully closes it.
-  // This should be called when a debugging session gets closed.
-  virtual void Disconnect();
+  // Blocks waiting for one of these two events to occur:
+  // - A network event (a new packet arrives, or the connection is dropped),
+  // - A thread event is signaled (the execution stopped because of a trap or
+  // breakpoint).
+  virtual void WaitForDebugStubEvent() = 0;
+
+  // Signal that this transport should leave an alertable wait state because
+  // the execution of the debuggee was stopped because of a trap or breakpoint.
+  virtual bool SignalThreadEvent() = 0;
+};
+
+class Transport : public TransportBase {
+ public:
+  explicit Transport(SocketHandle s);
+  ~Transport() override;
+
+  // TransportBase
+  bool Read(char* dst, int32_t len) override;
+  bool Write(const char* src, int32_t len) override;
+  bool IsDataAvailable() const override;
+  void Disconnect() override;
+  void Close() override;
+
+  static const int kBufSize = 4096;
 
  protected:
   // Copy buffered data to *dst up to len bytes and update dst and len.
@@ -106,7 +133,6 @@ class TransportBase {
   // Read available data from the socket. Return false on EOF or error.
   virtual bool ReadSomeData() = 0;
 
-  static const int kBufSize = 4096;
   std::unique_ptr<char[]> buf_;
   int32_t pos_;
   int32_t size_;
@@ -116,25 +142,16 @@ class TransportBase {
 
 #if _WIN32
 
-class Transport : public TransportBase {
+class SocketTransport : public Transport {
  public:
-  explicit Transport(SocketHandle s);
-  ~Transport() override;
+  explicit SocketTransport(SocketHandle s);
+  ~SocketTransport() override;
 
-  // Waits for an incoming connection on the bound port.
-  bool AcceptConnection();
-
-  // Blocks waiting for one of these two events to occur:
-  // - A network event (a new packet arrives, or the connection is dropped),
-  // - A thread event is signaled (the execution stopped because of a trap or
-  // breakpoint).
-  void WaitForDebugStubEvent();
-
-  // Signal that this transport should leave an alertable wait state because
-  // the execution of the debuggee was stopped because of a trap or breakpoint.
-  bool SignalThreadEvent();
-
+  // TransportBase
+  bool AcceptConnection() override;
   void Disconnect() override;
+  void WaitForDebugStubEvent() override;
+  bool SignalThreadEvent() override;
 
  private:
   bool ReadSomeData() override;
@@ -142,27 +159,20 @@ class Transport : public TransportBase {
   HANDLE socket_event_;
   HANDLE faulted_thread_event_;
 
-  DISALLOW_COPY_AND_ASSIGN(Transport);
+  DISALLOW_COPY_AND_ASSIGN(SocketTransport);
 };
 
 #else  // _WIN32
 
-class Transport : public TransportBase {
+class SocketTransport : public Transport {
  public:
-  explicit Transport(SocketHandle s);
-  ~Transport() override;
+  explicit SocketTransport(SocketHandle s);
+  ~SocketTransport() override;
 
-  // Waits for an incoming connection on the bound port.
-  bool AcceptConnection();
-
-  // Blocks waiting for one of these two events to occur:
-  // - A network event (a new packet arrives, or the connection is dropped),
-  // - The debuggee suspends execution because of a trap or breakpoint.
-  void WaitForDebugStubEvent();
-
-  // Signal that this transport should leave an alertable wait state because
-  // the execution of the debuggee was stopped because of a trap or breakpoint.
-  bool SignalThreadEvent();
+  // TransportBase
+  bool AcceptConnection() override;
+  void WaitForDebugStubEvent() override;
+  bool SignalThreadEvent() override;
 
  private:
   bool ReadSomeData() override;
@@ -170,7 +180,7 @@ class Transport : public TransportBase {
   int faulted_thread_fd_read_;
   int faulted_thread_fd_write_;
 
-  DISALLOW_COPY_AND_ASSIGN(Transport);
+  DISALLOW_COPY_AND_ASSIGN(SocketTransport);
 };
 
 #endif  // _WIN32

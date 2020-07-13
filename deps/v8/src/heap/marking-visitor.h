@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"

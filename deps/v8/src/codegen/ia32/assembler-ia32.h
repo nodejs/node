@@ -635,6 +635,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rcl(Register dst, uint8_t imm8);
   void rcr(Register dst, uint8_t imm8);
 
+  void rol(Register dst, uint8_t imm8) { rol(Operand(dst), imm8); }
+  void rol(Operand dst, uint8_t imm8);
+  void rol_cl(Register dst) { rol_cl(Operand(dst)); }
+  void rol_cl(Operand dst);
+
   void ror(Register dst, uint8_t imm8) { ror(Operand(dst), imm8); }
   void ror(Operand dst, uint8_t imm8);
   void ror_cl(Register dst) { ror_cl(Operand(dst)); }
@@ -957,6 +962,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
+
+  void pmovmskb(Register dst, XMMRegister src);
 
   void cmpltsd(XMMRegister dst, XMMRegister src);
 
@@ -1438,6 +1445,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void vmovd(Operand dst, XMMRegister src) {
     vinstr(0x7E, src, xmm0, dst, k66, k0F, kWIG);
   }
+
+  void vmovmskps(Register dst, XMMRegister src);
+
+  void vpmovmskb(Register dst, XMMRegister src);
 
   // BMI instruction
   void andn(Register dst, Register src1, Register src2) {

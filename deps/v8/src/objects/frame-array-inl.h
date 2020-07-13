@@ -33,17 +33,8 @@ FRAME_ARRAY_FIELD_LIST(DEFINE_FRAME_ARRAY_ACCESSORS)
 #undef DEFINE_FRAME_ARRAY_ACCESSORS
 
 bool FrameArray::IsWasmFrame(int frame_ix) const {
-  return IsWasmCompiledFrame(frame_ix) || IsWasmInterpretedFrame(frame_ix);
-}
-
-bool FrameArray::IsWasmCompiledFrame(int frame_ix) const {
   const int flags = Flags(frame_ix).value();
-  return (flags & kIsWasmCompiledFrame) != 0;
-}
-
-bool FrameArray::IsWasmInterpretedFrame(int frame_ix) const {
-  const int flags = Flags(frame_ix).value();
-  return (flags & kIsWasmInterpretedFrame) != 0;
+  return (flags & kIsWasmFrame) != 0;
 }
 
 bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
@@ -52,8 +43,7 @@ bool FrameArray::IsAsmJsWasmFrame(int frame_ix) const {
 }
 
 bool FrameArray::IsAnyWasmFrame(int frame_ix) const {
-  return IsWasmFrame(frame_ix) || IsWasmInterpretedFrame(frame_ix) ||
-         IsAsmJsWasmFrame(frame_ix);
+  return IsWasmFrame(frame_ix) || IsAsmJsWasmFrame(frame_ix);
 }
 
 int FrameArray::FrameCount() const {

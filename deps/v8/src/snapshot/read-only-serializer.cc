@@ -16,8 +16,9 @@
 namespace v8 {
 namespace internal {
 
-ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate)
-    : RootsSerializer(isolate, RootIndex::kFirstReadOnlyRoot) {
+ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
+                                       Snapshot::SerializerFlags flags)
+    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot) {
   STATIC_ASSERT(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
 }
@@ -50,7 +51,8 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
   // No active threads.
   CHECK_NULL(isolate()->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK(isolate()->handle_scope_implementer()->blocks()->empty());
+  CHECK_IMPLIES(!allow_active_isolate_for_testing(),
+                isolate()->handle_scope_implementer()->blocks()->empty());
 
   ReadOnlyRoots(isolate()).Iterate(this);
 }

@@ -5,13 +5,9 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_called = false;
-let cleanup = function(iter) {
+let cleanup = function(holdings_arg) {
   assertFalse(cleanup_called);
-  let result = iter.next();
-  assertEquals(result.value, holdings);
-  assertFalse(result.done);
-  result = iter.next();
-  assertTrue(result.done);
+  assertEquals(holdings_arg, holdings);
   cleanup_called = true;
 }
 

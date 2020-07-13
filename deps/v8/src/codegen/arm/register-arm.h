@@ -351,6 +351,8 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = r4;
 constexpr Register cp = r7;              // JavaScript context pointer.
 constexpr Register kRootRegister = r10;  // Roots array pointer.
 
+constexpr DoubleRegister kFPReturnRegister0 = d0;
+
 }  // namespace internal
 }  // namespace v8
 

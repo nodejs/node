@@ -33,6 +33,10 @@ void GrowableFixedArray::Push(const TNode<Object> value) {
   }
 }
 
+TNode<FixedArray> GrowableFixedArray::ToFixedArray() {
+  return ResizeFixedArray(length(), length());
+}
+
 TNode<JSArray> GrowableFixedArray::ToJSArray(const TNode<Context> context) {
   const ElementsKind kind = PACKED_ELEMENTS;
 

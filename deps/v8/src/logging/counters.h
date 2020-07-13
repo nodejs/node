@@ -772,7 +772,6 @@ class RuntimeCallTimer final {
   V(Int8Array_New)                                         \
   V(Isolate_DateTimeConfigurationChangeNotification)       \
   V(Isolate_LocaleConfigurationChangeNotification)         \
-  V(FinalizationGroup_Cleanup)                             \
   V(JSON_Parse)                                            \
   V(JSON_Stringify)                                        \
   V(Map_AsArray)                                           \
@@ -895,6 +894,9 @@ class RuntimeCallTimer final {
   V(Value_NumberValue)                                     \
   V(Value_TypeOf)                                          \
   V(Value_Uint32Value)                                     \
+  V(WasmCompileError_New)                                  \
+  V(WasmLinkError_New)                                     \
+  V(WasmRuntimeError_New)                                  \
   V(WeakMap_Get)                                           \
   V(WeakMap_New)                                           \
   V(WeakMap_Set)

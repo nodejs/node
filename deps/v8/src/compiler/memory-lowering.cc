@@ -5,6 +5,7 @@
 #include "src/compiler/memory-lowering.h"
 
 #include "src/codegen/interface-descriptors.h"
+#include "src/common/external-pointer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -51,7 +52,7 @@ MemoryLowering::MemoryLowering(JSGraph* jsgraph, Zone* zone,
                                const char* function_debug_name)
     : isolate_(jsgraph->isolate()),
       zone_(zone),
-      graph_zone_(jsgraph->graph()->zone()),
+      graph_(jsgraph->graph()),
       common_(jsgraph->common()),
       machine_(jsgraph->machine()),
       graph_assembler_(graph_assembler),
@@ -59,6 +60,8 @@ MemoryLowering::MemoryLowering(JSGraph* jsgraph, Zone* zone,
       poisoning_level_(poisoning_level),
       write_barrier_assert_failed_(callback),
       function_debug_name_(function_debug_name) {}
+
+Zone* MemoryLowering::graph_zone() const { return graph()->zone(); }
 
 Reduction MemoryLowering::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -303,6 +306,29 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
   return Changed(node);
 }
 
+Node* MemoryLowering::DecodeExternalPointer(Node* node) {
+  DCHECK(V8_HEAP_SANDBOX_BOOL);
+  DCHECK(node->opcode() == IrOpcode::kLoad ||
+         node->opcode() == IrOpcode::kPoisonedLoad);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  __ InitializeEffectControl(effect, control);
+
+  // Clone the load node and put it here.
+  // TODO(turbofan): consider adding GraphAssembler::Clone() suitable for
+  // cloning nodes from arbitrary locaions in effect/control chains.
+  Node* node_copy = __ AddNode(graph()->CloneNode(node));
+
+  // Uncomment this to generate a breakpoint for debugging purposes.
+  // __ DebugBreak();
+
+  // Decode loaded enternal pointer.
+  STATIC_ASSERT(kExternalPointerSize == kSystemPointerSize);
+  Node* salt = __ IntPtrConstant(kExternalPointerSalt);
+  Node* decoded_ptr = __ WordXor(node_copy, salt);
+  return decoded_ptr;
+}
+
 Reduction MemoryLowering::ReduceLoadField(Node* node) {
   DCHECK_EQ(IrOpcode::kLoadField, node->opcode());
   FieldAccess const& access = FieldAccessOf(node->op());
@@ -313,6 +339,13 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
     NodeProperties::ChangeOp(node, machine()->PoisonedLoad(type));
   } else {
     NodeProperties::ChangeOp(node, machine()->Load(type));
+  }
+  if (V8_HEAP_SANDBOX_BOOL &&
+      access.type.Is(Type::SandboxedExternalPointer())) {
+    node = DecodeExternalPointer(node);
+    return Replace(node);
+  } else {
+    DCHECK(!access.type.Is(Type::SandboxedExternalPointer()));
   }
   return Changed(node);
 }
@@ -351,6 +384,10 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
                                            AllocationState const* state) {
   DCHECK_EQ(IrOpcode::kStoreField, node->opcode());
   FieldAccess const& access = FieldAccessOf(node->op());
+  // External pointer must never be stored by optimized code.
+  DCHECK_IMPLIES(V8_HEAP_SANDBOX_BOOL,
+                 !access.type.Is(Type::ExternalPointer()) &&
+                     !access.type.Is(Type::SandboxedExternalPointer()));
   Node* object = node->InputAt(0);
   Node* value = node->InputAt(1);
   WriteBarrierKind write_barrier_kind = ComputeWriteBarrierKind(

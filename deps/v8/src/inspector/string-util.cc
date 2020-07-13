@@ -6,12 +6,98 @@
 
 #include <cinttypes>
 #include <cmath>
+#include <cstddef>
 
 #include "src/base/platform/platform.h"
 #include "src/inspector/protocol/Protocol.h"
 #include "src/numbers/conversions.h"
 
 namespace v8_inspector {
+
+namespace protocol {
+namespace {
+std::pair<uint8_t, uint8_t> SplitByte(uint8_t byte, uint8_t split) {
+  return {byte >> split, (byte & ((1 << split) - 1)) << (6 - split)};
+}
+
+v8::Maybe<uint8_t> DecodeByte(char byte) {
+  if ('A' <= byte && byte <= 'Z') return v8::Just<uint8_t>(byte - 'A');
+  if ('a' <= byte && byte <= 'z') return v8::Just<uint8_t>(byte - 'a' + 26);
+  if ('0' <= byte && byte <= '9')
+    return v8::Just<uint8_t>(byte - '0' + 26 + 26);
+  if (byte == '+') return v8::Just<uint8_t>(62);
+  if (byte == '/') return v8::Just<uint8_t>(63);
+  return v8::Nothing<uint8_t>();
+}
+}  // namespace
+
+String Binary::toBase64() const {
+  const char* table =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  if (size() == 0) return {};
+  std::basic_string<UChar> result;
+  result.reserve(4 * ((size() + 2) / 3));
+  uint8_t last = 0;
+  for (size_t n = 0; n < size();) {
+    auto split = SplitByte((*bytes_)[n], 2 + 2 * (n % 3));
+    result.push_back(table[split.first | last]);
+
+    ++n;
+    if (n < size() && n % 3 == 0) {
+      result.push_back(table[split.second]);
+      last = 0;
+    } else {
+      last = split.second;
+    }
+  }
+  result.push_back(table[last]);
+  while (result.size() % 4 > 0) result.push_back('=');
+  return String16(std::move(result));
+}
+
+/* static */
+Binary Binary::fromBase64(const String& base64, bool* success) {
+  if (base64.isEmpty()) {
+    *success = true;
+    return Binary::fromSpan(nullptr, 0);
+  }
+
+  *success = false;
+  // Fail if the length is invalid or decoding would overflow.
+  if (base64.length() % 4 != 0 || base64.length() + 4 < base64.length()) {
+    return Binary::fromSpan(nullptr, 0);
+  }
+
+  std::vector<uint8_t> result;
+  result.reserve(3 * base64.length() / 4);
+  char pad = '=';
+  // Iterate groups of four
+  for (size_t i = 0; i < base64.length(); i += 4) {
+    uint8_t a = 0, b = 0, c = 0, d = 0;
+    if (!DecodeByte(base64[i + 0]).To(&a)) return Binary::fromSpan(nullptr, 0);
+    if (!DecodeByte(base64[i + 1]).To(&b)) return Binary::fromSpan(nullptr, 0);
+    if (!DecodeByte(base64[i + 2]).To(&c)) {
+      // Padding is allowed only in the group on the last two positions
+      if (i + 4 < base64.length() || base64[i + 2] != pad ||
+          base64[i + 3] != pad) {
+        return Binary::fromSpan(nullptr, 0);
+      }
+    }
+    if (!DecodeByte(base64[i + 3]).To(&d)) {
+      // Padding is allowed only in the group on the last two positions
+      if (i + 4 < base64.length() || base64[i + 3] != pad) {
+        return Binary::fromSpan(nullptr, 0);
+      }
+    }
+
+    result.push_back((a << 2) | (b >> 4));
+    if (base64[i + 2] != '=') result.push_back((0xFF & (b << 4)) | (c >> 2));
+    if (base64[i + 3] != '=') result.push_back((0xFF & (c << 6)) | d);
+  }
+  *success = true;
+  return Binary(std::make_shared<std::vector<uint8_t>>(std::move(result)));
+}
+}  // namespace protocol
 
 v8::Local<v8::String> toV8String(v8::Isolate* isolate, const String16& string) {
   if (string.isEmpty()) return v8::String::Empty(isolate);

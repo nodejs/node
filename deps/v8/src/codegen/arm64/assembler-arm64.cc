@@ -140,7 +140,9 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
-  return instr->IsLdrLiteralX();
+  DCHECK_IMPLIES(instr->IsLdrLiteralW(), COMPRESS_POINTERS_BOOL);
+  return instr->IsLdrLiteralX() ||
+         (COMPRESS_POINTERS_BOOL && instr->IsLdrLiteralW());
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {

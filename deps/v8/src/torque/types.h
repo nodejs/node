@@ -135,6 +135,7 @@ class V8_EXPORT_PRIVATE Type : public TypeBase {
   base::Optional<const ClassType*> ClassSupertype() const;
   base::Optional<const StructType*> StructSupertype() const;
   virtual std::vector<RuntimeType> GetRuntimeTypes() const { return {}; }
+  virtual std::string GetRuntimeType() const;
   static const Type* CommonSupertype(const Type* a, const Type* b);
   void AddAlias(std::string alias) const { aliases_.insert(std::move(alias)); }
   size_t id() const { return id_; }
@@ -274,6 +275,7 @@ class AbstractType final : public Type {
   const Type* NonConstexprVersion() const override {
     if (non_constexpr_version_) return non_constexpr_version_;
     if (!IsConstexpr()) return this;
+    if (parent()) return parent()->NonConstexprVersion();
     return nullptr;
   }
 
@@ -299,8 +301,13 @@ class AbstractType final : public Type {
   }
 
   std::string SimpleNameImpl() const override {
-    if (IsConstexpr())
-      return "constexpr_" + NonConstexprVersion()->SimpleName();
+    if (IsConstexpr()) {
+      const Type* non_constexpr_version = NonConstexprVersion();
+      if (non_constexpr_version == nullptr) {
+        ReportError("Cannot find non-constexpr type corresponding to ", *this);
+      }
+      return "constexpr_" + non_constexpr_version->SimpleName();
+    }
     return name();
   }
 
@@ -346,6 +353,8 @@ class V8_EXPORT_PRIVATE BuiltinPointerType final : public Type {
     return {{"Smi", ""}};
   }
 
+  bool HasContextParameter() const;
+
  private:
   friend class TypeOracle;
   BuiltinPointerType(const Type* parent, TypeVector parameter_types,
@@ -375,6 +384,9 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
     return "TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
   std::string GetGeneratedTNodeTypeNameImpl() const override;
+  std::string GetRuntimeType() const override {
+    return parent()->GetRuntimeType();
+  }
 
   friend size_t hash_value(const UnionType& p) {
     size_t result = 0;
@@ -418,6 +430,13 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
       }
     }
     return false;
+  }
+
+  bool IsConstexpr() const override { return parent()->IsConstexpr(); }
+
+  const Type* NonConstexprVersion() const override {
+    if (!IsConstexpr()) return this;
+    return parent()->NonConstexprVersion();
   }
 
   void Extend(const Type* t) {
@@ -517,8 +536,6 @@ class AggregateType : public Type {
 
   virtual void Finalize() const = 0;
 
-  virtual bool HasIndexedField() const { return false; }
-
   void SetFields(std::vector<Field> fields) { fields_ = std::move(fields); }
   const std::vector<Field>& fields() const {
     if (!is_finalized_) Finalize();
@@ -607,10 +624,25 @@ class StructType final : public AggregateType {
 
 class TypeAlias;
 
+enum class ObjectSlotKind : uint8_t {
+  kNoPointer,
+  kStrongPointer,
+  kMaybeObjectPointer,
+  kCustomWeakPointer
+};
+
+inline base::Optional<ObjectSlotKind> Combine(ObjectSlotKind a,
+                                              ObjectSlotKind b) {
+  if (a == b) return {a};
+  if (std::min(a, b) == ObjectSlotKind::kStrongPointer &&
+      std::max(a, b) == ObjectSlotKind::kMaybeObjectPointer) {
+    return {ObjectSlotKind::kMaybeObjectPointer};
+  }
+  return base::nullopt;
+}
+
 class ClassType final : public AggregateType {
  public:
-  static constexpr ClassFlags kInternalFlags = ClassFlag::kHasIndexedField;
-
   DECLARE_TYPE_BOILERPLATE(ClassType)
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeNameImpl() const override;
@@ -625,6 +657,7 @@ class ClassType final : public AggregateType {
                            (!HasUndefinedLayout() && !IsShape()));
   }
   bool ShouldGenerateBodyDescriptor() const {
+    if (IsAbstract()) return false;
     return flags_ & ClassFlag::kGenerateBodyDescriptor || !IsExtern();
   }
   bool IsTransient() const override { return flags_ & ClassFlag::kTransient; }
@@ -639,7 +672,6 @@ class ClassType final : public AggregateType {
   bool ShouldExport() const { return flags_ & ClassFlag::kExport; }
   bool IsShape() const { return flags_ & ClassFlag::kIsShape; }
   bool HasStaticSize() const;
-  bool HasIndexedField() const override;
   size_t header_size() const {
     if (!is_finalized_) Finalize();
     return header_size_;
@@ -655,14 +687,19 @@ class ClassType final : public AggregateType {
   void GenerateAccessors();
   bool AllowInstantiation() const;
   const Field& RegisterField(Field field) override {
-    if (field.index) {
-      flags_ |= ClassFlag::kHasIndexedField;
-    }
     return AggregateType::RegisterField(field);
   }
   void Finalize() const override;
 
   std::vector<Field> ComputeAllFields() const;
+  std::vector<Field> ComputeHeaderFields() const;
+  std::vector<Field> ComputeArrayFields() const;
+  // The slots of an object are the tagged pointer sized offsets in an object
+  // that may or may not require GC visiting. These helper functions determine
+  // what kind of GC visiting the individual slots require.
+  std::vector<ObjectSlotKind> ComputeHeaderSlotKinds() const;
+  base::Optional<ObjectSlotKind> ComputeArraySlotKind() const;
+  bool HasNoPointerSlots() const;
 
   const InstanceTypeConstraints& GetInstanceTypeConstraints() const {
     return decl_->instance_type_constraints;
@@ -678,6 +715,14 @@ class ClassType final : public AggregateType {
   }
   SourcePosition GetPosition() const { return decl_->pos; }
 
+  // TODO(tebbi): We should no longer pass around types as const pointers, so
+  // that we can avoid mutable fields and const initializers for
+  // late-initialized portions of types like this one.
+  void InitializeInstanceTypes(base::Optional<int> own,
+                               base::Optional<std::pair<int, int>> range) const;
+  base::Optional<int> OwnInstanceType() const;
+  base::Optional<std::pair<int, int>> InstanceTypeRange() const;
+
  private:
   friend class TypeOracle;
   friend class TypeVisitor;
@@ -691,6 +736,8 @@ class ClassType final : public AggregateType {
   const std::string generates_;
   const ClassDeclaration* decl_;
   const TypeAlias* alias_;
+  mutable base::Optional<int> own_instance_type_;
+  mutable base::Optional<std::pair<int, int>> instance_type_range_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Type& t) {
@@ -804,6 +851,7 @@ struct Signature {
     return TypeVector(parameter_types.types.begin() + implicit_count,
                       parameter_types.types.end());
   }
+  bool HasContextParameter() const;
 };
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names);
@@ -820,6 +868,8 @@ TypeVector LowerParameterTypes(const ParameterTypes& parameter_types,
 base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type);
 bool IsAnyUnsignedInteger(const Type* type);
 bool IsAllowedAsBitField(const Type* type);
+bool IsPointerSizeIntegralType(const Type* type);
+bool Is32BitIntegralType(const Type* type);
 
 base::Optional<NameAndType> ExtractSimpleFieldArraySize(
     const ClassType& class_type, Expression* array_size);

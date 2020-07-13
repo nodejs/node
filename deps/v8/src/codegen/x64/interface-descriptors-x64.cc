@@ -285,6 +285,41 @@ void RunMicrotasksEntryDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void BinaryOp_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rdx,   // kLeft
+                          rax,   // kRight
+                          rdi,   // Slot
+                          rbx};  // kMaybeFeedbackVector
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void CallTrampoline_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rdi,   // kFunction
+                          rax,   // kActualArgumentsCount
+                          rcx,   // kSlot
+                          rbx};  // kMaybeFeedbackVector
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void Compare_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rdx,   // kLeft
+                          rax,   // kRight
+                          rdi,   // Slot
+                          rbx};  // kMaybeFeedbackVector
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void UnaryOp_WithFeedbackDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rdx,   // kValue
+                          rax,   // kSlot
+                          rdi};  // kMaybeFeedbackVector
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 }  // namespace internal
 }  // namespace v8
 

@@ -8,9 +8,9 @@
 // Test foozzie mocks for differential fuzzing.
 
 // Deterministic Math.random.
-assertEquals(0.1, Math.random());
-assertEquals(0.2, Math.random());
-assertEquals(0.3, Math.random());
+assertEquals(0.7098480789645691, Math.random());
+assertEquals(0.9742682568175951, Math.random());
+assertEquals(0.20008059867222983, Math.random());
 
 // Deterministic date.
 assertEquals(1477662728698, Date.now());
@@ -77,3 +77,15 @@ if (isBigEndian){
 else {
   testArrayType(Float64Array, [0, 1072693248]);
 }
+
+// Realm.eval is just eval.
+assertEquals(1477662728716, Realm.eval(Realm.create(), `Date.now()`));
+
+// Test suppressions when Math.pow is optimized.
+function callPow(v) {
+  return Math.pow(v, -0.5);
+}
+%PrepareFunctionForOptimization(callPow);
+const unoptimized = callPow(6996);
+%OptimizeFunctionOnNextCall(callPow);
+assertEquals(unoptimized, callPow(6996));

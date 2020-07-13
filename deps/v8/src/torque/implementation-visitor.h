@@ -432,11 +432,29 @@ class ImplementationVisitor {
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
 
+  template <typename T>
   void CheckInitializersWellformed(
-      const std::string& aggregate_name,
-      const std::vector<Field>& aggregate_fields,
+      const std::string& aggregate_name, const std::vector<T>& aggregate_fields,
       const std::vector<NameAndExpression>& initializers,
-      bool ignore_first_field = false);
+      bool ignore_first_field = false) {
+    size_t fields_offset = ignore_first_field ? 1 : 0;
+    size_t fields_size = aggregate_fields.size() - fields_offset;
+    for (size_t i = 0; i < std::min(fields_size, initializers.size()); i++) {
+      const std::string& field_name =
+          aggregate_fields[i + fields_offset].name_and_type.name;
+      Identifier* found_name = initializers[i].name;
+      if (field_name != found_name->value) {
+        Error("Expected field name \"", field_name, "\" instead of \"",
+              found_name->value, "\"")
+            .Position(found_name->pos)
+            .Throw();
+      }
+    }
+    if (fields_size != initializers.size()) {
+      ReportError("expected ", fields_size, " initializers for ",
+                  aggregate_name, " found ", initializers.size());
+    }
+  }
 
   InitializerResults VisitInitializerResults(
       const ClassType* class_type,
@@ -712,6 +730,12 @@ class ImplementationVisitor {
 
   StackRange GenerateLabelGoto(LocalLabel* label,
                                base::Optional<StackRange> arguments = {});
+
+  VisitResult GenerateSetBitField(const Type* bitfield_struct_type,
+                                  const BitField& bitfield,
+                                  VisitResult bitfield_struct,
+                                  VisitResult value,
+                                  bool starts_as_zero = false);
 
   std::vector<Binding<LocalLabel>*> LabelsFromIdentifiers(
       const std::vector<Identifier*>& names);

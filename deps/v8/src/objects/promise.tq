@@ -72,6 +72,6 @@ extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {
 extern class PromiseResolveThenableJobTask extends Microtask {
   context: Context;
   promise_to_resolve: JSPromise;
-  then: JSReceiver;
   thenable: JSReceiver;
+  then: JSReceiver;
 }

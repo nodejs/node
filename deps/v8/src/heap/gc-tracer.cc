@@ -253,11 +253,10 @@ void GCTracer::Start(GarbageCollector collector,
 
   current_.reduce_memory = heap_->ShouldReduceMemory();
   current_.start_time = start_time;
-  current_.start_object_size = heap_->SizeOfObjects();
-  current_.start_memory_size = heap_->memory_allocator()->Size();
-  current_.start_holes_size = CountTotalHolesSize(heap_);
-  current_.young_object_size =
-      heap_->new_space()->Size() + heap_->new_lo_space()->SizeOfObjects();
+  current_.start_object_size = 0;
+  current_.start_memory_size = 0;
+  current_.start_holes_size = 0;
+  current_.young_object_size = 0;
 
   current_.incremental_marking_bytes = 0;
   current_.incremental_marking_duration = 0;
@@ -281,12 +280,27 @@ void GCTracer::Start(GarbageCollector collector,
   }
 }
 
+void GCTracer::StartInSafepoint() {
+  current_.start_object_size = heap_->SizeOfObjects();
+  current_.start_memory_size = heap_->memory_allocator()->Size();
+  current_.start_holes_size = CountTotalHolesSize(heap_);
+  current_.young_object_size =
+      heap_->new_space()->Size() + heap_->new_lo_space()->SizeOfObjects();
+}
+
 void GCTracer::ResetIncrementalMarkingCounters() {
   incremental_marking_bytes_ = 0;
   incremental_marking_duration_ = 0;
   for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
     incremental_marking_scopes_[i].ResetCurrentCycle();
   }
+}
+
+void GCTracer::StopInSafepoint() {
+  current_.end_object_size = heap_->SizeOfObjects();
+  current_.end_memory_size = heap_->memory_allocator()->Size();
+  current_.end_holes_size = CountTotalHolesSize(heap_);
+  current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
 }
 
 void GCTracer::Stop(GarbageCollector collector) {
@@ -309,10 +323,6 @@ void GCTracer::Stop(GarbageCollector collector) {
            current_.type == Event::INCREMENTAL_MARK_COMPACTOR)));
 
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
-  current_.end_object_size = heap_->SizeOfObjects();
-  current_.end_memory_size = heap_->memory_allocator()->Size();
-  current_.end_holes_size = CountTotalHolesSize(heap_);
-  current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
 
   AddAllocation(current_.end_time);
 

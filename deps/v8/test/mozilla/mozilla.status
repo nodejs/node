@@ -1063,4 +1063,9 @@
   '*': [SKIP],
 }],  # variant == no_wasm_traps
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

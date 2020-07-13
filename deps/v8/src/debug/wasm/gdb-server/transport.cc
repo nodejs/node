@@ -73,8 +73,8 @@ SocketBinding SocketBinding::Bind(uint16_t tcp_port) {
   return SocketBinding(socket_handle);
 }
 
-std::unique_ptr<Transport> SocketBinding::CreateTransport() {
-  return std::make_unique<Transport>(socket_handle_);
+std::unique_ptr<SocketTransport> SocketBinding::CreateTransport() {
+  return std::make_unique<SocketTransport>(socket_handle_);
 }
 
 uint16_t SocketBinding::GetBoundPort() {
@@ -101,20 +101,20 @@ void DisableNagleAlgorithm(SocketHandle socket) {
   }
 }
 
-TransportBase::TransportBase(SocketHandle s)
+Transport::Transport(SocketHandle s)
     : buf_(new char[kBufSize]),
       pos_(0),
       size_(0),
       handle_bind_(s),
       handle_accept_(InvalidSocket) {}
 
-TransportBase::~TransportBase() {
+Transport::~Transport() {
   if (handle_accept_ != InvalidSocket) {
     CloseSocket(handle_accept_);
   }
 }
 
-void TransportBase::CopyFromBuffer(char** dst, int32_t* len) {
+void Transport::CopyFromBuffer(char** dst, int32_t* len) {
   int32_t copy_bytes = std::min(*len, size_ - pos_);
   memcpy(*dst, buf_.get() + pos_, copy_bytes);
   pos_ += copy_bytes;
@@ -122,7 +122,7 @@ void TransportBase::CopyFromBuffer(char** dst, int32_t* len) {
   *dst += copy_bytes;
 }
 
-bool TransportBase::Read(char* dst, int32_t len) {
+bool Transport::Read(char* dst, int32_t len) {
   if (pos_ < size_) {
     CopyFromBuffer(&dst, &len);
   }
@@ -137,7 +137,7 @@ bool TransportBase::Read(char* dst, int32_t len) {
   return true;
 }
 
-bool TransportBase::Write(const char* src, int32_t len) {
+bool Transport::Write(const char* src, int32_t len) {
   while (len > 0) {
     ssize_t result = ::send(handle_accept_, src, len, 0);
     if (result > 0) {
@@ -156,7 +156,7 @@ bool TransportBase::Write(const char* src, int32_t len) {
 }
 
 // Return true if there is data to read.
-bool TransportBase::IsDataAvailable() const {
+bool Transport::IsDataAvailable() const {
   if (pos_ < size_) {
     return true;
   }
@@ -180,18 +180,17 @@ bool TransportBase::IsDataAvailable() const {
   return false;
 }
 
-void TransportBase::Close() {
+void Transport::Close() {
   ::shutdown(handle_bind_, SD_BOTH);
   CloseSocket(handle_bind_);
   Disconnect();
 }
 
-void TransportBase::Disconnect() {
+void Transport::Disconnect() {
   if (handle_accept_ != InvalidSocket) {
     // Shutdown the connection in both directions.  This should
     // always succeed, and nothing we can do if this fails.
     ::shutdown(handle_accept_, SD_BOTH);
-
     CloseSocket(handle_accept_);
     handle_accept_ = InvalidSocket;
   }
@@ -199,29 +198,33 @@ void TransportBase::Disconnect() {
 
 #if _WIN32
 
-Transport::Transport(SocketHandle s) : TransportBase(s) {
+SocketTransport::SocketTransport(SocketHandle s) : Transport(s) {
   socket_event_ = WSA_INVALID_EVENT;
   faulted_thread_event_ = ::CreateEvent(NULL, TRUE, FALSE, NULL);
   if (faulted_thread_event_ == NULL) {
     TRACE_GDB_REMOTE(
-        "Transport::Transport: Failed to create event object for faulted"
-        "thread\n");
+        "SocketTransport::SocketTransport: Failed to create event object for "
+        "faulted thread\n");
   }
 }
 
-Transport::~Transport() {
+SocketTransport::~SocketTransport() {
   if (!CloseHandle(faulted_thread_event_)) {
-    TRACE_GDB_REMOTE("Transport::~Transport: Failed to close event\n");
+    TRACE_GDB_REMOTE(
+        "SocketTransport::~SocketTransport: Failed to close "
+        "event\n");
   }
 
   if (socket_event_) {
     if (!::WSACloseEvent(socket_event_)) {
-      TRACE_GDB_REMOTE("Transport::~Transport: Failed to close socket event\n");
+      TRACE_GDB_REMOTE(
+          "SocketTransport::~SocketTransport: Failed to close "
+          "socket event\n");
     }
   }
 }
 
-bool Transport::AcceptConnection() {
+bool SocketTransport::AcceptConnection() {
   CHECK(handle_accept_ == InvalidSocket);
   handle_accept_ = ::accept(handle_bind_, NULL, 0);
   if (handle_accept_ != InvalidSocket) {
@@ -231,7 +234,7 @@ bool Transport::AcceptConnection() {
     socket_event_ = ::WSACreateEvent();
     if (socket_event_ == WSA_INVALID_EVENT) {
       TRACE_GDB_REMOTE(
-          "Transport::AcceptConnection: Failed to create socket event\n");
+          "SocketTransport::AcceptConnection: Failed to create socket event\n");
     }
 
     // Listen for close events in order to handle them correctly.
@@ -241,14 +244,15 @@ bool Transport::AcceptConnection() {
     if (::WSAEventSelect(handle_accept_, socket_event_, FD_CLOSE | FD_READ) ==
         SOCKET_ERROR) {
       TRACE_GDB_REMOTE(
-          "Transport::AcceptConnection: Failed to bind event to socket\n");
+          "SocketTransport::AcceptConnection: Failed to bind event to "
+          "socket\n");
     }
     return true;
   }
   return false;
 }
 
-bool Transport::ReadSomeData() {
+bool SocketTransport::ReadSomeData() {
   while (true) {
     ssize_t result =
         ::recv(handle_accept_, buf_.get() + size_, kBufSize - size_, 0);
@@ -259,7 +263,6 @@ bool Transport::ReadSomeData() {
     if (result == 0) {
       return false;  // The connection was gracefully closed.
     }
-
     // WSAEventSelect sets socket to non-blocking mode. This is essential
     // for socket event notification to work, there is no workaround.
     // See remarks section at the page
@@ -267,11 +270,11 @@ bool Transport::ReadSomeData() {
     if (SocketGetLastError() == WSAEWOULDBLOCK) {
       if (::WaitForSingleObject(socket_event_, INFINITE) == WAIT_FAILED) {
         TRACE_GDB_REMOTE(
-            "Transport::ReadSomeData: Failed to wait on socket event\n");
+            "SocketTransport::ReadSomeData: Failed to wait on socket event\n");
       }
       if (!::ResetEvent(socket_event_)) {
         TRACE_GDB_REMOTE(
-            "Transport::ReadSomeData: Failed to reset socket event\n");
+            "SocketTransport::ReadSomeData: Failed to reset socket event\n");
       }
       continue;
     }
@@ -282,7 +285,7 @@ bool Transport::ReadSomeData() {
   }
 }
 
-void Transport::WaitForDebugStubEvent() {
+void SocketTransport::WaitForDebugStubEvent() {
   // Don't wait if we already have data to read.
   bool wait = !(pos_ < size_);
 
@@ -295,34 +298,37 @@ void Transport::WaitForDebugStubEvent() {
   if (result == WAIT_OBJECT_0 + 1) {
     if (!ResetEvent(socket_event_)) {
       TRACE_GDB_REMOTE(
-          "Transport::WaitForDebugStubEvent: Failed to reset socket event\n");
+          "SocketTransport::WaitForDebugStubEvent: Failed to reset socket "
+          "event\n");
     }
     return;
   } else if (result == WAIT_OBJECT_0) {
     if (!ResetEvent(faulted_thread_event_)) {
       TRACE_GDB_REMOTE(
-          "Transport::WaitForDebugStubEvent: Failed to reset event\n");
+          "SocketTransport::WaitForDebugStubEvent: Failed to reset event\n");
     }
     return;
   } else if (result == WAIT_TIMEOUT) {
     return;
   }
   TRACE_GDB_REMOTE(
-      "Transport::WaitForDebugStubEvent: Wait for events failed\n");
+      "SocketTransport::WaitForDebugStubEvent: Wait for events failed\n");
 }
 
-bool Transport::SignalThreadEvent() {
+bool SocketTransport::SignalThreadEvent() {
   if (!SetEvent(faulted_thread_event_)) {
     return false;
   }
   return true;
 }
 
-void Transport::Disconnect() {
-  TransportBase::Disconnect();
+void SocketTransport::Disconnect() {
+  Transport::Disconnect();
 
   if (socket_event_ != WSA_INVALID_EVENT && !::WSACloseEvent(socket_event_)) {
-    TRACE_GDB_REMOTE("Transport::~Transport: Failed to close socket event\n");
+    TRACE_GDB_REMOTE(
+        "SocketTransport::~SocketTransport: Failed to close "
+        "socket event\n");
   }
   socket_event_ = WSA_INVALID_EVENT;
   SignalThreadEvent();
@@ -330,7 +336,7 @@ void Transport::Disconnect() {
 
 #else  // _WIN32
 
-Transport::Transport(SocketHandle s) : TransportBase(s) {
+SocketTransport::SocketTransport(SocketHandle s) : Transport(s) {
   int fds[2];
 #if defined(__linux__)
   int ret = pipe2(fds, O_CLOEXEC);
@@ -339,22 +345,27 @@ Transport::Transport(SocketHandle s) : TransportBase(s) {
 #endif
   if (ret < 0) {
     TRACE_GDB_REMOTE(
-        "Transport::Transport: Failed to allocate pipe for faulted thread\n");
+        "SocketTransport::SocketTransport: Failed to allocate pipe for faulted "
+        "thread\n");
   }
   faulted_thread_fd_read_ = fds[0];
   faulted_thread_fd_write_ = fds[1];
 }
 
-Transport::~Transport() {
+SocketTransport::~SocketTransport() {
   if (close(faulted_thread_fd_read_) != 0) {
-    TRACE_GDB_REMOTE("Transport::~Transport: Failed to close event\n");
+    TRACE_GDB_REMOTE(
+        "SocketTransport::~SocketTransport: Failed to close "
+        "event\n");
   }
   if (close(faulted_thread_fd_write_) != 0) {
-    TRACE_GDB_REMOTE("Transport::~Transport: Failed to close event\n");
+    TRACE_GDB_REMOTE(
+        "SocketTransport::~SocketTransport: Failed to close "
+        "event\n");
   }
 }
 
-bool Transport::AcceptConnection() {
+bool SocketTransport::AcceptConnection() {
   CHECK(handle_accept_ == InvalidSocket);
   handle_accept_ = ::accept(handle_bind_, NULL, 0);
   if (handle_accept_ != InvalidSocket) {
@@ -364,7 +375,7 @@ bool Transport::AcceptConnection() {
   return false;
 }
 
-bool Transport::ReadSomeData() {
+bool SocketTransport::ReadSomeData() {
   while (true) {
     ssize_t result =
         ::recv(handle_accept_, buf_.get() + size_, kBufSize - size_, 0);
@@ -381,7 +392,7 @@ bool Transport::ReadSomeData() {
   }
 }
 
-void Transport::WaitForDebugStubEvent() {
+void SocketTransport::WaitForDebugStubEvent() {
   // Don't wait if we already have data to read.
   bool wait = !(pos_ < size_);
 
@@ -407,7 +418,7 @@ void Transport::WaitForDebugStubEvent() {
   }
   if (ret < 0) {
     TRACE_GDB_REMOTE(
-        "Transport::WaitForDebugStubEvent: Failed to wait for "
+        "SocketTransport::WaitForDebugStubEvent: Failed to wait for "
         "debug stub event\n");
   }
 
@@ -416,7 +427,7 @@ void Transport::WaitForDebugStubEvent() {
       char buf[16];
       if (read(faulted_thread_fd_read_, &buf, sizeof(buf)) < 0) {
         TRACE_GDB_REMOTE(
-            "Transport::WaitForDebugStubEvent: Failed to read from "
+            "SocketTransport::WaitForDebugStubEvent: Failed to read from "
             "debug stub event pipe fd\n");
       }
     }
@@ -424,11 +435,13 @@ void Transport::WaitForDebugStubEvent() {
   }
 }
 
-bool Transport::SignalThreadEvent() {
+bool SocketTransport::SignalThreadEvent() {
   // Notify the debug stub by marking the thread as faulted.
   char buf = 0;
   if (write(faulted_thread_fd_write_, &buf, sizeof(buf)) != sizeof(buf)) {
-    TRACE_GDB_REMOTE("SignalThreadEvent: Can't send debug stub event\n");
+    TRACE_GDB_REMOTE(
+        "SocketTransport:SignalThreadEvent: Can't send debug stub "
+        "event\n");
     return false;
   }
   return true;

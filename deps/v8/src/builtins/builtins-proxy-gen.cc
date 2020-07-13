@@ -76,8 +76,7 @@ TNode<JSFunction> ProxiesCodeStubAssembler::AllocateProxyRevokeFunction(
       CreateProxyRevokeFunctionContext(proxy, native_context);
   const TNode<Map> revoke_map = CAST(LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> revoke_info = CAST(
-      LoadContextElement(native_context, Context::PROXY_REVOKE_SHARED_FUN));
+  const TNode<SharedFunctionInfo> revoke_info = ProxyRevokeSharedFunConstant();
 
   return AllocateFunctionWithMapAndContext(revoke_map, revoke_info,
                                            proxy_context);

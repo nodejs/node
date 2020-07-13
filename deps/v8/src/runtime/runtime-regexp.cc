@@ -938,8 +938,8 @@ class MatchInfoBackedMatch : public String::Match {
         *capture_name_map_);
 
     if (capture_index == -1) {
-      *state = INVALID;
-      return name;  // Arbitrary string handle.
+      *state = UNMATCHED;
+      return isolate_->factory()->empty_string();
     }
 
     DCHECK(1 <= capture_index && capture_index <= CaptureCount());
@@ -1014,15 +1014,6 @@ class VectorBackedMatch : public String::Match {
   MaybeHandle<String> GetNamedCapture(Handle<String> name,
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
-
-    Maybe<bool> maybe_capture_exists =
-        JSReceiver::HasProperty(groups_obj_, name);
-    if (maybe_capture_exists.IsNothing()) return MaybeHandle<String>();
-
-    if (!maybe_capture_exists.FromJust()) {
-      *state = INVALID;
-      return name;  // Arbitrary string handle.
-    }
 
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
@@ -1109,7 +1100,7 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
         isolate->heap(), *subject, regexp->data(), &last_match_cache,
         RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     if (cached_answer.IsFixedArray()) {
-      int capture_registers = (capture_count + 1) * 2;
+      int capture_registers = JSRegExp::RegistersForCaptureCount(capture_count);
       int32_t* last_match = NewArray<int32_t>(capture_registers);
       for (int i = 0; i < capture_registers; i++) {
         last_match[i] = Smi::ToInt(last_match_cache.get(i));
@@ -1234,8 +1225,7 @@ static Object SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
     if (subject_length > kMinLengthToCache) {
       // Store the last successful match into the array for caching.
-      // TODO(yangguo): do not expose last match to JS and simplify caching.
-      int capture_registers = (capture_count + 1) * 2;
+      int capture_registers = JSRegExp::RegistersForCaptureCount(capture_count);
       Handle<FixedArray> last_match_cache =
           isolate->factory()->NewFixedArray(capture_registers);
       int32_t* last_match = global_cache.LastSuccessfulMatch();

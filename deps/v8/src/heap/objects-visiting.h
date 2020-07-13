@@ -9,6 +9,7 @@
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
 #include "src/objects/visitors.h"
+#include "torque-generated/field-offsets-tq.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +22,6 @@ namespace internal {
   V(Cell)                              \
   V(Code)                              \
   V(CodeDataContainer)                 \
-  V(ConsString)                        \
   V(Context)                           \
   V(CoverageInfo)                      \
   V(DataHandler)                       \
@@ -31,7 +31,6 @@ namespace internal {
   V(FeedbackCell)                      \
   V(FeedbackMetadata)                  \
   V(FeedbackVector)                    \
-  V(FixedArray)                        \
   V(FixedDoubleArray)                  \
   V(JSArrayBuffer)                     \
   V(JSDataView)                        \
@@ -48,23 +47,21 @@ namespace internal {
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \
-  V(SeqOneByteString)                  \
-  V(SeqTwoByteString)                  \
   V(SharedFunctionInfo)                \
-  V(SlicedString)                      \
   V(SmallOrderedHashMap)               \
   V(SmallOrderedHashSet)               \
   V(SmallOrderedNameDictionary)        \
   V(SourceTextModule)                  \
   V(Symbol)                            \
   V(SyntheticModule)                   \
-  V(ThinString)                        \
   V(TransitionArray)                   \
   V(UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData)    \
+  V(WasmArray)                         \
   V(WasmCapiFunctionData)              \
   V(WasmIndirectFunctionTable)         \
-  V(WasmInstanceObject)
+  V(WasmInstanceObject)                \
+  V(WasmStruct)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
@@ -112,7 +109,6 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType VisitJSApiObject(Map map, JSObject object);
   V8_INLINE ResultType VisitStruct(Map map, HeapObject object);
   V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace object);
-  V8_INLINE ResultType VisitWeakArray(Map map, HeapObject object);
 
   template <typename T>
   static V8_INLINE T Cast(HeapObject object);

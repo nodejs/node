@@ -263,7 +263,6 @@ extras_accessors = [
     'ExternalString, resource, Object, kResourceOffset',
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
-    'UncompiledData, inferred_name, String, kInferredNameOffset',
     'UncompiledData, start_position, int32_t, kStartPositionOffset',
     'UncompiledData, end_position, int32_t, kEndPositionOffset',
     'SharedFunctionInfo, raw_function_token_offset, int16_t, kFunctionTokenOffsetOffset',

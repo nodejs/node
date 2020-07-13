@@ -10,9 +10,9 @@ snippet: "
   var x, a = [0,1,2,3];
   [x] = a;
 "
-frame size: 14
+frame size: 13
 parameter count: 1
-bytecode array length: 166
+bytecode array length: 146
 bytecodes: [
   /*   45 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(1),
@@ -55,29 +55,21 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(8),
                 B(Ldar), R(5),
-                B(JumpIfToBooleanTrue), U8(58),
+                B(JumpIfToBooleanTrue), U8(38),
+                B(Mov), R(context), R(10),
                 B(LdaNamedProperty), R(4), U8(4), U8(13),
-                B(Star), R(10),
-                B(JumpIfUndefinedOrNull), U8(50),
-                B(Mov), R(context), R(11),
-                B(TestTypeOf), U8(6),
-                B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(160),
-                B(Star), R(12),
-                B(LdaConstant), U8(5),
-                B(Star), R(13),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(12), U8(2),
-                B(Throw),
-                B(CallProperty0), R(10), R(4), U8(15),
+                B(JumpIfUndefinedOrNull), U8(29),
+                B(Star), R(11),
+                B(CallProperty0), R(11), R(4), U8(15),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(12),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
                 B(Jump), U8(12),
-                B(Star), R(11),
+                B(Star), R(10),
                 B(LdaZero),
                 B(TestReferenceEqual), R(6),
                 B(JumpIfTrue), U8(5),
-                B(Ldar), R(11),
+                B(Ldar), R(10),
                 B(ReThrow),
                 B(Ldar), R(8),
                 B(SetPendingMessage),
@@ -95,11 +87,10 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
   [34, 76, 84],
-  [108, 141, 143],
+  [100, 121, 123],
 ]
 
 ---
@@ -107,9 +98,9 @@ snippet: "
   var x, y, a = [0,1,2,3];
   [,x,...y] = a;
 "
-frame size: 15
+frame size: 14
 parameter count: 1
-bytecode array length: 252
+bytecode array length: 232
 bytecodes: [
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star), R(2),
@@ -186,29 +177,21 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(9),
                 B(Ldar), R(6),
-                B(JumpIfToBooleanTrue), U8(58),
+                B(JumpIfToBooleanTrue), U8(38),
+                B(Mov), R(context), R(11),
                 B(LdaNamedProperty), R(5), U8(4), U8(23),
-                B(Star), R(11),
-                B(JumpIfUndefinedOrNull), U8(50),
-                B(Mov), R(context), R(12),
-                B(TestTypeOf), U8(6),
-                B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(160),
-                B(Star), R(13),
-                B(LdaConstant), U8(5),
-                B(Star), R(14),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(13), U8(2),
-                B(Throw),
-                B(CallProperty0), R(11), R(5), U8(25),
+                B(JumpIfUndefinedOrNull), U8(29),
+                B(Star), R(12),
+                B(CallProperty0), R(12), R(5), U8(25),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(13),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(13), U8(1),
                 B(Jump), U8(12),
-                B(Star), R(12),
+                B(Star), R(11),
                 B(LdaZero),
                 B(TestReferenceEqual), R(7),
                 B(JumpIfTrue), U8(5),
-                B(Ldar), R(12),
+                B(Ldar), R(11),
                 B(ReThrow),
                 B(Ldar), R(9),
                 B(SetPendingMessage),
@@ -226,11 +209,10 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
   [34, 162, 170],
-  [194, 227, 229],
+  [186, 207, 209],
 ]
 
 ---
@@ -238,9 +220,9 @@ snippet: "
   var x={}, y, a = [0];
   [x.foo,y=4] = a;
 "
-frame size: 16
+frame size: 15
 parameter count: 1
-bytecode array length: 217
+bytecode array length: 197
 bytecodes: [
   /*   40 S> */ B(CreateEmptyObjectLiteral),
                 B(Star), R(0),
@@ -304,29 +286,21 @@ bytecodes: [
                 B(SetPendingMessage),
                 B(Star), R(9),
                 B(Ldar), R(6),
-                B(JumpIfToBooleanTrue), U8(58),
+                B(JumpIfToBooleanTrue), U8(38),
+                B(Mov), R(context), R(12),
                 B(LdaNamedProperty), R(5), U8(5), U8(17),
-                B(Star), R(12),
-                B(JumpIfUndefinedOrNull), U8(50),
-                B(Mov), R(context), R(13),
-                B(TestTypeOf), U8(6),
-                B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(160),
-                B(Star), R(14),
-                B(LdaConstant), U8(6),
-                B(Star), R(15),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(14), U8(2),
-                B(Throw),
-                B(CallProperty0), R(12), R(5), U8(19),
+                B(JumpIfUndefinedOrNull), U8(29),
+                B(Star), R(13),
+                B(CallProperty0), R(13), R(5), U8(19),
                 B(JumpIfJSReceiver), U8(21),
                 B(Star), R(14),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(14), U8(1),
                 B(Jump), U8(12),
-                B(Star), R(13),
+                B(Star), R(12),
                 B(LdaZero),
                 B(TestReferenceEqual), R(7),
                 B(JumpIfTrue), U8(5),
-                B(Ldar), R(13),
+                B(Ldar), R(12),
                 B(ReThrow),
                 B(Ldar), R(9),
                 B(SetPendingMessage),
@@ -345,11 +319,10 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["foo"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
   [37, 127, 135],
-  [159, 192, 194],
+  [151, 172, 174],
 ]
 
 ---

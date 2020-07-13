@@ -67,9 +67,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual void IfRegisterEqPos(int reg, Label* if_eq);
   virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
-                                        bool check_bounds, int characters,
-                                        int eats_at_least);
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset,
+                                             int character_count);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
@@ -132,10 +131,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
   // Initial size of code buffer.
   static const int kRegExpCodeSize = 1024;
-
-  // Load a number of characters at the given offset from the
-  // current position, into the current-character register.
-  void LoadCurrentCharacterUnchecked(int cp_offset, int character_count);
 
   // Check whether preemption has been requested.
   void CheckPreemption();

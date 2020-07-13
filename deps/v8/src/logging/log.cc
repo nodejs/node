@@ -19,6 +19,7 @@
 #include "src/execution/runtime-profiler.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
+#include "src/heap/combined-heap.h"
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
@@ -87,8 +88,6 @@ static const char* ComputeMarker(const wasm::WasmCode* code) {
   switch (code->kind()) {
     case wasm::WasmCode::kFunction:
       return code->is_liftoff() ? "" : "*";
-    case wasm::WasmCode::kInterpreterEntry:
-      return "~";
     default:
       return "";
   }
@@ -1838,7 +1837,7 @@ void Logger::LogAccessorCallbacks() {
 void Logger::LogAllMaps() {
   DisallowHeapAllocation no_gc;
   Heap* heap = isolate_->heap();
-  HeapObjectIterator iterator(heap);
+  CombinedHeapObjectIterator iterator(heap);
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (!obj.IsMap()) continue;
@@ -2067,10 +2066,6 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       break;
     case AbstractCode::WASM_TO_JS_FUNCTION:
       description = "A Wasm to JavaScript adapter";
-      tag = CodeEventListener::STUB_TAG;
-      break;
-    case AbstractCode::WASM_INTERPRETER_ENTRY:
-      description = "A Wasm to Interpreter adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
     case AbstractCode::C_WASM_ENTRY:

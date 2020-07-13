@@ -79,6 +79,12 @@ struct UintPtrT : WordT {
   static constexpr MachineType kMachineType = MachineType::UintPtr();
 };
 
+struct ExternalPointerT : UntaggedT {
+  static const MachineRepresentation kMachineRepresentation =
+      MachineType::PointerRepresentation();
+  static constexpr MachineType kMachineType = MachineType::Pointer();
+};
+
 struct Float32T : UntaggedT {
   static const MachineRepresentation kMachineRepresentation =
       MachineRepresentation::kFloat32;

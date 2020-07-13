@@ -10,15 +10,17 @@ extern class String extends Name {
 }
 
 @generateCppClass
+@generateBodyDescriptor
 extern class ConsString extends String {
   first: String;
   second: String;
 }
 
 @abstract
+@generateBodyDescriptor
 extern class ExternalString extends String {
-  resource: RawPtr;
-  resource_data: RawPtr;
+  resource: ExternalPointer;
+  resource_data: ExternalPointer;
 }
 
 extern class ExternalOneByteString extends ExternalString {}
@@ -28,27 +30,30 @@ extern class ExternalTwoByteString extends ExternalString {}
 extern class InternalizedString extends String {
 }
 
-// TODO(v8:8983): Add declaration for variable-sized region.
 @abstract
 @generateCppClass
 extern class SeqString extends String {
 }
 @generateCppClass
+@generateBodyDescriptor
 extern class SeqOneByteString extends SeqString {
   chars[length]: char8;
 }
 @generateCppClass
+@generateBodyDescriptor
 extern class SeqTwoByteString extends SeqString {
   chars[length]: char16;
 }
 
 @generateCppClass
+@generateBodyDescriptor
 extern class SlicedString extends String {
   parent: String;
   offset: Smi;
 }
 
 @generateCppClass
+@generateBodyDescriptor
 extern class ThinString extends String {
   actual: String;
 }

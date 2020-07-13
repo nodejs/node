@@ -493,18 +493,33 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
 
 namespace {
 
-struct CheckColl {
-  static const char* key() { return nullptr; }
+class CollatorAvailableLocales {
+ public:
+  CollatorAvailableLocales() {
+    int32_t num_locales = 0;
+    const icu::Locale* icu_available_locales =
+        icu::Collator::getAvailableLocales(num_locales);
+    std::vector<std::string> locales;
+    for (int32_t i = 0; i < num_locales; ++i) {
+      locales.push_back(
+          Intl::ToLanguageTag(icu_available_locales[i]).FromJust());
+    }
 #define U_ICUDATA_COLL U_ICUDATA_NAME U_TREE_SEPARATOR_STRING "coll"
-  static const char* path() { return U_ICUDATA_COLL; }
+    set_ = Intl::BuildLocaleSet(locales, U_ICUDATA_COLL, nullptr);
 #undef U_ICUDATA_COLL
+  }
+  virtual ~CollatorAvailableLocales() {}
+  const std::set<std::string>& Get() const { return set_; }
+
+ private:
+  std::set<std::string> set_;
 };
 
 }  // namespace
 
 const std::set<std::string>& JSCollator::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::Collator, CheckColl>>::
-      type available_locales = LAZY_INSTANCE_INITIALIZER;
+  static base::LazyInstance<CollatorAvailableLocales>::type available_locales =
+      LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }
 
