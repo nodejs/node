@@ -240,18 +240,24 @@ from version 3 with some additions. This means that it is not necessary
 to recompile for new versions of Node.js which are
 listed as supporting a later version.
 
-|       | 1       | 2        | 3        | 4        | 5         | 6         |
-|-------|---------|----------|----------|----------|-----------|-----------|
-| v6.x  |         |          | v6.14.2* |          |           |           |
-| v8.x  | v8.0.0* | v8.10.0* | v8.11.2  | v8.16.0  |           |           |
-| v9.x  | v9.0.0* | v9.3.0*  | v9.11.0* |          |           |           |
-| v10.x | v10.0.0 | v10.0.0  | v10.0.0  | v10.16.0 | v10.17.0  | v10.20.0  |
-| v11.x | v11.0.0 | v11.0.0  | v11.0.0  | v11.8.0  |           |           |
-| v12.x | v12.0.0 | v12.0.0  | v12.0.0  | v12.0.0  | v12.11.0  | v12.17.0  |
-| v13.x | v13.0.0 | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0   |           |
-| v14.x | v14.0.0 | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0   | v14.0.0   |
+|       | 1        | 2        | 3        | 4        | 5         | 6         |
+|-------|----------|----------|----------|----------|-----------|-----------|
+| v6.x  |          |          | v6.14.2* |          |           |           |
+| v8.x  | v8.6.0** | v8.10.0* | v8.11.2  | v8.16.0  |           |           |
+| v9.x  | v9.0.0*  | v9.3.0*  | v9.11.0* |          |           |           |
+| v10.x | v10.0.0  | v10.0.0  | v10.0.0  | v10.16.0 | v10.17.0  | v10.20.0  |
+| v11.x | v11.0.0  | v11.0.0  | v11.0.0  | v11.8.0  |           |           |
+| v12.x | v12.0.0  | v12.0.0  | v12.0.0  | v12.0.0  | v12.11.0  | v12.17.0  |
+| v13.x | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0   |           |
+| v14.x | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0   | v14.0.0   |
 
 \* Indicates that the N-API version was released as experimental
+
+\*\* First version which matches version 1 in later releases. While v8.0.0
+included N-API as experimental, version 1 continued to evolve until
+v8.6.0 and therefore the shape of the API in earlier versions is not
+truly version 1 (in hindsight we should have called it version 0).
+We recommend version 3 or later.
 
 The N-APIs associated strictly with accessing ECMAScript features from native
 code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
