@@ -64,6 +64,18 @@ If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `domain` module that uses it).
 
+### `--allowed-module-location`
+<!-- YAML
+added: REPLACE_ME
+-->
+
+Only allow loading modules from given path. Can be used multiple times to set
+multiple allowed module locations.
+
+If set, before loading any module Node.js will first check if given module is
+inside any of the allowed directories (including sub-directories). If not it
+will throw [`ERR_MODULE_BLOCKED`][] error.
+
 ### `--completion-bash`
 <!-- YAML
 added: v10.12.0
@@ -1222,6 +1234,7 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
+* `--allowed-module-location`
 * `--disable-proto`
 * `--enable-fips`
 * `--enable-source-maps`
@@ -1567,6 +1580,7 @@ $ node --max-old-space-size=1536 index.js
 [`unhandledRejection`]: process.html#process_event_unhandledrejection
 [`worker_threads.threadId`]: worker_threads.html##worker_threads_worker_threadid
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
+[`ERR_MODULE_BLOCKED`]: errors.html#err_module_blocked
 [REPL]: repl.html
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [Source Map]: https://sourcemaps.info/spec.html

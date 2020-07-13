@@ -384,6 +384,10 @@ either be a core module or is loaded from a `node_modules` folder.
 If the given path does not exist, `require()` will throw an [`Error`][] with its
 `code` property set to `'MODULE_NOT_FOUND'`.
 
+If [`--allowed-module-location`][] was used and the given file is not inside
+one of the allowed module locations, `require()` will throw an
+[`ERR_MODULE_BLOCKED`][] error.
+
 ## Folders as modules
 
 <!--type=misc-->
@@ -1137,6 +1141,7 @@ consists of the following keys:
 * originalLine: {number}
 * originalColumn: {number}
 
+[`--allowed-module-location`]: cli.html#allowed_module_location
 [GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [`Error`]: errors.html#errors_class_error
 [`__dirname`]: #modules_dirname
@@ -1147,6 +1152,7 @@ consists of the following keys:
 [`module.children`]: #modules_module_children
 [`path.dirname()`]: path.html#path_path_dirname_path
 [ECMAScript Modules]: esm.html
+[`ERR_MODULE_BLOCKED`]: errors.html#err_module_blocked
 [an error]: errors.html#errors_err_require_esm
 [exports shortcut]: #modules_exports_shortcut
 [module resolution]: #modules_all_together

@@ -538,6 +538,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
             &EnvironmentOptions::tls_max_v1_3,
             kAllowedInEnvironment);
+
+  AddOption("--allowed-module-location",
+            "set allowed locations from which modules can be loaded (option can be repeated)",
+            &EnvironmentOptions::allowed_module_locations,
+            kAllowedInEnvironment);
 }
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(

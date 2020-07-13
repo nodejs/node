@@ -169,6 +169,8 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_modules;
 
+  std::vector<std::string> allowed_module_locations;
+
   std::vector<std::string> user_argv;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }

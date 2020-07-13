@@ -1641,6 +1641,12 @@ The V8 platform used by this instance of Node.js does not support creating
 Workers. This is caused by lack of embedder support for Workers. In particular,
 this error will not occur with standard builds of Node.js.
 
+<a id="ERR_MODULE_BLOCKED"></a>
+### `ERR_MODULE_BLOCKED`
+
+Module was found but loading was blocked because module path was not included in
+the [`--allowed-module-location`][] option.
+
 <a id="ERR_MODULE_NOT_FOUND"></a>
 ### `ERR_MODULE_NOT_FOUND`
 
@@ -2545,6 +2551,7 @@ Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
 [`'uncaughtException'`]: process.html#process_event_uncaughtexception
+[`--allowed-module-location`]: cli.html#allowed_module_location
 [`--disable-proto=throw`]: cli.html#cli_disable_proto_mode
 [`--force-fips`]: cli.html#cli_force_fips
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
