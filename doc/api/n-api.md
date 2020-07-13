@@ -252,7 +252,8 @@ listed as supporting a later version.
 | v14.x | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0   | v14.0.0   |
 
 \* Indicates that the N-API version was released as experimental
-\** First version which matches version 1 in later releases. While v8.0.0
+
+\*\* First version which matches version 1 in later releases. While v8.0.0
  included N-API as experimental, version 1 continued to evolve until
 v8.7.0 and therefore the shape of the API in earlier versions is not
 trully version 1 (in hindsight we should have called it version 0). The
