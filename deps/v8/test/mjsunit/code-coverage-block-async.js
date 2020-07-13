@@ -136,8 +136,6 @@ test().then(r => r.bar());                // 0350
  {"start":152,"end":253,"count":1},
  {"start":362,"end":374,"count":1}]);
 
-// Documents the open bug that causes trailing space after `finally`
-// not to be removed by SourceRangeAstVisitor.
 TestCoverage(
 "https://crbug.com/v8/10628",
 `
@@ -152,7 +150,52 @@ abc();                                    // 0350
 %PerformMicrotaskCheckpoint();            // 0400
 `,
 [{"start":0,"end":449,"count":1},
- {"start":0,"end":301,"count":1},
- {"start":252,"end":300,"count":0}]);
+ {"start":0,"end":301,"count":1}]);
+
+TestCoverage(
+"try/catch/finally statements async",
+`
+!async function() {                       // 0000
+  try { nop(); } catch (e) { nop(); }     // 0050
+  try { nop(); } finally { nop(); }       // 0100
+  try {                                   // 0150
+    try { throw 42; } catch (e) { nop(); }// 0200
+  } catch (e) { nop(); }                  // 0250
+  try {                                   // 0300
+    try { throw 42; } finally { nop(); }  // 0350
+  } catch (e) { nop(); }                  // 0400
+  try {                                   // 0450
+    throw 42;                             // 0500
+  } catch (e) {                           // 0550
+    nop();                                // 0600
+  } finally {                             // 0650
+    nop();                                // 0700
+  }                                       // 0750
+}();                                      // 0800
+`,
+[{"start":0,"end":849,"count":1},
+  {"start":1,"end":801,"count":1},
+  {"start":67,"end":87,"count":0},
+  {"start":254,"end":274,"count":0}]
+);
+
+TestCoverage("try/catch/finally statements with early return async",
+`
+!async function() {                       // 0000
+  try { throw 42; } catch (e) { return; } // 0050
+  nop();                                  // 0100
+}();                                      // 0150
+!async function() {                       // 0200
+  try { throw 42; } catch (e) {}          // 0250
+  finally { return; }                     // 0300
+  nop();                                  // 0350
+}();                                      // 0400
+`,
+[{"start":0,"end":449,"count":1},
+  {"start":1,"end":151,"count":1},
+  {"start":91,"end":150,"count":0},
+  {"start":201,"end":401,"count":1},
+  {"start":321,"end":400,"count":0}]
+);
 
 %DebugToggleBlockCoverage(false);
