@@ -856,6 +856,18 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
     env->SetImmediate(&DestroyAsyncIdsCallback, CallbackFlags::kUnrefed);
   }
 
+  // If the list gets very large empty it faster using a Microtask.
+  // Microtasks can't be added in GC context therefore we use an
+  // interrupt to get this Microtask scheduled as fast as possible.
+  if (env->destroy_async_id_list()->size() == 16384) {
+    env->RequestInterrupt([](Environment* env) {
+      env->isolate()->EnqueueMicrotask(
+        [](void* arg) {
+          DestroyAsyncIdsCallback(static_cast<Environment*>(arg));
+        }, env);
+      });
+  }
+
   env->destroy_async_id_list()->push_back(async_id);
 }
 
