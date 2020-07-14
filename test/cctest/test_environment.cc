@@ -533,3 +533,29 @@ TEST_F(EnvironmentTest, ExitHandlerTest) {
   node::LoadEnvironment(*env, "process.exit(42)").ToLocalChecked();
   EXPECT_EQ(callback_calls, 1);
 }
+
+TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
+  int called = 0;
+
+  {
+    const v8::HandleScope handle_scope(isolate_);
+    const Argv argv;
+    Env env {handle_scope, argv};
+
+    node::LoadEnvironment(*env,
+                          [&](const node::StartExecutionCallbackInfo& info)
+                              -> v8::MaybeLocal<v8::Value> {
+      return v8::Object::New(isolate_);
+    });
+
+    (*env)->SetImmediate([&](node::Environment* env_arg) {
+      EXPECT_EQ(env_arg, *env);
+      isolate_->EnqueueMicrotask([](void* arg) {
+        ++*static_cast<int*>(arg);
+      }, &called);
+    }, node::CallbackFlags::kRefed);
+    uv_run(&current_loop, UV_RUN_DEFAULT);
+  }
+
+  EXPECT_EQ(called, 1);
+}
