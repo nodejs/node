@@ -57,14 +57,15 @@ server.on('close', common.mustCall(() => {
     port: server.endpoints[0].address.port,
   });
 
-  const stream = req.openStream();
-  stream.end('hello');
-  stream.resume();
-  stream.on('close', common.mustCall());
-
   req.on('close', common.mustCall(() => {
     assert.strictEqual(req.statelessReset, true);
     server.close();
     client.close();
   }));
+
+  const stream = await req.openStream();
+  stream.end('hello');
+  stream.resume();
+  stream.on('close', common.mustCall());
+
 })().then(common.mustCall());

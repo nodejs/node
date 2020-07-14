@@ -15,18 +15,16 @@ const server = createQuicSocket({ server: options });
 const client = createQuicSocket({ client: options });
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall((servername, alpn, cipher) => {
-      const stream = session.openStream({ halfOpen: false });
+  server.on('session', common.mustCall(async (session) => {
+    const stream = await session.openStream({ halfOpen: false });
 
-      fs.open = common.mustCall(fs.open);
-      fs.close = common.mustCall(fs.close);
+    fs.open = common.mustCall(fs.open);
+    fs.close = common.mustCall(fs.close);
 
-      stream.sendFile(__filename);
-      stream.destroy();  // Destroy the stream before opening the fd finishes.
+    stream.sendFile(__filename);
+    stream.destroy();  // Destroy the stream before opening the fd finishes.
 
-      session.close();
-    }));
+    session.close();
 
     session.on('close', common.mustCall());
   }));

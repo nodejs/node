@@ -41,34 +41,33 @@ const countdown = new Countdown(4, () => {
 const closeHandler = common.mustCall(() => countdown.dec(), 4);
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall(() => {
-      ([3, 1n, [], {}, null, 'meow']).forEach((halfOpen) => {
-        assert.throws(() => session.openStream({ halfOpen }), {
-          code: 'ERR_INVALID_ARG_TYPE',
+  server.on('session', common.mustCall(async (session) => {
+    ([3, 1n, [], {}, null, 'meow']).forEach((halfOpen) => {
+      assert.rejects(
+        session.openStream({ halfOpen }), {
+          code: 'ERR_INVALID_ARG_TYPE'
         });
-      });
+    });
 
-      const uni = session.openStream({ halfOpen: true });
-      uni.end('test');
+    const uni = await session.openStream({ halfOpen: true });
+    uni.end('test');
 
-      const bidi = session.openStream();
-      bidi.end('test');
-      bidi.resume();
-      bidi.on('end', common.mustCall());
+    const bidi = await session.openStream();
+    bidi.end('test');
+    bidi.resume();
+    bidi.on('end', common.mustCall());
 
-      assert.strictEqual(uni.id, 3);
-      assert(uni.unidirectional);
-      assert(uni.serverInitiated);
-      assert(!uni.bidirectional);
-      assert(!uni.clientInitiated);
+    assert.strictEqual(uni.id, 3);
+    assert(uni.unidirectional);
+    assert(uni.serverInitiated);
+    assert(!uni.bidirectional);
+    assert(!uni.clientInitiated);
 
-      assert.strictEqual(bidi.id, 1);
-      assert(bidi.bidirectional);
-      assert(bidi.serverInitiated);
-      assert(!bidi.unidirectional);
-      assert(!bidi.clientInitiated);
-    }));
+    assert.strictEqual(bidi.id, 1);
+    assert(bidi.bidirectional);
+    assert(bidi.serverInitiated);
+    assert(!bidi.unidirectional);
+    assert(!bidi.clientInitiated);
 
     session.on('stream', common.mustCall((stream) => {
       assert(stream.clientInitiated);
@@ -96,28 +95,26 @@ const closeHandler = common.mustCall(() => countdown.dec(), 4);
     port: server.endpoints[0].address.port,
   });
 
-  req.on('secure', common.mustCall(() => {
-    const bidi = req.openStream();
-    bidi.end('test');
-    bidi.resume();
-    bidi.on('close', closeHandler);
-    assert.strictEqual(bidi.id, 0);
+  const bidi = await req.openStream();
+  bidi.end('test');
+  bidi.resume();
+  bidi.on('close', closeHandler);
+  assert.strictEqual(bidi.id, 0);
 
-    assert(bidi.clientInitiated);
-    assert(bidi.bidirectional);
-    assert(!bidi.serverInitiated);
-    assert(!bidi.unidirectional);
+  assert(bidi.clientInitiated);
+  assert(bidi.bidirectional);
+  assert(!bidi.serverInitiated);
+  assert(!bidi.unidirectional);
 
-    const uni = req.openStream({ halfOpen: true });
-    uni.end('test');
-    uni.on('close', closeHandler);
-    assert.strictEqual(uni.id, 2);
+  const uni = await req.openStream({ halfOpen: true });
+  uni.end('test');
+  uni.on('close', closeHandler);
+  assert.strictEqual(uni.id, 2);
 
-    assert(uni.clientInitiated);
-    assert(!uni.bidirectional);
-    assert(!uni.serverInitiated);
-    assert(uni.unidirectional);
-  }));
+  assert(uni.clientInitiated);
+  assert(!uni.bidirectional);
+  assert(!uni.serverInitiated);
+  assert(uni.unidirectional);
 
   req.on('stream', common.mustCall((stream) => {
     assert(stream.serverInitiated);

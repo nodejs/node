@@ -44,11 +44,9 @@ async function connect(server, client) {
   for (let i = 0; i < kCount; i++) {
     const server = createQuicSocket({ server: options });
 
-    server.on('session', common.mustCall((session) => {
-      session.on('secure', common.mustCall(() => {
-        const stream = session.openStream({ halfOpen: true });
-        stream.end('Hi!');
-      }));
+    server.on('session', common.mustCall(async (session) => {
+      const stream = await session.openStream({ halfOpen: true });
+      stream.end('Hi!');
     }));
 
     server.on('close', common.mustCall());

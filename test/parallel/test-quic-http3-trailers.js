@@ -70,27 +70,25 @@ const countdown = new Countdown(1, () => {
 
   req.on('close', common.mustCall());
 
-  const stream = req.openStream();
+  const stream = await req.openStream();
 
   stream.on('trailingHeaders', common.mustCall((headers) => {
     const expected = [ [ 'a', '1' ] ];
     assert.deepStrictEqual(expected, headers);
   }));
 
-  stream.on('ready', common.mustCall(() => {
-    assert(stream.submitInitialHeaders({
-      ':method': 'POST',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      ':path': '/',
-    }));
-
-    stream.submitTrailingHeaders({ 'b': 2 });
-    stream.end('hello world');
-    stream.resume();
-    stream.on('finish', common.mustCall());
-    stream.on('end', common.mustCall());
+  assert(stream.submitInitialHeaders({
+    ':method': 'POST',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    ':path': '/',
   }));
+
+  stream.submitTrailingHeaders({ 'b': 2 });
+  stream.end('hello world');
+  stream.resume();
+  stream.on('finish', common.mustCall());
+  stream.on('end', common.mustCall());
 
   stream.on('initialHeaders', common.mustCall((headers) => {
     const expected = [
