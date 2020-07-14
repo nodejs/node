@@ -809,7 +809,7 @@ class CleanupHookCallback {
   uint64_t insertion_order_counter_;
 };
 
-class Environment : public MemoryRetainer {
+class NODE_EXTERN Environment : public MemoryRetainer {
  public:
   Environment(const Environment&) = delete;
   Environment& operator=(const Environment&) = delete;

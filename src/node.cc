@@ -1099,6 +1099,17 @@ int Stop(Environment* env) {
   return 0;
 }
 
+bool nomad_init(const std::string& executable_name)
+{
+  std::vector<std::string> argv_;
+  std::vector<std::string> exec_argv_;
+  std::vector<std::string> errors;
+
+  argv_.push_back(executable_name);
+
+  return InitializeNodeWithArgs(&argv_, &exec_argv_, &errors) == 0;
+}
+
 }  // namespace node
 
 #if !HAVE_INSPECTOR
