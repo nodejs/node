@@ -519,10 +519,12 @@ class Platform {
    *            this, std::move(job_task), kNumThreads));
    * }
    */
-  virtual std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-    return nullptr;
-  }
+  /* This is not available on Node v14.x.
+   * virtual std::unique_ptr<JobHandle> PostJob(
+   *    TaskPriority priority, std::unique_ptr<JobTask> job_task) {
+   *  return nullptr;
+   * }
+   */
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in

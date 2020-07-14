@@ -704,11 +704,11 @@ class TestPlatform : public v8::Platform {
     old_platform_->CallDelayedOnWorkerThread(std::move(task), delay_in_seconds);
   }
 
-  std::unique_ptr<v8::JobHandle> PostJob(
-      v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override {
-    return old_platform_->PostJob(priority, std::move(job_task));
-  }
+  // std::unique_ptr<v8::JobHandle> PostJob(
+  //     v8::TaskPriority priority,
+  //     std::unique_ptr<v8::JobTask> job_task) override {
+  //   return old_platform_->PostJob(priority, std::move(job_task));
+  // }
 
   double MonotonicallyIncreasingTime() override {
     return old_platform_->MonotonicallyIncreasingTime();
