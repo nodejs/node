@@ -26,15 +26,13 @@ server.on('close', common.mustNotCall());
 client.on('close', common.mustNotCall());
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall((servername, alpn, cipher) => {
-      const stream = session.openStream({ halfOpen: false });
-      stream.write('Hi!');
-      stream.on('data', common.mustNotCall());
-      stream.on('finish', common.mustNotCall());
-      stream.on('close', common.mustNotCall());
-      stream.on('end', common.mustNotCall());
-    }));
+  server.on('session', common.mustCall(async (session) => {
+    const stream = await session.openStream({ halfOpen: false });
+    stream.write('Hi!');
+    stream.on('data', common.mustNotCall());
+    stream.on('finish', common.mustNotCall());
+    stream.on('close', common.mustNotCall());
+    stream.on('end', common.mustNotCall());
 
     session.on('close', common.mustNotCall());
   }));

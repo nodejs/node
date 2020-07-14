@@ -30,9 +30,9 @@ const client = createQuicSocket({
 clientSide.afterBind();
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
+  server.on('session', common.mustCall(async (session) => {
     gatherQlog(session, 'server');
-    session.openStream({ halfOpen: true }).end('Hi!');
+    (await session.openStream({ halfOpen: true })).end('Hi!');
   }));
 
   await server.listen();

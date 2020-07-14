@@ -30,31 +30,29 @@ async function test({ variant, offset, length }) {
   const client = createQuicSocket({ client: options });
   let fd;
 
-  server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall((servername, alpn, cipher) => {
-      const stream = session.openStream({ halfOpen: true });
+  server.on('session', common.mustCall(async (session) => {
+    const stream = await session.openStream({ halfOpen: true });
 
-      // The data and end events won't emit because
-      // the stream is never readable.
-      stream.on('data', common.mustNotCall());
-      stream.on('end', common.mustNotCall());
+    // The data and end events won't emit because
+    // the stream is never readable.
+    stream.on('data', common.mustNotCall());
+    stream.on('end', common.mustNotCall());
 
-      stream.on('finish', common.mustCall());
-      stream.on('close', common.mustCall());
+    stream.on('finish', common.mustCall());
+    stream.on('close', common.mustCall());
 
-      if (variant === 'sendFD') {
-        fd = fs.openSync(__filename, 'r');
-        stream.sendFD(fd, { offset, length });
-      } else if (variant === 'sendFD+fileHandle') {
-        fs.promises.open(__filename, 'r').then(common.mustCall((handle) => {
-          fd = handle;
-          stream.sendFD(handle, { offset, length });
-        }));
-      } else {
-        assert.strictEqual(variant, 'sendFile');
-        stream.sendFile(__filename, { offset, length });
-      }
-    }));
+    if (variant === 'sendFD') {
+      fd = fs.openSync(__filename, 'r');
+      stream.sendFD(fd, { offset, length });
+    } else if (variant === 'sendFD+fileHandle') {
+      fs.promises.open(__filename, 'r').then(common.mustCall((handle) => {
+        fd = handle;
+        stream.sendFD(handle, { offset, length });
+      }));
+    } else {
+      assert.strictEqual(variant, 'sendFile');
+      stream.sendFile(__filename, { offset, length });
+    }
 
     session.on('close', common.mustCall());
   }));

@@ -40,7 +40,7 @@ async function ipv6() {
     port: server.endpoints[0].address.port
   });
 
-  const stream = session.openStream({ halfOpen: true });
+  const stream = await session.openStream({ halfOpen: true });
   stream.end('hello');
 
   await once(stream, 'close');
@@ -99,7 +99,7 @@ async function mismatch() {
     type: 'udp6',
     idleTimeout: common.platformTimeout(1),
   }), {
-    code: 'ERR_OPERATION_FAILED'
+    code: 'ERR_QUIC_FAILED_TO_CREATE_SESSION'
   });
 
   client.close();

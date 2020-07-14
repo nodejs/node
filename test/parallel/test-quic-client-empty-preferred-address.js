@@ -42,7 +42,7 @@ const options = { key, cert, ca, alpn: 'zzz' };
     preferredAddressPolicy: 'accept',
   });
 
-  const stream = clientSession.openStream();
+  const stream = await clientSession.openStream();
   stream.end('hello');
 
   await Promise.all([

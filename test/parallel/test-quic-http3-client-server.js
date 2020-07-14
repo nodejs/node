@@ -113,41 +113,39 @@ const countdown = new Countdown(1, () => {
   req.on('close', common.mustCall());
 
   const file = fs.createReadStream(__filename);
-  const stream = req.openStream();
+  const stream = await req.openStream();
 
-  stream.on('ready', common.mustCall(() => {
-    assert(stream.submitInitialHeaders({
-      ':method': 'POST',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      ':path': '/',
-    }));
-    file.pipe(stream);
-    let data = '';
-    stream.resume();
-    stream.setEncoding('utf8');
-
-    stream.on('initialHeaders', common.mustCall((headers) => {
-      const expected = [
-        [ ':status', '200' ]
-      ];
-      assert.deepStrictEqual(expected, headers);
-      debug('Received expected response headers');
-    }));
-    stream.on('informationalHeaders', common.mustNotCall());
-    stream.on('trailingHeaders', common.mustNotCall());
-
-    stream.on('data', (chunk) => data += chunk);
-    stream.on('finish', common.mustCall());
-    stream.on('end', common.mustCall(() => {
-      assert.strictEqual(data, filedata);
-      debug('Client received expected data for stream %d', stream.id);
-    }));
-    stream.on('close', common.mustCall(() => {
-      debug('Bidirectional, Client-initiated stream %d closed', stream.id);
-      countdown.dec();
-    }));
-    debug('Bidirectional, Client-initiated stream %d opened', stream.id);
+  assert(stream.submitInitialHeaders({
+    ':method': 'POST',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    ':path': '/',
   }));
+  file.pipe(stream);
+  let data = '';
+  stream.resume();
+  stream.setEncoding('utf8');
+
+  stream.on('initialHeaders', common.mustCall((headers) => {
+    const expected = [
+      [ ':status', '200' ]
+    ];
+    assert.deepStrictEqual(expected, headers);
+    debug('Received expected response headers');
+  }));
+  stream.on('informationalHeaders', common.mustNotCall());
+  stream.on('trailingHeaders', common.mustNotCall());
+
+  stream.on('data', (chunk) => data += chunk);
+  stream.on('finish', common.mustCall());
+  stream.on('end', common.mustCall(() => {
+    assert.strictEqual(data, filedata);
+    debug('Client received expected data for stream %d', stream.id);
+  }));
+  stream.on('close', common.mustCall(() => {
+    debug('Bidirectional, Client-initiated stream %d closed', stream.id);
+    countdown.dec();
+  }));
+  debug('Bidirectional, Client-initiated stream %d opened', stream.id);
 
 })().then(common.mustCall());

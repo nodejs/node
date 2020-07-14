@@ -129,7 +129,7 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
         });
       }));
 
-    session.on('secure', common.mustCall((servername, alpn, cipher) => {
+    session.on('secure', common.mustCall(async (servername, alpn, cipher) => {
       debug('QuicServerSession TLS Handshake Complete');
       debug('  Server name: %s', servername);
       debug('  ALPN: %s', alpn);
@@ -143,7 +143,7 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       assert(session.authenticated);
       assert.strictEqual(session.authenticationError, undefined);
 
-      const uni = session.openStream({ halfOpen: true });
+      const uni = await session.openStream({ halfOpen: true });
       assert(uni.unidirectional);
       assert(!uni.bidirectional);
       assert(uni.serverInitiated);
@@ -221,8 +221,8 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
         name: 'Error'
       };
       assert.throws(() => session.ping(), err);
-      assert.throws(() => session.openStream(), err);
       assert.throws(() => session.updateKey(), err);
+      assert.rejects(() => session.openStream(), err);
     }));
   }));
 
@@ -264,7 +264,7 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
     debug('  Params: %s', params.toString('hex'));
   }, 2));
 
-  req.on('secure', common.mustCall((servername, alpn, cipher) => {
+  req.on('secure', common.mustCall(async (servername, alpn, cipher) => {
     debug('QuicClientSession TLS Handshake Complete');
     debug('  Server name: %s', servername);
     debug('  ALPN: %s', alpn);
@@ -308,7 +308,7 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
     }
 
     const file = fs.createReadStream(__filename);
-    const stream = req.openStream();
+    const stream = await req.openStream();
     file.pipe(stream);
     let data = '';
     stream.resume();

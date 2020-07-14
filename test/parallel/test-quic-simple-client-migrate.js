@@ -22,9 +22,10 @@ const server = createQuicSocket({ server: options });
 
 (async function() {
   server.on('session', common.mustCall((session) => {
-    session.on('stream', common.mustCall((stream) => {
+    session.on('stream', common.mustCall(async (stream) => {
       pipeline(stream, stream, common.mustCall());
-      session.openStream({ halfOpen: true }).end('Hello from the server');
+      (await session.openStream({ halfOpen: true }))
+        .end('Hello from the server');
     }));
   }));
 
@@ -40,27 +41,6 @@ const server = createQuicSocket({ server: options });
     server.close();
   });
 
-  req.on('secure', common.mustCall(() => {
-    let data = '';
-    const stream = req.openStream();
-    stream.setEncoding('utf8');
-    stream.on('data', (chunk) => data += chunk);
-    stream.on('end', common.mustCall(() => {
-      assert.strictEqual(data, 'Hello from the client');
-    }));
-    stream.on('close', common.mustCall());
-    // Send some data on one connection...
-    stream.write('Hello ');
-
-    // Wait just a bit, then migrate to a different
-    // QuicSocket and continue sending.
-    setTimeout(common.mustCall(async () => {
-      await req.setSocket(client2);
-      client.close();
-      stream.end('from the client');
-    }), common.platformTimeout(100));
-  }));
-
   req.on('stream', common.mustCall((stream) => {
     let data = '';
     stream.setEncoding('utf8');
@@ -70,6 +50,25 @@ const server = createQuicSocket({ server: options });
     }));
     stream.on('close', common.mustCall());
   }));
+
+  let data = '';
+  const stream = await req.openStream();
+  stream.setEncoding('utf8');
+  stream.on('data', (chunk) => data += chunk);
+  stream.on('end', common.mustCall(() => {
+    assert.strictEqual(data, 'Hello from the client');
+  }));
+  stream.on('close', common.mustCall());
+  // Send some data on one connection...
+  stream.write('Hello ');
+
+  // Wait just a bit, then migrate to a different
+  // QuicSocket and continue sending.
+  setTimeout(common.mustCall(async () => {
+    await req.setSocket(client2);
+    client.close();
+    stream.end('from the client');
+  }), common.platformTimeout(100));
 
   await Promise.all([
     once(server, 'close'),

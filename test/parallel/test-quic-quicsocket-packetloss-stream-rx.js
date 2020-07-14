@@ -64,7 +64,7 @@ const countdown = new Countdown(1, () => {
     port: server.endpoints[0].address.port,
   });
 
-  const stream = req.openStream();
+  const stream = await req.openStream();
 
   let n = 0;
   // This forces multiple stream packets to be sent out

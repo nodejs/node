@@ -22,17 +22,15 @@ const countdown = new Countdown(2, () => {
 });
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall((servername, alpn, cipher) => {
-      const uni = session.openStream({ halfOpen: true });
-      uni.write('hi', common.expectsError());
-      uni.on('error', common.mustCall(() => {
-        assert.strictEqual(uni.aborted, true);
-      }));
-      uni.on('data', common.mustNotCall());
-      uni.on('close', common.mustCall());
-      uni.close(3);
+  server.on('session', common.mustCall(async (session) => {
+    const uni = await session.openStream({ halfOpen: true });
+    uni.write('hi', common.expectsError());
+    uni.on('error', common.mustCall(() => {
+      assert.strictEqual(uni.aborted, true);
     }));
+    uni.on('data', common.mustNotCall());
+    uni.on('close', common.mustCall());
+    uni.close(3);
     session.on('stream', common.mustNotCall());
     session.on('close', common.mustCall());
   }));
@@ -44,20 +42,6 @@ const countdown = new Countdown(2, () => {
     port: server.endpoints[0].address.port,
   });
 
-  req.on('secure', common.mustCall((servername, alpn, cipher) => {
-    const stream = req.openStream();
-    stream.write('hello', common.expectsError());
-    stream.write('there', common.expectsError());
-    stream.on('error', common.mustCall(() => {
-      assert.strictEqual(stream.aborted, true);
-    }));
-    stream.on('end', common.mustNotCall());
-    stream.on('close', common.mustCall(() => {
-      countdown.dec();
-    }));
-    stream.close(1);
-  }));
-
   req.on('stream', common.mustCall((stream) => {
     stream.on('abort', common.mustNotCall());
     stream.on('data', common.mustCall((chunk) => {
@@ -68,6 +52,18 @@ const countdown = new Countdown(2, () => {
       countdown.dec();
     }));
   }));
+
+  const stream = await req.openStream();
+  stream.write('hello', common.expectsError());
+  stream.write('there', common.expectsError());
+  stream.on('error', common.mustCall(() => {
+    assert.strictEqual(stream.aborted, true);
+  }));
+  stream.on('end', common.mustNotCall());
+  stream.on('close', common.mustCall(() => {
+    countdown.dec();
+  }));
+  stream.close(1);
 
   await Promise.all([
     once(server, 'close'),
