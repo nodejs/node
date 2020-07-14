@@ -38,7 +38,6 @@ class DefaultApplication final : public QuicApplication {
   int GetStreamData(StreamData* stream_data) override;
 
   void ResumeStream(int64_t stream_id) override;
-  void StreamClose(int64_t stream_id, uint64_t app_error_code) override;
   bool ShouldSetFin(const StreamData& stream_data) override;
   bool StreamCommit(StreamData* stream_data, size_t datalen) override;
 

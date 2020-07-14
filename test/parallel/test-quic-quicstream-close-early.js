@@ -11,10 +11,13 @@ const { key, cert, ca } = require('../common/quic');
 const { once } = require('events');
 const { createQuicSocket } = require('net');
 
-const options = { key, cert, ca, alpn: 'zzz' };
+const qlog = process.env.NODE_QLOG === '1';
+const { createWriteStream } = require('fs');
 
-const client = createQuicSocket({ client: options });
-const server = createQuicSocket({ server: options });
+const options = { key, cert, ca, alpn: 'zzz', qlog };
+
+const client = createQuicSocket({ qlog, client: options });
+const server = createQuicSocket({ qlog, server: options });
 
 const countdown = new Countdown(2, () => {
   server.close();
@@ -23,13 +26,22 @@ const countdown = new Countdown(2, () => {
 
 (async function() {
   server.on('session', common.mustCall(async (session) => {
+    if (qlog) session.qlog.pipe(createWriteStream('server.qlog'));
     const uni = await session.openStream({ halfOpen: true });
-    uni.write('hi', common.expectsError());
-    uni.on('error', common.mustCall());
+    uni.write('hi', common.mustCall((err) => assert(!err)));
+    uni.on('error', common.mustNotCall());
     uni.on('data', common.mustNotCall());
     uni.on('close', common.mustCall());
-    uni.close(3);
-    session.on('stream', common.mustNotCall());
+    uni.close();
+
+    session.on('stream', common.mustCall((stream) => {
+      assert(stream.bidirectional);
+      assert(stream.readable);
+      assert(stream.writable);
+      stream.on('close', common.mustCall());
+      stream.end();
+      stream.resume();
+    }));
     session.on('close', common.mustCall());
   }));
 
@@ -39,9 +51,12 @@ const countdown = new Countdown(2, () => {
     address: 'localhost',
     port: server.endpoints[0].address.port,
   });
+  if (qlog) req.qlog.pipe(createWriteStream('client.qlog'));
 
   req.on('stream', common.mustCall((stream) => {
-    stream.on('abort', common.mustNotCall());
+    assert(stream.unidirectional);
+    assert(stream.readable);
+    assert(!stream.writable);
     stream.on('data', common.mustCall((chunk) => {
       assert.strictEqual(chunk.toString(), 'hi');
     }));
@@ -52,14 +67,14 @@ const countdown = new Countdown(2, () => {
   }));
 
   const stream = await req.openStream();
-  stream.write('hello', common.expectsError());
-  stream.write('there', common.expectsError());
-  stream.on('error', common.mustCall());
-  stream.on('end', common.mustNotCall());
-  stream.on('close', common.mustCall(() => {
-    countdown.dec();
-  }));
-  stream.close(1);
+  stream.write('hello', common.mustCall((err) => assert(!err)));
+  stream.write('there', common.mustCall((err) => assert(!err)));
+  stream.resume();
+  stream.on('error', common.mustNotCall());
+  stream.on('end', common.mustCall());
+  stream.on('close', common.mustCall());
+  await stream.close();
+  countdown.dec();
 
   await Promise.all([
     once(server, 'close'),

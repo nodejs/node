@@ -25,11 +25,11 @@ QuicStreamOrigin QuicStream::origin() const {
 
 void QuicStream::set_final_size(uint64_t final_size) {
   // Only set the final size once.
-  if (is_fin()) {
+  if (state_->fin_received == 1) {
     CHECK_LE(final_size, GetStat(&QuicStreamStats::final_size));
     return;
   }
-  set_fin(true);
+  state_->fin_received = 1;
   SetStat(&QuicStreamStats::final_size, final_size);
 }
 
@@ -56,12 +56,24 @@ bool QuicStream::was_ever_readable() const {
   return true;
 }
 
+void QuicStream::set_fin_sent() {
+  Debug(this, "final stream frame sent");
+  state_->fin_sent = 1;
+  if (shutdown_done_ != nullptr) {
+    shutdown_done_(0);
+  }
+}
+
+void QuicStream::set_destroyed() {
+  destroyed_ = true;
+}
+
 bool QuicStream::is_readable() const {
-  return was_ever_readable() && !is_read_closed();
+  return was_ever_readable() && state_->read_ended == 0;
 }
 
 bool QuicStream::is_write_finished() const {
-  return is_fin_sent() && streambuf_.length() == 0;
+  return state_->fin_sent == 1 && streambuf_.length() == 0;
 }
 
 bool QuicStream::SubmitInformation(v8::Local<v8::Array> headers) {
@@ -118,11 +130,8 @@ void QuicStream::Commit(size_t amount) {
 // STOP_SENDING frame will be sent.
 void QuicStream::ResetStream(uint64_t app_error_code) {
   QuicSession::SendSessionScope send_scope(session());
-  ngtcp2_conn_shutdown_stream(
-      session()->connection(),
-      stream_id_,
-      app_error_code);
-  set_read_closed();
+  session()->ShutdownStream(id(), app_error_code);
+  state_->read_ended = 1;
   streambuf_.Cancel();
   streambuf_.End();
 }
@@ -135,7 +144,22 @@ void QuicStream::StopSending(uint64_t app_error_code) {
       session()->connection(),
       stream_id_,
       app_error_code);
-  set_read_closed();
+  state_->read_ended = 1;
+}
+
+void QuicStream::CancelPendingWrites() {
+  // In case this stream is scheduled for sending data, remove it
+  // from the schedule queue
+  Unschedule();
+
+  // If there is data currently buffered in the streambuf_,
+  // then cancel will call out to invoke an arbitrary
+  // JavaScript callback (the on write callback). Within
+  // that callback, however, the QuicStream will no longer
+  // be usable to send or receive data.
+  streambuf_.End();
+  streambuf_.Cancel();
+  CHECK_EQ(streambuf_.length(), 0);
 }
 
 void QuicStream::Schedule(Queue* queue) {

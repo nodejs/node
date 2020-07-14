@@ -17,12 +17,14 @@ const {
   debug,
 } = require('../common/quic');
 
+const { createWriteStream } = require('fs');
 const { createQuicSocket } = require('net');
 
-const options = { key, cert, ca, alpn: 'zzz' };
+const qlog = process.env.NODE_QLOG === '1';
+const options = { key, cert, ca, alpn: 'zzz', qlog };
 
-const server = createQuicSocket({ server: options });
-const client = createQuicSocket({ client: options });
+const server = createQuicSocket({ qlog, server: options });
+const client = createQuicSocket({ qlog, client: options });
 
 const countdown = new Countdown(2, () => {
   server.close();
@@ -30,12 +32,13 @@ const countdown = new Countdown(2, () => {
 });
 
 (async function() {
+  let counter = 0;
   server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall(() => {
-      assert(session.usingEarlyData);
-    }));
-
+    if (qlog) session.qlog.pipe(createWriteStream(`server-${counter++}.qlog`));
     session.on('stream', common.mustCall((stream) => {
+      stream.on('close', common.mustCall());
+      assert(stream.unidirectional);
+      assert(!stream.writable);
       stream.resume();
     }));
   }, 2));
@@ -49,6 +52,7 @@ const countdown = new Countdown(2, () => {
     address: common.localhostIPv4,
     port: server.endpoints[0].address.port,
   });
+  if (qlog) req.qlog.pipe(createWriteStream(`client-${counter}.qlog`));
 
   req.on('sessionTicket', common.mustCall((ticket, params) => {
     assert(ticket instanceof Buffer);
@@ -61,9 +65,7 @@ const countdown = new Countdown(2, () => {
 
   const stream = await req.openStream({ halfOpen: true });
   stream.end('hello');
-  stream.resume();
   stream.on('close', () => {
-    req.close();
     countdown.dec();
     // Wait a turn then start a new session using the stored
     // ticket and transportParameters
@@ -77,6 +79,7 @@ const countdown = new Countdown(2, () => {
       sessionTicket,
       remoteTransportParams
     });
+    if (qlog) req.qlog.pipe(createWriteStream('client2.qlog'));
 
     assert(req.allowEarlyData);
 
@@ -91,5 +94,4 @@ const countdown = new Countdown(2, () => {
     // true when the early data was accepted.
     assert(!req.usingEarlyData);
   }
-
 })().then(common.mustCall());

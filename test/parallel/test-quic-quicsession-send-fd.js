@@ -8,9 +8,10 @@ const assert = require('assert');
 const { createQuicSocket } = require('net');
 const { once } = require('events');
 const fs = require('fs');
+const qlog = process.env.NODE_QLOG === '1';
 
 const { key, cert, ca } = require('../common/quic');
-const options = { key, cert, ca, alpn: 'meow' };
+const options = { key, cert, ca, alpn: 'meow', qlog };
 
 const variants = [];
 for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
@@ -26,18 +27,22 @@ for (const variant of ['sendFD', 'sendFile', 'sendFD+fileHandle']) {
 })().then(common.mustCall());
 
 async function test({ variant, offset, length }) {
-  const server = createQuicSocket({ server: options });
-  const client = createQuicSocket({ client: options });
+  const server = createQuicSocket({ qlog, server: options });
+  const client = createQuicSocket({ qlog, client: options });
   let fd;
 
   server.on('session', common.mustCall(async (session) => {
+    if (qlog) {
+      session.qlog.pipe(
+        fs.createWriteStream(`server-${variant}-${offset}-${length}.qlog`));
+    }
+
     const stream = await session.openStream({ halfOpen: true });
 
     // The data and end events won't emit because
     // the stream is never readable.
     stream.on('data', common.mustNotCall());
     stream.on('end', common.mustNotCall());
-
     stream.on('finish', common.mustCall());
     stream.on('close', common.mustCall());
 
@@ -63,6 +68,10 @@ async function test({ variant, offset, length }) {
     address: 'localhost',
     port: server.endpoints[0].address.port
   });
+  if (qlog) {
+    req.qlog.pipe(
+      fs.createWriteStream(`client-${variant}-${offset}-${length}.qlog`));
+  }
 
   req.on('stream', common.mustCall((stream) => {
     const data = [];
@@ -72,13 +81,14 @@ async function test({ variant, offset, length }) {
       if (offset !== -1) expectedContent = expectedContent.slice(offset);
       if (length !== -1) expectedContent = expectedContent.slice(0, length);
       assert.deepStrictEqual(Buffer.concat(data), expectedContent);
-
-      client.close();
-      server.close();
       if (fd !== undefined) {
         if (fd.close) fd.close().then(common.mustCall());
         else fs.closeSync(fd);
       }
+    }));
+    stream.on('close', common.mustCall(() => {
+      client.close();
+      server.close();
     }));
   }));
 

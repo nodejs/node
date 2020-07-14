@@ -560,16 +560,12 @@ void QuicSocket::OnReceive(
       IncrementStat(&QuicSocketStats::packets_ignored);
       return;
     }
-
-    // The QuicSession was destroyed while it was being set up. There's
-    // no further processing we can do here.
-    if (session->is_destroyed()) {
-      IncrementStat(&QuicSocketStats::packets_ignored);
-      return;
-    }
   }
 
   CHECK(session);
+  // If the QuicSession is already destroyed, there's nothing to do.
+  if (session->is_destroyed())
+    return IncrementStat(&QuicSocketStats::packets_ignored);
 
   // If the packet could not successfully processed for any reason (possibly
   // due to being malformed or malicious in some way) we mark it ignored.

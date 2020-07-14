@@ -596,7 +596,6 @@ void Http3Application::StreamClosed(
   BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
   if (stream)
     stream->ReceiveData(1, nullptr, 0, 0);
-  session()->listener()->OnStreamClose(stream_id, app_error_code);
 }
 
 BaseObjectPtr<QuicStream> Http3Application::FindOrCreateStream(

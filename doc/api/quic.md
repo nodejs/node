@@ -183,10 +183,12 @@ The `openStream()` method is used to create a new `QuicStream`:
 
 ```js
 // Create a new bidirectional stream
-const stream1 = await session.openStream();
+async function createStreams(session) {
+  const stream1 = await session.openStream();
 
-// Create a new unidirectional stream
-const stream2 = await session.openStream({ halfOpen: true });
+  // Create a new unidirectional stream
+  const stream2 = await session.openStream({ halfOpen: true });
+}
 ```
 
 As suggested by the names, a bidirectional stream allows data to be sent on

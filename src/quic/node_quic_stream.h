@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "memory_tracker.h"
+#include "aliased_struct.h"
 #include "async_wrap.h"
 #include "env.h"
 #include "node_http_common.h"
@@ -79,13 +80,27 @@ struct QuicStreamStatsTraits {
   static void ToString(const Base& ptr, Fn&& add_field);
 };
 
-#define QUICSTREAM_FLAGS(V)                                                    \
-  V(READ_CLOSED, read_closed)                                                  \
-  V(READ_STARTED, read_started)                                                \
-  V(READ_PAUSED, read_paused)                                                  \
-  V(FIN, fin)                                                                  \
-  V(FIN_SENT, fin_sent)                                                        \
-  V(DESTROYED, destroyed)
+#define QUICSTREAM_SHARED_STATE(V)                                             \
+  V(WRITE_ENDED, write_ended, uint8_t)                                         \
+  V(READ_STARTED, read_started, uint8_t)                                       \
+  V(READ_PAUSED, read_paused, uint8_t)                                         \
+  V(READ_ENDED, read_ended, uint8_t)                                           \
+  V(FIN_SENT, fin_sent, uint8_t)                                               \
+  V(FIN_RECEIVED, fin_received, uint8_t)
+
+#define V(_, name, type) type name;
+struct QuicStreamState {
+  QUICSTREAM_SHARED_STATE(V);
+};
+#undef V
+
+#define V(id, name, _)                                                         \
+  IDX_QUICSTREAM_STATE_##id = offsetof(QuicStreamState, name),
+enum QuicStreamStateFields {
+  QUICSTREAM_SHARED_STATE(V)
+  IDX_QUICSTREAM_STATE_END
+};
+#undef V
 
 enum QuicStreamDirection {
   // The QuicStream is readable and writable in both directions
@@ -212,13 +227,19 @@ class QuicStream : public AsyncWrap,
   // or the server.
   inline QuicStreamOrigin origin() const;
 
+  inline void set_fin_sent();
+
+  inline bool is_destroyed() const { return destroyed_; }
+
+  inline void set_destroyed();
+
   // A QuicStream will not be writable if:
   //  - The streambuf_ is ended
   //  - It is a Unidirectional stream originating from the peer
   inline bool is_writable() const;
 
   // A QuicStream will not be readable if:
-  //  - The QUICSTREAM_FLAG_READ_CLOSED flag is set or
+  //  - The read ended flag is set or
   //  - It is a Unidirectional stream originating from the local peer.
   inline bool is_readable() const;
 
@@ -250,6 +271,8 @@ class QuicStream : public AsyncWrap,
 
   // Destroy the QuicStream and render it no longer usable.
   void Destroy(QuicError* error = nullptr);
+
+  inline void CancelPendingWrites();
 
   // Buffers chunks of data to be written to the QUIC connection.
   int DoWrite(
@@ -316,18 +339,6 @@ class QuicStream : public AsyncWrap,
   // Required for StreamBase
   int ReadStop() override;
 
-#define V(id, name)                                                            \
-  inline bool is_##name() const {                                              \
-    return flags_ & (1 << QUICSTREAM_FLAG_##id); }                             \
-  inline void set_##name(bool on = true) {                                     \
-    if (on)                                                                    \
-      flags_ |= (1 << QUICSTREAM_FLAG_##id);                                   \
-    else                                                                       \
-      flags_ &= ~(1 << QUICSTREAM_FLAG_##id);                                  \
-  }
-  QUICSTREAM_FLAGS(V)
-#undef V
-
   // Required for StreamBase
   int DoShutdown(ShutdownWrap* req_wrap) override;
 
@@ -362,19 +373,14 @@ class QuicStream : public AsyncWrap,
 
   void IncrementStats(size_t datalen);
 
-#define V(id, _) QUICSTREAM_FLAG_##id,
-  enum QuicStreamStates : uint32_t {
-    QUICSTREAM_FLAGS(V)
-    QUICSTREAM_FLAG_COUNT
-  };
-#undef V
-
   BaseObjectWeakPtr<QuicSession> session_;
   QuicBuffer streambuf_;
 
   int64_t stream_id_ = 0;
   int64_t push_id_ = 0;
-  uint32_t flags_ = 0;
+  bool destroyed_ = false;
+  AliasedStruct<QuicStreamState> state_;
+  DoneCB shutdown_done_ = nullptr;
 
   size_t inbound_consumed_data_while_paused_ = 0;
 
