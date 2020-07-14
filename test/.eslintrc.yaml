@@ -53,6 +53,7 @@ rules:
   node-core/prefer-common-mustnotcall: error
   node-core/crypto-check: error
   node-core/eslint-check: error
+  node-core/async-iife-no-unused-result: error
   node-core/inspector-check: error
   ## common module is mandatory in tests
   node-core/required-modules:
