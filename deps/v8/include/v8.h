@@ -4768,7 +4768,9 @@ class V8_EXPORT CompiledWasmModule {
    */
   MemorySpan<const uint8_t> GetWireBytesRef();
 
-  const std::string& source_url() const { return source_url_; }
+  /* This is not available on Node v14.x.
+   * const std::string& source_url() const { return source_url_; }
+   */
 
  private:
   friend class WasmModuleObject;
@@ -4778,7 +4780,6 @@ class V8_EXPORT CompiledWasmModule {
                               const char* source_url, size_t url_length);
 
   const std::shared_ptr<internal::wasm::NativeModule> native_module_;
-  const std::string source_url_;
 };
 
 // An instance of WebAssembly.Module.

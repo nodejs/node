@@ -7168,8 +7168,7 @@ MaybeLocal<Proxy> Proxy::New(Local<Context> context, Local<Object> local_target,
 CompiledWasmModule::CompiledWasmModule(
     std::shared_ptr<internal::wasm::NativeModule> native_module,
     const char* source_url, size_t url_length)
-    : native_module_(std::move(native_module)),
-      source_url_(source_url, url_length) {
+    : native_module_(std::move(native_module)) {
   CHECK_NOT_NULL(native_module_);
 }
 
@@ -7205,7 +7204,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromCompiledModule(
   i::Handle<i::WasmModuleObject> module_object =
       i_isolate->wasm_engine()->ImportNativeModule(
           i_isolate, compiled_module.native_module_,
-          i::VectorOf(compiled_module.source_url()));
+          {});
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(module_object)));
 }
