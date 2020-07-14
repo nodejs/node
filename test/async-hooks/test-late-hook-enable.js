@@ -17,14 +17,16 @@ const fnsToTest = [setTimeout, (cb) => {
     });
   });
 }, (cb) => {
-  process.nextTick(() => {
-    cb();
+  setImmediate(() => {
+    process.nextTick(() => {
+      cb();
 
-    // We need to keep the event loop open for this to actually work
-    // since destroy hooks are triggered in unrefed Immediates
-    setImmediate(() => {
-      hook.disable();
-      assert.strictEqual(fnsToTest.length, 0);
+      // We need to keep the event loop open for this to actually work
+      // since destroy hooks are triggered in unrefed Immediates
+      setImmediate(() => {
+        hook.disable();
+        assert.strictEqual(fnsToTest.length, 0);
+      });
     });
   });
 }];

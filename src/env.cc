@@ -698,6 +698,9 @@ void Environment::RunAndClearInterrupts() {
 void Environment::RunAndClearNativeImmediates(bool only_refed) {
   TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
                               "RunAndClearNativeImmediates", this);
+  HandleScope handle_scope(isolate_);
+  InternalCallbackScope cb_scope(this, Object::New(isolate_), { 0, 0 });
+
   size_t ref_count = 0;
 
   // Handle interrupts first. These functions are not allowed to throw
