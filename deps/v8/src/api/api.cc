@@ -7987,6 +7987,9 @@ void Isolate::ReportExternalAllocationLimitReached() {
   heap->ReportExternalMemoryPressure();
 }
 
+// Node v14.x ABI compat dummy.
+void Isolate::CheckMemoryPressure() {}
+
 HeapProfiler* Isolate::GetHeapProfiler() {
   i::HeapProfiler* heap_profiler =
       reinterpret_cast<i::Isolate*>(this)->heap_profiler();
