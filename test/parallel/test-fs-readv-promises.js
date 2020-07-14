@@ -1,6 +1,5 @@
 'use strict';
-
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs').promises;
@@ -64,4 +63,4 @@ const allocateEmptyBuffers = (combinedLength) => {
     assert(Buffer.concat(bufferArr).equals(await fs.readFile(filename)));
     handle.close();
   }
-})();
+})().then(common.mustCall());

@@ -274,7 +274,7 @@ dns.lookup('', {
   await dnsPromises.lookup('', {
     hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
   });
-})();
+})().then(common.mustCall());
 
 {
   const err = {
@@ -447,7 +447,7 @@ assert.throws(() => {
         cases.shift();
         nextCase();
       }));
-    })();
+    })().then(common.mustCall());
 
   }));
 }

@@ -38,4 +38,4 @@ assert.throws(
                'Received Uint8Array(0) []'
     }
   );
-})();
+})().then(common.mustCall());

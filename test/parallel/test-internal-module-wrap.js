@@ -1,8 +1,6 @@
-'use strict';
-
 // Flags: --expose-internals
-
-require('../common');
+'use strict';
+const common = require('../common');
 const assert = require('assert');
 
 const { internalBinding } = require('internal/test/binding');
@@ -26,4 +24,4 @@ const bar = new ModuleWrap('bar', undefined, 'export const five = 5', 0, 0);
 
   assert.strictEqual(await foo.evaluate(-1, false), undefined);
   assert.strictEqual(foo.getNamespace().five, 5);
-})();
+})().then(common.mustCall());

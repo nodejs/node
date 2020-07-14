@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const zlib = require('zlib');
 const { inspect, promisify } = require('util');
 const assert = require('assert');
@@ -23,4 +23,4 @@ const emptyBuffer = Buffer.alloc(0);
       `Expected ${inspect(compressed)} to match ${inspect(decompressed)} ` +
       `to match for ${method}`);
   }
-})();
+})().then(common.mustCall());
