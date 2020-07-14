@@ -841,13 +841,18 @@ void Agent::DisableAsyncHook() {
 
 void Agent::ToggleAsyncHook(Isolate* isolate,
                             const Global<Function>& fn) {
+  // Guard against running this during cleanup -- no async events will be
+  // emitted anyway at that point anymore, and calling into JS is not possible.
+  // This should probably not be something we're attempting in the first place,
+  // Refs: https://github.com/nodejs/node/pull/34362#discussion_r456006039
+  if (!parent_env_->can_call_into_js()) return;
   CHECK(parent_env_->has_run_bootstrapping_code());
   HandleScope handle_scope(isolate);
   CHECK(!fn.IsEmpty());
   auto context = parent_env_->context();
   v8::TryCatch try_catch(isolate);
   USE(fn.Get(isolate)->Call(context, Undefined(isolate), 0, nullptr));
-  if (try_catch.HasCaught()) {
+  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     PrintCaughtException(isolate, context, try_catch);
     FatalError("\nnode::inspector::Agent::ToggleAsyncHook",
                "Cannot toggle Inspector's AsyncHook, please report this.");
