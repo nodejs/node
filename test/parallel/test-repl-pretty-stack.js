@@ -5,7 +5,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const repl = require('repl');
 
-const stackRegExp = /(at .*repl:)[0-9]+:[0-9]+/g;
+const stackRegExp = /(at .*REPL\d+:)[0-9]+:[0-9]+/g;
 
 function run({ command, expected, ...extraREPLOptions }, i) {
   let accum = '';
@@ -37,9 +37,9 @@ const tests = [
   {
     // Test .load for a file that throws.
     command: `.load ${fixtures.path('repl-pretty-stack.js')}`,
-    expected: 'Uncaught Error: Whoops!\n    at repl:*:*\n' +
-              '    at d (repl:*:*)\n    at c (repl:*:*)\n' +
-              '    at b (repl:*:*)\n    at a (repl:*:*)\n'
+    expected: 'Uncaught Error: Whoops!\n    at REPL1:*:*\n' +
+              '    at d (REPL1:*:*)\n    at c (REPL1:*:*)\n' +
+              '    at b (REPL1:*:*)\n    at a (REPL1:*:*)\n'
   },
   {
     command: 'let x y;',
@@ -53,12 +53,12 @@ const tests = [
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
              'err.foo = \'bar\'; throw err; })()',
-    expected: "Uncaught Error: Whoops!\n    at repl:*:* {\n  foo: 'bar'\n}\n",
+    expected: "Uncaught Error: Whoops!\n    at REPL4:*:* {\n  foo: 'bar'\n}\n",
   },
   {
     command: '(() => { const err = Error(\'Whoops!\'); ' +
              'err.foo = \'bar\'; throw err; })()',
-    expected: 'Uncaught Error: Whoops!\n    at repl:*:* {\n  foo: ' +
+    expected: 'Uncaught Error: Whoops!\n    at REPL5:*:* {\n  foo: ' +
               "\u001b[32m'bar'\u001b[39m\n}\n",
     useColors: true
   },
@@ -69,7 +69,7 @@ const tests = [
   // Test anonymous IIFE.
   {
     command: '(function() { throw new Error(\'Whoops!\'); })()',
-    expected: 'Uncaught Error: Whoops!\n    at repl:*:*\n'
+    expected: 'Uncaught Error: Whoops!\n    at REPL7:*:*\n'
   }
 ];
 
