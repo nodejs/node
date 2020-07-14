@@ -7,6 +7,7 @@ if (!common.hasQuic)
 // Test errors thrown when openStream is called incorrectly
 // or is not permitted
 
+const { once } = require('events');
 const { createHook } = require('async_hooks');
 const assert = require('assert');
 const { createQuicSocket } = require('net');
@@ -18,17 +19,11 @@ createHook({
   }
 }).enable();
 
-const Countdown = require('../common/countdown');
 const { key, cert, ca } = require('../common/quic');
 
 const options = { key, cert, ca, alpn: 'zzz', maxStreamsUni: 0 };
 const server = createQuicSocket({ server: options });
 const client = createQuicSocket({ client: options });
-
-const countdown = new Countdown(1, () => {
-  server.close();
-  client.close();
-});
 
 server.on('close', common.mustCall());
 client.on('close', common.mustCall());
@@ -44,40 +39,48 @@ client.on('close', common.mustCall());
     port: server.endpoints[0].address.port
   });
 
-  ['z', 1, {}, [], null, Infinity, 1n].forEach((i) => {
-    assert.throws(
-      () => req.openStream({ halfOpen: i }),
-      { code: 'ERR_INVALID_ARG_TYPE' }
-    );
-  });
-
-  ['', 1n, {}, [], false, 'zebra'].forEach((defaultEncoding) => {
-    assert.throws(() => req.openStream({ defaultEncoding }), {
-      code: 'ERR_INVALID_ARG_VALUE'
-    });
-  });
-
-  [-1, Number.MAX_SAFE_INTEGER + 1].forEach((highWaterMark) => {
-    assert.throws(() => req.openStream({ highWaterMark }), {
-      code: 'ERR_OUT_OF_RANGE'
-    });
-  });
-
-  ['a', 1n, [], {}, false].forEach((highWaterMark) => {
-    assert.throws(() => req.openStream({ highWaterMark }), {
+  for (const halfOpen of ['z', 1, {}, [], null, Infinity, 1n]) {
+    await assert.rejects(req.openStream({ halfOpen }), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
-  });
+  }
+
+  for (const defaultEncoding of ['', 1n, {}, [], false, 'zebra']) {
+    await assert.rejects(req.openStream({ defaultEncoding }), {
+      code: 'ERR_INVALID_ARG_VALUE'
+    });
+  }
+
+  for (const highWaterMark of [-1, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(req.openStream({ highWaterMark }), {
+      code: 'ERR_OUT_OF_RANGE'
+    });
+  }
+
+  for (const highWaterMark of ['a', 1n, [], {}, false]) {
+    await assert.rejects(req.openStream({ highWaterMark }), {
+      code: 'ERR_INVALID_ARG_TYPE'
+    });
+  }
 
   // Unidirectional streams are not allowed. openStream will succeeed
   // but the stream will be destroyed immediately. The underlying
   // QuicStream C++ handle will not be created.
-  req.openStream({
-    halfOpen: true,
-    highWaterMark: 10,
-    defaultEncoding: 'utf16le'
-  }).on('error', common.expectsError({
-    code: 'ERR_OPERATION_FAILED'
-  })).on('error', common.mustCall(() => countdown.dec()));
+  await assert.rejects(
+    req.openStream({
+      halfOpen: true,
+      highWaterMark: 10,
+      defaultEncoding: 'utf16le'
+    }), {
+      code: 'ERR_OPERATION_FAILED'
+    });
+
+  server.close();
+  client.close();
+
+  await Promise.all([
+    once(server, 'close'),
+    once(client, 'close')
+  ]);
 
 })().then(common.mustCall());

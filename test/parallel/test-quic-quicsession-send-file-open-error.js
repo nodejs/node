@@ -15,18 +15,16 @@ const server = createQuicSocket({ server: options });
 const client = createQuicSocket({ client: options });
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall((servername, alpn, cipher) => {
-      const stream = session.openStream({ halfOpen: false });
-      const nonexistentPath = path.resolve(__dirname, 'nonexistent.file');
-      stream.on('error', common.expectsError({
-        code: 'ENOENT',
-        syscall: 'open',
-        path: nonexistentPath
-      }));
-      stream.sendFile(nonexistentPath);
-      session.close();
+  server.on('session', common.mustCall(async (session) => {
+    const stream = await session.openStream({ halfOpen: false });
+    const nonexistentPath = path.resolve(__dirname, 'nonexistent.file');
+    stream.on('error', common.expectsError({
+      code: 'ENOENT',
+      syscall: 'open',
+      path: nonexistentPath
     }));
+    stream.sendFile(nonexistentPath);
+    session.close();
 
     session.on('close', common.mustCall());
   }));

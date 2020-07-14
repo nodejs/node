@@ -30,16 +30,14 @@ const client = createQuicSocket({
 clientSide.afterBind();
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
-    session.on('secure', common.mustCall(() => {
-      const stream = session.openStream({ halfOpen: false });
-      stream.end('Hi!');
-      stream.on('data', common.mustNotCall());
-      stream.on('finish', common.mustCall());
-      stream.on('close', common.mustNotCall());
-      stream.on('end', common.mustNotCall());
-    }));
+  server.on('session', common.mustCall(async (session) => {
     session.on('close', common.mustNotCall());
+    const stream = await session.openStream({ halfOpen: false });
+    stream.end('Hi!');
+    stream.on('data', common.mustNotCall());
+    stream.on('finish', common.mustCall());
+    stream.on('close', common.mustNotCall());
+    stream.on('end', common.mustNotCall());
   }));
 
   await server.listen();

@@ -113,7 +113,7 @@ const countdown = new Countdown(2, () => {
 
   req.on('close', common.mustCall());
 
-  const stream = req.openStream();
+  const stream = await req.openStream();
 
   stream.on('pushHeaders', common.mustCall((headers, push_id) => {
     const expected = [
@@ -139,18 +139,16 @@ const countdown = new Countdown(2, () => {
     countdown.dec();
   }));
 
-  stream.on('ready', () => {
-    assert(stream.submitInitialHeaders({
-      ':method': 'POST',
-      ':scheme': 'https',
-      ':authority': 'localhost',
-      ':path': '/',
-    }));
+  assert(stream.submitInitialHeaders({
+    ':method': 'POST',
+    ':scheme': 'https',
+    ':authority': 'localhost',
+    ':path': '/',
+  }));
 
-    stream.end('hello world');
-    stream.resume();
-    stream.on('finish', common.mustCall());
-    stream.on('end', common.mustCall());
-  });
+  stream.end('hello world');
+  stream.resume();
+  stream.on('finish', common.mustCall());
+  stream.on('end', common.mustCall());
 
 })().then(common.mustCall());
