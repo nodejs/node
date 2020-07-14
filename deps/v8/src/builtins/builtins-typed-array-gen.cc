@@ -65,8 +65,9 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
 
   StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
                                  byte_length);
-  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                 IntPtrConstant(0));
+  StoreJSArrayBufferBackingStore(
+      buffer,
+      EncodeExternalPointer(ReinterpretCast<RawPtrT>(IntPtrConstant(0))));
   if (V8_ARRAY_BUFFER_EXTENSION_BOOL) {
     StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kExtensionOffset,
                                    IntPtrConstant(0));
@@ -239,7 +240,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::GetBuffer(
 
   TNode<JSArrayBuffer> buffer = LoadJSArrayBufferViewBuffer(array);
   GotoIf(IsDetachedBuffer(buffer), &call_runtime);
-  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStore(buffer);
+  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStorePtr(buffer);
   GotoIf(WordEqual(backing_store, IntPtrConstant(0)), &call_runtime);
   var_result = buffer;
   Goto(&done);
@@ -397,8 +398,8 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOnHeapDataPtr(
   }
 
   StoreObjectField(holder, JSTypedArray::kBasePointerOffset, base);
-  StoreObjectFieldNoWriteBarrier<UintPtrT>(
-      holder, JSTypedArray::kExternalPointerOffset, offset);
+  StoreJSTypedArrayExternalPointer(
+      holder, EncodeExternalPointer(ReinterpretCast<RawPtrT>(offset)));
 }
 
 void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
@@ -407,8 +408,7 @@ void TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
                                  SmiConstant(0));
 
   base = RawPtrAdd(base, Signed(offset));
-  StoreObjectFieldNoWriteBarrier<RawPtrT>(
-      holder, JSTypedArray::kExternalPointerOffset, base);
+  StoreJSTypedArrayExternalPointer(holder, EncodeExternalPointer(base));
 }
 
 void TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric(

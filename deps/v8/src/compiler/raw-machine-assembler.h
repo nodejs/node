@@ -311,6 +311,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* WordSar(Node* a, Node* b) {
     return AddNode(machine()->WordSar(), a, b);
   }
+  Node* WordSarShiftOutZeros(Node* a, Node* b) {
+    return AddNode(machine()->WordSarShiftOutZeros(), a, b);
+  }
   Node* WordRor(Node* a, Node* b) {
     return AddNode(machine()->WordRor(), a, b);
   }
@@ -345,6 +348,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   }
   Node* Word32Sar(Node* a, Node* b) {
     return AddNode(machine()->Word32Sar(), a, b);
+  }
+  Node* Word32SarShiftOutZeros(Node* a, Node* b) {
+    return AddNode(machine()->Word32SarShiftOutZeros(), a, b);
   }
   Node* Word32Ror(Node* a, Node* b) {
     return AddNode(machine()->Word32Ror(), a, b);

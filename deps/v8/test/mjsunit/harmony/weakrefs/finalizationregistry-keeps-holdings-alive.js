@@ -5,14 +5,10 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_called = false;
-let cleanup = function(iter) {
+let holdings_list = [];
+let cleanup = function(holdings) {
   assertFalse(cleanup_called);
-  let holdings_list = [];
-  for (holdings of iter) {
-    holdings_list.push(holdings);
-  }
-  assertEquals(holdings_list.length, 1);
-  assertEquals(holdings_list[0].a, "this is the holdings object");
+  holdings_list.push(holdings);
   cleanup_called = true;
 }
 
@@ -40,6 +36,8 @@ assertFalse(cleanup_called);
 
 let timeout_func = function() {
   assertTrue(cleanup_called);
+  assertEquals(holdings_list.length, 1);
+  assertEquals(holdings_list[0].a, "this is the holdings object");
 }
 
 setTimeout(timeout_func, 0);

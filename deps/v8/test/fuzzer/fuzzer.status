@@ -13,4 +13,9 @@
   'wasm_compile/*': [SKIP],
 }], # lite_mode or variant == jitless
 
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
 ]

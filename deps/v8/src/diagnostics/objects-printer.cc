@@ -24,6 +24,7 @@
 #include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-aggregate-error-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
@@ -69,6 +70,7 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "torque-generated/class-definitions-tq-inl.h"
+#include "torque-generated/exported-class-definitions-tq-inl.h"
 #include "torque-generated/internal-class-definitions-tq-inl.h"
 
 namespace v8 {
@@ -457,12 +459,13 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
 }
 
-void PrintEmbedderData(std::ostream& os, EmbedderDataSlot slot) {
+void PrintEmbedderData(const Isolate* isolate, std::ostream& os,
+                       EmbedderDataSlot slot) {
   DisallowHeapAllocation no_gc;
   Object value = slot.load_tagged();
   os << Brief(value);
   void* raw_pointer;
-  if (slot.ToAlignedPointer(&raw_pointer)) {
+  if (slot.ToAlignedPointer(isolate, &raw_pointer)) {
     os << ", aligned pointer: " << raw_pointer;
   }
 }
@@ -566,10 +569,11 @@ static void JSObjectPrintBody(std::ostream& os,
   }
   int embedder_fields = obj.GetEmbedderFieldCount();
   if (embedder_fields > 0) {
+    const Isolate* isolate = GetIsolateForPtrCompr(obj);
     os << " - embedder fields = {";
     for (int i = 0; i < embedder_fields; i++) {
       os << "\n    ";
-      PrintEmbedderData(os, EmbedderDataSlot(obj, i));
+      PrintEmbedderData(isolate, os, EmbedderDataSlot(obj, i));
     }
     os << "\n }\n";
   }
@@ -639,6 +643,12 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, *this);
 }
 
+void JSAggregateError::JSAggregateErrorPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSAggregateError");
+  os << "\n - errors: " << Brief(errors());
+  JSObjectPrintBody(os, *this);
+}
+
 void JSArray::JSArrayPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSArray");
   os << "\n - length: " << Brief(this->length());
@@ -705,12 +715,6 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   PrintDescriptors(os);
 }
 
-void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
-    std::ostream& os) {  // NOLINT
-  PrintHeader(os, "AliasedArgumentsEntry");
-  os << "\n - aliased_context_slot: " << aliased_context_slot();
-}
-
 namespace {
 void PrintFixedArrayWithHeader(std::ostream& os, FixedArray array,
                                const char* type) {
@@ -765,13 +769,14 @@ void PrintWeakArrayElements(std::ostream& os, T* array) {
 }  // namespace
 
 void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
+  const Isolate* isolate = GetIsolateForPtrCompr(*this);
   PrintHeader(os, "EmbedderDataArray");
   os << "\n - length: " << length();
   EmbedderDataSlot start(*this, 0);
   EmbedderDataSlot end(*this, length());
   for (EmbedderDataSlot slot = start; slot < end; ++slot) {
     os << "\n    ";
-    PrintEmbedderData(os, slot);
+    PrintEmbedderData(isolate, os, slot);
   }
   os << "\n";
 }
@@ -1187,13 +1192,6 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSFinalizationRegistryCleanupIterator::
-    JSFinalizationRegistryCleanupIteratorPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSFinalizationRegistryCleanupIterator");
-  os << "\n - finalization_registry: " << Brief(finalization_registry());
-  JSObjectPrintBody(os, *this);
-}
-
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSWeakMap");
   os << "\n - table: " << Brief(table());
@@ -1384,7 +1382,12 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data());
-  os << "\n - code (from data): " << Brief(GetCode());
+  os << "\n - code (from data): ";
+  if (Heap::InOffThreadSpace(*this)) {
+    os << "<not available off-thread>";
+  } else {
+    os << Brief(GetCode());
+  }
   PrintSourceCode(os);
   // Script files are often large, thus only print their {Brief} representation.
   os << "\n - script: " << Brief(script());
@@ -1425,12 +1428,6 @@ void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - global proxy: " << Brief(global_proxy());
   JSObjectPrintBody(os, *this);
-}
-
-void Cell::CellPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "Cell");
-  os << "\n - value: " << Brief(value());
-  os << "\n";
 }
 
 void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
@@ -1502,17 +1499,6 @@ void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {  // NOLINT
 void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "Foreign");
   os << "\n - foreign address : " << reinterpret_cast<void*>(foreign_address());
-  os << "\n";
-}
-
-void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "AccessorInfo");
-  os << "\n - name: " << Brief(name());
-  os << "\n - flags: " << flags();
-  os << "\n - getter: " << Brief(getter());
-  os << "\n - setter: " << Brief(setter());
-  os << "\n - js_getter: " << Brief(js_getter());
-  os << "\n - data: " << Brief(data());
   os << "\n";
 }
 
@@ -1684,6 +1670,85 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WasmStruct::WasmStructPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmStruct");
+  wasm::StructType* struct_type = type();
+  os << "\n - fields (" << struct_type->field_count() << "):";
+  for (uint32_t i = 0; i < struct_type->field_count(); i++) {
+    wasm::ValueType field = struct_type->field(i);
+    os << "\n   - " << field.short_name() << ": ";
+    uint32_t field_offset = struct_type->field_offset(i);
+    Address field_address = RawField(field_offset).address();
+    switch (field.kind()) {
+      case wasm::ValueType::kI32:
+        os << base::ReadUnalignedValue<int32_t>(field_address);
+        break;
+      case wasm::ValueType::kI64:
+        os << base::ReadUnalignedValue<int64_t>(field_address);
+        break;
+      case wasm::ValueType::kF32:
+        os << base::ReadUnalignedValue<float>(field_address);
+        break;
+      case wasm::ValueType::kF64:
+        os << base::ReadUnalignedValue<double>(field_address);
+        break;
+      case wasm::ValueType::kS128:
+      case wasm::ValueType::kAnyRef:
+      case wasm::ValueType::kFuncRef:
+      case wasm::ValueType::kNullRef:
+      case wasm::ValueType::kExnRef:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
+      case wasm::ValueType::kBottom:
+      case wasm::ValueType::kStmt:
+        UNIMPLEMENTED();  // TODO(7748): Implement.
+        break;
+    }
+  }
+  os << "\n";
+}
+
+void WasmArray::WasmArrayPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "WasmArray");
+  wasm::ArrayType* array_type = type();
+  uint32_t len = length();
+  os << "\n - type: " << array_type->element_type().type_name();
+  os << "\n - length: " << len;
+  Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
+  switch (array_type->element_type().kind()) {
+    case wasm::ValueType::kI32:
+      PrintTypedArrayElements(os, reinterpret_cast<int32_t*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kI64:
+      PrintTypedArrayElements(os, reinterpret_cast<int64_t*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kF32:
+      PrintTypedArrayElements(os, reinterpret_cast<float*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kF64:
+      PrintTypedArrayElements(os, reinterpret_cast<double*>(data_ptr), len,
+                              true);
+      break;
+    case wasm::ValueType::kS128:
+    case wasm::ValueType::kAnyRef:
+    case wasm::ValueType::kFuncRef:
+    case wasm::ValueType::kNullRef:
+    case wasm::ValueType::kExnRef:
+    case wasm::ValueType::kRef:
+    case wasm::ValueType::kOptRef:
+    case wasm::ValueType::kEqRef:
+    case wasm::ValueType::kBottom:
+    case wasm::ValueType::kStmt:
+      UNIMPLEMENTED();  // TODO(7748): Implement.
+      break;
+  }
+  os << "\n";
+}
+
 void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "WasmDebugInfo");
   os << "\n - wasm_instance: " << Brief(wasm_instance());
@@ -1850,15 +1915,6 @@ void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void AccessCheckInfo::AccessCheckInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "AccessCheckInfo");
-  os << "\n - callback: " << Brief(callback());
-  os << "\n - named_interceptor: " << Brief(named_interceptor());
-  os << "\n - indexed_interceptor: " << Brief(indexed_interceptor());
-  os << "\n - data: " << Brief(data());
-  os << "\n";
-}
-
 void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "CallHandlerInfo");
   os << "\n - callback: " << Brief(callback());
@@ -1866,17 +1922,6 @@ void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - data: " << Brief(data());
   os << "\n - side_effect_free: "
      << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");
-  os << "\n";
-}
-
-void InterceptorInfo::InterceptorInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "InterceptorInfo");
-  os << "\n - getter: " << Brief(getter());
-  os << "\n - setter: " << Brief(setter());
-  os << "\n - query: " << Brief(query());
-  os << "\n - deleter: " << Brief(deleter());
-  os << "\n - enumerator: " << Brief(enumerator());
-  os << "\n - data: " << Brief(data());
   os << "\n";
 }
 
@@ -2186,24 +2231,12 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "DebugInfo");
-  os << "\n - flags: " << flags();
-  os << "\n - debugger_hints: " << debugger_hints();
-  os << "\n - shared: " << Brief(shared());
-  os << "\n - script: " << Brief(script());
-  os << "\n - original bytecode array: " << Brief(original_bytecode_array());
-  os << "\n - debug bytecode array: " << Brief(debug_bytecode_array());
-  os << "\n - break_points: ";
-  break_points().FixedArrayPrint(os);
-  os << "\n - coverage_info: " << Brief(coverage_info());
-}
-
 void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "StackTraceFrame");
   os << "\n - frame_index: " << frame_index();
   os << "\n - id: " << id();
   os << "\n - frame_info: " << Brief(frame_info());
+  os << "\n";
 }
 
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT

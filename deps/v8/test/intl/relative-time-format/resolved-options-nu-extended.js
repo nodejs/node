@@ -6,21 +6,25 @@
 // Split from test/intl/relative-time-format/resolved-options-nu.js
 // because Android not yet include bn locale data.
 
-// For locale default the numberingSystem to other than 'latn'
-assertEquals(
-    "beng",
-    new Intl.RelativeTimeFormat("bn").resolvedOptions().numberingSystem
-);
+// Only test if the browser support 'bn' locale
+if (Intl.RelativeTimeFormat.supportedLocalesOf(["bn"]).length > 0) {
+  // For locale default the numberingSystem to other than 'latn'
+  assertEquals(
+      "beng",
+      new Intl.RelativeTimeFormat("bn").resolvedOptions().numberingSystem
+  );
 
-// For locale which default others but  use -u-nu-latn to change to 'latn' numberingSystem
-assertEquals(
-    "latn",
-    new Intl.RelativeTimeFormat("bn-u-nu-latn").resolvedOptions()
-        .numberingSystem
-);
-// For locale use -u-nu- with invalid value still back to default.
-assertEquals(
-    "beng",
-    new Intl.RelativeTimeFormat("bn-u-nu-abcd").resolvedOptions()
-        .numberingSystem
-);
+  // For locale which default others but  use -u-nu-latn to change to 'latn'
+  // numberingSystem
+  assertEquals(
+      "latn",
+      new Intl.RelativeTimeFormat("bn-u-nu-latn").resolvedOptions()
+          .numberingSystem
+  );
+  // For locale use -u-nu- with invalid value still back to default.
+  assertEquals(
+      "beng",
+      new Intl.RelativeTimeFormat("bn-u-nu-abcd").resolvedOptions()
+          .numberingSystem
+  );
+}

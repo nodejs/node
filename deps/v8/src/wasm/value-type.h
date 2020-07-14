@@ -5,6 +5,7 @@
 #ifndef V8_WASM_VALUE_TYPE_H_
 #define V8_WASM_VALUE_TYPE_H_
 
+#include "src/base/bit-field.h"
 #include "src/codegen/machine-type.h"
 #include "src/wasm/wasm-constants.h"
 
@@ -19,17 +20,28 @@ namespace wasm {
 // Type for holding simd values, defined in wasm-value.h.
 class Simd128;
 
-// Type lattice: For any two types connected by a line, the type at the bottom
-// is a subtype of the other type.
+// Type lattice: Given a fixed struct type S, the following lattice
+// defines the subtyping relation among types:
+// For every two types connected by a line, the top type is a
+// (direct) subtype of the bottom type.
 //
-//                       AnyRef
-//                       /    \
-//                 FuncRef    ExnRef
-//                       \    /
-// I32  I64  F32  F64    NullRef
-//   \    \    \    \    /
-//   ------------   Bottom
+//                            AnyRef
+//                           /      \
+//                          /      EqRef
+//                         /       /   \
+//                  FuncRef  ExnRef  OptRef(S)
+//                         \    |   /        \
+// I32  I64  F32  F64        NullRef        Ref(S)
+//   \    \    \    \           |            /
+//    ---------------------- Bottom ---------
 // Format: kind, log2Size, code, machineType, shortName, typeName
+//
+// Some of these types are from proposals that are not standardized yet:
+// - "ref" types per https://github.com/WebAssembly/function-references
+// - "optref"/"eqref" per https://github.com/WebAssembly/gc
+//
+// TODO(7748): Extend this with struct and function subtyping.
+//             Keep up to date with funcref vs. anyref subtyping.
 #define FOREACH_VALUE_TYPE(V)                                                \
   V(Stmt, -1, Void, None, 'v', "<stmt>")                                     \
   V(I32, 2, I32, Int32, 'i', "i32")                                          \
@@ -41,6 +53,9 @@ class Simd128;
   V(FuncRef, kSystemPointerSizeLog2, FuncRef, TaggedPointer, 'a', "funcref") \
   V(NullRef, kSystemPointerSizeLog2, NullRef, TaggedPointer, 'n', "nullref") \
   V(ExnRef, kSystemPointerSizeLog2, ExnRef, TaggedPointer, 'e', "exn")       \
+  V(Ref, kSystemPointerSizeLog2, Ref, TaggedPointer, '*', "ref")             \
+  V(OptRef, kSystemPointerSizeLog2, OptRef, TaggedPointer, 'o', "optref")    \
+  V(EqRef, kSystemPointerSizeLog2, EqRef, TaggedPointer, 'q', "eqref")       \
   V(Bottom, -1, Void, None, '*', "<bot>")
 
 class ValueType {
@@ -51,15 +66,36 @@ class ValueType {
 #undef DEF_ENUM
   };
 
-  constexpr ValueType() : kind_(kStmt) {}
-  explicit constexpr ValueType(Kind kind) : kind_(kind) {}
+  constexpr bool has_immediate() const {
+    return kind() == kRef || kind() == kOptRef;
+  }
 
-  constexpr Kind kind() const { return kind_; }
+  constexpr ValueType() : bit_field_(KindField::encode(kStmt)) {}
+  explicit constexpr ValueType(Kind kind)
+      : bit_field_(KindField::encode(kind)) {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK(!has_immediate());
+#endif
+  }
+  constexpr ValueType(Kind kind, uint32_t ref_index)
+      : bit_field_(KindField::encode(kind) | RefIndexField::encode(ref_index)) {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK(has_immediate());
+#endif
+  }
+
+  constexpr Kind kind() const { return KindField::decode(bit_field_); }
+  constexpr uint32_t ref_index() const {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK(has_immediate());
+#endif
+    return RefIndexField::decode(bit_field_);
+  }
 
   constexpr int element_size_log2() const {
 #if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_NE(kStmt, kind_);
-    DCHECK_NE(kBottom, kind_);
+    DCHECK_NE(kStmt, kind());
+    DCHECK_NE(kBottom, kind());
 #endif
 
     constexpr int kElementSizeLog2[] = {
@@ -68,46 +104,57 @@ class ValueType {
 #undef ELEM_SIZE_LOG2
     };
 
-    return kElementSizeLog2[kind_];
+    return kElementSizeLog2[kind()];
   }
 
   constexpr int element_size_bytes() const { return 1 << element_size_log2(); }
 
   constexpr bool operator==(ValueType other) const {
-    return kind_ == other.kind_;
+    return bit_field_ == other.bit_field_;
   }
   constexpr bool operator!=(ValueType other) const {
-    return kind_ != other.kind_;
+    return bit_field_ != other.bit_field_;
   }
 
-  bool IsSubTypeOf(ValueType other) const {
-    return (*this == other) || (kind_ == kNullRef && other.kind_ == kAnyRef) ||
-           (kind_ == kFuncRef && other.kind_ == kAnyRef) ||
-           (kind_ == kExnRef && other.kind_ == kAnyRef) ||
-           (kind_ == kNullRef && other.kind_ == kFuncRef) ||
-           (kind_ == kNullRef && other.kind_ == kExnRef);
+  // TODO(7748): Extend this with struct and function subtyping.
+  //             Keep up to date with funcref vs. anyref subtyping.
+  constexpr bool IsSubTypeOf(ValueType other) const {
+    return (*this == other) || (other.kind() == kAnyRef && IsReferenceType()) ||
+           (kind() == kNullRef && other.kind() != kRef &&
+            other.IsReferenceType()) ||
+           (other.kind() == kEqRef &&
+            (kind() == kExnRef || kind() == kOptRef || kind() == kRef)) ||
+           (kind() == kRef && other.kind() == kOptRef &&
+            ref_index() == other.ref_index());
   }
 
-  bool IsReferenceType() const {
-    return kind_ == kAnyRef || kind_ == kFuncRef || kind_ == kNullRef ||
-           kind_ == kExnRef;
+  constexpr bool IsReferenceType() const {
+    return kind() == kAnyRef || kind() == kFuncRef || kind() == kNullRef ||
+           kind() == kExnRef || kind() == kRef || kind() == kOptRef ||
+           kind() == kEqRef;
   }
 
+  // TODO(7748): Extend this with struct and function subtyping.
+  //             Keep up to date with funcref vs. anyref subtyping.
   static ValueType CommonSubType(ValueType a, ValueType b) {
-    if (a.kind() == b.kind()) return a;
+    if (a == b) return a;
     // The only sub type of any value type is {bot}.
     if (!a.IsReferenceType() || !b.IsReferenceType()) {
       return ValueType(kBottom);
     }
     if (a.IsSubTypeOf(b)) return a;
     if (b.IsSubTypeOf(a)) return b;
-    // {a} and {b} are not each other's subtype. The biggest sub-type of all
-    // reference types is {kWasmNullRef}.
+    // {a} and {b} are not each other's subtype.
+    // If one of them is not nullable, their greatest subtype is bottom,
+    // otherwise null.
+    if (a.kind() == kRef || b.kind() == kRef) return ValueType(kBottom);
     return ValueType(kNullRef);
   }
 
-  ValueTypeCode value_type_code() const {
-    DCHECK_NE(kBottom, kind_);
+  constexpr ValueTypeCode value_type_code() const {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK_NE(kBottom, kind());
+#endif
 
     constexpr ValueTypeCode kValueTypeCode[] = {
 #define TYPE_CODE(kind, log2Size, code, ...) kLocal##code,
@@ -115,11 +162,13 @@ class ValueType {
 #undef TYPE_CODE
     };
 
-    return kValueTypeCode[kind_];
+    return kValueTypeCode[kind()];
   }
 
-  MachineType machine_type() const {
-    DCHECK_NE(kBottom, kind_);
+  constexpr MachineType machine_type() const {
+#if V8_HAS_CXX14_CONSTEXPR
+    DCHECK_NE(kBottom, kind());
+#endif
 
     constexpr MachineType kMachineType[] = {
 #define MACH_TYPE(kind, log2Size, code, machineType, ...) \
@@ -128,10 +177,10 @@ class ValueType {
 #undef MACH_TYPE
     };
 
-    return kMachineType[kind_];
+    return kMachineType[kind()];
   }
 
-  MachineRepresentation machine_representation() {
+  constexpr MachineRepresentation machine_representation() const {
     return machine_type().representation();
   }
 
@@ -163,7 +212,7 @@ class ValueType {
 #undef SHORT_NAME
     };
 
-    return kShortName[kind_];
+    return kShortName[kind()];
   }
 
   constexpr const char* type_name() const {
@@ -174,13 +223,14 @@ class ValueType {
 #undef TYPE_NAME
     };
 
-    return kTypeName[kind_];
+    return kTypeName[kind()];
   }
 
  private:
-  Kind kind_ : 8;
-  // TODO(jkummerow): Add and use the following for reference types:
-  // uint32_t ref_index_ : 24;
+  using KindField = base::BitField<Kind, 0, 8>;
+  using RefIndexField = base::BitField<uint32_t, 8, 24>;
+
+  uint32_t bit_field_;
 };
 
 static_assert(sizeof(ValueType) <= kUInt32Size,
@@ -200,6 +250,7 @@ constexpr ValueType kWasmI64 = ValueType(ValueType::kI64);
 constexpr ValueType kWasmF32 = ValueType(ValueType::kF32);
 constexpr ValueType kWasmF64 = ValueType(ValueType::kF64);
 constexpr ValueType kWasmAnyRef = ValueType(ValueType::kAnyRef);
+constexpr ValueType kWasmEqRef = ValueType(ValueType::kEqRef);
 constexpr ValueType kWasmExnRef = ValueType(ValueType::kExnRef);
 constexpr ValueType kWasmFuncRef = ValueType(ValueType::kFuncRef);
 constexpr ValueType kWasmNullRef = ValueType(ValueType::kNullRef);

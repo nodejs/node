@@ -7,6 +7,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/objects/objects-inl.h"
+#include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
@@ -306,7 +307,10 @@ Address EmbeddedData::InstructionEndOfBytecodeHandlers() const {
 size_t EmbeddedData::CreateEmbeddedBlobHash() const {
   STATIC_ASSERT(EmbeddedBlobHashOffset() == 0);
   STATIC_ASSERT(EmbeddedBlobHashSize() == kSizetSize);
-  return base::hash_range(data_ + EmbeddedBlobHashSize(), data_ + size_);
+  // Hash the entire blob except the hash field itself.
+  Vector<const byte> payload(data_ + EmbeddedBlobHashSize(),
+                             size_ - EmbeddedBlobHashSize());
+  return Checksum(payload);
 }
 
 void EmbeddedData::PrintStatistics() const {

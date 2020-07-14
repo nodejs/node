@@ -236,7 +236,7 @@
   'test-cpu-profiler/FunctionCallSample': [SKIP],
 
   # BUG(5920): Flaky crash.
-  'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
+  'test-serialize/ContextSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
 
   # BUG(10107): Failing flakily
   'test-cpu-profiler/Inlining2': ['arch == ia32 and mode == debug', SKIP],
@@ -246,8 +246,8 @@
 ##############################################################################
 ['system == windows and arch == x64 and mode == debug', {
   # BUG(v8:6328).
-  'test-serialize/PartialSerializerCustomContext': [SKIP],
-  'test-serialize/PartialSerializerObject': [SKIP],
+  'test-serialize/ContextSerializerCustomContext': [SKIP],
+  'test-serialize/ContextSerializerObject': [SKIP],
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
@@ -370,7 +370,6 @@
   'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
   # TODO(ppc): Implement load/store reverse byte instructions
-  'test-run-wasm-simd/RunWasmCompiled_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
   'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
 
@@ -393,6 +392,8 @@
 
   # Liftoff is not currently supported on ppc and s390
   'test-liftoff-*': [SKIP],
+  'test-wasm-breakpoints/*' : [SKIP],
+  'test-wasm-debug-evaluate/*': [SKIP],
 
   # SIMD not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
@@ -410,9 +411,12 @@
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
-# The test relies on deterministic compilation.
 ['variant == stress_js_bg_compile_wasm_code_gc', {
+  # The test relies on deterministic compilation.
   'test-compiler/DecideToPretenureDuringCompilation': [SKIP],
+
+  # The test relies on deterministic allocation during compilation.
+  'test-compiler/DeepEagerCompilationPeakMemory': [SKIP],
 }],  # variant == stress_js_bg_compile_wasm_code_gc
 
 ##############################################################################
@@ -465,6 +469,7 @@
   'test-c-wasm-entry/*': [SKIP],
   'test-compilation-cache/*': [SKIP],
   'test-jump-table-assembler/*': [SKIP],
+  'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
   'test-run-wasm-asmjs/*': [SKIP],
@@ -478,13 +483,13 @@
   'test-run-wasm-module/*': [SKIP],
   'test-run-wasm-sign-extension/*': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-simd-scalar-lowering/*': [SKIP],
   'test-run-wasm-simd/*': [SKIP],
   'test-streaming-compilation/*': [SKIP],
   'test-wasm-breakpoints/*': [SKIP],
   'test-wasm-codegen/*': [SKIP],
   'test-wasm-debug-evaluate/*': [SKIP],
   'test-wasm-import-wrapper-cache/*': [SKIP],
-  'test-wasm-interpreter-entry/*': [SKIP],
   'test-wasm-serialization/*': [SKIP],
   'test-wasm-shared-engine/*': [SKIP],
   'test-wasm-stack/*': [SKIP],
@@ -615,6 +620,21 @@
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
+  # Turboprop doesn't use call feedback and hence doesn't inline even if
+  # the inlining flag is explicitly set.
+  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [SKIP],
+  'serializer-tester/BoundFunctionArguments': [SKIP],
+  'serializer-tester/BoundFunctionTarget': [SKIP],
 }],  # variant == turboprop
+
+##############################################################################
+['no_i18n == True', {
+  'test-regexp/UnicodePropertyEscapeCodeSize': [SKIP],
+}],  # no_i18n == True
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
 
 ]

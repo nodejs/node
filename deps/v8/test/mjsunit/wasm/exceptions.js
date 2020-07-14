@@ -182,11 +182,60 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprEnd
       ]).exportFunc();
   function throw_exc() {
-    throw exception = new WebAssembly.RuntimeError('My user text');
+    throw new WebAssembly.RuntimeError('My user text');
   }
   let instance = builder.instantiate({imp: {ort: throw_exc}});
 
   assertEquals(11, instance.exports.call_import());
+})();
+
+(function TestExnWithWasmProtoNotCaught() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let except = builder.addException(kSig_v_v);
+  let imp = builder.addImport('imp', 'ort', kSig_v_v);
+  let throw_fn = builder.addFunction('throw', kSig_v_v)
+                     .addBody([kExprThrow, except])
+                     .exportFunc();
+  builder.addFunction('test', kSig_v_v)
+      .addBody([
+        // Calling "throw" directly should produce the expected exception.
+        kExprTry, kWasmStmt,
+          kExprCallFunction, throw_fn.index,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
+        kExprEnd,
+        // Calling through JS produces a wrapped exceptions which does not match
+        // the br_on_exn.
+        kExprTry, kWasmStmt,
+          kExprCallFunction, imp,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
+        kExprEnd
+      ]).exportFunc();
+  let instance;
+  let wrapped_exn;
+  function js_import() {
+    try {
+      instance.exports.throw();
+    } catch (e) {
+      wrapped_exn = new Error();
+      wrapped_exn.__proto__ = e;
+      throw wrapped_exn;
+    }
+  }
+  instance = builder.instantiate({imp: {ort: js_import}});
+  let caught = undefined;
+  try {
+    instance.exports.test();
+  } catch (e) {
+    caught = e;
+  }
+  assertTrue(!!caught, 'should have trapped');
+  assertEquals(caught, wrapped_exn);
+  assertInstanceof(caught.__proto__, WebAssembly.RuntimeError);
 })();
 
 // Test that we can distinguish which exception was thrown by using a cascaded

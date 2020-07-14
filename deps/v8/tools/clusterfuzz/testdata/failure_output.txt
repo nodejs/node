@@ -9,9 +9,9 @@
 # Compared x64,ignition with x64,ignition_turbo
 #
 # Flags of x64,ignition:
---correctness-fuzzer-suppressions --expose-gc --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --es-staging --wasm-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --turbo-filter=~ --noopt --liftoff --no-wasm-tier-up --flag1 --flag2=0
+--correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --es-staging --wasm-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --turbo-filter=~ --noopt --liftoff --no-wasm-tier-up --flag1 --flag2=0
 # Flags of x64,ignition_turbo:
---correctness-fuzzer-suppressions --expose-gc --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --es-staging --wasm-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --flag3
+--correctness-fuzzer-suppressions --expose-gc --fuzzing --allow-natives-for-differential-fuzzing --invoke-weak-callbacks --omit-quit --es-staging --wasm-staging --no-wasm-async-compilation --suppress-asm-messages --random-seed 12345 --flag3
 #
 # Difference:
 - unknown

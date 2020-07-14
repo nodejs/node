@@ -3,85 +3,81 @@
 // found in the LICENSE file.
 
 namespace typed_array {
-  const kBuiltinNameFilter: constexpr string = '%TypedArray%.prototype.filter';
+const kBuiltinNameFilter: constexpr string = '%TypedArray%.prototype.filter';
 
-  // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.filter
-  transitioning javascript builtin TypedArrayPrototypeFilter(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): JSAny {
-    // arguments[0] = callback
-    // arguments[1] = thisArg
-    try {
-      // 1. Let O be the this value.
-      // 2. Perform ? ValidateTypedArray(O).
-      const array: JSTypedArray = Cast<JSTypedArray>(receiver)
-          otherwise ThrowTypeError(
-          MessageTemplate::kNotTypedArray, kBuiltinNameFilter);
-      const src = typed_array::EnsureAttached(array) otherwise IsDetached;
+// https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.filter
+transitioning javascript builtin TypedArrayPrototypeFilter(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // arguments[0] = callback
+  // arguments[1] = thisArg
+  try {
+    // 1. Let O be the this value.
+    // 2. Perform ? ValidateTypedArray(O).
+    const array: JSTypedArray = Cast<JSTypedArray>(receiver)
+        otherwise ThrowTypeError(
+        MessageTemplate::kNotTypedArray, kBuiltinNameFilter);
+    const src = typed_array::EnsureAttached(array) otherwise IsDetached;
 
-      // 3. Let len be O.[[ArrayLength]].
-      const len: uintptr = src.length;
+    // 3. Let len be O.[[ArrayLength]].
+    const len: uintptr = src.length;
 
-      // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
-      const callbackfn = Cast<Callable>(arguments[0])
-          otherwise ThrowTypeError(
-          MessageTemplate::kCalledNonCallable, arguments[0]);
+    // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    const callbackfn = Cast<Callable>(arguments[0])
+        otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
 
-      // 5. If thisArg is present, let T be thisArg; else let T be undefined.
-      const thisArg: JSAny = arguments[1];
+    // 5. If thisArg is present, let T be thisArg; else let T be undefined.
+    const thisArg: JSAny = arguments[1];
 
-      // 6. Let kept be a new empty List.
-      // TODO(v8:4153): Support huge TypedArrays here. (growable fixed arrays
-      // can't be longer than kMaxSmiValue).
-      let kept = growable_fixed_array::NewGrowableFixedArray();
-      let witness = typed_array::NewAttachedJSTypedArrayWitness(src);
+    // 6. Let kept be a new empty List.
+    // TODO(v8:4153): Support huge TypedArrays here. (growable fixed arrays
+    // can't be longer than kMaxSmiValue).
+    let kept = growable_fixed_array::NewGrowableFixedArray();
+    let witness = typed_array::NewAttachedJSTypedArrayWitness(src);
 
-      // 7. Let k be 0.
-      // 8. Let captured be 0.
-      // 9. Repeat, while k < len
-      for (let k: uintptr = 0; k < len; k++) {
-        witness.Recheck() otherwise IsDetached;
+    // 7. Let k be 0.
+    // 8. Let captured be 0.
+    // 9. Repeat, while k < len
+    for (let k: uintptr = 0; k < len; k++) {
+      witness.Recheck() otherwise IsDetached;
 
-        // a. Let Pk be ! ToString(k).
-        // b. Let kValue be ? Get(O, Pk).
-        const value: JSAny = witness.Load(k);
+      // a. Let Pk be ! ToString(k).
+      // b. Let kValue be ? Get(O, Pk).
+      const value: JSAny = witness.Load(k);
 
-        // c. Let selected be ToBoolean(? Call(callbackfn, T, « kValue, k, O
-        // »)).
-        // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
-        // indices to optimize Convert<Number>(k) for the most common case.
-        const selected: JSAny = Call(
-            context, callbackfn, thisArg, value, Convert<Number>(k),
-            witness.GetStable());
+      // c. Let selected be ToBoolean(? Call(callbackfn, T, « kValue, k, O
+      // »)).
+      // TODO(v8:4153): Consider versioning this loop for Smi and non-Smi
+      // indices to optimize Convert<Number>(k) for the most common case.
+      const selected: JSAny = Call(
+          context, callbackfn, thisArg, value, Convert<Number>(k),
+          witness.GetStable());
 
-        // d. If selected is true, then
-        //    i. Append kValue to the end of kept.
-        //   ii. Increase captured by 1.
-        if (ToBoolean(selected)) kept.Push(value);
+      // d. If selected is true, then
+      //    i. Append kValue to the end of kept.
+      //   ii. Increase captured by 1.
+      if (ToBoolean(selected)) kept.Push(value);
 
-        // e.Increase k by 1.
-      }
-
-      // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
-      const typedArray: JSTypedArray = TypedArraySpeciesCreateByLength(
-          kBuiltinNameFilter, array, Unsigned(kept.length));
-
-      // 11. Let n be 0.
-      // 12. For each element e of kept, do
-      //   a. Perform ! Set(A, ! ToString(n), e, true).
-      //   b. Increment n by 1.
-      // TODO(v8:4153): Consider passing growable typed array directly to
-      // TypedArrayCopyElements() to avoid JSArray materialization. Or collect
-      // indices instead of values the loop above.
-      const lengthNumber = Convert<Number>(Unsigned(kept.length));
-      TypedArrayCopyElements(
-          context, typedArray, kept.ToJSArray(), lengthNumber);
-
-      // 13. Return A.
-      return typedArray;
+      // e.Increase k by 1.
     }
-    label IsDetached deferred {
-      ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFilter);
-    }
+
+    // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
+    const typedArray: JSTypedArray = TypedArraySpeciesCreateByLength(
+        kBuiltinNameFilter, array, Unsigned(kept.length));
+
+    // 11. Let n be 0.
+    // 12. For each element e of kept, do
+    //   a. Perform ! Set(A, ! ToString(n), e, true).
+    //   b. Increment n by 1.
+    // TODO(v8:4153): Consider passing growable typed array directly to
+    // TypedArrayCopyElements() to avoid JSArray materialization. Or collect
+    // indices instead of values the loop above.
+    const lengthNumber = Convert<Number>(Unsigned(kept.length));
+    TypedArrayCopyElements(context, typedArray, kept.ToJSArray(), lengthNumber);
+
+    // 13. Return A.
+    return typedArray;
+  } label IsDetached deferred {
+    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameFilter);
   }
+}
 }

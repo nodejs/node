@@ -530,17 +530,8 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
   } else {
     DCHECK(builtin->IsStub());
 
-    // Context
-    const bool context_is_implicit = signature.implicit_count > 0;
-    std::string parameter0 =
-        AddParameter(0, builtin, &parameters, &parameter_types,
-                     &parameter_bindings, context_is_implicit);
-    source_out() << "  TNode<Context> " << parameter0
-                 << " = UncheckedCast<Context>(Parameter("
-                 << "Descriptor::kContext));\n";
-    source_out() << "  USE(" << parameter0 << ");\n";
-
-    for (size_t i = 1; i < signature.parameter_names.size(); ++i) {
+    bool has_context_parameter = signature.HasContextParameter();
+    for (size_t i = 0; i < signature.parameter_names.size(); ++i) {
       const Type* type = signature.types()[i];
       const bool mark_as_used = signature.implicit_count > i;
       std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
@@ -548,8 +539,14 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
       source_out() << "  " << type->GetGeneratedTypeName() << " " << var
                    << " = "
                    << "UncheckedCast<" << type->GetGeneratedTNodeTypeName()
-                   << ">(Parameter(Descriptor::ParameterIndex<" << (i - 1)
-                   << ">()));\n";
+                   << ">(Parameter(";
+      if (i == 0 && has_context_parameter) {
+        source_out() << "Descriptor::kContext";
+      } else {
+        source_out() << "Descriptor::ParameterIndex<"
+                     << (has_context_parameter ? i - 1 : i) << ">()";
+      }
+      source_out() << "));\n";
       source_out() << "  USE(" << var << ");\n";
     }
   }
@@ -1190,30 +1187,6 @@ VisitResult ImplementationVisitor::Visit(TryLabelExpression* expr) {
 
 VisitResult ImplementationVisitor::Visit(StatementExpression* expr) {
   return VisitResult{Visit(expr->statement), assembler().TopRange(0)};
-}
-
-void ImplementationVisitor::CheckInitializersWellformed(
-    const std::string& aggregate_name,
-    const std::vector<Field>& aggregate_fields,
-    const std::vector<NameAndExpression>& initializers,
-    bool ignore_first_field) {
-  size_t fields_offset = ignore_first_field ? 1 : 0;
-  size_t fields_size = aggregate_fields.size() - fields_offset;
-  for (size_t i = 0; i < std::min(fields_size, initializers.size()); i++) {
-    const std::string& field_name =
-        aggregate_fields[i + fields_offset].name_and_type.name;
-    Identifier* found_name = initializers[i].name;
-    if (field_name != found_name->value) {
-      Error("Expected field name \"", field_name, "\" instead of \"",
-            found_name->value, "\"")
-          .Position(found_name->pos)
-          .Throw();
-    }
-  }
-  if (fields_size != initializers.size()) {
-    ReportError("expected ", fields_size, " initializers for ", aggregate_name,
-                " found ", initializers.size());
-  }
 }
 
 InitializerResults ImplementationVisitor::VisitInitializerResults(
@@ -1924,21 +1897,57 @@ VisitResult ImplementationVisitor::Visit(StructExpression* expr) {
   }
 
   // Compute and check struct type from given struct name and argument types
-  const StructType* struct_type = TypeVisitor::ComputeTypeForStructExpression(
+  const Type* type = TypeVisitor::ComputeTypeForStructExpression(
       expr->type, term_argument_types);
-  CheckInitializersWellformed(struct_type->name(), struct_type->fields(),
-                              initializers);
+  if (const auto* struct_type = StructType::DynamicCast(type)) {
+    CheckInitializersWellformed(struct_type->name(), struct_type->fields(),
+                                initializers);
 
-  // Implicitly convert values and thereby build the struct on the stack
-  StackRange struct_range = assembler().TopRange(0);
-  auto& fields = struct_type->fields();
-  for (size_t i = 0; i < values.size(); i++) {
-    values[i] =
-        GenerateImplicitConvert(fields[i].name_and_type.type, values[i]);
-    struct_range.Extend(values[i].stack_range());
+    // Implicitly convert values and thereby build the struct on the stack
+    StackRange struct_range = assembler().TopRange(0);
+    auto& fields = struct_type->fields();
+    for (size_t i = 0; i < values.size(); i++) {
+      values[i] =
+          GenerateImplicitConvert(fields[i].name_and_type.type, values[i]);
+      struct_range.Extend(values[i].stack_range());
+    }
+
+    return stack_scope.Yield(VisitResult(struct_type, struct_range));
+  } else {
+    const auto* bitfield_struct_type = BitFieldStructType::cast(type);
+    CheckInitializersWellformed(bitfield_struct_type->name(),
+                                bitfield_struct_type->fields(), initializers);
+
+    // Create a zero and cast it to the desired bitfield struct type.
+    VisitResult result{TypeOracle::GetConstInt32Type(), "0"};
+    result = GenerateImplicitConvert(TypeOracle::GetInt32Type(), result);
+    result = GenerateCall("Unsigned", Arguments{{result}, {}}, {});
+    result = GenerateCall("%RawDownCast", Arguments{{result}, {}},
+                          {bitfield_struct_type});
+
+    // Set each field in the result. If these fields are constexpr, then all of
+    // this initialization will end up reduced to a single value during TurboFan
+    // optimization.
+    auto& fields = bitfield_struct_type->fields();
+    for (size_t i = 0; i < values.size(); i++) {
+      values[i] =
+          GenerateImplicitConvert(fields[i].name_and_type.type, values[i]);
+      result = GenerateSetBitField(bitfield_struct_type, fields[i], result,
+                                   values[i], /*starts_as_zero=*/true);
+    }
+
+    return stack_scope.Yield(result);
   }
+}
 
-  return stack_scope.Yield(VisitResult(struct_type, struct_range));
+VisitResult ImplementationVisitor::GenerateSetBitField(
+    const Type* bitfield_struct_type, const BitField& bitfield,
+    VisitResult bitfield_struct, VisitResult value, bool starts_as_zero) {
+  GenerateCopy(bitfield_struct);
+  GenerateCopy(value);
+  assembler().Emit(
+      StoreBitFieldInstruction{bitfield_struct_type, bitfield, starts_as_zero});
+  return VisitResult(bitfield_struct_type, assembler().TopRange(1));
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -1999,6 +2008,20 @@ LocationReference ImplementationVisitor::GenerateFieldAccess(
   if (reference.ReferencedType()->IsBitFieldStructType()) {
     const BitFieldStructType* bitfield_struct =
         BitFieldStructType::cast(reference.ReferencedType());
+    const BitField& field = bitfield_struct->LookupField(fieldname);
+    return LocationReference::BitFieldAccess(reference, field);
+  }
+  if (const auto type_wrapped_in_smi = Type::MatchUnaryGeneric(
+          reference.ReferencedType(), TypeOracle::GetSmiTaggedGeneric())) {
+    const BitFieldStructType* bitfield_struct =
+        BitFieldStructType::DynamicCast(*type_wrapped_in_smi);
+    if (bitfield_struct == nullptr) {
+      ReportError(
+          "When a value of type SmiTagged<T> is used in a field access "
+          "expression, T is expected to be a bitfield struct type. Instead, T "
+          "is ",
+          **type_wrapped_in_smi);
+    }
     const BitField& field = bitfield_struct->LookupField(fieldname);
     return LocationReference::BitFieldAccess(reference, field);
   }
@@ -2190,9 +2213,8 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
     // First fetch the bitfield struct, then get the bits out of it.
     VisitResult bit_field_struct =
         GenerateFetchFromLocation(reference.bit_field_struct_location());
-    assembler().Emit(LoadBitFieldInstruction{
-        BitFieldStructType::cast(bit_field_struct.type()),
-        reference.bit_field()});
+    assembler().Emit(LoadBitFieldInstruction{bit_field_struct.type(),
+                                             reference.bit_field()});
     return VisitResult(reference.ReferencedType(), assembler().TopRange(1));
   } else {
     if (reference.IsHeapSlice()) {
@@ -2269,17 +2291,14 @@ void ImplementationVisitor::GenerateAssignToLocation(
         GenerateFetchFromLocation(reference.bit_field_struct_location());
     VisitResult converted_value =
         GenerateImplicitConvert(reference.ReferencedType(), assignment_value);
-    GenerateCopy(bit_field_struct);
-    GenerateCopy(converted_value);
-    assembler().Emit(StoreBitFieldInstruction{
-        BitFieldStructType::cast(bit_field_struct.type()),
-        reference.bit_field()});
-    GenerateAssignToLocation(
-        reference.bit_field_struct_location(),
-        VisitResult(bit_field_struct.type(), assembler().TopRange(1)));
+    VisitResult updated_bit_field_struct =
+        GenerateSetBitField(bit_field_struct.type(), reference.bit_field(),
+                            bit_field_struct, converted_value);
+    GenerateAssignToLocation(reference.bit_field_struct_location(),
+                             updated_bit_field_struct);
   } else {
     DCHECK(reference.IsTemporary());
-    ReportError("cannot assign to temporary ",
+    ReportError("cannot assign to const-bound or temporary ",
                 reference.temporary_description());
   }
 }
@@ -2669,7 +2688,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   LocationReference target = GetLocationReference(expr->target);
   if (!target.IsVariableAccess()) {
     VisitResult result = GenerateFetchFromLocation(target);
-    target = LocationReference::Temporary(result, "method target result");
+    target = LocationReference::Temporary(result, "this parameter");
   }
   const AggregateType* target_type =
       AggregateType::DynamicCast(target.ReferencedType());
@@ -2958,13 +2977,15 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
         builtin_definitions << "TFC(" << builtin->ExternalName() << ", "
                             << builtin->ExternalName();
         std::string descriptor_name = builtin->ExternalName() + "Descriptor";
-        constexpr size_t kFirstNonContextParameter = 1;
+        bool has_context_parameter = builtin->signature().HasContextParameter();
+        size_t kFirstNonContextParameter = has_context_parameter ? 1 : 0;
         size_t parameter_count =
             builtin->parameter_names().size() - kFirstNonContextParameter;
 
-        interface_descriptors << "class " << descriptor_name
-                              << " : public TorqueInterfaceDescriptor<"
-                              << parameter_count << "> {\n";
+        interface_descriptors
+            << "class " << descriptor_name
+            << " : public TorqueInterfaceDescriptor<" << parameter_count << ", "
+            << (has_context_parameter ? "true" : "false") << "> {\n";
         interface_descriptors << "  DECLARE_DESCRIPTOR_WITH_BASE("
                               << descriptor_name
                               << ", TorqueInterfaceDescriptor)\n";
@@ -3112,10 +3133,10 @@ class FieldOffsetsGenerator {
 
     // In the presence of indexed fields, we already emitted kHeaderSize before
     // the indexed field.
-    if (!type_->IsShape() && !type_->HasIndexedField()) {
+    if (!type_->IsShape() && !header_size_emitted_) {
       WriteMarker("kHeaderSize");
     }
-    if (type_->HasStaticSize()) {
+    if (!type_->IsAbstract() && type_->HasStaticSize()) {
       WriteMarker("kSize");
     }
   }
@@ -3247,12 +3268,28 @@ void ImplementationVisitor::GenerateClassFieldOffsets(
       }
     }
 
-    header << "#define TORQUE_BODY_DESCRIPTOR_LIST_GENERATOR(V, _)\\\n";
+    header << "#define TORQUE_INSTANCE_TYPE_TO_BODY_DESCRIPTOR_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor()) {
+      if (type->ShouldGenerateBodyDescriptor() && type->OwnInstanceType()) {
         std::string type_name =
             CapifyStringWithUnderscores(type->name()) + "_TYPE";
-        header << "V(_, " << type_name << ", " << type->name() << ")\\\n";
+        header << "V(" << type_name << "," << type->name() << ")\\\n";
+      }
+    }
+    header << "\n";
+
+    header << "#define TORQUE_DATA_ONLY_VISITOR_ID_LIST(V)\\\n";
+    for (const ClassType* type : TypeOracle::GetClasses()) {
+      if (type->ShouldGenerateBodyDescriptor() && type->HasNoPointerSlots()) {
+        header << "V(" << type->name() << ")\\\n";
+      }
+    }
+    header << "\n";
+
+    header << "#define TORQUE_POINTER_VISITOR_ID_LIST(V)\\\n";
+    for (const ClassType* type : TypeOracle::GetClasses()) {
+      if (type->ShouldGenerateBodyDescriptor() && !type->HasNoPointerSlots()) {
+        header << "V(" << type->name() << ")\\\n";
       }
     }
     header << "\n";
@@ -3356,7 +3393,7 @@ class CppClassGenerator {
   void GenerateFieldAccessor(const Field& f);
   void GenerateFieldAccessorForUntagged(const Field& f);
   void GenerateFieldAccessorForSmi(const Field& f);
-  void GenerateFieldAccessorForObject(const Field& f);
+  void GenerateFieldAccessorForTagged(const Field& f);
 
   void GenerateClassCasts();
 
@@ -3473,26 +3510,18 @@ void CppClassGenerator::GenerateClass() {
         hdr_ << "    size += " << index_name_and_type.name << " * "
              << field_size << ";\n";
       }
+      if (type_->size().Alignment() < TargetArchitecture::TaggedSize()) {
+        hdr_ << "    size = OBJECT_POINTER_ALIGN(size);\n";
+      }
     }
     hdr_ << "    return size;\n";
     hdr_ << "  }\n\n";
-    hdr_ << "  V8_INLINE static constexpr int32_t SizeFor(D o) {\n";
+    hdr_ << "  V8_INLINE int32_t AllocatedSize() {\n";
     hdr_ << "    return SizeFor(";
     first = true;
     for (auto field : *index_fields) {
       if (!first) hdr_ << ", ";
-      // Subclasses of FixedArrayBase need to use the synchronized length
-      // accessor to be consistent (theoretically, FixedArrayBase classes
-      // can concurrently change size e.g. through left-trimming, although
-      // in practice this won't happen for Torque-generated classes) as well as
-      // explicitly convert to a Smi, since the C++-side accessors are
-      // int-based.
-      if (field.aggregate == TypeOracle::GetFixedArrayBaseType() &&
-          field.name_and_type.name == "length") {
-        hdr_ << "o.synchronized_length()";
-      } else {
-        hdr_ << "o." << field.name_and_type.name << "()";
-      }
+      hdr_ << "this->" << field.name_and_type.name << "()";
       first = false;
     }
     hdr_ << ");\n  }\n";
@@ -3532,13 +3561,72 @@ void CppClassGenerator::GenerateClassConstructors() {
 
   hdr_ << "protected:\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
+  hdr_ << "  // Special-purpose constructor for subclasses that have fast "
+          "paths where\n";
+  hdr_ << "  // their ptr() is a Smi.\n";
+  hdr_ << "  inline explicit " << gen_name_
+       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);\n";
 
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "  : P(ptr) {\n";
   inl_ << "  SLOW_DCHECK(this->Is" << name_ << "());\n";
   inl_ << "}\n";
+
+  inl_ << "template<class D, class P>\n";
+  inl_ << "inline " << gen_name_T_ << "::" << gen_name_
+       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)\n";
+  inl_ << "  : P(ptr, allow_smi) {\n";
+  inl_ << "  SLOW_DCHECK((allow_smi == "
+          "HeapObject::AllowInlineSmiStorage::kAllowBeingASmi && "
+       << "this->IsSmi()) || this->Is" << name_ << "());\n";
+  inl_ << "}\n";
 }
+
+namespace {
+std::string GenerateRuntimeTypeCheck(const Type* type,
+                                     const std::string& value) {
+  bool maybe_object = !type->IsSubtypeOf(TypeOracle::GetStrongTaggedType());
+  std::stringstream type_check;
+  bool at_start = true;
+  // If weak pointers are allowed, then start by checking for a cleared value.
+  if (maybe_object) {
+    type_check << value << ".IsCleared()";
+    at_start = false;
+  }
+  for (const RuntimeType& runtime_type : type->GetRuntimeTypes()) {
+    if (!at_start) type_check << " || ";
+    at_start = false;
+    if (maybe_object) {
+      bool strong = runtime_type.weak_ref_to.empty();
+      if (strong && runtime_type.type == "MaybeObject") {
+        // Rather than a generic Weak<T>, this is a basic type Tagged or
+        // WeakHeapObject. We can't validate anything more about the type of
+        // the object pointed to, so just check that it's weak.
+        type_check << value << ".IsWeak()";
+      } else {
+        type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "
+                   << value << ".GetHeapObjectOrSmi().Is"
+                   << (strong ? runtime_type.type : runtime_type.weak_ref_to)
+                   << "())";
+      }
+    } else {
+      type_check << value << ".Is" << runtime_type.type << "()";
+    }
+  }
+  return type_check.str();
+}
+
+void GenerateBoundsDCheck(std::ostream& os, const std::string& index,
+                          const ClassType* type, const Field& f) {
+  os << "  DCHECK_GE(" << index << ", 0);\n";
+  if (base::Optional<NameAndType> array_length =
+          ExtractSimpleFieldArraySize(*type, *f.index)) {
+    os << "  DCHECK_LT(" << index << ", this->" << array_length->name
+       << "());\n";
+  }
+}
+}  // namespace
 
 // TODO(sigurds): Keep in sync with DECL_ACCESSORS and ACCESSORS macro.
 void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
@@ -3548,14 +3636,19 @@ void CppClassGenerator::GenerateFieldAccessor(const Field& f) {
   // TODO(danno): Support generation of struct accessors
   if (f.name_and_type.type->IsStructType()) return;
 
+  // TODO(v8:10391) Generate accessors for external pointers
+  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
+    return;
+  }
+
   if (!f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
     return GenerateFieldAccessorForUntagged(f);
   }
   if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())) {
     return GenerateFieldAccessorForSmi(f);
   }
-  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetObjectType())) {
-    return GenerateFieldAccessorForObject(f);
+  if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    return GenerateFieldAccessorForTagged(f);
   }
 
   Error("Generation of field accessor for ", type_->name(),
@@ -3599,6 +3692,7 @@ void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
   }
   inl_ << ") const {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     size_t field_size;
     std::string size_string;
     std::tie(field_size, size_string) = f.GetFieldSizeInformation();
@@ -3617,6 +3711,7 @@ void CppClassGenerator::GenerateFieldAccessorForUntagged(const Field& f) {
   }
   inl_ << type << " value) {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     size_t field_size;
     std::string size_string;
     std::tie(field_size, size_string) = f.GetFieldSizeInformation();
@@ -3653,6 +3748,7 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   }
   inl_ << ") const {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
     inl_ << "  return this->template ReadField<Smi>(offset).value();\n";
     inl_ << "}\n";
@@ -3669,6 +3765,7 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   }
   inl_ << type << " value) {\n";
   if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
     inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
     inl_ << "  WRITE_FIELD(*this, offset, Smi::FromInt(value));\n";
   } else {
@@ -3677,18 +3774,16 @@ void CppClassGenerator::GenerateFieldAccessorForSmi(const Field& f) {
   inl_ << "}\n\n";
 }
 
-void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
+void CppClassGenerator::GenerateFieldAccessorForTagged(const Field& f) {
   const Type* field_type = f.name_and_type.type;
-  DCHECK(field_type->IsSubtypeOf(TypeOracle::GetObjectType()));
+  DCHECK(field_type->IsSubtypeOf(TypeOracle::GetTaggedType()));
   const std::string& name = f.name_and_type.name;
-  const std::string offset = "k" + CamelifyString(name) + "Offset";
-  base::Optional<const ClassType*> class_type = field_type->ClassSupertype();
+  std::string offset = "k" + CamelifyString(name) + "Offset";
+  bool strong_pointer = field_type->IsSubtypeOf(TypeOracle::GetObjectType());
 
-  std::string type =
-      class_type ? (*class_type)->GetGeneratedTNodeTypeName() : "Object";
-
+  std::string type = field_type->GetRuntimeType();
   // Generate declarations in header.
-  if (!class_type && field_type != TypeOracle::GetObjectType()) {
+  if (!field_type->IsClassType() && field_type != TypeOracle::GetObjectType()) {
     hdr_ << "  // Torque type: " << field_type->ToString() << "\n";
   }
 
@@ -3699,11 +3794,7 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
   hdr_ << "  inline void set_" << name << "(" << (f.index ? "int i, " : "")
        << type << " value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);\n\n";
 
-  std::string type_check;
-  for (const RuntimeType& runtime_type : field_type->GetRuntimeTypes()) {
-    if (!type_check.empty()) type_check += " || ";
-    type_check += "value.Is" + runtime_type.type + "()";
-  }
+  std::string type_check = GenerateRuntimeTypeCheck(field_type, "value");
 
   // Generate implementation in inline header.
   inl_ << "template <class D, class P>\n";
@@ -3719,28 +3810,25 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
        << "(const Isolate* isolate" << (f.index ? ", int i" : "")
        << ") const {\n";
 
-  if (class_type) {
-    if (f.index) {
-      inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-      inl_ << "  return " << type
-           << "::cast(RELAXED_READ_FIELD(*this, offset));\n";
-    } else {
-      inl_ << "  return TaggedField<" << type << ", " << offset
-           << ">::load(isolate, *this);\n";
-    }
+  // TODO(tebbi): The distinction between relaxed and non-relaxed accesses here
+  // is pretty arbitrary and just tries to preserve what was there before.
+  // It currently doesn't really make a difference due to concurrent marking
+  // turning all loads and stores to be relaxed. We should probably drop the
+  // distinction at some point, even though in principle non-relaxed operations
+  // would give us TSAN protection.
+  if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
+    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
+    inl_ << "  auto value = TaggedField<" << type
+         << ">::Relaxed_Load(isolate, *this, offset);\n";
   } else {
-    // TODO(tebbi): load value as HeapObject when possible
-    if (f.index) {
-      inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-      inl_ << "  Object value = Object::cast(RELAXED_READ_FIELD(*this, "
-              "offset));\n";
-    } else {
-      inl_ << "  Object value = TaggedField<Object, " << offset
-           << ">::load(isolate, *this);\n";
-    }
-    inl_ << "  DCHECK(" << type_check << ");\n";
-    inl_ << "  return value;\n";
+    inl_ << "  auto value = TaggedField<" << type << ", " << offset
+         << ">::load(isolate, *this);\n";
   }
+  if (!type_check.empty()) {
+    inl_ << "  DCHECK(" << type_check << ");\n";
+  }
+  inl_ << "  return value;\n";
   inl_ << "}\n";
 
   inl_ << "template <class D, class P>\n";
@@ -3749,30 +3837,37 @@ void CppClassGenerator::GenerateFieldAccessorForObject(const Field& f) {
     inl_ << "int i, ";
   }
   inl_ << type << " value, WriteBarrierMode mode) {\n";
-  inl_ << "  SLOW_DCHECK(" << type_check << ");\n";
-  if (f.index) {
-    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
-    inl_ << "  WRITE_FIELD(*this, offset, value);\n";
-  } else {
-    inl_ << "  WRITE_FIELD(*this, " << offset << ", value);\n";
+  if (!type_check.empty()) {
+    inl_ << "  SLOW_DCHECK(" << type_check << ");\n";
   }
-  inl_ << "  CONDITIONAL_WRITE_BARRIER(*this, " << offset
-       << ", value, mode);\n";
+  if (f.index) {
+    GenerateBoundsDCheck(inl_, "i", type_, f);
+    const char* write_macro =
+        strong_pointer ? "WRITE_FIELD" : "RELAXED_WRITE_WEAK_FIELD";
+    inl_ << "  int offset = " << offset << " + i * kTaggedSize;\n";
+    offset = "offset";
+    inl_ << "  " << write_macro << "(*this, offset, value);\n";
+  } else {
+    const char* write_macro =
+        strong_pointer ? "RELAXED_WRITE_FIELD" : "RELAXED_WRITE_WEAK_FIELD";
+    inl_ << "  " << write_macro << "(*this, " << offset << ", value);\n";
+  }
+  const char* write_barrier = strong_pointer ? "CONDITIONAL_WRITE_BARRIER"
+                                             : "CONDITIONAL_WEAK_WRITE_BARRIER";
+  inl_ << "  " << write_barrier << "(*this, " << offset << ", value, mode);\n";
   inl_ << "}\n\n";
 }
 
 void EmitClassDefinitionHeadersIncludes(const std::string& basename,
                                         std::stringstream& header,
                                         std::stringstream& inline_header) {
-  header << "#include \"src/objects/fixed-array.h\"\n";
   header << "#include \"src/objects/objects.h\"\n";
+  header << "#include \"src/objects/heap-object.h\"\n";
   header << "#include \"src/objects/smi.h\"\n";
   header << "#include \"torque-generated/field-offsets-tq.h\"\n";
   header << "#include <type_traits>\n\n";
 
   inline_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
-  inline_header << "#include "
-                   "\"torque-generated/objects-body-descriptors-tq-inl.h\"\n\n";
   inline_header << "#include \"src/objects/js-promise.h\"\n";
   inline_header << "#include \"src/objects/js-weak-refs.h\"\n";
   inline_header << "#include \"src/objects/module.h\"\n";
@@ -3811,14 +3906,19 @@ void ImplementationVisitor::GenerateClassDefinitions(
   std::stringstream inline_external_header;
   std::stringstream internal_header;
   std::stringstream inline_internal_header;
+  std::stringstream exported_header;
+  std::stringstream inline_exported_header;
   std::stringstream implementation;
   std::stringstream factory_header;
   std::stringstream factory_impl;
   std::string basename = "class-definitions-tq";
   std::string internal_basename = "internal-" + basename;
+  std::string exported_basename = "exported-" + basename;
   std::string file_basename = output_directory + "/" + basename;
   std::string internal_file_basename =
       output_directory + "/" + internal_basename;
+  std::string exported_file_basename =
+      output_directory + "/" + exported_basename;
   std::string factory_basename = "factory-tq";
   std::string factory_file_basename = output_directory + "/" + factory_basename;
 
@@ -3834,8 +3934,24 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeGuardScope internal_inline_header_guard(
         inline_internal_header, internal_basename + "-inl.h");
 
-    external_header
+    IncludeGuardScope exported_header_guard(exported_header,
+                                            exported_basename + ".h");
+
+    IncludeGuardScope exported_inline_header_guard(
+        inline_exported_header, exported_basename + "-inl.h");
+
+    internal_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+    internal_header << "#include \"src/objects/fixed-array.h\"\n";
+    inline_internal_header
         << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+    inline_internal_header
+        << "#include \"torque-generated/class-definitions-tq-inl.h\"\n";
+
+    exported_header << "#include \"src/objects/fixed-array.h\"\n";
+    exported_header << "#include \"torque-generated/class-definitions-tq.h\"\n";
+    inline_exported_header
+        << "#include \"torque-generated/exported-class-definitions-tq.h\"\n";
+    inline_exported_header << "#include \"src/objects/fixed-array-inl.h\"\n";
 
     EmitClassDefinitionHeadersIncludes(basename, external_header,
                                        inline_external_header);
@@ -3850,12 +3966,20 @@ void ImplementationVisitor::GenerateClassDefinitions(
     IncludeObjectMacrosScope internal_inline_header_macros(
         inline_internal_header);
 
+    IncludeObjectMacrosScope exported_header_macros(exported_header);
+    IncludeObjectMacrosScope exported_inline_header_macros(
+        inline_exported_header);
+
     NamespaceScope header_namespaces(external_header, {"v8", "internal"});
     NamespaceScope inline_header_namespaces(inline_external_header,
                                             {"v8", "internal"});
     NamespaceScope internal_header_namespaces(internal_header,
                                               {"v8", "internal"});
     NamespaceScope internal_inline_header_namespaces(inline_internal_header,
+                                                     {"v8", "internal"});
+    NamespaceScope exported_header_namespaces(exported_header,
+                                              {"v8", "internal"});
+    NamespaceScope exported_inline_header_namespaces(inline_exported_header,
                                                      {"v8", "internal"});
 
     EmitClassDefinitionHeadersForwardDeclarations(external_header);
@@ -3869,44 +3993,37 @@ void ImplementationVisitor::GenerateClassDefinitions(
     factory_impl
         << "#include "
            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
+    factory_impl
+        << "#include "
+           "\"torque-generated/exported-class-definitions-tq-inl.h\"\n\n";
     NamespaceScope factory_impl_namespaces(factory_impl, {"v8", "internal"});
     factory_impl << "\n";
 
     implementation
         << "#include \"torque-generated/class-definitions-tq.h\"\n\n";
     implementation << "#include \"torque-generated/class-verifiers-tq.h\"\n\n";
-    implementation << "#include \"src/objects/arguments-inl.h\"\n";
-    implementation << "#include \"src/objects/js-collection-inl.h\"\n";
-    implementation << "#include \"src/objects/embedder-data-array-inl.h\"\n";
-    implementation << "#include \"src/objects/js-generator-inl.h\"\n";
-    implementation << "#include \"src/objects/js-regexp-inl.h\"\n";
-    implementation << "#include \"src/objects/js-weak-refs-inl.h\"\n";
     implementation
-        << "#include \"src/objects/js-regexp-string-iterator-inl.h\"\n";
-    implementation << "#include \"src/objects/literal-objects-inl.h\"\n";
-    implementation << "#include \"src/objects/microtask-inl.h\"\n";
-    implementation << "#include \"src/objects/module-inl.h\"\n";
-    implementation << "#include \"src/objects/promise-inl.h\"\n";
-    implementation
-        << "#include \"src/objects/property-descriptor-object-inl.h\"\n";
-    implementation << "#include \"src/objects/stack-frame-info-inl.h\"\n";
-    implementation << "#include \"src/objects/struct-inl.h\"\n";
-    implementation << "#include \"src/objects/template-objects-inl.h\"\n\n";
+        << "#include \"src/objects/class-definitions-tq-deps-inl.h\"\n\n";
     implementation
         << "#include "
            "\"torque-generated/internal-class-definitions-tq-inl.h\"\n\n";
+    implementation
+        << "#include "
+           "\"torque-generated/exported-class-definitions-tq-inl.h\"\n\n";
     NamespaceScope implementation_namespaces(implementation,
                                              {"v8", "internal"});
 
     std::set<const StructType*, TypeLess> structs_used_in_classes;
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      std::stringstream& header = (type->IsExtern() || type->ShouldExport())
-                                      ? external_header
-                                      : internal_header;
+      std::stringstream& header =
+          type->IsExtern()
+              ? external_header
+              : type->ShouldExport() ? exported_header : internal_header;
       std::stringstream& inline_header =
-          (type->IsExtern() || type->ShouldExport()) ? inline_external_header
-                                                     : inline_internal_header;
+          type->IsExtern() ? inline_external_header
+                           : type->ShouldExport() ? inline_exported_header
+                                                  : inline_internal_header;
 
       if (type->GenerateCppClassDefinitions()) {
         CppClassGenerator g(type, header, inline_header, implementation);
@@ -4002,6 +4119,8 @@ void ImplementationVisitor::GenerateClassDefinitions(
   WriteFile(file_basename + ".cc", implementation.str());
   WriteFile(internal_file_basename + ".h", internal_header.str());
   WriteFile(internal_file_basename + "-inl.h", inline_internal_header.str());
+  WriteFile(exported_file_basename + ".h", exported_header.str());
+  WriteFile(exported_file_basename + "-inl.h", inline_exported_header.str());
   WriteFile(factory_file_basename + ".inc", factory_header.str());
   WriteFile(factory_file_basename + ".cc", factory_impl.str());
 }
@@ -4053,6 +4172,8 @@ void ImplementationVisitor::GeneratePrintDefinitions(
     impl << "#include <iosfwd>\n\n";
     impl << "#include "
             "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
+    impl << "#include "
+            "\"torque-generated/exported-class-definitions-tq-inl.h\"\n";
     impl << "#include \"src/objects/struct-inl.h\"\n\n";
     impl << "#include \"src/objects/template-objects-inl.h\"\n\n";
 
@@ -4080,140 +4201,174 @@ void ImplementationVisitor::GeneratePrintDefinitions(
   WriteFile(output_directory + "/" + file_name, new_contents);
 }
 
+base::Optional<std::string> MatchSimpleBodyDescriptor(const ClassType* type) {
+  std::vector<ObjectSlotKind> slots = type->ComputeHeaderSlotKinds();
+  if (!type->HasStaticSize()) {
+    slots.push_back(*type->ComputeArraySlotKind());
+  }
+
+  // Skip the map slot.
+  size_t i = 1;
+  while (i < slots.size() && slots[i] == ObjectSlotKind::kNoPointer) ++i;
+  if (i == slots.size()) return "DataOnlyBodyDescriptor";
+  bool has_weak_pointers = false;
+  size_t start_index = i;
+  for (; i < slots.size(); ++i) {
+    if (slots[i] == ObjectSlotKind::kStrongPointer) {
+      continue;
+    } else if (slots[i] == ObjectSlotKind::kMaybeObjectPointer) {
+      has_weak_pointers = true;
+    } else if (slots[i] == ObjectSlotKind::kNoPointer) {
+      break;
+    } else {
+      return base::nullopt;
+    }
+  }
+  size_t end_index = i;
+  for (; i < slots.size(); ++i) {
+    if (slots[i] != ObjectSlotKind::kNoPointer) return base::nullopt;
+  }
+  size_t start_offset = start_index * TargetArchitecture::TaggedSize();
+  size_t end_offset = end_index * TargetArchitecture::TaggedSize();
+  // We pick a suffix-range body descriptor even in cases where the object size
+  // is fixed, to reduce the amount of code executed for object visitation.
+  if (end_index == slots.size()) {
+    return ToString("SuffixRange", has_weak_pointers ? "Weak" : "",
+                    "BodyDescriptor<", start_offset, ">");
+  }
+  if (!has_weak_pointers) {
+    return ToString("FixedRangeDescriptor<", start_offset, ", ", end_offset,
+                    ", ", *type->size().SingleValue(), ">");
+  }
+  return base::nullopt;
+}
+
 void ImplementationVisitor::GenerateBodyDescriptors(
     const std::string& output_directory) {
-  std::string file_name = "objects-body-descriptors-tq-inl";
+  std::string file_name = "objects-body-descriptors-tq-inl.inc";
   std::stringstream h_contents;
-  {
-    IncludeGuardScope include_guard(h_contents, file_name + ".h");
-
-    h_contents << "\n#include \"src/objects/objects-body-descriptors.h\"\n";
-    h_contents << "\n#include \"torque-generated/class-definitions-tq.h\"\n";
-    h_contents
-        << "\n#include \"torque-generated/internal-class-definitions-tq.h\"\n";
-    h_contents << "\n#include "
-                  "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
-
-    NamespaceScope h_namespaces(h_contents, {"v8", "internal"});
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
       std::string name = type->name();
       if (!type->ShouldGenerateBodyDescriptor()) continue;
 
-      const ClassType* super_class = type->GetSuperClass();
-      std::string super_name = super_class->name();
-      h_contents << "class " << name
-                 << "::BodyDescriptor final : public BodyDescriptorBase {\n";
+      bool has_array_fields = !type->HasStaticSize();
+      std::vector<ObjectSlotKind> header_slot_kinds =
+          type->ComputeHeaderSlotKinds();
+      base::Optional<ObjectSlotKind> array_slot_kind =
+          type->ComputeArraySlotKind();
+      DCHECK_EQ(has_array_fields, array_slot_kind.has_value());
 
-      h_contents << " public:\n";
-
-      h_contents << "  static bool IsValidSlot(Map map, HeapObject obj, int "
-                    "offset) {\n";
-
-      if (super_class == TypeOracle::GetHeapObjectType() ||
-          super_class == TypeOracle::GetFixedArrayBaseType()) {
-        h_contents << "    if (offset < " << super_name
-                   << "::kHeaderSize) return true;\n";
+      h_contents << "class " << name << "::BodyDescriptor final : public ";
+      if (auto descriptor_name = MatchSimpleBodyDescriptor(type)) {
+        h_contents << *descriptor_name << " {\n";
+        h_contents << " public:\n";
       } else {
-        h_contents << "    if (" << super_name
-                   << "::BodyDescriptor::IsValidSlot(map, obj, offset)) return "
-                      "true;\n";
-      }
+        h_contents << "BodyDescriptorBase {\n";
+        h_contents << " public:\n";
 
-      h_contents << "    return offset >= " << name
-                 << "::kStartOfStrongFieldsOffset"
-                 << " && offset < " << name << ""
-                 << "::kEndOfStrongFieldsOffset;\n";
-      h_contents << "  }\n\n";
-
-      h_contents << "  template <typename ObjectVisitor>\n";
-      h_contents << "  static inline void IterateBody(Map map, HeapObject obj, "
-                    "int object_size, ObjectVisitor* v) {\n";
-
-      // There may be MaybeObjects embedded in the strong pointer section, which
-      // are not suppored.
-      for (auto& f : type->fields()) {
-        for (const Type* t : LowerType(f.name_and_type.type)) {
-          if (t->IsSubtypeOf(TypeOracle::GetTaggedType()) &&
-              !t->IsSubtypeOf(TypeOracle::GetObjectType())) {
-            Error("Cannot generate body descriptor for field ",
-                  f.name_and_type.name, " of class ", name, " because ", *t,
-                  " can contain tagged weak pointers.");
-          }
+        h_contents << "  static bool IsValidSlot(Map map, HeapObject obj, int "
+                      "offset) {\n";
+        if (has_array_fields) {
+          h_contents << "    if (offset < kHeaderSize) {\n";
         }
-      }
+        h_contents << "      bool valid_slots[] = {";
+        for (ObjectSlotKind slot : header_slot_kinds) {
+          h_contents << (slot != ObjectSlotKind::kNoPointer ? "1" : "0") << ",";
+        }
+        h_contents << "};\n"
+                   << "      return valid_slots[static_cast<unsigned "
+                      "int>(offset)/kTaggedSize];\n";
+        if (has_array_fields) {
+          h_contents << "    }\n";
+          bool array_is_tagged = *array_slot_kind != ObjectSlotKind::kNoPointer;
+          h_contents << "    return " << (array_is_tagged ? "true" : "false")
+                     << ";\n";
+        }
+        h_contents << "  }\n\n";
 
-      if (super_class != TypeOracle::GetHeapObjectType() &&
-          super_class != TypeOracle::GetFixedArrayBaseType()) {
+        h_contents << "  template <typename ObjectVisitor>\n";
         h_contents
-            << "    " << super_name
-            << "::BodyDescriptor::IterateBody(map, obj, object_size, v);\n";
-      }
+            << "  static inline void IterateBody(Map map, HeapObject obj, "
+               "int object_size, ObjectVisitor* v) {\n";
 
-      h_contents << "    if (" << name
-                 << "::kStartOfStrongFieldsOffset != " << name
-                 << "::kEndOfStrongFieldsOffset) {\n";
-      h_contents << "      IteratePointers(obj, " << name
-                 << "::kStartOfStrongFieldsOffset, " << name
-                 << "::kEndOfStrongFieldsOffset, v);\n";
-      h_contents << "    }\n";
+        std::vector<ObjectSlotKind> slots = std::move(header_slot_kinds);
+        if (has_array_fields) slots.push_back(*array_slot_kind);
 
-      h_contents << "    if (" << name
-                 << "::kStartOfWeakFieldsOffset != " << name
-                 << "::kEndOfWeakFieldsOffset) {\n";
-      h_contents << "      IterateCustomWeakPointers(obj, " << name
-                 << "::kStartOfWeakFieldsOffset, " << name
-                 << "::kEndOfWeakFieldsOffset, v);\n";
-      h_contents << "    }\n";
+        // Skip the map slot.
+        slots.erase(slots.begin());
+        size_t start_offset = TargetArchitecture::TaggedSize();
 
-      // Since all of the index fields are at the end of the object and must
-      // only be Tagged values, emit only a single IteratePointers from the
-      // beginning of the first indexed field to the end of the object.
-      bool first_index_seen = false;
-      for (const Field& field : type->ComputeAllFields()) {
-        if (field.index && !first_index_seen) {
-          std::string indexed_field_name =
-              CamelifyString(field.name_and_type.name);
-          if (field.name_and_type.type->IsSubtypeOf(
-                  TypeOracle::GetObjectType())) {
-            h_contents << "    BodyDescriptorBase::IteratePointers(obj, "
-                       << name << "::k" << indexed_field_name << "Offset, "
-                       << name << "::SizeFor(" << name << "::cast(obj)), v);\n";
-          } else {
-            Error(
-                "generating body descriptors for indexed fields not subtype of "
-                "Object isn't (yet) supported");
-          }
-          first_index_seen = true;
-        }
-        if (first_index_seen) {
-          for (const Type* t : LowerType(field.name_and_type.type)) {
-            if (!t->IsSubtypeOf(TypeOracle::GetObjectType())) {
-              Error("cannot generate class body descriptor for \"",
-                    type->name(),
-                    "\", all fields of including and after the first indexed "
-                    "member must no comprised only of subtypes of Object "
-                    "(field \"",
-                    field.name_and_type.name, "\" is not)");
+        size_t end_offset = start_offset;
+        ObjectSlotKind section_kind;
+        for (size_t i = 0; i <= slots.size(); ++i) {
+          base::Optional<ObjectSlotKind> next_section_kind;
+          bool finished_section = false;
+          if (i == 0) {
+            next_section_kind = slots[i];
+          } else if (i < slots.size()) {
+            if (auto combined = Combine(section_kind, slots[i])) {
+              next_section_kind = *combined;
+            } else {
+              next_section_kind = slots[i];
+              finished_section = true;
             }
+          } else {
+            finished_section = true;
           }
+          if (finished_section) {
+            bool is_array_slot = i == slots.size() && has_array_fields;
+            bool multiple_slots =
+                is_array_slot ||
+                (end_offset - start_offset > TargetArchitecture::TaggedSize());
+            base::Optional<std::string> iterate_command;
+            switch (section_kind) {
+              case ObjectSlotKind::kStrongPointer:
+                iterate_command = "IteratePointer";
+                break;
+              case ObjectSlotKind::kMaybeObjectPointer:
+                iterate_command = "IterateMaybeWeakPointer";
+                break;
+              case ObjectSlotKind::kCustomWeakPointer:
+                iterate_command = "IterateCustomWeakPointer";
+                break;
+              case ObjectSlotKind::kNoPointer:
+                break;
+            }
+            if (iterate_command) {
+              if (multiple_slots) *iterate_command += "s";
+              h_contents << "    " << *iterate_command << "(obj, "
+                         << start_offset;
+              if (multiple_slots) {
+                h_contents << ", "
+                           << (i == slots.size() ? "object_size"
+                                                 : std::to_string(end_offset));
+              }
+              h_contents << ", v);\n";
+            }
+            start_offset = end_offset;
+          }
+          if (i < slots.size()) section_kind = *next_section_kind;
+          end_offset += TargetArchitecture::TaggedSize();
         }
-      }
 
-      h_contents << "  }\n\n";
+        h_contents << "  }\n\n";
+      }
 
       h_contents
           << "  static inline int SizeOf(Map map, HeapObject raw_object) {\n";
-      h_contents << "    " << name << " object = " << name
-                 << "::cast(raw_object);\n";
-      h_contents << "    return " << name << "::SizeFor(object);\n";
+      if (type->size().SingleValue()) {
+        h_contents << "    return " << *type->size().SingleValue() << ";\n";
+      } else {
+        h_contents << "    return " << name
+                   << "::cast(raw_object).AllocatedSize();\n";
+      }
       h_contents << "  }\n\n";
 
       h_contents << "};\n";
     }
-  }
 
-  WriteFile(output_directory + "/" + file_name + ".h", h_contents.str());
+    WriteFile(output_directory + "/" + file_name, h_contents.str());
 }
 
 namespace {
@@ -4242,9 +4397,8 @@ void GenerateFieldValueVerifier(const std::string& class_name,
 
   // Read the field.
   cc_contents << "    " << object_type << " " << value << " = TaggedField<"
-              << object_type << ", " << class_name << "::k"
-              << CamelifyString(class_field.name_and_type.name)
-              << "Offset>::load(o, " << index_offset << ");\n";
+              << object_type << ", " << *class_field.offset << ">::load(o, "
+              << index_offset << ");\n";
 
   // Call VerifyPointer or VerifyMaybeObjectPointer on it.
   cc_contents << "    " << object_type << "::" << verify_fn << "(isolate, "
@@ -4254,34 +4408,8 @@ void GenerateFieldValueVerifier(const std::string& class_name,
   // the Object type because it would not check anything beyond what we already
   // checked with VerifyPointer.
   if (field_type != TypeOracle::GetObjectType()) {
-    std::stringstream type_check;
-    bool at_start = true;
-    // If weak pointers are allowed, then start by checking for a cleared value.
-    if (maybe_object) {
-      type_check << value << ".IsCleared()";
-      at_start = false;
-    }
-    for (const RuntimeType& runtime_type : field_type->GetRuntimeTypes()) {
-      if (!at_start) type_check << " || ";
-      at_start = false;
-      if (maybe_object) {
-        bool strong = runtime_type.weak_ref_to.empty();
-        if (strong && runtime_type.type == "MaybeObject") {
-          // Rather than a generic Weak<T>, this is a basic type Tagged or
-          // WeakHeapObject. We can't validate anything more about the type of
-          // the object pointed to, so just check that it's weak.
-          type_check << value << ".IsWeak()";
-        } else {
-          type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "
-                     << value << ".GetHeapObjectOrSmi().Is"
-                     << (strong ? runtime_type.type : runtime_type.weak_ref_to)
-                     << "())";
-        }
-      } else {
-        type_check << value << ".Is" << runtime_type.type << "()";
-      }
-    }
-    cc_contents << "    CHECK(" << type_check.str() << ");\n";
+    cc_contents << "    CHECK(" << GenerateRuntimeTypeCheck(field_type, value)
+                << ");\n";
   }
 }
 
@@ -4369,6 +4497,8 @@ void ImplementationVisitor::GenerateClassVerifiers(
     cc_contents << "#include \"torque-generated/" << file_name << ".h\"\n";
     cc_contents << "#include "
                    "\"torque-generated/internal-class-definitions-tq-inl.h\"\n";
+    cc_contents << "#include "
+                   "\"torque-generated/exported-class-definitions-tq-inl.h\"\n";
 
     IncludeObjectMacrosScope object_macros(cc_contents);
 
@@ -4384,7 +4514,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
 
     const char* verifier_class = "TorqueGeneratedClassVerifiers";
 
-    h_contents << "class " << verifier_class << "{\n";
+    h_contents << "class V8_EXPORT_PRIVATE " << verifier_class << "{\n";
     h_contents << " public:\n";
 
     for (const ClassType* type : TypeOracle::GetClasses()) {
@@ -4481,6 +4611,9 @@ void ImplementationVisitor::GenerateExportedMacrosAssembler(
     h_contents << "#include \"torque-generated/csa-types-tq.h\"\n";
     h_contents
         << "#include \"torque-generated/internal-class-definitions-tq.h\"\n";
+    h_contents
+        << "#include \"torque-generated/exported-class-definitions-tq.h\"\n";
+    cc_contents << "#include \"src/objects/fixed-array-inl.h\"\n";
     cc_contents << "#include \"src/objects/free-space.h\"\n";
     cc_contents << "#include \"src/objects/js-regexp-string-iterator.h\"\n";
     cc_contents << "#include \"src/objects/ordered-hash-table.h\"\n";

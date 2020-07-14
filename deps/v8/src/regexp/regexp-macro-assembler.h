@@ -28,13 +28,14 @@ struct DisjunctDecisionRow {
 class RegExpMacroAssembler {
  public:
   // The implementation must be able to handle at least:
-  static const int kMaxRegister = (1 << 16) - 1;
-  static const int kMaxCPOffset = (1 << 15) - 1;
-  static const int kMinCPOffset = -(1 << 15);
+  static constexpr int kMaxRegisterCount = (1 << 16);
+  static constexpr int kMaxRegister = kMaxRegisterCount - 1;
+  static constexpr int kMaxCPOffset = (1 << 15) - 1;
+  static constexpr int kMinCPOffset = -(1 << 15);
 
-  static const int kTableSizeBits = 7;
-  static const int kTableSize = 1 << kTableSizeBits;
-  static const int kTableMask = kTableSize - 1;
+  static constexpr int kTableSizeBits = 7;
+  static constexpr int kTableSize = 1 << kTableSizeBits;
+  static constexpr int kTableMask = kTableSize - 1;
 
   static constexpr int kUseCharactersValue = -1;
 
@@ -272,6 +273,13 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                                        const byte* input_end, int* output,
                                        int output_size, Isolate* isolate,
                                        JSRegExp regexp);
+  void LoadCurrentCharacterImpl(int cp_offset, Label* on_end_of_input,
+                                bool check_bounds, int characters,
+                                int eats_at_least) override;
+  // Load a number of characters at the given offset from the
+  // current position, into the current-character register.
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset,
+                                             int character_count) = 0;
 };
 
 }  // namespace internal

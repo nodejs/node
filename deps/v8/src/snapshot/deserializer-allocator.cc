@@ -5,6 +5,7 @@
 #include "src/snapshot/deserializer-allocator.h"
 
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
+#include "src/heap/memory-chunk.h"
 
 namespace v8 {
 namespace internal {
@@ -84,7 +85,8 @@ Address DeserializerAllocator::Allocate(SnapshotSpace space, int size) {
     DCHECK(ReadOnlyRoots(heap_).free_space_map().IsMap());
     DCHECK(ReadOnlyRoots(heap_).one_pointer_filler_map().IsMap());
     DCHECK(ReadOnlyRoots(heap_).two_pointer_filler_map().IsMap());
-    obj = heap_->AlignWithFiller(obj, size, reserved, next_alignment_);
+    obj = Heap::AlignWithFiller(ReadOnlyRoots(heap_), obj, size, reserved,
+                                next_alignment_);
     address = obj.address();
     next_alignment_ = kWordAligned;
     return address;

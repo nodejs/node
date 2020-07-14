@@ -21,8 +21,10 @@ TEST_F(BackingStoreTest, GrowWasmMemoryInPlace) {
   EXPECT_EQ(1 * wasm::kWasmPageSize, backing_store->byte_length());
   EXPECT_EQ(2 * wasm::kWasmPageSize, backing_store->byte_capacity());
 
-  bool success = backing_store->GrowWasmMemoryInPlace(isolate(), 1, 2);
-  EXPECT_TRUE(success);
+  base::Optional<size_t> result =
+      backing_store->GrowWasmMemoryInPlace(isolate(), 1, 2);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 1u);
   EXPECT_EQ(2 * wasm::kWasmPageSize, backing_store->byte_length());
 }
 
@@ -34,8 +36,9 @@ TEST_F(BackingStoreTest, GrowWasmMemoryInPlace_neg) {
   EXPECT_EQ(1 * wasm::kWasmPageSize, backing_store->byte_length());
   EXPECT_EQ(2 * wasm::kWasmPageSize, backing_store->byte_capacity());
 
-  bool success = backing_store->GrowWasmMemoryInPlace(isolate(), 2, 2);
-  EXPECT_FALSE(success);
+  base::Optional<size_t> result =
+      backing_store->GrowWasmMemoryInPlace(isolate(), 2, 2);
+  EXPECT_FALSE(result.has_value());
   EXPECT_EQ(1 * wasm::kWasmPageSize, backing_store->byte_length());
 }
 
@@ -47,8 +50,10 @@ TEST_F(BackingStoreTest, GrowSharedWasmMemoryInPlace) {
   EXPECT_EQ(2 * wasm::kWasmPageSize, backing_store->byte_length());
   EXPECT_EQ(3 * wasm::kWasmPageSize, backing_store->byte_capacity());
 
-  bool success = backing_store->GrowWasmMemoryInPlace(isolate(), 1, 3);
-  EXPECT_TRUE(success);
+  base::Optional<size_t> result =
+      backing_store->GrowWasmMemoryInPlace(isolate(), 1, 3);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), 2u);
   EXPECT_EQ(3 * wasm::kWasmPageSize, backing_store->byte_length());
 }
 
@@ -81,10 +86,11 @@ class GrowerThread : public base::Thread {
     while (true) {
       size_t current_length = backing_store_->byte_length();
       if (current_length >= max_length) break;
-      bool result =
+      base::Optional<size_t> result =
           backing_store_->GrowWasmMemoryInPlace(isolate_, increment_, max_);
       size_t new_length = backing_store_->byte_length();
-      if (result) {
+      if (result.has_value()) {
+        CHECK_LE(current_length / wasm::kWasmPageSize, result.value());
         CHECK_GE(new_length, current_length + increment_);
       } else {
         CHECK_EQ(max_length, new_length);

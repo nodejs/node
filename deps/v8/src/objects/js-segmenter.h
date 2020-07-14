@@ -29,7 +29,7 @@ class BreakIterator;
 namespace v8 {
 namespace internal {
 
-class JSSegmenter : public JSObject {
+class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
  public:
   // Creates segmenter object with properties derived from input locales and
   // options.
@@ -44,11 +44,7 @@ class JSSegmenter : public JSObject {
 
   Handle<String> GranularityAsString() const;
 
-  DECL_CAST(JSSegmenter)
-
   // Segmenter accessors.
-  DECL_ACCESSORS(locale, String)
-
   DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
 
   // Granularity: identifying the segmenter used.
@@ -69,18 +65,9 @@ class JSSegmenter : public JSObject {
   STATIC_ASSERT(Granularity::WORD <= GranularityBits::kMax);
   STATIC_ASSERT(Granularity::SENTENCE <= GranularityBits::kMax);
 
-  // [flags] Bit field containing various flags about the function.
-  DECL_INT_ACCESSORS(flags)
-
   DECL_PRINTER(JSSegmenter)
-  DECL_VERIFIER(JSSegmenter)
 
-  // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                TORQUE_GENERATED_JS_SEGMENTER_FIELDS)
-
- private:
-  OBJECT_CONSTRUCTORS(JSSegmenter, JSObject);
+  TQ_OBJECT_CONSTRUCTORS(JSSegmenter)
 };
 
 }  // namespace internal

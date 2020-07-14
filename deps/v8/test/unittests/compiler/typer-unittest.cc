@@ -600,32 +600,38 @@ TEST_F(TyperTest, Manual_Operation_NumberMax) {
   Type b = t(Type::MinusZero(), zero_or_minuszero);
   CHECK(Type::MinusZero().Is(b));
   CHECK(zero.Is(b));
-  CHECK(a.Is(b));
+  CHECK(a.Is(b));  // Monotonicity.
 
   Type c = t(zero_or_minuszero, Type::MinusZero());
   CHECK(Type::MinusZero().Is(c));
   CHECK(zero.Is(c));
-  CHECK(a.Is(c));
+  CHECK(a.Is(c));  // Monotonicity.
 
   Type d = t(zero_or_minuszero, zero_or_minuszero);
   CHECK(Type::MinusZero().Is(d));
   CHECK(zero.Is(d));
-  CHECK(b.Is(d));
-  CHECK(c.Is(d));
+  CHECK(b.Is(d));  // Monotonicity.
+  CHECK(c.Is(d));  // Monotonicity.
 
   Type e =
       t(Type::MinusZero(), Type::Union(Type::MinusZero(), dot_five, zone()));
   CHECK(Type::MinusZero().Is(e));
   CHECK(dot_five.Is(e));
-  CHECK(a.Is(e));
+  CHECK(a.Is(e));  // Monotonicity.
 
   Type f = t(Type::MinusZero(), zero);
   CHECK(zero.Is(f));
-  CHECK(f.Is(b));
+  CHECK(f.Is(b));  // Monotonicity.
 
   Type g = t(zero, Type::MinusZero());
   CHECK(zero.Is(g));
-  CHECK(g.Is(c));
+  CHECK(g.Is(c));  // Monotonicity.
+
+  Type h = t(Type::Signed32(), Type::MinusZero());
+  CHECK(Type::MinusZero().Is(h));
+
+  Type i = t(Type::Signed32(), zero_or_minuszero);
+  CHECK(h.Is(i));  // Monotonicity.
 }
 
 TEST_F(TyperTest, Manual_Operation_NumberMin) {
@@ -644,35 +650,41 @@ TEST_F(TyperTest, Manual_Operation_NumberMin) {
   Type b = t(Type::MinusZero(), zero_or_minuszero);
   CHECK(Type::MinusZero().Is(b));
   CHECK(zero.Is(b));
-  CHECK(a.Is(b));
+  CHECK(a.Is(b));  // Monotonicity.
 
   Type c = t(zero_or_minuszero, Type::MinusZero());
   CHECK(Type::MinusZero().Is(c));
   CHECK(zero.Is(c));
-  CHECK(a.Is(c));
+  CHECK(a.Is(c));  // Monotonicity.
 
   Type d = t(zero_or_minuszero, zero_or_minuszero);
   CHECK(Type::MinusZero().Is(d));
   CHECK(zero.Is(d));
-  CHECK(b.Is(d));
-  CHECK(c.Is(d));
+  CHECK(b.Is(d));  // Monotonicity.
+  CHECK(c.Is(d));  // Monotonicity.
 
   Type e = t(Type::MinusZero(),
              Type::Union(Type::MinusZero(), minus_dot_five, zone()));
   CHECK(Type::MinusZero().Is(e));
   CHECK(minus_dot_five.Is(e));
-  CHECK(a.Is(e));
+  CHECK(a.Is(e));  // Monotonicity.
 
   Type f = t(Type::MinusZero(), zero);
   CHECK(Type::MinusZero().Is(f));
-  CHECK(f.Is(b));
+  CHECK(f.Is(b));  // Monotonicity.
 
   Type g = t(zero, Type::MinusZero());
   CHECK(Type::MinusZero().Is(g));
-  CHECK(g.Is(c));
+  CHECK(g.Is(c));  // Monotonicity.
 
   Type h = t(one, Type::MinusZero());
   CHECK(Type::MinusZero().Is(h));
+
+  Type i = t(Type::Signed32(), Type::MinusZero());
+  CHECK(Type::MinusZero().Is(i));
+
+  Type j = t(Type::Signed32(), zero_or_minuszero);
+  CHECK(i.Is(j));  // Monotonicity.
 }
 
 }  // namespace compiler

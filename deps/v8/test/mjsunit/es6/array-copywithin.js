@@ -42,7 +42,7 @@
   Array.prototype.copyWithin.call(args, -2, 0);
   assertArrayEquals([1, 1, 2], Array.prototype.slice.call(args));
 
-  // [[Class]] does not change
+  // Object.prototype.toString branding does not change
   assertArrayEquals("[object Arguments]", Object.prototype.toString.call(args));
 })();
 

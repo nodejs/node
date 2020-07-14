@@ -67,7 +67,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         TNode<Word32T> rhs_instance_type, MachineType rhs_type,
                         TNode<IntPtrT> length, Label* if_equal,
                         Label* if_not_equal);
-  TNode<IntPtrT> DirectStringData(TNode<String> string,
+  TNode<RawPtrT> DirectStringData(TNode<String> string,
                                   TNode<Word32T> string_instance_type);
 
   void DispatchOnStringEncodings(const TNode<Word32T> lhs_instance_type,

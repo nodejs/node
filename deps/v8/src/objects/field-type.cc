@@ -63,6 +63,15 @@ bool FieldType::NowIs(FieldType other) const {
   return *this == other;
 }
 
+bool FieldType::Equals(FieldType other) const {
+  if (IsAny() && other.IsAny()) return true;
+  if (IsNone() && other.IsNone()) return true;
+  if (IsClass() && other.IsClass()) {
+    return *this == other;
+  }
+  return false;
+}
+
 bool FieldType::NowIs(Handle<FieldType> other) const { return NowIs(*other); }
 
 void FieldType::PrintTo(std::ostream& os) const {

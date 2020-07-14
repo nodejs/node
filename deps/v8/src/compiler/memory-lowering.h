@@ -107,13 +107,14 @@ class MemoryLowering final : public Reducer {
                                            Node* value,
                                            AllocationState const* state,
                                            WriteBarrierKind);
+  Node* DecodeExternalPointer(Node* encoded_pointer);
   Node* ComputeIndex(ElementAccess const& access, Node* node);
   bool NeedsPoisoning(LoadSensitivity load_sensitivity) const;
 
-  Graph* graph() const;
+  Graph* graph() const { return graph_; }
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
-  Zone* graph_zone() const { return graph_zone_; }
+  inline Zone* graph_zone() const;
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   JSGraphAssembler* gasm() const { return graph_assembler_; }
@@ -121,7 +122,7 @@ class MemoryLowering final : public Reducer {
   SetOncePointer<const Operator> allocate_operator_;
   Isolate* isolate_;
   Zone* zone_;
-  Zone* graph_zone_;
+  Graph* graph_;
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
   JSGraphAssembler* graph_assembler_;

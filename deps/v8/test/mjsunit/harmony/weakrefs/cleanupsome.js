@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-weak-refs --expose-gc --noincremental-marking --allow-natives-syntax
+// Flags: --harmony-weak-refs-with-cleanup-some --expose-gc --noincremental-marking --allow-natives-syntax
 
 let cleanup_count = 0;
 let cleanup_holdings = [];
-let cleanup = function(iter) {
+let cleanup = function(holdings) {
   %AbortJS("shouldn't be called");
 }
 
-let cleanup2 = function(iter) {
-  for (holdings of iter) {
-    cleanup_holdings.push(holdings);
-  }
+let cleanup2 = function(holdings) {
+  cleanup_holdings.push(holdings);
   ++cleanup_count;
 }
 

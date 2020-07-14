@@ -76,7 +76,11 @@ BUILTIN(CallSitePrototypeGetFunction) {
                         GetFrameIndex(isolate, recv));
 
   StackFrameBase* frame = it.Frame();
-  if (frame->IsStrict()) return ReadOnlyRoots(isolate).undefined_value();
+  if (frame->IsStrict() ||
+      (frame->GetFunction()->IsJSFunction() &&
+       JSFunction::cast(*frame->GetFunction()).shared().is_toplevel())) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
 

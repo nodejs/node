@@ -16,6 +16,14 @@ perfetto_build_with_embedder = true
 perfetto_protobuf_target_prefix = "//"
 perfetto_protobuf_gni = "//gni/proto_library.gni"
 
+# We use Perfetto's Trace Processor to convert traces to the legacy JSON
+# format.
+enable_perfetto_trace_processor = true
+
+# When building with chromium, determines whether we want to also use the
+# perfetto library from chromium instead declaring our own.
+use_perfetto_client_library = false
+
 # Uncomment these to specify a different NDK location and version in
 # non-Chromium builds.
 # default_android_ndk_root = "//third_party/android_ndk"

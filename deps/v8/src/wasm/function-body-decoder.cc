@@ -154,7 +154,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     ++line_nr;
   }
 
-  os << "// body: " << std::endl;
+  os << "// body:" << std::endl;
   if (line_numbers) line_numbers->push_back(kNoByteCode);
   ++line_nr;
   unsigned control_depth = 0;
@@ -187,6 +187,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         opcode == kExprTry) {
       DCHECK_EQ(2, length);
 
+      // TODO(7748) Update this for gc and ref types if needed
       switch (i.pc()[1]) {
 #define CASE_LOCAL_TYPE(local_name, type_name) \
   case kLocal##local_name:                     \

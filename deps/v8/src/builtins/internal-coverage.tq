@@ -6,33 +6,34 @@
 
 namespace internal_coverage {
 
-  macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
-      CoverageInfo labels IfNoCoverageInfo {
-    const shared: SharedFunctionInfo = function.shared_function_info;
-    const debugInfo = Cast<DebugInfo>(shared.script_or_debug_info)
-        otherwise goto IfNoCoverageInfo;
+macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
+    CoverageInfo labels IfNoCoverageInfo {
+  const shared: SharedFunctionInfo = function.shared_function_info;
+  const debugInfo = Cast<DebugInfo>(shared.script_or_debug_info)
+      otherwise goto IfNoCoverageInfo;
 
-    if (!SmiUntag(debugInfo.flags).has_coverage_info) goto IfNoCoverageInfo;
-    return UnsafeCast<CoverageInfo>(debugInfo.coverage_info);
-  }
+  if (!debugInfo.flags.has_coverage_info) goto IfNoCoverageInfo;
+  return UnsafeCast<CoverageInfo>(debugInfo.coverage_info);
+}
 
-  macro IncrementBlockCount(implicit context: Context)(
-      coverageInfo: CoverageInfo, slot: Smi) {
-    assert(Convert<int32>(slot) < coverageInfo.slot_count);
-    ++coverageInfo.slots[slot].block_count;
-  }
+macro IncrementBlockCount(implicit context: Context)(
+    coverageInfo: CoverageInfo, slot: Smi) {
+  assert(Convert<int32>(slot) < coverageInfo.slot_count);
+  ++coverageInfo.slots[slot].block_count;
+}
 
-  builtin IncBlockCounter(implicit context: Context)(
-      function: JSFunction, coverageArraySlotIndex: Smi): Undefined {
-    // It's quite possible that a function contains IncBlockCounter bytecodes,
-    // but no coverage info exists. This happens e.g. by selecting the
-    // best-effort coverage collection mode, which triggers deletion of all
-    // coverage infos in order to avoid memory leaks.
+builtin IncBlockCounter(
+    implicit context:
+        Context)(function: JSFunction, coverageArraySlotIndex: Smi): Undefined {
+  // It's quite possible that a function contains IncBlockCounter bytecodes,
+  // but no coverage info exists. This happens e.g. by selecting the
+  // best-effort coverage collection mode, which triggers deletion of all
+  // coverage infos in order to avoid memory leaks.
 
-    const coverageInfo: CoverageInfo =
-        GetCoverageInfo(function) otherwise return Undefined;
-    IncrementBlockCount(coverageInfo, coverageArraySlotIndex);
-    return Undefined;
-  }
+  const coverageInfo: CoverageInfo =
+      GetCoverageInfo(function) otherwise return Undefined;
+  IncrementBlockCount(coverageInfo, coverageArraySlotIndex);
+  return Undefined;
+}
 
 }  // namespace internal_coverage

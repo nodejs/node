@@ -141,6 +141,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Movups, movups)
   AVX_OP(Movmskps, movmskps)
   AVX_OP(Movmskpd, movmskpd)
+  AVX_OP(Pmovmskb, pmovmskb)
   AVX_OP(Movss, movss)
   AVX_OP(Movsd, movsd)
   AVX_OP(Movdqu, movdqu)
@@ -227,7 +228,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Rcpps, rcpps)
   AVX_OP(Rsqrtps, rsqrtps)
   AVX_OP(Addps, addps)
-  AVX_OP(Haddps, haddps)
   AVX_OP(Subps, subps)
   AVX_OP(Mulps, mulps)
   AVX_OP(Divps, divps)
@@ -248,6 +248,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Cmpps, cmpps)
   AVX_OP(Cmppd, cmppd)
   AVX_OP(Movlhps, movlhps)
+  AVX_OP_SSE3(Haddps, haddps)
   AVX_OP_SSE3(Movddup, movddup)
   AVX_OP_SSSE3(Phaddd, phaddd)
   AVX_OP_SSSE3(Phaddw, phaddw)
@@ -675,6 +676,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressTaggedPointer(Register destination, Operand field_operand);
   void DecompressTaggedPointer(Register destination, Register source);
   void DecompressAnyTagged(Register destination, Operand field_operand);
+
+  // ---------------------------------------------------------------------------
+  // V8 Heap sandbox support
+
+  // Loads a field containing off-heap pointer and does necessary decoding
+  // if V8 heap sandbox is enabled.
+  void LoadExternalPointerField(Register destination, Operand field_operand);
 
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

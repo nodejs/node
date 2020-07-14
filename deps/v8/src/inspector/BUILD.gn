@@ -31,13 +31,9 @@ _protocol_generated = [
 action("protocol_compatibility") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
   script = "$_inspector_protocol/check_protocol_compatibility.py"
-  inputs = [
-    v8_inspector_js_protocol,
-  ]
+  inputs = [ v8_inspector_js_protocol ]
   _stamp = "$target_gen_dir/js_protocol.stamp"
-  outputs = [
-    _stamp,
-  ]
+  outputs = [ _stamp ]
   args = [
     "--stamp",
     rebase_path(_stamp, root_build_dir),
@@ -47,9 +43,7 @@ action("protocol_compatibility") {
 
 inspector_protocol_generate("protocol_generated_sources") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
-  deps = [
-    ":protocol_compatibility",
-  ]
+  deps = [ ":protocol_compatibility" ]
 
   inspector_protocol_dir = _inspector_protocol
   out_dir = target_gen_dir
@@ -71,13 +65,9 @@ config("inspector_config") {
 v8_header_set("inspector_test_headers") {
   configs = [ ":inspector_config" ]
 
-  public_deps = [
-    "../..:v8_headers",
-  ]
+  public_deps = [ "../..:v8_headers" ]
 
-  sources = [
-    "test-interface.h",
-  ]
+  sources = [ "test-interface.h" ]
 }
 
 v8_source_set("inspector_string_conversions") {
@@ -86,14 +76,13 @@ v8_source_set("inspector_string_conversions") {
     "v8-string-conversions.h",
   ]
   configs = [ "../..:internal_config_base" ]
-  deps = [
-    "../..:v8_libbase",
-  ]
+  deps = [ "../..:v8_libbase" ]
 }
 
 v8_source_set("inspector") {
   deps = [
     ":inspector_string_conversions",
+    "../..:v8_tracing",
     "../..:v8_version",
     "../../third_party/inspector_protocol:crdtp",
   ]
@@ -166,7 +155,5 @@ v8_source_set("inspector") {
 group("v8_generated_cc_files") {
   testonly = true
 
-  deps = [
-    ":protocol_generated_sources",
-  ]
+  deps = [ ":protocol_generated_sources" ]
 }

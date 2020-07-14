@@ -5,54 +5,53 @@
 #include 'src/builtins/builtins-collections-gen.h'
 
 namespace collections {
-  @export
-  macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
-      KeyValuePair labels MayHaveSideEffects {
-    typeswitch (o) {
-      case (a: FastJSArray): {
-        const length: Smi = a.length;
-        typeswitch (a.elements) {
-          case (elements: FixedArray): {
-            return KeyValuePair{
-              key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
-                                Undefined,
-              value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
-                                  Undefined
-            };
-          }
-          case (elements: FixedDoubleArray): {
-            return KeyValuePair{
-              key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
-                                Undefined,
-              value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
-                                  Undefined
-            };
-          }
-          case (FixedArrayBase): deferred {
-            unreachable;
-          }
+@export
+macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
+    KeyValuePair labels MayHaveSideEffects {
+  typeswitch (o) {
+    case (a: FastJSArray): {
+      const length: Smi = a.length;
+      typeswitch (a.elements) {
+        case (elements: FixedArray): {
+          return KeyValuePair{
+            key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                              Undefined,
+            value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                Undefined
+          };
+        }
+        case (elements: FixedDoubleArray): {
+          return KeyValuePair{
+            key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                              Undefined,
+            value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                Undefined
+          };
+        }
+        case (FixedArrayBase): deferred {
+          unreachable;
         }
       }
-      case (JSReceiver): {
-        goto MayHaveSideEffects;
-      }
-      case (o: JSAny): deferred {
-        ThrowTypeError(MessageTemplate::kIteratorValueNotAnObject, o);
-      }
+    }
+    case (JSReceiver): {
+      goto MayHaveSideEffects;
+    }
+    case (o: JSAny): deferred {
+      ThrowTypeError(MessageTemplate::kIteratorValueNotAnObject, o);
     }
   }
+}
 
-  @export
-  transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
-      KeyValuePair {
-    try {
-      return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
-    }
-    label Generic {
-      return KeyValuePair{
-        key: GetProperty(o, Convert<Smi>(0)),
-        value: GetProperty(o, Convert<Smi>(1))
-      };
-    }
+@export
+transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
+    KeyValuePair {
+  try {
+    return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
+  } label Generic {
+    return KeyValuePair{
+      key: GetProperty(o, Convert<Smi>(0)),
+      value: GetProperty(o, Convert<Smi>(1))
+    };
   }
+}
 }

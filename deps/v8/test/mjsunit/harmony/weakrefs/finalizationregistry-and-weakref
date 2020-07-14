@@ -5,12 +5,10 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_called = false;
-let cleanup = function(iter) {
+let cleanup = function(holdings) {
   assertFalse(cleanup_called);
   let holdings_list = [];
-  for (holdings of iter) {
-    holdings_list.push(holdings);
-  }
+  holdings_list.push(holdings);
   assertEquals(1, holdings_list.length);
   assertEquals("holdings", holdings_list[0]);
   cleanup_called = true;

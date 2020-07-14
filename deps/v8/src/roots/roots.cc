@@ -25,23 +25,14 @@ void ReadOnlyRoots::Iterate(RootVisitor* visitor) {
 }
 
 #ifdef DEBUG
-
-bool ReadOnlyRoots::CheckType(RootIndex index) const {
-  Object root(at(index));
-  switch (index) {
-#define CHECKTYPE(Type, name, CamelName) \
-  case RootIndex::k##CamelName:          \
-    return root.Is##Type();
-    READ_ONLY_ROOT_LIST(CHECKTYPE)
-#undef CHECKTYPE
-
-    default:
-      UNREACHABLE();
-      return false;
+#define ROOT_TYPE_CHECK(Type, name, CamelName)   \
+  bool ReadOnlyRoots::CheckType_##name() const { \
+    return unchecked_##name().Is##Type();        \
   }
-}
 
-#endif  // DEBUG
+READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
+#undef ROOT_TYPE_CHECK
+#endif
 
 }  // namespace internal
 }  // namespace v8

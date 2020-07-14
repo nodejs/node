@@ -15,49 +15,60 @@
 
 namespace v8 {
 
-IsolateWrapper::IsolateWrapper(CounterLookupCallback counter_lookup_callback,
-                               bool enforce_pointer_compression)
+namespace {
+// counter_lookup_callback doesn't pass through any state information about
+// the current Isolate, so we have to store the current counter map somewhere.
+// Fortunately tests run serially, so we can just store it in a static global.
+CounterMap* kCurrentCounterMap = nullptr;
+}  // namespace
+
+IsolateWrapper::IsolateWrapper(CountersMode counters_mode,
+                               PointerCompressionMode pointer_compression_mode)
     : array_buffer_allocator_(
           v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
+  CHECK_NULL(kCurrentCounterMap);
+
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = array_buffer_allocator_;
-  create_params.counter_lookup_callback = counter_lookup_callback;
-  if (enforce_pointer_compression) {
+  create_params.array_buffer_allocator = array_buffer_allocator_.get();
+
+  if (counters_mode == kEnableCounters) {
+    counter_map_ = std::make_unique<CounterMap>();
+    kCurrentCounterMap = counter_map_.get();
+
+    create_params.counter_lookup_callback = [](const char* name) {
+      CHECK_NOT_NULL(kCurrentCounterMap);
+      // If the name doesn't exist in the counter map, operator[] will default
+      // initialize it to zero.
+      return &(*kCurrentCounterMap)[name];
+    };
+  } else {
+    create_params.counter_lookup_callback = [](const char* name) -> int* {
+      return nullptr;
+    };
+  }
+
+  if (pointer_compression_mode == kEnforcePointerCompression) {
     isolate_ = reinterpret_cast<v8::Isolate*>(
         i::Isolate::New(i::IsolateAllocationMode::kInV8Heap));
-    v8::Isolate::Initialize(isolate_, create_params);
+    v8::Isolate::Initialize(isolate(), create_params);
   } else {
     isolate_ = v8::Isolate::New(create_params);
   }
-  CHECK_NOT_NULL(isolate_);
+  CHECK_NOT_NULL(isolate());
 }
 
 IsolateWrapper::~IsolateWrapper() {
   v8::Platform* platform = internal::V8::GetCurrentPlatform();
   CHECK_NOT_NULL(platform);
-  while (platform::PumpMessageLoop(platform, isolate_)) continue;
+  while (platform::PumpMessageLoop(platform, isolate())) continue;
   isolate_->Dispose();
-  delete array_buffer_allocator_;
-}
-
-// static
-v8::IsolateWrapper* SharedIsolateHolder::isolate_wrapper_ = nullptr;
-
-// static
-int* SharedIsolateAndCountersHolder::LookupCounter(const char* name) {
-  DCHECK_NOT_NULL(counter_map_);
-  auto map_entry = counter_map_->find(name);
-  if (map_entry == counter_map_->end()) {
-    counter_map_->emplace(name, 0);
+  if (counter_map_) {
+    CHECK_EQ(kCurrentCounterMap, counter_map_.get());
+    kCurrentCounterMap = nullptr;
+  } else {
+    CHECK_NULL(kCurrentCounterMap);
   }
-  return &counter_map_->at(name);
 }
-
-// static
-v8::IsolateWrapper* SharedIsolateAndCountersHolder::isolate_wrapper_ = nullptr;
-
-// static
-CounterMap* SharedIsolateAndCountersHolder::counter_map_ = nullptr;
 
 namespace internal {
 

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 @generateCppClass
+@generatePrint
 extern class Cell extends HeapObject {
   value: Object;
 }

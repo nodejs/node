@@ -6,34 +6,40 @@
 
 let cleanup_call_count = 0;
 let cleanup_holdings_count = 0;
-let cleanup = function(iter) {
-  for (holdings of iter) {
-    assertEquals(holdings, "holdings");
-    let success = fg.unregister(key);
-    assertFalse(success);
-
-    ++cleanup_holdings_count;
+let cleanup = function(holdings) {
+  // See which target we're cleaning up and unregister the other one.
+  if (holdings == 1) {
+    let success = fg.unregister(key2);
+    assertTrue(success);
+  } else {
+    assertSame(holdings, 2);
+    let success = fg.unregister(key1);
+    assertTrue(success);
   }
+  ++cleanup_holdings_count;
   ++cleanup_call_count;
 }
 
 let fg = new FinalizationRegistry(cleanup);
-// Create an object and register it in the FinalizationRegistry. The object needs to be inside
-// a closure so that we can reliably kill them!
-let key = {"k": "this is the key"};
+let key1 = {"k": "first key"};
+let key2 = {"k": "second key"};
+// Create two objects and register them in the FinalizationRegistry. The objects
+// need to be inside a closure so that we can reliably kill them!
 
 (function() {
-  let object = {};
-  fg.register(object, "holdings", key);
+  let object1 = {};
+  fg.register(object1, 1, key1);
+  let object2 = {};
+  fg.register(object2, 2, key2);
 
-  // object goes out of scope.
+  // object1 and object2 go out of scope.
 })();
 
-// This GC will discover dirty WeakCells and schedule cleanup.
+// This GC will reclaim target objects and schedule cleanup.
 gc();
 assertEquals(0, cleanup_call_count);
 
-// Assert that the cleanup function was called and iterated the WeakCell.
+// Assert that the cleanup function was called and cleaned up one holdings (but not the other one).
 let timeout_func = function() {
   assertEquals(1, cleanup_call_count);
   assertEquals(1, cleanup_holdings_count);

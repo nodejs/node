@@ -11,17 +11,13 @@ let cleanup0_holdings_count = 0;
 let cleanup1_call_count = 0;
 let cleanup1_holdings_count = 0;
 
-let cleanup0 = function(iter) {
-  for (holdings of iter) {
-    ++cleanup0_holdings_count;
-  }
+let cleanup0 = function(holdings) {
+  ++cleanup0_holdings_count;
   ++cleanup0_call_count;
 }
 
-let cleanup1 = function(iter) {
-  for (holdings of iter) {
-    ++cleanup1_holdings_count;
-  }
+let cleanup1 = function(holdings) {
+  ++cleanup1_holdings_count;
   ++cleanup1_call_count;
 }
 
@@ -61,12 +57,11 @@ gc();
 gc();
 
 let timeout_func = function() {
-  assertEquals(1, cleanup0_call_count);
+  assertEquals(2, cleanup0_call_count);
   assertEquals(2, cleanup0_holdings_count);
-  assertEquals(1, cleanup1_call_count);
+  assertEquals(2, cleanup1_call_count);
   assertEquals(2, cleanup1_holdings_count);
 }
 
-// Give the cleanup task a chance to run. All holdings will be iterated during
-// the same invocation of the cleanup function.
+// Give the cleanup task a chance to run.
 setTimeout(timeout_func, 0);

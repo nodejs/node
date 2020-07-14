@@ -27,6 +27,7 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-objects-inl.h"
 

@@ -170,7 +170,12 @@ Node* RepresentationChanger::GetRepresentationFor(
 
   // Handle the no-op shortcuts when no checking is necessary.
   if (use_info.type_check() == TypeCheckKind::kNone ||
-      output_rep != MachineRepresentation::kWord32) {
+      // TODO(nicohartmann@, chromium:1077804): Ignoring {use_info.type_check()}
+      // in case the representation already matches is not correct. For now,
+      // this behavior is disabled only for TypeCheckKind::kBigInt, but should
+      // be fixed for all other type checks.
+      (output_rep != MachineRepresentation::kWord32 &&
+       use_info.type_check() != TypeCheckKind::kBigInt)) {
     if (use_info.representation() == output_rep) {
       // Representations are the same. That's a no-op.
       return node;
@@ -381,6 +386,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant:
     case IrOpcode::kDelayedStringConstant:
+      if (use_info.type_check() == TypeCheckKind::kBigInt) break;
       return node;  // No change necessary.
     case IrOpcode::kInt32Constant:
     case IrOpcode::kFloat64Constant:
@@ -1156,6 +1162,14 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedTaggedToArrayIndex(use_info.feedback());
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kWord64);
+    }
+  } else if (output_rep == MachineRepresentation::kWord64) {
+    DCHECK_EQ(use_info.type_check(), TypeCheckKind::kBigInt);
+    if (output_type.Is(Type::BigInt())) {
+      return node;
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);

@@ -12,9 +12,12 @@
 #include <vector>
 
 #include "libplatform/libplatform-export.h"
-#include "v8-platform.h"  // NOLINT(build/include)
+#include "v8-platform.h"  // NOLINT(build/include_directory)
 
 namespace perfetto {
+namespace trace_processor {
+class TraceProcessorStorage;
+}
 class TracingSession;
 }
 
@@ -28,7 +31,6 @@ namespace platform {
 namespace tracing {
 
 class TraceEventListener;
-class JSONTraceEventListener;
 
 const int kTraceMaxNumArgs = 2;
 
@@ -197,6 +199,9 @@ class V8_PLATFORM_EXPORT TraceConfig {
 
   TraceConfig() : enable_systrace_(false), enable_argument_filter_(false) {}
   TraceRecordMode GetTraceRecordMode() const { return record_mode_; }
+  const StringList& GetEnabledCategories() const {
+    return included_categories_;
+  }
   bool IsSystraceEnabled() const { return enable_systrace_; }
   bool IsArgumentFilterEnabled() const { return enable_argument_filter_; }
 
@@ -229,6 +234,17 @@ class V8_PLATFORM_EXPORT TraceConfig {
 class V8_PLATFORM_EXPORT TracingController
     : public V8_PLATFORM_NON_EXPORTED_BASE(v8::TracingController) {
  public:
+  TracingController();
+  ~TracingController() override;
+
+#if defined(V8_USE_PERFETTO)
+  // Must be called before StartTracing() if V8_USE_PERFETTO is true. Provides
+  // the output stream for the JSON trace data.
+  void InitializeForPerfetto(std::ostream* output_stream);
+  // Provide an optional listener for testing that will receive trace events.
+  // Must be called before StartTracing().
+  void SetTraceEventListenerForTesting(TraceEventListener* listener);
+#else   // defined(V8_USE_PERFETTO)
   // The pointer returned from GetCategoryGroupEnabled() points to a value with
   // zero or more of the following bits. Used in this class only. The
   // TRACE_EVENT macros should only use the value as a bool. These values must
@@ -242,19 +258,8 @@ class V8_PLATFORM_EXPORT TracingController
     ENABLED_FOR_ETW_EXPORT = 1 << 3
   };
 
-  TracingController();
-  ~TracingController() override;
-
   // Takes ownership of |trace_buffer|.
   void Initialize(TraceBuffer* trace_buffer);
-#ifdef V8_USE_PERFETTO
-  // Must be called before StartTracing() if V8_USE_PERFETTO is true. Provides
-  // the output stream for the JSON trace data.
-  void InitializeForPerfetto(std::ostream* output_stream);
-  // Provide an optional listener for testing that will receive trace events.
-  // Must be called before StartTracing().
-  void SetTraceEventListenerForTesting(TraceEventListener* listener);
-#endif
 
   // v8::TracingController implementation.
   const uint8_t* GetCategoryGroupEnabled(const char* category_group) override;
@@ -274,6 +279,10 @@ class V8_PLATFORM_EXPORT TracingController
       unsigned int flags, int64_t timestamp) override;
   void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                 const char* name, uint64_t handle) override;
+
+  static const char* GetCategoryGroupName(const uint8_t* category_enabled_flag);
+#endif  // !defined(V8_USE_PERFETTO)
+
   void AddTraceStateObserver(
       v8::TracingController::TraceStateObserver* observer) override;
   void RemoveTraceStateObserver(
@@ -282,27 +291,32 @@ class V8_PLATFORM_EXPORT TracingController
   void StartTracing(TraceConfig* trace_config);
   void StopTracing();
 
-  static const char* GetCategoryGroupName(const uint8_t* category_enabled_flag);
-
  protected:
+#if !defined(V8_USE_PERFETTO)
   virtual int64_t CurrentTimestampMicroseconds();
   virtual int64_t CurrentCpuTimestampMicroseconds();
+#endif  // !defined(V8_USE_PERFETTO)
 
  private:
+#if !defined(V8_USE_PERFETTO)
   void UpdateCategoryGroupEnabledFlag(size_t category_index);
   void UpdateCategoryGroupEnabledFlags();
+#endif  // !defined(V8_USE_PERFETTO)
 
-  std::unique_ptr<TraceBuffer> trace_buffer_;
-  std::unique_ptr<TraceConfig> trace_config_;
   std::unique_ptr<base::Mutex> mutex_;
-  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_;
+  std::unique_ptr<TraceConfig> trace_config_;
   std::atomic_bool recording_{false};
-#ifdef V8_USE_PERFETTO
+  std::unordered_set<v8::TracingController::TraceStateObserver*> observers_;
+
+#if defined(V8_USE_PERFETTO)
   std::ostream* output_stream_ = nullptr;
-  std::unique_ptr<JSONTraceEventListener> json_listener_;
+  std::unique_ptr<perfetto::trace_processor::TraceProcessorStorage>
+      trace_processor_;
   TraceEventListener* listener_for_testing_ = nullptr;
   std::unique_ptr<perfetto::TracingSession> tracing_session_;
-#endif
+#else   // !defined(V8_USE_PERFETTO)
+  std::unique_ptr<TraceBuffer> trace_buffer_;
+#endif  // !defined(V8_USE_PERFETTO)
 
   // Disallow copy and assign
   TracingController(const TracingController&) = delete;

@@ -15,9 +15,6 @@ class Protectors : public AllStatic {
   static const int kProtectorValid = 1;
   static const int kProtectorInvalid = 0;
 
-#define DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(V) \
-  V(RegExpSpeciesLookupChainProtector, regexp_species_protector)
-
 #define DECLARED_PROTECTORS_ON_ISOLATE(V)                                     \
   V(ArrayBufferDetaching, ArrayBufferDetachingProtector,                      \
     array_buffer_detaching_protector)                                         \
@@ -41,6 +38,8 @@ class Protectors : public AllStatic {
   /*   property holder is the %IteratorPrototype%. Note that this also     */ \
   /*   invalidates the SetIterator protector (see below).                  */ \
   V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
+  V(RegExpSpeciesLookupChain, RegExpSpeciesProtector,                         \
+    regexp_species_protector)                                                 \
   V(PromiseHook, PromiseHookProtector, promise_hook_protector)                \
   V(PromiseThenLookupChain, PromiseThenProtector, promise_then_protector)     \
   V(PromiseResolveLookupChain, PromiseResolveProtector,                       \
@@ -82,19 +81,9 @@ class Protectors : public AllStatic {
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 
-#define DECLARE_PROTECTOR_ON_NATIVE_CONTEXT(name, unused_cell) \
-  V8_EXPORT_PRIVATE static inline bool Is##name##Intact(       \
-      Handle<NativeContext> native_context);                   \
-  V8_EXPORT_PRIVATE static void Invalidate##name(              \
-      Isolate* isolate, Handle<NativeContext> native_context);
-
-  DECLARED_PROTECTORS_ON_NATIVE_CONTEXT(DECLARE_PROTECTOR_ON_NATIVE_CONTEXT)
-#undef DECLARE_PROTECTOR_ON_NATIVE_CONTEXT
-
 #define DECLARE_PROTECTOR_ON_ISOLATE(name, unused_root_index, unused_cell) \
   V8_EXPORT_PRIVATE static inline bool Is##name##Intact(Isolate* isolate); \
   V8_EXPORT_PRIVATE static void Invalidate##name(Isolate* isolate);
-
   DECLARED_PROTECTORS_ON_ISOLATE(DECLARE_PROTECTOR_ON_ISOLATE)
 #undef DECLARE_PROTECTOR_ON_ISOLATE
 };

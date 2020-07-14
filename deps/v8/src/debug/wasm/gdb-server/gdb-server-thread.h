@@ -34,6 +34,8 @@ class GdbServerThread : public v8::base::Thread {
   // closes any active debugging session.
   void Stop();
 
+  Target& GetTarget() { return *target_; }
+
  private:
   void CleanupThread();
 
@@ -47,7 +49,7 @@ class GdbServerThread : public v8::base::Thread {
 
   base::Mutex mutex_;
   // Protected by {mutex_}:
-  std::unique_ptr<Transport> transport_;
+  std::unique_ptr<TransportBase> transport_;
   std::unique_ptr<Target> target_;
 
   DISALLOW_COPY_AND_ASSIGN(GdbServerThread);

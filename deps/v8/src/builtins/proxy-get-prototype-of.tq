@@ -6,65 +6,62 @@
 
 namespace proxy {
 
-  // ES #sec-proxy-object-internal-methods-and-internal-slots-isextensible
-  // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-isextensible
-  transitioning builtin
-  ProxyGetPrototypeOf(implicit context: Context)(proxy: JSProxy): JSAny {
-    PerformStackCheck();
-    const kTrapName: constexpr string = 'getPrototypeOf';
-    try {
-      // 1. Let handler be O.[[ProxyHandler]].
-      // 2. If handler is null, throw a TypeError exception.
-      // 3. Assert: Type(handler) is Object.
-      assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
-      const handler =
-          Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
+// ES #sec-proxy-object-internal-methods-and-internal-slots-isextensible
+// https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-isextensible
+transitioning builtin
+ProxyGetPrototypeOf(implicit context: Context)(proxy: JSProxy): JSAny {
+  PerformStackCheck();
+  const kTrapName: constexpr string = 'getPrototypeOf';
+  try {
+    // 1. Let handler be O.[[ProxyHandler]].
+    // 2. If handler is null, throw a TypeError exception.
+    // 3. Assert: Type(handler) is Object.
+    assert(proxy.handler == Null || Is<JSReceiver>(proxy.handler));
+    const handler =
+        Cast<JSReceiver>(proxy.handler) otherwise ThrowProxyHandlerRevoked;
 
-      // 4. Let target be O.[[ProxyTarget]].
-      const target = proxy.target;
+    // 4. Let target be O.[[ProxyTarget]].
+    const target = proxy.target;
 
-      // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
-      // 6. If trap is undefined, then (see 6.a below).
-      const trap: Callable = GetMethod(handler, kTrapName)
-          otherwise goto TrapUndefined(target);
+    // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
+    // 6. If trap is undefined, then (see 6.a below).
+    const trap: Callable = GetMethod(handler, kTrapName)
+        otherwise goto TrapUndefined(target);
 
-      // 7. Let handlerProto be ? Call(trap, handler, « target »).
-      const handlerProto = Call(context, trap, handler, target);
+    // 7. Let handlerProto be ? Call(trap, handler, « target »).
+    const handlerProto = Call(context, trap, handler, target);
 
-      // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError
-      // exception.
-      if (!Is<JSReceiver>(handlerProto) && handlerProto != Null) {
-        goto ThrowProxyGetPrototypeOfInvalid;
-      }
-
-      // 9. Let extensibleTarget be ? IsExtensible(target).
-      // 10. If extensibleTarget is true, return handlerProto.
-      const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
-      assert(extensibleTarget == True || extensibleTarget == False);
-      if (extensibleTarget == True) {
-        return handlerProto;
-      }
-
-      // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
-      const targetProto = object::ObjectGetPrototypeOfImpl(target);
-
-      // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError
-      // exception.
-      // 13. Return handlerProto.
-      if (SameValue(targetProto, handlerProto)) {
-        return handlerProto;
-      }
-      ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfNonExtensible);
+    // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError
+    // exception.
+    if (!Is<JSReceiver>(handlerProto) && handlerProto != Null) {
+      goto ThrowProxyGetPrototypeOfInvalid;
     }
-    label TrapUndefined(target: JSAny) {
-      // 6.a. Return ? target.[[GetPrototypeOf]]().
-      return object::ObjectGetPrototypeOfImpl(target);
+
+    // 9. Let extensibleTarget be ? IsExtensible(target).
+    // 10. If extensibleTarget is true, return handlerProto.
+    const extensibleTarget: JSAny = object::ObjectIsExtensibleImpl(target);
+    assert(extensibleTarget == True || extensibleTarget == False);
+    if (extensibleTarget == True) {
+      return handlerProto;
     }
-    label ThrowProxyHandlerRevoked deferred {
-      ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
+
+    // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
+    const targetProto = object::ObjectGetPrototypeOfImpl(target);
+
+    // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError
+    // exception.
+    // 13. Return handlerProto.
+    if (SameValue(targetProto, handlerProto)) {
+      return handlerProto;
     }
-    label ThrowProxyGetPrototypeOfInvalid deferred {
-      ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid);
-    }
+    ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfNonExtensible);
+  } label TrapUndefined(target: JSAny) {
+    // 6.a. Return ? target.[[GetPrototypeOf]]().
+    return object::ObjectGetPrototypeOfImpl(target);
+  } label ThrowProxyHandlerRevoked deferred {
+    ThrowTypeError(MessageTemplate::kProxyRevoked, kTrapName);
+  } label ThrowProxyGetPrototypeOfInvalid deferred {
+    ThrowTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid);
   }
+}
 }

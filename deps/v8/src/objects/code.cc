@@ -1026,8 +1026,12 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "prototype-check";
     case kPropertyCellChangedGroup:
       return "property-cell-changed";
-    case kFieldOwnerGroup:
-      return "field-owner";
+    case kFieldConstGroup:
+      return "field-const";
+    case kFieldTypeGroup:
+      return "field-type";
+    case kFieldRepresentationGroup:
+      return "field-representation";
     case kInitialMapChangedGroup:
       return "initial-map-changed";
     case kAllocationSiteTenuringChangedGroup:

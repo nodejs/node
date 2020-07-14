@@ -1902,17 +1902,7 @@ IGNITION_HANDLER(TestInstanceOf, InterpreterAssembler) {
   TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  Label feedback_done(this);
-  GotoIf(IsUndefined(maybe_feedback_vector), &feedback_done);
-
-  // Record feedback for the {callable} in the {feedback_vector}.
-  CollectCallableFeedback(callable, context, CAST(maybe_feedback_vector),
-                          slot_id,
-                          CallableFeedbackMode::kDontCollectFeedbackCell);
-  Goto(&feedback_done);
-
-  BIND(&feedback_done);
-  // Perform the actual instanceof operation.
+  CollectInstanceOfFeedback(callable, context, maybe_feedback_vector, slot_id);
   SetAccumulator(InstanceOf(object, callable, context));
   Dispatch();
 }
@@ -2811,7 +2801,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
   BIND(&if_duplicate_parameters);
   {
     TNode<Object> result =
-        CallRuntime(Runtime::kNewSloppyArguments_Generic, context, closure);
+        CallRuntime(Runtime::kNewSloppyArguments, context, closure);
     SetAccumulator(result);
     Dispatch();
   }

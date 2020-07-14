@@ -1156,6 +1156,10 @@ void InstructionSelector::VisitWord32PairSar(Node* node) {
 }
 #endif
 
+void InstructionSelector::VisitWord32Rol(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord64Rol(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 #if V8_TARGET_ARCH_S390X

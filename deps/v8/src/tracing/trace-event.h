@@ -8,7 +8,13 @@
 #include <stddef.h>
 #include <memory>
 
+#if defined(V8_USE_PERFETTO)
+#include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
+#include "src/tracing/trace-categories.h"
+#else
 #include "base/trace_event/common/trace_event_common.h"
+#endif  // !defined(V8_USE_PERFETTO)
+
 #include "include/v8-platform.h"
 #include "src/base/atomicops.h"
 #include "src/base/macros.h"
@@ -31,6 +37,8 @@ enum CategoryGroupEnabledFlags {
   // Category group enabled to export events to ETW.
   kEnabledForETWExport_CategoryGroupEnabledFlags = 1 << 3,
 };
+
+#if !defined(V8_USE_PERFETTO)
 
 // TODO(petermarshall): Remove with the old tracing implementation - Perfetto
 // copies const char* arguments by default.
@@ -284,8 +292,8 @@ class Isolate;
 
 namespace tracing {
 
-// Specify these values when the corresponding argument of AddTraceEvent is not
-// used.
+// Specify these values when the corresponding argument of AddTraceEvent
+// is not used.
 const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
@@ -604,5 +612,40 @@ class CallStatsScopedTracer {
 }  // namespace tracing
 }  // namespace internal
 }  // namespace v8
+
+#else  // defined(V8_USE_PERFETTO)
+
+#define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category, name)             \
+  struct PERFETTO_UID(ScopedEvent) {                                       \
+    struct ScopedStats {                                                   \
+      ScopedStats(v8::internal::Isolate* isolate_arg, int) {               \
+        TRACE_EVENT_BEGIN(category, name, [&](perfetto::EventContext) {    \
+          isolate_ = isolate_arg;                                          \
+          internal::RuntimeCallStats* table =                              \
+              isolate_->counters()->runtime_call_stats();                  \
+          has_parent_scope_ = table->InUse();                              \
+          if (!has_parent_scope_) table->Reset();                          \
+        });                                                                \
+      }                                                                    \
+      ~ScopedStats() {                                                     \
+        TRACE_EVENT_END(category, [&](perfetto::EventContext ctx) {        \
+          if (!has_parent_scope_ && isolate_) {                            \
+            /* TODO(skyostil): Write as typed event instead of JSON */     \
+            auto value = v8::tracing::TracedValue::Create();               \
+            isolate_->counters()->runtime_call_stats()->Dump(value.get()); \
+            auto annotation = ctx.event()->add_debug_annotations();        \
+            annotation->set_name("runtime-call-stats");                    \
+            value->Add(annotation);                                        \
+          }                                                                \
+        });                                                                \
+      }                                                                    \
+      v8::internal::Isolate* isolate_;                                     \
+      bool has_parent_scope_;                                              \
+    } stats;                                                               \
+  } PERFETTO_UID(scoped_event) {                                           \
+    { isolate, 0 }                                                         \
+  }
+
+#endif  // defined(V8_USE_PERFETTO)
 
 #endif  // V8_TRACING_TRACE_EVENT_H_

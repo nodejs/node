@@ -364,14 +364,14 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
           return Select(token);
 
         case Token::CONDITIONAL:
-          // ? ?. ??
+          // ? ?. ?? ??=
           Advance();
-          if (V8_UNLIKELY(allow_harmony_optional_chaining() && c0_ == '.')) {
+          if (c0_ == '.') {
             Advance();
             if (!IsDecimalDigit(c0_)) return Token::QUESTION_PERIOD;
             PushBack('.');
-          } else if (V8_UNLIKELY(allow_harmony_nullish() && c0_ == '?')) {
-            return Select(Token::NULLISH);
+          } else if (c0_ == '?') {
+            return Select('=', Token::ASSIGN_NULLISH, Token::NULLISH);
           }
           return Token::CONDITIONAL;
 
@@ -471,16 +471,16 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
           return Token::DIV;
 
         case Token::BIT_AND:
-          // & && &=
+          // & && &= &&=
           Advance();
-          if (c0_ == '&') return Select(Token::AND);
+          if (c0_ == '&') return Select('=', Token::ASSIGN_AND, Token::AND);
           if (c0_ == '=') return Select(Token::ASSIGN_BIT_AND);
           return Token::BIT_AND;
 
         case Token::BIT_OR:
-          // | || |=
+          // | || |= ||=
           Advance();
-          if (c0_ == '|') return Select(Token::OR);
+          if (c0_ == '|') return Select('=', Token::ASSIGN_OR, Token::OR);
           if (c0_ == '=') return Select(Token::ASSIGN_BIT_OR);
           return Token::BIT_OR;
 

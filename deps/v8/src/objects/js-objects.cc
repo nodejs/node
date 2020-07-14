@@ -14,6 +14,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -26,6 +27,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/js-aggregate-error.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/layout-descriptor.h"
@@ -404,19 +406,6 @@ String JSReceiver::class_name() {
   if (IsJSWeakSet()) return roots.WeakSet_string();
   if (IsJSGlobalProxy()) return roots.global_string();
 
-  Object maybe_constructor = map().GetConstructor();
-  if (maybe_constructor.IsJSFunction()) {
-    JSFunction constructor = JSFunction::cast(maybe_constructor);
-    if (constructor.shared().IsApiFunction()) {
-      maybe_constructor = constructor.shared().get_api_func_data();
-    }
-  }
-
-  if (maybe_constructor.IsFunctionTemplateInfo()) {
-    FunctionTemplateInfo info = FunctionTemplateInfo::cast(maybe_constructor);
-    if (info.class_name().IsString()) return String::cast(info.class_name());
-  }
-
   return roots.Object_string();
 }
 
@@ -439,12 +428,6 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
           !name.Equals(ReadOnlyRoots(isolate).Object_string())) {
         return std::make_pair(handle(constructor, isolate),
                               handle(name, isolate));
-      }
-    } else if (maybe_constructor.IsFunctionTemplateInfo()) {
-      FunctionTemplateInfo info = FunctionTemplateInfo::cast(maybe_constructor);
-      if (info.class_name().IsString()) {
-        return std::make_pair(MaybeHandle<JSFunction>(),
-                              handle(String::cast(info.class_name()), isolate));
       }
     }
   }
@@ -2097,6 +2080,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
       return JSGeneratorObject::kHeaderSize;
+    case JS_AGGREGATE_ERROR_TYPE:
+      return JSAggregateError::kHeaderSize;
     case JS_ASYNC_FUNCTION_OBJECT_TYPE:
       return JSAsyncFunctionObject::kHeaderSize;
     case JS_ASYNC_GENERATOR_OBJECT_TYPE:
@@ -2140,8 +2125,6 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSWeakRef::kHeaderSize;
     case JS_FINALIZATION_REGISTRY_TYPE:
       return JSFinalizationRegistry::kHeaderSize;
-    case JS_FINALIZATION_REGISTRY_CLEANUP_ITERATOR_TYPE:
-      return JSFinalizationRegistryCleanupIterator::kHeaderSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kHeaderSize;
     case JS_WEAK_SET_TYPE:
@@ -4509,14 +4492,13 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
         NewTypeError(MessageTemplate::kImmutablePrototypeSet, object));
   }
 
-  // From 8.6.2 Object Internal Methods
-  // ...
-  // In addition, if [[Extensible]] is false the value of the [[Class]] and
-  // [[Prototype]] internal properties of the object may not be modified.
-  // ...
-  // Implementation specific extensions that modify [[Class]], [[Prototype]]
-  // or [[Extensible]] must not violate the invariants defined in the preceding
-  // paragraph.
+  // From 6.1.7.3 Invariants of the Essential Internal Methods
+  //
+  // [[SetPrototypeOf]] ( V )
+  // * ...
+  // * If target is non-extensible, [[SetPrototypeOf]] must return false,
+  //   unless V is the SameValue as the target's observed [[GetPrototypeOf]]
+  //   value.
   if (!all_extensible) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kNonExtensibleProto, object));
@@ -4552,7 +4534,6 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
 
 // static
 void JSObject::SetImmutableProto(Handle<JSObject> object) {
-  DCHECK(!object->IsAccessCheckNeeded());  // Never called from JS
   Handle<Map> map(object->map(), object->GetIsolate());
 
   // Nothing to do if prototype is already set.
@@ -5221,6 +5202,7 @@ namespace {
 
 bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
   switch (instance_type) {
+    case JS_AGGREGATE_ERROR_TYPE:
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
@@ -5741,18 +5723,24 @@ double JSDate::CurrentTimeValue(Isolate* isolate) {
 }
 
 // static
-Address JSDate::GetField(Address raw_object, Address smi_index) {
+Address JSDate::GetField(Isolate* isolate, Address raw_object,
+                         Address smi_index) {
+  // Called through CallCFunction.
+  DisallowHeapAllocation no_gc;
+  DisallowHandleAllocation no_handles;
+  DisallowJavascriptExecution no_js(isolate);
+
   Object object(raw_object);
   Smi index(smi_index);
   return JSDate::cast(object)
-      .DoGetField(static_cast<FieldIndex>(index.value()))
+      .DoGetField(isolate, static_cast<FieldIndex>(index.value()))
       .ptr();
 }
 
-Object JSDate::DoGetField(FieldIndex index) {
+Object JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
   DCHECK_NE(index, kDateValue);
 
-  DateCache* date_cache = GetIsolate()->date_cache();
+  DateCache* date_cache = isolate->date_cache();
 
   if (index < kFirstUncachedField) {
     Object stamp = cache_stamp();
@@ -5809,7 +5797,6 @@ Object JSDate::GetUTCField(FieldIndex index, double value,
   int64_t time_ms = static_cast<int64_t>(value);
 
   if (index == kTimezoneOffset) {
-    GetIsolate()->CountUsage(v8::Isolate::kDateGetTimezoneOffset);
     return Smi::FromInt(date_cache->TimezoneOffset(time_ms));
   }
 

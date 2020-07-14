@@ -165,7 +165,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "v8config.h"  // NOLINT(build/include)
+#include "v8config.h"  // NOLINT(build/include_directory)
 
 namespace v8 {
 

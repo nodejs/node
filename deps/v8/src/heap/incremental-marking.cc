@@ -16,9 +16,11 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/safepoint.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
 #include "src/numbers/conversions.h"
@@ -321,6 +323,9 @@ void IncrementalMarking::StartMarking() {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Start marking\n");
   }
+
+  heap_->InvokeIncrementalMarkingPrologueCallbacks();
+
   is_compacting_ = !FLAG_never_compact && collector_->StartCompaction();
   collector_->StartMarking();
 
@@ -351,6 +356,8 @@ void IncrementalMarking::StartMarking() {
     heap_->local_embedder_heap_tracer()->TracePrologue(
         heap_->flags_for_embedder_tracer());
   }
+
+  heap_->InvokeIncrementalMarkingEpilogueCallbacks();
 }
 
 void IncrementalMarking::StartBlackAllocation() {
@@ -407,7 +414,8 @@ void IncrementalMarking::MarkRoots() {
   DCHECK(IsMarking());
 
   IncrementalMarkingRootMarkingVisitor visitor(this);
-  heap_->IterateStrongRoots(&visitor, VISIT_ONLY_STRONG_IGNORE_STACK);
+  heap_->IterateRoots(
+      &visitor, base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kWeak});
 }
 
 bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
@@ -432,42 +440,41 @@ void IncrementalMarking::RetainMaps() {
   // - GC is requested by tests or dev-tools (abort_incremental_marking_).
   bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
                                    FLAG_retain_maps_for_n_gc == 0;
-  WeakArrayList retained_maps = heap()->retained_maps();
-  int length = retained_maps.length();
-  // The number_of_disposed_maps separates maps in the retained_maps
-  // array that were created before and after context disposal.
-  // We do not age and retain disposed maps to avoid memory leaks.
-  int number_of_disposed_maps = heap()->number_of_disposed_maps_;
-  for (int i = 0; i < length; i += 2) {
-    MaybeObject value = retained_maps.Get(i);
-    HeapObject map_heap_object;
-    if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
-      continue;
-    }
-    int age = retained_maps.Get(i + 1).ToSmi().value();
-    int new_age;
-    Map map = Map::cast(map_heap_object);
-    if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
-        marking_state()->IsWhite(map)) {
-      if (ShouldRetainMap(map, age)) {
-        WhiteToGreyAndPush(map);
+  std::vector<WeakArrayList> retained_maps_list = heap()->FindAllRetainedMaps();
+
+  for (WeakArrayList retained_maps : retained_maps_list) {
+    int length = retained_maps.length();
+
+    for (int i = 0; i < length; i += 2) {
+      MaybeObject value = retained_maps.Get(i);
+      HeapObject map_heap_object;
+      if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
+        continue;
       }
-      Object prototype = map.prototype();
-      if (age > 0 && prototype.IsHeapObject() &&
-          marking_state()->IsWhite(HeapObject::cast(prototype))) {
-        // The prototype is not marked, age the map.
-        new_age = age - 1;
+      int age = retained_maps.Get(i + 1).ToSmi().value();
+      int new_age;
+      Map map = Map::cast(map_heap_object);
+      if (!map_retaining_is_disabled && marking_state()->IsWhite(map)) {
+        if (ShouldRetainMap(map, age)) {
+          WhiteToGreyAndPush(map);
+        }
+        Object prototype = map.prototype();
+        if (age > 0 && prototype.IsHeapObject() &&
+            marking_state()->IsWhite(HeapObject::cast(prototype))) {
+          // The prototype is not marked, age the map.
+          new_age = age - 1;
+        } else {
+          // The prototype and the constructor are marked, this map keeps only
+          // transition tree alive, not JSObjects. Do not age the map.
+          new_age = age;
+        }
       } else {
-        // The prototype and the constructor are marked, this map keeps only
-        // transition tree alive, not JSObjects. Do not age the map.
-        new_age = age;
+        new_age = FLAG_retain_maps_for_n_gc;
       }
-    } else {
-      new_age = FLAG_retain_maps_for_n_gc;
-    }
-    // Compact the array and update the age.
-    if (new_age != age) {
-      retained_maps.Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+      // Compact the array and update the age.
+      if (new_age != age) {
+        retained_maps.Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+      }
     }
   }
 }
@@ -656,6 +663,27 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         DCHECK(!Heap::InYoungGeneration(candidate));
       });
 #endif
+
+  if (FLAG_harmony_weak_refs) {
+    weak_objects_->js_weak_refs.Update(
+        [](JSWeakRef js_weak_ref_in, JSWeakRef* js_weak_ref_out) -> bool {
+          JSWeakRef forwarded = ForwardingAddress(js_weak_ref_in);
+
+          if (!forwarded.is_null()) {
+            *js_weak_ref_out = forwarded;
+            return true;
+          }
+
+          return false;
+        });
+
+#ifdef DEBUG
+    // TODO(syg, marja): Support WeakCells in the young generation.
+    weak_objects_->weak_cells.Iterate([](WeakCell weak_cell) {
+      DCHECK(!Heap::InYoungGeneration(weak_cell));
+    });
+#endif
+  }
 }
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
@@ -677,34 +705,33 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
     return StepResult::kNoImmediateWork;
   }
 
-  constexpr size_t kObjectsToProcessBeforeInterrupt = 500;
+  constexpr size_t kObjectsToProcessBeforeDeadlineCheck = 500;
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
   LocalEmbedderHeapTracer* local_tracer = heap_->local_embedder_heap_tracer();
   const double start = heap_->MonotonicallyIncreasingTimeInMs();
   const double deadline = start + expected_duration_ms;
-  double current;
   bool empty_worklist;
-  bool remote_tracing_done = false;
-  do {
-    {
-      LocalEmbedderHeapTracer::ProcessingScope scope(local_tracer);
-      HeapObject object;
-      size_t cnt = 0;
-      empty_worklist = true;
-      while (marking_worklists()->PopEmbedder(&object)) {
-        scope.TracePossibleWrapper(JSObject::cast(object));
-        if (++cnt == kObjectsToProcessBeforeInterrupt) {
-          cnt = 0;
+  {
+    LocalEmbedderHeapTracer::ProcessingScope scope(local_tracer);
+    HeapObject object;
+    size_t cnt = 0;
+    empty_worklist = true;
+    while (marking_worklists()->PopEmbedder(&object)) {
+      scope.TracePossibleWrapper(JSObject::cast(object));
+      if (++cnt == kObjectsToProcessBeforeDeadlineCheck) {
+        if (deadline <= heap_->MonotonicallyIncreasingTimeInMs()) {
           empty_worklist = false;
           break;
         }
+        cnt = 0;
       }
     }
-    remote_tracing_done = local_tracer->Trace(deadline);
-    current = heap_->MonotonicallyIncreasingTimeInMs();
-  } while (!empty_worklist && !remote_tracing_done && (current < deadline));
-  local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
+  }
+  bool remote_tracing_done =
+      local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
+  double current = heap_->MonotonicallyIncreasingTimeInMs();
+  local_tracer->SetEmbedderWorklistEmpty(true);
   *duration_ms = current - start;
   return (empty_worklist && remote_tracing_done)
              ? StepResult::kNoImmediateWork
@@ -931,6 +958,11 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
 void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
+#ifdef DEBUG
+  // Enforce safepoint here such that background threads cannot allocate between
+  // completing sweeping and VerifyCountersAfterSweeping().
+  SafepointScope scope(heap());
+#endif
   if (collector_->sweeping_in_progress() &&
       (!FLAG_concurrent_sweeping ||
        !collector_->sweeper()->AreSweeperTasksRunning())) {
@@ -939,6 +971,8 @@ void IncrementalMarking::FinalizeSweeping() {
   if (!collector_->sweeping_in_progress()) {
 #ifdef DEBUG
     heap_->VerifyCountersAfterSweeping();
+#else
+    SafepointScope scope(heap());
 #endif
     StartMarking();
   }

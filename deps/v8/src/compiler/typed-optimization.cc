@@ -38,8 +38,12 @@ Reduction TypedOptimization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kConvertReceiver:
       return ReduceConvertReceiver(node);
+    case IrOpcode::kMaybeGrowFastElements:
+      return ReduceMaybeGrowFastElements(node);
     case IrOpcode::kCheckHeapObject:
       return ReduceCheckHeapObject(node);
+    case IrOpcode::kCheckBounds:
+      return ReduceCheckBounds(node);
     case IrOpcode::kCheckNotTaggedHole:
       return ReduceCheckNotTaggedHole(node);
     case IrOpcode::kCheckMaps:
@@ -155,6 +159,48 @@ Reduction TypedOptimization::ReduceCheckHeapObject(Node* node) {
   if (!input_type.Maybe(Type::SignedSmall())) {
     ReplaceWithValue(node, input);
     return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceMaybeGrowFastElements(Node* node) {
+  Node* const elements = NodeProperties::GetValueInput(node, 1);
+  Node* const index = NodeProperties::GetValueInput(node, 2);
+  Node* const length = NodeProperties::GetValueInput(node, 3);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+
+  Type const index_type = NodeProperties::GetType(index);
+  Type const length_type = NodeProperties::GetType(length);
+  CHECK(index_type.Is(Type::Unsigned31()));
+  CHECK(length_type.Is(Type::Unsigned31()));
+
+  if (!index_type.IsNone() && !length_type.IsNone() &&
+      index_type.Max() < length_type.Min()) {
+    Node* check_bounds = graph()->NewNode(
+        simplified()->CheckBounds(FeedbackSource{},
+                                  CheckBoundsFlag::kAbortOnOutOfBounds),
+        index, length, effect, control);
+    ReplaceWithValue(node, elements);
+    return Replace(check_bounds);
+  }
+
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckBounds(Node* node) {
+  CheckBoundsParameters const& p = CheckBoundsParametersOf(node->op());
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type const input_type = NodeProperties::GetType(input);
+  if (p.flags() & CheckBoundsFlag::kConvertStringAndMinusZero &&
+      !input_type.Maybe(Type::String()) &&
+      !input_type.Maybe(Type::MinusZero())) {
+    NodeProperties::ChangeOp(
+        node,
+        simplified()->CheckBounds(
+            p.check_parameters().feedback(),
+            p.flags().without(CheckBoundsFlag::kConvertStringAndMinusZero)));
+    return Changed(node);
   }
   return NoChange();
 }
@@ -285,7 +331,7 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
       //   NumberToUint32(NumberDivide(lhs, rhs))
       //
       // and just smash the type [0...lhs.Max] on the {node},
-      // as the truncated result must be loewr than {lhs}'s maximum
+      // as the truncated result must be lower than {lhs}'s maximum
       // value (note that {rhs} cannot be less than 1 due to the
       // plain-number type constraint on the {node}).
       NodeProperties::ChangeOp(node, simplified()->NumberToUint32());

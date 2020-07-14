@@ -165,43 +165,24 @@ Handle<WasmModuleObject> WasmModuleObject::New(
 Handle<WasmModuleObject> WasmModuleObject::New(
     Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
     Handle<Script> script, Handle<FixedArray> export_wrappers) {
-  const WasmModule* module = native_module->module();
-  const bool uses_liftoff =
-      FLAG_liftoff && native_module->module()->origin == wasm::kWasmOrigin;
-  size_t code_size_estimate =
-      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module, uses_liftoff);
-  return New(isolate, std::move(native_module), script, export_wrappers,
-             code_size_estimate);
-}
-
-// static
-Handle<WasmModuleObject> WasmModuleObject::New(
-    Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
-    Handle<Script> script, Handle<FixedArray> export_wrappers,
-    size_t code_size_estimate) {
-  const WasmModule* module = native_module->module();
-
-  // Use the given shared {NativeModule}, but increase its reference count by
-  // allocating a new {Managed<T>} that the {WasmModuleObject} references.
-  size_t memory_estimate =
-      code_size_estimate +
-      wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
-  Handle<Managed<wasm::NativeModule>> managed_native_module =
-      Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
-                                                 std::move(native_module));
-
+  Handle<Managed<wasm::NativeModule>> managed_native_module;
+  if (script->type() == Script::TYPE_WASM) {
+    managed_native_module = handle(
+        Managed<wasm::NativeModule>::cast(script->wasm_managed_native_module()),
+        isolate);
+  } else {
+    const WasmModule* module = native_module->module();
+    size_t memory_estimate =
+        native_module->committed_code_space() +
+        wasm::WasmCodeManager::EstimateNativeModuleMetaDataSize(module);
+    managed_native_module = Managed<wasm::NativeModule>::FromSharedPtr(
+        isolate, memory_estimate, std::move(native_module));
+  }
   Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
       isolate->factory()->NewJSObject(isolate->wasm_module_constructor()));
   module_object->set_export_wrappers(*export_wrappers);
-  if (script->type() == Script::TYPE_WASM) {
-    script->set_wasm_breakpoint_infos(
-        ReadOnlyRoots(isolate).empty_fixed_array());
-    script->set_wasm_managed_native_module(*managed_native_module);
-    script->set_wasm_weak_instance_list(
-        ReadOnlyRoots(isolate).empty_weak_array_list());
-  }
-  module_object->set_script(*script);
   module_object->set_managed_native_module(*managed_native_module);
+  module_object->set_script(*script);
   return module_object;
 }
 
@@ -241,9 +222,10 @@ MaybeHandle<String> WasmModuleObject::GetFunctionNameOrNull(
     Isolate* isolate, Handle<WasmModuleObject> module_object,
     uint32_t func_index) {
   DCHECK_LT(func_index, module_object->module()->functions.size());
-  wasm::WireBytesRef name = module_object->module()->function_names.Lookup(
-      wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
-      func_index, VectorOf(module_object->module()->export_table));
+  wasm::WireBytesRef name =
+      module_object->module()->lazily_generated_names.LookupFunctionName(
+          wasm::ModuleWireBytes(module_object->native_module()->wire_bytes()),
+          func_index, VectorOf(module_object->module()->export_table));
   if (!name.is_set()) return {};
   return ExtractUtf8StringFromModuleBytes(isolate, module_object, name,
                                           kNoInternalize);
@@ -267,8 +249,9 @@ Vector<const uint8_t> WasmModuleObject::GetRawFunctionName(
     uint32_t func_index) {
   DCHECK_GT(module()->functions.size(), func_index);
   wasm::ModuleWireBytes wire_bytes(native_module()->wire_bytes());
-  wasm::WireBytesRef name_ref = module()->function_names.Lookup(
-      wire_bytes, func_index, VectorOf(module()->export_table));
+  wasm::WireBytesRef name_ref =
+      module()->lazily_generated_names.LookupFunctionName(
+          wire_bytes, func_index, VectorOf(module()->export_table));
   wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
   return Vector<const uint8_t>::cast(name);
 }
@@ -894,18 +877,17 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
   if (!backing_store) return -1;
 
-  // Compute new size.
-  size_t new_pages = old_pages + pages;
-
   // Try to handle shared memory first.
   if (old_buffer->is_shared()) {
     if (FLAG_wasm_grow_shared_memory) {
+      base::Optional<size_t> result =
+          backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages);
       // Shared memories can only be grown in place; no copying.
-      if (backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages)) {
-        BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store,
-                                                    new_pages);
+      if (result.has_value()) {
+        BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store);
         // Broadcasting the update should update this memory object too.
         CHECK_NE(*old_buffer, memory_object->array_buffer());
+        size_t new_pages = result.value() + pages;
         // If the allocation succeeded, then this can't possibly overflow:
         size_t new_byte_length = new_pages * wasm::kWasmPageSize;
         // This is a less than check, as it is not guaranteed that the SAB
@@ -914,21 +896,29 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
         // It is also possible that a call to Grow was in progress when
         // handling this call.
         CHECK_LE(new_byte_length, memory_object->array_buffer().byte_length());
-        return static_cast<int32_t>(old_pages);  // success
+        // As {old_pages} was read racefully, we return here the synchronized
+        // value provided by {GrowWasmMemoryInPlace}, to provide the atomic
+        // read-modify-write behavior required by the spec.
+        return static_cast<int32_t>(result.value());  // success
       }
     }
     return -1;
   }
 
+  base::Optional<size_t> result =
+      backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages);
   // Try to grow non-shared memory in-place.
-  if (backing_store->GrowWasmMemoryInPlace(isolate, pages, maximum_pages)) {
+  if (result.has_value()) {
     // Detach old and create a new one with the grown backing store.
     old_buffer->Detach(true);
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
     memory_object->update_instances(isolate, new_buffer);
-    return static_cast<int32_t>(old_pages);  // success
+    DCHECK_EQ(result.value(), old_pages);
+    return static_cast<int32_t>(result.value());  // success
   }
+
+  size_t new_pages = old_pages + pages;
   // Try allocating a new backing store and copying.
   std::unique_ptr<BackingStore> new_backing_store =
       backing_store->CopyWasmMemory(isolate, new_pages);
@@ -1240,6 +1230,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       module_object->native_module()->jump_table_start());
   instance->set_hook_on_function_call_address(
       isolate->debug()->hook_on_function_call_address());
+  instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
@@ -1472,7 +1463,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
         result.tagged_parameter_slots,
         result.protected_instructions_data.as_vector(),
         result.source_positions.as_vector(), GetCodeKind(result),
-        wasm::ExecutionTier::kNone);
+        wasm::ExecutionTier::kNone, wasm::kNoDebugging);
     wasm::WasmCode* published_code =
         native_module->PublishCode(std::move(wasm_code));
     isolate->counters()->wasm_generated_code_size()->Increment(
@@ -1523,27 +1514,48 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
 MaybeHandle<String> WasmInstanceObject::GetGlobalNameOrNull(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     uint32_t global_index) {
+  return WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
+      isolate, instance, wasm::ImportExportKindCode::kExternalGlobal,
+      global_index);
+}
+
+// static
+MaybeHandle<String> WasmInstanceObject::GetMemoryNameOrNull(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t global_index) {
+  return WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
+      isolate, instance, wasm::ImportExportKindCode::kExternalMemory,
+      global_index);
+}
+
+// static
+MaybeHandle<String> WasmInstanceObject::GetNameFromImportsAndExportsOrNull(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    wasm::ImportExportKindCode kind, uint32_t index) {
+  DCHECK(kind == wasm::ImportExportKindCode::kExternalGlobal ||
+         kind == wasm::ImportExportKindCode::kExternalMemory);
   wasm::ModuleWireBytes wire_bytes(
       instance->module_object().native_module()->wire_bytes());
 
   // This is pair of <module_name, field_name>.
   // If field_name is not set then we don't generate a name. Else if module_name
-  // is set then it is imported global. Otherwise it is exported global.
+  // is set then it is an imported one. Otherwise it is an exported one.
   std::pair<wasm::WireBytesRef, wasm::WireBytesRef> name_ref =
-      instance->module()->global_names.Lookup(
-          global_index, VectorOf(instance->module()->import_table),
-          VectorOf(instance->module()->export_table));
+      instance->module()
+          ->lazily_generated_names.LookupNameFromImportsAndExports(
+              kind, index, VectorOf(instance->module()->import_table),
+              VectorOf(instance->module()->export_table));
   if (!name_ref.second.is_set()) return {};
   Vector<const char> field_name = wire_bytes.GetNameOrNull(name_ref.second);
   if (!name_ref.first.is_set()) {
     return isolate->factory()->NewStringFromUtf8(VectorOf(field_name));
   }
   Vector<const char> module_name = wire_bytes.GetNameOrNull(name_ref.first);
-  std::string global_name;
-  global_name.append(module_name.begin(), module_name.end());
-  global_name.append(".");
-  global_name.append(field_name.begin(), field_name.end());
-  return isolate->factory()->NewStringFromUtf8(VectorOf(global_name));
+  std::string full_name;
+  full_name.append(module_name.begin(), module_name.end());
+  full_name.append(".");
+  full_name.append(field_name.begin(), field_name.end());
+  return isolate->factory()->NewStringFromUtf8(VectorOf(full_name));
 }
 
 // static
@@ -1719,6 +1731,9 @@ uint32_t WasmExceptionPackage::GetEncodedSize(
       case wasm::ValueType::kFuncRef:
       case wasm::ValueType::kNullRef:
       case wasm::ValueType::kExnRef:
+      case wasm::ValueType::kRef:
+      case wasm::ValueType::kOptRef:
+      case wasm::ValueType::kEqRef:
         encoded_size += 1;
         break;
       case wasm::ValueType::kStmt:

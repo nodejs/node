@@ -7,8 +7,8 @@
 #include "src/execution/frames-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/utils/utils.h"
+#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-objects-inl.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -116,7 +116,7 @@ class BreakHandler : public debug::DebugDelegate {
 
     // Check the current position.
     StackTraceFrameIterator frame_it(isolate_);
-    auto summ = FrameSummary::GetTop(frame_it.frame()).AsWasmInterpreted();
+    auto summ = FrameSummary::GetTop(frame_it.frame()).AsWasm();
     CHECK_EQ(expected_breaks_[count_].position, summ.byte_offset());
 
     expected_breaks_[count_].pre_action();
@@ -152,14 +152,6 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
       runner->main_isolate()->factory()->NewBreakPoint(
           break_index++, runner->main_isolate()->factory()->empty_string());
   CHECK(WasmScript::SetBreakPoint(script, &code_offset, break_point));
-  int set_byte_offset = code_offset - func_offset;
-  CHECK_EQ(expected_set_byte_offset, set_byte_offset);
-  // Also set breakpoint on the debug info of the instance directly, since the
-  // instance chain is not setup properly in tests.
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(instance);
-  WasmDebugInfo::SetBreakpoint(debug_info, function_index, set_byte_offset);
-
   return break_point;
 }
 
@@ -172,11 +164,6 @@ void ClearBreakpoint(WasmRunnerBase* runner, int function_index,
   Handle<Script> script(instance->module_object().script(),
                         runner->main_isolate());
   CHECK(WasmScript::ClearBreakPoint(script, code_offset, break_point));
-  // Also clear breakpoint on the debug info of the instance directly, since the
-  // instance chain is not setup properly in tests.
-  Handle<WasmDebugInfo> debug_info =
-      WasmInstanceObject::GetOrCreateDebugInfo(instance);
-  WasmDebugInfo::ClearBreakpoint(debug_info, function_index, byte_offset);
 }
 
 // Wrapper with operator<<.
@@ -243,21 +230,23 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     HandleScope handles(isolate_);
 
     StackTraceFrameIterator frame_it(isolate_);
-    auto summ = FrameSummary::GetTop(frame_it.frame()).AsWasmInterpreted();
-    Handle<WasmInstanceObject> instance = summ.wasm_instance();
+    WasmFrame* frame = WasmFrame::cast(frame_it.frame());
+    DebugInfo* debug_info = frame->native_module()->GetDebugInfo();
 
-    auto frame =
-        instance->debug_info().GetInterpretedFrame(frame_it.frame()->fp(), 0);
-    CHECK_EQ(expected.locals.size(), frame->GetLocalCount());
-    for (int i = 0; i < frame->GetLocalCount(); ++i) {
-      CHECK_EQ(WasmValWrapper{expected.locals[i]},
-               WasmValWrapper{frame->GetLocalValue(i)});
+    int num_locals = debug_info->GetNumLocals(isolate_, frame->pc());
+    CHECK_EQ(expected.locals.size(), num_locals);
+    for (int i = 0; i < num_locals; ++i) {
+      WasmValue local_value = debug_info->GetLocalValue(
+          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+      CHECK_EQ(WasmValWrapper{expected.locals[i]}, WasmValWrapper{local_value});
     }
 
-    CHECK_EQ(expected.stack.size(), frame->GetStackHeight());
-    for (int i = 0; i < frame->GetStackHeight(); ++i) {
-      CHECK_EQ(WasmValWrapper{expected.stack[i]},
-               WasmValWrapper{frame->GetStackValue(i)});
+    int stack_depth = debug_info->GetStackDepth(isolate_, frame->pc());
+    CHECK_EQ(expected.stack.size(), stack_depth);
+    for (int i = 0; i < stack_depth; ++i) {
+      WasmValue stack_value = debug_info->GetStackValue(
+          i, isolate_, frame->pc(), frame->fp(), frame->callee_fp());
+      CHECK_EQ(WasmValWrapper{expected.stack[i]}, WasmValWrapper{stack_value});
     }
 
     isolate_->debug()->PrepareStep(StepAction::StepIn);
@@ -379,6 +368,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
 
 WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
   WasmRunner<int, int> runner(execution_tier);
+  runner.TierDown();
   WasmFunctionCompiler& f2 = runner.NewFunction<void>();
   f2.AllocateLocal(kWasmI32);
 

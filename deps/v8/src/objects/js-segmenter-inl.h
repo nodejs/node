@@ -18,13 +18,11 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSSegmenter, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSSegmenter)
 
 // Base segmenter accessors.
-ACCESSORS(JSSegmenter, locale, String, kLocaleOffset)
 ACCESSORS(JSSegmenter, icu_break_iterator, Managed<icu::BreakIterator>,
           kIcuBreakIteratorOffset)
-SMI_ACCESSORS(JSSegmenter, flags, kFlagsOffset)
 
 inline void JSSegmenter::set_granularity(Granularity granularity) {
   DCHECK_GE(GranularityBits::kMax, granularity);
@@ -36,8 +34,6 @@ inline void JSSegmenter::set_granularity(Granularity granularity) {
 inline JSSegmenter::Granularity JSSegmenter::granularity() const {
   return GranularityBits::decode(flags());
 }
-
-CAST_ACCESSOR(JSSegmenter)
 
 }  // namespace internal
 }  // namespace v8

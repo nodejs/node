@@ -721,8 +721,10 @@ UNINITIALIZED_TEST(ExternalCodeEventListenerInnerFunctions) {
     v8::Local<v8::UnboundScript> script =
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
             .ToLocalChecked();
-    CHECK_EQ(code_event_handler.CountLines("Script", "f1"), 1);
-    CHECK_EQ(code_event_handler.CountLines("Script", "f2"), 1);
+    CHECK_EQ(code_event_handler.CountLines("Script", "f1"),
+             i::FLAG_stress_background_compile ? 2 : 1);
+    CHECK_EQ(code_event_handler.CountLines("Script", "f2"),
+             i::FLAG_stress_background_compile ? 2 : 1);
     cache = v8::ScriptCompiler::CreateCodeCache(script);
   }
   isolate1->Dispose();

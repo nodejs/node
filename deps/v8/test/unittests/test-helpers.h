@@ -46,7 +46,8 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     Isolate* isolate,
     v8::String::ExternalOneByteStringResource* maybe_resource);
 std::unique_ptr<ParseInfo> OuterParseInfoForShared(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared);
+    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+    UnoptimizedCompileState* state);
 
 }  // namespace test
 }  // namespace internal

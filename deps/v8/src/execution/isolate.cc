@@ -42,6 +42,7 @@
 #include "src/execution/simulator.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/handles/persistent-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/stub-cache.h"
@@ -79,6 +80,7 @@
 #include "src/tasks/cancelable-task.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/utils/address-map.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/version.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -620,16 +622,16 @@ class FrameArrayBuilder {
     if (is_constructor) flags |= FrameArray::kIsConstructor;
 
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace))
+    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
       parameters = summary.parameters();
+    }
 
     elements_ = FrameArray::AppendJSFrame(
         elements_, TheHoleToUndefined(isolate_, summary.receiver()), function,
         abstract_code, offset, flags, parameters);
   }
 
-  void AppendWasmCompiledFrame(
-      FrameSummary::WasmCompiledFrameSummary const& summary) {
+  void AppendWasmFrame(FrameSummary::WasmFrameSummary const& summary) {
     if (summary.code()->kind() != wasm::WasmCode::kFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = 0;
@@ -639,22 +641,12 @@ class FrameArrayBuilder {
         flags |= FrameArray::kAsmJsAtNumberConversion;
       }
     } else {
-      flags |= FrameArray::kIsWasmCompiledFrame;
+      flags |= FrameArray::kIsWasmFrame;
     }
 
     elements_ = FrameArray::AppendWasmFrame(
         elements_, instance, summary.function_index(), summary.code(),
         summary.code_offset(), flags);
-  }
-
-  void AppendWasmInterpretedFrame(
-      FrameSummary::WasmInterpretedFrameSummary const& summary) {
-    Handle<WasmInstanceObject> instance = summary.wasm_instance();
-    int flags = FrameArray::kIsWasmInterpretedFrame;
-    DCHECK(!instance->module_object().is_asm_js());
-    elements_ = FrameArray::AppendWasmFrame(elements_, instance,
-                                            summary.function_index(), {},
-                                            summary.byte_offset(), flags);
   }
 
   void AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
@@ -949,8 +941,7 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
       case StackFrame::BUILTIN:
-      case StackFrame::WASM_COMPILED:
-      case StackFrame::WASM_INTERPRETER_ENTRY: {
+      case StackFrame::WASM: {
         // A standard frame may include many summarized frames (due to
         // inlining).
         std::vector<FrameSummary> frames;
@@ -968,18 +959,12 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
             //=========================================================
             auto const& java_script = summary.AsJavaScript();
             builder.AppendJavaScriptFrame(java_script);
-          } else if (summary.IsWasmCompiled()) {
+          } else if (summary.IsWasm()) {
             //=========================================================
-            // Handle a Wasm compiled frame.
+            // Handle a Wasm frame.
             //=========================================================
-            auto const& wasm_compiled = summary.AsWasmCompiled();
-            builder.AppendWasmCompiledFrame(wasm_compiled);
-          } else if (summary.IsWasmInterpreted()) {
-            //=========================================================
-            // Handle a Wasm interpreted frame.
-            //=========================================================
-            auto const& wasm_interpreted = summary.AsWasmInterpreted();
-            builder.AppendWasmInterpretedFrame(wasm_interpreted);
+            auto const& wasm = summary.AsWasm();
+            builder.AppendWasmFrame(wasm);
           }
         }
         break;
@@ -1061,7 +1046,6 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
     }
   }
 
-  // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
   return builder.GetElementsAsStackTraceFrameArray();
 }
 
@@ -1668,7 +1652,7 @@ Object Isolate::UnwindAndFindHandler() {
                             code.constant_pool(), return_sp, frame->fp());
       }
 
-      case StackFrame::WASM_COMPILED: {
+      case StackFrame::WASM: {
         if (trap_handler::IsThreadInWasm()) {
           trap_handler::ClearThreadInWasm();
         }
@@ -1680,7 +1664,7 @@ Object Isolate::UnwindAndFindHandler() {
         // the code. It's not actually necessary to keep the code alive as it's
         // currently being executed.
         wasm::WasmCodeRefScope code_ref_scope;
-        WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
+        WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
         wasm::WasmCode* wasm_code =
             wasm_engine()->code_manager()->LookupCode(frame->pc());
         int offset = wasm_frame->LookupExceptionHandlerInTable();
@@ -1805,12 +1789,6 @@ Object Isolate::UnwindAndFindHandler() {
                        nullptr, nullptr));
         }
         break;
-
-      case StackFrame::WASM_INTERPRETER_ENTRY: {
-        if (trap_handler::IsThreadInWasm()) {
-          trap_handler::ClearThreadInWasm();
-        }
-      } break;
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
         // Builtin continuation frames with catch can handle exceptions.
@@ -2114,14 +2092,13 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i).value() & FrameArray::kAsmJsAtNumberConversion;
-      if (elements->IsWasmCompiledFrame(i) || elements->IsAsmJsWasmFrame(i)) {
+      if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
         // WasmCode* held alive by the {GlobalWasmCodeRef}.
         wasm::WasmCode* code =
             Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
                 .get()
                 ->code();
-        offset = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-            code, offset);
+        offset = code->GetSourcePositionBefore(offset);
       }
       Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
       const wasm::WasmModule* module = elements->WasmInstance(i).module();
@@ -2527,6 +2504,14 @@ bool Isolate::AreWasmThreadsEnabled(Handle<Context> context) {
   return FLAG_experimental_wasm_threads;
 }
 
+bool Isolate::IsWasmSimdEnabled(Handle<Context> context) {
+  if (wasm_simd_enabled_callback()) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    return wasm_simd_enabled_callback()(api_context);
+  }
+  return FLAG_experimental_wasm_simd;
+}
+
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
 
@@ -2777,7 +2762,11 @@ void Isolate::Delete(Isolate* isolate) {
   SetIsolateThreadLocals(saved_isolate, saved_data);
 }
 
-void Isolate::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
+void Isolate::SetUpFromReadOnlyArtifacts(
+    std::shared_ptr<ReadOnlyArtifacts> artifacts) {
+  artifacts_ = artifacts;
+  DCHECK_NOT_NULL(artifacts);
+  ReadOnlyHeap* ro_heap = artifacts->read_only_heap();
   DCHECK_NOT_NULL(ro_heap);
   DCHECK_IMPLIES(read_only_heap_ != nullptr, read_only_heap_ == ro_heap);
   read_only_heap_ = ro_heap;
@@ -2798,6 +2787,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
       builtins_(this),
       rail_mode_(PERFORMANCE_ANIMATION),
       code_event_dispatcher_(new CodeEventDispatcher()),
+      persistent_handles_list_(new PersistentHandlesList(this)),
       jitless_(FLAG_jitless),
 #if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
@@ -3354,8 +3344,8 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
   }
 
   if (create_heap_objects) {
-    // Terminate the partial snapshot cache so we can iterate.
-    partial_snapshot_cache_.push_back(ReadOnlyRoots(this).undefined_value());
+    // Terminate the startup object cache so we can iterate.
+    startup_object_cache_.push_back(ReadOnlyRoots(this).undefined_value());
   }
 
   InitializeThreadLocal();
@@ -3593,6 +3583,10 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred->previous_ != nullptr) {
     deferred->previous_->next_ = deferred->next_;
   }
+}
+
+std::unique_ptr<PersistentHandles> Isolate::NewPersistentHandles() {
+  return std::make_unique<PersistentHandles>(this);
 }
 
 void Isolate::DumpAndResetStats() {
@@ -3958,21 +3952,6 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
 
 void Isolate::ClearKeptObjects() { heap()->ClearKeptObjects(); }
 
-void Isolate::SetHostCleanupFinalizationGroupCallback(
-    HostCleanupFinalizationGroupCallback callback) {
-  host_cleanup_finalization_group_callback_ = callback;
-}
-
-void Isolate::RunHostCleanupFinalizationGroupCallback(
-    Handle<JSFinalizationRegistry> fr) {
-  if (host_cleanup_finalization_group_callback_ != nullptr) {
-    v8::Local<v8::Context> api_context =
-        v8::Utils::ToLocal(handle(Context::cast(fr->native_context()), this));
-    host_cleanup_finalization_group_callback_(api_context,
-                                              v8::Utils::ToLocal(fr));
-  }
-}
-
 void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyCallback callback) {
   host_import_module_dynamically_callback_ = callback;
@@ -3980,19 +3959,17 @@ void Isolate::SetHostImportModuleDynamicallyCallback(
 
 Handle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     Handle<SourceTextModule> module) {
-  Handle<HeapObject> host_meta(module->import_meta(), this);
-  if (host_meta->IsTheHole(this)) {
-    host_meta = factory()->NewJSObjectWithNullProto();
-    if (host_initialize_import_meta_object_callback_ != nullptr) {
-      v8::Local<v8::Context> api_context =
-          v8::Utils::ToLocal(Handle<Context>(native_context()));
-      host_initialize_import_meta_object_callback_(
-          api_context, Utils::ToLocal(Handle<Module>::cast(module)),
-          v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(host_meta)));
-    }
-    module->set_import_meta(*host_meta);
+  CHECK(module->import_meta().IsTheHole(this));
+  Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
+  if (host_initialize_import_meta_object_callback_ != nullptr) {
+    v8::Local<v8::Context> api_context =
+        v8::Utils::ToLocal(Handle<Context>(native_context()));
+    host_initialize_import_meta_object_callback_(
+        api_context, Utils::ToLocal(Handle<Module>::cast(module)),
+        v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(import_meta)));
+    CHECK(!has_scheduled_exception());
   }
-  return Handle<JSObject>::cast(host_meta);
+  return import_meta;
 }
 
 void Isolate::SetHostInitializeImportMetaObjectCallback(
@@ -4183,9 +4160,15 @@ void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {
 }
 
 void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
-  // The counter callback may cause the embedder to call into V8, which is not
-  // generally possible during GC.
-  if (heap_.gc_state() == Heap::NOT_IN_GC) {
+  // The counter callback
+  // - may cause the embedder to call into V8, which is not generally possible
+  //   during GC.
+  // - requires a current native context, which may not always exist.
+  // TODO(jgruber): Consider either removing the native context requirement in
+  // blink, or passing it to the callback explicitly.
+  if (heap_.gc_state() == Heap::NOT_IN_GC && !context().is_null()) {
+    DCHECK(context().IsContext());
+    DCHECK(context().native_context().IsNativeContext());
     if (use_counter_callback_) {
       HandleScope handle_scope(this);
       use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
@@ -4356,6 +4339,9 @@ void Isolate::set_icu_object_in_cache(ICUObjectCacheType cache_type,
 void Isolate::clear_cached_icu_object(ICUObjectCacheType cache_type) {
   icu_object_cache_.erase(cache_type);
 }
+
+void Isolate::ClearCachedIcuObjects() { icu_object_cache_.clear(); }
+
 #endif  // V8_INTL_SUPPORT
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {

@@ -5,7 +5,7 @@
 #ifndef V8_VERSION_STRING_H_
 #define V8_VERSION_STRING_H_
 
-#include "v8-version.h"  // NOLINT(build/include)
+#include "v8-version.h"  // NOLINT(build/include_directory)
 
 // This is here rather than v8-version.h to keep that file simple and
 // machine-processable.

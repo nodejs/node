@@ -5,57 +5,56 @@
 #include 'src/builtins/builtins-regexp-gen.h'
 
 namespace string {
-  // https://tc39.github.io/ecma262/#sec-string.prototype.startswith
-  transitioning javascript builtin StringPrototypeStartsWith(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): Boolean {
-    const searchString: JSAny = arguments[0];
-    const position: JSAny = arguments[1];
-    const kBuiltinName: constexpr string = 'String.prototype.startsWith';
+// https://tc39.github.io/ecma262/#sec-string.prototype.startswith
+transitioning javascript builtin StringPrototypeStartsWith(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(...arguments): Boolean {
+  const searchString: JSAny = arguments[0];
+  const position: JSAny = arguments[1];
+  const kBuiltinName: constexpr string = 'String.prototype.startsWith';
 
-    // 1. Let O be ? RequireObjectCoercible(this value).
-    // 2. Let S be ? ToString(O).
-    const string: String = ToThisString(receiver, kBuiltinName);
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const string: String = ToThisString(receiver, kBuiltinName);
 
-    // 3. Let isRegExp be ? IsRegExp(searchString).
-    // 4. If isRegExp is true, throw a TypeError exception.
-    if (regexp::IsRegExp(searchString)) {
-      ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, kBuiltinName);
-    }
-
-    // 5. Let searchStr be ? ToString(searchString).
-    const searchStr: String = ToString_Inline(searchString);
-
-    // 8. Let len be the length of S.
-    const len: uintptr = string.length_uintptr;
-
-    // 6. Let pos be ? ToInteger(position).
-    // 7. Assert: If position is undefined, then pos is 0.
-    // 9. Let start be min(max(pos, 0), len).
-    const start: uintptr =
-        (position != Undefined) ? ClampToIndexRange(position, len) : 0;
-
-    // 10. Let searchLength be the length of searchStr.
-    const searchLength: uintptr = searchStr.length_uintptr;
-
-    // 11. If searchLength + start is greater than len, return false.
-    // The comparison is rephrased to be overflow-friendly with unsigned
-    // indices.
-    if (searchLength > len - start) return False;
-
-    // 12. If the sequence of code units of S starting at start of length
-    // searchLength is the same as the full code unit sequence of searchStr,
-    // return true.
-    // 13. Otherwise, return false.
-    try {
-      // Fast Path: If both strings are direct and relevant indices are Smis.
-      return TryFastStringCompareSequence(
-          string, searchStr, start, searchLength) otherwise Slow;
-    }
-    label Slow {
-      // Slow Path: If either of the string is indirect, bail into runtime.
-      return StringCompareSequence(
-          context, string, searchStr, Convert<Number>(start));
-    }
+  // 3. Let isRegExp be ? IsRegExp(searchString).
+  // 4. If isRegExp is true, throw a TypeError exception.
+  if (regexp::IsRegExp(searchString)) {
+    ThrowTypeError(MessageTemplate::kFirstArgumentNotRegExp, kBuiltinName);
   }
+
+  // 5. Let searchStr be ? ToString(searchString).
+  const searchStr: String = ToString_Inline(searchString);
+
+  // 8. Let len be the length of S.
+  const len: uintptr = string.length_uintptr;
+
+  // 6. Let pos be ? ToInteger(position).
+  // 7. Assert: If position is undefined, then pos is 0.
+  // 9. Let start be min(max(pos, 0), len).
+  const start: uintptr =
+      (position != Undefined) ? ClampToIndexRange(position, len) : 0;
+
+  // 10. Let searchLength be the length of searchStr.
+  const searchLength: uintptr = searchStr.length_uintptr;
+
+  // 11. If searchLength + start is greater than len, return false.
+  // The comparison is rephrased to be overflow-friendly with unsigned
+  // indices.
+  if (searchLength > len - start) return False;
+
+  // 12. If the sequence of code units of S starting at start of length
+  // searchLength is the same as the full code unit sequence of searchStr,
+  // return true.
+  // 13. Otherwise, return false.
+  try {
+    // Fast Path: If both strings are direct and relevant indices are Smis.
+    return TryFastStringCompareSequence(string, searchStr, start, searchLength)
+        otherwise Slow;
+  } label Slow {
+    // Slow Path: If either of the string is indirect, bail into runtime.
+    return StringCompareSequence(
+        context, string, searchStr, Convert<Number>(start));
+  }
+}
 }

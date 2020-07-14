@@ -18,6 +18,7 @@ PYTHON3 = sys.version_info >= (3, 0)
 DEFAULT_FLAGS = [
   '--correctness-fuzzer-suppressions',
   '--expose-gc',
+  '--fuzzing',
   '--allow-natives-for-differential-fuzzing',
   '--invoke-weak-callbacks',
   '--omit-quit',

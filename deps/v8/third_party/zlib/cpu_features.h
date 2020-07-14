@@ -11,6 +11,7 @@
  */
 extern int arm_cpu_enable_crc32;
 extern int arm_cpu_enable_pmull;
+extern int x86_cpu_enable_sse2;
 extern int x86_cpu_enable_ssse3;
 extern int x86_cpu_enable_simd;
 

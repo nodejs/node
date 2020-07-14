@@ -519,6 +519,16 @@ UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
   return prev;
 }
 
+UsePosition* LiveRange::NextUsePositionSpillDetrimental(
+    LifetimePosition start) const {
+  UsePosition* pos = NextUsePosition(start);
+  while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister &&
+         !pos->SpillDetrimental()) {
+    pos = pos->next();
+  }
+  return pos;
+}
+
 UsePosition* LiveRange::NextRegisterPosition(LifetimePosition start) const {
   UsePosition* pos = NextUsePosition(start);
   while (pos != nullptr && pos->type() != UsePositionType::kRequiresRegister) {
@@ -2424,6 +2434,15 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         if (from.IsUnallocated()) {
           live->Add(UnallocatedOperand::cast(from).virtual_register());
         }
+        // When the value is moved to a register to meet input constraints,
+        // we should consider this value use similar as a register use in the
+        // backward spilling heuristics, even though this value use is not
+        // register benefical at the AllocateBlockedReg stage.
+        if (to.IsAnyRegister() ||
+            (to.IsUnallocated() &&
+             UnallocatedOperand::cast(&to)->HasRegisterPolicy())) {
+          from_use->set_spill_detrimental();
+        }
         // Resolve use position hints just created.
         if (to_use != nullptr && from_use != nullptr) {
           to_use->ResolveHint(from_use);
@@ -2769,6 +2788,7 @@ void BundleBuilder::BuildBundles() {
       }
       TRACE("Processing phi for v%d with %d:%d\n", phi->virtual_register(),
             out_range->TopLevel()->vreg(), out_range->relative_id());
+      bool phi_interferes_with_backedge_input = false;
       for (auto input : phi->operands()) {
         LiveRange* input_range = data()->GetOrCreateLiveRangeFor(input);
         TRACE("Input value v%d with range %d:%d\n", input,
@@ -2776,16 +2796,32 @@ void BundleBuilder::BuildBundles() {
         LiveRangeBundle* input_bundle = input_range->get_bundle();
         if (input_bundle != nullptr) {
           TRACE("Merge\n");
-          if (out->TryMerge(input_bundle, data()->is_trace_alloc()))
+          if (out->TryMerge(input_bundle, data()->is_trace_alloc())) {
             TRACE("Merged %d and %d to %d\n", phi->virtual_register(), input,
                   out->id());
+          } else if (input_range->Start() > out_range->Start()) {
+            // We are only interested in values defined after the phi, because
+            // those are values that will go over a back-edge.
+            phi_interferes_with_backedge_input = true;
+          }
         } else {
           TRACE("Add\n");
-          if (out->TryAddRange(input_range))
+          if (out->TryAddRange(input_range)) {
             TRACE("Added %d and %d to %d\n", phi->virtual_register(), input,
                   out->id());
+          } else if (input_range->Start() > out_range->Start()) {
+            // We are only interested in values defined after the phi, because
+            // those are values that will go over a back-edge.
+            phi_interferes_with_backedge_input = true;
+          }
         }
       }
+      // Spilling the phi at the loop header is not beneficial if there is
+      // a back-edge with an input for the phi that interferes with the phi's
+      // value, because in case that input gets spilled it might introduce
+      // a stack-to-stack move at the back-edge.
+      if (phi_interferes_with_backedge_input)
+        out_range->TopLevel()->set_spilling_at_loop_header_not_beneficial();
     }
     TRACE("Done block B%d\n", block_id);
   }
@@ -3006,6 +3042,12 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
       // This will reduce number of memory moves on the back edge.
       LifetimePosition loop_start = LifetimePosition::GapFromInstructionIndex(
           loop_header->first_instruction_index());
+      // Stop if we moved to a loop header before the value is defined or
+      // at the define position that is not beneficial to spill.
+      if (range->TopLevel()->Start() > loop_start ||
+          (range->TopLevel()->Start() == loop_start &&
+           range->TopLevel()->SpillAtLoopHeaderNotBeneficial()))
+        return pos;
       auto& loop_header_state =
           data()->GetSpillState(loop_header->rpo_number());
       for (LiveRange* live_at_header : loop_header_state) {
@@ -3016,14 +3058,17 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
         LiveRange* check_use = live_at_header;
         for (; check_use != nullptr && check_use->Start() < pos;
              check_use = check_use->next()) {
-          UsePosition* next_use = check_use->NextRegisterPosition(loop_start);
+          // If we find a use for which spilling is detrimental, don't spill
+          // at the loop header
+          UsePosition* next_use =
+              check_use->NextUsePositionSpillDetrimental(loop_start);
           // UsePosition at the end of a UseInterval may
           // have the same value as the start of next range.
           if (next_use != nullptr && next_use->pos() <= pos) {
             return pos;
           }
         }
-        // No register use inside the loop before the pos.
+        // No register beneficial use inside the loop before the pos.
         *begin_spill_out = live_at_header;
         pos = loop_start;
         break;
@@ -3825,11 +3870,15 @@ void LinearScanAllocator::AllocateRegisters() {
               auto& spill_state = data()->GetSpillState(pred);
               TRACE("Not a fallthrough. Adding %zu elements...\n",
                     spill_state.size());
+              LifetimePosition pred_end =
+                  LifetimePosition::GapFromInstructionIndex(
+                      this->code()->InstructionBlockAt(pred)->code_end());
               for (const auto range : spill_state) {
-                // Filter out ranges that had their register stolen by backwards
-                // working spill heuristics. These have been spilled after the
-                // fact, so ignore them.
-                if (!range->HasRegisterAssigned()) continue;
+                // Filter out ranges that were split or had their register
+                // stolen by backwards working spill heuristics. These have
+                // been spilled after the fact, so ignore them.
+                if (range->End() < pred_end || !range->HasRegisterAssigned())
+                  continue;
                 to_be_live->emplace(range);
               }
             }

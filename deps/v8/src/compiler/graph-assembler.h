@@ -82,6 +82,7 @@ class BasicBlock;
   V(Word32Equal)                          \
   V(Word32Or)                             \
   V(Word32Sar)                            \
+  V(Word32SarShiftOutZeros)               \
   V(Word32Shl)                            \
   V(Word32Shr)                            \
   V(Word32Xor)                            \
@@ -91,7 +92,9 @@ class BasicBlock;
   V(WordAnd)                              \
   V(WordEqual)                            \
   V(WordSar)                              \
-  V(WordShl)
+  V(WordSarShiftOutZeros)                 \
+  V(WordShl)                              \
+  V(WordXor)
 
 #define CHECKED_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(Int32AddWithOverflow)                    \
@@ -579,6 +582,7 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
       label->effect_->ReplaceInput(1, effect());
       for (size_t i = 0; i < kVarCount; i++) {
         label->bindings_[i]->ReplaceInput(1, var_array[i]);
+        CHECK(!NodeProperties::IsTyped(var_array[i]));  // Unsupported.
       }
     }
   } else {
@@ -622,6 +626,13 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
         NodeProperties::ChangeOp(
             label->bindings_[i],
             common()->Phi(label->representations_[i], merged_count + 1));
+        if (NodeProperties::IsTyped(label->bindings_[i])) {
+          CHECK(NodeProperties::IsTyped(var_array[i]));
+          Type old_type = NodeProperties::GetType(label->bindings_[i]);
+          Type new_type = Type::Union(
+              old_type, NodeProperties::GetType(var_array[i]), graph()->zone());
+          NodeProperties::SetType(label->bindings_[i], new_type);
+        }
       }
     }
   }
@@ -822,6 +833,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<String> StringSubstring(TNode<String> string, TNode<Number> from,
                                 TNode<Number> to);
   TNode<Boolean> ObjectIsCallable(TNode<Object> value);
+  TNode<Boolean> ObjectIsUndetectable(TNode<Object> value);
   Node* CheckIf(Node* cond, DeoptimizeReason reason);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);

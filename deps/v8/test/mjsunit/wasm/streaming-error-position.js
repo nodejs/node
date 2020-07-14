@@ -395,5 +395,5 @@ function testErrorPosition(bytes, pos, message) {
   ]);
 
   let pos = bytes.length - 1 - 1;
-  testErrorPositionAsyncOnly(bytes, pos, 'invalid local type');
+  testErrorPositionAsyncOnly(bytes, pos, 'invalid value type');
 })();

@@ -268,6 +268,7 @@ class ShellOptions {
   bool wait_for_wasm = true;
   bool stress_opt = false;
   int stress_runs = 1;
+  bool stress_snapshot = false;
   bool interactive_shell = false;
   bool test_shell = false;
   bool expected_to_throw = false;
@@ -278,7 +279,6 @@ class ShellOptions {
   int num_isolates = 1;
   v8::ScriptCompiler::CompileOptions compile_options =
       v8::ScriptCompiler::kNoCompileOptions;
-  bool stress_background_compile = false;
   CodeCacheOptions code_cache_options = CodeCacheOptions::kNoProduceCache;
   SourceGroup* isolate_sources = nullptr;
   const char* icu_data_file = nullptr;
@@ -323,7 +323,7 @@ class Shell : public i::AllStatic {
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);
   static Local<Context> CreateEvaluationContext(Isolate* isolate);
-  static int RunMain(Isolate* isolate, int argc, char* argv[], bool last_run);
+  static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);

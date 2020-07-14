@@ -29,10 +29,17 @@ enum ValueTypeCode : uint8_t {
   kLocalFuncRef = 0x70,
   kLocalAnyRef = 0x6f,
   kLocalNullRef = 0x6e,
+  kLocalRef = 0x6d,     // GC proposal
+  kLocalOptRef = 0x6c,  // GC proposal
+  kLocalEqRef = 0x6b,   // GC proposal
+  kLocalI31Ref = 0x6a,  // GC proposal
+  kLocalRttRef = 0x69,  // GC proposal
   kLocalExnRef = 0x68,
 };
 // Binary encoding of other types.
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
+constexpr uint8_t kWasmStructTypeCode = 0x5f;
+constexpr uint8_t kWasmArrayTypeCode = 0x5e;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -80,10 +87,11 @@ enum SectionCode : int8_t {
   // The following sections are custom sections, and are identified using a
   // string rather than an integer. Their enumeration values are not guaranteed
   // to be consistent.
-  kNameSectionCode,              // Name section (encoded as a string)
-  kSourceMappingURLSectionCode,  // Source Map URL section
-  kDebugInfoSectionCode,         // DWARF section .debug_info
-  kCompilationHintsSectionCode,  // Compilation hints section
+  kNameSectionCode,               // Name section (encoded as a string)
+  kSourceMappingURLSectionCode,   // Source Map URL section
+  kDebugInfoSectionCode,          // DWARF section .debug_info
+  kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
+  kCompilationHintsSectionCode,   // Compilation hints section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,

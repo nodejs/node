@@ -28,7 +28,7 @@ class String16 {
   String16(String16&&) V8_NOEXCEPT = default;
   String16(const UChar* characters, size_t size);
   V8_EXPORT String16(const UChar* characters);  // NOLINT(runtime/explicit)
-  String16(const char* characters);   // NOLINT(runtime/explicit)
+  V8_EXPORT String16(const char* characters);   // NOLINT(runtime/explicit)
   String16(const char* characters, size_t size);
   explicit String16(const std::basic_string<UChar>& impl);
   explicit String16(std::basic_string<UChar>&& impl);

@@ -30,3 +30,16 @@ print("https://crbug.com/985154");
   }
   print(Object.getOwnPropertyNames(foo().bar));
 })();
+
+print("Suppresses sensitive natives");
+(function () {
+  function foo() {}
+  %PrepareFunctionForOptimization(foo);
+  foo();
+  foo();
+  %OptimizeFunctionOnNextCall(foo);
+  foo();
+  print(%GetOptimizationStatus(foo));
+  const fun = new Function("f", "sync", "return %GetOptimizationStatus(f);");
+  print(fun(foo));
+})();

@@ -67,7 +67,8 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
 #endif
 }
 
-bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
+bool EmbedderDataSlot::ToAlignedPointer(const Isolate* isolate,
+                                        void** out_pointer) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only from the main thread via API during "mutator"
   // phase which is propely synched with GC (concurrent marker may still look
@@ -78,6 +79,8 @@ bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
   // aligned so we have to use unaligned pointer friendly way of accessing them
   // in order to avoid undefined behavior in C++ code.
   Address raw_value = base::ReadUnalignedValue<Address>(address());
+  // We currently have to treat zero as nullptr in embedder slots.
+  if (raw_value) raw_value = DecodeExternalPointer(isolate, raw_value);
 #else
   Address raw_value = *location();
 #endif
@@ -85,15 +88,18 @@ bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
   return HAS_SMI_TAG(raw_value);
 }
 
-bool EmbedderDataSlot::store_aligned_pointer(void* ptr) {
+bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
+  // We currently have to treat zero as nullptr in embedder slots.
+  if (value) value = EncodeExternalPointer(isolate, value);
+  DCHECK(HAS_SMI_TAG(value));
   gc_safe_store(value);
   return true;
 }
 
 EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
-    const DisallowHeapAllocation& no_gc) const {
+    Isolate* isolate, const DisallowHeapAllocation& no_gc) const {
   // We don't care about atomicity of access here because embedder slots
   // are accessed this way only by serializer from the main thread when
   // GC is not active (concurrent marker may still look at the tagged part
@@ -103,14 +109,20 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
   // fields (external pointers, doubles and BigInt data) are only kTaggedSize
   // aligned so we have to use unaligned pointer friendly way of accessing them
   // in order to avoid undefined behavior in C++ code.
-  return base::ReadUnalignedValue<Address>(address());
+  Address value = base::ReadUnalignedValue<Address>(address());
+  // We currently have to treat zero as nullptr in embedder slots.
+  if (value) return DecodeExternalPointer(isolate, value);
+  return value;
 #else
   return *location();
 #endif
 }
 
-void EmbedderDataSlot::store_raw(EmbedderDataSlot::RawData data,
+void EmbedderDataSlot::store_raw(Isolate* isolate,
+                                 EmbedderDataSlot::RawData data,
                                  const DisallowHeapAllocation& no_gc) {
+  // We currently have to treat zero as nullptr in embedder slots.
+  if (data) data = EncodeExternalPointer(isolate, data);
   gc_safe_store(data);
 }
 

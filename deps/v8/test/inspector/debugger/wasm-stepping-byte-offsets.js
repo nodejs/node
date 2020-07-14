@@ -104,7 +104,7 @@ async function waitForPauseAndStep(stepAction) {
     InspectorTest.log(`at ${functionName} (${lineNumber}:${columnNumber}):`);
     for (var scope of frame.scopeChain) {
       InspectorTest.logObject(' - scope (' + scope.type + '):');
-      if (scope.type === 'global') {
+      if (scope.type === 'module' || scope.type === 'global') {
         InspectorTest.logObject('   -- skipped');
       } else {
         const {result: {result: {value}}} =
@@ -114,9 +114,7 @@ async function waitForPauseAndStep(stepAction) {
             returnByValue: true
           });
         if (scope.type === 'local') {
-          if (value.locals)
-            InspectorTest.log(`   locals: ${JSON.stringify(value.locals)}`);
-          InspectorTest.log(`   stack: ${JSON.stringify(value.stack)}`);
+          InspectorTest.log(`   locals: ${JSON.stringify(value.locals)}`);
         } else {
           InspectorTest.log(`   ${JSON.stringify(value)}`);
         }
