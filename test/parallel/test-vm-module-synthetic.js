@@ -65,4 +65,4 @@ const assert = require('assert');
       code: 'ERR_VM_MODULE_STATUS',
     });
   }
-})();
+})().then(common.mustCall());

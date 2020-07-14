@@ -30,7 +30,7 @@ if (process.argv[2] === 'wasi-child') {
     const { instance } = await WebAssembly.instantiate(buffer, importObject);
 
     wasi.start(instance);
-  })();
+  })().then(common.mustCall());
 } else {
   const assert = require('assert');
   const cp = require('child_process');

@@ -145,7 +145,7 @@ function removeAsync(dir) {
 
   // Attempted removal should fail now because the directory is gone.
   assert.rejects(fs.promises.rmdir(dir), { syscall: 'rmdir' });
-})();
+})().then(common.mustCall());
 
 // Test input validation.
 {

@@ -837,7 +837,7 @@ const tcpTests = [
     socket.end();
   }
   common.allowGlobals(...Object.values(global));
-})();
+})().then(common.mustCall());
 
 function startTCPRepl() {
   let resolveSocket, resolveReplServer;

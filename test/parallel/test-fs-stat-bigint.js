@@ -212,4 +212,4 @@ if (!common.isWindows) {
   const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
   verifyStats(bigintStats, numStats, allowableDelta);
   await handle.close();
-})();
+})().then(common.mustCall());
