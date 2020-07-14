@@ -62,6 +62,9 @@ bool RootsTable::IsRootHandle(Handle<T> handle, RootIndex* index) const {
 ReadOnlyRoots::ReadOnlyRoots(Heap* heap)
     : ReadOnlyRoots(Isolate::FromHeap(heap)) {}
 
+ReadOnlyRoots::ReadOnlyRoots(OffThreadHeap* heap)
+    : ReadOnlyRoots(OffThreadIsolate::FromHeap(heap)) {}
+
 ReadOnlyRoots::ReadOnlyRoots(Isolate* isolate)
     : read_only_roots_(reinterpret_cast<Address*>(
           isolate->roots_table().read_only_roots_begin().address())) {}
@@ -75,23 +78,32 @@ ReadOnlyRoots::ReadOnlyRoots(Address* ro_roots) : read_only_roots_(ro_roots) {}
 // have the right type, and to avoid the heavy #includes that would be
 // required for checked casts.
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                          \
-  Type ReadOnlyRoots::name() const {                                  \
-    DCHECK(CheckType(RootIndex::k##CamelName));                       \
-    return Type::unchecked_cast(Object(at(RootIndex::k##CamelName))); \
-  }                                                                   \
-  Handle<Type> ReadOnlyRoots::name##_handle() const {                 \
-    DCHECK(CheckType(RootIndex::k##CamelName));                       \
-    return Handle<Type>(&at(RootIndex::k##CamelName));                \
+#define ROOT_ACCESSOR(Type, name, CamelName)                  \
+  Type ReadOnlyRoots::name() const {                          \
+    DCHECK(CheckType_##name());                               \
+    return unchecked_##name();                                \
+  }                                                           \
+  Type ReadOnlyRoots::unchecked_##name() const {              \
+    return Type::unchecked_cast(                              \
+        Object(*GetLocation(RootIndex::k##CamelName)));       \
+  }                                                           \
+  Handle<Type> ReadOnlyRoots::name##_handle() const {         \
+    DCHECK(CheckType_##name());                               \
+    Address* location = GetLocation(RootIndex::k##CamelName); \
+    return Handle<Type>(location);                            \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-Address& ReadOnlyRoots::at(RootIndex root_index) const {
+Address* ReadOnlyRoots::GetLocation(RootIndex root_index) const {
   size_t index = static_cast<size_t>(root_index);
   DCHECK_LT(index, kEntriesCount);
-  return read_only_roots_[index];
+  return &read_only_roots_[index];
+}
+
+Address ReadOnlyRoots::at(RootIndex root_index) const {
+  return *GetLocation(root_index);
 }
 
 }  // namespace internal

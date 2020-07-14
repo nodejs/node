@@ -1,6 +1,4 @@
 bmeurer@chromium.org
-jarin@chromium.org
-titzer@chromium.org
 danno@chromium.org
 sigurds@chromium.org
 tebbi@chromium.org
@@ -8,6 +6,7 @@ neis@chromium.org
 mvstanton@chromium.org
 mslekova@chromium.org
 jgruber@chromium.org
+nicohartmann@chromium.org
 
 per-file wasm-*=ahaas@chromium.org
 per-file wasm-*=bbudge@chromium.org

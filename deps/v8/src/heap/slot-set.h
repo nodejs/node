@@ -190,6 +190,12 @@ class SlotSet {
            (kTaggedSizeLog2 + kBitsPerBucketLog2);
   }
 
+  // Converts the slot offset into bucket index.
+  static size_t BucketForSlot(size_t slot_offset) {
+    DCHECK(IsAligned(slot_offset, kTaggedSize));
+    return slot_offset >> (kTaggedSizeLog2 + kBitsPerBucketLog2);
+  }
+
   // The slot offset specifies a slot at address page_start_ + slot_offset.
   // AccessMode defines whether there can be concurrent access on the buckets
   // or not.
@@ -335,9 +341,9 @@ class SlotSet {
   //
   // Releases memory for empty buckets with FREE_EMPTY_BUCKETS.
   template <typename Callback>
-  size_t Iterate(Address chunk_start, size_t buckets, Callback callback,
-                 EmptyBucketMode mode) {
-    return Iterate(chunk_start, buckets, callback,
+  size_t Iterate(Address chunk_start, size_t start_bucket, size_t end_bucket,
+                 Callback callback, EmptyBucketMode mode) {
+    return Iterate(chunk_start, start_bucket, end_bucket, callback,
                    [this, mode](size_t bucket_index) {
                      if (mode == EmptyBucketMode::FREE_EMPTY_BUCKETS) {
                        ReleaseBucket(bucket_index);
@@ -351,11 +357,11 @@ class SlotSet {
   // CheckPossiblyEmptyBuckets.
   template <typename Callback>
   size_t IterateAndTrackEmptyBuckets(
-      Address chunk_start, size_t buckets, Callback callback,
-      PossiblyEmptyBuckets* possibly_empty_buckets) {
-    return Iterate(chunk_start, buckets, callback,
-                   [possibly_empty_buckets, buckets](size_t bucket_index) {
-                     possibly_empty_buckets->Insert(bucket_index, buckets);
+      Address chunk_start, size_t start_bucket, size_t end_bucket,
+      Callback callback, PossiblyEmptyBuckets* possibly_empty_buckets) {
+    return Iterate(chunk_start, start_bucket, end_bucket, callback,
+                   [possibly_empty_buckets, end_bucket](size_t bucket_index) {
+                     possibly_empty_buckets->Insert(bucket_index, end_bucket);
                    });
   }
 
@@ -461,10 +467,11 @@ class SlotSet {
 
  private:
   template <typename Callback, typename EmptyBucketCallback>
-  size_t Iterate(Address chunk_start, size_t buckets, Callback callback,
-                 EmptyBucketCallback empty_bucket_callback) {
+  size_t Iterate(Address chunk_start, size_t start_bucket, size_t end_bucket,
+                 Callback callback, EmptyBucketCallback empty_bucket_callback) {
     size_t new_count = 0;
-    for (size_t bucket_index = 0; bucket_index < buckets; bucket_index++) {
+    for (size_t bucket_index = start_bucket; bucket_index < end_bucket;
+         bucket_index++) {
       Bucket* bucket = LoadBucket(bucket_index);
       if (bucket != nullptr) {
         size_t in_bucket_count = 0;
@@ -597,7 +604,8 @@ STATIC_ASSERT(std::is_standard_layout<SlotSet::Bucket>::value);
 enum SlotType {
   FULL_EMBEDDED_OBJECT_SLOT,
   COMPRESSED_EMBEDDED_OBJECT_SLOT,
-  OBJECT_SLOT,
+  FULL_OBJECT_SLOT,
+  COMPRESSED_OBJECT_SLOT,
   CODE_TARGET_SLOT,
   CODE_ENTRY_SLOT,
   CLEARED_SLOT

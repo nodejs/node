@@ -176,8 +176,7 @@ struct FastJSArrayWitness {
   macro LoadElementOrUndefined(implicit context: Context)(k: Smi): JSAny {
     try {
       return this.LoadElementNoHole(k) otherwise FoundHole;
-    }
-    label FoundHole {
+    } label FoundHole {
       return Undefined;
     }
   }

@@ -70,12 +70,12 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   return *isolate->factory()->NewNumber(value);
 }
 
-RUNTIME_FUNCTION(Runtime_NumberToString) {
+RUNTIME_FUNCTION(Runtime_NumberToStringSlow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
 
-  return *isolate->factory()->NumberToString(number);
+  return *isolate->factory()->NumberToString(number, NumberCacheMode::kSetOnly);
 }
 
 RUNTIME_FUNCTION(Runtime_MaxSmi) {

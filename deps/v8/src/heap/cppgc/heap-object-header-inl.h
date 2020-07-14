@@ -6,11 +6,12 @@
 #define V8_HEAP_CPPGC_HEAP_OBJECT_HEADER_INL_H_
 
 #include "include/cppgc/allocation.h"
-#include "include/cppgc/gc-info.h"
+#include "include/cppgc/internal/gc-info.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/gc-info-table.h"
+#include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 
 namespace cppgc {
@@ -33,7 +34,7 @@ HeapObjectHeader::HeapObjectHeader(size_t size, GCInfoIndex gc_info_index) {
   USE(padding_);
 #endif  // defined(V8_TARGET_ARCH_64_BIT)
   DCHECK_LT(gc_info_index, GCInfoTable::kMaxIndex);
-  DCHECK_EQ(0u, size & kAllocationMask);
+  DCHECK_EQ(0u, size & (sizeof(HeapObjectHeader) - 1));
   DCHECK_GE(kMaxSize, size);
   encoded_high_ = GCInfoIndexField::encode(gc_info_index);
   encoded_low_ = EncodeSize(size);
@@ -109,6 +110,16 @@ bool HeapObjectHeader::TryMarkAtomic() {
   }
   return atomic_encoded->compare_exchange_strong(old_value, new_value,
                                                  std::memory_order_relaxed);
+}
+
+template <HeapObjectHeader::AccessMode mode>
+bool HeapObjectHeader::IsFree() const {
+  return GetGCInfoIndex() == kFreeListGCInfoIndex;
+}
+
+bool HeapObjectHeader::IsFinalizable() const {
+  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
+  return gc_info.finalize;
 }
 
 template <HeapObjectHeader::AccessMode mode, HeapObjectHeader::EncodedHalf part,

@@ -259,9 +259,9 @@ class String : public TorqueGeneratedString<String, Name> {
     virtual Handle<String> GetPrefix() = 0;
     virtual Handle<String> GetSuffix() = 0;
 
-    // A named capture can be invalid (if it is not specified in the pattern),
-    // unmatched (specified but not matched in the current string), and matched.
-    enum CaptureState { INVALID, UNMATCHED, MATCHED };
+    // A named capture can be unmatched (either not specified in the pattern,
+    // or specified but unmatched in the current string), or matched.
+    enum CaptureState { UNMATCHED, MATCHED };
 
     virtual int CaptureCount() = 0;
     virtual bool HasNamedCaptures() = 0;
@@ -558,15 +558,12 @@ class SeqOneByteString
   // instance.
   inline int SeqOneByteStringSize(InstanceType instance_type);
 
-  // Computes the size for an OneByteString instance of a given length.
-  static int SizeFor(int length) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + length * kCharSize);
-  }
-
   // Maximal memory usage for a single sequential one-byte string.
   static const int kMaxCharsSize = kMaxLength;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
   STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
+
+  int AllocatedSize();
 
   class BodyDescriptor;
 
@@ -599,16 +596,13 @@ class SeqTwoByteString
   // instance.
   inline int SeqTwoByteStringSize(InstanceType instance_type);
 
-  // Computes the size for a TwoByteString instance of a given length.
-  static int SizeFor(int length) {
-    return OBJECT_POINTER_ALIGN(kHeaderSize + length * kShortSize);
-  }
-
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxCharsSize = kMaxLength * 2;
   static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
   STATIC_ASSERT(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
                 String::kMaxLength);
+
+  int AllocatedSize();
 
   class BodyDescriptor;
 
@@ -639,7 +633,7 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
   // Minimum length for a cons string.
   static const int kMinLength = 13;
 
-  using BodyDescriptor = FixedBodyDescriptor<kFirstOffset, kSize, kSize>;
+  class BodyDescriptor;
 
   DECL_VERIFIER(ConsString)
 
@@ -661,7 +655,7 @@ class ThinString : public TorqueGeneratedThinString<ThinString, String> {
 
   DECL_VERIFIER(ThinString)
 
-  using BodyDescriptor = FixedBodyDescriptor<kActualOffset, kSize, kSize>;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(ThinString)
 };
@@ -688,7 +682,7 @@ class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
 
-  using BodyDescriptor = FixedBodyDescriptor<kParentOffset, kSize, kSize>;
+  class BodyDescriptor;
 
   DECL_VERIFIER(SlicedString)
 
@@ -722,13 +716,13 @@ class ExternalString : public String {
   int ExternalPayloadSize() const;
 
   // Used in the serializer/deserializer.
-  inline Address resource_as_address();
-  inline void set_address_as_resource(Address address);
+  DECL_GETTER(resource_as_address, Address)
+  inline void set_address_as_resource(Isolate* isolate, Address address);
   inline uint32_t resource_as_uint32();
-  inline void set_uint32_as_resource(uint32_t value);
+  inline void set_uint32_as_resource(Isolate* isolate, uint32_t value);
 
   // Disposes string's resource object if it has not already been disposed.
-  inline void DisposeResource();
+  inline void DisposeResource(Isolate* isolate);
 
   STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
   static const int kSizeOfAllExternalStrings = kHeaderSize;
@@ -745,19 +739,19 @@ class ExternalOneByteString : public ExternalString {
   using Resource = v8::String::ExternalOneByteStringResource;
 
   // The underlying resource.
-  inline const Resource* resource();
+  DECL_GETTER(resource, const Resource*)
 
   // It is assumed that the previous resource is null. If it is not null, then
   // it is the responsability of the caller the handle the previous resource.
   inline void SetResource(Isolate* isolate, const Resource* buffer);
   // Used only during serialization.
-  inline void set_resource(const Resource* buffer);
+  inline void set_resource(Isolate* isolate, const Resource* buffer);
 
   // Update the pointer cache to the external character array.
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache();
+  inline void update_data_cache(Isolate* isolate);
 
   inline const uint8_t* GetChars();
 
@@ -786,19 +780,19 @@ class ExternalTwoByteString : public ExternalString {
   using Resource = v8::String::ExternalStringResource;
 
   // The underlying string resource.
-  inline const Resource* resource();
+  DECL_GETTER(resource, const Resource*)
 
   // It is assumed that the previous resource is null. If it is not null, then
   // it is the responsability of the caller the handle the previous resource.
   inline void SetResource(Isolate* isolate, const Resource* buffer);
   // Used only during serialization.
-  inline void set_resource(const Resource* buffer);
+  inline void set_resource(Isolate* isolate, const Resource* buffer);
 
   // Update the pointer cache to the external character array.
   // The cached pointer is always valid, as the external character array does =
   // not move during lifetime.  Deserialization is the only exception, after
   // which the pointer cache has to be refreshed.
-  inline void update_data_cache();
+  inline void update_data_cache(Isolate* isolate);
 
   inline const uint16_t* GetChars();
 

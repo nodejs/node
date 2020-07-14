@@ -76,8 +76,8 @@ UDisplayContext ToUDisplayContext(JSDisplayNames::Style style) {
 // Abstract class for all different types.
 class DisplayNamesInternal {
  public:
-  DisplayNamesInternal() {}
-  virtual ~DisplayNamesInternal() {}
+  DisplayNamesInternal() = default;
+  virtual ~DisplayNamesInternal() = default;
   virtual const char* type() const = 0;
   virtual icu::Locale locale() const = 0;
   virtual Maybe<icu::UnicodeString> of(Isolate* isolate,
@@ -101,7 +101,7 @@ class LocaleDisplayNamesCommon : public DisplayNamesInternal {
         icu::LocaleDisplayNames::createInstance(locale, display_context, 4));
   }
 
-  virtual ~LocaleDisplayNamesCommon() {}
+  ~LocaleDisplayNamesCommon() override = default;
 
   icu::Locale locale() const override { return ldn_->getLocale(); }
 
@@ -118,7 +118,7 @@ class LanguageNames : public LocaleDisplayNamesCommon {
   LanguageNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback)
       : LocaleDisplayNamesCommon(locale, style, fallback) {}
-  virtual ~LanguageNames() {}
+  ~LanguageNames() override = default;
   const char* type() const override { return "language"; }
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
@@ -145,7 +145,7 @@ class RegionNames : public LocaleDisplayNamesCommon {
   RegionNames(const icu::Locale& locale, JSDisplayNames::Style style,
               bool fallback)
       : LocaleDisplayNamesCommon(locale, style, fallback) {}
-  virtual ~RegionNames() {}
+  ~RegionNames() override = default;
   const char* type() const override { return "region"; }
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
@@ -167,7 +167,7 @@ class ScriptNames : public LocaleDisplayNamesCommon {
   ScriptNames(const icu::Locale& locale, JSDisplayNames::Style style,
               bool fallback)
       : LocaleDisplayNamesCommon(locale, style, fallback) {}
-  virtual ~ScriptNames() {}
+  ~ScriptNames() override = default;
   const char* type() const override { return "script"; }
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
@@ -189,7 +189,7 @@ class CurrencyNames : public LocaleDisplayNamesCommon {
   CurrencyNames(const icu::Locale& locale, JSDisplayNames::Style style,
                 bool fallback)
       : LocaleDisplayNamesCommon(locale, style, fallback) {}
-  virtual ~CurrencyNames() {}
+  ~CurrencyNames() override = default;
   const char* type() const override { return "currency"; }
   Maybe<icu::UnicodeString> of(Isolate* isolate,
                                const char* code) const override {
@@ -267,7 +267,7 @@ class DateTimeFieldNames : public DisplayNamesInternal {
         icu::DateTimePatternGenerator::createInstance(locale_, status));
     CHECK(U_SUCCESS(status));
   }
-  virtual ~DateTimeFieldNames() {}
+  ~DateTimeFieldNames() override = default;
   const char* type() const override { return "dateTimeField"; }
   icu::Locale locale() const override { return locale_; }
   Maybe<icu::UnicodeString> of(Isolate* isolate,
@@ -314,7 +314,7 @@ class DateFormatSymbolsNames : public DisplayNamesInternal {
         length_(length),
         calendar_(calendar) {}
 
-  virtual ~DateFormatSymbolsNames() {}
+  ~DateFormatSymbolsNames() override = default;
 
   const char* type() const override { return type_; }
 
@@ -354,7 +354,7 @@ class WeekdayNames : public DateFormatSymbolsNames {
                const icu::UnicodeString* array, int32_t length,
                const char* calendar)
       : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  virtual ~WeekdayNames() {}
+  ~WeekdayNames() override = default;
 
   int32_t ComputeIndex(const char* code) const override {
     int32_t i = atoi(code);
@@ -370,7 +370,7 @@ class MonthNames : public DateFormatSymbolsNames {
              const icu::UnicodeString* array, int32_t length,
              const char* calendar)
       : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  virtual ~MonthNames() {}
+  ~MonthNames() override = default;
 
   int32_t ComputeIndex(const char* code) const override {
     return atoi(code) - 1;
@@ -383,7 +383,7 @@ class QuarterNames : public DateFormatSymbolsNames {
                const icu::UnicodeString* array, int32_t length,
                const char* calendar)
       : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  virtual ~QuarterNames() {}
+  ~QuarterNames() override = default;
 
   int32_t ComputeIndex(const char* code) const override {
     return atoi(code) - 1;
@@ -396,7 +396,7 @@ class DayPeriodNames : public DateFormatSymbolsNames {
                  const icu::UnicodeString* array, int32_t length,
                  const char* calendar)
       : DateFormatSymbolsNames(type, locale, array, length, calendar) {}
-  virtual ~DayPeriodNames() {}
+  ~DayPeriodNames() override = default;
 
   int32_t ComputeIndex(const char* code) const override {
     if (strcmp("am", code) == 0) {
@@ -750,8 +750,7 @@ struct CheckCalendar {
 }  // namespace
 
 const std::set<std::string>& JSDisplayNames::GetAvailableLocales() {
-  static base::LazyInstance<
-      Intl::AvailableLocales<icu::Locale, CheckCalendar>>::type
+  static base::LazyInstance<Intl::AvailableLocales<CheckCalendar>>::type
       available_locales = LAZY_INSTANCE_INITIALIZER;
   return available_locales.Pointer()->Get();
 }

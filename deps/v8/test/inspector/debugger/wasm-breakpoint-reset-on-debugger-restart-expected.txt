@@ -1,0 +1,11 @@
+Test that breakpoints do not survive a restart of the debugger.
+Instantiating.
+Waiting for wasm script (ignoring first non-wasm script).
+Setting breakpoint.
+Calling func.
+Script wasm://wasm/8c388106 byte offset 33: Wasm opcode 0x01
+func returned.
+Restarting debugger.
+Calling func.
+func returned.
+Finished.

@@ -6,7 +6,7 @@
 #define V8_OBJECTS_FREE_SPACE_H_
 
 #include "src/objects/heap-object.h"
-#include "torque-generated/field-offsets-tq.h"
+#include "torque-generated/class-definitions-tq.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -19,12 +19,9 @@ namespace internal {
 // the heap remains iterable.  They have a size and a next pointer.
 // The next pointer is the raw address of the next FreeSpace object (or NULL)
 // in the free list.
-class FreeSpace : public HeapObject {
+class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
  public:
   // [size]: size of the free space including the header.
-  inline int size() const;
-  inline void set_size(int value);
-
   inline int relaxed_read_size() const;
   inline void relaxed_write_size(int value);
 
@@ -39,15 +36,11 @@ class FreeSpace : public HeapObject {
 
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)
-  DECL_VERIFIER(FreeSpace)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                TORQUE_GENERATED_FREE_SPACE_FIELDS)
 
  private:
   inline bool IsValid();
 
-  OBJECT_CONSTRUCTORS(FreeSpace, HeapObject);
+  TQ_OBJECT_CONSTRUCTORS(FreeSpace)
 };
 
 }  // namespace internal

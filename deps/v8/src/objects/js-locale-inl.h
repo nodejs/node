@@ -19,11 +19,9 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSLocale, JSObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSLocale)
 
 ACCESSORS(JSLocale, icu_locale, Managed<icu::Locale>, kIcuLocaleOffset)
-
-CAST_ACCESSOR(JSLocale)
 
 }  // namespace internal
 }  // namespace v8

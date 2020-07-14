@@ -1301,6 +1301,10 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
   VisitRRO(this, kArm64Asr, node, kShift64Imm);
 }
 
+void InstructionSelector::VisitWord32Rol(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord64Rol(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitRRO(this, kArm64Ror32, node, kShift32Imm);
 }
@@ -3233,9 +3237,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I64x2GeS, kArm64I64x2GeS)                           \
   V(I64x2GtU, kArm64I64x2GtU)                           \
   V(I64x2GeU, kArm64I64x2GeU)                           \
-  V(I32x4Add, kArm64I32x4Add)                           \
   V(I32x4AddHoriz, kArm64I32x4AddHoriz)                 \
-  V(I32x4Sub, kArm64I32x4Sub)                           \
   V(I32x4Mul, kArm64I32x4Mul)                           \
   V(I32x4MinS, kArm64I32x4MinS)                         \
   V(I32x4MaxS, kArm64I32x4MaxS)                         \
@@ -3248,10 +3250,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I32x4GtU, kArm64I32x4GtU)                           \
   V(I32x4GeU, kArm64I32x4GeU)                           \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4)       \
-  V(I16x8Add, kArm64I16x8Add)                           \
   V(I16x8AddSaturateS, kArm64I16x8AddSaturateS)         \
   V(I16x8AddHoriz, kArm64I16x8AddHoriz)                 \
-  V(I16x8Sub, kArm64I16x8Sub)                           \
   V(I16x8SubSaturateS, kArm64I16x8SubSaturateS)         \
   V(I16x8Mul, kArm64I16x8Mul)                           \
   V(I16x8MinS, kArm64I16x8MinS)                         \
@@ -3269,9 +3269,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8GeU, kArm64I16x8GeU)                           \
   V(I16x8RoundingAverageU, kArm64I16x8RoundingAverageU) \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8)       \
-  V(I8x16Add, kArm64I8x16Add)                           \
   V(I8x16AddSaturateS, kArm64I8x16AddSaturateS)         \
-  V(I8x16Sub, kArm64I8x16Sub)                           \
   V(I8x16SubSaturateS, kArm64I8x16SubSaturateS)         \
   V(I8x16Mul, kArm64I8x16Mul)                           \
   V(I8x16MinS, kArm64I8x16MinS)                         \
@@ -3358,6 +3356,52 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        arraysize(temps), temps);
 }
+
+#define VISIT_SIMD_ADD(Type)                                                   \
+  void InstructionSelector::Visit##Type##Add(Node* node) {                     \
+    Arm64OperandGenerator g(this);                                             \
+    Node* left = node->InputAt(0);                                             \
+    Node* right = node->InputAt(1);                                            \
+    /* Select Mla(z, x, y) for Add(Mul(x, y), z). */                           \
+    if (left->opcode() == IrOpcode::k##Type##Mul && CanCover(node, left)) {    \
+      Emit(kArm64##Type##Mla, g.DefineSameAsFirst(node), g.UseRegister(right), \
+           g.UseRegister(left->InputAt(0)), g.UseRegister(left->InputAt(1)));  \
+      return;                                                                  \
+    }                                                                          \
+    /* Select Mla(z, x, y) for Add(z, Mul(x, y)). */                           \
+    if (right->opcode() == IrOpcode::k##Type##Mul && CanCover(node, right)) {  \
+      Emit(kArm64##Type##Mla, g.DefineSameAsFirst(node), g.UseRegister(left),  \
+           g.UseRegister(right->InputAt(0)),                                   \
+           g.UseRegister(right->InputAt(1)));                                  \
+      return;                                                                  \
+    }                                                                          \
+    VisitRRR(this, kArm64##Type##Add, node);                                   \
+  }
+
+VISIT_SIMD_ADD(I32x4)
+VISIT_SIMD_ADD(I16x8)
+VISIT_SIMD_ADD(I8x16)
+#undef VISIT_SIMD_ADD
+
+#define VISIT_SIMD_SUB(Type)                                                  \
+  void InstructionSelector::Visit##Type##Sub(Node* node) {                    \
+    Arm64OperandGenerator g(this);                                            \
+    Node* left = node->InputAt(0);                                            \
+    Node* right = node->InputAt(1);                                           \
+    /* Select Mls(z, x, y) for Sub(z, Mul(x, y)). */                          \
+    if (right->opcode() == IrOpcode::k##Type##Mul && CanCover(node, right)) { \
+      Emit(kArm64##Type##Mls, g.DefineSameAsFirst(node), g.UseRegister(left), \
+           g.UseRegister(right->InputAt(0)),                                  \
+           g.UseRegister(right->InputAt(1)));                                 \
+      return;                                                                 \
+    }                                                                         \
+    VisitRRR(this, kArm64##Type##Sub, node);                                  \
+  }
+
+VISIT_SIMD_SUB(I32x4)
+VISIT_SIMD_SUB(I16x8)
+VISIT_SIMD_SUB(I8x16)
+#undef VISIT_SIMD_SUB
 
 void InstructionSelector::VisitS128Select(Node* node) {
   Arm64OperandGenerator g(this);

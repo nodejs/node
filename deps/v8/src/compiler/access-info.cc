@@ -390,6 +390,10 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
   PropertyConstness constness;
   if (details.IsReadOnly() && !details.IsConfigurable()) {
     constness = PropertyConstness::kConst;
+  } else if (FLAG_turboprop && !map->is_prototype_map()) {
+    // The constness feedback is too unstable for the aggresive compilation
+    // of turboprop.
+    constness = PropertyConstness::kMutable;
   } else {
     map_ref.SerializeOwnDescriptor(descriptor);
     constness = dependencies()->DependOnFieldConstness(map_ref, descriptor);
@@ -583,11 +587,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
       }
     }
     Handle<JSObject> map_prototype(JSObject::cast(map->prototype()), isolate());
-    if (map_prototype->map().is_deprecated()) {
-      // Try to migrate the prototype object so we don't embed the deprecated
-      // map into the optimized code.
-      JSObject::TryMigrateInstance(isolate(), map_prototype);
-    }
+    CHECK(!map_prototype->map().is_deprecated());
     map = handle(map_prototype->map(), isolate());
     holder = map_prototype;
 

@@ -123,22 +123,17 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   if (args[3].IsJSArrayBuffer()) {
     memory = args.at<JSArrayBuffer>(3);
   }
-  if (function->shared().HasAsmWasmData()) {
-    Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  if (shared->HasAsmWasmData()) {
     Handle<AsmWasmData> data(shared->asm_wasm_data(), isolate);
     MaybeHandle<Object> result = AsmJs::InstantiateAsmWasm(
         isolate, shared, data, stdlib, foreign, memory);
-    if (!result.is_null()) {
-      return *result.ToHandleChecked();
-    }
+    if (!result.is_null()) return *result.ToHandleChecked();
+    // Remove wasm data, mark as broken for asm->wasm, replace function code
+    // with UncompiledData, and return a smi 0 to indicate failure.
+    SharedFunctionInfo::DiscardCompiled(isolate, shared);
   }
-  // Remove wasm data, mark as broken for asm->wasm, replace function code with
-  // UncompiledData, and return a smi 0 to indicate failure.
-  if (function->shared().HasAsmWasmData()) {
-    SharedFunctionInfo::DiscardCompiled(isolate,
-                                        handle(function->shared(), isolate));
-  }
-  function->shared().set_is_asm_wasm_broken(true);
+  shared->set_is_asm_wasm_broken(true);
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
@@ -175,6 +170,12 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   JavaScriptFrameIterator top_it(isolate);
   JavaScriptFrame* top_frame = top_it.frame();
   isolate->set_context(Context::cast(top_frame->context()));
+
+  int count = optimized_code->deoptimization_count();
+  if (type == DeoptimizeKind::kSoft && count < FLAG_reuse_opt_code_count) {
+    optimized_code->increment_deoptimization_count();
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
 
   // Invalidate the underlying optimized code on non-lazy deopts.
   if (type != DeoptimizeKind::kLazy) {

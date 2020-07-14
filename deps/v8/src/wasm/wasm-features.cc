@@ -27,6 +27,9 @@ WasmFeatures WasmFeatures::FromIsolate(Isolate* isolate) {
   if (isolate->AreWasmThreadsEnabled(handle(isolate->context(), isolate))) {
     features.Add(kFeature_threads);
   }
+  if (isolate->IsWasmSimdEnabled(handle(isolate->context(), isolate))) {
+    features.Add(kFeature_simd);
+  }
   return features;
 }
 

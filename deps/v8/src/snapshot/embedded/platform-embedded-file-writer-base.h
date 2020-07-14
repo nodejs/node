@@ -67,7 +67,7 @@ class PlatformEmbeddedFileWriterBase {
   virtual void DeclareFunctionEnd(const char* name) = 0;
 
   // Returns the number of printed characters.
-  virtual int HexLiteral(uint64_t value) = 0;
+  virtual int HexLiteral(uint64_t value);
 
   virtual void Comment(const char* string) = 0;
   virtual void Newline() { fprintf(fp_, "\n"); }

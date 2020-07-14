@@ -89,7 +89,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
   BIND(&not_float_or_clamped);
   *out_elements_kind = elements_kind;
 
-  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStore(array_buffer);
+  TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStorePtr(array_buffer);
   TNode<UintPtrT> byte_offset = LoadJSArrayBufferViewByteOffset(array);
   *out_backing_store = RawPtrAdd(backing_store, Signed(byte_offset));
 }

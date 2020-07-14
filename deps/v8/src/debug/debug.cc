@@ -622,6 +622,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   Handle<BreakPoint> break_point =
       isolate_->factory()->NewBreakPoint(*id, condition);
   if (script->type() == Script::TYPE_WASM) {
+    RecordWasmScriptWithBreakpoints(script);
     return WasmScript::SetBreakPoint(script, source_position, break_point);
   }
 
@@ -777,12 +778,53 @@ void Debug::RemoveBreakpointForWasmScript(Handle<Script> script, int id) {
   }
 }
 
+void Debug::RecordWasmScriptWithBreakpoints(Handle<Script> script) {
+  if (wasm_scripts_with_breakpoints_.is_null()) {
+    Handle<WeakArrayList> new_list = isolate_->factory()->NewWeakArrayList(4);
+    wasm_scripts_with_breakpoints_ =
+        isolate_->global_handles()->Create(*new_list);
+  }
+  {
+    DisallowHeapAllocation no_gc;
+    for (int idx = wasm_scripts_with_breakpoints_->length() - 1; idx >= 0;
+         --idx) {
+      HeapObject wasm_script;
+      if (wasm_scripts_with_breakpoints_->Get(idx).GetHeapObject(
+              &wasm_script) &&
+          wasm_script == *script) {
+        return;
+      }
+    }
+  }
+  Handle<WeakArrayList> new_list = WeakArrayList::Append(
+      isolate_, wasm_scripts_with_breakpoints_, MaybeObjectHandle{script});
+  if (*new_list != *wasm_scripts_with_breakpoints_) {
+    isolate_->global_handles()->Destroy(
+        wasm_scripts_with_breakpoints_.location());
+    wasm_scripts_with_breakpoints_ =
+        isolate_->global_handles()->Create(*new_list);
+  }
+}
+
 // Clear out all the debug break code.
 void Debug::ClearAllBreakPoints() {
   ClearAllDebugInfos([=](Handle<DebugInfo> info) {
     ClearBreakPoints(info);
     info->ClearBreakInfo(isolate_);
   });
+  // Clear all wasm breakpoints.
+  if (!wasm_scripts_with_breakpoints_.is_null()) {
+    DisallowHeapAllocation no_gc;
+    for (int idx = wasm_scripts_with_breakpoints_->length() - 1; idx >= 0;
+         --idx) {
+      HeapObject raw_wasm_script;
+      if (wasm_scripts_with_breakpoints_->Get(idx).GetHeapObject(
+              &raw_wasm_script)) {
+        WasmScript::ClearAllBreakpoints(Script::cast(raw_wasm_script));
+      }
+    }
+    wasm_scripts_with_breakpoints_ = Handle<WeakArrayList>{};
+  }
 }
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
@@ -872,20 +914,6 @@ void Debug::PrepareStepIn(Handle<JSFunction> function) {
   if (in_debug_scope()) return;
   if (break_disabled()) return;
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
-  // If stepping from JS into Wasm, and we are using the wasm interpreter for
-  // debugging, prepare the interpreter for step in.
-  if (shared->HasWasmExportedFunctionData() && !FLAG_debug_in_liftoff) {
-    auto imported_function = Handle<WasmExportedFunction>::cast(function);
-    Handle<WasmInstanceObject> wasm_instance(imported_function->instance(),
-                                             isolate_);
-    Handle<WasmDebugInfo> wasm_debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(wasm_instance);
-    int func_index = shared->wasm_exported_function_data().function_index();
-    WasmDebugInfo::PrepareStepIn(wasm_debug_info, func_index);
-    // We need to reset all of this since break would be
-    // handled in Wasm Interpreter now. Otherwise it would be a loop here.
-    ClearStepping();
-  }
   if (IsBlackboxed(shared)) return;
   if (*function == thread_local_.ignore_step_into_function_) return;
   thread_local_.ignore_step_into_function_ = Smi::zero();
@@ -1040,17 +1068,9 @@ void Debug::PrepareStep(StepAction step_action) {
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
-  } else if (frame->is_wasm_interpreter_entry()) {
-    // Handle stepping in wasm functions via the wasm interpreter.
-    WasmInterpreterEntryFrame* wasm_frame =
-        WasmInterpreterEntryFrame::cast(frame);
-    if (wasm_frame->NumberOfActiveFrames() > 0) {
-      wasm_frame->debug_info().PrepareStep(step_action);
-      return;
-    }
-  } else if (FLAG_debug_in_liftoff && frame->is_wasm_compiled()) {
+  } else if (frame->is_wasm()) {
     // Handle stepping in Liftoff code.
-    WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
+    WasmFrame* wasm_frame = WasmFrame::cast(frame);
     wasm::WasmCodeRefScope code_ref_scope;
     wasm::WasmCode* code = wasm_frame->wasm_code();
     if (code->is_liftoff()) {

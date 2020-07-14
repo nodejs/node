@@ -37,7 +37,6 @@ void FinalizationRegistryCleanupTask::SlowAssertNoActiveJavaScript() {
 
 void FinalizationRegistryCleanupTask::RunInternal() {
   Isolate* isolate = heap_->isolate();
-  DCHECK(!isolate->host_cleanup_finalization_group_callback());
   SlowAssertNoActiveJavaScript();
 
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8",
@@ -65,8 +64,21 @@ void FinalizationRegistryCleanupTask::RunInternal() {
 
   // Exceptions are reported via the message handler. This is ensured by the
   // verbose TryCatch.
+  //
+  // Cleanup is interrupted if there is an exception. The HTML spec calls for a
+  // microtask checkpoint after each cleanup task, so the task should return
+  // after an exception so the host can perform a microtask checkpoint. In case
+  // of exception, check if the FinalizationRegistry still needs cleanup
+  // and should be requeued.
+  //
+  // TODO(syg): Implement better scheduling for finalizers.
   InvokeFinalizationRegistryCleanupFromTask(context, finalization_registry,
                                             callback);
+  if (finalization_registry->NeedsCleanup() &&
+      !finalization_registry->scheduled_for_cleanup()) {
+    auto nop = [](HeapObject, ObjectSlot, Object) {};
+    heap_->EnqueueDirtyJSFinalizationRegistry(*finalization_registry, nop);
+  }
 
   // Repost if there are remaining dirty FinalizationRegistries.
   heap_->set_is_finalization_registry_cleanup_task_posted(false);

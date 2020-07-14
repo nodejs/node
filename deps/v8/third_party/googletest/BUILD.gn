@@ -96,8 +96,8 @@ source_set("gtest") {
 
   if (is_fuchsia) {
     deps += [
-      "//third_party/fuchsia-sdk/sdk:fdio",
-      "//third_party/fuchsia-sdk/sdk:zx",
+      "//third_party/fuchsia-sdk/sdk/pkg/fdio",
+      "//third_party/fuchsia-sdk/sdk/pkg/zx",
     ]
   }
 }
@@ -106,12 +106,8 @@ source_set("gtest") {
 # See README.chromium for details.
 source_set("gtest_main") {
   testonly = true
-  sources = [
-    "src/googletest/src/gtest_main.cc",
-  ]
-  deps = [
-    ":gtest",
-  ]
+  sources = [ "src/googletest/src/gtest_main.cc" ]
+  deps = [ ":gtest" ]
 }
 
 # Do NOT depend on this directly. Use //testing/gmock:gmock_main instead.
@@ -123,8 +119,6 @@ source_set("gmock") {
     "src/googlemock/include/gmock/gmock-cardinalities.h",
     "src/googlemock/include/gmock/gmock-function-mocker.h",
     "src/googlemock/include/gmock/gmock-generated-actions.h",
-    "src/googlemock/include/gmock/gmock-generated-function-mockers.h",
-    "src/googlemock/include/gmock/gmock-generated-matchers.h",
     "src/googlemock/include/gmock/gmock-generated-nice-strict.h",
     "src/googlemock/include/gmock/gmock-matchers.h",
     "src/googlemock/include/gmock/gmock-more-actions.h",
@@ -158,10 +152,6 @@ source_set("gmock") {
 # See README.chromium for details.
 static_library("gmock_main") {
   testonly = true
-  sources = [
-    "src/googlemock/src/gmock_main.cc",
-  ]
-  deps = [
-    ":gmock",
-  ]
+  sources = [ "src/googlemock/src/gmock_main.cc" ]
+  deps = [ ":gmock" ]
 }

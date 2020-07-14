@@ -35,6 +35,10 @@ class Reduction final {
 
   Node* replacement() const { return replacement_; }
   bool Changed() const { return replacement() != nullptr; }
+  Reduction FollowedBy(Reduction next) const {
+    if (next.Changed()) return next;
+    return *this;
+  }
 
  private:
   Node* replacement_;

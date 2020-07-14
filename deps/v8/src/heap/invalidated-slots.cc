@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/heap/invalidated-slots.h"
+
 #include "src/heap/invalidated-slots-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/spaces.h"
 #include "src/objects/objects-inl.h"
 

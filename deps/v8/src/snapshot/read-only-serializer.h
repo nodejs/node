@@ -17,7 +17,7 @@ class SnapshotByteSink;
 
 class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
  public:
-  explicit ReadOnlySerializer(Isolate* isolate);
+  ReadOnlySerializer(Isolate* isolate, Snapshot::SerializerFlags flags);
   ~ReadOnlySerializer() override;
 
   void SerializeReadOnlyRoots();

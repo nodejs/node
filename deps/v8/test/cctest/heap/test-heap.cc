@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+
 #include <utility>
 
 #include "src/api/api-inl.h"
@@ -42,8 +43,9 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/memory-reducer.h"
-#include "src/heap/remembered-set.h"
+#include "src/heap/remembered-set-inl.h"
 #include "src/ic/ic.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/elements.h"
@@ -5051,7 +5053,8 @@ TEST(Regress3877) {
   CHECK(weak_prototype_holder->Get(0)->IsCleared());
 }
 
-Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
+Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate,
+                                      Handle<NativeContext> context) {
   HandleScope inner_scope(isolate);
   Handle<Map> map = Map::Create(isolate, 1);
   v8::Local<v8::Value> result =
@@ -5059,18 +5062,24 @@ Handle<WeakFixedArray> AddRetainedMap(Isolate* isolate, Heap* heap) {
   Handle<JSReceiver> proto =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Map::SetPrototype(isolate, map, proto);
-  heap->AddRetainedMap(map);
+  isolate->heap()->AddRetainedMap(context, map);
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(1);
   array->Set(0, HeapObjectReference::Weak(*map));
   return inner_scope.CloseAndEscape(array);
 }
 
-
 void CheckMapRetainingFor(int n) {
   FLAG_retain_maps_for_n_gc = n;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  Handle<WeakFixedArray> array_with_map = AddRetainedMap(isolate, heap);
+  v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
+  Handle<Context> context = Utils::OpenHandle(*ctx);
+  CHECK(context->IsNativeContext());
+  Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
+
+  ctx->Enter();
+  Handle<WeakFixedArray> array_with_map =
+      AddRetainedMap(isolate, native_context);
   CHECK(array_with_map->Get(0)->IsWeak());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
@@ -5080,6 +5089,8 @@ void CheckMapRetainingFor(int n) {
   heap::SimulateIncrementalMarking(heap);
   CcTest::CollectGarbage(OLD_SPACE);
   CHECK(array_with_map->Get(0)->IsCleared());
+
+  ctx->Exit();
 }
 
 
@@ -5092,6 +5103,30 @@ TEST(MapRetaining) {
   CheckMapRetainingFor(0);
   CheckMapRetainingFor(1);
   CheckMapRetainingFor(7);
+}
+
+TEST(RetainedMapsCleanup) {
+  if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
+  Handle<Context> context = Utils::OpenHandle(*ctx);
+  CHECK(context->IsNativeContext());
+  Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
+
+  ctx->Enter();
+  Handle<WeakFixedArray> array_with_map =
+      AddRetainedMap(isolate, native_context);
+  CHECK(array_with_map->Get(0)->IsWeak());
+  heap->NotifyContextDisposed(true);
+  CcTest::CollectAllGarbage();
+  ctx->Exit();
+
+  CHECK_EQ(ReadOnlyRoots(heap).empty_weak_array_list(),
+           native_context->retained_maps());
 }
 
 TEST(PreprocessStackTrace) {
@@ -6446,7 +6481,6 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
       v8::Context::Scope context_scope(context);
     }
     isolate->Dispose();
-    ReadOnlyHeap::ClearSharedHeapForTest();
   }
 }
 
@@ -6931,6 +6965,41 @@ TEST(NoCodeRangeInJitlessMode) {
   CcTest::InitializeVM();
   CHECK(
       CcTest::i_isolate()->heap()->memory_allocator()->code_range().is_empty());
+}
+
+TEST(Regress978156) {
+  if (!FLAG_incremental_marking) return;
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+
+  HandleScope handle_scope(CcTest::i_isolate());
+  Heap* heap = CcTest::i_isolate()->heap();
+
+  // 1. Ensure that the new space is empty.
+  CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
+  // 2. Fill the first page of the new space with FixedArrays.
+  std::vector<Handle<FixedArray>> arrays;
+  i::heap::FillCurrentPage(heap->new_space(), &arrays);
+  // 3. Trim the last array by one word thus creating a one-word filler.
+  Handle<FixedArray> last = arrays.back();
+  CHECK_GT(last->length(), 0);
+  heap->RightTrimFixedArray(*last, 1);
+  // 4. Get the last filler on the page.
+  HeapObject filler = HeapObject::FromAddress(
+      MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);
+  HeapObject::FromAddress(last->address() + last->Size());
+  CHECK(filler.IsFiller());
+  // 5. Start incremental marking.
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (marking->IsStopped()) {
+    marking->Start(i::GarbageCollectionReason::kTesting);
+  }
+  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  // 6. Mark the filler black to access its two markbits. This triggers
+  // an out-of-bounds access of the marking bitmap in a bad case.
+  marking_state->WhiteToGrey(filler);
+  marking_state->GreyToBlack(filler);
 }
 
 }  // namespace heap

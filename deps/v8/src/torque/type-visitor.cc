@@ -247,7 +247,7 @@ const ClassType* TypeVisitor::ComputeType(
   ClassFlags flags = decl->flags;
   bool is_shape = flags & ClassFlag::kIsShape;
   std::string generates = decl->name->value;
-  const Type* super_type = TypeVisitor::ComputeType(*decl->super);
+  const Type* super_type = TypeVisitor::ComputeType(decl->super);
   if (is_shape) {
     if (!(flags & ClassFlag::kExtern)) {
       ReportError("Shapes must be extern, add \"extern\" to the declaration.");
@@ -265,9 +265,6 @@ const ClassType* TypeVisitor::ComputeType(
     // Shapes use their super class in CSA code since they have incomplete
     // support for type-checks on the C++ side.
     generates = super_class->name();
-  }
-  if (!decl->super) {
-    ReportError("Extern class must extend another type.");
   }
   if (super_type != TypeOracle::GetStrongTaggedType()) {
     const ClassType* super_class = ClassType::DynamicCast(super_type);
@@ -455,7 +452,7 @@ void TypeVisitor::VisitStructMethods(
   DeclareMethods(struct_type, struct_declaration->methods);
 }
 
-const StructType* TypeVisitor::ComputeTypeForStructExpression(
+const Type* TypeVisitor::ComputeTypeForStructExpression(
     TypeExpression* type_expression,
     const std::vector<const Type*>& term_argument_types) {
   auto* basic = BasicTypeExpression::DynamicCast(type_expression);
@@ -475,11 +472,11 @@ const StructType* TypeVisitor::ComputeTypeForStructExpression(
   // Compute types of non-generic structs as usual
   if (!(maybe_generic_type && decl)) {
     const Type* type = ComputeType(type_expression);
-    const StructType* struct_type = StructType::DynamicCast(type);
-    if (!struct_type) {
-      ReportError(*type, " is not a struct, but used like one");
+    if (!type->IsStructType() && !type->IsBitFieldStructType()) {
+      ReportError(*type,
+                  " is not a struct or bitfield struct, but used like one");
     }
-    return struct_type;
+    return type;
   }
 
   auto generic_type = *maybe_generic_type;

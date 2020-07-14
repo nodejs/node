@@ -20,7 +20,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .exportFunc();
   assertThrows(() => builder.instantiate({mod: {pow: Math.pow}}),
                WebAssembly.CompileError,
-               "WebAssembly.Module(): Invalid compilation hint 0x2d " +
+               "WebAssembly.Module(): Invalid compilation hint 0x19 " +
                "(forbidden downgrade) @+70");
 })();
 
@@ -33,8 +33,8 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
                    kExprLocalGet, 0,
                    kExprCallFunction, 0])
          .setCompilationHint(kCompilationHintStrategyDefault,
-                             kCompilationHintTierInterpreter,
-                             kCompilationHintTierInterpreter)
+                             kCompilationHintTierBaseline,
+                             kCompilationHintTierBaseline)
          .exportFunc();
   builder.addFunction('upow2', kSig_i_i)
          .addBody([kExprLocalGet, 0,

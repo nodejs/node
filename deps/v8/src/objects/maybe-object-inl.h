@@ -5,11 +5,8 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_INL_H_
 #define V8_OBJECTS_MAYBE_OBJECT_INL_H_
 
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/maybe-object.h"
-
-#ifdef V8_COMPRESS_POINTERS
-#include "src/execution/isolate.h"
-#endif
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-impl-inl.h"
 
@@ -59,16 +56,32 @@ HeapObjectReference HeapObjectReference::Weak(Object object) {
 }
 
 // static
-HeapObjectReference HeapObjectReference::ClearedValue(Isolate* isolate) {
+HeapObjectReference HeapObjectReference::ClearedValue(const Isolate* isolate) {
   // Construct cleared weak ref value.
-  Address raw_value = kClearedWeakHeapObjectLower32;
 #ifdef V8_COMPRESS_POINTERS
   // This is necessary to make pointer decompression computation also
   // suitable for cleared weak references.
-  Address isolate_root = isolate->isolate_root();
-  raw_value |= isolate_root;
-  DCHECK_EQ(raw_value & (~static_cast<Address>(kClearedWeakHeapObjectLower32)),
-            isolate_root);
+  Address raw_value =
+      DecompressTaggedPointer(isolate, kClearedWeakHeapObjectLower32);
+#else
+  Address raw_value = kClearedWeakHeapObjectLower32;
+#endif
+  // The rest of the code will check only the lower 32-bits.
+  DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(raw_value));
+  return HeapObjectReference(raw_value);
+}
+
+// static
+HeapObjectReference HeapObjectReference::ClearedValue(
+    const OffThreadIsolate* isolate) {
+  // Construct cleared weak ref value.
+#ifdef V8_COMPRESS_POINTERS
+  // This is necessary to make pointer decompression computation also
+  // suitable for cleared weak references.
+  Address raw_value =
+      DecompressTaggedPointer(isolate, kClearedWeakHeapObjectLower32);
+#else
+  Address raw_value = kClearedWeakHeapObjectLower32;
 #endif
   // The rest of the code will check only the lower 32-bits.
   DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(raw_value));

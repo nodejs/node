@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-intl-add-calendar-numbering-system
-
 var v = {};
 Object.defineProperty(v.__proto__, "calendar",
     { get: function() { return -1; } });

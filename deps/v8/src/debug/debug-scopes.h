@@ -102,6 +102,7 @@ class ScopeIterator {
 
   bool InInnerScope() const { return !function_.is_null(); }
   bool HasContext() const;
+  bool NeedsAndHasContext() const;
   Handle<Context> CurrentContext() const {
     DCHECK(HasContext());
     return context_;
@@ -109,10 +110,14 @@ class ScopeIterator {
 
  private:
   Isolate* isolate_;
-  ParseInfo* info_ = nullptr;
+  std::unique_ptr<ParseInfo> info_;
   FrameInspector* const frame_inspector_ = nullptr;
   Handle<JSGeneratorObject> generator_;
+
+  // The currently-executing function from the inspected frame, or null if this
+  // ScopeIterator has already iterated to any Scope outside that function.
   Handle<JSFunction> function_;
+
   Handle<Context> context_;
   Handle<Script> script_;
   Handle<StringSet> locals_;

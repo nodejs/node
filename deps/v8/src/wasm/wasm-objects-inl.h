@@ -37,6 +37,8 @@ OBJECT_CONSTRUCTORS_IMPL(WasmMemoryObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmModuleObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WasmTableObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(AsmWasmData, Struct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 
 NEVER_READ_ONLY_SPACE_IMPL(WasmDebugInfo)
 
@@ -49,6 +51,8 @@ CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
 CAST_ACCESSOR(WasmTableObject)
 CAST_ACCESSOR(AsmWasmData)
+CAST_ACCESSOR(WasmStruct)
+CAST_ACCESSOR(WasmArray)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)                \
   DEF_GETTER(holder, has_##name, bool) {                              \
@@ -264,6 +268,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
                    kExceptionsTableOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_external_functions, FixedArray,
                    kWasmExternalFunctionsOffset)
+ACCESSORS(WasmInstanceObject, managed_object_maps, FixedArray,
+          kManagedObjectMapsOffset)
 
 void WasmInstanceObject::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
@@ -411,6 +417,51 @@ ACCESSORS(AsmWasmData, managed_native_module, Managed<wasm::NativeModule>,
           kManagedNativeModuleOffset)
 ACCESSORS(AsmWasmData, export_wrappers, FixedArray, kExportWrappersOffset)
 ACCESSORS(AsmWasmData, uses_bitset, HeapNumber, kUsesBitsetOffset)
+
+wasm::StructType* WasmStruct::type(Map map) {
+  Foreign foreign = map.wasm_type_info();
+  return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
+}
+
+wasm::StructType* WasmStruct::GcSafeType(Map map) {
+  DCHECK_EQ(WASM_STRUCT_TYPE, map.instance_type());
+  HeapObject raw = HeapObject::cast(map.constructor_or_backpointer());
+  MapWord map_word = raw.map_word();
+  HeapObject forwarded =
+      map_word.IsForwardingAddress() ? map_word.ToForwardingAddress() : raw;
+  Foreign foreign = Foreign::cast(forwarded);
+  return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
+}
+
+wasm::StructType* WasmStruct::type() const { return type(map()); }
+
+ObjectSlot WasmStruct::RawField(int raw_offset) {
+  int offset = WasmStruct::kHeaderSize + raw_offset;
+  return ObjectSlot(FIELD_ADDR(*this, offset));
+}
+
+wasm::ArrayType* WasmArray::type(Map map) {
+  DCHECK_EQ(WASM_ARRAY_TYPE, map.instance_type());
+  Foreign foreign = map.wasm_type_info();
+  return reinterpret_cast<wasm::ArrayType*>(foreign.foreign_address());
+}
+
+wasm::ArrayType* WasmArray::GcSafeType(Map map) {
+  DCHECK_EQ(WASM_ARRAY_TYPE, map.instance_type());
+  HeapObject raw = HeapObject::cast(map.constructor_or_backpointer());
+  MapWord map_word = raw.map_word();
+  HeapObject forwarded =
+      map_word.IsForwardingAddress() ? map_word.ToForwardingAddress() : raw;
+  Foreign foreign = Foreign::cast(forwarded);
+  return reinterpret_cast<wasm::ArrayType*>(foreign.foreign_address());
+}
+
+wasm::ArrayType* WasmArray::type() const { return type(map()); }
+
+int WasmArray::SizeFor(Map map, int length) {
+  int element_size = type(map)->element_type().element_size_bytes();
+  return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
+}
 
 #include "src/objects/object-macros-undef.h"
 

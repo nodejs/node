@@ -3,60 +3,60 @@
 // found in the LICENSE file.
 
 namespace typed_array {
-  // ES %TypedArray%.prototype.subarray
-  transitioning javascript builtin TypedArrayPrototypeSubArray(
-      js-implicit context: NativeContext,
-      receiver: JSAny)(...arguments): JSTypedArray {
-    const methodName: constexpr string = '%TypedArray%.prototype.subarray';
+// ES %TypedArray%.prototype.subarray
+transitioning javascript builtin TypedArrayPrototypeSubArray(
+    js-implicit context: NativeContext,
+    receiver: JSAny)(...arguments): JSTypedArray {
+  const methodName: constexpr string = '%TypedArray%.prototype.subarray';
 
-    // 1. Let O be the this value.
-    // 3. If O does not have a [[TypedArrayName]] internal slot, throw a
-    // TypeError exception.
-    const source = Cast<JSTypedArray>(receiver)
-        otherwise ThrowTypeError(
-        MessageTemplate::kIncompatibleMethodReceiver, methodName);
+  // 1. Let O be the this value.
+  // 3. If O does not have a [[TypedArrayName]] internal slot, throw a
+  // TypeError exception.
+  const source = Cast<JSTypedArray>(receiver)
+      otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName);
 
-    // 5. Let buffer be O.[[ViewedArrayBuffer]].
-    const buffer = typed_array::GetBuffer(source);
+  // 5. Let buffer be O.[[ViewedArrayBuffer]].
+  const buffer = typed_array::GetBuffer(source);
 
-    // 6. Let srcLength be O.[[ArrayLength]].
-    const srcLength: uintptr = source.length;
+  // 6. Let srcLength be O.[[ArrayLength]].
+  const srcLength: uintptr = source.length;
 
-    // 7. Let relativeBegin be ? ToInteger(begin).
-    // 8. If relativeBegin < 0, let beginIndex be max((srcLength +
-    // relativeBegin), 0); else let beginIndex be min(relativeBegin,
-    // srcLength).
-    const arg0 = arguments[0];
-    const begin: uintptr =
-        arg0 != Undefined ? ConvertToRelativeIndex(arg0, srcLength) : 0;
+  // 7. Let relativeBegin be ? ToInteger(begin).
+  // 8. If relativeBegin < 0, let beginIndex be max((srcLength +
+  // relativeBegin), 0); else let beginIndex be min(relativeBegin,
+  // srcLength).
+  const arg0 = arguments[0];
+  const begin: uintptr =
+      arg0 != Undefined ? ConvertToRelativeIndex(arg0, srcLength) : 0;
 
-    // 9. If end is undefined, let relativeEnd be srcLength;
-    //      else, let relativeEnd be ? ToInteger(end).
-    // 10. If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd),
-    // 0); else let endIndex be min(relativeEnd, srcLength).
-    const arg1 = arguments[1];
-    const end: uintptr =
-        arg1 != Undefined ? ConvertToRelativeIndex(arg1, srcLength) : srcLength;
+  // 9. If end is undefined, let relativeEnd be srcLength;
+  //      else, let relativeEnd be ? ToInteger(end).
+  // 10. If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd),
+  // 0); else let endIndex be min(relativeEnd, srcLength).
+  const arg1 = arguments[1];
+  const end: uintptr =
+      arg1 != Undefined ? ConvertToRelativeIndex(arg1, srcLength) : srcLength;
 
-    // 11. Let newLength be max(endIndex - beginIndex, 0).
-    const newLength: uintptr = Unsigned(IntPtrMax(Signed(end - begin), 0));
+  // 11. Let newLength be max(endIndex - beginIndex, 0).
+  const newLength: uintptr = Unsigned(IntPtrMax(Signed(end - begin), 0));
 
-    // 12. Let constructorName be the String value of O.[[TypedArrayName]].
-    // 13. Let elementSize be the Number value of the Element Size value
-    // specified in Table 52 for constructorName.
-    const elementsInfo = typed_array::GetTypedArrayElementsInfo(source);
+  // 12. Let constructorName be the String value of O.[[TypedArrayName]].
+  // 13. Let elementSize be the Number value of the Element Size value
+  // specified in Table 52 for constructorName.
+  const elementsInfo = typed_array::GetTypedArrayElementsInfo(source);
 
-    // 14. Let srcByteOffset be O.[[ByteOffset]].
-    const srcByteOffset: uintptr = source.byte_offset;
+  // 14. Let srcByteOffset be O.[[ByteOffset]].
+  const srcByteOffset: uintptr = source.byte_offset;
 
-    // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
-    const beginByteOffset =
-        srcByteOffset + elementsInfo.CalculateByteLength(begin)
-        otherwise ThrowRangeError(MessageTemplate::kInvalidArrayBufferLength);
+  // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
+  const beginByteOffset =
+      srcByteOffset + elementsInfo.CalculateByteLength(begin)
+      otherwise ThrowRangeError(MessageTemplate::kInvalidArrayBufferLength);
 
-    // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
-    // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
-    return TypedArraySpeciesCreateByBuffer(
-        methodName, source, buffer, beginByteOffset, newLength);
-  }
+  // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
+  // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).
+  return TypedArraySpeciesCreateByBuffer(
+      methodName, source, buffer, beginByteOffset, newLength);
+}
 }

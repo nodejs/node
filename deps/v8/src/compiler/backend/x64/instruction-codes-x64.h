@@ -48,6 +48,8 @@ namespace compiler {
   V(X64Shr32)                             \
   V(X64Sar)                               \
   V(X64Sar32)                             \
+  V(X64Rol)                               \
+  V(X64Rol32)                             \
   V(X64Ror)                               \
   V(X64Ror32)                             \
   V(X64Lzcnt)                             \
@@ -170,6 +172,8 @@ namespace compiler {
   V(X64F64x2Le)                           \
   V(X64F64x2Qfma)                         \
   V(X64F64x2Qfms)                         \
+  V(X64F64x2Pmin)                         \
+  V(X64F64x2Pmax)                         \
   V(X64F32x4Splat)                        \
   V(X64F32x4ExtractLane)                  \
   V(X64F32x4ReplaceLane)                  \
@@ -193,6 +197,8 @@ namespace compiler {
   V(X64F32x4Le)                           \
   V(X64F32x4Qfma)                         \
   V(X64F32x4Qfms)                         \
+  V(X64F32x4Pmin)                         \
+  V(X64F32x4Pmax)                         \
   V(X64I64x2Splat)                        \
   V(X64I64x2ExtractLane)                  \
   V(X64I64x2ReplaceLane)                  \
@@ -241,6 +247,7 @@ namespace compiler {
   V(X64I32x4GtU)                          \
   V(X64I32x4GeU)                          \
   V(X64I32x4Abs)                          \
+  V(X64I32x4BitMask)                      \
   V(X64I16x8Splat)                        \
   V(X64I16x8ExtractLaneU)                 \
   V(X64I16x8ExtractLaneS)                 \
@@ -275,6 +282,7 @@ namespace compiler {
   V(X64I16x8GeU)                          \
   V(X64I16x8RoundingAverageU)             \
   V(X64I16x8Abs)                          \
+  V(X64I16x8BitMask)                      \
   V(X64I8x16Splat)                        \
   V(X64I8x16ExtractLaneU)                 \
   V(X64I8x16ExtractLaneS)                 \
@@ -304,6 +312,7 @@ namespace compiler {
   V(X64I8x16GeU)                          \
   V(X64I8x16RoundingAverageU)             \
   V(X64I8x16Abs)                          \
+  V(X64I8x16BitMask)                      \
   V(X64S128Zero)                          \
   V(X64S128Not)                           \
   V(X64S128And)                           \

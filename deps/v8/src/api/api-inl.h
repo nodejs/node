@@ -86,7 +86,6 @@ MAKE_TO_LOCAL(ToLocal, JSArrayBufferView, ArrayBufferView)
 MAKE_TO_LOCAL(ToLocal, JSDataView, DataView)
 MAKE_TO_LOCAL(ToLocal, JSTypedArray, TypedArray)
 MAKE_TO_LOCAL(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)
-MAKE_TO_LOCAL(ToLocal, JSFinalizationRegistry, FinalizationGroup)
 
 TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 

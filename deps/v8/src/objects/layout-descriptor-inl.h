@@ -9,6 +9,7 @@
 
 #include "src/handles/handles-inl.h"
 #include "src/objects/descriptor-array-inl.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 

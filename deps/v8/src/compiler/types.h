@@ -112,7 +112,7 @@ namespace compiler {
   V(Null,                     1u << 7)   \
   V(Undefined,                1u << 8)   \
   V(Boolean,                  1u << 9)   \
-  V(Unsigned30,               1u << 10)   \
+  V(Unsigned30,               1u << 10)  \
   V(MinusZero,                1u << 11)  \
   V(NaN,                      1u << 12)  \
   V(Symbol,                   1u << 13)  \
@@ -129,6 +129,9 @@ namespace compiler {
   V(ExternalPointer,          1u << 25)  \
   V(Array,                    1u << 26)  \
   V(BigInt,                   1u << 27)  \
+  /* TODO(v8:10391): Remove this type once all ExternalPointer usages are */ \
+  /* sandbox-ready. */                   \
+  V(SandboxedExternalPointer, 1u << 28)  \
   \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
@@ -192,7 +195,8 @@ namespace compiler {
   V(StringOrReceiver,             kString | kReceiver) \
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kHole | kReceiver) \
-  V(Internal,                     kHole | kExternalPointer | kOtherInternal) \
+  V(Internal,                     kHole | kExternalPointer | \
+                                  kSandboxedExternalPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonBigInt,                    kNonBigIntPrimitive | kReceiver) \
   V(NonNumber,                    kBigInt | kUnique | kString | kInternal) \

@@ -1,0 +1,56 @@
+Test scope inspection and stepping after a trap.
+Instantiating.
+Calling div function.
+Paused at:
+--- 0 ---
+Script wasm://wasm/a9a86c5e byte offset 46: Wasm opcode 0x6d
+scope at div (0:46):
+   locals: "a": 1, "b": 0, "unused": 4711, "local_zero": 0, "local_const_11": 11
+--- 1 ---
+  try {
+    instance.exports.#div(1, 0, 4711);  // traps (div by zero)
+  } catch (e) {
+
+--- 2 ---
+#call_div()
+
+-------------
+-> stepInto
+Paused at:
+--- 0 ---
+  } catch (e) {
+    #e.stack;  // step target of first pause
+  }
+
+--- 1 ---
+#call_div()
+
+-------------
+-> resume
+Paused at:
+--- 0 ---
+Script wasm://wasm/a9a86c5e byte offset 46: Wasm opcode 0x6d
+scope at div (0:46):
+   locals: "a": -2147483648, "b": -1, "unused": 4711, "local_zero": 0, "local_const_11": 11
+--- 1 ---
+  try {
+    instance.exports.#div(0x80000000, -1, 4711);  // traps (unrepresentable)
+  } catch (e) {
+
+--- 2 ---
+#call_div()
+
+-------------
+-> stepInto
+Paused at:
+--- 0 ---
+  } catch (e) {
+    #e.stack;  // step target of second pause
+  }
+
+--- 1 ---
+#call_div()
+
+-------------
+-> resume
+Finished.

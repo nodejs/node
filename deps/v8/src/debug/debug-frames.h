@@ -11,13 +11,13 @@
 #include "src/execution/isolate.h"
 #include "src/execution/v8threads.h"
 #include "src/objects/objects.h"
-#include "src/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
 
 class JavaScriptFrame;
 class StandardFrame;
+class WasmFrame;
 
 class FrameInspector {
  public:
@@ -52,7 +52,6 @@ class FrameInspector {
   StandardFrame* frame_;
   int inlined_frame_index_;
   std::unique_ptr<DeoptimizedFrameInfo> deoptimized_frame_;
-  wasm::WasmInterpreter::FramePtr wasm_interpreted_frame_;
   Isolate* isolate_;
   Handle<Script> script_;
   Handle<Object> receiver_;

@@ -4,6 +4,10 @@
 
 import("//build/config/compiler/compiler.gni")
 
+if (build_with_chromium) {
+  import("//testing/test.gni")
+}
+
 if (current_cpu == "arm" || current_cpu == "arm64") {
   import("//build/config/arm.gni")
 }
@@ -37,7 +41,9 @@ config("zlib_adler32_simd_config") {
     } else {
       defines += [ "X86_NOT_WINDOWS" ]
     }
-  } else if (use_arm_neon_optimizations) {
+  }
+
+  if (use_arm_neon_optimizations) {
     defines = [ "ADLER32_SIMD_NEON" ]
   }
 }
@@ -61,6 +67,7 @@ source_set("zlib_adler32_simd") {
       "adler32_simd.c",
       "adler32_simd.h",
     ]
+
     if (!is_debug) {
       # Use optimize_speed (-O3) to output the _smallest_ code.
       configs -= [ "//build/config/compiler:default_optimization" ]
@@ -134,6 +141,7 @@ config("zlib_inflate_chunk_simd_config") {
 
   if (use_arm_neon_optimizations) {
     defines = [ "INFLATE_CHUNK_SIMD_NEON" ]
+
     if (current_cpu == "arm64") {
       defines += [ "INFLATE_CHUNK_READ_64LE" ]
     }
@@ -161,11 +169,12 @@ source_set("zlib_inflate_chunk_simd") {
     }
   }
 
+  configs += [ ":zlib_internal_config" ]
+
+  # Needed for MSVC, which is still supported by V8 and PDFium. zlib uses K&R C
+  # style function declarations, which triggers warning C4131.
   configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [
-    ":zlib_internal_config",
-    "//build/config/compiler:no_chromium_code",
-  ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
 
   public_configs = [ ":zlib_inflate_chunk_simd_config" ]
 }
@@ -198,6 +207,15 @@ source_set("zlib_crc32_simd") {
   public_configs = [ ":zlib_crc32_simd_config" ]
 }
 
+config("zlib_x86_simd_config") {
+  if (use_x86_x64_optimizations) {
+    defines = [
+      "CRC32_SIMD_SSE42_PCLMUL",
+      "DEFLATE_FILL_WINDOW_SSE2",
+    ]
+  }
+}
+
 source_set("zlib_x86_simd") {
   visibility = [ ":*" ]
 
@@ -215,11 +233,9 @@ source_set("zlib_x86_simd") {
     }
   }
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [
-    ":zlib_internal_config",
-    "//build/config/compiler:no_chromium_code",
-  ]
+  configs += [ ":zlib_internal_config" ]
+
+  public_configs = [ ":zlib_x86_simd_config" ]
 }
 
 config("zlib_warnings") {
@@ -268,6 +284,7 @@ component("zlib") {
 
   defines = []
   deps = []
+
   if (!use_x86_x64_optimizations && !use_arm_neon_optimizations) {
     # Apparently android_cronet bot builds with NEON disabled and
     # we also should disable optimizations for iOS@x86 (a.k.a. simulator).
@@ -277,8 +294,8 @@ component("zlib") {
   if (is_ios) {
     # iOS@ARM is a special case where we always have NEON but don't check
     # for crypto extensions.
-    # TODO(cavalcantii): verify what is the current state of CPU features shipped
-    # on latest iOS devices.
+    # TODO(cavalcantii): verify what is the current state of CPU features
+    # shipped on latest iOS devices.
     defines += [ "ARM_OS_IOS" ]
   }
 
@@ -298,6 +315,8 @@ component("zlib") {
     sources += [ "inflate.c" ]
   }
 
+  deps += [ ":zlib_x86_simd" ]
+
   if (is_android) {
     import("//build/config/android/config.gni")
     if (defined(android_ndk_root) && android_ndk_root != "") {
@@ -308,17 +327,17 @@ component("zlib") {
   }
 
   configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+
+  public_configs = [ ":zlib_config" ]
+
   configs += [
     ":zlib_internal_config",
-    "//build/config/compiler:no_chromium_code",
 
     # Must be after no_chromium_code for warning flags to be ordered correctly.
     ":zlib_warnings",
   ]
 
-  public_configs = [ ":zlib_config" ]
-
-  deps += [ ":zlib_x86_simd" ]
   allow_circular_includes_from = deps
 }
 
@@ -359,14 +378,14 @@ static_library("minizip") {
   deps = [ ":zlib" ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
-  configs += [
-    "//build/config/compiler:no_chromium_code",
+  configs += [ "//build/config/compiler:no_chromium_code" ]
 
+  public_configs = [ ":zlib_config" ]
+
+  configs += [
     # Must be after no_chromium_code for warning flags to be ordered correctly.
     ":minizip_warnings",
   ]
-
-  public_configs = [ ":zlib_config" ]
 }
 
 executable("zlib_bench") {
@@ -379,8 +398,28 @@ executable("zlib_bench") {
     configs += [ "//build/config/compiler:optimize_speed" ]
   }
 
+  deps = [ ":zlib" ]
+
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
+}
 
-  deps = [ ":zlib" ]
+if (build_with_chromium) {
+  test("zlib_unittests") {
+    testonly = true
+
+    sources = [
+      "contrib/tests/infcover.cc",
+      "contrib/tests/infcover.h",
+      "contrib/tests/utils_unittest.cc",
+      "google/compression_utils_portable.cc",
+      "google/compression_utils_portable.h",
+    ]
+
+    deps = [
+      ":zlib",
+      "//testing/gtest",
+      "//testing/gtest:gtest_main",
+    ]
+  }
 }

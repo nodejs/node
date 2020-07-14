@@ -113,6 +113,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<double> timeout,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*) override;
+  Response executeWasmEvaluator(
+      const String16& callFrameId, const protocol::Binary& evaluator,
+      Maybe<double> timeout,
+      std::unique_ptr<protocol::Runtime::RemoteObject>* result,
+      Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) override;
   Response setVariableValue(
       int scopeNumber, const String16& variableName,
       std::unique_ptr<protocol::Runtime::CallArgument> newValue,

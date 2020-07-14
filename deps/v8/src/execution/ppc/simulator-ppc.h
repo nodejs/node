@@ -344,7 +344,7 @@ class Simulator : public SimulatorBase {
 
   // Simulator support.
   char* stack_;
-  static const size_t stack_protection_size_ = 256 * kPointerSize;
+  static const size_t stack_protection_size_ = 256 * kSystemPointerSize;
   bool pc_modified_;
   int icount_;
 

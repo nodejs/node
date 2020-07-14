@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 
 class OneshotBarrier;
+class RootScavengeVisitor;
+class Scavenger;
 
 enum class CopyAndForwardResult {
   SUCCESS_YOUNG_GENERATION,
@@ -53,6 +55,9 @@ class ScavengerCollector {
 
   void SweepArrayBufferExtensions();
 
+  void IterateStackAndScavenge(RootScavengeVisitor* root_scavenge_visitor,
+                               Scavenger** scavengers, int num_scavenge_tasks,
+                               int main_thread_id);
   Isolate* const isolate_;
   Heap* const heap_;
   base::Semaphore parallel_scavenge_semaphore_;
@@ -216,7 +221,7 @@ class Scavenger {
   Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
   size_t copied_size_;
   size_t promoted_size_;
-  LocalAllocator allocator_;
+  EvacuationAllocator allocator_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
 
   EphemeronRememberedSet ephemeron_remembered_set_;

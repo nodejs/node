@@ -1623,6 +1623,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32Shl:
     case IrOpcode::kWord32Shr:
     case IrOpcode::kWord32Sar:
+    case IrOpcode::kWord32Rol:
     case IrOpcode::kWord32Ror:
     case IrOpcode::kWord32Equal:
     case IrOpcode::kWord32Clz:
@@ -1637,6 +1638,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord64Shl:
     case IrOpcode::kWord64Shr:
     case IrOpcode::kWord64Sar:
+    case IrOpcode::kWord64Rol:
     case IrOpcode::kWord64Ror:
     case IrOpcode::kWord64Clz:
     case IrOpcode::kWord64Popcnt:

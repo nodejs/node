@@ -172,7 +172,14 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << glob.mutability << ");\n";
   }
 
-  for (const FunctionSig* sig : module->signatures) {
+  // TODO(7748): Support array/struct types.
+#if DEBUG
+  for (uint8_t kind : module->type_kinds) {
+    DCHECK_EQ(kWasmFunctionTypeCode, kind);
+  }
+#endif
+  for (TypeDefinition type : module->types) {
+    const FunctionSig* sig = type.function_sig;
     os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
        << PrintReturns(sig) << "));\n";
   }
@@ -191,6 +198,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
     os << "builder.addElementSegment(";
+    os << elem_segment.table_index << ", ";
     switch (elem_segment.offset.kind) {
       case WasmInitExpr::kGlobalIndex:
         os << elem_segment.offset.val.global_index << ", true";
@@ -251,7 +259,6 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     os << "assertThrows(function() { builder.instantiate(); }, "
           "WebAssembly.CompileError);\n";
   }
-  os << "\n";
 }
 
 void WasmExecutionFuzzer::FuzzWasmModule(Vector<const uint8_t> data,

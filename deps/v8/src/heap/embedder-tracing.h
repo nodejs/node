@@ -109,7 +109,7 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   EmbedderHeapTracer* remote_tracer_ = nullptr;
 
   EmbedderHeapTracer::EmbedderStackState embedder_stack_state_ =
-      EmbedderHeapTracer::kUnknown;
+      EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
   // Indicates whether the embedder worklist was observed empty on the main
   // thread. This is opportunistic as concurrent marking tasks may hold local
   // segments of potential embedder fields to move to the main thread.
@@ -138,7 +138,8 @@ class V8_EXPORT_PRIVATE EmbedderStackStateScope final {
       : local_tracer_(local_tracer),
         old_stack_state_(local_tracer_->embedder_stack_state_) {
     local_tracer_->embedder_stack_state_ = stack_state;
-    if (EmbedderHeapTracer::EmbedderStackState::kEmpty == stack_state) {
+    if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers ==
+        stack_state) {
       if (local_tracer->remote_tracer())
         local_tracer->remote_tracer()->NotifyEmptyEmbedderStack();
     }

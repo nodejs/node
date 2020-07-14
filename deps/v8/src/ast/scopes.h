@@ -909,7 +909,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Check if the scope has conflicting var
   // declarations, i.e. a var declaration that has been hoisted from a nested
   // scope over a let binding of the same name.
-  Declaration* CheckConflictingVarDeclarations();
+  Declaration* CheckConflictingVarDeclarations(
+      bool* allowed_catch_binding_var_redeclaration);
 
   void set_has_checked_syntax(bool has_checked_syntax) {
     has_checked_syntax_ = has_checked_syntax;

@@ -1229,7 +1229,11 @@ using Instr = uint32_t;
   /* Store Floating-Point Single with Update Indexed */ \
   V(stfsux, STFSUX, 0x7C00056E)                         \
   /* Store Floating-Point Single Indexed */             \
-  V(stfsx, STFSX, 0x7C00052E)
+  V(stfsx, STFSX, 0x7C00052E)                           \
+  /* Load Vector Indexed */                             \
+  V(lvx, LVX, 0x7C0000CE)                               \
+  /* Store Vector Indexed */                            \
+  V(stvx, STVX, 0x7C0001CE)
 
 #define PPC_X_OPCODE_E_FORM_LIST(V)          \
   /* Shift Right Algebraic Word Immediate */ \
@@ -1693,8 +1697,6 @@ using Instr = uint32_t;
   V(lvsl, LVSL, 0x7C00000C)                                                   \
   /* Load Vector for Shift Right */                                           \
   V(lvsr, LVSR, 0x7C00004C)                                                   \
-  /* Load Vector Indexed */                                                   \
-  V(lvx, LVX, 0x7C0000CE)                                                     \
   /* Load Vector Indexed Last */                                              \
   V(lvxl, LVXL, 0x7C0002CE)                                                   \
   /* Store Vector Element Byte Indexed */                                     \
@@ -1703,8 +1705,6 @@ using Instr = uint32_t;
   V(stvehx, STVEHX, 0x7C00014E)                                               \
   /* Store Vector Element Word Indexed */                                     \
   V(stvewx, STVEWX, 0x7C00018E)                                               \
-  /* Store Vector Indexed */                                                  \
-  V(stvx, STVX, 0x7C0001CE)                                                   \
   /* Store Vector Indexed Last */                                             \
   V(stvxl, STVXL, 0x7C0003CE)                                                 \
   /* Vector Minimum Signed Doubleword */                                      \
@@ -2192,7 +2192,15 @@ using Instr = uint32_t;
   /* Rotate Left Word then AND with Mask */           \
   V(rlwnm, RLWNMX, 0x5C000000)
 
-#define PPC_VX_OPCODE_LIST(V)                                             \
+#define PPC_VX_OPCODE_A_FORM_LIST(V) \
+  /* Vector Splat Byte */            \
+  V(vspltb, VSPLTB, 0x1000020C)      \
+  /* Vector Splat Word */            \
+  V(vspltw, VSPLTW, 0x1000028C)      \
+  /* Vector Splat Halfword */        \
+  V(vsplth, VSPLTH, 0x1000024C)
+
+#define PPC_VX_OPCODE_UNUSED_LIST(V)                                      \
   /* Decimal Add Modulo */                                                \
   V(bcdadd, BCDADD, 0xF0000400)                                           \
   /* Decimal Subtract Modulo */                                           \
@@ -2427,18 +2435,12 @@ using Instr = uint32_t;
   V(vslo, VSLO, 0x1000040C)                                               \
   /* Vector Shift Left Word */                                            \
   V(vslw, VSLW, 0x10000184)                                               \
-  /* Vector Splat Byte */                                                 \
-  V(vspltb, VSPLTB, 0x1000020C)                                           \
-  /* Vector Splat Halfword */                                             \
-  V(vsplth, VSPLTH, 0x1000024C)                                           \
   /* Vector Splat Immediate Signed Byte */                                \
   V(vspltisb, VSPLTISB, 0x1000030C)                                       \
   /* Vector Splat Immediate Signed Halfword */                            \
   V(vspltish, VSPLTISH, 0x1000034C)                                       \
   /* Vector Splat Immediate Signed Word */                                \
   V(vspltisw, VSPLTISW, 0x1000038C)                                       \
-  /* Vector Splat Word */                                                 \
-  V(vspltw, VSPLTW, 0x1000028C)                                           \
   /* Vector Shift Right */                                                \
   V(vsr, VSR, 0x100002C4)                                                 \
   /* Vector Shift Right Algebraic Byte */                                 \
@@ -2534,6 +2536,10 @@ using Instr = uint32_t;
   /* Vector Merge Odd Word */                                             \
   V(vmrgow, VMRGOW, 0x1000068C)
 
+#define PPC_VX_OPCODE_LIST(V)  \
+  PPC_VX_OPCODE_A_FORM_LIST(V) \
+  PPC_VX_OPCODE_UNUSED_LIST(V)
+
 #define PPC_XS_OPCODE_LIST(V)                      \
   /* Shift Right Algebraic Doubleword Immediate */ \
   V(sradi, SRADIX, 0x7C000674)
@@ -2587,7 +2593,8 @@ enum Opcode : uint32_t {
   opcode_name = opcode_value,
   PPC_OPCODE_LIST(DECLARE_INSTRUCTION)
 #undef DECLARE_INSTRUCTION
-      EXT1 = 0x4C000000,  // Extended code set 1
+      EXT0 = 0x10000000,  // Extended code set 0
+  EXT1 = 0x4C000000,      // Extended code set 1
   EXT2 = 0x7C000000,      // Extended code set 2
   EXT3 = 0xEC000000,      // Extended code set 3
   EXT4 = 0xFC000000,      // Extended code set 4

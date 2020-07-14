@@ -10,7 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "v8.h"  // NOLINT(build/include)
+#include "v8.h"  // NOLINT(build/include_directory)
 
 /**
  * Profiler support for the V8 JavaScript engine.

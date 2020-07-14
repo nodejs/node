@@ -35,6 +35,14 @@ v8_executable("cctest") {
 
   ldflags = []
 
+  if (v8_use_perfetto) {
+    deps += [
+      # TODO(skyostil): Switch the test to use protozero.
+      "//third_party/perfetto/protos/perfetto/trace/interned_data:lite",
+      "//third_party/perfetto/protos/perfetto/trace/track_event:lite",
+    ]
+  }
+
   # TODO(machenbach): Translate from gyp.
   #["OS=="aix"", {
   #  "ldflags": [ "-Wl,-bbigtoc" ],
@@ -125,6 +133,7 @@ v8_source_set("cctest_sources") {
     "heap/test-alloc.cc",
     "heap/test-array-buffer-tracker.cc",
     "heap/test-compaction.cc",
+    "heap/test-concurrent-allocation.cc",
     "heap/test-concurrent-marking.cc",
     "heap/test-embedder-tracing.cc",
     "heap/test-external-string-tracker.cc",
@@ -169,6 +178,7 @@ v8_source_set("cctest_sources") {
     "test-allocation.cc",
     "test-api-accessors.cc",
     "test-api-array-buffer.cc",
+    "test-api-icu.cc",
     "test-api-interceptors.cc",
     "test-api-stack-traces.cc",
     "test-api-typed-array.cc",
@@ -228,6 +238,7 @@ v8_source_set("cctest_sources") {
     "test-object.cc",
     "test-orderedhashtable.cc",
     "test-parsing.cc",
+    "test-persistent-handles.cc",
     "test-platform.cc",
     "test-profile-generator.cc",
     "test-random-number-generator.cc",
@@ -264,6 +275,7 @@ v8_source_set("cctest_sources") {
     "unicode-helpers.h",
     "wasm/test-c-wasm-entry.cc",
     "wasm/test-compilation-cache.cc",
+    "wasm/test-gc.cc",
     "wasm/test-grow-memory.cc",
     "wasm/test-jump-table-assembler.cc",
     "wasm/test-liftoff-inspection.cc",
@@ -278,6 +290,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-module.cc",
     "wasm/test-run-wasm-sign-extension.cc",
     "wasm/test-run-wasm-simd-liftoff.cc",
+    "wasm/test-run-wasm-simd-scalar-lowering.cc",
     "wasm/test-run-wasm-simd.cc",
     "wasm/test-run-wasm.cc",
     "wasm/test-streaming-compilation.cc",
@@ -286,7 +299,6 @@ v8_source_set("cctest_sources") {
     "wasm/test-wasm-debug-evaluate.cc",
     "wasm/test-wasm-debug-evaluate.h",
     "wasm/test-wasm-import-wrapper-cache.cc",
-    "wasm/test-wasm-interpreter-entry.cc",
     "wasm/test-wasm-serialization.cc",
     "wasm/test-wasm-shared-engine.cc",
     "wasm/test-wasm-stack.cc",
@@ -375,6 +387,11 @@ v8_source_set("cctest_sources") {
     ]
   }
 
+  if (v8_use_perfetto) {
+    # Perfetto doesn't use TraceObject.
+    sources -= [ "test-trace-event.cc" ]
+  }
+
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
@@ -432,10 +449,8 @@ v8_source_set("cctest_sources") {
 
   if (v8_use_perfetto) {
     deps += [
-      "//third_party/perfetto/include/perfetto/tracing",
-      "//third_party/perfetto/protos/perfetto/trace/chrome:lite",
-      "//third_party/perfetto/protos/perfetto/trace/chrome:zero",
-      "//third_party/perfetto/src/tracing:in_process_backend",
+      # TODO(skyostil): Migrate to protozero.
+      "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
   }
 }

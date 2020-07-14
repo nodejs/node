@@ -130,9 +130,14 @@ TEST(WasmStreamingAbortWithoutReject) {
 namespace {
 
 bool wasm_threads_enabled_value = false;
+bool wasm_simd_enabled_value = false;
 
 bool MockWasmThreadsEnabledCallback(v8::Local<v8::Context>) {
   return wasm_threads_enabled_value;
+}
+
+bool MockWasmSimdEnabledCallback(v8::Local<v8::Context>) {
+  return wasm_simd_enabled_value;
 }
 
 }  // namespace
@@ -164,4 +169,33 @@ TEST(TestSetWasmThreadsEnabledCallback) {
   wasm_threads_enabled_value = true;
   i::FLAG_experimental_wasm_threads = false;
   CHECK(i_isolate->AreWasmThreadsEnabled(i_context));
+}
+
+TEST(TestSetWasmSimdEnabledCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
+  i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
+
+  // {Isolate::IsWasmSimdEnabled} calls the callback set by the embedder if
+  // such a callback exists. Otherwise it returns
+  // {FLAG_experimental_wasm_simd}. First we test that the flag is returned
+  // correctly if no callback is set. Then we test that the flag is ignored if
+  // the callback is set.
+
+  i::FLAG_experimental_wasm_simd = false;
+  CHECK(!i_isolate->IsWasmSimdEnabled(i_context));
+
+  i::FLAG_experimental_wasm_simd = true;
+  CHECK(i_isolate->IsWasmSimdEnabled(i_context));
+
+  isolate->SetWasmSimdEnabledCallback(MockWasmSimdEnabledCallback);
+  wasm_simd_enabled_value = false;
+  CHECK(!i_isolate->IsWasmSimdEnabled(i_context));
+
+  wasm_simd_enabled_value = true;
+  i::FLAG_experimental_wasm_simd = false;
+  CHECK(i_isolate->IsWasmSimdEnabled(i_context));
 }

@@ -245,14 +245,18 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   return Map::cast(initial_js_array_map);
 }
 
-MicrotaskQueue* NativeContext::microtask_queue() const {
+DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
+  ExternalPointer_t encoded_value =
+      ReadField<ExternalPointer_t>(kMicrotaskQueueOffset);
   return reinterpret_cast<MicrotaskQueue*>(
-      ReadField<Address>(kMicrotaskQueueOffset));
+      DecodeExternalPointer(isolate, encoded_value));
 }
 
-void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
-  WriteField<Address>(kMicrotaskQueueOffset,
-                      reinterpret_cast<Address>(microtask_queue));
+void NativeContext::set_microtask_queue(Isolate* isolate,
+                                        MicrotaskQueue* microtask_queue) {
+  ExternalPointer_t encoded_value = EncodeExternalPointer(
+      isolate, reinterpret_cast<Address>(microtask_queue));
+  WriteField<ExternalPointer_t>(kMicrotaskQueueOffset, encoded_value);
 }
 
 OSROptimizedCodeCache NativeContext::GetOSROptimizedCodeCache() {

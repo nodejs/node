@@ -12,6 +12,7 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
@@ -259,6 +260,10 @@ class WasmGraphBuildingInterface {
     result->node = BUILD(RefFunc, function_index);
   }
 
+  void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
+    result->node = BUILD(RefAsNonNull, arg.node, decoder->position());
+  }
+
   void Drop(FullDecoder* decoder, const Value& value) {}
 
   void DoReturn(FullDecoder* decoder, Vector<Value> values) {
@@ -307,7 +312,7 @@ class WasmGraphBuildingInterface {
   }
 
   void Unreachable(FullDecoder* decoder) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(Trap, wasm::TrapReason::kTrapUnreachable, decoder->position());
   }
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
@@ -443,6 +448,18 @@ class WasmGraphBuildingInterface {
                           const Value args[]) {
     DoReturnCall(decoder, imm.table_index, index.node, imm.sig, imm.sig_index,
                  args);
+  }
+
+  void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth) {
+    SsaEnv* non_null_env = ssa_env_;
+    SsaEnv* null_env = Split(decoder, non_null_env);
+    non_null_env->SetNotMerged();
+    BUILD(BrOnNull, ref_object.node, &null_env->control,
+          &non_null_env->control);
+    builder_->SetControl(non_null_env->control);
+    SetEnv(null_env);
+    BrOrRet(decoder, depth);
+    SetEnv(non_null_env);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
@@ -600,6 +617,69 @@ class WasmGraphBuildingInterface {
     BUILD(TableFill, imm.index, start.node, value.node, count.node);
   }
 
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value args[],
+                 Value* result) {
+    uint32_t field_count = imm.struct_type->field_count();
+    base::SmallVector<TFNode*, 16> arg_nodes(field_count);
+    for (uint32_t i = 0; i < field_count; i++) {
+      arg_nodes[i] = args[i].node;
+    }
+    result->node =
+        BUILD(StructNew, imm.index, imm.struct_type, VectorOf(arg_nodes));
+  }
+
+  void StructGet(FullDecoder* decoder, const Value& struct_object,
+                 const FieldIndexImmediate<validate>& field, Value* result) {
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = struct_object.type.kind() == ValueType::kRef
+                                  ? CheckForNull::kWithoutNullCheck
+                                  : CheckForNull::kWithNullCheck;
+    result->node =
+        BUILD(StructGet, struct_object.node, field.struct_index.struct_type,
+              field.index, null_check, decoder->position());
+  }
+
+  void StructSet(FullDecoder* decoder, const Value& struct_object,
+                 const FieldIndexImmediate<validate>& field,
+                 const Value& field_value) {
+    using CheckForNull = compiler::WasmGraphBuilder::CheckForNull;
+    CheckForNull null_check = struct_object.type.kind() == ValueType::kRef
+                                  ? CheckForNull::kWithoutNullCheck
+                                  : CheckForNull::kWithNullCheck;
+    BUILD(StructSet, struct_object.node, field.struct_index.struct_type,
+          field.index, field_value.node, null_check, decoder->position());
+  }
+
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length, const Value& initial_value,
+                Value* result) {
+    result->node = BUILD(ArrayNew, imm.index, imm.array_type, length.node,
+                         initial_value.node);
+  }
+
+  void ArrayGet(FullDecoder* decoder, const Value& array_obj,
+                const ArrayIndexImmediate<validate>& imm, const Value& index,
+                Value* result) {
+    result->node = BUILD(ArrayGet, array_obj.node, imm.array_type, index.node,
+                         decoder->position());
+  }
+
+  void ArraySet(FullDecoder* decoder, const Value& array_obj,
+                const ArrayIndexImmediate<validate>& imm, const Value& index,
+                const Value& value) {
+    BUILD(ArraySet, array_obj.node, imm.array_type, index.node, value.node,
+          decoder->position());
+  }
+
+  void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
+    result->node = BUILD(ArrayLen, array_obj.node, decoder->position());
+  }
+
+  void PassThrough(FullDecoder* decoder, const Value& from, Value* to) {
+    to->node = from.node;
+  }
+
  private:
   SsaEnv* ssa_env_ = nullptr;
   compiler::WasmGraphBuilder* builder_;
@@ -711,6 +791,8 @@ class WasmGraphBuildingInterface {
       case ValueType::kFuncRef:
       case ValueType::kNullRef:
       case ValueType::kExnRef:
+      case ValueType::kOptRef:
+      case ValueType::kEqRef:
         return builder_->RefNull();
       default:
         UNREACHABLE();

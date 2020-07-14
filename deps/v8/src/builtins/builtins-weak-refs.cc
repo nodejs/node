@@ -36,7 +36,7 @@ BUILTIN(FinalizationRegistryConstructor) {
   finalization_registry->set_native_context(*isolate->native_context());
   finalization_registry->set_cleanup(*cleanup);
   finalization_registry->set_flags(
-      JSFinalizationRegistry::ScheduledForCleanupField::encode(false));
+      JSFinalizationRegistry::ScheduledForCleanupBit::encode(false));
 
   DCHECK(finalization_registry->active_cells().IsUndefined(isolate));
   DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
@@ -120,61 +120,6 @@ BUILTIN(FinalizationRegistryUnregister) {
       isolate);
 
   return *isolate->factory()->ToBoolean(success);
-}
-
-BUILTIN(FinalizationRegistryCleanupSome) {
-  HandleScope scope(isolate);
-  const char* method_name = "FinalizationRegistry.prototype.cleanupSome";
-
-  // 1. Let finalizationGroup be the this value.
-  //
-  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
-  //    exception.
-  //
-  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
-  //    throw a TypeError exception.
-  CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
-
-  Handle<Object> callback(finalization_registry->cleanup(), isolate);
-  Handle<Object> callback_obj = args.atOrUndefined(isolate, 1);
-
-  // 4. If callback is not undefined and IsCallable(callback) is
-  //    false, throw a TypeError exception.
-  if (!callback_obj->IsUndefined(isolate)) {
-    if (!callback_obj->IsCallable()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable));
-    }
-    callback = callback_obj;
-  }
-
-  // Don't do set_scheduled_for_cleanup(false); we still have the task
-  // scheduled.
-  if (JSFinalizationRegistry::Cleanup(isolate, finalization_registry, callback)
-          .IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-BUILTIN(FinalizationRegistryCleanupIteratorNext) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSFinalizationRegistryCleanupIterator, iterator, "next");
-
-  Handle<JSFinalizationRegistry> finalization_registry(
-      iterator->finalization_registry(), isolate);
-  if (!finalization_registry->NeedsCleanup()) {
-    return *isolate->factory()->NewJSIteratorResult(
-        handle(ReadOnlyRoots(isolate).undefined_value(), isolate), true);
-  }
-  Handle<Object> holdings =
-      handle(JSFinalizationRegistry::PopClearedCellHoldings(
-                 finalization_registry, isolate),
-             isolate);
-
-  return *isolate->factory()->NewJSIteratorResult(holdings, false);
 }
 
 BUILTIN(WeakRefConstructor) {

@@ -32,6 +32,12 @@ inline const char* ExecutionTierToString(ExecutionTier tier) {
   }
 }
 
+// {kForDebugging} is used for default tiered-down code (potentially with
+// breakpoints), {kForStepping} is code that is flooded with breakpoints.
+enum ForDebugging : int8_t { kNoDebugging = 0, kForDebugging, kForStepping };
+
+enum TieringState : int8_t { kTieredUp, kTieredDown };
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -113,9 +113,6 @@ class AliasedArgumentsEntry
     : public TorqueGeneratedAliasedArgumentsEntry<AliasedArgumentsEntry,
                                                   Struct> {
  public:
-  // Dispatched behavior.
-  DECL_PRINTER(AliasedArgumentsEntry)
-
   TQ_OBJECT_CONSTRUCTORS(AliasedArgumentsEntry)
 };
 

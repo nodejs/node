@@ -439,6 +439,8 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
       AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
       AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
       AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
+      static constexpr int kMaxRangesToInline = 32;  // Arbitrary.
+      if (ranges->length() > kMaxRangesToInline) result->SetDoNotInline();
       return result;
     }
   } else {

@@ -10,6 +10,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/off-thread-factory-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/logging/log.h"
@@ -228,7 +229,9 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(Handle<String> source,
   script->set_flags(0);
   script->set_host_defined_options(roots.empty_fixed_array());
 
-  impl()->AddToScriptList(script);
+  if (script_id != Script::kTemporaryScriptId) {
+    impl()->AddToScriptList(script);
+  }
 
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
   return script;

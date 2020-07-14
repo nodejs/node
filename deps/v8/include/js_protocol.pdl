@@ -204,6 +204,21 @@ domain Debugger
       # Exception details.
       optional Runtime.ExceptionDetails exceptionDetails
 
+  # Execute a Wasm Evaluator module on a given call frame.
+  experimental command executeWasmEvaluator
+    parameters
+      # WebAssembly call frame identifier to evaluate on.
+      CallFrameId callFrameId
+      # Code of the evaluator module.
+      binary evaluator
+      # Terminate execution after timing out (number of milliseconds).
+      experimental optional Runtime.TimeDelta timeout
+    returns
+      # Object wrapper for the evaluation result.
+      Runtime.RemoteObject result
+      # Exception details.
+      optional Runtime.ExceptionDetails exceptionDetails
+
   # Returns possible locations for breakpoint. scriptId in start and end range locations should be
   # the same.
   command getPossibleBreakpoints
@@ -510,6 +525,18 @@ domain Debugger
       JavaScript
       WebAssembly
 
+  # Debug symbols available for a wasm script.
+  type DebugSymbols extends object
+    properties
+      # Type of the debug symbols.
+      enum type
+        None
+        SourceMap
+        EmbeddedDWARF
+        ExternalDWARF
+      # URL of the external symbol source.
+      optional string externalURL
+
   # Fired when virtual machine fails to parse the script.
   event scriptFailedToParse
     parameters
@@ -584,6 +611,8 @@ domain Debugger
       experimental optional integer codeOffset
       # The language of the script.
       experimental optional Debugger.ScriptLanguage scriptLanguage
+      # If the scriptLanguage is WebASsembly, the source of debug symbols for the module.
+      experimental optional Debugger.DebugSymbols debugSymbols
 
 experimental domain HeapProfiler
   depends on Runtime
@@ -980,6 +1009,7 @@ domain Runtime
         f32
         f64
         v128
+        anyref
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).

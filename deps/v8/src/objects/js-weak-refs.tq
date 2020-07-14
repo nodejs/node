@@ -2,29 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+bitfield struct FinalizationRegistryFlags extends uint31 {
+  scheduled_for_cleanup: bool: 1 bit;
+}
+
 extern class JSFinalizationRegistry extends JSObject {
   native_context: NativeContext;
-  cleanup: Object;
+  cleanup: Callable;
   active_cells: Undefined|WeakCell;
   cleared_cells: Undefined|WeakCell;
   key_map: Object;
   // For the linked list of FinalizationRegistries that need cleanup. This
   // link is weak.
   next_dirty: Undefined|JSFinalizationRegistry;
-  flags: Smi;
-}
-
-@generateCppClass
-extern class JSFinalizationRegistryCleanupIterator extends JSObject {
-  finalization_registry: JSFinalizationRegistry;
+  flags: SmiTagged<FinalizationRegistryFlags>;
 }
 
 @generateCppClass
 extern class WeakCell extends HeapObject {
   finalization_registry: Undefined|JSFinalizationRegistry;
   target: Undefined|JSReceiver;
-  unregister_token: Object;
-  holdings: Object;
+  unregister_token: JSAny;
+  holdings: JSAny;
 
   // For storing doubly linked lists of WeakCells in JSFinalizationRegistry's
   // "active_cells" and "cleared_cells" lists.

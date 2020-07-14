@@ -21,6 +21,10 @@ namespace internal {
 template <typename T>
 class Vector {
  public:
+  using value_type = T;
+  using iterator = T*;
+  using const_iterator = const T*;
+
   constexpr Vector() : start_(nullptr), length_(0) {}
 
   constexpr Vector(T* data, size_t length) : start_(data), length_(length) {
@@ -116,17 +120,15 @@ class Vector {
   }
 
   template <typename S>
-  static constexpr Vector<T> cast(Vector<S> input) {
+  static Vector<T> cast(Vector<S> input) {
     // Casting is potentially dangerous, so be really restrictive here. This
     // might be lifted once we have use cases for that.
     STATIC_ASSERT(std::is_pod<S>::value);
     STATIC_ASSERT(std::is_pod<T>::value);
-#if V8_HAS_CXX14_CONSTEXPR
-    DCHECK_EQ(0, (input.length() * sizeof(S)) % sizeof(T));
+    DCHECK_EQ(0, (input.size() * sizeof(S)) % sizeof(T));
     DCHECK_EQ(0, reinterpret_cast<uintptr_t>(input.begin()) % alignof(T));
-#endif
     return Vector<T>(reinterpret_cast<T*>(input.begin()),
-                     input.length() * sizeof(S) / sizeof(T));
+                     input.size() * sizeof(S) / sizeof(T));
   }
 
   bool operator==(const Vector<const T> other) const {
@@ -236,23 +238,34 @@ class OwnedVector {
   size_t length_ = 0;
 };
 
+// The vectors returned by {StaticCharVector}, {CStrVector}, or {OneByteVector}
+// do not contain a null-termination byte. If you want the null byte, use
+// {ArrayVector}.
+
+// Known length, constexpr.
 template <size_t N>
-constexpr Vector<const uint8_t> StaticCharVector(const char (&array)[N]) {
-  return Vector<const uint8_t>::cast(Vector<const char>(array, N - 1));
+constexpr Vector<const char> StaticCharVector(const char (&array)[N]) {
+  return {array, N - 1};
 }
 
-// The resulting vector does not contain a null-termination byte. If you want
-// the null byte, use ArrayVector("foo").
+// Unknown length, not constexpr.
 inline Vector<const char> CStrVector(const char* data) {
-  return Vector<const char>(data, strlen(data));
+  return {data, strlen(data)};
 }
 
+// OneByteVector is never constexpr because the data pointer is
+// {reinterpret_cast}ed.
 inline Vector<const uint8_t> OneByteVector(const char* data, size_t length) {
-  return Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), length);
+  return {reinterpret_cast<const uint8_t*>(data), length};
 }
 
 inline Vector<const uint8_t> OneByteVector(const char* data) {
   return OneByteVector(data, strlen(data));
+}
+
+template <size_t N>
+Vector<const uint8_t> StaticOneByteVector(const char (&array)[N]) {
+  return OneByteVector(array, N - 1);
 }
 
 // For string literals, ArrayVector("foo") returns a vector ['f', 'o', 'o', \0]
@@ -260,13 +273,13 @@ inline Vector<const uint8_t> OneByteVector(const char* data) {
 // If you want ['f', 'o', 'o'], use CStrVector("foo").
 template <typename T, size_t N>
 inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
-  return Vector<T>{arr, N};
+  return {arr, N};
 }
 
 // Construct a Vector from a start pointer and a size.
 template <typename T>
 inline constexpr Vector<T> VectorOf(T* start, size_t size) {
-  return Vector<T>(start, size);
+  return {start, size};
 }
 
 // Construct a Vector from anything providing a {data()} and {size()} accessor.

@@ -19,17 +19,61 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+// The isolate roots may not point at context-specific objects during
+// serialization.
+class SanitizeIsolateScope final {
+ public:
+  SanitizeIsolateScope(Isolate* isolate, bool allow_active_isolate_for_testing,
+                       const DisallowHeapAllocation& no_gc)
+      : isolate_(isolate),
+        feedback_vectors_for_profiling_tools_(
+            isolate->heap()->feedback_vectors_for_profiling_tools()),
+        detached_contexts_(isolate->heap()->detached_contexts()) {
+#ifdef DEBUG
+    if (!allow_active_isolate_for_testing) {
+      // These should already be empty when creating a real snapshot.
+      DCHECK_EQ(feedback_vectors_for_profiling_tools_,
+                ReadOnlyRoots(isolate).undefined_value());
+      DCHECK_EQ(detached_contexts_,
+                ReadOnlyRoots(isolate).empty_weak_array_list());
+    }
+#endif
+
+    isolate->SetFeedbackVectorsForProfilingTools(
+        ReadOnlyRoots(isolate).undefined_value());
+    isolate->heap()->SetDetachedContexts(
+        ReadOnlyRoots(isolate).empty_weak_array_list());
+  }
+
+  ~SanitizeIsolateScope() {
+    // Restore saved fields.
+    isolate_->SetFeedbackVectorsForProfilingTools(
+        feedback_vectors_for_profiling_tools_);
+    isolate_->heap()->SetDetachedContexts(detached_contexts_);
+  }
+
+ private:
+  Isolate* isolate_;
+  const Object feedback_vectors_for_profiling_tools_;
+  const WeakArrayList detached_contexts_;
+};
+
+}  // namespace
+
 StartupSerializer::StartupSerializer(Isolate* isolate,
+                                     Snapshot::SerializerFlags flags,
                                      ReadOnlySerializer* read_only_serializer)
-    : RootsSerializer(isolate, RootIndex::kFirstStrongRoot),
+    : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
       read_only_serializer_(read_only_serializer) {
   allocator()->UseCustomChunkSize(FLAG_serialization_chunk_size);
   InitializeCodeAddressMap();
 }
 
 StartupSerializer::~StartupSerializer() {
-  RestoreExternalReferenceRedirectors(accessor_infos_);
-  RestoreExternalReferenceRedirectors(call_handler_infos_);
+  RestoreExternalReferenceRedirectors(isolate(), accessor_infos_);
+  RestoreExternalReferenceRedirectors(isolate(), call_handler_infos_);
   OutputStatistics("StartupSerializer");
 }
 
@@ -96,13 +140,17 @@ void StartupSerializer::SerializeObject(HeapObject obj) {
   if (use_simulator && obj.IsAccessorInfo()) {
     // Wipe external reference redirects in the accessor info.
     AccessorInfo info = AccessorInfo::cast(obj);
-    Address original_address = Foreign::cast(info.getter()).foreign_address();
-    Foreign::cast(info.js_getter()).set_foreign_address(original_address);
+    Address original_address =
+        Foreign::cast(info.getter()).foreign_address(isolate());
+    Foreign::cast(info.js_getter())
+        .set_foreign_address(isolate(), original_address);
     accessor_infos_.push_back(info);
   } else if (use_simulator && obj.IsCallHandlerInfo()) {
     CallHandlerInfo info = CallHandlerInfo::cast(obj);
-    Address original_address = Foreign::cast(info.callback()).foreign_address();
-    Foreign::cast(info.js_callback()).set_foreign_address(original_address);
+    Address original_address =
+        Foreign::cast(info.callback()).foreign_address(isolate());
+    Foreign::cast(info.js_callback())
+        .set_foreign_address(isolate(), original_address);
     call_handler_infos_.push_back(info);
   } else if (obj.IsScript() && Script::cast(obj).IsUserJavaScript()) {
     Script::cast(obj).set_context_data(
@@ -125,28 +173,36 @@ void StartupSerializer::SerializeObject(HeapObject obj) {
 }
 
 void StartupSerializer::SerializeWeakReferencesAndDeferred() {
-  // This comes right after serialization of the partial snapshot, where we
-  // add entries to the partial snapshot cache of the startup snapshot. Add
-  // one entry with 'undefined' to terminate the partial snapshot cache.
+  // This comes right after serialization of the context snapshot, where we
+  // add entries to the startup object cache of the startup snapshot. Add
+  // one entry with 'undefined' to terminate the startup object cache.
   Object undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
+  VisitRootPointer(Root::kStartupObjectCache, nullptr,
                    FullObjectSlot(&undefined));
-  isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
+  isolate()->heap()->IterateWeakRoots(
+      this, base::EnumSet<SkipRoot>{SkipRoot::kUnserializable});
   SerializeDeferredObjects();
   Pad();
 }
 
-void StartupSerializer::SerializeStrongReferences() {
+void StartupSerializer::SerializeStrongReferences(
+    const DisallowHeapAllocation& no_gc) {
   Isolate* isolate = this->isolate();
   // No active threads.
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK(isolate->handle_scope_implementer()->blocks()->empty());
+  CHECK_IMPLIES(!allow_active_isolate_for_testing(),
+                isolate->handle_scope_implementer()->blocks()->empty());
+
+  SanitizeIsolateScope sanitize_isolate(
+      isolate, allow_active_isolate_for_testing(), no_gc);
 
   // Visit smi roots and immortal immovables first to make sure they end up in
   // the first page.
   isolate->heap()->IterateSmiRoots(this);
-  isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
+  isolate->heap()->IterateRoots(
+      this,
+      base::EnumSet<SkipRoot>{SkipRoot::kUnserializable, SkipRoot::kWeak});
 }
 
 SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
@@ -163,11 +219,11 @@ bool StartupSerializer::SerializeUsingReadOnlyObjectCache(
   return read_only_serializer_->SerializeUsingReadOnlyObjectCache(sink, obj);
 }
 
-void StartupSerializer::SerializeUsingPartialSnapshotCache(
-    SnapshotByteSink* sink, HeapObject obj) {
+void StartupSerializer::SerializeUsingStartupObjectCache(SnapshotByteSink* sink,
+                                                         HeapObject obj) {
   int cache_index = SerializeInObjectCache(obj);
-  sink->Put(kPartialSnapshotCache, "PartialSnapshotCache");
-  sink->PutInt(cache_index, "partial_snapshot_cache_index");
+  sink->Put(kStartupObjectCache, "StartupObjectCache");
+  sink->PutInt(cache_index, "startup_object_cache_index");
 }
 
 void StartupSerializer::CheckNoDirtyFinalizationRegistries() {

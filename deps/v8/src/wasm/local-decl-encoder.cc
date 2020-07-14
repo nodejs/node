@@ -31,6 +31,9 @@ size_t LocalDeclEncoder::Emit(byte* buffer) const {
     LEBHelper::write_u32v(&pos, local_decl.first);
     *pos = local_decl.second.value_type_code();
     ++pos;
+    if (local_decl.second.has_immediate()) {
+      LEBHelper::write_u32v(&pos, local_decl.second.ref_index());
+    }
   }
   DCHECK_EQ(Size(), pos - buffer);
   return static_cast<size_t>(pos - buffer);
@@ -48,9 +51,17 @@ uint32_t LocalDeclEncoder::AddLocals(uint32_t count, ValueType type) {
   return result;
 }
 
+// Size = (size of locals count) +
+// (for each local pair <reps, type>, (size of reps) + (size of type))
 size_t LocalDeclEncoder::Size() const {
   size_t size = LEBHelper::sizeof_u32v(local_decls.size());
-  for (auto p : local_decls) size += 1 + LEBHelper::sizeof_u32v(p.first);
+  for (auto p : local_decls) {
+    size +=
+        LEBHelper::sizeof_u32v(p.first) +  // number of locals
+        1 +                                // Opcode
+        (p.second.has_immediate() ? LEBHelper::sizeof_u32v(p.second.ref_index())
+                                  : 0);  // immediate
+  }
   return size;
 }
 

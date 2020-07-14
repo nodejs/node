@@ -42,9 +42,9 @@ kExprF32Max,  // f32.max
 kSimdPrefix, kExprF32x4Splat,  // f32x4.splat
 kExprI32Const, 0x83, 0x01,  // i32.const
 kSimdPrefix, kExprI32x4Splat,  // i32x4.splat
-kSimdPrefix, kExprI32x4Add,  // i32x4.add
-kSimdPrefix, kExprI32x4Add,  // i32x4.add
-kSimdPrefix, kExprS1x8AnyTrue,  // s1x8.any_true
+kSimdPrefix, kExprI32x4Eq,  // i32x4.eq
+kSimdPrefix, kExprI32x4Eq,  // i32x4.eq
+kSimdPrefix, kExprS1x16AnyTrue,  // s1x16.any_true
 kExprEnd,  // end @64
 ]);
 builder.addExport('main', 0);

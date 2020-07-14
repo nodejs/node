@@ -3,10 +3,28 @@
 // found in the LICENSE file.
 
 // ===========================================================================
+function define(prototype, name, fn) {
+  Object.defineProperty(prototype, name, {value:fn, enumerable:false});
+}
+
+define(Array.prototype, "max", function(fn) {
+  if (this.length === 0) return undefined;
+  if (fn === undefined) fn = (each) => each;
+  let max = fn(this[0]);
+  for (let i = 1; i < this.length; i++) {
+    max = Math.max(max, fn(this[i]));
+  }
+  return max;
+})
+define(Array.prototype, "first", function() { return this[0] });
+define(Array.prototype, "last", function() { return this[this.length - 1] });
+// ===========================================================================
+
 class MapProcessor extends LogReader {
   constructor() {
     super();
     this.dispatchTable_ = {
+      __proto__:null,
       'code-creation': {
         parsers: [parseString, parseInt, parseInt, parseInt, parseInt,
           parseString, parseVarArgs],
@@ -41,6 +59,7 @@ class MapProcessor extends LogReader {
     };
     this.profile_ = new Profile();
     this.timeline_ = new Timeline();
+    this.formatPCRegexp_ = /(.*):[0-9]+:[0-9]+$/;
   }
 
   printError(str) {
@@ -73,9 +92,15 @@ class MapProcessor extends LogReader {
   processLogFile(fileName) {
     this.collectEntries = true
     this.lastLogFileName_ = fileName;
+    let i = 1;
     let line;
-    while (line = readline()) {
-      this.processLogLine(line);
+    try {
+      while (line = readline()) {
+        this.processLogLine(line);
+        i++;
+      }
+    } catch(e) {
+      console.error("Error occurred during parsing line " + i + ", trying to continue: " + e);
     }
     return this.finalize();
   }
@@ -131,13 +156,12 @@ class MapProcessor extends LogReader {
   formatPC(pc, line, column) {
     let entry = this.profile_.findEntry(pc);
     if (!entry) return "<unknown>"
-    if (entry.type == "Builtin") {
+    if (entry.type === "Builtin") {
       return entry.name;
     }
     let name = entry.func.getName();
-    let re = /(.*):[0-9]+:[0-9]+$/;
-    let array = re.exec(name);
-    if (!array) {
+    let array = this.formatPCRegexp_.exec(name);
+    if (array === null) {
       entry = name;
     } else {
       entry = entry.getState() + array[1];
@@ -146,12 +170,12 @@ class MapProcessor extends LogReader {
   }
 
   processMap(type, time, from, to, pc, line, column, reason, name) {
-    time = parseInt(time);
-    if (type == "Deprecate") return this.deprecateMap(type, time, from);
-    from = this.getExistingMap(from, time);
-    to = this.getExistingMap(to, time);
-    let edge = new Edge(type, name, reason, time, from, to);
-    to.filePosition = this.formatPC(pc, line, column);
+    let time_ = parseInt(time);
+    if (type === "Deprecate") return this.deprecateMap(type, time_, from);
+    let from_ = this.getExistingMap(from, time_);
+    let to_ = this.getExistingMap(to, time_);
+    let edge = new Edge(type, name, reason, time, from_, to_);
+    to_.filePosition = this.formatPC(pc, line, column);
     edge.finishSetup();
   }
 
@@ -170,7 +194,7 @@ class MapProcessor extends LogReader {
     //TODO(cbruni): fix initial map logging.
     let map = this.getExistingMap(id, time);
     if (!map.description) {
-      map.description = string;
+      //map.description = string;
     }
   }
 
@@ -212,18 +236,29 @@ class V8Map {
     this.filePosition = "";
   }
 
+  finalizeRootMap(id) {
+    let stack = [this];
+    while (stack.length > 0) {
+      let current = stack.pop();
+      if (current.leftId !== 0) {
+        console.error("Skipping potential parent loop between maps:", current)
+        continue;
+      }
+      current.finalize(id)
+      id += 1;
+      current.children.forEach(edge => stack.push(edge.to))
+      // TODO implement rightId
+    }
+    return id;
+  }
+
   finalize(id) {
     // Initialize preorder tree traversal Ids for fast subtree inclusion checks
     if (id <= 0) throw "invalid id";
     let currentId = id;
     this.leftId = currentId
-    this.children.forEach(edge => {
-      let map = edge.to;
-      currentId = map.finalize(currentId + 1);
-    });
-    this.rightId = currentId + 1;
-    return currentId + 1;
   }
+
 
   parent() {
     if (this.edge === void 0) return void 0;
@@ -239,7 +274,7 @@ class V8Map {
   }
 
   isRoot() {
-    return this.edge == void 0 || this.edge.from == void 0;
+    return this.edge === void 0 || this.edge.from === void 0;
   }
 
   contains(map) {
@@ -300,15 +335,15 @@ class V8Map {
   }
 
   static get(id) {
-    if (!this.cache) return undefined;
     return this.cache.get(id);
   }
 
   static set(id, map) {
-    if (!this.cache) this.cache = new Map();
     this.cache.set(id, map);
   }
 }
+
+V8Map.cache = new Map();
 
 
 // ===========================================================================
@@ -323,21 +358,21 @@ class Edge {
   }
 
   finishSetup() {
-    if (this.from) this.from.addEdge(this);
-    if (this.to) {
-      this.to.edge = this;
-      if (this.to === this.from) throw "From and to must be distinct.";
-      if (this.from) {
-        if (this.to.time < this.from.time) {
-          console.error("invalid time order");
-        }
-        let newDepth = this.from.depth + 1;
-        if (this.to.depth > 0 && this.to.depth != newDepth) {
-          console.error("Depth has already been initialized");
-        }
-        this.to.depth = newDepth;
-      }
+    let from = this.from
+    if (from) from.addEdge(this);
+    let to = this.to;
+    if (to === undefined) return;
+    to.edge = this;
+    if (from === undefined ) return;
+    if (to === from) throw "From and to must be distinct.";
+    if (to.time < from.time) {
+      console.error("invalid time order");
     }
+    let newDepth = from.depth + 1;
+    if (to.depth > 0 && to.depth != newDepth) {
+      console.error("Depth has already been initialized");
+    }
+    to.depth = newDepth;
   }
 
   chunkIndex(chunks) {
@@ -471,16 +506,16 @@ class Timeline {
   finalize() {
     let id = 0;
     this.forEach(map => {
-      if (map.isRoot()) id = map.finalize(id + 1);
-      if (map.edge && map.edge.name) {
-        let edge = map.edge;
-        let list = this.transitions.get(edge.name);
-        if (list === undefined) {
-          this.transitions.set(edge.name, [edge]);
-        } else {
-          list.push(edge);
+        if (map.isRoot()) id = map.finalizeRootMap(id + 1);
+        if (map.edge && map.edge.name) {
+          let edge = map.edge;
+          let list = this.transitions.get(edge.name);
+          if (list === undefined) {
+            this.transitions.set(edge.name, [edge]);
+          } else {
+            list.push(edge);
+          }
         }
-      }
     });
     this.markers.sort((a, b) => b.time - a.time);
   }
@@ -490,7 +525,7 @@ class Timeline {
   }
 
   isEmpty() {
-    return this.size() == 0
+    return this.size() === 0
   }
 
   size() {
@@ -573,7 +608,7 @@ class Timeline {
 
   count(filter) {
     return this.values.reduce((sum, each) => {
-      return sum + (filter(each) ? 1 : 0);
+      return sum + (filter(each) === true ? 1 : 0);
     }, 0);
   }
 
@@ -584,10 +619,10 @@ class Timeline {
   filterUniqueTransitions(filter) {
     // Returns a list of Maps whose parent is not in the list.
     return this.values.filter(map => {
-      if (!filter(map)) return false;
+      if (filter(map) === false) return false;
       let parent = map.parent();
-      if (!parent) return true;
-      return !filter(parent);
+      if (parent === undefined) return true;
+      return filter(parent) === false;
     });
   }
 
@@ -617,7 +652,7 @@ class Chunk {
   }
 
   isEmpty() {
-    return this.items.length == 0;
+    return this.items.length === 0;
   }
 
   last() {
@@ -662,7 +697,7 @@ class Chunk {
   findChunk(chunks, delta) {
     let i = this.index + delta;
     let chunk = chunks[i];
-    while (chunk && chunk.size() == 0) {
+    while (chunk && chunk.size() === 0) {
       i += delta;
       chunk = chunks[i]
     }

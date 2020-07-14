@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/heap.h"
+
 #include <cmath>
 #include <iostream>
 #include <limits>
 
 #include "src/handles/handles-inl.h"
-#include "src/heap/heap.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/test-utils.h"

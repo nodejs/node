@@ -18,12 +18,14 @@ testAdd(3n, 7n);
 testAdd(17n, -54n);
 %OptimizeFunctionOnNextCall(testAdd);
 assertEquals(testAdd(6n, 2n), 8n);
+// Re-prepare the function immediately to make sure type feedback isn't cleared
+// by an untimely gc, as re-optimization on new feedback is tested below
+%PrepareFunctionForOptimization(testAdd);
 assertOptimized(testAdd);
 
 assertThrows(() => testAdd(big, big), RangeError);
 assertUnoptimized(testAdd);
 
-%PrepareFunctionForOptimization(testAdd);
 testAdd(30n, -50n);
 testAdd(23n, 5n);
 %OptimizeFunctionOnNextCall(testAdd);

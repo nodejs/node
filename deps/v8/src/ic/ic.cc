@@ -4,7 +4,6 @@
 
 #include "src/ic/ic.h"
 
-#include "include/v8config.h"
 #include "src/api/api-arguments-inl.h"
 #include "src/api/api.h"
 #include "src/ast/ast.h"
@@ -695,10 +694,6 @@ void IC::SetCache(Handle<Name> name, const MaybeObjectHandle& handler) {
   }
 }
 
-#if defined(__clang__) && defined(V8_OS_WIN)
-// Force function alignment to work around CPU bug: https://crbug.com/968683
-__attribute__((__aligned__(32)))
-#endif
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
   Handle<Object> code;
   if (lookup->state() == LookupIterator::ACCESS_CHECK) {
@@ -1428,6 +1423,28 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
     }
   }
 
+  // If we are in StoreGlobal then check if we should throw on non-existent
+  // properties.
+  if (IsStoreGlobalIC() &&
+      (GetShouldThrow(it->isolate(), Nothing<ShouldThrow>()) ==
+       ShouldThrow::kThrowOnError)) {
+    // ICs typically does the store in two steps: prepare receiver for the
+    // transition followed by the actual store. For global objects we create a
+    // property cell when preparing for transition and install this cell in the
+    // handler. In strict mode, we throw and never initialize this property
+    // cell. The IC handler assumes that the property cell it is holding is for
+    // a property that is existing. This case violates this assumption. If we
+    // happen to invalidate this property cell later, it leads to incorrect
+    // behaviour. For now just use a slow stub and don't install the property
+    // cell for these cases. Hopefully these cases are not frequent enough to
+    // impact performance.
+    //
+    // TODO(mythria): If we find this to be happening often, we could install a
+    // new kind of handler for non-existent properties. These handlers can then
+    // miss to runtime if the value is not hole (i.e. cell got invalidated) and
+    // handle these stores correctly.
+    return false;
+  }
   receiver = it->GetStoreTarget<JSObject>();
   if (it->ExtendingNonExtensible(receiver)) return false;
   it->PrepareTransitionToDataProperty(receiver, value, NONE, store_origin);
@@ -1918,8 +1935,12 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 Handle<Object> KeyedStoreIC::StoreElementHandler(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode,
     MaybeHandle<Object> prev_validity_cell) {
+  // The only case when could keep using non-slow element store handler for
+  // a fast array with potentially read-only elements is when it's an
+  // initializing store to array literal.
   DCHECK_IMPLIES(
-      receiver_map->DictionaryElementsInPrototypeChainOnly(isolate()),
+      !receiver_map->has_dictionary_elements() &&
+          receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate()),
       IsStoreInArrayLiteralICKind(kind()));
 
   if (receiver_map->IsJSProxyMap()) {
@@ -1984,7 +2005,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     Handle<Map> transition;
 
     if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
-        receiver_map->DictionaryElementsInPrototypeChainOnly(isolate())) {
+        receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate())) {
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
@@ -2147,17 +2168,18 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
       } else if (object->IsJSArray() && IsGrowStoreMode(store_mode) &&
                  JSArray::HasReadOnlyLength(Handle<JSArray>::cast(object))) {
         set_slow_stub_reason("array has read only length");
-      } else if (object->IsJSArray() && MayHaveTypedArrayInPrototypeChain(
-                                            Handle<JSObject>::cast(object))) {
+      } else if (object->IsJSObject() && MayHaveTypedArrayInPrototypeChain(
+                                             Handle<JSObject>::cast(object))) {
         // Make sure we don't handle this in IC if there's any JSTypedArray in
         // the {receiver}'s prototype chain, since that prototype is going to
         // swallow all stores that are out-of-bounds for said prototype, and we
         // just let the runtime deal with the complexity of this.
-        set_slow_stub_reason("typed array in the prototype chain of an Array");
+        set_slow_stub_reason("typed array in the prototype chain");
       } else if (key_is_valid_index) {
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
-        } else if (!old_receiver_map->DictionaryElementsInPrototypeChainOnly(
+        } else if (old_receiver_map->has_dictionary_elements() ||
+                   !old_receiver_map->MayHaveReadOnlyElementsInPrototypeChain(
                        isolate())) {
           // We should go generic if receiver isn't a dictionary, but our
           // prototype chain does have dictionary elements. This ensures that
@@ -2167,7 +2189,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           UpdateStoreElement(old_receiver_map, store_mode,
                              handle(receiver->map(), isolate()));
         } else {
-          set_slow_stub_reason("dictionary or proxy prototype");
+          set_slow_stub_reason("prototype with potentially read-only elements");
         }
       } else {
         set_slow_stub_reason("non-smi-like key");

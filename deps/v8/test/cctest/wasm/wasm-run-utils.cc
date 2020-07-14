@@ -18,35 +18,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-template <>
-void AppendSingle(std::vector<byte>* code, WasmOpcode op) {
-  // We do not yet have opcodes that take up more than 2 byte (decoded). But if
-  // that changes, this will need to be updated.
-  DCHECK_EQ(0, op >> 16);
-  byte prefix = (op >> 8) & 0xff;
-  byte opcode = op & 0xff;
-
-  if (!prefix) {
-    code->push_back(opcode);
-    return;
-  }
-
-  // Ensure the prefix is really one of the supported prefixed opcodes.
-  DCHECK(WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(prefix)));
-  code->push_back(prefix);
-
-  // Decoded opcodes fit in a byte (0x00-0xff).
-  DCHECK_LE(LEBHelper::sizeof_u32v(opcode), 2);
-  // Therefore, the encoding needs max 2 bytes.
-  uint8_t encoded[2];
-  uint8_t* d = encoded;
-  // d is updated to after the last uint8_t written.
-  LEBHelper::write_u32v(&d, opcode);
-  for (uint8_t* p = encoded; p < d; p++) {
-    code->push_back(*p);
-  }
-}
-
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ManuallyImportedJSFunction* maybe_import, ExecutionTier tier,
     RuntimeExceptionSupport exception_support, LowerSimd lower_simd)
@@ -164,22 +135,11 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
                 test_module_->num_declared_functions);
   if (name) {
     Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
-    test_module_->function_names.AddForTesting(
+    test_module_->lazily_generated_names.AddForTesting(
         index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
   if (interpreter_) {
     interpreter_->AddFunctionForTesting(&test_module_->functions.back());
-    // Patch the jump table to call the interpreter for this function.
-    wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
-        isolate_->wasm_engine(), native_module_->enabled_features(), index,
-        sig);
-    std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
-        index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), wasm::WasmCode::kInterpreterEntry,
-        wasm::ExecutionTier::kInterpreter);
-    native_module_->PublishCode(std::move(code));
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   return index;
@@ -195,6 +155,7 @@ void TestingModuleBuilder::FreezeSignatureMapAndInitializeWrapperCache() {
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
+  CHECK(!interpreter_);
   FreezeSignatureMapAndInitializeWrapperCache();
   SetExecutable();
   return WasmInstanceObject::GetOrCreateWasmExternalFunction(
@@ -338,18 +299,14 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
   return index;
 }
 
-CompilationEnv TestingModuleBuilder::CreateCompilationEnv(
-    AssumeDebugging debug) {
+CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   // This is a hack so we don't need to call
   // trap_handler::IsTrapHandlerEnabled().
   const bool is_trap_handler_enabled =
       V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler;
   return {test_module_ptr_,
           is_trap_handler_enabled ? kUseTrapHandler : kNoTrapHandler,
-          runtime_exception_support_,
-          enabled_features_,
-          lower_simd(),
-          debug};
+          runtime_exception_support_, enabled_features_, lower_simd()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -364,10 +321,6 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 }
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
-  Handle<Script> script =
-      isolate_->factory()->NewScript(isolate_->factory()->empty_string());
-  script->set_type(Script::TYPE_WASM);
-
   const bool kUsesLiftoff = true;
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(test_module_.get(),
@@ -375,6 +328,8 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   auto native_module = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(OwnedVector<const uint8_t>());
+  Handle<Script> script =
+      isolate_->wasm_engine()->GetOrCreateScript(isolate_, native_module);
 
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate_, std::move(native_module), script);
@@ -580,13 +535,17 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.begin(), func_wire_bytes.end()};
   NativeModule* native_module =
       builder_->instance_object()->module_object().native_module();
-  WasmCompilationUnit unit(function_->func_index, builder_->execution_tier());
+  ForDebugging for_debugging =
+      native_module->IsTieredDown() ? kForDebugging : kNoDebugging;
+  WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
+                           for_debugging);
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(
       isolate()->wasm_engine(), &env,
       native_module->compilation_state()->GetWireBytesStorage(),
       isolate()->counters(), &unused_detected_features);
-  WasmCode* code = native_module->AddCompiledCode(std::move(result));
+  WasmCode* code = native_module->PublishCode(
+      native_module->AddCompiledCode(std::move(result)));
   DCHECK_NOT_NULL(code);
   if (WasmCode::ShouldBeLogged(isolate())) code->LogCode(isolate());
 }

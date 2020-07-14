@@ -3,12 +3,16 @@
 // found in the LICENSE file.
 
 #include "src/heap/spaces.h"
+
 #include <memory>
+
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/large-spaces.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/spaces-inl.h"
 #include "test/unittests/test-utils.h"
 
@@ -167,10 +171,15 @@ TEST_F(SpacesTest, OffThreadSpaceMergeDuringIncrementalMarking) {
     expected_merged_pages += pages_in_off_thread_space;
   }
 
-  heap->FinalizeIncrementalMarkingAtomically(GarbageCollectionReason::kTesting);
-
+  // Check the page size before finalizing marking, since the GC will see the
+  // empty pages and will evacuate them.
+  // TODO(leszeks): Maybe allocate real objects, and hold on to them with
+  // Handles, to make sure incremental marking finalization doesn't clear them
+  // away.
   EXPECT_EQ(pages_in_old_space + expected_merged_pages,
             old_space->CountTotalPages());
+
+  heap->FinalizeIncrementalMarkingAtomically(GarbageCollectionReason::kTesting);
 }
 
 class LargeOffThreadAllocationThread final : public base::Thread {
@@ -266,7 +275,10 @@ TEST_F(SpacesTest, OffThreadLargeObjectSpaceMergeDuringIncrementalMarking) {
     threads[i]->Join();
   }
 
-  int pages_in_old_space = lo_space->PageCount();
+  heap->StartIncrementalMarking(Heap::kNoGCFlags,
+                                GarbageCollectionReason::kTesting);
+
+  int pages_in_lo_space = lo_space->PageCount();
 
   int expected_merged_pages = 0;
   for (int i = 0; i < kNumThreads; ++i) {
@@ -276,7 +288,14 @@ TEST_F(SpacesTest, OffThreadLargeObjectSpaceMergeDuringIncrementalMarking) {
     expected_merged_pages += pages_in_off_thread_space;
   }
 
-  EXPECT_EQ(pages_in_old_space + expected_merged_pages, lo_space->PageCount());
+  // Check the page size before finalizing marking, since the GC will see the
+  // empty pages and will evacuate them.
+  // TODO(leszeks): Maybe allocate real objects, and hold on to them with
+  // Handles, to make sure incremental marking finalization doesn't clear them
+  // away.
+  EXPECT_EQ(pages_in_lo_space + expected_merged_pages, lo_space->PageCount());
+
+  heap->FinalizeIncrementalMarkingAtomically(GarbageCollectionReason::kTesting);
 }
 
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {

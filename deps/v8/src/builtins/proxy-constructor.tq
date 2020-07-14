@@ -6,55 +6,40 @@
 
 namespace proxy {
 
-  // ES #sec-proxy-constructor
-  // https://tc39.github.io/ecma262/#sec-proxy-constructor
-  transitioning javascript builtin
-  ProxyConstructor(
-      js-implicit context: NativeContext, receiver: JSAny,
-      newTarget: JSAny)(target: JSAny, handler: JSAny): JSProxy {
-    try {
-      // 1. If NewTarget is undefined, throw a TypeError exception.
-      if (newTarget == Undefined) {
-        ThrowTypeError(MessageTemplate::kConstructorNotFunction, 'Proxy');
-      }
-
-      // 2. Return ? ProxyCreate(target, handler).
-      // https://tc39.github.io/ecma262/#sec-proxycreate
-      // 1. If Type(target) is not Object, throw a TypeError exception.
-      // 2. If target is a Proxy exotic object and target.[[ProxyHandler]] is
-      //    null, throw a TypeError exception.
-      // 3. If Type(handler) is not Object, throw a TypeError exception.
-      // 4. If handler is a Proxy exotic object and handler.[[ProxyHandler]]
-      //    is null, throw a TypeError exception.
-      const targetJSReceiver =
-          Cast<JSReceiver>(target) otherwise ThrowProxyNonObject;
-      if (IsRevokedProxy(targetJSReceiver)) {
-        goto ThrowProxyHandlerOrTargetRevoked;
-      }
-
-      const handlerJSReceiver =
-          Cast<JSReceiver>(handler) otherwise ThrowProxyNonObject;
-      if (IsRevokedProxy(handlerJSReceiver)) {
-        goto ThrowProxyHandlerOrTargetRevoked;
-      }
-
-      // 5. Let P be a newly created object.
-      // 6. Set P's essential internal methods (except for [[Call]] and
-      //    [[Construct]]) to the definitions specified in 9.5.
-      // 7. If IsCallable(target) is true, then
-      //    a. Set P.[[Call]] as specified in 9.5.12.
-      //    b. If IsConstructor(target) is true, then
-      //       1. Set P.[[Construct]] as specified in 9.5.13.
-      // 8. Set P.[[ProxyTarget]] to target.
-      // 9. Set P.[[ProxyHandler]] to handler.
-      // 10. Return P.
-      return AllocateProxy(targetJSReceiver, handlerJSReceiver);
+// ES #sec-proxy-constructor
+// https://tc39.github.io/ecma262/#sec-proxy-constructor
+transitioning javascript builtin
+ProxyConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny)(
+    target: JSAny, handler: JSAny): JSProxy {
+  try {
+    // 1. If NewTarget is undefined, throw a TypeError exception.
+    if (newTarget == Undefined) {
+      ThrowTypeError(MessageTemplate::kConstructorNotFunction, 'Proxy');
     }
-    label ThrowProxyNonObject deferred {
-      ThrowTypeError(MessageTemplate::kProxyNonObject);
-    }
-    label ThrowProxyHandlerOrTargetRevoked deferred {
-      ThrowTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked);
-    }
+
+    // 2. Return ? ProxyCreate(target, handler).
+    // https://tc39.github.io/ecma262/#sec-proxycreate
+    // 1. If Type(target) is not Object, throw a TypeError exception.
+    // 2. If Type(handler) is not Object, throw a TypeError exception.
+    const targetJSReceiver =
+        Cast<JSReceiver>(target) otherwise ThrowProxyNonObject;
+    const handlerJSReceiver =
+        Cast<JSReceiver>(handler) otherwise ThrowProxyNonObject;
+
+    // 5. Let P be a newly created object.
+    // 6. Set P's essential internal methods (except for [[Call]] and
+    //    [[Construct]]) to the definitions specified in 9.5.
+    // 7. If IsCallable(target) is true, then
+    //    a. Set P.[[Call]] as specified in 9.5.12.
+    //    b. If IsConstructor(target) is true, then
+    //       1. Set P.[[Construct]] as specified in 9.5.13.
+    // 8. Set P.[[ProxyTarget]] to target.
+    // 9. Set P.[[ProxyHandler]] to handler.
+    // 10. Return P.
+    return AllocateProxy(targetJSReceiver, handlerJSReceiver);
+  } label ThrowProxyNonObject deferred {
+    ThrowTypeError(MessageTemplate::kProxyNonObject);
   }
+}
 }

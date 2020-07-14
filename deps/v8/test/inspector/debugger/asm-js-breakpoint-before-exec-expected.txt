@@ -5,7 +5,7 @@ Running test: enableDebugger
 Running test: addScript
 Script nr 1 parsed!
 First script; assuming testFunction.
-Flooding script with breakpoints for the lines 3 to 21...
+Flooding script with breakpoints for the lines 3 to 19...
 Setting breakpoint on line 3
 error: undefined
 Setting breakpoint on line 4
@@ -38,36 +38,26 @@ Setting breakpoint on line 17
 error: undefined
 Setting breakpoint on line 18
 error: undefined
-Setting breakpoint on line 19
-error: undefined
-Setting breakpoint on line 20
-error: undefined
 
 Running test: runTestFunction
 Script nr 2 parsed!
 Paused #1
-  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":17,"columnNumber":2}
+  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":17,"columnNumber":12}
   - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Paused #2
   - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
   - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 Paused #3
-  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":19,"columnNumber":12}
-  - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
-Paused #4
-  - [0] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":20,"columnNumber":2}
-  - [1] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
-Paused #5
   - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":14,"columnNumber":4}
   - [1] {"functionName":"callDebugger","lineNumber":5,"columnNumber":6}
   - [2] {"functionName":"redirectFun","lineNumber":8,"columnNumber":6}
-  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":20,"columnNumber":2}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
   - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
-Paused #6
+Paused #4
   - [0] {"functionName":"call_debugger","function_lineNumber":13,"function_columnNumber":24,"lineNumber":15,"columnNumber":2}
   - [1] {"functionName":"callDebugger","lineNumber":5,"columnNumber":6}
   - [2] {"functionName":"redirectFun","lineNumber":8,"columnNumber":6}
-  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":20,"columnNumber":2}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":18,"columnNumber":2}
   - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
 
 Running test: finished

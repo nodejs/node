@@ -12,6 +12,7 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
@@ -1416,6 +1417,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitWord32Shr(node);
     case IrOpcode::kWord32Sar:
       return MarkAsWord32(node), VisitWord32Sar(node);
+    case IrOpcode::kWord32Rol:
+      return MarkAsWord32(node), VisitWord32Rol(node);
     case IrOpcode::kWord32Ror:
       return MarkAsWord32(node), VisitWord32Ror(node);
     case IrOpcode::kWord32Equal:
@@ -1446,6 +1449,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitWord64Shr(node);
     case IrOpcode::kWord64Sar:
       return MarkAsWord64(node), VisitWord64Sar(node);
+    case IrOpcode::kWord64Rol:
+      return MarkAsWord64(node), VisitWord64Rol(node);
     case IrOpcode::kWord64Ror:
       return MarkAsWord64(node), VisitWord64Ror(node);
     case IrOpcode::kWord64Clz:
@@ -1879,6 +1884,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF64x2Qfma(node);
     case IrOpcode::kF64x2Qfms:
       return MarkAsSimd128(node), VisitF64x2Qfms(node);
+    case IrOpcode::kF64x2Pmin:
+      return MarkAsSimd128(node), VisitF64x2Pmin(node);
+    case IrOpcode::kF64x2Pmax:
+      return MarkAsSimd128(node), VisitF64x2Pmax(node);
     case IrOpcode::kF32x4Splat:
       return MarkAsSimd128(node), VisitF32x4Splat(node);
     case IrOpcode::kF32x4ExtractLane:
@@ -1925,6 +1934,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitF32x4Qfma(node);
     case IrOpcode::kF32x4Qfms:
       return MarkAsSimd128(node), VisitF32x4Qfms(node);
+    case IrOpcode::kF32x4Pmin:
+      return MarkAsSimd128(node), VisitF32x4Pmin(node);
+    case IrOpcode::kF32x4Pmax:
+      return MarkAsSimd128(node), VisitF32x4Pmax(node);
     case IrOpcode::kI64x2Splat:
       return MarkAsSimd128(node), VisitI64x2Splat(node);
     case IrOpcode::kI64x2SplatI32Pair:
@@ -2386,6 +2399,8 @@ void InstructionSelector::VisitWord64Shr(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64Sar(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitWord64Rol(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitWord64Ror(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64Clz(Node* node) { UNIMPLEMENTED(); }
@@ -2612,9 +2627,11 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
 
 #if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 #if !V8_TARGET_ARCH_ARM64
+#if !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI64x2Splat(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ExtractLane(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI64x2Eq(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2Ne(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2GtS(Node* node) { UNIMPLEMENTED(); }
@@ -2634,11 +2651,23 @@ void InstructionSelector::VisitI64x2MinU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI64x2MaxU(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X
 
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
+// TODO(v8:10308) Bitmask operations are in prototype now, we can remove these
+// guards when they go into the proposal.
+#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32 && \
+    !V8_TARGET_ARCH_X64
 void InstructionSelector::VisitI8x16BitMask(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI16x8BitMask(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI32x4BitMask(Node* node) { UNIMPLEMENTED(); }
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM
+#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_IA32
+        // && !V8_TARGET_ARCH_X64
+
+// TODO(v8:10501) Prototyping pmin and pmax instructions.
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
+void InstructionSelector::VisitF32x4Pmin(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF32x4Pmax(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Pmin(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitF64x2Pmax(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
@@ -3008,7 +3037,8 @@ void InstructionSelector::VisitUnreachable(Node* node) {
 }
 
 void InstructionSelector::VisitStaticAssert(Node* node) {
-  node->InputAt(0)->Print();
+  Node* asserted = node->InputAt(0);
+  asserted->Print(2);
   FATAL("Expected turbofan static assert to hold, but got non-true input!\n");
 }
 

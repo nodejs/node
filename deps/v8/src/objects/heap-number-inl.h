@@ -16,15 +16,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(HeapNumber, PrimitiveHeapObject)
-
-CAST_ACCESSOR(HeapNumber)
-
-double HeapNumber::value() const { return ReadField<double>(kValueOffset); }
-
-void HeapNumber::set_value(double value) {
-  WriteField<double>(kValueOffset, value);
-}
+TQ_OBJECT_CONSTRUCTORS_IMPL(HeapNumber)
 
 uint64_t HeapNumber::value_as_bits() const {
   // Bug(v8:8875): HeapNumber's double may be unaligned.

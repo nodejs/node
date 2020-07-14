@@ -265,8 +265,8 @@ auto Engine::make(own<Config>&& config) -> own<Engine> {
 StoreImpl::~StoreImpl() {
 #ifdef DEBUG
   reinterpret_cast<i::Isolate*>(isolate_)->heap()->PreciseCollectAllGarbage(
-      i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
-      v8::kGCCallbackFlagForced);
+      i::Heap::kForcedGC, i::GarbageCollectionReason::kTesting,
+      v8::kNoGCCallbackFlags);
 #endif
   context()->Exit();
   isolate_->Dispose();

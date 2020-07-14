@@ -18,7 +18,7 @@ namespace internal {
 UnoptimizedCompilationInfo::UnoptimizedCompilationInfo(Zone* zone,
                                                        ParseInfo* parse_info,
                                                        FunctionLiteral* literal)
-    : flags_(0), zone_(zone), feedback_vector_spec_(zone) {
+    : flags_(parse_info->flags()), feedback_vector_spec_(zone) {
   // NOTE: The parse_info passed here represents the global information gathered
   // during parsing, but does not represent specific details of the actual
   // function literal being compiled for this OptimizedCompilationInfo. As such,
@@ -28,13 +28,6 @@ UnoptimizedCompilationInfo::UnoptimizedCompilationInfo(Zone* zone,
   DCHECK_NOT_NULL(literal);
   literal_ = literal;
   source_range_map_ = parse_info->source_range_map();
-
-  if (parse_info->is_eval()) MarkAsEval();
-  if (parse_info->collect_type_profile()) MarkAsCollectTypeProfile();
-  if (parse_info->might_always_opt()) MarkAsMightAlwaysOpt();
-  if (parse_info->collect_source_positions()) {
-    MarkAsForceCollectSourcePositions();
-  }
 }
 
 DeclarationScope* UnoptimizedCompilationInfo::scope() const {
@@ -52,7 +45,7 @@ int UnoptimizedCompilationInfo::num_parameters_including_this() const {
 
 SourcePositionTableBuilder::RecordingMode
 UnoptimizedCompilationInfo::SourcePositionRecordingMode() const {
-  if (collect_source_positions()) {
+  if (flags().collect_source_positions()) {
     return SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS;
   }
 

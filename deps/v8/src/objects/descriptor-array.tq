@@ -16,6 +16,7 @@ struct DescriptorEntry {
   value: JSAny|Weak<Map>|AccessorInfo|AccessorPair|ClassPositions;
 }
 
+@generateCppClass
 extern class DescriptorArray extends HeapObject {
   const number_of_all_descriptors: uint16;
   number_of_descriptors: uint16;

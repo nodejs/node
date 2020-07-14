@@ -17,7 +17,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
          .exportFunc();
   assertThrows(() => builder.toModule(),
     WebAssembly.CompileError,
-    "WebAssembly.Module(): Invalid compilation hint 0x2d " +
+    "WebAssembly.Module(): Invalid compilation hint 0x19 " +
     "(forbidden downgrade) @+49");
 })();
 

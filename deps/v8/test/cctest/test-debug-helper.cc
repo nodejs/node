@@ -4,6 +4,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/flags/flags.h"
+#include "src/heap/read-only-spaces.h"
 #include "src/heap/spaces.h"
 #include "test/cctest/cctest.h"
 #include "tools/debug_helper/debug-helper.h"

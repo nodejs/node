@@ -713,7 +713,7 @@ void TurboAssembler::Fmov(VRegister vd, float imm) {
       } else {
         UseScratchRegisterScope temps(this);
         Register tmp = temps.AcquireW();
-        Mov(tmp, bit_cast<uint32_t>(imm));
+        Mov(tmp, bits);
         Fmov(vd, tmp);
       }
     } else {

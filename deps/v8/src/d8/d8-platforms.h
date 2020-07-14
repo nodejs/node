@@ -10,6 +10,7 @@
 
 namespace v8 {
 
+class Isolate;
 class Platform;
 
 // Returns a predictable v8::Platform implementation.
@@ -23,6 +24,13 @@ std::unique_ptr<Platform> MakePredictablePlatform(
 // If {random_seed} is 0, a random seed is chosen.
 std::unique_ptr<Platform> MakeDelayedTasksPlatform(
     std::unique_ptr<Platform> platform, int64_t random_seed);
+
+// We use the task queue of {kProcessGlobalPredictablePlatformWorkerTaskQueue}
+// for worker tasks of the {PredictablePlatform}. At the moment, {nullptr} is a
+// valid value for the isolate. If this ever changes, we either have to allocate
+// a core isolate, or refactor the implementation of worker tasks in the
+// {PredictablePlatform}.
+constexpr Isolate* kProcessGlobalPredictablePlatformWorkerTaskQueue = nullptr;
 
 }  // namespace v8
 

@@ -10,6 +10,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
+#include "src/execution/off-thread-isolate.h"
 #include "src/handles/handles.h"
 
 namespace v8 {
@@ -47,15 +48,16 @@ class PendingCompilationErrorHandler {
   bool has_pending_warnings() const { return !warning_messages_.empty(); }
 
   // Handle errors detected during parsing.
-  void ReportErrors(Isolate* isolate, Handle<Script> script,
-                    AstValueFactory* ast_value_factory);
+  template <typename LocalIsolate>
+  void PrepareErrors(LocalIsolate* isolate, AstValueFactory* ast_value_factory);
+  void ReportErrors(Isolate* isolate, Handle<Script> script) const;
 
   // Handle warnings detected during compilation.
-  void ReportWarnings(Isolate* isolate, Handle<Script> script);
-  void ReportWarnings(OffThreadIsolate* isolate, Handle<Script> script);
+  template <typename LocalIsolate>
+  void PrepareWarnings(LocalIsolate* isolate);
+  void ReportWarnings(Isolate* isolate, Handle<Script> script) const;
 
-  V8_EXPORT_PRIVATE Handle<String> FormatErrorMessageForTest(
-      Isolate* isolate) const;
+  V8_EXPORT_PRIVATE Handle<String> FormatErrorMessageForTest(Isolate* isolate);
 
   void set_unidentifiable_error() {
     has_pending_error_ = true;
@@ -77,30 +79,54 @@ class PendingCompilationErrorHandler {
         : start_position_(-1),
           end_position_(-1),
           message_(MessageTemplate::kNone),
-          arg_(nullptr),
-          char_arg_(nullptr) {}
+          type_(kNone) {}
     MessageDetails(int start_position, int end_position,
-                   MessageTemplate message, const AstRawString* arg,
-                   const char* char_arg)
+                   MessageTemplate message, const AstRawString* arg)
         : start_position_(start_position),
           end_position_(end_position),
           message_(message),
           arg_(arg),
-          char_arg_(char_arg) {}
+          type_(arg ? kAstRawString : kNone) {}
+    MessageDetails(int start_position, int end_position,
+                   MessageTemplate message, const char* char_arg)
+        : start_position_(start_position),
+          end_position_(end_position),
+          message_(message),
+          char_arg_(char_arg),
+          type_(char_arg_ ? kConstCharString : kNone) {}
 
     Handle<String> ArgumentString(Isolate* isolate) const;
     MessageLocation GetLocation(Handle<Script> script) const;
     MessageTemplate message() const { return message_; }
 
+    template <typename LocalIsolate>
+    void Prepare(LocalIsolate* isolate);
+
    private:
+    enum Type {
+      kNone,
+      kAstRawString,
+      kConstCharString,
+      kMainThreadHandle,
+      kOffThreadTransferHandle
+    };
+
+    void SetString(Handle<String> string, Isolate* isolate);
+    void SetString(Handle<String> string, OffThreadIsolate* isolate);
+
     int start_position_;
     int end_position_;
     MessageTemplate message_;
-    const AstRawString* arg_;
-    const char* char_arg_;
+    union {
+      const AstRawString* arg_;
+      const char* char_arg_;
+      Handle<String> arg_handle_;
+      OffThreadTransferHandle<String> arg_transfer_handle_;
+    };
+    Type type_;
   };
 
-  void ThrowPendingError(Isolate* isolate, Handle<Script> script);
+  void ThrowPendingError(Isolate* isolate, Handle<Script> script) const;
 
   bool has_pending_error_;
   bool stack_overflow_;

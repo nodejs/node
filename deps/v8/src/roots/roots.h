@@ -5,6 +5,7 @@
 #ifndef V8_ROOTS_ROOTS_H_
 #define V8_ROOTS_ROOTS_H_
 
+#include "src/base/macros.h"
 #include "src/builtins/accessors.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -18,6 +19,7 @@ namespace internal {
 
 // Forward declarations.
 enum ElementsKind : uint8_t;
+class OffThreadHeap;
 class OffThreadIsolate;
 template <typename T>
 class Handle;
@@ -214,6 +216,7 @@ class Symbol;
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)              \
   V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector)   \
   V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)          \
+  V(PropertyCell, regexp_species_protector, RegExpSpeciesProtector)            \
   V(PropertyCell, string_length_protector, StringLengthProtector)              \
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_detaching_protector,                            \
@@ -229,7 +232,49 @@ class Symbol;
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   /* Indirection lists for isolate-independent builtins */                     \
-  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
+  /* Internal SharedFunctionInfos */                                           \
+  V(SharedFunctionInfo, async_function_await_reject_shared_fun,                \
+    AsyncFunctionAwaitRejectSharedFun)                                         \
+  V(SharedFunctionInfo, async_function_await_resolve_shared_fun,               \
+    AsyncFunctionAwaitResolveSharedFun)                                        \
+  V(SharedFunctionInfo, async_generator_await_reject_shared_fun,               \
+    AsyncGeneratorAwaitRejectSharedFun)                                        \
+  V(SharedFunctionInfo, async_generator_await_resolve_shared_fun,              \
+    AsyncGeneratorAwaitResolveSharedFun)                                       \
+  V(SharedFunctionInfo, async_generator_yield_resolve_shared_fun,              \
+    AsyncGeneratorYieldResolveSharedFun)                                       \
+  V(SharedFunctionInfo, async_generator_return_resolve_shared_fun,             \
+    AsyncGeneratorReturnResolveSharedFun)                                      \
+  V(SharedFunctionInfo, async_generator_return_closed_reject_shared_fun,       \
+    AsyncGeneratorReturnClosedRejectSharedFun)                                 \
+  V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
+    AsyncGeneratorReturnClosedResolveSharedFun)                                \
+  V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
+    AsyncIteratorValueUnwrapSharedFun)                                         \
+  V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
+    PromiseAllResolveElementSharedFun)                                         \
+  V(SharedFunctionInfo, promise_all_settled_resolve_element_shared_fun,        \
+    PromiseAllSettledResolveElementSharedFun)                                  \
+  V(SharedFunctionInfo, promise_all_settled_reject_element_shared_fun,         \
+    PromiseAllSettledRejectElementSharedFun)                                   \
+  V(SharedFunctionInfo, promise_any_reject_element_shared_fun,                 \
+    PromiseAnyRejectElementSharedFun)                                          \
+  V(SharedFunctionInfo, promise_capability_default_reject_shared_fun,          \
+    PromiseCapabilityDefaultRejectSharedFun)                                   \
+  V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun,         \
+    PromiseCapabilityDefaultResolveSharedFun)                                  \
+  V(SharedFunctionInfo, promise_catch_finally_shared_fun,                      \
+    PromiseCatchFinallySharedFun)                                              \
+  V(SharedFunctionInfo, promise_get_capabilities_executor_shared_fun,          \
+    PromiseGetCapabilitiesExecutorSharedFun)                                   \
+  V(SharedFunctionInfo, promise_then_finally_shared_fun,                       \
+    PromiseThenFinallySharedFun)                                               \
+  V(SharedFunctionInfo, promise_thrower_finally_shared_fun,                    \
+    PromiseThrowerFinallySharedFun)                                            \
+  V(SharedFunctionInfo, promise_value_thunk_finally_shared_fun,                \
+    PromiseValueThunkFinallySharedFun)                                         \
+  V(SharedFunctionInfo, proxy_revoke_shared_fun, ProxyRevokeSharedFun)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                \
@@ -243,7 +288,6 @@ class Symbol;
   V(FixedArray, materialized_objects, MaterializedObjects)                 \
   V(WeakArrayList, detached_contexts, DetachedContexts)                    \
   V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
-  V(WeakArrayList, retained_maps, RetainedMaps)                            \
   /* Feedback vectors that we need for code coverage or type profile */    \
   V(Object, feedback_vectors_for_profiling_tools,                          \
     FeedbackVectorsForProfilingTools)                                      \
@@ -302,15 +346,15 @@ class Symbol;
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
-#define READ_ONLY_ROOT_LIST(V)       \
-  STRONG_READ_ONLY_ROOT_LIST(V)      \
-  INTERNALIZED_STRING_ROOT_LIST(V)   \
-  PRIVATE_SYMBOL_ROOT_LIST(V)        \
-  PUBLIC_SYMBOL_ROOT_LIST(V)         \
-  WELL_KNOWN_SYMBOL_ROOT_LIST(V)     \
-  STRUCT_MAPS_LIST(V)                \
-  TORQUE_INTERNAL_CLASS_MAPS_LIST(V) \
-  ALLOCATION_SITE_MAPS_LIST(V)       \
+#define READ_ONLY_ROOT_LIST(V)     \
+  STRONG_READ_ONLY_ROOT_LIST(V)    \
+  INTERNALIZED_STRING_ROOT_LIST(V) \
+  PRIVATE_SYMBOL_ROOT_LIST(V)      \
+  PUBLIC_SYMBOL_ROOT_LIST(V)       \
+  WELL_KNOWN_SYMBOL_ROOT_LIST(V)   \
+  STRUCT_MAPS_LIST(V)              \
+  TORQUE_INTERNAL_MAP_ROOT_LIST(V) \
+  ALLOCATION_SITE_MAPS_LIST(V)     \
   DATA_HANDLER_MAPS_LIST(V)
 
 #define MUTABLE_ROOT_LIST(V)                \
@@ -480,29 +524,38 @@ class ReadOnlyRoots {
       static_cast<size_t>(RootIndex::kReadOnlyRootsCount);
 
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
+  V8_INLINE explicit ReadOnlyRoots(OffThreadHeap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
   V8_INLINE explicit ReadOnlyRoots(OffThreadIsolate* isolate);
 
-#define ROOT_ACCESSOR(Type, name, CamelName) \
-  V8_INLINE class Type name() const;         \
+#define ROOT_ACCESSOR(Type, name, CamelName)     \
+  V8_INLINE class Type name() const;             \
+  V8_INLINE class Type unchecked_##name() const; \
   V8_INLINE Handle<Type> name##_handle() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+  // Get the address of a given read-only root index, without type checks.
+  V8_INLINE Address at(RootIndex root_index) const;
 
   // Iterate over all the read-only roots. This is not necessary for garbage
   // collection and is usually only performed as part of (de)serialization or
   // heap verification.
   void Iterate(RootVisitor* visitor);
 
+ private:
 #ifdef DEBUG
-  V8_EXPORT_PRIVATE bool CheckType(RootIndex index) const;
+#define ROOT_TYPE_CHECK(Type, name, CamelName) \
+  V8_EXPORT_PRIVATE bool CheckType_##name() const;
+
+  READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)
+#undef ROOT_TYPE_CHECK
 #endif
 
- private:
   V8_INLINE explicit ReadOnlyRoots(Address* ro_roots);
 
-  V8_INLINE Address& at(RootIndex root_index) const;
+  V8_INLINE Address* GetLocation(RootIndex root_index) const;
 
   Address* read_only_roots_;
 

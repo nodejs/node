@@ -323,26 +323,23 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
   int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
   this->VisitMapPointer(weak_cell);
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
-  if (weak_cell.target().IsHeapObject()) {
-    HeapObject target = HeapObject::cast(weak_cell.target());
-    HeapObject unregister_token =
-        HeapObject::cast(weak_cell.unregister_token());
-    concrete_visitor()->SynchronizePageAccess(target);
-    concrete_visitor()->SynchronizePageAccess(unregister_token);
-    if (concrete_visitor()->marking_state()->IsBlackOrGrey(target) &&
-        concrete_visitor()->marking_state()->IsBlackOrGrey(unregister_token)) {
-      // Record the slots inside the WeakCell, since the IterateBody above
-      // didn't visit it.
-      ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
-      concrete_visitor()->RecordSlot(weak_cell, slot, target);
-      slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
-      concrete_visitor()->RecordSlot(weak_cell, slot, unregister_token);
-    } else {
-      // WeakCell points to a potentially dead object or a dead unregister
-      // token. We have to process them when we know the liveness of the whole
-      // transitive closure.
-      weak_objects_->weak_cells.Push(task_id_, weak_cell);
-    }
+  HeapObject target = weak_cell.relaxed_target();
+  HeapObject unregister_token = HeapObject::cast(weak_cell.unregister_token());
+  concrete_visitor()->SynchronizePageAccess(target);
+  concrete_visitor()->SynchronizePageAccess(unregister_token);
+  if (concrete_visitor()->marking_state()->IsBlackOrGrey(target) &&
+      concrete_visitor()->marking_state()->IsBlackOrGrey(unregister_token)) {
+    // Record the slots inside the WeakCell, since the IterateBody above
+    // didn't visit it.
+    ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
+    concrete_visitor()->RecordSlot(weak_cell, slot, target);
+    slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
+    concrete_visitor()->RecordSlot(weak_cell, slot, unregister_token);
+  } else {
+    // WeakCell points to a potentially dead object or a dead unregister
+    // token. We have to process them when we know the liveness of the whole
+    // transitive closure.
+    weak_objects_->weak_cells.Push(task_id_, weak_cell);
   }
   return size;
 }

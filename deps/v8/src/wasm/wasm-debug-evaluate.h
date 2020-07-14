@@ -16,7 +16,7 @@ namespace wasm {
 
 MaybeHandle<String> V8_EXPORT_PRIVATE DebugEvaluate(
     Vector<const byte> snippet, Handle<WasmInstanceObject> debuggee_instance,
-    WasmInterpreter::FramePtr frame);
+    StandardFrame* frame);
 
 }  // namespace wasm
 }  // namespace internal

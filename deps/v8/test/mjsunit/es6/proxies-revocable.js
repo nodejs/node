@@ -21,9 +21,3 @@ assertEquals(undefined, revoke());
 for (var trap of traps) {
   assertThrows(() => Reflect[trap](proxy), TypeError);
 }
-
-// Throw TypeError if target or handler is revoked proxy
-var revocable = Proxy.revocable({}, {});
-revocable.revoke();
-assertThrows(function(){ Proxy.revocable(revocable.proxy, {}); }, TypeError);
-assertThrows(function(){ Proxy.revocable({}, revocable.proxy); }, TypeError);

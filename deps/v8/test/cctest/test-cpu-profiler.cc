@@ -39,6 +39,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/heap/spaces.h"
 #include "src/libplatform/default-platform.h"
+#include "src/libsampler/sampler.h"
 #include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
@@ -54,7 +55,6 @@
 #include "src/tracing/trace-event.h"
 
 #ifdef V8_USE_PERFETTO
-#include "protos/perfetto/trace/chrome/chrome_trace_event.pb.h"
 #include "protos/perfetto/trace/trace.pb.h"
 #endif
 
@@ -2625,22 +2625,34 @@ using v8::platform::tracing::TraceObject;
 namespace {
 
 #ifdef V8_USE_PERFETTO
-
 class CpuProfilerListener : public platform::tracing::TraceEventListener {
  public:
   void ProcessPacket(const ::perfetto::protos::TracePacket& packet) {
-    for (const ::perfetto::protos::ChromeTraceEvent& trace_event :
-         packet.chrome_events().trace_events()) {
-      if (trace_event.name() != std::string("Profile") &&
-          trace_event.name() != std::string("ProfileChunk"))
-        return;
-      CHECK(!profile_id_ || trace_event.id() == profile_id_);
-      CHECK_EQ(1, trace_event.args_size());
-      CHECK(trace_event.args()[0].has_json_value());
-      profile_id_ = trace_event.id();
-      result_json_ += result_json_.empty() ? "[" : ",\n";
-      result_json_ += trace_event.args()[0].json_value();
+    auto& seq_state = sequence_state_[packet.trusted_packet_sequence_id()];
+    if (packet.incremental_state_cleared()) seq_state = SequenceState{};
+
+    if (!packet.has_track_event()) return;
+
+    // Update incremental state.
+    if (packet.has_interned_data()) {
+      const auto& interned_data = packet.interned_data();
+      for (const auto& it : interned_data.event_names()) {
+        CHECK_EQ(seq_state.event_names_.find(it.iid()),
+                 seq_state.event_names_.end());
+        seq_state.event_names_[it.iid()] = it.name();
+      }
     }
+    const auto& track_event = packet.track_event();
+    auto name = seq_state.event_names_[track_event.name_iid()];
+    if (name != "Profile" && name != "ProfileChunk") return;
+
+    CHECK_EQ(1, track_event.debug_annotations_size());
+    CHECK(track_event.debug_annotations()[0].has_legacy_json_value());
+    CHECK(!profile_id_ ||
+          track_event.legacy_event().unscoped_id() == profile_id_);
+    profile_id_ = track_event.legacy_event().unscoped_id();
+    result_json_ += result_json_.empty() ? "[" : ",\n";
+    result_json_ += track_event.debug_annotations()[0].legacy_json_value();
   }
 
   const std::string& result_json() {
@@ -2650,11 +2662,17 @@ class CpuProfilerListener : public platform::tracing::TraceEventListener {
   void Reset() {
     result_json_.clear();
     profile_id_ = 0;
+    sequence_state_.clear();
   }
 
  private:
   std::string result_json_;
   uint64_t profile_id_ = 0;
+
+  struct SequenceState {
+    std::map<uint64_t, std::string> event_names_;
+  };
+  std::map<uint32_t, SequenceState> sequence_state_;
 };
 
 #else
@@ -2732,6 +2750,9 @@ TEST(TracingCpuProfiler) {
 
     tracing_controller->StartTracing(trace_config);
     CompileRun(test_code.c_str());
+#ifdef V8_USE_PERFETTO
+    TrackEvent::Flush();
+#endif
     tracing_controller->StopTracing();
 
 #ifdef V8_USE_PERFETTO
@@ -2757,9 +2778,11 @@ TEST(TracingCpuProfiler) {
                  ->IsTrue();
   }
 
+#ifndef V8_USE_PERFETTO
   static_cast<v8::platform::tracing::TracingController*>(
       i::V8::GetCurrentPlatform()->GetTracingController())
       ->Initialize(nullptr);
+#endif  // !V8_USE_PERFETTO
 }
 
 TEST(Issue763073) {

@@ -334,8 +334,9 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
   }
   BIND(&if_exception);
   {
-    iterator_assembler.IteratorCloseOnException(context, iterator,
-                                                var_exception.value());
+    IteratorCloseOnException(context, iterator);
+    CallRuntime(Runtime::kReThrow, context, var_exception.value());
+    Unreachable();
   }
   BIND(&exit);
 }
