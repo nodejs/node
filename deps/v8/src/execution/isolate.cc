@@ -3952,6 +3952,21 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
 
 void Isolate::ClearKeptObjects() { heap()->ClearKeptObjects(); }
 
+void Isolate::SetHostCleanupFinalizationGroupCallback(
+    HostCleanupFinalizationGroupCallback callback) {
+  host_cleanup_finalization_group_callback_ = callback;
+}
+
+void Isolate::RunHostCleanupFinalizationGroupCallback(
+    Handle<JSFinalizationRegistry> fr) {
+  if (host_cleanup_finalization_group_callback_ != nullptr) {
+    v8::Local<v8::Context> api_context =
+        v8::Utils::ToLocal(handle(Context::cast(fr->native_context()), this));
+    host_cleanup_finalization_group_callback_(api_context,
+                                              v8::Utils::ToLocal(fr));
+  }
+}
+
 void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyCallback callback) {
   host_import_module_dynamically_callback_ = callback;

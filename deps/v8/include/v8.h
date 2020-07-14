@@ -5946,6 +5946,37 @@ class V8_EXPORT RegExp : public Object {
 };
 
 /**
+ * An instance of the built-in FinalizationRegistry constructor.
+ *
+ * The C++ name is FinalizationGroup for backwards compatibility. This API is
+ * experimental and deprecated.
+ */
+class V8_EXPORT FinalizationGroup : public Object {
+ public:
+  /**
+   * Runs the cleanup callback of the given FinalizationRegistry.
+   *
+   * V8 will inform the embedder that there are finalizer callbacks be
+   * called through HostCleanupFinalizationGroupCallback.
+   *
+   * HostCleanupFinalizationGroupCallback should schedule a task to
+   * call FinalizationGroup::Cleanup() at some point in the
+   * future. It's the embedders responsiblity to make this call at a
+   * time which does not interrupt synchronous ECMAScript code
+   * execution.
+   *
+   * If the result is Nothing<bool> then an exception has
+   * occurred. Otherwise the result is |true| if the cleanup callback
+   * was called successfully. The result is never |false|.
+   */
+  V8_DEPRECATED(
+      "FinalizationGroup cleanup is automatic if "
+      "HostCleanupFinalizationGroupCallback is not set")
+  static V8_WARN_UNUSED_RESULT Maybe<bool> Cleanup(
+      Local<FinalizationGroup> finalization_group);
+};
+
+/**
  * A JavaScript value that wraps a C++ void*. This type of value is mainly used
  * to associate C++ data structures with JavaScript objects.
  */
@@ -7196,6 +7227,20 @@ typedef void (*AddCrashKeyCallback)(CrashKeyId id, const std::string& value);
 // --- Enter/Leave Script Callback ---
 typedef void (*BeforeCallEnteredCallback)(Isolate*);
 typedef void (*CallCompletedCallback)(Isolate*);
+
+/**
+ * HostCleanupFinalizationGroupCallback is called when we require the
+ * embedder to enqueue a task that would call
+ * FinalizationGroup::Cleanup().
+ *
+ * The FinalizationGroup is the one for which the embedder needs to
+ * call FinalizationGroup::Cleanup() on.
+ *
+ * The context provided is the one in which the FinalizationGroup was
+ * created in.
+ */
+typedef void (*HostCleanupFinalizationGroupCallback)(
+    Local<Context> context, Local<FinalizationGroup> fg);
 
 /**
  * HostImportModuleDynamicallyCallback is called when we require the
@@ -8535,6 +8580,17 @@ class V8_EXPORT Isolate {
   typedef bool (*AbortOnUncaughtExceptionCallback)(Isolate*);
   void SetAbortOnUncaughtExceptionCallback(
       AbortOnUncaughtExceptionCallback callback);
+
+  /**
+   * This specifies the callback to be called when FinalizationRegistries
+   * are ready to be cleaned up and require FinalizationGroup::Cleanup()
+   * to be called in a future task.
+   */
+  V8_DEPRECATED(
+      "FinalizationRegistry cleanup is automatic if "
+      "HostCleanupFinalizationGroupCallback is not set")
+  void SetHostCleanupFinalizationGroupCallback(
+      HostCleanupFinalizationGroupCallback callback);
 
   /**
    * This specifies the callback called by the upcoming dynamic
