@@ -25,9 +25,7 @@ const countdown = new Countdown(2, () => {
   server.on('session', common.mustCall(async (session) => {
     const uni = await session.openStream({ halfOpen: true });
     uni.write('hi', common.expectsError());
-    uni.on('error', common.mustCall(() => {
-      assert.strictEqual(uni.aborted, true);
-    }));
+    uni.on('error', common.mustCall());
     uni.on('data', common.mustNotCall());
     uni.on('close', common.mustCall());
     uni.close(3);
@@ -56,9 +54,7 @@ const countdown = new Countdown(2, () => {
   const stream = await req.openStream();
   stream.write('hello', common.expectsError());
   stream.write('there', common.expectsError());
-  stream.on('error', common.mustCall(() => {
-    assert.strictEqual(stream.aborted, true);
-  }));
+  stream.on('error', common.mustCall());
   stream.on('end', common.mustNotCall());
   stream.on('close', common.mustCall(() => {
     countdown.dec();

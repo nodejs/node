@@ -25,16 +25,8 @@ const { createQuicSocket } = require('net');
 // Create the QUIC UDP IPv4 socket bound to local IP port 1234
 const socket = createQuicSocket({ endpoint: { port: 1234 } });
 
-socket.on('session', (session) => {
+socket.on('session', async (session) => {
   // A new server side session has been created!
-
-  session.on('secure', () => {
-    // Once the TLS handshake is completed, we can
-    // open streams...
-    const uni = session.openStream({ halfOpen: true });
-    uni.write('hi ');
-    uni.end('from the server!');
-  });
 
   // The peer opened a new stream!
   session.on('stream', (stream) => {
@@ -46,6 +38,10 @@ socket.on('session', (session) => {
     stream.on('data', console.log);
     stream.on('end', () => console.log('stream ended'));
   });
+
+  const uni = await session.openStream({ halfOpen: true });
+  uni.write('hi ');
+  uni.end('from the server!');
 });
 
 // Tell the socket to operate as a server using the given
@@ -187,10 +183,10 @@ The `openStream()` method is used to create a new `QuicStream`:
 
 ```js
 // Create a new bidirectional stream
-const stream1 = session.openStream();
+const stream1 = await session.openStream();
 
 // Create a new unidirectional stream
-const stream2 = session.openStream({ halfOpen: true });
+const stream2 = await session.openStream({ halfOpen: true });
 ```
 
 As suggested by the names, a bidirectional stream allows data to be sent on
@@ -1045,12 +1041,12 @@ added: REPLACEME
   * `defaultEncoding` {string} The default encoding that is used when no
     encoding is specified as an argument to `quicstream.write()`. Default:
     `'utf8'`.
-* Returns: {QuicStream}
+* Returns: {Promise} containing {QuicStream}
 
-Returns a new `QuicStream`.
+Returns a `Promise` that resolves a new `QuicStream`.
 
-An error will be thrown if the `QuicSession` has been destroyed or is in the
-process of a graceful shutdown.
+The `Promise` will be rejected if the `QuicSession` has been destroyed or is in
+the process of a graceful shutdown.
 
 #### `quicsession.ping()`
 <!--YAML
@@ -2153,14 +2149,6 @@ stream('trailingHeaders', (headers) => {
 added: REPLACEME
 -->
 
-#### `quicstream.aborted`
-<!-- YAML
-added: REPLACEME
--->
-* Type: {boolean}
-
-True if dataflow on the `QuicStream` was prematurely terminated.
-
 #### `quicstream.bidirectional`
 <!--YAML
 added: REPLACEME
@@ -2280,16 +2268,6 @@ added: REPLACEME
 * Type: {number}
 
 The maximum received offset for this `QuicStream`.
-
-#### `quicstream.pending`
-<!-- YAML
-added: REPLACEME
--->
-
-* {boolean}
-
-This property is `true` if the underlying session is not finished yet,
-i.e. before the `'ready'` event is emitted.
 
 #### `quicstream.pushStream(headers\[, options\])`
 <!-- YAML
