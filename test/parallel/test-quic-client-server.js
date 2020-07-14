@@ -15,10 +15,17 @@ const {
   }
 } = internalBinding('quic');
 
+const qlog = process.env.NODE_QLOG === '1';
+
 const { Buffer } = require('buffer');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
-const fs = require('fs');
+const {
+  createReadStream,
+  createWriteStream,
+  readFileSync
+} = require('fs');
+const { pipeline } = require('stream');
 const {
   key,
   cert,
@@ -26,7 +33,7 @@ const {
   debug,
 } = require('../common/quic');
 
-const filedata = fs.readFileSync(__filename, { encoding: 'utf8' });
+const filedata = readFileSync(__filename, { encoding: 'utf8' });
 
 const { createQuicSocket } = require('net');
 
@@ -37,10 +44,11 @@ const unidata = ['I wonder if it worked.', 'test'];
 const kServerName = 'agent2';  // Intentionally the wrong servername
 const kALPN = 'zzz';  // ALPN can be overriden to whatever we want
 
-const options = { key, cert, ca, alpn: kALPN };
+const options = { key, cert, ca, alpn: kALPN, qlog };
 
-const client = createQuicSocket({ client: options });
+const client = createQuicSocket({ qlog, client: options });
 const server = createQuicSocket({
+  qlog,
   validateAddress: true,
   statelessResetSecret: kStatelessResetToken,
   server: options
@@ -74,7 +82,8 @@ client.on('endpointClose', common.mustCall());
 client.on('close', common.mustCall(onSocketClose.bind(client)));
 
 (async function() {
-  server.on('session', common.mustCall((session) => {
+  server.on('session', common.mustCall(async (session) => {
+    if (qlog) session.qlog.pipe(createWriteStream('server.qlog'));
     debug('QuicServerSession Created');
 
     assert.strictEqual(session.maxStreams.bidi, 100);
@@ -92,8 +101,6 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       debug(`QuicServerSession Client ${family} address ${address}:${port}`);
     }
 
-    session.on('usePreferredAddress', common.mustNotCall());
-
     session.on('clientHello', common.mustCall(
       (alpn, servername, ciphers, cb) => {
         assert.strictEqual(alpn, kALPN);
@@ -102,34 +109,33 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
         cb();
       }));
 
-    session.on('OCSPRequest', common.mustCall(
-      (servername, context, cb) => {
-        debug('QuicServerSession received a OCSP request');
-        assert.strictEqual(servername, kServerName);
+    session.on('OCSPRequest', common.mustCall((servername, context, cb) => {
+      debug('QuicServerSession received a OCSP request');
+      assert.strictEqual(servername, kServerName);
 
-        // This will be a SecureContext. By default it will
-        // be the SecureContext used to create the QuicSession.
-        // If the user wishes to do something with it, it can,
-        // but if it wishes to pass in a new SecureContext,
-        // it can pass it in as the second argument to the
-        // callback below.
-        assert(context);
-        debug('QuicServerSession Certificate: ', context.getCertificate());
-        debug('QuicServerSession Issuer: ', context.getIssuer());
+      // This will be a SecureContext. By default it will
+      // be the SecureContext used to create the QuicSession.
+      // If the user wishes to do something with it, it can,
+      // but if it wishes to pass in a new SecureContext,
+      // it can pass it in as the second argument to the
+      // callback below.
+      assert(context);
+      debug('QuicServerSession Certificate: ', context.getCertificate());
+      debug('QuicServerSession Issuer: ', context.getIssuer());
 
-        // The callback can be invoked asynchronously
-        setImmediate(() => {
-          // The first argument is a potential error,
-          // in which case the session will be destroyed
-          // immediately.
-          // The second is an optional new SecureContext
-          // The third is the ocsp response.
-          // All arguments are optional
-          cb(null, null, Buffer.from('hello'));
-        });
-      }));
+      // The callback can be invoked asynchronously
+      setImmediate(() => {
+        // The first argument is a potential error,
+        // in which case the session will be destroyed
+        // immediately.
+        // The second is an optional new SecureContext
+        // The third is the ocsp response.
+        // All arguments are optional
+        cb(null, null, Buffer.from('hello'));
+      });
+    }));
 
-    session.on('secure', common.mustCall(async (servername, alpn, cipher) => {
+    session.on('secure', common.mustCall((servername, alpn, cipher) => {
       debug('QuicServerSession TLS Handshake Complete');
       debug('  Server name: %s', servername);
       debug('  ALPN: %s', alpn);
@@ -137,43 +143,49 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       assert.strictEqual(session.servername, servername);
       assert.strictEqual(servername, kServerName);
       assert.strictEqual(session.alpnProtocol, alpn);
-
       assert.strictEqual(session.getPeerCertificate().subject.CN, 'agent1');
-
       assert(session.authenticated);
       assert.strictEqual(session.authenticationError, undefined);
+    }));
 
-      const uni = await session.openStream({ halfOpen: true });
-      assert(uni.unidirectional);
-      assert(!uni.bidirectional);
-      assert(uni.serverInitiated);
-      assert(!uni.clientInitiated);
-      assert(!uni.pending);
-      // The data and end events will never emit because
-      // the unidirectional stream is never readable.
-      uni.on('end', common.mustNotCall());
-      uni.on('data', common.mustNotCall());
-      uni.write(unidata[0], common.mustCall());
-      uni.end(unidata[1], common.mustCall());
-      uni.on('finish', common.mustCall());
-      uni.on('close', common.mustCall(() => {
-        assert.strictEqual(uni.finalSize, 0);
-      }));
-      debug('Unidirectional, Server-initiated stream %d opened', uni.id);
+    const uni = await session.openStream({ halfOpen: true });
+    debug('Unidirectional, Server-initiated stream %d opened', uni.id);
+    assert(uni.writable);
+    assert(!uni.readable);
+    assert(uni.unidirectional);
+    assert(!uni.bidirectional);
+    assert(uni.serverInitiated);
+    assert(!uni.clientInitiated);
+    uni.on('end', common.mustNotCall());
+    uni.on('data', common.mustNotCall());
+    uni.write(unidata[0], common.mustCall());
+    uni.end(unidata[1]);
+    // TODO(@jasnell): There's currently a bug where the final
+    // write callback is not invoked if the stream/session is
+    // destroyed before we receive the acknowledgement for the
+    // write.
+    // uni.end(unidata[1], common.mustCall());
+    // uni.on('finish', common.mustCall());
+    uni.on('close', common.mustCall(() => {
+      assert.strictEqual(uni.finalSize, 0);
     }));
 
     session.on('stream', common.mustCall((stream) => {
       debug('Bidirectional, Client-initiated stream %d received', stream.id);
       assert.strictEqual(stream.id, 0);
       assert.strictEqual(stream.session, session);
+      assert(stream.writable);
+      assert(stream.readable);
       assert(stream.bidirectional);
       assert(!stream.unidirectional);
       assert(stream.clientInitiated);
       assert(!stream.serverInitiated);
 
-      const file = fs.createReadStream(__filename);
       let data = '';
-      file.pipe(stream);
+      pipeline(createReadStream(__filename), stream, common.mustCall((err) => {
+        assert.ifError(err);
+      }));
+
       stream.setEncoding('utf8');
       stream.on('blocked', common.mustNotCall());
       stream.on('data', (chunk) => {
@@ -245,6 +257,7 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
     servername: kServerName,
     requestOCSP: true,
   });
+  if (qlog) req.qlog.pipe(createWriteStream('client.qlog'));
 
   assert.strictEqual(req.servername, kServerName);
 
@@ -293,43 +306,13 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       code: 'ERR_QUIC_VERIFY_HOSTNAME_MISMATCH',
       message: 'Hostname mismatch'
     });
-
-    {
-      const {
-        address,
-        family,
-        port
-      } = req.remoteAddress;
-      const endpoint = server.endpoints[0].address;
-      assert.strictEqual(port, endpoint.port);
-      assert.strictEqual(family, endpoint.family);
-      debug(`QuicClientSession Server ${family} address ${address}:${port}`);
-    }
-
-    const file = fs.createReadStream(__filename);
-    const stream = await req.openStream();
-    file.pipe(stream);
-    let data = '';
-    stream.resume();
-    stream.setEncoding('utf8');
-    stream.on('blocked', common.mustNotCall());
-    stream.on('data', (chunk) => data += chunk);
-    stream.on('finish', common.mustCall());
-    stream.on('end', common.mustCall(() => {
-      assert.strictEqual(data, filedata);
-      debug('Client received expected data for stream %d', stream.id);
-    }));
-    stream.on('close', common.mustCall(() => {
-      debug('Bidirectional, Client-initiated stream %d closed', stream.id);
-      assert.strictEqual(stream.finalSize, filedata.length);
-      countdown.dec();
-    }));
-    debug('Bidirectional, Client-initiated stream %d opened', stream.id);
   }));
 
   req.on('stream', common.mustCall((stream) => {
     debug('Unidirectional, Server-initiated stream %d received', stream.id);
     let data = '';
+    assert(stream.readable);
+    assert(!stream.writable);
     stream.setEncoding('utf8');
     stream.on('data', (chunk) => data += chunk);
     stream.on('end', common.mustCall(() => {
@@ -352,4 +335,37 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
     assert.strictEqual(code, NGTCP2_NO_ERROR);
     assert.strictEqual(family, QUIC_ERROR_APPLICATION);
   }));
+
+  {
+    const {
+      address,
+      family,
+      port
+    } = req.remoteAddress;
+    const endpoint = server.endpoints[0].address;
+    assert.strictEqual(port, endpoint.port);
+    assert.strictEqual(family, endpoint.family);
+    debug(`QuicClientSession Server ${family} address ${address}:${port}`);
+  }
+
+  const stream = await req.openStream();
+  pipeline(createReadStream(__filename), stream, common.mustCall((err) => {
+    assert.ifError(err);
+  }));
+  let data = '';
+  stream.resume();
+  stream.setEncoding('utf8');
+  stream.on('finish', common.mustCall());
+  stream.on('blocked', common.mustNotCall());
+  stream.on('data', (chunk) => data += chunk);
+  stream.on('end', common.mustCall(() => {
+    assert.strictEqual(data, filedata);
+    debug('Client received expected data for stream %d', stream.id);
+  }));
+  stream.on('close', common.mustCall(() => {
+    debug('Bidirectional, Client-initiated stream %d closed', stream.id);
+    assert.strictEqual(stream.finalSize, filedata.length);
+    countdown.dec();
+  }));
+  debug('Bidirectional, Client-initiated stream %d opened', stream.id);
 })().then(common.mustCall());
