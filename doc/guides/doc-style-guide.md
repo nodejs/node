@@ -19,11 +19,11 @@ this guide.
 * Check changes to documentation with `make lint-md`.
 * [Use US spelling][].
 * [Use serial commas][].
-* Avoid personal pronouns (_I_, _you_, _we_) in reference documentation.
-  * Personal pronouns are acceptable in colloquial documentation such as guides.
-  * Use gender-neutral pronouns and gender-neutral plural nouns.
-    * OK: _they_, _their_, _them_, _folks_, _people_, _developers_
-    * NOT OK: _his_, _hers_, _him_, _her_, _guys_, _dudes_
+* Avoid first-person pronouns (_I_, _we_).
+  * Exception: _we recommend foo_ is preferable to _foo is recommended_.
+* Use gender-neutral pronouns and gender-neutral plural nouns.
+  * OK: _they_, _their_, _them_, _folks_, _people_, _developers_
+  * NOT OK: _his_, _hers_, _him_, _her_, _guys_, _dudes_
 * When combining wrapping elements (parentheses and quotes), place terminal
   punctuation:
   * Inside the wrapping element if the wrapping element contains a complete
