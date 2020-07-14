@@ -32,7 +32,7 @@ const util = require('util');
     baz: 'bar',
     typeofProcess: 'undefined'
   });
-}());
+}().then(common.mustCall()));
 
 (async () => {
   const m = new SourceTextModule(`
@@ -45,14 +45,14 @@ const util = require('util');
   assert.strictEqual(global.vmResultTypeofProcess, '[object process]');
   delete global.vmResultFoo;
   delete global.vmResultTypeofProcess;
-})();
+})().then(common.mustCall());
 
 (async () => {
   const m = new SourceTextModule('while (true) {}');
   await m.link(common.mustNotCall());
   await m.evaluate({ timeout: 500 })
     .then(() => assert(false), () => {});
-})();
+})().then(common.mustCall());
 
 // Check the generated identifier for each module
 (async () => {
@@ -65,7 +65,7 @@ const util = require('util');
   assert.strictEqual(m2.identifier, 'vm:module(1)');
   const m3 = new SourceTextModule('3', { context: context2 });
   assert.strictEqual(m3.identifier, 'vm:module(0)');
-})();
+})().then(common.mustCall());
 
 // Check inspection of the instance
 {

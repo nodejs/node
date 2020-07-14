@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const dnsPromises = require('dns').promises;
@@ -38,5 +38,5 @@ const dnsPromises = require('dns').promises;
     const result = await dnsPromises.resolve('example.org', rrtype);
     assert.ok(result !== undefined);
     assert.ok(result.length > 0);
-  })();
+  })().then(common.mustCall());
 }

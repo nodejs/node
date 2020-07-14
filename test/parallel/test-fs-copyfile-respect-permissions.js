@@ -49,7 +49,7 @@ function beforeEach() {
   const { source, dest, check } = beforeEach();
   (async () => {
     await assert.rejects(fs.promises.copyFile(source, dest), check);
-  })();
+  })().then(common.mustCall());
 }
 
 // Test callback API.

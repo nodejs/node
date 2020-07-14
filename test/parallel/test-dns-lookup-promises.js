@@ -135,5 +135,5 @@ async function lookupallNegative() {
     lookupNegative(),
     lookupallPositive(),
     lookupallNegative()
-  ]).then(common.mustCall());
-})();
+  ]);
+})().then(common.mustCall());

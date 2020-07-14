@@ -52,4 +52,4 @@ const expectedResult = tmpdir.path.trim().toLowerCase();
   );
 
   assert.deepStrictEqual([...new Set(results)], [expectedResult]);
-})();
+})().then(common.mustCall());

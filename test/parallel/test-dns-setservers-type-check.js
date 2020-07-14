@@ -95,7 +95,7 @@ const promiseResolver = new dns.promises.Resolver();
   // This should not throw any error.
   (async () => {
     setServers([ '127.0.0.1' ]);
-  })();
+  })().then(common.mustCall());
 
   [
     [null],
