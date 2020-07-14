@@ -277,6 +277,8 @@ For information about the governance of the Node.js project, see
 **Shelley Vohr** &lt;codebytere@gmail.com&gt; (she/her)
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt; (he/him)
+* [danielleadams](https://github.com/danielleadams) -
+**Danielle Adams** &lt;adamzdanielle@gmail.com&gt; (she/her)
 * [davisjam](https://github.com/davisjam) -
 **Jamie Davis** &lt;davisjam@vt.edu&gt; (he/him)
 * [devnexen](https://github.com/devnexen) -
