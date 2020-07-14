@@ -338,7 +338,7 @@
     },
     {
       'target_name': '<(node_core_target_name)',
-      'type': 'executable',
+      'type': 'shared_library',
 
       'defines': [
         'NODE_ARCH="<(target_arch)"',

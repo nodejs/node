@@ -300,7 +300,7 @@ double Win32Time::ToJSTime() {
   return static_cast<double>((t() - kTimeEpoc) / kTimeScaler);
 }
 
-
+#pragma comment(lib, "Winmm.lib")
 // Set timestamp to current time.
 void Win32Time::SetToCurrentTime() {
   // The default GetSystemTimeAsFileTime has a ~15.5ms resolution.
