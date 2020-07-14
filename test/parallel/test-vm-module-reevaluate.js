@@ -48,4 +48,4 @@ const finished = common.mustCall();
   }
 
   finished();
-})();
+})().then(common.mustCall());

@@ -133,4 +133,4 @@ const finished = common.mustCall();
   await circular();
   await circular2();
   finished();
-})();
+})().then(common.mustCall());

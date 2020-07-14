@@ -41,4 +41,4 @@ async function testInvalid() {
 (async () => {
   await testBasic();
   await testInvalid();
-})();
+})().then(common.mustCall());

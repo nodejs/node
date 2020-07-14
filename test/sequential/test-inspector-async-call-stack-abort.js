@@ -25,7 +25,7 @@ if (process.argv[2] === 'child') {
     await session.post('Debugger.setAsyncCallStackDepth', { maxDepth: 42 });
     strictEqual(enabled, 1);
     throw new Error(eyecatcher);
-  })();
+  })().finally(common.mustCall());
 } else {
   const { spawnSync } = require('child_process');
   const options = { encoding: 'utf8' };

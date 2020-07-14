@@ -1,8 +1,6 @@
-'use strict';
-
 // Flags: --experimental-vm-modules
-
-require('../common');
+'use strict';
+const common = require('../common');
 const assert = require('assert');
 
 const { SourceTextModule } = require('vm');
@@ -16,4 +14,4 @@ const { inspect } = require('util');
     '[Module] { a: <uninitialized>, b: undefined }');
   await m.evaluate();
   assert.strictEqual(inspect(m.namespace), '[Module] { a: 1, b: 2 }');
-})();
+})().then(common.mustCall());

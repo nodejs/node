@@ -708,4 +708,4 @@ dns.lookupService('0.0.0.0', 0, common.mustCall());
 (async function() {
   await dnsPromises.lookup(addresses.INET6_HOST, 6);
   await dnsPromises.lookup(addresses.INET_HOST, {});
-})();
+})().then(common.mustCall());

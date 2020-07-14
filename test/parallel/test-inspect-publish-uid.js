@@ -10,7 +10,7 @@ const { spawnSync } = require('child_process');
   await testArg('stderr');
   await testArg('http');
   await testArg('http,stderr');
-})();
+})().then(common.mustCall());
 
 async function testArg(argValue) {
   console.log('Checks ' + argValue + '..');
