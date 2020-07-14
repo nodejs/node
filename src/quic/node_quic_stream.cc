@@ -1,4 +1,5 @@
 #include "node_quic_stream-inl.h"  // NOLINT(build/include)
+#include "aliased_struct-inl.h"
 #include "async_wrap-inl.h"
 #include "debug_utils-inl.h"
 #include "env-inl.h"
@@ -29,6 +30,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::PropertyAttribute;
 using v8::String;
 using v8::Value;
 
@@ -48,10 +50,18 @@ QuicStream::QuicStream(
     session_(sess),
     stream_id_(stream_id),
     push_id_(push_id),
+    state_(sess->env()->isolate()),
     quic_state_(sess->quic_state()) {
   CHECK_NOT_NULL(sess);
   Debug(this, "Created");
   StreamBase::AttachToObject(GetObject());
+
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->state_string(),
+      state_.GetArrayBuffer(),
+      PropertyAttribute::ReadOnly).Check();
+
   ngtcp2_transport_params params;
   ngtcp2_conn_get_local_transport_params(session()->connection(), &params);
   IncrementStat(&QuicStreamStats::max_offset, params.initial_max_data);
@@ -119,55 +129,52 @@ std::string QuicStream::diagnostic_name() const {
 }
 
 void QuicStream::Destroy(QuicError* error) {
-  if (is_destroyed())
+  if (destroyed_)
     return;
+  destroyed_ = true;
 
-  QuicSession::SendSessionScope send_scope(session());
+  if (is_writable() || is_readable())
+    session()->ShutdownStream(id(), 0);
 
-  set_read_closed();
-  set_destroyed();
+  CancelPendingWrites();
 
-  // In case this stream is scheduled for sending, remove it
-  // from the schedule queue
-  Unschedule();
-
-  // If there is data currently buffered in the streambuf_,
-  // then cancel will call out to invoke an arbitrary
-  // JavaScript callback (the on write callback). Within
-  // that callback, however, the QuicStream will no longer
-  // be usable to send or receive data.
-  streambuf_.End();
-  streambuf_.Cancel();
-  CHECK_EQ(streambuf_.length(), 0);
-
-  // Attempt to send a shutdown signal to the remote peer
-  ResetStream(error != nullptr ? error->code : NGTCP2_NO_ERROR);
-
-  // The QuicSession maintains a map of std::unique_ptrs to
-  // QuicStream instances. Removing this here will cause
-  // this QuicStream object to be deconstructed, so the
-  // QuicStream object will no longer exist after this point.
   session_->RemoveStream(stream_id_);
 }
 
 // Do shutdown is called when the JS stream writable side is closed.
 // If we're not within an ngtcp2 callback, this will trigger the
-// QuicSession to send any pending data. Any time after this is
-// called, a final stream frame will be sent for this QuicStream,
-// but it may not be sent right away.
+// QuicSession to send any pending data. If a final stream frame
+// has not already been sent, it will be after this.
 int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
   if (is_destroyed())
     return UV_EPIPE;
 
+  // If the fin bit has already been sent, we can return
+  // immediately because there's nothing else to do. The
+  // _final callback will be invoked immediately.
+  if (state_->fin_sent || !is_writable()) {
+    Debug(this, "Shutdown write immediately");
+    return 1;
+  }
+  Debug(this, "Deferred shutdown. Waiting for fin sent");
+
+  CHECK_NULL(shutdown_done_);
+  CHECK_NOT_NULL(req_wrap);
+  shutdown_done_ = std::move([=](int status) {
+    CHECK_NOT_NULL(req_wrap);
+    shutdown_done_ = nullptr;
+    req_wrap->Done(status);
+  });
+
   QuicSession::SendSessionScope send_scope(session());
 
-  if (is_writable()) {
-    Debug(this, "Shutdown writable side");
-    RecordTimestamp(&QuicStreamStats::closing_at);
-    streambuf_.End();
-    session()->ResumeStream(stream_id_);
-  }
-  return 1;
+  Debug(this, "Shutdown writable side");
+  RecordTimestamp(&QuicStreamStats::closing_at);
+  state_->write_ended = 1;
+  streambuf_.End();
+  session()->ResumeStream(stream_id_);
+
+  return 0;
 }
 
 int QuicStream::DoWrite(
@@ -176,6 +183,7 @@ int QuicStream::DoWrite(
     size_t nbufs,
     uv_stream_t* send_handle) {
   CHECK_NULL(send_handle);
+  CHECK(!streambuf_.is_ended());
 
   // A write should not have happened if we've been destroyed or
   // the QuicStream is no longer (or was never) writable.
@@ -218,6 +226,16 @@ int QuicStream::DoWrite(
         req_wrap->Done(status);
       });
 
+  // If end() was called on the JS side, the write_ended flag
+  // will have been set. This allows us to know early if this
+  // is the final chunk. But this is only only to be triggered
+  // if end() was called with a final chunk of data to write.
+  // Otherwise, we have to wait for DoShutdown to be called.
+  if (state_->write_ended == 1) {
+    RecordTimestamp(&QuicStreamStats::closing_at);
+    streambuf_.End();
+  }
+
   session()->ResumeStream(stream_id_);
 
   return 0;
@@ -234,8 +252,8 @@ bool QuicStream::IsClosing() {
 int QuicStream::ReadStart() {
   CHECK(!is_destroyed());
   CHECK(is_readable());
-  set_read_started();
-  set_read_paused(false);
+  state_->read_started = 1;
+  state_->read_paused = 0;
   IncrementStat(
       &QuicStreamStats::max_offset,
       inbound_consumed_data_while_paused_);
@@ -246,7 +264,7 @@ int QuicStream::ReadStart() {
 int QuicStream::ReadStop() {
   CHECK(!is_destroyed());
   CHECK(is_readable());
-  set_read_paused();
+  state_->read_paused = 1;
   return 0;
 }
 
@@ -348,7 +366,7 @@ void QuicStream::ReceiveData(
       datalen -= avail;
       // Capture read_paused before EmitRead in case user code callbacks
       // alter the state when EmitRead is called.
-      bool read_paused = is_read_paused();
+      bool read_paused = state_->read_paused == 1;
       EmitRead(avail, buf);
       // Reading can be paused while we are processing. If that's
       // the case, we still want to acknowledge the current bytes

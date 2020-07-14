@@ -574,28 +574,57 @@ class QuicApplication : public MemoryRetainer,
   inline explicit QuicApplication(QuicSession* session);
   virtual ~QuicApplication() = default;
 
+  // The QuicSession will call Initialize as soon as the TLS
+  // secrets have been set. See QuicCryptoContext::OnSecrets
   virtual bool Initialize() = 0;
+
+  // QuicSession will forward all received stream data immediately
+  // on to the QuicApplication. The only additional processing the
+  // QuicSession does is to automatically adjust the QuicSession-level
+  // flow control window. It is up to the QuicApplication to do
+  // the same for the QuicStream-level flow control.
+  //
+  // flags are passed on directly from ngtcp2. The most important
+  // of which here is NGTCP2_STREAM_DATA_FLAG_FIN, which indicates
+  // that this is the final chunk of data that the peer will send
+  // for this stream.
+  //
+  // It is also possible for the NGTCP2_STREAM_DATA_FLAG_0RTT flag
+  // to be set, indicating that this chunk of data was received in
+  // a 0RTT packet before the TLS handshake completed. This would
+  // indicate that it is not as secure and could be replayed by
+  // an attacker. We're not currently making use of that flag.
   virtual bool ReceiveStreamData(
       uint32_t flags,
       int64_t stream_id,
       const uint8_t* data,
       size_t datalen,
       uint64_t offset) = 0;
+
   virtual void AcknowledgeStreamData(
       int64_t stream_id,
       uint64_t offset,
-      size_t datalen) { Acknowledge(stream_id, offset, datalen); }
+      size_t datalen) {
+    Acknowledge(stream_id, offset, datalen);
+  }
+
   virtual bool BlockStream(int64_t id) { return true; }
+
   virtual void ExtendMaxStreamsRemoteUni(uint64_t max_streams) {}
+
   virtual void ExtendMaxStreamsRemoteBidi(uint64_t max_streams) {}
+
   virtual void ExtendMaxStreamData(int64_t stream_id, uint64_t max_data) {}
+
   virtual void ResumeStream(int64_t stream_id) {}
+
   virtual void SetSessionTicketAppData(const SessionTicketAppData& app_data) {
     // TODO(@jasnell): Different QUIC applications may wish to set some
     // application data in the session ticket (e.g. http/3 would set
     // server settings in the application data). For now, doing nothing
     // as I'm just adding the basic mechanism.
   }
+
   virtual SessionTicketAppData::Status GetSessionTicketAppData(
       const SessionTicketAppData& app_data,
       SessionTicketAppData::Flag flag) {
@@ -607,28 +636,34 @@ class QuicApplication : public MemoryRetainer,
       SessionTicketAppData::Status::TICKET_USE_RENEW :
       SessionTicketAppData::Status::TICKET_USE;
   }
+
   virtual void StreamHeaders(
       int64_t stream_id,
       int kind,
       const std::vector<std::unique_ptr<QuicHeader>>& headers,
       int64_t push_id = 0);
+
   virtual void StreamClose(
       int64_t stream_id,
       uint64_t app_error_code);
-  virtual void StreamOpen(int64_t stream_id);
+
   virtual void StreamReset(
       int64_t stream_id,
       uint64_t app_error_code);
+
   virtual bool SubmitInformation(
       int64_t stream_id,
       v8::Local<v8::Array> headers) { return false; }
+
   virtual bool SubmitHeaders(
       int64_t stream_id,
       v8::Local<v8::Array> headers,
       uint32_t flags) { return false; }
+
   virtual bool SubmitTrailers(
       int64_t stream_id,
       v8::Local<v8::Array> headers) { return false; }
+
   virtual BaseObjectPtr<QuicStream> SubmitPush(
       int64_t stream_id,
       v8::Local<v8::Array> headers) {
@@ -671,7 +706,7 @@ class QuicApplication : public MemoryRetainer,
   virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;
   virtual bool ShouldSetFin(const StreamData& data) = 0;
 
-  inline ssize_t WriteVStream(
+  ssize_t WriteVStream(
       QuicPathStorage* path,
       uint8_t* buf,
       ssize_t* ndatalen,
@@ -926,7 +961,7 @@ class QuicSession final : public AsyncWrap,
   inline bool is_handshake_completed() const;
 
   // Checks to see if data needs to be retransmitted
-  void MaybeTimeout();
+  void OnRetransmitTimeout();
 
   // Called when the session has been determined to have been
   // idle for too long and needs to be torn down.
@@ -966,6 +1001,8 @@ class QuicSession final : public AsyncWrap,
 
   // Causes pending ngtcp2 frames to be serialized and sent
   void SendPendingData();
+
+  inline void ShutdownStream(int64_t stream_id, uint64_t code);
 
   inline bool SendPacket(
       std::unique_ptr<QuicPacket> packet,
@@ -1056,6 +1093,8 @@ class QuicSession final : public AsyncWrap,
 
   void RemoveListener(QuicSessionListener* listener);
 
+  inline bool is_unable_to_send_packets();
+
   inline void set_connection_id_strategy(
       ConnectionIDStrategy strategy);
 
@@ -1089,7 +1128,7 @@ class QuicSession final : public AsyncWrap,
     SendSessionScope(const SendSessionScope& other) = delete;
 
     ~SendSessionScope() {
-      if (Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()) ||
+      if (NgCallbackScope::InNgCallbackScope(session_.get()) ||
           session_->is_in_closing_period() ||
           session_->is_in_draining_period()) {
         return;
@@ -1121,7 +1160,7 @@ class QuicSession final : public AsyncWrap,
 
     ~ConnectionCloseScope() {
       if (silent_ ||
-          Ngtcp2CallbackScope::InNgtcp2CallbackScope(session_.get()) ||
+          NgCallbackScope::InNgCallbackScope(session_.get()) ||
           session_->is_in_closing_period() ||
           session_->is_in_draining_period()) {
         return;
@@ -1138,21 +1177,21 @@ class QuicSession final : public AsyncWrap,
   // Tracks whether or not we are currently within an ngtcp2 callback
   // function. Certain ngtcp2 APIs are not supposed to be called when
   // within a callback. We use this as a gate to check.
-  class Ngtcp2CallbackScope final {
+  class NgCallbackScope final {
    public:
-    explicit Ngtcp2CallbackScope(QuicSession* session) : session_(session) {
+    explicit NgCallbackScope(QuicSession* session) : session_(session) {
       CHECK(session_);
-      CHECK(!InNgtcp2CallbackScope(session));
+      CHECK(!InNgCallbackScope(session));
       session_->set_in_ngtcp2_callback();
     }
 
-    Ngtcp2CallbackScope(const Ngtcp2CallbackScope& other) = delete;
+    NgCallbackScope(const NgCallbackScope& other) = delete;
 
-    ~Ngtcp2CallbackScope() {
+    ~NgCallbackScope() {
       session_->set_in_ngtcp2_callback(false);
     }
 
-    static bool InNgtcp2CallbackScope(QuicSession* session) {
+    static bool InNgCallbackScope(QuicSession* session) {
       return session->is_in_ngtcp2_callback();
     }
 
@@ -1192,36 +1231,32 @@ class QuicSession final : public AsyncWrap,
       v8::Local<v8::Value> dcid,
       QlogMode qlog);
 
-  inline void InitApplication();
+  bool InitApplication();
 
   void AckedStreamDataOffset(
       int64_t stream_id,
       uint64_t offset,
       uint64_t datalen);
 
-  inline void AssociateCID(const QuicCID& cid);
-
-  inline void DisassociateCID(const QuicCID& cid);
-
-  inline void ExtendMaxStreamData(int64_t stream_id, uint64_t max_data);
+  void ExtendMaxStreamData(int64_t stream_id, uint64_t max_data);
 
   void ExtendMaxStreams(bool bidi, uint64_t max_streams);
 
-  inline void ExtendMaxStreamsUni(uint64_t max_streams);
+  void ExtendMaxStreamsUni(uint64_t max_streams);
 
-  inline void ExtendMaxStreamsBidi(uint64_t max_streams);
+  void ExtendMaxStreamsBidi(uint64_t max_streams);
 
-  inline void ExtendMaxStreamsRemoteUni(uint64_t max_streams);
+  void ExtendMaxStreamsRemoteUni(uint64_t max_streams);
 
-  inline void ExtendMaxStreamsRemoteBidi(uint64_t max_streams);
+  void ExtendMaxStreamsRemoteBidi(uint64_t max_streams);
 
-  bool GetNewConnectionID(ngtcp2_cid* cid, uint8_t* token, size_t cidlen);
+  void GetNewConnectionID(ngtcp2_cid* cid, uint8_t* token, size_t cidlen);
 
-  inline void GetConnectionCloseInfo();
+  void GetConnectionCloseInfo();
 
-  inline void HandshakeCompleted();
+  void HandshakeCompleted();
 
-  inline void HandshakeConfirmed();
+  void HandshakeConfirmed();
 
   void PathValidation(
       const ngtcp2_path* path,
@@ -1229,17 +1264,11 @@ class QuicSession final : public AsyncWrap,
 
   bool ReceivePacket(ngtcp2_path* path, const uint8_t* data, ssize_t nread);
 
-  inline void RemoveConnectionID(const QuicCID& cid);
-
   void ScheduleRetransmit();
 
   bool SendPacket(std::unique_ptr<QuicPacket> packet);
 
-  inline void set_local_address(const ngtcp2_addr* addr);
-
   void StreamClose(int64_t stream_id, uint64_t app_error_code);
-
-  void StreamOpen(int64_t stream_id);
 
   void StreamReset(
       int64_t stream_id,
@@ -1257,9 +1286,21 @@ class QuicSession final : public AsyncWrap,
 
   void UpdateDataStats();
 
-  inline void UpdateEndpoint(const ngtcp2_path& path);
+  void UpdateEndpoint(const ngtcp2_path& path);
 
-  inline void VersionNegotiation(const uint32_t* sv, size_t nsv);
+  void VersionNegotiation(const uint32_t* sv, size_t nsv);
+
+  void UpdateIdleTimer();
+
+  void UpdateClosingTimer();
+
+  void UpdateRetransmitTimer(uint64_t timeout);
+
+  bool StartClosingPeriod();
+
+  void IncrementConnectionCloseAttempts();
+
+  bool ShouldAttemptConnectionClose();
 
   static int OnReceiveCryptoData(
       ngtcp2_conn* conn,
@@ -1402,54 +1443,12 @@ class QuicSession final : public AsyncWrap,
 
   static void OnQlogWrite(void* user_data, const void* data, size_t len);
 
-  void UpdateIdleTimer();
-
-  void UpdateClosingTimer();
-
-  inline void UpdateRetransmitTimer(uint64_t timeout);
-
-  inline void StopRetransmitTimer();
-
-  inline void StopIdleTimer();
-
-  bool StartClosingPeriod();
-
 #define V(id, _) QUICSESSION_FLAG_##id,
   enum QuicSessionFlags : uint32_t {
     QUICSESSION_FLAGS(V)
     QUICSESSION_FLAG_COUNT
   };
 #undef V
-
-  void IncrementConnectionCloseAttempts() {
-    if (connection_close_attempts_ < kMaxSizeT)
-      connection_close_attempts_++;
-  }
-
-  bool ShouldAttemptConnectionClose() {
-    if (connection_close_attempts_ == connection_close_limit_) {
-      if (connection_close_limit_ * 2 <= kMaxSizeT)
-        connection_close_limit_ *= 2;
-      else
-        connection_close_limit_ = kMaxSizeT;
-      return true;
-    }
-    return false;
-  }
-
-  typedef ssize_t(*ngtcp2_close_fn)(
-    ngtcp2_conn* conn,
-    ngtcp2_path* path,
-    uint8_t* dest,
-    size_t destlen,
-    uint64_t error_code,
-    ngtcp2_tstamp ts);
-
-  static inline ngtcp2_close_fn SelectCloseFn(uint32_t family) {
-    return family == QUIC_ERROR_APPLICATION ?
-        ngtcp2_conn_write_application_close :
-        ngtcp2_conn_write_connection_close;
-  }
 
   // Select the QUIC Application based on the configured ALPN identifier
   QuicApplication* SelectApplication(QuicSession* session);

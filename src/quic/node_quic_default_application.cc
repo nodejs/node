@@ -39,44 +39,34 @@ int IsEmpty(const ngtcp2_vec* vec, size_t cnt) {
 }  // anonymous namespace
 
 DefaultApplication::DefaultApplication(
-    QuicSession* session) :
-    QuicApplication(session) {}
+    QuicSession* session)
+    : QuicApplication(session) {}
 
 bool DefaultApplication::Initialize() {
   if (needs_init()) {
     Debug(session(), "Default QUIC Application Initialized");
     set_init_done();
   }
-  return needs_init();
+  return true;
 }
 
 void DefaultApplication::ScheduleStream(int64_t stream_id) {
   BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
-  Debug(session(), "Scheduling stream %" PRIu64, stream_id);
-  if (LIKELY(stream))
+  if (LIKELY(stream && !stream->is_destroyed())) {
+    Debug(session(), "Scheduling stream %" PRIu64, stream_id);
     stream->Schedule(&stream_queue_);
+  }
 }
 
 void DefaultApplication::UnscheduleStream(int64_t stream_id) {
   BaseObjectPtr<QuicStream> stream = session()->FindStream(stream_id);
-  Debug(session(), "Unscheduling stream %" PRIu64, stream_id);
-  if (LIKELY(stream))
+  if (LIKELY(stream)) {
+    Debug(session(), "Unscheduling stream %" PRIu64, stream_id);
     stream->Unschedule();
-}
-
-void DefaultApplication::StreamClose(
-    int64_t stream_id,
-    uint64_t app_error_code) {
-  if (!session()->HasStream(stream_id))
-    return;
-  if (app_error_code == 0)
-    app_error_code = NGTCP2_APP_NOERROR;
-  UnscheduleStream(stream_id);
-  QuicApplication::StreamClose(stream_id, app_error_code);
+  }
 }
 
 void DefaultApplication::ResumeStream(int64_t stream_id) {
-  Debug(session(), "Stream %" PRId64 " has data to send", stream_id);
   ScheduleStream(stream_id);
 }
 
@@ -93,10 +83,7 @@ bool DefaultApplication::ReceiveStreamData(
   if (!stream) {
     // Shutdown the stream explicitly if the session is being closed.
     if (session()->is_graceful_closing()) {
-      ngtcp2_conn_shutdown_stream(
-          session()->connection(),
-          stream_id,
-          NGTCP2_ERR_CLOSING);
+      session()->ShutdownStream(stream_id, NGTCP2_ERR_CLOSING);
       return true;
     }
 
@@ -112,6 +99,11 @@ bool DefaultApplication::ReceiveStreamData(
     stream = session()->CreateStream(stream_id);
   }
   CHECK(stream);
+
+  // If the stream ended up being destroyed immediately after
+  // creation, just skip the data processing and return.
+  if (UNLIKELY(stream->is_destroyed()))
+    return true;
 
   stream->ReceiveData(flags, data, datalen, offset);
   return true;
@@ -141,6 +133,7 @@ int DefaultApplication::GetStreamData(StreamData* stream_data) {
       case bob::Status::STATUS_END:
         stream_data->fin = 1;
     }
+
     stream_data->count = count;
 
     if (count > 0) {
