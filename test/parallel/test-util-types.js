@@ -1,6 +1,6 @@
 // Flags: --experimental-vm-modules --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { types, inspect } = require('util');
 const vm = require('vm');
@@ -280,4 +280,4 @@ for (const [ value, _method ] of [
   await m.link(() => 0);
   await m.evaluate();
   assert.ok(types.isModuleNamespaceObject(m.namespace));
-})();
+})().then(common.mustCall());

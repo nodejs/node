@@ -1,5 +1,5 @@
 // Flags: --experimental-import-meta-resolve
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import assert from 'assert';
 
 const dirname = import.meta.url.slice(0, import.meta.url.lastIndexOf('/') + 1);
@@ -21,4 +21,4 @@ const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) +
   assert.strictEqual(await import.meta.resolve('../fixtures/'), fixtures);
   assert.strictEqual(await import.meta.resolve('baz/', fixtures),
                      fixtures + 'node_modules/baz/');
-})();
+})().then(mustCall());

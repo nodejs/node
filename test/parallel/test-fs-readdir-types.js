@@ -77,7 +77,7 @@ fs.readdir(readdirDir, {
     withFileTypes: true
   });
   assertDirents(dirents);
-})();
+})().then(common.mustCall());
 
 // Check for correct types when the binding returns unknowns
 const UNKNOWN = constants.UV_DIRENT_UNKNOWN;

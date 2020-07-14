@@ -233,4 +233,4 @@ const finished = common.mustCall();
   await checkInvalidOptionForEvaluate();
   checkInvalidCachedData();
   finished();
-})();
+})().then(common.mustCall());

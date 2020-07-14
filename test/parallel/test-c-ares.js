@@ -40,7 +40,7 @@ const dnsPromises = dns.promises;
   res = await dnsPromises.lookup('::1');
   assert.strictEqual(res.address, '::1');
   assert.strictEqual(res.family, 6);
-})();
+})().then(common.mustCall());
 
 // Try resolution without callback
 
@@ -94,5 +94,5 @@ if (!common.isWindows && !common.isIBMi) {
 
   (async function() {
     assert.ok(Array.isArray(await dnsPromises.reverse('127.0.0.1')));
-  })();
+  })().then(common.mustCall());
 }

@@ -1,6 +1,6 @@
 // Flags: --experimental-wasi-unstable-preview1 --experimental-wasm-bigint
 'use strict';
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const { strictEqual } = require('assert');
 const { closeSync, openSync, readFileSync, writeFileSync } = require('fs');
@@ -31,4 +31,4 @@ const importObject = { wasi_snapshot_preview1: wasi.wasiImport };
   closeSync(stderr);
   strictEqual(readFileSync(stdoutFile, 'utf8').trim(), 'x'.repeat(31));
   strictEqual(readFileSync(stderrFile, 'utf8').trim(), '');
-})();
+})().then(common.mustCall());

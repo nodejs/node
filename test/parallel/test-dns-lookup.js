@@ -109,7 +109,7 @@ assert.throws(() => {
     all: false
   });
   assert.deepStrictEqual(res, { address: '127.0.0.1', family: 4 });
-})();
+})().then(common.mustCall());
 
 dns.lookup(false, {
   hints: 0,
