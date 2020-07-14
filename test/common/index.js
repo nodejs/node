@@ -776,8 +776,6 @@ const common = {
     return localhostIPv4;
   },
 
-  get localhostIPv6() { return '::1'; },
-
   // opensslCli defined lazily to reduce overhead of spawnSync
   get opensslCli() {
     if (opensslCli !== null) return opensslCli;
