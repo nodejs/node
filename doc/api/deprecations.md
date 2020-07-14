@@ -2719,12 +2719,24 @@ native modules. It was incomplete so far and instead it's better to rely upon
 `require('module').builtinModules`.
 
 <a id="DEP0143"></a>
-### DEP0143: `module.parent`
+### DEP0143: `Transform._transformState`
 <!-- YAML
 changes:
   - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33126
     description: Runtime deprecation.
+-->
+Type: Runtime
+`Transform._transformState` will be removed in future versions where it is
+no longer required due to simplification of the implementation.
+
+<a id="DEP0144"></a>
+### DEP0144: `module.parent`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/32217
+    description: Documentation-only deprecation.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2751,12 +2763,12 @@ const moduleParents = Object.values(require.cache)
   .filter((m) => m.children.includes(module));
 ```
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: `socket.bufferSize`
+<a id="DEP0145"></a>
+### DEP0145: `socket.bufferSize`
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34088
     description: Documentation-only deprecation.
 -->
 
