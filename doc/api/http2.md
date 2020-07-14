@@ -10,6 +10,8 @@ changes:
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/http2.js -->
+
 The `http2` module provides an implementation of the [HTTP/2][] protocol. It
 can be accessed using:
 
@@ -49,7 +51,7 @@ server.on('error', (err) => console.error(err));
 server.on('stream', (stream, headers) => {
   // stream is a Duplex
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.end('<h1>Hello World</h1>');
@@ -119,7 +121,7 @@ User code will not create `Http2Session` instances directly. Server-side
 new HTTP/2 connection is received. Client-side `Http2Session` instances are
 created using the `http2.connect()` method.
 
-#### `Http2Session` and Sockets
+#### `Http2Session` and sockets
 
 Every `Http2Session` instance is associated with exactly one [`net.Socket`][] or
 [`tls.TLSSocket`][] when it is created. When either the `Socket` or the
@@ -269,7 +271,7 @@ session.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     ':status': 200,
-    'content-type': 'text/plain'
+    'content-type': 'text/plain; charset=utf-8'
   });
   stream.write('hello ');
   stream.end('world');
@@ -289,7 +291,7 @@ const server = http2.createServer();
 
 server.on('stream', (stream, headers) => {
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.on('error', (error) => console.error(error));
@@ -887,6 +889,18 @@ All `Http2Stream` instances are [`Duplex`][] streams. The `Writable` side of the
 `Duplex` is used to send data to the connected peer, while the `Readable` side
 is used to receive data sent by the connected peer.
 
+The default text character encoding for all `Http2Stream`s is UTF-8. As a best
+practice, it is recommended that when using an `Http2Stream` to send text,
+the `'content-type'` header should be set and should identify the character
+encoding used.
+
+```js
+stream.respond({
+  'content-type': 'text/html; charset=utf-8',
+  ':status': 200
+});
+```
+
 #### `Http2Stream` Lifecycle
 
 ##### Creation
@@ -981,6 +995,15 @@ send a frame. When invoked, the handler function will receive an integer
 argument identifying the frame type, and an integer argument identifying the
 error code. The `Http2Stream` instance will be destroyed immediately after the
 `'frameError'` event is emitted.
+
+#### Event: `'ready'`
+<!-- YAML
+added: v8.4.0
+-->
+
+The `'ready'` event is emitted when the `Http2Stream` has been opened, has
+been assigned an `id`, and can be used. The listener does not expect any
+arguments.
 
 #### Event: `'timeout'`
 <!-- YAML
@@ -1498,7 +1521,7 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain'
+    'content-type': 'text/plain; charset=utf-8'
   };
   stream.respondWithFD(fd, headers);
   stream.on('close', () => fs.closeSync(fd));
@@ -1543,7 +1566,7 @@ server.on('stream', (stream) => {
   const headers = {
     'content-length': stat.size,
     'last-modified': stat.mtime.toUTCString(),
-    'content-type': 'text/plain'
+    'content-type': 'text/plain; charset=utf-8'
   };
   stream.respondWithFD(fd, headers, { waitForTrailers: true });
   stream.on('wantTrailers', () => {
@@ -1613,7 +1636,7 @@ server.on('stream', (stream) => {
   }
 
   stream.respondWithFile('/some/file',
-                         { 'content-type': 'text/plain' },
+                         { 'content-type': 'text/plain; charset=utf-8' },
                          { statCheck, onError });
 });
 ```
@@ -1633,7 +1656,7 @@ server.on('stream', (stream) => {
     return false; // Cancel the send operation
   }
   stream.respondWithFile('/some/file',
-                         { 'content-type': 'text/plain' },
+                         { 'content-type': 'text/plain; charset=utf-8' },
                          { statCheck });
 });
 ```
@@ -1663,7 +1686,7 @@ const http2 = require('http2');
 const server = http2.createServer();
 server.on('stream', (stream) => {
   stream.respondWithFile('/some/file',
-                         { 'content-type': 'text/plain' },
+                         { 'content-type': 'text/plain; charset=utf-8' },
                          { waitForTrailers: true });
   stream.on('wantTrailers', () => {
     stream.sendTrailers({ ABC: 'some value to send' });
@@ -1755,7 +1778,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8'
   });
   stream.write('hello ');
   stream.end('world');
@@ -1918,7 +1941,7 @@ server.on('stream', (stream, headers, flags) => {
   // ...
   stream.respond({
     [HTTP2_HEADER_STATUS]: 200,
-    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain'
+    [HTTP2_HEADER_CONTENT_TYPE]: 'text/plain; charset=utf-8'
   });
   stream.write('hello ');
   stream.end('world');
@@ -2127,7 +2150,7 @@ const server = http2.createServer();
 
 server.on('stream', (stream, headers) => {
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.end('<h1>Hello World</h1>');
@@ -2253,7 +2276,7 @@ const server = http2.createSecureServer(options);
 
 server.on('stream', (stream, headers) => {
   stream.respond({
-    'content-type': 'text/html',
+    'content-type': 'text/html; charset=utf-8',
     ':status': 200
   });
   stream.end('<h1>Hello World</h1>');
@@ -2366,7 +2389,7 @@ client.close();
 added: v8.4.0
 -->
 
-#### Error Codes for `RST_STREAM` and `GOAWAY`
+#### Error codes for `RST_STREAM` and `GOAWAY`
 <a id="error_codes"></a>
 
 | Value  | Name                | Constant                                      |
@@ -2432,7 +2455,7 @@ added: v8.4.0
 Returns a [HTTP/2 Settings Object][] containing the deserialized settings from
 the given `Buffer` as generated by `http2.getPackedSettings()`.
 
-### Headers Object
+### Headers object
 
 Headers are represented as own-properties on JavaScript objects. The property
 keys will be serialized to lower-case. Property values should be strings (if
@@ -2480,7 +2503,7 @@ server.on('stream', (stream, headers) => {
 });
 ```
 
-### Settings Object
+### Settings object
 <!-- YAML
 added: v8.4.0
 changes:
@@ -2527,7 +2550,7 @@ properties.
 
 All additional properties on the settings object are ignored.
 
-### Error Handling
+### Error handling
 
 There are several types of error conditions that may arise when using the
 `http2` module:
@@ -2667,7 +2690,7 @@ req.on('end', () => {
 req.end('Jane');
 ```
 
-### The Extended `CONNECT` Protocol
+### The extended `CONNECT` protocol
 
 [RFC 8441][] defines an "Extended CONNECT Protocol" extension to HTTP/2 that
 may be used to bootstrap the use of an `Http2Stream` using the `CONNECT`
@@ -2714,7 +2737,7 @@ const http2 = require('http2');
 const server = http2.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('ok');
 });
 ```
@@ -3025,13 +3048,12 @@ added: v8.4.0
 
 * {string}
 
-Request URL string. This contains only the URL that is
-present in the actual HTTP request. If the request is:
+Request URL string. This contains only the URL that is present in the actual
+HTTP request. If the request is:
 
 ```http
-GET /status?name=ryan HTTP/1.1\r\n
-Accept: text/plain\r\n
-\r\n
+GET /status?name=ryan HTTP/1.1
+Accept: text/plain
 ```
 
 Then `request.url` will be:
@@ -3041,7 +3063,7 @@ Then `request.url` will be:
 '/status?name=ryan'
 ```
 
-To parse the url into its parts `require('url').parse(request.url)`
+To parse the url into its parts, `require('url').parse(request.url)`
 can be used:
 
 ```console
@@ -3300,7 +3322,7 @@ in the to-be-sent headers, its value will be replaced. Use an array of strings
 here to send multiple headers with the same name.
 
 ```js
-response.setHeader('Content-Type', 'text/html');
+response.setHeader('Content-Type', 'text/html; charset=utf-8');
 ```
 
 or
@@ -3319,9 +3341,9 @@ to [`response.writeHead()`][] given precedence.
 ```js
 // Returns content-type = text/plain
 const server = http2.createServer((req, res) => {
-  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('ok');
 });
 ```
@@ -3503,7 +3525,7 @@ will be emitted.
 const body = 'hello world';
 response.writeHead(200, {
   'Content-Length': Buffer.byteLength(body),
-  'Content-Type': 'text/plain' });
+  'Content-Type': 'text/plain; charset=utf-8' });
 ```
 
 `Content-Length` is given in bytes not characters. The
@@ -3526,9 +3548,9 @@ to [`response.writeHead()`][] given precedence.
 ```js
 // Returns content-type = text/plain
 const server = http2.createServer((req, res) => {
-  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('X-Foo', 'bar');
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
   res.end('ok');
 });
 ```
@@ -3554,7 +3576,7 @@ given [`Http2Stream`][] on a newly created `Http2ServerResponse` as the callback
 parameter if successful. When `Http2ServerRequest` is closed, the callback is
 called with an error `ERR_HTTP2_INVALID_STREAM`.
 
-## Collecting HTTP/2 Performance Metrics
+## Collecting HTTP/2 performance metrics
 
 The [Performance Observer][] API can be used to collect basic performance
 metrics for each `Http2Session` and `Http2Stream` instance.

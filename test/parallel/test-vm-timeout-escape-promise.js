@@ -1,8 +1,8 @@
 'use strict';
 
 // https://github.com/nodejs/node/issues/3020
-// Promises, nextTick, and queueMicrotask allow code to escape the timeout
-// set for runInContext, runInNewContext, and runInThisContext
+// Promises used to allow code to escape the timeout
+// set for runInContext, runInNewContext, and runInThisContext.
 
 require('../common');
 const assert = require('assert');
@@ -26,12 +26,12 @@ function loop() {
 
 assert.throws(() => {
   vm.runInNewContext(
-    'Promise.resolve().then(loop); loop();',
+    'Promise.resolve().then(() => loop()); loop();',
     {
       hrtime,
       loop
     },
-    { timeout: 5 }
+    { timeout: 5, microtaskMode: 'afterEvaluate' }
   );
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',

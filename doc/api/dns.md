@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/dns.js -->
+
 The `dns` module enables name resolution. For example, use it to look up IP
 addresses of host names.
 
@@ -223,10 +225,9 @@ changes:
 
 The following flags can be passed as hints to [`dns.lookup()`][].
 
-* `dns.ADDRCONFIG`: Returned address types are determined by the types
-of addresses supported by the current system. For example, IPv4 addresses
-are only returned if the current system has at least one IPv4 address
-configured. Loopback addresses are not considered.
+* `dns.ADDRCONFIG`: Limits returned address types to the types of non-loopback
+addresses configured on the system. For example, IPv4 addresses are only
+returned if the current system has at least one IPv4 address configured.
 * `dns.V4MAPPED`: If the IPv6 family was specified, but no IPv6 addresses were
 found, then return IPv4 mapped IPv6 addresses. It is not supported
 on some operating systems (e.g FreeBSD 10.1).
@@ -615,13 +616,13 @@ The [`dns.setServers()`][] method affects only [`dns.resolve()`][],
 [`dns.lookup()`][]).
 
 This method works much like
-[resolve.conf](http://man7.org/linux/man-pages/man5/resolv.conf.5.html).
+[resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
 `NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the
 earlier ones time out or result in some other error.
 
-## DNS Promises API
+## DNS promises API
 
 The `dns.promises` API provides an alternative set of asynchronous DNS methods
 that return `Promise` objects rather than using callbacks. The API is accessible
@@ -1079,7 +1080,7 @@ The `dnsPromises.setServers()` method must not be called while a DNS query is in
 progress.
 
 This method works much like
-[resolve.conf](http://man7.org/linux/man-pages/man5/resolv.conf.5.html).
+[resolve.conf](https://man7.org/linux/man-pages/man5/resolv.conf.5.html).
 That is, if attempting to resolve with the first server provided results in a
 `NOTFOUND` error, the `resolve()` method will *not* attempt to resolve with
 subsequent servers provided. Fallback DNS servers will only be used if the

@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/crypto.js -->
+
 The `crypto` module provides cryptographic functionality that includes a set of
 wrappers for OpenSSL's hash, HMAC, cipher, decipher, sign, and verify functions.
 
@@ -1585,7 +1587,7 @@ added: v6.3.0
 
 * Returns: {Object} An object containing commonly used constants for crypto and
   security related operations. The specific constants currently defined are
-  described in [Crypto Constants][].
+  described in [Crypto constants][].
 
 ### `crypto.DEFAULT_ENCODING`
 <!-- YAML
@@ -3045,7 +3047,7 @@ key may be passed for `key`.
 
 ## Notes
 
-### Legacy Streams API (prior to Node.js 0.10)
+### Legacy streams API (prior to Node.js 0.10)
 
 The Crypto module was added to Node.js before there was the concept of a
 unified Stream API, and before there were [`Buffer`][] objects for handling
@@ -3056,7 +3058,7 @@ and returned `'latin1'` encoded strings by default rather than `Buffer`s. This
 default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
 instead.
 
-### Recent ECDH Changes
+### Recent ECDH changes
 
 Usage of `ECDH` with non-dynamically generated key pairs has been simplified.
 Now, [`ecdh.setPrivateKey()`][] can be called with a preselected private key
@@ -3164,12 +3166,12 @@ try {
 console.log(receivedPlaintext);
 ```
 
-## Crypto Constants
+## Crypto constants
 
 The following constants exported by `crypto.constants` apply to various uses of
 the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 
-### OpenSSL Options
+### OpenSSL options
 
 <table>
   <tr>
@@ -3325,7 +3327,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
 </table>
 
-### OpenSSL Engine Constants
+### OpenSSL engine constants
 
 <table>
   <tr>
@@ -3378,7 +3380,9 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
 </table>
 
-### Other OpenSSL Constants
+### Other OpenSSL constants
+
+See the [list of SSL OP Flags][] for details.
 
 <table>
   <tr>
@@ -3458,7 +3462,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
 </table>
 
-### Node.js Crypto Constants
+### Node.js crypto constants
 
 <table>
   <tr>
@@ -3529,7 +3533,7 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #crypto_ccm_mode
 [Caveats]: #crypto_support_for_weak_or_compromised_algorithms
-[Crypto Constants]: #crypto_crypto_constants_1
+[Crypto constants]: #crypto_crypto_constants_1
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [HTML5's `keygen` element]: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/keygen
 [NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
@@ -3548,3 +3552,4 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [scrypt]: https://en.wikipedia.org/wiki/Scrypt
 [stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
 [stream]: stream.html
+[list of SSL OP Flags]: wiki.openssl.org/index.php/List_of_SSL_OP_Flags#Table_of_Options

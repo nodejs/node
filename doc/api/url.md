@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/url.js -->
+
 The `url` module provides utilities for URL resolution and parsing. It can be
 accessed using:
 
@@ -11,7 +13,7 @@ accessed using:
 const url = require('url');
 ```
 
-## URL Strings and URL Objects
+## URL strings and URL objects
 
 A URL string is a structured string containing multiple meaningful components.
 When parsed, a URL object is returned containing properties for each of these
@@ -406,7 +408,7 @@ console.log(myURL.href);
 
 Invalid URL protocol values assigned to the `protocol` property are ignored.
 
-##### Special Schemes
+##### Special schemes
 
 The [WHATWG URL Standard][] considers a handful of URL protocol schemes to be
 _special_ in terms of how they are parsed and serialized. When a URL is
@@ -1242,6 +1244,12 @@ A `TypeError` is thrown if `urlString` is not a string.
 
 A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 
+Use of the legacy `url.parse()` method is discouraged. Users should
+use the WHATWG `URL` API. Because the `url.parse()` method uses a
+lenient, non-standard algorithm for parsing URL strings, security
+issues can be introduced. Specifically, issues with [host name spoofing][] and
+incorrect handling of usernames and passwords have been identified.
+
 ### `url.resolve(from, to)`
 <!-- YAML
 added: v0.1.25
@@ -1276,7 +1284,7 @@ url.resolve('http://example.com/one', '/two'); // 'http://example.com/two'
 ```
 
 <a id="whatwg-percent-encoding"></a>
-## Percent-Encoding in URLs
+## Percent-encoding in URLs
 
 URLs are permitted to only contain a certain range of characters. Any character
 falling outside of that range must be encoded. How such characters are encoded,
@@ -1359,6 +1367,7 @@ console.log(myURL.origin);
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [WHATWG URL]: #url_the_whatwg_url_api
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
+[host name spoofing]: https://hackerone.com/reports/678487
 [legacy `urlObject`]: #url_legacy_urlobject
 [percent-encoded]: #whatwg-percent-encoding
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability

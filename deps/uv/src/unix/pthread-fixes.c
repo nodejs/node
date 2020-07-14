@@ -30,6 +30,8 @@
 */
 
 /* Android versions < 4.1 have a broken pthread_sigmask. */
+#include "uv-common.h"
+
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -38,13 +40,13 @@ int uv__pthread_sigmask(int how, const sigset_t* set, sigset_t* oset) {
   static int workaround;
   int err;
 
-  if (workaround) {
+  if (uv__load_relaxed(&workaround)) {
     return sigprocmask(how, set, oset);
   } else {
     err = pthread_sigmask(how, set, oset);
     if (err) {
       if (err == EINVAL && sigprocmask(how, set, oset) == 0) {
-        workaround = 1;
+        uv__store_relaxed(&workaround, 1);
         return 0;
       } else {
         return -1;

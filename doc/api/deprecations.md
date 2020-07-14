@@ -38,7 +38,7 @@ Occasionally, the deprecation of an API may be reversed. In such situations,
 this document will be updated with information relevant to the decision.
 However, the deprecation identifier will not be modified.
 
-## List of Deprecated APIs
+## List of deprecated APIs
 
 <a id="DEP0001"></a>
 ### DEP0001: `http.OutgoingMessage.prototype.flush`
@@ -1632,7 +1632,7 @@ Type: Runtime
 `REPLServer.turnOffEditorMode()` was removed from userland visibility.
 
 <a id="DEP0079"></a>
-### DEP0079: Custom inspection function on Objects via `.inspect()`
+### DEP0079: Custom inspection function on objects via `.inspect()`
 <!-- YAML
 changes:
   - version: v11.0.0
@@ -1757,7 +1757,7 @@ manager, as it is published on the npm registry under the same name. No source
 code modification is necessary if that is done.
 
 <a id="DEP0085"></a>
-### DEP0085: AsyncHooks Sensitive API
+### DEP0085: AsyncHooks sensitive API
 <!-- YAML
 changes:
   - version: 10.0.0
@@ -1772,7 +1772,7 @@ changes:
 
 Type: End-of-Life
 
-The AsyncHooks Sensitive API was never documented and had various minor issues.
+The AsyncHooks sensitive API was never documented and had various minor issues.
 Use the `AsyncResource` API instead. See
 <https://github.com/nodejs/node/issues/15572>.
 
@@ -1936,7 +1936,7 @@ should start using the `async_context` variant of `MakeCallback` or
 `CallbackScope`, or the high-level `AsyncResource` class.
 
 <a id="DEP0098"></a>
-### DEP0098: AsyncHooks Embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
+### DEP0098: AsyncHooks embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -1961,7 +1961,7 @@ safer, and more convenient, alternative. See
 <https://github.com/nodejs/node/pull/18513>.
 
 <a id="DEP0099"></a>
-### DEP0099: async context-unaware `node::MakeCallback` C++ APIs
+### DEP0099: Async context-unaware `node::MakeCallback` C++ APIs
 <!-- YAML
 changes:
   - version: v10.0.0
@@ -2318,7 +2318,7 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 [`util.getSystemErrorName()`][] instead.
 
 <a id="DEP0120"></a>
-### DEP0120: Windows Performance Counter Support
+### DEP0120: Windows Performance Counter support
 <!-- YAML
 changes:
   - version: v12.0.0
@@ -2740,6 +2740,17 @@ const moduleParents = Object.values(require.cache)
   .filter((m) => m.children.includes(module));
 ```
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: `socket.bufferSize`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
@@ -2814,6 +2825,7 @@ const moduleParents = Object.values(require.cache)
 [`script.createCachedData()`]: vm.html#vm_script_createcacheddata
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
+[`socket.bufferSize`]: net.html#net_socket_buffersize
 [`timeout.ref()`]: timers.html#timers_timeout_ref
 [`timeout.refresh()`]: timers.html#timers_timeout_refresh
 [`timeout.unref()`]: timers.html#timers_timeout_unref
@@ -2850,6 +2862,7 @@ const moduleParents = Object.values(require.cache)
 [`util`]: util.html
 [`worker.exitedAfterDisconnect`]: cluster.html#cluster_worker_exitedafterdisconnect
 [`worker.terminate()`]: worker_threads.html#worker_threads_worker_terminate
+[`writable.writableLength`]: stream.html#stream_writable_writablelength
 [`zlib.bytesWritten`]: zlib.html#zlib_zlib_byteswritten
 [Legacy URL API]: url.html#url_legacy_url_api
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf

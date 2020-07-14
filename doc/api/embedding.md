@@ -1,4 +1,4 @@
-# C++ Embedder API
+# C++ embedder API
 
 <!--introduced_in=v14.0.0-->
 

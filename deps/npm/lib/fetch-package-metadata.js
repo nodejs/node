@@ -3,6 +3,7 @@
 const deprCheck = require('./utils/depr-check')
 const path = require('path')
 const log = require('npmlog')
+const pacote = require('pacote')
 const readPackageTree = require('read-package-tree')
 const rimraf = require('rimraf')
 const validate = require('aproba')
@@ -11,15 +12,17 @@ const npm = require('./npm')
 let npmConfig
 const npmlog = require('npmlog')
 const limit = require('call-limit')
-const tempFilename = require('./utils/temp-filename')
-const pacote = require('pacote')
+const tempFilename = require('./utils/temp-filename.js')
+const replaceInfo = require('./utils/replace-info.js')
 const isWindows = require('./utils/is-windows.js')
 
 function andLogAndFinish (spec, tracker, done) {
   validate('SOF|SZF|OOF|OZF', [spec, tracker, done])
   return (er, pkg) => {
     if (er) {
-      log.silly('fetchPackageMetaData', 'error for ' + String(spec), er.message)
+      er.message = replaceInfo(er.message)
+      var spc = replaceInfo(String(spec))
+      log.silly('fetchPackageMetaData', 'error for ' + spc, er.message)
       if (tracker) tracker.finish()
     }
     return done(er, pkg)

@@ -266,7 +266,7 @@ void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle);
  */
 void uv__util_init(void);
 
-uint64_t uv__hrtime(double scale);
+uint64_t uv__hrtime(unsigned int scale);
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
 int uv__getpwuid_r(uv_passwd_t* pwd);
 int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8);

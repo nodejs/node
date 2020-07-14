@@ -78,7 +78,7 @@ Because `module` provides a `filename` property (normally equivalent to
 `__filename`), the entry point of the current application can be obtained
 by checking `require.main.filename`.
 
-## Addenda: Package Manager Tips
+## Addenda: Package manager tips
 
 <!-- type=misc -->
 
@@ -139,7 +139,7 @@ Attempting to do so will throw [an error][]. The `.mjs` extension is
 reserved for [ECMAScript Modules][] which cannot be loaded via `require()`.
 See [ECMAScript Modules][] for more details.
 
-## All Together...
+## All together...
 
 <!-- type=misc -->
 
@@ -160,7 +160,9 @@ require(X) from module at path Y
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
    c. THROW "not found"
-4. LOAD_SELF_REFERENCE(X, dirname(Y))
+4. If X begins with '#'
+   a. LOAD_INTERAL_IMPORT(X, Y)
+4. LOAD_SELF_REFERENCE(X, Y)
 5. LOAD_NODE_MODULES(X, dirname(Y))
 6. THROW "not found"
 
@@ -236,6 +238,15 @@ LOAD_PACKAGE_EXPORTS(DIR, X)
 12. Otherwise
    a. If RESOLVED is a file, load it as its file extension format. STOP
 13. Throw "not found"
+
+LOAD_INTERNAL_IMPORT(X, START)
+1. Find the closest package scope to START.
+2. If no scope was found or the `package.json` has no "imports", return.
+3. let RESOLVED =
+  fileURLToPath(PACKAGE_INTERNAL_RESOLVE(X, pathToFileURL(START)), as defined
+  in the ESM resolver.
+4. If RESOLVED is not a valid file, throw "not found"
+5. Load RESOLVED as its file extension format. STOP
 ```
 
 ## Caching
@@ -254,7 +265,7 @@ allowing transitive dependencies to be loaded even when they would cause cycles.
 To have a module execute code multiple times, export a function, and call that
 function.
 
-### Module Caching Caveats
+### Module caching caveats
 
 <!--type=misc-->
 
@@ -269,7 +280,7 @@ them as different modules and will reload the file multiple times. For example,
 `require('./foo')` and `require('./FOO')` return two different objects,
 irrespective of whether or not `./foo` and `./FOO` are the same file.
 
-## Core Modules
+## Core modules
 
 <!--type=misc-->
 
@@ -347,7 +358,7 @@ in main, a.done = true, b.done = true
 Careful planning is required to allow cyclic module dependencies to work
 correctly within an application.
 
-## File Modules
+## File modules
 
 <!--type=misc-->
 
@@ -373,7 +384,7 @@ either be a core module or is loaded from a `node_modules` folder.
 If the given path does not exist, `require()` will throw an [`Error`][] with its
 `code` property set to `'MODULE_NOT_FOUND'`.
 
-## Folders as Modules
+## Folders as modules
 
 <!--type=misc-->
 
@@ -413,7 +424,7 @@ with the default error:
 Error: Cannot find module 'some-library'
 ```
 
-## Loading from `node_modules` Folders
+## Loading from `node_modules` folders
 
 <!--type=misc-->
 
@@ -737,7 +748,7 @@ Returns an array containing the paths searched during resolution of `request` or
 `null` if the `request` string references a core module, for example `http` or
 `fs`.
 
-## The `module` Object
+## The `module` object
 <!-- YAML
 added: v0.1.16
 -->
@@ -941,7 +952,7 @@ Since `require()` returns the `module.exports`, and the `module` is typically
 *only* available within a specific module's code, it must be explicitly exported
 in order to be used.
 
-## The `Module` Object
+## The `Module` object
 
 <!-- YAML
 added: v0.3.7
@@ -1041,7 +1052,7 @@ import('fs').then((esmFS) => {
 });
 ```
 
-## Source Map V3 Support
+## Source map v3 support
 <!-- YAML
 added: v13.7.0
 -->
@@ -1089,7 +1100,7 @@ added: v13.7.0
 
 Creates a new `sourceMap` instance.
 
-`payload` is an object with keys matching the [Source Map V3 format][]:
+`payload` is an object with keys matching the [Source map v3 format][]:
 
 * `file`: {string}
 * `version`: {number}
@@ -1142,4 +1153,4 @@ consists of the following keys:
 [`NODE_V8_COVERAGE=dir`]: cli.html#cli_node_v8_coverage_dir
 [`Error.prepareStackTrace(error, trace)`]: https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 [`SourceMap`]: modules.html#modules_class_module_sourcemap
-[Source Map V3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
+[Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej

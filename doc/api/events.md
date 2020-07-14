@@ -6,6 +6,8 @@
 
 <!--type=module-->
 
+<!-- source_link=lib/events.js -->
+
 Much of the Node.js core API is built around an idiomatic asynchronous
 event-driven architecture in which certain kinds of objects (called "emitters")
 emit named events that cause `Function` objects ("listeners") to be called.
@@ -74,7 +76,7 @@ myEmitter.on('event', (a, b) => {
 myEmitter.emit('event', 'a', 'b');
 ```
 
-## Asynchronous vs. Synchronous
+## Asynchronous vs. synchronous
 
 The `EventEmitter` calls all listeners synchronously in the order in which
 they were registered. This ensures the proper sequencing of
@@ -167,7 +169,7 @@ myEmitter.emit('error', new Error('whoops!'));
 // Still throws and crashes Node.js
 ```
 
-## Capture Rejections of Promises
+## Capture rejections of promises
 
 > Stability: 1 - captureRejections is experimental.
 
@@ -835,7 +837,7 @@ added:
 * Returns: {Promise}
 
 Creates a `Promise` that is fulfilled when the `EventEmitter` emits the given
-event or that is rejected when the `EventEmitter` emits `'error'`.
+event or that is rejected if the `EventEmitter` emits `'error'` while waiting.
 The `Promise` will resolve with an array of all the arguments emitted to the
 given event.
 
@@ -869,6 +871,79 @@ async function run() {
 }
 
 run();
+```
+
+The special handling of the `'error'` event is only used when `events.once()`
+is used to wait for another event. If `events.once()` is used to wait for the
+'`error'` event itself, then it is treated as any other kind of event without
+special handling:
+
+```js
+const { EventEmitter, once } = require('events');
+
+const ee = new EventEmitter();
+
+once(ee, 'error')
+  .then(([err]) => console.log('ok', err.message))
+  .catch((err) => console.log('error', err.message));
+
+ee.emit('error', new Error('boom'));
+
+// Prints: ok boom
+```
+
+### Awaiting multiple events emitted on `process.nextTick()`
+
+There is an edge case worth noting when using the `events.once()` function
+to await multiple events emitted on in the same batch of `process.nextTick()`
+operations, or whenever multiple events are emitted synchronously. Specifically,
+because the `process.nextTick()` queue is drained before the `Promise` microtask
+queue, and because `EventEmitter` emits all events synchronously, it is possible
+for `events.once()` to miss an event.
+
+```js
+const { EventEmitter, once } = require('events');
+
+const myEE = new EventEmitter();
+
+async function foo() {
+  await once(myEE, 'bar');
+  console.log('bar');
+
+  // This Promise will never resolve because the 'foo' event will
+  // have already been emitted before the Promise is created.
+  await once(myEE, 'foo');
+  console.log('foo');
+}
+
+process.nextTick(() => {
+  myEE.emit('bar');
+  myEE.emit('foo');
+});
+
+foo().then(() => console.log('done'));
+```
+
+To catch both events, create each of the Promises *before* awaiting either
+of them, then it becomes possible to use `Promise.all()`, `Promise.race()`,
+or `Promise.allSettled()`:
+
+```js
+const { EventEmitter, once } = require('events');
+
+const myEE = new EventEmitter();
+
+async function foo() {
+  await Promise.all([once(myEE, 'bar'), once(myEE, 'foo')]);
+  console.log('foo', 'bar');
+}
+
+process.nextTick(() => {
+  myEE.emit('bar');
+  myEE.emit('foo');
+});
+
+foo().then(() => console.log('done'));
 ```
 
 ## `events.captureRejections`
@@ -968,7 +1043,7 @@ There are two key differences between the Node.js `EventTarget` and the
 2. In the Node.js `EventTarget`, if an event listener is an async function
    or returns a `Promise`, and the returned `Promise` rejects, the rejection
    will be automatically captured and handled the same way as a listener that
-   throws synchronously (see [`EventTarget` Error Handling][] for details).
+   throws synchronously (see [`EventTarget` error handling][] for details).
 
 ### `NodeEventTarget` vs. `EventEmitter`
 
@@ -990,7 +1065,7 @@ and cannot be used in place of an `EventEmitter` in most cases.
 3. The `NodeEventTarget` supports `EventListener` objects as well as
    functions as handlers for all event types.
 
-### Event Listener
+### Event listener
 
 Event listeners registered for an event `type` may either be JavaScript
 functions or objects with a `handleEvent` property whose value is a function.
@@ -1000,7 +1075,7 @@ passed to the `eventTarget.dispatchEvent()` function.
 
 Async functions may be used as event listeners. If an async handler function
 rejects, the rejection will be captured and be will handled as described in
-[`EventTarget` Error Handling][].
+[`EventTarget` error handling][].
 
 An error thrown by one handler function will not prevent the other handlers
 from being invoked.
@@ -1042,7 +1117,7 @@ target.addEventListener('foo', handler3);
 target.addEventListener('foo', handler4, { once: true });
 ```
 
-### `EventTarget` Error Handling
+### `EventTarget` error handling
 
 When a registered event listener throws (or returns a Promise that rejects),
 by default the error will be forwarded to the `process.on('error')` event
@@ -1399,7 +1474,7 @@ to the `EventTarget`.
 [`emitter.removeListener()`]: #events_emitter_removelistener_eventname_listener
 [`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
-[`EventTarget` Error Handling]: #events_eventtarget_error_handling
+[`EventTarget` error handling]: #events_eventtarget_error_handling
 [`EventTarget` Web API]: https://dom.spec.whatwg.org/#eventtarget
 [`fs.ReadStream`]: fs.html#fs_class_fs_readstream
 [`net.Server`]: net.html#net_class_net_server

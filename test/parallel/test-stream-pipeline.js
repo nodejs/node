@@ -1211,3 +1211,23 @@ const net = require('net');
   d.write('test');
   d.end();
 }
+
+{
+  const r = new Readable({
+    read() {}
+  });
+  r.push('hello');
+  r.push('world');
+  r.push(null);
+  let res = '';
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      res += chunk;
+      callback();
+    }
+  });
+  pipeline([r, w], common.mustCall((err) => {
+    assert.ok(!err);
+    assert.strictEqual(res, 'helloworld');
+  }));
+}

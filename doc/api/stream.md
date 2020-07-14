@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/stream.js -->
+
 A stream is an abstract interface for working with streaming data in Node.js.
 The `stream` module provides an API for implementing the stream interface.
 
@@ -23,13 +25,13 @@ const stream = require('stream');
 The `stream` module is useful for creating new types of stream instances. It is
 usually not necessary to use the `stream` module to consume streams.
 
-## Organization of this Document
+## Organization of this document
 
 This document contains two primary sections and a third section for notes. The
 first section explains how to use existing streams within an application. The
 second section explains how to create new types of streams.
 
-## Types of Streams
+## Types of streams
 
 There are four fundamental stream types within Node.js:
 
@@ -46,7 +48,7 @@ Additionally, this module includes the utility functions
 [`stream.pipeline()`][], [`stream.finished()`][] and
 [`stream.Readable.from()`][].
 
-### Object Mode
+### Object mode
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
 (or `Uint8Array`) objects. It is possible, however, for stream implementations
@@ -108,7 +110,7 @@ writing data *to* the socket. Because data may be written to the socket at a
 faster or slower rate than data is received, each side should
 operate (and buffer) independently of the other.
 
-## API for Stream Consumers
+## API for stream consumers
 
 <!--type=misc-->
 
@@ -120,8 +122,8 @@ that implements an HTTP server:
 const http = require('http');
 
 const server = http.createServer((req, res) => {
-  // `req` is an http.IncomingMessage, which is a Readable Stream.
-  // `res` is an http.ServerResponse, which is a Writable Stream.
+  // `req` is an http.IncomingMessage, which is a readable stream.
+  // `res` is an http.ServerResponse, which is a writable stream.
 
   let body = '';
   // Get the data as utf8 strings.
@@ -176,9 +178,9 @@ are not required to implement the stream interfaces directly and will generally
 have no reason to call `require('stream')`.
 
 Developers wishing to implement new types of streams should refer to the
-section [API for Stream Implementers][].
+section [API for stream implementers][].
 
-### Writable Streams
+### Writable streams
 
 Writable streams are an abstraction for a *destination* to which data is
 written.
@@ -649,7 +651,7 @@ write('hello', () => {
 
 A `Writable` stream in object mode will always ignore the `encoding` argument.
 
-### Readable Streams
+### Readable streams
 
 Readable streams are an abstraction for a *source* from which data is
 consumed.
@@ -668,7 +670,7 @@ Examples of `Readable` streams include:
 All [`Readable`][] streams implement the interface defined by the
 `stream.Readable` class.
 
-#### Two Reading Modes
+#### Two reading modes
 
 `Readable` streams effectively operate in one of two modes: flowing and
 paused. These modes are separate from [object mode][object-mode].
@@ -713,13 +715,13 @@ instance, when the `readable.resume()` method is called without a listener
 attached to the `'data'` event, or when a `'data'` event handler is removed
 from the stream.
 
-Adding a [`'readable'`][] event handler automatically make the stream to
-stop flowing, and the data to be consumed via
+Adding a [`'readable'`][] event handler automatically makes the stream
+stop flowing, and the data has to be consumed via
 [`readable.read()`][stream-read]. If the [`'readable'`][] event handler is
 removed, then the stream will start flowing again if there is a
 [`'data'`][] event handler.
 
-#### Three States
+#### Three states
 
 The "two modes" of operation for a `Readable` stream are a simplified
 abstraction for the more complicated internal state management that is happening
@@ -762,7 +764,7 @@ pass.resume();     // Must be called to make stream emit 'data'.
 While `readable.readableFlowing` is `false`, data may be accumulating
 within the stream's internal buffer.
 
-#### Choose One API Style
+#### Choose one API style
 
 The `Readable` stream API evolved across multiple Node.js versions and provides
 multiple methods of consuming stream data. In general, developers should choose
@@ -1125,17 +1127,48 @@ automatically until the internal buffer is fully drained.
 
 ```js
 const readable = getReadableStreamSomehow();
+
+// 'readable' may be triggered multiple times as data is buffered in
 readable.on('readable', () => {
   let chunk;
+  console.log('Stream is readable (new data received in buffer)');
+  // Use a loop to make sure we read all currently available data
   while (null !== (chunk = readable.read())) {
-    console.log(`Received ${chunk.length} bytes of data.`);
+    console.log(`Read ${chunk.length} bytes of data...`);
   }
+});
+
+// 'end' will be triggered once when there is no more data available
+readable.on('end', () => {
+  console.log('Reached end of stream.');
 });
 ```
 
-The `while` loop is necessary when processing data with
-`readable.read()`. Only after `readable.read()` returns `null`,
-[`'readable'`][] will be emitted.
+Each call to `readable.read()` returns a chunk of data, or `null`. The chunks
+are not concatenated. A `while` loop is necessary to consume all data
+currently in the buffer. When reading a large file `.read()` may return `null`,
+having consumed all buffered content so far, but there is still more data to
+come not yet buffered. In this case a new `'readable'` event will be emitted
+when there is more data in the buffer. Finally the `'end'` event will be
+emitted when there is no more data to come.
+
+Therefore to read a file's whole contents from a `readable`, it is necessary
+to collect chunks across multiple `'readable'` events:
+
+```js
+const chunks = [];
+
+readable.on('readable', () => {
+  let chunk;
+  while (null !== (chunk = readable.read())) {
+    chunks.push(chunk);
+  }
+});
+
+readable.on('end', () => {
+  const content = chunks.join('');
+});
+```
 
 A `Readable` stream in object mode will always return a single item from
 a call to [`readable.read(size)`][stream-read], regardless of the value of the
@@ -1184,7 +1217,7 @@ added: v9.4.0
 * {boolean}
 
 This property reflects the current state of a `Readable` stream as described
-in the [Stream Three States][] section.
+in the [Three states][] section.
 
 ##### `readable.readableHighWaterMark`
 <!-- YAML
@@ -1338,7 +1371,7 @@ The `stream.unshift(chunk)` method cannot be called after the [`'end'`][] event
 has been emitted or a runtime error will be thrown.
 
 Developers using `stream.unshift()` often should consider switching to
-use of a [`Transform`][] stream instead. See the [API for Stream Implementers][]
+use of a [`Transform`][] stream instead. See the [API for stream implementers][]
 section for more information.
 
 ```js
@@ -1450,7 +1483,7 @@ option. In the code example above, data will be in a single chunk if the file
 has less then 64KB of data because no `highWaterMark` option is provided to
 [`fs.createReadStream()`][].
 
-### Duplex and Transform Streams
+### Duplex and transform streams
 
 #### Class: `stream.Duplex`
 <!-- YAML
@@ -1596,6 +1629,7 @@ const cleanup = finished(rs, (err) => {
 ```
 
 ### `stream.pipeline(source[, ...transforms], destination, callback)`
+### `stream.pipeline(streams, callback)`
 <!-- YAML
 added: v10.0.0
 changes:
@@ -1610,6 +1644,7 @@ changes:
                  which are expected to emit `'close'`.
 -->
 
+* `streams` {Stream[]|Iterable[]|AsyncIterable[]|Function[]}
 * `source` {Stream|Iterable|AsyncIterable|Function}
   * Returns: {Iterable|AsyncIterable}
 * `...transforms` {Stream|Function}
@@ -1713,7 +1748,7 @@ added:
   this is explicitly opted out by setting `options.objectMode` to `false`.
 * Returns: {stream.Readable}
 
-A utility method for creating Readable Streams out of iterators.
+A utility method for creating readable streams out of iterators.
 
 ```js
 const { Readable } = require('stream');
@@ -1734,7 +1769,7 @@ Calling `Readable.from(string)` or `Readable.from(buffer)` will not have
 the strings or buffers be iterated to match the other streams semantics
 for performance reasons.
 
-## API for Stream Implementers
+## API for stream implementers
 
 <!--type=misc-->
 
@@ -1777,7 +1812,7 @@ on the type of stream being created, as detailed in the chart below:
 
 The implementation code for a stream should *never* call the "public" methods
 of a stream that are intended for use by consumers (as described in the
-[API for Stream Consumers][] section). Doing so may lead to adverse side effects
+[API for stream consumers][] section). Doing so may lead to adverse side effects
 in application code consuming the stream.
 
 Avoid overriding public methods such as `write()`, `end()`, `cork()`,
@@ -1787,7 +1822,7 @@ Doing so can break current and future stream invariants leading to behavior
 and/or compatibility issues with other streams, stream utilities, and user
 expectations.
 
-### Simplified Construction
+### Simplified construction
 <!-- YAML
 added: v1.2.0
 -->
@@ -1807,7 +1842,7 @@ const myWritable = new Writable({
 });
 ```
 
-### Implementing a Writable Stream
+### Implementing a writable stream
 
 The `stream.Writable` class is extended to implement a [`Writable`][] stream.
 
@@ -1891,7 +1926,7 @@ function MyWritable(options) {
 util.inherits(MyWritable, Writable);
 ```
 
-Or, using the Simplified Constructor approach:
+Or, using the simplified constructor approach:
 
 ```js
 const { Writable } = require('stream');
@@ -2008,7 +2043,7 @@ This optional function will be called before the stream closes, delaying the
 `'finish'` event until `callback` is called. This is useful to close resources
 or write buffered data before a stream ends.
 
-#### Errors While Writing
+#### Errors while writing
 
 Errors occurring during the processing of the [`writable._write()`][],
 [`writable._writev()`][] and [`writable._final()`][] methods must be propagated
@@ -2033,7 +2068,7 @@ const myWritable = new Writable({
 });
 ```
 
-#### An Example Writable Stream
+#### An example writable stream
 
 The following illustrates a rather simplistic (and somewhat pointless) custom
 `Writable` stream implementation. While this specific `Writable` stream instance
@@ -2054,7 +2089,7 @@ class MyWritable extends Writable {
 }
 ```
 
-#### Decoding buffers in a Writable Stream
+#### Decoding buffers in a writable stream
 
 Decoding buffers is a common task, for instance, when using transformers whose
 input is a string. This is not a trivial process when using multi-byte
@@ -2094,7 +2129,7 @@ w.end(euro[1]);
 console.log(w.data); // currency: €
 ```
 
-### Implementing a Readable Stream
+### Implementing a readable stream
 
 The `stream.Readable` class is extended to implement a [`Readable`][] stream.
 
@@ -2160,7 +2195,7 @@ function MyReadable(options) {
 util.inherits(MyReadable, Readable);
 ```
 
-Or, using the Simplified Constructor approach:
+Or, using the simplified constructor approach:
 
 ```js
 const { Readable } = require('stream');
@@ -2293,7 +2328,7 @@ For streams not operating in object mode, if the `chunk` parameter of
 `readable.push()` is `undefined`, it will be treated as empty string or
 buffer. See [`readable.push('')`][] for more information.
 
-#### Errors While Reading
+#### Errors while reading
 
 Errors occurring during processing of the [`readable._read()`][] must be
 propagated through the [`readable.destroy(err)`][readable-_destroy] method.
@@ -2315,7 +2350,7 @@ const myReadable = new Readable({
 });
 ```
 
-#### An Example Counting Stream
+#### An example counting stream
 
 <!--type=example-->
 
@@ -2345,7 +2380,7 @@ class Counter extends Readable {
 }
 ```
 
-### Implementing a Duplex Stream
+### Implementing a duplex stream
 
 A [`Duplex`][] stream is one that implements both [`Readable`][] and
 [`Writable`][], such as a TCP socket connection.
@@ -2412,7 +2447,7 @@ function MyDuplex(options) {
 util.inherits(MyDuplex, Duplex);
 ```
 
-Or, using the Simplified Constructor approach:
+Or, using the simplified constructor approach:
 
 ```js
 const { Duplex } = require('stream');
@@ -2427,7 +2462,7 @@ const myDuplex = new Duplex({
 });
 ```
 
-#### An Example Duplex Stream
+#### An example duplex stream
 
 The following illustrates a simple example of a `Duplex` stream that wraps a
 hypothetical lower-level source object to which data can be written, and
@@ -2467,7 +2502,7 @@ The most important aspect of a `Duplex` stream is that the `Readable` and
 `Writable` sides operate independently of one another despite co-existing within
 a single object instance.
 
-#### Object Mode Duplex Streams
+#### Object mode duplex streams
 
 For `Duplex` streams, `objectMode` can be set exclusively for either the
 `Readable` or `Writable` side using the `readableObjectMode` and
@@ -2508,7 +2543,7 @@ myTransform.write(100);
 // Prints: 64
 ```
 
-### Implementing a Transform Stream
+### Implementing a transform stream
 
 A [`Transform`][] stream is a [`Duplex`][] stream where the output is computed
 in some way from the input. Examples include [zlib][] streams or [crypto][]
@@ -2567,7 +2602,7 @@ function MyTransform(options) {
 util.inherits(MyTransform, Transform);
 ```
 
-Or, using the Simplified Constructor approach:
+Or, using the simplified constructor approach:
 
 ```js
 const { Transform } = require('stream');
@@ -2613,7 +2648,7 @@ method. This will be called when there is no more written data to be consumed,
 but before the [`'end'`][] event is emitted signaling the end of the
 [`Readable`][] stream.
 
-Within the `transform._flush()` implementation, the `readable.push()` method
+Within the `transform._flush()` implementation, the `transform.push()` method
 may be called zero or more times, as appropriate. The `callback` function must
 be called when the flush operation is complete.
 
@@ -2642,7 +2677,7 @@ methods only.
 All `Transform` stream implementations must provide a `_transform()`
 method to accept input and produce output. The `transform._transform()`
 implementation handles the bytes being written, computes an output, then passes
-that output off to the readable portion using the `readable.push()` method.
+that output off to the readable portion using the `transform.push()` method.
 
 The `transform.push()` method may be called zero or more times to generate
 output from a single input chunk, depending on how much is to be output
@@ -2654,7 +2689,7 @@ The `callback` function must be called only when the current chunk is completely
 consumed. The first argument passed to the `callback` must be an `Error` object
 if an error occurred while processing the input or `null` otherwise. If a second
 argument is passed to the `callback`, it will be forwarded on to the
-`readable.push()` method. In other words, the following are equivalent:
+`transform.push()` method. In other words, the following are equivalent:
 
 ```js
 transform.prototype._transform = function(data, encoding, callback) {
@@ -2682,11 +2717,11 @@ stream that simply passes the input bytes across to the output. Its purpose is
 primarily for examples and testing, but there are some use cases where
 `stream.PassThrough` is useful as a building block for novel sorts of streams.
 
-## Additional Notes
+## Additional notes
 
 <!--type=misc-->
 
-### Streams Compatibility with Async Generators and Async Iterators
+### Streams compatibility with async generators and async iterators
 
 With the support of async generators and iterators in JavaScript, async
 generators are effectively a first-class language-level stream construct at
@@ -2695,7 +2730,7 @@ this point.
 Some common interop cases of using Node.js streams with async generators
 and async iterators are provided below.
 
-#### Consuming Readable Streams with Async Iterators
+#### Consuming readable streams with async iterators
 
 ```js
 (async function() {
@@ -2708,9 +2743,9 @@ and async iterators are provided below.
 Async iterators register a permanent error handler on the stream to prevent any
 unhandled post-destroy errors.
 
-#### Creating Readable Streams with Async Generators
+#### Creating readable streams with async generators
 
-We can construct a Node.js Readable Stream from an asynchronous generator
+We can construct a Node.js readable stream from an asynchronous generator
 using the `Readable.from()` utility method:
 
 ```js
@@ -2729,7 +2764,7 @@ readable.on('data', (chunk) => {
 });
 ```
 
-#### Piping to Writable Streams from Async Iterators
+#### Piping to writable streams from async iterators
 
 When writing to a writable stream from an async iterator, ensure correct
 handling of backpressure and errors. [`stream.pipeline()`][] abstracts away
@@ -2762,7 +2797,7 @@ pipelinePromise(iterator, writable)
 
 <!--type=misc-->
 
-### Compatibility with Older Node.js Versions
+### Compatibility with older Node.js versions
 
 <!--type=misc-->
 
@@ -2903,8 +2938,8 @@ contain multi-byte characters.
 [`writable.uncork()`]: #stream_writable_uncork
 [`writable.writableFinished`]: #stream_writable_writablefinished
 [`zlib.createDeflate()`]: zlib.html#zlib_zlib_createdeflate_options
-[API for Stream Consumers]: #stream_api_for_stream_consumers
-[API for Stream Implementers]: #stream_api_for_stream_implementers
+[API for stream consumers]: #stream_api_for_stream_consumers
+[API for stream implementers]: #stream_api_for_stream_implementers
 [Compatibility]: #stream_compatibility_with_older_node_js_versions
 [HTTP requests, on the client]: http.html#http_class_http_clientrequest
 [HTTP responses, on the server]: http.html#http_class_http_serverresponse
@@ -2932,7 +2967,7 @@ contain multi-byte characters.
 [stream-resume]: #stream_readable_resume
 [stream-uncork]: #stream_writable_uncork
 [stream-write]: #stream_writable_write_chunk_encoding_callback
-[Stream Three States]: #stream_three_states
+[Three states]: #stream_three_states
 [writable-_destroy]: #stream_writable_destroy_err_callback
 [writable-destroy]: #stream_writable_destroy_error
 [writable-new]: #stream_new_stream_writable_options

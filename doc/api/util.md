@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/util.js -->
+
 The `util` module supports the needs of Node.js internal APIs. Many of the
 utilities are useful for application and module developers as well. To access
 it:
@@ -68,13 +70,15 @@ callbackFunction((err, ret) => {
 });
 ```
 
-## `util.debuglog(section)`
+## `util.debuglog(section[, callback])`
 <!-- YAML
 added: v0.11.3
 -->
 
 * `section` {string} A string identifying the portion of the application for
   which the `debuglog` function is being created.
+* `callback` {Function} A callback invoked the first time the logging function
+is called with a function argument that is a more optimized logging function.
 * Returns: {Function} The logging function
 
 The `util.debuglog()` method is used to create a function that conditionally
@@ -118,6 +122,19 @@ FOO-BAR 3257: hi there, it's foo-bar [2333]
 
 Multiple comma-separated `section` names may be specified in the `NODE_DEBUG`
 environment variable: `NODE_DEBUG=fs,net,tls`.
+
+The optional `callback` argument can be used to replace the logging function
+with a different function that doesn't have any initialization or
+unnecessary wrapping.
+
+```js
+const util = require('util');
+let debuglog = util.debuglog('internals', (debug) => {
+  // Replace with a logging function that optimizes out
+  // testing if the section is enabled
+  debuglog = debug;
+});
+```
 
 ## `util.deprecate(fn, msg[, code])`
 <!-- YAML
@@ -398,6 +415,13 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/33690
+    description: If `object` is from a different `vm.Context` now, a custom
+                 inspection function on it will not receive context-specific
+                 arguments anymore.
+  - version:
+     - v13.13.0
+     - v12.17.0
     pr-url: https://github.com/nodejs/node/pull/32392
     description: The `maxStringLength` option is supported now.
   - version:
@@ -756,7 +780,7 @@ ignored, if not supported.
 * `bgCyanBright`
 * `bgWhiteBright`
 
-### Custom inspection functions on Objects
+### Custom inspection functions on objects
 
 <!-- type=misc -->
 
@@ -1047,7 +1071,7 @@ while (buffer = getNextChunkSomehow()) {
 string += decoder.decode(); // end-of-stream
 ```
 
-### WHATWG Supported Encodings
+### WHATWG supported encodings
 
 Per the [WHATWG Encoding Standard][], the encodings supported by the
 `TextDecoder` API are outlined in the tables below. For each encoding,
@@ -1056,7 +1080,7 @@ one or more aliases may be used.
 Different Node.js build configurations support different sets of encodings.
 (see [Internationalization][])
 
-#### Encodings Supported by Default (With Full ICU Data)
+#### Encodings supported by default (with full ICU data)
 
 | Encoding           | Aliases                          |
 | -----------------  | -------------------------------- |
@@ -1095,7 +1119,7 @@ Different Node.js build configurations support different sets of encodings.
 | `'shift_jis'`      | `'csshiftjis'`, `'ms932'`, `'ms_kanji'`, `'shift-jis'`, `'sjis'`, `'windows-31j'`, `'x-sjis'` |
 | `'euc-kr'`         | `'cseuckr'`, `'csksc56011987'`, `'iso-ir-149'`, `'korean'`, `'ks_c_5601-1987'`, `'ks_c_5601-1989'`, `'ksc5601'`, `'ksc_5601'`, `'windows-949'` |
 
-#### Encodings Supported when Node.js is built with the `small-icu` option
+#### Encodings supported when Node.js is built with the `small-icu` option
 
 | Encoding     | Aliases                           |
 | -----------  | --------------------------------- |
@@ -1103,7 +1127,7 @@ Different Node.js build configurations support different sets of encodings.
 | `'utf-16le'` | `'utf-16'`                        |
 | `'utf-16be'` |                                   |
 
-#### Encodings Supported when ICU is disabled
+#### Encodings supported when ICU is disabled
 
 | Encoding     | Aliases                           |
 | -----------  | --------------------------------- |
@@ -2427,7 +2451,7 @@ util.log('Timestamped message.');
 [`util.types.isNativeError()`]: #util_util_types_isnativeerror_value
 [`util.types.isSharedArrayBuffer()`]: #util_util_types_issharedarraybuffer_value
 [Common System Errors]: errors.html#errors_common_system_errors
-[Custom inspection functions on Objects]: #util_custom_inspection_functions_on_objects
+[Custom inspection functions on objects]: #util_custom_inspection_functions_on_objects
 [Custom promisified functions]: #util_custom_promisified_functions
 [Customizing `util.inspect` colors]: #util_customizing_util_inspect_colors
 [Internationalization]: intl.html

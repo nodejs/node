@@ -1,4 +1,4 @@
-# Internationalization Support
+# Internationalization support
 
 <!--introduced_in=v8.2.0-->
 <!-- type=misc -->

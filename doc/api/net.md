@@ -5,6 +5,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/net.js -->
+
 The `net` module provides an asynchronous network API for creating stream-based
 TCP or [IPC][] servers ([`net.createServer()`][]) and clients
 ([`net.createConnection()`][]).
@@ -15,7 +17,7 @@ It can be accessed using:
 const net = require('net');
 ```
 
-## IPC Support
+## IPC support
 
 The `net` module supports IPC with named pipes on Windows, and Unix domain
 sockets on other operating systems.
@@ -543,7 +545,11 @@ socket as reported by the operating system:
 ### `socket.bufferSize`
 <!-- YAML
 added: v0.3.8
+deprecated:
+  - REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`writable.writableLength`][] instead.
 
 * {integer}
 
@@ -1261,7 +1267,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
-[`socket(7)`]: http://man7.org/linux/man-pages/man7/socket.7.html
+[`socket(7)`]: https://man7.org/linux/man-pages/man7/socket.7.html
 [`socket.connect()`]: #net_socket_connect
 [`socket.connect(options)`]: #net_socket_connect_options_connectlistener
 [`socket.connect(path)`]: #net_socket_connect_path_connectlistener
@@ -1274,6 +1280,7 @@ Returns `true` if input is a version 6 IP address, otherwise returns `false`.
 [`socket.setEncoding()`]: #net_socket_setencoding_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
+[`writable.writableLength`]: stream.html#stream_writable_writablelength
 [`writable.destroyed`]: stream.html#stream_writable_destroyed
 [`writable.destroy()`]: stream.html#stream_writable_destroy_error
 [`writable.end()`]: stream.html#stream_writable_end_chunk_encoding_callback

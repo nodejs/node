@@ -35,6 +35,7 @@ using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::MicrotaskQueue;
 using v8::Module;
 using v8::Number;
 using v8::Object;
@@ -106,15 +107,15 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   Local<String> url = args[0].As<String>();
 
   Local<Context> context;
+  ContextifyContext* contextify_context = nullptr;
   if (args[1]->IsUndefined()) {
     context = that->CreationContext();
   } else {
     CHECK(args[1]->IsObject());
-    ContextifyContext* sandbox =
-        ContextifyContext::ContextFromContextifiedSandbox(
-            env, args[1].As<Object>());
-    CHECK_NOT_NULL(sandbox);
-    context = sandbox->context();
+    contextify_context = ContextifyContext::ContextFromContextifiedSandbox(
+        env, args[1].As<Object>());
+    CHECK_NOT_NULL(contextify_context);
+    context = contextify_context->context();
   }
 
   Local<Integer> line_offset;
@@ -224,6 +225,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   obj->context_.Reset(isolate, context);
+  obj->contextify_context_ = contextify_context;
 
   env->hash_to_module_map.emplace(module->GetIdentityHash(), obj);
 
@@ -319,6 +321,11 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context_.Get(isolate);
   Local<Module> module = obj->module_.Get(isolate);
 
+  ContextifyContext* contextify_context = obj->contextify_context_;
+  std::shared_ptr<MicrotaskQueue> microtask_queue;
+  if (contextify_context != nullptr)
+      microtask_queue = contextify_context->microtask_queue();
+
   // module.evaluate(timeout, breakOnSigint)
   CHECK_EQ(args.Length(), 2);
 
@@ -334,18 +341,24 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   bool timed_out = false;
   bool received_signal = false;
   MaybeLocal<Value> result;
+  auto run = [&]() {
+    MaybeLocal<Value> result = module->Evaluate(context);
+    if (!result.IsEmpty() && microtask_queue)
+      microtask_queue->PerformCheckpoint(isolate);
+    return result;
+  };
   if (break_on_sigint && timeout != -1) {
     Watchdog wd(isolate, timeout, &timed_out);
     SigintWatchdog swd(isolate, &received_signal);
-    result = module->Evaluate(context);
+    result = run();
   } else if (break_on_sigint) {
     SigintWatchdog swd(isolate, &received_signal);
-    result = module->Evaluate(context);
+    result = run();
   } else if (timeout != -1) {
     Watchdog wd(isolate, timeout, &timed_out);
-    result = module->Evaluate(context);
+    result = run();
   } else {
-    result = module->Evaluate(context);
+    result = run();
   }
 
   if (result.IsEmpty()) {

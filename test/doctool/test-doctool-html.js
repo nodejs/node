@@ -41,7 +41,7 @@ function toHTML({ input, filename, nodeVersion, versions }) {
     .use(replaceLinks, { filename, linksMapper: testLinksMapper })
     .use(markdown)
     .use(html.firstHeader)
-    .use(html.preprocessText)
+    .use(html.preprocessText, { nodeVersion })
     .use(html.preprocessElements, { filename })
     .use(html.buildToc, { filename, apilinks: {} })
     .use(remark2rehype, { allowDangerousHTML: true })

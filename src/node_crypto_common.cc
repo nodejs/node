@@ -350,9 +350,8 @@ MaybeLocal<Value> GetCert(Environment* env, const SSLPointer& ssl) {
   if (cert == nullptr)
     return Undefined(env->isolate());
 
-  Local<Value> ret;
   MaybeLocal<Object> maybe_cert = X509ToObject(env, cert);
-  return maybe_cert.ToLocal(&ret) ? ret : MaybeLocal<Value>();
+  return maybe_cert.FromMaybe<Value>(Local<Value>());
 }
 
 namespace {
@@ -386,31 +385,27 @@ Local<Value> ToV8Value(Environment* env, const BIOPointer& bio) {
   return ret.FromMaybe(Local<Value>());
 }
 
-MaybeLocal<Value> GetCipherName(
-    Environment* env,
-    const SSL_CIPHER* cipher) {
+MaybeLocal<Value> GetCipherValue(Environment* env,
+    const SSL_CIPHER* cipher,
+    const char* (*getstr)(const SSL_CIPHER* cipher)) {
   if (cipher == nullptr)
     return Undefined(env->isolate());
 
-  return OneByteString(env->isolate(), SSL_CIPHER_get_name(cipher));
+  return OneByteString(env->isolate(), getstr(cipher));
+}
+
+MaybeLocal<Value> GetCipherName(Environment* env, const SSL_CIPHER* cipher) {
+  return GetCipherValue(env, cipher, SSL_CIPHER_get_name);
 }
 
 MaybeLocal<Value> GetCipherStandardName(
     Environment* env,
     const SSL_CIPHER* cipher) {
-  if (cipher == nullptr)
-    return Undefined(env->isolate());
-
-  return OneByteString(env->isolate(), SSL_CIPHER_standard_name(cipher));
+  return GetCipherValue(env, cipher, SSL_CIPHER_standard_name);
 }
 
-MaybeLocal<Value> GetCipherVersion(
-    Environment* env,
-    const SSL_CIPHER* cipher) {
-  if (cipher == nullptr)
-    return Undefined(env->isolate());
-
-  return OneByteString(env->isolate(), SSL_CIPHER_get_version(cipher));
+MaybeLocal<Value> GetCipherVersion(Environment* env, const SSL_CIPHER* cipher) {
+  return GetCipherValue(env, cipher, SSL_CIPHER_get_version);
 }
 
 StackOfX509 CloneSSLCerts(X509Pointer&& cert,

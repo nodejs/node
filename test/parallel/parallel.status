@@ -5,8 +5,6 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/29802
-test-http2-reset-flood: PASS,FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/32863
@@ -48,8 +46,6 @@ test-fs-stream-construct: PASS,FLAKY
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/31727
 test-fs-stat-bigint: PASS,FLAKY
-# https://github.com/nodejs/node/issues/29802
-test-http2-reset-flood: PASS,FLAKY
 # https://github.com/nodejs/node/issues/28803
 test-stdout-close-catch: PASS,FLAKY
 # https://github.com/nodejs/node/issues/31280
@@ -65,3 +61,15 @@ test-cluster-shared-leak: SKIP
 test-http-writable-true-after-close: SKIP
 test-http2-connect-method: SKIP
 test-net-error-twice: SKIP
+# https://github.com/libuv/libuv/pull/2782
+test-net-allow-half-open: SKIP
+test-net-keepalive: SKIP
+test-net-persistent-keepalive: SKIP
+test-net-socket-close-after-end: SKIP
+test-net-socket-connect-without-cb: SKIP
+test-net-socket-connecting: SKIP
+test-net-socket-ready-without-cb: SKIP
+test-net-write-after-end-nt: SKIP
+test-tls-env-extra-ca: SKIP
+# https://github.com/nodejs/node/pull/34209
+test-dgram-error-message-address: SKIP

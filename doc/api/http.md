@@ -4,6 +4,8 @@
 
 > Stability: 2 - Stable
 
+<!-- source_link=lib/http.js -->
+
 To use the HTTP server and client one must `require('http')`.
 
 The HTTP interfaces in Node.js are designed to support many features
@@ -112,6 +114,9 @@ http.get({
 added: v0.3.4
 changes:
   - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33617
+    description: Add `maxTotalSockets` option to agent constructor.
+  - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33278
     description: Add `scheduling` option to specify the free socket
                  scheduling strategy.
@@ -133,6 +138,10 @@ changes:
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per
     host. Each request will use a new socket until the maximum is reached.
+    **Default:** `Infinity`.
+  * `maxTotalSockets` {number} Maximum number of sockets allowed for
+    all hosts in total. Each request will use a new socket
+    until the maximum is reached.
     **Default:** `Infinity`.
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state. Only relevant if `keepAlive` is set to `true`.
@@ -2088,13 +2097,12 @@ added: v0.1.90
 
 **Only valid for request obtained from [`http.Server`][].**
 
-Request URL string. This contains only the URL that is
-present in the actual HTTP request. If the request is:
+Request URL string. This contains only the URL that is present in the actual
+HTTP request. Take the following request:
 
 ```http
-GET /status?name=ryan HTTP/1.1\r\n
-Accept: text/plain\r\n
-\r\n
+GET /status?name=ryan HTTP/1.1
+Accept: text/plain
 ```
 
 To parse the URL into its parts:
@@ -2225,6 +2233,8 @@ http.get('http://nodejs.org/dist/index.json', (res) => {
   const contentType = res.headers['content-type'];
 
   let error;
+  // Any 2xx status code signals a successful response but
+  // here we're only checking for 200.
   if (statusCode !== 200) {
     error = new Error('Request Failed.\n' +
                       `Status Code: ${statusCode}`);

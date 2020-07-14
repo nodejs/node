@@ -274,6 +274,7 @@ constexpr size_t kFsStatsBufferLength =
   V(issuercert_string, "issuerCertificate")                                    \
   V(kill_signal_string, "killSignal")                                          \
   V(kind_string, "kind")                                                       \
+  V(length_string, "length")                                                   \
   V(library_string, "library")                                                 \
   V(mac_string, "mac")                                                         \
   V(max_buffer_string, "maxBuffer")                                            \
@@ -419,6 +420,7 @@ constexpr size_t kFsStatsBufferLength =
   V(i18n_converter_template, v8::ObjectTemplate)                               \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
+  V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \
   V(pipe_constructor_template, v8::FunctionTemplate)                           \
   V(promise_wrap_template, v8::ObjectTemplate)                                 \
   V(sab_lifetimepartner_constructor_template, v8::FunctionTemplate)            \
@@ -504,8 +506,6 @@ class IsolateData : public MemoryRetainer {
   inline std::shared_ptr<PerIsolateOptions> options();
   inline void set_options(std::shared_ptr<PerIsolateOptions> options);
 
-  inline bool uses_node_allocator() const;
-  inline v8::ArrayBuffer::Allocator* allocator() const;
   inline NodeArrayBufferAllocator* node_allocator() const;
 
   inline worker::Worker* worker_context() const;
@@ -555,9 +555,7 @@ class IsolateData : public MemoryRetainer {
 
   v8::Isolate* const isolate_;
   uv_loop_t* const event_loop_;
-  v8::ArrayBuffer::Allocator* const allocator_;
   NodeArrayBufferAllocator* const node_allocator_;
-  const bool uses_node_allocator_;
   MultiIsolatePlatform* platform_;
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
@@ -621,6 +619,7 @@ class AsyncHooks : public MemoryRetainer {
     kTotals,
     kCheck,
     kStackLength,
+    kUsesExecutionAsyncResource,
     kFieldsCount,
   };
 
@@ -635,7 +634,12 @@ class AsyncHooks : public MemoryRetainer {
   inline AliasedUint32Array& fields();
   inline AliasedFloat64Array& async_id_fields();
   inline AliasedFloat64Array& async_ids_stack();
-  inline v8::Local<v8::Array> execution_async_resources();
+  inline v8::Local<v8::Array> js_execution_async_resources();
+  // Returns the native executionAsyncResource value at stack index `index`.
+  // Resources provided on the JS side are not stored on the native stack,
+  // in which case an empty `Local<>` is returned.
+  // The `js_execution_async_resources` array contains the value in that case.
+  inline v8::Local<v8::Object> native_execution_async_resource(size_t index);
 
   inline v8::Local<v8::String> provider_string(int idx);
 
@@ -643,7 +647,7 @@ class AsyncHooks : public MemoryRetainer {
   inline Environment* env();
 
   inline void push_async_context(double async_id, double trigger_async_id,
-      v8::Local<v8::Value> execution_async_resource_);
+      v8::Local<v8::Object> execution_async_resource_);
   inline bool pop_async_context(double async_id);
   inline void clear_async_id_stack();  // Used in fatal exceptions.
 
@@ -688,7 +692,8 @@ class AsyncHooks : public MemoryRetainer {
 
   void grow_async_ids_stack();
 
-  v8::Global<v8::Array> execution_async_resources_;
+  v8::Global<v8::Array> js_execution_async_resources_;
+  std::vector<v8::Global<v8::Object>> native_execution_async_resources_;
 };
 
 class ImmediateInfo : public MemoryRetainer {
@@ -1007,8 +1012,10 @@ class Environment : public MemoryRetainer {
   inline void set_has_serialized_options(bool has_serialized_options);
 
   inline bool is_main_thread() const;
+  inline bool should_not_register_esm_loader() const;
   inline bool owns_process_state() const;
   inline bool owns_inspector() const;
+  inline bool tracks_unmanaged_fds() const;
   inline uint64_t thread_id() const;
   inline worker::Worker* worker_context() const;
   Environment* worker_parent_env() const;
@@ -1220,6 +1227,9 @@ class Environment : public MemoryRetainer {
   inline std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>*
       released_allocated_buffers();
 
+  void AddUnmanagedFd(int fd);
+  void RemoveUnmanagedFd(int fd);
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
                          const char* errmsg);
@@ -1356,6 +1366,8 @@ class Environment : public MemoryRetainer {
   int64_t base_object_count_ = 0;
   int64_t initial_base_object_count_ = 0;
   std::atomic_bool is_stopping_ { false };
+
+  std::unordered_set<int> unmanaged_fds_;
 
   std::function<void(Environment*, int)> process_exit_handler_ {
       DefaultProcessExitHandler };

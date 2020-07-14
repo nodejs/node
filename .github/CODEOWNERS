@@ -59,12 +59,12 @@
 
 # quic
 
-./deps/ngtcp2/* @nodejs/quic
-./deps/nghttp3/* @nodejs/quic
-./doc/api/quic.md @nodejs/quic
-./lib/internal/quic/* @nodejs/quic
-./src/node_bob* @nodejs/quic
-./src/quic/* @nodejs/quic
+/deps/ngtcp2/ @nodejs/quic
+/deps/nghttp3/ @nodejs/quic
+/doc/api/quic.md @nodejs/quic
+/lib/internal/quic/ @nodejs/quic
+/src/node_bob* @nodejs/quic
+/src/quic/ @nodejs/quic
 
 # modules
 
@@ -74,3 +74,10 @@
 # ./lib/internal/modules/* @nodejs/modules
 # ./lib/internal/bootstrap/loaders.js @nodejs/modules
 # ./src/module_wrap* @nodejs/modules @nodejs/vm
+
+# N-API
+
+# /src/node_api* @nodejs/n-api
+# /src/js_native_api* @nodejs/n-api
+# /doc/guides/adding-new-napi-api.md @nodejs/n-api
+# /doc/api/n-api.md @nodejs/n-api

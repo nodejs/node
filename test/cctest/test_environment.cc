@@ -32,6 +32,73 @@ class EnvironmentTest : public EnvironmentTestFixture {
   }
 };
 
+TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env {handle_scope, argv};
+
+  node::Environment* envi = *env;
+  envi->options()->experimental_vm_modules = true;
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 0);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const { SourceTextModule } = require('vm');"
+      "(async () => {"
+        "const stmString = 'globalThis.importResult = import(\"\")';"
+        "const m = new SourceTextModule(stmString, {"
+          "importModuleDynamically: (async () => {"
+            "const m = new SourceTextModule('');"
+            "await m.link(() => 0);"
+            "await m.evaluate();"
+            "return m.namespace;"
+          "}),"
+        "});"
+        "await m.link(() => 0);"
+        "await m.evaluate();"
+        "delete globalThis.importResult;"
+        "process.exit(0);"
+      "})()");
+}
+
+TEST_F(EnvironmentTest, EnvironmentWithNoESMLoader) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env {handle_scope, argv, node::EnvironmentFlags::kNoRegisterESMLoader};
+
+  node::Environment* envi = *env;
+  envi->options()->experimental_vm_modules = true;
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 1);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const { SourceTextModule } = require('vm');"
+      "(async () => {"
+        "const stmString = 'globalThis.importResult = import(\"\")';"
+        "const m = new SourceTextModule(stmString, {"
+          "importModuleDynamically: (async () => {"
+            "const m = new SourceTextModule('');"
+            "await m.link(() => 0);"
+            "await m.evaluate();"
+            "return m.namespace;"
+          "}),"
+        "});"
+        "await m.link(() => 0);"
+        "await m.evaluate();"
+        "delete globalThis.importResult;"
+      "})()");
+}
+
 TEST_F(EnvironmentTest, PreExecutionPreparation) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
