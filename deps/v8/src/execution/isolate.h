@@ -1416,6 +1416,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsInAnyContext(Object object, uint32_t index);
 
   void ClearKeptObjects();
+  void SetHostCleanupFinalizationGroupCallback(
+      HostCleanupFinalizationGroupCallback callback);
+  HostCleanupFinalizationGroupCallback
+  host_cleanup_finalization_group_callback() const {
+    return host_cleanup_finalization_group_callback_;
+  }
+  void RunHostCleanupFinalizationGroupCallback(
+      Handle<JSFinalizationRegistry> fr);
 
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);
@@ -1672,6 +1680,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;
+  HostCleanupFinalizationGroupCallback
+      host_cleanup_finalization_group_callback_ = nullptr;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
       nullptr;
   HostInitializeImportMetaObjectCallback

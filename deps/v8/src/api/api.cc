@@ -8298,6 +8298,33 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   isolate->SetAbortOnUncaughtExceptionCallback(callback);
 }
 
+void Isolate::SetHostCleanupFinalizationGroupCallback(
+    HostCleanupFinalizationGroupCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetHostCleanupFinalizationGroupCallback(callback);
+}
+
+Maybe<bool> FinalizationGroup::Cleanup(
+    Local<FinalizationGroup> finalization_group) {
+  i::Handle<i::JSFinalizationRegistry> fr =
+      Utils::OpenHandle(*finalization_group);
+  i::Isolate* isolate = fr->native_context().GetIsolate();
+  i::Handle<i::Context> i_context(fr->native_context(), isolate);
+  Local<Context> context = Utils::ToLocal(i_context);
+  ENTER_V8(isolate, context, FinalizationGroup, Cleanup, Nothing<bool>(),
+           i::HandleScope);
+  i::Handle<i::Object> callback(fr->cleanup(), isolate);
+  i::Handle<i::Object> argv[] = {callback};
+  fr->set_scheduled_for_cleanup(false);
+  has_pending_exception =
+      i::Execution::CallBuiltin(isolate,
+                                isolate->finalization_registry_cleanup_some(),
+                                fr, arraysize(argv), argv)
+          .is_null();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
+}
+
 void Isolate::SetHostImportModuleDynamicallyCallback(
     HostImportModuleDynamicallyCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

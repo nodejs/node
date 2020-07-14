@@ -37,6 +37,7 @@ void FinalizationRegistryCleanupTask::SlowAssertNoActiveJavaScript() {
 
 void FinalizationRegistryCleanupTask::RunInternal() {
   Isolate* isolate = heap_->isolate();
+  DCHECK(!isolate->host_cleanup_finalization_group_callback());
   SlowAssertNoActiveJavaScript();
 
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8",

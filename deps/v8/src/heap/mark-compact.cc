@@ -2537,7 +2537,9 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
   }
-  heap()->PostFinalizationRegistryCleanupTaskIfNeeded();
+  if (!isolate()->host_cleanup_finalization_group_callback()) {
+    heap()->PostFinalizationRegistryCleanupTaskIfNeeded();
+  }
 }
 
 void MarkCompactCollector::AbortWeakObjects() {
