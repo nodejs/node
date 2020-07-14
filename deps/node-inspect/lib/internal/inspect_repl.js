@@ -85,9 +85,16 @@ function extractFunctionName(description) {
   return fnNameMatch ? `: ${fnNameMatch[1]}` : '';
 }
 
-const NATIVES = process.binding('natives');
+const PUBLIC_BUILTINS = require('module').builtinModules;
+const NATIVES = PUBLIC_BUILTINS ? process.binding('natives') : {};
 function isNativeUrl(url) {
-  return url.replace('.js', '') in NATIVES || url === 'bootstrap_node.js';
+  url = url.replace(/\.js$/, '');
+  if (PUBLIC_BUILTINS) {
+    if (url.startsWith('internal/') || PUBLIC_BUILTINS.includes(url))
+      return true;
+  }
+
+  return url in NATIVES || url === 'bootstrap_node';
 }
 
 function getRelativePath(filenameOrURL) {
@@ -775,6 +782,14 @@ function createRepl(inspector) {
   }
 
   Debugger.on('paused', ({ callFrames, reason /* , hitBreakpoints */ }) => {
+    if (process.env.NODE_INSPECT_RESUME_ON_START === '1' &&
+        reason === 'Break on start') {
+      debuglog('Paused on start, but NODE_INSPECT_RESUME_ON_START' +
+              ' environment variable is set to 1, resuming');
+      inspector.client.callMethod('Debugger.resume');
+      return;
+    }
+
     // Save execution context's data
     currentBacktrace = Backtrace.from(callFrames);
     selectedFrame = currentBacktrace[0];

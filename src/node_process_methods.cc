@@ -36,13 +36,11 @@ using v8::ArrayBuffer;
 using v8::BigUint64Array;
 using v8::Context;
 using v8::Float64Array;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
-using v8::Name;
 using v8::NewStringType;
 using v8::Number;
 using v8::Object;
@@ -224,16 +222,6 @@ void RawDebug(const FunctionCallbackInfo<Value>& args) {
   Utf8Value message(args.GetIsolate(), args[0]);
   FPrintF(stderr, "%s\n", message);
   fflush(stderr);
-}
-
-static void StartProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->StartProfilerIdleNotifier();
-}
-
-static void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  env->StopProfilerIdleNotifier();
 }
 
 static void Umask(const FunctionCallbackInfo<Value>& args) {
@@ -457,10 +445,6 @@ static void InitializeProcessMethods(Local<Object> target,
     env->SetMethod(target, "causeSegfault", CauseSegfault);
     env->SetMethod(target, "chdir", Chdir);
   }
-
-  env->SetMethod(
-      target, "_startProfilerIdleNotifier", StartProfilerIdleNotifier);
-  env->SetMethod(target, "_stopProfilerIdleNotifier", StopProfilerIdleNotifier);
 
   env->SetMethod(target, "umask", Umask);
   env->SetMethod(target, "_rawDebug", RawDebug);

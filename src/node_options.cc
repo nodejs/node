@@ -18,7 +18,6 @@ using v8::Local;
 using v8::Map;
 using v8::Number;
 using v8::Object;
-using v8::String;
 using v8::Undefined;
 using v8::Value;
 
@@ -119,6 +118,8 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors) {
   }
 
   if (!unhandled_rejections.empty() &&
+      unhandled_rejections != "warn-with-error-code" &&
+      unhandled_rejections != "throw" &&
       unhandled_rejections != "strict" &&
       unhandled_rejections != "warn" &&
       unhandled_rejections != "none") {
@@ -599,7 +600,8 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
 
   AddOption("--experimental-top-level-await",
             "enable experimental support for ECMAScript Top-Level Await",
-            &PerIsolateOptions::experimental_top_level_await);
+            &PerIsolateOptions::experimental_top_level_await,
+            kAllowedInEnvironment);
   AddOption("--harmony-top-level-await", "", V8Option{});
   Implies("--experimental-top-level-await", "--harmony-top-level-await");
   Implies("--harmony-top-level-await", "--experimental-top-level-await");
@@ -664,11 +666,12 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "output compact single-line JSON",
             &PerProcessOptions::report_compact,
             kAllowedInEnvironment);
-  AddOption("--report-directory",
+  AddOption("--report-dir",
             "define custom report pathname."
-            " (default: current working directory of Node.js process)",
+            " (default: current working directory)",
             &PerProcessOptions::report_directory,
             kAllowedInEnvironment);
+  AddAlias("--report-directory", "--report-dir");
   AddOption("--report-filename",
             "define custom report file name."
             " (default: YYYYMMDD.HHMMSS.PID.SEQUENCE#.txt)",
@@ -828,7 +831,8 @@ std::string GetBashCompletion() {
          "    return 0\n"
          "  fi\n"
          "}\n"
-         "complete -F _node_complete node node_g";
+         "complete -o filenames -o nospace -o bashdefault "
+         "-F _node_complete node node_g";
   return out.str();
 }
 

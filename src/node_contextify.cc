@@ -36,7 +36,6 @@ namespace contextify {
 using errors::TryCatchScope;
 
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
@@ -423,7 +422,7 @@ void ContextifyContext::PropertySetterCallback(
     args.GetReturnValue().Set(false);
   }
 
-  ctx->sandbox()->Set(ctx->context(), property, value).Check();
+  USE(ctx->sandbox()->Set(ctx->context(), property, value));
 }
 
 // static
@@ -441,9 +440,10 @@ void ContextifyContext::PropertyDescriptorCallback(
   Local<Object> sandbox = ctx->sandbox();
 
   if (sandbox->HasOwnProperty(context, property).FromMaybe(false)) {
-    args.GetReturnValue().Set(
-        sandbox->GetOwnPropertyDescriptor(context, property)
-            .ToLocalChecked());
+    Local<Value> desc;
+    if (sandbox->GetOwnPropertyDescriptor(context, property).ToLocal(&desc)) {
+      args.GetReturnValue().Set(desc);
+    }
   }
 }
 
@@ -486,8 +486,7 @@ void ContextifyContext::PropertyDefinerCallback(
           desc_for_sandbox->set_configurable(desc.configurable());
         }
         // Set the property on the sandbox.
-        sandbox->DefineProperty(context, property, *desc_for_sandbox)
-            .Check();
+        USE(sandbox->DefineProperty(context, property, *desc_for_sandbox));
       };
 
   if (desc.has_get() || desc.has_set()) {
@@ -1123,14 +1122,14 @@ void ContextifyContext::CompileFunction(
       context_extensions.size(), context_extensions.data(), options,
       v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason, &script);
 
-  if (maybe_fn.IsEmpty()) {
+  Local<Function> fn;
+  if (!maybe_fn.ToLocal(&fn)) {
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
       errors::DecorateErrorStack(env, try_catch);
       try_catch.ReThrow();
     }
     return;
   }
-  Local<Function> fn = maybe_fn.ToLocalChecked();
 
   Local<Object> cache_key;
   if (!env->compiled_fn_entry_template()->NewInstance(

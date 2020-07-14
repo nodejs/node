@@ -416,6 +416,53 @@ function equalTokens(left, right, sourceCode) {
     return true;
 }
 
+/**
+ * Check if the given node is a true logical expression or not.
+ *
+ * The three binary expressions logical-or (`||`), logical-and (`&&`), and
+ * coalesce (`??`) are known as `ShortCircuitExpression`.
+ * But ESTree represents those by `LogicalExpression` node.
+ *
+ * This function rejects coalesce expressions of `LogicalExpression` node.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} `true` if the node is `&&` or `||`.
+ * @see https://tc39.es/ecma262/#prod-ShortCircuitExpression
+ */
+function isLogicalExpression(node) {
+    return (
+        node.type === "LogicalExpression" &&
+            (node.operator === "&&" || node.operator === "||")
+    );
+}
+
+/**
+ * Check if the given node is a nullish coalescing expression or not.
+ *
+ * The three binary expressions logical-or (`||`), logical-and (`&&`), and
+ * coalesce (`??`) are known as `ShortCircuitExpression`.
+ * But ESTree represents those by `LogicalExpression` node.
+ *
+ * This function finds only coalesce expressions of `LogicalExpression` node.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} `true` if the node is `??`.
+ */
+function isCoalesceExpression(node) {
+    return node.type === "LogicalExpression" && node.operator === "??";
+}
+
+/**
+ * Check if given two nodes are the pair of a logical expression and a coalesce expression.
+ * @param {ASTNode} left A node to check.
+ * @param {ASTNode} right Another node to check.
+ * @returns {boolean} `true` if the two nodes are the pair of a logical expression and a coalesce expression.
+ */
+function isMixedLogicalAndCoalesceExpressions(left, right) {
+    return (
+        (isLogicalExpression(left) && isCoalesceExpression(right)) ||
+            (isCoalesceExpression(left) && isLogicalExpression(right))
+    );
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -779,6 +826,7 @@ module.exports = {
             case "LogicalExpression":
                 switch (node.operator) {
                     case "||":
+                    case "??":
                         return 4;
                     case "&&":
                         return 5;
@@ -1243,19 +1291,64 @@ module.exports = {
 
     /**
      * Gets next location when the result is not out of bound, otherwise returns null.
+     *
+     * Assumptions:
+     *
+     * - The given location represents a valid location in the given source code.
+     * - Columns are 0-based.
+     * - Lines are 1-based.
+     * - Column immediately after the last character in a line (not incl. linebreaks) is considered to be a valid location.
+     * - If the source code ends with a linebreak, `sourceCode.lines` array will have an extra element (empty string) at the end.
+     *   The start (column 0) of that extra line is considered to be a valid location.
+     *
+     * Examples of successive locations (line, column):
+     *
+     * code: foo
+     * locations: (1, 0) -> (1, 1) -> (1, 2) -> (1, 3) -> null
+     *
+     * code: foo<LF>
+     * locations: (1, 0) -> (1, 1) -> (1, 2) -> (1, 3) -> (2, 0) -> null
+     *
+     * code: foo<CR><LF>
+     * locations: (1, 0) -> (1, 1) -> (1, 2) -> (1, 3) -> (2, 0) -> null
+     *
+     * code: a<LF>b
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (2, 1) -> null
+     *
+     * code: a<LF>b<LF>
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (2, 1) -> (3, 0) -> null
+     *
+     * code: a<CR><LF>b<CR><LF>
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (2, 1) -> (3, 0) -> null
+     *
+     * code: a<LF><LF>
+     * locations: (1, 0) -> (1, 1) -> (2, 0) -> (3, 0) -> null
+     *
+     * code: <LF>
+     * locations: (1, 0) -> (2, 0) -> null
+     *
+     * code:
+     * locations: (1, 0) -> null
      * @param {SourceCode} sourceCode The sourceCode
      * @param {{line: number, column: number}} location The location
      * @returns {{line: number, column: number} | null} Next location
      */
-    getNextLocation(sourceCode, location) {
-        const index = sourceCode.getIndexFromLoc(location);
-
-        // Avoid out of bound location
-        if (index + 1 > sourceCode.text.length) {
-            return null;
+    getNextLocation(sourceCode, { line, column }) {
+        if (column < sourceCode.lines[line - 1].length) {
+            return {
+                line,
+                column: column + 1
+            };
         }
 
-        return sourceCode.getLocFromIndex(index + 1);
+        if (line < sourceCode.lines.length) {
+            return {
+                line: line + 1,
+                column: 0
+            };
+        }
+
+        return null;
     },
 
     /**
@@ -1370,7 +1463,7 @@ module.exports = {
 
             try {
                 tokens = espree.tokenize(leftValue, espreeOptions);
-            } catch (e) {
+            } catch {
                 return false;
             }
 
@@ -1399,7 +1492,7 @@ module.exports = {
 
             try {
                 tokens = espree.tokenize(rightValue, espreeOptions);
-            } catch (e) {
+            } catch {
                 return false;
             }
 
@@ -1493,5 +1586,9 @@ module.exports = {
      */
     hasOctalEscapeSequence(rawString) {
         return OCTAL_ESCAPE_PATTERN.test(rawString);
-    }
+    },
+
+    isLogicalExpression,
+    isCoalesceExpression,
+    isMixedLogicalAndCoalesceExpressions
 };

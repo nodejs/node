@@ -283,7 +283,7 @@ in the release branch (e.g. a release for Node.js v4 would be added to the
 
 The new entry should take the following form:
 
-```md
+```markdown
 <a id="x.y.x"></a>
 ## YYYY-MM-DD, Version x.y.z (Release Type), @releaser
 
@@ -344,7 +344,7 @@ The `CHANGELOG.md`, `doc/changelogs/CHANGELOG_Vx.md`, `src/node_version.h`, and
 `REPLACEME` changes should be the final commit that will be tagged for the
 release. When committing these to git, use the following message format:
 
-```txt
+```text
 YYYY-MM-DD, Version x.y.z (Release Type)
 
 Notable changes:
@@ -357,7 +357,7 @@ For security releases, begin the commit message with the phrase
 [distribution indexer](https://github.com/nodejs/nodejs-dist-indexer) to
 identify it as such:
 
-```txt
+```text
 YYYY-MM-DD, Version x.y.z (Release Type)
 
 This is a security release.
@@ -493,7 +493,7 @@ $ git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-
 `release-type` is either "Current" or "LTS". For LTS releases, you should also
  include the release codename, for example:
 
-```txt
+```text
 2019-10-22 Node.js v10.17.0 'Dubnium' (LTS) Release
 ```
 
@@ -509,7 +509,7 @@ On release proposal branch, edit `src/node_version.h` again and:
 
 Commit this change with the following commit message format:
 
-```txt
+```text
 Working on vx.y.z # where 'z' is the incremented patch number
 
 PR-URL: <full URL to your release proposal PR>
@@ -576,7 +576,7 @@ same GPG key!**
 Use `tools/release.sh` to promote and sign the build. Before doing this, you'll
 need to ensure you've loaded the correct ssh key, or you'll see the following:
 
-```sh
+```console
 # Checking for releases ...
 Enter passphrase for key '/Users/<user>/.ssh/id_rsa':
 dist@direct.nodejs.org's password:
@@ -584,14 +584,14 @@ dist@direct.nodejs.org's password:
 
 The key can be loaded either with `ssh-add`:
 
-```sh
+```console
 # Substitute node_id_rsa with whatever you've named the key
 $ ssh-add ~/.ssh/node_id_rsa
 ```
 
 or at runtime with:
 
-```sh
+```console
 # Substitute node_id_rsa with whatever you've named the key
 $ ./tools/release.sh -i ~/.ssh/node_id_rsa
 ```

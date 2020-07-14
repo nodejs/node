@@ -51,6 +51,7 @@ namespace node {
 namespace fs {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -189,6 +190,40 @@ void FileHandle::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("current_read", current_read_);
 }
 
+FileHandle::TransferMode FileHandle::GetTransferMode() const {
+  return reading_ || closing_ || closed_ ?
+      TransferMode::kUntransferable : TransferMode::kTransferable;
+}
+
+std::unique_ptr<worker::TransferData> FileHandle::TransferForMessaging() {
+  CHECK_NE(GetTransferMode(), TransferMode::kUntransferable);
+  auto ret = std::make_unique<TransferData>(fd_);
+  closed_ = true;
+  return ret;
+}
+
+FileHandle::TransferData::TransferData(int fd) : fd_(fd) {}
+
+FileHandle::TransferData::~TransferData() {
+  if (fd_ > 0) {
+    uv_fs_t close_req;
+    CHECK_EQ(0, uv_fs_close(nullptr, &close_req, fd_, nullptr));
+    uv_fs_req_cleanup(&close_req);
+  }
+}
+
+BaseObjectPtr<BaseObject> FileHandle::TransferData::Deserialize(
+    Environment* env,
+    v8::Local<v8::Context> context,
+    std::unique_ptr<worker::TransferData> self) {
+  BindingData* bd = Environment::GetBindingData<BindingData>(context);
+  if (bd == nullptr) return {};
+
+  int fd = fd_;
+  fd_ = -1;
+  return BaseObjectPtr<BaseObject> { FileHandle::New(bd, fd) };
+}
+
 // Close the file descriptor if it hasn't already been closed. A process
 // warning will be emitted using a SetImmediate to avoid calling back to
 // JS during GC. If closing the fd fails at this point, a fatal exception
@@ -226,7 +261,7 @@ inline void FileHandle::Close() {
   // to notify that the file descriptor was gc'd. We want to be noisy about
   // this because not explicitly closing the FileHandle is a bug.
 
-  env()->SetUnrefImmediate([detail](Environment* env) {
+  env()->SetImmediate([detail](Environment* env) {
     ProcessEmitWarning(env,
                        "Closing file descriptor %d on garbage collection",
                        detail.fd);
@@ -240,7 +275,7 @@ inline void FileHandle::Close() {
           "thrown if a file descriptor is closed during garbage collection.",
           "DEP0137").IsNothing();
     }
-  });
+  }, CallbackFlags::kUnrefed);
 }
 
 void FileHandle::CloseReq::Resolve() {
@@ -453,9 +488,9 @@ int FileHandle::ReadStart() {
 
     // Push the read wrap back to the freelist, or let it be destroyed
     // once we’re exiting the current scope.
-    constexpr size_t wanted_freelist_fill = 100;
+    constexpr size_t kWantedFreelistFill = 100;
     auto& freelist = handle->binding_data_->file_handle_read_wrap_freelist;
-    if (freelist.size() < wanted_freelist_fill) {
+    if (freelist.size() < kWantedFreelistFill) {
       read_wrap->Reset();
       freelist.emplace_back(std::move(read_wrap));
     }
@@ -720,7 +755,7 @@ void AfterScanDir(uv_fs_t* req) {
   int r;
   std::vector<Local<Value>> name_v;
 
-  for (int i = 0; ; i++) {
+  for (;;) {
     uv_dirent_t ent;
 
     r = uv_fs_scandir_next(req, &ent);
@@ -761,7 +796,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   std::vector<Local<Value>> name_v;
   std::vector<Local<Value>> type_v;
 
-  for (int i = 0; ; i++) {
+  for (;;) {
     uv_dirent_t ent;
 
     r = uv_fs_scandir_next(req, &ent);
@@ -842,9 +877,7 @@ void Close(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// Used to speed up module loading.  Returns the contents of the file as
-// a string or undefined when the file cannot be opened or "main" is not found
-// in the file.
+// Used to speed up module loading. Returns an array [string, boolean]
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -853,14 +886,16 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   node::Utf8Value path(isolate, args[0]);
 
-  if (strlen(*path) != path.length())
+  if (strlen(*path) != path.length()) {
+    args.GetReturnValue().Set(Array::New(isolate));
     return;  // Contains a nul byte.
-
+  }
   uv_fs_t open_req;
   const int fd = uv_fs_open(loop, &open_req, *path, O_RDONLY, 0, nullptr);
   uv_fs_req_cleanup(&open_req);
 
   if (fd < 0) {
+    args.GetReturnValue().Set(Array::New(isolate));
     return;
   }
 
@@ -886,9 +921,10 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     numchars = uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
     uv_fs_req_cleanup(&read_req);
 
-    if (numchars < 0)
+    if (numchars < 0) {
+      args.GetReturnValue().Set(Array::New(isolate));
       return;
-
+    }
     offset += numchars;
   } while (static_cast<size_t>(numchars) == kBlockSize);
 
@@ -924,18 +960,16 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  Local<String> return_value;
-  if (p < pe) {
-    return_value =
-        String::NewFromUtf8(isolate,
-                            &chars[start],
-                            v8::NewStringType::kNormal,
-                            size).ToLocalChecked();
-  } else {
-    return_value = env->empty_object_string();
-  }
 
-  args.GetReturnValue().Set(return_value);
+  Local<Value> return_value[] = {
+    String::NewFromUtf8(isolate,
+                        &chars[start],
+                        v8::NewStringType::kNormal,
+                        size).ToLocalChecked(),
+    Boolean::New(isolate, p < pe ? true : false)
+  };
+  args.GetReturnValue().Set(
+    Array::New(isolate, return_value, arraysize(return_value)));
 }
 
 // Used to speed up module loading.  Returns 0 if the path refers to
@@ -1056,7 +1090,7 @@ static void Symlink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  int argc = args.Length();
+  const int argc = args.Length();
   CHECK_GE(argc, 4);
 
   BufferValue target(isolate, args[0]);
@@ -1085,7 +1119,7 @@ static void Link(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  int argc = args.Length();
+  const int argc = args.Length();
   CHECK_GE(argc, 3);
 
   BufferValue src(isolate, args[0]);
@@ -1112,7 +1146,7 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  int argc = args.Length();
+  const int argc = args.Length();
   CHECK_GE(argc, 3);
 
   BufferValue path(isolate, args[0]);
@@ -1155,7 +1189,7 @@ static void Rename(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  int argc = args.Length();
+  const int argc = args.Length();
   CHECK_GE(argc, 3);
 
   BufferValue old_path(isolate, args[0]);
@@ -2270,6 +2304,35 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void LUTimes(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  const int argc = args.Length();
+  CHECK_GE(argc, 3);
+
+  BufferValue path(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*path);
+
+  CHECK(args[1]->IsNumber());
+  const double atime = args[1].As<Number>()->Value();
+
+  CHECK(args[2]->IsNumber());
+  const double mtime = args[2].As<Number>()->Value();
+
+  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
+  if (req_wrap_async != nullptr) {  // lutimes(path, atime, mtime, req)
+    AsyncCall(env, req_wrap_async, args, "lutime", UTF8, AfterNoArgs,
+              uv_fs_lutime, *path, atime, mtime);
+  } else {  // lutimes(path, atime, mtime, undefined, ctx)
+    CHECK_EQ(argc, 5);
+    FSReqWrapSync req_wrap_sync;
+    FS_SYNC_TRACE_BEGIN(lutimes);
+    SyncCall(env, args[4], &req_wrap_sync, "lutime",
+             uv_fs_lutime, *path, atime, mtime);
+    FS_SYNC_TRACE_END(lutimes);
+  }
+}
+
 static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -2365,6 +2428,7 @@ void Initialize(Local<Object> target,
 
   env->SetMethod(target, "utimes", UTimes);
   env->SetMethod(target, "futimes", FUTimes);
+  env->SetMethod(target, "lutimes", LUTimes);
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
 

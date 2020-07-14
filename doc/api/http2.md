@@ -1409,6 +1409,10 @@ and will throw an error.
 #### `http2stream.respond([headers[, options]])`
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33160
+    description: Allow explicity setting date headers.
 -->
 
 * `headers` {HTTP/2 Headers Object}
@@ -1453,6 +1457,9 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33160
+    description: Allow explicity setting date headers.
   - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29876
     description: The `fd` option may now be a `FileHandle`.
@@ -1551,6 +1558,9 @@ server.on('stream', (stream) => {
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33160
+    description: Allow explicity setting date headers.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18936
     description: Any readable file, not necessarily a
@@ -2043,7 +2053,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    The minimum value is `4`. **Default:** `128`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
+    **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2180,7 +2192,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    The minimum value is `4`. **Default:** `128`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `4`.
+    **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxSendHeaderBlockLength` {number} Sets the maximum allowed size for a
@@ -2291,7 +2305,9 @@ changes:
     queued to be sent, and unacknowledged `PING` and `SETTINGS` frames are all
     counted towards the current limit. **Default:** `10`.
   * `maxHeaderListPairs` {number} Sets the maximum number of header entries.
-    The minimum value is `1`. **Default:** `128`.
+    This is similar to [`http.Server#maxHeadersCount`][] or
+    [`http.ClientRequest#maxHeadersCount`][]. The minimum value is `1`.
+    **Default:** `128`.
   * `maxOutstandingPings` {number} Sets the maximum number of outstanding,
     unacknowledged pings. **Default:** `10`.
   * `maxReservedRemoteStreams` {number} Sets the maximum number of reserved push
@@ -2485,15 +2501,15 @@ properties.
 
 * `headerTableSize` {number} Specifies the maximum number of bytes used for
   header compression. The minimum allowed value is 0. The maximum allowed value
-  is 2<sup>32</sup>-1. **Default:** `4,096 octets`.
+  is 2<sup>32</sup>-1. **Default:** `4096`.
 * `enablePush` {boolean} Specifies `true` if HTTP/2 Push Streams are to be
   permitted on the `Http2Session` instances. **Default:** `true`.
-* `initialWindowSize` {number} Specifies the *senders* initial window size
-  for stream-level flow control. The minimum allowed value is 0. The maximum
-  allowed value is 2<sup>32</sup>-1. **Default:** `65,535 bytes`.
-* `maxFrameSize` {number} Specifies the size of the largest frame payload.
-  The minimum allowed value is 16,384. The maximum allowed value
-  is 2<sup>24</sup>-1. **Default:** `16,384 bytes`.
+* `initialWindowSize` {number} Specifies the *sender's* initial window size in
+  bytes for stream-level flow control. The minimum allowed value is 0. The
+  maximum allowed value is 2<sup>32</sup>-1. **Default:** `65535`.
+* `maxFrameSize` {number} Specifies the size in bytes of the largest frame
+  payload. The minimum allowed value is 16,384. The maximum allowed value is
+  2<sup>24</sup>-1. **Default:** `16384`.
 * `maxConcurrentStreams` {number} Specifies the maximum number of concurrent
   streams permitted on an `Http2Session`. There is no default value which
   implies, at least theoretically, 2<sup>32</sup>-1 streams may be open
@@ -3012,7 +3028,7 @@ added: v8.4.0
 Request URL string. This contains only the URL that is
 present in the actual HTTP request. If the request is:
 
-```txt
+```http
 GET /status?name=ryan HTTP/1.1\r\n
 Accept: text/plain\r\n
 \r\n
@@ -3028,7 +3044,7 @@ Then `request.url` will be:
 To parse the url into its parts `require('url').parse(request.url)`
 can be used:
 
-```txt
+```console
 $ node
 > require('url').parse('/status?name=ryan')
 Url {
@@ -3623,6 +3639,8 @@ following additional properties:
 [`Http2Stream`]: #http2_class_http2stream
 [`ServerHttp2Stream`]: #http2_class_serverhttp2stream
 [`TypeError`]: errors.html#errors_class_typeerror
+[`http.ClientRequest#maxHeadersCount`]: http.html#http_request_maxheaderscount
+[`http.Server#maxHeadersCount`]: http.html#http_server_maxheaderscount
 [`http2.SecureServer`]: #http2_class_http2secureserver
 [`http2.Server`]: #http2_class_http2server
 [`http2.createSecureServer()`]: #http2_http2_createsecureserver_options_onrequesthandler

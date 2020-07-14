@@ -15,7 +15,7 @@ process.report.directory = tmpdir.path;
 function validate() {
   const reports = helper.findReports(process.pid, tmpdir.path);
   assert.strictEqual(reports.length, 1);
-  helper.validate(reports[0]);
+  helper.validate(reports[0], arguments[0]);
   fs.unlinkSync(reports[0]);
   return reports[0];
 }
@@ -38,6 +38,13 @@ function validate() {
   error.stack = 'only one line';
   process.report.writeReport(error);
   validate();
+}
+
+{
+  const error = new Error();
+  error.foo = 'goo';
+  process.report.writeReport(error);
+  validate([['javascriptStack.errorProperties.foo', 'goo']]);
 }
 
 {

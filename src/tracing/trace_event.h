@@ -5,8 +5,8 @@
 #ifndef SRC_TRACING_TRACE_EVENT_H_
 #define SRC_TRACING_TRACE_EVENT_H_
 
-#include "node_platform.h"
 #include "v8-platform.h"
+#include "tracing/agent.h"
 #include "trace_event_common.h"
 #include <atomic>
 
@@ -70,8 +70,7 @@ enum CategoryGroupEnabledFlags {
 // const uint8_t*
 //     TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(const char* category_group)
 #define TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED              \
-  node::tracing::TraceEventHelper::GetTracingController()       \
-      ->GetCategoryGroupEnabled
+  node::tracing::TraceEventHelper::GetCategoryGroupEnabled
 
 // Get the number of times traces have been recorded. This is used to implement
 // the TRACE_EVENT_IS_NEW_TRACE facility.
@@ -115,9 +114,10 @@ enum CategoryGroupEnabledFlags {
 //     const uint8_t* category_group_enabled,
 //     const char* name,
 //     uint64_t id)
-#define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION             \
-  node::tracing::TraceEventHelper::GetTracingController()       \
-      ->UpdateTraceEventDuration
+#define TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION                           \
+  if (auto controller =                                                       \
+         node::tracing::TraceEventHelper::GetTracingController())             \
+      controller->UpdateTraceEventDuration
 
 // Adds a metadata event to the trace log. The |AppendValueAsTraceFormat| method
 // on the convertable value will be called at flush time.
@@ -310,15 +310,20 @@ const int kZeroNumArgs = 0;
 const decltype(nullptr) kGlobalScope = nullptr;
 const uint64_t kNoId = 0;
 
-// Extern (for now) because embedders need access to TraceEventHelper.
-// Refs: https://github.com/nodejs/node/pull/28724
-class NODE_EXTERN TraceEventHelper {
+class TraceEventHelper {
  public:
   static v8::TracingController* GetTracingController();
   static void SetTracingController(v8::TracingController* controller);
 
   static Agent* GetAgent();
   static void SetAgent(Agent* agent);
+
+  static inline const uint8_t* GetCategoryGroupEnabled(const char* group) {
+    v8::TracingController* controller = GetTracingController();
+    static const uint8_t disabled = 0;
+    if (UNLIKELY(controller == nullptr)) return &disabled;
+    return controller->GetCategoryGroupEnabled(group);
+  }
 };
 
 // TraceID encapsulates an ID that can either be an integer or pointer. Pointers
@@ -467,6 +472,7 @@ static inline uint64_t AddTraceEventImpl(
   // DCHECK(num_args, 2);
   v8::TracingController* controller =
       node::tracing::TraceEventHelper::GetTracingController();
+  if (controller == nullptr) return 0;
   return controller->AddTraceEvent(phase, category_group_enabled, name, scope, id,
                                    bind_id, num_args, arg_names, arg_types,
                                    arg_values, arg_convertibles, flags);
@@ -489,6 +495,7 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
   // DCHECK_LE(num_args, 2);
   v8::TracingController* controller =
       node::tracing::TraceEventHelper::GetTracingController();
+  if (controller == nullptr) return 0;
   return controller->AddTraceEventWithTimestamp(
       phase, category_group_enabled, name, scope, id, bind_id, num_args,
       arg_names, arg_types, arg_values, arg_convertables, flags, timestamp);

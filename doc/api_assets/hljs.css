@@ -1,0 +1,29 @@
+.hljs {
+  font-weight: normal;
+  font-style: normal;
+}
+
+.hljs-symbol {
+  color: #333;
+}
+
+.hljs-keyword {
+  color: #338;
+}
+
+.hljs-string,
+.hljs-regexp,
+.hljs-number {
+  color: #E54305;
+}
+
+.hljs-doctag {
+  color: #040404;
+}
+
+.hljs-doctag .hljs-type,
+.hljs-doctag .hljs-variable,
+.hljs-comment {
+  color: #666;
+  font-weight: lighter;
+}

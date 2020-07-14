@@ -10,6 +10,7 @@ const bench = common.createBenchmark(main, {
 
 function main({ n, argc, listeners }) {
   const ee = new EventEmitter();
+  ee.setMaxListeners(listeners + 1);
 
   for (let k = 0; k < listeners; k += 1)
     ee.on('dummy', () => {});

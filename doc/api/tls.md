@@ -21,7 +21,7 @@ Private keys can be generated in multiple ways. The example below illustrates
 use of the OpenSSL command-line interface to generate a 2048-bit RSA private
 key:
 
-```sh
+```bash
 openssl genrsa -out ryans-key.pem 2048
 ```
 
@@ -35,7 +35,7 @@ step to obtaining a certificate is to create a *Certificate Signing Request*
 The OpenSSL command-line interface can be used to generate a CSR for a private
 key:
 
-```sh
+```bash
 openssl req -new -sha256 -key ryans-key.pem -out ryans-csr.pem
 ```
 
@@ -45,14 +45,14 @@ Authority for signing or used to generate a self-signed certificate.
 Creating a self-signed certificate using the OpenSSL command-line interface
 is illustrated in the example below:
 
-```sh
+```bash
 openssl x509 -req -in ryans-csr.pem -signkey ryans-key.pem -out ryans-cert.pem
 ```
 
 Once the certificate is generated, it can be used to generate a `.pfx` or
 `.p12` file:
 
-```sh
+```bash
 openssl pkcs12 -export -in ryans-cert.pem -inkey ryans-key.pem \
       -certfile ca-cert.pem -out ryans.pfx
 ```
@@ -95,7 +95,7 @@ to generate Diffie-Hellman parameters and specify them with the `dhparam`
 option to [`tls.createSecureContext()`][]. The following illustrates the use of
 the OpenSSL command-line interface to generate such parameters:
 
-```sh
+```bash
 openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
@@ -250,7 +250,7 @@ failures, it is easy to not notice unnecessarily poor TLS performance. The
 OpenSSL CLI can be used to verify that servers are resuming sessions. Use the
 `-reconnect` option to `openssl s_client`, for example:
 
-```sh
+```console
 $ openssl s_client -connect localhost:443 -reconnect
 ```
 
@@ -269,33 +269,36 @@ Reused, TLSv1.2, Cipher is ECDHE-RSA-AES128-GCM-SHA256
 
 ## Modifying the Default TLS Cipher suite
 
-Node.js is built with a default suite of enabled and disabled TLS ciphers.
-Currently, the default cipher suite is:
+Node.js is built with a default suite of enabled and disabled TLS ciphers. This
+default cipher list can be configured when building Node.js to allow
+distributions to provide their own default list.
 
-```txt
-TLS_AES_256_GCM_SHA384:
-TLS_CHACHA20_POLY1305_SHA256:
-TLS_AES_128_GCM_SHA256:
-ECDHE-RSA-AES128-GCM-SHA256:
-ECDHE-ECDSA-AES128-GCM-SHA256:
-ECDHE-RSA-AES256-GCM-SHA384:
-ECDHE-ECDSA-AES256-GCM-SHA384:
-DHE-RSA-AES128-GCM-SHA256:
-ECDHE-RSA-AES128-SHA256:
-DHE-RSA-AES128-SHA256:
-ECDHE-RSA-AES256-SHA384:
-DHE-RSA-AES256-SHA384:
-ECDHE-RSA-AES256-SHA256:
-DHE-RSA-AES256-SHA256:
-HIGH:
-!aNULL:
-!eNULL:
-!EXPORT:
-!DES:
-!RC4:
-!MD5:
-!PSK:
-!SRP:
+The following command can be used to show the default cipher suite:
+```console
+node -p crypto.constants.defaultCoreCipherList | tr ':' '\n'
+TLS_AES_256_GCM_SHA384
+TLS_CHACHA20_POLY1305_SHA256
+TLS_AES_128_GCM_SHA256
+ECDHE-RSA-AES128-GCM-SHA256
+ECDHE-ECDSA-AES128-GCM-SHA256
+ECDHE-RSA-AES256-GCM-SHA384
+ECDHE-ECDSA-AES256-GCM-SHA384
+DHE-RSA-AES128-GCM-SHA256
+ECDHE-RSA-AES128-SHA256
+DHE-RSA-AES128-SHA256
+ECDHE-RSA-AES256-SHA384
+DHE-RSA-AES256-SHA384
+ECDHE-RSA-AES256-SHA256
+DHE-RSA-AES256-SHA256
+HIGH
+!aNULL
+!eNULL
+!EXPORT
+!DES
+!RC4
+!MD5
+!PSK
+!SRP
 !CAMELLIA
 ```
 
@@ -304,10 +307,10 @@ line switch (directly, or via the [`NODE_OPTIONS`][] environment variable). For
 instance, the following makes `ECDHE-RSA-AES128-GCM-SHA256:!RC4` the default TLS
 cipher suite:
 
-```sh
-node --tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4" server.js
+```bash
+node --tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4' server.js
 
-export NODE_OPTIONS=--tls-cipher-list="ECDHE-RSA-AES128-GCM-SHA256:!RC4"
+export NODE_OPTIONS=--tls-cipher-list='ECDHE-RSA-AES128-GCM-SHA256:!RC4'
 node server.js
 ```
 
@@ -318,9 +321,9 @@ in [`tls.createServer()`][], [`tls.connect()`][], and when creating new
 
 The ciphers list can contain a mixture of TLSv1.3 cipher suite names, the ones
 that start with `'TLS_'`, and specifications for TLSv1.2 and below cipher
-suites.  The TLSv1.2 ciphers support a legacy specification format, consult
+suites. The TLSv1.2 ciphers support a legacy specification format, consult
 the OpenSSL [cipher list format][] documentation for details, but those
-specifications do *not* apply to TLSv1.3 ciphers.  The TLSv1.3 suites can only
+specifications do *not* apply to TLSv1.3 ciphers. The TLSv1.3 suites can only
 be enabled by including their full name in the cipher list. They cannot, for
 example, be enabled or disabled by using the legacy TLSv1.2 `'EECDH'` or
 `'!EECDH'` specification.
@@ -765,12 +768,12 @@ On the client, the `session` can be provided to the `session` option of
 See [Session Resumption][] for more information.
 
 For TLSv1.2 and below, [`tls.TLSSocket.getSession()`][] can be called once
-the handshake is complete.  For TLSv1.3, only ticket-based resumption is allowed
+the handshake is complete. For TLSv1.3, only ticket-based resumption is allowed
 by the protocol, multiple tickets are sent, and the tickets aren't sent until
 after the handshake completes. So it is necessary to wait for the
-`'session'` event to get a resumable session.  Applications
+`'session'` event to get a resumable session. Applications
 should use the `'session'` event instead of `getSession()` to ensure
-they will work for all TLS versions.  Applications that only expect to
+they will work for all TLS versions. Applications that only expect to
 get or use one session should listen for this event only once:
 
 ```js
@@ -1400,6 +1403,12 @@ The `callback` function, if specified, will be added as a listener for the
 
 `tls.connect()` returns a [`tls.TLSSocket`][] object.
 
+Unlike the `https` API, `tls.connect()` does not enable the
+SNI (Server Name Indication) extension by default, which may cause some
+servers to return an incorrect certificate or reject the connection
+altogether. To enable SNI, set the `servername` option in addition
+to `host`.
+
 The following illustrates a client for the echo server example from
 [`tls.createServer()`][]:
 
@@ -1614,11 +1623,11 @@ changes:
     [OpenSSL Options][].
   * `secureProtocol` {string} Legacy mechanism to select the TLS protocol
     version to use, it does not support independent control of the minimum and
-    maximum version, and does not support limiting the protocol to TLSv1.3.  Use
-    `minVersion` and `maxVersion` instead.  The possible values are listed as
-    [SSL_METHODS][], use the function names as strings.  For example, use
+    maximum version, and does not support limiting the protocol to TLSv1.3. Use
+    `minVersion` and `maxVersion` instead. The possible values are listed as
+    [SSL_METHODS][], use the function names as strings. For example, use
     `'TLSv1_1_method'` to force TLS version 1.1, or `'TLS_method'` to allow any
-    TLS protocol version up to TLSv1.3.  It is not recommended to use TLS
+    TLS protocol version up to TLSv1.3. It is not recommended to use TLS
     versions less than 1.2, but it may be required for interoperability.
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
@@ -1789,8 +1798,10 @@ added: v12.3.0
 * {string[]}
 
 An immutable array of strings representing the root certificates (in PEM format)
-used for verifying peer certificates. This is the default value of the `ca`
-option to [`tls.createSecureContext()`][].
+from the bundled Mozilla CA store as supplied by current Node.js version.
+
+The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
+that is fixed at release time. It is identical on all supported platforms.
 
 ## `tls.DEFAULT_ECDH_CURVE`
 <!-- YAML
@@ -1814,7 +1825,7 @@ added: v11.4.0
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
   **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
-  `--tls-max-v1.2` sets the default to `'TLSv1.2'`.  Using `--tls-max-v1.3` sets
+  `--tls-max-v1.2` sets the default to `'TLSv1.2'`. Using `--tls-max-v1.3` sets
   the default to `'TLSv1.3'`. If multiple of the options are provided, the
   highest maximum is used.
 

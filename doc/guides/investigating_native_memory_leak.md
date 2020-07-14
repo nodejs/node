@@ -103,7 +103,7 @@ example leak based on the "Hello world" addon from
 In this example, a loop which allocates ~1MB of memory and never frees it
 has been added:
 
-```C++
+```cpp
 void* malloc_holder = nullptr;
 napi_value Method(napi_env env, napi_callback_info info) {
   napi_status status;
@@ -366,7 +366,7 @@ line number:
 
 This new output shows us exactly where the leak is occurring in the file `hello.cc`:
 
-```C++
+```cpp
   6 void* malloc_holder = nullptr;
   7 napi_value Method(napi_env env, napi_callback_info info) {
   8   napi_status status;

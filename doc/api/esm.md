@@ -94,7 +94,7 @@ until the root of the volume is reached.
 }
 ```
 
-```sh
+```bash
 # In same folder as above package.json
 node my-app.js # Runs as ES module
 ```
@@ -184,7 +184,7 @@ Strings passed in as an argument to `--eval` (or `-e`), or piped to `node` via
 `STDIN`, will be treated as ES modules when the `--input-type=module` flag is
 set.
 
-```sh
+```bash
 node --input-type=module --eval "import { sep } from 'path'; console.log(sep);"
 
 echo "import { sep } from 'path'; console.log(sep);" | node --input-type=module
@@ -1160,25 +1160,26 @@ condition list **must** be passed through to the `defaultResolve` function.
 ```js
 /**
  * @param {string} specifier
- * @param {object} context
- * @param {string} context.parentURL
- * @param {string[]} context.conditions
- * @param {function} defaultResolve
- * @returns {object} response
- * @returns {string} response.url
+ * @param {{
+ *   parentURL: !(string | undefined),
+ *   conditions: !(Array<string>),
+ * }} context
+ * @param {Function} defaultResolve
+ * @returns {!(Promise<{ url: string }>)}
  */
 export async function resolve(specifier, context, defaultResolve) {
   const { parentURL = null } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all specifiers, do some custom logic for resolving.
-    // Always return an object of the form {url: <string>}
+    // Always return an object of the form {url: <string>}.
     return {
-      url: (parentURL) ?
-        new URL(specifier, parentURL).href : new URL(specifier).href
+      url: parentURL ?
+        new URL(specifier, parentURL).href :
+        new URL(specifier).href,
     };
   }
-  if (anotherCondition) {
-    // When calling the defaultResolve, the arguments can be modified. In this
+  if (Math.random() < 0.5) { // Another condition.
+    // When calling `defaultResolve`, the arguments can be modified. In this
     // case it's adding another value for matching conditional exports.
     return defaultResolve(specifier, {
       ...context,
@@ -1196,32 +1197,41 @@ export async function resolve(specifier, context, defaultResolve) {
 > signature may change. Do not rely on the API described below.
 
 The `getFormat` hook provides a way to define a custom method of determining how
-a URL should be interpreted. This can be one of the following:
+a URL should be interpreted. The `format` returned also affects what the
+acceptable forms of source values are for a module when parsing. This can be one
+of the following:
 
-| `format` | Description |
-| --- | --- |
-| `'builtin'` | Load a Node.js builtin module |
-| `'commonjs'` | Load a Node.js CommonJS module |
-| `'dynamic'` | Use a [dynamic instantiate hook][] |
-| `'json'` | Load a JSON file |
-| `'module'` | Load a standard JavaScript module (ES module) |
-| `'wasm'` | Load a WebAssembly module |
+| `format` | Description | Acceptable Types For `source` Returned by `getSource` or `transformSource` |
+| --- | --- | --- |
+| `'builtin'` | Load a Node.js builtin module | Not applicable |
+| `'commonjs'` | Load a Node.js CommonJS module | Not applicable |
+| `'json'` | Load a JSON file | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'module'` | Load an ES module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+| `'wasm'` | Load a WebAssembly module | { [ArrayBuffer][], [string][], [TypedArray][] } |
+
+Note: These types all correspond to classes defined in ECMAScript.
+
+* The specific [ArrayBuffer][] object is a [SharedArrayBuffer][].
+* The specific [string][] object is not the class constructor, but an instance.
+* The specific [TypedArray][] object is a [Uint8Array][].
+
+Note: If the source value of a text-based format (i.e., `'json'`, `'module'`) is
+not a string, it will be converted to a string using [`util.TextDecoder`][].
 
 ```js
 /**
  * @param {string} url
- * @param {object} context (currently empty)
- * @param {function} defaultGetFormat
- * @returns {object} response
- * @returns {string} response.format
+ * @param {Object} context (currently empty)
+ * @param {Function} defaultGetFormat
+ * @returns {Promise<{ format: string }>}
  */
 export async function getFormat(url, context, defaultGetFormat) {
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for determining format.
     // Always return an object of the form {format: <string>}, where the
     // format is one of the strings in the table above.
     return {
-      format: 'module'
+      format: 'module',
     };
   }
   // Defer to Node.js for all other URLs.
@@ -1241,19 +1251,17 @@ potentially avoid reading files from disk.
 ```js
 /**
  * @param {string} url
- * @param {object} context
- * @param {string} context.format
- * @param {function} defaultGetSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {{ format: string }} context
+ * @param {Function} defaultGetSource
+ * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
  */
 export async function getSource(url, context, defaultGetSource) {
   const { format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for retrieving the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other URLs.
@@ -1276,28 +1284,25 @@ unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
 
 ```js
 /**
- * @param {string|buffer} source
- * @param {object} context
- * @param {string} context.url
- * @param {string} context.format
- * @param {function} defaultTransformSource
- * @returns {object} response
- * @returns {string|buffer} response.source
+ * @param {!(SharedArrayBuffer | string | Uint8Array)} source
+ * @param {{
+ *   url: string,
+ *   format: string,
+ * }} context
+ * @param {Function} defaultTransformSource
+ * @returns {Promise<{ source: !(SharedArrayBuffer | string | Uint8Array) }>}
  */
-export async function transformSource(source,
-                                      context,
-                                      defaultTransformSource) {
+export async function transformSource(source, context, defaultTransformSource) {
   const { url, format } = context;
-  if (someCondition) {
+  if (Math.random() > 0.5) { // Some condition.
     // For some or all URLs, do some custom logic for modifying the source.
     // Always return an object of the form {source: <string|buffer>}.
     return {
-      source: '...'
+      source: '...',
     };
   }
   // Defer to Node.js for all other sources.
-  return defaultTransformSource(
-    source, context, defaultTransformSource);
+  return defaultTransformSource(source, context, defaultTransformSource);
 }
 ```
 
@@ -1333,38 +1338,6 @@ const require = createRequire(process.cwd() + '/<preload>');
 `;
 }
 ```
-
-#### <code>dynamicInstantiate</code> hook
-
-> Note: The loaders API is being redesigned. This hook may disappear or its
-> signature may change. Do not rely on the API described below.
-
-To create a custom dynamic module that doesn't correspond to one of the
-existing `format` interpretations, the `dynamicInstantiate` hook can be used.
-This hook is called only for modules that return `format: 'dynamic'` from
-the [`getFormat` hook][].
-
-```js
-/**
- * @param {string} url
- * @returns {object} response
- * @returns {array} response.exports
- * @returns {function} response.execute
- */
-export async function dynamicInstantiate(url) {
-  return {
-    exports: ['customExportName'],
-    execute: (exports) => {
-      // Get and set functions provided for pre-allocated export names
-      exports.customExportName.set('value');
-    }
-  };
-}
-```
-
-With the list of module exports provided upfront, the `execute` function will
-then be called at the exact point of module evaluation order for that module
-in the import tree.
 
 ### Examples
 
@@ -1835,14 +1808,18 @@ success!
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`esm`]: https://github.com/standard-things/esm#readme
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
-[`getFormat` hook]: #esm_code_getformat_code_hook
 [`import()`]: #esm_import_expressions
 [`import.meta.url`]: #esm_import_meta
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
 [`module.createRequire()`]: modules.html#modules_module_createrequire_filename
 [`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_code_transformsource_code_hook
-[dynamic instantiate hook]: #esm_code_dynamicinstantiate_code_hook
+[ArrayBuffer]: http://www.ecma-international.org/ecma-262/6.0/#sec-arraybuffer-constructor
+[SharedArrayBuffer]: https://tc39.es/ecma262/#sec-sharedarraybuffer-constructor
+[string]: http://www.ecma-international.org/ecma-262/6.0/#sec-string-constructor
+[TypedArray]: http://www.ecma-international.org/ecma-262/6.0/#sec-typedarray-objects
+[Uint8Array]: http://www.ecma-international.org/ecma-262/6.0/#sec-uint8array
+[`util.TextDecoder`]: util.html#util_class_util_textdecoder
 [import an ES or CommonJS module for its side effects only]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#Import_a_module_for_its_side_effects_only
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [the full specifier path]: #esm_mandatory_file_extensions

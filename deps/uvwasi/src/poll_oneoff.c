@@ -114,6 +114,8 @@ uvwasi_errno_t uvwasi__poll_oneoff_state_cleanup(
   for (i = 0; i < state->handle_cnt; i++)
     uv_close((uv_handle_t*) &state->poll_handles[i], NULL);
 
+  uv_run(&state->loop, UV_RUN_NOWAIT);
+
   state->max_fds = 0;
   state->fdevent_cnt = 0;
   state->handle_cnt = 0;

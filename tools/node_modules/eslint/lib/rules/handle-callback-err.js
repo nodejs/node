@@ -13,7 +13,7 @@ module.exports = {
     meta: {
         deprecated: true,
 
-        replacedBy: ["node/handle-callback-err"],
+        replacedBy: [],
 
         type: "suggestion",
 

@@ -33,9 +33,7 @@
 #pragma GCC diagnostic pop
 #endif
 
-#include <cassert>
-#include <climits>  // PATH_MAX
-#include <csignal>
+#include <climits>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -328,6 +326,11 @@ inline bool StringEqualNoCase(const char* a, const char* b);
 // strncasecmp() is locale-sensitive.  Use StringEqualNoCaseN() instead.
 inline bool StringEqualNoCaseN(const char* a, const char* b, size_t length);
 
+template <typename T, size_t N>
+constexpr size_t arraysize(const T (&)[N]) {
+  return N;
+}
+
 // Allocates an array of member type T. For up to kStackStorageSize items,
 // the stack is used, otherwise malloc().
 template <typename T, size_t kStackStorageSize = 1024>
@@ -367,8 +370,7 @@ class MaybeStackBuffer {
   // Current maximum capacity of the buffer with which SetLength() can be used
   // without first calling AllocateSufficientStorage().
   size_t capacity() const {
-    return IsAllocated() ? capacity_ :
-                           IsInvalidated() ? 0 : kStackStorageSize;
+    return capacity_;
   }
 
   // Make sure enough space for `storage` entries is available.
@@ -410,6 +412,7 @@ class MaybeStackBuffer {
   // be used.
   void Invalidate() {
     CHECK(!IsAllocated());
+    capacity_ = 0;
     length_ = 0;
     buf_ = nullptr;
   }
@@ -430,10 +433,11 @@ class MaybeStackBuffer {
     CHECK(IsAllocated());
     buf_ = buf_st_;
     length_ = 0;
-    capacity_ = 0;
+    capacity_ = arraysize(buf_st_);
   }
 
-  MaybeStackBuffer() : length_(0), capacity_(0), buf_(buf_st_) {
+  MaybeStackBuffer()
+      : length_(0), capacity_(arraysize(buf_st_)), buf_(buf_st_) {
     // Default to a zero-length, null-terminated buffer.
     buf_[0] = T();
   }
@@ -709,15 +713,17 @@ inline bool IsBigEndian() {
   return GetEndianness() == kBigEndian;
 }
 
-template <typename T, size_t N>
-constexpr size_t arraysize(const T (&)[N]) {
-  return N;
-}
-
 // Round up a to the next highest multiple of b.
 template <typename T>
 constexpr T RoundUp(T a, T b) {
   return a % b != 0 ? a + b - (a % b) : a;
+}
+
+// Align ptr to an `alignment`-bytes boundary.
+template <typename T, typename U>
+constexpr T* AlignUp(T* ptr, U alignment) {
+  return reinterpret_cast<T*>(
+      RoundUp(reinterpret_cast<uintptr_t>(ptr), alignment));
 }
 
 class SlicedArguments : public MaybeStackBuffer<v8::Local<v8::Value>> {
@@ -784,6 +790,12 @@ class FastStringKey {
   const char* name_;
   size_t cached_hash_;
 };
+
+// Like std::static_pointer_cast but for unique_ptr with the default deleter.
+template <typename T, typename U>
+std::unique_ptr<T> static_unique_pointer_cast(std::unique_ptr<U>&& ptr) {
+  return std::unique_ptr<T>(static_cast<T*>(ptr.release()));
+}
 
 }  // namespace node
 

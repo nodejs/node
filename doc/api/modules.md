@@ -149,7 +149,7 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
 
-```txt
+```text
 require(X) from module at path Y
 1. If X is a core module,
    a. return the core module
@@ -165,15 +165,15 @@ require(X) from module at path Y
 6. THROW "not found"
 
 LOAD_AS_FILE(X)
-1. If X is a file, load X as its file extension format.  STOP
-2. If X.js is a file, load X.js as JavaScript text.  STOP
-3. If X.json is a file, parse X.json to a JavaScript Object.  STOP
-4. If X.node is a file, load X.node as binary addon.  STOP
+1. If X is a file, load X as its file extension format. STOP
+2. If X.js is a file, load X.js as JavaScript text. STOP
+3. If X.json is a file, parse X.json to a JavaScript Object. STOP
+4. If X.node is a file, load X.node as binary addon. STOP
 
 LOAD_INDEX(X)
-1. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
+1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
-3. If X/index.node is a file, load X/index.node as binary addon.  STOP
+3. If X/index.node is a file, load X/index.node as binary addon. STOP
 
 LOAD_AS_DIRECTORY(X)
 1. If X/package.json is a file,
@@ -208,9 +208,9 @@ LOAD_SELF_REFERENCE(X, START)
 1. Find the closest package scope to START.
 2. If no scope was found, return.
 3. If the `package.json` has no "exports", return.
-4. If the name in `package.json` isn't a prefix of X, throw "not found".
-5. Otherwise, load the remainder of X relative to this package as if it
-  was loaded via `LOAD_NODE_MODULES` with a name in `package.json`.
+4. If the name in `package.json` is a prefix of X, then
+   a. Load the remainder of X relative to this package as if it was
+      loaded via `LOAD_NODE_MODULES` with a name in `package.json`.
 
 LOAD_PACKAGE_EXPORTS(DIR, X)
 1. Try to interpret X as a combination of name and subpath where the name
@@ -234,7 +234,7 @@ LOAD_PACKAGE_EXPORTS(DIR, X)
     a. LOAD_AS_FILE(RESOLVED)
     b. LOAD_AS_DIRECTORY(RESOLVED)
 12. Otherwise
-   a. If RESOLVED is a file, load it as its file extension format.  STOP
+   a. If RESOLVED is a file, load it as its file extension format. STOP
 13. Throw "not found"
 ```
 
@@ -409,7 +409,7 @@ example, then `require('./some-library')` would attempt to load:
 If these attempts fail, then Node.js will report the entire module as missing
 with the default error:
 
-```txt
+```console
 Error: Cannot find module 'some-library'
 ```
 
@@ -680,7 +680,7 @@ In `entry.js` script:
 console.log(require.main);
 ```
 
-```sh
+```bash
 node entry.js
 ```
 

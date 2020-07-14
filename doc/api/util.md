@@ -42,7 +42,7 @@ callbackFunction((err, ret) => {
 
 Will print:
 
-```txt
+```text
 hello world
 ```
 
@@ -93,7 +93,7 @@ debuglog('hello from foo [%d]', 123);
 If this program is run with `NODE_DEBUG=foo` in the environment, then
 it will output something like:
 
-```txt
+```console
 FOO 3245: hello from foo [123]
 ```
 
@@ -112,7 +112,7 @@ debuglog('hi there, it\'s foo-bar [%d]', 2333);
 if it is run with `NODE_DEBUG=foo*` in the environment, then it will output
 something like:
 
-```txt
+```console
 FOO-BAR 3257: hi there, it's foo-bar [2333]
 ```
 
@@ -243,8 +243,7 @@ corresponding argument. Supported specifiers are:
 * `%O`: `Object`. A string representation of an object with generic JavaScript
   object formatting. Similar to `util.inspect()` without options. This will show
   the full object not including non-enumerable properties and proxies.
-* `%c`: `CSS`. This specifier is currently ignored, and will skip any CSS
-  passed in.
+* `%c`: `CSS`. This specifier is ignored and will skip any CSS passed in.
 * `%%`: single percent sign (`'%'`). This does not consume an argument.
 * Returns: {string} The formatted string
 
@@ -1268,7 +1267,7 @@ added: v10.0.0
 * Returns: {boolean}
 
 Returns `true` if the value is an instance of one of the [`ArrayBuffer`][]
-views, such as typed array objects or [`DataView`][].  Equivalent to
+views, such as typed array objects or [`DataView`][]. Equivalent to
 [`ArrayBuffer.isView()`][].
 
 ```js

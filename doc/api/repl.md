@@ -36,7 +36,7 @@ The following special commands are supported by all REPL instances:
   the `.break` command (or pressing the `<ctrl>-C` key combination) will abort
   further input or processing of that expression.
 * `.clear`: Resets the REPL `context` to an empty object and clears any
-  multi-line expression currently being input.
+  multi-line expression being input.
 * `.exit`: Close the I/O stream, causing the REPL to exit.
 * `.help`: Show this list of special commands.
 * `.save`: Save the current REPL session to a file:
@@ -539,6 +539,15 @@ Node.js binary and using the command line REPL, a history file is initialized
 by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
 with REPL instances programmatically.
+
+## `repl.builtinModules`
+<!-- YAML
+added: v14.5.0
+-->
+
+* {string[]}
+
+A list of the names of all Node.js modules, e.g., `'http'`.
 
 ## `repl.start([options])`
 <!-- YAML

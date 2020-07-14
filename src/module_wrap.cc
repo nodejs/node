@@ -33,9 +33,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::IntegrityLevel;
 using v8::Isolate;
-using v8::Just;
 using v8::Local;
-using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Module;
 using v8::Number;
@@ -701,6 +699,7 @@ void ModuleWrap::Initialize(Local<Object> target,
   tpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "ModuleWrap"));
   tpl->InstanceTemplate()->SetInternalFieldCount(
       ModuleWrap::kInternalFieldCount);
+  tpl->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(tpl, "link", Link);
   env->SetProtoMethod(tpl, "instantiate", Instantiate);

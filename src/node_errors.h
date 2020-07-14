@@ -41,6 +41,7 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
+  V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST, TypeError)                      \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
@@ -51,7 +52,6 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
   V(ERR_STRING_TOO_LONG, Error)                                                \
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                                \
-  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER, TypeError)                \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, Error)                                \
   V(ERR_VM_MODULE_CACHED_DATA_REJECTED, Error)                                 \
   V(ERR_WASI_NOT_STARTED, Error)                                               \
@@ -93,8 +93,12 @@ void OnFatalError(const char* location, const char* message);
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
+  V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
+    "A message object could not be deserialized successfully in the target "   \
+    "vm.Context")                                                              \
   V(ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST,                                 \
-    "MessagePort was found in message but not listed in transferList")         \
+    "Object that needs transfer was found in message but not listed "          \
+    "in transferList")                                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER,                                           \
     "The V8 platform used by this instance of Node does not support "          \
     "creating Workers")                                                        \
@@ -102,8 +106,6 @@ void OnFatalError(const char* location, const char* message);
     "Loading non context-aware native modules has been disabled")              \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED,                                          \
     "Script execution was interrupted by `SIGINT`")                            \
-  V(ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER,                           \
-    "Cannot serialize externalized SharedArrayBuffer")                         \
   V(ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED, "Failed to set PSK identity hint")    \
   V(ERR_WASI_NOT_STARTED, "wasi.start() has not been called")                  \
   V(ERR_WORKER_INIT_FAILED, "Worker initialization failure")                   \

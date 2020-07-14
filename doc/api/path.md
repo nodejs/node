@@ -73,7 +73,7 @@ changes:
 * `ext` {string} An optional file extension
 * Returns: {string}
 
-The `path.basename()` methods returns the last portion of a `path`, similar to
+The `path.basename()` method returns the last portion of a `path`, similar to
 the Unix `basename` command. Trailing directory separators are ignored, see
 [`path.sep`][].
 

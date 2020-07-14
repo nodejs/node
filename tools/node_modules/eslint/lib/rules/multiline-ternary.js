@@ -39,25 +39,7 @@ module.exports = {
         const option = context.options[0];
         const multiline = option !== "never";
         const allowSingleLine = option === "always-multiline";
-
-        //--------------------------------------------------------------------------
-        // Helpers
-        //--------------------------------------------------------------------------
-
-        /**
-         * Tests whether node is preceded by supplied tokens
-         * @param {ASTNode} node node to check
-         * @param {ASTNode} parentNode parent of node to report
-         * @param {boolean} expected whether newline was expected or not
-         * @returns {void}
-         * @private
-         */
-        function reportError(node, parentNode, expected) {
-            context.report({
-                node,
-                messageId: `${expected ? "expected" : "unexpected"}${node === parentNode.test ? "TestCons" : "ConsAlt"}`
-            });
-        }
+        const sourceCode = context.getSourceCode();
 
         //--------------------------------------------------------------------------
         // Public
@@ -65,16 +47,39 @@ module.exports = {
 
         return {
             ConditionalExpression(node) {
-                const areTestAndConsequentOnSameLine = astUtils.isTokenOnSameLine(node.test, node.consequent);
-                const areConsequentAndAlternateOnSameLine = astUtils.isTokenOnSameLine(node.consequent, node.alternate);
+                const questionToken = sourceCode.getTokenAfter(node.test, astUtils.isNotClosingParenToken);
+                const colonToken = sourceCode.getTokenAfter(node.consequent, astUtils.isNotClosingParenToken);
+
+                const firstTokenOfTest = sourceCode.getFirstToken(node);
+                const lastTokenOfTest = sourceCode.getTokenBefore(questionToken);
+                const firstTokenOfConsequent = sourceCode.getTokenAfter(questionToken);
+                const lastTokenOfConsequent = sourceCode.getTokenBefore(colonToken);
+                const firstTokenOfAlternate = sourceCode.getTokenAfter(colonToken);
+
+                const areTestAndConsequentOnSameLine = astUtils.isTokenOnSameLine(lastTokenOfTest, firstTokenOfConsequent);
+                const areConsequentAndAlternateOnSameLine = astUtils.isTokenOnSameLine(lastTokenOfConsequent, firstTokenOfAlternate);
 
                 if (!multiline) {
                     if (!areTestAndConsequentOnSameLine) {
-                        reportError(node.test, node, false);
+                        context.report({
+                            node: node.test,
+                            loc: {
+                                start: firstTokenOfTest.loc.start,
+                                end: lastTokenOfTest.loc.end
+                            },
+                            messageId: "unexpectedTestCons"
+                        });
                     }
 
                     if (!areConsequentAndAlternateOnSameLine) {
-                        reportError(node.consequent, node, false);
+                        context.report({
+                            node: node.consequent,
+                            loc: {
+                                start: firstTokenOfConsequent.loc.start,
+                                end: lastTokenOfConsequent.loc.end
+                            },
+                            messageId: "unexpectedConsAlt"
+                        });
                     }
                 } else {
                     if (allowSingleLine && node.loc.start.line === node.loc.end.line) {
@@ -82,11 +87,25 @@ module.exports = {
                     }
 
                     if (areTestAndConsequentOnSameLine) {
-                        reportError(node.test, node, true);
+                        context.report({
+                            node: node.test,
+                            loc: {
+                                start: firstTokenOfTest.loc.start,
+                                end: lastTokenOfTest.loc.end
+                            },
+                            messageId: "expectedTestCons"
+                        });
                     }
 
                     if (areConsequentAndAlternateOnSameLine) {
-                        reportError(node.consequent, node, true);
+                        context.report({
+                            node: node.consequent,
+                            loc: {
+                                start: firstTokenOfConsequent.loc.start,
+                                end: lastTokenOfConsequent.loc.end
+                            },
+                            messageId: "expectedConsAlt"
+                        });
                     }
                 }
             }

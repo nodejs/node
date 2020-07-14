@@ -28,6 +28,7 @@
 #include "node_errors.h"
 #include "node_mutex.h"
 #include "node_process.h"
+#include "allocated_buffer-inl.h"
 #include "tls_wrap.h"  // TLSWrap
 
 #include "async_wrap-inl.h"
@@ -454,6 +455,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
       SecureContext::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
   Local<String> secureContextString =
       FIXED_ONE_BYTE_STRING(env->isolate(), "SecureContext");
   t->SetClassName(secureContextString);
@@ -1005,6 +1007,24 @@ static X509_STORE* NewRootCertStore() {
   }
 
   return store;
+}
+
+
+void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Value> result[arraysize(root_certs)];
+
+  for (size_t i = 0; i < arraysize(root_certs); i++) {
+    if (!String::NewFromOneByte(
+            env->isolate(),
+            reinterpret_cast<const uint8_t*>(root_certs[i]),
+            NewStringType::kNormal).ToLocal(&result[i])) {
+      return;
+    }
+  }
+
+  args.GetReturnValue().Set(
+      Array::New(env->isolate(), result, arraysize(root_certs)));
 }
 
 
@@ -1900,7 +1920,7 @@ void SSLWrap<Base>::GetFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = env->AllocateManaged(len);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
   CHECK_EQ(len, SSL_get_finished(w->ssl_.get(), buf.data(), len));
   args.GetReturnValue().Set(buf.ToBuffer().ToLocalChecked());
 }
@@ -1923,7 +1943,7 @@ void SSLWrap<Base>::GetPeerFinished(const FunctionCallbackInfo<Value>& args) {
   if (len == 0)
     return;
 
-  AllocatedBuffer buf = env->AllocateManaged(len);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, len);
   CHECK_EQ(len, SSL_get_peer_finished(w->ssl_.get(), buf.data(), len));
   args.GetReturnValue().Set(buf.ToBuffer().ToLocalChecked());
 }
@@ -1944,7 +1964,7 @@ void SSLWrap<Base>::GetSession(const FunctionCallbackInfo<Value>& args) {
   if (slen <= 0)
     return;  // Invalid or malformed session.
 
-  AllocatedBuffer sbuf = env->AllocateManaged(slen);
+  AllocatedBuffer sbuf = AllocatedBuffer::AllocateManaged(env, slen);
   unsigned char* p = reinterpret_cast<unsigned char*>(sbuf.data());
   CHECK_LT(0, i2d_SSL_SESSION(sess, &p));
   args.GetReturnValue().Set(sbuf.ToBuffer().ToLocalChecked());
@@ -2254,7 +2274,7 @@ void SSLWrap<Base>::ExportKeyingMaterial(
   uint32_t olen = args[0].As<Uint32>()->Value();
   node::Utf8Value label(env->isolate(), args[1]);
 
-  AllocatedBuffer out = env->AllocateManaged(olen);
+  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, olen);
 
   ByteSource context;
   bool use_context = !args[2]->IsUndefined();
@@ -2684,21 +2704,6 @@ static inline Local<Value> BIOToStringOrBuffer(Environment* env,
   }
 }
 
-static MaybeLocal<Value> X509ToPEM(Environment* env, X509* cert) {
-  BIOPointer bio(BIO_new(BIO_s_mem()));
-  if (!bio) {
-    ThrowCryptoError(env, ERR_get_error(), "BIO_new");
-    return MaybeLocal<Value>();
-  }
-
-  if (PEM_write_bio_X509(bio.get(), cert) == 0) {
-    ThrowCryptoError(env, ERR_get_error(), "PEM_write_bio_X509");
-    return MaybeLocal<Value>();
-  }
-
-  return BIOToStringOrBuffer(env, bio.get(), kKeyFormatPEM);
-}
-
 static bool WritePublicKeyInner(EVP_PKEY* pkey,
                                 const BIOPointer& bio,
                                 const PublicKeyEncodingConfig& config) {
@@ -2920,11 +2925,12 @@ ByteSource ByteSource::NullTerminatedCopy(Environment* env,
                                     : FromString(env, value.As<String>(), true);
 }
 
-ByteSource ByteSource::FromSymmetricKeyObject(Local<Value> handle) {
+ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
   CHECK(handle->IsObject());
-  KeyObject* key = Unwrap<KeyObject>(handle.As<Object>());
+  KeyObjectHandle* key = Unwrap<KeyObjectHandle>(handle.As<Object>());
   CHECK_NOT_NULL(key);
-  return Foreign(key->GetSymmetricKey(), key->GetSymmetricKeySize());
+  return Foreign(key->Data()->GetSymmetricKey(),
+                 key->Data()->GetSymmetricKeySize());
 }
 
 ByteSource::ByteSource(const char* data, char* allocated_data, size_t size)
@@ -3068,11 +3074,11 @@ static ManagedEVPPKey GetPrivateKeyFromJs(
                         "Failed to read private key");
   } else {
     CHECK(args[*offset]->IsObject() && allow_key_object);
-    KeyObject* key;
+    KeyObjectHandle* key;
     ASSIGN_OR_RETURN_UNWRAP(&key, args[*offset].As<Object>(), ManagedEVPPKey());
-    CHECK_EQ(key->GetKeyType(), kKeyTypePrivate);
+    CHECK_EQ(key->Data()->GetKeyType(), kKeyTypePrivate);
     (*offset) += 4;
-    return key->GetAsymmetricKey();
+    return key->Data()->GetAsymmetricKey();
   }
 }
 
@@ -3128,11 +3134,11 @@ static ManagedEVPPKey GetPublicOrPrivateKeyFromJs(
                         "Failed to read asymmetric key");
   } else {
     CHECK(args[*offset]->IsObject());
-    KeyObject* key = Unwrap<KeyObject>(args[*offset].As<Object>());
+    KeyObjectHandle* key = Unwrap<KeyObjectHandle>(args[*offset].As<Object>());
     CHECK_NOT_NULL(key);
-    CHECK_NE(key->GetKeyType(), kKeyTypeSecret);
+    CHECK_NE(key->Data()->GetKeyType(), kKeyTypeSecret);
     (*offset) += 4;
-    return key->GetAsymmetricKey();
+    return key->Data()->GetAsymmetricKey();
   }
 }
 
@@ -3238,10 +3244,51 @@ EVP_PKEY* ManagedEVPPKey::get() const {
   return pkey_.get();
 }
 
-Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
+std::shared_ptr<KeyObjectData> KeyObjectData::CreateSecret(
+    Local<ArrayBufferView> abv) {
+  size_t key_len = abv->ByteLength();
+  char* mem = MallocOpenSSL<char>(key_len);
+  abv->CopyContents(mem, key_len);
+  return std::shared_ptr<KeyObjectData>(new KeyObjectData(
+      std::unique_ptr<char, std::function<void(char*)>>(mem,
+          [key_len](char* p) {
+            OPENSSL_clear_free(p, key_len);
+          }),
+      key_len));
+}
+
+std::shared_ptr<KeyObjectData> KeyObjectData::CreateAsymmetric(
+    KeyType key_type,
+    const ManagedEVPPKey& pkey) {
+  CHECK(pkey);
+  return std::shared_ptr<KeyObjectData>(new KeyObjectData(key_type, pkey));
+}
+
+KeyType KeyObjectData::GetKeyType() const {
+  return key_type_;
+}
+
+ManagedEVPPKey KeyObjectData::GetAsymmetricKey() const {
+  CHECK_NE(key_type_, kKeyTypeSecret);
+  return asymmetric_key_;
+}
+
+const char* KeyObjectData::GetSymmetricKey() const {
+  CHECK_EQ(key_type_, kKeyTypeSecret);
+  return symmetric_key_.get();
+}
+
+size_t KeyObjectData::GetSymmetricKeySize() const {
+  CHECK_EQ(key_type_, kKeyTypeSecret);
+  return symmetric_key_len_;
+}
+
+Local<Function> KeyObjectHandle::Initialize(Environment* env,
+                                            Local<Object> target) {
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
   t->InstanceTemplate()->SetInternalFieldCount(
-      KeyObject::kInternalFieldCount);
+      KeyObjectHandle::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethodNoSideEffect(t, "getSymmetricKeySize",
@@ -3252,134 +3299,87 @@ Local<Function> KeyObject::Initialize(Environment* env, Local<Object> target) {
 
   auto function = t->GetFunction(env->context()).ToLocalChecked();
   target->Set(env->context(),
-              FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObject"),
+              FIXED_ONE_BYTE_STRING(env->isolate(), "KeyObjectHandle"),
               function).Check();
 
   return function;
 }
 
-MaybeLocal<Object> KeyObject::Create(Environment* env,
-                                     KeyType key_type,
-                                     const ManagedEVPPKey& pkey) {
-  CHECK_NE(key_type, kKeyTypeSecret);
-  Local<Value> type = Integer::New(env->isolate(), key_type);
+MaybeLocal<Object> KeyObjectHandle::Create(
+    Environment* env,
+    std::shared_ptr<KeyObjectData> data) {
   Local<Object> obj;
-  if (!env->crypto_key_object_constructor()
-           ->NewInstance(env->context(), 1, &type)
+  if (!env->crypto_key_object_handle_constructor()
+           ->NewInstance(env->context(), 0, nullptr)
            .ToLocal(&obj)) {
     return MaybeLocal<Object>();
   }
 
-  KeyObject* key = Unwrap<KeyObject>(obj);
+  KeyObjectHandle* key = Unwrap<KeyObjectHandle>(obj);
   CHECK_NOT_NULL(key);
-  if (key_type == kKeyTypePublic)
-    key->InitPublic(pkey);
-  else
-    key->InitPrivate(pkey);
+  key->data_ = data;
   return obj;
 }
 
-ManagedEVPPKey KeyObject::GetAsymmetricKey() const {
-  CHECK_NE(key_type_, kKeyTypeSecret);
-  return this->asymmetric_key_;
+const std::shared_ptr<KeyObjectData>& KeyObjectHandle::Data() {
+  return data_;
 }
 
-const char* KeyObject::GetSymmetricKey() const {
-  CHECK_EQ(key_type_, kKeyTypeSecret);
-  return this->symmetric_key_.get();
-}
-
-size_t KeyObject::GetSymmetricKeySize() const {
-  CHECK_EQ(key_type_, kKeyTypeSecret);
-  return this->symmetric_key_len_;
-}
-
-void KeyObject::New(const FunctionCallbackInfo<Value>& args) {
+void KeyObjectHandle::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK(args[0]->IsInt32());
-  KeyType key_type = static_cast<KeyType>(args[0].As<Uint32>()->Value());
   Environment* env = Environment::GetCurrent(args);
-  new KeyObject(env, args.This(), key_type);
+  new KeyObjectHandle(env, args.This());
 }
 
-KeyType KeyObject::GetKeyType() const {
-  return this->key_type_;
-}
-
-KeyObject::KeyObject(Environment* env,
-                     Local<Object> wrap,
-                     KeyType key_type)
-    : BaseObject(env, wrap),
-      key_type_(key_type),
-      symmetric_key_(nullptr, nullptr) {
+KeyObjectHandle::KeyObjectHandle(Environment* env,
+                                 Local<Object> wrap)
+    : BaseObject(env, wrap) {
   MakeWeak();
 }
 
-void KeyObject::Init(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::Init(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
   MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  CHECK(args[0]->IsInt32());
+  KeyType type = static_cast<KeyType>(args[0].As<Uint32>()->Value());
 
   unsigned int offset;
   ManagedEVPPKey pkey;
 
-  switch (key->key_type_) {
+  switch (type) {
   case kKeyTypeSecret:
-    CHECK_EQ(args.Length(), 1);
-    CHECK(args[0]->IsArrayBufferView());
-    key->InitSecret(args[0].As<ArrayBufferView>());
+    CHECK_EQ(args.Length(), 2);
+    CHECK(args[1]->IsArrayBufferView());
+    key->data_ = KeyObjectData::CreateSecret(args[1].As<ArrayBufferView>());
     break;
   case kKeyTypePublic:
-    CHECK_EQ(args.Length(), 3);
+    CHECK_EQ(args.Length(), 4);
 
-    offset = 0;
+    offset = 1;
     pkey = GetPublicOrPrivateKeyFromJs(args, &offset);
     if (!pkey)
       return;
-    key->InitPublic(pkey);
+    key->data_ = KeyObjectData::CreateAsymmetric(type, pkey);
     break;
   case kKeyTypePrivate:
-    CHECK_EQ(args.Length(), 4);
+    CHECK_EQ(args.Length(), 5);
 
-    offset = 0;
+    offset = 1;
     pkey = GetPrivateKeyFromJs(args, &offset, false);
     if (!pkey)
       return;
-    key->InitPrivate(pkey);
+    key->data_ = KeyObjectData::CreateAsymmetric(type, pkey);
     break;
   default:
     CHECK(false);
   }
 }
 
-void KeyObject::InitSecret(Local<ArrayBufferView> abv) {
-  CHECK_EQ(this->key_type_, kKeyTypeSecret);
-
-  size_t key_len = abv->ByteLength();
-  char* mem = MallocOpenSSL<char>(key_len);
-  abv->CopyContents(mem, key_len);
-  this->symmetric_key_ = std::unique_ptr<char, std::function<void(char*)>>(mem,
-      [key_len](char* p) {
-        OPENSSL_clear_free(p, key_len);
-      });
-  this->symmetric_key_len_ = key_len;
-}
-
-void KeyObject::InitPublic(const ManagedEVPPKey& pkey) {
-  CHECK_EQ(this->key_type_, kKeyTypePublic);
-  CHECK(pkey);
-  this->asymmetric_key_ = pkey;
-}
-
-void KeyObject::InitPrivate(const ManagedEVPPKey& pkey) {
-  CHECK_EQ(this->key_type_, kKeyTypePrivate);
-  CHECK(pkey);
-  this->asymmetric_key_ = pkey;
-}
-
-Local<Value> KeyObject::GetAsymmetricKeyType() const {
-  CHECK_NE(this->key_type_, kKeyTypeSecret);
-  switch (EVP_PKEY_id(this->asymmetric_key_.get())) {
+Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
+  const ManagedEVPPKey& key = data_->GetAsymmetricKey();
+  switch (EVP_PKEY_id(key.get())) {
   case EVP_PKEY_RSA:
     return env()->crypto_rsa_string();
   case EVP_PKEY_RSA_PSS:
@@ -3403,34 +3403,39 @@ Local<Value> KeyObject::GetAsymmetricKeyType() const {
   }
 }
 
-void KeyObject::GetAsymmetricKeyType(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::GetAsymmetricKeyType(
+    const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
 }
 
-void KeyObject::GetSymmetricKeySize(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::GetSymmetricKeySize(
+    const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
-  args.GetReturnValue().Set(static_cast<uint32_t>(key->GetSymmetricKeySize()));
+  args.GetReturnValue().Set(
+      static_cast<uint32_t>(key->Data()->GetSymmetricKeySize()));
 }
 
-void KeyObject::Export(const FunctionCallbackInfo<Value>& args) {
-  KeyObject* key;
+void KeyObjectHandle::Export(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
+  KeyType type = key->Data()->GetKeyType();
+
   MaybeLocal<Value> result;
-  if (key->key_type_ == kKeyTypeSecret) {
+  if (type == kKeyTypeSecret) {
     result = key->ExportSecretKey();
-  } else if (key->key_type_ == kKeyTypePublic) {
+  } else if (type == kKeyTypePublic) {
     unsigned int offset = 0;
     PublicKeyEncodingConfig config =
         GetPublicKeyEncodingFromJs(args, &offset, kKeyContextExport);
     CHECK_EQ(offset, static_cast<unsigned int>(args.Length()));
     result = key->ExportPublicKey(config);
   } else {
-    CHECK_EQ(key->key_type_, kKeyTypePrivate);
+    CHECK_EQ(type, kKeyTypePrivate);
     unsigned int offset = 0;
     NonCopyableMaybe<PrivateKeyEncodingConfig> config =
         GetPrivateKeyEncodingFromJs(args, &offset, kKeyContextExport);
@@ -3444,19 +3449,98 @@ void KeyObject::Export(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(result.ToLocalChecked());
 }
 
-Local<Value> KeyObject::ExportSecretKey() const {
-  return Buffer::Copy(env(), symmetric_key_.get(), symmetric_key_len_)
-      .ToLocalChecked();
+Local<Value> KeyObjectHandle::ExportSecretKey() const {
+  const char* buf = data_->GetSymmetricKey();
+  unsigned int len = data_->GetSymmetricKeySize();
+  return Buffer::Copy(env(), buf, len).ToLocalChecked();
 }
 
-MaybeLocal<Value> KeyObject::ExportPublicKey(
+MaybeLocal<Value> KeyObjectHandle::ExportPublicKey(
     const PublicKeyEncodingConfig& config) const {
-  return WritePublicKey(env(), asymmetric_key_.get(), config);
+  return WritePublicKey(env(), data_->GetAsymmetricKey().get(), config);
 }
 
-MaybeLocal<Value> KeyObject::ExportPrivateKey(
+MaybeLocal<Value> KeyObjectHandle::ExportPrivateKey(
     const PrivateKeyEncodingConfig& config) const {
-  return WritePrivateKey(env(), asymmetric_key_.get(), config);
+  return WritePrivateKey(env(), data_->GetAsymmetricKey().get(), config);
+}
+
+void NativeKeyObject::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsObject());
+  KeyObjectHandle* handle = Unwrap<KeyObjectHandle>(args[0].As<Object>());
+  new NativeKeyObject(env, args.This(), handle->Data());
+}
+
+BaseObjectPtr<BaseObject> NativeKeyObject::KeyObjectTransferData::Deserialize(
+        Environment* env,
+        Local<Context> context,
+        std::unique_ptr<worker::TransferData> self) {
+  if (context != env->context()) {
+    THROW_ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE(env);
+    return {};
+  }
+
+  Local<Value> handle = KeyObjectHandle::Create(env, data_).ToLocalChecked();
+  Local<Function> key_ctor;
+  switch (data_->GetKeyType()) {
+    case kKeyTypeSecret:
+      key_ctor = env->crypto_key_object_secret_constructor();
+      break;
+    case kKeyTypePublic:
+      key_ctor = env->crypto_key_object_public_constructor();
+      break;
+    case kKeyTypePrivate:
+      key_ctor = env->crypto_key_object_private_constructor();
+      break;
+    default:
+      CHECK(false);
+  }
+
+  Local<Value> key =
+      key_ctor->NewInstance(context, 1, &handle).ToLocalChecked();
+  return BaseObjectPtr<BaseObject>(Unwrap<KeyObjectHandle>(key.As<Object>()));
+}
+
+BaseObject::TransferMode NativeKeyObject::GetTransferMode() const {
+  return BaseObject::TransferMode::kCloneable;
+}
+
+std::unique_ptr<worker::TransferData> NativeKeyObject::CloneForMessaging()
+    const {
+  return std::make_unique<KeyObjectTransferData>(handle_data_);
+}
+
+static void CreateNativeKeyObjectClass(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 1);
+  Local<Value> callback = args[0];
+  CHECK(callback->IsFunction());
+
+  Local<FunctionTemplate> t = env->NewFunctionTemplate(NativeKeyObject::New);
+  t->InstanceTemplate()->SetInternalFieldCount(
+      KeyObjectHandle::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
+
+  Local<Value> ctor = t->GetFunction(env->context()).ToLocalChecked();
+
+  Local<Value> recv = Undefined(env->isolate());
+  Local<Value> ret_v;
+  if (!callback.As<Function>()->Call(
+          env->context(), recv, 1, &ctor).ToLocal(&ret_v)) {
+    return;
+  }
+  Local<Array> ret = ret_v.As<Array>();
+  if (!ret->Get(env->context(), 1).ToLocal(&ctor)) return;
+  env->set_crypto_key_object_secret_constructor(ctor.As<Function>());
+  if (!ret->Get(env->context(), 2).ToLocal(&ctor)) return;
+  env->set_crypto_key_object_public_constructor(ctor.As<Function>());
+  if (!ret->Get(env->context(), 3).ToLocal(&ctor)) return;
+  env->set_crypto_key_object_private_constructor(ctor.As<Function>());
+  args.GetReturnValue().Set(ret);
 }
 
 CipherBase::CipherBase(Environment* env,
@@ -3476,6 +3560,7 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       CipherBase::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", Init);
   env->SetProtoMethod(t, "initiv", InitIv);
@@ -3656,7 +3741,7 @@ static ByteSource GetSecretKeyBytes(Environment* env, Local<Value> value) {
   // in JS to avoid creating an unprotected copy on the heap.
   return value->IsString() || Buffer::HasInstance(value) ?
            ByteSource::FromStringOrBuffer(env, value) :
-           ByteSource::FromSymmetricKeyObject(value);
+           ByteSource::FromSymmetricKeyObjectHandle(value);
 }
 
 void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
@@ -3947,7 +4032,7 @@ CipherBase::UpdateResult CipherBase::Update(const char* data,
     return kErrorState;
   }
 
-  *out = env()->AllocateManaged(buf_len);
+  *out = AllocatedBuffer::AllocateManaged(env(), buf_len);
   int r = EVP_CipherUpdate(ctx_.get(),
                            reinterpret_cast<unsigned char*>(out->data()),
                            &buf_len,
@@ -4011,7 +4096,8 @@ bool CipherBase::Final(AllocatedBuffer* out) {
 
   const int mode = EVP_CIPHER_CTX_mode(ctx_.get());
 
-  *out = env()->AllocateManaged(
+  *out = AllocatedBuffer::AllocateManaged(
+      env(),
       static_cast<size_t>(EVP_CIPHER_CTX_block_size(ctx_.get())));
 
   if (kind_ == kDecipher && IsSupportedAuthenticatedMode(ctx_.get())) {
@@ -4023,7 +4109,7 @@ bool CipherBase::Final(AllocatedBuffer* out) {
   bool ok;
   if (kind_ == kDecipher && mode == EVP_CIPH_CCM_MODE) {
     ok = !pending_auth_failed_;
-    *out = AllocatedBuffer(env());  // Empty buffer.
+    *out = AllocatedBuffer::AllocateManaged(env(), 0);  // Empty buffer.
   } else {
     int out_len = out->size();
     ok = EVP_CipherFinal_ex(ctx_.get(),
@@ -4090,6 +4176,7 @@ void Hmac::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       Hmac::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", HmacInit);
   env->SetProtoMethod(t, "update", HmacUpdate);
@@ -4202,6 +4289,7 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       Hash::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "update", HashUpdate);
   env->SetProtoMethod(t, "digest", HashDigest);
@@ -4458,6 +4546,7 @@ void Sign::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       SignBase::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", SignInit);
   env->SetProtoMethod(t, "update", SignUpdate);
@@ -4532,7 +4621,7 @@ static AllocatedBuffer ConvertSignatureToP1363(Environment* env,
   if (!asn1_sig)
     return AllocatedBuffer();
 
-  AllocatedBuffer buf = env->AllocateManaged(2 * n);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, 2 * n);
   unsigned char* data = reinterpret_cast<unsigned char*>(buf.data());
 
   const BIGNUM* r = ECDSA_SIG_get0_r(asn1_sig.get());
@@ -4591,7 +4680,7 @@ static AllocatedBuffer Node_SignFinal(Environment* env,
   int signed_sig_len = EVP_PKEY_size(pkey.get());
   CHECK_GE(signed_sig_len, 0);
   size_t sig_len = static_cast<size_t>(signed_sig_len);
-  AllocatedBuffer sig = env->AllocateManaged(sig_len);
+  AllocatedBuffer sig = AllocatedBuffer::AllocateManaged(env, sig_len);
 
   EVPKeyCtxPointer pkctx(EVP_PKEY_CTX_new(pkey.get(), nullptr));
   if (pkctx &&
@@ -4752,7 +4841,7 @@ void SignOneShot(const FunctionCallbackInfo<Value>& args) {
   if (!EVP_DigestSign(mdctx.get(), nullptr, &sig_len, input, data.length()))
     return CheckThrow(env, SignBase::Error::kSignPrivateKey);
 
-  AllocatedBuffer signature = env->AllocateManaged(sig_len);
+  AllocatedBuffer signature = AllocatedBuffer::AllocateManaged(env, sig_len);
   if (!EVP_DigestSign(mdctx.get(),
                       reinterpret_cast<unsigned char*>(signature.data()),
                       &sig_len,
@@ -4780,6 +4869,7 @@ void Verify::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(
       SignBase::kInternalFieldCount);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   env->SetProtoMethod(t, "init", VerifyInit);
   env->SetProtoMethod(t, "update", VerifyUpdate);
@@ -5009,7 +5099,7 @@ bool PublicKeyCipher::Cipher(Environment* env,
   if (EVP_PKEY_cipher(ctx.get(), nullptr, &out_len, data, len) <= 0)
     return false;
 
-  *out = env->AllocateManaged(out_len);
+  *out = AllocatedBuffer::AllocateManaged(env, out_len);
 
   if (EVP_PKEY_cipher(ctx.get(),
                       reinterpret_cast<unsigned char*>(out->data()),
@@ -5090,6 +5180,7 @@ void DiffieHellman::Initialize(Environment* env, Local<Object> target) {
 
     t->InstanceTemplate()->SetInternalFieldCount(
         DiffieHellman::kInternalFieldCount);
+    t->Inherit(BaseObject::GetConstructorTemplate(env));
 
     env->SetProtoMethod(t, "generateKeys", GenerateKeys);
     env->SetProtoMethod(t, "computeSecret", ComputeSecret);
@@ -5261,7 +5352,7 @@ void DiffieHellman::GenerateKeys(const FunctionCallbackInfo<Value>& args) {
   DH_get0_key(diffieHellman->dh_.get(), &pub_key, nullptr);
   const int size = BN_num_bytes(pub_key);
   CHECK_GE(size, 0);
-  AllocatedBuffer data = env->AllocateManaged(size);
+  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
   CHECK_EQ(size,
            BN_bn2binpad(
                pub_key, reinterpret_cast<unsigned char*>(data.data()), size));
@@ -5282,7 +5373,7 @@ void DiffieHellman::GetField(const FunctionCallbackInfo<Value>& args,
 
   const int size = BN_num_bytes(num);
   CHECK_GE(size, 0);
-  AllocatedBuffer data = env->AllocateManaged(size);
+  AllocatedBuffer data = AllocatedBuffer::AllocateManaged(env, size);
   CHECK_EQ(
       size,
       BN_bn2binpad(num, reinterpret_cast<unsigned char*>(data.data()), size));
@@ -5352,7 +5443,8 @@ void DiffieHellman::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<unsigned char> key_buf(args[0].As<ArrayBufferView>());
   BignumPointer key(BN_bin2bn(key_buf.data(), key_buf.length(), nullptr));
 
-  AllocatedBuffer ret = env->AllocateManaged(DH_size(diffieHellman->dh_.get()));
+  AllocatedBuffer ret =
+      AllocatedBuffer::AllocateManaged(env, DH_size(diffieHellman->dh_.get()));
 
   int size = DH_compute_key(reinterpret_cast<unsigned char*>(ret.data()),
                             key.get(),
@@ -5448,6 +5540,7 @@ void ECDH::Initialize(Environment* env, Local<Object> target) {
   HandleScope scope(env->isolate());
 
   Local<FunctionTemplate> t = env->NewFunctionTemplate(New);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
 
   t->InstanceTemplate()->SetInternalFieldCount(ECDH::kInternalFieldCount);
 
@@ -5558,7 +5651,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   // NOTE: field_size is in bits
   int field_size = EC_GROUP_get_degree(ecdh->group_);
   size_t out_len = (field_size + 7) / 8;
-  AllocatedBuffer out = env->AllocateManaged(out_len);
+  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, out_len);
 
   int r = ECDH_compute_key(
       out.data(), out_len, pub.get(), ecdh->key_.get(), nullptr);
@@ -5607,7 +5700,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get ECDH private key");
 
   const int size = BN_num_bytes(b);
-  AllocatedBuffer out = env->AllocateManaged(size);
+  AllocatedBuffer out = AllocatedBuffer::AllocateManaged(env, size);
   CHECK_EQ(size, BN_bn2binpad(b,
                               reinterpret_cast<unsigned char*>(out.data()),
                               size));
@@ -6262,7 +6355,9 @@ class GenerateKeyPairJob : public CryptoJob {
     if (public_key_encoding_.output_key_object_) {
       // Note that this has the downside of containing sensitive data of the
       // private key.
-      if (!KeyObject::Create(env(), kKeyTypePublic, pkey_).ToLocal(pubkey))
+      std::shared_ptr<KeyObjectData> data =
+          KeyObjectData::CreateAsymmetric(kKeyTypePublic, pkey_);
+      if (!KeyObjectHandle::Create(env(), data).ToLocal(pubkey))
         return false;
     } else {
       if (!WritePublicKey(env(), pkey_.get(), public_key_encoding_)
@@ -6272,8 +6367,9 @@ class GenerateKeyPairJob : public CryptoJob {
 
     // Now do the same for the private key.
     if (private_key_encoding_.output_key_object_) {
-      if (!KeyObject::Create(env(), kKeyTypePrivate, pkey_)
-              .ToLocal(privkey))
+      std::shared_ptr<KeyObjectData> data =
+          KeyObjectData::CreateAsymmetric(kKeyTypePrivate, pkey_);
+      if (!KeyObjectHandle::Create(env(), data).ToLocal(privkey))
         return false;
     } else {
       if (!WritePrivateKey(env(), pkey_.get(), private_key_encoding_)
@@ -6592,7 +6688,7 @@ AllocatedBuffer ExportPublicKey(Environment* env,
   BIO_get_mem_ptr(bio.get(), &ptr);
 
   *size = ptr->length;
-  AllocatedBuffer buf = env->AllocateManaged(*size);
+  AllocatedBuffer buf = AllocatedBuffer::AllocateManaged(env, *size);
   memcpy(buf.data(), ptr->data, *size);
 
   return buf;
@@ -6645,36 +6741,6 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
       Encode(env->isolate(), cert.get(), strlen(cert.get()), BUFFER);
 
   args.GetReturnValue().Set(outString);
-}
-
-
-void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  if (root_cert_store == nullptr)
-    root_cert_store = NewRootCertStore();
-
-  stack_st_X509_OBJECT* objs = X509_STORE_get0_objects(root_cert_store);
-  int num_objs = sk_X509_OBJECT_num(objs);
-
-  std::vector<Local<Value>> result;
-  result.reserve(num_objs);
-
-  for (int i = 0; i < num_objs; i++) {
-    X509_OBJECT* obj = sk_X509_OBJECT_value(objs, i);
-    if (X509_OBJECT_get_type(obj) == X509_LU_X509) {
-      X509* cert = X509_OBJECT_get0_X509(obj);
-
-      Local<Value> value;
-      if (!X509ToPEM(env, cert).ToLocal(&value))
-        return;
-
-      result.push_back(value);
-    }
-  }
-
-  args.GetReturnValue().Set(
-      Array::New(env->isolate(), result.data(), result.size()));
 }
 
 
@@ -6731,7 +6797,7 @@ AllocatedBuffer StatelessDiffieHellman(Environment* env, ManagedEVPPKey our_key,
       EVP_PKEY_derive(ctx.get(), nullptr, &out_size) <= 0)
     return AllocatedBuffer();
 
-  AllocatedBuffer result = env->AllocateManaged(out_size);
+  AllocatedBuffer result = AllocatedBuffer::AllocateManaged(env, out_size);
   CHECK_NOT_NULL(result.data());
 
   unsigned char* data = reinterpret_cast<unsigned char*>(result.data());
@@ -6746,15 +6812,15 @@ void StatelessDiffieHellman(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK(args[0]->IsObject() && args[1]->IsObject());
-  KeyObject* our_key_object;
+  KeyObjectHandle* our_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&our_key_object, args[0].As<Object>());
-  CHECK_EQ(our_key_object->GetKeyType(), kKeyTypePrivate);
-  KeyObject* their_key_object;
+  CHECK_EQ(our_key_object->Data()->GetKeyType(), kKeyTypePrivate);
+  KeyObjectHandle* their_key_object;
   ASSIGN_OR_RETURN_UNWRAP(&their_key_object, args[1].As<Object>());
-  CHECK_NE(their_key_object->GetKeyType(), kKeyTypeSecret);
+  CHECK_NE(their_key_object->Data()->GetKeyType(), kKeyTypeSecret);
 
-  ManagedEVPPKey our_key = our_key_object->GetAsymmetricKey();
-  ManagedEVPPKey their_key = their_key_object->GetAsymmetricKey();
+  ManagedEVPPKey our_key = our_key_object->Data()->GetAsymmetricKey();
+  ManagedEVPPKey their_key = their_key_object->Data()->GetAsymmetricKey();
 
   AllocatedBuffer out = StatelessDiffieHellman(env, our_key, their_key);
   if (out.size() == 0)
@@ -6880,7 +6946,10 @@ void Initialize(Local<Object> target,
 
   Environment* env = Environment::GetCurrent(context);
   SecureContext::Initialize(env, target);
-  env->set_crypto_key_object_constructor(KeyObject::Initialize(env, target));
+  env->set_crypto_key_object_handle_constructor(
+      KeyObjectHandle::Initialize(env, target));
+  env->SetMethod(target, "createNativeKeyObjectClass",
+                 CreateNativeKeyObjectClass);
   CipherBase::Initialize(env, target);
   DiffieHellman::Initialize(env, target);
   ECDH::Initialize(env, target);

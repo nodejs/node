@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "udp_wrap.h"
+#include "allocated_buffer-inl.h"
 #include "env-inl.h"
 #include "node_buffer.h"
 #include "node_sockaddr-inl.h"
@@ -228,12 +229,12 @@ int sockaddr_for_family(int address_family,
                         const unsigned short port,
                         struct sockaddr_storage* addr) {
   switch (address_family) {
-  case AF_INET:
-    return uv_ip4_addr(address, port, reinterpret_cast<sockaddr_in*>(addr));
-  case AF_INET6:
-    return uv_ip6_addr(address, port, reinterpret_cast<sockaddr_in6*>(addr));
-  default:
-    CHECK(0 && "unexpected address family");
+    case AF_INET:
+      return uv_ip4_addr(address, port, reinterpret_cast<sockaddr_in*>(addr));
+    case AF_INET6:
+      return uv_ip6_addr(address, port, reinterpret_cast<sockaddr_in6*>(addr));
+    default:
+      CHECK(0 && "unexpected address family");
   }
 }
 
@@ -688,7 +689,7 @@ void UDPWrap::OnAlloc(uv_handle_t* handle,
 }
 
 uv_buf_t UDPWrap::OnAlloc(size_t suggested_size) {
-  return env()->AllocateManaged(suggested_size).release();
+  return AllocatedBuffer::AllocateManaged(env(), suggested_size).release();
 }
 
 void UDPWrap::OnRecv(uv_udp_t* handle,

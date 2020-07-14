@@ -156,6 +156,7 @@ BaseObject::MakeLazilyInitializedJSTemplate(Environment* env) {
   };
 
   v8::Local<v8::FunctionTemplate> t = env->NewFunctionTemplate(constructor);
+  t->Inherit(BaseObject::GetConstructorTemplate(env));
   t->InstanceTemplate()->SetInternalFieldCount(
       BaseObject::kInternalFieldCount);
   return t;
@@ -217,20 +218,22 @@ BaseObject::PointerData*
 BaseObjectPtrImpl<T, kIsWeak>::pointer_data() const {
   if (kIsWeak) {
     return data_.pointer_data;
-  } else {
-    if (get_base_object() == nullptr) return nullptr;
-    return get_base_object()->pointer_data();
   }
+  if (get_base_object() == nullptr) {
+    return nullptr;
+  }
+  return get_base_object()->pointer_data();
 }
 
 template <typename T, bool kIsWeak>
 BaseObject* BaseObjectPtrImpl<T, kIsWeak>::get_base_object() const {
   if (kIsWeak) {
-    if (pointer_data() == nullptr) return nullptr;
+    if (pointer_data() == nullptr) {
+      return nullptr;
+    }
     return pointer_data()->self;
-  } else {
-    return data_.target;
   }
+  return data_.target;
 }
 
 template <typename T, bool kIsWeak>
@@ -333,6 +336,20 @@ T* BaseObjectPtrImpl<T, kIsWeak>::operator->() const {
 template <typename T, bool kIsWeak>
 BaseObjectPtrImpl<T, kIsWeak>::operator bool() const {
   return get() != nullptr;
+}
+
+template <typename T, bool kIsWeak>
+template <typename U, bool kW>
+bool BaseObjectPtrImpl<T, kIsWeak>::operator ==(
+    const BaseObjectPtrImpl<U, kW>& other) const {
+  return get() == other.get();
+}
+
+template <typename T, bool kIsWeak>
+template <typename U, bool kW>
+bool BaseObjectPtrImpl<T, kIsWeak>::operator !=(
+    const BaseObjectPtrImpl<U, kW>& other) const {
+  return get() != other.get();
 }
 
 template <typename T, typename... Args>

@@ -1595,7 +1595,7 @@ querystring.parse(str, '\n', '=');
 This function is not completely equivalent to `querystring.parse()`. One
 difference is that `querystring.parse()` does url decoding:
 
-```sh
+```console
 > querystring.parse('%E5%A5%BD=1', '\n', '=');
 { '好': '1' }
 > tls.parseCertString('%E5%A5%BD=1');
@@ -2696,7 +2696,19 @@ native modules. It was incomplete so far and instead it's better to rely upon
 `require('module').builtinModules`.
 
 <a id="DEP0143"></a>
-### DEP0143: `module.parent`
+### DEP0143: `Transform._transformState`
+<!-- YAML
+changes:
+  - version: v14.5.0
+    pr-url: https://github.com/nodejs/node/pull/33126
+    description: Runtime deprecation.
+-->
+Type: Runtime
+`Transform._transformState` will be removed in future versions where it is
+no longer required due to simplification of the implementation.
+
+<a id="DEP0144"></a>
+### DEP0144: `module.parent`
 <!-- YAML
 changes:
   - version: REPLACEME

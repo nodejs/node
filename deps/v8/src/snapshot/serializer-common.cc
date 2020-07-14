@@ -76,7 +76,8 @@ ExternalReferenceEncoder::Value ExternalReferenceEncoder::Encode(
   if (maybe_index.IsNothing()) {
     void* addr = reinterpret_cast<void*>(address);
     v8::base::OS::PrintError("Unknown external reference %p.\n", addr);
-    v8::base::OS::PrintError("%s", ExternalReferenceTable::ResolveSymbol(addr));
+    v8::base::OS::PrintError("%s\n",
+                             ExternalReferenceTable::ResolveSymbol(addr));
     v8::base::OS::Abort();
   }
   Value result(maybe_index.FromJust());
@@ -125,7 +126,14 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
-  return !o.IsString() && !o.IsScript() && !o.IsJSTypedArray();
+  // ArrayBuffer instances are serialized by first re-assigning a index
+  // to the backing store field, then serializing the object, and then
+  // storing the actual backing store address again (and the same for the
+  // ArrayBufferExtension). If serialization of the object itself is deferred,
+  // the real backing store address is written into the snapshot, which cannot
+  // be processed when deserializing.
+  return !o.IsString() && !o.IsScript() && !o.IsJSTypedArray() &&
+         !o.IsJSArrayBuffer();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(

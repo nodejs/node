@@ -208,8 +208,7 @@ void SwapBytes16(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 2, 0);
 
 #if defined(_MSC_VER)
-  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint16_t);
-  if (align == 0) {
+  if (AlignUp(data, sizeof(uint16_t)) == data) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
     uint16_t* data16 = reinterpret_cast<uint16_t*>(data);
     size_t len16 = nbytes / sizeof(*data16);
@@ -232,9 +231,8 @@ void SwapBytes32(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 4, 0);
 
 #if defined(_MSC_VER)
-  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint32_t);
   // MSVC has no strict aliasing, and is able to highly optimize this case.
-  if (align == 0) {
+  if (AlignUp(data, sizeof(uint32_t)) == data) {
     uint32_t* data32 = reinterpret_cast<uint32_t*>(data);
     size_t len32 = nbytes / sizeof(*data32);
     for (size_t i = 0; i < len32; i++) {
@@ -256,8 +254,7 @@ void SwapBytes64(char* data, size_t nbytes) {
   CHECK_EQ(nbytes % 8, 0);
 
 #if defined(_MSC_VER)
-  int align = reinterpret_cast<uintptr_t>(data) % sizeof(uint64_t);
-  if (align == 0) {
+  if (AlignUp(data, sizeof(uint64_t)) == data) {
     // MSVC has no strict aliasing, and is able to highly optimize this case.
     uint64_t* data64 = reinterpret_cast<uint64_t*>(data);
     size_t len64 = nbytes / sizeof(*data64);
@@ -299,12 +296,10 @@ std::string ToUpper(const std::string& in) {
 }
 
 bool StringEqualNoCase(const char* a, const char* b) {
-  do {
-    if (*a == '\0')
-      return *b == '\0';
-    if (*b == '\0')
-      return *a == '\0';
-  } while (ToLower(*a++) == ToLower(*b++));
+  while (ToLower(*a) == ToLower(*b++)) {
+    if (*a++ == '\0')
+      return true;
+  }
   return false;
 }
 
@@ -536,9 +531,9 @@ inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
 constexpr size_t FastStringKey::HashImpl(const char* str) {
   // Low-quality hash (djb2), but just fine for current use cases.
   size_t h = 5381;
-  do {
-    h = h * 33 + *str;  // NOLINT(readability/pointer_notation)
-  } while (*(str++) != '\0');
+  while (*str != '\0') {
+    h = h * 33 + *(str++);  // NOLINT(readability/pointer_notation)
+  }
   return h;
 }
 
@@ -554,7 +549,7 @@ constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
   do {
     if (*(p1++) != *(p2++)) return false;
   } while (*p1 != '\0');
-  return true;
+  return *p2 == '\0';
 }
 
 constexpr FastStringKey::FastStringKey(const char* name)

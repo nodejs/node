@@ -695,7 +695,7 @@ that works for both your host and target environments.
 ### Build with a specific ICU
 
 You can find other ICU releases at
-[the ICU homepage](http://icu-project.org/download).
+[the ICU homepage](http://site.icu-project.org/download).
 Download the file named something like `icu4c-**##.#**-src.tgz` (or
 `.zip`).
 
@@ -726,7 +726,7 @@ $ ./configure --with-intl=full-icu --with-icu-source=http://url/to/icu.tgz
 #### Windows
 
 First unpack latest ICU to `deps/icu`
-[icu4c-**##.#**-src.tgz](http://icu-project.org/download) (or `.zip`)
+[icu4c-**##.#**-src.tgz](http://site.icu-project.org/download) (or `.zip`)
 as `deps/icu` (You'll have: `deps/icu/source/...`)
 
 ```console

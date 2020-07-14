@@ -285,7 +285,7 @@ console.error(err.message);
 The `error.stack` property is a string describing the point in the code at which
 the `Error` was instantiated.
 
-```txt
+```console
 Error: Things keep happening!
    at /home/gbusey/file.js:525:2
    at Frobnicator.refrobulate (/home/gbusey/business-logic.js:424:21)
@@ -903,6 +903,11 @@ Encoding provided to `TextDecoder()` API was not one of the
 
 `--print` cannot be used with ESM input.
 
+<a id="ERR_EVENT_RECURSION"></a>
+### `ERR_EVENT_RECURSION`
+
+Thrown when an attempt is made to recursively dispatch an event on `EventTarget`.
+
 <a id="ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE"></a>
 ### `ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE`
 
@@ -1223,6 +1228,13 @@ time.
 
 The `--input-type` flag was used to attempt to execute a file. This flag can
 only be used with input via `--eval`, `--print` or `STDIN`.
+
+<a id="ERR_INSPECTOR_ALREADY_ACTIVATED"></a>
+### `ERR_INSPECTOR_ALREADY_ACTIVATED`
+
+While using the `inspector` module, an attempt was made to activate the
+inspector when it already started to listen on a port. Use `inspector.close()`
+before activating it on a different address.
 
 <a id="ERR_INSPECTOR_ALREADY_CONNECTED"></a>
 ### `ERR_INSPECTOR_ALREADY_CONNECTED`
@@ -1549,6 +1561,17 @@ behavior. See the documentation for [policy][] manifests for more information.
 An attempt was made to allocate memory (usually in the C++ layer) but it
 failed.
 
+<a id="ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE"></a>
+### `ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE`
+<!-- YAML
+added: v14.5.0
+-->
+
+A message posted to a [`MessagePort`][] could not be deserialized in the target
+[vm][] `Context`. Not all Node.js objects can be successfully instantiated in
+any context at this time, and attempting to transfer them using `postMessage()`
+can fail on the receiving side in that case.
+
 <a id="ERR_METHOD_NOT_IMPLEMENTED"></a>
 ### `ERR_METHOD_NOT_IMPLEMENTED`
 
@@ -1563,14 +1586,6 @@ strict compliance with the API specification (which in some cases may accept
 `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
-<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
-### `ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK`
-
-> Stability: 1 - Experimental
-
-An [ES Module][] loader hook specified `format: 'dynamic'` but did not provide
-a `dynamicInstantiate` hook.
-
 <a id="ERR_MISSING_OPTION"></a>
 ### `ERR_MISSING_OPTION`
 
@@ -1580,8 +1595,9 @@ is thrown if a required option is missing.
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 ### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
 
-A `MessagePort` was found in the object passed to a `postMessage()` call,
-but not provided in the `transferList` for that call.
+An object that needs to be explicitly listed in the `transferList` argument
+was found in the object passed to a `postMessage()` call, but not provided in
+the `transferList` for that call. Usually, this is a `MessagePort`.
 
 <a id="ERR_MISSING_PASSPHRASE"></a>
 ### `ERR_MISSING_PASSPHRASE`
@@ -1955,16 +1971,6 @@ category.
 
 The `trace_events` module could not be loaded because Node.js was compiled with
 the `--without-v8-platform` flag.
-
-<a id="ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER"></a>
-### `ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER`
-
-A `SharedArrayBuffer` whose memory is not managed by the JavaScript engine
-or by Node.js was encountered during serialization. Such a `SharedArrayBuffer`
-cannot be serialized.
-
-This can only happen when native addons create `SharedArrayBuffer`s in
-"externalized" mode, or put existing `SharedArrayBuffer` into externalized mode.
 
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 ### `ERR_TRANSFORM_ALREADY_TRANSFORMING`
@@ -2402,6 +2408,20 @@ removed: v10.0.0
 
 Used when a TLS renegotiation request has failed in a non-specific way.
 
+<a id="ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER"></a>
+### `ERR_TRANSFERRING_EXTERNALIZED_SHAREDARRAYBUFFER`
+<!-- YAML
+added: v10.5.0
+removed: v14.0.0
+-->
+
+A `SharedArrayBuffer` whose memory is not managed by the JavaScript engine
+or by Node.js was encountered during serialization. Such a `SharedArrayBuffer`
+cannot be serialized.
+
+This can only happen when native addons create `SharedArrayBuffer`s in
+"externalized" mode, or put existing `SharedArrayBuffer` into externalized mode.
+
 <a id="ERR_UNKNOWN_BUILTIN_MODULE"></a>
 ### `ERR_UNKNOWN_BUILTIN_MODULE`
 <!-- YAML
@@ -2512,12 +2532,6 @@ while trying to read and parse it.
 
 The `--entry-type=...` flag is not compatible with the Node.js REPL.
 
-<a id="ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK"></a>
-#### `ERR_MISSING_DYNAMIC_INSTANTIATE_HOOK`
-
-Used when an [ES Module][] loader hook specifies `format: 'dynamic'` but does
-not provide a `dynamicInstantiate` hook.
-
 <a id="ERR_FEATURE_UNAVAILABLE_ON_PLATFORM"></a>
 #### `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM`
 
@@ -2554,6 +2568,7 @@ such as `process.stdout.on('data')`.
 [`Class: assert.AssertionError`]: assert.html#assert_class_assert_assertionerror
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`MessagePort`]: worker_threads.html#worker_threads_class_messageport
 [`Object.getPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
 [`REPL`]: repl.html
@@ -2582,8 +2597,8 @@ such as `process.stdout.on('data')`.
 [`https`]: https.html
 [`libuv Error handling`]: http://docs.libuv.org/en/v1.x/errors.html
 [`net`]: net.html
-[`new URL(input)`]: url.html#url_constructor_new_url_input_base
-[`new URLSearchParams(iterable)`]: url.html#url_constructor_new_urlsearchparams_iterable
+[`new URL(input)`]: url.html#url_new_url_input_base
+[`new URLSearchParams(iterable)`]: url.html#url_new_urlsearchparams_iterable
 [`process.on('exit')`]: process.html#Event:-`'exit'`
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.html#process_process_setuncaughtexceptioncapturecallback_fn

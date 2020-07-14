@@ -51,7 +51,8 @@ module.exports = {
                                 ignoreJSX: { enum: ["none", "all", "single-line", "multi-line"] },
                                 enforceForArrowConditionals: { type: "boolean" },
                                 enforceForSequenceExpressions: { type: "boolean" },
-                                enforceForNewInMemberExpressions: { type: "boolean" }
+                                enforceForNewInMemberExpressions: { type: "boolean" },
+                                enforceForFunctionPrototypeMethods: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -83,11 +84,27 @@ module.exports = {
             context.options[1].enforceForSequenceExpressions === false;
         const IGNORE_NEW_IN_MEMBER_EXPR = ALL_NODES && context.options[1] &&
             context.options[1].enforceForNewInMemberExpressions === false;
+        const IGNORE_FUNCTION_PROTOTYPE_METHODS = ALL_NODES && context.options[1] &&
+            context.options[1].enforceForFunctionPrototypeMethods === false;
 
         const PRECEDENCE_OF_ASSIGNMENT_EXPR = precedence({ type: "AssignmentExpression" });
         const PRECEDENCE_OF_UPDATE_EXPR = precedence({ type: "UpdateExpression" });
 
         let reportsBuffer;
+
+        /**
+         * Determines whether the given node is a `call` or `apply` method call, invoked directly on a `FunctionExpression` node.
+         * Example: function(){}.call()
+         * @param {ASTNode} node The node to be checked.
+         * @returns {boolean} True if the node is an immediate `call` or `apply` method call.
+         * @private
+         */
+        function isImmediateFunctionPrototypeMethodCall(node) {
+            return node.type === "CallExpression" &&
+                node.callee.type === "MemberExpression" &&
+                node.callee.object.type === "FunctionExpression" &&
+                ["call", "apply"].includes(astUtils.getStaticPropertyName(node.callee));
+        }
 
         /**
          * Determines if this rule should be enforced for a node given the current configuration.
@@ -122,6 +139,10 @@ module.exports = {
             }
 
             if (node.type === "SequenceExpression" && IGNORE_SEQUENCE_EXPRESSIONS) {
+                return false;
+            }
+
+            if (isImmediateFunctionPrototypeMethodCall(node) && IGNORE_FUNCTION_PROTOTYPE_METHODS) {
                 return false;
             }
 
@@ -478,6 +499,7 @@ module.exports = {
             if (!shouldSkipLeft && hasExcessParens(node.left)) {
                 if (
                     !(node.left.type === "UnaryExpression" && isExponentiation) &&
+                    !astUtils.isMixedLogicalAndCoalesceExpressions(node.left, node) &&
                     (leftPrecedence > prec || (leftPrecedence === prec && !isExponentiation)) ||
                     isParenthesisedTwice(node.left)
                 ) {
@@ -487,6 +509,7 @@ module.exports = {
 
             if (!shouldSkipRight && hasExcessParens(node.right)) {
                 if (
+                    !astUtils.isMixedLogicalAndCoalesceExpressions(node.right, node) &&
                     (rightPrecedence > prec || (rightPrecedence === prec && isExponentiation)) ||
                     isParenthesisedTwice(node.right)
                 ) {
@@ -927,7 +950,12 @@ module.exports = {
             LogicalExpression: checkBinaryLogical,
 
             MemberExpression(node) {
-                const nodeObjHasExcessParens = hasExcessParens(node.object);
+                const nodeObjHasExcessParens = hasExcessParens(node.object) &&
+                    !(
+                        isImmediateFunctionPrototypeMethodCall(node.parent) &&
+                        node.parent.callee === node &&
+                        IGNORE_FUNCTION_PROTOTYPE_METHODS
+                    );
 
                 if (
                     nodeObjHasExcessParens &&

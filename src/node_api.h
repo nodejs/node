@@ -5,6 +5,8 @@
   #ifdef _WIN32
     // Building native module against node
     #define NAPI_EXTERN __declspec(dllimport)
+  #elif defined(__wasm32__)
+    #define NAPI_EXTERN __attribute__((__import_module__("napi")))
   #endif
 #endif
 #include "js_native_api.h"
@@ -71,14 +73,26 @@ typedef struct {
     }                                                                 \
   EXTERN_C_END
 
+#define NAPI_MODULE_INITIALIZER_X(base, version)                               \
+  NAPI_MODULE_INITIALIZER_X_HELPER(base, version)
+#define NAPI_MODULE_INITIALIZER_X_HELPER(base, version) base##version
+
+#ifdef __wasm32__
+#define NAPI_WASM_INITIALIZER                                                  \
+  NAPI_MODULE_INITIALIZER_X(napi_register_wasm_v, NAPI_MODULE_VERSION)
+#define NAPI_MODULE(modname, regfunc)                                          \
+  EXTERN_C_START                                                               \
+  NAPI_MODULE_EXPORT napi_value NAPI_WASM_INITIALIZER(napi_env env,            \
+                                                      napi_value exports) {    \
+    return regfunc(env, exports);                                              \
+  }                                                                            \
+  EXTERN_C_END
+#else
 #define NAPI_MODULE(modname, regfunc)                                 \
   NAPI_MODULE_X(modname, regfunc, NULL, 0)  // NOLINT (readability/null_usage)
+#endif
 
 #define NAPI_MODULE_INITIALIZER_BASE napi_register_module_v
-
-#define NAPI_MODULE_INITIALIZER_X(base, version)                      \
-    NAPI_MODULE_INITIALIZER_X_HELPER(base, version)
-#define NAPI_MODULE_INITIALIZER_X_HELPER(base, version) base##version
 
 #define NAPI_MODULE_INITIALIZER                                       \
   NAPI_MODULE_INITIALIZER_X(NAPI_MODULE_INITIALIZER_BASE,             \
@@ -196,6 +210,7 @@ NAPI_EXTERN napi_status napi_close_callback_scope(napi_env env,
 
 #if NAPI_VERSION >= 4
 
+#ifndef __wasm32__
 // Calling into JS from other threads
 NAPI_EXTERN napi_status
 napi_create_threadsafe_function(napi_env env,
@@ -231,6 +246,7 @@ napi_unref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 NAPI_EXTERN napi_status
 napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
+#endif  // __wasm32__
 
 #endif  // NAPI_VERSION >= 4
 

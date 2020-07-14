@@ -68,6 +68,19 @@ testMe.complete('console.lo', common.mustCall(function(error, data) {
   assert.deepStrictEqual(data, [['console.log'], 'console.lo']);
 }));
 
+testMe.complete('console?.lo', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [['console?.log'], 'console?.lo']);
+}));
+
+testMe.complete('console?.zzz', common.mustCall((error, data) => {
+  assert.deepStrictEqual(data, [[], 'console?.zzz']);
+}));
+
+testMe.complete('console?.', common.mustCall((error, data) => {
+  assert(data[0].includes('console?.log'));
+  assert.strictEqual(data[1], 'console?.');
+}));
+
 // Tab Complete will return globally scoped variables
 putIn.run(['};']);
 testMe.complete('inner.o', common.mustCall(function(error, data) {
@@ -224,9 +237,18 @@ putIn.run(['.clear']);
 testMe.complete('require(\'', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
   builtinModules.forEach((lib) => {
-    if (!lib.startsWith('_'))
-      assert(data[0].includes(lib), `${lib} not found`);
+    assert(
+      data[0].includes(lib) || lib.startsWith('_') || lib.includes('/'),
+      `${lib} not found`
+    );
   });
+  const newModule = 'foobar';
+  assert(!builtinModules.includes(newModule));
+  repl.builtinModules.push(newModule);
+  testMe.complete('require(\'', common.mustCall((_, [modules]) => {
+    assert.strictEqual(data[0].length + 1, modules.length);
+    assert(modules.includes(newModule));
+  }));
 }));
 
 testMe.complete("require\t( 'n", common.mustCall(function(error, data) {

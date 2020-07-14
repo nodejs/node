@@ -1487,7 +1487,7 @@ void URL::Parse(const char* input,
             state = kSpecialRelativeOrAuthority;
           } else if (special) {
             state = kSpecialAuthoritySlashes;
-          } else if (p[1] == '/') {
+          } else if (p + 1 < end && p[1] == '/') {
             state = kPathOrAuthority;
             p++;
           } else {
@@ -1547,7 +1547,7 @@ void URL::Parse(const char* input,
         }
         break;
       case kSpecialRelativeOrAuthority:
-        if (ch == '/' && p[1] == '/') {
+        if (ch == '/' && p + 1 < end && p[1] == '/') {
           state = kSpecialAuthorityIgnoreSlashes;
           p++;
         } else {
@@ -1695,7 +1695,7 @@ void URL::Parse(const char* input,
         break;
       case kSpecialAuthoritySlashes:
         state = kSpecialAuthorityIgnoreSlashes;
-        if (ch == '/' && p[1] == '/') {
+        if (ch == '/' && p + 1 < end && p[1] == '/') {
           p++;
         } else {
           continue;

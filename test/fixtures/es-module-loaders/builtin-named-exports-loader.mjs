@@ -1,23 +1,62 @@
 import module from 'module';
 
-export function getFormat(url, context, defaultGetFormat) {
-  if (module.builtinModules.includes(url)) {
+const GET_BUILTIN = `$__get_builtin_hole_${Date.now()}`;
+
+export function getGlobalPreloadCode() {
+  return `Object.defineProperty(globalThis, ${JSON.stringify(GET_BUILTIN)}, {
+  value: (builtinName) => {
+    return getBuiltin(builtinName);
+  },
+  enumerable: false,
+  configurable: false,
+});
+`;
+}
+
+export function resolve(specifier, context, defaultResolve) {
+  const def = defaultResolve(specifier, context);
+  if (def.url.startsWith('nodejs:')) {
     return {
-      format: 'dynamic'
+      url: `custom-${def.url}`,
     };
+  }
+  return def;
+}
+
+export function getSource(url, context, defaultGetSource) {
+  if (url.startsWith('custom-nodejs:')) {
+    const urlObj = new URL(url);
+    return {
+      source: generateBuiltinModule(urlObj.pathname),
+      format: 'module',
+    };
+  }
+  return defaultGetSource(url, context);
+}
+
+export function getFormat(url, context, defaultGetFormat) {
+  if (url.startsWith('custom-nodejs:')) {
+    return { format: 'module' };
   }
   return defaultGetFormat(url, context, defaultGetFormat);
 }
 
-export function dynamicInstantiate(url) {
-  const builtinInstance = module._load(url);
-  const builtinExports = ['default', ...Object.keys(builtinInstance)];
-  return {
-    exports: builtinExports,
-    execute: exports => {
-      for (let name of builtinExports)
-        exports[name].set(builtinInstance[name]);
-      exports.default.set(builtinInstance);
-    }
-  };
+function generateBuiltinModule(builtinName) {
+  const builtinInstance = module._load(builtinName);
+  const builtinExports = [
+    ...Object.keys(builtinInstance),
+  ];
+  return `\
+const $builtinInstance = ${GET_BUILTIN}(${JSON.stringify(builtinName)});
+
+export const __fromLoader = true;
+
+export default $builtinInstance;
+
+${
+  builtinExports
+    .map(name => `export const ${name} = $builtinInstance.${name};`)
+    .join('\n')
+}
+`;
 }

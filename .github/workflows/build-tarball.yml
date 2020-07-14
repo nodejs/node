@@ -63,7 +63,7 @@ jobs:
       - name: Test
         run: |
           cd $TAR_DIR
-          make run-ci -j2 V=1
+          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots"
   test-tarball-windows:
     needs: build-tarball
     runs-on: windows-latest
@@ -138,4 +138,4 @@ jobs:
       - name: Test
         run: |
           cd $TAR_DIR
-          make run-ci -j8 V=1
+          make run-ci -j8 V=1 TEST_CI_ARGS="-p dots"

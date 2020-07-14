@@ -37,7 +37,7 @@ request.
   * A breaking change helper
     ([full source](https://gist.github.com/chrisdickinson/ba532fa0e4e243fb7b44)):
 
-    ```sh
+    ```bash
     SHOW=$(git show-ref -d $(git describe --abbrev=0) | tail -n1 | awk '{print $1}')
     git checkout $(git show -s --pretty='%T' $SHOW) -- test
     make -j4 test

@@ -29,7 +29,7 @@ struct node_napi_env__ : public napi_env__ {
       v8::Local<v8::ArrayBuffer> ab) const override {
     return ab->SetPrivate(
         context(),
-        node_env()->arraybuffer_untransferable_private_symbol(),
+        node_env()->untransferable_object_private_symbol(),
         v8::True(isolate));
   }
 };
@@ -57,7 +57,7 @@ class BufferFinalizer : private Finalizer {
       v8::HandleScope handle_scope(finalizer->_env->isolate);
       v8::Context::Scope context_scope(finalizer->_env->context());
 
-      finalizer->_env->CallIntoModuleThrow([&](napi_env env) {
+      finalizer->_env->CallIntoModule([&](napi_env env) {
         finalizer->_finalize_callback(
             env,
             finalizer->_finalize_data,
@@ -155,29 +155,6 @@ class ThreadSafeFunction : public node::AsyncResource {
       if (mode == napi_tsfn_nonblocking) {
         return napi_queue_full;
       }
-
-      // Here we check if there is a Node.js event loop running on this thread.
-      // If there is, and our queue is full, we return `napi_would_deadlock`. We
-      // do this for two reasons:
-      //
-      // 1. If this is the thread on which our own event loop runs then we
-      //    cannot wait here because that will prevent our event loop from
-      //    running and emptying the very queue on which we are waiting.
-      //
-      // 2. If this is not the thread on which our own event loop runs then we
-      //    still cannot wait here because that allows the following sequence of
-      //    events:
-      //
-      //    1. JSThread1 calls JSThread2 and blocks while its queue is full and
-      //       because JSThread2's queue is also full.
-      //
-      //    2. JSThread2 calls JSThread1 before it's had a chance to remove an
-      //       item from its own queue and blocks because JSThread1's queue is
-      //       also full.
-      v8::Isolate* isolate = v8::Isolate::GetCurrent();
-      if (isolate != nullptr && node::GetCurrentEventLoop(isolate) != nullptr)
-        return napi_would_deadlock;
-
       cond->Wait(lock);
     }
 
@@ -331,7 +308,7 @@ class ThreadSafeFunction : public node::AsyncResource {
           v8::Local<v8::Function>::New(env->isolate, ref);
         js_callback = v8impl::JsValueFromV8LocalValue(js_cb);
       }
-      env->CallIntoModuleThrow([&](napi_env env) {
+      env->CallIntoModule([&](napi_env env) {
         call_js_cb(env, js_callback, context, data);
       });
     }
@@ -341,7 +318,7 @@ class ThreadSafeFunction : public node::AsyncResource {
     v8::HandleScope scope(env->isolate);
     if (finalize_cb) {
       CallbackScope cb_scope(this);
-      env->CallIntoModuleThrow([&](napi_env env) {
+      env->CallIntoModule([&](napi_env env) {
         finalize_cb(env, finalize_data, context);
       });
     }
@@ -478,7 +455,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   napi_env env = v8impl::NewEnv(context);
 
   napi_value _exports;
-  env->CallIntoModuleThrow([&](napi_env env) {
+  env->CallIntoModule([&](napi_env env) {
     _exports = init(env, v8impl::JsValueFromV8LocalValue(exports));
   });
 

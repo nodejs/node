@@ -30,15 +30,21 @@ void AtExit(Environment* env, void (*cb)(void* arg), void* arg) {
 }
 
 void EmitBeforeExit(Environment* env) {
-  env->RunBeforeExitCallbacks();
+  TraceEventScope trace_scope(TRACING_CATEGORY_NODE1(environment),
+                              "BeforeExit", env);
+  if (!env->destroy_async_id_list()->empty())
+    AsyncWrap::DestroyAsyncIdsCallback(env);
 
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-  Local<Value> exit_code = env->process_object()
-                               ->Get(env->context(), env->exit_code_string())
-                               .ToLocalChecked()
-                               ->ToInteger(env->context())
-                               .ToLocalChecked();
+
+  Local<Value> exit_code_v;
+  if (!env->process_object()->Get(env->context(), env->exit_code_string())
+      .ToLocal(&exit_code_v)) return;
+
+  Local<Integer> exit_code;
+  if (!exit_code_v->ToInteger(env->context()).ToLocal(&exit_code)) return;
+
   ProcessEmit(env, "beforeExit", exit_code).ToLocalChecked();
 }
 

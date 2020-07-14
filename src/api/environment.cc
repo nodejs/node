@@ -51,17 +51,11 @@ static MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
                                       Local<Array> trace) {
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
-    MaybeLocal<String> s = exception->ToString(context);
-    return s.IsEmpty() ?
-      MaybeLocal<Value>() :
-      MaybeLocal<Value>(s.ToLocalChecked());
+    return exception->ToString(context).FromMaybe(Local<Value>());
   }
   Local<Function> prepare = env->prepare_stack_trace_callback();
   if (prepare.IsEmpty()) {
-    MaybeLocal<String> s = exception->ToString(context);
-    return s.IsEmpty() ?
-      MaybeLocal<Value>() :
-      MaybeLocal<Value>(s.ToLocalChecked());
+    return exception->ToString(context).FromMaybe(Local<Value>());
   }
   Local<Value> args[] = {
       context->Global(),
@@ -426,7 +420,7 @@ MaybeLocal<Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallback cb,
     std::unique_ptr<InspectorParentHandle> removeme) {
-  env->InitializeLibuv(per_process::v8_is_profiling);
+  env->InitializeLibuv();
   env->InitializeDiagnostics();
 
   return StartExecution(env, cb);
@@ -559,7 +553,7 @@ void InitializeContextRuntime(Local<Context> context) {
   if (context->Global()->Get(context, intl_string).ToLocal(&intl_v) &&
       intl_v->IsObject()) {
     Local<Object> intl = intl_v.As<Object>();
-    intl->Delete(context, break_iter_string).FromJust();
+    intl->Delete(context, break_iter_string).Check();
   }
 
   // Delete `Atomics.wake`
@@ -570,7 +564,7 @@ void InitializeContextRuntime(Local<Context> context) {
   if (context->Global()->Get(context, atomics_string).ToLocal(&atomics_v) &&
       atomics_v->IsObject()) {
     Local<Object> atomics = atomics_v.As<Object>();
-    atomics->Delete(context, wake_string).FromJust();
+    atomics->Delete(context, wake_string).Check();
   }
 
   // Remove __proto__
@@ -640,10 +634,10 @@ bool InitializePrimordials(Local<Context> context) {
     MaybeLocal<Function> maybe_fn =
         native_module::NativeModuleEnv::LookupAndCompile(
             context, *module, &parameters, nullptr);
-    if (maybe_fn.IsEmpty()) {
+    Local<Function> fn;
+    if (!maybe_fn.ToLocal(&fn)) {
       return false;
     }
-    Local<Function> fn = maybe_fn.ToLocalChecked();
     MaybeLocal<Value> result =
         fn->Call(context, Undefined(isolate), arraysize(arguments), arguments);
     // Execution failed during context creation.

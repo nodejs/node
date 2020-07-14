@@ -16357,7 +16357,18 @@ TEST(PromiseHook) {
   CHECK_EQ(v8::Promise::kPending, GetPromise("p")->State());
   CompileRun("resolve(Promise.resolve(value));\n");
   CHECK_EQ(v8::Promise::kFulfilled, GetPromise("p")->State());
-  CHECK_EQ(9, promise_hook_data->promise_hook_count);
+  CHECK_EQ(11, promise_hook_data->promise_hook_count);
+
+  promise_hook_data->Reset();
+  source =
+      "var p = Promise.resolve({\n"
+      "  then(r) {\n"
+      "    r();\n"
+      "  }\n"
+      "});";
+  CompileRun(source);
+  CHECK_EQ(GetPromise("p")->State(), v8::Promise::kFulfilled);
+  CHECK_EQ(promise_hook_data->promise_hook_count, 5);
 
   delete promise_hook_data;
   isolate->SetPromiseHook(nullptr);
@@ -19834,11 +19845,30 @@ static void MicrotaskExceptionTwo(
       v8::Exception::Error(v8_str("second")));
 }
 
+int handler_call_count = 0;
+static void MicrotaskExceptionHandler(Local<Message> message,
+                                      Local<Value> exception) {
+  CHECK(exception->IsNativeError());
+  Local<Context> context = message->GetIsolate()->GetCurrentContext();
+  Local<String> str = exception->ToString(context).ToLocalChecked();
+  switch (handler_call_count++) {
+    case 0:
+      CHECK(str->StrictEquals(v8_str("Error: first")));
+      break;
+    case 1:
+      CHECK(str->StrictEquals(v8_str("Error: second")));
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
 
 TEST(RunMicrotasksIgnoresThrownExceptions) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
+  isolate->AddMessageListenerWithErrorLevel(MicrotaskExceptionHandler,
+                                            v8::Isolate::kMessageAll);
   CompileRun(
       "var exception1Calls = 0;"
       "var exception2Calls = 0;");
@@ -19849,6 +19879,7 @@ TEST(RunMicrotasksIgnoresThrownExceptions) {
   TryCatch try_catch(isolate);
   CompileRun("1+1;");
   CHECK(!try_catch.HasCaught());
+  CHECK_EQ(handler_call_count, 2);
   CHECK_EQ(1,
            CompileRun("exception1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(1,

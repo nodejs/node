@@ -27,7 +27,7 @@ const process = global.process;  // Some tests tamper with the process global.
 const assert = require('assert');
 const { exec, execSync, spawnSync } = require('child_process');
 const fs = require('fs');
-// Do not require 'os' until needed so that test-os-checked-fucnction can
+// Do not require 'os' until needed so that test-os-checked-function can
 // monkey patch it. If 'os' is required here, that test will fail.
 const path = require('path');
 const util = require('util');
@@ -417,9 +417,12 @@ function getCallSite(top) {
 
 function mustNotCall(msg) {
   const callSite = getCallSite(mustNotCall);
-  return function mustNotCall() {
+  return function mustNotCall(...args) {
+    const argsInfo = args.length > 0 ?
+      `\ncalled with arguments: ${args.map(util.inspect).join(', ')}` : '';
     assert.fail(
-      `${msg || 'function should not have been called'} at ${callSite}`);
+      `${msg || 'function should not have been called'} at ${callSite}` +
+      argsInfo);
   };
 }
 

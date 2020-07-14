@@ -50,7 +50,7 @@ module.exports = {
     meta: {
         deprecated: true,
 
-        replacedBy: ["node/global-require"],
+        replacedBy: [],
 
         type: "suggestion",
 

@@ -152,6 +152,7 @@ For information about the governance of the Node.js project, see
 
 ### TSC (Technical Steering Committee)
 
+<!--lint disable prohibited-strings-->
 * [addaleax](https://github.com/addaleax) -
 **Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [apapirovski](https://github.com/apapirovski) -
@@ -545,6 +546,7 @@ For information about the governance of the Node.js project, see
 **Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
 * [whitlockjc](https://github.com/whitlockjc) -
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
+<!--lint enable prohibited-strings-->
 
 Collaborators follow the [Collaborator Guide](./doc/guides/collaborator-guide.md) in
 maintaining the Node.js project.
@@ -572,7 +574,7 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
 To import the full set of trusted release keys:
 
-```shell
+```bash
 gpg --keyserver pool.sks-keyservers.net --recv-keys 4ED778F539E3634C779C87C6D7062848A1AB005C
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
@@ -608,6 +610,6 @@ Other keys used to sign some previous releases:
 [Code of Conduct]: https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
 [Node.js Website]: https://nodejs.org/
-[OpenJS Foundation]: http://openjs.foundation/
+[OpenJS Foundation]: https://openjsf.org/
 [Working Groups]: https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md
 [Strategic Initiatives]: https://github.com/nodejs/TSC/blob/master/Strategic-Initiatives.md

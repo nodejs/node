@@ -170,6 +170,11 @@ parser.add_option("--link-module",
          "e.g. /root/x/y.js will be referenced via require('root/x/y'). "
          "Can be used multiple times")
 
+parser.add_option('--openssl-default-cipher-list',
+    action='store',
+    dest='openssl_default_cipher_list',
+    help='Use the specified cipher list as the default cipher list')
+
 parser.add_option("--openssl-no-asm",
     action="store_true",
     dest="openssl_no_asm",
@@ -646,6 +651,14 @@ parser.add_option('--v8-with-dchecks',
     default=False,
     help='compile V8 with debug checks and runtime debugging features enabled')
 
+parser.add_option('--v8-lite-mode',
+    action='store_true',
+    dest='v8_lite_mode',
+    default=False,
+    help='compile V8 in lite mode for constrained environments (lowers V8 '+
+         'memory footprint, but also implies no just-in-time compilation ' +
+         'support, thus much slower execution)')
+
 parser.add_option('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
@@ -792,7 +805,7 @@ def get_nasm_version(asm):
 
 def get_llvm_version(cc):
   return get_version_helper(
-    cc, r"(^(?:FreeBSD )?clang version|based on LLVM) ([0-9]+\.[0-9]+)")
+    cc, r"(^(?:.+ )?clang version|based on LLVM) ([0-9]+\.[0-9]+)")
 
 def get_xcode_version(cc):
   return get_version_helper(
@@ -999,12 +1012,14 @@ def configure_arm(o):
   o['variables']['arm_fpu'] = options.arm_fpu or arm_fpu
 
 
-def configure_mips(o):
+def configure_mips(o, target_arch):
   can_use_fpu_instructions = (options.mips_float_abi != 'soft')
   o['variables']['v8_can_use_fpu_instructions'] = b(can_use_fpu_instructions)
   o['variables']['v8_use_mips_abi_hardfloat'] = b(can_use_fpu_instructions)
   o['variables']['mips_arch_variant'] = options.mips_arch_variant
   o['variables']['mips_fpu_mode'] = options.mips_fpu_mode
+  host_byteorder = 'little' if target_arch in ('mipsel', 'mips64el') else 'big'
+  o['variables']['v8_host_byteorder'] = host_byteorder
 
 
 def gcc_version_ge(version_checked):
@@ -1064,7 +1079,7 @@ def configure_node(o):
   if target_arch == 'arm':
     configure_arm(o)
   elif target_arch in ('mips', 'mipsel', 'mips64el'):
-    configure_mips(o)
+    configure_mips(o, target_arch)
 
   if flavor == 'aix':
     o['variables']['node_target_type'] = 'static_library'
@@ -1246,6 +1261,7 @@ def configure_library(lib, output, pkgname=None):
 
 
 def configure_v8(o):
+  o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
   o['variables']['v8_enable_gdbjit'] = 1 if options.gdb else 0
   o['variables']['v8_no_strict_aliasing'] = 1  # Work around compiler bugs.
   o['variables']['v8_optimized_debug'] = 0 if options.v8_non_optimized_debug else 1
@@ -1293,6 +1309,8 @@ def configure_openssl(o):
       without_ssl_error('--openssl-no-asm')
     if options.openssl_fips:
       without_ssl_error('--openssl-fips')
+    if options.openssl_default_cipher_list:
+      without_ssl_error('--openssl-default-cipher-list')
     return
 
   if options.use_openssl_ca_store:
@@ -1302,6 +1320,9 @@ def configure_openssl(o):
   variables['node_without_node_options'] = b(options.without_node_options)
   if options.without_node_options:
       o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
+  if options.openssl_default_cipher_list:
+    variables['openssl_default_cipher_list'] = \
+            options.openssl_default_cipher_list
 
   if not options.shared_openssl and not options.openssl_no_asm:
     is_x86 = 'x64' in variables['target_arch'] or 'ia32' in variables['target_arch']
@@ -1795,6 +1816,10 @@ if options.prefix:
 
 if options.use_ninja:
   config['BUILD_WITH'] = 'ninja'
+
+# On Windows there is another find.exe in C:\Windows\System32
+if sys.platform == 'win32':
+  config['FIND'] = '/usr/bin/find'
 
 config_lines = ['='.join((k,v)) for k,v in config.items()]
 # Add a blank string to get a blank line at the end.

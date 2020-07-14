@@ -4,7 +4,7 @@ Here's how the node docs work.
 
 Each type of heading has a description block.
 
-```md
+```markdown
 # module
 
 <!--introduced_in=v0.10.0-->

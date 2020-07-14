@@ -3,6 +3,7 @@
 
 const common = require('../common');
 const assert = require('assert');
+const vm = require('vm');
 const { WASI } = require('wasi');
 
 const fixtures = require('../common/fixtures');
@@ -15,7 +16,10 @@ const bufferSource = fixtures.readSync('simple.wasm');
 
     assert.throws(
       () => { wasi.start(); },
-      { code: 'ERR_INVALID_ARG_TYPE', message: /\bWebAssembly\.Instance\b/ }
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: /"instance" argument must be of type object/
+      }
     );
   }
 
@@ -87,9 +91,77 @@ const bufferSource = fixtures.readSync('simple.wasm');
       () => { wasi.start(instance); },
       {
         code: 'ERR_INVALID_ARG_TYPE',
-        message: /"instance\.exports\.memory" property .+ WebAssembly\.Memory/
+        message: /"instance\.exports\.memory" property must be of type object/
       }
     );
+  }
+
+  {
+    // Verify that a non-ArrayBuffer memory.buffer is rejected.
+    const wasi = new WASI({});
+    const wasm = await WebAssembly.compile(bufferSource);
+    const instance = await WebAssembly.instantiate(wasm);
+
+    Object.defineProperty(instance, 'exports', {
+      get() {
+        return {
+          _start() {},
+          memory: {},
+        };
+      }
+    });
+    // The error message is a little white lie because any object
+    // with a .buffer property of type ArrayBuffer is accepted,
+    // but 99% of the time a WebAssembly.Memory object is used.
+    assert.throws(
+      () => { wasi.start(instance); },
+      {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: /"instance\.exports\.memory\.buffer" property must be an WebAssembly\.Memory/
+      }
+    );
+  }
+
+  {
+    // Verify that an argument that duck-types as a WebAssembly.Instance
+    // is accepted.
+    const wasi = new WASI({});
+    const wasm = await WebAssembly.compile(bufferSource);
+    const instance = await WebAssembly.instantiate(wasm);
+
+    Object.defineProperty(instance, 'exports', {
+      get() {
+        return {
+          _start() {},
+          memory: { buffer: new ArrayBuffer(0) },
+        };
+      }
+    });
+    wasi.start(instance);
+  }
+
+  {
+    // Verify that a WebAssembly.Instance from another VM context is accepted.
+    const wasi = new WASI({});
+    const instance = await vm.runInNewContext(`
+      (async () => {
+        const wasm = await WebAssembly.compile(bufferSource);
+        const instance = await WebAssembly.instantiate(wasm);
+
+        Object.defineProperty(instance, 'exports', {
+          get() {
+            return {
+              _start() {},
+              memory: new WebAssembly.Memory({ initial: 1 })
+            };
+          }
+        });
+
+        return instance;
+      })()
+    `, { bufferSource });
+
+    wasi.start(instance);
   }
 
   {

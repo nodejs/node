@@ -226,6 +226,16 @@ the ability to import a directory that has an index file.
 
 Please see [customizing ESM specifier resolution][] for example usage.
 
+### `--experimental-top-level-await`
+<!-- YAML
+added: v14.3.0
+-->
+
+Enable experimental top-level `await` keyword support, available only in ES
+module scripts.
+
+(See also `--experimental-repl-await`.)
+
 ### `--experimental-vm-modules`
 <!-- YAML
 added: v9.6.0
@@ -251,6 +261,13 @@ Enable experimental WebAssembly System Interface (WASI) support.
 <!-- YAML
 added: v12.3.0
 -->
+
+### `--force-context-aware`
+<!-- YAML
+added: v12.12.0
+-->
+
+Disable loading native addons that are not [context-aware][].
 
 Enable experimental WebAssembly module support.
 
@@ -488,13 +505,6 @@ added: v6.0.0
 
 Silence all process warnings (including deprecations).
 
-### `--force-context-aware`
-<!-- YAML
-added: v12.12.0
--->
-
-Disable loading native addons that are not [context-aware][].
-
 ### `--openssl-config=file`
 <!-- YAML
 added: v6.9.0
@@ -625,7 +635,7 @@ Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
 human consumption.
 
-### `--report-directory=directory`
+### `--report-dir=directory`, `report-directory=directory`
 <!-- YAML
 added: v11.8.0
 changes:
@@ -942,11 +952,15 @@ for the very first unhandled rejection in case no [`unhandledRejection`][] hook
 is used.
 
 Using this flag allows to change what should happen when an unhandled rejection
-occurs. One of three modes can be chosen:
+occurs. One of the following modes can be chosen:
 
+* `throw`: Emit [`unhandledRejection`][]. If this hook is not set, raise the
+  unhandled rejection as an uncaught exception.
 * `strict`: Raise the unhandled rejection as an uncaught exception.
 * `warn`: Always trigger a warning, no matter if the [`unhandledRejection`][]
   hook is set or not but do not print the deprecation warning.
+* `warn-with-error-code`: Emit [`unhandledRejection`][]. If this hook is not
+  set, trigger a warning, and set the process exit code to 1.
 * `none`: Silence all warnings.
 
 ### `--use-bundled-ca`, `--use-openssl-ca`
@@ -1185,6 +1199,7 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-repl-await`
 * `--experimental-specifier-resolution`
+* `--experimental-top-level-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
@@ -1213,7 +1228,7 @@ Node.js options that are allowed are:
 * `--prof-process`
 * `--redirect-warnings`
 * `--report-compact`
-* `--report-directory`
+* `--report-dir`, `--report-directory`
 * `--report-filename`
 * `--report-on-fatalerror`
 * `--report-on-signal`
@@ -1333,6 +1348,15 @@ added:
 
 Path to a Node.js module which will be loaded in place of the built-in REPL.
 Overriding this value to an empty string (`''`) will use the built-in REPL.
+
+### `NODE_SKIP_PLATFORM_CHECK=value`
+<!-- YAML
+added: v14.5.0
+-->
+
+If `value` equals `'1'`, the check for a supported platform is skipped during
+Node.js startup. Node.js might not execute correctly. Any issues encountered
+on unsupported platforms will not be fixed.
 
 ### `NODE_TLS_REJECT_UNAUTHORIZED=value`
 

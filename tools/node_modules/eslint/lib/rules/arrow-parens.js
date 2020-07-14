@@ -105,10 +105,27 @@ module.exports = {
                 ], `${shouldAddSpaceForAsync ? " " : ""}${paramToken.value}`);
             }
 
+            /**
+             * Checks whether there are comments inside the params or not.
+             * @returns {boolean} `true` if there are comments inside of parens, else `false`
+             */
+            function hasCommentsInParens() {
+                if (astUtils.isOpeningParenToken(firstTokenOfParam)) {
+                    const closingParenToken = sourceCode.getTokenAfter(node.params[0], astUtils.isClosingParenToken);
+
+                    return closingParenToken && sourceCode.commentsExistBetween(firstTokenOfParam, closingParenToken);
+                }
+                return false;
+
+            }
+
+            if (hasCommentsInParens()) {
+                return;
+            }
+
             // "as-needed", { "requireForBlockBody": true }: x => x
             if (
                 requireForBlockBody &&
-                node.params.length === 1 &&
                 node.params[0].type === "Identifier" &&
                 !node.params[0].typeAnnotation &&
                 node.body.type !== "BlockStatement" &&
@@ -144,7 +161,6 @@ module.exports = {
 
             // "as-needed": x => x
             if (asNeeded &&
-                node.params.length === 1 &&
                 node.params[0].type === "Identifier" &&
                 !node.params[0].typeAnnotation &&
                 !node.returnType
@@ -178,7 +194,7 @@ module.exports = {
         }
 
         return {
-            ArrowFunctionExpression: parens
+            "ArrowFunctionExpression[params.length=1]": parens
         };
     }
 };
