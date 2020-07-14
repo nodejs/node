@@ -170,7 +170,6 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       assert(!stream.unidirectional);
       assert(stream.clientInitiated);
       assert(!stream.serverInitiated);
-      assert(!stream.pending);
 
       const file = fs.createReadStream(__filename);
       let data = '';
