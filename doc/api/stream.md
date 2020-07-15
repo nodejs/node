@@ -2535,6 +2535,10 @@ changes:
   * `allowHalfOpen` {boolean} If set to `false`, then the stream will
     automatically end the writable side when the readable side ends.
     **Default:** `true`.
+  * `readable` {boolean} Sets whether the `Duplex` should be readable.
+    **Default:** `true`.
+  * `writable` {boolean} Sets whether the `Duplex` should be writable.
+    **Default:** `true`.
   * `readableObjectMode` {boolean} Sets `objectMode` for readable side of the
     stream. Has no effect if `objectMode` is `true`. **Default:** `false`.
   * `writableObjectMode` {boolean} Sets `objectMode` for writable side of the
