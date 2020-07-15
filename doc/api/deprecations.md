@@ -2751,6 +2751,8 @@ changes:
 
 Type: Documentation-only
 
+[`socket.bufferSize`][] is just an alias for [`writable.writableLength`][].
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
