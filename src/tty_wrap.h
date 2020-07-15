@@ -46,7 +46,6 @@ class TTYWrap : public LibuvStreamWrap {
   TTYWrap(Environment* env,
           v8::Local<v8::Object> object,
           int fd,
-          bool readable,
           int* init_err);
 
   static void IsTTY(const v8::FunctionCallbackInfo<v8::Value>& args);

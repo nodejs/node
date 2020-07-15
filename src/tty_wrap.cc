@@ -121,9 +121,9 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(fd, 0);
 
   int err = 0;
-  new TTYWrap(env, args.This(), fd, args[1]->IsTrue(), &err);
+  new TTYWrap(env, args.This(), fd, &err);
   if (err != 0) {
-    env->CollectUVExceptionInfo(args[2], err, "uv_tty_init");
+    env->CollectUVExceptionInfo(args[1], err, "uv_tty_init");
     args.GetReturnValue().SetUndefined();
   }
 }
@@ -132,13 +132,12 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
 TTYWrap::TTYWrap(Environment* env,
                  Local<Object> object,
                  int fd,
-                 bool readable,
                  int* init_err)
     : LibuvStreamWrap(env,
                       object,
                       reinterpret_cast<uv_stream_t*>(&handle_),
                       AsyncWrap::PROVIDER_TTYWRAP) {
-  *init_err = uv_tty_init(env->event_loop(), &handle_, fd, readable);
+  *init_err = uv_tty_init(env->event_loop(), &handle_, fd, 0);
   set_fd(fd);
   if (*init_err != 0)
     MarkAsUninitialized();
