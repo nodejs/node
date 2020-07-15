@@ -621,7 +621,7 @@ if (isMainThread) {
 added: v10.5.0
 changes:
   - version:
-    - REPLACEME
+    - v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34303
     description: The `trackUnmanagedFds` option was introduced.
   - version: v14.0.0

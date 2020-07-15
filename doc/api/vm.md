@@ -188,7 +188,7 @@ overhead.
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
   - version: v10.0.0
@@ -849,7 +849,7 @@ function with the given `params`.
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
   - version: v10.0.0
@@ -1012,7 +1012,7 @@ console.log(contextObject);
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
   - version: v10.0.0
