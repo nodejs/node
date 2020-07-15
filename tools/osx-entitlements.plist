@@ -12,5 +12,7 @@
     <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+    <key>com.apple.security.get-task-allow</key>
+    <true/>
 </dict>
 </plist>
