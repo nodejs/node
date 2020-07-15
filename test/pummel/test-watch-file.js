@@ -24,9 +24,12 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const fixtures = require('../common/fixtures');
+const path = require('path');
+const tmpdir = require('../common/tmpdir');
 
-const f = fixtures.path('x.txt');
+tmpdir.refresh();
+const f = path.join(tmpdir.path, 'x.txt');
+fs.closeSync(fs.openSync(f, 'w'));
 
 let changes = 0;
 function watchFile() {
