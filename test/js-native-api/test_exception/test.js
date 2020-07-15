@@ -66,14 +66,3 @@ const test_exception = (function() {
                      'Exception state did not remain clear as expected,' +
                      ` .wasPending() returned ${exception_pending}`);
 }
-
-// Make sure that exceptions that occur during finalization are propagated.
-function testFinalize(binding) {
-  let x = test_exception[binding]();
-  x = null;
-  assert.throws(() => { global.gc(); }, /Error during Finalize/);
-
-  // To assuage the linter's concerns.
-  (function() {})(x);
-}
-testFinalize('createExternal');

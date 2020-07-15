@@ -24,9 +24,13 @@ global.gc();
 
 // Add an item to an object that is already wrapped, and ensure that its
 // finalizer as well as the wrap finalizer gets called.
-let finalizeAndWrap = {};
-test_general.wrap(finalizeAndWrap);
-test_general.addFinalizerOnly(finalizeAndWrap, common.mustCall());
-finalizeAndWrap = null;
-global.gc();
-assert.strictEqual(test_general.derefItemWasCalled(), true);
+async function testFinalizeAndWrap() {
+  assert.strictEqual(test_general.derefItemWasCalled(), false);
+  let finalizeAndWrap = {};
+  test_general.wrap(finalizeAndWrap);
+  test_general.addFinalizerOnly(finalizeAndWrap, common.mustCall());
+  finalizeAndWrap = null;
+  await common.gcUntil('test finalize and wrap',
+                       () => test_general.derefItemWasCalled());
+}
+testFinalizeAndWrap();
