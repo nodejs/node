@@ -1342,7 +1342,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             )
 
             if self.flavor == "mac":
-                cflags = self.xcode_settings.GetCflags(configname)
+                cflags = self.xcode_settings.GetCflags(configname, arch=config.get('xcode_configuration_platform'))
                 cflags_c = self.xcode_settings.GetCflagsC(configname)
                 cflags_cc = self.xcode_settings.GetCflagsCC(configname)
                 cflags_objc = self.xcode_settings.GetCflagsObjC(configname)
@@ -1637,6 +1637,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         configname,
                         generator_default_variables["PRODUCT_DIR"],
                         lambda p: Sourceify(self.Absolutify(p)),
+                        arch=config.get('xcode_configuration_platform')
                     )
 
                     # TARGET_POSTBUILDS_$(BUILDTYPE) is added to postbuilds later on.
@@ -2362,7 +2363,14 @@ def GenerateOutput(target_list, target_dicts, data, params):
             }
         )
     elif flavor == "solaris":
-        header_params.update({"flock": "./gyp-flock-tool flock", "flock_index": 2})
+        copy_archive_arguments = "-pPRf@"
+        header_params.update(
+            {
+                "copy_archive_args": copy_archive_arguments,
+                "flock": "./gyp-flock-tool flock",
+                "flock_index": 2
+            }
+        )
     elif flavor == "freebsd":
         # Note: OpenBSD has sysutils/flock. lockf seems to be FreeBSD specific.
         header_params.update({"flock": "lockf"})
