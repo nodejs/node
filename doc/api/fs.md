@@ -4472,7 +4472,7 @@ this API: [`fs.writev()`][].
 
 The `fs.promises` API provides an alternative set of asynchronous file system
 methods that return `Promise` objects rather than using callbacks. The
-API is accessible via `require('fs').promises` or `require('fs/promises')`.
+API is accessible via `require('fs').promises`.
 
 ### Class: `FileHandle`
 <!-- YAML
