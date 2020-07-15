@@ -530,7 +530,7 @@ socket as reported by the operating system:
 <!-- YAML
 added: v0.3.8
 deprecated:
-  - REPLACEME
+  - v14.6.0
 -->
 
 > Stability: 0 - Deprecated: Use [`writable.writableLength`][] instead.

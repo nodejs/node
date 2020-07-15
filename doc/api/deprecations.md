@@ -2734,7 +2734,7 @@ no longer required due to simplification of the implementation.
 ### DEP0144: `module.parent`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/32217
     description: Documentation-only deprecation.
 -->
@@ -2767,7 +2767,7 @@ const moduleParents = Object.values(require.cache)
 ### DEP0145: `socket.bufferSize`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34088
     description: Documentation-only deprecation.
 -->
