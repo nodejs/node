@@ -101,6 +101,13 @@ struct napi_env__ {
     }
   }
 
+  virtual void CallFinalizer(napi_finalize cb, void* data, void* hint) {
+    v8::HandleScope handle_scope(isolate);
+    CallIntoModule([&](napi_env env) {
+      cb(env, data, hint);
+    });
+  }
+
   v8impl::Persistent<v8::Value> last_exception;
 
   // We store references in two different lists, depending on whether they have
