@@ -24,7 +24,19 @@ request.
 * `tsc-agenda` - Open issues and pull requests with this label will be added to
   the Technical Steering Committee meeting agenda
 
---
+---
+
+* `author-ready` - A pull request is _author ready_ when:
+  * There is a CI run in progress or completed.
+  * There is at least one Collaborator approval (or two TSC approvals
+  for semver-major PRs).
+  * There are no outstanding review comments.
+
+Please always add the `author ready` label to the pull request in that case.
+Please always remove it again as soon as the conditions are not met anymore,
+such as if CI run fails or a new outstanding review comment is posted.
+
+---
 
 * `semver-{minor,major}`
   * be conservative – that is, if a change has the remote *chance* of breaking
