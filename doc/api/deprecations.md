@@ -2740,12 +2740,12 @@ const moduleParents = Object.values(require.cache)
   .filter((m) => m.children.includes(module));
 ```
 
-<a id="DEP0XXX"></a>
-### DEP0XXX: `socket.bufferSize`
+<a id="DEP0145"></a>
+### DEP0145: `socket.bufferSize`
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34088
     description: Documentation-only deprecation.
 -->
 
