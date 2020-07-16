@@ -221,7 +221,6 @@ void NativeModuleEnv::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(ConfigStringGetter);
   registry->Register(ModuleIdsGetter);
-  registry->Register(ModuleIdsGetter);
   registry->Register(GetModuleCategories);
   registry->Register(GetCacheUsage);
   registry->Register(CompileFunction);
