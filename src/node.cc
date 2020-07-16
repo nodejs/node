@@ -1061,7 +1061,6 @@ int Start(int argc, char** argv) {
   {
     Isolate::CreateParams params;
     const std::vector<size_t>* indexes = nullptr;
-    std::vector<intptr_t> external_references;
     const EnvSerializeInfo* env_info = nullptr;
     bool force_no_snapshot =
         per_process::cli_options->per_isolate->no_node_snapshot;
