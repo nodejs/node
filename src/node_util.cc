@@ -9,8 +9,10 @@ namespace util {
 using v8::ALL_PROPERTIES;
 using v8::Array;
 using v8::ArrayBufferView;
+using v8::BigInt;
 using v8::Boolean;
 using v8::Context;
+using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
@@ -19,6 +21,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
@@ -66,6 +69,18 @@ static void GetConstructorName(
   Local<String> name = object->GetConstructorName();
 
   args.GetReturnValue().Set(name);
+}
+
+static void GetExternalValue(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsExternal());
+  Isolate* isolate = args.GetIsolate();
+  Local<External> external = args[0].As<External>();
+
+  void* ptr = external->Value();
+  uint64_t value = reinterpret_cast<uint64_t>(ptr);
+  Local<BigInt> ret = BigInt::NewFromUnsigned(isolate, value);
+  args.GetReturnValue().Set(ret);
 }
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
@@ -271,6 +286,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(PreviewEntries);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
+  registry->Register(GetExternalValue);
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
   registry->Register(WeakReference::New);
@@ -314,6 +330,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
                                      GetOwnNonIndexProperties);
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
+  env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
   env->SetMethod(target, "sleep", Sleep);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
