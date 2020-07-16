@@ -2123,7 +2123,7 @@ signal (such as [`subprocess.kill()`][]).
 <a id="ERR_UNSUPPORTED_DIR_IMPORT"></a>
 ### `ERR_UNSUPPORTED_DIR_IMPORT`
 
-`import` a directory URL is unsupported. Instead, you can
+`import` a directory URL is unsupported. Instead,
 [self-reference a package using its name][] and [define a custom subpath][] in
 the `"exports"` field of the `package.json` file.
 
