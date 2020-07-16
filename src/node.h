@@ -328,7 +328,8 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
 enum IsolateSettingsFlags {
   MESSAGE_LISTENER_WITH_ERROR_LEVEL = 1 << 0,
-  DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1
+  DETAILED_SOURCE_POSITIONS_FOR_PROFILING = 1 << 1,
+  SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK = 1 << 2
 };
 
 struct IsolateSettings {
