@@ -1,9 +1,12 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const { Worker } = require('worker_threads');
+const { Worker, isMainThread } = require('worker_threads');
 const { once } = require('events');
 const fs = require('fs');
+
+if (!isMainThread)
+  common.skip('test needs to be able to freely set `trackUnmanagedFds`');
 
 // All the tests here are run sequentially, to avoid accidentally opening an fd
 // which another part of the test expects to be closed.
@@ -32,6 +35,16 @@ process.on('warning', (warning) => parentPort.postMessage({ warning }));
     const w = new Worker(`${preamble}
     parentPort.postMessage(fs.openSync(__filename));
     `, { eval: true, trackUnmanagedFds: true });
+    const [ [ fd ] ] = await Promise.all([once(w, 'message'), once(w, 'exit')]);
+    assert(fd > 2);
+    assert.throws(() => fs.fstatSync(fd), { code: 'EBADF' });
+  }
+
+  // The same, but trackUnmanagedFds is used only as the implied default.
+  {
+    const w = new Worker(`${preamble}
+    parentPort.postMessage(fs.openSync(__filename));
+    `, { eval: true });
     const [ [ fd ] ] = await Promise.all([once(w, 'message'), once(w, 'exit')]);
     assert(fd > 2);
     assert.throws(() => fs.fstatSync(fd), { code: 'EBADF' });
