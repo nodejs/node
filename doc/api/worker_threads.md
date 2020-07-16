@@ -621,6 +621,9 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34394
+    description: The `trackUnmanagedFds` option was set to `true` by default.
   - version:
     - v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34303
@@ -689,7 +692,7 @@ changes:
     [`fs.close()`][], and close them when the Worker exits, similar to other
     resources like network sockets or file descriptors managed through
     the [`FileHandle`][] API. This option is automatically inherited by all
-    nested `Worker`s. **Default**: `false`.
+    nested `Worker`s. **Default**: `true`.
   * `transferList` {Object[]} If one or more `MessagePort`-like objects
     are passed in `workerData`, a `transferList` is required for those
     items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] will be thrown.
