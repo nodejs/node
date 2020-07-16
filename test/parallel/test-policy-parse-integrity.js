@@ -19,24 +19,28 @@ function hash(algo, body) {
   return h.digest('base64');
 }
 
-const policyFilepath = path.join(tmpdir.path, 'policy');
+const tmpdirPath = path.join(tmpdir.path, 'test-policy-parse-integrity');
+fs.rmdirSync(tmpdirPath, { maxRetries: 3, recursive: true });
+fs.mkdirSync(tmpdirPath, { recursive: true });
 
-const parentFilepath = path.join(tmpdir.path, 'parent.js');
+const policyFilepath = path.join(tmpdirPath, 'policy');
+
+const parentFilepath = path.join(tmpdirPath, 'parent.js');
 const parentBody = "require('./dep.js')";
 
-const depFilepath = path.join(tmpdir.path, 'dep.js');
+const depFilepath = path.join(tmpdirPath, 'dep.js');
 const depURL = pathToFileURL(depFilepath);
 const depBody = '';
 
 fs.writeFileSync(parentFilepath, parentBody);
 fs.writeFileSync(depFilepath, depBody);
 
-const tmpdirURL = pathToFileURL(tmpdir.path);
+const tmpdirURL = pathToFileURL(tmpdirPath);
 if (!tmpdirURL.pathname.endsWith('/')) {
   tmpdirURL.pathname += '/';
 }
 
-const packageFilepath = path.join(tmpdir.path, 'package.json');
+const packageFilepath = path.join(tmpdirPath, 'package.json');
 const packageURL = pathToFileURL(packageFilepath);
 const packageBody = '{"main": "dep.js"}';
 
