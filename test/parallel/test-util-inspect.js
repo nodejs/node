@@ -147,8 +147,8 @@ assert.strictEqual(
   "[String: 'hello'] { [length]: 5, [Symbol(foo)]: 123 }"
 );
 
-assert.strictEqual(util.inspect((new JSStream())._externalStream),
-                   '[External]');
+assert.match(util.inspect((new JSStream())._externalStream),
+             /^\[External: [0-9a-f]+\]$/);
 
 {
   const regexp = /regexp/;
