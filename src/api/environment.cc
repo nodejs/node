@@ -245,9 +245,11 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
     s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
 
-  auto* promise_reject_cb = s.promise_reject_callback ?
-    s.promise_reject_callback : task_queue::PromiseRejectCallback;
-  isolate->SetPromiseRejectCallback(promise_reject_cb);
+  if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
+    auto* promise_reject_cb = s.promise_reject_callback ?
+      s.promise_reject_callback : task_queue::PromiseRejectCallback;
+    isolate->SetPromiseRejectCallback(promise_reject_cb);
+  }
 
   auto* host_cleanup_cb = s.host_cleanup_finalization_group_callback ?
     s.host_cleanup_finalization_group_callback :
