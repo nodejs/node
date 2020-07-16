@@ -258,7 +258,6 @@ listed as supporting a later version.
 v8.7.0 and therefore the shape of the API in earlier versions is not
 truly version 1 (in hindsight we should have called it version 0). 
 We recommend version 3 or later.
-general recommendation is to use version 3 or later.
 
 The N-APIs associated strictly with accessing ECMAScript features from native
 code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
