@@ -11,6 +11,7 @@ using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
+using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
@@ -19,6 +20,7 @@ using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
@@ -66,6 +68,20 @@ static void GetConstructorName(
   Local<String> name = object->GetConstructorName();
 
   args.GetReturnValue().Set(name);
+}
+
+static void GetExternalValue(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsExternal());
+  auto isolate = args.GetIsolate();
+  Local<External> external = args[0].As<External>();
+
+  void* ptr = external->Value();
+  char val[20];
+  snprintf(val, sizeof(val), "%p", ptr);
+
+  MaybeLocal<String> ret = String::NewFromUtf8(isolate, val);
+  args.GetReturnValue().Set(ret.ToLocalChecked());
 }
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
@@ -314,6 +330,7 @@ void Initialize(Local<Object> target,
   env->SetMethodNoSideEffect(target, "getOwnNonIndexProperties",
                                      GetOwnNonIndexProperties);
   env->SetMethodNoSideEffect(target, "getConstructorName", GetConstructorName);
+  env->SetMethodNoSideEffect(target, "getExternalValue", GetExternalValue);
   env->SetMethod(target, "sleep", Sleep);
 
   env->SetMethod(target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
