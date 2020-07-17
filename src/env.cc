@@ -1072,7 +1072,7 @@ std::ostream& operator<<(std::ostream& output,
   for (const SnapshotIndex i : v) {
     output << i << ", ";
   }
-  output << " }\n";
+  output << " }";
   return output;
 }
 
@@ -1323,14 +1323,15 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
     if (templates.size() > i && id == templates[i].id) {                       \
       const PropInfo& d = templates[i];                                        \
       DCHECK_EQ(d.name, #PropertyName);                                        \
-      MaybeLocal<TypeName> field =                                             \
+      MaybeLocal<TypeName> maybe_field =                                       \
           isolate_->GetDataFromSnapshotOnce<TypeName>(d.index);                \
-      if (field.IsEmpty()) {                                                   \
+      Local<TypeName> field;                                                   \
+      if (!maybe_field.ToLocal(&field)) {                                      \
         fprintf(stderr,                                                        \
                 "Failed to deserialize environment template " #PropertyName    \
                 "\n");                                                         \
       }                                                                        \
-      set_##PropertyName(field.ToLocalChecked());                              \
+      set_##PropertyName(field);                                               \
       i++;                                                                     \
     }                                                                          \
   } while (0);                                                                 \
@@ -1346,14 +1347,15 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
     if (values.size() > i && id == values[i].id) {                             \
       const PropInfo& d = values[i];                                           \
       DCHECK_EQ(d.name, #PropertyName);                                        \
-      MaybeLocal<TypeName> field =                                             \
+      MaybeLocal<TypeName> maybe_field =                                       \
           ctx->GetDataFromSnapshotOnce<TypeName>(d.index);                     \
-      if (field.IsEmpty()) {                                                   \
+      Local<TypeName> field;                                                   \
+      if (!maybe_field.ToLocal(&field)) {                                      \
         fprintf(stderr,                                                        \
                 "Failed to deserialize environment value " #PropertyName       \
                 "\n");                                                         \
       }                                                                        \
-      set_##PropertyName(field.ToLocalChecked());                              \
+      set_##PropertyName(field);                                               \
       i++;                                                                     \
     }                                                                          \
   } while (0);                                                                 \
@@ -1361,13 +1363,14 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   ENVIRONMENT_STRONG_PERSISTENT_VALUES(V);
 #undef V
 
-  MaybeLocal<Context> ctx_from_snapshot =
+  MaybeLocal<Context> maybe_ctx_from_snapshot =
       ctx->GetDataFromSnapshotOnce<Context>(info->context);
-  if (ctx_from_snapshot.IsEmpty()) {
+  Local<Context> ctx_from_snapshot;
+  if (!maybe_ctx_from_snapshot.ToLocal(&ctx_from_snapshot)) {
     fprintf(stderr,
             "Failed to deserialize context back reference from the snapshot\n");
   }
-  CHECK_EQ(ctx_from_snapshot.ToLocalChecked(), ctx);
+  CHECK_EQ(ctx_from_snapshot, ctx);
 }
 
 void Environment::BuildEmbedderGraph(Isolate* isolate,
