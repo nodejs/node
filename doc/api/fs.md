@@ -4119,9 +4119,9 @@ Using [`fs.watch()`][] is more efficient than `fs.watchFile` and
 `fs.unwatchFile` when possible.
 
 When a file being watched by `fs.watchFile()` disappears and reappears,
-then the `previousStat` reported in the second callback event (the file's
-reappearance) will be the same as the `previousStat` of the first callback
-event (its disappearance).
+then the contents of `previous` in the second callback event (the file's
+reappearance) will be the same as the contents of `previous` in the first
+callback event (its disappearance).
 
 This happens when:
 
