@@ -7,8 +7,8 @@ SyntaxError: Strict mode code may not include a with statement
     at new Script (vm.js:*)
     at createScript (vm.js:*)
     at Object.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [stdin]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)
@@ -24,8 +24,8 @@ Error: hello
     at [stdin]:1:7
     at Script.runInThisContext (vm.js:*)
     at Object.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [stdin]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)
@@ -39,8 +39,8 @@ Error: hello
     at [stdin]:1:*
     at Script.runInThisContext (vm.js:*)
     at Object.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [stdin]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)
@@ -55,8 +55,8 @@ ReferenceError: y is not defined
     at [stdin]:1:16
     at Script.runInThisContext (vm.js:*)
     at Object.runInThisContext (vm.js:*)
-    at Object.<anonymous> ([stdin]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [stdin]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_stdin.js:*:*
     at Socket.<anonymous> (internal/process/execution.js:*:*)

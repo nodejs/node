@@ -6,8 +6,8 @@ SyntaxError: Strict mode code may not include a with statement
     at new Script (vm.js:*:*)
     at createScript (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
-    at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [eval]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_string.js:*:*
 42
@@ -20,8 +20,8 @@ Error: hello
     at [eval]:1:7
     at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
-    at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [eval]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_string.js:*:*
 
@@ -33,8 +33,8 @@ Error: hello
     at [eval]:1:7
     at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
-    at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [eval]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_string.js:*:*
 100
@@ -46,8 +46,8 @@ ReferenceError: y is not defined
     at [eval]:1:16
     at Script.runInThisContext (vm.js:*:*)
     at Object.runInThisContext (vm.js:*:*)
-    at Object.<anonymous> ([eval]-wrapper:*:*)
-    at Module._compile (internal/modules/cjs/loader.js:*:*)
+    at internal/process/execution.js:*:*
+    at [eval]-wrapper:*:*
     at evalScript (internal/process/execution.js:*:*)
     at internal/main/eval_string.js:*:*
 

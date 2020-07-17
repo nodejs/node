@@ -1,0 +1,8 @@
+{
+  "scopes": {
+    "../": {
+      "integrity": true,
+      "dependencies": true
+    }
+  }
+}

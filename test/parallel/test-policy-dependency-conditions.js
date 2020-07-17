@@ -84,7 +84,7 @@ for (const totalDepth of [1, 2, 3]) {
         }
       }
     });
-    const redirector = manifest.getRedirector('test:_');
+    const redirector = manifest.getDependencyMapper('test:_');
     for (const { target, conditions } of order) {
       const result = redirector.resolve('_', conditions).href;
       if (result !== target) {
