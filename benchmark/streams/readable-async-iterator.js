@@ -34,9 +34,8 @@ async function main({ n, sync }) {
     }
   }
 
-  // Side effect to ensure V8 does not optimize away the
-  // loop as a noop.
-  console.log(x);
+  // Use x to ensure V8 does not optimize away the loop as a noop.
+  console.assert(x);
 
   bench.end(n);
 }
