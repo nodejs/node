@@ -196,4 +196,93 @@ module.exports = function fn(...args) {
 };
 ```
 
+### Scopes
+
+Use the `"scopes"` field of a manifest to set configuration for many resources
+at once. The `"scopes"` field works by matching resources by their segments.
+If a scope or resource includes `"cascade": true` unknown specifiers will
+be searched for in their containing scope. The containing scope for cascading
+is found by recursively reducing the resource URL by removing segments for
+[special schemes][], keeping trailing `"/"` suffixes and removing the query and
+hash fragment. This leads to the eventual reduction of the URL to its origin.
+If the URL is non-special the scope will be located by the URL's origin. If no
+scope is found for the origin or in the case of opaque origins, a protocol
+string can be used as a scope.
+
+Note, `blob:` URLs adopt their origin from the path they contain, and so a scope
+of `"blob:https://nodejs.org"` will have no effect since no URL can have an
+origin of `blob:https://nodejs.org`; URLs starting with
+`blob:https://nodejs.org/` will use `https://nodejs.org` for its origin and
+thus `https:` for its protocol scope. For opaque origin `blob:` URLs they will
+have `blob:` for their protocol scope since they do not adopt origins.
+
+#### Integrity Using Scopes
+
+Setting an integrity to `true` on a scope will set the integrity for any
+resource not found in the manifest to `true`.
+
+Setting an integrity to `null` on a scope will set the integrity for any
+resource not found in the manifest to fail matching.
+
+Not including an integrity is the same as setting the integrity to `null`.
+
+`"cascade"` for integrity checks will be ignored if `"integrity"` is explicitly
+set.
+
+The following example allows loading any file:
+
+```json
+{
+  "scopes": {
+    "file:": {
+      "integrity": true
+    }
+  }
+}
+```
+
+#### Dependency Redirection Using Scopes
+
+The following example, would allow access to `fs` for all resources within
+`./app/`:
+
+```json
+{
+  "resources": {
+    "./app/checked.js": {
+      "cascade": true,
+      "integrity": true
+    }
+  },
+  "scopes": {
+    "./app/": {
+      "dependencies": {
+        "fs": true
+      }
+    }
+  }
+}
+```
+
+The following example, would allow access to `fs` for all `data:` resources:
+
+```json
+{
+  "resources": {
+    "data:text/javascript,import('fs');": {
+      "cascade": true,
+      "integrity": true
+    }
+  },
+  "scopes": {
+    "data:": {
+      "dependencies": {
+        "fs": true
+      }
+    }
+  }
+}
+```
+
 [relative url string]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
+[special schemes]: https://url.spec.whatwg.org/#special-scheme
