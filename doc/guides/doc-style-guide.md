@@ -1,4 +1,12 @@
-# Style Guide
+# Documentation style guide
+
+This style guide helps us create organized and easy-to-read documentation. It
+provides guidelines for organization, spelling, formatting, and more.
+
+These are guidelines rather than strict rules. Content is more important than
+formatting. You do not need to learn the entire style guide before contributing
+to documentation. Someone can always edit your material later to conform with
+this guide.
 
 * Documentation is in markdown files with names formatted as
   `lowercase-with-dashes.md`.
