@@ -234,6 +234,7 @@ class CodePathState {
         this.tryContext = null;
         this.loopContext = null;
         this.breakContext = null;
+        this.chainContext = null;
 
         this.currentSegments = [];
         this.initialSegment = this.forkContext.head[0];
@@ -553,6 +554,64 @@ class CodePathState {
         forkContext.replaceHead(
             context.falseForkContext.makeNext(0, -1)
         );
+    }
+
+    //--------------------------------------------------------------------------
+    // ChainExpression
+    //--------------------------------------------------------------------------
+
+    /**
+     * Push a new `ChainExpression` context to the stack.
+     * This method is called on entering to each `ChainExpression` node.
+     * This context is used to count forking in the optional chain then merge them on the exiting from the `ChainExpression` node.
+     * @returns {void}
+     */
+    pushChainContext() {
+        this.chainContext = {
+            upper: this.chainContext,
+            countChoiceContexts: 0
+        };
+    }
+
+    /**
+     * Pop a `ChainExpression` context from the stack.
+     * This method is called on exiting from each `ChainExpression` node.
+     * This merges all forks of the last optional chaining.
+     * @returns {void}
+     */
+    popChainContext() {
+        const context = this.chainContext;
+
+        this.chainContext = context.upper;
+
+        // pop all choice contexts of this.
+        for (let i = context.countChoiceContexts; i > 0; --i) {
+            this.popChoiceContext();
+        }
+    }
+
+    /**
+     * Create a choice context for optional access.
+     * This method is called on entering to each `(Call|Member)Expression[optional=true]` node.
+     * This creates a choice context as similar to `LogicalExpression[operator="??"]` node.
+     * @returns {void}
+     */
+    makeOptionalNode() {
+        if (this.chainContext) {
+            this.chainContext.countChoiceContexts += 1;
+            this.pushChoiceContext("??", false);
+        }
+    }
+
+    /**
+     * Create a fork.
+     * This method is called on entering to the `arguments|property` property of each `(Call|Member)Expression` node.
+     * @returns {void}
+     */
+    makeOptionalRight() {
+        if (this.chainContext) {
+            this.makeLogicalRight();
+        }
     }
 
     //--------------------------------------------------------------------------

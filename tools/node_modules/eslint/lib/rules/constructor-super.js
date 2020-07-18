@@ -50,6 +50,7 @@ function isPossibleConstructor(node) {
         case "MemberExpression":
         case "CallExpression":
         case "NewExpression":
+        case "ChainExpression":
         case "YieldExpression":
         case "TaggedTemplateExpression":
         case "MetaProperty":

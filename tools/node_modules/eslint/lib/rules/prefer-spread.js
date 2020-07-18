@@ -18,16 +18,12 @@ const astUtils = require("./utils/ast-utils");
  */
 function isVariadicApplyCalling(node) {
     return (
-        node.callee.type === "MemberExpression" &&
-        node.callee.property.type === "Identifier" &&
-        node.callee.property.name === "apply" &&
-        node.callee.computed === false &&
+        astUtils.isSpecificMemberAccess(node.callee, null, "apply") &&
         node.arguments.length === 2 &&
         node.arguments[1].type !== "ArrayExpression" &&
         node.arguments[1].type !== "SpreadElement"
     );
 }
-
 
 /**
  * Checks whether or not `thisArg` is not changed by `.apply()`.
@@ -75,7 +71,7 @@ module.exports = {
                     return;
                 }
 
-                const applied = node.callee.object;
+                const applied = astUtils.skipChainExpression(astUtils.skipChainExpression(node.callee).object);
                 const expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
                 const thisArg = node.arguments[0];
 

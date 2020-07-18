@@ -9,16 +9,12 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-const { findVariable, getPropertyName } = require("eslint-utils");
+const { findVariable } = require("eslint-utils");
+const astUtils = require("./utils/ast-utils");
 
-const MutationMethods = {
-    Object: new Set([
-        "assign", "defineProperties", "defineProperty", "freeze",
-        "setPrototypeOf"
-    ]),
-    Reflect: new Set([
-        "defineProperty", "deleteProperty", "set", "setPrototypeOf"
-    ])
+const WellKnownMutationFunctions = {
+    Object: /^(?:assign|definePropert(?:y|ies)|freeze|setPrototypeOf)$/u,
+    Reflect: /^(?:(?:define|delete)Property|set(?:PrototypeOf)?)$/u
 };
 
 /**
@@ -56,17 +52,20 @@ function isAssignmentLeft(node) {
  * @returns {boolean} `true` if the node is the operand of mutation unary operator.
  */
 function isOperandOfMutationUnaryOperator(node) {
-    const { parent } = node;
+    const argumentNode = node.parent.type === "ChainExpression"
+        ? node.parent
+        : node;
+    const { parent } = argumentNode;
 
     return (
         (
             parent.type === "UpdateExpression" &&
-            parent.argument === node
+            parent.argument === argumentNode
         ) ||
         (
             parent.type === "UnaryExpression" &&
             parent.operator === "delete" &&
-            parent.argument === node
+            parent.argument === argumentNode
         )
     );
 }
@@ -92,35 +91,37 @@ function isIterationVariable(node) {
 }
 
 /**
- * Check if a given node is the iteration variable of `for-in`/`for-of` syntax.
+ * Check if a given node is at the first argument of a well-known mutation function.
+ * - `Object.assign`
+ * - `Object.defineProperty`
+ * - `Object.defineProperties`
+ * - `Object.freeze`
+ * - `Object.setPrototypeOf`
+ * - `Refrect.defineProperty`
+ * - `Refrect.deleteProperty`
+ * - `Refrect.set`
+ * - `Refrect.setPrototypeOf`
  * @param {ASTNode} node The node to check.
  * @param {Scope} scope A `escope.Scope` object to find variable (whichever).
- * @returns {boolean} `true` if the node is the iteration variable.
+ * @returns {boolean} `true` if the node is at the first argument of a well-known mutation function.
  */
 function isArgumentOfWellKnownMutationFunction(node, scope) {
     const { parent } = node;
 
-    if (
-        parent.type === "CallExpression" &&
-        parent.arguments[0] === node &&
-        parent.callee.type === "MemberExpression" &&
-        parent.callee.object.type === "Identifier"
-    ) {
-        const { callee } = parent;
-        const { object } = callee;
-
-        if (Object.keys(MutationMethods).includes(object.name)) {
-            const variable = findVariable(scope, object);
-
-            return (
-                variable !== null &&
-                variable.scope.type === "global" &&
-                MutationMethods[object.name].has(getPropertyName(callee, scope))
-            );
-        }
+    if (parent.type !== "CallExpression" || parent.arguments[0] !== node) {
+        return false;
     }
+    const callee = astUtils.skipChainExpression(parent.callee);
 
-    return false;
+    if (
+        !astUtils.isSpecificMemberAccess(callee, "Object", WellKnownMutationFunctions.Object) &&
+        !astUtils.isSpecificMemberAccess(callee, "Reflect", WellKnownMutationFunctions.Reflect)
+    ) {
+        return false;
+    }
+    const variable = findVariable(scope, callee.object);
+
+    return variable !== null && variable.scope.type === "global";
 }
 
 /**

@@ -47,12 +47,14 @@ function isDoubleLogicalNegating(node) {
  * @returns {boolean} Whether or not the node is a binary negating of `.indexOf()` method calling.
  */
 function isBinaryNegatingOfIndexOf(node) {
+    if (node.operator !== "~") {
+        return false;
+    }
+    const callNode = astUtils.skipChainExpression(node.argument);
+
     return (
-        node.operator === "~" &&
-        node.argument.type === "CallExpression" &&
-        node.argument.callee.type === "MemberExpression" &&
-        node.argument.callee.property.type === "Identifier" &&
-        INDEX_OF_PATTERN.test(node.argument.callee.property.name)
+        callNode.type === "CallExpression" &&
+        astUtils.isSpecificMemberAccess(callNode.callee, null, INDEX_OF_PATTERN)
     );
 }
 
@@ -246,7 +248,10 @@ module.exports = {
                 // ~foo.indexOf(bar)
                 operatorAllowed = options.allow.indexOf("~") >= 0;
                 if (!operatorAllowed && options.boolean && isBinaryNegatingOfIndexOf(node)) {
-                    const recommendation = `${sourceCode.getText(node.argument)} !== -1`;
+
+                    // `foo?.indexOf(bar) !== -1` will be true (== found) if the `foo` is nullish. So use `>= 0` in that case.
+                    const comparison = node.argument.type === "ChainExpression" ? ">= 0" : "!== -1";
+                    const recommendation = `${sourceCode.getText(node.argument)} ${comparison}`;
 
                     report(node, recommendation, false);
                 }
