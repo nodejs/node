@@ -311,6 +311,8 @@ For information about the governance of the Node.js project, see
 **Gireesh Punathil** &lt;gpunathi@in.ibm.com&gt; (he/him)
 * [guybedford](https://github.com/guybedford) -
 **Guy Bedford** &lt;guybedford@gmail.com&gt; (he/him)
+* [HarshithaKP](https://github.com/HarshithaKP) -
+**Harshitha K P** &lt;harshitha014@gmail.com&gt; (she/her)
 * [hashseed](https://github.com/hashseed) -
 **Yang Guo** &lt;yangguo@chromium.org&gt; (he/him)
 * [himself65](https://github.com/himself65) -
