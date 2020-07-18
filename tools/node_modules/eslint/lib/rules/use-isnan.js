@@ -106,7 +106,7 @@ module.exports = {
          * @returns {void}
          */
         function checkCallExpression(node) {
-            const callee = node.callee;
+            const callee = astUtils.skipChainExpression(node.callee);
 
             if (callee.type === "MemberExpression") {
                 const methodName = astUtils.getStaticPropertyName(callee);

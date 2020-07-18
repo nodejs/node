@@ -5,7 +5,7 @@
 
 "use strict";
 
-const { isNumericLiteral } = require("./utils/ast-utils");
+const astUtils = require("./utils/ast-utils");
 
 // Maximum array length by the ECMAScript Specification.
 const MAX_ARRAY_LENGTH = 2 ** 32 - 1;
@@ -100,12 +100,8 @@ module.exports = {
 
             return parent.type === "CallExpression" && fullNumberNode === parent.arguments[1] &&
                 (
-                    parent.callee.name === "parseInt" ||
-                    (
-                        parent.callee.type === "MemberExpression" &&
-                        parent.callee.object.name === "Number" &&
-                        parent.callee.property.name === "parseInt"
-                    )
+                    astUtils.isSpecificId(parent.callee, "parseInt") ||
+                    astUtils.isSpecificMemberAccess(parent.callee, "Number", "parseInt")
                 );
         }
 
@@ -157,7 +153,7 @@ module.exports = {
 
         return {
             Literal(node) {
-                if (!isNumericLiteral(node)) {
+                if (!astUtils.isNumericLiteral(node)) {
                     return;
                 }
 

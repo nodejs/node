@@ -17,13 +17,15 @@ const astUtils = require("./utils/ast-utils");
  * @returns {boolean} Whether or not the node is a `.call()`/`.apply()`.
  */
 function isCallOrNonVariadicApply(node) {
+    const callee = astUtils.skipChainExpression(node.callee);
+
     return (
-        node.callee.type === "MemberExpression" &&
-        node.callee.property.type === "Identifier" &&
-        node.callee.computed === false &&
+        callee.type === "MemberExpression" &&
+        callee.property.type === "Identifier" &&
+        callee.computed === false &&
         (
-            (node.callee.property.name === "call" && node.arguments.length >= 1) ||
-            (node.callee.property.name === "apply" && node.arguments.length === 2 && node.arguments[1].type === "ArrayExpression")
+            (callee.property.name === "call" && node.arguments.length >= 1) ||
+            (callee.property.name === "apply" && node.arguments.length === 2 && node.arguments[1].type === "ArrayExpression")
         )
     );
 }
@@ -74,12 +76,13 @@ module.exports = {
                     return;
                 }
 
-                const applied = node.callee.object;
+                const callee = astUtils.skipChainExpression(node.callee);
+                const applied = astUtils.skipChainExpression(callee.object);
                 const expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
                 const thisArg = node.arguments[0];
 
                 if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
-                    context.report({ node, messageId: "unnecessaryCall", data: { name: node.callee.property.name } });
+                    context.report({ node, messageId: "unnecessaryCall", data: { name: callee.property.name } });
                 }
             }
         };

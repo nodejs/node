@@ -49,8 +49,6 @@ module.exports = {
          * @private
          */
         function reportError(node, leftToken, rightToken) {
-            const replacementText = node.computed ? "" : ".";
-
             context.report({
                 node,
                 messageId: "unexpectedWhitespace",
@@ -58,7 +56,9 @@ module.exports = {
                     propName: sourceCode.getText(node.property)
                 },
                 fix(fixer) {
-                    if (!node.computed && astUtils.isDecimalInteger(node.object)) {
+                    let replacementText = "";
+
+                    if (!node.computed && !node.optional && astUtils.isDecimalInteger(node.object)) {
 
                         /*
                          * If the object is a number literal, fixing it to something like 5.toString() would cause a SyntaxError.
@@ -66,6 +66,18 @@ module.exports = {
                          */
                         return null;
                     }
+
+                    // Don't fix if comments exist.
+                    if (sourceCode.commentsExistBetween(leftToken, rightToken)) {
+                        return null;
+                    }
+
+                    if (node.optional) {
+                        replacementText = "?.";
+                    } else if (!node.computed) {
+                        replacementText = ".";
+                    }
+
                     return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], replacementText);
                 }
             });
@@ -86,7 +98,7 @@ module.exports = {
 
                 if (node.computed) {
                     rightToken = sourceCode.getTokenBefore(node.property, astUtils.isOpeningBracketToken);
-                    leftToken = sourceCode.getTokenBefore(rightToken);
+                    leftToken = sourceCode.getTokenBefore(rightToken, node.optional ? 1 : 0);
                 } else {
                     rightToken = sourceCode.getFirstToken(node.property);
                     leftToken = sourceCode.getTokenBefore(rightToken, 1);

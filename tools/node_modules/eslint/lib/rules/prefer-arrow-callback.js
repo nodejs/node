@@ -5,6 +5,8 @@
 
 "use strict";
 
+const astUtils = require("./utils/ast-utils");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
@@ -66,6 +68,7 @@ function getCallbackInfo(node) {
     const retv = { isCallback: false, isLexicalThis: false };
     let currentNode = node;
     let parent = node.parent;
+    let bound = false;
 
     while (currentNode) {
         switch (parent.type) {
@@ -73,23 +76,34 @@ function getCallbackInfo(node) {
             // Checks parents recursively.
 
             case "LogicalExpression":
+            case "ChainExpression":
             case "ConditionalExpression":
                 break;
 
             // Checks whether the parent node is `.bind(this)` call.
             case "MemberExpression":
-                if (parent.object === currentNode &&
+                if (
+                    parent.object === currentNode &&
                     !parent.property.computed &&
                     parent.property.type === "Identifier" &&
-                    parent.property.name === "bind" &&
-                    parent.parent.type === "CallExpression" &&
-                    parent.parent.callee === parent
+                    parent.property.name === "bind"
                 ) {
-                    retv.isLexicalThis = (
-                        parent.parent.arguments.length === 1 &&
-                        parent.parent.arguments[0].type === "ThisExpression"
-                    );
-                    parent = parent.parent;
+                    const maybeCallee = parent.parent.type === "ChainExpression"
+                        ? parent.parent
+                        : parent;
+
+                    if (astUtils.isCallee(maybeCallee)) {
+                        if (!bound) {
+                            bound = true; // Use only the first `.bind()` to make `isLexicalThis` value.
+                            retv.isLexicalThis = (
+                                maybeCallee.parent.arguments.length === 1 &&
+                                maybeCallee.parent.arguments[0].type === "ThisExpression"
+                            );
+                        }
+                        parent = maybeCallee.parent;
+                    } else {
+                        return retv;
+                    }
                 } else {
                     return retv;
                 }
@@ -272,7 +286,7 @@ module.exports = {
                     context.report({
                         node,
                         messageId: "preferArrowCallback",
-                        fix(fixer) {
+                        *fix(fixer) {
                             if ((!callbackInfo.isLexicalThis && scopeInfo.this) || hasDuplicateParams(node.params)) {
 
                                 /*
@@ -281,30 +295,81 @@ module.exports = {
                                  * If the callback function has duplicates in its list of parameters (possible in sloppy mode),
                                  * don't replace it with an arrow function, because this is a SyntaxError with arrow functions.
                                  */
-                                return null;
+                                return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
                             }
 
-                            const paramsLeftParen = node.params.length ? sourceCode.getTokenBefore(node.params[0]) : sourceCode.getTokenBefore(node.body, 1);
-                            const paramsRightParen = sourceCode.getTokenBefore(node.body);
-                            const asyncKeyword = node.async ? "async " : "";
-                            const paramsFullText = sourceCode.text.slice(paramsLeftParen.range[0], paramsRightParen.range[1]);
-                            const arrowFunctionText = `${asyncKeyword}${paramsFullText} => ${sourceCode.getText(node.body)}`;
+                            // Remove `.bind(this)` if exists.
+                            if (callbackInfo.isLexicalThis) {
+                                const memberNode = node.parent;
 
-                            /*
-                             * If the callback function has `.bind(this)`, replace it with an arrow function and remove the binding.
-                             * Otherwise, just replace the arrow function itself.
-                             */
-                            const replacedNode = callbackInfo.isLexicalThis ? node.parent.parent : node;
+                                /*
+                                 * If `.bind(this)` exists but the parent is not `.bind(this)`, don't remove it automatically.
+                                 * E.g. `(foo || function(){}).bind(this)`
+                                 */
+                                if (memberNode.type !== "MemberExpression") {
+                                    return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                }
+
+                                const callNode = memberNode.parent;
+                                const firstTokenToRemove = sourceCode.getTokenAfter(memberNode.object, astUtils.isNotClosingParenToken);
+                                const lastTokenToRemove = sourceCode.getLastToken(callNode);
+
+                                /*
+                                 * If the member expression is parenthesized, don't remove the right paren.
+                                 * E.g. `(function(){}.bind)(this)`
+                                 *                    ^^^^^^^^^^^^
+                                 */
+                                if (astUtils.isParenthesised(sourceCode, memberNode)) {
+                                    return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                }
+
+                                // If comments exist in the `.bind(this)`, don't remove those.
+                                if (sourceCode.commentsExistBetween(firstTokenToRemove, lastTokenToRemove)) {
+                                    return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
+                                }
+
+                                yield fixer.removeRange([firstTokenToRemove.range[0], lastTokenToRemove.range[1]]);
+                            }
+
+                            // Convert the function expression to an arrow function.
+                            const functionToken = sourceCode.getFirstToken(node, node.async ? 1 : 0);
+                            const leftParenToken = sourceCode.getTokenAfter(functionToken, astUtils.isOpeningParenToken);
+
+                            if (sourceCode.commentsExistBetween(functionToken, leftParenToken)) {
+
+                                // Remove only extra tokens to keep comments.
+                                yield fixer.remove(functionToken);
+                                if (node.id) {
+                                    yield fixer.remove(node.id);
+                                }
+                            } else {
+
+                                // Remove extra tokens and spaces.
+                                yield fixer.removeRange([functionToken.range[0], leftParenToken.range[0]]);
+                            }
+                            yield fixer.insertTextBefore(node.body, "=> ");
+
+                            // Get the node that will become the new arrow function.
+                            let replacedNode = callbackInfo.isLexicalThis ? node.parent.parent : node;
+
+                            if (replacedNode.type === "ChainExpression") {
+                                replacedNode = replacedNode.parent;
+                            }
 
                             /*
                              * If the replaced node is part of a BinaryExpression, LogicalExpression, or MemberExpression, then
                              * the arrow function needs to be parenthesized, because `foo || () => {}` is invalid syntax even
                              * though `foo || function() {}` is valid.
                              */
-                            const needsParens = replacedNode.parent.type !== "CallExpression" && replacedNode.parent.type !== "ConditionalExpression";
-                            const replacementText = needsParens ? `(${arrowFunctionText})` : arrowFunctionText;
-
-                            return fixer.replaceText(replacedNode, replacementText);
+                            if (
+                                replacedNode.parent.type !== "CallExpression" &&
+                                replacedNode.parent.type !== "ConditionalExpression" &&
+                                !astUtils.isParenthesised(sourceCode, replacedNode) &&
+                                !astUtils.isParenthesised(sourceCode, node)
+                            ) {
+                                yield fixer.insertTextBefore(replacedNode, "(");
+                                yield fixer.insertTextAfter(replacedNode, ")");
+                            }
                         }
                     });
                 }

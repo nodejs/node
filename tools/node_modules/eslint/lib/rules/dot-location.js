@@ -52,31 +52,37 @@ module.exports = {
          */
         function checkDotLocation(node) {
             const property = node.property;
-            const dot = sourceCode.getTokenBefore(property);
-
-            // `obj` expression can be parenthesized, but those paren tokens are not a part of the `obj` node.
-            const tokenBeforeDot = sourceCode.getTokenBefore(dot);
-
-            const textBeforeDot = sourceCode.getText().slice(tokenBeforeDot.range[1], dot.range[0]);
-            const textAfterDot = sourceCode.getText().slice(dot.range[1], property.range[0]);
+            const dotToken = sourceCode.getTokenBefore(property);
 
             if (onObject) {
-                if (!astUtils.isTokenOnSameLine(tokenBeforeDot, dot)) {
-                    const neededTextAfterToken = astUtils.isDecimalIntegerNumericToken(tokenBeforeDot) ? " " : "";
 
+                // `obj` expression can be parenthesized, but those paren tokens are not a part of the `obj` node.
+                const tokenBeforeDot = sourceCode.getTokenBefore(dotToken);
+
+                if (!astUtils.isTokenOnSameLine(tokenBeforeDot, dotToken)) {
                     context.report({
                         node,
-                        loc: dot.loc,
+                        loc: dotToken.loc,
                         messageId: "expectedDotAfterObject",
-                        fix: fixer => fixer.replaceTextRange([tokenBeforeDot.range[1], property.range[0]], `${neededTextAfterToken}.${textBeforeDot}${textAfterDot}`)
+                        *fix(fixer) {
+                            if (dotToken.value.startsWith(".") && astUtils.isDecimalIntegerNumericToken(tokenBeforeDot)) {
+                                yield fixer.insertTextAfter(tokenBeforeDot, ` ${dotToken.value}`);
+                            } else {
+                                yield fixer.insertTextAfter(tokenBeforeDot, dotToken.value);
+                            }
+                            yield fixer.remove(dotToken);
+                        }
                     });
                 }
-            } else if (!astUtils.isTokenOnSameLine(dot, property)) {
+            } else if (!astUtils.isTokenOnSameLine(dotToken, property)) {
                 context.report({
                     node,
-                    loc: dot.loc,
+                    loc: dotToken.loc,
                     messageId: "expectedDotBeforeProperty",
-                    fix: fixer => fixer.replaceTextRange([tokenBeforeDot.range[1], property.range[0]], `${textBeforeDot}${textAfterDot}.`)
+                    *fix(fixer) {
+                        yield fixer.remove(dotToken);
+                        yield fixer.insertTextBefore(property, dotToken.value);
+                    }
                 });
             }
         }

@@ -35,8 +35,8 @@ module.exports = {
     },
 
     create(context) {
-        const EVAL_LIKE_FUNCS = Object.freeze(["setTimeout", "execScript", "setInterval"]);
         const GLOBAL_CANDIDATES = Object.freeze(["global", "window", "globalThis"]);
+        const EVAL_LIKE_FUNC_PATTERN = /^(?:set(?:Interval|Timeout)|execScript)$/u;
 
         /**
          * Checks whether a node is evaluated as a string or not.
@@ -54,28 +54,6 @@ module.exports = {
                 return isEvaluatedString(node.left) || isEvaluatedString(node.right);
             }
             return false;
-        }
-
-        /**
-         * Checks whether a node is an Identifier node named one of the specified names.
-         * @param {ASTNode} node A node to check.
-         * @param {string[]} specifiers Array of specified name.
-         * @returns {boolean} True if the node is a Identifier node which has specified name.
-         */
-        function isSpecifiedIdentifier(node, specifiers) {
-            return node.type === "Identifier" && specifiers.includes(node.name);
-        }
-
-        /**
-         * Checks a given node is a MemberExpression node which has the specified name's
-         * property.
-         * @param {ASTNode} node A node to check.
-         * @param {string[]} specifiers Array of specified name.
-         * @returns {boolean} `true` if the node is a MemberExpression node which has
-         *      the specified name's property
-         */
-        function isSpecifiedMember(node, specifiers) {
-            return node.type === "MemberExpression" && specifiers.includes(astUtils.getStaticPropertyName(node));
         }
 
         /**
@@ -114,14 +92,15 @@ module.exports = {
                 const identifier = ref.identifier;
                 let node = identifier.parent;
 
-                while (isSpecifiedMember(node, [name])) {
+                while (astUtils.isSpecificMemberAccess(node, null, name)) {
                     node = node.parent;
                 }
 
-                if (isSpecifiedMember(node, EVAL_LIKE_FUNCS)) {
-                    const parent = node.parent;
+                if (astUtils.isSpecificMemberAccess(node, null, EVAL_LIKE_FUNC_PATTERN)) {
+                    const calleeNode = node.parent.type === "ChainExpression" ? node.parent : node;
+                    const parent = calleeNode.parent;
 
-                    if (parent.type === "CallExpression" && parent.callee === node) {
+                    if (parent.type === "CallExpression" && parent.callee === calleeNode) {
                         reportImpliedEvalCallExpression(parent);
                     }
                 }
@@ -134,7 +113,7 @@ module.exports = {
 
         return {
             CallExpression(node) {
-                if (isSpecifiedIdentifier(node.callee, EVAL_LIKE_FUNCS)) {
+                if (astUtils.isSpecificId(node.callee, EVAL_LIKE_FUNC_PATTERN)) {
                     reportImpliedEvalCallExpression(node);
                 }
             },
