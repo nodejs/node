@@ -85,8 +85,8 @@ all sessions). Methods implementing this technique are called "ephemeral".
 Currently two methods are commonly used to achieve perfect forward secrecy (note
 the character "E" appended to the traditional abbreviations):
 
-* [DHE][]: An ephemeral version of the Diffie Hellman key-agreement protocol.
-* [ECDHE][]: An ephemeral version of the Elliptic Curve Diffie Hellman
+* [DHE][]: An ephemeral version of the Diffie-Hellman key-agreement protocol.
+* [ECDHE][]: An ephemeral version of the Elliptic Curve Diffie-Hellman
   key-agreement protocol.
 
 Ephemeral methods may have some performance drawbacks, because key generation
@@ -1566,7 +1566,7 @@ changes:
     client certificate.
   * `crl` {string|string[]|Buffer|Buffer[]} PEM formatted CRLs (Certificate
     Revocation Lists).
-  * `dhparam` {string|Buffer} Diffie Hellman parameters, required for
+  * `dhparam` {string|Buffer} Diffie-Hellman parameters, required for
     [perfect forward secrecy][]. Use `openssl dhparam` to create the parameters.
     The key length must be greater than or equal to 1024 bits or else an error
     will be thrown. Although 1024 bits is permissible, use 2048 bits or larger
