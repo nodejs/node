@@ -1,6 +1,6 @@
 /**
  * @fileoverview Rule that warns when identifier names that are
- * blacklisted in the configuration are used.
+ * specified in the configuration are used.
  * @author Keith Cirkel (http://keithcirkel.co.uk)
  */
 
@@ -111,6 +111,9 @@ function isShorthandPropertyDefinition(node) {
 
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: ["id-denylist"],
+
         type: "suggestion",
 
         docs: {
@@ -128,25 +131,25 @@ module.exports = {
             uniqueItems: true
         },
         messages: {
-            blacklisted: "Identifier '{{name}}' is blacklisted."
+            restricted: "Identifier '{{name}}' is restricted."
         }
     },
 
     create(context) {
 
-        const blacklist = new Set(context.options);
+        const denyList = new Set(context.options);
         const reportedNodes = new Set();
 
         let globalScope;
 
         /**
-         * Checks whether the given name is blacklisted.
+         * Checks whether the given name is restricted.
          * @param {string} name The name to check.
-         * @returns {boolean} `true` if the name is blacklisted.
+         * @returns {boolean} `true` if the name is restricted.
          * @private
          */
-        function isBlacklisted(name) {
-            return blacklist.has(name);
+        function isRestricted(name) {
+            return denyList.has(name);
         }
 
         /**
@@ -172,8 +175,8 @@ module.exports = {
 
             /*
              * Member access has special rules for checking property names.
-             * Read access to a property with a blacklisted name is allowed, because it can be on an object that user has no control over.
-             * Write access isn't allowed, because it potentially creates a new property with a blacklisted name.
+             * Read access to a property with a restricted name is allowed, because it can be on an object that user has no control over.
+             * Write access isn't allowed, because it potentially creates a new property with a restricted name.
              */
             if (
                 parent.type === "MemberExpression" &&
@@ -205,7 +208,7 @@ module.exports = {
             if (!reportedNodes.has(node)) {
                 context.report({
                     node,
-                    messageId: "blacklisted",
+                    messageId: "restricted",
                     data: {
                         name: node.name
                     }
@@ -221,7 +224,7 @@ module.exports = {
             },
 
             Identifier(node) {
-                if (isBlacklisted(node.name) && shouldCheck(node)) {
+                if (isRestricted(node.name) && shouldCheck(node)) {
                     report(node);
                 }
             }

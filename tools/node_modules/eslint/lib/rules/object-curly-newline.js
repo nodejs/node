@@ -224,7 +224,7 @@ module.exports = {
                     context.report({
                         messageId: "expectedLinebreakAfterOpeningBrace",
                         node,
-                        loc: openBrace.loc.start,
+                        loc: openBrace.loc,
                         fix(fixer) {
                             if (hasCommentsFirstToken) {
                                 return null;
@@ -238,7 +238,7 @@ module.exports = {
                     context.report({
                         messageId: "expectedLinebreakBeforeClosingBrace",
                         node,
-                        loc: closeBrace.loc.start,
+                        loc: closeBrace.loc,
                         fix(fixer) {
                             if (hasCommentsLastToken) {
                                 return null;
@@ -260,7 +260,7 @@ module.exports = {
                     context.report({
                         messageId: "unexpectedLinebreakAfterOpeningBrace",
                         node,
-                        loc: openBrace.loc.start,
+                        loc: openBrace.loc,
                         fix(fixer) {
                             if (hasCommentsFirstToken) {
                                 return null;
@@ -280,7 +280,7 @@ module.exports = {
                     context.report({
                         messageId: "unexpectedLinebreakBeforeClosingBrace",
                         node,
-                        loc: closeBrace.loc.start,
+                        loc: closeBrace.loc,
                         fix(fixer) {
                             if (hasCommentsLastToken) {
                                 return null;

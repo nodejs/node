@@ -91,7 +91,7 @@ module.exports = {
             const locStart = node.loc.start;
             const locEnd = node.loc.end;
 
-            errors = errors.filter(({ loc: errorLoc }) => {
+            errors = errors.filter(({ loc: { start: errorLoc } }) => {
                 if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
                     if (errorLoc.column >= locStart.column && (errorLoc.column <= locEnd.column || errorLoc.line < locEnd.line)) {
                         return false;
@@ -160,15 +160,19 @@ module.exports = {
                 let match;
 
                 while ((match = IRREGULAR_WHITESPACE.exec(sourceLine)) !== null) {
-                    const location = {
-                        line: lineNumber,
-                        column: match.index
-                    };
-
                     errors.push({
                         node,
                         messageId: "noIrregularWhitespace",
-                        loc: location
+                        loc: {
+                            start: {
+                                line: lineNumber,
+                                column: match.index
+                            },
+                            end: {
+                                line: lineNumber,
+                                column: match.index + match[0].length
+                            }
+                        }
                     });
                 }
             });
@@ -189,16 +193,22 @@ module.exports = {
 
             while ((match = IRREGULAR_LINE_TERMINATORS.exec(source)) !== null) {
                 const lineIndex = linebreaks.indexOf(match[0], lastLineIndex + 1) || 0;
-                const location = {
-                    line: lineIndex + 1,
-                    column: sourceLines[lineIndex].length
-                };
 
                 errors.push({
                     node,
                     messageId: "noIrregularWhitespace",
-                    loc: location
+                    loc: {
+                        start: {
+                            line: lineIndex + 1,
+                            column: sourceLines[lineIndex].length
+                        },
+                        end: {
+                            line: lineIndex + 2,
+                            column: 0
+                        }
+                    }
                 });
+
                 lastLineIndex = lineIndex;
             }
         }

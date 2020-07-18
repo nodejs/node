@@ -111,59 +111,6 @@ function getNormalizedLiteral(node) {
     return null;
 }
 
-/**
- * Checks whether two expressions reference the same value. For example:
- *     a = a
- *     a.b = a.b
- *     a[0] = a[0]
- *     a['b'] = a['b']
- * @param   {ASTNode} a Left side of the comparison.
- * @param   {ASTNode} b Right side of the comparison.
- * @returns {boolean}   True if both sides match and reference the same value.
- */
-function same(a, b) {
-    if (a.type !== b.type) {
-        return false;
-    }
-
-    switch (a.type) {
-        case "Identifier":
-            return a.name === b.name;
-
-        case "Literal":
-            return a.value === b.value;
-
-        case "MemberExpression": {
-            const nameA = astUtils.getStaticPropertyName(a);
-
-            // x.y = x["y"]
-            if (nameA !== null) {
-                return (
-                    same(a.object, b.object) &&
-                    nameA === astUtils.getStaticPropertyName(b)
-                );
-            }
-
-            /*
-             * x[0] = x[0]
-             * x[y] = x[y]
-             * x.y = x.y
-             */
-            return (
-                a.computed === b.computed &&
-                same(a.object, b.object) &&
-                same(a.property, b.property)
-            );
-        }
-
-        case "ThisExpression":
-            return true;
-
-        default:
-            return false;
-    }
-}
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -236,7 +183,7 @@ module.exports = {
              * @returns {boolean} Whether node is a "between" range test.
              */
             function isBetweenTest() {
-                if (node.operator === "&&" && same(left.right, right.left)) {
+                if (node.operator === "&&" && astUtils.isSameReference(left.right, right.left)) {
                     const leftLiteral = getNormalizedLiteral(left.left);
                     const rightLiteral = getNormalizedLiteral(right.right);
 
@@ -260,7 +207,7 @@ module.exports = {
              * @returns {boolean} Whether node is an "outside" range test.
              */
             function isOutsideTest() {
-                if (node.operator === "||" && same(left.left, right.right)) {
+                if (node.operator === "||" && astUtils.isSameReference(left.left, right.right)) {
                     const leftLiteral = getNormalizedLiteral(left.right);
                     const rightLiteral = getNormalizedLiteral(right.left);
 

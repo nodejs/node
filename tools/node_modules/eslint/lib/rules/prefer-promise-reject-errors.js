@@ -73,9 +73,7 @@ module.exports = {
          * @returns {boolean} `true` if the call is a Promise.reject() call
          */
         function isPromiseRejectCall(node) {
-            return node.callee.type === "MemberExpression" &&
-                node.callee.object.type === "Identifier" && node.callee.object.name === "Promise" &&
-                node.callee.property.type === "Identifier" && node.callee.property.name === "reject";
+            return astUtils.isSpecificMemberAccess(node.callee, "Promise", "reject");
         }
 
         //----------------------------------------------------------------------

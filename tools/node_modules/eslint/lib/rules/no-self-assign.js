@@ -18,56 +18,6 @@ const astUtils = require("./utils/ast-utils");
 const SPACES = /\s+/gu;
 
 /**
- * Checks whether the property of 2 given member expression nodes are the same
- * property or not.
- * @param {ASTNode} left A member expression node to check.
- * @param {ASTNode} right Another member expression node to check.
- * @returns {boolean} `true` if the member expressions have the same property.
- */
-function isSameProperty(left, right) {
-    if (left.property.type === "Identifier" &&
-        left.property.type === right.property.type &&
-        left.property.name === right.property.name &&
-        left.computed === right.computed
-    ) {
-        return true;
-    }
-
-    const lname = astUtils.getStaticPropertyName(left);
-    const rname = astUtils.getStaticPropertyName(right);
-
-    return lname !== null && lname === rname;
-}
-
-/**
- * Checks whether 2 given member expression nodes are the reference to the same
- * property or not.
- * @param {ASTNode} left A member expression node to check.
- * @param {ASTNode} right Another member expression node to check.
- * @returns {boolean} `true` if the member expressions are the reference to the
- *  same property or not.
- */
-function isSameMember(left, right) {
-    if (!isSameProperty(left, right)) {
-        return false;
-    }
-
-    const lobj = left.object;
-    const robj = right.object;
-
-    if (lobj.type !== robj.type) {
-        return false;
-    }
-    if (lobj.type === "MemberExpression") {
-        return isSameMember(lobj, robj);
-    }
-    if (lobj.type === "ThisExpression") {
-        return true;
-    }
-    return lobj.type === "Identifier" && lobj.name === robj.name;
-}
-
-/**
  * Traverses 2 Pattern nodes in parallel, then reports self-assignments.
  * @param {ASTNode|null} left A left node to traverse. This is a Pattern or
  *      a Property.
@@ -162,9 +112,9 @@ function eachSelfAssignment(left, right, props, report) {
         }
     } else if (
         props &&
-        left.type === "MemberExpression" &&
-        right.type === "MemberExpression" &&
-        isSameMember(left, right)
+        astUtils.skipChainExpression(left).type === "MemberExpression" &&
+        astUtils.skipChainExpression(right).type === "MemberExpression" &&
+        astUtils.isSameReference(left, right)
     ) {
         report(right);
     }
