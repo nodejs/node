@@ -85,10 +85,10 @@ function newNodeTypeTester(type) {
  */
 function isIIFEStatement(node) {
     if (node.type === "ExpressionStatement") {
-        let call = node.expression;
+        let call = astUtils.skipChainExpression(node.expression);
 
         if (call.type === "UnaryExpression") {
-            call = call.argument;
+            call = astUtils.skipChainExpression(call.argument);
         }
         return call.type === "CallExpression" && astUtils.isFunction(call.callee);
     }

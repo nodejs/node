@@ -100,10 +100,18 @@ module.exports = {
          * @private
          */
         function isImmediateFunctionPrototypeMethodCall(node) {
-            return node.type === "CallExpression" &&
-                node.callee.type === "MemberExpression" &&
-                node.callee.object.type === "FunctionExpression" &&
-                ["call", "apply"].includes(astUtils.getStaticPropertyName(node.callee));
+            const callNode = astUtils.skipChainExpression(node);
+
+            if (callNode.type !== "CallExpression") {
+                return false;
+            }
+            const callee = astUtils.skipChainExpression(callNode.callee);
+
+            return (
+                callee.type === "MemberExpression" &&
+                callee.object.type === "FunctionExpression" &&
+                ["call", "apply"].includes(astUtils.getStaticPropertyName(callee))
+            );
         }
 
         /**
@@ -360,7 +368,9 @@ module.exports = {
          * @returns {boolean} `true` if the given node is an IIFE
          */
         function isIIFE(node) {
-            return node.type === "CallExpression" && node.callee.type === "FunctionExpression";
+            const maybeCallNode = astUtils.skipChainExpression(node);
+
+            return maybeCallNode.type === "CallExpression" && maybeCallNode.callee.type === "FunctionExpression";
         }
 
         /**
@@ -466,13 +476,16 @@ module.exports = {
 
                 if (
                     hasDoubleExcessParens(callee) ||
-                    !isIIFE(node) && !hasNewParensException && !(
+                    !isIIFE(node) &&
+                    !hasNewParensException &&
+                    !(
 
                         // Allow extra parens around a new expression if they are intervening parentheses.
                         node.type === "NewExpression" &&
                         callee.type === "MemberExpression" &&
                         doesMemberExpressionContainCallExpression(callee)
-                    )
+                    ) &&
+                    !(!node.optional && callee.type === "ChainExpression")
                 ) {
                     report(node.callee);
                 }
@@ -1001,6 +1014,13 @@ module.exports = {
                   !IGNORE_NEW_IN_MEMBER_EXPR &&
                   node.object.type === "NewExpression" &&
                   isNewExpressionWithParens(node.object)) {
+                    report(node.object);
+                }
+
+                if (nodeObjHasExcessParens &&
+                    node.optional &&
+                    node.object.type === "ChainExpression"
+                ) {
                     report(node.object);
                 }
 

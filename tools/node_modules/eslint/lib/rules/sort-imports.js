@@ -44,6 +44,10 @@ module.exports = {
                     ignoreMemberSort: {
                         type: "boolean",
                         default: false
+                    },
+                    allowSeparatedGroups: {
+                        type: "boolean",
+                        default: false
                     }
                 },
                 additionalProperties: false
@@ -66,6 +70,7 @@ module.exports = {
             ignoreDeclarationSort = configuration.ignoreDeclarationSort || false,
             ignoreMemberSort = configuration.ignoreMemberSort || false,
             memberSyntaxSortOrder = configuration.memberSyntaxSortOrder || ["none", "all", "multiple", "single"],
+            allowSeparatedGroups = configuration.allowSeparatedGroups || false,
             sourceCode = context.getSourceCode();
         let previousDeclaration = null;
 
@@ -115,9 +120,32 @@ module.exports = {
 
         }
 
+        /**
+         * Calculates number of lines between two nodes. It is assumed that the given `left` node appears before
+         * the given `right` node in the source code. Lines are counted from the end of the `left` node till the
+         * start of the `right` node. If the given nodes are on the same line, it returns `0`, same as if they were
+         * on two consecutive lines.
+         * @param {ASTNode} left node that appears before the given `right` node.
+         * @param {ASTNode} right node that appears after the given `left` node.
+         * @returns {number} number of lines between nodes.
+         */
+        function getNumberOfLinesBetween(left, right) {
+            return Math.max(right.loc.start.line - left.loc.end.line - 1, 0);
+        }
+
         return {
             ImportDeclaration(node) {
                 if (!ignoreDeclarationSort) {
+                    if (
+                        previousDeclaration &&
+                        allowSeparatedGroups &&
+                        getNumberOfLinesBetween(previousDeclaration, node) > 0
+                    ) {
+
+                        // reset declaration sort
+                        previousDeclaration = null;
+                    }
+
                     if (previousDeclaration) {
                         const currentMemberSyntaxGroupIndex = getMemberParameterGroupIndex(node),
                             previousMemberSyntaxGroupIndex = getMemberParameterGroupIndex(previousDeclaration);

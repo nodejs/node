@@ -111,6 +111,10 @@ module.exports = {
          * @returns {boolean} If the node is in one of the flagged contexts
          */
         function isInFlaggedContext(node) {
+            if (node.parent.type === "ChainExpression") {
+                return isInFlaggedContext(node.parent);
+            }
+
             return isInBooleanContext(node) ||
             (isLogicalContext(node.parent) &&
 
@@ -149,6 +153,9 @@ module.exports = {
          * @returns {boolean} `true` if the node needs to be parenthesized.
          */
         function needsParens(previousNode, node) {
+            if (previousNode.parent.type === "ChainExpression") {
+                return needsParens(previousNode.parent, node);
+            }
             if (isParenthesized(previousNode)) {
 
                 // parentheses around the previous node will stay, so there is no need for an additional pair

@@ -22,38 +22,6 @@ const candidatesOfGlobalObject = Object.freeze([
 ]);
 
 /**
- * Checks a given node is a Identifier node of the specified name.
- * @param {ASTNode} node A node to check.
- * @param {string} name A name to check.
- * @returns {boolean} `true` if the node is a Identifier node of the name.
- */
-function isIdentifier(node, name) {
-    return node.type === "Identifier" && node.name === name;
-}
-
-/**
- * Checks a given node is a Literal node of the specified string value.
- * @param {ASTNode} node A node to check.
- * @param {string} name A name to check.
- * @returns {boolean} `true` if the node is a Literal node of the name.
- */
-function isConstant(node, name) {
-    switch (node.type) {
-        case "Literal":
-            return node.value === name;
-
-        case "TemplateLiteral":
-            return (
-                node.expressions.length === 0 &&
-                node.quasis[0].value.cooked === name
-            );
-
-        default:
-            return false;
-    }
-}
-
-/**
  * Checks a given node is a MemberExpression node which has the specified name's
  * property.
  * @param {ASTNode} node A node to check.
@@ -62,10 +30,7 @@ function isConstant(node, name) {
  *      the specified name's property
  */
 function isMember(node, name) {
-    return (
-        node.type === "MemberExpression" &&
-        (node.computed ? isConstant : isIdentifier)(node.property, name)
-    );
+    return astUtils.isSpecificMemberAccess(node, null, name);
 }
 
 //------------------------------------------------------------------------------
@@ -230,7 +195,12 @@ module.exports = {
                 "CallExpression:exit"(node) {
                     const callee = node.callee;
 
-                    if (isIdentifier(callee, "eval")) {
+                    /*
+                     * Optional call (`eval?.("code")`) is not direct eval.
+                     * The direct eval is only step 6.a.vi of https://tc39.es/ecma262/#sec-function-calls-runtime-semantics-evaluation
+                     * But the optional call is https://tc39.es/ecma262/#sec-optional-chaining-chain-evaluation
+                     */
+                    if (!node.optional && astUtils.isSpecificId(callee, "eval")) {
                         report(callee);
                     }
                 }
@@ -241,7 +211,7 @@ module.exports = {
             "CallExpression:exit"(node) {
                 const callee = node.callee;
 
-                if (isIdentifier(callee, "eval")) {
+                if (astUtils.isSpecificId(callee, "eval")) {
                     report(callee);
                 }
             },

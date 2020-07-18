@@ -32,6 +32,7 @@ const KNOWN_NODES = new Set([
     "BreakStatement",
     "CallExpression",
     "CatchClause",
+    "ChainExpression",
     "ClassBody",
     "ClassDeclaration",
     "ClassExpression",
@@ -933,6 +934,24 @@ module.exports = {
 
             parameterParens.add(openingParen);
             parameterParens.add(closingParen);
+
+            /*
+             * If `?.` token exists, set desired offset for that.
+             * This logic is copied from `MemberExpression`'s.
+             */
+            if (node.optional) {
+                const dotToken = sourceCode.getTokenAfter(node.callee, astUtils.isQuestionDotToken);
+                const calleeParenCount = sourceCode.getTokensBetween(node.callee, dotToken, { filter: astUtils.isClosingParenToken }).length;
+                const firstTokenOfCallee = calleeParenCount
+                    ? sourceCode.getTokenBefore(node.callee, { skip: calleeParenCount - 1 })
+                    : sourceCode.getFirstToken(node.callee);
+                const lastTokenOfCallee = sourceCode.getTokenBefore(dotToken);
+                const offsetBase = lastTokenOfCallee.loc.end.line === openingParen.loc.start.line
+                    ? lastTokenOfCallee
+                    : firstTokenOfCallee;
+
+                offsets.setDesiredOffset(dotToken, offsetBase, 1);
+            }
 
             const offsetAfterToken = node.callee.type === "TaggedTemplateExpression" ? sourceCode.getFirstToken(node.callee.quasi) : openingParen;
             const offsetToken = sourceCode.getTokenBefore(offsetAfterToken);

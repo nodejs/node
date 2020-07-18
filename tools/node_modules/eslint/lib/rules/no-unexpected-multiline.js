@@ -68,7 +68,7 @@ module.exports = {
         return {
 
             MemberExpression(node) {
-                if (!node.computed) {
+                if (!node.computed || node.optional) {
                     return;
                 }
                 checkForBreakAfter(node.object, "property");
@@ -96,7 +96,7 @@ module.exports = {
             },
 
             CallExpression(node) {
-                if (node.arguments.length === 0) {
+                if (node.arguments.length === 0 || node.optional) {
                     return;
                 }
                 checkForBreakAfter(node.callee, "function");

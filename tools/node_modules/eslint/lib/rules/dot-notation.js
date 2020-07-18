@@ -87,28 +87,36 @@ module.exports = {
                     data: {
                         key: formattedValue
                     },
-                    fix(fixer) {
+                    *fix(fixer) {
                         const leftBracket = sourceCode.getTokenAfter(node.object, astUtils.isOpeningBracketToken);
                         const rightBracket = sourceCode.getLastToken(node);
+                        const nextToken = sourceCode.getTokenAfter(node);
 
-                        if (sourceCode.getFirstTokenBetween(leftBracket, rightBracket, { includeComments: true, filter: astUtils.isCommentToken })) {
-
-                            // Don't perform any fixes if there are comments inside the brackets.
-                            return null;
+                        // Don't perform any fixes if there are comments inside the brackets.
+                        if (sourceCode.commentsExistBetween(leftBracket, rightBracket)) {
+                            return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
                         }
 
-                        const tokenAfterProperty = sourceCode.getTokenAfter(rightBracket);
-                        const needsSpaceAfterProperty = tokenAfterProperty &&
-                            rightBracket.range[1] === tokenAfterProperty.range[0] &&
-                            !astUtils.canTokensBeAdjacent(String(value), tokenAfterProperty);
-
-                        const textBeforeDot = astUtils.isDecimalInteger(node.object) ? " " : "";
-                        const textAfterProperty = needsSpaceAfterProperty ? " " : "";
-
-                        return fixer.replaceTextRange(
+                        // Replace the brackets by an identifier.
+                        if (!node.optional) {
+                            yield fixer.insertTextBefore(
+                                leftBracket,
+                                astUtils.isDecimalInteger(node.object) ? " ." : "."
+                            );
+                        }
+                        yield fixer.replaceTextRange(
                             [leftBracket.range[0], rightBracket.range[1]],
-                            `${textBeforeDot}.${value}${textAfterProperty}`
+                            value
                         );
+
+                        // Insert a space after the property if it will be connected to the next token.
+                        if (
+                            nextToken &&
+                            rightBracket.range[1] === nextToken.range[0] &&
+                            !astUtils.canTokensBeAdjacent(String(value), nextToken)
+                        ) {
+                            yield fixer.insertTextAfter(node, " ");
+                        }
                     }
                 });
             }
@@ -141,29 +149,24 @@ module.exports = {
                         data: {
                             key: node.property.name
                         },
-                        fix(fixer) {
-                            const dot = sourceCode.getTokenBefore(node.property);
-                            const textAfterDot = sourceCode.text.slice(dot.range[1], node.property.range[0]);
+                        *fix(fixer) {
+                            const dotToken = sourceCode.getTokenBefore(node.property);
 
-                            if (textAfterDot.trim()) {
-
-                                // Don't perform any fixes if there are comments between the dot and the property name.
-                                return null;
+                            // A statement that starts with `let[` is parsed as a destructuring variable declaration, not a MemberExpression.
+                            if (node.object.type === "Identifier" && node.object.name === "let" && !node.optional) {
+                                return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
                             }
 
-                            if (node.object.type === "Identifier" && node.object.name === "let") {
-
-                                /*
-                                 * A statement that starts with `let[` is parsed as a destructuring variable declaration, not
-                                 * a MemberExpression.
-                                 */
-                                return null;
+                            // Don't perform any fixes if there are comments between the dot and the property name.
+                            if (sourceCode.commentsExistBetween(dotToken, node.property)) {
+                                return; // eslint-disable-line eslint-plugin/fixer-return -- false positive
                             }
 
-                            return fixer.replaceTextRange(
-                                [dot.range[0], node.property.range[1]],
-                                `[${textAfterDot}"${node.property.name}"]`
-                            );
+                            // Replace the identifier to brackets.
+                            if (!node.optional) {
+                                yield fixer.remove(dotToken);
+                            }
+                            yield fixer.replaceText(node.property, `["${node.property.name}"]`);
                         }
                     });
                 }
