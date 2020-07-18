@@ -52,7 +52,7 @@ function doesExponentNeedParens(exponent) {
  * @returns {boolean} `true` if the expression needs to be parenthesised.
  */
 function doesExponentiationExpressionNeedParens(node, sourceCode) {
-    const parent = node.parent;
+    const parent = node.parent.type === "ChainExpression" ? node.parent.parent : node.parent;
 
     const needsParens = (
         parent.type === "ClassDeclaration" ||

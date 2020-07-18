@@ -244,6 +244,19 @@ function preprocess(analyzer, node) {
     const parent = node.parent;
 
     switch (parent.type) {
+
+        // The `arguments.length == 0` case is in `postprocess` function.
+        case "CallExpression":
+            if (parent.optional === true && parent.arguments.length >= 1 && parent.arguments[0] === node) {
+                state.makeOptionalRight();
+            }
+            break;
+        case "MemberExpression":
+            if (parent.optional === true && parent.property === node) {
+                state.makeOptionalRight();
+            }
+            break;
+
         case "LogicalExpression":
             if (
                 parent.right === node &&
@@ -377,6 +390,20 @@ function processCodePathToEnter(analyzer, node) {
             analyzer.emitter.emit("onCodePathStart", codePath, node);
             break;
 
+        case "ChainExpression":
+            state.pushChainContext();
+            break;
+        case "CallExpression":
+            if (node.optional === true) {
+                state.makeOptionalNode();
+            }
+            break;
+        case "MemberExpression":
+            if (node.optional === true) {
+                state.makeOptionalNode();
+            }
+            break;
+
         case "LogicalExpression":
             if (isHandledLogicalOperator(node.operator)) {
                 state.pushChoiceContext(
@@ -449,6 +476,10 @@ function processCodePathToExit(analyzer, node) {
     let dontForward = false;
 
     switch (node.type) {
+        case "ChainExpression":
+            state.popChainContext();
+            break;
+
         case "IfStatement":
         case "ConditionalExpression":
             state.popChoiceContext();
@@ -582,6 +613,13 @@ function postprocess(analyzer, node) {
             }
             break;
         }
+
+        // The `arguments.length >= 1` case is in `preprocess` function.
+        case "CallExpression":
+            if (node.optional === true && node.arguments.length === 0) {
+                CodePath.getState(analyzer.codePath).makeOptionalRight();
+            }
+            break;
 
         default:
             break;

@@ -117,10 +117,7 @@ module.exports = {
             if (!node) {
                 return false;
             }
-            return node.type === "CallExpression" &&
-                node.callee.type === "MemberExpression" &&
-                node.callee.object.name === objName &&
-                node.callee.property.name === funcName;
+            return node.type === "CallExpression" && astUtils.isSpecificMemberAccess(node.callee, objName, funcName);
         }
 
         /**

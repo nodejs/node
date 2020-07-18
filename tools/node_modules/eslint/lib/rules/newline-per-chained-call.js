@@ -57,7 +57,16 @@ module.exports = {
          * @returns {string} The prefix of the node.
          */
         function getPrefix(node) {
-            return node.computed ? "[" : ".";
+            if (node.computed) {
+                if (node.optional) {
+                    return "?.[";
+                }
+                return "[";
+            }
+            if (node.optional) {
+                return "?.";
+            }
+            return ".";
         }
 
         /**
@@ -76,17 +85,18 @@ module.exports = {
 
         return {
             "CallExpression:exit"(node) {
-                if (!node.callee || node.callee.type !== "MemberExpression") {
+                const callee = astUtils.skipChainExpression(node.callee);
+
+                if (callee.type !== "MemberExpression") {
                     return;
                 }
 
-                const callee = node.callee;
-                let parent = callee.object;
+                let parent = astUtils.skipChainExpression(callee.object);
                 let depth = 1;
 
                 while (parent && parent.callee) {
                     depth += 1;
-                    parent = parent.callee.object;
+                    parent = astUtils.skipChainExpression(astUtils.skipChainExpression(parent.callee).object);
                 }
 
                 if (depth > ignoreChainWithDepth && astUtils.isTokenOnSameLine(callee.object, callee.property)) {

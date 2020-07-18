@@ -9,22 +9,11 @@
 //------------------------------------------------------------------------------
 
 const lodash = require("lodash");
-
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
-
-/**
- * Checks whether or not a given node is an `Identifier` node which was named a given name.
- * @param {ASTNode} node A node to check.
- * @param {string} name An expected name of the node.
- * @returns {boolean} `true` if the node is an `Identifier` node which was named as expected.
- */
-function isIdentifier(node, name) {
-    return node.type === "Identifier" && node.name === name;
-}
 
 /**
  * Checks whether or not a given code path segment is unreachable.
@@ -165,7 +154,7 @@ module.exports = {
                 let hasReturnValue = Boolean(argument);
 
                 if (treatUndefinedAsUnspecified && hasReturnValue) {
-                    hasReturnValue = !isIdentifier(argument, "undefined") && argument.operator !== "void";
+                    hasReturnValue = !astUtils.isSpecificId(argument, "undefined") && argument.operator !== "void";
                 }
 
                 if (!funcInfo.hasReturn) {

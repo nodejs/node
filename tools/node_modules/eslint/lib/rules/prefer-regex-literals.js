@@ -102,11 +102,8 @@ module.exports = {
          */
         function isStringRawTaggedStaticTemplateLiteral(node) {
             return node.type === "TaggedTemplateExpression" &&
-                node.tag.type === "MemberExpression" &&
-                node.tag.object.type === "Identifier" &&
-                node.tag.object.name === "String" &&
-                isGlobalReference(node.tag.object) &&
-                astUtils.getStaticPropertyName(node.tag) === "raw" &&
+                astUtils.isSpecificMemberAccess(node.tag, "String", "raw") &&
+                isGlobalReference(astUtils.skipChainExpression(node.tag).object) &&
                 isStaticTemplateLiteral(node.quasi);
         }
 
