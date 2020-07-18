@@ -127,7 +127,7 @@ the native addon will also need to have a C/C++ toolchain installed.
 
 For Linux developers, the necessary C/C++ toolchain packages are readily
 available. [GCC][] is widely used in the Node.js community to build and
-test across a variety of plarforms. For many developers, the [LLVM][]
+test across a variety of platforms. For many developers, the [LLVM][]
 compiler infrastructure is also a good choice.
 
 For Mac developers, [Xcode][] offers all the required compiler tools.
