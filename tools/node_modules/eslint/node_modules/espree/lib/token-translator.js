@@ -125,6 +125,7 @@ TokenTranslator.prototype = {
                  type === tt.arrow || type === tt.jsxTagStart ||
                  type === tt.incDec || type === tt.starstar ||
                  type === tt.jsxTagEnd || type === tt.prefix ||
+                 type === tt.questionDot ||
                  (type.binop && !type.keyword) ||
                  type.isAssign) {
 

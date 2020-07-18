@@ -25,6 +25,22 @@ function getId(segment) { // eslint-disable-line jsdoc/require-jsdoc
     return segment.id + (segment.reachable ? "" : "!");
 }
 
+/**
+ * Get string for the given node and operation.
+ * @param {ASTNode} node The node to convert.
+ * @param {"enter" | "exit" | undefined} label The operation label.
+ * @returns {string} The string representation.
+ */
+function nodeToString(node, label) {
+    const suffix = label ? `:${label}` : "";
+
+    switch (node.type) {
+        case "Identifier": return `${node.type}${suffix} (${node.name})`;
+        case "Literal": return `${node.type}${suffix} (${node.value})`;
+        default: return `${node.type}${suffix}`;
+    }
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
@@ -56,9 +72,15 @@ module.exports = {
             const segInternal = state.currentSegments[i].internal;
 
             if (leaving) {
-                segInternal.exitNodes.push(node);
+                const last = segInternal.nodes.length - 1;
+
+                if (last >= 0 && segInternal.nodes[last] === nodeToString(node, "enter")) {
+                    segInternal.nodes[last] = nodeToString(node, void 0);
+                } else {
+                    segInternal.nodes.push(nodeToString(node, "exit"));
+                }
             } else {
-                segInternal.nodes.push(node);
+                segInternal.nodes.push(nodeToString(node, "enter"));
             }
         }
 
@@ -104,23 +126,8 @@ module.exports = {
                 text += "style=\"rounded,dashed,filled\",fillcolor=\"#FF9800\",label=\"<<unreachable>>\\n";
             }
 
-            if (segment.internal.nodes.length > 0 || segment.internal.exitNodes.length > 0) {
-                text += [].concat(
-                    segment.internal.nodes.map(node => {
-                        switch (node.type) {
-                            case "Identifier": return `${node.type} (${node.name})`;
-                            case "Literal": return `${node.type} (${node.value})`;
-                            default: return node.type;
-                        }
-                    }),
-                    segment.internal.exitNodes.map(node => {
-                        switch (node.type) {
-                            case "Identifier": return `${node.type}:exit (${node.name})`;
-                            case "Literal": return `${node.type}:exit (${node.value})`;
-                            default: return `${node.type}:exit`;
-                        }
-                    })
-                ).join("\\n");
+            if (segment.internal.nodes.length > 0) {
+                text += segment.internal.nodes.join("\\n");
             } else {
                 text += "????";
             }

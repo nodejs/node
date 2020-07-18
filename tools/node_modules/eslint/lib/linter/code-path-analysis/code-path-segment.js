@@ -92,7 +92,6 @@ class CodePathSegment {
         /* istanbul ignore if */
         if (debug.enabled) {
             this.internal.nodes = [];
-            this.internal.exitNodes = [];
         }
     }
 

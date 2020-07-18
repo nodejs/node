@@ -29,19 +29,10 @@ const radixMap = new Map([
  * false otherwise.
  */
 function isParseInt(calleeNode) {
-    switch (calleeNode.type) {
-        case "Identifier":
-            return calleeNode.name === "parseInt";
-        case "MemberExpression":
-            return calleeNode.object.type === "Identifier" &&
-                calleeNode.object.name === "Number" &&
-                calleeNode.property.type === "Identifier" &&
-                calleeNode.property.name === "parseInt";
-
-        // no default
-    }
-
-    return false;
+    return (
+        astUtils.isSpecificId(calleeNode, "parseInt") ||
+        astUtils.isSpecificMemberAccess(calleeNode, "Number", "parseInt")
+    );
 }
 
 //------------------------------------------------------------------------------

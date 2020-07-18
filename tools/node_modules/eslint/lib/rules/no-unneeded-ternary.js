@@ -122,7 +122,6 @@ module.exports = {
                 if (isBooleanLiteral(node.alternate) && isBooleanLiteral(node.consequent)) {
                     context.report({
                         node,
-                        loc: node.consequent.loc.start,
                         messageId: "unnecessaryConditionalExpression",
                         fix(fixer) {
                             if (node.consequent.value === node.alternate.value) {
@@ -144,7 +143,6 @@ module.exports = {
                 } else if (!defaultAssignment && matchesDefaultAssignment(node)) {
                     context.report({
                         node,
-                        loc: node.consequent.loc.start,
                         messageId: "unnecessaryConditionalAssignment",
                         fix: fixer => {
                             const shouldParenthesizeAlternate =

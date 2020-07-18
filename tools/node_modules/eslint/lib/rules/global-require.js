@@ -13,7 +13,8 @@ const ACCEPTABLE_PARENTS = [
     "CallExpression",
     "ConditionalExpression",
     "Program",
-    "VariableDeclaration"
+    "VariableDeclaration",
+    "ChainExpression"
 ];
 
 /**

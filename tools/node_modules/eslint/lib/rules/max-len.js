@@ -383,11 +383,22 @@ module.exports = {
                     return;
                 }
 
+                const loc = {
+                    start: {
+                        line: lineNumber,
+                        column: 0
+                    },
+                    end: {
+                        line: lineNumber,
+                        column: textToMeasure.length
+                    }
+                };
+
                 if (commentLengthApplies) {
                     if (lineLength > maxCommentLength) {
                         context.report({
                             node,
-                            loc: { line: lineNumber, column: 0 },
+                            loc,
                             messageId: "maxComment",
                             data: {
                                 lineLength,
@@ -398,7 +409,7 @@ module.exports = {
                 } else if (lineLength > maxLength) {
                     context.report({
                         node,
-                        loc: { line: lineNumber, column: 0 },
+                        loc,
                         messageId: "max",
                         data: {
                             lineLength,

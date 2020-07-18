@@ -126,15 +126,24 @@ module.exports = {
                     messageId: "unexpectedWhitespace",
                     fix(fixer) {
 
+                        // Don't remove comments.
+                        if (sourceCode.commentsExistBetween(leftToken, rightToken)) {
+                            return null;
+                        }
+
+                        // If `?.` exsits, it doesn't hide no-undexpected-multiline errors
+                        if (node.optional) {
+                            return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], "?.");
+                        }
+
                         /*
                          * Only autofix if there is no newline
                          * https://github.com/eslint/eslint/issues/7787
                          */
-                        if (!hasNewline) {
-                            return fixer.removeRange([leftToken.range[1], rightToken.range[0]]);
+                        if (hasNewline) {
+                            return null;
                         }
-
-                        return null;
+                        return fixer.removeRange([leftToken.range[1], rightToken.range[0]]);
                     }
                 });
             } else if (!never && !hasWhitespace) {
@@ -149,6 +158,9 @@ module.exports = {
                     },
                     messageId: "missing",
                     fix(fixer) {
+                        if (node.optional) {
+                            return null; // Not sure if inserting a space to either before/after `?.` token.
+                        }
                         return fixer.insertTextBefore(rightToken, " ");
                     }
                 });
@@ -161,7 +173,31 @@ module.exports = {
                     },
                     messageId: "unexpectedNewline",
                     fix(fixer) {
-                        return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], " ");
+
+                        /*
+                         * Only autofix if there is no newline
+                         * https://github.com/eslint/eslint/issues/7787
+                         * But if `?.` exsits, it doesn't hide no-undexpected-multiline errors
+                         */
+                        if (!node.optional) {
+                            return null;
+                        }
+
+                        // Don't remove comments.
+                        if (sourceCode.commentsExistBetween(leftToken, rightToken)) {
+                            return null;
+                        }
+
+                        const range = [leftToken.range[1], rightToken.range[0]];
+                        const qdToken = sourceCode.getTokenAfter(leftToken);
+
+                        if (qdToken.range[0] === leftToken.range[1]) {
+                            return fixer.replaceTextRange(range, "?. ");
+                        }
+                        if (qdToken.range[1] === rightToken.range[0]) {
+                            return fixer.replaceTextRange(range, " ?.");
+                        }
+                        return fixer.replaceTextRange(range, " ?. ");
                     }
                 });
             }
@@ -172,7 +208,7 @@ module.exports = {
                 const lastToken = sourceCode.getLastToken(node);
                 const lastCalleeToken = sourceCode.getLastToken(node.callee);
                 const parenToken = sourceCode.getFirstTokenBetween(lastCalleeToken, lastToken, astUtils.isOpeningParenToken);
-                const prevToken = parenToken && sourceCode.getTokenBefore(parenToken);
+                const prevToken = parenToken && sourceCode.getTokenBefore(parenToken, astUtils.isNotQuestionDotToken);
 
                 // Parens in NewExpression are optional
                 if (!(parenToken && parenToken.range[1] < node.range[1])) {

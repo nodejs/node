@@ -166,9 +166,12 @@ module.exports = {
                 if (variable && !isShadowed(variable)) {
                     variable.references.forEach(reference => {
                         const node = reference.identifier.parent;
+                        const maybeCallee = node.parent.type === "ChainExpression"
+                            ? node.parent
+                            : node;
 
-                        if (isParseIntMethod(node) && astUtils.isCallee(node)) {
-                            checkArguments(node.parent);
+                        if (isParseIntMethod(node) && astUtils.isCallee(maybeCallee)) {
+                            checkArguments(maybeCallee.parent);
                         }
                     });
                 }

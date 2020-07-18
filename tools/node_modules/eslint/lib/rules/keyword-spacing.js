@@ -126,7 +126,7 @@ module.exports = {
                 !sourceCode.isSpaceBetweenTokens(prevToken, token)
             ) {
                 context.report({
-                    loc: token.loc.start,
+                    loc: token.loc,
                     messageId: "expectedBefore",
                     data: token,
                     fix(fixer) {
@@ -178,7 +178,7 @@ module.exports = {
                 !sourceCode.isSpaceBetweenTokens(token, nextToken)
             ) {
                 context.report({
-                    loc: token.loc.start,
+                    loc: token.loc,
                     messageId: "expectedAfter",
                     data: token,
                     fix(fixer) {

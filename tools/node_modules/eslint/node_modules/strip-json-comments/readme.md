@@ -1,4 +1,4 @@
-# strip-json-comments [![Build Status](https://travis-ci.org/sindresorhus/strip-json-comments.svg?branch=master)](https://travis-ci.org/sindresorhus/strip-json-comments)
+# strip-json-comments [![Build Status](https://travis-ci.com/sindresorhus/strip-json-comments.svg?branch=master)](https://travis-ci.com/github/sindresorhus/strip-json-comments)
 
 > Strip comments from JSON. Lets you use comments in your JSON files!
 
@@ -15,13 +15,11 @@ It will replace single-line comments `//` and multi-line comments `/**/` with wh
 
 Also available as a [Gulp](https://github.com/sindresorhus/gulp-strip-json-comments)/[Grunt](https://github.com/sindresorhus/grunt-strip-json-comments)/[Broccoli](https://github.com/sindresorhus/broccoli-strip-json-comments) plugin.
 
-
 ## Install
 
 ```
 $ npm install strip-json-comments
 ```
-
 
 ## Usage
 
@@ -34,7 +32,6 @@ const json = `{
 JSON.parse(stripJsonComments(json));
 //=> {unicorn: 'cake'}
 ```
-
 
 ## API
 
@@ -52,11 +49,10 @@ Type: `object`
 
 ##### whitespace
 
-Type: `boolean`<br>
+Type: `boolean`\
 Default: `true`
 
 Replace comments with whitespace instead of stripping them entirely.
-
 
 ## Benchmark
 
@@ -64,12 +60,10 @@ Replace comments with whitespace instead of stripping them entirely.
 $ npm run bench
 ```
 
-
 ## Related
 
 - [strip-json-comments-cli](https://github.com/sindresorhus/strip-json-comments-cli) - CLI for this module
 - [strip-css-comments](https://github.com/sindresorhus/strip-css-comments) - Strip comments from CSS
-
 
 ---
 

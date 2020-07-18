@@ -10,7 +10,8 @@
 
 const {
     getStaticPropertyName: getPropertyName,
-    getVariableByName
+    getVariableByName,
+    skipChainExpression
 } = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
@@ -64,7 +65,13 @@ function isGlobalThisReferenceOrGlobalWindow(scope, node) {
     if (scope.type === "global" && node.type === "ThisExpression") {
         return true;
     }
-    if (node.name === "window" || (node.name === "globalThis" && getVariableByName(scope, "globalThis"))) {
+    if (
+        node.type === "Identifier" &&
+        (
+            node.name === "window" ||
+            (node.name === "globalThis" && getVariableByName(scope, "globalThis"))
+        )
+    ) {
         return !isShadowed(scope, node);
     }
 
@@ -96,7 +103,7 @@ module.exports = {
     create(context) {
         return {
             CallExpression(node) {
-                const callee = node.callee,
+                const callee = skipChainExpression(node.callee),
                     currentScope = context.getScope();
 
                 // without window.

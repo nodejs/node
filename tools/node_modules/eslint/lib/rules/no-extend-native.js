@@ -13,12 +13,6 @@ const astUtils = require("./utils/ast-utils");
 const globals = require("globals");
 
 //------------------------------------------------------------------------------
-// Helpers
-//------------------------------------------------------------------------------
-
-const propertyDefinitionMethods = new Set(["defineProperty", "defineProperties"]);
-
-//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -100,40 +94,30 @@ module.exports = {
         }
 
         /**
-         * Checks that an identifier is an object of a prototype whose member
-         * is being assigned in an AssignmentExpression.
-         * Example: Object.prototype.foo = "bar"
-         * @param {ASTNode} identifierNode The identifier to check.
-         * @returns {boolean} True if the identifier's prototype is modified.
+         * Check if it's an assignment to the property of the given node.
+         * Example: `*.prop = 0` // the `*` is the given node.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} True if an assignment to the property of the node.
          */
-        function isInPrototypePropertyAssignment(identifierNode) {
-            return Boolean(
-                isPrototypePropertyAccessed(identifierNode) &&
-                identifierNode.parent.parent.type === "MemberExpression" &&
-                identifierNode.parent.parent.parent.type === "AssignmentExpression" &&
-                identifierNode.parent.parent.parent.left === identifierNode.parent.parent
+        function isAssigningToPropertyOf(node) {
+            return (
+                node.parent.type === "MemberExpression" &&
+                node.parent.object === node &&
+                node.parent.parent.type === "AssignmentExpression" &&
+                node.parent.parent.left === node.parent
             );
         }
 
         /**
-         * Checks that an identifier is an object of a prototype whose member
-         * is being extended via the Object.defineProperty() or
-         * Object.defineProperties() methods.
-         * Example: Object.defineProperty(Array.prototype, "foo", ...)
-         * Example: Object.defineProperties(Array.prototype, ...)
-         * @param {ASTNode} identifierNode The identifier to check.
-         * @returns {boolean} True if the identifier's prototype is modified.
+         * Checks if the given node is at the first argument of the method call of `Object.defineProperty()` or `Object.defineProperties()`.
+         * @param {ASTNode} node The node to check.
+         * @returns {boolean} True if the node is at the first argument of the method call of `Object.defineProperty()` or `Object.defineProperties()`.
          */
-        function isInDefinePropertyCall(identifierNode) {
-            return Boolean(
-                isPrototypePropertyAccessed(identifierNode) &&
-                identifierNode.parent.parent.type === "CallExpression" &&
-                identifierNode.parent.parent.arguments[0] === identifierNode.parent &&
-                identifierNode.parent.parent.callee.type === "MemberExpression" &&
-                identifierNode.parent.parent.callee.object.type === "Identifier" &&
-                identifierNode.parent.parent.callee.object.name === "Object" &&
-                identifierNode.parent.parent.callee.property.type === "Identifier" &&
-                propertyDefinitionMethods.has(identifierNode.parent.parent.callee.property.name)
+        function isInDefinePropertyCall(node) {
+            return (
+                node.parent.type === "CallExpression" &&
+                node.parent.arguments[0] === node &&
+                astUtils.isSpecificMemberAccess(node.parent.callee, "Object", /^definePropert(?:y|ies)$/u)
             );
         }
 
@@ -149,14 +133,27 @@ module.exports = {
          * @returns {void}
          */
         function checkAndReportPrototypeExtension(identifierNode) {
-            if (isInPrototypePropertyAssignment(identifierNode)) {
+            if (!isPrototypePropertyAccessed(identifierNode)) {
+                return; // This is not `*.prototype` access.
+            }
 
-                // Identifier --> MemberExpression --> MemberExpression --> AssignmentExpression
-                reportNode(identifierNode.parent.parent.parent, identifierNode.name);
-            } else if (isInDefinePropertyCall(identifierNode)) {
+            /*
+             * `identifierNode.parent` is a MamberExpression `*.prototype`.
+             * If it's an optional member access, it may be wrapped by a `ChainExpression` node.
+             */
+            const prototypeNode =
+                identifierNode.parent.parent.type === "ChainExpression"
+                    ? identifierNode.parent.parent
+                    : identifierNode.parent;
 
-                // Identifier --> MemberExpression --> CallExpression
-                reportNode(identifierNode.parent.parent, identifierNode.name);
+            if (isAssigningToPropertyOf(prototypeNode)) {
+
+                // `*.prototype` -> MemberExpression -> AssignmentExpression
+                reportNode(prototypeNode.parent.parent, identifierNode.name);
+            } else if (isInDefinePropertyCall(prototypeNode)) {
+
+                // `*.prototype` -> CallExpression
+                reportNode(prototypeNode.parent, identifierNode.name);
             }
         }
 

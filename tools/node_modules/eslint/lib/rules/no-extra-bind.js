@@ -61,24 +61,62 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
+            const memberNode = node.parent;
+            const callNode = memberNode.parent.type === "ChainExpression"
+                ? memberNode.parent.parent
+                : memberNode.parent;
+
             context.report({
-                node: node.parent.parent,
+                node: callNode,
                 messageId: "unexpected",
-                loc: node.parent.property.loc,
+                loc: memberNode.property.loc,
+
                 fix(fixer) {
-                    if (node.parent.parent.arguments.length && !isSideEffectFree(node.parent.parent.arguments[0])) {
+                    if (!isSideEffectFree(callNode.arguments[0])) {
                         return null;
                     }
 
-                    const firstTokenToRemove = sourceCode
-                        .getFirstTokenBetween(node.parent.object, node.parent.property, astUtils.isNotClosingParenToken);
-                    const lastTokenToRemove = sourceCode.getLastToken(node.parent.parent);
+                    /*
+                     * The list of the first/last token pair of a removal range.
+                     * This is two parts because closing parentheses may exist between the method name and arguments.
+                     * E.g. `(function(){}.bind ) (obj)`
+                     *                    ^^^^^   ^^^^^ < removal ranges
+                     * E.g. `(function(){}?.['bind'] ) ?.(obj)`
+                     *                    ^^^^^^^^^^   ^^^^^^^ < removal ranges
+                     */
+                    const tokenPairs = [
+                        [
+
+                            // `.`, `?.`, or `[` token.
+                            sourceCode.getTokenAfter(
+                                memberNode.object,
+                                astUtils.isNotClosingParenToken
+                            ),
+
+                            // property name or `]` token.
+                            sourceCode.getLastToken(memberNode)
+                        ],
+                        [
+
+                            // `?.` or `(` token of arguments.
+                            sourceCode.getTokenAfter(
+                                memberNode,
+                                astUtils.isNotClosingParenToken
+                            ),
+
+                            // `)` token of arguments.
+                            sourceCode.getLastToken(callNode)
+                        ]
+                    ];
+                    const firstTokenToRemove = tokenPairs[0][0];
+                    const lastTokenToRemove = tokenPairs[1][1];
 
                     if (sourceCode.commentsExistBetween(firstTokenToRemove, lastTokenToRemove)) {
                         return null;
                     }
 
-                    return fixer.removeRange([firstTokenToRemove.range[0], node.parent.parent.range[1]]);
+                    return tokenPairs.map(([start, end]) =>
+                        fixer.removeRange([start.range[0], end.range[1]]));
                 }
             });
         }
@@ -93,18 +131,20 @@ module.exports = {
          * @returns {boolean} `true` if the node is the callee of `.bind()` method.
          */
         function isCalleeOfBindMethod(node) {
-            const parent = node.parent;
-            const grandparent = parent.parent;
+            if (!astUtils.isSpecificMemberAccess(node.parent, null, "bind")) {
+                return false;
+            }
+
+            // The node of `*.bind` member access.
+            const bindNode = node.parent.parent.type === "ChainExpression"
+                ? node.parent.parent
+                : node.parent;
 
             return (
-                grandparent &&
-                grandparent.type === "CallExpression" &&
-                grandparent.callee === parent &&
-                grandparent.arguments.length === 1 &&
-                grandparent.arguments[0].type !== "SpreadElement" &&
-                parent.type === "MemberExpression" &&
-                parent.object === node &&
-                astUtils.getStaticPropertyName(parent) === "bind"
+                bindNode.parent.type === "CallExpression" &&
+                bindNode.parent.callee === bindNode &&
+                bindNode.parent.arguments.length === 1 &&
+                bindNode.parent.arguments[0].type !== "SpreadElement"
             );
         }
 

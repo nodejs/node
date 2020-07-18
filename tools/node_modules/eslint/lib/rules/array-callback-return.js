@@ -28,17 +28,14 @@ function isReachable(segment) {
 }
 
 /**
- * Checks a given node is a MemberExpression node which has the specified name's
+ * Checks a given node is a member access which has the specified name's
  * property.
  * @param {ASTNode} node A node to check.
- * @returns {boolean} `true` if the node is a MemberExpression node which has
- *      the specified name's property
+ * @returns {boolean} `true` if the node is a member access which has
+ *      the specified name's property. The node may be a `(Chain|Member)Expression` node.
  */
 function isTargetMethod(node) {
-    return (
-        node.type === "MemberExpression" &&
-        TARGET_METHODS.test(astUtils.getStaticPropertyName(node) || "")
-    );
+    return astUtils.isSpecificMemberAccess(node, null, TARGET_METHODS);
 }
 
 /**
@@ -76,6 +73,7 @@ function getArrayMethodName(node) {
              */
             case "LogicalExpression":
             case "ConditionalExpression":
+            case "ChainExpression":
                 currentNode = parent;
                 break;
 

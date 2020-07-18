@@ -39,15 +39,12 @@ function isGlobalReference(node, scope) {
  * @returns {boolean} `true` if the node is argument at the given position.
  */
 function isArgumentOfGlobalMethodCall(node, scope, objectName, methodName, index) {
-    const parent = node.parent;
+    const callNode = node.parent;
 
-    return parent.type === "CallExpression" &&
-        parent.arguments[index] === node &&
-        parent.callee.type === "MemberExpression" &&
-        astUtils.getStaticPropertyName(parent.callee) === methodName &&
-        parent.callee.object.type === "Identifier" &&
-        parent.callee.object.name === objectName &&
-        isGlobalReference(parent.callee.object, scope);
+    return callNode.type === "CallExpression" &&
+        callNode.arguments[index] === node &&
+        astUtils.isSpecificMemberAccess(callNode.callee, objectName, methodName) &&
+        isGlobalReference(astUtils.skipChainExpression(callNode.callee).object, scope);
 }
 
 /**

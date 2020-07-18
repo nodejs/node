@@ -23,7 +23,14 @@ const eslintUtils = require("eslint-utils");
  * @private
  */
 function isCalleeOfNewExpression(node) {
-    return node.parent.type === "NewExpression" && node.parent.callee === node;
+    const maybeCallee = node.parent.type === "ChainExpression"
+        ? node.parent
+        : node;
+
+    return (
+        maybeCallee.parent.type === "NewExpression" &&
+        maybeCallee.parent.callee === maybeCallee
+    );
 }
 
 //------------------------------------------------------------------------------
@@ -98,7 +105,7 @@ module.exports = {
          * @returns {ASTNode} node that is the function expression of the given IIFE, or null if none exist
          */
         function getFunctionNodeFromIIFE(node) {
-            const callee = node.callee;
+            const callee = astUtils.skipChainExpression(node.callee);
 
             if (callee.type === "FunctionExpression") {
                 return callee;

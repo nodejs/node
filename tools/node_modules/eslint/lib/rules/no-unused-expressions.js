@@ -8,6 +8,22 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/**
+ * Returns `true`.
+ * @returns {boolean} `true`.
+ */
+function alwaysTrue() {
+    return true;
+}
+
+/**
+ * Returns `false`.
+ * @returns {boolean} `false`.
+ */
+function alwaysFalse() {
+    return false;
+}
+
 module.exports = {
     meta: {
         type: "suggestion",
@@ -101,40 +117,56 @@ module.exports = {
         }
 
         /**
-         * Determines whether or not a given node is a valid expression. Recurses on short circuit eval and ternary nodes if enabled by flags.
-         * @param {ASTNode} node any node
-         * @returns {boolean} whether the given node is a valid expression
+         * The member functions return `true` if the type has no side-effects.
+         * Unknown nodes are handled as `false`, then this rule ignores those.
          */
-        function isValidExpression(node) {
-            if (allowTernary) {
+        const Checker = Object.assign(Object.create(null), {
+            isDisallowed(node) {
+                return (Checker[node.type] || alwaysFalse)(node);
+            },
 
-                // Recursive check for ternary and logical expressions
-                if (node.type === "ConditionalExpression") {
-                    return isValidExpression(node.consequent) && isValidExpression(node.alternate);
+            ArrayExpression: alwaysTrue,
+            ArrowFunctionExpression: alwaysTrue,
+            BinaryExpression: alwaysTrue,
+            ChainExpression(node) {
+                return Checker.isDisallowed(node.expression);
+            },
+            ClassExpression: alwaysTrue,
+            ConditionalExpression(node) {
+                if (allowTernary) {
+                    return Checker.isDisallowed(node.consequent) || Checker.isDisallowed(node.alternate);
                 }
-            }
-
-            if (allowShortCircuit) {
-                if (node.type === "LogicalExpression") {
-                    return isValidExpression(node.right);
-                }
-            }
-
-            if (allowTaggedTemplates && node.type === "TaggedTemplateExpression") {
                 return true;
+            },
+            FunctionExpression: alwaysTrue,
+            Identifier: alwaysTrue,
+            Literal: alwaysTrue,
+            LogicalExpression(node) {
+                if (allowShortCircuit) {
+                    return Checker.isDisallowed(node.right);
+                }
+                return true;
+            },
+            MemberExpression: alwaysTrue,
+            MetaProperty: alwaysTrue,
+            ObjectExpression: alwaysTrue,
+            SequenceExpression: alwaysTrue,
+            TaggedTemplateExpression() {
+                return !allowTaggedTemplates;
+            },
+            TemplateLiteral: alwaysTrue,
+            ThisExpression: alwaysTrue,
+            UnaryExpression(node) {
+                return node.operator !== "void" && node.operator !== "delete";
             }
-
-            return /^(?:Assignment|Call|New|Update|Yield|Await|Import)Expression$/u.test(node.type) ||
-                (node.type === "UnaryExpression" && ["delete", "void"].indexOf(node.operator) >= 0);
-        }
+        });
 
         return {
             ExpressionStatement(node) {
-                if (!isValidExpression(node.expression) && !isDirective(node, context.getAncestors())) {
+                if (Checker.isDisallowed(node.expression) && !isDirective(node, context.getAncestors())) {
                     context.report({ node, messageId: "unusedExpression" });
                 }
             }
         };
-
     }
 };

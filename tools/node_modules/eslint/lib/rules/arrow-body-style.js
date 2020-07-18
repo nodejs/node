@@ -75,6 +75,7 @@ module.exports = {
         const never = options[0] === "never";
         const requireReturnForObjectLiteral = options[1] && options[1].requireReturnForObjectLiteral;
         const sourceCode = context.getSourceCode();
+        let funcInfo = null;
 
         /**
          * Checks whether the given node has ASI problem or not.
@@ -97,6 +98,21 @@ module.exports = {
                 node = node.parent;
             }
             return sourceCode.getTokenAfter(node);
+        }
+
+        /**
+         * Check whether the node is inside of a for loop's init
+         * @param {ASTNode} node node is inside for loop
+         * @returns {boolean} `true` if the node is inside of a for loop, else `false`
+         */
+        function isInsideForLoopInitializer(node) {
+            if (node && node.parent) {
+                if (node.parent.type === "ForStatement" && node.parent.init === node) {
+                    return true;
+                }
+                return isInsideForLoopInitializer(node.parent);
+            }
+            return false;
         }
 
         /**
@@ -178,11 +194,13 @@ module.exports = {
                              * If the first token of the reutrn value is `{` or the return value is a sequence expression,
                              * enclose the return value by parentheses to avoid syntax error.
                              */
-                            if (astUtils.isOpeningBraceToken(firstValueToken) || blockBody[0].argument.type === "SequenceExpression") {
-                                fixes.push(
-                                    fixer.insertTextBefore(firstValueToken, "("),
-                                    fixer.insertTextAfter(lastValueToken, ")")
-                                );
+                            if (astUtils.isOpeningBraceToken(firstValueToken) || blockBody[0].argument.type === "SequenceExpression" || (funcInfo.hasInOperator && isInsideForLoopInitializer(node))) {
+                                if (!astUtils.isParenthesised(sourceCode, blockBody[0].argument)) {
+                                    fixes.push(
+                                        fixer.insertTextBefore(firstValueToken, "("),
+                                        fixer.insertTextAfter(lastValueToken, ")")
+                                    );
+                                }
                             }
 
                             /*
@@ -245,7 +263,24 @@ module.exports = {
         }
 
         return {
-            "ArrowFunctionExpression:exit": validate
+            "BinaryExpression[operator='in']"() {
+                let info = funcInfo;
+
+                while (info) {
+                    info.hasInOperator = true;
+                    info = info.upper;
+                }
+            },
+            ArrowFunctionExpression() {
+                funcInfo = {
+                    upper: funcInfo,
+                    hasInOperator: false
+                };
+            },
+            "ArrowFunctionExpression:exit"(node) {
+                validate(node);
+                funcInfo = funcInfo.upper;
+            }
         };
     }
 };

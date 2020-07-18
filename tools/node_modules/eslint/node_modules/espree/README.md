@@ -164,6 +164,10 @@ Issues and pull requests will be triaged and responded to as quickly as possible
 
 Espree is licensed under a permissive BSD 2-clause license.
 
+## Security Policy
+
+We work hard to ensure that Espree is safe for everyone and that security issues are addressed quickly and responsibly. Read the full [security policy](https://github.com/eslint/.github/blob/master/SECURITY.md).
+
 ## Build Commands
 
 * `npm test` - run all linting and tests

@@ -24,10 +24,13 @@ const nonCallableGlobals = ["Atomics", "JSON", "Math", "Reflect"];
  * @returns {string} name to report
  */
 function getReportNodeName(node) {
-    if (node.callee.type === "MemberExpression") {
-        return getPropertyName(node.callee);
+    if (node.type === "ChainExpression") {
+        return getReportNodeName(node.expression);
     }
-    return node.callee.name;
+    if (node.type === "MemberExpression") {
+        return getPropertyName(node);
+    }
+    return node.name;
 }
 
 //------------------------------------------------------------------------------
@@ -69,7 +72,7 @@ module.exports = {
                 }
 
                 for (const { node, path } of tracker.iterateGlobalReferences(traceMap)) {
-                    const name = getReportNodeName(node);
+                    const name = getReportNodeName(node.callee);
                     const ref = path[0];
                     const messageId = name === ref ? "unexpectedCall" : "unexpectedRefCall";
 

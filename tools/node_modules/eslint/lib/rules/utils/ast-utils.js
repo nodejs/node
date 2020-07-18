@@ -144,6 +144,23 @@ function isInLoop(node) {
 }
 
 /**
+ * Determines whether the given node is a `null` literal.
+ * @param {ASTNode} node The node to check
+ * @returns {boolean} `true` if the node is a `null` literal
+ */
+function isNullLiteral(node) {
+
+    /*
+     * Checking `node.value === null` does not guarantee that a literal is a null literal.
+     * When parsing values that cannot be represented in the current environment (e.g. unicode
+     * regexes in Node 4), `node.value` is set to `null` because it wouldn't be possible to
+     * set `node.value` to a unicode regex. To make sure a literal is actually `null`, check
+     * `node.regex` instead. Also see: https://github.com/eslint/eslint/issues/8020
+     */
+    return node.type === "Literal" && node.value === null && !node.regex && !node.bigint;
+}
+
+/**
  * Checks whether or not a node is `null` or `undefined`.
  * @param {ASTNode} node A node to check.
  * @returns {boolean} Whether or not the node is a `null` or `undefined`.
@@ -151,7 +168,7 @@ function isInLoop(node) {
  */
 function isNullOrUndefined(node) {
     return (
-        module.exports.isNullLiteral(node) ||
+        isNullLiteral(node) ||
         (node.type === "Identifier" && node.name === "undefined") ||
         (node.type === "UnaryExpression" && node.operator === "void")
     );
@@ -167,19 +184,269 @@ function isCallee(node) {
 }
 
 /**
+ * Returns the result of the string conversion applied to the evaluated value of the given expression node,
+ * if it can be determined statically.
+ *
+ * This function returns a `string` value for all `Literal` nodes and simple `TemplateLiteral` nodes only.
+ * In all other cases, this function returns `null`.
+ * @param {ASTNode} node Expression node.
+ * @returns {string|null} String value if it can be determined. Otherwise, `null`.
+ */
+function getStaticStringValue(node) {
+    switch (node.type) {
+        case "Literal":
+            if (node.value === null) {
+                if (isNullLiteral(node)) {
+                    return String(node.value); // "null"
+                }
+                if (node.regex) {
+                    return `/${node.regex.pattern}/${node.regex.flags}`;
+                }
+                if (node.bigint) {
+                    return node.bigint;
+                }
+
+                // Otherwise, this is an unknown literal. The function will return null.
+
+            } else {
+                return String(node.value);
+            }
+            break;
+        case "TemplateLiteral":
+            if (node.expressions.length === 0 && node.quasis.length === 1) {
+                return node.quasis[0].value.cooked;
+            }
+            break;
+
+            // no default
+    }
+
+    return null;
+}
+
+/**
+ * Gets the property name of a given node.
+ * The node can be a MemberExpression, a Property, or a MethodDefinition.
+ *
+ * If the name is dynamic, this returns `null`.
+ *
+ * For examples:
+ *
+ *     a.b           // => "b"
+ *     a["b"]        // => "b"
+ *     a['b']        // => "b"
+ *     a[`b`]        // => "b"
+ *     a[100]        // => "100"
+ *     a[b]          // => null
+ *     a["a" + "b"]  // => null
+ *     a[tag`b`]     // => null
+ *     a[`${b}`]     // => null
+ *
+ *     let a = {b: 1}            // => "b"
+ *     let a = {["b"]: 1}        // => "b"
+ *     let a = {['b']: 1}        // => "b"
+ *     let a = {[`b`]: 1}        // => "b"
+ *     let a = {[100]: 1}        // => "100"
+ *     let a = {[b]: 1}          // => null
+ *     let a = {["a" + "b"]: 1}  // => null
+ *     let a = {[tag`b`]: 1}     // => null
+ *     let a = {[`${b}`]: 1}     // => null
+ * @param {ASTNode} node The node to get.
+ * @returns {string|null} The property name if static. Otherwise, null.
+ */
+function getStaticPropertyName(node) {
+    let prop;
+
+    switch (node && node.type) {
+        case "ChainExpression":
+            return getStaticPropertyName(node.expression);
+
+        case "Property":
+        case "MethodDefinition":
+            prop = node.key;
+            break;
+
+        case "MemberExpression":
+            prop = node.property;
+            break;
+
+            // no default
+    }
+
+    if (prop) {
+        if (prop.type === "Identifier" && !node.computed) {
+            return prop.name;
+        }
+
+        return getStaticStringValue(prop);
+    }
+
+    return null;
+}
+
+/**
+ * Retrieve `ChainExpression#expression` value if the given node a `ChainExpression` node. Otherwise, pass through it.
+ * @param {ASTNode} node The node to address.
+ * @returns {ASTNode} The `ChainExpression#expression` value if the node is a `ChainExpression` node. Otherwise, the node.
+ */
+function skipChainExpression(node) {
+    return node && node.type === "ChainExpression" ? node.expression : node;
+}
+
+/**
+ * Check if the `actual` is an expected value.
+ * @param {string} actual The string value to check.
+ * @param {string | RegExp} expected The expected string value or pattern.
+ * @returns {boolean} `true` if the `actual` is an expected value.
+ */
+function checkText(actual, expected) {
+    return typeof expected === "string"
+        ? actual === expected
+        : expected.test(actual);
+}
+
+/**
+ * Check if a given node is an Identifier node with a given name.
+ * @param {ASTNode} node The node to check.
+ * @param {string | RegExp} name The expected name or the expected pattern of the object name.
+ * @returns {boolean} `true` if the node is an Identifier node with the name.
+ */
+function isSpecificId(node, name) {
+    return node.type === "Identifier" && checkText(node.name, name);
+}
+
+/**
+ * Check if a given node is member access with a given object name and property name pair.
+ * This is regardless of optional or not.
+ * @param {ASTNode} node The node to check.
+ * @param {string | RegExp | null} objectName The expected name or the expected pattern of the object name. If this is nullish, this method doesn't check object.
+ * @param {string | RegExp | null} propertyName The expected name or the expected pattern of the property name. If this is nullish, this method doesn't check property.
+ * @returns {boolean} `true` if the node is member access with the object name and property name pair.
+ * The node is a `MemberExpression` or `ChainExpression`.
+ */
+function isSpecificMemberAccess(node, objectName, propertyName) {
+    const checkNode = skipChainExpression(node);
+
+    if (checkNode.type !== "MemberExpression") {
+        return false;
+    }
+
+    if (objectName && !isSpecificId(checkNode.object, objectName)) {
+        return false;
+    }
+
+    if (propertyName) {
+        const actualPropertyName = getStaticPropertyName(checkNode);
+
+        if (typeof actualPropertyName !== "string" || !checkText(actualPropertyName, propertyName)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+ * Check if two literal nodes are the same value.
+ * @param {ASTNode} left The Literal node to compare.
+ * @param {ASTNode} right The other Literal node to compare.
+ * @returns {boolean} `true` if the two literal nodes are the same value.
+ */
+function equalLiteralValue(left, right) {
+
+    // RegExp literal.
+    if (left.regex || right.regex) {
+        return Boolean(
+            left.regex &&
+            right.regex &&
+            left.regex.pattern === right.regex.pattern &&
+            left.regex.flags === right.regex.flags
+        );
+    }
+
+    // BigInt literal.
+    if (left.bigint || right.bigint) {
+        return left.bigint === right.bigint;
+    }
+
+    return left.value === right.value;
+}
+
+/**
+ * Check if two expressions reference the same value. For example:
+ *     a = a
+ *     a.b = a.b
+ *     a[0] = a[0]
+ *     a['b'] = a['b']
+ * @param {ASTNode} left The left side of the comparison.
+ * @param {ASTNode} right The right side of the comparison.
+ * @param {boolean} [disableStaticComputedKey] Don't address `a.b` and `a["b"]` are the same if `true`. For backward compatibility.
+ * @returns {boolean} `true` if both sides match and reference the same value.
+ */
+function isSameReference(left, right, disableStaticComputedKey = false) {
+    if (left.type !== right.type) {
+
+        // Handle `a.b` and `a?.b` are samely.
+        if (left.type === "ChainExpression") {
+            return isSameReference(left.expression, right, disableStaticComputedKey);
+        }
+        if (right.type === "ChainExpression") {
+            return isSameReference(left, right.expression, disableStaticComputedKey);
+        }
+
+        return false;
+    }
+
+    switch (left.type) {
+        case "Super":
+        case "ThisExpression":
+            return true;
+
+        case "Identifier":
+            return left.name === right.name;
+        case "Literal":
+            return equalLiteralValue(left, right);
+
+        case "ChainExpression":
+            return isSameReference(left.expression, right.expression, disableStaticComputedKey);
+
+        case "MemberExpression": {
+            if (!disableStaticComputedKey) {
+                const nameA = getStaticPropertyName(left);
+
+                // x.y = x["y"]
+                if (nameA !== null) {
+                    return (
+                        isSameReference(left.object, right.object, disableStaticComputedKey) &&
+                        nameA === getStaticPropertyName(right)
+                    );
+                }
+            }
+
+            /*
+             * x[0] = x[0]
+             * x[y] = x[y]
+             * x.y = x.y
+             */
+            return (
+                left.computed === right.computed &&
+                isSameReference(left.object, right.object, disableStaticComputedKey) &&
+                isSameReference(left.property, right.property, disableStaticComputedKey)
+            );
+        }
+
+        default:
+            return false;
+    }
+}
+
+/**
  * Checks whether or not a node is `Reflect.apply`.
  * @param {ASTNode} node A node to check.
  * @returns {boolean} Whether or not the node is a `Reflect.apply`.
  */
 function isReflectApply(node) {
-    return (
-        node.type === "MemberExpression" &&
-        node.object.type === "Identifier" &&
-        node.object.name === "Reflect" &&
-        node.property.type === "Identifier" &&
-        node.property.name === "apply" &&
-        node.computed === false
-    );
+    return isSpecificMemberAccess(node, "Reflect", "apply");
 }
 
 /**
@@ -188,14 +455,7 @@ function isReflectApply(node) {
  * @returns {boolean} Whether or not the node is a `Array.from`.
  */
 function isArrayFromMethod(node) {
-    return (
-        node.type === "MemberExpression" &&
-        node.object.type === "Identifier" &&
-        arrayOrTypedArrayPattern.test(node.object.name) &&
-        node.property.type === "Identifier" &&
-        node.property.name === "from" &&
-        node.computed === false
-    );
+    return isSpecificMemberAccess(node, arrayOrTypedArrayPattern, "from");
 }
 
 /**
@@ -204,17 +464,7 @@ function isArrayFromMethod(node) {
  * @returns {boolean} Whether or not the node is a method which has `thisArg`.
  */
 function isMethodWhichHasThisArg(node) {
-    for (
-        let currentNode = node;
-        currentNode.type === "MemberExpression" && !currentNode.computed;
-        currentNode = currentNode.property
-    ) {
-        if (currentNode.property.type === "Identifier") {
-            return arrayMethodPattern.test(currentNode.property.name);
-        }
-    }
-
-    return false;
+    return isSpecificMemberAccess(node, null, arrayMethodPattern);
 }
 
 /**
@@ -287,6 +537,15 @@ function isCommaToken(token) {
  */
 function isDotToken(token) {
     return token.value === "." && token.type === "Punctuator";
+}
+
+/**
+ * Checks if the given token is a `?.` token or not.
+ * @param {Token} token The token to check.
+ * @returns {boolean} `true` if the token is a `?.` token.
+ */
+function isQuestionDotToken(token) {
+    return token.value === "?." && token.type === "Punctuator";
 }
 
 /**
@@ -505,6 +764,7 @@ module.exports = {
     isCommaToken,
     isCommentToken,
     isDotToken,
+    isQuestionDotToken,
     isKeywordToken,
     isNotClosingBraceToken: negate(isClosingBraceToken),
     isNotClosingBracketToken: negate(isClosingBracketToken),
@@ -512,6 +772,7 @@ module.exports = {
     isNotColonToken: negate(isColonToken),
     isNotCommaToken: negate(isCommaToken),
     isNotDotToken: negate(isDotToken),
+    isNotQuestionDotToken: negate(isQuestionDotToken),
     isNotOpeningBraceToken: negate(isOpeningBraceToken),
     isNotOpeningBracketToken: negate(isOpeningBracketToken),
     isNotOpeningParenToken: negate(isOpeningParenToken),
@@ -669,6 +930,7 @@ module.exports = {
                  */
                 case "LogicalExpression":
                 case "ConditionalExpression":
+                case "ChainExpression":
                     currentNode = parent;
                     break;
 
@@ -755,14 +1017,21 @@ module.exports = {
                  *   (function foo() { ... }).apply(obj, []);
                  */
                 case "MemberExpression":
-                    return (
-                        parent.object !== currentNode ||
-                        parent.property.type !== "Identifier" ||
-                        !bindOrCallOrApplyPattern.test(parent.property.name) ||
-                        !isCallee(parent) ||
-                        parent.parent.arguments.length === 0 ||
-                        isNullOrUndefined(parent.parent.arguments[0])
-                    );
+                    if (
+                        parent.object === currentNode &&
+                        isSpecificMemberAccess(parent, null, bindOrCallOrApplyPattern)
+                    ) {
+                        const maybeCalleeNode = parent.parent.type === "ChainExpression"
+                            ? parent.parent
+                            : parent;
+
+                        return !(
+                            isCallee(maybeCalleeNode) &&
+                            maybeCalleeNode.parent.arguments.length >= 1 &&
+                            !isNullOrUndefined(maybeCalleeNode.parent.arguments[0])
+                        );
+                    }
+                    return true;
 
                 /*
                  * e.g.
@@ -884,6 +1153,7 @@ module.exports = {
                 return 17;
 
             case "CallExpression":
+            case "ChainExpression":
             case "ImportExpression":
                 return 18;
 
@@ -911,104 +1181,6 @@ module.exports = {
      */
     isEmptyFunction(node) {
         return isFunction(node) && module.exports.isEmptyBlock(node.body);
-    },
-
-    /**
-     * Returns the result of the string conversion applied to the evaluated value of the given expression node,
-     * if it can be determined statically.
-     *
-     * This function returns a `string` value for all `Literal` nodes and simple `TemplateLiteral` nodes only.
-     * In all other cases, this function returns `null`.
-     * @param {ASTNode} node Expression node.
-     * @returns {string|null} String value if it can be determined. Otherwise, `null`.
-     */
-    getStaticStringValue(node) {
-        switch (node.type) {
-            case "Literal":
-                if (node.value === null) {
-                    if (module.exports.isNullLiteral(node)) {
-                        return String(node.value); // "null"
-                    }
-                    if (node.regex) {
-                        return `/${node.regex.pattern}/${node.regex.flags}`;
-                    }
-                    if (node.bigint) {
-                        return node.bigint;
-                    }
-
-                    // Otherwise, this is an unknown literal. The function will return null.
-
-                } else {
-                    return String(node.value);
-                }
-                break;
-            case "TemplateLiteral":
-                if (node.expressions.length === 0 && node.quasis.length === 1) {
-                    return node.quasis[0].value.cooked;
-                }
-                break;
-
-            // no default
-        }
-
-        return null;
-    },
-
-    /**
-     * Gets the property name of a given node.
-     * The node can be a MemberExpression, a Property, or a MethodDefinition.
-     *
-     * If the name is dynamic, this returns `null`.
-     *
-     * For examples:
-     *
-     *     a.b           // => "b"
-     *     a["b"]        // => "b"
-     *     a['b']        // => "b"
-     *     a[`b`]        // => "b"
-     *     a[100]        // => "100"
-     *     a[b]          // => null
-     *     a["a" + "b"]  // => null
-     *     a[tag`b`]     // => null
-     *     a[`${b}`]     // => null
-     *
-     *     let a = {b: 1}            // => "b"
-     *     let a = {["b"]: 1}        // => "b"
-     *     let a = {['b']: 1}        // => "b"
-     *     let a = {[`b`]: 1}        // => "b"
-     *     let a = {[100]: 1}        // => "100"
-     *     let a = {[b]: 1}          // => null
-     *     let a = {["a" + "b"]: 1}  // => null
-     *     let a = {[tag`b`]: 1}     // => null
-     *     let a = {[`${b}`]: 1}     // => null
-     * @param {ASTNode} node The node to get.
-     * @returns {string|null} The property name if static. Otherwise, null.
-     */
-    getStaticPropertyName(node) {
-        let prop;
-
-        switch (node && node.type) {
-            case "Property":
-            case "MethodDefinition":
-                prop = node.key;
-                break;
-
-            case "MemberExpression":
-                prop = node.property;
-                break;
-
-            // no default
-        }
-
-        if (prop) {
-            if (prop.type === "Identifier" && !node.computed) {
-                return prop.name;
-            }
-
-            return module.exports.getStaticStringValue(prop);
-        }
-
-        return null;
     },
 
     /**
@@ -1164,7 +1336,7 @@ module.exports = {
         if (node.id) {
             tokens.push(`'${node.id.name}'`);
         } else {
-            const name = module.exports.getStaticPropertyName(parent);
+            const name = getStaticPropertyName(parent);
 
             if (name !== null) {
                 tokens.push(`'${name}'`);
@@ -1391,6 +1563,7 @@ module.exports = {
             case "TaggedTemplateExpression":
             case "YieldExpression":
             case "AwaitExpression":
+            case "ChainExpression":
                 return true; // possibly an error object.
 
             case "AssignmentExpression":
@@ -1411,23 +1584,6 @@ module.exports = {
             default:
                 return false;
         }
-    },
-
-    /**
-     * Determines whether the given node is a `null` literal.
-     * @param {ASTNode} node The node to check
-     * @returns {boolean} `true` if the node is a `null` literal
-     */
-    isNullLiteral(node) {
-
-        /*
-         * Checking `node.value === null` does not guarantee that a literal is a null literal.
-         * When parsing values that cannot be represented in the current environment (e.g. unicode
-         * regexes in Node 4), `node.value` is set to `null` because it wouldn't be possible to
-         * set `node.value` to a unicode regex. To make sure a literal is actually `null`, check
-         * `node.regex` instead. Also see: https://github.com/eslint/eslint/issues/8020
-         */
-        return node.type === "Literal" && node.value === null && !node.regex && !node.bigint;
     },
 
     /**
@@ -1590,5 +1746,13 @@ module.exports = {
 
     isLogicalExpression,
     isCoalesceExpression,
-    isMixedLogicalAndCoalesceExpressions
+    isMixedLogicalAndCoalesceExpressions,
+    isNullLiteral,
+    getStaticStringValue,
+    getStaticPropertyName,
+    skipChainExpression,
+    isSpecificId,
+    isSpecificMemberAccess,
+    equalLiteralValue,
+    isSameReference
 };

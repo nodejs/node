@@ -87,16 +87,6 @@ function isAccessorKind(node) {
 }
 
 /**
- * Checks whether or not a given node is an `Identifier` node which was named a given name.
- * @param {ASTNode} node A node to check.
- * @param {string} name An expected name of the node.
- * @returns {boolean} `true` if the node is an `Identifier` node which was named as expected.
- */
-function isIdentifier(node, name) {
-    return node.type === "Identifier" && node.name === name;
-}
-
-/**
  * Checks whether or not a given node is an argument of a specified method call.
  * @param {ASTNode} node A node to check.
  * @param {number} index An expected index of the node in arguments.
@@ -109,10 +99,7 @@ function isArgumentOfMethodCall(node, index, object, property) {
 
     return (
         parent.type === "CallExpression" &&
-        parent.callee.type === "MemberExpression" &&
-        parent.callee.computed === false &&
-        isIdentifier(parent.callee.object, object) &&
-        isIdentifier(parent.callee.property, property) &&
+        astUtils.isSpecificMemberAccess(parent.callee, object, property) &&
         parent.arguments[index] === node
     );
 }

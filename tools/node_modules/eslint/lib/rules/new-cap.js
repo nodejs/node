@@ -158,15 +158,9 @@ module.exports = {
          * @returns {string} name
          */
         function extractNameFromExpression(node) {
-
-            let name = "";
-
-            if (node.callee.type === "MemberExpression") {
-                name = astUtils.getStaticPropertyName(node.callee) || "";
-            } else {
-                name = node.callee.name;
-            }
-            return name;
+            return node.callee.type === "Identifier"
+                ? node.callee.name
+                : astUtils.getStaticPropertyName(node.callee) || "";
         }
 
         /**
@@ -212,14 +206,16 @@ module.exports = {
                 return true;
             }
 
-            if (calleeName === "UTC" && node.callee.type === "MemberExpression") {
+            const callee = astUtils.skipChainExpression(node.callee);
+
+            if (calleeName === "UTC" && callee.type === "MemberExpression") {
 
                 // allow if callee is Date.UTC
-                return node.callee.object.type === "Identifier" &&
-                    node.callee.object.name === "Date";
+                return callee.object.type === "Identifier" &&
+                    callee.object.name === "Date";
             }
 
-            return skipProperties && node.callee.type === "MemberExpression";
+            return skipProperties && callee.type === "MemberExpression";
         }
 
         /**
@@ -229,7 +225,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node, messageId) {
-            let callee = node.callee;
+            let callee = astUtils.skipChainExpression(node.callee);
 
             if (callee.type === "MemberExpression") {
                 callee = callee.property;

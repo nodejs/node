@@ -41,45 +41,6 @@ function isNonCommutativeOperatorWithShorthand(operator) {
 //------------------------------------------------------------------------------
 
 /**
- * Checks whether two expressions reference the same value. For example:
- *     a = a
- *     a.b = a.b
- *     a[0] = a[0]
- *     a['b'] = a['b']
- * @param   {ASTNode} a Left side of the comparison.
- * @param   {ASTNode} b Right side of the comparison.
- * @returns {boolean}   True if both sides match and reference the same value.
- */
-function same(a, b) {
-    if (a.type !== b.type) {
-        return false;
-    }
-
-    switch (a.type) {
-        case "Identifier":
-            return a.name === b.name;
-
-        case "Literal":
-            return a.value === b.value;
-
-        case "MemberExpression":
-
-            /*
-             * x[0] = x[0]
-             * x[y] = x[y]
-             * x.y = x.y
-             */
-            return same(a.object, b.object) && same(a.property, b.property);
-
-        case "ThisExpression":
-            return true;
-
-        default:
-            return false;
-    }
-}
-
-/**
  * Determines if the left side of a node can be safely fixed (i.e. if it activates the same getters/setters and)
  * toString calls regardless of whether assignment shorthand is used)
  * @param {ASTNode} node The node on the left side of the expression
@@ -148,12 +109,12 @@ module.exports = {
             const operator = expr.operator;
 
             if (isCommutativeOperatorWithShorthand(operator) || isNonCommutativeOperatorWithShorthand(operator)) {
-                if (same(left, expr.left)) {
+                if (astUtils.isSameReference(left, expr.left, true)) {
                     context.report({
                         node,
                         messageId: "replaced",
                         fix(fixer) {
-                            if (canBeFixed(left)) {
+                            if (canBeFixed(left) && canBeFixed(expr.left)) {
                                 const equalsToken = getOperatorToken(node);
                                 const operatorToken = getOperatorToken(expr);
                                 const leftText = sourceCode.getText().slice(node.range[0], equalsToken.range[0]);
@@ -169,7 +130,7 @@ module.exports = {
                             return null;
                         }
                     });
-                } else if (same(left, expr.right) && isCommutativeOperatorWithShorthand(operator)) {
+                } else if (astUtils.isSameReference(left, expr.right, true) && isCommutativeOperatorWithShorthand(operator)) {
 
                     /*
                      * This case can't be fixed safely.
