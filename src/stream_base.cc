@@ -538,7 +538,8 @@ void CustomBufferJSListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf) {
                              0,
                              StreamBase::SKIP_NREAD_CHECKS);
   Local<Value> next_buf_v;
-  if (ret.ToLocal(&next_buf_v) && !next_buf_v->IsUndefined()) {
+  if (ret.ToLocal(&next_buf_v) && !next_buf_v->IsUndefined() &&
+      next_buf_v->IsArrayBufferView()) {
     buffer_.base = Buffer::Data(next_buf_v);
     buffer_.len = Buffer::Length(next_buf_v);
   }
