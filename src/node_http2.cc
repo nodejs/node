@@ -1517,7 +1517,7 @@ void Http2Session::ClearOutgoing(int status) {
 
   set_sending(false);
 
-  if (outgoing_buffers_.size() > 0) {
+  if (!outgoing_buffers_.empty()) {
     outgoing_storage_.clear();
     outgoing_length_ = 0;
 
@@ -1536,7 +1536,7 @@ void Http2Session::ClearOutgoing(int status) {
 
   // Now that we've finished sending queued data, if there are any pending
   // RstStreams we should try sending again and then flush them one by one.
-  if (pending_rst_streams_.size() > 0) {
+  if (!pending_rst_streams_.empty()) {
     std::vector<int32_t> current_pending_rst_streams;
     pending_rst_streams_.swap(current_pending_rst_streams);
 
@@ -1595,8 +1595,8 @@ uint8_t Http2Session::SendPendingData() {
   ssize_t src_length;
   const uint8_t* src;
 
-  CHECK_EQ(outgoing_buffers_.size(), 0);
-  CHECK_EQ(outgoing_storage_.size(), 0);
+  CHECK(outgoing_buffers_.empty());
+  CHECK(outgoing_storage_.empty());
 
   // Part One: Gather data from nghttp2
 
