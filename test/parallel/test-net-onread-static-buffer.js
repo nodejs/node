@@ -200,5 +200,7 @@ net.createServer({ pauseOnConnect: true }, common.mustCall(function(socket) {
     },
   });
   client.write(Buffer.from([ 2 ]));
-  client.on("error", common.mustCall(error => assert.strictEqual(error.code, "ECONNRESET")));
+  client.on('error', common.mustCall((error) => {
+    assert.strictEqual(error.code, 'ECONNRESET');
+  }));
 });
