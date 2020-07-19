@@ -55,8 +55,7 @@ Looking for help? Check out the
   of _Maintenance_. LTS release lines have alphabetically-ordered codenames,
   beginning with v4 Argon. There are no breaking changes or feature additions,
   except in some special circumstances.
-* **Nightly**: Code from the Current branch built every 24-hours when there are
-  changes. Use with caution.
+* **Nightly**: Code from the Current branch built every 24-hours when there are changes. Use with caution.
 
 Current and LTS releases follow [Semantic Versioning](https://semver.org). A
 member of the Release Team [signs](#release-keys) each Current and LTS release.
