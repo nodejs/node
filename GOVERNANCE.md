@@ -12,6 +12,19 @@
 
 <!-- /TOC -->
 
+## Triagers
+
+Triagers assess newly-opened issues in the nodejs/node and nodejs/help
+repositories. There is no GitHub team for triagers at the moment.
+
+Triagers have:
+* ability to label issues
+* ability to comment, close, and reopen issues
+
+See:
+
+* [A guide for triagers](./doc/guides/contributing/issues.md#triaging-a-bug-report)
+
 ## Collaborators
 
 Node.js Core Collaborators maintain the [nodejs/node][] GitHub repository.
