@@ -366,7 +366,7 @@ bool IsFilePath(const std::string& path) {
 }
 #else
 bool IsFilePath(const std::string& path) {
-  return path.length() && path[0] == '/';
+  return !path.empty() && path[0] == '/';
 }
 #endif  // __POSIX__
 

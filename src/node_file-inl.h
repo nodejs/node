@@ -28,7 +28,7 @@ void FSContinuationData::MaybeSetFirstPath(const std::string& path) {
 }
 
 std::string FSContinuationData::PopPath() {
-  CHECK_GT(paths_.size(), 0);
+  CHECK(!paths_.empty());
   std::string path = std::move(paths_.back());
   paths_.pop_back();
   return path;
