@@ -303,7 +303,7 @@ void WaitForDebugger(const FunctionCallbackInfo<Value>& args) {
 void Url(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   std::string url = env->inspector_agent()->GetWsUrl();
-  if (url.length() == 0) {
+  if (url.empty()) {
     return;
   }
   args.GetReturnValue().Set(OneByteString(env->isolate(), url.c_str()));
