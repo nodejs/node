@@ -3,7 +3,7 @@
 Select a Node.js version below to view the changelog history:
 
 * [Node.js 14](doc/changelogs/CHANGELOG_V14.md) **Current**
-* [Node.js 13](doc/changelogs/CHANGELOG_V13.md) **Current**
+* [Node.js 13](doc/changelogs/CHANGELOG_V13.md) End-of-Life
 * [Node.js 12](doc/changelogs/CHANGELOG_V12.md) **Long Term Support**
 * [Node.js 11](doc/changelogs/CHANGELOG_V11.md) End-of-Life
 * [Node.js 10](doc/changelogs/CHANGELOG_V10.md) Long Term Support
@@ -25,7 +25,6 @@ release.
 <table>
 <tr>
   <th title="Current"><a href="doc/changelogs/CHANGELOG_V14.md">14</a><sup>Current</sup></th>
-  <th title="Current"><a href="doc/changelogs/CHANGELOG_V13.md">13</a><sup>Current</sup></th>
   <th title="LTS Until 2022-04"><a href="doc/changelogs/CHANGELOG_V12.md">12</a><sup>LTS</sup></th>
   <th title="LTS Until 2021-04"><a href="doc/changelogs/CHANGELOG_V10.md">10</a><sup>LTS</sup></th>
 </tr>
@@ -37,25 +36,6 @@ release.
 <a href="doc/changelogs/CHANGELOG_V14.md#14.2.0">14.2.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V14.md#14.1.0">14.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V14.md#14.0.0">14.0.0</a><br/>
-    </td>
-    <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V13.md#13.14.0">13.14.0</a></b><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.13.0">13.13.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.12.0">13.12.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.11.0">13.11.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.10.1">13.10.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.10.0">13.10.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.9.0">13.9.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.8.0">13.8.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.7.0">13.7.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.6.0">13.6.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.5.0">13.5.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.4.0">13.4.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.3.0">13.3.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.2.0">13.2.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.1.0">13.1.0</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.0.1">13.0.1</a><br/>
-<a href="doc/changelogs/CHANGELOG_V13.md#13.0.0">13.0.0</a><br/>
     </td>
     <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V12.md#12.18.2">12.18.2</a></b><br/>
