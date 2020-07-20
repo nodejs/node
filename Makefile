@@ -298,8 +298,8 @@ v8:
 jstest: build-addons build-js-native-api-tests build-node-api-tests ## Runs addon tests and JS tests
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		--skip-tests=$(CI_SKIP_TESTS) \
-		$(CI_JS_SUITES) \
-		$(CI_NATIVE_SUITES)
+		$(JS_SUITES) \
+		$(NATIVE_SUITES)
 
 .PHONY: tooltest
 tooltest:
@@ -492,9 +492,11 @@ test-all-valgrind: test-build
 test-all-suites: | clear-stalled test-build bench-addons-build doc-only ## Run all test suites.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) test/*
 
+JS_SUITES ?= default
+NATIVE_SUITES ?= addons js-native-api node-api
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
-CI_NATIVE_SUITES ?= addons js-native-api node-api
-CI_JS_SUITES ?= default benchmark
+CI_NATIVE_SUITES ?= $(NATIVE_SUITES)
+CI_JS_SUITES ?= $(JS_SUITES) benchmark
 ifeq ($(node_use_openssl), false)
 	CI_DOC := doctool
 else
@@ -654,8 +656,8 @@ test-with-async-hooks:
 	$(MAKE) build-node-api-tests
 	$(MAKE) cctest
 	NODE_TEST_WITH_ASYNC_HOOKS=1 $(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
-		$(CI_JS_SUITES) \
-		$(CI_NATIVE_SUITES)
+		$(JS_SUITES) \
+		$(NATIVE_SUITES)
 
 
 .PHONY: test-v8

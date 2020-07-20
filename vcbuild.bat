@@ -15,12 +15,14 @@ if /i "%1"=="/?" goto help
 
 cd %~dp0
 
+set JS_SUITES=default
+set NATIVE_SUITES=addons js-native-api node-api
 @rem CI_* variables should be kept synchronized with the ones in Makefile
-set CI_NATIVE_SUITES=addons js-native-api node-api
-set CI_JS_SUITES=default benchmark
+set "CI_NATIVE_SUITES=%NATIVE_SUITES%"
+set "CI_JS_SUITES=%JS_SUITES% benchmark"
 set CI_DOC=doctool
 @rem Same as the test-ci target in Makefile
-set "common_test_suites=%CI_JS_SUITES% %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
+set "common_test_suites=%JS_SUITES% %NATIVE_SUITES%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1"
 
 @rem Process arguments.
 set config=Release
