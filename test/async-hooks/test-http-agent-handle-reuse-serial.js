@@ -7,7 +7,7 @@ const assert = require('assert');
 const { async_id_symbol } = require('internal/async_hooks').symbols;
 const http = require('http');
 
-// Checks that the async resource used in init in case of a resused handle
+// Checks that the async resource used in init in case of a reused handle
 // is not reused. Test is based on parallel\test-async-hooks-http-agent.js.
 
 const hooks = initHooks();
