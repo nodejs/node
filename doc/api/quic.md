@@ -58,7 +58,7 @@ socket.on('session', (session) => {
 
 ```
 
-## QUIC Basics
+## QUIC basics
 
 QUIC is a UDP-based network transport protocol that includes built-in security
 via TLS 1.3, flow control, error correction, connection migration,
@@ -84,7 +84,7 @@ Unlike the `net.Socket` and `tls.TLSSocket`, a `QuicSocket` instance cannot be
 directly used by user code at the JavaScript level to send or receive data over
 the network.
 
-### Client and Server QuicSessions
+### Client and server QuicSessions
 
 A `QuicSession` represents a logical connection between two QUIC endpoints (a
 client and a server). In the JavaScript API, each is represented by the
@@ -212,7 +212,7 @@ session.on('stream', (stream) => {
 });
 ```
 
-#### QuicStream Headers
+#### QuicStream headers
 
 Some QUIC application protocols (like HTTP/3) make use of headers.
 
@@ -498,7 +498,7 @@ also use explicit scope in addresses, so only packets sent to a multicast
 address without specifying an explicit scope are affected by the most recent
 successful use of this call.
 
-##### Examples: IPv6 Outgoing Multicast Interface
+##### Examples: IPv6 outgoing multicast interface
 <!-- YAML
 added: REPLACEME
 -->
@@ -524,7 +524,7 @@ socket.on('ready', () => {
 });
 ```
 
-##### Example: IPv4 Outgoing Multicast Interface
+##### Example: IPv4 outgoing multicast interface
 <!-- YAML
 added: REPLACEME
 -->
@@ -539,7 +539,7 @@ socket.on('ready', () => {
 });
 ```
 
-##### Call Results
+##### Call results
 
 A call on a socket that is not ready to send or no longer open may throw a
 Not running Error.
@@ -2417,9 +2417,9 @@ added: REPLACEME
 
 Set to `true` if the `QuicStream` is unidirectional.
 
-## Additional Notes
+## Additional notes
 
-### Custom DNS Lookup Functions
+### Custom DNS lookup functions
 
 By default, the QUIC implementation uses the `dns` module's
 [promisified version of `lookup()`][] to resolve domains names
