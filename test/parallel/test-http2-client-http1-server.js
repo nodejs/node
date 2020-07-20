@@ -5,12 +5,18 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const assert = require('assert');
 const http = require('http');
 const http2 = require('http2');
 const { NghttpError } = require('internal/http2/util');
 
 // Creating an http1 server here...
-const server = http.createServer(common.mustNotCall());
+// NOTE: PRI method is supported by our HTTP parser - thus the response handling
+// function must be called once before error.
+const server = http.createServer(common.mustCall((req, res) => {
+  assert.strictEqual(req.method, 'PRI');
+  res.end();
+}));
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
