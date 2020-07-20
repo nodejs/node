@@ -149,6 +149,15 @@ ol.version-picker {
   width: 100%;
 }
 
+ol.version-picker::before {
+  content: '';
+  position: absolute;
+  top: -.25rem;
+  left: -1px;
+  right: -1px;
+  height: .25rem;
+}
+
 #gtoc ol.version-picker li {
   display: block;
   border-right: 0;
