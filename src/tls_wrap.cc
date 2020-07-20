@@ -1143,7 +1143,7 @@ unsigned int TLSWrap::PskServerCallback(SSL* s,
   HandleScope scope(isolate);
 
   MaybeLocal<String> maybe_identity_str =
-      String::NewFromUtf8(isolate, identity);
+      String::NewFromUtf8(isolate, identity, v8::NewStringType::kNormal);
 
   v8::Local<v8::String> identity_str;
   if (!maybe_identity_str.ToLocal(&identity_str)) return 0;
@@ -1186,7 +1186,8 @@ unsigned int TLSWrap::PskClientCallback(SSL* s,
                          Integer::NewFromUnsigned(isolate, max_psk_len),
                          Integer::NewFromUnsigned(isolate, max_identity_len)};
   if (hint != nullptr) {
-    MaybeLocal<String> maybe_hint = String::NewFromUtf8(isolate, hint);
+    MaybeLocal<String> maybe_hint =
+      String::NewFromUtf8(isolate, hint, v8::NewStringType::kNormal);
 
     Local<String> local_hint;
     if (!maybe_hint.ToLocal(&local_hint)) return 0;
