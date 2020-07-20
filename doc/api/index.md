@@ -5,7 +5,7 @@
 
 <!--introduced_in=v0.10.0-->
 
-* [About these docs](documentation.html)
+* [About this documentation](documentation.html)
 * [Usage and example](synopsis.html)
 
 <div class="line"></div>
