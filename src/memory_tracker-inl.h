@@ -131,7 +131,7 @@ template <typename T, bool kIsWeak>
 void MemoryTracker::TrackField(const char* edge_name,
                                const BaseObjectPtrImpl<T, kIsWeak>& value,
                                const char* node_name) {
-  if (value.get() == nullptr) return;
+  if (value.get() == nullptr || kIsWeak) return;
   TrackField(edge_name, value.get(), node_name);
 }
 
@@ -214,6 +214,7 @@ template <typename T>
 void MemoryTracker::TrackField(const char* edge_name,
                                const v8::PersistentBase<T>& value,
                                const char* node_name) {
+  if (value.IsWeak()) return;
   TrackField(edge_name, value.Get(isolate_));
 }
 
