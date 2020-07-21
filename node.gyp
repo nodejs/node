@@ -1376,6 +1376,11 @@
             'HAVE_OPENSSL=1',
           ],
         }],
+        [ 'node_use_openssl=="true" and experimental_quic==1', {
+          'defines': [
+            'NODE_EXPERIMENTAL_QUIC=1',
+          ],
+        }],
         ['v8_enable_inspector==1', {
           'defines': [
             'HAVE_INSPECTOR=1',
@@ -1428,6 +1433,11 @@
         [ 'node_use_openssl=="true"', {
           'defines': [
             'HAVE_OPENSSL=1',
+          ],
+        }],
+        [ 'node_use_openssl=="true" and experimental_quic==1', {
+          'defines': [
+            'NODE_EXPERIMENTAL_QUIC=1',
           ],
         }],
         ['v8_enable_inspector==1', {
