@@ -29,7 +29,7 @@
   "Invalid values:": "Valori non validi:",
   "Argument: %s, Given: %s, Choices: %s": "Argomento: %s, Richiesto: %s, Scelte: %s",
   "Argument check failed: %s": "Controllo dell'argomento fallito: %s",
-  "Implications failed:": "Argomenti impliciti non soddisfatti:",
+  "Implications failed:": "Argomenti dipendenti mancanti:",
   "Not enough arguments following: %s": "Argomenti insufficienti dopo: %s",
   "Invalid JSON config file: %s": "File di configurazione JSON non valido: %s",
   "Path to JSON config file": "Percorso del file di configurazione JSON",

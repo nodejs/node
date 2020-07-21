@@ -1,3 +1,23 @@
+## 6.14.7 (2020-07-21)
+
+### BUG FIXES
+* [`de5108836`](https://github.com/npm/cli/commit/de5108836189bddf28d4d3542f9bd5869cc5c2e9) [#784](https://github.com/npm/cli/pull/784) npm explore spawn shell correctly ([@jasisk](https://github.com/jasisk))
+* [`36e6c01d3`](https://github.com/npm/cli/commit/36e6c01d334c4db75018bc6a4a0bef726fd41ce4) git tag handling regression on shrinkwrap ([@claudiahdz](https://github.com/claudiahdz))
+* [`1961c9369`](https://github.com/npm/cli/commit/1961c9369c92bf8fe530cecba9834ca3c7f5567c) [#288](https://github.com/npm/cli/pull/288) Fix package id in shrinkwrap lifecycle step output ([@bz2](https://github.com/bz2))
+* [`87888892a`](https://github.com/npm/cli/commit/87888892a1282cc3edae968c3ae4ec279189271c) [#1009](https://github.com/npm/cli/pull/1009) gracefully handle error during npm install ([@danielleadams](https://github.com/danielleadams))
+* [`6fe2bdc25`](https://github.com/npm/cli/commit/6fe2bdc25e7961956e5c0067fa4db54ff1bd0dbd) [#1547](https://github.com/npm/cli/pull/1547) npm ls --parseable --long output ([@ruyadorno](https://github.com/ruyadorno))
+
+### DEPENDENCIES
+* [`2d78481c7`](https://github.com/npm/cli/commit/2d78481c7ec178e628ce23df940f73a05d5c6367) update mkdirp on tacks ([@claudiahdz](https://github.com/claudiahdz))
+* [`4e129d105`](https://github.com/npm/cli/commit/4e129d105eba3b12d474caa6e5ca216a98deb75a) uninstall npm-registry-couchapp ([@claudiahdz](https://github.com/claudiahdz))
+* [`8e1869e27`](https://github.com/npm/cli/commit/8e1869e278d1dd37ddefd6b4e961d1bb17fc9d09) update marked dev dep ([@claudiahdz](https://github.com/claudiahdz))
+* [`6a6151f37`](https://github.com/npm/cli/commit/6a6151f377063c6aca852c859c01910edd235ec6) `libnpx@10.2.4` ([@claudiahdz](https://github.com/claudiahdz))
+* [`dc21422eb`](https://github.com/npm/cli/commit/dc21422eb1ca1a4a19f160fad0e924566e08c496) `bin-links@1.1.8` ([@claudiahdz](https://github.com/claudiahdz))
+* [`d341f88ce`](https://github.com/npm/cli/commit/d341f88ce6feb3df1dcb37f34910fcc6c1db85f2) `gentle-fs@2.3.1` ([@claudiahdz](https://github.com/claudiahdz))
+* [`3e168d49b`](https://github.com/npm/cli/commit/3e168d49b41574809cae2ad013776a00d3f20ff4) `libcipm@4.0.8` ([@claudiahdz](https://github.com/claudiahdz))
+* [`6ae942a51`](https://github.com/npm/cli/commit/6ae942a510520b7dff11b5b78eebeff1706e38af) `npm-audit-report@1.3.3` ([@claudiahdz](https://github.com/claudiahdz))
+* [`6a35e3dee`](https://github.com/npm/cli/commit/6a35e3deec275bf2ae76603acd424a0640458047) `npm-lifecycle@3.1.5` ([@claudiahdz](https://github.com/claudiahdz))
+
 ## 6.14.6 (2020-07-07)
 
 ### BUG FIXES
