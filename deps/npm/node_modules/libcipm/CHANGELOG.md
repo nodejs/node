@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="4.0.8"></a>
+## [4.0.8](https://github.com/npm/libcipm/compare/v4.0.7...v4.0.8) (2020-03-25)
+
+
+### Bug Fixes
+
+* add repo to bin pkg, bump to 2.0.1 ([ed2d735](https://github.com/npm/libcipm/commit/ed2d735))
+
+
+
 <a name="4.0.7"></a>
 ## [4.0.7](https://github.com/npm/libcipm/compare/v4.0.4...v4.0.7) (2019-10-09)
 

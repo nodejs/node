@@ -169,6 +169,40 @@ test('cleanup', function (t) {
   t.done()
 })
 
+test('ls parseable long', function (t) {
+  var fixture = new Tacks(
+    Dir({
+      'npm-test-ls': Dir({
+        'package.json': File({
+          name: 'npm-test-ls',
+          version: '1.0.0',
+          dependencies: {
+            'dep': 'file:../dep'
+          }
+        })
+      }),
+      'dep': Dir({
+        'package.json': File({
+          name: 'dep',
+          version: '1.0.0'
+        })
+      })
+    })
+  )
+  withFixture(t, fixture, function (done) {
+    common.npm([
+      'ls', '--parseable', '--long'
+    ], {
+      cwd: pkgpath
+    }, function (err, code, stdout, stderr) {
+      t.ifErr(err, 'ls succeeded')
+      t.equal(0, code, 'exit 0 on ls')
+      t.notMatch(stdout, /undefined/, 'must not output undefined for non-symlinked items')
+      done()
+    })
+  })
+})
+
 function withFixture (t, fixture, tester) {
   fixture.create(fixturepath)
   common.npm(['install'], {

@@ -650,6 +650,9 @@ Installer.prototype.saveToDependencies = function (cb) {
   validate('F', arguments)
   if (this.failing) return cb()
   log.silly('install', 'saveToDependencies')
+  // Note idealTree will be mutated during the save operations below as the
+  // package is reloaded from disk to preserve additional details. This means
+  // steps after postInstall will see a slightly different package object.
   if (this.saveOnlyLock) {
     saveShrinkwrap(this.idealTree, cb)
   } else {

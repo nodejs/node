@@ -52,6 +52,14 @@ function inflateShrinkwrap (topPath, tree, swdeps, opts) {
     const sw = swdeps[name]
     const dependencies = sw.dependencies || {}
     const requested = realizeShrinkwrapSpecifier(name, sw, topPath)
+
+    if (Object.keys(sw).length === 0) {
+      let message = `Object for dependency "${name}" is empty.\n`
+      message += 'Something went wrong. Regenerate the package-lock.json with "npm install".\n'
+      message += 'If using a shrinkwrap, regenerate with "npm shrinkwrap".'
+      return Promise.reject(new Error(message))
+    }
+
     return inflatableChild(
       onDisk[name], name, topPath, tree, sw, requested, opts
     ).then((child) => {

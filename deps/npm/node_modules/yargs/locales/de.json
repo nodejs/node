@@ -29,7 +29,7 @@
   "Invalid values:": "Unzulässige Werte:",
   "Argument: %s, Given: %s, Choices: %s": "Argument: %s, Gegeben: %s, Möglichkeiten: %s",
   "Argument check failed: %s": "Argumente-Check fehlgeschlagen: %s",
-  "Implications failed:": "Implikationen fehlgeschlagen:",
+  "Implications failed:": "Fehlende abhängige Argumente:",
   "Not enough arguments following: %s": "Nicht genügend Argumente nach: %s",
   "Invalid JSON config file: %s": "Fehlerhafte JSON-Config Datei: %s",
   "Path to JSON config file": "Pfad zur JSON-Config Datei",

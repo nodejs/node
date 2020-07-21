@@ -1,6 +1,8 @@
 // take an un-split argv string and tokenize it.
 module.exports = function (argString) {
-  if (Array.isArray(argString)) return argString
+  if (Array.isArray(argString)) {
+    return argString.map(e => typeof e !== 'string' ? e + '' : e)
+  }
 
   argString = argString.trim()
 
@@ -26,10 +28,8 @@ module.exports = function (argString) {
     // opening or closing single and double quotes.
     if (c === opening) {
       opening = null
-      continue
     } else if ((c === "'" || c === '"') && !opening) {
       opening = c
-      continue
     }
 
     if (!args[i]) args[i] = ''

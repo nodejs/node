@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+# [5.0.0](https://github.com/yargs/cliui/compare/v4.1.0...v5.0.0) (2019-04-10)
+
+
+### Bug Fixes
+
+* Update wrap-ansi to fix compatibility with latest versions of chalk. ([#60](https://github.com/yargs/cliui/issues/60)) ([7bf79ae](https://github.com/yargs/cliui/commit/7bf79ae))
+
+
+### BREAKING CHANGES
+
+* Drop support for node < 6.
+
+
+
 <a name="4.1.0"></a>
 # [4.1.0](https://github.com/yargs/cliui/compare/v4.0.0...v4.1.0) (2018-04-23)
 

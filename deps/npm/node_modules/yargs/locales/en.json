@@ -29,7 +29,7 @@
   "Invalid values:": "Invalid values:",
   "Argument: %s, Given: %s, Choices: %s": "Argument: %s, Given: %s, Choices: %s",
   "Argument check failed: %s": "Argument check failed: %s",
-  "Implications failed:": "Implications failed:",
+  "Implications failed:": "Missing dependent arguments:",
   "Not enough arguments following: %s": "Not enough arguments following: %s",
   "Invalid JSON config file: %s": "Invalid JSON config file: %s",
   "Path to JSON config file": "Path to JSON config file",

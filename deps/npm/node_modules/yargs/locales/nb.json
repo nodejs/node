@@ -27,7 +27,7 @@
   },
   "Invalid values:": "Ugyldige verdier:",
   "Argument: %s, Given: %s, Choices: %s": "Argument: %s, Gitt: %s, Valg: %s",
-  "Argument check failed: %s": "Argument sjekk mislyktes: %s",
+  "Argument check failed: %s": "Argumentsjekk mislyktes: %s",
   "Implications failed:": "Konsekvensene mislyktes:",
   "Not enough arguments following: %s": "Ikke nok følgende argumenter: %s",
   "Invalid JSON config file: %s": "Ugyldig JSON konfigurasjonsfil: %s",

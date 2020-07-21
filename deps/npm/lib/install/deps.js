@@ -76,7 +76,7 @@ function doesChildVersionMatch (child, requested, requestor) {
       if (childReq.rawSpec === requested.rawSpec) return true
       if (childReq.type === requested.type) {
         if (childReq.saveSpec === requested.saveSpec) return true
-        if (childReq.fetchSpec === requested.fetchSpec) return true
+        if ((childReq.fetchSpec === requested.fetchSpec) && requested.type !== 'git') return true
       }
     }
     // If _requested didn't exist OR if it didn't match then we'll try using
