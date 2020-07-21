@@ -488,9 +488,9 @@ int FileHandle::ReadStart() {
 
     // Push the read wrap back to the freelist, or let it be destroyed
     // once we’re exiting the current scope.
-    constexpr size_t kWantedFreelistFill = 100;
+    constexpr size_t wanted_freelist_fill = 100;
     auto& freelist = handle->binding_data_->file_handle_read_wrap_freelist;
-    if (freelist.size() < kWantedFreelistFill) {
+    if (freelist.size() < wanted_freelist_fill) {
       read_wrap->Reset();
       freelist.emplace_back(std::move(read_wrap));
     }
@@ -758,7 +758,7 @@ void AfterScanDir(uv_fs_t* req) {
   int r;
   std::vector<Local<Value>> name_v;
 
-  for (;;) {
+  for (int i = 0; ; i++) {
     uv_dirent_t ent;
 
     r = uv_fs_scandir_next(req, &ent);
@@ -799,7 +799,7 @@ void AfterScanDirWithTypes(uv_fs_t* req) {
   std::vector<Local<Value>> name_v;
   std::vector<Local<Value>> type_v;
 
-  for (;;) {
+  for (int i = 0; ; i++) {
     uv_dirent_t ent;
 
     r = uv_fs_scandir_next(req, &ent);
