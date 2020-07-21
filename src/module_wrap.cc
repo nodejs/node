@@ -55,9 +55,13 @@ ModuleWrap::ModuleWrap(Environment* env,
                        Local<String> url)
   : BaseObject(env, object),
     module_(env->isolate(), module),
-    url_(env->isolate(), url),
     id_(env->get_next_module_id()) {
   env->id_to_module_map.emplace(id_, this);
+
+  Local<Value> undefined = Undefined(env->isolate());
+  object->SetInternalField(kURLSlot, url);
+  object->SetInternalField(kSyntheticEvaluationStepsSlot, undefined);
+  object->SetInternalField(kContextObjectSlot, undefined);
 }
 
 ModuleWrap::~ModuleWrap() {
@@ -71,6 +75,12 @@ ModuleWrap::~ModuleWrap() {
       break;
     }
   }
+}
+
+Local<Context> ModuleWrap::context() const {
+  Local<Value> obj = object()->GetInternalField(kContextObjectSlot);
+  if (obj.IsEmpty()) return {};
+  return obj.As<Object>()->CreationContext();
 }
 
 ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
@@ -220,11 +230,14 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   if (synthetic) {
     obj->synthetic_ = true;
-    obj->synthetic_evaluation_steps_.Reset(
-        env->isolate(), args[3].As<Function>());
+    obj->object()->SetInternalField(kSyntheticEvaluationStepsSlot, args[3]);
   }
 
-  obj->context_.Reset(isolate, context);
+  // Use the extras object as an object whose CreationContext() will be the
+  // original `context`, since the `Context` itself strictly speaking cannot
+  // be stored in an internal field.
+  obj->object()->SetInternalField(kContextObjectSlot,
+      context->GetExtrasBindingObject());
   obj->contextify_context_ = contextify_context;
 
   env->hash_to_module_map.emplace(module->GetIdentityHash(), obj);
@@ -254,7 +267,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 
   Local<Function> resolver_arg = args[0].As<Function>();
 
-  Local<Context> mod_context = obj->context_.Get(isolate);
+  Local<Context> mod_context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
 
   const int module_requests_length = module->GetModuleRequestsLength();
@@ -295,7 +308,7 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
-  Local<Context> context = obj->context_.Get(isolate);
+  Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
   TryCatchScope try_catch(env);
   USE(module->InstantiateModule(context, ResolveCallback));
@@ -318,7 +331,7 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   ModuleWrap* obj;
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
-  Local<Context> context = obj->context_.Get(isolate);
+  Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
 
   ContextifyContext* contextify_context = obj->contextify_context_;
@@ -636,8 +649,10 @@ MaybeLocal<Value> ModuleWrap::SyntheticModuleEvaluationStepsCallback(
 
   TryCatchScope try_catch(env);
   Local<Function> synthetic_evaluation_steps =
-      obj->synthetic_evaluation_steps_.Get(isolate);
-  obj->synthetic_evaluation_steps_.Reset();
+      obj->object()->GetInternalField(kSyntheticEvaluationStepsSlot)
+          .As<Function>();
+  obj->object()->SetInternalField(
+      kSyntheticEvaluationStepsSlot, Undefined(isolate));
   MaybeLocal<Value> ret = synthetic_evaluation_steps->Call(context,
       obj->object(), 0, nullptr);
   if (ret.IsEmpty()) {
