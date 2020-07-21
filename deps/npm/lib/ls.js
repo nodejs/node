@@ -545,7 +545,7 @@ function makeParseable_ (data, long, dir, depth, parent, d) {
 
   return data.path +
          ':' + (data._id || '') +
-         ':' + (data.realPath !== data.path ? data.realPath : '') +
+         (data.link && data.link !== data.path ? ':' + data.link : '') +
          (data.extraneous ? ':EXTRANEOUS' : '') +
          (data.error && data.path !== path.resolve(npm.globalDir, '..') ? ':ERROR' : '') +
          (data.invalid ? ':INVALID' : '') +
