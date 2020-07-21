@@ -1239,7 +1239,8 @@ passed as the second parameter to the [`'request'`][] event.
 added: v0.6.7
 -->
 
-Indicates that the underlying connection was terminated.
+Indicates that the the response is completed, or its underlying connection was
+terminated prematurely (before the response completion).
 
 ### Event: `'finish'`
 <!-- YAML
