@@ -56,7 +56,8 @@ TimerWrapHandle::TimerWrapHandle(
 }
 
 void TimerWrapHandle::Stop() {
-  return timer_->Stop();
+  if (timer_ != nullptr)
+    return timer_->Stop();
 }
 
 void TimerWrapHandle::Close() {
