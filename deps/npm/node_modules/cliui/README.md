@@ -46,7 +46,7 @@ console.log(ui.toString())
 
 cliui exposes a simple layout DSL:
 
-If you create a single `ui.row`, passing a string rather than an
+If you create a single `ui.div`, passing a string rather than an
 object:
 
 * `\n`: characters will be interpreted as new rows.
