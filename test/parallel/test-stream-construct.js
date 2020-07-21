@@ -242,3 +242,29 @@ testDestroy((opts) => new Writable({
     construct: common.mustCall()
   });
 }
+
+{
+  // https://github.com/nodejs/node/issues/34448
+
+  let constructed = false;
+  const d = new Duplex({
+    readable: false,
+    construct: common.mustCall((callback) => {
+      setImmediate(common.mustCall(() => {
+        constructed = true;
+        callback();
+      }));
+    }),
+    write(chunk, encoding, callback) {
+      callback();
+    },
+    read() {
+      this.push(null);
+    }
+  });
+  d.resume();
+  d.end('foo');
+  d.on('close', common.mustCall(() => {
+    assert.strictEqual(constructed, true);
+  }));
+}
