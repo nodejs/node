@@ -1,6 +1,10 @@
 name: Build from tarball
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - master
 
 env:
   FLAKY_TESTS: dontcare
