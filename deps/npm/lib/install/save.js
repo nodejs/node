@@ -8,6 +8,7 @@ const iferr = require('iferr')
 const log = require('npmlog')
 const moduleName = require('../utils/module-name.js')
 const npm = require('../npm.js')
+const packageId = require('../utils/package-id.js')
 const parseJSON = require('../utils/parse-json.js')
 const path = require('path')
 const stringifyPackage = require('stringify-package')
@@ -131,6 +132,9 @@ function savePackageJson (tree, next) {
     } else {
       writeFileAtomic(saveTarget, json, next)
     }
+
+    // Restore derived id as it was removed when reloading from disk
+    tree.package._id = packageId(tree.package)
   }))
 }
 
