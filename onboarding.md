@@ -210,6 +210,9 @@ needs to be pointed out separately during the onboarding.
 * Run CI on the PR. Use the `node-test-pull-request` CI task.
 * After two Collaborator approvals for the change and two Collaborator approvals
   for fast-tracking, land the PR.
+* Leave a comment in the PR: `Please 👍 this comment to approve fast-tracking`.
+* If there are not enough approvals within a reasonable time, consider the
+  single approval of the onboarding TSC member sufficient, and land the PR.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
   * [`node-core-utils`][] automates the generation of metadata and the landing
