@@ -1761,7 +1761,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
 
   statistics_.data_received += nread;
 
-  if (UNLIKELY(stream_buf_offset_ > 0)) {
+  if (LIKELY(stream_buf_offset_ == 0)) {
+    // Shrink to the actual amount of used data.
+    buf.Resize(nread);
+  } else {
     // This is a very unlikely case, and should only happen if the ReadStart()
     // call in OnStreamAfterWrite() immediately provides data. If that does
     // happen, we concatenate the data we received with the already-stored
@@ -1782,8 +1785,6 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     DecrementCurrentSessionMemory(stream_buf_.len);
   }
 
-  // Shrink to the actual amount of used data.
-  buf.Resize(nread);
   IncrementCurrentSessionMemory(nread);
 
   // Remember the current buffer, so that OnDataChunkReceived knows the
