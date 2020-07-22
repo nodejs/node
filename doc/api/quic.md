@@ -1047,8 +1047,9 @@ added: REPLACEME
 
 Returns a `Promise` that resolves a new `QuicStream`.
 
-The `Promise` will be rejected if the `QuicSession` has been destroyed or is in
-the process of a graceful shutdown.
+The `Promise` will be rejected if the `QuicSession` has been destroyed, is in
+the process of a graceful shutdown, or the `QuicSession` is otherwise blocked
+from opening a new stream.
 
 #### `quicsession.ping()`
 <!--YAML

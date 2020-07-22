@@ -115,6 +115,7 @@ int QuicBuffer::DoPull(
   size_t len = 0;
   size_t numbytes = 0;
   int status = bob::Status::STATUS_CONTINUE;
+
   // There's no data to read.
   if (!remaining() || head_ == nullptr) {
     status = is_ended() ?
