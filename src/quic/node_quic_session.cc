@@ -1998,7 +1998,7 @@ bool QuicSession::ReceiveStreamData(
     const uint8_t* data,
     size_t datalen,
     uint64_t offset) {
-  auto leave = OnScopeLeave([=]() {
+  auto leave = OnScopeLeave([&]() {
     // Unconditionally extend the flow control window for the entire
     // session but not for the individual Stream.
     ExtendOffset(datalen);
