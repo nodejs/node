@@ -70,8 +70,8 @@ Use [wabt](https://github.com/WebAssembly/wabt) to compile `.wat` to `.wasm`
 $ wat2wasm demo.wat
 ```
 
-The `--experimental-wasi-unstable-preview1` and `--experimental-wasm-bigint`
-CLI arguments are needed for this example to run.
+The `--experimental-wasi-unstable-preview1` CLI argument is needed for this
+example to run.
 
 ## Class: `WASI`
 <!-- YAML
