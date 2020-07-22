@@ -411,8 +411,6 @@ For information about the governance of the Node.js project, see
 **Stewart X Addison** &lt;sxa@uk.ibm.com&gt;
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
-* [thefourtheye](https://github.com/thefourtheye) -
-**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
 * [TimothyGu](https://github.com/TimothyGu) -
 **Tiancheng "Timothy" Gu** &lt;timothygu99@gmail.com&gt; (he/him)
 * [tniessen](https://github.com/tniessen) -
@@ -546,6 +544,8 @@ For information about the governance of the Node.js project, see
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
+* [thefourtheye](https://github.com/thefourtheye) -
+**Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt; (he/him)
 * [thlorenz](https://github.com/thlorenz) -
 **Thorsten Lorenz** &lt;thlorenz@gmx.de&gt;
 * [trevnorris](https://github.com/trevnorris) -
