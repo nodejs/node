@@ -410,11 +410,12 @@ This is the extent of the awareness of `package.json` files within Node.js.
 
 If there is no `package.json` file present in the directory, or if the
 `'main'` entry is missing or cannot be resolved, then Node.js
-will attempt to load an `index.js` or `index.node` file out of that
-directory. For example, if there was no `package.json` file in the above
-example, then `require('./some-library')` would attempt to load:
+will attempt to load an `index.js`, `index.json`, or `index.node` file
+out of that directory. For example, if there was no `package.json` file
+in the above example, then `require('./some-library')` would attempt to load:
 
 * `./some-library/index.js`
+* `./some-library/index.json`
 * `./some-library/index.node`
 
 If these attempts fail, then Node.js will report the entire module as missing
