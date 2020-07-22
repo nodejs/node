@@ -57,7 +57,7 @@ bool SafeGetenv(const char* key, std::string* text, Environment* env) {
 
   {
     Mutex::ScopedLock lock(per_process::env_var_mutex);
-  
+
     size_t init_sz = 256;
     MaybeStackBuffer<char, 256> val;
     int ret = uv_os_getenv(key, *val, &init_sz);
