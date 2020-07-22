@@ -13,7 +13,7 @@ jobs:
   build-tarball:
     env:
       PYTHON_VERSION: 3.8
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ env.PYTHON_VERSION }}
