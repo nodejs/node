@@ -23,13 +23,9 @@
 const common = require('../common');
 const assert = require('assert');
 
-const WINDOW = 200; // Why is does this need to be so big?
+const WINDOW = 200; // Why does this need to be so big?
 
 let interval_count = 0;
-
-// Check that these don't blow up.
-clearTimeout(null);
-clearInterval(null);
 
 assert.strictEqual(setTimeout instanceof Function, true);
 const starttime = new Date();
