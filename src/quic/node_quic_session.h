@@ -147,7 +147,7 @@ enum QuicClientSessionOptions : uint32_t {
 #define QUICSESSION_SHARED_STATE(V)                                            \
   V(KEYLOG_ENABLED, keylog_enabled, uint8_t)                                   \
   V(CLIENT_HELLO_ENABLED, client_hello_enabled, uint8_t)                       \
-  V(CERT_ENABLED, cert_enabled, uint8_t)                                       \
+  V(OCSP_ENABLED, ocsp_enabled, uint8_t)                                       \
   V(PATH_VALIDATED_ENABLED, path_validated_enabled, uint8_t)                   \
   V(USE_PREFERRED_ADDRESS_ENABLED, use_preferred_address_enabled, uint8_t)     \
   V(HANDSHAKE_CONFIRMED, handshake_confirmed, uint8_t)                         \
