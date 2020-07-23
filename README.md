@@ -92,7 +92,7 @@ _docs_ subdirectory. Version-specific documentation is also at
 
 ### Verifying Binaries
 
-Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
+Downloaded directories contain a `SHASUMS256.txt` file with SHA checksums for the
 files.
 
 To download `SHASUMS256.txt` using `curl`:
