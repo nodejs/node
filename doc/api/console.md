@@ -153,6 +153,7 @@ changes:
 * `...message` {any} All arguments besides `value` are used as error message.
 
 A simple assertion test that verifies whether `value` is truthy. If it is not,
+or `value` is not passed,
 `Assertion failed` is logged. If provided, the error `message` is formatted
 using [`util.format()`][] by passing along all message arguments. The output is
 used as the error message.
@@ -162,6 +163,8 @@ console.assert(true, 'does nothing');
 // OK
 console.assert(false, 'Whoops %s work', 'didn\'t');
 // Assertion failed: Whoops didn't work
+console.assert();
+// Assertion failed
 ```
 
 Calling `console.assert()` with a falsy assertion will only cause the `message`
