@@ -286,6 +286,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(PreviewEntries);
   registry->Register(GetOwnNonIndexProperties);
   registry->Register(GetConstructorName);
+  registry->Register(GetExternalValue);
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
   registry->Register(WeakReference::New);
