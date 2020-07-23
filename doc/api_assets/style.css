@@ -102,22 +102,33 @@ em code {
 }
 
 #gtoc ul {
+  display: flex;
+  flex-wrap: wrap;
   list-style: none;
   margin-left: 0;
   line-height: 1.5rem;
 }
 
 #gtoc > ul > li {
-  display: inline;
+  display: inline-block;
   border-right: 1px #000 solid;
-  margin-right: .4rem;
+  margin: .125rem .4rem .125rem 0;
   padding-right: .4rem;
+  height: 1.25rem;
 }
 
 #gtoc > ul > li:last-child {
   border-right: none;
   margin-right: 0;
   padding-right: 0;
+}
+
+#gtoc > ul > li > a {
+  display: block;
+  padding-top: 0;
+  padding-bottom: 0;
+  height: 100%;
+  line-height: 1.25rem;
 }
 
 li.version-picker {
