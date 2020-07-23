@@ -27,7 +27,6 @@ const WINDOW = 200; // Why does this need to be so big?
 
 let interval_count = 0;
 
-assert.strictEqual(setTimeout instanceof Function, true);
 const starttime = new Date();
 setTimeout(common.mustCall(function() {
   const endtime = new Date();
