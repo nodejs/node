@@ -155,9 +155,10 @@ ol.version-picker {
   display: none;
   list-style: none;
   position: absolute;
-  right: 0;
   top: 1.25rem;
-  width: 100%;
+  left: 0;
+  right: .4rem;
+  margin-left: 0;
 }
 
 #gtoc ol.version-picker li {
