@@ -9,6 +9,7 @@ namespace util {
 using v8::ALL_PROPERTIES;
 using v8::Array;
 using v8::ArrayBufferView;
+using v8::BigInt;
 using v8::Boolean;
 using v8::Context;
 using v8::External;
@@ -73,15 +74,13 @@ static void GetConstructorName(
 static void GetExternalValue(
     const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsExternal());
-  auto isolate = args.GetIsolate();
+  Isolate* isolate = args.GetIsolate();
   Local<External> external = args[0].As<External>();
 
   void* ptr = external->Value();
-  char val[20];
-  snprintf(val, sizeof(val), "%p", ptr);
-
-  MaybeLocal<String> ret = String::NewFromUtf8(isolate, val);
-  args.GetReturnValue().Set(ret.ToLocalChecked());
+  uint64_t value = reinterpret_cast<uint64_t>(ptr);
+  Local<BigInt> ret = BigInt::NewFromUnsigned(isolate, value);
+  args.GetReturnValue().Set(ret);
 }
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
