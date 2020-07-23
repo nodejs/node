@@ -1188,23 +1188,6 @@ added: REPLACEME
 The `QuicClientSession` class implements the client side of a QUIC connection.
 Instances are created using the `quicsocket.connect()` method.
 
-#### Event: `'OCSPResponse'`
-<!-- YAML
-added: REPLACEME
--->
-
-Emitted when the `QuicClientSession` receives a requested OCSP certificate
-status response from the QUIC server peer.
-
-The callback is invoked with a single argument:
-
-* `response` {Buffer}
-
-Node.js does not perform any automatic validation or processing of the
-response.
-
-The `'OCSPResponse'` event will not be emitted more than once.
-
 #### Event: `'sessionTicket'`
 <!-- YAML
 added: REPLACEME
@@ -1312,24 +1295,6 @@ The callback is invoked with four arguments:
   the TLS handshake to continue.
 
 The `'clientHello'` event will not be emitted more than once.
-
-#### Event: `'OCSPRequest'`
-<!-- YAML
-added: REPLACEME
--->
-
-Emitted when the `QuicServerSession` has received a OCSP certificate status
-request as part of the TLS handshake.
-
-The callback is invoked with three arguments:
-
-* `servername` {string}
-* `context` {tls.SecureContext}
-* `callback` {Function}
-
-The callback *must* be invoked in order for the TLS handshake to continue.
-
-The `'OCSPRequest'` event will not be emitted more than once.
 
 #### `quicserversession.addContext(servername\[, context\])`
 <!-- YAML
@@ -1681,6 +1646,7 @@ added: REPLACEME
     * `qpackBlockedStreams` {number}
     * `maxHeaderListSize` {number}
     * `maxPushes` {number}
+  * `ocspHandler` {Function} A function for handling [OCSP responses][].
   * `passphrase` {string} Shared passphrase used for a single private key and/or
     a PFX.
   * `pfx` {string|string[]|Buffer|Buffer[]|Object[]} PFX or PKCS12 encoded
@@ -1702,9 +1668,6 @@ added: REPLACEME
     `QuicClientSession` object.
   * `qlog` {boolean} Whether to enable ['qlog'][] for this session.
     Default: `false`.
-  * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
-    extension will be added to the client hello and an `'OCSPResponse'` event
-    will be emitted before establishing a secure communication.
   * `secureOptions` {number} Optionally affect the OpenSSL protocol behavior,
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
@@ -1852,6 +1815,7 @@ added: REPLACEME
   * `maxStreamDataBidiLocal` {number}
   * `maxStreamDataBidiRemote` {number}
   * `maxStreamDataUni` {number}
+  * `ocspHandler` {Function} A function for handling [OCSP requests][].
   * `passphrase` {string} Shared passphrase used for a single private key
     and/or a PFX.
   * `pfx` {string|string[]|Buffer|Buffer[]|Object[]} PFX or PKCS12 encoded
@@ -2466,6 +2430,55 @@ async function myCustomLookup(address, type) {
 }
 ```
 
+### Online Certificate Status Protocol (OCSP)
+
+The QUIC implementation supports use of OCSP during the TLS 1.3 handshake
+of a new QUIC session.
+
+#### Requests
+
+A `QuicServerSession` can receive and process OCSP requests by setting the
+`ocspHandler` option in the `quicsocket.listen()` function. The value of
+the `ocspHandler` is an async function that must return an object with the
+OCSP response and, optionally, a new {tls.SecureContext} to use during the
+handshake.
+
+The handler function will be invoked with two arguments:
+
+* `type`: {string} Will always be `request` for `QuicServerSession`.
+* `options`: {Object}
+  * `servername` {string} The SNI server name.
+  * `context` {tls.SecureContext} The `SecureContext` currently used.
+
+```js
+async function ocspServerHandler(type, { servername, context }) {
+  // Process the request...
+  return { data: Buffer.from('The OCSP response') };
+}
+
+sock.listen({ ocspHandler: ocspServerHandler });
+```
+
+#### Responses
+
+A `QuicClientSession` can receive and process OCSP responses by setting the
+`ocspHandler` option in the `quicsocket.connect()` function. The value of
+the `ocspHandler` is an async function with no expected return value.
+
+The handler function will be invoked with two arguments:
+
+* `type`: {string} Will always be `response` for `QuicClientSession`.
+* `options`: {Object}
+  * `data`: {Buffer} The OCSP response provided by the server
+
+```js
+async function ocspClientHandler(type, { data }) {
+  console.log(data.toString());
+}
+
+sock.connect({ ocspHandler: ocspClientHandler });
+```
+
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`stream.Readable`]: #stream_class_stream_readable
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
@@ -2475,6 +2488,8 @@ async function myCustomLookup(address, type) {
 [Certificate Object]: https://nodejs.org/dist/latest-v12.x/docs/api/tls.html#tls_certificate_object
 [custom DNS lookup function]: #quic_custom_dns_lookup_functions
 [modifying the default cipher suite]: tls.html#tls_modifying_the_default_tls_cipher_suite
+[OCSP requests]: #quic_online_certificate_status_protocol_ocsp
+[OCSP responses]: #quic_online_certificate_status_protocol_ocsp
 [OpenSSL Options]: crypto.html#crypto_openssl_options
 [Perfect Forward Secrecy]: #tls_perfect_forward_secrecy
 [promisified version of `lookup()`]: dns.html#dns_dnspromises_lookup_hostname_options

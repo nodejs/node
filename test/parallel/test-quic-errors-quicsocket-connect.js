@@ -142,8 +142,8 @@ const client = createQuicSocket();
     });
   }));
 
-  await Promise.all([1, 1n, 'test', [], {}].map((requestOCSP) => {
-    return assert.rejects(client.connect({ requestOCSP }), {
+  await Promise.all([1, 1n, 'test', [], {}].map((ocspHandler) => {
+    return assert.rejects(client.connect({ ocspHandler }), {
       code: 'ERR_INVALID_ARG_TYPE'
     });
   }));
