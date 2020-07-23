@@ -944,10 +944,13 @@ int QuicCryptoContext::OnClientHello() {
 // function that must be called in order for the TLS handshake to
 // continue.
 int QuicCryptoContext::OnOCSP() {
-  if (LIKELY(session_->state_->cert_enabled == 0)) {
+  if (LIKELY(session_->state_->ocsp_enabled == 0)) {
     Debug(session(), "No OCSPRequest handler registered");
     return 1;
   }
+
+  if (!session_->is_server())
+    return 1;
 
   Debug(session(), "Client is requesting an OCSP Response");
   TLSCallbackScope callback_scope(this);
@@ -983,7 +986,7 @@ void QuicCryptoContext::OnOCSPDone(
       [&]() { set_in_ocsp_request(false); });
 
   // Disable the callback at this point so we don't loop continuously
-  session_->state_->cert_enabled = 0;
+  session_->state_->ocsp_enabled = 0;
 
   if (context) {
     int err = crypto::UseSNIContext(ssl_, context);
@@ -1064,6 +1067,9 @@ int QuicCryptoContext::OnTLSStatus() {
       return SSL_TLSEXT_ERR_OK;
     }
     case NGTCP2_CRYPTO_SIDE_CLIENT: {
+      // Only invoke the callback if the ocsp handler is actually set
+      if (LIKELY(session_->state_->ocsp_enabled == 0))
+        return 1;
       Local<Value> res;
       if (ocsp_response().ToLocal(&res))
         session_->listener()->OnOCSP(res);
