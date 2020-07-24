@@ -26,8 +26,8 @@ jobs:
         run: |
           export DISTTYPE=nightly
           export DATESTRING=`date "+%Y-%m-%d"`
-          export COMMIT=xxxx
-          ./configure && make tar -j8
+          export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
+          ./configure && make tar -j8 SKIP_XZ=1
           mkdir tarballs
           mv *.tar.gz tarballs
       - name: Upload tarball artifact
