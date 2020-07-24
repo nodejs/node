@@ -469,7 +469,10 @@ const defaults = {
 ```
 
 Use `cwd` to specify the working directory from which the process is spawned.
-If not given, the default is to inherit the current working directory.
+If not given, the default is to inherit the current working directory. If given,
+but the path does not exist, the child process emits an `ENOENT` error
+and exits immediately. `ENOENT` is also emitted when the command
+does not exist.
 
 Use `env` to specify environment variables that will be visible to the new
 process, the default is [`process.env`][].
