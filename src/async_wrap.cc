@@ -231,19 +231,18 @@ PromiseWrap* PromiseWrap::New(Environment* env,
 
   // Skip for init events
   if (silent) {
-    Local<Value> maybeAsyncId = promise
+    Local<Value> maybe_async_id = promise
         ->Get(context, env->async_id_symbol())
         .ToLocalChecked();
 
-    Local<Value> maybeTriggerAsyncId = promise
+    Local<Value> maybe_trigger_async_id = promise
         ->Get(context, env->trigger_async_id_symbol())
         .ToLocalChecked();
 
-    if (maybeAsyncId->IsNumber() && maybeTriggerAsyncId->IsNumber()) {
-      double asyncId = maybeAsyncId->NumberValue(context).ToChecked();
-      double triggerAsyncId = maybeTriggerAsyncId->NumberValue(context)
-          .ToChecked();
-      return new PromiseWrap(env, obj, asyncId, triggerAsyncId);
+    if (maybe_async_id->IsNumber() && maybe_trigger_async_id->IsNumber()) {
+      double async_id = maybe_async_id.As<Number>()->Value();
+      double trigger_async_id = maybe_trigger_async_id.As<Number>()->Value();
+      return new PromiseWrap(env, obj, async_id, trigger_async_id);
     }
   }
 
@@ -319,6 +318,59 @@ static void FastPromiseHook(PromiseHookType type, Local<Promise> promise,
   Local<Context> context = promise->CreationContext();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) return;
+
+  if (type == PromiseHookType::kBefore &&
+      env->async_hooks()->fields()[AsyncHooks::kBefore] == 0) {
+    Local<Value> maybe_async_id;
+    if (!promise->Get(context, env->async_id_symbol())
+          .ToLocal(&maybe_async_id)) {
+      return;
+    }
+
+    Local<Value> maybe_trigger_async_id;
+    if (!promise->Get(context, env->trigger_async_id_symbol())
+          .ToLocal(&maybe_trigger_async_id)) {
+      return;
+    }
+
+    if (maybe_async_id->IsNumber() && maybe_trigger_async_id->IsNumber()) {
+      double async_id = maybe_async_id.As<Number>()->Value();
+      double trigger_async_id = maybe_trigger_async_id.As<Number>()->Value();
+      env->async_hooks()->push_async_context(
+          async_id, trigger_async_id, promise);
+    }
+
+    return;
+  }
+
+  if (type == PromiseHookType::kAfter &&
+      env->async_hooks()->fields()[AsyncHooks::kAfter] == 0) {
+    Local<Value> maybe_async_id;
+    if (!promise->Get(context, env->async_id_symbol())
+          .ToLocal(&maybe_async_id)) {
+      return;
+    }
+
+    if (maybe_async_id->IsNumber()) {
+      double async_id = maybe_async_id.As<Number>()->Value();
+      if (env->execution_async_id() == async_id) {
+        // This condition might not be true if async_hooks was enabled during
+        // the promise callback execution.
+        env->async_hooks()->pop_async_context(async_id);
+      }
+    }
+
+    return;
+  }
+
+  if (type == PromiseHookType::kResolve &&
+      env->async_hooks()->fields()[AsyncHooks::kPromiseResolve] == 0) {
+    return;
+  }
+
+  // Getting up to this point means either init type or
+  // that there are active hooks of another type.
+  // In both cases fast-path JS hook should be called.
 
   Local<Value> argv[] = {
     Integer::New(env->isolate(), ToAsyncHooksType(type)),
