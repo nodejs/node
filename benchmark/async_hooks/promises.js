@@ -19,6 +19,11 @@ const tests = {
       promiseResolve() {},
       destroy() {}
     }).enable();
+  },
+  enabledWithInitOnly() {
+    hook = createHook({
+      init() {}
+    }).enable();
   }
 };
 
@@ -27,6 +32,7 @@ const bench = common.createBenchmark(main, {
   asyncHooks: [
     'enabled',
     'enabledWithDestroy',
+    'enabledWithInitOnly',
     'disabled',
   ]
 });
