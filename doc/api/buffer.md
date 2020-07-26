@@ -3045,6 +3045,14 @@ console.log(newBuf.toString('ascii'));
 Because the Euro (`€`) sign is not representable in US-ASCII, it is replaced
 with `?` in the transcoded `Buffer`.
 
+### Class: `FastBuffer`
+<!-- YAML
+added: REPLACEME
+-->
+
+This is essentially a `Uint8Array` constructor that returns a `Buffer` instance
+(which does not utilize any pooling).
+
 ### Class: `SlowBuffer`
 <!-- YAML
 deprecated: v6.0.0
