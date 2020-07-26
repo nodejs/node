@@ -160,11 +160,11 @@ int QuicStream::DoShutdown(ShutdownWrap* req_wrap) {
 
   CHECK_NULL(shutdown_done_);
   CHECK_NOT_NULL(req_wrap);
-  shutdown_done_ = std::move([=](int status) {
+  shutdown_done_ = [=](int status) {
     CHECK_NOT_NULL(req_wrap);
     shutdown_done_ = nullptr;
     req_wrap->Done(status);
-  });
+  };
 
   QuicSession::SendSessionScope send_scope(session());
 
