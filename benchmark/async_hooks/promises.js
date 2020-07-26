@@ -37,10 +37,11 @@ const bench = common.createBenchmark(main, {
   ]
 });
 
+const err = new Error('foobar');
 async function run(n) {
   for (let i = 0; i < n; i++) {
     await new Promise((resolve) => resolve())
-      .then(() => { throw new Error('foobar'); })
+      .then(() => { throw err; })
       .catch((e) => e);
   }
 }
