@@ -1315,8 +1315,8 @@ unknown-to-Node.js file extensions. See the [transpiler loader example][] below.
 /**
  * @param {!(string | SharedArrayBuffer | Uint8Array)} source
  * @param {{
- *   url: string,
  *   format: string,
+ *   url: string,
  * }} context
  * @param {Function} defaultTransformSource
  * @returns {Promise<{ source: !(string | SharedArrayBuffer | Uint8Array) }>}
