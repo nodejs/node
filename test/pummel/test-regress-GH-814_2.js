@@ -19,6 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Refs: https://github.com/nodejs/node-v0.x-archive/issues/814
+
 'use strict';
 // Flags: --expose_gc
 
