@@ -1149,7 +1149,8 @@ CommonJS modules loaded.
   * `conditions` {string[]}
   * `parentURL` {string}
 * `defaultResolve` {Function}
-* Returns: {Promise}
+* Returns: {Object}
+  * `url` {string}
 
 The `resolve` hook returns the resolved file URL for a given module specifier
 and parent URL. The module specifier is the string in an `import` statement or
