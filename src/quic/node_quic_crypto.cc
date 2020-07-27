@@ -331,229 +331,6 @@ bool InvalidRetryToken(
   return false;
 }
 
-namespace {
-
-bool SplitHostname(
-    const char* hostname,
-    std::vector<std::string>* parts,
-    const char delim = '.') {
-  static std::string check_str =
-      "\x21\x22\x23\x24\x25\x26\x27\x28\x29\x2A\x2B\x2C\x2D\x2E\x2F\x30"
-      "\x31\x32\x33\x34\x35\x36\x37\x38\x39\x3A\x3B\x3C\x3D\x3E\x3F\x40"
-      "\x41\x42\x43\x44\x45\x46\x47\x48\x49\x4A\x4B\x4C\x4D\x4E\x4F\x50"
-      "\x51\x52\x53\x54\x55\x56\x57\x58\x59\x5A\x5B\x5C\x5D\x5E\x5F\x60"
-      "\x61\x62\x63\x64\x65\x66\x67\x68\x69\x6A\x6B\x6C\x6D\x6E\x6F\x70"
-      "\x71\x72\x73\x74\x75\x76\x77\x78\x79\x7A\x7B\x7C\x7D\x7E\x7F";
-
-  std::stringstream str(hostname);
-  std::string part;
-  while (getline(str, part, delim)) {
-    // if (part.length() == 0 ||
-    //     part.find_first_not_of(check_str) != std::string::npos) {
-    //   return false;
-    // }
-    for (size_t n = 0; n < part.length(); n++) {
-      if (part[n] >= 'A' && part[n] <= 'Z')
-        part[n] = (part[n] | 0x20);  // Lower case the letter
-      if (check_str.find(part[n]) == std::string::npos)
-        return false;
-    }
-    parts->push_back(part);
-  }
-  return true;
-}
-
-bool CheckCertNames(
-    const std::vector<std::string>& host_parts,
-    const std::string& name,
-    bool use_wildcard = true) {
-
-  if (name.length() == 0)
-    return false;
-
-  std::vector<std::string> name_parts;
-  if (!SplitHostname(name.c_str(), &name_parts))
-    return false;
-
-  if (name_parts.size() != host_parts.size())
-    return false;
-
-  for (size_t n = host_parts.size() - 1; n > 0; --n) {
-    if (host_parts[n] != name_parts[n])
-      return false;
-  }
-
-  if (name_parts[0].find('*') == std::string::npos ||
-      name_parts[0].find("xn--") != std::string::npos) {
-    return host_parts[0] == name_parts[0];
-  }
-
-  if (!use_wildcard)
-    return false;
-
-  std::vector<std::string> sub_parts;
-  SplitHostname(name_parts[0].c_str(), &sub_parts, '*');
-
-  if (sub_parts.size() > 2)
-    return false;
-
-  if (name_parts.size() <= 2)
-    return false;
-
-  std::string prefix;
-  std::string suffix;
-  if (sub_parts.size() == 2) {
-    prefix = sub_parts[0];
-    suffix = sub_parts[1];
-  } else {
-    prefix = "";
-    suffix = sub_parts[0];
-  }
-
-  if (prefix.length() + suffix.length() > host_parts[0].length())
-    return false;
-
-  if (host_parts[0].compare(0, prefix.length(), prefix))
-    return false;
-
-  if (host_parts[0].compare(
-          host_parts[0].length() - suffix.length(),
-          suffix.length(), suffix)) {
-    return false;
-  }
-
-  return true;
-}
-
-}  // namespace
-
-int VerifyHostnameIdentity(
-    const crypto::SSLPointer& ssl,
-    const char* hostname) {
-  int err = X509_V_ERR_HOSTNAME_MISMATCH;
-  crypto::X509Pointer cert(SSL_get_peer_certificate(ssl.get()));
-  if (!cert)
-    return err;
-
-  // There are several pieces of information we need from the cert at this point
-  // 1. The Subject (if it exists)
-  // 2. The collection of Alt Names (if it exists)
-  //
-  // The certificate may have many Alt Names. We only care about the ones that
-  // are prefixed with 'DNS:', 'URI:', or 'IP Address:'. We might check
-  // additional ones later but we'll start with these.
-  //
-  // Ideally, we'd be able to *just* use OpenSSL's built in name checking for
-  // this (SSL_set1_host and X509_check_host) but it does not appear to do
-  // checking on URI or IP Address Alt names, which is unfortunate. We need
-  // both of those to retain compatibility with the peer identity verification
-  // Node.js already does elsewhere. At the very least, we'll use
-  // X509_check_host here first as a first step. If it is successful, awesome,
-  // there's nothing else for us to do. Return and be happy!
-  if (X509_check_host(
-          cert.get(),
-          hostname,
-          strlen(hostname),
-          X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT |
-          X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS |
-          X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS,
-          nullptr) > 0) {
-    return 0;
-  }
-
-  if (X509_check_ip_asc(
-          cert.get(),
-          hostname,
-          X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT) > 0) {
-    return 0;
-  }
-
-  // If we've made it this far, then we have to perform a more check
-  return VerifyHostnameIdentity(
-      hostname,
-      crypto::GetCertificateCN(cert.get()),
-      crypto::GetCertificateAltNames(cert.get()));
-}
-
-int VerifyHostnameIdentity(
-    const char* hostname,
-    const std::string& cert_cn,
-    const std::unordered_multimap<std::string, std::string>& altnames) {
-
-  int err = X509_V_ERR_HOSTNAME_MISMATCH;
-
-  // 1. If the hostname is an IP address (v4 or v6), the certificate is valid
-  //    if and only if there is an 'IP Address:' alt name specifying the same
-  //    IP address. The IP address must be canonicalized to ensure a proper
-  //    check. It's possible that the X509_check_ip_asc covers this. If so,
-  //    we can remove this check.
-
-  if (SocketAddress::is_numeric_host(hostname)) {
-    auto ips = altnames.equal_range("ip");
-    for (auto ip = ips.first; ip != ips.second; ++ip) {
-      if (ip->second.compare(hostname) == 0) {
-        // Success!
-        return 0;
-      }
-    }
-    // No match, and since the hostname is an IP address, skip any
-    // further checks
-    return err;
-  }
-
-  auto dns_names = altnames.equal_range("dns");
-  auto uri_names = altnames.equal_range("uri");
-
-  size_t dns_count = std::distance(dns_names.first, dns_names.second);
-  size_t uri_count = std::distance(uri_names.first, uri_names.second);
-
-  std::vector<std::string> host_parts;
-  SplitHostname(hostname, &host_parts);
-
-  // 2. If there no 'DNS:' or 'URI:' Alt names, if the certificate has a
-  //    Subject, then we need to extract the CN field from the Subject. and
-  //    check that the hostname matches the CN, taking into consideration
-  //    the possibility of a wildcard in the CN. If there is a match, congrats,
-  //    we have a valid certificate. Return and be happy.
-
-  if (dns_count == 0 && uri_count == 0) {
-    if (cert_cn.length() > 0 && CheckCertNames(host_parts, cert_cn))
-        return 0;
-    // No match, and since there are no dns or uri entries, return
-    return err;
-  }
-
-  // 3. If, however, there are 'DNS:' and 'URI:' Alt names, things become more
-  //    complicated. Essentially, we need to iterate through each 'DNS:' and
-  //    'URI:' Alt name to find one that matches. The 'DNS:' Alt names are
-  //    relatively simple but may include wildcards. The 'URI:' Alt names
-  //    require the name to be parsed as a URL, then extract the hostname from
-  //    the URL, which is then checked against the hostname. If you find a
-  //    match, yay! Return and be happy. (Note, it's possible that the 'DNS:'
-  //    check in this step is redundant to the X509_check_host check. If so,
-  //    we can simplify by removing those checks here.)
-
-  // First, let's check dns names
-  for (auto name = dns_names.first; name != dns_names.second; ++name) {
-    if (name->first.length() > 0 &&
-        CheckCertNames(host_parts, name->second)) {
-      return 0;
-    }
-  }
-
-  // Then, check uri names
-  for (auto name = uri_names.first; name != uri_names.second; ++name) {
-    if (name->first.length() > 0 &&
-        CheckCertNames(host_parts, name->second, false)) {
-      return 0;
-    }
-  }
-
-  // 4. Failing all of the previous checks, we assume the certificate is
-  //    invalid for an unspecified reason.
-  return err;
-}
-
 // Get the ALPN protocol identifier that was negotiated for the session
 Local<Value> GetALPNProtocol(const QuicSession& session) {
   QuicCryptoContext* ctx = session.crypto_context();
@@ -747,10 +524,17 @@ SSL_QUIC_METHOD quic_method = SSL_QUIC_METHOD{
 void SetHostname(const crypto::SSLPointer& ssl, const std::string& hostname) {
   // If the hostname is an IP address, use an empty string
   // as the hostname instead.
-  if (SocketAddress::is_numeric_host(hostname.c_str())) {
+    X509_VERIFY_PARAM* param = SSL_get0_param(ssl.get());
+    X509_VERIFY_PARAM_set_hostflags(param, 0);
+
+  if (UNLIKELY(SocketAddress::is_numeric_host(hostname.c_str()))) {
     SSL_set_tlsext_host_name(ssl.get(), "");
+    CHECK_EQ(X509_VERIFY_PARAM_set1_host(param, "", 0), 1);
   } else {
     SSL_set_tlsext_host_name(ssl.get(), hostname.c_str());
+    CHECK_EQ(
+      X509_VERIFY_PARAM_set1_host(param, hostname.c_str(), hostname.length()),
+      1);
   }
 }
 
