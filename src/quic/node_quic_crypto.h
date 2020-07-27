@@ -100,12 +100,6 @@ bool InvalidRetryToken(
     const uint8_t* token_secret,
     uint64_t verification_expiration);
 
-int VerifyHostnameIdentity(const crypto::SSLPointer& ssl, const char* hostname);
-int VerifyHostnameIdentity(
-    const char* hostname,
-    const std::string& cert_cn,
-    const std::unordered_multimap<std::string, std::string>& altnames);
-
 // Get the ALPN protocol identifier that was negotiated for the session
 v8::Local<v8::Value> GetALPNProtocol(const QuicSession& session);
 
