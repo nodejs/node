@@ -29,11 +29,6 @@ const vm = require('vm');
 const start = Date.now();
 let maxMem = 0;
 
-const ok = process.execArgv.some(function(arg) {
-  return arg === '--max_old_space_size=32';
-});
-assert(ok, 'Run this test with --max_old_space_size=32.');
-
 const interval = setInterval(function() {
   try {
     vm.runInNewContext('throw 1;');
