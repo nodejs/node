@@ -477,7 +477,7 @@ class QuicCryptoContext final : public MemoryRetainer {
 
   bool InitiateKeyUpdate();
 
-  int VerifyPeerIdentity(const char* hostname);
+  int VerifyPeerIdentity();
 
   QuicSession* session() const { return session_.get(); }
 

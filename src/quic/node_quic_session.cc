@@ -570,10 +570,13 @@ void JSQuicSessionListener::OnHandshakeCompleted() {
         String::NewFromUtf8(env->isolate(), hostname).ToLocalChecked();
   }
 
-  int err = ctx->VerifyPeerIdentity(
-      hostname != nullptr ?
-          hostname :
-          session()->hostname().c_str());
+  Local<Value> validationErrorReason = v8::Null(env->isolate());
+  Local<Value> validationErrorCode = v8::Null(env->isolate());
+  int err = ctx->VerifyPeerIdentity();
+  if (err != X509_V_OK) {
+    crypto::GetValidationErrorReason(env, err).ToLocal(&validationErrorReason);
+    crypto::GetValidationErrorCode(env, err).ToLocal(&validationErrorCode);
+  }
 
   Local<Value> argv[] = {
     servername,
@@ -581,8 +584,8 @@ void JSQuicSessionListener::OnHandshakeCompleted() {
     ctx->cipher_name().ToLocalChecked(),
     ctx->cipher_version().ToLocalChecked(),
     Integer::New(env->isolate(), session()->max_pktlen_),
-    crypto::GetValidationErrorReason(env, err).ToLocalChecked(),
-    crypto::GetValidationErrorCode(env, err).ToLocalChecked(),
+    validationErrorReason,
+    validationErrorCode,
     session()->crypto_context()->early_data() ?
         v8::True(env->isolate()) :
         v8::False(env->isolate())
@@ -1144,26 +1147,8 @@ bool QuicCryptoContext::InitiateKeyUpdate() {
       uv_hrtime()) == 0;
 }
 
-int QuicCryptoContext::VerifyPeerIdentity(const char* hostname) {
-  int err = crypto::VerifyPeerCertificate(ssl_);
-  if (err)
-    return err;
-
-  // QUIC clients are required to verify the peer identity, servers are not.
-  switch (side_) {
-    case NGTCP2_CRYPTO_SIDE_CLIENT:
-      if (LIKELY(is_option_set(
-              QUICCLIENTSESSION_OPTION_VERIFY_HOSTNAME_IDENTITY))) {
-        return VerifyHostnameIdentity(ssl_, hostname);
-      }
-      break;
-    case NGTCP2_CRYPTO_SIDE_SERVER:
-      // TODO(@jasnell): In the future, we may want to implement this but
-      // for now we keep things simple and skip peer identity verification.
-      break;
-  }
-
-  return 0;
+int QuicCryptoContext::VerifyPeerIdentity() {
+  return crypto::VerifyPeerCertificate(ssl_);
 }
 
 // Write outbound TLS handshake data into the ngtcp2 connection
