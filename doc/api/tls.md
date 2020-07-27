@@ -1987,6 +1987,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`Duplex`]: stream.html#stream_class_stream_duplex
 [`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
