@@ -379,6 +379,20 @@ added: v0.3.2
 
 Accepts encrypted connections using TLS or SSL.
 
+### Event: `'connection'`
+<!-- YAML
+added: v0.3.2
+-->
+
+* `socket` {stream.Duplex}
+
+This event is emitted when a new TCP stream is established, before the TLS
+handshake begins. `socket` is typically an object of type [`net.Socket`][].
+Usually users will not want to access this event.
+
+This event can also be explicitly emitted by users to inject connections
+into the TLS server. In that case, any [`Duplex`][] stream can be passed.
+
 ### Event: `'keylog'`
 <!-- YAML
 added:
@@ -1973,6 +1987,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
+[`Duplex`]: stream.html#stream_class_stream_duplex
 [`net.createServer()`]: net.html#net_net_createserver_options_connectionlistener
 [`net.Server.address()`]: net.html#net_server_address
 [`net.Server`]: net.html#net_class_net_server
