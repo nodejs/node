@@ -407,13 +407,11 @@ class QuicCryptoContext final : public MemoryRetainer {
 
   int OnClientHello();
 
-  inline void OnClientHelloDone();
+  void OnClientHelloDone(BaseObjectPtr<crypto::SecureContext> context);
 
   int OnOCSP();
 
-  void OnOCSPDone(
-      BaseObjectPtr<crypto::SecureContext> secure_context,
-      v8::Local<v8::Value> ocsp_response);
+  void OnOCSPDone(v8::Local<v8::Value> ocsp_response);
 
   bool OnSecrets(
       ngtcp2_crypto_level level,

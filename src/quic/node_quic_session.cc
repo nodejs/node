@@ -393,18 +393,27 @@ void JSQuicSessionListener::OnClientHello(
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> argv[] = {
-    Undefined(env->isolate()),
-    Undefined(env->isolate()),
-    session()->crypto_context()->hello_ciphers().ToLocalChecked()
-  };
+  Local<Array> ciphers;
+  Local<Value> alpn_string = Undefined(env->isolate());
+  Local<Value> servername = Undefined(env->isolate());
 
-  if (alpn != nullptr) {
-    argv[0] = String::NewFromUtf8(env->isolate(), alpn).ToLocalChecked();
-  }
-  if (server_name != nullptr) {
-    argv[1] = String::NewFromUtf8(env->isolate(), server_name).ToLocalChecked();
-  }
+  // TODO(@jasnell): Need to decide how to handle the possible
+  // ToLocal failures more gracefully than crashing.
+
+  CHECK(session()->crypto_context()->hello_ciphers().ToLocal(&ciphers));
+
+  if (alpn != nullptr)
+    CHECK(String::NewFromUtf8(env->isolate(), alpn).ToLocal(&alpn_string));
+
+  if (server_name != nullptr)
+    CHECK(String::NewFromUtf8(env->isolate(), server_name)
+        .ToLocal(&servername));
+
+  Local<Value> argv[] = {
+    alpn_string,
+    servername,
+    ciphers
+  };
 
   // Grab a shared pointer to this to prevent the QuicSession
   // from being freed while the MakeCallback is running.
@@ -570,12 +579,16 @@ void JSQuicSessionListener::OnHandshakeCompleted() {
         String::NewFromUtf8(env->isolate(), hostname).ToLocalChecked();
   }
 
+  // TODO(@jasnell): Find a more graceful way of handling the
+  // possible ToLocal failures more gracefully.
   Local<Value> validationErrorReason = v8::Null(env->isolate());
   Local<Value> validationErrorCode = v8::Null(env->isolate());
   int err = ctx->VerifyPeerIdentity();
   if (err != X509_V_OK) {
-    crypto::GetValidationErrorReason(env, err).ToLocal(&validationErrorReason);
-    crypto::GetValidationErrorCode(env, err).ToLocal(&validationErrorCode);
+    CHECK(crypto::GetValidationErrorReason(env, err)
+        .ToLocal(&validationErrorReason));
+    CHECK(crypto::GetValidationErrorCode(env, err)
+        .ToLocal(&validationErrorCode));
   }
 
   Local<Value> argv[] = {
@@ -973,23 +986,20 @@ int QuicCryptoContext::OnOCSP() {
   return is_in_ocsp_request() ? -1 : 1;
 }
 
-// The OnCertDone function is called by the QuicSessionOnCertDone
-// function when usercode is done handling the OCSPRequest event.
-void QuicCryptoContext::OnOCSPDone(
-    BaseObjectPtr<SecureContext> context,
-    Local<Value> ocsp_response) {
+void QuicCryptoContext::OnClientHelloDone(
+    BaseObjectPtr<SecureContext> context) {
   Debug(session(),
-        "OCSPRequest completed. Context Provided? %s, OCSP Provided? %s",
-        context ? "Yes" : "No",
-        ocsp_response->IsArrayBufferView() ? "Yes" : "No");
+        "ClientHello completed. Context Provided? %s\n",
+        context ? "Yes" : "No");
+
   // Continue the TLS handshake when this function exits
   // otherwise it will stall and fail.
   TLSHandshakeScope handshake_scope(
       this,
-      [&]() { set_in_ocsp_request(false); });
+      [&]() { set_in_client_hello(false); });
 
   // Disable the callback at this point so we don't loop continuously
-  session_->state_->ocsp_enabled = 0;
+  session_->state_->client_hello_enabled = 0;
 
   if (context) {
     int err = crypto::UseSNIContext(ssl_, context);
@@ -999,7 +1009,24 @@ void QuicCryptoContext::OnOCSPDone(
           THROW_ERR_QUIC_FAILURE_SETTING_SNI_CONTEXT(session_->env()) :
           crypto::ThrowCryptoError(session_->env(), err);
     }
+    secure_context_ = context;
   }
+}
+
+// The OnCertDone function is called by the QuicSessionOnCertDone
+// function when usercode is done handling the OCSPRequest event.
+void QuicCryptoContext::OnOCSPDone(Local<Value> ocsp_response) {
+  Debug(session(),
+        "OCSPRequest completed. Response Provided? %s",
+        ocsp_response->IsArrayBufferView() ? "Yes" : "No");
+  // Continue the TLS handshake when this function exits
+  // otherwise it will stall and fail.
+  TLSHandshakeScope handshake_scope(
+      this,
+      [&]() { set_in_ocsp_request(false); });
+
+  // Disable the callback at this point so we don't loop continuously
+  session_->state_->ocsp_enabled = 0;
 
   if (ocsp_response->IsArrayBufferView()) {
     ocsp_response_.Reset(
@@ -2698,32 +2725,22 @@ void QuicSession::InitServer(
 }
 
 namespace {
-// A pointer to this function is passed to the JavaScript side during
-// the client hello and is called by user code when the TLS handshake
-// should resume.
 void QuicSessionOnClientHelloDone(const FunctionCallbackInfo<Value>& args) {
-  QuicSession* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-  session->crypto_context()->OnClientHelloDone();
-}
-
-// This callback is invoked by user code after completing handling
-// of the 'OCSPRequest' event. The callback is invoked with two
-// possible arguments, both of which are optional
-//   1. A replacement SecureContext
-//   2. An OCSP response
-void QuicSessionOnCertDone(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   QuicSession* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-
   Local<FunctionTemplate> cons = env->secure_context_constructor_template();
   SecureContext* context = nullptr;
   if (args[0]->IsObject() && cons->HasInstance(args[0]))
     context = Unwrap<SecureContext>(args[0].As<Object>());
-  session->crypto_context()->OnOCSPDone(
-      BaseObjectPtr<SecureContext>(context),
-      args[1]);
+  session->crypto_context()->OnClientHelloDone(
+      BaseObjectPtr<SecureContext>(context));
+}
+
+void QuicSessionOnCertDone(const FunctionCallbackInfo<Value>& args) {
+  QuicSession* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  session->crypto_context()->OnOCSPDone(args[0]);
 }
 }  // namespace
 

@@ -1274,38 +1274,6 @@ The `QuicServerSession` class implements the server side of a QUIC connection.
 Instances are created internally and are emitted using the `QuicSocket`
 `'session'` event.
 
-#### Event: `'clientHello'`
-<!-- YAML
-added: REPLACEME
--->
-
-Emitted at the start of the TLS handshake when the `QuicServerSession` receives
-the initial TLS Client Hello.
-
-The event handler is given a callback function that *must* be invoked for the
-handshake to continue.
-
-The callback is invoked with four arguments:
-
-* `alpn` {string} The ALPN protocol identifier requested by the client.
-* `servername` {string} The SNI servername requested by the client.
-* `ciphers` {string[]} The list of TLS cipher algorithms requested by the
-  client.
-* `callback` {Function} A callback function that must be called in order for
-  the TLS handshake to continue.
-
-The `'clientHello'` event will not be emitted more than once.
-
-#### `quicserversession.addContext(servername\[, context\])`
-<!-- YAML
-added: REPLACEME
--->
-
-* `servername` {string} A DNS name to associate with the given context.
-* `context` {tls.SecureContext} A TLS SecureContext to associate with the `servername`.
-
-TBD
-
 ### Class: `QuicSocket`
 <!-- YAML
 added: REPLACEME
@@ -1766,6 +1734,9 @@ added: REPLACEME
     uppercased in order for OpenSSL to accept them.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
     client certificate.
+  * `clientHelloHandler` {Function} An async function that may be used to
+    set a {tls.SecureContext} for the given server name at the start of the
+    TLS handshake. See [Handling client hello][] for details.
   * `crl` {string|string[]|Buffer|Buffer[]} PEM formatted CRLs (Certificate
     Revocation Lists).
   * `defaultEncoding` {string} The default encoding that is used when no
@@ -2479,6 +2450,38 @@ async function ocspClientHandler(type, { data }) {
 sock.connect({ ocspHandler: ocspClientHandler });
 ```
 
+### Handling client hello
+
+When `quicsocket.listen()` is called, a {tls.SecureContext} is created and used
+by default for all new `QuicServerSession` instances. There are times, however,
+when the {tls.SecureContext} to be used for a `QuicSession` can only be
+determined once the client initiates a connection. This is accomplished using
+the `clientHelloHandler` option when calling `quicsocket.listen()`.
+
+The value of `clientHelloHandler` is an async function that is called at the
+start of a new `QuicServerSession`. It is invoked with three arguments:
+
+* `alpn` {string} The ALPN protocol identifier specified by the client.
+* `servername` {string} The SNI server name specified by the client.
+* `ciphers` {string[]} The array of TLS 1.3 ciphers specified by the client.
+
+The `clientHelloHandler` *may* return a new {tls.SecureContext} object that will
+be used to continue the TLS handshake. If the function returns `undefined`, the
+default {tls.SecureContext} will be used. Returning any other value will cause
+an error to be thrown that will destroy the `QuicServerSession` instance.
+
+```js
+const server = createQuicSocket();
+
+server.listen({
+  async clientHelloHandler(alpn, servername, ciphers) {
+    console.log(alpn);
+    console.log(servername);
+    console.log(ciphers);
+  }
+});
+```
+
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
 [`stream.Readable`]: #stream_class_stream_readable
 [`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
@@ -2487,6 +2490,7 @@ sock.connect({ ocspHandler: ocspClientHandler });
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [Certificate Object]: https://nodejs.org/dist/latest-v12.x/docs/api/tls.html#tls_certificate_object
 [custom DNS lookup function]: #quic_custom_dns_lookup_functions
+[Handling client hello]: #quic_handling_client_hello
 [modifying the default cipher suite]: tls.html#tls_modifying_the_default_tls_cipher_suite
 [OCSP requests]: #quic_online_certificate_status_protocol_ocsp
 [OCSP responses]: #quic_online_certificate_status_protocol_ocsp
