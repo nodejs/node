@@ -39,9 +39,12 @@ using v8::Global;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -189,6 +192,21 @@ void AsyncWrap::EmitAfter(Environment* env, double async_id) {
        env->async_hooks_after_function());
 }
 
+// TODO(addaleax): Remove once we're on C++17.
+constexpr double AsyncWrap::kInvalidAsyncId;
+
+static Maybe<double> GetAssignedPromiseAsyncId(Environment* env,
+                                               Local<Promise> promise,
+                                               Local<Value> id_symbol) {
+  Local<Value> maybe_async_id;
+  if (!promise->Get(env->context(), id_symbol).ToLocal(&maybe_async_id)) {
+    return Nothing<double>();
+  }
+  return maybe_async_id->IsNumber()
+      ? maybe_async_id->NumberValue(env->context())
+      : Just(AsyncWrap::kInvalidAsyncId);
+}
+
 class PromiseWrap : public AsyncWrap {
  public:
   PromiseWrap(Environment* env, Local<Object> object, bool silent)
@@ -231,18 +249,17 @@ PromiseWrap* PromiseWrap::New(Environment* env,
 
   // Skip for init events
   if (silent) {
-    Local<Value> maybe_async_id = promise
-        ->Get(context, env->async_id_symbol())
-        .ToLocalChecked();
+    double async_id;
+    double trigger_async_id;
+    if (!GetAssignedPromiseAsyncId(env, promise, env->async_id_symbol())
+            .To(&async_id)) return nullptr;
+    if (!GetAssignedPromiseAsyncId(env, promise, env->trigger_async_id_symbol())
+            .To(&trigger_async_id)) return nullptr;
 
-    Local<Value> maybe_trigger_async_id = promise
-        ->Get(context, env->trigger_async_id_symbol())
-        .ToLocalChecked();
-
-    if (maybe_async_id->IsNumber() && maybe_trigger_async_id->IsNumber()) {
-      double async_id = maybe_async_id.As<Number>()->Value();
-      double trigger_async_id = maybe_trigger_async_id.As<Number>()->Value();
-      return new PromiseWrap(env, obj, async_id, trigger_async_id);
+    if (async_id != AsyncWrap::kInvalidAsyncId &&
+        trigger_async_id != AsyncWrap::kInvalidAsyncId) {
+      return new PromiseWrap(
+          env, obj, async_id, trigger_async_id);
     }
   }
 
@@ -321,46 +338,35 @@ static void FastPromiseHook(PromiseHookType type, Local<Promise> promise,
 
   if (type == PromiseHookType::kBefore &&
       env->async_hooks()->fields()[AsyncHooks::kBefore] == 0) {
-    Local<Value> maybe_async_id;
-    if (!promise->Get(context, env->async_id_symbol())
-          .ToLocal(&maybe_async_id)) {
-      return;
-    }
+    double async_id;
+    double trigger_async_id;
+    if (!GetAssignedPromiseAsyncId(env, promise, env->async_id_symbol())
+            .To(&async_id)) return;
+    if (!GetAssignedPromiseAsyncId(env, promise, env->trigger_async_id_symbol())
+            .To(&trigger_async_id)) return;
 
-    Local<Value> maybe_trigger_async_id;
-    if (!promise->Get(context, env->trigger_async_id_symbol())
-          .ToLocal(&maybe_trigger_async_id)) {
-      return;
-    }
-
-    if (maybe_async_id->IsNumber() && maybe_trigger_async_id->IsNumber()) {
-      double async_id = maybe_async_id.As<Number>()->Value();
-      double trigger_async_id = maybe_trigger_async_id.As<Number>()->Value();
+    if (async_id != AsyncWrap::kInvalidAsyncId &&
+        trigger_async_id != AsyncWrap::kInvalidAsyncId) {
       env->async_hooks()->push_async_context(
           async_id, trigger_async_id, promise);
+      return;
     }
-
-    return;
   }
 
   if (type == PromiseHookType::kAfter &&
       env->async_hooks()->fields()[AsyncHooks::kAfter] == 0) {
-    Local<Value> maybe_async_id;
-    if (!promise->Get(context, env->async_id_symbol())
-          .ToLocal(&maybe_async_id)) {
-      return;
-    }
+    double async_id;
+    if (!GetAssignedPromiseAsyncId(env, promise, env->async_id_symbol())
+            .To(&async_id)) return;
 
-    if (maybe_async_id->IsNumber()) {
-      double async_id = maybe_async_id.As<Number>()->Value();
+    if (async_id != AsyncWrap::kInvalidAsyncId) {
       if (env->execution_async_id() == async_id) {
         // This condition might not be true if async_hooks was enabled during
         // the promise callback execution.
         env->async_hooks()->pop_async_context(async_id);
       }
+      return;
     }
-
-    return;
   }
 
   if (type == PromiseHookType::kResolve &&
