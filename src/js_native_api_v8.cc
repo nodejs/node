@@ -2369,6 +2369,7 @@ NAPI_EXTERN napi_status napi_type_tag_object(napi_env env,
   v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT_WITH_PREAMBLE(env, context, obj, object);
+  CHECK_ARG_WITH_PREAMBLE(env, type_tag);
 
   auto key = NAPI_PRIVATE_KEY(context, type_tag);
   auto maybe_has = obj->HasPrivate(context, key);
@@ -2398,10 +2399,11 @@ napi_check_object_type_tag(napi_env env,
                            const napi_type_tag* type_tag,
                            bool* result) {
   NAPI_PREAMBLE(env);
-  CHECK_ARG(env, result);
   v8::Local<v8::Context> context = env->context();
   v8::Local<v8::Object> obj;
   CHECK_TO_OBJECT_WITH_PREAMBLE(env, context, obj, object);
+  CHECK_ARG_WITH_PREAMBLE(env, type_tag);
+  CHECK_ARG_WITH_PREAMBLE(env, result);
 
   auto maybe_value = obj->GetPrivate(context,
                                      NAPI_PRIVATE_KEY(context, type_tag));
