@@ -50,12 +50,12 @@
 
 # http2
 
-# ./deps/nghttp2/* @nodejs/http2 @nodejs/net
-# ./doc/api/http2.md @nodejs/http2 @nodejs/net
-# ./lib/http2.js @nodejs/http2 @nodejs/net
-# ./lib/internal/http2/* @nodejs/http2 @nodejs/net
-# ./src/node_http2* @nodejs/http2 @nodejs/net
-# ./src/node_mem* @nodejs/http2
+./deps/nghttp2/* @nodejs/http2 @nodejs/net
+./doc/api/http2.md @nodejs/http2 @nodejs/net
+./lib/http2.js @nodejs/http2 @nodejs/net
+./lib/internal/http2/* @nodejs/http2 @nodejs/net
+./src/node_http2* @nodejs/http2 @nodejs/net
+./src/node_mem* @nodejs/http2
 
 # quic
 
