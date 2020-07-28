@@ -51,6 +51,10 @@ fs.symlink(linkData, linkPath, common.mustSucceed(() => {
   fs.readlink(linkPath, common.mustSucceed((destination) => {
     assert.strictEqual(destination, linkData);
   }));
+
+  tmpdir.refresh();
+  // Fixes: https://github.com/nodejs/node/issues/34514
+  fs.symlinkSync(Buffer.from(linkData), linkPath);
 }));
 
 // Test invalid symlink
