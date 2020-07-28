@@ -934,6 +934,16 @@ If `timeout` is 0, then the existing idle timeout is disabled.
 The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
 
+### `socket.timeout`
+<!-- YAML
+added: v10.7.0
+-->
+
+* {number|undefined}
+
+The socket timeout in milliseconds as set by [`socket.setTimeout()`][].
+It is `undefined` if a timeout has not been set.
+
 ### `socket.unref()`
 <!-- YAML
 added: v0.9.1
