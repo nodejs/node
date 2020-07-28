@@ -4361,12 +4361,12 @@ A type tag is a 128-bit integer unique to the addon. N-API provides the
 `napi_type_tag` structure for storing a type tag. When such a value is passed
 along with a JavaScript object stored in a `napi_value` to
 `napi_type_tag_object()`, the JavaScript object will be "marked" with the
-pointer. The "mark" is invisible on the JavaScript side. When a JavaScript
+type tag. The "mark" is invisible on the JavaScript side. When a JavaScript
 object arrives into a native binding, `napi_check_object_type_tag()` can be used
-along with the original pointer to determine whether the JavaScript object was
-previously "marked" with the pointer. This creates a type-checking capability
+along with the original type tag to determine whether the JavaScript object was
+previously "marked" with the type tag. This creates a type-checking capability
 of a higher fidelity than `napi_instanceof()` can provide, because such type-
-tagging survives prototype manipulation.
+tagging survives prototype manipulation and addon unloading/reloading.
 
 Continuing the above example, the following skeleton addon implementation
 illustrates the use of `napi_type_tag_object()` and
@@ -4623,7 +4623,7 @@ added: REPLACEME
 ```c
 napi_status napi_type_tag_object(napi_env env,
                                  napi_value js_object,
-                                 const void* type_tag);
+                                 const napi_type_tag* type_tag);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -4637,6 +4637,9 @@ Associates the value of the `type_tag` pointer with the JavaScript object.
 attached to the object with one owned by the addon to ensure that the object
 has the right type.
 
+If the object already has an associated type tag, this API will return
+`napi_invalid_arg`.
+
 ### napi_check_object_type_tag
 <!-- YAML
 added: REPLACEME
@@ -4647,7 +4650,7 @@ added: REPLACEME
 ```c
 napi_status napi_check_object_type_tag(napi_env env,
                                        napi_value js_object,
-                                       const void* type_tag,
+                                       const napi_type_tag* type_tag,
                                        bool* result);
 ```
 
