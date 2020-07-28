@@ -4638,12 +4638,12 @@ attached to the object with one owned by the addon to ensure that the object
 has the right type.
 
 ### napi_check_object_type_tag
-
-> Stability: 1 - Experimental
-
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1 - Experimental
+
 ```c
 napi_status napi_check_object_type_tag(napi_env env,
                                        napi_value js_object,
