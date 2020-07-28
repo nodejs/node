@@ -369,27 +369,6 @@ class Reference : public RefBase {
   v8impl::Persistent<v8::Value> _persistent;
 };
 
-class TypeTagReference final : public Reference {
- public:
-  explicit TypeTagReference(napi_env env,
-                            v8::Local<v8::Object> obj,
-                            const napi_type_tag* tag)
-    : Reference(env, obj, 0, true, nullptr, nullptr, nullptr), _tag(*tag) {}
-
-  static TypeTagReference* New(napi_env env,
-                               v8::Local<v8::Object> obj,
-                               const napi_type_tag* tag) {
-    return new TypeTagReference(env, obj, tag);
-  }
-
-  inline bool TagEquals(const napi_type_tag* other) {
-    return (other->lower == _tag.lower && other->upper == _tag.upper);
-  }
-
- private:
-  napi_type_tag _tag;
-};
-
 enum UnwrapAction {
   KeepWrap,
   RemoveWrap
@@ -2398,9 +2377,13 @@ NAPI_EXTERN napi_status napi_type_tag_object(napi_env env,
                                        !maybe_has.FromJust(),
                                        napi_invalid_arg);
 
-  auto ref = v8impl::TypeTagReference::New(env, obj, type_tag);
-  auto tag = v8::External::New(env->isolate, ref);
-  auto maybe_set = obj->SetPrivate(context, key, tag);
+  auto tag = v8::BigInt::NewFromWords(context,
+                                   0,
+                                   2,
+                                   reinterpret_cast<const uint64_t*>(type_tag));
+  CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, tag, napi_generic_failure);
+
+  auto maybe_set = obj->SetPrivate(context, key, tag.ToLocalChecked());
   CHECK_MAYBE_NOTHING_WITH_PREAMBLE(env, maybe_set, napi_generic_failure);
   RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(env,
                                        maybe_set.FromJust(),
@@ -2425,11 +2408,19 @@ napi_check_object_type_tag(napi_env env,
   CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, maybe_value, napi_generic_failure);
   v8::Local<v8::Value> val = maybe_value.ToLocalChecked();
 
+  // We consider the type check to have failed unless we reach the line below
+  // where we set whether the type check succeeded or not based on the
+  // comparison of the two type tags.
   *result = false;
-  if (val->IsExternal()) {
-    v8impl::TypeTagReference* ref =
-        static_cast<v8impl::TypeTagReference*>(val.As<v8::External>()->Value());
-    *result = ref->TagEquals(type_tag);
+  if (val->IsBigInt()) {
+    int sign;
+    int size = 2;
+    napi_type_tag tag;
+    val.As<v8::BigInt>()->ToWordsArray(&sign,
+                                       &size,
+                                       reinterpret_cast<uint64_t*>(&tag));
+    if (size == 2 && sign == 0)
+      *result = (tag.lower == type_tag->lower && tag.upper == type_tag->upper);
   }
 
   return GET_RETURN_STATUS(env);
