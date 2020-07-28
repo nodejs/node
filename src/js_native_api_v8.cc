@@ -385,6 +385,7 @@ class TypeTagReference final : public Reference {
   inline bool TagEquals(const napi_type_tag* other) {
     return (other->lower == _tag.lower && other->upper == _tag.upper);
   }
+
  private:
   napi_type_tag _tag;
 };
