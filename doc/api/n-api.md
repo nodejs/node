@@ -4614,12 +4614,12 @@ callback was associated with the wrapping, it will no longer be called when the
 JavaScript object becomes garbage-collected.
 
 ### napi_type_tag_object
-
-> Stability: 1 - Experimental
-
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1 - Experimental
+
 ```c
 napi_status napi_type_tag_object(napi_env env,
                                  napi_value js_object,
