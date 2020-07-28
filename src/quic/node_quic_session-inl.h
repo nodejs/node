@@ -109,17 +109,6 @@ void QuicCryptoContext::Keylog(const char* line) {
     session_->listener()->OnKeylog(line, strlen(line));
 }
 
-void QuicCryptoContext::OnClientHelloDone() {
-  // Continue the TLS handshake when this function exits
-  // otherwise it will stall and fail.
-  TLSHandshakeScope handshake_scope(
-      this,
-      [&]() { set_in_client_hello(false); });
-
-  // Disable the callback at this point so we don't loop continuously
-  session_->state_->client_hello_enabled = 0;
-}
-
 // Following a pause in the handshake for OCSP or client hello, we kickstart
 // the handshake again here by triggering ngtcp2 to serialize data.
 void QuicCryptoContext::ResumeHandshake() {

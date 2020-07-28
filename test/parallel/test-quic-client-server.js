@@ -54,30 +54,31 @@ const ocspHandler = common.mustCall(async function(type, options) {
     case 'request':
       const {
         servername,
-        context
+        certificate,
+        issuer,
       } = options;
 
       assert.strictEqual(servername, kServerName);
 
-      // This will be a SecureContext. By default it will
-      // be the SecureContext used to create the QuicSession.
-      // If the user wishes to do something with it, it can,
-      // but if it wishes to pass in a new SecureContext,
-      // it can pass it in as the second argument to the
-      // callback below.
-      assert(context);
-      debug('QuicServerSession Certificate: ', context.getCertificate());
-      debug('QuicServerSession Issuer: ', context.getIssuer());
+      debug('QuicServerSession Certificate: ', certificate);
+      debug('QuicServerSession Issuer: ', issuer);
 
       // Handshake will pause until the Promise resolves
       await setImmediatePromise();
 
-      return { data: Buffer.from('hello') };
+      return Buffer.from('hello');
     case 'response':
       const { data } = options;
       assert.strictEqual(data.toString(), 'hello');
   }
 }, 2);
+
+const clientHelloHandler = common.mustCall(
+  async (alpn, servername, ciphers) => {
+    assert.strictEqual(alpn, kALPN);
+    assert.strictEqual(servername, kServerName);
+    assert.strictEqual(ciphers.length, 4);
+  });
 
 const options = { key, cert, ca, alpn: kALPN, qlog, ocspHandler };
 
@@ -135,14 +136,6 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
       assert.strictEqual(family, endpoint.family);
       debug(`QuicServerSession Client ${family} address ${address}:${port}`);
     }
-
-    session.on('clientHello', common.mustCall(
-      (alpn, servername, ciphers, cb) => {
-        assert.strictEqual(alpn, kALPN);
-        assert.strictEqual(servername, kServerName);
-        assert.strictEqual(ciphers.length, 4);
-        cb();
-      }));
 
     session.on('secure', common.mustCall((servername, alpn, cipher) => {
       debug('QuicServerSession TLS Handshake Complete');
@@ -249,6 +242,7 @@ client.on('close', common.mustCall(onSocketClose.bind(client)));
   await server.listen({
     requestCert: true,
     rejectUnauthorized: false,
+    clientHelloHandler
   });
 
   const endpoints = server.endpoints;
