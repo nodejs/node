@@ -58,6 +58,9 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   }));
 }));
 
+// Fixes: https://github.com/nodejs/node/issues/34514
+fs.symlinkSync(Buffer.from(linkData), linkPath);
+
 // Test invalid symlink
 {
   const linkData = fixtures.path('/not/exists/file');
