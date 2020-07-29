@@ -2,8 +2,8 @@
 (Use `node --trace-warnings ...` to show where the warning was created)
 file://*/test/fixtures/es-module-loaders/syntax-error.mjs:2
 await async () => 0;
-^^^^^
+^^^^^^^^^^^^^
 
-SyntaxError: Unexpected reserved word
+SyntaxError: Malformed arrow function parameter list
     at Loader.moduleStrategy (internal/modules/esm/translators.js:*:*)
     at async link (internal/modules/esm/module_job.js:*:*)
