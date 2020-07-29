@@ -921,7 +921,7 @@ added: v10.7.0
 
 * {number}
 
-Gets the read-only socket timeout in milliseconds.
+Returns the read-only socket timeout in milliseconds.
 
 ### `socket.unref()`
 <!-- YAML
