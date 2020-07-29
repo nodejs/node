@@ -1,4 +1,4 @@
-file:///*/test/message/esm_display_syntax_error.mjs:2
+file:///*/test/message/esm_display_syntax_error.mjs:4
 await async () => 0;
 ^^^^^
 

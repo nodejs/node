@@ -1,5 +1,3 @@
-// Flags: --experimental-top-level-await
-
 import '../common/index.mjs';
 import fixtures from '../common/fixtures.js';
 import assert from 'assert';
