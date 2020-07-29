@@ -1602,13 +1602,10 @@ napi_status napi_create_bigint_words(napi_env env,
   v8::MaybeLocal<v8::BigInt> b = v8::BigInt::NewFromWords(
       context, sign_bit, word_count, words);
 
-  if (try_catch.HasCaught()) {
-    return napi_set_last_error(env, napi_pending_exception);
-  } else {
-    CHECK_MAYBE_EMPTY(env, b, napi_generic_failure);
-    *result = v8impl::JsValueFromV8LocalValue(b.ToLocalChecked());
-    return napi_clear_last_error(env);
-  }
+  CHECK_MAYBE_EMPTY_WITH_PREAMBLE(env, b, napi_generic_failure);
+
+  *result = v8impl::JsValueFromV8LocalValue(b.ToLocalChecked());
+  return GET_RETURN_STATUS(env);
 }
 
 napi_status napi_get_boolean(napi_env env, bool value, napi_value* result) {
