@@ -57,7 +57,39 @@ using v8::String;
 using v8::Undefined;
 using v8::Value;
 
+using TryCatchScope = node::errors::TryCatchScope;
+
 namespace quic {
+
+QuicCallbackScope::QuicCallbackScope(QuicSession* session)
+    : session_(session),
+      private_(new InternalCallbackScope(
+          session->env(),
+          session->object(),
+          {
+            session->get_async_id(),
+            session->get_trigger_async_id()
+          })),
+      try_catch_(session->env()->isolate()) {
+  try_catch_.SetVerbose(true);
+}
+
+QuicCallbackScope::~QuicCallbackScope() {
+  Environment* env = session_->env();
+  if (UNLIKELY(try_catch_.HasCaught())) {
+    session_->crypto_context()->set_in_client_hello(false);
+    session_->crypto_context()->set_in_ocsp_request(false);
+    if (!try_catch_.HasTerminated() && env->can_call_into_js()) {
+      session_->set_last_error({
+        QUIC_ERROR_SESSION,
+        uint64_t{NGTCP2_INTERNAL_ERROR}
+      });
+      session_->Close();
+      CHECK(session_->is_destroyed());
+    }
+    private_->MarkAsFailed();
+  }
+}
 
 typedef ssize_t(*ngtcp2_close_fn)(
   ngtcp2_conn* conn,
@@ -393,34 +425,36 @@ void JSQuicSessionListener::OnClientHello(
   HandleScope scope(env->isolate());
   Context::Scope context_scope(env->context());
 
+  // Why this instead of using MakeCallback? We need to catch any
+  // errors that happen both when preparing the arguments and
+  // invoking the callback so that we can properly signal a failure
+  // to the peer.
+  QuicCallbackScope cb_scope(session());
+
   Local<Array> ciphers;
   Local<Value> alpn_string = Undefined(env->isolate());
   Local<Value> servername = Undefined(env->isolate());
 
-  // TODO(@jasnell): Need to decide how to handle the possible
-  // ToLocal failures more gracefully than crashing.
+  if (session()->crypto_context()->hello_ciphers().ToLocal(&ciphers) &&
+      (alpn == nullptr ||
+       String::NewFromUtf8(env->isolate(), alpn).ToLocal(&alpn_string)) &&
+      (server_name == nullptr ||
+       String::NewFromUtf8(env->isolate(), server_name).ToLocal(&servername))) {
+    Local<Value> argv[] = {
+      alpn_string,
+      servername,
+      ciphers
+    };
 
-  CHECK(session()->crypto_context()->hello_ciphers().ToLocal(&ciphers));
-
-  if (alpn != nullptr)
-    CHECK(String::NewFromUtf8(env->isolate(), alpn).ToLocal(&alpn_string));
-
-  if (server_name != nullptr)
-    CHECK(String::NewFromUtf8(env->isolate(), server_name)
-        .ToLocal(&servername));
-
-  Local<Value> argv[] = {
-    alpn_string,
-    servername,
-    ciphers
-  };
-
-  // Grab a shared pointer to this to prevent the QuicSession
-  // from being freed while the MakeCallback is running.
-  BaseObjectPtr<QuicSession> ptr(session());
-  session()->MakeCallback(
-      env->quic_on_session_client_hello_function(),
-      arraysize(argv), argv);
+    // Grab a shared pointer to this to prevent the QuicSession
+    // from being freed while the MakeCallback is running.
+    BaseObjectPtr<QuicSession> ptr(session());
+    env->quic_on_session_client_hello_function()->Call(
+        env->context(),
+        session()->object(),
+        arraysize(argv),
+        argv);
+  }
 }
 
 void JSQuicSessionListener::OnCert(const char* server_name) {
@@ -428,18 +462,22 @@ void JSQuicSessionListener::OnCert(const char* server_name) {
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
 
-  Local<Value> servername = Undefined(env->isolate());
-  if (server_name != nullptr) {
-    servername = OneByteString(
-        env->isolate(),
-        server_name,
-        strlen(server_name));
-  }
+  QuicCallbackScope cb_scope(session());
 
-  // Grab a shared pointer to this to prevent the QuicSession
-  // from being freed while the MakeCallback is running.
+  Local<Value> servername = Undefined(env->isolate());
+
   BaseObjectPtr<QuicSession> ptr(session());
-  session()->MakeCallback(env->quic_on_session_cert_function(), 1, &servername);
+  if (server_name == nullptr ||
+      String::NewFromUtf8(
+          env->isolate(),
+          server_name,
+          v8::NewStringType::kNormal,
+          strlen(server_name)).ToLocal(&servername)) {
+    env->quic_on_session_cert_function()->Call(
+        env->context(),
+        session()->object(),
+        1, &servername);
+  }
 }
 
 void JSQuicSessionListener::OnStreamHeaders(
@@ -2913,11 +2951,12 @@ int QuicSession::OnReceiveCryptoData(
     return NGTCP2_ERR_CALLBACK_FAILURE;
 
   QuicSession::NgCallbackScope callback_scope(session);
-  return session->crypto_context()->Receive(
+  int ret = session->crypto_context()->Receive(
       crypto_level,
       offset,
       data,
       datalen);
+  return ret == 0 ? 0 : NGTCP2_ERR_CALLBACK_FAILURE;
 }
 
 // Called by ngtcp2 for both client and server connections

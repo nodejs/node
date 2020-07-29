@@ -1507,6 +1507,22 @@ class QuicSession final : public AsyncWrap,
   friend class JSQuicSessionListener;
 };
 
+class QuicCallbackScope {
+ public:
+  explicit QuicCallbackScope(QuicSession* session);
+  ~QuicCallbackScope();
+
+  void operator=(const QuicCallbackScope&) = delete;
+  void operator=(QuicCallbackScope&&) = delete;
+  QuicCallbackScope(const QuicCallbackScope&) = delete;
+  QuicCallbackScope(QuicCallbackScope&&) = delete;
+
+ private:
+  BaseObjectPtr<QuicSession> session_;
+  std::unique_ptr<InternalCallbackScope> private_;
+  v8::TryCatch try_catch_;
+};
+
 }  // namespace quic
 }  // namespace node
 
