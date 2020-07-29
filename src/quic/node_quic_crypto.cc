@@ -351,8 +351,14 @@ Local<Value> GetALPNProtocol(const QuicSession& session) {
 namespace {
 int CertCB(SSL* ssl, void* arg) {
   QuicSession* session = static_cast<QuicSession*>(arg);
-  return SSL_get_tlsext_status_type(ssl) == TLSEXT_STATUSTYPE_ocsp ?
-      session->crypto_context()->OnOCSP() : 1;
+  int ret;
+  switch (SSL_get_tlsext_status_type(ssl)) {
+    case TLSEXT_STATUSTYPE_ocsp:
+      ret = session->crypto_context()->OnOCSP();
+      return UNLIKELY(session->is_destroyed()) ? 0 : ret;
+    default:
+      return 1;
+  }
 }
 
 void Keylog_CB(const SSL* ssl, const char* line) {
@@ -366,6 +372,10 @@ int Client_Hello_CB(
     void* arg) {
   QuicSession* session = static_cast<QuicSession*>(SSL_get_app_data(ssl));
   int ret = session->crypto_context()->OnClientHello();
+  if (UNLIKELY(session->is_destroyed())) {
+    *tls_alert = SSL_R_SSL_HANDSHAKE_FAILURE;
+    return 0;
+  }
   switch (ret) {
     case 0:
       return 1;
