@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const child_process = require('child_process');
 const child = child_process.spawn(process.execPath, [
