@@ -79,7 +79,7 @@ if (!['arm', 'arm64'].includes(process.arch))
   expect('--interpreted-frames-native-stack', 'B\n');
 
 // Workers can't eval as ES Modules. https://github.com/nodejs/node/issues/30682
-expectNoWorker('--experimental-top-level-await --input-type=module',
+expectNoWorker('--input-type=module',
                'B\n', 'console.log(await "B")');
 
 function expectNoWorker(opt, want, command, wantsError) {
