@@ -13,7 +13,7 @@ child.stdin.write('\nimport("fs");\n_.then(gc);\n');
 setTimeout(() => {
   child.stdin.write('\nimport("fs");\n');
   child.stdin.write('\nprocess.exit(0);\n');
-}, 500);
+}, common.platformTimeout(50));
 child.on('exit', (code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
