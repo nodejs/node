@@ -161,20 +161,20 @@ assert.strictEqual(newObject.test_string, 'test string');
 
 {
   // Verify that objects can be type-tagged and type-tag-checked.
-  const obj1 = test_object.TypeTaggedInstance(1);
-  const obj2 = test_object.TypeTaggedInstance(2);
+  const obj1 = test_object.TypeTaggedInstance(0);
+  const obj2 = test_object.TypeTaggedInstance(1);
 
   // Verify that type tags are correctly accepted.
-  assert.strictEqual(test_object.CheckTypeTag(1, obj1), true);
-  assert.strictEqual(test_object.CheckTypeTag(2, obj2), true);
+  assert.strictEqual(test_object.CheckTypeTag(0, obj1), true);
+  assert.strictEqual(test_object.CheckTypeTag(1, obj2), true);
 
   // Verify that wrongly tagged objects are rejected.
-  assert.strictEqual(test_object.CheckTypeTag(1, obj2), false);
-  assert.strictEqual(test_object.CheckTypeTag(2, obj1), false);
+  assert.strictEqual(test_object.CheckTypeTag(0, obj2), false);
+  assert.strictEqual(test_object.CheckTypeTag(1, obj1), false);
 
   // Verify that untagged objects are rejected.
+  assert.strictEqual(test_object.CheckTypeTag(0, {}), false);
   assert.strictEqual(test_object.CheckTypeTag(1, {}), false);
-  assert.strictEqual(test_object.CheckTypeTag(2, {}), false);
 }
 
 {
