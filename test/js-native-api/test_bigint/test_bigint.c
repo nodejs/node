@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <js_native_api.h>
@@ -122,6 +123,22 @@ static napi_value CreateTooBigBigInt(napi_env env, napi_callback_info info) {
   return output;
 }
 
+// Test that we correctly forward exceptions from the engine.
+static napi_value MakeBigIntWordsThrow(napi_env env, napi_callback_info info) {
+  uint64_t words[10];
+  napi_value output;
+
+  napi_status status = napi_create_bigint_words(env,
+                                                0,
+                                                INT_MAX,
+                                                words,
+                                                &output);
+  if (status != napi_pending_exception)
+    napi_throw_error(env, NULL, "Expected status `napi_pending_exception`");
+
+  return NULL;
+}
+
 EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
@@ -130,6 +147,7 @@ napi_value Init(napi_env env, napi_value exports) {
     DECLARE_NAPI_PROPERTY("TestUint64", TestUint64),
     DECLARE_NAPI_PROPERTY("TestWords", TestWords),
     DECLARE_NAPI_PROPERTY("CreateTooBigBigInt", CreateTooBigBigInt),
+    DECLARE_NAPI_PROPERTY("MakeBigIntWordsThrow", MakeBigIntWordsThrow),
   };
 
   NAPI_CALL(env, napi_define_properties(
