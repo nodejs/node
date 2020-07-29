@@ -152,23 +152,22 @@ changes:
 * `value` {any} The value tested for being truthy.
 * `...message` {any} All arguments besides `value` are used as error message.
 
-A simple assertion test that verifies whether `value` is truthy. If it is not,
-or `value` is not passed,
-`Assertion failed` is logged. If provided, the error `message` is formatted
-using [`util.format()`][] by passing along all message arguments. The output is
-used as the error message.
+`console.assert()` writes a message if `value` is [falsy][] or omitted. It only
+writes a message and does not otherwise affect execution. The output always
+starts with `"Assertion failed"`. If provided, `message` is formatted using
+[`util.format()`][].
+
+If `value` is [truthy][], nothing happens.
 
 ```js
 console.assert(true, 'does nothing');
-// OK
+
 console.assert(false, 'Whoops %s work', 'didn\'t');
 // Assertion failed: Whoops didn't work
+
 console.assert();
 // Assertion failed
 ```
-
-Calling `console.assert()` with a falsy assertion will only cause the `message`
-to be printed to the console without interrupting execution of subsequent code.
 
 ### `console.clear()`
 <!-- YAML
@@ -562,5 +561,7 @@ This method does not display anything unless used in the inspector. The
 [`util.format()`]: util.html#util_util_format_format_args
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[falsy]: https://developer.mozilla.org/en-US/docs/Glossary/Falsy
 [inspector]: debugger.html
 [note on process I/O]: process.html#process_a_note_on_process_i_o
+[truthy]: https://developer.mozilla.org/en-US/docs/Glossary/Truthy
