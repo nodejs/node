@@ -2423,6 +2423,12 @@ allowed for longer process title strings by also overwriting the `environ`
 memory but that was potentially insecure and confusing in some (rather obscure)
 cases.
 
+Assigning a value to `process.title` _may_ not reflect an accurate
+(or any) label within the process manager application of the underlying
+operating system (i.e. macOS Activity Monitor, Windows Services Manager, etc).
+Inconsistencies and breaking changes within the _operating systems process
+interface_ make synchronization with these applications unreliable.
+
 ## `process.traceDeprecation`
 <!-- YAML
 added: v0.8.0
