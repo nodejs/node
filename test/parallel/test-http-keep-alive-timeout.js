@@ -21,7 +21,7 @@ server.listen(0, common.mustCall(function() {
   }, common.mustCall((response) => {
     response.resume();
     assert.strictEqual(
-      response.headers['keep-alive'], 'timeout=11.5');
+      response.headers['keep-alive'], 'timeout=12');
     server.close();
     agent.destroy();
   }));
