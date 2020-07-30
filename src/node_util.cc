@@ -21,7 +21,6 @@ using v8::Integer;
 using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::ONLY_CONFIGURABLE;
 using v8::ONLY_ENUMERABLE;
