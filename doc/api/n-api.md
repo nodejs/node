@@ -251,13 +251,11 @@ listed as supporting a later version.
 | v13.x | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0  | v13.0.0   |           |
 | v14.x | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0  | v14.0.0   | v14.0.0   |
 
-\* Indicates that the N-API version was released as experimental
+\* N-API was experimental.
 
-\*\* First version which matches version 1 in later releases. While v8.0.0
-included N-API as experimental, version 1 continued to evolve until
-v8.6.0 and therefore the shape of the API in earlier versions is not
-truly version 1 (in hindsight we should have called it version 0).
-We recommend version 3 or later.
+\*\* Node.js 8.0.0 included N-API as experimental. It was released as N-API
+version 1 but continued to evolve until Node.js 8.6.0. The API is different in
+versions prior to Node.js 8.6.0. We recommend N-API version 3 or later.
 
 The N-APIs associated strictly with accessing ECMAScript features from native
 code can be found separately in `js_native_api.h` and `js_native_api_types.h`.
