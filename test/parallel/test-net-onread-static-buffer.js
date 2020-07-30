@@ -190,6 +190,7 @@ net.createServer({ pauseOnConnect: true }, common.mustCall(function(socket) {
   this.close();
   socket.write(Buffer.from([ 1 ]));
   setTimeout(() => socket.destroy(), 100);
+  setTimeout(() => socket.end(), 150);
 })).listen(0, function() {
   const client = net.connect({
     port: this.address().port,
