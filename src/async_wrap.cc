@@ -862,8 +862,9 @@ void AsyncWrap::EmitDestroy(Environment* env, double async_id) {
   if (env->destroy_async_id_list()->size() == 16384) {
     env->RequestInterrupt([](Environment* env) {
       env->isolate()->EnqueueMicrotask(
-        reinterpret_cast<v8::MicrotaskCallback>(DestroyAsyncIdsCallback),
-        env);
+        [](void* arg) {
+          DestroyAsyncIdsCallback(static_cast<Environment*>(arg));
+        }, env);
       });
   }
 
