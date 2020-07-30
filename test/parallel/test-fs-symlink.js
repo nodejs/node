@@ -58,7 +58,7 @@ fs.symlink(linkData, linkPath, common.mustCall(function(err) {
   }));
 
   tmpdir.refresh();
-  // Fixes: https://github.com/nodejs/node/issues/34514
+  // Refs: https://github.com/nodejs/node/issues/34514
   fs.symlinkSync(Buffer.from(linkData), linkPath);
 }));
 
