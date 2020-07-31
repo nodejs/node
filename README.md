@@ -184,7 +184,7 @@ For information about the governance of the Node.js project, see
 * [mhdawson](https://github.com/mhdawson) -
 **Michael Dawson** &lt;michael_dawson@ca.ibm.com&gt; (he/him)
 * [mmarchini](https://github.com/mmarchini) -
-**Mary Marchini** &lt;oss@mmarchini.me&gt;
+**Mary Marchini** &lt;oss@mmarchini.me&gt; (she/her)
 * [MylesBorins](https://github.com/MylesBorins) -
 **Myles Borins** &lt;myles.borins@gmail.com&gt; (he/him)
 * [targos](https://github.com/targos) -
@@ -360,7 +360,7 @@ For information about the governance of the Node.js project, see
 * [misterdjules](https://github.com/misterdjules) -
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mmarchini](https://github.com/mmarchini) -
-**Mary Marchini** &lt;oss@mmarchini.me&gt;
+**Mary Marchini** &lt;oss@mmarchini.me&gt; (she/her)
 * [mscdex](https://github.com/mscdex) -
 **Brian White** &lt;mscdex@mscdex.net&gt;
 * [MylesBorins](https://github.com/MylesBorins) -
