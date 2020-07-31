@@ -622,6 +622,10 @@ if (isMainThread) {
 added: v10.5.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34584
+    description: The `filename` parameter can be a WHATWG `URL` object using
+                 `data:` protocol.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/34394
     description: The `trackUnmanagedFds` option was set to `true` by default.
   - version:
@@ -654,7 +658,9 @@ changes:
 * `filename` {string|URL} The path to the Worker’s main script or module. Must
   be either an absolute path or a relative path (i.e. relative to the
   current working directory) starting with `./` or `../`, or a WHATWG `URL`
-  object using `file:` protocol.
+  object using `file:` or `data:` protocol.
+  When using a [`data:` URL][], the data is interpreted based on MIME type using
+  the [ECMAScript module loader][].
   If `options.eval` is `true`, this is a string containing JavaScript code
   rather than a path.
 * `options` {Object}
@@ -902,6 +908,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`AsyncResource`]: async_hooks.html#async_hooks_class_asyncresource
 [`Buffer`]: buffer.html
 [`Buffer.allocUnsafe()`]: buffer.html#buffer_static_method_buffer_allocunsafe_size
+[ECMAScript module loader]: esm.html#esm_data_imports
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.html#errors_err_missing_message_port_in_transfer_list
 [`ERR_WORKER_NOT_RUNNING`]: errors.html#ERR_WORKER_NOT_RUNNING
 [`EventEmitter`]: events.html
@@ -953,3 +960,4 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [child processes]: child_process.html
 [contextified]: vm.html#vm_what_does_it_mean_to_contextify_an_object
 [v8.serdes]: v8.html#v8_serialization_api
+[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
