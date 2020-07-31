@@ -265,6 +265,7 @@ class Parser : public AsyncWrap, public StreamListener {
 #ifdef NODE_EXPERIMENTAL_HTTP
     header_nread_ = 0;
 #endif  /* NODE_EXPERIMENTAL_HTTP */
+    header_parsing_start_time_ = 0;
 
     // Arguments for the on-headers-complete javascript callback. This
     // list needs to be kept in sync with the actual argument list for
