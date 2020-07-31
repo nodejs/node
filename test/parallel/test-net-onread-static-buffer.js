@@ -184,24 +184,3 @@ net.createServer(common.mustCall(function(socket) {
     assert.deepStrictEqual(Buffer.concat(buffers), message);
   }));
 });
-
-// Test doesn't crash on ECONNRESET
-net.createServer({ pauseOnConnect: true }, common.mustCall(function(socket) {
-  this.close();
-  socket.write(Buffer.from([ 1 ]));
-  setTimeout(() => socket.destroy(), 100);
-  setTimeout(() => socket.end(), 150);
-})).listen(0, function() {
-  const client = net.connect({
-    port: this.address().port,
-    host: this.address().address,
-    onread: {
-      buffer: Buffer.alloc(1),
-      callback: (n, data) => undefined,
-    },
-  });
-  client.write(Buffer.from([ 2 ]));
-  client.on('error', (error) => {
-    // fine. we just care that it didn't crash.
-  });
-});
