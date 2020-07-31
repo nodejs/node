@@ -6,7 +6,6 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
-using v8::Object;
 using v8::Value;
 
 // Give these things names in the public namespace so that we can see

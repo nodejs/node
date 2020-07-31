@@ -14,8 +14,8 @@ namespace node {
 namespace inspector {
 namespace {
 
-using v8_inspector::StringView;
 using v8_inspector::StringBuffer;
+using v8_inspector::StringView;
 
 template <typename T>
 class DeletableWrapper : public Deletable {
