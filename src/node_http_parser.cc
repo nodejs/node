@@ -280,6 +280,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
   int on_headers_complete() {
     header_nread_ = 0;
+    header_parsing_start_time_ = 0;
 
     // Arguments for the on-headers-complete javascript callback. This
     // list needs to be kept in sync with the actual argument list for
@@ -296,8 +297,6 @@ class Parser : public AsyncWrap, public StreamListener {
       A_SHOULD_KEEP_ALIVE,
       A_MAX
     };
-
-    header_parsing_start_time_ = 0;
 
     Local<Value> argv[A_MAX];
     Local<Object> obj = object();
