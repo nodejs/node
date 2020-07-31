@@ -518,6 +518,38 @@ napi_status napi_remove_env_cleanup_hook(napi_env env,
   return napi_ok;
 }
 
+struct napi_async_cleanup_hook_handle__ {
+  node::AsyncCleanupHookHandle handle;
+};
+
+napi_status napi_add_async_cleanup_hook(
+    napi_env env,
+    void (*fun)(void* arg, void(* cb)(void*), void* cbarg),
+    void* arg,
+    napi_async_cleanup_hook_handle* remove_handle) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, fun);
+
+  auto handle = node::AddEnvironmentCleanupHook(env->isolate, fun, arg);
+  if (remove_handle != nullptr) {
+    *remove_handle = new napi_async_cleanup_hook_handle__ { std::move(handle) };
+  }
+
+  return napi_clear_last_error(env);
+}
+
+napi_status napi_remove_async_cleanup_hook(
+    napi_env env,
+    napi_async_cleanup_hook_handle remove_handle) {
+  CHECK_ENV(env);
+  CHECK_ARG(env, remove_handle);
+
+  node::RemoveEnvironmentCleanupHook(std::move(remove_handle->handle));
+  delete remove_handle;
+
+  return napi_clear_last_error(env);
+}
+
 napi_status napi_fatal_exception(napi_env env, napi_value err) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, err);
