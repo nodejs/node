@@ -28,6 +28,7 @@ const ondone = common.mustCall((err) => {
     assert.strictEqual(
       fs.readFileSync(filename, 'utf8'),
       'x'.repeat(writes * size));
+    fs.closeSync(fd);
   }
 }, writes);
 
