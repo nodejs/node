@@ -235,7 +235,7 @@ NODE_MODULE_INIT(/* exports, module, context */) {
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/????
+    pr-url: https://github.com/nodejs/node/pull/34572
     description: Cleanup hooks may now be asynchronous.
 -->
 
