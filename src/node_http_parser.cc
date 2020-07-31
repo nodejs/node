@@ -297,6 +297,8 @@ class Parser : public AsyncWrap, public StreamListener {
       A_MAX
     };
 
+    header_parsing_start_time_ = 0;
+
     Local<Value> argv[A_MAX];
     Local<Object> obj = object();
     Local<Value> cb = obj->Get(env()->context(),
