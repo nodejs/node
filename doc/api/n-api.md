@@ -3168,7 +3168,12 @@ Returns `napi_ok` if the API succeeded.
 
 This API represents behavior similar to invoking the `typeof` Operator on
 the object as defined in [Section 12.5.5][] of the ECMAScript Language
-Specification. However, it has support for detecting an External value.
+Specification. However, there are some differences:
+
+1. It has support for detecting an External value.
+2. It detects `null` as a separate type, while ECMAScript `typeof` would detect
+   `object`.
+
 If `value` has a type that is invalid, an error is returned.
 
 ### napi_instanceof
