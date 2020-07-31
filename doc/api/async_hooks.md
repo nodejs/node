@@ -729,6 +729,32 @@ class DBQuery extends AsyncResource {
 }
 ```
 
+#### `static AsyncResource.bind(fn[, type])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to bind to the current execution context.
+* `type` {string} An optional name to associate with the underlying
+  `AsyncResource`.
+
+Binds the given function to the current execution context.
+
+The returned function will have an `asyncResource` property referencing
+the `AsyncResource` to which the function is bound.
+
+#### `asyncResource.bind(fn)`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function} The function to bind to the current `AsyncResource`.
+
+Binds the given function to execute to this `AsyncResource`'s scope.
+
+The returned function will have an `asyncResource` property referencing
+the `AsyncResource` to which the function is bound.
+
 #### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 <!-- YAML
 added: v9.6.0
@@ -900,12 +926,12 @@ const { createServer } = require('http');
 const { AsyncResource, executionAsyncId } = require('async_hooks');
 
 const server = createServer((req, res) => {
-  const asyncResource = new AsyncResource('request');
-  // The listener will always run in the execution context of `asyncResource`.
-  req.on('close', asyncResource.runInAsyncScope.bind(asyncResource, () => {
-    // Prints: true
-    console.log(asyncResource.asyncId() === executionAsyncId());
+  req.on('close', AsyncResource.bind(() => {
+    // Execution context is bound to the current outer scope.
   }));
+  req.on('close', () => {
+    // Execution context is bound to the scope that caused 'close' to emit.
+  });
   res.end();
 }).listen(3000);
 ```
