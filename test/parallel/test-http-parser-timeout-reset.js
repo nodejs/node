@@ -2,7 +2,7 @@
 const common = require('../common');
 
 const net = require('net');
-const { HTTPParser } = process.binding('http_parser'); // eslint-disable-line
+const { HTTPParser } = process.binding('http_parser');
 
 const server = net.createServer((socket) => {
   socket.write('HTTP/1.1 200 OK\r\n');
