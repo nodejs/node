@@ -250,6 +250,20 @@ napi_ref_threadsafe_function(napi_env env, napi_threadsafe_function func);
 
 #endif  // NAPI_VERSION >= 4
 
+#ifdef NAPI_EXPERIMENTAL
+
+NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
+    napi_env env,
+    void (*fun)(void* arg, void(* cb)(void*), void* cbarg),
+    void* arg,
+    napi_async_cleanup_hook_handle* remove_handle);
+
+NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
+    napi_env env,
+    napi_async_cleanup_hook_handle remove_handle);
+
+#endif  // NAPI_EXPERIMENTAL
+
 EXTERN_C_END
 
 #endif  // SRC_NODE_API_H_

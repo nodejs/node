@@ -41,4 +41,8 @@ typedef struct {
   const char* release;
 } napi_node_version;
 
+#ifdef NAPI_EXPERIMENTAL
+typedef struct napi_async_cleanup_hook_handle__* napi_async_cleanup_hook_handle;
+#endif  // NAPI_EXPERIMENTAL
+
 #endif  // SRC_NODE_API_TYPES_H_

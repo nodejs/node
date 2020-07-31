@@ -1550,9 +1550,11 @@ and will lead the process to abort.
 The hooks will be called in reverse order, i.e. the most recently added one
 will be called first.
 
-Removing this hook can be done by using `napi_remove_env_cleanup_hook`.
+Removing this hook can be done by using [`napi_remove_env_cleanup_hook`][].
 Typically, that happens when the resource for which this hook was added
 is being torn down anyway.
+
+For asynchronous cleanup, [`napi_add_async_cleanup_hook`][] is available.
 
 #### napi_remove_env_cleanup_hook
 <!-- YAML
@@ -1572,6 +1574,52 @@ need to be exact matches.
 
 The function must have originally been registered
 with `napi_add_env_cleanup_hook`, otherwise the process will abort.
+
+#### napi_add_async_cleanup_hook
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
+    napi_env env,
+    void (*fun)(void* arg, void(* cb)(void*), void* cbarg),
+    void* arg,
+    napi_async_cleanup_hook_handle* remove_handle);
+```
+
+Registers `fun` as a function to be run with the `arg` parameter once the
+current Node.js environment exits. Unlike [`napi_add_env_cleanup_hook`][],
+the hook is allowed to be asynchronous in this case, and must invoke the passed
+`cb()` function with `cbarg` once all asynchronous activity is finished.
+
+Otherwise, behavior generally matches that of [`napi_add_env_cleanup_hook`][].
+
+If `remove_handle` is not `NULL`, an opaque value will be stored in it
+that must later be passed to [`napi_remove_async_cleanup_hook`][],
+regardless of whether the hook has already been invoked.
+Typically, that happens when the resource for which this hook was added
+is being torn down anyway.
+
+#### napi_remove_async_cleanup_hook
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+NAPI_EXTERN napi_status napi_remove_async_cleanup_hook(
+    napi_env env,
+    napi_async_cleanup_hook_handle remove_handle);
+```
+
+Unregisters the cleanup hook corresponding to `remove_handle`. This will prevent
+the hook from being executed, unless it has already started executing.
+This must be called on any `napi_async_cleanup_hook_handle` value retrieved
+from [`napi_add_async_cleanup_hook`][].
 
 ## Module registration
 N-API modules are registered in a manner similar to other modules
@@ -5710,6 +5758,7 @@ This API may only be called from the main thread.
 [`Worker`]: worker_threads.html#worker_threads_class_worker
 [`global`]: globals.html#globals_global
 [`init` hooks]: async_hooks.html#async_hooks_init_asyncid_type_triggerasyncid_resource
+[`napi_add_async_cleanup_hook`]: #n_api_napi_add_async_cleanup_hook
 [`napi_add_env_cleanup_hook`]: #n_api_napi_add_env_cleanup_hook
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
 [`napi_async_complete_callback`]: #n_api_napi_async_complete_callback
@@ -5750,6 +5799,8 @@ This API may only be called from the main thread.
 [`napi_queue_async_work`]: #n_api_napi_queue_async_work
 [`napi_reference_ref`]: #n_api_napi_reference_ref
 [`napi_reference_unref`]: #n_api_napi_reference_unref
+[`napi_remove_async_cleanup_hook`]: #n_api_napi_remove_async_cleanup_hook
+[`napi_remove_env_cleanup_hook`]: #n_api_napi_remove_env_cleanup_hook
 [`napi_set_instance_data`]: #n_api_napi_set_instance_data
 [`napi_set_property`]: #n_api_napi_set_property
 [`napi_threadsafe_function_call_js`]: #n_api_napi_threadsafe_function_call_js
