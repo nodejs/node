@@ -41,5 +41,5 @@ def is_valid(file_name):
     return valid
 
 if __name__ == '__main__':
-  files = glob.iglob(sys.argv[1] if len(sys.argv) > 1 else 'src/*.cc')
+  files = sys.argv[1:] if len(sys.argv) > 1 else glob.iglob('src/*.cc')
   sys.exit(0 if all(map(is_valid, files)) else 1)
