@@ -5,8 +5,8 @@
 
 #include "gtest/gtest.h"
 
-using node::base64_encode;
 using node::base64_decode;
+using node::base64_encode;
 
 TEST(Base64Test, Encode) {
   auto test = [](const char* string, const char* base64_string) {

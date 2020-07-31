@@ -5,12 +5,9 @@
 namespace {
 
 using v8::Context;
-using v8::Function;
-using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Object;
 using v8::Script;
 using v8::String;
