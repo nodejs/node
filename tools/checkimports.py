@@ -5,7 +5,7 @@ import glob
 import io
 import re
 import sys
-
+import itertools
 
 def do_exist(file_name, lines, imported):
   if not any(not re.match('using \w+::{0};'.format(imported), line) and
@@ -41,5 +41,10 @@ def is_valid(file_name):
     return valid
 
 if __name__ == '__main__':
-  files = glob.iglob(sys.argv[1] if len(sys.argv) > 1 else 'src/*.cc')
-  sys.exit(0 if all(map(is_valid, files)) else 1)
+  if len(sys.argv) > 1:
+    files = []
+    for pattern in sys.argv[1:]:
+      files = itertools.chain(files, glob.iglob(pattern))
+  else:
+    files = glob.iglob('src/*.cc')
+  sys.exit(0 if all(list(map(is_valid, files))) else 1)
