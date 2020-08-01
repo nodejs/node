@@ -535,7 +535,7 @@ napi_status napi_add_async_cleanup_hook(
     *remove_handle = new napi_async_cleanup_hook_handle__ { std::move(handle) };
   }
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_remove_async_cleanup_hook(
@@ -547,7 +547,7 @@ napi_status napi_remove_async_cleanup_hook(
   node::RemoveEnvironmentCleanupHook(std::move(remove_handle->handle));
   delete remove_handle;
 
-  return napi_ok;
+  return napi_clear_last_error(env);
 }
 
 napi_status napi_fatal_exception(napi_env env, napi_value err) {
