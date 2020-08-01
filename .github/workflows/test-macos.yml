@@ -27,4 +27,4 @@ jobs:
       - name: Build
         run: make build-ci -j8 V=1 CONFIG_FLAGS="--error-on-warn --experimental-quic"
       - name: Test
-        run: make run-ci -j8 V=1 TEST_CI_ARGS="-p dots"
+        run: make run-ci -j8 V=1 TEST_CI_ARGS="-p actions"
