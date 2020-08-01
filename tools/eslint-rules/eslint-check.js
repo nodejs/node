@@ -58,3 +58,7 @@ module.exports = function(context) {
     'Program:exit': () => reportIfMissing(context)
   };
 };
+
+module.exports.meta = {
+  fixable: 'code'
+};
