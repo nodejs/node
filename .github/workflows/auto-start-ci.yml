@@ -2,7 +2,6 @@
 name: Auto Start CI
 
 on:
-  push:
   schedule:
     # `schedule` event is used instead of `pull_request` because when a
     # `pull_requesst` event is triggered on a PR from a fork, GITHUB_TOKEN will
