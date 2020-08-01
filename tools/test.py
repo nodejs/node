@@ -116,6 +116,25 @@ class ProgressIndicator(object):
     self.lock = threading.Lock()
     self.shutdown_event = threading.Event()
 
+  def GetFailureOutput(self, failure):
+    output = []
+    if failure.output.stderr:
+      output += ["--- stderr ---" ]
+      output += [failure.output.stderr.strip()]
+    if failure.output.stdout:
+      output += ["--- stdout ---"]
+      output += [failure.output.stdout.strip()]
+    output += ["Command: %s" % EscapeCommand(failure.command)]
+    if failure.HasCrashed():
+      output += ["--- %s ---" % PrintCrashed(failure.output.exit_code)]
+    if failure.HasTimedOut():
+      output += ["--- TIMEOUT ---"]
+    output = "\n".join(output)
+    return output
+
+  def PrintFailureOutput(self, failure):
+    print(self.GetFailureOutput(failure))
+
   def PrintFailureHeader(self, test):
     if test.IsNegative():
       negative_marker = '[negative] '
@@ -224,17 +243,7 @@ class SimpleProgressIndicator(ProgressIndicator):
     print()
     for failed in self.failed:
       self.PrintFailureHeader(failed.test)
-      if failed.output.stderr:
-        print("--- stderr ---")
-        print(failed.output.stderr.strip())
-      if failed.output.stdout:
-        print("--- stdout ---")
-        print(failed.output.stdout.strip())
-      print("Command: %s" % EscapeCommand(failed.command))
-      if failed.HasCrashed():
-        print("--- %s ---" % PrintCrashed(failed.output.exit_code))
-      if failed.HasTimedOut():
-        print("--- TIMEOUT ---")
+      self.PrintFailureOutput(failed)
     if len(self.failed) == 0:
       print("===")
       print("=== All tests succeeded")
@@ -288,6 +297,21 @@ class DotsProgressIndicator(SimpleProgressIndicator):
       sys.stdout.write('.')
       sys.stdout.flush()
 
+class ActionsAnnotationProgressIndicator(DotsProgressIndicator):
+  def GetAnnotationInfo(self, test, output):
+    traceback = output.stdout + output.stderr
+    find_full_path = re.search(r' +at .*\(.*%s:([0-9]+):([0-9]+)' % test.file, traceback)
+    col = line = 0
+    if find_full_path:
+        line, col = map(int, find_full_path.groups())
+    root_path = abspath(join(dirname(__file__), '../')) + os.sep
+    filename = test.file.replace(root_path, "")
+    return filename, line, col
+
+  def PrintFailureOutput(self, failure):
+    output = self.GetFailureOutput(failure)
+    filename, line, column = self.GetAnnotationInfo(failure.test, failure.output)
+    print("::error file=%s,line=%d,col=%d::%s" % (filename, line, column, output.replace('\n', '%0A')))
 
 class TapProgressIndicator(SimpleProgressIndicator):
 
@@ -496,6 +520,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 PROGRESS_INDICATORS = {
   'verbose': VerboseProgressIndicator,
   'dots': DotsProgressIndicator,
+  'actions': ActionsAnnotationProgressIndicator,
   'color': ColorProgressIndicator,
   'tap': TapProgressIndicator,
   'mono': MonochromeProgressIndicator,
@@ -1299,7 +1324,7 @@ def BuildOptions():
   result.add_option('--logfile', dest='logfile',
       help='write test output to file. NOTE: this only applies the tap progress indicator')
   result.add_option("-p", "--progress",
-      help="The style of progress indicator (verbose, dots, color, mono, tap)",
+      help="The style of progress indicator (%s)" % ", ".join(PROGRESS_INDICATORS.keys()),
       choices=list(PROGRESS_INDICATORS.keys()), default="mono")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
