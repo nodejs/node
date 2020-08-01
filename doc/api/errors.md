@@ -2271,6 +2271,17 @@ malconfigured clients, if more than 8KB of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
+<a id="HPE_UNEXPECTED_CONTENT_LENGTH"></a>
+### `HPE_UNEXPECTED_CONTENT_LENGTH`
+
+Server is sending both a `Content-Length` header and `Transfer-Encoding: chunked`.
+
+`Transfer-Encoding: chunked` allows the server to maintain an HTTP persistent
+connection for dynamically generated content.
+In this case, the `Content-Length` HTTP header cannot be used.
+
+Use `Content-Length` or `Transfer-Encoding: chunked`.
+
 <a id="MODULE_NOT_FOUND"></a>
 ### `MODULE_NOT_FOUND`
 <!-- YAML
