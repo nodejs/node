@@ -42,3 +42,7 @@ module.exports = function(context) {
     }
   };
 };
+
+module.exports.meta = {
+  fixable: 'code'
+};
