@@ -2398,8 +2398,8 @@ flag's behavior.
 added: v0.1.19
 changes:
   - version:
-    - v14.0.0
     - REPLACEME
+    - v14.0.0
     pr-url: https://github.com/nodejs/node/pull/32499
     description: Calling `process.umask()` with no arguments is deprecated.
 
