@@ -12,6 +12,9 @@ const message =
   '(e.g. with `.then(common.mustCall())`)';
 
 module.exports = {
+  meta: {
+    fixable: 'code'
+  },
   create: function(context) {
     let hasCommonModule = false;
     return {
