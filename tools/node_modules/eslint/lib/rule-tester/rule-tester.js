@@ -861,6 +861,16 @@ class RuleTester {
                 );
             }
 
+            // Rules that produce fixes must have `meta.fixable` property.
+            if (result.output !== item.code) {
+                assert.ok(
+                    hasOwnProperty(rule, "meta"),
+                    "Fixable rules should export a `meta.fixable` property."
+                );
+
+                // Linter throws if a rule that produced a fix has `meta` but doesn't have `meta.fixable`.
+            }
+
             assertASTDidntChange(result.beforeAST, result.afterAST);
         }
 
