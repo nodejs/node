@@ -42,8 +42,8 @@ module.exports = function(results) {
 
         messages.forEach(message => {
             output += [
-                `<error line="${xmlEscape(message.line)}"`,
-                `column="${xmlEscape(message.column)}"`,
+                `<error line="${xmlEscape(message.line || 0)}"`,
+                `column="${xmlEscape(message.column || 0)}"`,
                 `severity="${xmlEscape(getMessageType(message))}"`,
                 `message="${xmlEscape(message.message)}${message.ruleId ? ` (${message.ruleId})` : ""}"`,
                 `source="${message.ruleId ? xmlEscape(`eslint.rules.${message.ruleId}`) : ""}" />`

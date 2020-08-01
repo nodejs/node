@@ -7,6 +7,12 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const astUtils = require("./utils/ast-utils");
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -31,18 +37,31 @@ module.exports = {
     create(context) {
         const sourceCode = context.getSourceCode();
 
+        /**
+         * Determines whether the two given nodes are considered to be equal.
+         * @param {ASTNode} a First node.
+         * @param {ASTNode} b Second node.
+         * @returns {boolean} `true` if the nodes are considered to be equal.
+         */
+        function equal(a, b) {
+            if (a.type !== b.type) {
+                return false;
+            }
+
+            return astUtils.equalTokens(a, b, sourceCode);
+        }
         return {
             SwitchStatement(node) {
-                const previousKeys = new Set();
+                const previousTests = [];
 
                 for (const switchCase of node.cases) {
                     if (switchCase.test) {
-                        const key = sourceCode.getText(switchCase.test);
+                        const test = switchCase.test;
 
-                        if (previousKeys.has(key)) {
+                        if (previousTests.some(previousTest => equal(previousTest, test))) {
                             context.report({ node: switchCase, messageId: "unexpected" });
                         } else {
-                            previousKeys.add(key);
+                            previousTests.push(test);
                         }
                     }
                 }
