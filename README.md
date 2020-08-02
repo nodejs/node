@@ -283,6 +283,8 @@ For information about the governance of the Node.js project, see
 **Danielle Adams** &lt;adamzdanielle@gmail.com&gt; (she/her)
 * [davisjam](https://github.com/davisjam) -
 **Jamie Davis** &lt;davisjam@vt.edu&gt; (he/him)
+* [DerekNonGeneric](https://github.com/DerekNonGeneric) -
+**Derek Lewis** &lt;DerekNonGeneric@inf.is&gt; (he/him)
 * [devnexen](https://github.com/devnexen) -
 **David Carlier** &lt;devnexen@gmail.com&gt;
 * [devsnek](https://github.com/devsnek) -
