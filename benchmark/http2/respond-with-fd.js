@@ -11,7 +11,7 @@ const bench = common.createBenchmark(main, {
   streams: [1, 10, 20, 40, 100, 200],
   clients: [2],
   benchmarker: ['test-double-http2'],
-  duration: 5
+  duration: 2
 }, { flags: ['--no-warnings'] });
 
 function main({ requests, streams, clients, duration }) {
