@@ -2800,6 +2800,46 @@ threadpool request. To minimize threadpool task length variation, partition
 large `randomFill` requests when doing so as part of fulfilling a client
 request.
 
+### `crypto.randomInt([min, ]max[, callback])`
+<!-- YAML
+added:
+  - v14.8.0
+-->
+
+* `min` {integer} Start of random range. **Default**: `0`.
+* `max` {integer} End of random range (non-inclusive).
+* `callback` {Function} `function(err, n) {}`.
+
+Return a random integer `n` such that `min <= n < max`.  This
+implementation avoids [modulo
+bias](https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#Modulo_bias).
+
+The maximum supported range value (`max - min`) is `2^48 - 1`.
+
+If the `callback` function is not provided, the random integer is generated
+synchronously.
+
+```js
+// Asynchronous
+crypto.randomInt(3, (err, n) => {
+  if (err) throw err;
+  console.log(`Random number chosen from (0, 1, 2): ${n}`);
+});
+```
+
+```js
+// Synchronous
+const n = crypto.randomInt(3);
+console.log(`Random number chosen from (0, 1, 2): ${n}`);
+```
+
+```js
+crypto.randomInt(1, 7, (err, n) => {
+  if (err) throw err;
+  console.log(`The dice rolled: ${n}`);
+});
+```
+
 ### `crypto.scrypt(password, salt, keylen[, options], callback)`
 <!-- YAML
 added: v10.5.0

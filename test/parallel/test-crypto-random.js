@@ -315,3 +315,147 @@ assert.throws(
   assert.strictEqual(desc.writable, true);
   assert.strictEqual(desc.enumerable, false);
 });
+
+
+{
+  const randomInts = [];
+  for (let i = 0; i < 100; i++) {
+    crypto.randomInt(1, 4, common.mustCall((err, n) => {
+      assert.ifError(err);
+      assert.ok(n >= 1);
+      assert.ok(n < 4);
+      randomInts.push(n);
+      if (randomInts.length === 100) {
+        assert.ok(!randomInts.includes(0));
+        assert.ok(randomInts.includes(1));
+        assert.ok(randomInts.includes(2));
+        assert.ok(randomInts.includes(3));
+        assert.ok(!randomInts.includes(4));
+      }
+    }));
+  }
+}
+{
+  const randomInts = [];
+  for (let i = 0; i < 100; i++) {
+    crypto.randomInt(-10, -7, common.mustCall((err, n) => {
+      assert.ifError(err);
+      assert.ok(n >= -10);
+      assert.ok(n < -7);
+      randomInts.push(n);
+      if (randomInts.length === 100) {
+        assert.ok(!randomInts.includes(-11));
+        assert.ok(randomInts.includes(-10));
+        assert.ok(randomInts.includes(-9));
+        assert.ok(randomInts.includes(-8));
+        assert.ok(!randomInts.includes(-7));
+      }
+    }));
+  }
+}
+{
+  const randomInts = [];
+  for (let i = 0; i < 100; i++) {
+    crypto.randomInt(3, common.mustCall((err, n) => {
+      assert.ifError(err);
+      assert.ok(n >= 0);
+      assert.ok(n < 3);
+      randomInts.push(n);
+      if (randomInts.length === 100) {
+        assert.ok(randomInts.includes(0));
+        assert.ok(randomInts.includes(1));
+        assert.ok(randomInts.includes(2));
+      }
+    }));
+  }
+}
+{
+  // Synchronous API
+  const randomInts = [];
+  for (let i = 0; i < 100; i++) {
+    const n = crypto.randomInt(3);
+    assert.ok(n >= 0);
+    assert.ok(n < 3);
+    randomInts.push(n);
+  }
+
+  assert.ok(randomInts.includes(0));
+  assert.ok(randomInts.includes(1));
+  assert.ok(randomInts.includes(2));
+}
+{
+  // Synchronous API with min
+  const randomInts = [];
+  for (let i = 0; i < 100; i++) {
+    const n = crypto.randomInt(3, 6);
+    assert.ok(n >= 3);
+    assert.ok(n < 6);
+    randomInts.push(n);
+  }
+
+  assert.ok(randomInts.includes(3));
+  assert.ok(randomInts.includes(4));
+  assert.ok(randomInts.includes(5));
+}
+{
+
+  ['10', true, NaN, null, {}, []].forEach((i) => {
+    assert.throws(() => crypto.randomInt(i, 100, common.mustNotCall()), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "min" argument must be integer.' +
+               `${common.invalidArgTypeHelper(i)}`,
+    });
+
+    assert.throws(() => crypto.randomInt(0, i, common.mustNotCall()), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "max" argument must be integer.' +
+               `${common.invalidArgTypeHelper(i)}`,
+    });
+
+    assert.throws(() => crypto.randomInt(i, common.mustNotCall()), {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "max" argument must be integer.' +
+               `${common.invalidArgTypeHelper(i)}`,
+    });
+  });
+
+  assert.throws(() => crypto.randomInt(0, 0, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "max" is out of range. It must be > 0. Received 0'
+  });
+
+  assert.throws(() => crypto.randomInt(0, -1, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "max" is out of range. It must be > 0. Received -1'
+  });
+
+  assert.throws(() => crypto.randomInt(0, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "max" is out of range. It must be > 0. Received 0'
+  });
+
+  assert.throws(() => crypto.randomInt(2 ** 48, common.mustNotCall()), {
+    code: 'ERR_OUT_OF_RANGE',
+    name: 'RangeError',
+    message: 'The value of "max - min" is out of range. ' +
+             `It must be <= ${(2 ** 48) - 1}. ` +
+             'Received 281_474_976_710_656'
+  });
+
+  [1, true, NaN, null, {}, []].forEach((i) => {
+    assert.throws(
+      () => crypto.randomInt(1, 2, i),
+      {
+        code: 'ERR_INVALID_CALLBACK',
+        name: 'TypeError',
+        message: `Callback must be a function. Received ${inspect(i)}`
+      }
+    );
+  });
+}
