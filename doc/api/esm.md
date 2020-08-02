@@ -1864,11 +1864,11 @@ _conditions_)
 
 > 1. Let _scopeURL_ be _url_.
 > 1. While _scopeURL_ is not the file system root,
+>    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 >    1. If _scopeURL_ ends in a _"node_modules"_ path segment, return **null**.
 >    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_scopeURL_).
 >    1. If _pjson_ is not **null**, then
 >       1. Return _pjson_.
->    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 > 1. Return **null**.
 
 **READ_PACKAGE_JSON**(_packageURL_)
