@@ -189,7 +189,6 @@ void Initialize(Local<Object> target,
   V(QUICSERVERSESSION_OPTION_REJECT_UNAUTHORIZED)                              \
   V(QUICSERVERSESSION_OPTION_REQUEST_CERT)                                     \
   V(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS)                                       \
-  V(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)                                   \
   V(QUICSTREAM_HEADER_FLAGS_NONE)                                              \
   V(QUICSTREAM_HEADER_FLAGS_TERMINAL)                                          \
   V(QUICSTREAM_HEADERS_KIND_NONE)                                              \
