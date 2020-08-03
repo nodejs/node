@@ -260,6 +260,7 @@ QuicSocket::QuicSocket(
       retry_token_expiration_(retry_token_expiration),
       qlog_(qlog),
       server_alpn_(NGHTTP3_ALPN_H3),
+      addrLRU_(DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE),
       quic_state_(quic_state) {
   MakeWeak();
   PushListener(&default_listener_);
@@ -308,10 +309,8 @@ void QuicSocket::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("endpoints", endpoints_);
   tracker->TrackField("sessions", sessions_);
   tracker->TrackField("dcid_to_scid", dcid_to_scid_);
-  tracker->TrackField("addr_counts", addr_counts_);
-  tracker->TrackField("reset_counts", reset_counts_);
+  tracker->TrackField("address_counts", addrLRU_);
   tracker->TrackField("token_map", token_map_);
-  tracker->TrackField("validated_addrs", validated_addrs_);
   StatsBase::StatsMemoryInfo(tracker);
   tracker->TrackFieldWithSize(
       "current_ngtcp2_memory",
@@ -975,6 +974,18 @@ void QuicSocket::RemoveListener(QuicSocketListener* listener) {
 
   listener->socket_.reset();
   listener->previous_listener_ = nullptr;
+}
+
+bool QuicSocket::SocketAddressInfoTraits::CheckExpired(
+    const SocketAddress& address,
+    const Type& type) {
+  return (uv_hrtime() - type.timestamp) > 1e10;  // 10 seconds.
+}
+
+void QuicSocket::SocketAddressInfoTraits::Touch(
+    const SocketAddress& address,
+    Type* type) {
+  type->timestamp = uv_hrtime();
 }
 
 // JavaScript API
