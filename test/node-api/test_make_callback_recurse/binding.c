@@ -1,10 +1,7 @@
 #include <node_api.h>
 #include "../../js-native-api/common.h"
-#include <vector>
 
-namespace {
-
-napi_value MakeCallback(napi_env env, napi_callback_info info) {
+static napi_value MakeCallback(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value args[2];
   // NOLINTNEXTLINE (readability/null_usage)
@@ -13,8 +10,8 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
   napi_value recv = args[0];
   napi_value func = args[1];
 
-  napi_status status = napi_make_callback(env, nullptr /* async_context */,
-    recv, func, 0 /* argc */, nullptr /* argv */, nullptr /* result */);
+  napi_status status = napi_make_callback(env, NULL /* async_context */,
+    recv, func, 0 /* argc */, NULL /* argv */, NULL /* result */);
 
   bool isExceptionPending;
   NAPI_CALL(env, napi_is_exception_pending(env, &isExceptionPending));
@@ -25,14 +22,14 @@ napi_value MakeCallback(napi_env env, napi_callback_info info) {
     status = napi_get_and_clear_last_exception(env, &pending_error);
     NAPI_CALL(env,
       napi_throw_error((env),
-                        nullptr,
+                        NULL,
                         "error when only pending exception expected"));
   }
 
   return recv;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_value fn;
   NAPI_CALL(env, napi_create_function(
       // NOLINTNEXTLINE (readability/null_usage)
@@ -40,7 +37,5 @@ napi_value Init(napi_env env, napi_value exports) {
   NAPI_CALL(env, napi_set_named_property(env, exports, "makeCallback", fn));
   return exports;
 }
-
-}  // anonymous namespace
 
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
