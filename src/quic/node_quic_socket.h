@@ -36,10 +36,10 @@ class QuicSocket;
 class QuicEndpoint;
 
 constexpr size_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE = 1000;
+constexpr size_t DEFAULT_MAX_RETRY_LIMIT = 10;
 
 #define QUICSOCKET_OPTIONS(V)                                                  \
-    V(VALIDATE_ADDRESS, validate_address)                                      \
-    V(VALIDATE_ADDRESS_LRU, validate_address_lru)
+    V(VALIDATE_ADDRESS, validate_address)
 
 #define V(id, _) QUICSOCKET_OPTIONS_##id,
 enum QuicSocketOptions : uint32_t {
