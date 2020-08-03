@@ -35,6 +35,8 @@ namespace quic {
 class QuicSocket;
 class QuicEndpoint;
 
+constexpr size_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE = 1000;
+
 #define QUICSOCKET_OPTIONS(V)                                                  \
     V(VALIDATE_ADDRESS, validate_address)                                      \
     V(VALIDATE_ADDRESS_LRU, validate_address_lru)
@@ -544,36 +546,24 @@ class QuicSocket : public AsyncWrap,
   uint8_t token_secret_[kTokenSecretLen];
   uint8_t reset_token_secret_[NGTCP2_STATELESS_RESET_TOKENLEN];
 
-  // Counts the number of active connections per remote
-  // address. A custom std::hash specialization for
-  // sockaddr instances is used. Values are incremented
-  // when a QuicSession is added to the socket, and
-  // decremented when the QuicSession is removed. If the
-  // value reaches the value of max_connections_per_host_,
-  // attempts to create new connections will be ignored
-  // until the value falls back below the limit.
-  SocketAddress::Map<size_t> addr_counts_;
+  struct SocketAddressInfo {
+    size_t active_connections;
+    size_t reset_count;
+    size_t retry_count;
+    bool validated;
+    uint64_t timestamp;
+  };
 
-  // Counts the number of stateless resets sent per
-  // remote address.
-  // TODO(@jasnell): this counter persists through the
-  // lifetime of the QuicSocket, and therefore can become
-  // a possible risk. Specifically, a malicious peer could
-  // attempt the local peer to count an increasingly large
-  // number of remote addresses. Need to mitigate the
-  // potential risk.
-  SocketAddress::Map<size_t> reset_counts_;
+  struct SocketAddressInfoTraits {
+    using Type = SocketAddressInfo;
 
-  // Counts the number of retry attempts sent per
-  // remote address.
+    static bool CheckExpired(const SocketAddress& address, const Type& type);
+    static void Touch(const SocketAddress& address, Type* type);
+  };
+
+  SocketAddressLRU<SocketAddressInfoTraits> addrLRU_;
 
   StatelessResetToken::Map<QuicSession> token_map_;
-
-  // The validated_addrs_ vector is used as an LRU cache for
-  // validated addresses only when the VALIDATE_ADDRESS_LRU
-  // option is set.
-  typedef size_t SocketAddressHash;
-  std::deque<SocketAddressHash> validated_addrs_;
 
   class SendWrap : public ReqWrap<uv_udp_send_t> {
    public:
