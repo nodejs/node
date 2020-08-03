@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 
 using node::SocketAddress;
+using node::SocketAddressLRU;
 
 TEST(SocketAddress, SocketAddress) {
   CHECK(SocketAddress::is_numeric_host("123.123.123.123"));
@@ -54,4 +55,73 @@ TEST(SocketAddress, SocketAddressIPv6) {
 
   addr.set_flow_label(12345);
   CHECK_EQ(addr.flow_label(), 12345);
+}
+
+TEST(SocketAddressLRU, SocketAddressLRU) {
+  struct Foo {
+    int c;
+    bool expired;
+  };
+
+  struct FooLRUTraits {
+    using Type = Foo;
+
+    static bool CheckExpired(const SocketAddress& address, const Type& type) {
+      return type.expired;
+    }
+
+    static void Touch(const SocketAddress& address, Type* type) {
+      type->expired = false;
+    }
+  };
+
+  SocketAddressLRU<FooLRUTraits> lru(2);
+
+  sockaddr_storage storage[4];
+
+  SocketAddress::ToSockAddr(AF_INET, "123.123.123.123", 443, &storage[0]);
+  SocketAddress::ToSockAddr(AF_INET, "123.123.123.124", 443, &storage[1]);
+  SocketAddress::ToSockAddr(AF_INET, "123.123.123.125", 443, &storage[2]);
+  SocketAddress::ToSockAddr(AF_INET, "123.123.123.123", 443, &storage[3]);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&storage[2]));
+  SocketAddress addr4(reinterpret_cast<const sockaddr*>(&storage[3]));
+
+  Foo* foo = lru.Upsert(addr1);
+  CHECK_NOT_NULL(foo);
+  CHECK_EQ(foo->c, 0);
+  CHECK_EQ(foo->expired, false);
+
+  foo->c = 1;
+  foo->expired = true;
+
+  foo = lru.Upsert(addr1);
+  CHECK_NOT_NULL(lru.Peek(addr1));
+  CHECK_EQ(lru.Peek(addr1), lru.Peek(addr4));
+  CHECK_EQ(lru.Peek(addr1)->c, 1);
+  CHECK_EQ(lru.Peek(addr1)->expired, false);
+  CHECK_EQ(lru.size(), 1);
+
+  foo = lru.Upsert(addr2);
+  foo->c = 2;
+  foo->expired = true;
+  CHECK_NOT_NULL(lru.Peek(addr2));
+  CHECK_EQ(lru.Peek(addr2)->c, 2);
+  CHECK_EQ(lru.size(), 2);
+
+  foo->expired = true;
+
+  foo = lru.Upsert(addr3);
+  foo->c = 3;
+  foo->expired = false;
+  CHECK_NOT_NULL(lru.Peek(addr3));
+  CHECK_EQ(lru.Peek(addr3)->c, 3);
+  CHECK_EQ(lru.size(), 1);
+
+  // addr1 was removed because we exceeded size.
+  // addr2 was removed because it was expired.
+  CHECK_NULL(lru.Peek(addr1));
+  CHECK_NULL(lru.Peek(addr2));
 }
