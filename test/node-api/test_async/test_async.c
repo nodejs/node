@@ -19,32 +19,32 @@ typedef struct {
   napi_async_work _request;
 } carrier;
 
-carrier the_carrier;
-carrier async_carrier[MAX_CANCEL_THREADS];
+static carrier the_carrier;
+static carrier async_carrier[MAX_CANCEL_THREADS];
 
-void Execute(napi_env env, void* data) {
+static void Execute(napi_env env, void* data) {
 #if defined _WIN32
   Sleep(1000);
 #else
   sleep(1);
 #endif
-  carrier* c = static_cast<carrier*>(data);
+  carrier* c = (carrier*)(data);
 
   assert(c == &the_carrier);
 
   c->_output = c->_input * 2;
 }
 
-void Complete(napi_env env, napi_status status, void* data) {
-  carrier* c = static_cast<carrier*>(data);
+static void Complete(napi_env env, napi_status status, void* data) {
+  carrier* c = (carrier*)(data);
 
   if (c != &the_carrier) {
-    napi_throw_type_error(env, nullptr, "Wrong data parameter to Complete.");
+    napi_throw_type_error(env, NULL, "Wrong data parameter to Complete.");
     return;
   }
 
   if (status != napi_ok) {
-    napi_throw_type_error(env, nullptr, "Execute callback failed.");
+    napi_throw_type_error(env, NULL, "Execute callback failed.");
     return;
   }
 
@@ -66,7 +66,7 @@ void Complete(napi_env env, napi_status status, void* data) {
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
 }
 
-napi_value Test(napi_env env, napi_callback_info info) {
+static napi_value Test(napi_env env, napi_callback_info info) {
   size_t argc = 3;
   napi_value argv[3];
   napi_value _this;
@@ -101,16 +101,16 @@ napi_value Test(napi_env env, napi_callback_info info) {
   NAPI_CALL(env,
       napi_queue_async_work(env, the_carrier._request));
 
-  return nullptr;
+  return NULL;
 }
 
-void BusyCancelComplete(napi_env env, napi_status status, void* data) {
-  carrier* c = static_cast<carrier*>(data);
+static void BusyCancelComplete(napi_env env, napi_status status, void* data) {
+  carrier* c = (carrier*)(data);
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
 }
 
-void CancelComplete(napi_env env, napi_status status, void* data) {
-  carrier* c = static_cast<carrier*>(data);
+static void CancelComplete(napi_env env, napi_status status, void* data) {
+  carrier* c = (carrier*)(data);
 
   if (status == napi_cancelled) {
     // ok we got the status we expected so make the callback to
@@ -122,14 +122,14 @@ void CancelComplete(napi_env env, napi_status status, void* data) {
     NAPI_CALL_RETURN_VOID(env, napi_get_global(env, &global));
     napi_value result;
     NAPI_CALL_RETURN_VOID(env,
-      napi_call_function(env, global, callback, 0, nullptr, &result));
+      napi_call_function(env, global, callback, 0, NULL, &result));
   }
 
   NAPI_CALL_RETURN_VOID(env, napi_delete_async_work(env, c->_request));
   NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, c->_callback));
 }
 
-void CancelExecute(napi_env env, void* data) {
+static void CancelExecute(napi_env env, void* data) {
 #if defined _WIN32
   Sleep(1000);
 #else
@@ -137,7 +137,7 @@ void CancelExecute(napi_env env, void* data) {
 #endif
 }
 
-napi_value TestCancel(napi_env env, napi_callback_info info) {
+static napi_value TestCancel(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value argv[1];
   napi_value _this;
@@ -150,7 +150,7 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   // make sure the work we are going to cancel will not be
   // able to start by using all the threads in the pool
   for (int i = 1; i < MAX_CANCEL_THREADS; i++) {
-    NAPI_CALL(env, napi_create_async_work(env, nullptr, resource_name,
+    NAPI_CALL(env, napi_create_async_work(env, NULL, resource_name,
       CancelExecute, BusyCancelComplete,
       &async_carrier[i], &async_carrier[i]._request));
     NAPI_CALL(env, napi_queue_async_work(env, async_carrier[i]._request));
@@ -162,20 +162,20 @@ napi_value TestCancel(napi_env env, napi_callback_info info) {
   // workers above.
   NAPI_CALL(env,
     napi_get_cb_info(env, info, &argc, argv, &_this, &data));
-  NAPI_CALL(env, napi_create_async_work(env, nullptr, resource_name,
+  NAPI_CALL(env, napi_create_async_work(env, NULL, resource_name,
     CancelExecute, CancelComplete,
     &async_carrier[0], &async_carrier[0]._request));
   NAPI_CALL(env,
       napi_create_reference(env, argv[0], 1, &async_carrier[0]._callback));
   NAPI_CALL(env, napi_queue_async_work(env, async_carrier[0]._request));
   NAPI_CALL(env, napi_cancel_async_work(env, async_carrier[0]._request));
-  return nullptr;
+  return NULL;
 }
 
 struct {
   napi_ref ref;
   napi_async_work work;
-} repeated_work_info = { nullptr, nullptr };
+} repeated_work_info = { NULL, NULL };
 
 static void RepeatedWorkerThread(napi_env env, void* data) {}
 
@@ -187,33 +187,33 @@ static void RepeatedWorkComplete(napi_env env, napi_status status, void* data) {
       napi_delete_async_work(env, repeated_work_info.work));
   NAPI_CALL_RETURN_VOID(env,
       napi_delete_reference(env, repeated_work_info.ref));
-  repeated_work_info.work = nullptr;
-  repeated_work_info.ref = nullptr;
+  repeated_work_info.work = NULL;
+  repeated_work_info.ref = NULL;
   NAPI_CALL_RETURN_VOID(env,
       napi_create_uint32(env, (uint32_t)status, &js_status));
   NAPI_CALL_RETURN_VOID(env,
-      napi_call_function(env, cb, cb, 1, &js_status, nullptr));
+      napi_call_function(env, cb, cb, 1, &js_status, NULL));
 }
 
 static napi_value DoRepeatedWork(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value cb, name;
-  NAPI_ASSERT(env, repeated_work_info.ref == nullptr,
+  NAPI_ASSERT(env, repeated_work_info.ref == NULL,
       "Reference left over from previous work");
-  NAPI_ASSERT(env, repeated_work_info.work == nullptr,
+  NAPI_ASSERT(env, repeated_work_info.work == NULL,
       "Work pointer left over from previous work");
-  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &cb, nullptr, nullptr));
+  NAPI_CALL(env, napi_get_cb_info(env, info, &argc, &cb, NULL, NULL));
   NAPI_CALL(env, napi_create_reference(env, cb, 1, &repeated_work_info.ref));
   NAPI_CALL(env,
       napi_create_string_utf8(env, "Repeated Work", NAPI_AUTO_LENGTH, &name));
   NAPI_CALL(env,
-      napi_create_async_work(env, nullptr, name, RepeatedWorkerThread,
+      napi_create_async_work(env, NULL, name, RepeatedWorkerThread,
           RepeatedWorkComplete, &repeated_work_info, &repeated_work_info.work));
   NAPI_CALL(env, napi_queue_async_work(env, repeated_work_info.work));
-  return nullptr;
+  return NULL;
 }
 
-napi_value Init(napi_env env, napi_value exports) {
+static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
     DECLARE_NAPI_PROPERTY("Test", Test),
     DECLARE_NAPI_PROPERTY("TestCancel", TestCancel),
