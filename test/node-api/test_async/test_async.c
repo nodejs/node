@@ -19,8 +19,8 @@ typedef struct {
   napi_async_work _request;
 } carrier;
 
-carrier the_carrier;
-carrier async_carrier[MAX_CANCEL_THREADS];
+static carrier the_carrier;
+static carrier async_carrier[MAX_CANCEL_THREADS];
 
 static void Execute(napi_env env, void* data) {
 #if defined _WIN32

@@ -6,8 +6,8 @@ static void cleanup(void* arg) {
   printf("cleanup(%d)\n", *(int*)(arg));
 }
 
-int secret = 42;
-int wrong_secret = 17;
+static int secret = 42;
+static int wrong_secret = 17;
 
 static napi_value Init(napi_env env, napi_value exports) {
   napi_add_env_cleanup_hook(env, cleanup, &wrong_secret);
