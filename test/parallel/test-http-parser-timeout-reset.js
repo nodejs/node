@@ -34,7 +34,7 @@ const server = net.createServer((socket) => {
 
   parser[HTTPParser.kOnHeaders] = common.mustNotCall();
 
-  parser[HTTPParser.kOnExecute] = common.mustCall(3);
+  parser[HTTPParser.kOnExecute] = common.mustCallAtLeast(3);
 
   parser[HTTPParser.kOnHeadersComplete] = common.mustCall();
 
