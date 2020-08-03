@@ -2465,7 +2465,7 @@ start of a new `QuicServerSession`. It is invoked with three arguments:
 * `servername` {string} The SNI server name specified by the client.
 * `ciphers` {string[]} The array of TLS 1.3 ciphers specified by the client.
 
-The `clientHelloHandler` *may* return a new {tls.SecureContext} object that will
+The `clientHelloHandler` can return a new {tls.SecureContext} object that will
 be used to continue the TLS handshake. If the function returns `undefined`, the
 default {tls.SecureContext} will be used. Returning any other value will cause
 an error to be thrown that will destroy the `QuicServerSession` instance.
