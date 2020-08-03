@@ -9,6 +9,7 @@
 #include "v8.h"
 
 #include <string>
+#include <list>
 #include <unordered_map>
 
 namespace node {
@@ -114,6 +115,41 @@ class SocketAddress : public MemoryRetainer {
 
  private:
   sockaddr_storage address_;
+};
+
+template <typename T>
+class SocketAddressLRU : public MemoryRetainer {
+ public:
+  using Type = typename T::Type;
+
+  inline explicit SocketAddressLRU(size_t max_size);
+
+  // If the item already exists, returns a reference to
+  // the existing item, adjusting items position in the
+  // LRU. If the item does not exist, emplaces the item
+  // and returns the new item.
+  Type* Upsert(const SocketAddress& address);
+
+  // Returns a reference to the item if it exists, or
+  // nullptr. The position in the LRU is not modified.
+  Type* Peek(const SocketAddress& address) const;
+
+  size_t size() const { return map_.size(); }
+  size_t max_size() const { return max_size_; }
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SocketAddressLRU)
+  SET_SELF_SIZE(SocketAddressLRU)
+
+ private:
+  using Pair = std::pair<SocketAddress, Type>;
+  using Iterator = typename std::list<Pair>::iterator;
+
+  void CheckExpired();
+
+  std::list<Pair> list_;
+  SocketAddress::Map<Iterator> map_;
+  size_t max_size_;
 };
 
 }  // namespace node
