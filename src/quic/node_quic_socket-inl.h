@@ -4,7 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node_quic_socket.h"
-#include "node_sockaddr.h"
+#include "node_sockaddr-inl.h"
 #include "node_quic_session.h"
 #include "node_crypto.h"
 #include "debug_utils-inl.h"
@@ -112,33 +112,27 @@ void QuicSocket::ReportSendError(int error) {
 }
 
 void QuicSocket::IncrementStatelessResetCounter(const SocketAddress& addr) {
-  reset_counts_[addr]++;
+  addrLRU_.Upsert(addr)->reset_count++;
 }
 
 void QuicSocket::IncrementSocketAddressCounter(const SocketAddress& addr) {
-  addr_counts_[addr]++;
+  addrLRU_.Upsert(addr)->active_connections++;
 }
 
 void QuicSocket::DecrementSocketAddressCounter(const SocketAddress& addr) {
-  auto it = addr_counts_.find(addr);
-  if (it == std::end(addr_counts_))
-    return;
-  it->second--;
-  // Remove the address if the counter reaches zero again.
-  if (it->second == 0) {
-    addr_counts_.erase(addr);
-    reset_counts_.erase(addr);
-  }
+  SocketAddressInfo* counts = addrLRU_.Peek(addr);
+  if (counts != nullptr && counts->active_connections > 0)
+    counts->active_connections--;
 }
 
 size_t QuicSocket::GetCurrentSocketAddressCounter(const SocketAddress& addr) {
-  auto it = addr_counts_.find(addr);
-  return it == std::end(addr_counts_) ? 0 : it->second;
+  SocketAddressInfo* counts = addrLRU_.Peek(addr);
+  return counts != nullptr ? counts->active_connections : 0;
 }
 
 size_t QuicSocket::GetCurrentStatelessResetCounter(const SocketAddress& addr) {
-  auto it = reset_counts_.find(addr);
-  return it == std::end(reset_counts_) ? 0 : it->second;
+  SocketAddressInfo* counts = addrLRU_.Peek(addr);
+  return counts != nullptr ? counts->reset_count : 0;
 }
 
 void QuicSocket::ServerBusy(bool on) {
@@ -160,22 +154,12 @@ void QuicSocket::set_diagnostic_packet_loss(double rx, double tx) {
 }
 
 void QuicSocket::set_validated_address(const SocketAddress& addr) {
-  if (has_option_validate_address_lru()) {
-    // Remove the oldest item if we've hit the LRU limit
-    validated_addrs_.push_back(SocketAddress::Hash()(addr));
-    if (validated_addrs_.size() > kMaxValidateAddressLru)
-      validated_addrs_.pop_front();
-  }
+  addrLRU_.Upsert(addr)->validated = true;
 }
 
 bool QuicSocket::is_validated_address(const SocketAddress& addr) const {
-  if (has_option_validate_address_lru()) {
-    auto res = std::find(std::begin(validated_addrs_),
-                         std::end(validated_addrs_),
-                         SocketAddress::Hash()(addr));
-    return res != std::end(validated_addrs_);
-  }
-  return false;
+  auto info = addrLRU_.Peek(addr);
+  return info != nullptr ? info->validated : false;
 }
 
 void QuicSocket::AddSession(
