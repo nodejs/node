@@ -871,7 +871,7 @@ NODE_EXTERN void RemoveEnvironmentCleanupHook(v8::Isolate* isolate,
  * `cb(cbarg)` *must* be called, and attempting to remove the cleanup hook will
  * have no effect. */
 struct ACHHandle;
-struct DeleteACHHandle { void operator()(ACHHandle*) const; };
+struct NODE_EXTERN DeleteACHHandle { void operator()(ACHHandle*) const; };
 typedef std::unique_ptr<ACHHandle, DeleteACHHandle> AsyncCleanupHookHandle;
 
 NODE_EXTERN AsyncCleanupHookHandle AddEnvironmentCleanupHook(
