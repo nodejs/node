@@ -1388,7 +1388,7 @@ server.listen();
 
 The `'session'` event will be emitted multiple times.
 
-The `'session'` event handler *may* be an async function.
+The `'session'` event handler can be an async function.
 
 If the `'session'` event handler throws an error, or if it returns a `Promise`
 that is rejected, the error will be handled by destroying the `QuicServerSession`
