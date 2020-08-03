@@ -68,13 +68,6 @@ const { createQuicSocket } = require('net');
   });
 });
 
-// Test invalid QuicSocket validateAddressLRU argument option
-[1, NaN, 1n, null, {}, []].forEach((validateAddressLRU) => {
-  assert.throws(() => createQuicSocket({ validateAddressLRU }), {
-    code: 'ERR_INVALID_ARG_TYPE'
-  });
-});
-
 // Test invalid QuicSocket qlog argument option
 [1, NaN, 1n, null, {}, []].forEach((qlog) => {
   assert.throws(() => createQuicSocket({ qlog }), {

@@ -288,11 +288,6 @@ added: REPLACEME
   * `validateAddress` {boolean} When `true`, the `QuicSocket` will use explicit
     address validation using a QUIC `RETRY` frame when listening for new server
     sessions. Default: `false`.
-  * `validateAddressLRU` {boolean} When `true`, validation will be skipped if
-    the address has been recently validated. Currently, only the 10 most
-    recently validated addresses are remembered. Setting `validateAddressLRU`
-    to `true`, will enable the `validateAddress` option as well. Default:
-    `false`.
 
 The `net.createQuicSocket()` function is used to create new `QuicSocket`
 instances associated with a local UDP address.
