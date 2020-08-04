@@ -11,6 +11,7 @@
 #define SIZE 500
 
 int main(void) {
+  struct timespec times[2];
   struct stat st;
   int fd;
   int ret;
@@ -32,6 +33,15 @@ int main(void) {
   ret = fstat(fd, &st);
   assert(ret == 0);
   assert(st.st_size == SIZE);
+
+  times[0].tv_sec = 4;
+  times[0].tv_nsec = 0;
+  times[1].tv_sec = 9;
+  times[1].tv_nsec = 0;
+  assert(0 == futimens(fd, times));
+  assert(0 == fstat(fd, &st));
+  assert(4 == st.st_atime);
+  assert(9 == st.st_mtime);
 
   ret = close(fd);
   assert(ret == 0);
