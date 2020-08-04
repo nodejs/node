@@ -740,6 +740,9 @@ added: REPLACEME
 
 Binds the given function to the current execution context.
 
+The returned function will have an `asyncResource` property referencing
+the `AsyncResource` to which the function is bound.
+
 #### `asyncResource.bind(fn)`
 <!-- YAML
 added: REPLACEME
@@ -748,6 +751,9 @@ added: REPLACEME
 * `fn` {Function} The function to bind to the current `AsyncResource`.
 
 Binds the given function to execute to this `AsyncResource`'s scope.
+
+The returned function will have an `asyncResource` property referencing
+the `AsyncResource` to which the function is bound.
 
 #### `asyncResource.runInAsyncScope(fn[, thisArg, ...args])`
 <!-- YAML

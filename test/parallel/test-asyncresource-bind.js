@@ -15,9 +15,18 @@ setImmediate(() => {
 
 const asyncResource = new AsyncResource('test');
 
-const fn2 = asyncResource.bind(() => {
+[1, false, '', {}, []].forEach((i) => {
+  assert.throws(() => asyncResource.bind(i), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+});
+
+const fn2 = asyncResource.bind((a, b) => {
   return executionAsyncId();
 });
+
+assert.strictEqual(fn2.asyncResource, asyncResource);
+assert.strictEqual(fn2.length, 2);
 
 setImmediate(() => {
   const asyncId = executionAsyncId();
