@@ -55,6 +55,86 @@ net.createServer().listen(
   path.join('\\\\?\\pipe', process.cwd(), 'myctl'));
 ```
 
+## Class: `net.BlockList`
+<!-- YAML
+added: REPLACEME
+-->
+
+The `BlockList` object can be used with some network APIs to specify rules for
+disabling inbound or outbound access to specific IP addresses, IP ranges, or
+IP subnets.
+
+### `blockList.addAddress(address[, type])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `address` {string} An IPv4 or IPv6 address.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+
+Adds a rule to block the given IP address.
+
+### `blockList.addRange(start, end[, type])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `start` {string} The starting IPv4 or IPv6 address in the range.
+* `end` {string} The ending IPv4 or IPv6 address in the range.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+
+Adds a rule to block a range of IP addresses from `start` (inclusive) to
+`end` (inclusive).
+
+### `blockList.addSubnet(net, prefix[, type])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `net` {string} The network IPv4 or IPv6 address.
+* `prefix` {number} The number of CIDR prefix bits. For IPv4, this
+  must be a value between `0` and `32`. For IPv6, this must be between
+  `0` and `128`.
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+
+Adds a rule to block a range of IP addresses specified as a subnet mask.
+
+### `blockList.check(address[, type])`
+<!-- YAML
+added: REPLACEME
+-->
+
+* `address` {string} The IP address to check
+* `type` {string} Either `'ipv4'` or `'ipv6'`. **Default**: `'ipv4'`.
+* Returns: {boolean}
+
+Returns `true` if the given IP address matches any of the rules added to the
+`BlockList`.
+
+```js
+const blockList = new net.BlockList();
+blockList.addAddress('123.123.123.123');
+blockList.addRange('10.0.0.1', '10.0.0.10');
+blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
+
+console.log(blockList.check('123.123.123.123'));  // Prints: true
+console.log(blockList.check('10.0.0.3'));  // Prints: true
+console.log(blockList.check('222.111.111.222'));  // Prints: false
+
+// IPv6 notation for IPv4 addresses works:
+console.log(blockList.check('::ffff:7b7b:7b7b', 'ipv6')); // Prints: true
+console.log(blockList.check('::ffff:123.123.123.123', 'ipv6')); // Prints: true
+```
+
+### `blockList.rules`
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string[]}
+
+The list of rules added to the blocklist.
+
 ## Class: `net.Server`
 <!-- YAML
 added: v0.1.90

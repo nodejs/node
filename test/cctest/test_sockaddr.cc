@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 
 using node::SocketAddress;
+using node::SocketAddressBlockList;
 using node::SocketAddressLRU;
 
 TEST(SocketAddress, SocketAddress) {
@@ -84,6 +85,7 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   SocketAddress::ToSockAddr(AF_INET, "123.123.123.125", 443, &storage[2]);
   SocketAddress::ToSockAddr(AF_INET, "123.123.123.123", 443, &storage[3]);
 
+
   SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
   SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
   SocketAddress addr3(reinterpret_cast<const sockaddr*>(&storage[2]));
@@ -124,4 +126,88 @@ TEST(SocketAddressLRU, SocketAddressLRU) {
   // addr2 was removed because it was expired.
   CHECK_NULL(lru.Peek(addr1));
   CHECK_NULL(lru.Peek(addr2));
+}
+
+TEST(SocketAddress, Comparison) {
+  sockaddr_storage storage[6];
+
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 0, &storage[0]);
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.2", 0, &storage[1]);
+  SocketAddress::ToSockAddr(AF_INET6, "::1", 0, &storage[2]);
+  SocketAddress::ToSockAddr(AF_INET6, "::2", 0, &storage[3]);
+  SocketAddress::ToSockAddr(AF_INET6, "::ffff:10.0.0.1", 0, &storage[4]);
+  SocketAddress::ToSockAddr(AF_INET6, "::ffff:10.0.0.2", 0, &storage[5]);
+
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
+  SocketAddress addr3(reinterpret_cast<const sockaddr*>(&storage[2]));
+  SocketAddress addr4(reinterpret_cast<const sockaddr*>(&storage[3]));
+  SocketAddress addr5(reinterpret_cast<const sockaddr*>(&storage[4]));
+  SocketAddress addr6(reinterpret_cast<const sockaddr*>(&storage[5]));
+
+  CHECK_EQ(addr1.compare(addr1), SocketAddress::CompareResult::SAME);
+  CHECK_EQ(addr1.compare(addr2), SocketAddress::CompareResult::LESS_THAN);
+  CHECK_EQ(addr2.compare(addr1), SocketAddress::CompareResult::GREATER_THAN);
+  CHECK(addr1 <= addr1);
+  CHECK(addr1 < addr2);
+  CHECK(addr1 <= addr2);
+  CHECK(addr2 >= addr2);
+  CHECK(addr2 > addr1);
+  CHECK(addr2 >= addr1);
+
+  CHECK_EQ(addr3.compare(addr3), SocketAddress::CompareResult::SAME);
+  CHECK_EQ(addr3.compare(addr4), SocketAddress::CompareResult::LESS_THAN);
+  CHECK_EQ(addr4.compare(addr3), SocketAddress::CompareResult::GREATER_THAN);
+  CHECK(addr3 <= addr3);
+  CHECK(addr3 < addr4);
+  CHECK(addr3 <= addr4);
+  CHECK(addr4 >= addr4);
+  CHECK(addr4 > addr3);
+  CHECK(addr4 >= addr3);
+
+  // Not comparable
+  CHECK_EQ(addr1.compare(addr3), SocketAddress::CompareResult::NOT_COMPARABLE);
+  CHECK_EQ(addr3.compare(addr1), SocketAddress::CompareResult::NOT_COMPARABLE);
+  CHECK(!(addr1 < addr3));
+  CHECK(!(addr1 > addr3));
+  CHECK(!(addr1 >= addr3));
+  CHECK(!(addr1 <= addr3));
+  CHECK(!(addr3 < addr1));
+  CHECK(!(addr3 > addr1));
+  CHECK(!(addr3 >= addr1));
+  CHECK(!(addr3 <= addr1));
+
+  // Comparable
+  CHECK_EQ(addr1.compare(addr5), SocketAddress::CompareResult::SAME);
+  CHECK_EQ(addr2.compare(addr6), SocketAddress::CompareResult::SAME);
+  CHECK_EQ(addr1.compare(addr6), SocketAddress::CompareResult::LESS_THAN);
+  CHECK_EQ(addr6.compare(addr1), SocketAddress::CompareResult::GREATER_THAN);
+  CHECK(addr1 <= addr5);
+  CHECK(addr1 <= addr6);
+  CHECK(addr1 < addr6);
+  CHECK(addr6 > addr1);
+  CHECK(addr6 >= addr1);
+  CHECK(addr2 >= addr6);
+  CHECK(addr2 >= addr5);
+}
+
+TEST(SocketAddressBlockList, Simple) {
+  SocketAddressBlockList bl;
+
+  sockaddr_storage storage[2];
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.1", 0, &storage[0]);
+  SocketAddress::ToSockAddr(AF_INET, "10.0.0.2", 0, &storage[1]);
+  SocketAddress addr1(reinterpret_cast<const sockaddr*>(&storage[0]));
+  SocketAddress addr2(reinterpret_cast<const sockaddr*>(&storage[1]));
+
+  bl.AddSocketAddress(addr1);
+  bl.AddSocketAddress(addr2);
+
+  CHECK(bl.Apply(addr1));
+  CHECK(bl.Apply(addr2));
+
+  bl.RemoveSocketAddress(addr1);
+
+  CHECK(!bl.Apply(addr1));
+  CHECK(bl.Apply(addr2));
 }

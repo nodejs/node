@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include "env-inl.h"
 #include "node_internals.h"
 #include "node_sockaddr.h"
 #include "util-inl.h"
@@ -88,11 +89,11 @@ SocketAddress& SocketAddress::operator=(const SocketAddress& addr) {
 }
 
 const sockaddr& SocketAddress::operator*() const {
-  return *this->data();
+  return *data();
 }
 
 const sockaddr* SocketAddress::operator->() const {
-  return this->data();
+  return data();
 }
 
 size_t SocketAddress::length() const {
@@ -166,6 +167,24 @@ bool SocketAddress::operator!=(const SocketAddress& other) const {
   return !(*this == other);
 }
 
+bool SocketAddress::operator<(const SocketAddress& other) const {
+  return compare(other) == CompareResult::LESS_THAN;
+}
+
+bool SocketAddress::operator>(const SocketAddress& other) const {
+  return compare(other) == CompareResult::GREATER_THAN;
+}
+
+bool SocketAddress::operator<=(const SocketAddress& other) const {
+  CompareResult c = compare(other);
+  return c == CompareResult::NOT_COMPARABLE ? false :
+              c <= CompareResult::SAME;
+}
+
+bool SocketAddress::operator>=(const SocketAddress& other) const {
+  return compare(other) >= CompareResult::SAME;
+}
+
 template <typename T>
 SocketAddressLRU<T>::SocketAddressLRU(
     size_t max_size)
@@ -231,6 +250,11 @@ typename T::Type* SocketAddressLRU<T>::Upsert(
   return &map_[address]->second;
 }
 
+v8::MaybeLocal<v8::Value> SocketAddressBlockList::Rule::ToV8String(
+    Environment* env) {
+  std::string str = ToString();
+  return ToV8Value(env->context(), str);
+}
 }  // namespace node
 
 #endif  // NODE_WANT_INTERNALS

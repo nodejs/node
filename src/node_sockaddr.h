@@ -3,11 +3,14 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "env.h"
 #include "memory_tracker.h"
+#include "base_object.h"
 #include "node.h"
 #include "uv.h"
 #include "v8.h"
 
+#include <memory>
 #include <string>
 #include <list>
 #include <unordered_map>
@@ -18,12 +21,24 @@ class Environment;
 
 class SocketAddress : public MemoryRetainer {
  public:
+  enum class CompareResult {
+    NOT_COMPARABLE = -2,
+    LESS_THAN,
+    SAME,
+    GREATER_THAN
+  };
+
   struct Hash {
     size_t operator()(const SocketAddress& addr) const;
   };
 
   inline bool operator==(const SocketAddress& other) const;
   inline bool operator!=(const SocketAddress& other) const;
+
+  inline bool operator<(const SocketAddress& other) const;
+  inline bool operator>(const SocketAddress& other) const;
+  inline bool operator<=(const SocketAddress& other) const;
+  inline bool operator>=(const SocketAddress& other) const;
 
   inline static bool is_numeric_host(const char* hostname);
   inline static bool is_numeric_host(const char* hostname, int family);
@@ -77,6 +92,20 @@ class SocketAddress : public MemoryRetainer {
   inline int family() const;
   inline std::string address() const;
   inline int port() const;
+
+  // Returns true if the given other SocketAddress is a match
+  // for this one. The addresses are a match if:
+  // 1. They are the same family and match identically
+  // 2. They are different family but match semantically (
+  //     for instance, an IPv4 addres in IPv6 notation)
+  bool is_match(const SocketAddress& other) const;
+
+  // Compares this SocketAddress to the given other SocketAddress.
+  CompareResult compare(const SocketAddress& other) const;
+
+  // Returns true if this SocketAddress is within the subnet
+  // identified by the given network address and CIDR prefix.
+  bool is_in_network(const SocketAddress& network, int prefix) const;
 
   // If the SocketAddress is an IPv6 address, returns the
   // current value of the IPv6 flow label, if set. Otherwise
@@ -150,6 +179,123 @@ class SocketAddressLRU : public MemoryRetainer {
   std::list<Pair> list_;
   SocketAddress::Map<Iterator> map_;
   size_t max_size_;
+};
+
+// A BlockList is used to evaluate whether a given
+// SocketAddress should be accepted for inbound or
+// outbound network activity.
+class SocketAddressBlockList : public MemoryRetainer {
+ public:
+  explicit SocketAddressBlockList(
+      std::shared_ptr<SocketAddressBlockList> parent = {});
+  ~SocketAddressBlockList() = default;
+
+  void AddSocketAddress(
+      const SocketAddress& address);
+
+  void RemoveSocketAddress(
+      const SocketAddress& address);
+
+  void AddSocketAddressRange(
+      const SocketAddress& start,
+      const SocketAddress& end);
+
+  void AddSocketAddressMask(
+      const SocketAddress& address,
+      int prefix);
+
+  bool Apply(const SocketAddress& address);
+
+  size_t size() const { return rules_.size(); }
+
+  v8::MaybeLocal<v8::Array> ListRules(Environment* env);
+
+  struct Rule : public MemoryRetainer {
+    virtual bool Apply(const SocketAddress& address) = 0;
+    inline v8::MaybeLocal<v8::Value> ToV8String(Environment* env);
+    virtual std::string ToString() = 0;
+  };
+
+  struct SocketAddressRule final : Rule {
+    SocketAddress address;
+
+    explicit SocketAddressRule(const SocketAddress& address);
+
+    bool Apply(const SocketAddress& address) override;
+    std::string ToString() override;
+
+    void MemoryInfo(node::MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(SocketAddressRule)
+    SET_SELF_SIZE(SocketAddressRule)
+  };
+
+  struct SocketAddressRangeRule final : Rule {
+    SocketAddress start;
+    SocketAddress end;
+
+    SocketAddressRangeRule(
+        const SocketAddress& start,
+        const SocketAddress& end);
+
+    bool Apply(const SocketAddress& address) override;
+    std::string ToString() override;
+
+    void MemoryInfo(node::MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(SocketAddressRangeRule)
+    SET_SELF_SIZE(SocketAddressRangeRule)
+  };
+
+  struct SocketAddressMaskRule final : Rule {
+    SocketAddress network;
+    int prefix;
+
+    SocketAddressMaskRule(
+        const SocketAddress& address,
+        int prefix);
+
+    bool Apply(const SocketAddress& address) override;
+    std::string ToString() override;
+
+    void MemoryInfo(node::MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(SocketAddressMaskRule)
+    SET_SELF_SIZE(SocketAddressMaskRule)
+  };
+
+  void MemoryInfo(node::MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SocketAddressBlockList)
+  SET_SELF_SIZE(SocketAddressBlockList)
+
+ private:
+  std::shared_ptr<SocketAddressBlockList> parent_;
+  std::list<std::unique_ptr<Rule>> rules_;
+  SocketAddress::Map<std::list<std::unique_ptr<Rule>>::iterator> address_rules_;
+};
+
+class SocketAddressBlockListWrap :
+    public BaseObject,
+    public SocketAddressBlockList {
+ public:
+  static void Initialize(v8::Local<v8::Object> target,
+                         v8::Local<v8::Value> unused,
+                         v8::Local<v8::Context> context,
+                         void* priv);
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddSubnet(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Check(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetRules(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SocketAddressBlockListWrap(
+      Environment* env,
+      v8::Local<v8::Object> wrap);
+
+  void MemoryInfo(node::MemoryTracker* tracker) const override {
+    SocketAddressBlockList::MemoryInfo(tracker);
+  }
+  SET_MEMORY_INFO_NAME(SocketAddressBlockListWrap)
+  SET_SELF_SIZE(SocketAddressBlockListWrap)
 };
 
 }  // namespace node

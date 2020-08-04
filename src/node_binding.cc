@@ -44,6 +44,7 @@
 // __attribute__((constructor)) like mechanism in GCC.
 #define NODE_BUILTIN_STANDARD_MODULES(V)                                       \
   V(async_wrap)                                                                \
+  V(block_list)                                                                \
   V(buffer)                                                                    \
   V(cares_wrap)                                                                \
   V(config)                                                                    \
