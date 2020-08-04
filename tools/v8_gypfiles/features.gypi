@@ -215,9 +215,13 @@
     # for ARM64.
     'v8_control_flow_integrity%': 0,
 
-    # Experimental support for native context independent code.
-    # https://crbug.com/v8/8888
-    'v8_enable_nci_code%': 0,
+    # Enable V8 zone compression experimental feature.
+    # Sets -DV8_COMPRESS_ZONES.
+    'v8_enable_zone_compression%': 0,
+
+    # Experimental feature for collecting per-class zone memory stats.
+    # Requires use_rtti = true
+    'v8_enable_precise_zone_stats%': 0,
 
     # Variables from v8.gni
 
@@ -257,6 +261,9 @@
       }],
       ['v8_enable_pointer_compression==1 or v8_enable_31bit_smis_on_64bit_arch==1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH',],
+      }],
+      ['v8_enable_zone_compression==1', {
+        'defines': ['V8_COMPRESS_ZONES',],
       }],
       ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
@@ -357,8 +364,8 @@
       ['v8_control_flow_integrity==1', {
         'defines': ['V8_ENABLE_CONTROL_FLOW_INTEGRITY',],
       }],
-      ['v8_enable_nci_code==1', {
-        'defines': ['V8_ENABLE_NCI_CODE',],
+      ['v8_enable_precise_zone_stats==1', {
+        'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
       }],
     ],  # conditions
     'defines': [
