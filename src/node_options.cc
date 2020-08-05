@@ -282,7 +282,7 @@ DebugOptionsParser::DebugOptionsParser() {
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--conditions",
-            "set the conditional exports conditions",
+            "additional user conditions for conditional exports and imports",
             &EnvironmentOptions::conditions,
             kAllowedInEnvironment);
   AddAlias("-u", "--conditions");

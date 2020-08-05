@@ -88,7 +88,7 @@ conditions.
 
 Any custom comma-separated string condition names are permitted.
 
-The default Node.js conditions of `"node"`, `"default"`, `"import"` and
+The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
 `"require"` will always apply as defined.
 
 ### `--cpu-prof`

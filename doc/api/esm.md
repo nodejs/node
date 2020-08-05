@@ -504,14 +504,14 @@ conditions behave analogously to nested JavaScript `if` statements.
 #### Resolving custom conditions
 
 When running Node.js, custom comma-separated conditions can be set with the
-`--conditions` or `-m` flag:
+`--conditions` or `-u` flag:
 
 ```bash
 node --conditions=development main.js
 ```
 
 which would then resolve the `"development"` condition in exports, along with
-the existing `"node"`, `"default"`, `"import"` and `"require"` conditions as
+the existing `"node"`, `"default"`, `"import"`, and `"require"` conditions as
 appropriate.
 
 #### Self-referencing a package using its name
