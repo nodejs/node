@@ -113,7 +113,8 @@ void ProfilerListener::CodeCreateEvent(LogEventsAndTags tag,
     // profiler as is stored on the code object, except that we transform source
     // positions to line numbers here, because we only care about attributing
     // ticks to a given line.
-    for (SourcePositionTableIterator it(abstract_code->source_position_table());
+    for (SourcePositionTableIterator it(
+             handle(abstract_code->source_position_table(), isolate_));
          !it.done(); it.Advance()) {
       int position = it.source_position().ScriptOffset();
       int inlining_id = it.source_position().InliningId();
