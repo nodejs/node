@@ -627,6 +627,9 @@ added: v0.5.3
 The `server.addContext()` method adds a secure context that will be used if
 the client request's SNI name matches the supplied `hostname` (or wildcard).
 
+When there are multiple matching contexts, the most recently added one is
+used.
+
 ### `server.address()`
 <!-- YAML
 added: v0.6.0
