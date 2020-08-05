@@ -501,7 +501,7 @@ a nested conditional does not have any mapping it will continue checking
 the remaining conditions of the parent condition. In this way nested
 conditions behave analogously to nested JavaScript `if` statements.
 
-#### Executing custom conditions
+#### Resolving custom conditions
 
 When running Node.js, custom comma-separated conditions can be set with the
 `--conditions` or `-m` flag:
