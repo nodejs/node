@@ -475,17 +475,6 @@ order to support packages with conditional exports. For this reason, using
 `"node"` and `"default"` condition branches is usually preferable to using
 `"node"` and `"browser"` condition branches.
 
-When running Node.js, custom comma-separated conditions can be set with the
-`--conditions` or `-m` flag:
-
-```bash
-node --conditions=development main.js
-```
-
-which would then resolve the `"development"` condition in exports, along with
-the existing `"node"`, `"default"`, `"import"` and `"require"` conditions as
-appropriate.
-
 #### Nested conditions
 
 In addition to direct mappings, Node.js also supports nested condition objects.
@@ -511,6 +500,19 @@ Conditions continue to be matched in order as with flat conditions. If
 a nested conditional does not have any mapping it will continue checking
 the remaining conditions of the parent condition. In this way nested
 conditions behave analogously to nested JavaScript `if` statements.
+
+#### Executing custom conditions
+
+When running Node.js, custom comma-separated conditions can be set with the
+`--conditions` or `-m` flag:
+
+```bash
+node --conditions=development main.js
+```
+
+which would then resolve the `"development"` condition in exports, along with
+the existing `"node"`, `"default"`, `"import"` and `"require"` conditions as
+appropriate.
 
 #### Self-referencing a package using its name
 
