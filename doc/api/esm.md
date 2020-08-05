@@ -501,18 +501,20 @@ a nested conditional does not have any mapping it will continue checking
 the remaining conditions of the parent condition. In this way nested
 conditions behave analogously to nested JavaScript `if` statements.
 
-#### Resolving custom conditions
+#### Resolving user conditions
 
-When running Node.js, custom comma-separated conditions can be set with the
+When running Node.js, custom user conditions can be added with the
 `--conditions` or `-u` flag:
 
 ```bash
 node --conditions=development main.js
 ```
 
-which would then resolve the `"development"` condition in exports, along with
-the existing `"node"`, `"default"`, `"import"`, and `"require"` conditions as
-appropriate.
+which would then resolve the `"development"` condition in package imports and
+exports, while resolving the existing `"node"`, `"default"`, `"import"`, and
+`"require"` conditions as appropriate.
+
+Any number of custom conditions can be set with repeat flags.
 
 #### Self-referencing a package using its name
 
