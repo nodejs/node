@@ -5,7 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
-const { validatePath } = require('internal/http');
+const { isValidCONNECTPath } = require('internal/http');
 
 const server = http.createServer();
 
@@ -38,12 +38,5 @@ server.on('listening', common.mustCall(() => {
 }));
 
 ['example.com', 'example.com:0', 'example.com:65536'].forEach((path) => {
-  assert.throws(
-    () => validatePath(path),
-    {
-      code: 'ERR_INVALID_ARG_VALUE',
-      name: 'TypeError',
-      message: /^The argument 'options\.path' must be a valid host:port combo\. Received .+$/
-    }
-  );
+  assert.strictEqual(isValidCONNECTPath(path), false);
 });
