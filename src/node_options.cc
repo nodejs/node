@@ -281,6 +281,11 @@ DebugOptionsParser::DebugOptionsParser() {
 }
 
 EnvironmentOptionsParser::EnvironmentOptionsParser() {
+  AddOption("--conditions",
+            "set the conditional exports conditions",
+            &EnvironmentOptions::conditions,
+            kAllowedInEnvironment);
+  AddAlias("-cc", "--conditions");
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",

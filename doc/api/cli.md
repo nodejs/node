@@ -76,6 +76,21 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
+### `-cc`, `--conditions=conditionA,conditionB`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for custom conditional exports resolution
+conditions.
+
+Any custom comma-separated string condition names are permitted.
+
+The default Node.js conditions of `"node"`, `"default"`, `"import"` and
+`"require"` will always apply as defined.
+
 ### `--cpu-prof`
 <!-- YAML
 added: v12.0.0
