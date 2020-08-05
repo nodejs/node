@@ -3,12 +3,13 @@ name: test-asan
 on:
   push:
     branches:
-    - master
+      - master
+      - canary
     paths-ignore:
-    - 'doc/**'
+      - 'doc/**'
   pull_request:
     paths-ignore:
-    - 'doc/**'
+      - 'doc/**'
 
 env:
   PYTHON_VERSION: 3.8
