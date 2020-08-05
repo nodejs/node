@@ -285,6 +285,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set the conditional exports conditions",
             &EnvironmentOptions::conditions,
             kAllowedInEnvironment);
+  AddAlias("-m", "--conditions");
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",
