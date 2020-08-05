@@ -25,99 +25,104 @@ const assert = require('assert');
 
 const WINDOW = 200; // Why does this need to be so big?
 
-let interval_count = 0;
 
 const starttime = new Date();
-setTimeout(common.mustCall(function() {
-  const endtime = new Date();
+{
+  setTimeout(common.mustCall(function() {
+    const endtime = new Date();
 
-  const diff = endtime - starttime;
-  assert.ok(diff > 0);
-  console.error(`diff: ${diff}`);
+    const diff = endtime - starttime;
+    assert.ok(diff > 0);
+    console.error(`diff: ${diff}`);
 
-  assert.strictEqual(1000 - WINDOW < diff && diff < 1000 + WINDOW, true);
-}), 1000);
+    assert.strictEqual(1000 - WINDOW < diff && diff < 1000 + WINDOW, true);
+  }), 1000);
+}
 
 // This timer shouldn't execute
-const id = setTimeout(function() { assert.strictEqual(true, false); }, 500);
-clearTimeout(id);
+{
+  const id = setTimeout(common.mustNotCall(), 500);
+  clearTimeout(id);
+}
 
-setInterval(function() {
-  interval_count += 1;
-  const endtime = new Date();
+{
+  let interval_count = 0;
 
-  const diff = endtime - starttime;
-  assert.ok(diff > 0);
-  console.error(`diff: ${diff}`);
+  setInterval(common.mustCall(function() {
+    interval_count += 1;
+    const endtime = new Date();
 
-  const t = interval_count * 1000;
+    const diff = endtime - starttime;
+    assert.ok(diff > 0);
+    console.error(`diff: ${diff}`);
 
-  assert.strictEqual(t - WINDOW < diff && diff < t + WINDOW, true);
+    const t = interval_count * 1000;
 
-  assert.strictEqual(interval_count <= 3, true);
-  if (interval_count === 3)
-    clearInterval(this);
-}, 1000);
+    assert.strictEqual(t - WINDOW < diff && diff < t + WINDOW, true);
+
+    assert.strictEqual(interval_count <= 3, true);
+    if (interval_count === 3)
+      clearInterval(this);
+  }, 3), 1000);
+}
 
 
 // Single param:
-setTimeout(function(param) {
-  assert.strictEqual(param, 'test param');
-}, 1000, 'test param');
+{
+  setTimeout(function(param) {
+    assert.strictEqual(param, 'test param');
+  }, 1000, 'test param');
+}
 
-let interval_count2 = 0;
-setInterval(function(param) {
-  ++interval_count2;
-  assert.strictEqual(param, 'test param');
+{
+  let interval_count = 0;
+  setInterval(function(param) {
+    ++interval_count;
+    assert.strictEqual(param, 'test param');
 
-  if (interval_count2 === 3)
-    clearInterval(this);
-}, 1000, 'test param');
+    if (interval_count === 3)
+      clearInterval(this);
+  }, 1000, 'test param');
+}
 
 
 // Multiple param
-setTimeout(function(param1, param2) {
-  assert.strictEqual(param1, 'param1');
-  assert.strictEqual(param2, 'param2');
-}, 1000, 'param1', 'param2');
-
-let interval_count3 = 0;
-setInterval(function(param1, param2) {
-  ++interval_count3;
-  assert.strictEqual(param1, 'param1');
-  assert.strictEqual(param2, 'param2');
-
-  if (interval_count3 === 3)
-    clearInterval(this);
-}, 1000, 'param1', 'param2');
-
-// setInterval(cb, 0) should be called multiple times.
-let count4 = 0;
-const interval4 = setInterval(function() {
-  if (++count4 > 10) clearInterval(interval4);
-}, 0);
-
-
-// We should be able to clearTimeout multiple times without breakage.
-let expectedTimeouts = 3;
-
-function t() {
-  expectedTimeouts--;
+{
+  setTimeout(function(param1, param2) {
+    assert.strictEqual(param1, 'param1');
+    assert.strictEqual(param2, 'param2');
+  }, 1000, 'param1', 'param2');
 }
 
-setTimeout(t, 200);
-setTimeout(t, 200);
-const y = setTimeout(t, 200);
+{
+  let interval_count = 0;
+  setInterval(function(param1, param2) {
+    ++interval_count;
+    assert.strictEqual(param1, 'param1');
+    assert.strictEqual(param2, 'param2');
 
-clearTimeout(y);
-setTimeout(t, 200);
-clearTimeout(y);
+    if (interval_count === 3)
+      clearInterval(this);
+  }, 1000, 'param1', 'param2');
+}
 
+// setInterval(cb, 0) should be called multiple times.
+{
+  let count = 0;
+  const interval = setInterval(common.mustCall(function() {
+    if (++count > 10) clearInterval(interval);
+  }, 11), 0);
+}
 
-process.on('exit', function() {
-  assert.strictEqual(interval_count, 3);
-  assert.strictEqual(count4, 11);
+// We should be able to clearTimeout multiple times without breakage.
+{
+  const t = common.mustCall(3);
 
-  // Check that the correct number of timers ran.
-  assert.strictEqual(expectedTimeouts, 0);
-});
+  setTimeout(t, 200);
+  setTimeout(t, 200);
+  const y = setTimeout(t, 200);
+
+  clearTimeout(y);
+  setTimeout(t, 200);
+  clearTimeout(y);
+}
