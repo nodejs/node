@@ -35,5 +35,5 @@ const ondone = common.mustCall((err) => {
 write();
 function write() {
   const buf = Buffer.alloc(size, 'x');
-  fs.write(fd, buf, 0, buf.size, -1, ondone);
+  fs.write(fd, buf, 0, buf.length, -1, ondone);
 }
