@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - canary
 
 env:
   PYTHON_VERSION: 3.8
