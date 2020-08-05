@@ -76,6 +76,21 @@ $ node --completion-bash > node_bash_completion
 $ source node_bash_completion
 ```
 
+### `-u`, `--conditions=condition`
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental support for custom conditional exports resolution
+conditions.
+
+Any number of custom string condition names are permitted.
+
+The default Node.js conditions of `"node"`, `"default"`, `"import"`, and
+`"require"` will always apply as defined.
+
 ### `--cpu-prof`
 <!-- YAML
 added: v12.0.0
@@ -1232,6 +1247,7 @@ node --require "./a.js" --require "./b.js"
 
 Node.js options that are allowed are:
 <!-- node-options-node start -->
+* `--conditions`, `-u`
 * `--diagnostic-dir`
 * `--disable-proto`
 * `--enable-fips`
