@@ -83,7 +83,17 @@ server.listen(0, () => {
     });
 
     other.on('close', common.mustCall(() => {
-      server.close();
+      // 5. Make another connection using servername 'b.example.com' to ensure
+      // that the array of secure contexts is not reversed in place with each
+      // SNICallback call, as someone might be tempted to refactor this piece of
+      // code by using Array.prototype.reverse() method.
+      const onemore = tls.connect(options, () => {
+        onemore.end();
+      });
+
+      onemore.on('close', common.mustCall(() => {
+        server.close();
+      }));
     }));
   }));
 });
