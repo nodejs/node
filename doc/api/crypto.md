@@ -2803,18 +2803,19 @@ request.
 ### `crypto.randomInt([min, ]max[, callback])`
 <!-- YAML
 added:
-  - v14.8.0
+  - CHANGEME
 -->
 
-* `min` {integer} Start of random range. **Default**: `0`.
-* `max` {integer} End of random range (non-inclusive).
+* `min` {integer} Start of random range (inclusive). **Default**: `0`.
+* `max` {integer} End of random range (inclusive).
 * `callback` {Function} `function(err, n) {}`.
 
-Return a random integer `n` such that `min <= n < max`.  This
+Return a random integer `n` such that `min <= n <= max`.  This
 implementation avoids [modulo
 bias](https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle#Modulo_bias).
 
-The maximum supported range value (`max - min`) is `2^48 - 1`.
+The cardinality of the range (`max - min + 1`) must be at most `2^48 -
+1`. `min` and `max` must be safe integers.
 
 If the `callback` function is not provided, the random integer is generated
 synchronously.
@@ -2823,18 +2824,18 @@ synchronously.
 // Asynchronous
 crypto.randomInt(3, (err, n) => {
   if (err) throw err;
-  console.log(`Random number chosen from (0, 1, 2): ${n}`);
+  console.log(`Random number chosen from (0, 1, 2, 3): ${n}`);
 });
 ```
 
 ```js
 // Synchronous
 const n = crypto.randomInt(3);
-console.log(`Random number chosen from (0, 1, 2): ${n}`);
+console.log(`Random number chosen from (0, 1, 2, 3): ${n}`);
 ```
 
 ```js
-crypto.randomInt(1, 7, (err, n) => {
+crypto.randomInt(1, 6, (err, n) => {
   if (err) throw err;
   console.log(`The dice rolled: ${n}`);
 });
