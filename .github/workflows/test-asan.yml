@@ -5,6 +5,8 @@ on:
     branches:
       - master
       - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
     paths-ignore:
       - 'doc/**'
   pull_request:
