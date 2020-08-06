@@ -372,7 +372,7 @@ const errorTests = [
   {
     send: 'npm install foobar',
     expect: [
-      'npm should be run outside of the node repl, in your normal shell.',
+      'npm should be run outside of the node REPL, in your normal shell.',
       '(Press Control-D to exit.)'
     ]
   },
@@ -453,7 +453,7 @@ const errorTests = [
       /\.load/,
       /\.save/,
       '',
-      'Press ^C to abort current expression, ^D to exit the repl',
+      'Press ^C to abort current expression, ^D to exit the REPL',
       /'thefourtheye'/
     ]
   },
