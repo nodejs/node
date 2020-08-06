@@ -1406,3 +1406,19 @@ endif
 lint-clean:
 	$(RM) tools/.*lintstamp
 	$(RM) .eslintcache
+
+HAS_DOCKER ?= $(shell which docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 1 || echo 0)
+
+ifeq ($(HAS_DOCKER), 1)
+DOCKER_COMMAND ?= docker run -it -v $(PWD):/node
+IS_IN_WORKTREE = $(shell grep '^gitdir: ' $(PWD)/.git 2>/dev/null)
+GIT_WORKTREE_COMMON = $(shell git rev-parse --git-common-dir)
+DOCKER_COMMAND += $(if $(IS_IN_WORKTREE), -v $(GIT_WORKTREE_COMMON):$(GIT_WORKTREE_COMMON))
+gen-openssl: ## Generate platform dependent openssl files (requires docker)
+	docker build -t node-openssl-builder deps/openssl/config/
+	$(DOCKER_COMMAND) node-openssl-builder make -C deps/openssl/config
+else
+gen-openssl:
+	@echo "No docker command, cannot continue"
+	@exit 1
+endif
