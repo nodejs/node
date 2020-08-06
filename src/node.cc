@@ -543,7 +543,7 @@ void RegisterSignalHandler(int signal,
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_sigaction = handler;
-  sa.sa_flags = reset_handler ? SA_RESETHAND | SA_SIGINFO : SA_SIGINFO;
+  sa.sa_flags = SA_SIGINFO | (reset_handler ? SA_RESETHAND : 0);
   sigfillset(&sa.sa_mask);
   CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
