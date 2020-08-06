@@ -123,7 +123,7 @@ except the [wait time](#waiting-for-approvals), please add the
 If a collaborator believes a pull request should not land as is, **the "Request
 Changes" GitHub feature must be used to make the objection explicit**. An
 implicit objection not using the "Request Changes" feature is not considered a
-blocker for a  pull requests. Pull requests with an explicit objection should
+blocker for a pull request. Pull requests with an explicit objection should
 not land until all objections are satisfied. Collaborators should not block a
 pull request without providing a reason. **Providing a set of actionable steps
 alongside the objection is recommended, and the objector must be willing to
