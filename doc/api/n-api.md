@@ -348,8 +348,6 @@ NAPI_MODULE_INIT() {
 
 ## Environment life cycle APIs
 
-> Stability: 1 - Experimental
-
 [Section 8.7][] of the [ECMAScript Language Specification][] defines the concept
 of an "Agent" as a self-contained environment in which JavaScript code runs.
 Multiple such Agents may be started and terminated either concurrently or in
