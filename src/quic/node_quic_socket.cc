@@ -472,14 +472,7 @@ void QuicSocket::OnReceive(
   QuicCID dcid(pdcid, pdcidlen);
   QuicCID scid(pscid, pscidlen);
 
-  // TODO(@jasnell): It would be fantastic if Debug() could be
-  // modified to accept objects with a ToString-like capability
-  // similar to what we can do with TraceEvents... that would
-  // allow us to pass the QuicCID directly to Debug and have it
-  // converted to hex only if the category is enabled so we can
-  // skip committing resources here.
-  std::string dcid_hex = dcid.ToString();
-  Debug(this, "Received a QUIC packet for dcid %s", dcid_hex.c_str());
+  Debug(this, "Received a QUIC packet for dcid %s", dcid);
 
   BaseObjectPtr<QuicSession> session = FindSession(dcid);
 
@@ -489,7 +482,7 @@ void QuicSocket::OnReceive(
   // 3. The packet is a stateless reset sent by the peer
   // 4. This is a malicious or malformed packet.
   if (!session) {
-    Debug(this, "There is no existing session for dcid %s", dcid_hex.c_str());
+    Debug(this, "There is no existing session for dcid %s", dcid);
     bool is_short_header = IsShortHeader(pversion, pscid, pscidlen);
 
     // Handle possible reception of a stateless reset token...
