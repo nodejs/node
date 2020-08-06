@@ -120,7 +120,7 @@ needed [approvals](#code-reviews), [CI](#testing-and-ci), and
 except the [wait time](#waiting-for-approvals), please add the
 [`author ready`](#author-ready-pull-requests) label.
 
-If a collaborator believes a pull request should not land as is, **the "Reuqest
+If a collaborator believes a pull request should not land as is, **the "Request
 Changes" GitHub feature must be used to make the objection explicit**. An
 implicit objection not using the "Request Changes" feature is not considered a
 blocker for a  pull requests. Pull requests with an explicit objection should
