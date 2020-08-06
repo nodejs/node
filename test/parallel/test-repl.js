@@ -372,7 +372,7 @@ const errorTests = [
   {
     send: 'npm install foobar',
     expect: [
-      'npm should be run outside of the node REPL, in your normal shell.',
+      'npm should be run outside of the Node.js REPL, in your normal shell.',
       '(Press Control-D to exit.)'
     ]
   },
