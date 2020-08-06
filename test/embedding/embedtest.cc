@@ -16,8 +16,8 @@ using v8::Local;
 using v8::Locker;
 using v8::MaybeLocal;
 using v8::SealHandleScope;
-using v8::Value;
 using v8::V8;
+using v8::Value;
 
 static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& args,
