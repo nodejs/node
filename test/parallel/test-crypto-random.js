@@ -434,19 +434,25 @@ assert.throws(
   crypto.randomInt(minInt, minInt + 5, common.mustCall());
   crypto.randomInt(maxInt - 5, maxInt, common.mustCall());
 
-  assert.throws(() => crypto.randomInt(minInt - 1, minInt + 5, common.mustNotCall()), {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The "min" argument must be safe integer.' +
-    `${common.invalidArgTypeHelper(minInt - 1)}`,
-  });
+  assert.throws(
+    () => crypto.randomInt(minInt - 1, minInt + 5, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "min" argument must be safe integer.' +
+      `${common.invalidArgTypeHelper(minInt - 1)}`,
+    }
+  );
 
-  assert.throws(() => crypto.randomInt(maxInt - 5, maxInt + 1, common.mustNotCall()), {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The "max" argument must be safe integer.' +
-    `${common.invalidArgTypeHelper(maxInt + 1)}`,
-  });
+  assert.throws(
+    () => crypto.randomInt(maxInt - 5, maxInt + 1, common.mustNotCall()),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: 'The "max" argument must be safe integer.' +
+      `${common.invalidArgTypeHelper(maxInt + 1)}`,
+    }
+  );
 
 
   assert.throws(() => crypto.randomInt(0, 0, common.mustNotCall()), {
