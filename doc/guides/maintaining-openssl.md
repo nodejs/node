@@ -58,6 +58,10 @@ This updates all sources in deps/openssl/openssl by:
 Use `make` to regenerate all platform dependent files in
 `deps/openssl/config/archs/`:
 ```console
+# On non-linux machines
+% make gen-openssl
+
+# On Linux machine
 % make -C deps/openssl/config
 ```
 
