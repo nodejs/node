@@ -2424,7 +2424,7 @@ memory but that was potentially insecure and confusing in some (rather obscure)
 cases.
 
 Assigning a value to `process.title` might not result in an accurate label
-within process manager application such as macOS Activity Monitor or Windows
+within process manager applications such as macOS Activity Monitor or Windows
 Services Manager.
 
 ## `process.traceDeprecation`
