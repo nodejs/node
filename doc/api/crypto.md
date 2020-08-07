@@ -787,7 +787,7 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 // OK
 ```
 
-### Class Method: `ECDH.convertKey(key, curve[, inputEncoding[, outputEncoding[, format]]])`
+### Static method: `ECDH.convertKey(key, curve[, inputEncoding[, outputEncoding[, format]]])`
 <!-- YAML
 added: v10.0.0
 -->
