@@ -5344,7 +5344,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   int pos = peek_position();
   Consume(Token::BREAK);
   IdentifierT label = impl()->NullIdentifier();
-  Token::Value tok = peek()false;
+  Token::Value tok = peek();
   if (!scanner()->HasLineTerminatorBeforeNext() &&
       !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
