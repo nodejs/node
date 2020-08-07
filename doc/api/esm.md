@@ -1920,8 +1920,8 @@ success!
 [`import()`]: #esm_import_expressions
 [`import.meta.url`]: #esm_import_meta
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
-[`module.createRequire()`]: modules.html#modules_module_createrequire_filename
-[`module.syncBuiltinESMExports()`]: modules.html#modules_module_syncbuiltinesmexports
+[`module.createRequire()`]: module.html#module_module_createrequire_filename
+[`module.syncBuiltinESMExports()`]: module.html#module_module_syncbuiltinesmexports
 [`transformSource` hook]: #esm_transformsource_source_context_defaulttransformsource
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
