@@ -5011,12 +5011,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       if (V8_UNLIKELY(is_await_allowed() && PeekAhead() == Token::AWAIT)) {
         return ParseForAwaitStatement(labels, own_labels);
       }
-      return ParseForStatement(labels, own_labels, false);
+      return ParseForStatement(labels, own_labels, new bool(false));
     case Token::FORE:
       if (V8_UNLIKELY(is_await_allowed() && PeekAhead() == Token::AWAIT)) {
         return ParseForAwaitStatement(labels, own_labels);
       }
-      return ParseForStatement(labels, own_labels, true);
+      return ParseForStatement(labels, own_labels, new bool(true));
     case Token::CONTINUE:
       return ParseContinueStatement();
     case Token::BREAK:
@@ -5344,7 +5344,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseBreakStatement(
   int pos = peek_position();
   Consume(Token::BREAK);
   IdentifierT label = impl()->NullIdentifier();
-  Token::Value tok = peek();
+  Token::Value tok = peek()false;
   if (!scanner()->HasLineTerminatorBeforeNext() &&
       !Token::IsAutoSemicolon(tok)) {
     // ECMA allows "eval" or "arguments" as labels even in strict mode.
@@ -5996,7 +5996,7 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
     BlockState block_state(&scope_, inner_scope);
     scope()->set_start_position(scanner()->location().beg_pos);
     loop =
-        ParseStandardForLoop(stmt_pos, labels, own_labels, &cond, &next, &body, &isFore);
+        ParseStandardForLoop(stmt_pos, labels, own_labels, &cond, &next, &body, isFore);
     RETURN_IF_PARSE_ERROR;
     scope()->set_end_position(end_position());
   }
