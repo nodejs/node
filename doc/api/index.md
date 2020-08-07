@@ -8,7 +8,7 @@
 * [About this documentation](documentation.html)
 * [Usage and example](synopsis.html)
 
-<div class="line"></div>
+<hr class="line"/>
 
 * [Assertion testing](assert.html)
 * [Async hooks](async_hooks.html)
@@ -62,6 +62,6 @@
 * [Worker threads](worker_threads.html)
 * [Zlib](zlib.html)
 
-<div class="line"></div>
+<hr class="line"/>
 
 * [Code repository and issue tracker](https://github.com/nodejs/node)
