@@ -2645,7 +2645,7 @@ closed.
 [crypto digest algorithm]: crypto.html#crypto_crypto_gethashes
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
-[exports]: esm.html#esm_package_entry_points
+[exports]: packages.html#packages_package_entry_points
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [policy]: policy.html
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
@@ -2654,6 +2654,6 @@ closed.
 [Subresource Integrity specification]: https://www.w3.org/TR/SRI/#the-integrity-attribute
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [vm]: vm.html
-[self-reference a package using its name]: esm.html#esm_self_referencing_a_package_using_its_name
-[define a custom subpath]: esm.html#esm_subpath_exports
-["imports" field]: esm.html#esm_internal_package_imports
+[self-reference a package using its name]: packages.html#packages_self_referencing_a_package_using_its_name
+[define a custom subpath]: packages.html#packages_subpath_exports
+["imports" field]: packages.html#packages_internal_package_imports
