@@ -616,20 +616,17 @@ class QuicApplication : public MemoryRetainer,
 
   virtual void ResumeStream(int64_t stream_id) {}
 
-  virtual void SetSessionTicketAppData(const SessionTicketAppData& app_data) {
-    // TODO(@jasnell): Different QUIC applications may wish to set some
-    // application data in the session ticket (e.g. http/3 would set
-    // server settings in the application data). For now, doing nothing
-    // as I'm just adding the basic mechanism.
-  }
+  // Different QUIC applications may set some application data in
+  // the session ticket (e.g. http/3 would set server settings in the
+  // application data). By default, there's nothing to set.
+  virtual void SetSessionTicketAppData(const SessionTicketAppData& app_data) {}
 
+  // Different QUIC applications may set some application data in
+  // the session ticket (e.g. http/3 would set server settings in the
+  // application data). By default, there's nothing to get.
   virtual SessionTicketAppData::Status GetSessionTicketAppData(
       const SessionTicketAppData& app_data,
       SessionTicketAppData::Flag flag) {
-    // TODO(@jasnell): Different QUIC application may wish to set some
-    // application data in the session ticket (e.g. http/3 would set
-    // server settings in the application data). For now, doing nothing
-    // as I'm just adding the basic mechanism.
     return flag == SessionTicketAppData::Flag::STATUS_RENEW ?
       SessionTicketAppData::Status::TICKET_USE_RENEW :
       SessionTicketAppData::Status::TICKET_USE;
