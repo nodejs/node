@@ -65,9 +65,9 @@ const testData = [
   },
   {
     file: fixtures.path('order_of_end_tags_5873.md'),
-    html: '<h3>ClassMethod: Buffer.from(array) <span> ' +
-      '<a class="mark" href="#foo_class_method_buffer_from_array" ' +
-      'id="foo_class_method_buffer_from_array">#</a> </span> </h3>' +
+    html: '<h3>Static method: Buffer.from(array) <span> ' +
+      '<a class="mark" href="#foo_static_method_buffer_from_array" ' +
+      'id="foo_static_method_buffer_from_array">#</a> </span> </h3>' +
       '<ul><li><code>array</code><a ' +
       'href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
       'Reference/Global_Objects/Array" class="type">&#x3C;Array></a></li></ul>'

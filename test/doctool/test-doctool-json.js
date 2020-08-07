@@ -69,7 +69,7 @@ const testData = [
           textRaw: 'Subsection',
           name: 'subsection',
           classMethods: [{
-            textRaw: 'Class Method: Buffer.from(array)',
+            textRaw: 'Static method: Buffer.from(array)',
             type: 'classMethod',
             name: 'from',
             signatures: [
@@ -181,7 +181,7 @@ const testData = [
                   params: []
                 }
               ],
-              textRaw: 'Class Method: `Fhqwhgads.again()`',
+              textRaw: 'Static method: `Fhqwhgads.again()`',
               type: 'classMethod'
             }
           ],
