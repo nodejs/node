@@ -634,7 +634,10 @@ void Environment::RunCleanup() {
   initial_base_object_count_ = 0;
   CleanupHandles();
 
-  while (!cleanup_hooks_.empty()) {
+  while (!cleanup_hooks_.empty() ||
+         native_immediates_.size() > 0 ||
+         native_immediates_threadsafe_.size() > 0 ||
+         native_immediates_interrupts_.size() > 0) {
     // Copy into a vector, since we can't sort an unordered_set in-place.
     std::vector<CleanupHookCallback> callbacks(
         cleanup_hooks_.begin(), cleanup_hooks_.end());
