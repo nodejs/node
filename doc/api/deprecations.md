@@ -2828,7 +2828,7 @@ Type: Documentation-only
 [`http.request()`]: http.html#http_http_request_options_callback
 [`https.get()`]: https.html#https_https_get_options_callback
 [`https.request()`]: https.html#https_https_request_options_callback
-[`module.createRequire()`]: modules.html#modules_module_createrequire_filename
+[`module.createRequire()`]: modules_module.html#modules_module_module_createrequire_filename
 [`os.networkInterfaces()`]: os.html#os_os_networkinterfaces
 [`os.tmpdir()`]: os.html#os_os_tmpdir
 [`process.env`]: process.html#process_process_env
