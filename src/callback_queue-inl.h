@@ -22,8 +22,8 @@ CallbackQueue<R, Args...>::Shift() {
     head_ = ret->get_next();
     if (!head_)
       tail_ = nullptr;  // The queue is now empty.
+    size_--;
   }
-  size_--;
   return ret;
 }
 
