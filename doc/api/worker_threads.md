@@ -801,7 +801,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 [`'exit'` event]: #worker_threads_event_exit
 [`AsyncResource`]: async_hooks.html#async_hooks_class_asyncresource
 [`Buffer`]: buffer.html
-[`Buffer.allocUnsafe()`]: buffer.html#buffer_class_method_buffer_allocunsafe_size
+[`Buffer.allocUnsafe()`]: buffer.html#buffer_static_method_buffer_allocunsafe_size
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.html#errors_err_missing_message_port_in_transfer_list
 [`ERR_WORKER_NOT_RUNNING`]: errors.html#ERR_WORKER_NOT_RUNNING
 [`EventEmitter`]: events.html

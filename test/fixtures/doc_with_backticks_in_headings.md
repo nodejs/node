@@ -8,6 +8,6 @@
 
 ## Constructor: `new Fhqwhgads()`
 
-## Class Method: `Fhqwhgads.again()`
+## Static method: `Fhqwhgads.again()`
 
 ## `Fqhqwhgads.fullName`

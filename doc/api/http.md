@@ -2392,7 +2392,7 @@ not abort the request or do anything besides add a `'timeout'` event.
 [`'response'`]: #http_event_response
 [`'upgrade'`]: #http_event_upgrade
 [`Agent`]: #http_class_http_agent
-[`Buffer.byteLength()`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
+[`Buffer.byteLength()`]: buffer.html#buffer_static_method_buffer_bytelength_string_encoding
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`TypeError`]: errors.html#errors_class_typeerror
 [`URL`]: url.html#url_the_whatwg_url_api
