@@ -36,6 +36,7 @@
 * [Internationalization](intl.html)
 * [Modules: CommonJS modules](modules.html)
 * [Modules: ECMAScript modules](esm.html)
+* [Modules: Packages](packages.html)
 * [Net](net.html)
 * [OS](os.html)
 * [Path](path.html)
