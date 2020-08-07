@@ -2479,7 +2479,6 @@ int QuicSession::set_session(SSL_SESSION* session) {
 }
 
 // A client QuicSession can be migrated to a different QuicSocket instance.
-// TODO(@jasnell): This will be revisited.
 bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
   CHECK(!is_server());
   CHECK(!is_destroyed());
@@ -2491,8 +2490,6 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
     return true;
 
   Debug(this, "Migrating to %s", socket->diagnostic_name());
-
-  SendSessionScope send(this);
 
   // Ensure that we maintain a reference to keep this from being
   // destroyed while we are starting the migration.
@@ -2511,22 +2508,31 @@ bool QuicSession::set_socket(QuicSocket* socket, bool nat_rebinding) {
 
   // Step 4: Update ngtcp2
   auto local_address = socket->local_address();
-  if (nat_rebinding) {
-    ngtcp2_addr addr;
-    ngtcp2_addr_init(
-        &addr,
-        local_address.data(),
-        local_address.length(),
-        nullptr);
-    ngtcp2_conn_set_local_addr(connection(), &addr);
-  } else {
+
+  // The nat_rebinding option here should rarely, if ever
+  // be used in a real application. It is intended to serve
+  // as a way of simulating a silent local address change,
+  // such as when the NAT binding changes. Currently, Node.js
+  // does not really have an effective way of detecting that.
+  // Manual user code intervention to handle the migration
+  // to the new QuicSocket is required, which should always
+  // trigger path validation using the ngtcp2_conn_initiate_migration.
+  if (LIKELY(!nat_rebinding)) {
+    SendSessionScope send(this);
     QuicPath path(local_address, remote_address_);
-    if (ngtcp2_conn_initiate_migration(
-            connection(),
-            &path,
-            uv_hrtime()) != 0) {
-      return false;
-    }
+    return ngtcp2_conn_initiate_migration(
+        connection(),
+        &path,
+        uv_hrtime()) == 0;
+  } else {
+    ngtcp2_addr addr;
+    ngtcp2_conn_set_local_addr(
+        connection(),
+        ngtcp2_addr_init(
+            &addr,
+            local_address.data(),
+            local_address.length(),
+            nullptr));
   }
 
   return true;
@@ -3671,7 +3677,7 @@ void QuicSessionSetSocket(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
   CHECK(args[0]->IsObject());
   ASSIGN_OR_RETURN_UNWRAP(&socket, args[0].As<Object>());
-  args.GetReturnValue().Set(session->set_socket(socket));
+  args.GetReturnValue().Set(session->set_socket(socket, args[1]->IsTrue()));
 }
 
 // GracefulClose flips a flag that prevents new local streams
