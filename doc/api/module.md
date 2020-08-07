@@ -1,4 +1,4 @@
-# Modules: `module` core module
+# Modules: `module` API
 
 <!--introduced_in=v0.3.7-->
 

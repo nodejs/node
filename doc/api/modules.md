@@ -1,4 +1,4 @@
-# Modules
+# Modules: CommonJS modules
 
 <!--introduced_in=v0.10.0-->
 
