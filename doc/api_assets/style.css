@@ -524,7 +524,7 @@ a code {
 
 #column2 .line {
   margin: 0 .5rem;
-  background-color: #707070;
+  border-color: #707070;
 }
 
 #column2 ul li:last-child {
