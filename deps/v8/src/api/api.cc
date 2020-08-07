@@ -4701,9 +4701,9 @@ Maybe<PropertyAttribute>
 v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
     Local<Context> context, Local<Name> key) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8_NO_SCRIPT(isolate, context, Object,
-                     GetRealNamedPropertyAttributesInPrototypeChain,
-                     Nothing<PropertyAttribute>(), i::HandleScope);
+  ENTER_V8(isolate, context, Object,
+           GetRealNamedPropertyAttributesInPrototypeChain,
+           Nothing<PropertyAttribute>(), i::HandleScope);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   if (!self->IsJSObject()) return Nothing<PropertyAttribute>();
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
@@ -4716,6 +4716,7 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Maybe<i::PropertyAttributes> result =
       i::JSReceiver::GetPropertyAttributes(&it);
+  has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == i::ABSENT) return Just(None);
@@ -4740,14 +4741,15 @@ MaybeLocal<Value> v8::Object::GetRealNamedProperty(Local<Context> context,
 Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
     Local<Context> context, Local<Name> key) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8_NO_SCRIPT(isolate, context, Object, GetRealNamedPropertyAttributes,
-                     Nothing<PropertyAttribute>(), i::HandleScope);
+  ENTER_V8(isolate, context, Object, GetRealNamedPropertyAttributes,
+           Nothing<PropertyAttribute>(), i::HandleScope);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
       isolate, self, key_obj, self,
       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
+  has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
   if (result.FromJust() == i::ABSENT) {
