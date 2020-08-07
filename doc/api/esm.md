@@ -55,7 +55,7 @@ specifier resolution, and default behavior.
 
 Node.js treats JavaScript code as CommonJS modules by default.
 Authors can tell Node.js to treat JavaScript code as ECMAScript modules
-via the `.mjs` file extension, the `package.json` `"type"` field, or the
+via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
 `--input-type` flag. See
 [Modules: Packages](packages.html#packages_determining_module_system) for more
 details.
@@ -253,9 +253,9 @@ can either be an URL-style relative path like `'./file.mjs'` or a package name
 like `'fs'`.
 
 Like in CommonJS, files within packages can be accessed by appending a path to
-the package name; unless the package’s `package.json` contains an `"exports"`
-field, in which case files within packages need to be accessed via the path
-defined in `"exports"`.
+the package name; unless the package’s [`package.json`][] contains an
+[`"exports"`][] field, in which case files within packages need to be accessed
+via the path defined in [`"exports"`][].
 
 ```js
 import { sin, cos } from 'geometry/trigonometry-functions.mjs';
@@ -1159,3 +1159,6 @@ success!
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Top-Level Await]: https://github.com/tc39/proposal-top-level-await
 [Core modules]: modules.html#modules_core_modules
+[`package.json`]: packages.html#packages_node_js_package_json_field_definitions
+[`"exports"`]: packages.html#packages_exports
+[`"type"`]: packages.html#packages_type
