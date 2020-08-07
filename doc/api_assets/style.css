@@ -611,7 +611,6 @@ td > *:last-child {
   }
   .apidoc #column2 > ul > li > a[href] {
     padding: .5rem 1.4375rem;
-    padding-right: 0;
     display: block;
   }
   .apidoc #column2 > ul > :first-child > a[href] {
