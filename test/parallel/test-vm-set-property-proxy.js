@@ -12,4 +12,5 @@ const handler = {
 };
 
 const proxy = new Proxy({}, handler);
-assert.throws(() => vm.runInNewContext('p = 6', proxy));
+assert.throws(() => vm.runInNewContext('p = 6', proxy),
+              /getOwnPropertyDescriptor/);
