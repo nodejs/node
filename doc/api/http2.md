@@ -2,6 +2,10 @@
 <!-- YAML
 added: v8.4.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34664
+    description: Requests with the `host` header (with or without
+                 `:authority`) can now be sent/received.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22466
     description: HTTP/2 is now Stable. Previously, it had been Experimental.
@@ -2530,7 +2534,7 @@ For incoming headers:
   `access-control-max-age`, `access-control-request-method`, `content-encoding`,
   `content-language`, `content-length`, `content-location`, `content-md5`,
   `content-range`, `content-type`, `date`, `dnt`, `etag`, `expires`, `from`,
-  `if-match`, `if-modified-since`, `if-none-match`, `if-range`,
+  `host`, `if-match`, `if-modified-since`, `if-none-match`, `if-range`,
   `if-unmodified-since`, `last-modified`, `location`, `max-forwards`,
   `proxy-authorization`, `range`, `referer`,`retry-after`, `tk`,
   `upgrade-insecure-requests`, `user-agent` or `x-content-type-options` are
@@ -2909,8 +2913,10 @@ added: v8.4.0
 
 * {string}
 
-The request authority pseudo header field. It can also be accessed via
-`req.headers[':authority']`.
+The request authority pseudo header field. Because HTTP/2 allows requests
+to set either `:authority` or `host`, this value is derived from
+`req.headers[':authority']` if present. Otherwise, it is derived from
+`req.headers['host']`.
 
 #### `request.complete`
 <!-- YAML
@@ -3709,6 +3715,18 @@ following additional properties:
 * `type` {string} Either `'server'` or `'client'` to identify the type of
   `Http2Session`.
 
+## Note on `:authority` and `host`
+
+HTTP/2 requires requests to have either the `:authority` pseudo-header
+or the `host` header. Prefer `:authority` when constructing an HTTP/2
+request directly, and `host` when converting from HTTP/1 (in proxies,
+for instance).
+
+The compatibility API falls back to `host` if `:authority` is not
+present. See [`request.authority`][] for more information. However,
+if you don't use the compatibility API (or use `req.headers` directly),
+you need to implement any fall-back behaviour yourself.
+
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [ALPN negotiation]: #http2_alpn_negotiation
 [Compatibility API]: #http2_compatibility_api
@@ -3749,6 +3767,7 @@ following additional properties:
 [`net.Socket.prototype.unref()`]: net.html#net_socket_unref
 [`net.Socket`]: net.html#net_class_net_socket
 [`net.connect()`]: net.html#net_net_connect
+[`request.authority`]: #http2_request_authority
 [`request.socket`]: #http2_request_socket
 [`request.socket.getPeerCertificate()`]: tls.html#tls_tlssocket_getpeercertificate_detailed
 [`response.end()`]: #http2_response_end_data_encoding_callback
