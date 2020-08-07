@@ -481,7 +481,7 @@ class WhileStatement final : public IterationStatement {
 class ForStatement final : public IterationStatement {
  public:
   void Initialize(Statement* init, Expression* cond, Statement* next,
-                  Statement* body, bool isFore = new bool(false)) {
+                  Statement* body, bool* isFore = new bool(false)) {
     IterationStatement::Initialize(body);
     init_ = init;
     cond_ = cond;
@@ -492,7 +492,7 @@ class ForStatement final : public IterationStatement {
   Statement* init() const { return init_; }
   Expression* cond() const { return cond_; }
   Statement* next() const { return next_; }
-  bool isFore() const { return isFore_; }
+  bool* isFore() const { return isFore_; }
 
  private:
   friend class AstNodeFactory;
@@ -506,7 +506,7 @@ class ForStatement final : public IterationStatement {
   Statement* init_;
   Expression* cond_;
   Statement* next_;
-  bool isFore_;
+  bool* isFore_;
 };
 
 // Shared class for for-in and for-of statements.

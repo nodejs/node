@@ -1315,7 +1315,7 @@ class ParserBase {
   V8_INLINE StatementT ParseTryStatement();
   StatementT ParseForStatement(ZonePtrList<const AstRawString>* labels,
                                ZonePtrList<const AstRawString>* own_labels,
-                               bool isFore);
+                               bool* isFore);
   StatementT ParseForEachStatementWithDeclarations(
       int stmt_pos, ForInfo* for_info, ZonePtrList<const AstRawString>* labels,
       ZonePtrList<const AstRawString>* own_labels, Scope* inner_block_scope);
@@ -1329,14 +1329,14 @@ class ParserBase {
   ForStatementT ParseStandardForLoop(
       int stmt_pos, ZonePtrList<const AstRawString>* labels,
       ZonePtrList<const AstRawString>* own_labels, ExpressionT* cond,
-      StatementT* next, StatementT* body, bool isFore);
+      StatementT* next, StatementT* body, bool* isFore);
   // Same as the above, but handles those cases where <init> is a
   // lexical variable declaration.
   StatementT ParseStandardForLoopWithLexicalDeclarations(
       int stmt_pos, StatementT init, ForInfo* for_info,
       ZonePtrList<const AstRawString>* labels,
       ZonePtrList<const AstRawString>* own_labels,
-      bool isFore);
+      bool* isFore);
   StatementT ParseForAwaitStatement(
       ZonePtrList<const AstRawString>* labels,
       ZonePtrList<const AstRawString>* own_labels);
@@ -5731,7 +5731,7 @@ template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels,
-    bool isFore) {
+    bool* isFore) {
   // Either a standard for loop
   //   for (<init>; <cond>; <next>) { ... }
   // or a for-each loop
@@ -5984,7 +5984,7 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
     int stmt_pos, StatementT init, ForInfo* for_info,
     ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels,
-    bool isFore) {
+    bool* isFore) {
   // The condition and the next statement of the for loop must be parsed
   // in a new scope.
   Scope* inner_scope = NewScope(BLOCK_SCOPE);
@@ -6043,7 +6043,7 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
     int stmt_pos, ZonePtrList<const AstRawString>* labels,
     ZonePtrList<const AstRawString>* own_labels, ExpressionT* cond,
     StatementT* next, StatementT* body,
-    bool isFore) {
+    bool* isFore) {
   CheckStackOverflow();
   ForStatementT loop = factory()->NewForStatement(stmt_pos);
   Target target(this, loop, labels, own_labels, Target::TARGET_FOR_ANONYMOUS);
