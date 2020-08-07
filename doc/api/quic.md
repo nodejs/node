@@ -1246,12 +1246,16 @@ empty object when the key exchange is not ephemeral. The supported types are
 
 For example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`.
 
-#### `quicclientsession.setSocket(socket])`
+#### `quicclientsession.setSocket(socket[, natRebinding])`
 <!-- YAML
 added: REPLACEME
 -->
 
 * `socket` {QuicSocket} A `QuicSocket` instance to move this session to.
+* `natRebinding` {boolean} When `true`, indicates that the local address is to
+  be changed without triggering address validation. This will be rare and will
+  typically be used only to test resiliency in NAT rebind scenarios.
+  **Default**: `false`.
 * Returns: {Promise}
 
 Migrates the `QuicClientSession` to the given `QuicSocket` instance. If the new
