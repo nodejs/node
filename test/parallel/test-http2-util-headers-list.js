@@ -8,7 +8,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
-const { mapToHeaders, toHeaderObject } = require('internal/http2/util');
+const {
+  getAuthority,
+  mapToHeaders,
+  toHeaderObject
+} = require('internal/http2/util');
 const { sensitiveHeaders } = require('http2');
 const { internalBinding } = require('internal/test/binding');
 const {
@@ -34,6 +38,7 @@ const {
   HTTP2_HEADER_ETAG,
   HTTP2_HEADER_EXPIRES,
   HTTP2_HEADER_FROM,
+  HTTP2_HEADER_HOST,
   HTTP2_HEADER_IF_MATCH,
   HTTP2_HEADER_IF_MODIFIED_SINCE,
   HTTP2_HEADER_IF_NONE_MATCH,
@@ -86,7 +91,6 @@ const {
   HTTP2_HEADER_HTTP2_SETTINGS,
   HTTP2_HEADER_TE,
   HTTP2_HEADER_TRANSFER_ENCODING,
-  HTTP2_HEADER_HOST,
   HTTP2_HEADER_KEEP_ALIVE,
   HTTP2_HEADER_PROXY_CONNECTION
 } = internalBinding('http2').constants;
@@ -225,6 +229,7 @@ const {
   HTTP2_HEADER_ETAG,
   HTTP2_HEADER_EXPIRES,
   HTTP2_HEADER_FROM,
+  HTTP2_HEADER_HOST,
   HTTP2_HEADER_IF_MATCH,
   HTTP2_HEADER_IF_MODIFIED_SINCE,
   HTTP2_HEADER_IF_NONE_MATCH,
@@ -289,7 +294,6 @@ const {
   HTTP2_HEADER_HTTP2_SETTINGS,
   HTTP2_HEADER_TE,
   HTTP2_HEADER_TRANSFER_ENCODING,
-  HTTP2_HEADER_HOST,
   HTTP2_HEADER_PROXY_CONNECTION,
   HTTP2_HEADER_KEEP_ALIVE,
   'Connection',
@@ -326,6 +330,17 @@ assert.throws(
 // These should not throw
 mapToHeaders({ te: 'trailers' });
 mapToHeaders({ te: ['trailers'] });
+
+// HTTP/2 encourages use of Host instead of :authority when converting
+// from HTTP/1 to HTTP/2, so we no longer disallow it.
+// Refs: https://github.com/nodejs/node/issues/29858
+mapToHeaders({ [HTTP2_HEADER_HOST]: 'abc' });
+
+// If both are present, the latter has priority
+assert.strictEqual(getAuthority({
+  [HTTP2_HEADER_AUTHORITY]: 'abc',
+  [HTTP2_HEADER_HOST]: 'def'
+}), 'abc');
 
 
 {
