@@ -34,7 +34,7 @@ extends, Token::EXTENDS
 false, Token::FALSE_LITERAL
 finally, Token::FINALLY
 for, Token::FOR
-fore, TOKEN::FORE
+fore, Token::FORE
 function, Token::FUNCTION
 get, Token::GET
 if, Token::IF
