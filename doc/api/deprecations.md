@@ -2778,10 +2778,10 @@ Type: Documentation-only
 
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
-[`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
-[`Buffer.from(array)`]: buffer.html#buffer_class_method_buffer_from_array
-[`Buffer.from(buffer)`]: buffer.html#buffer_class_method_buffer_from_buffer
-[`Buffer.isBuffer()`]: buffer.html#buffer_class_method_buffer_isbuffer_obj
+[`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_static_method_buffer_allocunsafeslow_size
+[`Buffer.from(array)`]: buffer.html#buffer_static_method_buffer_from_array
+[`Buffer.from(buffer)`]: buffer.html#buffer_static_method_buffer_from_buffer
+[`Buffer.isBuffer()`]: buffer.html#buffer_static_method_buffer_isbuffer_obj
 [`Cipher`]: crypto.html#crypto_class_cipher
 [`Decipher`]: crypto.html#crypto_class_decipher
 [`EventEmitter.listenerCount(emitter, eventName)`]: events.html#events_eventemitter_listenercount_emitter_eventname
@@ -2892,8 +2892,8 @@ Type: Documentation-only
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [WHATWG URL API]: url.html#url_the_whatwg_url_api
-[alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
-[alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
-[from_arraybuffer]: buffer.html#buffer_class_method_buffer_from_arraybuffer_byteoffset_length
-[from_string_encoding]: buffer.html#buffer_class_method_buffer_from_string_encoding
+[alloc]: buffer.html#buffer_static_method_buffer_alloc_size_fill_encoding
+[alloc_unsafe_size]: buffer.html#buffer_static_method_buffer_allocunsafe_size
+[from_arraybuffer]: buffer.html#buffer_static_method_buffer_from_arraybuffer_byteoffset_length
+[from_string_encoding]: buffer.html#buffer_static_method_buffer_from_string_encoding
 [legacy `urlObject`]: url.html#url_legacy_urlobject

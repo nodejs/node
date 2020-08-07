@@ -2636,7 +2636,7 @@ try {
 [`'response'`]: #http_event_response
 [`'upgrade'`]: #http_event_upgrade
 [`Agent`]: #http_class_http_agent
-[`Buffer.byteLength()`]: buffer.html#buffer_class_method_buffer_bytelength_string_encoding
+[`Buffer.byteLength()`]: buffer.html#buffer_static_method_buffer_bytelength_string_encoding
 [`Duplex`]: stream.html#stream_class_stream_duplex
 [`HPE_HEADER_OVERFLOW`]: errors.html#errors_hpe_header_overflow
 [`TypeError`]: errors.html#errors_class_typeerror

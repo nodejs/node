@@ -729,7 +729,7 @@ class DBQuery extends AsyncResource {
 }
 ```
 
-#### Class Method: `AsyncResource.bind(fn[, type])`
+#### Static method: `AsyncResource.bind(fn[, type])`
 <!-- YAML
 added: REPLACEME
 -->

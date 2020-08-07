@@ -436,7 +436,7 @@ const r = String.raw;
 const eventPrefix = '^Event: +';
 const classPrefix = '^[Cc]lass: +';
 const ctorPrefix = '^(?:[Cc]onstructor: +)?`?new +';
-const classMethodPrefix = '^Class Method: +';
+const classMethodPrefix = '^Static method: +';
 const maybeClassPropertyPrefix = '(?:Class Property: +)?';
 
 const maybeQuote = '[\'"]?';
