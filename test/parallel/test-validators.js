@@ -7,7 +7,9 @@ const {
   validateArray,
   validateBoolean,
   validateInteger,
+  validateNumber,
   validateObject,
+  validateString,
 } = require('internal/validators');
 const { MAX_SAFE_INTEGER, MIN_SAFE_INTEGER } = Number;
 const outOfRangeError = {
@@ -84,4 +86,25 @@ const invalidArgValueError = {
     });
 
   validateObject(null, 'foo', { nullable: true });
+}
+
+{
+  // validateString type validation.
+  [
+    -1, {}, [], false, true,
+    1, Infinity, -Infinity, NaN,
+    undefined, null, 1.1
+  ].forEach((i) => assert.throws(() => validateString(i, 'name'), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
+}
+{
+  // validateNumber type validation.
+  [
+    'a', {}, [], false, true,
+    undefined, null, '', ' ', '0x',
+    '-0x1', '-0o1', '-0b1', '0o', '0b'
+  ].forEach((i) => assert.throws(() => validateNumber(i, 'name'), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  }));
 }
