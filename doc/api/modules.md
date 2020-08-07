@@ -391,8 +391,8 @@ directories, and then provide a single entry point to those directories.
 There are three ways in which a folder may be passed to `require()` as
 an argument.
 
-The first is to create a `package.json` file in the root of the folder,
-which specifies a `main` module. An example `package.json` file might
+The first is to create a [`package.json`][] file in the root of the folder,
+which specifies a `main` module. An example [`package.json`][] file might
 look like this:
 
 ```json
@@ -406,10 +406,10 @@ If this was in a folder at `./some-library`, then
 
 This is the extent of the awareness of `package.json` files within Node.js.
 
-If there is no `package.json` file present in the directory, or if the
-`'main'` entry is missing or cannot be resolved, then Node.js
+If there is no [`package.json`][] file present in the directory, or if the
+[`"main"`][] entry is missing or cannot be resolved, then Node.js
 will attempt to load an `index.js` or `index.node` file out of that
-directory. For example, if there was no `package.json` file in the above
+directory. For example, if there was no [`package.json`][] file in the above
 example, then `require('./some-library')` would attempt to load:
 
 * `./some-library/index.js`
@@ -986,3 +986,5 @@ This section was moved to
 [module resolution]: #modules_all_together
 [native addons]: addons.html
 [`require.main`]: #modules_require_main
+[`package.json`]: packages.html#packages_package_json_supported_fields
+[`"main"`]: packages.html#packages_main

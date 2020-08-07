@@ -45,7 +45,7 @@ Expect major changes in the implementation including interoperability support,
 specifier resolution, and default behavior.
 
 <!-- Anchors to make sure old links find a target -->
-<i id="#esm_package_json_type_field"></i>
+<i id="#esm_packages_type_field"></i>
 <i id="#esm_package_scope_and_file_extensions"></i>
 <i id="#esm_input_type_flag"></i>
 
@@ -55,7 +55,7 @@ specifier resolution, and default behavior.
 
 Node.js treats JavaScript code as CommonJS modules by default.
 Authors can tell Node.js to treat JavaScript code as ECMAScript modules
-via the `.mjs` file extension, the `package.json` `"type"` field, or the
+via the `.mjs` file extension, the `package.json` [`"type"`][] field, or the
 `--input-type` flag. See
 [Modules: Packages](packages.html#packages_determining_module_system) for more
 details.
@@ -253,9 +253,9 @@ can either be an URL-style relative path like `'./file.mjs'` or a package name
 like `'fs'`.
 
 Like in CommonJS, files within packages can be accessed by appending a path to
-the package name; unless the package’s `package.json` contains an `"exports"`
-field, in which case files within packages need to be accessed via the path
-defined in `"exports"`.
+the package name; unless the package’s [`package.json`][] contains an
+[`"exports"`][] field, in which case files within packages need to be accessed
+via the path defined in [`"exports"`][].
 
 ```js
 import { sin, cos } from 'geometry/trigonometry-functions.mjs';
@@ -933,7 +933,7 @@ The resolver can throw the following errors:
 >    1. If the folder at _packageURL_ does not exist, then
 >       1. Set _parentURL_ to the parent URL path of _parentURL_.
 >       1. Continue the next loop iteration.
->    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
+>    1. Let _pjson_ be the result of **READ_packages**(_packageURL_).
 >    1. If _pjson_ is not **null** and _pjson_._exports_ is not **null** or
 >       **undefined**, then
 >       1. Let _exports_ be _pjson.exports_.
@@ -953,7 +953,7 @@ The resolver can throw the following errors:
 > 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
 > 1. If _packageURL_ is **null**, then
 >    1. Return **undefined**.
-> 1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
+> 1. Let _pjson_ be the result of **READ_packages**(_packageURL_).
 > 1. If _pjson_ is **null** or if _pjson_._exports_ is **null** or
 >    **undefined**, then
 >    1. Return **undefined**.
@@ -995,7 +995,7 @@ The resolver can throw the following errors:
 >    1. Throw an _Invalid Module Specifier_ error.
 > 1. Let _packageURL_ be the result of **READ_PACKAGE_SCOPE**(_parentURL_).
 > 1. If _packageURL_ is not **null**, then
->    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_packageURL_).
+>    1. Let _pjson_ be the result of **READ_packages**(_packageURL_).
 >    1. If _pjson.imports_ is a non-null Object, then
 >       1. Let _resolvedMatch_ be the result of
 >          **PACKAGE_IMPORTS_EXPORTS_RESOLVE**(_specifier_, _pjson.imports_,
@@ -1091,12 +1091,12 @@ _conditions_)
 > 1. While _scopeURL_ is not the file system root,
 >    1. Set _scopeURL_ to the parent URL of _scopeURL_.
 >    1. If _scopeURL_ ends in a _"node_modules"_ path segment, return **null**.
->    1. Let _pjson_ be the result of **READ_PACKAGE_JSON**(_scopeURL_).
+>    1. Let _pjson_ be the result of **READ_packages**(_scopeURL_).
 >    1. If _pjson_ is not **null**, then
 >       1. Return _pjson_.
 > 1. Return **null**.
 
-**READ_PACKAGE_JSON**(_packageURL_)
+**READ_packages**(_packageURL_)
 
 > 1. Let _pjsonURL_ be the resolution of _"package.json"_ within _packageURL_.
 > 1. If the file at _pjsonURL_ does not exist, then
@@ -1159,3 +1159,6 @@ success!
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Top-Level Await]: https://github.com/tc39/proposal-top-level-await
 [Core modules]: modules.html#modules_core_modules
+[`package.json`]: packages.html#packages_package_json_supported_fields
+[`"exports"`]: packages.html#packages_exports
+[`"type"`]: packages.html#packages_type
