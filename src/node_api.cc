@@ -533,6 +533,7 @@ napi_status napi_add_async_cleanup_hook(
   auto handle = node::AddEnvironmentCleanupHook(env->isolate, fun, arg);
   if (remove_handle != nullptr) {
     *remove_handle = new napi_async_cleanup_hook_handle__ { std::move(handle) };
+    env->Ref();
   }
 
   return napi_clear_last_error(env);
@@ -546,6 +547,11 @@ napi_status napi_remove_async_cleanup_hook(
 
   node::RemoveEnvironmentCleanupHook(std::move(remove_handle->handle));
   delete remove_handle;
+
+  // Release the `env` handle asynchronously since it would be surprising if
+  // a call to a N-API function would destroy `env` synchronously.
+  static_cast<node_napi_env>(env)->node_env()
+      ->SetImmediate([env](node::Environment*) { env->Unref(); });
 
   return napi_clear_last_error(env);
 }
