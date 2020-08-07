@@ -9,7 +9,7 @@ const http = require('http');
 const server = http.createServer(common.mustCall(function(req, res) {
   assert.strictEqual(res.writable, true);
   assert.strictEqual(res.finished, false);
-  assert.strictEqual(res.writableEnded, false);
+  assert.strictEqual(res.writableEnded, true);
   res.end();
 
   // res.writable is set to false after it has finished sending
