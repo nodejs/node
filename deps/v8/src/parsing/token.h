@@ -144,6 +144,7 @@ namespace internal {
   K(ELSE, "else", 0)                                               \
   K(FINALLY, "finally", 0)                                         \
   K(FOR, "for", 0)                                                 \
+  K(FORE, "fore", 0)                                               \
   K(FUNCTION, "function", 0)                                       \
   K(IF, "if", 0)                                                   \
   /* IN */                                                         \

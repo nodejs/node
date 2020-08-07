@@ -481,7 +481,7 @@ class WhileStatement final : public IterationStatement {
 class ForStatement final : public IterationStatement {
  public:
   void Initialize(Statement* init, Expression* cond, Statement* next,
-                  Statement* body, bool isFore) {
+                  Statement* body, bool isFore = new bool(false)) {
     IterationStatement::Initialize(body);
     init_ = init;
     cond_ = cond;
