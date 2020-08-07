@@ -7,7 +7,7 @@ const assert = require('assert');
 const h2 = require('http2');
 
 // Requests using host instead of :authority should be allowed
-// and Http2ServerRequest.authority should fall back to hos
+// and Http2ServerRequest.authority should fall back to host
 
 // :authority should NOT be auto-filled if host is present
 

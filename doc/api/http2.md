@@ -3,7 +3,7 @@
 added: v8.4.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34664
     description: Requests with the `host` header (with or without
                  `:authority`) can now be sent / received.
   - version: v10.10.0
@@ -3721,7 +3721,7 @@ constructing an HTTP/2 request directly, and `host` should be
 preferred when converting from HTTP/1 (in proxies, for instance).
 
 Historically, Node.js required all requests to have the `:authority`
-pseudo-header and rejected with the `host` header present.
+pseudo-header and rejected requests with the `host` header present.
 This has been corrected; the `host` header is now allowed, and the
 only requirement is for either `host` or `:authority` to be
 present (or both). The same validations from `:authority` extend
