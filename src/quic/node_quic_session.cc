@@ -3378,8 +3378,10 @@ int QuicSession::OnStreamReset(
 // sensitivity of PATH_CHALLENGE operations (an attacker
 // could use a compromised PATH_CHALLENGE to trick an endpoint
 // into redirecting traffic).
-// TODO(@jasnell): In the future, we'll want to explore whether
-// we want to handle the different cases of ngtcp2_rand_ctx
+//
+// The ngtcp2_rand_ctx tells us what the random data is used for.
+// Currently, there is only one use. In the future, we'll want to
+// explore whether we want to handle the different cases uses.
 int QuicSession::OnRand(
     ngtcp2_conn* conn,
     uint8_t* dest,
@@ -3744,8 +3746,7 @@ void QuicSessionSilentClose(const FunctionCallbackInfo<Value>& args) {
   session->Close(QuicSessionListener::SESSION_CLOSE_FLAG_SILENT);
 }
 
-// TODO(addaleax): This is a temporary solution for testing and should be
-// removed later.
+// This is used purely for testing.
 void QuicSessionRemoveFromSocket(const FunctionCallbackInfo<Value>& args) {
   QuicSession* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
