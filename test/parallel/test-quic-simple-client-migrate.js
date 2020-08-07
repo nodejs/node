@@ -69,6 +69,17 @@ const server = createQuicSocket({ server: options });
     const s1 = req.socket;
     const a1 = req.socket.endpoints[0].address;
 
+    await Promise.all([1, {}, 'test', false, null, undefined].map((i) => {
+      return assert.rejects(req.setSocket(i), {
+        code: 'ERR_INVALID_ARG_TYPE'
+      });
+    }));
+    await Promise.all([1, {}, 'test', null].map((i) => {
+      return assert.rejects(req.setSocket(req.socket, i), {
+        code: 'ERR_INVALID_ARG_TYPE'
+      });
+    }));
+
     await req.setSocket(client2);
 
     // Verify that it is using a different network endpoint
