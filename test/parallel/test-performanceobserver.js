@@ -58,7 +58,7 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
                   {
                     code: 'ERR_INVALID_OPT_VALUE',
                     name: 'TypeError',
-                    message: `The value "${i}" is invalid ` +
+                    message: `The value "${inspect(i)}" is invalid ` +
                                    'for option "entryTypes"'
                   });
   });

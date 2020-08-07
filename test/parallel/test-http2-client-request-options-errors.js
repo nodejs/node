@@ -5,6 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
+const { inspect } = require('util');
 
 // Check if correct errors are emitted when wrong type of data is passed
 // to certain options of ClientHttp2Session request method
@@ -48,7 +49,7 @@ server.listen(0, common.mustCall(() => {
           }), {
             name: 'TypeError',
             code: 'ERR_INVALID_OPT_VALUE',
-            message: `The value "${String(types[type])}" is invalid ` +
+            message: `The value "${inspect(types[type])}" is invalid ` +
                     `for option "${option}"`
           });
       });
