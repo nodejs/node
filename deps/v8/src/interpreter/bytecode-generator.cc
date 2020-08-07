@@ -1929,6 +1929,9 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   if (stmt->next() != nullptr) {
     builder()->SetStatementPosition(stmt->next());
     Visit(stmt->next());
+    Visit(stmt->next());
+    Visit(stmt->next());
+    Visit(stmt->next());
   }
 }
 
