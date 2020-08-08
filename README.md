@@ -383,6 +383,8 @@ For information about the governance of the Node.js project, see
 **Pranshu Srivastava** &lt;rexagod@gmail.com&gt; (he/him)
 * [richardlau](https://github.com/richardlau) -
 **Richard Lau** &lt;riclau@uk.ibm.com&gt;
+* [rickyes](https://github.com/rickyes) -
+**Ricky Zhou** &lt;0x19951125@gmail.com&gt; (he/him)
 * [ronag](https://github.com/ronag) -
 **Robert Nagy** &lt;ronagy@icloud.com&gt;
 * [ronkorving](https://github.com/ronkorving) -
