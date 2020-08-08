@@ -3,16 +3,17 @@ const common = require('../common');
 const assert = require('assert');
 const child_process = require('child_process');
 const { once } = require('events');
+const { inspect } = require('util');
 
 if (process.argv[2] !== 'child') {
   for (const value of [null, 42, Infinity, 'foo']) {
     assert.throws(() => {
       child_process.spawn(process.execPath, [], { serialization: value });
     }, {
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${value}" is invalid ` +
-      'for option "options.serialization". ' +
-      "Must be one of: undefined, 'json', 'advanced'"
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.serialization' " +
+        "must be one of: undefined, 'json', 'advanced'. " +
+        `Received ${inspect(value)}`
     });
   }
 

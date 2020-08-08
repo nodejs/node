@@ -5,7 +5,7 @@ const fs = require('fs');
 
 const options = 'test';
 const expectedError = {
-  code: 'ERR_INVALID_OPT_VALUE_ENCODING',
+  code: 'ERR_INVALID_ARG_VALUE',
   name: 'TypeError',
 };
 

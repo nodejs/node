@@ -558,9 +558,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
     }
   }), {
     name: 'TypeError',
-    code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "otherEncoding" is invalid for ' +
-    'option "paramEncoding"'
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.paramEncoding' is invalid. " +
+      "Received 'otherEncoding'"
   });
 }
 
@@ -685,8 +685,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${enc}" is invalid for option "publicKeyEncoding"`
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.publicKeyEncoding' is invalid. " +
+        `Received ${inspect(enc)}`
     });
   }
 
@@ -704,15 +705,14 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${inspect(type)}" is invalid for option ` +
-               '"publicKeyEncoding.type"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.publicKeyEncoding.type' is invalid. " +
+        `Received ${inspect(type)}`
     });
   }
 
   // Missing / invalid publicKeyEncoding.format.
   for (const format of [undefined, null, 0, false, 'a', {}]) {
-    const expected = typeof format === 'string' ? format : inspect(format);
     assert.throws(() => generateKeyPairSync('rsa', {
       modulusLength: 4096,
       publicKeyEncoding: {
@@ -725,9 +725,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${expected}" is invalid for option ` +
-               '"publicKeyEncoding.format"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.publicKeyEncoding.format' is invalid. " +
+        `Received ${inspect(format)}`
     });
   }
 
@@ -742,8 +742,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       privateKeyEncoding: enc
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${enc}" is invalid for option "privateKeyEncoding"`
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.privateKeyEncoding' is invalid. " +
+        `Received ${inspect(enc)}`
     });
   }
 
@@ -761,15 +762,14 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${inspect(type)}" is invalid for option ` +
-               '"privateKeyEncoding.type"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.privateKeyEncoding.type' is invalid. " +
+        `Received ${inspect(type)}`
     });
   }
 
   // Missing / invalid privateKeyEncoding.format.
   for (const format of [undefined, null, 0, false, 'a', {}]) {
-    const expected = typeof format === 'string' ? format : inspect(format);
     assert.throws(() => generateKeyPairSync('rsa', {
       modulusLength: 4096,
       publicKeyEncoding: {
@@ -782,9 +782,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${expected}" is invalid for option ` +
-               '"privateKeyEncoding.format"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.privateKeyEncoding.format' is invalid. " +
+        `Received ${inspect(format)}`
     });
   }
 
@@ -803,9 +803,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${inspect(cipher)}" is invalid for option ` +
-               '"privateKeyEncoding.cipher"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.privateKeyEncoding.cipher' is invalid. " +
+        `Received ${inspect(cipher)}`
     });
   }
 
@@ -844,9 +844,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       }
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${passphrase}" is invalid for option ` +
-               '"privateKeyEncoding.passphrase"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.privateKeyEncoding.passphrase' " +
+        `is invalid. Received ${inspect(passphrase)}`
     });
   }
 
@@ -867,30 +867,26 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 {
   // Test invalid modulus lengths.
   for (const modulusLength of [undefined, null, 'a', true, {}, [], 512.1, -1]) {
-    const expected = typeof modulusLength === 'string' ?
-      modulusLength : inspect(modulusLength);
     assert.throws(() => generateKeyPair('rsa', {
       modulusLength
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${expected}" is invalid for option ` +
-               '"modulusLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.modulusLength' is invalid. " +
+        `Received ${inspect(modulusLength)}`
     });
   }
 
   // Test invalid exponents.
   for (const publicExponent of ['a', true, {}, [], 3.5, -1]) {
-    const expected = typeof publicExponent === 'string' ?
-      publicExponent : inspect(publicExponent);
     assert.throws(() => generateKeyPair('rsa', {
       modulusLength: 4096,
       publicExponent
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${expected}" is invalid for option ` +
-               '"publicExponent"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.publicExponent' is invalid. " +
+        `Received ${inspect(publicExponent)}`
     });
   }
 }
@@ -899,30 +895,26 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
 {
   // Test invalid modulus lengths.
   for (const modulusLength of [undefined, null, 'a', true, {}, [], 4096.1]) {
-    const expected = typeof modulusLength === 'string' ?
-      modulusLength : inspect(modulusLength);
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${expected}" is invalid for option ` +
-               '"modulusLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.modulusLength' is invalid. " +
+        `Received ${inspect(modulusLength)}`
     });
   }
 
   // Test invalid divisor lengths.
   for (const divisorLength of ['a', true, {}, [], 4096.1]) {
-    const expected = typeof divisorLength === 'string' ?
-      divisorLength : inspect(divisorLength);
     assert.throws(() => generateKeyPair('dsa', {
       modulusLength: 2048,
       divisorLength
     }), {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${expected}" is invalid for option ` +
-               '"divisorLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.divisorLength' is invalid. " +
+        `Received ${inspect(divisorLength)}`
     });
   }
 }
@@ -951,9 +943,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${inspect(namedCurve)}" is invalid for option ` +
-               '"namedCurve"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.namedCurve' is invalid. " +
+        `Received ${inspect(namedCurve)}`
     });
   }
 
@@ -1073,9 +1065,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${type}" is invalid for option ` +
-               '"publicKeyEncoding.type"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.publicKeyEncoding.type' is invalid. " +
+        `Received ${inspect(type)}`
     });
   }
 
@@ -1088,8 +1080,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${inspect(hashValue)}" is invalid for option "hash"`
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.hash' is invalid. " +
+        `Received ${inspect(hashValue)}`
     });
   }
 
@@ -1103,9 +1096,9 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${type}" is invalid for option ` +
-               '"privateKeyEncoding.type"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.privateKeyEncoding.type' is invalid. " +
+        `Received ${inspect(type)}`
     });
   }
 
@@ -1192,7 +1185,6 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
   );
 
   for (const mgf1Hash of [null, 0, false, {}, []]) {
-    const expected = inspect(mgf1Hash);
     assert.throws(
       () => {
         generateKeyPair('rsa-pss', {
@@ -1204,8 +1196,10 @@ const sec1EncExp = (cipher) => getRegExpForPEM('EC PRIVATE KEY', cipher);
       },
       {
         name: 'TypeError',
-        code: 'ERR_INVALID_OPT_VALUE',
-        message: `The value "${expected}" is invalid for option "mgf1Hash"`
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.mgf1Hash' is invalid. " +
+          `Received ${inspect(mgf1Hash)}`
+
       }
     );
   }

@@ -44,7 +44,7 @@ const { sleep } = require('internal/util');
       () => monitorEventLoopDelay({ resolution: i }),
       {
         name: 'RangeError',
-        code: 'ERR_INVALID_OPT_VALUE'
+        code: 'ERR_INVALID_ARG_VALUE'
       }
     );
   });

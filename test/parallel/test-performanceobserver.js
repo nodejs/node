@@ -56,10 +56,10 @@ assert.strictEqual(counts[NODE_PERFORMANCE_ENTRY_TYPE_FUNCTION], 0);
   [1, undefined, null, {}, Infinity].forEach((i) => {
     assert.throws(() => observer.observe({ entryTypes: i }),
                   {
-                    code: 'ERR_INVALID_OPT_VALUE',
+                    code: 'ERR_INVALID_ARG_VALUE',
                     name: 'TypeError',
-                    message: `The value "${inspect(i)}" is invalid ` +
-                                   'for option "entryTypes"'
+                    message: "The property 'options.entryTypes' is invalid. " +
+                      `Received ${inspect(i)}`
                   });
   });
 

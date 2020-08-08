@@ -86,7 +86,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     });
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   assert.throws(() => {
@@ -96,7 +96,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     });
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   assert.throws(() => {
@@ -106,7 +106,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     });
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   // Constructor throws if historySize is not a positive number
@@ -117,7 +117,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     });
   }, {
     name: 'RangeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   assert.throws(() => {
@@ -127,7 +127,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     });
   }, {
     name: 'RangeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   assert.throws(() => {
@@ -137,7 +137,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
     });
   }, {
     name: 'RangeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 
   // Check for invalid tab sizes.

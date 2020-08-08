@@ -11,7 +11,7 @@ fs.assertEncoding('utf8');
 
 assert.throws(
   () => fs.assertEncoding('foo'),
-  { code: 'ERR_INVALID_OPT_VALUE_ENCODING', name: 'TypeError' }
+  { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' }
 );
 
 // Test junction symlinks

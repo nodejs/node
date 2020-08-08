@@ -64,9 +64,9 @@ const net = require('net');
                                   () => common.mustNotCall());
   for (const fn of hintOptBlocks) {
     assert.throws(fn, {
-      code: 'ERR_INVALID_OPT_VALUE',
+      code: 'ERR_INVALID_ARG_VALUE',
       name: 'TypeError',
-      message: /The value "\d+" is invalid for option "hints"/
+      message: /The argument 'hints' is invalid\. Received \d+/
     });
   }
 }

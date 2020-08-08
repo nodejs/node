@@ -26,6 +26,7 @@ if (!common.hasCrypto)
 
 const assert = require('assert');
 const crypto = require('crypto');
+const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
 
 crypto.DEFAULT_ENCODING = 'buffer';
@@ -328,9 +329,9 @@ for (const test of TEST_CASES) {
                             });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${authTagLength}" is invalid for option ` +
-               '"authTagLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.authTagLength' is invalid. " +
+               `Received ${inspect(authTagLength)}`
     });
 
     assert.throws(() => {
@@ -342,9 +343,9 @@ for (const test of TEST_CASES) {
                               });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${authTagLength}" is invalid for option ` +
-               '"authTagLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.authTagLength' is invalid. " +
+        `Received ${inspect(authTagLength)}`
     });
 
     if (!common.hasFipsCrypto) {
@@ -352,18 +353,18 @@ for (const test of TEST_CASES) {
         crypto.createCipher('aes-256-ccm', 'bad password', { authTagLength });
       }, {
         name: 'TypeError',
-        code: 'ERR_INVALID_OPT_VALUE',
-        message: `The value "${authTagLength}" is invalid for option ` +
-                 '"authTagLength"'
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.authTagLength' is invalid. " +
+          `Received ${inspect(authTagLength)}`
       });
 
       assert.throws(() => {
         crypto.createDecipher('aes-256-ccm', 'bad password', { authTagLength });
       }, {
         name: 'TypeError',
-        code: 'ERR_INVALID_OPT_VALUE',
-        message: `The value "${authTagLength}" is invalid for option ` +
-                 '"authTagLength"'
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.authTagLength' is invalid. " +
+          `Received ${inspect(authTagLength)}`
       });
     }
   }
@@ -452,9 +453,9 @@ for (const test of TEST_CASES) {
       cipher.setAAD(Buffer.from('0123456789', 'hex'), { plaintextLength });
     }, {
       name: 'TypeError',
-      code: 'ERR_INVALID_OPT_VALUE',
-      message: `The value "${plaintextLength}" is invalid for option ` +
-               '"plaintextLength"'
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: "The property 'options.plaintextLength' is invalid. " +
+        `Received ${inspect(plaintextLength)}`
     });
   }
 }

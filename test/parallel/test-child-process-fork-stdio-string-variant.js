@@ -15,7 +15,7 @@ const payload = { hello: 'world' };
 
 assert.throws(
   () => fork(childScript, malFormedOpts),
-  { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' });
+  { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' });
 
 function test(stringVariant) {
   const child = fork(childScript, { stdio: stringVariant });

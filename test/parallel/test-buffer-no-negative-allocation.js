@@ -5,9 +5,9 @@ const assert = require('assert');
 const { SlowBuffer } = require('buffer');
 
 const msg = {
-  code: 'ERR_INVALID_OPT_VALUE',
+  code: 'ERR_INVALID_ARG_VALUE',
   name: 'RangeError',
-  message: /^The value "[^"]*" is invalid for option "size"$/
+  message: /^The argument 'size' is invalid\. Received [^"]*$/
 };
 
 // Test that negative Buffer length inputs throw errors.
