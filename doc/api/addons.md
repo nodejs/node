@@ -155,12 +155,14 @@ they were created.
 The context-aware addon can be structured to avoid global static data by
 performing the following steps:
 * Define a class which will hold per-addon-instance data and which has a static
-member of the form
-  ```cpp
+member of the form.
+
+```cpp
   static void DeleteInstance(void* data) {
     // Cast `data` to an instance of the class and delete it.
   }
-  ```
+```
+
 * Heap-allocate an instance of this class in the addon initializer. This can be
 accomplished using the `new` keyword.
 * Call `node::AddEnvironmentCleanupHook()`, passing it the above-created
