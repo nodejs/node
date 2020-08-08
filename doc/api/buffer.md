@@ -288,6 +288,10 @@ It can be constructed in a variety of ways.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34682
+    description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
+                 for invalid input arguments.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18129
     description: Attempting to fill a non-zero length buffer with a zero length
@@ -319,7 +323,7 @@ console.log(buf);
 ```
 
 If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_OPT_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
 is thrown.
 
 If `fill` is specified, the allocated `Buffer` will be initialized by calling
@@ -353,6 +357,10 @@ A `TypeError` will be thrown if `size` is not a number.
 <!-- YAML
 added: v5.10.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34682
+    description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
+                 for invalid input arguments.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7079
     description: Passing a negative `size` will now throw an error.
@@ -361,7 +369,7 @@ changes:
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_OPT_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
 is thrown.
 
 The underlying memory for `Buffer` instances created in this way is *not
@@ -401,12 +409,17 @@ additional performance that [`Buffer.allocUnsafe()`][] provides.
 ### Static method: `Buffer.allocUnsafeSlow(size)`
 <!-- YAML
 added: v5.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34682
+    description: Throw ERR_INVALID_ARG_VALUE instead of ERR_INVALID_OPT_VALUE
+                 for invalid input arguments.
 -->
 
 * `size` {integer} The desired length of the new `Buffer`.
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
-[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_OPT_VALUE`][]
+[`buffer.constants.MAX_LENGTH`][] or smaller than 0, [`ERR_INVALID_ARG_VALUE`][]
 is thrown. A zero-length `Buffer` is created if `size` is 0.
 
 The underlying memory for `Buffer` instances created in this way is *not
@@ -3274,7 +3287,7 @@ introducing security vulnerabilities into an application.
 [`Buffer.poolSize`]: #buffer_class_property_buffer_poolsize
 [`DataView`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView
 [`ERR_INVALID_BUFFER_SIZE`]: errors.html#ERR_INVALID_BUFFER_SIZE
-[`ERR_INVALID_OPT_VALUE`]: errors.html#ERR_INVALID_OPT_VALUE
+[`ERR_INVALID_ARG_VALUE`]: errors.html#ERR_INVALID_ARG_VALUE
 [`ERR_OUT_OF_RANGE`]: errors.html#ERR_OUT_OF_RANGE
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer

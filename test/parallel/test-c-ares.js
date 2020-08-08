@@ -65,12 +65,12 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
   // Try calling resolve with an unsupported type.
   'HI',
   // Try calling resolve with an unsupported type that's an object key
-  'toString'
+  'toString',
 ].forEach((val) => {
   const err = {
-    code: 'ERR_INVALID_OPT_VALUE',
+    code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: `The value "${val}" is invalid for option "rrtype"`
+    message: `The argument 'rrtype' is invalid. Received '${val}'`,
   };
 
   assert.throws(

@@ -74,9 +74,9 @@ assert.throws(
     padding: null,
   }, ''),
   {
-    code: 'ERR_INVALID_OPT_VALUE',
+    code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: 'The value "null" is invalid for option "padding"'
+    message: "The property 'options.padding' is invalid. Received null",
   });
 
 assert.throws(
@@ -85,9 +85,9 @@ assert.throws(
     saltLength: null,
   }, ''),
   {
-    code: 'ERR_INVALID_OPT_VALUE',
+    code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: 'The value "null" is invalid for option "saltLength"'
+    message: "The property 'options.saltLength' is invalid. Received null",
   });
 
 // Test signing and verifying
@@ -314,7 +314,7 @@ assert.throws(
             padding: invalidValue
           });
       }, {
-        code: 'ERR_INVALID_OPT_VALUE',
+        code: 'ERR_INVALID_ARG_VALUE',
         name: 'TypeError'
       });
 
@@ -327,7 +327,7 @@ assert.throws(
             saltLength: invalidValue
           });
       }, {
-        code: 'ERR_INVALID_OPT_VALUE',
+        code: 'ERR_INVALID_ARG_VALUE',
         name: 'TypeError'
       });
     });
@@ -608,7 +608,7 @@ assert.throws(
         dsaEncoding
       });
     }, {
-      code: 'ERR_INVALID_OPT_VALUE'
+      code: 'ERR_INVALID_ARG_VALUE'
     });
   }
 }

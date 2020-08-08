@@ -138,7 +138,7 @@ const util = require('util');
 // https://github.com/nodejs/node/issues/32806
 {
   assert.throws(() => new SyntheticModule(['x', 'x'], () => {}, {}), {
-    message: 'The argument \'exportNames.x\' is duplicated. Received \'x\'',
+    message: 'The property \'exportNames.x\' is duplicated. Received \'x\'',
     name: 'TypeError',
   });
 }

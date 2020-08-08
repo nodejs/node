@@ -70,18 +70,18 @@ assert.strictEqual(stringToFlags('sa+'), O_APPEND | O_CREAT | O_RDWR | O_SYNC);
   .forEach(function(flags) {
     assert.throws(
       () => stringToFlags(flags),
-      { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' }
+      { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' }
     );
   });
 
 assert.throws(
   () => stringToFlags({}),
-  { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' }
+  { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' }
 );
 
 assert.throws(
   () => stringToFlags(true),
-  { code: 'ERR_INVALID_OPT_VALUE', name: 'TypeError' }
+  { code: 'ERR_INVALID_ARG_VALUE', name: 'TypeError' }
 );
 
 if (common.isLinux || common.isOSX) {

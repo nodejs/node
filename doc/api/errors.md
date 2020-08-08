@@ -1378,16 +1378,6 @@ An IP address is not valid.
 The imported module string is an invalid URL, package name, or package subpath
 specifier.
 
-<a id="ERR_INVALID_OPT_VALUE"></a>
-### `ERR_INVALID_OPT_VALUE`
-
-An invalid or unexpected value was passed in an options object.
-
-<a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
-### `ERR_INVALID_OPT_VALUE_ENCODING`
-
-An invalid or unknown file encoding was passed.
-
 <a id="ERR_INVALID_PACKAGE_CONFIG"></a>
 ### `ERR_INVALID_PACKAGE_CONFIG`
 
@@ -2390,6 +2380,24 @@ Used when an invalid character is found in an HTTP response status message
   removed: v11.0.0
 -->
 A given index was out of the accepted range (e.g. negative offsets).
+
+<a id="ERR_INVALID_OPT_VALUE"></a>
+### `ERR_INVALID_OPT_VALUE`
+<!-- YAML
+added: v8.0.0
+removed: REPLACEME
+-->
+
+An invalid or unexpected value was passed in an options object.
+
+<a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
+### `ERR_INVALID_OPT_VALUE_ENCODING`
+<!-- YAML
+added: v9.0.0
+removed: REPLACEME
+-->
+
+An invalid or unknown file encoding was passed.
 
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 ### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
