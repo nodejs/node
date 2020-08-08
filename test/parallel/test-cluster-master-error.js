@@ -29,16 +29,11 @@ const totalWorkers = 2;
 // Cluster setup
 if (cluster.isWorker) {
   const http = require('http');
-  http.Server(() => {
-
-  }).listen(0, '127.0.0.1');
-
+  http.Server(() => {}).listen(0, '127.0.0.1');
 } else if (process.argv[2] === 'cluster') {
-
   // Send PID to testcase process
   let forkNum = 0;
   cluster.on('fork', common.mustCall(function forkEvent(worker) {
-
     // Send PID
     process.send({
       cmd: 'worker',
@@ -49,12 +44,11 @@ if (cluster.isWorker) {
     if (++forkNum === totalWorkers) {
       cluster.removeListener('fork', forkEvent);
     }
-  }));
+  }, totalWorkers));
 
   // Throw accidental error when all workers are listening
   let listeningNum = 0;
   cluster.on('listening', common.mustCall(function listeningEvent() {
-
     // When all workers are listening
     if (++listeningNum === totalWorkers) {
       // Stop listening
@@ -65,20 +59,15 @@ if (cluster.isWorker) {
         throw new Error('accidental error');
       });
     }
-
-  }));
+  }, totalWorkers));
 
   // Startup a basic cluster
   cluster.fork();
   cluster.fork();
-
 } else {
   // This is the testcase
 
   const fork = require('child_process').fork;
-
-  let masterExited = false;
-  let workersExited = false;
 
   // List all workers
   const workers = [];
@@ -88,7 +77,6 @@ if (cluster.isWorker) {
 
   // Handle messages from the cluster
   master.on('message', common.mustCall((data) => {
-
     // Add worker pid to list and progress tracker
     if (data.cmd === 'worker') {
       workers.push(data.workerPID);
@@ -97,30 +85,20 @@ if (cluster.isWorker) {
 
   // When cluster is dead
   master.on('exit', common.mustCall((code) => {
-
     // Check that the cluster died accidentally (non-zero exit code)
-    masterExited = !!code;
+    assert.strictEqual(code, 1);
 
+    // XXX(addaleax): The fact that this uses raw PIDs makes the test inherently
+    // flaky – another process might end up being started right after the
+    // workers finished and receive the same PID.
     const pollWorkers = () => {
       // When master is dead all workers should be dead too
-      let alive = false;
-      workers.forEach((pid) => alive = common.isAlive(pid));
-      if (alive) {
+      if (workers.some((pid) => common.isAlive(pid))) {
         setTimeout(pollWorkers, 50);
-      } else {
-        workersExited = true;
       }
     };
 
     // Loop indefinitely until worker exit
     pollWorkers();
   }));
-
-  process.once('exit', () => {
-    assert(masterExited,
-           'The master did not die after an error was thrown');
-    assert(workersExited,
-           'The workers did not die after an error in the master');
-  });
-
 }
