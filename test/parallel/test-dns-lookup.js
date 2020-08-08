@@ -52,9 +52,9 @@ assert.throws(() => {
 
 {
   const err = {
-    code: 'ERR_INVALID_OPT_VALUE',
+    code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: 'The value "100" is invalid for option "hints"'
+    message: "The argument 'hints' is invalid. Received 100"
   };
   const options = {
     hints: 100,
@@ -70,10 +70,9 @@ assert.throws(() => {
 
 {
   const err = {
-    code: 'ERR_INVALID_OPT_VALUE',
+    code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: 'The value "20" is invalid for option "family". ' +
-    'Must be one of: 0, 4, 6'
+    message: "The argument 'family' must be one of: 0, 4, 6. Received 20"
   };
   const options = {
     hints: 0,

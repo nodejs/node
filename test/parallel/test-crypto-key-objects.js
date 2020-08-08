@@ -223,8 +223,8 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
   assert.throws(() => {
     createPrivateKey({ key: Buffer.alloc(0), format: 'der', type: 'spki' });
   }, {
-    code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "spki" is invalid for option "type"'
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.type' is invalid. Received 'spki'"
   });
 
   // Unlike SPKI, PKCS#1 is a valid encoding for private keys (and public keys),
@@ -471,7 +471,7 @@ const privateDsa = fixtures.readKey('dsa_private_encrypted_1025.pem',
     });
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_OPT_VALUE',
-    message: 'The value "undefined" is invalid for option "cipher"'
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: "The property 'options.cipher' is invalid. Received undefined"
   });
 }

@@ -7,9 +7,9 @@ const SlowBuffer = buffer.SlowBuffer;
 
 const kMaxLength = buffer.kMaxLength;
 const bufferMaxSizeMsg = {
-  code: 'ERR_INVALID_OPT_VALUE',
+  code: 'ERR_INVALID_ARG_VALUE',
   name: 'RangeError',
-  message: /^The value "[^"]*" is invalid for option "size"$/
+  message: /^The argument 'size' is invalid\. Received [^"]*$/
 };
 
 assert.throws(() => Buffer((-1 >>> 0) + 1), bufferMaxSizeMsg);

@@ -41,6 +41,6 @@ class FakeInput extends EventEmitter {
     rli.close();
   }, {
     name: 'TypeError',
-    code: 'ERR_INVALID_OPT_VALUE'
+    code: 'ERR_INVALID_ARG_VALUE'
   });
 });
