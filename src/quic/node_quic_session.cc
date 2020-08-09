@@ -31,6 +31,7 @@
 #include "uv.h"
 
 #include <algorithm>
+#include <memory>
 #include <vector>
 #include <string>
 #include <utility>
@@ -1621,12 +1622,12 @@ QuicSession::QuicSession(
   PushListener(&default_listener_);
   set_connection_id_strategy(RandomConnectionIDStrategy);
   set_preferred_address_strategy(preferred_address_strategy);
-  crypto_context_.reset(
-      new QuicCryptoContext(
+  crypto_context_ = std::make_unique<QuicCryptoContext>(
+
           this,
           secure_context,
           side,
-          options));
+          options);
   application_.reset(SelectApplication(this));
 
   wrap->DefineOwnProperty(
