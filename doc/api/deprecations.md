@@ -2664,9 +2664,9 @@ const moduleParents = Object.values(require.cache)
 [`timeout.ref()`]: timers.html#timers_timeout_ref
 [`timeout.refresh()`]: timers.html#timers_timeout_refresh
 [`timeout.unref()`]: timers.html#timers_timeout_unref
-[`tls.CryptoStream`]: tls.html#tls_class_cryptostream
+[`tls.CryptoStream`]: tls.html#tls_class_tls_cryptostream
 [`tls.SecureContext`]: tls.html#tls_tls_createsecurecontext_options
-[`tls.SecurePair`]: tls.html#tls_class_securepair
+[`tls.SecurePair`]: tls.html#tls_class_tls_securepair
 [`tls.TLSSocket`]: tls.html#tls_class_tls_tlssocket
 [`tls.checkServerIdentity()`]: tls.html#tls_tls_checkserveridentity_hostname_cert
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
