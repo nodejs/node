@@ -161,10 +161,10 @@ require(X) from module at path Y
    b. LOAD_AS_DIRECTORY(Y + X)
    c. THROW "not found"
 4. If X begins with '#'
-   a. LOAD_INTERAL_IMPORT(X, Y)
-4. LOAD_SELF_REFERENCE(X, Y)
-5. LOAD_NODE_MODULES(X, dirname(Y))
-6. THROW "not found"
+   a. LOAD_PACKAGE_IMPORTS(X, dirname(Y))
+5. LOAD_PACKAGE_SELF(X, dirname(Y))
+6. LOAD_NODE_MODULES(X, dirname(Y))
+7. THROW "not found"
 
 LOAD_AS_FILE(X)
 1. If X is a file, load X as its file extension format. STOP
@@ -191,7 +191,7 @@ LOAD_AS_DIRECTORY(X)
 LOAD_NODE_MODULES(X, START)
 1. let DIRS = NODE_MODULES_PATHS(START)
 2. for each DIR in DIRS:
-   a. LOAD_PACKAGE_EXPORTS(DIR, X)
+   a. LOAD_PACKAGE_EXPORTS(X, DIR)
    b. LOAD_AS_FILE(DIR/X)
    c. LOAD_AS_DIRECTORY(DIR/X)
 
@@ -206,47 +206,45 @@ NODE_MODULES_PATHS(START)
    d. let I = I - 1
 5. return DIRS
 
-LOAD_SELF_REFERENCE(X, START)
-1. Find the closest package scope to START.
+LOAD_PACKAGE_IMPORTS(X, DIR)
+1. Find the closest package scope SCOPE to DIR.
 2. If no scope was found, return.
-3. If the `package.json` has no "exports", return.
-4. If the name in `package.json` is a prefix of X, then
-   a. Load the remainder of X relative to this package as if it was
-      loaded via `LOAD_NODE_MODULES` with a name in `package.json`.
+3. If the SCOPE/package.json "imports" is null or undefined, return.
+4. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
+  ["node", "require"]) defined in the ESM resolver.
+5. RESOLVE_ESM_MATCH(MATCH).
 
-LOAD_PACKAGE_EXPORTS(DIR, X)
-1. Try to interpret X as a combination of name and subpath where the name
+LOAD_PACKAGE_EXPORTS(X, DIR)
+1. Try to interpret X as a combination of NAME and SUBPATH where the name
    may have a @scope/ prefix and the subpath begins with a slash (`/`).
-2. If X does not match this pattern or DIR/name/package.json is not a file,
+2. If X does not match this pattern or DIR/NAME/package.json is not a file,
    return.
-3. Parse DIR/name/package.json, and look for "exports" field.
+3. Parse DIR/NAME/package.json, and look for "exports" field.
 4. If "exports" is null or undefined, return.
-5. If "exports" is an object with some keys starting with "." and some keys
-  not starting with ".", throw "invalid config".
-6. If "exports" is a string, or object with no keys starting with ".", treat
-  it as having that value as its "." object property.
-7. If subpath is "." and "exports" does not have a "." entry, return.
-8. Find the longest key in "exports" that the subpath starts with.
-9. If no such key can be found, throw "not found".
-10. let RESOLVED =
-    fileURLToPath(PACKAGE_EXPORTS_TARGET_RESOLVE(pathToFileURL(DIR/name),
-    exports[key], subpath.slice(key.length), ["node", "require"])), as defined
-    in the ESM resolver.
-11. If key ends with "/":
-    a. LOAD_AS_FILE(RESOLVED)
-    b. LOAD_AS_DIRECTORY(RESOLVED)
-12. Otherwise
-   a. If RESOLVED is a file, load it as its file extension format. STOP
-13. Throw "not found"
+5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
+   `package.json` "exports", ["node", "require"]) defined in the ESM resolver.
+6. RESOLVE_ESM_MATCH(MATCH)
 
-LOAD_INTERNAL_IMPORT(X, START)
-1. Find the closest package scope to START.
-2. If no scope was found or the `package.json` has no "imports", return.
-3. let RESOLVED =
-  fileURLToPath(PACKAGE_INTERNAL_RESOLVE(X, pathToFileURL(START)), as defined
-  in the ESM resolver.
-4. If RESOLVED is not a valid file, throw "not found"
-5. Load RESOLVED as its file extension format. STOP
+LOAD_PACKAGE_SELF(X, DIR)
+1. Find the closest package scope SCOPE to DIR.
+2. If no scope was found, return.
+3. If the SCOPE/package.json "exports" is null or undefined, return.
+4. If the SCOPE/package.json "name" is not the first segment of X, return.
+5. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(SCOPE),
+   "." + X.slice("name".length), `package.json` "exports", ["node", "require"])
+   defined in the ESM resolver.
+6. RESOLVE_ESM_MATCH(MATCH)
+
+RESOLVE_ESM_MATCH(MATCH)
+1. let { RESOLVED, EXACT } = MATCH
+2. let RESOLVED_PATH = fileURLToPath(RESOLVED)
+3. If EXACT is true,
+   a. If the file at RESOLVED_PATH exists, load RESOLVED_PATH as its extension
+      format. STOP
+4. Otherwise, if EXACT is false,
+   a. LOAD_AS_FILE(RESOLVED_PATH)
+   b. LOAD_AS_DIRECTORY(RESOLVED_PATH)
+5. THROW "not found"
 ```
 
 ## Caching
