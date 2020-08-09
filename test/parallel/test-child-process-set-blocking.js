@@ -25,8 +25,9 @@ const assert = require('assert');
 const ch = require('child_process');
 
 const SIZE = 100000;
+const python = process.env.PYTHON || 'python';
 
-const cp = ch.spawn('python', ['-c', `print(${SIZE} * "C")`], {
+const cp = ch.spawn(python, ['-c', `print(${SIZE} * "C")`], {
   stdio: 'inherit'
 });
 
