@@ -868,7 +868,7 @@ If `outputEncoding` is given a string will be returned; otherwise a
 `ERR_CRYPTO_ECDH_INVALID_PUBLIC_KEY` error when `otherPublicKey`
 lies outside of the elliptic curve. Since `otherPublicKey` is
 usually supplied from a remote user over an insecure network,
-its recommended for developers to handle this exception accordingly.
+be sure to handle this exception accordingly.
 
 ### `ecdh.generateKeys([encoding[, format]])`
 <!-- YAML
