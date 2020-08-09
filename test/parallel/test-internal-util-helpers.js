@@ -4,7 +4,10 @@
 require('../common');
 const assert = require('assert');
 const { types } = require('util');
-const { isError } = require('internal/util');
+const {
+  isError,
+  getConstructorOf
+} = require('internal/util');
 const vm = require('vm');
 
 // Special cased errors. Test the internal function which is used in
@@ -35,3 +38,12 @@ const vm = require('vm');
   assert(!(differentRealmErr instanceof Error));
   assert(isError(differentRealmErr));
 }
+
+// getConstructorOf
+assert.strictEqual(getConstructorOf(Object.create(null)), null);
+assert.strictEqual(getConstructorOf([]), Array);
+assert.strictEqual(getConstructorOf({}), Object);
+assert.strictEqual(getConstructorOf(1), Number);
+assert.strictEqual(getConstructorOf(true), Boolean);
+assert.strictEqual(getConstructorOf(/regexp/), RegExp);
+assert.strictEqual(getConstructorOf('String'), String);
