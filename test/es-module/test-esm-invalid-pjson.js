@@ -21,7 +21,7 @@ child.on('close', mustCall((code, signal) => {
     stderr.includes(
       [
         '[ERR_INVALID_PACKAGE_CONFIG]: ',
-        `Invalid package config ${invalidJson}, `,
+        `Invalid package config ${invalidJson}. `,
         `Unexpected token } in JSON at position ${isWindows ? 16 : 14}`
       ].join(''),
     ),
