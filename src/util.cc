@@ -210,9 +210,9 @@ int WriteFileSync(const char* path, uv_buf_t buf) {
   return err;
 }
 
-int WriteFileSync(v8::Isolate* isolate,
+int WriteFileSync(Isolate* isolate,
                   const char* path,
-                  v8::Local<v8::String> string) {
+                  Local<String> string) {
   node::Utf8Value utf8(isolate, string);
   uv_buf_t buf = uv_buf_init(utf8.out(), utf8.length());
   return WriteFileSync(path, buf);
@@ -222,8 +222,8 @@ void DiagnosticFilename::LocalTime(TIME_TYPE* tm_struct) {
 #ifdef _WIN32
   GetLocalTime(tm_struct);
 #else  // UNIX, OSX
-  struct timeval time_val;
-  gettimeofday(&time_val, nullptr);
+  uv_timeval64_t time_val;
+  CHECK_EQ(0, uv_gettimeofday(&time_val));
   localtime_r(&time_val.tv_sec, tm_struct);
 #endif
 }
