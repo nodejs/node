@@ -370,6 +370,51 @@ The first 3 are enabled by default. The last 2 `CCM`-based suites are supported
 by TLSv1.3 because they may be more performant on constrained systems, but they
 are not enabled by default since they offer less security.
 
+## Class: `tls.CryptoStream`
+<!-- YAML
+added: v0.3.4
+deprecated: v0.11.3
+-->
+
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
+The `tls.CryptoStream` class represents a stream of encrypted data. This class
+is deprecated and should no longer be used.
+
+### `cryptoStream.bytesWritten`
+<!-- YAML
+added: v0.3.4
+deprecated: v0.11.3
+-->
+
+The `cryptoStream.bytesWritten` property returns the total number of bytes
+written to the underlying socket *including* the bytes required for the
+implementation of the TLS protocol.
+
+## Class: `tls.SecurePair`
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
+
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
+Returned by [`tls.createSecurePair()`][].
+
+### Event: `'secure'`
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+-->
+
+The `'secure'` event is emitted by the `SecurePair` object once a secure
+connection has been established.
+
+As with checking for the server
+[`'secureConnection'`](#tls_event_secureconnection)
+event, `pair.cleartext.authorized` should be inspected to confirm whether the
+certificate used is properly authorized.
+
 ## Class: `tls.Server`
 <!-- YAML
 added: v0.3.2
@@ -1671,6 +1716,69 @@ A key is *required* for ciphers that make use of certificates. Either `key` or
 If the `ca` option is not given, then Node.js will default to using
 [Mozilla's publicly trusted list of CAs][].
 
+## `tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])`
+<!-- YAML
+added: v0.3.2
+deprecated: v0.11.3
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
+-->
+
+> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
+
+* `context` {Object} A secure context object as returned by
+  `tls.createSecureContext()`
+* `isServer` {boolean} `true` to specify that this TLS connection should be
+  opened as a server.
+* `requestCert` {boolean} `true` to specify whether a server should request a
+  certificate from a connecting client. Only applies when `isServer` is `true`.
+* `rejectUnauthorized` {boolean} If not `false` a server automatically reject
+  clients with invalid certificates. Only applies when `isServer` is `true`.
+* `options`
+  * `enableTrace`: See [`tls.createServer()`][]
+  * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
+  * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
+    **Default:** `false`.
+  * `server` {net.Server} A [`net.Server`][] instance
+  * `requestCert`: See [`tls.createServer()`][]
+  * `rejectUnauthorized`: See [`tls.createServer()`][]
+  * `ALPNProtocols`: See [`tls.createServer()`][]
+  * `SNICallback`: See [`tls.createServer()`][]
+  * `session` {Buffer} A `Buffer` instance containing a TLS session.
+  * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
+    extension will be added to the client hello and an `'OCSPResponse'` event
+    will be emitted on the socket before establishing a secure communication.
+
+Creates a new secure pair object with two streams, one of which reads and writes
+the encrypted data and the other of which reads and writes the cleartext data.
+Generally, the encrypted stream is piped to/from an incoming encrypted data
+stream and the cleartext one is used as a replacement for the initial encrypted
+stream.
+
+`tls.createSecurePair()` returns a `tls.SecurePair` object with `cleartext` and
+`encrypted` stream properties.
+
+Using `cleartext` has the same API as [`tls.TLSSocket`][].
+
+The `tls.createSecurePair()` method is now deprecated in favor of
+`tls.TLSSocket()`. For example, the code:
+
+```js
+pair = tls.createSecurePair(/* ... */);
+pair.encrypted.pipe(socket);
+socket.pipe(pair.encrypted);
+```
+
+can be replaced by:
+
+```js
+secureSocket = tls.TLSSocket(socket, options);
+```
+
+where `secureSocket` has the same API as `pair.cleartext`.
+
 ## `tls.createServer([options][, secureConnectionListener])`
 <!-- YAML
 added: v0.3.2
@@ -1866,116 +1974,6 @@ added: v11.4.0
   the default to `'TLSv1.1'`. Using `--tls-min-v1.3` sets the default to
   `'TLSv1.3'`. If multiple of the options are provided, the lowest minimum is
   used.
-
-## Deprecated APIs
-
-### Class: `CryptoStream`
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-The `tls.CryptoStream` class represents a stream of encrypted data. This class
-is deprecated and should no longer be used.
-
-#### `cryptoStream.bytesWritten`
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-The `cryptoStream.bytesWritten` property returns the total number of bytes
-written to the underlying socket *including* the bytes required for the
-implementation of the TLS protocol.
-
-### Class: `SecurePair`
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-Returned by [`tls.createSecurePair()`][].
-
-#### Event: `'secure'`
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
--->
-
-The `'secure'` event is emitted by the `SecurePair` object once a secure
-connection has been established.
-
-As with checking for the server
-[`'secureConnection'`](#tls_event_secureconnection)
-event, `pair.cleartext.authorized` should be inspected to confirm whether the
-certificate used is properly authorized.
-
-### `tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])`
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
-changes:
-  - version: v5.0.0
-    pr-url: https://github.com/nodejs/node/pull/2564
-    description: ALPN options are supported now.
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-* `context` {Object} A secure context object as returned by
-  `tls.createSecureContext()`
-* `isServer` {boolean} `true` to specify that this TLS connection should be
-  opened as a server.
-* `requestCert` {boolean} `true` to specify whether a server should request a
-  certificate from a connecting client. Only applies when `isServer` is `true`.
-* `rejectUnauthorized` {boolean} If not `false` a server automatically reject
-  clients with invalid certificates. Only applies when `isServer` is `true`.
-* `options`
-  * `enableTrace`: See [`tls.createServer()`][]
-  * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
-  * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
-    **Default:** `false`.
-  * `server` {net.Server} A [`net.Server`][] instance
-  * `requestCert`: See [`tls.createServer()`][]
-  * `rejectUnauthorized`: See [`tls.createServer()`][]
-  * `ALPNProtocols`: See [`tls.createServer()`][]
-  * `SNICallback`: See [`tls.createServer()`][]
-  * `session` {Buffer} A `Buffer` instance containing a TLS session.
-  * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
-    extension will be added to the client hello and an `'OCSPResponse'` event
-    will be emitted on the socket before establishing a secure communication.
-
-Creates a new secure pair object with two streams, one of which reads and writes
-the encrypted data and the other of which reads and writes the cleartext data.
-Generally, the encrypted stream is piped to/from an incoming encrypted data
-stream and the cleartext one is used as a replacement for the initial encrypted
-stream.
-
-`tls.createSecurePair()` returns a `tls.SecurePair` object with `cleartext` and
-`encrypted` stream properties.
-
-Using `cleartext` has the same API as [`tls.TLSSocket`][].
-
-The `tls.createSecurePair()` method is now deprecated in favor of
-`tls.TLSSocket()`. For example, the code:
-
-```js
-pair = tls.createSecurePair(/* ... */);
-pair.encrypted.pipe(socket);
-socket.pipe(pair.encrypted);
-```
-
-can be replaced by:
-
-```js
-secureSocket = tls.TLSSocket(socket, options);
-```
-
-where `secureSocket` has the same API as `pair.cleartext`.
 
 [`'newSession'`]: #tls_event_newsession
 [`'resumeSession'`]: #tls_event_resumesession
