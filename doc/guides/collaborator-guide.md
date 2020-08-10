@@ -114,22 +114,22 @@ pull request creator pushed new code since the last CI run.
 
 ### Consensus Seeking
 
-If there are no objecting Collaborators, a pull request may land if it has the
-needed [approvals](#code-reviews), [CI](#testing-and-ci), and
-[wait time](#waiting-for-approvals). If a pull request meets all requirements
-except the [wait time](#waiting-for-approvals), please add the
+A pull request may land if it has the needed [approvals](#code-reviews),
+[CI](#testing-and-ci), [wait time](#waiting-for-approvals) and no
+[outstanding objections](#objections). [Breaking changes](#breaking-changes)
+must receive [TSC review](#involving-the-tsc) in addition to other
+requirements. If a pull request meets all requirements except the
+[wait time](#waiting-for-approvals), please add the
 [`author ready`](#author-ready-pull-requests) label.
 
-If a collaborator believes a pull request should not land as is, **the "Request
-Changes" GitHub feature must be used to make the objection explicit**. An
-implicit objection not using the "Request Changes" feature is not a
-blocker for a pull request. Pull requests with an explicit objection should
-not land until all objections are satisfied. Collaborators should not block a
-pull request without providing a reason. **Providing a set of actionable steps
-alongside the objection is recommended, and the objector must be willing to
-work with the pull request author to reach a consensus about the direction of
-the pull request**. If reaching consensus is not possible, a Collaborator may
-escalate the issue to the TSC.
+#### Objections
+
+**Collaborators may object to a pull request by using the "Request
+Changes" GitHub feature**. Dissent comments alone don't constitute an
+objection. **Any PR objection must include a clear reason for that objection,
+and the objector must remain responsive for further discussion towards
+consensus about the direction of the pull request**. Providing a set of
+actionable steps alongside the objection is recommended.
 
 If the objection is not clear to others, another Collaborator may ask an
 objecting Collaborator to explain their objection or to provide actionable
@@ -137,11 +137,10 @@ steps to resolve the objection. **If the objector is unresponsive for seven
 days after a collaborator asks for clarification, another Collaborator may
 dismiss the objection**.
 
-[Breaking changes](#breaking-changes) must receive
-[TSC review](#involving-the-tsc). If two TSC members approve the pull request
-and no Collaborators object, then it may land. If there are objections, a
-Collaborator may apply the `tsc-agenda` label. That will put the pull request on
-the TSC meeting agenda.
+**Pull requests with outstanding objections must remain open until all
+objections are satisfied**. If reaching consensus is not possible, a
+Collaborator may escalate the issue to the TSC by pinging `@nodejs/tsc` and
+adding the `tsc-agenda` label to the issue.
 
 #### Helpful resources
 
