@@ -41,6 +41,7 @@
       "<(V8_ROOT)/src/builtins/builtins-string.tq",
       "<(V8_ROOT)/src/builtins/cast.tq",
       "<(V8_ROOT)/src/builtins/collections.tq",
+      "<(V8_ROOT)/src/builtins/constructor.tq",
       "<(V8_ROOT)/src/builtins/conversion.tq",
       "<(V8_ROOT)/src/builtins/convert.tq",
       "<(V8_ROOT)/src/builtins/console.tq",
