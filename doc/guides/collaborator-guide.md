@@ -2,36 +2,36 @@
 
 ## Contents
 
-* [Issues and Pull Requests](#issues-and-pull-requests)
-  * [Welcoming First-Time Contributors](#welcoming-first-time-contributors)
-  * [Closing Issues and Pull Requests](#closing-issues-and-pull-requests)
+* [Issues and pull requests](#issues-and-pull-requests)
+  * [Welcoming first-time contributors](#welcoming-first-time-contributors)
+  * [Closing issues and pull requests](#closing-issues-and-pull-requests)
   * [Author ready pull requests](#author-ready-pull-requests)
   * [Handling own pull requests](#handling-own-pull-requests)
-* [Accepting Modifications](#accepting-modifications)
-  * [Code Reviews](#code-reviews)
-  * [Consensus Seeking](#consensus-seeking)
-  * [Waiting for Approvals](#waiting-for-approvals)
+* [Accepting modifications](#accepting-modifications)
+  * [Code reviews](#code-reviews)
+  * [Consensus seeking](#consensus-seeking)
+  * [Waiting for approvals](#waiting-for-approvals)
   * [Testing and CI](#testing-and-ci)
-    * [Useful CI Jobs](#useful-ci-jobs)
-    * [Starting a CI Job](#starting-a-ci-job)
-  * [Internal vs. Public API](#internal-vs-public-api)
-  * [Breaking Changes](#breaking-changes)
-    * [Breaking Changes and Deprecations](#breaking-changes-and-deprecations)
-    * [Breaking Changes to Internal Elements](#breaking-changes-to-internal-elements)
-    * [Unintended Breaking Changes](#unintended-breaking-changes)
+    * [Useful CI jobs](#useful-ci-jobs)
+    * [Starting a CI job](#starting-a-ci-job)
+  * [Internal vs. public API](#internal-vs-public-api)
+  * [Breaking changes](#breaking-changes)
+    * [Breaking changes and deprecations](#breaking-changes-and-deprecations)
+    * [Breaking changes to internal elements](#breaking-changes-to-internal-elements)
+    * [Unintended breaking changes](#unintended-breaking-changes)
       * [Reverting commits](#reverting-commits)
-  * [Introducing New Modules](#introducing-new-modules)
+  * [Introducing new modules](#introducing-new-modules)
   * [Additions to N-API](#additions-to-n-api)
   * [Deprecations](#deprecations)
   * [Involving the TSC](#involving-the-tsc)
-* [Landing Pull Requests](#landing-pull-requests)
+* [Landing pull requests](#landing-pull-requests)
   * [Using `git-node`](#using-git-node)
   * [Technical HOWTO](#technical-howto)
   * [Troubleshooting](#troubleshooting)
-  * [I Made a Mistake](#i-made-a-mistake)
-  * [Long Term Support](#long-term-support)
+  * [I made a mistake](#i-made-a-mistake)
+  * [Long term support](#long-term-support)
     * [What is LTS?](#what-is-lts)
-    * [How are LTS Branches Managed?](#how-are-lts-branches-managed)
+    * [How are LTS branches managed?](#how-are-lts-branches-managed)
     * [How can I help?](#how-can-i-help)
 * [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker)
 
@@ -40,13 +40,13 @@ Collaborators should understand the
 [guidelines for new contributors](../../CONTRIBUTING.md) and the
 [project governance model](../../GOVERNANCE.md).
 
-## Issues and Pull Requests
+## Issues and pull requests
 
 Mind these guidelines, the opinions of other Collaborators, and guidance of the
 [TSC][]. Notify other qualified parties for more input on an issue or a pull
 request. See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
-### Welcoming First-Time Contributors
+### Welcoming first-time contributors
 
 Always show courtesy to individuals submitting issues and pull requests. Be
 welcoming to first-time contributors, identified by the GitHub
@@ -57,7 +57,7 @@ request author. This way, once their pull request lands, GitHub will show them
 as a _Contributor_. Ask if they have configured their git
 [username][git-username] and [email][git-email] to their liking.
 
-### Closing Issues and Pull Requests
+### Closing issues and pull requests
 
 Collaborators may close any issue or pull request that is not relevant to the
 future of the Node.js project. Where this is unclear, leave the issue or pull
@@ -87,13 +87,13 @@ to land but is [author ready](#author-ready-pull-requests), add the
 `author ready` label. If you wish to land the pull request yourself, use the
 "assign yourself" link to self-assign it.
 
-## Accepting Modifications
+## Accepting modifications
 
 Contributors propose modifications to Node.js using GitHub pull requests. This
 includes modifications proposed by TSC members and other Collaborators. A pull
 request must pass code review and CI before landing into the codebase.
 
-### Code Reviews
+### Code reviews
 
 At least two Collaborators must approve a pull request before the pull request
 lands. One Collaborator approval is enough if the pull request has been open
@@ -112,7 +112,7 @@ If you are the first Collaborator to approve a pull request that has no CI yet,
 please [start one](#testing-and-ci). Please also start a new CI if the
 pull request creator pushed new code since the last CI run.
 
-### Consensus Seeking
+### Consensus seeking
 
 A pull request may land if it has the needed [approvals](#code-reviews),
 [CI](#testing-and-ci), [wait time](#waiting-for-approvals) and no
@@ -148,7 +148,7 @@ adding the `tsc-agenda` label to the issue.
 * [How to Do Code Reviews Like a Human (Part Two)](https://mtlynch.io/human-code-reviews-2/)
 * [Code Review Etiquette](https://css-tricks.com/code-review-etiquette/)
 
-### Waiting for Approvals
+### Waiting for approvals
 
 Before landing pull requests, allow 48 hours for input from other Collaborators.
 Certain types of pull requests can be fast-tracked and may land after a shorter
@@ -194,7 +194,7 @@ everything else. Start a fresh CI if more than seven days have elapsed since
 the original failing CI as the compiled binaries for the Windows and ARM
 platforms are only kept for seven days.
 
-#### Useful CI Jobs
+#### Useful CI jobs
 
 * [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is the CI job to test pull requests. It runs the `build-ci` and `test-ci`
@@ -219,7 +219,7 @@ not used in other CI test runs (such as tests in the `internet` or `pummel`
 directories). It can also make sure tests pass when provided with a flag not
 used in other CI test runs (such as `--worker`).
 
-#### Starting a CI Job
+#### Starting a CI job
 
 From the CI Job page, click "Build with Parameters" on the left side.
 
@@ -244,7 +244,7 @@ Copy/paste the URL for the job into a comment in the pull request.
 [`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)
 is an exception where the GitHub bot will automatically post for you.
 
-### Internal vs. Public API
+### Internal vs. public API
 
 All functionality in the official Node.js documentation is part of the public
 API. Any undocumented object, property, method, argument, behavior, or event is
@@ -269,7 +269,7 @@ public. In those cases, the TSC makes a determination.
 
 For undocumented APIs that are public, open a pull request documenting the API.
 
-### Breaking Changes
+### Breaking changes
 
 At least two TSC members must approve backward-incompatible changes to the
 master branch.
@@ -283,7 +283,7 @@ Examples of breaking changes include:
 * Altering expected timing of an event.
 * Changing the side effects of using a particular API.
 
-#### Breaking Changes and Deprecations
+#### Breaking changes and deprecations
 
 Existing stable public APIs that change in a backward-incompatible way must
 undergo deprecation. The exceptions to this rule are:
@@ -296,7 +296,7 @@ undergo deprecation. The exceptions to this rule are:
 
 For more information, see [Deprecations](#deprecations).
 
-#### Breaking Changes to Internal Elements
+#### Breaking changes to internal elements
 
 Breaking changes to internal elements may occur in semver-patch or semver-minor
 commits. Take significant care when making and reviewing such changes. Make
@@ -305,7 +305,7 @@ an effort to determine the potential impact of the change in the ecosystem. Use
 If a change will cause ecosystem breakage, then it is semver-major. Consider
 providing a Public API in such cases.
 
-#### Unintended Breaking Changes
+#### Unintended breaking changes
 
 Sometimes, a change intended to be non-breaking turns out to be a breaking
 change. If such a change lands on the master branch, a Collaborator may revert
@@ -319,7 +319,7 @@ generated commit message will not have a subsystem and may violate line length
 rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
 metadata. Raise a pull request like any other change.
 
-### Introducing New Modules
+### Introducing new modules
 
 Treat commits that introduce new core modules with extra care.
 
@@ -418,7 +418,7 @@ Do this if a pull request or issue:
 
 The TSC serves as the final arbiter where required.
 
-## Landing Pull Requests
+## Landing pull requests
 
 1. Avoid landing pull requests that have someone else as an assignee. Authors
    who wish to land their own pull requests will self-assign them. Sometimes, an
@@ -651,7 +651,7 @@ make -j4 test
 git push upstream master
 ```
 
-### I Made a Mistake
+### I made a mistake
 
 * Ping a TSC member.
 * `#node-dev` on freenode.
@@ -665,7 +665,7 @@ git push upstream master
     change.
   * Post to `#node-dev` (IRC) if you force push.
 
-### Long Term Support
+### Long term support
 
 #### What is LTS?
 
@@ -675,7 +675,7 @@ versions. You can find more information
 a branch enters LTS, the release plan limits the types of changes permitted in
 the branch.
 
-#### How are LTS Branches Managed?
+#### How are LTS branches managed?
 
 Each LTS release has a corresponding branch (v10.x, v8.x, etc.). Each also has a
 corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
