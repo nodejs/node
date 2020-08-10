@@ -204,7 +204,10 @@ enum QuicSessionStateFields {
   V(BLOCK_COUNT, block_count, "Block Count")                                   \
   V(MIN_RTT, min_rtt, "Minimum RTT")                                           \
   V(LATEST_RTT, latest_rtt, "Latest RTT")                                      \
-  V(SMOOTHED_RTT, smoothed_rtt, "Smoothed RTT")
+  V(SMOOTHED_RTT, smoothed_rtt, "Smoothed RTT")                                \
+  V(CWND, cwnd, "Cwnd")                                                        \
+  V(RECEIVE_RATE, receive_rate, "Receive Rate / Sec")                          \
+  V(SEND_RATE, send_rate, "Send Rate  Sec")
 
 #define V(name, _, __) IDX_QUIC_SESSION_STATS_##name,
 enum QuicSessionStatsIdx : int {
@@ -1271,8 +1274,6 @@ class QuicSession final : public AsyncWrap,
       uint64_t app_error_code);
 
   bool WritePackets(const char* diagnostic_label = nullptr);
-
-  void UpdateRecoveryStats();
 
   void UpdateConnectionID(
       int type,
