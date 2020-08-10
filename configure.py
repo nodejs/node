@@ -709,7 +709,7 @@ parser.add_option('--v8-lite-mode',
 parser.add_option('--v8-enable-object-print',
     action='store_true',
     dest='v8_enable_object_print',
-    default=False,
+    default=True,
     help='compile V8 with auxiliar functions for native debuggers')
 
 parser.add_option('--node-builtin-modules-path',
