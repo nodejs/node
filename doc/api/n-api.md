@@ -602,7 +602,7 @@ For more details, review the [Object lifetime management][].
 
 #### napi_type_tag
 <!-- YAML
-added: REPLACEME
+added: v14.8.0
 -->
 
 A 128-bit value stored as two unsigned 64-bit integers. It serves as a UUID
@@ -1577,7 +1577,7 @@ with `napi_add_env_cleanup_hook`, otherwise the process will abort.
 
 #### napi_add_async_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v14.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -1605,7 +1605,7 @@ is being torn down anyway.
 
 #### napi_remove_async_cleanup_hook
 <!-- YAML
-added: REPLACEME
+added: v14.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -4672,7 +4672,7 @@ JavaScript object becomes garbage-collected.
 
 ### napi_type_tag_object
 <!-- YAML
-added: REPLACEME
+added: v14.8.0
 -->
 
 > Stability: 1 - Experimental
@@ -4699,7 +4699,7 @@ If the object already has an associated type tag, this API will return
 
 ### napi_check_object_type_tag
 <!-- YAML
-added: REPLACEME
+added: v14.8.0
 -->
 
 > Stability: 1 - Experimental
