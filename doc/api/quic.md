@@ -249,7 +249,7 @@ TBD
 
 ## QUIC JavaScript API
 
-### `net.createQuicSocket(\[options\])`
+### `net.createQuicSocket([options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -336,7 +336,7 @@ The object will contain the properties:
 
 If the `QuicEndpoint` is not bound, `quicendpoint.address` is an empty object.
 
-#### `quicendpoint.bind(\[options\])`
+#### `quicendpoint.bind([options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -396,7 +396,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicEndpoint` is in the process of closing.
 
-#### `quicendpoint.destroy(\[error\])`
+#### `quicendpoint.destroy([error])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -455,7 +455,7 @@ the local UDP port.
 added: REPLACEME
 -->
 
-#### `quicendpoint.setBroadcast(\[on\])`
+#### `quicendpoint.setBroadcast([on])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -552,7 +552,7 @@ A socket's address family's ANY address (IPv4 `'0.0.0.0'` or IPv6 `'::'`)
 can be used to return control of the sockets default outgoing interface to
 the system for future multicast packets.
 
-#### `quicendpoint.setMulticastLoopback(\[on\])`
+#### `quicendpoint.setMulticastLoopback([on])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -844,7 +844,7 @@ added: REPLACEME
 
 Set to `true` if the `QuicSession` is in the process of a graceful shutdown.
 
-#### `quicsession.destroy(\[error\])`
+#### `quicsession.destroy([error])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -888,7 +888,7 @@ some properties corresponding to the fields of the certificate.
 If there is no local certificate, or if the `QuicSession` has been destroyed,
 an empty object will be returned.
 
-#### `quicsession.getPeerCertificate(\[detailed\])`
+#### `quicsession.getPeerCertificate([detailed])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1025,7 +1025,7 @@ added: REPLACEME
 
 The minimum RTT recorded so far for this `QuicSession`.
 
-#### `quicsession.openStream(\[options\])`
+#### `quicsession.openStream([options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1515,7 +1515,7 @@ permitted to close naturally. New `QuicClientSession` and `QuicServerSession`
 instances will not be allowed. The returns `Promise` will be resolved once
 the `QuicSocket` is destroyed.
 
-#### `quicsocket.connect(\[options\])`
+#### `quicsocket.connect([options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1647,7 +1647,7 @@ added: REPLACEME
 
 Returns a `Promise` that resolves a new `QuicClientSession`.
 
-#### `quicsocket.destroy(\[error\])`
+#### `quicsocket.destroy([error])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -1690,7 +1690,7 @@ An array of `QuicEndpoint` instances associated with the `QuicSocket`.
 
 Read-only.
 
-#### `quicsocket.listen(\[options\])`
+#### `quicsocket.listen([options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2215,7 +2215,7 @@ The maximum received offset for this `QuicStream`.
 
 Read-only.
 
-#### `quicstream.pushStream(headers\[, options\])`
+#### `quicstream.pushStream(headers[, options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2265,7 +2265,7 @@ The `QuicServerSession` or `QuicClientSession` to which the
 
 Read-only.
 
-#### `quicstream.sendFD(fd\[, options\])`
+#### `quicstream.sendFD(fd[, options])`
 <!-- YAML
 added: REPLACEME
 -->
@@ -2291,7 +2291,7 @@ Using the same file descriptor concurrently for multiple streams
 is not supported and may result in data loss. Re-using a file descriptor
 after a stream has finished is supported.
 
-#### `quicstream.sendFile(path\[, options\])`
+#### `quicstream.sendFile(path[, options])`
 <!-- YAML
 added: REPLACEME
 -->
