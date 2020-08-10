@@ -131,15 +131,15 @@ and the objector must remain responsive for further discussion towards
 consensus about the direction of the pull request**. Providing a set of
 actionable steps alongside the objection is recommended.
 
-If the objection is not clear to others, another Collaborator may ask an
-objecting Collaborator to explain their objection or to provide actionable
+If the objection is not clear to others, another collaborator may ask an
+objecting collaborator to explain their objection or to provide actionable
 steps to resolve the objection. **If the objector is unresponsive for seven
-days after a collaborator asks for clarification, another Collaborator may
+days after a collaborator asks for clarification, another collaborator may
 dismiss the objection**.
 
 **Pull requests with outstanding objections must remain open until all
 objections are satisfied**. If reaching consensus is not possible, a
-Collaborator may escalate the issue to the TSC by pinging `@nodejs/tsc` and
+collaborator may escalate the issue to the TSC by pinging `@nodejs/tsc` and
 adding the `tsc-agenda` label to the issue.
 
 #### Helpful resources
@@ -416,7 +416,7 @@ Do this if a pull request or issue:
 [TSC][]. Do not use the GitHub UI on the right-hand side to assign to
 `@nodejs/tsc` or request a review from `@nodejs/tsc`.
 
-The TSC should serve as the final arbiter where required.
+The TSC serves as the final arbiter where required.
 
 ## Landing Pull Requests
 
@@ -451,7 +451,7 @@ tests. This makes it much easier when bisecting to find a breaking change.
 ### Using `git-node`
 
 In most cases, using [the `git-node` command][git-node] of [`node-core-utils`][]
-should be enough to land a pull request. If you discover a problem when using
+is enough to land a pull request. If you discover a problem when using
 this tool, please file an issue [to the issue tracker][node-core-utils-issues].
 
 Quick example:
@@ -621,8 +621,8 @@ Time to push it:
 $ git push upstream master
 ```
 
-Close the pull request with a "Landed in `<commit hash>`" comment. If
-your pull request shows the purple merged status then you should still
+Close the pull request with a "Landed in `<commit hash>`" comment. Even if
+your pull request shows the purple merged status,
 add the "Landed in \<commit hash>..\<commit hash>" comment if you added
 more than one commit.
 
