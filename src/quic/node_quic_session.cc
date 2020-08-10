@@ -2098,7 +2098,6 @@ bool QuicSession::Receive(
     UpdateIdleTimer();
 
   SendPendingData();
-  UpdateRecoveryStats();
   Debug(this, "Successfully processed received packet");
   return true;
 }
@@ -2893,19 +2892,6 @@ void QuicSessionOnCertDone(const FunctionCallbackInfo<Value>& args) {
 }
 }  // namespace
 
-// Recovery stats are used to allow user code to keep track of
-// important round-trip timing statistics that are updated through
-// the lifetime of a connection. Effectively, these communicate how
-// much time (from the perspective of the local peer) is being taken
-// to exchange data reliably with the remote peer.
-// TODO(@jasnell): Revisit
-void QuicSession::UpdateRecoveryStats() {
-  ngtcp2_conn_stat stat;
-  ngtcp2_conn_get_conn_stat(connection(), &stat);
-  SetStat(&QuicSessionStats::min_rtt, stat.min_rtt);
-  SetStat(&QuicSessionStats::latest_rtt, stat.latest_rtt);
-  SetStat(&QuicSessionStats::smoothed_rtt, stat.smoothed_rtt);
-}
 
 // Data stats are used to allow user code to keep track of important
 // statistics such as amount of data in flight through the lifetime
@@ -2917,6 +2903,13 @@ void QuicSession::UpdateDataStats() {
 
   ngtcp2_conn_stat stat;
   ngtcp2_conn_get_conn_stat(connection(), &stat);
+
+  SetStat(&QuicSessionStats::latest_rtt, stat.latest_rtt);
+  SetStat(&QuicSessionStats::min_rtt, stat.min_rtt);
+  SetStat(&QuicSessionStats::smoothed_rtt, stat.smoothed_rtt);
+  SetStat(&QuicSessionStats::receive_rate, stat.recv_rate_sec);
+  SetStat(&QuicSessionStats::send_rate, stat.delivery_rate_sec);
+  SetStat(&QuicSessionStats::cwnd, stat.cwnd);
 
   state_->bytes_in_flight = stat.bytes_in_flight;
   // The max_bytes_in_flight is a highwater mark that can be used

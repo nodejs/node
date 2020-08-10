@@ -79,11 +79,10 @@ Http3Application::Http3Application(
 // Push streams in HTTP/3 are a bit complicated.
 // First, it's important to know that only an HTTP/3 server can
 // create a push stream.
-// Second, it's important to recognize that a push stream is
-// essentially an *assumed* request. For instance, if a client
-// requests a webpage that has links to css and js files, and
-// the server expects the client to send subsequent requests
-// for those css and js files, the server can shortcut the
+// Second, a push stream is essentially an *assumed* request. For
+// instance, if a client requests a webpage that has links to css
+// and js files, and the server expects the client to send subsequent
+// requests for those css and js files, the server can shortcut the
 // process by opening a push stream for each additional resource
 // it assumes the client to make.
 // Third, a push stream can only be opened within the context
