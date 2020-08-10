@@ -263,6 +263,16 @@ void QuicSessionConfig::Set(
   // TODO(@jasnell): QUIC allows both IPv4 and IPv6 addresses to be
   // specified. Here we're specifying one or the other. Need to
   // determine if that's what we want or should we support both.
+  //
+  // TODO(@jasnell): Currently, this is specified as a single value
+  // that is used for all connections. In the future, it may be
+  // necessary to determine the preferred address based on the
+  // remote address. The trick, however, is that the preferred
+  // address must be selected before the QuicSession is created,
+  // before the handshake can be started. That is, it may need
+  // to be an optional callback on QuicSocket. That would incur
+  // a performance penalty so we'd really have to be sure of the
+  // utility.
   if (preferred_addr != nullptr) {
     transport_params.preferred_address_present = 1;
     switch (preferred_addr->sa_family) {
