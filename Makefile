@@ -1268,7 +1268,7 @@ LINT_CPP_EXCLUDE += $(wildcard test/js-native-api/??_*/*.cc test/js-native-api/?
 LINT_CPP_EXCLUDE += src/tracing/trace_event.h src/tracing/trace_event_common.h
 
 LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
-	benchmark/napi/function_call/binding.cc \
+	benchmark/napi/*/*.cc \
 	src/*.c \
 	src/*.cc \
 	src/*.h \
