@@ -38,7 +38,7 @@
 /lib/internal/net.js @nodejs/net
 /lib/internal/socket_list.js @nodejs/net
 /lib/internal/js_stream_socket.js @nodejs/net
-/src/cares_wrap.h @nodejs/net
+/src/cares_wrap.cc @nodejs/net
 /src/connect_wrap.* @nodejs/net
 /src/connection_wrap.* @nodejs/net
 /src/node_sockaddr* @nodejs/net
@@ -58,7 +58,6 @@
 
 /deps/llhttp/* @nodejs/http @nodejs/net
 /doc/api/http.md @nodejs/http @nodejs/net
-/doc/api/http2.md @nodejs/http @nodejs/net
 /lib/_http_* @nodejs/http @nodejs/net
 /lib/http.js @nodejs/http @nodejs/net
 /lib/https.js @nodejs/crypto @nodejs/net @nodejs/http
@@ -68,7 +67,7 @@
 # http2
 
 /deps/nghttp2/* @nodejs/http2 @nodejs/net
-/doc/api/http2.md @nodejs/http2 @nodejs/net
+/doc/api/http2.md @nodejs/http2 @nodejs/http @nodejs/net
 /lib/http2.js @nodejs/http2 @nodejs/net
 /lib/internal/http2/* @nodejs/http2 @nodejs/net
 /src/node_http2* @nodejs/http2 @nodejs/net
