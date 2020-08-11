@@ -359,7 +359,7 @@ Environment::Environment(IsolateData* isolate_data,
   inspector_host_port_.reset(
       new ExclusiveAccess<HostPort>(options_->debug_options().host_port));
 
-  if (flags & EnvironmentFlags::kOwnsProcessState) {
+  if (!(flags_ & EnvironmentFlags::kOwnsProcessState)) {
     set_abort_on_uncaught_exception(false);
   }
 
