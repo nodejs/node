@@ -110,7 +110,7 @@ platforms. This is true regardless of entries in the table below.
 | Windows          | x64, x86 (WoW64) | >= Windows 8.1/2012 R2          | Tier 1       | <sup>[4](#fn4),[5](#fn5)</sup>    |
 | Windows          | x86 (native)     | >= Windows 8.1/2012 R2          | Tier 1 (running) / Experimental (compiling) <sup>[6](#fn6)</sup> | |
 | Windows          | x64, x86         | Windows Server 2012 (not R2)    | Experimental |                                   |
-| Windows          | arm64            | >= Windows 10                   | Experimental |                                   |
+| Windows          | arm64            | >= Windows 10                   | Tier 2 (compiling) / Experimental (running) |    |
 | macOS            | x64              | >= 10.11                        | Tier 1       |                                   |
 | SmartOS          | x64              | >= 18                           | Tier 2       |                                   |
 | AIX              | ppc64be >=power7 | >= 7.2 TL02                     | Tier 2       |                                   |
@@ -547,9 +547,6 @@ Optional requirements to build the MSI installer package:
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
-* ARM64 Windows build machine
-  * Due to a GYP limitation, this is required to run compiled code
-    generation tools (like V8's builtins and mksnapshot tools)
 * Visual Studio 15.9.0 or newer
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
