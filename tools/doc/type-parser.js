@@ -122,6 +122,7 @@ const customTypesMap = {
   'require': 'modules.html#modules_require_id',
 
   'Handle': 'net.html#net_server_listen_handle_backlog_callback',
+  'net.BlockList': 'net.html#net_class_net_blocklist',
   'net.Server': 'net.html#net_class_net_server',
   'net.Socket': 'net.html#net_class_net_socket',
 

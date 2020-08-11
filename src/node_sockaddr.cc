@@ -524,6 +524,19 @@ SocketAddressBlockListWrap::SocketAddressBlockListWrap(
   MakeWeak();
 }
 
+BaseObjectPtr<SocketAddressBlockListWrap> SocketAddressBlockListWrap::New(
+    Environment* env) {
+  Local<Object> obj;
+  if (!env->blocklist_instance_template()
+          ->NewInstance(env->context()).ToLocal(&obj)) {
+    return {};
+  }
+  BaseObjectPtr<SocketAddressBlockListWrap> wrap =
+      MakeDetachedBaseObject<SocketAddressBlockListWrap>(env, obj);
+  CHECK(wrap);
+  return wrap;
+}
+
 void SocketAddressBlockListWrap::New(
     const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
@@ -673,6 +686,7 @@ void SocketAddressBlockListWrap::Initialize(
   env->SetProtoMethod(t, "check", SocketAddressBlockListWrap::Check);
   env->SetProtoMethod(t, "getRules", SocketAddressBlockListWrap::GetRules);
 
+  env->set_blocklist_instance_template(t->InstanceTemplate());
   target->Set(env->context(), name,
               t->GetFunction(env->context()).ToLocalChecked()).FromJust();
 
