@@ -549,8 +549,6 @@ Optional requirements to build the MSI installer package:
 
 Optional requirements for compiling for Windows 10 on ARM (ARM64):
 
-* ARM64 or x64 Windows build machine
-  * ARM64 builds can be created on a x64 host by running `.\vcbuild arm64`
 * Visual Studio 15.9.0 or newer
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
