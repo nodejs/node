@@ -516,6 +516,7 @@ class QuicSocket : public AsyncWrap,
   std::vector<BaseObjectPtr<QuicEndpoint>> endpoints_;
   SocketAddress::Map<BaseObjectWeakPtr<QuicEndpoint>> bound_endpoints_;
   BaseObjectWeakPtr<QuicEndpoint> preferred_endpoint_;
+  BaseObjectPtr<SocketAddressBlockListWrap> block_list_;
 
   uint32_t flags_ = 0;
   uint32_t options_ = 0;

@@ -252,6 +252,7 @@ QuicSocket::QuicSocket(
     : AsyncWrap(quic_state->env(), wrap, AsyncWrap::PROVIDER_QUICSOCKET),
       StatsBase(quic_state->env(), wrap),
       alloc_info_(MakeAllocator()),
+      block_list_(SocketAddressBlockListWrap::New(quic_state->env())),
       options_(options),
       state_(quic_state->env()->isolate()),
       max_connections_(max_connections),
@@ -268,6 +269,12 @@ QuicSocket::QuicSocket(
   Debug(this, "New QuicSocket created");
 
   EntropySource(token_secret_, kTokenSecretLen);
+
+  wrap->DefineOwnProperty(
+      env()->context(),
+      env()->block_list_string(),
+      block_list_->object(),
+      PropertyAttribute::ReadOnly).Check();
 
   wrap->DefineOwnProperty(
       env()->context(),
@@ -429,6 +436,12 @@ void QuicSocket::OnReceive(
   // dropped based on the rx_loss_ probability.
   if (UNLIKELY(is_diagnostic_packet_loss(rx_loss_))) {
     Debug(this, "Simulating received packet loss");
+    return;
+  }
+
+  if (UNLIKELY(block_list_->Apply(remote_addr))) {
+    Debug(this, "Ignoring blocked remote address: %s", remote_addr);
+    IncrementStat(&QuicSocketStats::packets_ignored);
     return;
   }
 

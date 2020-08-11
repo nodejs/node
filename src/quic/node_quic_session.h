@@ -207,7 +207,7 @@ enum QuicSessionStateFields {
   V(SMOOTHED_RTT, smoothed_rtt, "Smoothed RTT")                                \
   V(CWND, cwnd, "Cwnd")                                                        \
   V(RECEIVE_RATE, receive_rate, "Receive Rate / Sec")                          \
-  V(SEND_RATE, send_rate, "Send Rate  Sec")
+  V(SEND_RATE, send_rate, "Send Rate  Sec")                                    \
 
 #define V(name, _, __) IDX_QUIC_SESSION_STATS_##name,
 enum QuicSessionStatsIdx : int {
