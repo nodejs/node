@@ -5,7 +5,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/34664
     description: Requests with the `host` header (with or without
-                 `:authority`) can now be sent / received.
+                 `:authority`) can now be sent/received.
   - version: v10.10.0
     pr-url: https://github.com/nodejs/node/pull/22466
     description: HTTP/2 is now Stable. Previously, it had been Experimental.
@@ -2914,7 +2914,8 @@ added: v8.4.0
 
 The request authority pseudo header field. Because HTTP/2 allows requests
 to set either `:authority` or `host`, this value is derived from
-`req.headers[':authority']` if present, `req.headers['host']` otherwise.
+`req.headers[':authority']` if present. Otherwise, it is derived from
+`req.headers['host']`.
 
 #### `request.complete`
 <!-- YAML
@@ -3716,21 +3717,14 @@ following additional properties:
 ## Note on `:authority` and `host`
 
 HTTP/2 requires requests to have either the `:authority` pseudo-header
-or the `host` header. Using `:authority` should be preferred when
-constructing an HTTP/2 request directly, and `host` should be
-preferred when converting from HTTP/1 (in proxies, for instance).
-
-Historically, Node.js required all requests to have the `:authority`
-pseudo-header and rejected requests with the `host` header present.
-This has been corrected; the `host` header is now allowed, and the
-only requirement is for either `host` or `:authority` to be
-present (or both). The same validations from `:authority` extend
-to `host`.
+or the `host` header. Prefer `:authority` when constructing an HTTP/2
+request directly, and `host` when converting from HTTP/1 (in proxies,
+for instance).
 
 The compatibility API falls back to `host` if `:authority` is not
-present, see [`request.authority`][]. However, if you don't use the
-compatibility API (or use `req.headers` directly), you need to
-implement any fall-back behaviour yourself.
+present. See [`request.authority`][] for more information. However,
+if you don't use the compatibility API (or use `req.headers` directly),
+you need to implement any fall-back behaviour yourself.
 
 [ALPN Protocol ID]: https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids
 [ALPN negotiation]: #http2_alpn_negotiation
