@@ -280,6 +280,7 @@ class SocketAddressBlockListWrap :
                          v8::Local<v8::Context> context,
                          void* priv);
 
+  static BaseObjectPtr<SocketAddressBlockListWrap> New(Environment* env);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddRange(const v8::FunctionCallbackInfo<v8::Value>& args);
