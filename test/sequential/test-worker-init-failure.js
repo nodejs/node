@@ -35,7 +35,7 @@ if (process.argv[2] === 'child') {
     // (i.e. single cpu) `ulimit` may not lead to such an error.
 
     worker.on('error', (e) => {
-      assert.ok(e.code === 'ERR_WORKER_INIT_FAILED' || e.code === 'EMFILE');
+      assert.ok(e.code === 'ERR_WORKER_INIT_FAILED' || e.code === 'EMFILE' || e.code === 'ENOENT');
     });
   }
 
