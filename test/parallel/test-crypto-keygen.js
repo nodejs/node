@@ -16,7 +16,7 @@ const {
   sign,
   verify
 } = require('crypto');
-const { promisify, inspect } = require('util');
+const { inspect, promisify } = require('util');
 
 // Asserts that the size of the given key (in chars or bytes) is within 10% of
 // the expected size.
