@@ -4,4 +4,4 @@ export CC_host=gcc
 export CXX_host=g++
 
 
-./configure --cross-compiling --dest-cpu=riscv64  --verbose  --without-ssl
+./configure --cross-compiling --dest-cpu=riscv64  --verbose --openssl-no-asm
