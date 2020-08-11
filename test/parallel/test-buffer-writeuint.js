@@ -220,3 +220,12 @@ const assert = require('assert');
     val *= 0x100;
   }
 }
+
+for (const fn of [
+  'UInt8', 'UInt16LE', 'UInt16BE', 'UInt32LE', 'UInt32BE', 'UIntLE', 'UIntBE'
+]) {
+  const p = Buffer.prototype;
+  const lowerFn = fn.replace(/UInt/, 'Uint');
+  assert.strictEqual(p[`write${fn}`], p[`write${lowerFn}`]);
+  assert.strictEqual(p[`read${fn}`], p[`read${lowerFn}`]);
+}
