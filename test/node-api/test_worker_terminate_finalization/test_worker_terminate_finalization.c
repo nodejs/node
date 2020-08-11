@@ -22,7 +22,6 @@ napi_value Test(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value argv[1];
   napi_value result;
-  napi_ref ref;
   void* bufferData = malloc(BUFFER_SIZE);
 
   NAPI_CALL(env, napi_get_cb_info(env, info, &argc, argv, NULL, NULL));
