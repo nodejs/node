@@ -2,18 +2,20 @@
 #include <node.h>
 #include <assert.h>
 
-using v8::Isolate;
+using v8::Array;
+using v8::ArrayBuffer;
+using v8::ArrayBufferView;
+using v8::BackingStore;
 using v8::Context;
+using v8::FunctionCallbackInfo;
+using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::Value;
 using v8::Number;
-using v8::String;
 using v8::Object;
-using v8::Array;
-using v8::ArrayBufferView;
-using v8::ArrayBuffer;
-using v8::FunctionCallbackInfo;
+using v8::String;
+using v8::Uint32;
+using v8::Value;
 
 void CallWithString(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() == 1 && args[0]->IsString());
@@ -22,7 +24,7 @@ void CallWithString(const FunctionCallbackInfo<Value>& args) {
     const int32_t length = str->Utf8Length(args.GetIsolate()) + 1;
     char* buf = new char[length];
     str->WriteUtf8(args.GetIsolate(), buf, length);
-    delete [] buf;
+    delete[] buf;
   }
 }
 
@@ -31,7 +33,7 @@ void CallWithArray(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 1 && args[0]->IsArray()) {
     const Local<Array> array = args[0].As<Array>();
     uint32_t length = array->Length();
-    for (uint32_t i = 0; i < length; ++ i) {
+    for (uint32_t i = 0; i < length; i++) {
       Local<Value> v;
       v = array->Get(args.GetIsolate()->GetCurrentContext(),
                      i).ToLocalChecked();
@@ -101,12 +103,10 @@ void CallWithTypedarray(const FunctionCallbackInfo<Value>& args) {
     const size_t byte_length = view->ByteLength();
     assert(byte_length > 0);
     assert(view->HasBuffer());
-    Local<ArrayBuffer> buffer;
-    buffer = view->Buffer();
-    ArrayBuffer::Contents contents;
-    contents = buffer->GetContents();
+    Local<ArrayBuffer> buffer = view->Buffer();
+    std::shared_ptr<BackingStore> bs = buffer->GetBackingStore();
     const uint32_t* data = reinterpret_cast<uint32_t*>(
-        static_cast<uint8_t*>(contents.Data()) + byte_offset);
+        static_cast<uint8_t*>(bs->Data()) + byte_offset);
     assert(data);
   }
 }
@@ -114,11 +114,11 @@ void CallWithTypedarray(const FunctionCallbackInfo<Value>& args) {
 void CallWithArguments(const FunctionCallbackInfo<Value>& args) {
   assert(args.Length() > 1 && args[0]->IsNumber());
   if (args.Length() > 1 && args[0]->IsNumber()) {
-    int32_t loop = args[0].As<v8::Uint32>()->Value();
+    int32_t loop = args[0].As<Uint32>()->Value();
     for (int32_t i = 1; i < loop; ++i) {
       assert(i < args.Length());
       assert(args[i]->IsUint32());
-      args[i].As<v8::Uint32>()->Value();
+      args[i].As<Uint32>()->Value();
     }
   }
 }
