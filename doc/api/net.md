@@ -919,9 +919,10 @@ The optional `callback` parameter will be added as a one-time listener for the
 added: v10.7.0
 -->
 
-* {number}
+* {number|undefined}
 
-Returns the read-only socket timeout in milliseconds.
+The socket timeout in milliseconds as set by [`socket.setTimeout()`][].
+It is `undefined` if a timeout has not been set.
 
 ### `socket.unref()`
 <!-- YAML
