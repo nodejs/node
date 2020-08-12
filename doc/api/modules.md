@@ -951,6 +951,29 @@ Since `require()` returns the `module.exports`, and the `module` is typically
 *only* available within a specific module's code, it must be explicitly exported
 in order to be used.
 
+## The `Module` object
+
+<!-- Anchors to make sure old links find a target -->
+<a id="modules_module_builtinmodules"></a>
+<a id="modules_module_createrequire_filename"></a>
+<a id="modules_module_createrequirefrompath_filename"></a>
+<a id="modules_module_syncbuiltinesmexports"></a>
+
+This section was moved to
+[Modules: `module` core module](modules_module.html#modules_module_the_module_object).
+
+## Source map v3 support
+
+<!-- Anchors to make sure old links find a target -->
+<a id="modules_module_findsourcemap_path_error"></a>
+<a id="modules_class_module_sourcemap"></a>
+<a id="modules_new_sourcemap_payload"></a>
+<a id="modules_sourcemap_payload"></a>
+<a id="modules_sourcemap_findentry_linenumber_columnnumber"></a>
+
+This section was moved to
+[Modules: `module` core module](modules_module.html#modules_module_source_map_v3_support).
+
 [GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [`Error`]: errors.html#errors_class_error
 [`__dirname`]: #modules_dirname
