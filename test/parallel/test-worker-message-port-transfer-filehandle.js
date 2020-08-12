@@ -68,3 +68,36 @@ const { once } = require('events');
 
   port1.postMessage('second message');
 })().then(common.mustCall());
+
+(async function() {
+  // Check that a FileHandle with a read in progress cannot be transferred.
+  const fh = await fs.open(__filename);
+
+  const { port1 } = new MessageChannel();
+
+  const readPromise = fh.readFile();
+  assert.throws(() => {
+    port1.postMessage(fh, [fh]);
+  }, {
+    message: 'Cannot transfer FileHandle while in use',
+    name: 'DataCloneError'
+  });
+
+  assert.deepStrictEqual(await readPromise, await fs.readFile(__filename));
+})().then(common.mustCall());
+
+(async function() {
+  // Check that filehandles with a close in progress cannot be transferred.
+  const fh = await fs.open(__filename);
+
+  const { port1 } = new MessageChannel();
+
+  const closePromise = fh.close();
+  assert.throws(() => {
+    port1.postMessage(fh, [fh]);
+  }, {
+    message: 'Cannot transfer FileHandle while in use',
+    name: 'DataCloneError'
+  });
+  await closePromise;
+})().then(common.mustCall());
