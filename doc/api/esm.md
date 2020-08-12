@@ -298,14 +298,14 @@ package. It is not a strong encapsulation since a direct require of any
 absolute subpath of the package such as
 `require('/path/to/node_modules/pkg/subpath.js')` will still load `subpath.js`.
 
-#### Subpath exports
+### Subpath exports
 
-When using the `"exports"` field, custom subpaths can be defined along
-with the main entry point by treating the main entry point as the
-`"."` subpath:
+> Stability: 1 - Experimental
 
-<!-- eslint-skip -->
-```js
+When using the `"exports"` field, custom subpaths can be defined along with the
+main entry point by treating the main entry point as the `"."` subpath:
+
+```json
 {
   "main": "./main.js",
   "exports": {
@@ -315,8 +315,7 @@ with the main entry point by treating the main entry point as the
 }
 ```
 
-Now only the defined subpath in `"exports"` can be imported by a
-consumer:
+Now only the defined subpath in `"exports"` can be imported by a consumer:
 
 ```js
 import submodule from 'es-module-package/submodule';
@@ -330,30 +329,46 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-Entire folders can also be mapped with package exports:
+### Subpath export patterns
 
-<!-- eslint-skip -->
-```js
+> Stability: 1 - Experimental
+
+Explicitly listing each exports subpath entry is recommended for packages with
+a small number of exports. But for packages that have very large numbers of
+subpaths this can start to cause package.json bloat and maintenance issues.
+
+For these use cases, subpath export patterns can be used instead:
+
+```json
 // ./node_modules/es-module-package/package.json
 {
   "exports": {
-    "./features/": "./src/features/"
+    "./features/*": "./src/features/*.js"
   }
 }
 ```
 
-With the above, all modules within the `./src/features/` folder
-are exposed deeply to `import` and `require`:
+The left hand matching pattern must always end in `*`. All instances of `*` on
+the right hand side will then be replaced with this value, including if it
+contains any `/` separators.
 
 ```js
-import feature from 'es-module-package/features/x.js';
+import featureX from 'es-module-package/features/x';
 // Loads ./node_modules/es-module-package/src/features/x.js
+
+import featureY from 'es-module-package/features/y/y';
+// Loads ./node_modules/es-module-package/src/features/y/y.js
 ```
 
-When using folder mappings, ensure that you do want to expose every
-module inside the subfolder. Any modules which are not public
-should be moved to another folder to retain the encapsulation
-benefits of exports.
+This is a direct static replacement without any special handling for file
+extensions. In the previous example, `pkg/features/x.json` would be resolved to
+`./src/features/x.json.js` in the mapping.
+
+The property of exports being statically enumerable is maintained with exports
+patterns since the individual exports for a package can be determined by
+treating the right hand side target pattern as a `**` glob against the list of
+files within the package. Because `node_modules` paths are forbidden in exports
+targets, this expansion is dependent on only the files of the package itself.
 
 #### Package exports fallbacks
 
@@ -1741,7 +1756,8 @@ The resolver can throw the following errors:
 >       1. Set _mainExport_ to _exports_\[_"."_\].
 >    1. If _mainExport_ is not **undefined**, then
 >       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
->          _packageURL_, _mainExport_, _""_, **false**, _conditions_).
+>          _packageURL_, _mainExport_, _""_, **false**, **false**,
+>          _conditions_).
 >       1. If _resolved_ is not **null** or **undefined**, then
 >          1. Return _resolved_.
 > 1. Otherwise, if _exports_ is an Object and all keys of _exports_ start with
@@ -1775,29 +1791,43 @@ _isImports_, _conditions_)
 > 1. If _matchKey_ is a key of _matchObj_, and does not end in _"*"_, then
 >    1. Let _target_ be the value of _matchObj_\[_matchKey_\].
 >    1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
->       _packageURL_, _target_, _""_, _isImports_, _conditions_).
+>       _packageURL_, _target_, _""_, **false**, _isImports_, _conditions_).
 >    1. Return the object _{ resolved, exact: **true** }_.
-> 1. Let _expansionKeys_ be the list of keys of _matchObj_ ending in _"/"_,
->    sorted by length descending.
+> 1. Let _expansionKeys_ be the list of keys of _matchObj_ ending in _"/"_
+>    or _"*"_, sorted by length descending.
 > 1. For each key _expansionKey_ in _expansionKeys_, do
+>    1. If _expansionKey_ ends in _"*"_ and _matchKey_ starts with but is
+>       not equal to the substring of _expansionKey_ excluding the last _"*"_
+>       character, then
+>       1. Let _target_ be the value of _matchObj_\[_expansionKey_\].
+>       1. Let _subpath_ be the substring of _matchKey_ starting at the
+>          index of the length of _expansionKey_ minus one.
+>       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
+>          _packageURL_, _target_, _subpath_, **true**, _isImports_,
+>          _conditions_).
+>       1. Return the object _{ resolved, exact: **true** }_.
 >    1. If _matchKey_ starts with _expansionKey_, then
 >       1. Let _target_ be the value of _matchObj_\[_expansionKey_\].
 >       1. Let _subpath_ be the substring of _matchKey_ starting at the
 >          index of the length of _expansionKey_.
 >       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
->          _packageURL_, _target_, _subpath_, _isImports_, _conditions_).
+>          _packageURL_, _target_, _subpath_, **false**, _isImports_,
+>          _conditions_).
 >       1. Return the object _{ resolved, exact: **false** }_.
 > 1. Return the object _{ resolved: **null**, exact: **true** }_.
 
-**PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _internal_,
-_conditions_)
+**PACKAGE_TARGET_RESOLVE**(_packageURL_, _target_, _subpath_, _pattern_,
+_internal_, _conditions_)
 
 > 1. If _target_ is a String, then
->    1. If _subpath_ has non-zero length and _target_ does not end with _"/"_,
->       throw an _Invalid Module Specifier_ error.
+>    1. If _pattern_ is **false**, _subpath_ has non-zero length and _target_
+>       does not end with _"/"_, throw an _Invalid Module Specifier_ error.
 >    1. If _target_ does not start with _"./"_, then
 >       1. If _internal_ is **true** and _target_ does not start with _"../"_ or
 >          _"/"_ and is not a valid URL, then
+>          1. If _pattern_ is **true**, then
+>             1. Return **PACKAGE_RESOLVE**(_target_ with every instance of
+>                _"*"_ replaced by _subpath_, _packageURL_ + _"/"_)_.
 >          1. Return **PACKAGE_RESOLVE**(_target_ + _subpath_,
 >             _packageURL_ + _"/"_)_.
 >       1. Otherwise, throw an _Invalid Package Target_ error.
@@ -1809,8 +1839,12 @@ _conditions_)
 >    1. Assert: _resolvedTarget_ is contained in _packageURL_.
 >    1. If _subpath_ split on _"/"_ or _"\\"_ contains any _"."_, _".."_ or
 >       _"node_modules"_ segments, throw an _Invalid Module Specifier_ error.
->    1. Return the URL resolution of the concatenation of _subpath_ and
->       _resolvedTarget_.
+>    1. If _pattern_ is **true**, then
+>       1. Return the URL resolution of _resolvedTarget_ with every instance of
+>          _"*"_ replaced with _subpath_.
+>    1. Otherwise,
+>       1. Return the URL resolution of the concatenation of _subpath_ and
+>          _resolvedTarget_.
 > 1. Otherwise, if _target_ is a non-null Object, then
 >    1. If _exports_ contains any index property keys, as defined in ECMA-262
 >       [6.1.7 Array Index][], throw an _Invalid Package Configuration_ error.
@@ -1819,7 +1853,8 @@ _conditions_)
 >          then
 >          1. Let _targetValue_ be the value of the _p_ property in _target_.
 >          1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
->             _packageURL_, _targetValue_, _subpath_, _internal_, _conditions_).
+>             _packageURL_, _targetValue_, _subpath_, _pattern_, _internal_,
+>             _conditions_).
 >          1. If _resolved_ is equal to **undefined**, continue the loop.
 >          1. Return _resolved_.
 >    1. Return **undefined**.
@@ -1827,8 +1862,9 @@ _conditions_)
 >    1. If _target.length is zero, return **null**.
 >    1. For each item _targetValue_ in _target_, do
 >       1. Let _resolved_ be the result of **PACKAGE_TARGET_RESOLVE**(
->          _packageURL_, _targetValue_, _subpath_, _internal_, _conditions_),
->          continuing the loop on any _Invalid Package Target_ error.
+>          _packageURL_, _targetValue_, _subpath_, _pattern_, _internal_,
+>          _conditions_), continuing the loop on any _Invalid Package Target_
+>          error.
 >       1. If _resolved_ is **undefined**, continue the loop.
 >       1. Return _resolved_.
 >    1. Return or throw the last fallback resolution **null** return or error.
