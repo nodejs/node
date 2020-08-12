@@ -238,7 +238,7 @@ class QLogStream final : public AsyncWrap,
 
   QLogStream(Environment* env, v8::Local<v8::Object> obj);
 
-  void Emit(const uint8_t* data, size_t len);
+  void Emit(const uint8_t* data, size_t len, uint32_t flags);
 
   void End() { ended_ = true; }
 
