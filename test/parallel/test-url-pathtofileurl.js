@@ -24,6 +24,26 @@ const url = require('url');
 }
 
 {
+  if (isWindows) {
+    // UNC path: \\server\share\resource
+
+    // Missing server:
+    assert.throws(() => url.pathToFileURL('\\\\\\no-server'), {
+      code: 'ERR_INVALID_ARG_VALUE'
+    });
+
+    // Missing share or resource:
+    assert.throws(() => url.pathToFileURL('\\\\host'), {
+      code: 'ERR_INVALID_ARG_VALUE'
+    });
+  } else {
+    // UNC paths on posix are considered a single path that has backslashes:
+    const fileURL = url.pathToFileURL('\\\\nas\\share\\path.txt').href;
+    assert.match(fileURL, /file:\/\/.+%5C%5Cnas%5Cshare%5Cpath\.txt$/);
+  }
+}
+
+{
   let testCases;
   if (isWindows) {
     testCases = [
@@ -68,7 +88,9 @@ const url = require('url');
       // Euro sign (BMP code point)
       { path: 'C:\\€', expected: 'file:///C:/%E2%82%AC' },
       // Rocket emoji (non-BMP code point)
-      { path: 'C:\\🚀', expected: 'file:///C:/%F0%9F%9A%80' }
+      { path: 'C:\\🚀', expected: 'file:///C:/%F0%9F%9A%80' },
+      // UNC path (see https://docs.microsoft.com/en-us/archive/blogs/ie/file-uris-in-windows)
+      { path: '\\\\nas\\My Docs\\File.doc', expected: 'file://nas/My%20Docs/File.doc' }
     ];
   } else {
     testCases = [
