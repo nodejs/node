@@ -1,5 +1,6 @@
 import { mustCall } from '../common/index.mjs';
 import { ok, deepStrictEqual, strictEqual } from 'assert';
+import { sep } from 'path';
 
 import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
 import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
@@ -135,9 +136,9 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   const notFoundExports = new Map([
     // Non-existing file
-    ['pkgexports/sub/not-a-file.js', 'pkgexports/not-a-file.js'],
+    ['pkgexports/sub/not-a-file.js', `pkgexports${sep}not-a-file.js`],
     // No extension lookups
-    ['pkgexports/no-ext', 'pkgexports/asdf'],
+    ['pkgexports/no-ext', `pkgexports${sep}asdf`],
   ]);
 
   if (!isRequire) {
