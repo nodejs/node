@@ -181,17 +181,17 @@ Alternatively a project could choose to export entire folders:
   "exports": {
     ".": "./lib/index.js",
     "./lib": "./lib/index.js",
-    "./lib/": "./lib/",
+    "./lib/*": "./lib/*.js",
     "./feature": "./feature/index.js",
-    "./feature/": "./feature/",
+    "./feature/*": "./feature/*.js",
     "./package.json": "./package.json"
   }
 }
 ```
 
 As a last resort, package encapsulation can be disabled entirely by creating an
-export for the root of the package `"./": "./"`. This will expose every file in
-the package at the cost of disabling the encapsulation and potential tooling
+export for the root of the package `"./*": "./*"`. This will expose every file
+in the package at the cost of disabling the encapsulation and potential tooling
 benefits this provides. As the ES Module loader in Node.js enforces the use of
 [the full specifier path][], exporting the root rather than being explicit
 about entry is less expressive than either of the prior examples. Not only
@@ -254,29 +254,46 @@ import submodule from 'es-module-package/private-module.js';
 // Throws ERR_PACKAGE_PATH_NOT_EXPORTED
 ```
 
-Entire folders can also be mapped with package exports:
+### Subpath export patterns
+
+> Stability: 1 - Experimental
+
+Explicitly listing each exports subpath entry is recommended for packages with
+a small number of exports. But for packages that have very large numbers of
+subpaths this can start to cause package.json bloat and maintenance issues.
+
+For these use cases, subpath export patterns can be used instead:
 
 ```json
 // ./node_modules/es-module-package/package.json
 {
   "exports": {
-    "./features/": "./src/features/"
+    "./features/*": "./src/features/*.js"
   }
 }
 ```
 
-With the preceding, all modules within the `./src/features/` folder
-are exposed deeply to `import` and `require`:
+The left hand matching pattern must always end in `*`. All instances of `*` on
+the right hand side will then be replaced with this value, including if it
+contains any `/` separators.
 
 ```js
-import feature from 'es-module-package/features/x.js';
+import featureX from 'es-module-package/features/x';
 // Loads ./node_modules/es-module-package/src/features/x.js
+
+import featureY from 'es-module-package/features/y/y';
+// Loads ./node_modules/es-module-package/src/features/y/y.js
 ```
 
-When using folder mappings, ensure that you do want to expose every
-module inside the subfolder. Any modules which are not public
-should be moved to another folder to retain the encapsulation
-benefits of exports.
+This is a direct static replacement without any special handling for file
+extensions. In the previous example, `pkg/features/x.json` would be resolved to
+`./src/features/x.json.js` in the mapping.
+
+The property of exports being statically enumerable is maintained with exports
+patterns since the individual exports for a package can be determined by
+treating the right hand side target pattern as a `**` glob against the list of
+files within the package. Because `node_modules` paths are forbidden in exports
+targets, this expansion is dependent on only the files of the package itself.
 
 ### Package exports fallbacks
 
