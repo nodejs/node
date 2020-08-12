@@ -33,6 +33,9 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
       { default: 'self-cjs' } : { default: 'self-mjs' }],
     // Resolve self sugar
     ['pkgexports-sugar', { default: 'main' }],
+    // Path patterns
+    ['pkgexports/subpath/sub-dir1', { default: 'main' }],
+    ['pkgexports/features/dir1', { default: 'main' }]
   ]);
 
   if (isRequire) {
