@@ -59,7 +59,7 @@ as a _Contributor_. Ask if they have configured their git
 
 ### Closing issues and pull requests
 
-Collaborators may close any issue or pull request that is not relevant to the
+Collaborators can close any issue or pull request that is not relevant to the
 future of the Node.js project. Where this is unclear, leave the issue or pull
 request open for several days to allow for discussion. Where this does not yield
 evidence that the issue or pull request has relevance, close it. Remember that
@@ -104,8 +104,8 @@ for the change.
 
 Approval must be from Collaborators who are not authors of the change.
 
-In some cases, it may be necessary to summon a GitHub team to a pull request for
-review by @-mention.
+In some cases, it might be necessary to summon a GitHub team to a pull request
+for review by @-mention.
 See [Who to CC in the issue tracker](#who-to-cc-in-the-issue-tracker).
 
 If you are the first Collaborator to approve a pull request that has no CI yet,
@@ -114,7 +114,7 @@ pull request creator pushed new code since the last CI run.
 
 ### Consensus seeking
 
-A pull request may land if it has the needed [approvals](#code-reviews),
+A pull request can land if it has the needed [approvals](#code-reviews),
 [CI](#testing-and-ci), [wait time](#waiting-for-approvals) and no
 [outstanding objections](#objections). [Breaking changes](#breaking-changes)
 must receive [TSC review](#involving-the-tsc) in addition to other
@@ -124,22 +124,22 @@ requirements. If a pull request meets all requirements except the
 
 #### Objections
 
-**Collaborators may object to a pull request by using the "Request
+**Collaborators can object to a pull request by using the "Request
 Changes" GitHub feature**. Dissent comments alone don't constitute an
 objection. **Any PR objection must include a clear reason for that objection,
 and the objector must remain responsive for further discussion towards
 consensus about the direction of the pull request**. Providing a set of
 actionable steps alongside the objection is recommended.
 
-If the objection is not clear to others, another collaborator may ask an
+If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
 steps to resolve the objection. **If the objector is unresponsive for seven
-days after a collaborator asks for clarification, another collaborator may
+days after a collaborator asks for clarification, another collaborator can
 dismiss the objection**.
 
 **Pull requests with outstanding objections must remain open until all
 objections are satisfied**. If reaching consensus is not possible, a
-collaborator may escalate the issue to the TSC by pinging `@nodejs/tsc` and
+collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
 adding the `tsc-agenda` label to the issue.
 
 #### Helpful resources
@@ -151,27 +151,27 @@ adding the `tsc-agenda` label to the issue.
 ### Waiting for approvals
 
 Before landing pull requests, allow 48 hours for input from other Collaborators.
-Certain types of pull requests can be fast-tracked and may land after a shorter
+Certain types of pull requests can be fast-tracked and can land after a shorter
 delay. For example:
 
 * Focused changes that affect only documentation and/or the test suite:
   * `code-and-learn` tasks often fall into this category.
-  * `good-first-issue` pull requests may also be suitable.
+  * `good-first-issue` pull requests might also be suitable.
 * Changes that fix regressions:
   * Regressions that break the workflow (red CI or broken compilation).
   * Regressions that happen right before a release, or reported soon after.
 
 To propose fast-tracking a pull request, apply the `fast-track` label. Then add
-a comment that Collaborators may upvote.
+a comment that Collaborators can upvote.
 
 If someone disagrees with the fast-tracking request, remove the label. Do not
 fast-track the pull request in that case.
 
-The pull request may be fast-tracked if two Collaborators approve the
+The pull request can be fast-tracked if two Collaborators approve the
 fast-tracking request. To land, the pull request itself still needs two
 Collaborator approvals and a passing CI.
 
-Collaborators may request fast-tracking of pull requests they did not author.
+Collaborators can request fast-tracking of pull requests they did not author.
 In that case only, the request itself is also one fast-track approval. Upvote
 the comment anyway to avoid any doubt.
 
@@ -298,7 +298,7 @@ For more information, see [Deprecations](#deprecations).
 
 #### Breaking changes to internal elements
 
-Breaking changes to internal elements may occur in semver-patch or semver-minor
+Breaking changes to internal elements can occur in semver-patch or semver-minor
 commits. Take significant care when making and reviewing such changes. Make
 an effort to determine the potential impact of the change in the ecosystem. Use
 [Canary in the Goldmine](https://github.com/nodejs/citgm) to test such changes.
@@ -308,14 +308,14 @@ providing a Public API in such cases.
 #### Unintended breaking changes
 
 Sometimes, a change intended to be non-breaking turns out to be a breaking
-change. If such a change lands on the master branch, a Collaborator may revert
-it. As an alternative to reverting, the TSC may apply the semver-major label
+change. If such a change lands on the master branch, a Collaborator can revert
+it. As an alternative to reverting, the TSC can apply the semver-major label
 after-the-fact.
 
 ##### Reverting commits
 
 Revert commits with `git revert <HASH>` or `git revert <FROM>..<TO>`. The
-generated commit message will not have a subsystem and may violate line length
+generated commit message will not have a subsystem and might violate line length
 rules. That is OK. Append the reason for the revert and any `Refs` or `Fixes`
 metadata. Raise a pull request like any other change.
 
@@ -355,7 +355,7 @@ documentation must state the deprecation status.
   * There are no functional changes.
   * By default, there will be no warnings emitted for such deprecations at
     runtime.
-  * May cause a runtime warning with the [`--pending-deprecation`][] flag or
+  * Might cause a runtime warning with the [`--pending-deprecation`][] flag or
     `NODE_PENDING_DEPRECATION` environment variable.
 
 * Runtime Deprecation
@@ -364,7 +364,7 @@ documentation must state the deprecation status.
 
 * End-of-Life
   * The API is no longer subject to the semantic versioning rules.
-  * Backward-incompatible changes including complete removal of such APIs may
+  * Backward-incompatible changes including complete removal of such APIs can
     occur at any time.
 
 Apply the `notable change` label to all pull requests that introduce
@@ -372,7 +372,7 @@ Documentation-Only Deprecations. Such deprecations have no impact on code
 execution. Thus, they are not breaking changes (`semver-major`).
 
 Runtime Deprecations and End-of-Life APIs (internal or public) are breaking
-changes (`semver-major`). The TSC may make exceptions, deciding that one of
+changes (`semver-major`). The TSC can make exceptions, deciding that one of
 these deprecations is not a breaking change.
 
 Avoid Runtime Deprecations when an alias or a stub/no-op will suffice. An alias
@@ -386,13 +386,13 @@ example, due to removal of an End-of-Life deprecated API).
 
 <a id="deprecation-cycle"></a>
 A _deprecation cycle_ is a major release during which an API has been in one of
-the three Deprecation levels. Documentation-Only Deprecations may land in a
-minor release. They may not change to a Runtime Deprecation until the next major
+the three Deprecation levels. Documentation-Only Deprecations can land in a
+minor release. They can not change to a Runtime Deprecation until the next major
 release.
 
 No API can change to End-of-Life without going through a Runtime Deprecation
 cycle. There is no rule that deprecated code must progress to End-of-Life.
-Documentation-Only and Runtime Deprecations may remain in place for an unlimited
+Documentation-Only and Runtime Deprecations can remain in place for an unlimited
 duration.
 
 Communicate pending deprecations and associated mitigations with the ecosystem
@@ -404,7 +404,7 @@ deprecation level of an API.
 
 ### Involving the TSC
 
-Collaborators may opt to elevate pull requests or issues to the [TSC][].
+Collaborators can opt to elevate pull requests or issues to the [TSC][].
 Do this if a pull request or issue:
 
 * Is labeled `semver-major`, or
@@ -469,7 +469,7 @@ code. If you wish to create the token yourself in advance, see
 
 ### Technical HOWTO
 
-Clear any `am`/`rebase` that may already be underway:
+Clear any `am`/`rebase` that might already be underway:
 
 ```text
 $ git am --abort
@@ -586,7 +586,7 @@ for that commit. This is an opportunity to fix commit messages.
     request. This makes it easy to trace a commit back to the conversation that
     led up to that change.
   * Optional: A `Fixes: X` line, where _X_ is the full GitHub URL for an
-    issue. A commit message may include more than one `Fixes:` lines.
+    issue. A commit message can include more than one `Fixes:` lines.
   * Optional: One or more `Refs:` lines referencing a URL for any relevant
     background.
   * Required: A `Reviewed-By: Name <email>` line for each Collaborator who
@@ -595,7 +595,7 @@ for that commit. This is an opportunity to fix commit messages.
       pull request.
     * Protects against the assumption that GitHub will be around forever.
 
-Other changes may have landed on master since the successful CI run. As a
+Other changes might have landed on master since the successful CI run. As a
 precaution, run tests (`make -j4 test` or `vcbuild test`).
 
 Confirm that the commit message format is correct using
@@ -628,8 +628,8 @@ more than one commit.
 
 ### Troubleshooting
 
-Sometimes, when running `git push upstream master`, you may get an error message
-like this:
+Sometimes, when running `git push upstream master`, you might get an error
+message like this:
 
 ```console
 To https://github.com/nodejs/node
@@ -683,7 +683,7 @@ corresponding staging branch (v10.x-staging, v8.x-staging, etc.).
 Commits that land on master are cherry-picked to each staging branch as
 appropriate. If a change applies only to the LTS branch, open the PR against the
 *staging* branch. Commits from the staging branch land on the LTS branch only
-when a release is being prepared. They may land on the LTS branch in a different
+when a release is being prepared. They can land on the LTS branch in a different
 order than they were in staging.
 
 Only members of @nodejs/backporters should land commits onto LTS staging
@@ -711,7 +711,7 @@ Likewise, as commits land in an LTS release, the releaser removes the `land-on-`
 label.
 
 Attach the appropriate `lts-watch-` label to any pull request that
-may impact an LTS release.
+might impact an LTS release.
 
 ## Who to CC in the issue tracker
 
@@ -759,7 +759,7 @@ may impact an LTS release.
 When things need extra attention, are controversial, or `semver-major`:
 @nodejs/tsc
 
-If you cannot find who to cc for a file, `git shortlog -n -s <file>` may help.
+If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
 ["Merge Pull Request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
