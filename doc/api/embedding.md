@@ -35,6 +35,7 @@ the `node` and `v8` C++ namespaces, respectively.
 
 ```cpp
 int main(int argc, char** argv) {
+  argv = uv_setup_args(argc, argv);
   std::vector<std::string> args(argv, argv + argc);
   std::vector<std::string> exec_args;
   std::vector<std::string> errors;
