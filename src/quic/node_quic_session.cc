@@ -3608,8 +3608,9 @@ void QuicSession::OnQlogWrite(
   std::vector<uint8_t> buffer(len);
   memcpy(buffer.data(), data, len);
   env->SetImmediate([ptr = std::move(ptr),
-                     buffer = std::move(buffer)](Environment*) {
-    ptr->Emit(buffer.data(), buffer.size());
+                     buffer = std::move(buffer),
+                     flags](Environment*) {
+    ptr->Emit(buffer.data(), buffer.size(), flags);
   });
 }
 
@@ -3647,7 +3648,7 @@ QLogStream::QLogStream(Environment* env, v8::Local<Object> obj)
   StreamBase::AttachToObject(GetObject());
 }
 
-void QLogStream::Emit(const uint8_t* data, size_t len) {
+void QLogStream::Emit(const uint8_t* data, size_t len, uint32_t flags) {
   size_t remaining = len;
   while (remaining != 0) {
     uv_buf_t buf = EmitAlloc(len);
@@ -3658,10 +3659,7 @@ void QLogStream::Emit(const uint8_t* data, size_t len) {
     EmitRead(avail, buf);
   }
 
-  // The last chunk that ngtcp2 writes is 6 bytes. Unfortunately,
-  // this is the only way for us to know that ngtcp2 is definitely
-  // done sending qlog events.
-  if (ended_ && len == 6)
+  if (ended_ && flags & NGTCP2_QLOG_WRITE_FLAG_FIN)
     EmitRead(UV_EOF);
 }
 
