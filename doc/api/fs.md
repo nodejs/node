@@ -4548,7 +4548,8 @@ added: v10.0.0
   file descriptor is closed, or will be rejected if an error occurs while
   closing.
 
-Closes the file descriptor.
+Closes the file handle. Will wait for any pending operation on the handle
+to complete before completing.
 
 ```js
 const fsPromises = require('fs').promises;
