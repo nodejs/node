@@ -105,7 +105,6 @@ void ngtcp2_dcid_copy_no_path(ngtcp2_dcid *dest, const ngtcp2_dcid *src) {
 
 int ngtcp2_dcid_verify_uniqueness(ngtcp2_dcid *dcid, uint64_t seq,
                                   const ngtcp2_cid *cid, const uint8_t *token) {
-
   if (dcid->seq == seq) {
     return ngtcp2_cid_eq(&dcid->cid, cid) &&
                    memcmp(dcid->token, token,

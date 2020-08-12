@@ -106,7 +106,7 @@ typedef enum {
 
 /* NGTCP2_MAX_NON_ACK_TX_PKT is the maximum number of continuous non
    ACK-eliciting packets. */
-#define NGTCP2_MAX_NON_ACK_TX_PKT 10
+#define NGTCP2_MAX_NON_ACK_TX_PKT 3
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -186,7 +186,7 @@ typedef struct {
   uint8_t pkt_type;
 } ngtcp2_crypto_data;
 
-typedef struct {
+typedef struct ngtcp2_pktns {
   struct {
     /* last_pkt_num is the packet number which the local endpoint sent
        last time.*/
@@ -203,6 +203,9 @@ typedef struct {
     ngtcp2_gaptr pngap;
     /* max_pkt_num is the largest packet number received so far. */
     int64_t max_pkt_num;
+    /* max_pkt_ts is the timestamp when max_pkt_num packet is
+       received. */
+    ngtcp2_tstamp max_pkt_ts;
     /*
      * buffed_pkts is buffered packets which cannot be decrypted with
      * the current encryption level.
@@ -236,16 +239,16 @@ typedef struct {
       /* ckm is a cryptographic key, and iv to encrypt outgoing
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp_key is header protection key. */
-      ngtcp2_vec *hp_key;
+      /* hp_ctx is cipher context for packet header protection. */
+      ngtcp2_crypto_cipher_ctx hp_ctx;
     } tx;
 
     struct {
       /* ckm is a cryptographic key, and iv to decrypt incoming
          packets. */
       ngtcp2_crypto_km *ckm;
-      /* hp_key is header protection key. */
-      ngtcp2_vec *hp_key;
+      /* hp_ctx is cipher context for packet header protection. */
+      ngtcp2_crypto_cipher_ctx hp_ctx;
     } rx;
 
     ngtcp2_strm strm;
@@ -286,7 +289,10 @@ struct ngtcp2_conn {
     /* retired is a set of CID retired by local endpoint.  Keep them
        in 3*PTO to catch packets in flight along the old path. */
     ngtcp2_ringbuf retired;
-    /* retire_prior_to is the larget retire_prior_to received so
+    /* seqgap tracks received sequence numbers in order to ignore
+       retransmitted duplicated NEW_CONNECTION_ID frame. */
+    ngtcp2_gaptr seqgap;
+    /* retire_prior_to is the largest retire_prior_to received so
        far. */
     uint64_t retire_prior_to;
     /* num_retire_queued is the number of RETIRE_CONNECTION_ID frames
@@ -352,7 +358,7 @@ struct ngtcp2_conn {
 
   struct {
     ngtcp2_crypto_km *ckm;
-    ngtcp2_vec *hp_key;
+    ngtcp2_crypto_cipher_ctx hp_ctx;
   } early;
 
   struct {
@@ -432,8 +438,12 @@ struct ngtcp2_conn {
     size_t aead_overhead;
     /* decrypt_buf is a buffer which is used to write decrypted data. */
     ngtcp2_vec decrypt_buf;
-    /* retry_aead is AEAD to verify Retry packet integrity. */
+    /* retry_aead is AEAD to verify Retry packet integrity.  It is
+       used by client only. */
     ngtcp2_crypto_aead retry_aead;
+    /* retry_aead_ctx is AEAD cipher context to verify Retry packet
+       integrity.  It is used by client only. */
+    ngtcp2_crypto_aead_ctx retry_aead_ctx;
     /* tls_error is TLS related error. */
     int tls_error;
   } crypto;
@@ -469,6 +479,33 @@ struct ngtcp2_conn {
   uint16_t flags;
   int server;
 };
+
+typedef enum ngtcp2_vmsg_type {
+  NGTCP2_VMSG_TYPE_STREAM,
+} ngtcp2_vmsg_type;
+
+typedef struct ngtcp2_vmsg_stream {
+  /* strm is a stream that data is sent to. */
+  ngtcp2_strm *strm;
+  /* flags is bitwise OR of zero or more of
+     ngtcp2_write_stream_flag. */
+  uint32_t flags;
+  /* data is the pointer to ngtcp2_vec array which contains the stream
+     data to send. */
+  const ngtcp2_vec *data;
+  /* datacnt is the number of ngtcp2_vec pointed by data. */
+  size_t datacnt;
+  /* *pdatalen is the pointer to the variable which the number of
+     bytes written is assigned to if pdatalen is not NULL. */
+  ngtcp2_ssize *pdatalen;
+} ngtcp2_vmsg_stream;
+
+typedef struct ngtcp2_vmsg {
+  ngtcp2_vmsg_type type;
+  union {
+    ngtcp2_vmsg_stream stream;
+  };
+} ngtcp2_vmsg;
 
 /*
  * ngtcp2_conn_sched_ack stores packet number |pkt_num| and its
@@ -591,6 +628,10 @@ int ngtcp2_conn_tx_strmq_push(ngtcp2_conn *conn, ngtcp2_strm *strm);
  */
 ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 
+ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
+                                    uint8_t *dest, size_t destlen,
+                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
+
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains |fr|
  * frame only in the buffer pointed by |dest| whose length if
@@ -611,5 +652,47 @@ ngtcp2_conn_write_single_frame_pkt(ngtcp2_conn *conn, uint8_t *dest,
                                    size_t destlen, uint8_t type,
                                    const ngtcp2_cid *dcid, ngtcp2_frame *fr,
                                    uint8_t rtb_flags, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_conn_commit_local_transport_params commits the local
+ * transport parameters, which is currently set to
+ * conn->local.settings.transport_params.  This function will do some
+ * amends on transport parameters for adjusting default values.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *     CID in preferred address equals to the original SCID.
+ */
+int ngtcp2_conn_commit_local_transport_params(ngtcp2_conn *conn);
+
+/*
+ * ngtcp2_conn_lost_pkt_expiry returns the earliest expiry time of
+ * lost packet.
+ */
+ngtcp2_tstamp ngtcp2_conn_lost_pkt_expiry(ngtcp2_conn *conn);
+
+/*
+ * ngtcp2_conn_remove_lost_pkt removes the expired lost packet.
+ */
+void ngtcp2_conn_remove_lost_pkt(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_conn_resched_frames reschedules frames linked from |*pfrc|
+ * for retransmission.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory.
+ */
+int ngtcp2_conn_resched_frames(ngtcp2_conn *conn, ngtcp2_pktns *pktns,
+                               ngtcp2_frame_chain **pfrc);
+
+uint64_t ngtcp2_conn_tx_strmq_first_cycle(ngtcp2_conn *conn);
 
 #endif /* NGTCP2_CONN_H */

@@ -32,10 +32,11 @@
 #include "ngtcp2_conn.h"
 
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
-                         size_t secretlen, const uint8_t *key, size_t keylen,
+                         size_t secretlen,
+                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                          const uint8_t *iv, size_t ivlen,
                          const ngtcp2_mem *mem) {
-  int rv = ngtcp2_crypto_km_nocopy_new(pckm, secretlen, keylen, ivlen, mem);
+  int rv = ngtcp2_crypto_km_nocopy_new(pckm, secretlen, ivlen, mem);
   if (rv != 0) {
     return rv;
   }
@@ -43,19 +44,20 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
   if (secretlen) {
     memcpy((*pckm)->secret.base, secret, secretlen);
   }
-  memcpy((*pckm)->key.base, key, keylen);
+  if (aead_ctx) {
+    (*pckm)->aead_ctx = *aead_ctx;
+  }
   memcpy((*pckm)->iv.base, iv, ivlen);
 
   return 0;
 }
 
 int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
-                                size_t keylen, size_t ivlen,
-                                const ngtcp2_mem *mem) {
+                                size_t ivlen, const ngtcp2_mem *mem) {
   size_t len;
   uint8_t *p;
 
-  len = sizeof(ngtcp2_crypto_km) + secretlen + keylen + ivlen;
+  len = sizeof(ngtcp2_crypto_km) + secretlen + ivlen;
 
   *pckm = ngtcp2_mem_malloc(mem, len);
   if (*pckm == NULL) {
@@ -66,11 +68,9 @@ int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
   (*pckm)->secret.base = p;
   (*pckm)->secret.len = secretlen;
   p += secretlen;
-  (*pckm)->key.base = p;
-  (*pckm)->key.len = keylen;
-  p += keylen;
   (*pckm)->iv.base = p;
   (*pckm)->iv.len = ivlen;
+  (*pckm)->aead_ctx.native_handle = NULL;
   (*pckm)->pkt_num = -1;
   (*pckm)->use_count = 0;
   (*pckm)->flags = NGTCP2_CRYPTO_KM_FLAG_NONE;

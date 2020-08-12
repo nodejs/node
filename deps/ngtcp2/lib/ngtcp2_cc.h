@@ -95,6 +95,8 @@ typedef struct ngtcp2_cubic_cc {
   uint64_t current_round_min_rtt;
   uint64_t last_round_min_rtt;
   int64_t window_end;
+  uint64_t pending_add;
+  uint64_t pending_w_add;
 } ngtcp2_cubic_cc;
 
 int ngtcp2_cc_cubic_cc_init(ngtcp2_cc *cc, ngtcp2_log *log,

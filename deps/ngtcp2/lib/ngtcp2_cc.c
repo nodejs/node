@@ -26,23 +26,14 @@
 
 #include <assert.h>
 
+#if defined(_MSC_VER)
+#  include <intrin.h>
+#endif
+
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
-
-#ifdef _MSC_VER
-#include <intrin.h>
-static inline int __builtin_clzll(unsigned long long x) {
-#if defined(_WIN64) || defined(_LP64)
-  return (int)__lzcnt64(x);
-#else
-  // TODO(@jasnell): Determine if there's an alternative available for x86
-  assert(0);
-#endif
-
-}
-#endif
 
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
@@ -245,16 +236,35 @@ void ngtcp2_cc_cubic_cc_free(ngtcp2_cc *cc, const ngtcp2_mem *mem) {
 static uint64_t ngtcp2_cbrt(uint64_t n) {
   int d;
   uint64_t a;
-  int i;
 
   if (n == 0) {
     return 0;
   }
 
+#if defined(_MSC_VER)
+#  if defined(_M_X64)
+  d = (int)__lzcnt64(n);
+#  elif defined(_M_ARM64)
+  {
+    unsigned long index;
+    d = sizeof(uint64_t) * CHAR_BIT;
+    if (_BitScanReverse64(&index, n)) {
+      d = d - 1 - index;
+    }
+  }
+#  else
+  if ((n >> 32) != 0) {
+    d = __lzcnt((unsigned int)(n >> 32));
+  } else {
+    d = 32 + __lzcnt((unsigned int)n);
+  }
+#  endif
+#else
   d = __builtin_clzll(n);
+#endif
   a = 1ULL << ((64 - d) / 3 + 1);
 
-  for (i = 0; a * a * a > n; ++i) {
+  for (; a * a * a > n;) {
     a = (2 * a + n / a / a) / 3;
   }
   return a;
@@ -274,6 +284,7 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   uint64_t target;
   uint64_t tx, kx, time_delta, delta;
   uint64_t add, tcp_add;
+  uint64_t m;
 
   if (pkt->pktns_id == NGTCP2_PKTNS_ID_APP && cc->window_end != -1 &&
       cc->window_end <= pkt->pkt_num) {
@@ -339,10 +350,12 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
                     "cubic-ca epoch_start=%" PRIu64 " k=%" PRIu64
                     " origin_point=%" PRIu64,
                     cc->epoch_start, cc->k, cc->origin_point);
+
+    cc->pending_add = 0;
+    cc->pending_w_add = 0;
   }
 
-  min_rtt = cstat->min_rtt == UINT64_MAX ? NGTCP2_DEFAULT_INITIAL_RTT
-                                         : cstat->min_rtt;
+  min_rtt = cstat->min_rtt == UINT64_MAX ? cstat->initial_rtt : cstat->min_rtt;
 
   t = ts + min_rtt - cc->epoch_start;
 
@@ -365,13 +378,19 @@ void ngtcp2_cc_cubic_cc_on_pkt_acked(ngtcp2_cc *ccx, ngtcp2_conn_stat *cstat,
   }
 
   if (target > cstat->cwnd) {
-    add = cstat->max_udp_payload_size * (target - cstat->cwnd) / cstat->cwnd;
+    m = cc->pending_add + cstat->max_udp_payload_size * (target - cstat->cwnd);
+    add = m / cstat->cwnd;
+    cc->pending_add = m % cstat->cwnd;
   } else {
-    /* TODO too small, no increment at all */
-    add = cstat->max_udp_payload_size / (100 * cstat->cwnd);
+    m = cc->pending_add + cstat->max_udp_payload_size;
+    add = m / (100 * cstat->cwnd);
+    cc->pending_add = m % (100 * cstat->cwnd);
   }
 
-  cc->w_tcp += cstat->max_udp_payload_size * pkt->pktlen * 9 / 17 / cstat->cwnd;
+  m = cc->pending_w_add + cstat->max_udp_payload_size * pkt->pktlen;
+
+  cc->w_tcp += m / cstat->cwnd;
+  cc->pending_w_add = m % cstat->cwnd;
 
   if (cc->w_tcp > cstat->cwnd) {
     tcp_add =

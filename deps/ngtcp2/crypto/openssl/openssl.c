@@ -173,6 +173,92 @@ size_t ngtcp2_crypto_aead_taglen(const ngtcp2_crypto_aead *aead) {
   return crypto_aead_taglen(aead->native_handle);
 }
 
+int ngtcp2_crypto_aead_ctx_encrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
+                                        const ngtcp2_crypto_aead *aead,
+                                        const uint8_t *key, size_t noncelen) {
+  const EVP_CIPHER *cipher = aead->native_handle;
+  EVP_CIPHER_CTX *actx;
+
+  actx = EVP_CIPHER_CTX_new();
+  if (actx == NULL) {
+    return -1;
+  }
+
+  if (!EVP_EncryptInit_ex(actx, cipher, NULL, NULL, NULL) ||
+      !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_IVLEN, (int)noncelen,
+                           NULL) ||
+      (cipher == EVP_aes_128_ccm() &&
+       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG,
+                            (int)crypto_aead_taglen(cipher), NULL)) ||
+      !EVP_EncryptInit_ex(actx, NULL, NULL, key, NULL)) {
+    EVP_CIPHER_CTX_free(actx);
+    return -1;
+  }
+
+  aead_ctx->native_handle = actx;
+
+  return 0;
+}
+
+int ngtcp2_crypto_aead_ctx_decrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
+                                        const ngtcp2_crypto_aead *aead,
+                                        const uint8_t *key, size_t noncelen) {
+  const EVP_CIPHER *cipher = aead->native_handle;
+  EVP_CIPHER_CTX *actx;
+
+  actx = EVP_CIPHER_CTX_new();
+  if (actx == NULL) {
+    return -1;
+  }
+
+  if (!EVP_DecryptInit_ex(actx, cipher, NULL, NULL, NULL) ||
+      !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_IVLEN, (int)noncelen,
+                           NULL) ||
+      (cipher == EVP_aes_128_ccm() &&
+       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG,
+                            (int)crypto_aead_taglen(cipher), NULL)) ||
+      !EVP_DecryptInit_ex(actx, NULL, NULL, key, NULL)) {
+    EVP_CIPHER_CTX_free(actx);
+    return -1;
+  }
+
+  aead_ctx->native_handle = actx;
+
+  return 0;
+}
+
+void ngtcp2_crypto_aead_ctx_free(ngtcp2_crypto_aead_ctx *aead_ctx) {
+  if (aead_ctx->native_handle) {
+    EVP_CIPHER_CTX_free(aead_ctx->native_handle);
+  }
+}
+
+int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
+                                          const ngtcp2_crypto_cipher *cipher,
+                                          const uint8_t *key) {
+  EVP_CIPHER_CTX *actx;
+
+  actx = EVP_CIPHER_CTX_new();
+  if (actx == NULL) {
+    return -1;
+  }
+
+  if (!EVP_EncryptInit_ex(actx, cipher->native_handle, NULL, key, NULL)) {
+    EVP_CIPHER_CTX_free(actx);
+    return -1;
+  }
+
+  cipher_ctx->native_handle = actx;
+
+  return 0;
+}
+
+void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx) {
+  if (cipher_ctx->native_handle) {
+    EVP_CIPHER_CTX_free(cipher_ctx->native_handle);
+  }
+}
+
 int ngtcp2_crypto_hkdf_extract(uint8_t *dest, const ngtcp2_crypto_md *md,
                                const uint8_t *secret, size_t secretlen,
                                const uint8_t *salt, size_t saltlen) {
@@ -226,26 +312,18 @@ int ngtcp2_crypto_hkdf_expand(uint8_t *dest, size_t destlen,
 }
 
 int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                          const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *plaintext, size_t plaintextlen,
-                          const uint8_t *key, const uint8_t *nonce,
-                          size_t noncelen, const uint8_t *ad, size_t adlen) {
+                          const uint8_t *nonce, size_t noncelen,
+                          const uint8_t *ad, size_t adlen) {
   const EVP_CIPHER *cipher = aead->native_handle;
   size_t taglen = crypto_aead_taglen(cipher);
-  EVP_CIPHER_CTX *actx;
-  int rv = 0;
+  EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
   int len;
 
-  actx = EVP_CIPHER_CTX_new();
-  if (actx == NULL) {
-    return -1;
-  }
+  (void)noncelen;
 
-  if (!EVP_EncryptInit_ex(actx, cipher, NULL, NULL, NULL) ||
-      !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_IVLEN, (int)noncelen,
-                           NULL) ||
-      (cipher == EVP_aes_128_ccm() &&
-       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen, NULL)) ||
-      !EVP_EncryptInit_ex(actx, NULL, NULL, key, nonce) ||
+  if (!EVP_EncryptInit_ex(actx, NULL, NULL, NULL, nonce) ||
       (cipher == EVP_aes_128_ccm() &&
        !EVP_EncryptUpdate(actx, NULL, &len, NULL, (int)plaintextlen)) ||
       !EVP_EncryptUpdate(actx, NULL, &len, ad, (int)adlen) ||
@@ -253,24 +331,24 @@ int ngtcp2_crypto_encrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
       !EVP_EncryptFinal_ex(actx, dest + len, &len) ||
       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_GET_TAG, (int)taglen,
                            dest + plaintextlen)) {
-    rv = -1;
+    return -1;
   }
 
-  EVP_CIPHER_CTX_free(actx);
-
-  return rv;
+  return 0;
 }
 
 int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                          const ngtcp2_crypto_aead_ctx *aead_ctx,
                           const uint8_t *ciphertext, size_t ciphertextlen,
-                          const uint8_t *key, const uint8_t *nonce,
-                          size_t noncelen, const uint8_t *ad, size_t adlen) {
+                          const uint8_t *nonce, size_t noncelen,
+                          const uint8_t *ad, size_t adlen) {
   const EVP_CIPHER *cipher = aead->native_handle;
   size_t taglen = crypto_aead_taglen(cipher);
-  EVP_CIPHER_CTX *actx;
-  int rv = 0;
+  EVP_CIPHER_CTX *actx = aead_ctx->native_handle;
   int len;
   const uint8_t *tag;
+
+  (void)noncelen;
 
   if (taglen > ciphertextlen) {
     return -1;
@@ -279,56 +357,37 @@ int ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
   ciphertextlen -= taglen;
   tag = ciphertext + ciphertextlen;
 
-  actx = EVP_CIPHER_CTX_new();
-  if (actx == NULL) {
-    return -1;
-  }
-
-  if (!EVP_DecryptInit_ex(actx, cipher, NULL, NULL, NULL) ||
-      !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_IVLEN, (int)noncelen,
-                           NULL) ||
-      (cipher == EVP_aes_128_ccm() &&
-       !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen,
-                            (uint8_t *)tag)) ||
-      !EVP_DecryptInit_ex(actx, NULL, NULL, key, nonce) ||
+  if (!EVP_DecryptInit_ex(actx, NULL, NULL, NULL, nonce) ||
+      !EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen,
+                           (uint8_t *)tag) ||
       (cipher == EVP_aes_128_ccm() &&
        !EVP_DecryptUpdate(actx, NULL, &len, NULL, (int)ciphertextlen)) ||
       !EVP_DecryptUpdate(actx, NULL, &len, ad, (int)adlen) ||
       !EVP_DecryptUpdate(actx, dest, &len, ciphertext, (int)ciphertextlen) ||
       (cipher != EVP_aes_128_ccm() &&
-       (!EVP_CIPHER_CTX_ctrl(actx, EVP_CTRL_AEAD_SET_TAG, (int)taglen,
-                             (uint8_t *)tag) ||
-        !EVP_DecryptFinal_ex(actx, dest + ciphertextlen, &len)))) {
-    rv = -1;
-  }
-
-  EVP_CIPHER_CTX_free(actx);
-
-  return rv;
-}
-
-int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-                          const uint8_t *hp_key, const uint8_t *sample) {
-  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
-  const EVP_CIPHER *cipher = hp->native_handle;
-  EVP_CIPHER_CTX *actx;
-  int rv = 0;
-  int len;
-
-  actx = EVP_CIPHER_CTX_new();
-  if (actx == NULL) {
+       !EVP_DecryptFinal_ex(actx, dest + ciphertextlen, &len))) {
     return -1;
   }
 
-  if (!EVP_EncryptInit_ex(actx, cipher, NULL, hp_key, sample) ||
+  return 0;
+}
+
+int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
+                          const ngtcp2_crypto_cipher_ctx *hp_ctx,
+                          const uint8_t *sample) {
+  static const uint8_t PLAINTEXT[] = "\x00\x00\x00\x00\x00";
+  EVP_CIPHER_CTX *actx = hp_ctx->native_handle;
+  int len;
+
+  (void)hp;
+
+  if (!EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) ||
       !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT, sizeof(PLAINTEXT) - 1) ||
       !EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT) - 1, &len)) {
-    rv = -1;
+    return -1;
   }
 
-  EVP_CIPHER_CTX_free(actx);
-
-  return rv;
+  return 0;
 }
 
 static OSSL_ENCRYPTION_LEVEL

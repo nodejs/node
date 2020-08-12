@@ -210,8 +210,9 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_packet_protection_key(
  */
 NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
                                         const ngtcp2_crypto_aead *aead,
+                                        const ngtcp2_crypto_aead_ctx *aead_ctx,
                                         const uint8_t *plaintext,
-                                        size_t plaintextlen, const uint8_t *key,
+                                        size_t plaintextlen,
                                         const uint8_t *nonce, size_t noncelen,
                                         const uint8_t *ad, size_t adlen);
 
@@ -227,9 +228,10 @@ NGTCP2_EXTERN int ngtcp2_crypto_encrypt(uint8_t *dest,
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                          const uint8_t *plaintext, size_t plaintextlen,
-                         const uint8_t *key, const uint8_t *nonce,
-                         size_t noncelen, const uint8_t *ad, size_t adlen);
+                         const uint8_t *nonce, size_t noncelen,
+                         const uint8_t *ad, size_t adlen);
 
 /**
  * @function
@@ -243,11 +245,13 @@ ngtcp2_crypto_encrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int
-ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
-                      const uint8_t *ciphertext, size_t ciphertextlen,
-                      const uint8_t *key, const uint8_t *nonce, size_t noncelen,
-                      const uint8_t *ad, size_t adlen);
+NGTCP2_EXTERN int ngtcp2_crypto_decrypt(uint8_t *dest,
+                                        const ngtcp2_crypto_aead *aead,
+                                        const ngtcp2_crypto_aead_ctx *aead_ctx,
+                                        const uint8_t *ciphertext,
+                                        size_t ciphertextlen,
+                                        const uint8_t *nonce, size_t noncelen,
+                                        const uint8_t *ad, size_t adlen);
 
 /**
  * @function
@@ -261,9 +265,10 @@ ngtcp2_crypto_decrypt(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  */
 NGTCP2_EXTERN int
 ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                          const uint8_t *ciphertext, size_t ciphertextlen,
-                         const uint8_t *key, const uint8_t *nonce,
-                         size_t noncelen, const uint8_t *ad, size_t adlen);
+                         const uint8_t *nonce, size_t noncelen,
+                         const uint8_t *ad, size_t adlen);
 
 /**
  * @function
@@ -277,7 +282,7 @@ ngtcp2_crypto_decrypt_cb(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  */
 NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
                                         const ngtcp2_crypto_cipher *hp,
-                                        const uint8_t *key,
+                                        const ngtcp2_crypto_cipher_ctx *hp_ctx,
                                         const uint8_t *sample);
 
 /**
@@ -290,10 +295,10 @@ NGTCP2_EXTERN int ngtcp2_crypto_hp_mask(uint8_t *dest,
  * This function returns 0 if it succeeds, or
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
-NGTCP2_EXTERN int ngtcp2_crypto_hp_mask_cb(uint8_t *dest,
-                                           const ngtcp2_crypto_cipher *hp,
-                                           const uint8_t *key,
-                                           const uint8_t *sample);
+NGTCP2_EXTERN int
+ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
+                         const ngtcp2_crypto_cipher_ctx *hp_ctx,
+                         const uint8_t *sample);
 
 /**
  * @function
@@ -381,10 +386,12 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_tx_key(
  * The derived packet protection key for decryption is written to the
  * buffer pointed by |rx_key|.  The derived packet protection IV for
  * decryption is written to the buffer pointed by |rx_iv|.
+ * |rx_aead_ctx| must be constructed with |rx_key|.
  *
  * The derived packet protection key for encryption is written to the
  * buffer pointed by |tx_key|.  The derived packet protection IV for
  * encryption is written to the buffer pointed by |tx_iv|.
+ * |tx_aead_ctx| must be constructed with |rx_key|.
  *
  * |current_rx_secret| and |current_tx_secret| are the current traffic
  * secrets for decryption and encryption.  |secretlen| specifies the
@@ -397,12 +404,12 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_tx_key(
  *
  * This function returns 0 if it succeeds, or -1.
  */
-NGTCP2_EXTERN int
-ngtcp2_crypto_update_key(ngtcp2_conn *conn, uint8_t *rx_secret,
-                         uint8_t *tx_secret, uint8_t *rx_key, uint8_t *rx_iv,
-                         uint8_t *tx_key, uint8_t *tx_iv,
-                         const uint8_t *current_rx_secret,
-                         const uint8_t *current_tx_secret, size_t secretlen);
+NGTCP2_EXTERN int ngtcp2_crypto_update_key(
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+    ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_key, uint8_t *rx_iv,
+    ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_key, uint8_t *tx_iv,
+    const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
+    size_t secretlen);
 
 /**
  * @function
@@ -415,8 +422,9 @@ ngtcp2_crypto_update_key(ngtcp2_conn *conn, uint8_t *rx_secret,
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`.
  */
 NGTCP2_EXTERN int ngtcp2_crypto_update_key_cb(
-    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret, uint8_t *rx_key,
-    uint8_t *rx_iv, uint8_t *tx_key, uint8_t *tx_iv,
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+    ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+    ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
     const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
     size_t secretlen, void *user_data);
 
@@ -542,6 +550,69 @@ NGTCP2_EXTERN ngtcp2_ssize
 ngtcp2_crypto_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
                           const ngtcp2_cid *scid, const ngtcp2_cid *odcid,
                           const uint8_t *token, size_t tokenlen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_aead_ctx_encrypt_init` initializes |aead_ctx| with
+ * new AEAD cipher context object for encryption which is constructed
+ * to use |key| as encryption key.  |aead| specifies AEAD cipher to
+ * use.  |noncelen| is the length of nonce.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_aead_ctx_encrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
+                                    const ngtcp2_crypto_aead *aead,
+                                    const uint8_t *key, size_t noncelen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_aead_ctx_decrypt_init` initializes |aead_ctx| with
+ * new AEAD cipher context object for decryption which is constructed
+ * to use |key| as encryption key.  |aead| specifies AEAD cipher to
+ * use.  |noncelen| is the length of nonce.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int
+ngtcp2_crypto_aead_ctx_decrypt_init(ngtcp2_crypto_aead_ctx *aead_ctx,
+                                    const ngtcp2_crypto_aead *aead,
+                                    const uint8_t *key, size_t noncelen);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_aead_ctx_free` frees up resources used by
+ * |aead_ctx|.  This function does not free the memory pointed by
+ * |aead_ctx| itself.
+ */
+NGTCP2_EXTERN void
+ngtcp2_crypto_aead_ctx_free(ngtcp2_crypto_aead_ctx *aead_ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_delete_crypto_aead_ctx_cb` deletes the given |aead_ctx|.
+ *
+ * This function can be directly passed to delete_crypto_aead_ctx
+ * field in ngtcp2_callbacks.
+ */
+NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_aead_ctx_cb(
+    ngtcp2_conn *conn, ngtcp2_crypto_aead_ctx *aead_ctx, void *user_data);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_delete_crypto_cipher_ctx_cb` deletes the given
+ * |cipher_ctx|.
+ *
+ * This function can be directly passed to delete_crypto_cipher_ctx
+ * field in ngtcp2_callbacks.
+ */
+NGTCP2_EXTERN void ngtcp2_crypto_delete_crypto_cipher_ctx_cb(
+    ngtcp2_conn *conn, ngtcp2_crypto_cipher_ctx *cipher_ctx, void *user_data);
 
 #ifdef __cplusplus
 }

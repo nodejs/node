@@ -49,6 +49,12 @@ extern "C" {
 #include <stdarg.h>
 #include <stddef.h>
 
+#ifdef WIN32
+#  include <winsock2.h>
+#else
+#  include <sys/socket.h>
+#endif
+
 #include <ngtcp2/version.h>
 
 #ifdef NGTCP2_STATICLIB
@@ -190,6 +196,15 @@ typedef struct ngtcp2_mem {
   "\xaf\xbf\xec\x28\x99\x93\xd2\x4c\x9e\x97\x86\xf1\x9c\x61\x11\xe0\x43\x90"   \
   "\xa8\x99"
 
+/* NGTCP2_RETRY_KEY is an encryption key to create integrity tag of
+   Retry packet. */
+#define NGTCP2_RETRY_KEY                                                       \
+  "\xcc\xce\x18\x7e\xd0\x9a\x09\xd0\x57\x28\x15\x5a\x6c\xb9\x6b\xe1"
+
+/* NGTCP2_RETRY_NONCE is nonce used when generating integrity tag of
+   Retry packet. */
+#define NGTCP2_RETRY_NONCE "\xe5\x49\x30\xf9\x7f\x21\x36\xf0\x53\x0a\x8c\x1c"
+
 /* NGTCP2_HP_MASKLEN is the length of header protection mask. */
 #define NGTCP2_HP_MASKLEN 5
 
@@ -211,6 +226,9 @@ typedef struct ngtcp2_mem {
 /* NGTCP2_NANOSECONDS is a count of tick which corresponds to 1
    nanosecond. */
 #define NGTCP2_NANOSECONDS ((uint64_t)1ULL)
+
+/* NGTCP2_DEFAULT_INITIAL_RTT is a default initial RTT. */
+#define NGTCP2_DEFAULT_INITIAL_RTT (333 * NGTCP2_MILLISECONDS)
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
 typedef enum ngtcp2_lib_error : int {
@@ -248,7 +266,7 @@ typedef enum ngtcp2_lib_error {
   NGTCP2_ERR_CONN_ID_BLOCKED = -237,
   NGTCP2_ERR_INTERNAL = -238,
   NGTCP2_ERR_CRYPTO_BUFFER_EXCEEDED = -239,
-  NGTCP2_ERR_WRITE_STREAM_MORE = -240,
+  NGTCP2_ERR_WRITE_MORE = -240,
   NGTCP2_ERR_RETRY = -241,
   NGTCP2_ERR_DROP_CONN = -242,
   NGTCP2_ERR_FATAL = -500,
@@ -488,9 +506,8 @@ typedef struct ngtcp2_transport_params {
   ngtcp2_preferred_addr preferred_address;
   /* original_dcid is the Destination Connection ID field from the
      first Initial packet from client.  Server must specify this
-     field.  If application specifies retry_scid_present to nonzero,
-     then it must also specify this field.  It is expected that
-     application knows the original Destination Connection ID, for
+     field.  It is expected that application knows the original
+     Destination Connection ID even if it sends Retry packet, for
      example, by including it in retry token.  Otherwise, application
      should not specify this field. */
   ngtcp2_cid original_dcid;
@@ -573,6 +590,7 @@ typedef struct ngtcp2_conn_stat {
   ngtcp2_duration min_rtt;
   ngtcp2_duration smoothed_rtt;
   ngtcp2_duration rttvar;
+  ngtcp2_duration initial_rtt;
   size_t pto_count;
   ngtcp2_tstamp loss_detection_timer;
   /* last_tx_pkt_ts corresponds to
@@ -678,8 +696,30 @@ typedef struct ngtcp2_cc {
    ngtcp2_conn_server_new. */
 typedef void (*ngtcp2_printf)(void *user_data, const char *format, ...);
 
-typedef void (*ngtcp2_qlog_write)(void *user_data, const void *data,
-                                  size_t datalen);
+/**
+ * @enum
+ *
+ * :type:`ngtcp2_qlog_write_flag` defines the set of flags passed to
+ * :type:`ngtcp2_qlog_write` callback.
+ */
+typedef enum ngtcp2_qlog_write_flag {
+  NGTCP2_QLOG_WRITE_FLAG_NONE = 0,
+  /**
+   * NGTCP2_QLOG_WRITE_FLAG_FIN indicates that this is the final call
+   * to :type:`ngtcp2_qlog_write` in the current connection.
+   */
+  NGTCP2_QLOG_WRITE_FLAG_FIN = 0x01
+} ngtcp2_qlog_write_flag;
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_qlog_write` is a callback function which is called to
+ * write qlog |data| of length |datalen| bytes.  |flags| is bitwise OR
+ * of zero or more of :type:`ngtcp2_qlog_write_flag`.
+ */
+typedef void (*ngtcp2_qlog_write)(void *user_data, uint32_t flags,
+                                  const void *data, size_t datalen);
 
 typedef struct ngtcp2_qlog_settings {
   /* odcid is Original Destination Connection ID sent by client.  It
@@ -699,6 +739,8 @@ typedef struct ngtcp2_settings {
   ngtcp2_cc *cc;
   /* initial_ts is an initial timestamp given to the library. */
   ngtcp2_tstamp initial_ts;
+  /* initial_rtt is an initial RTT. */
+  ngtcp2_duration initial_rtt;
   /* log_printf is a function that the library uses to write logs.
      NULL means no logging output. */
   ngtcp2_printf log_printf;
@@ -730,9 +772,9 @@ typedef struct ngtcp2_settings {
 typedef struct ngtcp2_addr {
   /* addrlen is the length of addr. */
   size_t addrlen;
-  /* addr points to the buffer which contains endpoint address.  It is
-     opaque to the ngtcp2 library.  It must not be NULL. */
-  uint8_t *addr;
+  /* addr points to the buffer which contains endpoint address.  It
+     must not be NULL. */
+  struct sockaddr *addr;
   /* user_data is an arbitrary data and opaque to the library. */
   void *user_data;
 } ngtcp2_addr;
@@ -757,8 +799,8 @@ typedef struct ngtcp2_path {
  * the longest addresses.
  */
 typedef struct ngtcp2_path_storage {
-  uint8_t local_addrbuf[128];
-  uint8_t remote_addrbuf[128];
+  struct sockaddr_storage local_addrbuf;
+  struct sockaddr_storage remote_addrbuf;
   ngtcp2_path path;
 } ngtcp2_path_storage;
 
@@ -798,6 +840,30 @@ typedef struct ngtcp2_crypto_aead {
 typedef struct ngtcp2_crypto_cipher {
   void *native_handle;
 } ngtcp2_crypto_cipher;
+
+/**
+ * @struct
+ *
+ * `ngtcp2_crypto_aead_ctx` is a wrapper around native AEAD cipher
+ * context object.  It should be initialized with a specific key.
+ * ngtcp2 library reuses this context object to encrypt or decrypt
+ * multiple packets.
+ */
+typedef struct ngtcp2_crypto_aead_ctx {
+  void *native_handle;
+} ngtcp2_crypto_aead_ctx;
+
+/**
+ * @struct
+ *
+ * `ngtcp2_crypto_cipher_ctx` is a wrapper around native cipher
+ * context object.  It should be initialized with a specific key.
+ * ngtcp2 library reuses this context object to encrypt or decrypt
+ * multiple packet headers.
+ */
+typedef struct ngtcp2_crypto_cipher_ctx {
+  void *native_handle;
+} ngtcp2_crypto_cipher_ctx;
 
 /**
  * @function
@@ -1200,9 +1266,10 @@ typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * :type:`ngtcp2_encrypt` is invoked when the ngtcp2 library asks the
  * application to encrypt packet payload.  The packet payload to
  * encrypt is passed as |plaintext| of length |plaintextlen|.  The
- * encryption key is passed as |key|.  The nonce is passed as |nonce|
- * of length |noncelen|.  The ad, Additional Data to AEAD, is passed
- * as |ad| of length |adlen|.
+ * AEAD cipher is |aead|.  |aead_ctx| is the AEAD cipher context
+ * object which is initialized with encryption key.  The nonce is
+ * passed as |nonce| of length |noncelen|.  The ad, Additional Data to
+ * AEAD, is passed as |ad| of length |adlen|.
  *
  * The implementation of this callback must encrypt |plaintext| using
  * the negotiated cipher suite and write the ciphertext into the
@@ -1216,9 +1283,10 @@ typedef int (*ngtcp2_recv_retry)(ngtcp2_conn *conn, const ngtcp2_pkt_hd *hd,
  * return immediately.
  */
 typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                              const ngtcp2_crypto_aead_ctx *aead_ctx,
                               const uint8_t *plaintext, size_t plaintextlen,
-                              const uint8_t *key, const uint8_t *nonce,
-                              size_t noncelen, const uint8_t *ad, size_t adlen);
+                              const uint8_t *nonce, size_t noncelen,
+                              const uint8_t *ad, size_t adlen);
 
 /**
  * @functypedef
@@ -1226,7 +1294,8 @@ typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * :type:`ngtcp2_decrypt` is invoked when the ngtcp2 library asks the
  * application to decrypt packet payload.  The packet payload to
  * decrypt is passed as |ciphertext| of length |ciphertextlen|.  The
- * decryption key is passed as |key| of length |keylen|.  The nonce is
+ * AEAD cipher is |aead|.  |aead_ctx| is the AEAD cipher context
+ * object which is initialized with decryption key.  The nonce is
  * passed as |nonce| of length |noncelen|.  The ad, Additional Data to
  * AEAD, is passed as |ad| of length |adlen|.
  *
@@ -1243,16 +1312,19 @@ typedef int (*ngtcp2_encrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  * makes the library call return immediately.
  */
 typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
+                              const ngtcp2_crypto_aead_ctx *aead_ctx,
                               const uint8_t *ciphertext, size_t ciphertextlen,
-                              const uint8_t *key, const uint8_t *nonce,
-                              size_t noncelen, const uint8_t *ad, size_t adlen);
+                              const uint8_t *nonce, size_t noncelen,
+                              const uint8_t *ad, size_t adlen);
 
 /**
  * @functypedef
  *
  * :type:`ngtcp2_hp_mask` is invoked when the ngtcp2 library asks the
  * application to produce mask to encrypt or decrypt packet header.
- * The key is passed as |hp_key|.  The sample is passed as |sample|.
+ * The encryption cipher is |hp|.  |hp_ctx| is the cipher context
+ * object which is initialized with header protection key.  The sample
+ * is passed as |sample|.
  *
  * The implementation of this callback must produce a mask using the
  * header protection cipher suite specified by QUIC specification and
@@ -1265,7 +1337,8 @@ typedef int (*ngtcp2_decrypt)(uint8_t *dest, const ngtcp2_crypto_aead *aead,
  *  return immediately.
  */
 typedef int (*ngtcp2_hp_mask)(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
-                              const uint8_t *hp_key, const uint8_t *sample);
+                              const ngtcp2_crypto_cipher_ctx *hp_ctx,
+                              const uint8_t *sample);
 
 /**
  * @enum
@@ -1457,8 +1530,7 @@ typedef int (*ngtcp2_extend_max_stream_data)(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_rand)(ngtcp2_conn *conn, uint8_t *dest, size_t destlen,
-                           ngtcp2_rand_ctx ctx, void *user_data);
+typedef int (*ngtcp2_rand)(uint8_t *dest, size_t destlen, ngtcp2_rand_ctx ctx);
 
 /**
  * @functypedef
@@ -1500,28 +1572,31 @@ typedef int (*ngtcp2_remove_connection_id)(ngtcp2_conn *conn,
  *
  * :type:`ngtcp2_update_key` is a callback function which tells the
  * application that it must generate new packet protection keying
- * materials.  The current set of secrets are given as
- * |current_rx_secret| and |current_tx_secret| of length |secretlen|.
- * They are decryption and encryption secrets respectively.
+ * materials and AEAD cipher context objects with new keys.  The
+ * current set of secrets are given as |current_rx_secret| and
+ * |current_tx_secret| of length |secretlen|.  They are decryption and
+ * encryption secrets respectively.
  *
  * The application has to generate new secrets and keys for both
- * encryption and decryption, and write decryption secret, key and IV
- * to the buffer pointed by |rx_secret|, |rx_key| and |rx_iv|
- * respectively.  Similarly, write encryption secret, key and IV to
- * the buffer pointed by |tx_secret|, |tx_key| and |tx_iv|.  All given
+ * encryption and decryption, and write decryption secret and IV to
+ * the buffer pointed by |rx_secret| and |rx_iv| respectively.  It
+ * also has to create new AEAD cipher context object with new
+ * decryption key and initialize |rx_aead_ctx| with it.  Similarly,
+ * write encryption secret and IV to the buffer pointed by |tx_secret|
+ * and |tx_iv|.  Create new AEAD cipher context object with new
+ * encryption key and initialize |tx_aead_ctx| with it.  All given
  * buffers have the enough capacity to store secret, key and IV.
  *
  * The callback function must return 0 if it succeeds.  Returning
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE` makes the library call return
  * immediately.
  */
-typedef int (*ngtcp2_update_key)(ngtcp2_conn *conn, uint8_t *rx_secret,
-                                 uint8_t *tx_secret, uint8_t *rx_key,
-                                 uint8_t *rx_iv, uint8_t *tx_key,
-                                 uint8_t *tx_iv,
-                                 const uint8_t *current_rx_secret,
-                                 const uint8_t *current_tx_secret,
-                                 size_t secretlen, void *user_data);
+typedef int (*ngtcp2_update_key)(
+    ngtcp2_conn *conn, uint8_t *rx_secret, uint8_t *tx_secret,
+    ngtcp2_crypto_aead_ctx *rx_aead_ctx, uint8_t *rx_iv,
+    ngtcp2_crypto_aead_ctx *tx_aead_ctx, uint8_t *tx_iv,
+    const uint8_t *current_rx_secret, const uint8_t *current_tx_secret,
+    size_t secretlen, void *user_data);
 
 /**
  * @functypedef
@@ -1607,6 +1682,26 @@ typedef int (*ngtcp2_connection_id_status)(ngtcp2_conn *conn, int type,
  */
 typedef int (*ngtcp2_recv_new_token)(ngtcp2_conn *conn, const ngtcp2_vec *token,
                                      void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_delete_crypto_aead_ctx` is a callback function which
+ * must delete the native object pointed by |aead_ctx|->native_handle.
+ */
+typedef void (*ngtcp2_delete_crypto_aead_ctx)(ngtcp2_conn *conn,
+                                              ngtcp2_crypto_aead_ctx *aead_ctx,
+                                              void *user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` is a callback function
+ * which must delete the native object pointed by
+ * |cipher_ctx|->native_handle.
+ */
+typedef void (*ngtcp2_delete_crypto_cipher_ctx)(
+    ngtcp2_conn *conn, ngtcp2_crypto_cipher_ctx *cipher_ctx, void *user_data);
 
 typedef struct ngtcp2_conn_callbacks {
   /**
@@ -1794,6 +1889,16 @@ typedef struct ngtcp2_conn_callbacks {
    * token is received from server.  This field is ignored by server.
    */
   ngtcp2_recv_new_token recv_new_token;
+  /**
+   * delete_crypto_aead_ctx is a callback function which deletes a
+   * given AEAD cipher context object.
+   */
+  ngtcp2_delete_crypto_aead_ctx delete_crypto_aead_ctx;
+  /**
+   * delete_crypto_cipher_ctx is a callback function which deletes a
+   * given cipher context object.
+   */
+  ngtcp2_delete_crypto_cipher_ctx delete_crypto_cipher_ctx;
 } ngtcp2_conn_callbacks;
 
 /**
@@ -1820,9 +1925,9 @@ typedef struct ngtcp2_conn_callbacks {
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
     uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
     const ngtcp2_cid *scid, uint64_t error_code, ngtcp2_encrypt encrypt,
-    const ngtcp2_crypto_aead *aead, const uint8_t *key, const uint8_t *iv,
-    ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
-    const uint8_t *hp_key);
+    const ngtcp2_crypto_aead *aead, const ngtcp2_crypto_aead_ctx *aead_ctx,
+    const uint8_t *iv, ngtcp2_hp_mask hp_mask, const ngtcp2_crypto_cipher *hp,
+    const ngtcp2_crypto_cipher_ctx *hp_ctx);
 
 /**
  * @function
@@ -1831,6 +1936,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
  * by |dest| whose length is |destlen|.  |odcid| specifies Original
  * Destination Connection ID.  |token| specifies Retry Token, and
  * |tokenlen| specifies its length.  |aead| must be AEAD_AES_128_GCM.
+ * |aead_ctx| must be initialized with :macro:`NGTCP2_RETRY_KEY` as an
+ * encryption key.
  *
  * This function returns the number of bytes written to the buffer, or
  * one of the following negative error codes:
@@ -1843,7 +1950,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_connection_close(
 NGTCP2_EXTERN ngtcp2_ssize ngtcp2_pkt_write_retry(
     uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
     const ngtcp2_cid *scid, const ngtcp2_cid *odcid, const uint8_t *token,
-    size_t tokenlen, ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead);
+    size_t tokenlen, ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead,
+    const ngtcp2_crypto_aead_ctx *aead_ctx);
 
 /**
  * @function
@@ -1983,12 +2091,21 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  * @function
  *
  * `ngtcp2_conn_install_initial_key` installs packet protection keying
- * materials for Initial packets.  |rx_key| of length |keylen|, IV
- * |rx_iv| of length |rx_ivlen|, and packet header protection key
- * |rx_hp_key| of length |keylen| to decrypt incoming Initial packets.
- * Similarly, |tx_key|, |tx_iv| and |tx_hp_key| are for encrypt
- * outgoing packets and are the same length with the rx counterpart .
- * If they have already been set, they are overwritten.
+ * materials for Initial packets.  |rx_aead_ctx| is AEAD cipher
+ * context object and must be initialized with decryption key, IV
+ * |rx_iv| of length |rx_ivlen|, and packet header protection cipher
+ * context object |rx_hp_ctx| to decrypt incoming Initial packets.
+ * Similarly, |tx_aead_ctx|, |tx_iv| and |tx_hp_ctx| are for
+ * encrypting outgoing packets and are the same length with the
+ * decryption counterpart .  If they have already been set, they are
+ * overwritten.
+ *
+ * If this function succeeds, |conn| takes ownership of |rx_aead_ctx|,
+ * |rx_hp_ctx|, |tx_aead_ctx|, and |tx_hp_ctx|.
+ * :type:`ngtcp2_delete_crypto_aead_ctx` and
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
+ * these objects when they are no longer used.  If this function
+ * fails, the caller is responsible to delete them.
  *
  * After receiving Retry packet, the DCID most likely changes.  In
  * that case, client application must generate these keying materials
@@ -2001,18 +2118,26 @@ NGTCP2_EXTERN int ngtcp2_conn_get_handshake_completed(ngtcp2_conn *conn);
  *     Out of memory.
  */
 NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
-    ngtcp2_conn *conn, const uint8_t *rx_key, const uint8_t *rx_iv,
-    const uint8_t *rx_hp_key, const uint8_t *tx_key, const uint8_t *tx_iv,
-    const uint8_t *tx_hp_key, size_t keylen, size_t ivlen);
+    ngtcp2_conn *conn, const ngtcp2_crypto_aead_ctx *rx_aead_ctx,
+    const uint8_t *rx_iv, const ngtcp2_crypto_cipher_ctx *rx_hp_ctx,
+    const ngtcp2_crypto_aead_ctx *tx_aead_ctx, const uint8_t *tx_iv,
+    const ngtcp2_crypto_cipher_ctx *tx_hp_ctx, size_t ivlen);
 
 /**
  * @function
  *
  * `ngtcp2_conn_install_rx_handshake_key` installs packet protection
- * keying materials for decrypting incoming Handshake packets.  |key|
- * of length |keylen|, IV |iv| of length |ivlen|, and packet header
- * protection key |hp_key| of length |keylen| to decrypt incoming
+ * keying materials for decrypting incoming Handshake packets.
+ * |aead_ctx| is AEAD cipher context object which must be initialized
+ * with decryption key, IV |iv| of length |ivlen|, and packet header
+ * protection cipher context object |hp_ctx| to decrypt incoming
  * Handshake packets.
+ *
+ * If this function succeeds, |conn| takes ownership of |aead_ctx|,
+ * and |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
+ * these objects when they are no longer used.  If this function
+ * fails, the caller is responsible to delete them.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2020,19 +2145,25 @@ NGTCP2_EXTERN int ngtcp2_conn_install_initial_key(
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int
-ngtcp2_conn_install_rx_handshake_key(ngtcp2_conn *conn, const uint8_t *key,
-                                     const uint8_t *iv, const uint8_t *hp_key,
-                                     size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_install_rx_handshake_key(
+    ngtcp2_conn *conn, const ngtcp2_crypto_aead_ctx *aead_ctx,
+    const uint8_t *iv, size_t ivlen, const ngtcp2_crypto_cipher_ctx *hp_ctx);
 
 /**
  * @function
  *
  * `ngtcp2_conn_install_tx_handshake_key` installs packet protection
- * keying materials for encrypting outgoing Handshake packets.  |key|
- * of length |keylen|, IV |iv| of length |ivlen|, and packet header
- * protection key |hp_key| of length |keylen| to encrypt outgoing
+ * keying materials for encrypting outgoing Handshake packets.
+ * |aead_ctx| is AEAD cipher context object which must be initialized
+ * with encryption key, IV |iv| of length |ivlen|, and packet header
+ * protection cipher context object |hp_ctx| to encrypt outgoing
  * Handshake packets.
+ *
+ * If this function succeeds, |conn| takes ownership of |aead_ctx| and
+ * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
+ * these objects when they are no longer used.  If this function
+ * fails, the caller is responsible to delete them.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2040,10 +2171,9 @@ ngtcp2_conn_install_rx_handshake_key(ngtcp2_conn *conn, const uint8_t *key,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int
-ngtcp2_conn_install_tx_handshake_key(ngtcp2_conn *conn, const uint8_t *key,
-                                     const uint8_t *iv, const uint8_t *hp_key,
-                                     size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_install_tx_handshake_key(
+    ngtcp2_conn *conn, const ngtcp2_crypto_aead_ctx *aead_ctx,
+    const uint8_t *iv, size_t ivlen, const ngtcp2_crypto_cipher_ctx *hp_ctx);
 
 /**
  * @function
@@ -2068,10 +2198,16 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_install_early_key` installs packet protection key
- * |key| of length |keylen|, IV |iv| of length |ivlen|, and packet
- * header protection key |hp_key| of length |keylen| to encrypt (for
- * client)or decrypt (for server) 0RTT packets.
+ * `ngtcp2_conn_install_early_key` installs packet protection AEAD
+ * cipher context object |aead_ctx|, IV |iv| of length |ivlen|, and
+ * packet header protection cipher context object |hp_ctx| to encrypt
+ * (for client) or decrypt (for server) 0RTT packets.
+ *
+ * If this function succeeds, |conn| takes ownership of |aead_ctx| and
+ * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
+ * these objects when they are no longer used.  If this function
+ * fails, the caller is responsible to delete them.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2079,11 +2215,9 @@ NGTCP2_EXTERN size_t ngtcp2_conn_get_aead_overhead(ngtcp2_conn *conn);
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
-                                                const uint8_t *key,
-                                                const uint8_t *iv,
-                                                const uint8_t *hp_key,
-                                                size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_install_early_key(
+    ngtcp2_conn *conn, const ngtcp2_crypto_aead_ctx *aead_ctx,
+    const uint8_t *iv, size_t ivlen, const ngtcp2_crypto_cipher_ctx *hp_ctx);
 
 /**
  * @function
@@ -2091,9 +2225,16 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
  * `ngtcp2_conn_install_rx_key` installs packet protection keying
  * materials for decrypting Short packets.  |secret| of length
  * |secretlen| is the decryption secret which is used to derive keying
- * materials passed to this function.  |key| of length |keylen|, IV
- * |iv| of length |ivlen|, and packet header protection key |hp_key|
- * of length |keylen| to decrypt incoming Short packets.
+ * materials passed to this function.  |aead_ctx| is AEAD cipher
+ * context object which must be initialized with decryption key, IV
+ * |iv| of length |ivlen|, and packet header protection cipher context
+ * object |hp_ctx| to decrypt incoming Short packets.
+ *
+ * If this function succeeds, |conn| takes ownership of |aead_ctx| and
+ * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
+ * these objects when they are no longer used.  If this function
+ * fails, the caller is responsible to delete them.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2101,11 +2242,10 @@ NGTCP2_EXTERN int ngtcp2_conn_install_early_key(ngtcp2_conn *conn,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int
-ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
-                           const uint8_t *key, const uint8_t *iv,
-                           const uint8_t *hp_key, size_t secretlen,
-                           size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_install_rx_key(
+    ngtcp2_conn *conn, const uint8_t *secret, size_t secretlen,
+    const ngtcp2_crypto_aead_ctx *aead_ctx, const uint8_t *iv, size_t ivlen,
+    const ngtcp2_crypto_cipher_ctx *hp_ctx);
 
 /**
  * @function
@@ -2113,9 +2253,16 @@ ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
  * `ngtcp2_conn_install_tx_key` installs packet protection keying
  * materials for encrypting Short packets.  |secret| of length
  * |secretlen| is the encryption secret which is used to derive keying
- * materials passed to this function.  |key| of length |keylen|, IV
- * |iv| of length |ivlen|, and packet header protection key |hp_key|
- * of length |keylen| to encrypt outgoing Short packets.
+ * materials passed to this function.  |aead_ctx| is AEAD cipher
+ * context object which must be initialized with encryption key, IV
+ * |iv| of length |ivlen|, and packet header protection cipher context
+ * object |hp_ctx| to encrypt outgoing Short packets.
+ *
+ * If this function succeeds, |conn| takes ownership of |aead_ctx| and
+ * |hp_ctx|.  :type:`ngtcp2_delete_crypto_aead_ctx` and
+ * :type:`ngtcp2_delete_crypto_cipher_ctx` will be called to delete
+ * these objects when they are no longer used.  If this function
+ * fails, the caller is responsible to delete them.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2123,11 +2270,10 @@ ngtcp2_conn_install_rx_key(ngtcp2_conn *conn, const uint8_t *secret,
  * :enum:`NGTCP2_ERR_NOMEM`
  *     Out of memory.
  */
-NGTCP2_EXTERN int
-ngtcp2_conn_install_tx_key(ngtcp2_conn *conn, const uint8_t *secret,
-                           const uint8_t *key, const uint8_t *iv,
-                           const uint8_t *hp_key, size_t secretlen,
-                           size_t keylen, size_t ivlen);
+NGTCP2_EXTERN int ngtcp2_conn_install_tx_key(
+    ngtcp2_conn *conn, const uint8_t *secret, size_t secretlen,
+    const ngtcp2_crypto_aead_ctx *aead_ctx, const uint8_t *iv, size_t ivlen,
+    const ngtcp2_crypto_cipher_ctx *hp_ctx);
 
 /**
  * @function
@@ -2284,6 +2430,27 @@ ngtcp2_conn_get_remote_transport_params(ngtcp2_conn *conn,
  */
 NGTCP2_EXTERN void ngtcp2_conn_set_early_remote_transport_params(
     ngtcp2_conn *conn, const ngtcp2_transport_params *params);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_local_transport_params` sets the local transport
+ * parameters |params|.  This function can only be called by server.
+ * Although the local transport parameters are passed to
+ * `ngtcp2_conn_server_new`, server might want to update them after
+ * ALPN is chosen.  In that case, server can update the transport
+ * parameter with this function.  Server must call this function
+ * before calling `ngtcp2_conn_install_tx_handshake_key`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_INVALID_STATE`
+ *     `ngtcp2_conn_install_tx_handshake_key` has been called.
+ */
+NGTCP2_EXTERN int
+ngtcp2_conn_set_local_transport_params(ngtcp2_conn *conn,
+                                       const ngtcp2_transport_params *params);
 
 /**
  * @function
@@ -2483,8 +2650,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *   packet is nearly full and the library decided to make a complete
  *   packet.  In this case, |*pdatalen| == -1 is asserted.
  *
- * - The function returns :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`.  In
- *   this case, |*pdatalen| >= 0 is asserted.  This indicates that
+ * - The function returns :enum:`NGTCP2_ERR_WRITE_MORE`.  In this
+ *   case, |*pdatalen| >= 0 is asserted.  This indicates that
  *   application can call this function with different stream data to
  *   pack them into the same packet.  Application has to specify the
  *   same |conn|, |path|, |dest|, |destlen|, |pdatalen|, and |ts|
@@ -2497,14 +2664,14 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  * - The other error might be returned just like without
  *   :enum:`NGTCP2_WRITE_STREAM_FLAG_MORE`.
  *
- * When application sees :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`, it must
- * not call other ngtcp2 API functions (application can still call
+ * When application sees :enum:`NGTCP2_ERR_WRITE_MORE`, it must not
+ * call other ngtcp2 API functions (application can still call
  * `ngtcp2_conn_write_connection_close` or
  * `ngtcp2_conn_write_application_close` to handle error from this
  * function).  Just keep calling `ngtcp2_conn_writev_stream` or
  * `ngtcp2_conn_write_pkt` until it returns a positive number (which
  * indicates a complete packet is ready).  If |*pdatalen| >= 0, the
- * function always return :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`.
+ * function always return :enum:`NGTCP2_ERR_WRITE_MORE`.
  *
  * This function returns 0 if it cannot write any frame because buffer
  * is too small, or packet is congestion limited.  Application should
@@ -2528,7 +2695,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream(
  *     User callback failed
  * :enum:`NGTCP2_ERR_STREAM_DATA_BLOCKED`
  *     Stream is blocked because of flow control.
- * :enum:`NGTCP2_ERR_WRITE_STREAM_MORE`
+ * :enum:`NGTCP2_ERR_WRITE_MORE`
  *     (Only when :enum:`NGTCP2_WRITE_STREAM_FLAG_MORE` is specified)
  *     Application can call this function to pack more stream data
  *     into the same packet.  See above to know how it works.
@@ -2549,8 +2716,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_writev_stream(
  * @function
  *
  * `ngtcp2_conn_write_connection_close` writes a packet which contains
- * a CONNECTION_CLOSE frame in the buffer pointed by |dest| whose
- * capacity is |datalen|.
+ * a CONNECTION_CLOSE frame (type 0x1c) in the buffer pointed by
+ * |dest| whose capacity is |datalen|.
  *
  * If |path| is not NULL, this function stores the network path with
  * which the packet should be sent.  Each addr field must point to the
@@ -2584,14 +2751,18 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  * @function
  *
  * `ngtcp2_conn_write_application_close` writes a packet which
- * contains a APPLICATION_CLOSE frame in the buffer pointed by |dest|
- * whose capacity is |datalen|.
+ * contains a CONNECTION_CLOSE frame (type 0x1d) in the buffer pointed
+ * by |dest| whose capacity is |datalen|.
  *
  * If |path| is not NULL, this function stores the network path with
  * which the packet should be sent.  Each addr field must point to the
  * buffer which is at least 128 bytes.  ``sizeof(struct
  * sockaddr_storage)`` is enough.  The assignment might not be done if
  * nothing is written to |dest|.
+ *
+ * If handshake has not been confirmed yet, CONNECTION_CLOSE (type
+ * 0x1c) with error code :macro:`NGTCP2_APPLICATION_ERROR` is written
+ * instead.
  *
  * This function must not be called from inside the callback
  * functions.
@@ -2605,7 +2776,7 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_connection_close(
  * :enum:`NGTCP2_ERR_NOBUF`
  *     Buffer is too small
  * :enum:`NGTCP2_ERR_INVALID_STATE`
- *     The current state does not allow sending APPLICATION_CLOSE.
+ *     The current state does not allow sending CONNECTION_CLOSE.
  * :enum:`NGTCP2_ERR_PKT_NUM_EXHAUSTED`
  *     Packet number is exhausted, and cannot send any more packet.
  * :enum:`NGTCP2_ERR_CALLBACK_FAILURE`
@@ -2974,13 +3145,21 @@ NGTCP2_EXTERN void ngtcp2_conn_set_tls_native_handle(ngtcp2_conn *conn,
 /**
  * @function
  *
- * `ngtcp2_conn_set_retry_aead` sets |aead| for Retry integrity tag
- * verification.  It must be AEAD_AES_128_GCM.  This function must be
- * called if |conn| is initialized as client.  Server does not verify
- * the tag and has no need to call this function.
+ * `ngtcp2_conn_set_retry_aead` sets |aead| and |aead_ctx| for Retry
+ * integrity tag verification.  |aead| must be AEAD_AES_128_GCM.
+ * |aead_ctx| must be initialized with :macro:`NGTCP2_RETRY_KEY` as
+ * encryption key.  This function must be called if |conn| is
+ * initialized as client.  Server does not verify the tag and has no
+ * need to call this function.
+ *
+ * If this function succeeds, |conn| takes ownership of |aead_ctx|.
+ * :type:`ngtcp2_delete_crypto_aead_ctx` will be called to delete this
+ * object when it is no longer used.  If this function fails, the
+ * caller is responsible to delete it.
  */
-NGTCP2_EXTERN void ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn,
-                                              const ngtcp2_crypto_aead *aead);
+NGTCP2_EXTERN void
+ngtcp2_conn_set_retry_aead(ngtcp2_conn *conn, const ngtcp2_crypto_aead *aead,
+                           const ngtcp2_crypto_aead_ctx *aead_ctx);
 
 /**
  * @function
@@ -3036,6 +3215,30 @@ NGTCP2_EXTERN int ngtcp2_conn_is_server(ngtcp2_conn *conn);
 /**
  * @function
  *
+ * `ngtcp2_conn_after_retry` returns nonzero if |conn| as a client has
+ * received Retry packet from server and successfully validated it.
+ */
+NGTCP2_EXTERN int ngtcp2_conn_after_retry(ngtcp2_conn *conn);
+
+/**
+ * @function
+ *
+ * `ngtcp2_conn_set_stream_user_data` sets |stream_user_data| to the
+ * stream identified by |stream_id|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`NGTCP2_ERR_STREAM_NOT_FOUND`
+ *     Stream does not exist
+ */
+NGTCP2_EXTERN int ngtcp2_conn_set_stream_user_data(ngtcp2_conn *conn,
+                                                   int64_t stream_id,
+                                                   void *stream_user_data);
+
+/**
+ * @function
+ *
  * `ngtcp2_strerror` returns the text representation of |liberr|.
  */
 NGTCP2_EXTERN const char *ngtcp2_strerror(int liberr);
@@ -3061,7 +3264,8 @@ NGTCP2_EXTERN uint64_t ngtcp2_err_infer_quic_transport_error_code(int liberr);
  * `ngtcp2_addr_init` initializes |dest| with the given arguments and
  * returns |dest|.
  */
-NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr,
+NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest,
+                                            const struct sockaddr *addr,
                                             size_t addrlen, void *user_data);
 
 /**
@@ -3070,11 +3274,13 @@ NGTCP2_EXTERN ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const void *addr,
  * `ngtcp2_path_storage_init` initializes |ps| with the given
  * arguments.  This function copies |local_addr| and |remote_addr|.
  */
-NGTCP2_EXTERN void
-ngtcp2_path_storage_init(ngtcp2_path_storage *ps, const void *local_addr,
-                         size_t local_addrlen, void *local_user_data,
-                         const void *remote_addr, size_t remote_addrlen,
-                         void *remote_user_data);
+NGTCP2_EXTERN void ngtcp2_path_storage_init(ngtcp2_path_storage *ps,
+                                            const struct sockaddr *local_addr,
+                                            size_t local_addrlen,
+                                            void *local_user_data,
+                                            const struct sockaddr *remote_addr,
+                                            size_t remote_addrlen,
+                                            void *remote_user_data);
 
 /**
  * @function
@@ -3092,6 +3298,7 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * default value to the following fields:
  *
  * * cc_algo = NGTCP2_CC_ALGO_CUBIC
+ * * initial_rtt = NGTCP2_DEFAULT_INITIAL_RTT
  * * transport_params.max_udp_payload_size = NGTCP2_DEFAULT_MAX_UDP_PAYLOAD_SIZE
  * * transport_params.ack_delay_component = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT
  * * transport_params.max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY

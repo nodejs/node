@@ -33,6 +33,7 @@
 #include <ngtcp2/ngtcp2.h>
 
 #include "ngtcp2_mem.h"
+#include "ngtcp2_ksl.h"
 
 /* Implementation of unordered map */
 
@@ -43,8 +44,13 @@ typedef struct ngtcp2_map_entry {
   key_type key;
 } ngtcp2_map_entry;
 
+typedef struct ngtcp2_map_bucket {
+  ngtcp2_map_entry *ptr;
+  ngtcp2_ksl *ksl;
+} ngtcp2_map_bucket;
+
 typedef struct {
-  ngtcp2_map_entry **table;
+  ngtcp2_map_bucket *table;
   const ngtcp2_mem *mem;
   size_t size;
   uint32_t tablelen;

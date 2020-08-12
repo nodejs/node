@@ -44,7 +44,8 @@ void ngtcp2_addr_copy(ngtcp2_addr *dest, const ngtcp2_addr *src);
  * |addrlen|.  This function assumes that dest->addr points to a
  * buffer which have sufficient size to store the copy.
  */
-void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const void *addr, size_t addrlen);
+void ngtcp2_addr_copy_byte(ngtcp2_addr *dest, const struct sockaddr *addr,
+                           size_t addrlen);
 
 /*
  * ngtcp2_addr_eq returns nonzero if |a| equals |b|.

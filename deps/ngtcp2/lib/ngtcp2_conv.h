@@ -37,6 +37,10 @@
 #  include <netinet/in.h>
 #endif /* HAVE_NETINET_IN_H */
 
+#ifdef HAVE_BYTESWAP_H
+#  include <byteswap.h>
+#endif /* HAVE_BYTESWAP_H */
+
 #ifdef HAVE_ENDIAN_H
 #  include <endian.h>
 #endif /* HAVE_ENDIAN_H */
@@ -47,15 +51,25 @@
 
 #include <ngtcp2/ngtcp2.h>
 
+#if defined HAVE_BSWAP_64 || HAVE_DECL_BSWAP_64
+#  define ngtcp2_bswap64 bswap_64
+#else /* !HAVE_BSWAP_64 */
+#  define ngtcp2_bswap64(N)                                                    \
+    ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
+#endif /* !HAVE_BSWAP_64 */
+
 #if defined HAVE_BE64TOH || HAVE_DECL_BE64TOH
 #  define ngtcp2_ntohl64(N) be64toh(N)
 #  define ngtcp2_htonl64(N) htobe64(N)
 #else /* !HAVE_BE64TOH */
-#  define ngtcp2_bswap64(N)                                                    \
-    ((uint64_t)(ntohl((uint32_t)(N))) << 32 | ntohl((uint32_t)((N) >> 32)))
-#  define ngtcp2_ntohl64(N) ngtcp2_bswap64(N)
-#  define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
-#endif /* !HAVE_BE64TOH */
+#  if defined WORDS_BIGENDIAN
+#    define ngtcp2_ntohl64(N) (N)
+#    define ngtcp2_htonl64(N) (N)
+#  else /* !WORDS_BIGENDIAN */
+#    define ngtcp2_ntohl64(N) ngtcp2_bswap64(N)
+#    define ngtcp2_htonl64(N) ngtcp2_bswap64(N)
+#  endif /* !WORDS_BIGENDIAN */
+#endif   /* !HAVE_BE64TOH */
 
 #if defined(WIN32)
 /* Windows requires ws2_32 library for ntonl family functions.  We
@@ -68,7 +82,7 @@
 #    define STIN static inline
 #  endif
 
-STIN uint32_t htonl(uint32_t hostlong) {
+STIN uint32_t ngtcp2_htonl(uint32_t hostlong) {
   uint32_t res;
   unsigned char *p = (unsigned char *)&res;
   *p++ = hostlong >> 24;
@@ -78,7 +92,7 @@ STIN uint32_t htonl(uint32_t hostlong) {
   return res;
 }
 
-STIN uint16_t htons(uint16_t hostshort) {
+STIN uint16_t ngtcp2_htons(uint16_t hostshort) {
   uint16_t res;
   unsigned char *p = (unsigned char *)&res;
   *p++ = hostshort >> 8;
@@ -86,7 +100,7 @@ STIN uint16_t htons(uint16_t hostshort) {
   return res;
 }
 
-STIN uint32_t ntohl(uint32_t netlong) {
+STIN uint32_t ngtcp2_ntohl(uint32_t netlong) {
   uint32_t res;
   unsigned char *p = (unsigned char *)&netlong;
   res = *p++ << 24;
@@ -96,7 +110,7 @@ STIN uint32_t ntohl(uint32_t netlong) {
   return res;
 }
 
-STIN uint16_t ntohs(uint16_t netshort) {
+STIN uint16_t ngtcp2_ntohs(uint16_t netshort) {
   uint16_t res;
   unsigned char *p = (unsigned char *)&netshort;
   res = *p++ << 8;
@@ -104,7 +118,14 @@ STIN uint16_t ntohs(uint16_t netshort) {
   return res;
 }
 
-#endif /* WIN32 */
+#else /* !WIN32 */
+
+#  define ngtcp2_htonl htonl
+#  define ngtcp2_htons htons
+#  define ngtcp2_ntohl ntohl
+#  define ngtcp2_ntohs ntohs
+
+#endif /* !WIN32 */
 
 /*
  * ngtcp2_get_uint64 reads 8 bytes from |p| as 64 bits unsigned

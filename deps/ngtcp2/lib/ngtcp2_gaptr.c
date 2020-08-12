@@ -26,6 +26,7 @@
 #include "ngtcp2_range.h"
 
 #include <string.h>
+#include <assert.h>
 
 int ngtcp2_gaptr_init(ngtcp2_gaptr *gaptr, const ngtcp2_mem *mem) {
   int rv;
@@ -114,4 +115,15 @@ int ngtcp2_gaptr_is_pushed(ngtcp2_gaptr *gaptr, uint64_t offset,
   ngtcp2_range k = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
   ngtcp2_range m = ngtcp2_range_intersect(&q, &k);
   return ngtcp2_range_len(&m) == 0;
+}
+
+void ngtcp2_gaptr_drop_first_gap(ngtcp2_gaptr *gaptr) {
+  ngtcp2_ksl_it it = ngtcp2_ksl_begin(&gaptr->gap);
+  ngtcp2_range r;
+
+  assert(!ngtcp2_ksl_it_end(&it));
+
+  r = *(ngtcp2_range *)ngtcp2_ksl_it_key(&it);
+
+  ngtcp2_ksl_remove(&gaptr->gap, NULL, &r);
 }

@@ -40,6 +40,11 @@
    qlog. */
 #define NGTCP2_QLOG_BUFLEN 4096
 
+typedef enum ngtcp2_qlog_side {
+  NGTCP2_QLOG_SIDE_LOCAL,
+  NGTCP2_QLOG_SIDE_REMOTE,
+} ngtcp2_qlog_side;
+
 typedef struct ngtcp2_qlog {
   /* write is a callback function to write qlog. */
   ngtcp2_qlog_write write;
@@ -116,7 +121,7 @@ void ngtcp2_qlog_pkt_sent_end(ngtcp2_qlog *qlog, const ngtcp2_pkt_hd *hd,
  */
 void ngtcp2_qlog_parameters_set_transport_params(
     ngtcp2_qlog *qlog, const ngtcp2_transport_params *params, int server,
-    int local);
+    ngtcp2_qlog_side side);
 
 /*
  * ngtcp2_qlog_metrics_updated writes metrics_updated event of
