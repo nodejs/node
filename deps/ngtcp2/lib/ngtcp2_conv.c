@@ -45,19 +45,19 @@ uint64_t ngtcp2_get_uint48(const uint8_t *p) {
 uint32_t ngtcp2_get_uint32(const uint8_t *p) {
   uint32_t n;
   memcpy(&n, p, 4);
-  return ntohl(n);
+  return ngtcp2_ntohl(n);
 }
 
 uint32_t ngtcp2_get_uint24(const uint8_t *p) {
   uint32_t n = 0;
   memcpy(((uint8_t *)&n) + 1, p, 3);
-  return ntohl(n);
+  return ngtcp2_ntohl(n);
 }
 
 uint16_t ngtcp2_get_uint16(const uint8_t *p) {
   uint16_t n;
   memcpy(&n, p, 2);
-  return ntohs(n);
+  return ngtcp2_ntohs(n);
 }
 
 uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
@@ -76,11 +76,11 @@ uint64_t ngtcp2_get_varint(size_t *plen, const uint8_t *p) {
   case 2:
     memcpy(&n, p, 2);
     n.b[0] &= 0x3f;
-    return ntohs(n.n16);
+    return ngtcp2_ntohs(n.n16);
   case 4:
     memcpy(&n, p, 4);
     n.b[0] &= 0x3f;
-    return ntohl(n.n32);
+    return ngtcp2_ntohl(n.n32);
   case 8:
     memcpy(&n, p, 8);
     n.b[0] &= 0x3f;
@@ -116,17 +116,17 @@ uint8_t *ngtcp2_put_uint48be(uint8_t *p, uint64_t n) {
 }
 
 uint8_t *ngtcp2_put_uint32be(uint8_t *p, uint32_t n) {
-  n = htonl(n);
+  n = ngtcp2_htonl(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 
 uint8_t *ngtcp2_put_uint24be(uint8_t *p, uint32_t n) {
-  n = htonl(n);
+  n = ngtcp2_htonl(n);
   return ngtcp2_cpymem(p, ((const uint8_t *)&n) + 1, 3);
 }
 
 uint8_t *ngtcp2_put_uint16be(uint8_t *p, uint16_t n) {
-  n = htons(n);
+  n = ngtcp2_htons(n);
   return ngtcp2_cpymem(p, (const uint8_t *)&n, sizeof(n));
 }
 

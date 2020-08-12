@@ -167,27 +167,33 @@ void ngtcp2_ksl_free(ngtcp2_ksl *ksl);
  * successful insertion, the iterator points to the inserted node is
  * stored in |*it|.
  *
- * This function assumes that |key| does not exist in |ksl|.
- *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *   Out of memory.
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *   |key| already exists.
  */
 int ngtcp2_ksl_insert(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
                       const ngtcp2_ksl_key *key, void *data);
 
 /*
- * ngtcp2_ksl_remove removes the |key| from |ksl|.  It assumes such
- * the key is included in |ksl|.
+ * ngtcp2_ksl_remove removes the |key| from |ksl|.
  *
  * This function assigns the iterator to |*it|, which points to the
  * node which is located at the right next of the removed node if |it|
- * is not NULL.
+ * is not NULL.  If |key| is not found, no deletion takes place and
+ * the return value of ngtcp2_ksl_end(ksl) is assigned to |*it|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_INVALID_ARGUMENT
+ *   |key| does not exist.
  */
-void ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
-                       const ngtcp2_ksl_key *key);
+int ngtcp2_ksl_remove(ngtcp2_ksl *ksl, ngtcp2_ksl_it *it,
+                      const ngtcp2_ksl_key *key);
 
 /*
  * ngtcp2_ksl_lower_bound returns the iterator which points to the

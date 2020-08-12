@@ -110,7 +110,6 @@ int ngtcp2_crypto_set_local_transport_params(void *tls, const uint8_t *buf,
  */
 int ngtcp2_crypto_set_remote_transport_params(ngtcp2_conn *conn, void *tls);
 
-
 /**
  * @function
  *
@@ -164,5 +163,27 @@ int ngtcp2_crypto_derive_and_install_initial_key(
     uint8_t *initial_secret, uint8_t *rx_key, uint8_t *rx_iv, uint8_t *rx_hp,
     uint8_t *tx_key, uint8_t *tx_iv, uint8_t *tx_hp,
     const ngtcp2_cid *client_dcid);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_cipher_ctx_encrypt_init` initializes |cipher_ctx|
+ * with new cipher context object for encryption which is constructed
+ * to use |key| as encryption key.  |cipher| specifies cipher to use.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+int ngtcp2_crypto_cipher_ctx_encrypt_init(ngtcp2_crypto_cipher_ctx *cipher_ctx,
+                                          const ngtcp2_crypto_cipher *cipher,
+                                          const uint8_t *key);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_cipher_ctx_free` frees up resources used by
+ * |cipher_ctx|.  This function does not free the memory pointed by
+ * |cipher_ctx| itself.
+ */
+void ngtcp2_crypto_cipher_ctx_free(ngtcp2_crypto_cipher_ctx *cipher_ctx);
 
 #endif /* NGTCP2_SHARED_H */

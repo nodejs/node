@@ -474,6 +474,7 @@ ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
     return ngtcp2_pkt_decode_stop_sending_frame(&dest->stop_sending, payload,
                                                 payloadlen);
   case NGTCP2_FRAME_ACK:
+  case NGTCP2_FRAME_ACK_ECN:
     return ngtcp2_pkt_decode_ack_frame(&dest->ack, payload, payloadlen);
   case NGTCP2_FRAME_PATH_CHALLENGE:
     return ngtcp2_pkt_decode_path_challenge_frame(&dest->path_challenge,
@@ -2066,16 +2067,12 @@ ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
   return p - dest;
 }
 
-static const uint8_t retry_key[] =
-    "\xcc\xce\x18\x7e\xd0\x9a\x09\xd0\x57\x28\x15\x5a\x6c\xb9\x6b\xe1";
-static const uint8_t retry_nonce[] =
-    "\xe5\x49\x30\xf9\x7f\x21\x36\xf0\x53\x0a\x8c\x1c";
-
 ngtcp2_ssize
 ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
                        const ngtcp2_cid *scid, const ngtcp2_cid *odcid,
                        const uint8_t *token, size_t tokenlen,
-                       ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead) {
+                       ngtcp2_encrypt encrypt, const ngtcp2_crypto_aead *aead,
+                       const ngtcp2_crypto_aead_ctx *aead_ctx) {
   ngtcp2_pkt_hd hd;
   uint8_t pseudo_retry[1500];
   ngtcp2_ssize pseudo_retrylen;
@@ -2106,8 +2103,10 @@ ngtcp2_pkt_write_retry(uint8_t *dest, size_t destlen, const ngtcp2_cid *dcid,
   }
 
   /* OpenSSL does not like NULL plaintext. */
-  rv = encrypt(tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
-               sizeof(retry_nonce) - 1, pseudo_retry, (size_t)pseudo_retrylen);
+  rv = encrypt(tag, aead, aead_ctx, (const uint8_t *)"", 0,
+               (const uint8_t *)NGTCP2_RETRY_NONCE,
+               sizeof(NGTCP2_RETRY_NONCE) - 1, pseudo_retry,
+               (size_t)pseudo_retrylen);
   if (rv != 0) {
     return rv;
   }
@@ -2160,7 +2159,8 @@ ngtcp2_ssize ngtcp2_pkt_encode_pseudo_retry(
 int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
                                 const uint8_t *pkt, size_t pktlen,
                                 ngtcp2_encrypt encrypt,
-                                const ngtcp2_crypto_aead *aead) {
+                                const ngtcp2_crypto_aead *aead,
+                                const ngtcp2_crypto_aead_ctx *aead_ctx) {
   uint8_t pseudo_retry[1500];
   size_t pseudo_retrylen;
   uint8_t *p = pseudo_retry;
@@ -2181,8 +2181,9 @@ int ngtcp2_pkt_verify_retry_tag(const ngtcp2_pkt_retry *retry,
   pseudo_retrylen = (size_t)(p - pseudo_retry);
 
   /* OpenSSL does not like NULL plaintext. */
-  rv = encrypt(tag, aead, (const uint8_t *)"", 0, retry_key, retry_nonce,
-               sizeof(retry_nonce) - 1, pseudo_retry, pseudo_retrylen);
+  rv = encrypt(tag, aead, aead_ctx, (const uint8_t *)"", 0,
+               (const uint8_t *)NGTCP2_RETRY_NONCE,
+               sizeof(NGTCP2_RETRY_NONCE) - 1, pseudo_retry, pseudo_retrylen);
   if (rv != 0) {
     return rv;
   }
@@ -2229,7 +2230,9 @@ size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
 size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left) {
   size_t n = 1 /* type */ + ngtcp2_put_varint_len(offset);
 
-  if (left <= n) {
+  /* CRYPTO frame must contain nonzero length data.  Return -1 if
+     there is no space to write crypto data. */
+  if (left <= n + 1) {
     return (size_t)-1;
   }
 

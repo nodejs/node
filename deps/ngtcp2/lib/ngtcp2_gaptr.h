@@ -93,4 +93,11 @@ ngtcp2_ksl_it ngtcp2_gaptr_get_first_gap_after(ngtcp2_gaptr *gaptr,
 int ngtcp2_gaptr_is_pushed(ngtcp2_gaptr *gaptr, uint64_t offset,
                            size_t datalen);
 
+/*
+ * ngtcp2_gaptr_drop_first_gap deletes the first gap entirely as if
+ * the range is pushed.  This function assumes that at least one gap
+ * exists.
+ */
+void ngtcp2_gaptr_drop_first_gap(ngtcp2_gaptr *gaptr);
+
 #endif /* NGTCP2_GAPTR_H */
