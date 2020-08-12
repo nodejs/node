@@ -123,6 +123,7 @@ class SocketAddress : public MemoryRetainer {
   inline void set_flow_label(uint32_t label = 0);
 
   inline void Update(uint8_t* data, size_t len);
+  inline void Update(const sockaddr* data, size_t len);
 
   static SocketAddress FromSockName(const uv_udp_t& handle);
   static SocketAddress FromSockName(const uv_tcp_t& handle);
