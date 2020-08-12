@@ -1043,8 +1043,10 @@ void nghttp3_qpack_encoder_shrink_dtable(nghttp3_qpack_encoder *encoder) {
 
 /*
  * qpack_encoder_add_stream_ref adds another dynamic table reference
- * to a stream denoted by |stream_id|.  |max_cnt| and |min_cnt| is the
- * maximum and minimum insert count it references respectively.
+ * to a stream denoted by |stream_id|.  |stream| must be NULL if no
+ * stream object is not found for the given stream ID.  |max_cnt| and
+ * |min_cnt| is the maximum and minimum insert count it references
+ * respectively.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -1053,10 +1055,9 @@ void nghttp3_qpack_encoder_shrink_dtable(nghttp3_qpack_encoder *encoder) {
  *     Out of memory.
  */
 static int qpack_encoder_add_stream_ref(nghttp3_qpack_encoder *encoder,
-                                        int64_t stream_id, uint64_t max_cnt,
-                                        uint64_t min_cnt) {
-  nghttp3_qpack_stream *stream =
-      nghttp3_qpack_encoder_find_stream(encoder, stream_id);
+                                        int64_t stream_id,
+                                        nghttp3_qpack_stream *stream,
+                                        uint64_t max_cnt, uint64_t min_cnt) {
   nghttp3_qpack_header_block_ref *ref;
   const nghttp3_mem *mem = encoder->ctx.mem;
   uint64_t prev_max_cnt = 0;
@@ -1211,7 +1212,8 @@ int nghttp3_qpack_encoder_encode(nghttp3_qpack_encoder *encoder,
     return 0;
   }
 
-  rv = qpack_encoder_add_stream_ref(encoder, stream_id, max_cnt, min_cnt);
+  rv = qpack_encoder_add_stream_ref(encoder, stream_id, stream, max_cnt,
+                                    min_cnt);
   if (rv != 0) {
     goto fail;
   }
@@ -1308,19 +1310,6 @@ int nghttp3_qpack_encoder_stream_is_blocked(nghttp3_qpack_encoder *encoder,
   return stream && encoder->krcnt < nghttp3_qpack_stream_get_max_cnt(stream);
 }
 
-static uint32_t qpack_hash_name(const nghttp3_nv *nv) {
-  /* 32 bit FNV-1a: http://isthe.com/chongo/tech/comp/fnv/ */
-  uint32_t h = 2166136261u;
-  size_t i;
-
-  for (i = 0; i < nv->namelen; ++i) {
-    h ^= nv->name[i];
-    h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
-  }
-
-  return h;
-}
-
 /*
  * qpack_encoder_decide_indexing_mode determines and returns indexing
  * mode for header field |nv|.  |token| is a token of header field
@@ -1341,6 +1330,7 @@ qpack_encoder_decide_indexing_mode(nghttp3_qpack_encoder *encoder,
       return NGHTTP3_QPACK_INDEXING_MODE_NEVER;
     }
     break;
+  case -1:
   case NGHTTP3_QPACK_TOKEN__PATH:
   case NGHTTP3_QPACK_TOKEN_AGE:
   case NGHTTP3_QPACK_TOKEN_CONTENT_LENGTH:
@@ -1350,6 +1340,15 @@ qpack_encoder_decide_indexing_mode(nghttp3_qpack_encoder *encoder,
   case NGHTTP3_QPACK_TOKEN_LOCATION:
   case NGHTTP3_QPACK_TOKEN_SET_COOKIE:
     return NGHTTP3_QPACK_INDEXING_MODE_LITERAL;
+  case NGHTTP3_QPACK_TOKEN_HOST:
+  case NGHTTP3_QPACK_TOKEN_TE:
+  case NGHTTP3_QPACK_TOKEN__PROTOCOL:
+  case NGHTTP3_QPACK_TOKEN_PRIORITY:
+    break;
+  default:
+    if (token >= 1000) {
+      return NGHTTP3_QPACK_INDEXING_MODE_LITERAL;
+    }
   }
 
   if (table_space(nv->namelen, nv->valuelen) >
@@ -1461,7 +1460,20 @@ int nghttp3_qpack_encoder_encode_nv(nghttp3_qpack_encoder *encoder,
   if (static_entry) {
     hash = token_stable[token].hash;
   } else {
-    hash = qpack_hash_name(nv);
+    switch (token) {
+    case NGHTTP3_QPACK_TOKEN_HOST:
+      hash = 2952701295u;
+      break;
+    case NGHTTP3_QPACK_TOKEN_TE:
+      hash = 1011170994u;
+      break;
+    case NGHTTP3_QPACK_TOKEN__PROTOCOL:
+      hash = 1128642621u;
+      break;
+    case NGHTTP3_QPACK_TOKEN_PRIORITY:
+      hash = 2498028297u;
+      break;
+    }
   }
 
   indexing_mode = qpack_encoder_decide_indexing_mode(encoder, nv, token);
@@ -1474,7 +1486,8 @@ int nghttp3_qpack_encoder_encode_nv(nghttp3_qpack_encoder *encoder,
     }
   }
 
-  if (nghttp3_map_size(&encoder->streams) < NGHTTP3_QPACK_MAX_QPACK_STREAMS) {
+  if (hash &&
+      nghttp3_map_size(&encoder->streams) < NGHTTP3_QPACK_MAX_QPACK_STREAMS) {
     dres = nghttp3_qpack_encoder_lookup_dtable(encoder, nv, token, hash,
                                                indexing_mode, encoder->krcnt,
                                                allow_blocking);
@@ -2949,6 +2962,7 @@ nghttp3_ssize nghttp3_qpack_decoder_read_encoder(nghttp3_qpack_decoder *decoder,
       qpack_read_state_terminate_name(&decoder->rstate);
 
       decoder->state = NGHTTP3_QPACK_ES_STATE_CHECK_VALUE_HUFFMAN;
+      decoder->rstate.prefix = 7;
       break;
     case NGHTTP3_QPACK_ES_STATE_CHECK_VALUE_HUFFMAN:
       qpack_read_state_check_huffman(&decoder->rstate, *p);

@@ -2351,12 +2351,13 @@ int nghttp3_conn_create_stream(nghttp3_conn *conn, nghttp3_stream **pstream,
 
 int nghttp3_conn_create_push_promise(nghttp3_conn *conn,
                                      nghttp3_push_promise **ppp,
-                                     int64_t push_id, nghttp3_tnode *parent) {
+                                     int64_t push_id,
+                                     nghttp3_tnode *assoc_tnode) {
   nghttp3_push_promise *pp;
   int rv;
 
-  rv =
-      nghttp3_push_promise_new(&pp, push_id, conn->next_seq, parent, conn->mem);
+  rv = nghttp3_push_promise_new(&pp, push_id, conn->next_seq, assoc_tnode,
+                                conn->mem);
   if (rv != 0) {
     return rv;
   }
@@ -3204,7 +3205,7 @@ void nghttp3_conn_settings_default(nghttp3_conn_settings *settings) {
 }
 
 int nghttp3_push_promise_new(nghttp3_push_promise **ppp, int64_t push_id,
-                             uint64_t seq, nghttp3_tnode *parent,
+                             uint64_t seq, nghttp3_tnode *assoc_tnode,
                              const nghttp3_mem *mem) {
   nghttp3_push_promise *pp;
   nghttp3_node_id nid;
@@ -3223,10 +3224,10 @@ int nghttp3_push_promise_new(nghttp3_push_promise **ppp, int64_t push_id,
   pp->http.status_code = -1;
   pp->http.content_length = -1;
 
-  if (parent) {
-    assert(parent->nid.type == NGHTTP3_NODE_ID_TYPE_STREAM);
+  if (assoc_tnode) {
+    assert(assoc_tnode->nid.type == NGHTTP3_NODE_ID_TYPE_STREAM);
 
-    pp->stream_id = parent->nid.id;
+    pp->stream_id = assoc_tnode->nid.id;
     pp->flags |= NGHTTP3_PUSH_PROMISE_FLAG_BOUND;
   } else {
     pp->stream_id = -1;

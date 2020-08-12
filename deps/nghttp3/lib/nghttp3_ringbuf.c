@@ -33,6 +33,16 @@
 
 #include "nghttp3_macro.h"
 
+#if defined(_MSC_VER) && defined(_M_ARM64)
+unsigned int __popcnt(unsigned int x) {
+  unsigned int c = 0;
+  for (; x; ++c) {
+    x &= x - 1;
+  }
+  return c;
+}
+#endif
+
 int nghttp3_ringbuf_init(nghttp3_ringbuf *rb, size_t nmemb, size_t size,
                          const nghttp3_mem *mem) {
   if (nmemb) {
@@ -106,8 +116,6 @@ void *nghttp3_ringbuf_get(nghttp3_ringbuf *rb, size_t offset) {
   offset = (rb->first + offset) & (rb->nmemb - 1);
   return &rb->buf[offset * rb->size];
 }
-
-size_t nghttp3_ringbuf_len(nghttp3_ringbuf *rb) { return rb->len; }
 
 int nghttp3_ringbuf_full(nghttp3_ringbuf *rb) { return rb->len == rb->nmemb; }
 
