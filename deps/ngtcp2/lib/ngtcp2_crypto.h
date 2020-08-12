@@ -50,7 +50,7 @@ typedef enum {
 
 typedef struct {
   ngtcp2_vec secret;
-  ngtcp2_vec key;
+  ngtcp2_crypto_aead_ctx aead_ctx;
   ngtcp2_vec iv;
   /* pkt_num is a packet number of a packet which uses this keying
      material.  For encryption key, it is the lowest packet number of
@@ -75,7 +75,8 @@ typedef struct {
  * store secret is update keys.  Only 1RTT key can be updated.
  */
 int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
-                         size_t secretlen, const uint8_t *key, size_t keylen,
+                         size_t secretlen,
+                         const ngtcp2_crypto_aead_ctx *aead_ctx,
                          const uint8_t *iv, size_t ivlen,
                          const ngtcp2_mem *mem);
 
@@ -84,8 +85,7 @@ int ngtcp2_crypto_km_new(ngtcp2_crypto_km **pckm, const uint8_t *secret,
  * it does not copy secret, key and IV.
  */
 int ngtcp2_crypto_km_nocopy_new(ngtcp2_crypto_km **pckm, size_t secretlen,
-                                size_t keylen, size_t ivlen,
-                                const ngtcp2_mem *mem);
+                                size_t ivlen, const ngtcp2_mem *mem);
 
 void ngtcp2_crypto_km_del(ngtcp2_crypto_km *ckm, const ngtcp2_mem *mem);
 
@@ -93,7 +93,7 @@ typedef struct {
   ngtcp2_crypto_aead aead;
   ngtcp2_crypto_cipher hp;
   ngtcp2_crypto_km *ckm;
-  const ngtcp2_vec *hp_key;
+  ngtcp2_crypto_cipher_ctx hp_ctx;
   size_t aead_overhead;
   ngtcp2_encrypt encrypt;
   ngtcp2_decrypt decrypt;

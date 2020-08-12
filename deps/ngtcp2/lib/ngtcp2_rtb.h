@@ -38,6 +38,8 @@
 struct ngtcp2_conn;
 typedef struct ngtcp2_conn ngtcp2_conn;
 
+typedef struct ngtcp2_pktns ngtcp2_pktns;
+
 struct ngtcp2_frame_chain;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
@@ -53,11 +55,47 @@ typedef struct ngtcp2_strm ngtcp2_strm;
 struct ngtcp2_rst;
 typedef struct ngtcp2_rst ngtcp2_rst;
 
+typedef enum ngtcp2_frame_chain_binder_flag {
+  NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE = 0x00,
+  /* NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK indicates that an information
+     which a frame carries has been acknowledged. */
+  NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK = 0x01,
+} ngtcp2_frame_chain_binder_flag;
+
+/*
+ * ngtcp2_frame_chain_binder binds 2 or more of ngtcp2_frame_chain to
+ * share the acknowledgement state.  In general, all
+ * ngtcp2_frame_chains bound to the same binder must have the same
+ * information.
+ */
+typedef struct ngtcp2_frame_chain_binder {
+  size_t refcount;
+  uint32_t flags;
+} ngtcp2_frame_chain_binder;
+
+int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
+                                  const ngtcp2_mem *mem);
+
+/*
+ * ngtcp2_bind_frame_chains binds two frame chains |a| and |b| using
+ * new or existing ngtcp2_frame_chain_binder.  |a| might have non-NULL
+ * a->binder.  |b| must not have non-NULL b->binder.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
+                             const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_frame_chain chains frames in a single packet.
  */
 struct ngtcp2_frame_chain {
   ngtcp2_frame_chain *next;
+  ngtcp2_frame_chain_binder *binder;
   ngtcp2_frame fr;
 };
 
@@ -111,6 +149,10 @@ int ngtcp2_frame_chain_crypto_datacnt_new(ngtcp2_frame_chain **pfrc,
                                           size_t datacnt,
                                           const ngtcp2_mem *mem);
 
+int ngtcp2_frame_chain_new_token_new(ngtcp2_frame_chain **pfrc,
+                                     const ngtcp2_vec *token,
+                                     const ngtcp2_mem *mem);
+
 /*
  * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
  * memory pointed by |frc|.
@@ -134,15 +176,23 @@ typedef enum {
   /* NGTCP2_RTB_FLAG_PROBE indicates that the entry includes a probe
      packet. */
   NGTCP2_RTB_FLAG_PROBE = 0x01,
-  /* NGTCP2_RTB_FLAG_CRYPTO_PKT indicates that the entry includes
-     handshake CRYPTO frame. */
-  NGTCP2_RTB_FLAG_CRYPTO_PKT = 0x02,
+  /* NGTCP2_RTB_FLAG_RETRANSMITTABLE indicates that the entry includes
+     a frame which must be retransmitted until it is acknowledged.  In
+     most cases, this flag is used along with
+     NGTCP2_RTB_FLAG_ACK_ELICITING.  We have these 2 flags because
+     NGTCP2_RTB_FLAG_RETRANSMITTABLE triggers PTO, but just
+     NGTCP2_RTB_FLAG_ACK_ELICITING does not. */
+  NGTCP2_RTB_FLAG_RETRANSMITTABLE = 0x02,
   /* NGTCP2_RTB_FLAG_ACK_ELICITING indicates that the entry elicits
      acknowledgement. */
   NGTCP2_RTB_FLAG_ACK_ELICITING = 0x04,
-  /* NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED indicates that the
-     CRYPTO frames have been retransmitted. */
-  NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED = 0x08,
+  /* NGTCP2_RTB_FLAG_PTO_RECLAIMED indicates that the packet has been
+     reclaimed on PTO.  It is not marked lost yet and still consumes
+     congestion window. */
+  NGTCP2_RTB_FLAG_PTO_RECLAIMED = 0x08,
+  /* NGTCP2_RTB_FLAG_LOST_RETRANSMITTED indicates that the entry has
+     been marked lost and scheduled to retransmit. */
+  NGTCP2_RTB_FLAG_LOST_RETRANSMITTED = 0x10,
 } ngtcp2_rtb_flag;
 
 struct ngtcp2_rtb_entry;
@@ -164,6 +214,8 @@ struct ngtcp2_rtb_entry {
   /* ts is the time point when a packet included in this entry is sent
      to a peer. */
   ngtcp2_tstamp ts;
+  /* lost_ts is the time when this entry is marked lost. */
+  ngtcp2_tstamp lost_ts;
   /* pktlen is the length of QUIC packet */
   size_t pktlen;
   struct {
@@ -217,6 +269,9 @@ typedef struct {
   int64_t largest_acked_tx_pkt_num;
   /* num_ack_eliciting is the number of ACK eliciting entries. */
   size_t num_ack_eliciting;
+  /* num_retransmittable is the number of packets which contain frames
+     that must be retransmitted on loss. */
+  size_t num_retransmittable;
   /* probe_pkt_left is the number of probe packet to send */
   size_t probe_pkt_left;
   /* pktns_id is the identifier of packet number space. */
@@ -228,6 +283,13 @@ typedef struct {
      contributed to ngtcp2_conn_stat.bytes_in_flight.  It only
      includes the bytes after congestion state is reset. */
   uint64_t cc_bytes_in_flight;
+  /* persistent_congestion_start_ts is the time when persistent
+     congestion evaluation is started.  It happens roughly after
+     handshake is confirmed. */
+  ngtcp2_tstamp persistent_congestion_start_ts;
+  /* num_lost_pkts is the number entries in ents which has
+     NGTCP2_RTB_FLAG_LOST_RETRANSMITTED flag set. */
+  size_t num_lost_pkts;
 } ngtcp2_rtb;
 
 /*
@@ -286,31 +348,30 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
  * some frames might be prepended to |*pfrc| and the caller should
  * handle them.  |pto| is PTO.
  */
-void ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                                ngtcp2_conn_stat *cstat, ngtcp2_duration pto,
-                                ngtcp2_tstamp ts);
+int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                               ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat,
+                               ngtcp2_duration pto, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_rtb_remove_expired_lost_pkt removes expired lost packet.
+ */
+void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
+                                        ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_rtb_lost_pkt_ts returns the earliest time when the still
+ * retained packet was lost.  It returns UINT64_MAX if no such packet
+ * exists.
+ */
+ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends
  * all frames to |*pfrc|.  Even when this function fails, some frames
  * might be prepended to |*pfrc| and the caller should handle them.
  */
-void ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                           ngtcp2_conn_stat *cstat);
-
-/*
- * ngtcp2_rtb_on_crypto_timeout copies all unacknowledged CRYPTO
- * frames and links them to |*pfrc|.  The affected ngtcp2_rtb_entry
- * will have NGTCP2_RTB_FLAG_CRYPTO_TIMEOUT_RETRANSMITTED set.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
- */
-int ngtcp2_rtb_on_crypto_timeout(ngtcp2_rtb *rtb, ngtcp2_frame_chain **pfrc,
-                                 ngtcp2_conn_stat *cstat);
+int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                          ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.
@@ -323,5 +384,25 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
  * new congestion state.
  */
 void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num);
+
+/*
+ * ngtcp2_rtb_remove_expired_lost_pkt ensures that the number of lost
+ * packets at most |n|.
+ */
+void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
+
+/*
+ * ngtcp2_rtb_reclaim_on_pto reclaims up to |num_pkts| packets which
+ * are in-flight and not marked lost to send them in PTO probe.  The
+ * reclaimed frames are chained to |*pfrc|.
+ *
+ * This function returns the number of packets reclaimed if it
+ * succeeds, or one of the following negative error codes:
+ *
+ * NGTCP2_ERR_NOMEM
+ *     Out of memory
+ */
+ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                                       ngtcp2_pktns *pktns, size_t num_pkts);
 
 #endif /* NGTCP2_RTB_H */
