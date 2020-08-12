@@ -195,7 +195,7 @@ void nghttp3_qpack_read_state_free(nghttp3_qpack_read_state *rstate);
 
 void nghttp3_qpack_read_state_reset(nghttp3_qpack_read_state *rstate);
 
-#define NGHTTP3_QPACK_MAP_SIZE 128
+#define NGHTTP3_QPACK_MAP_SIZE 64
 
 typedef struct {
   nghttp3_qpack_entry *table[NGHTTP3_QPACK_MAP_SIZE];

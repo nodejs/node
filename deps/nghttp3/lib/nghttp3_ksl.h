@@ -168,27 +168,33 @@ void nghttp3_ksl_free(nghttp3_ksl *ksl);
  * successful insertion, the iterator points to the inserted node is
  * stored in |*it|.
  *
- * This function assumes that |key| does not exist in |ksl|.
- *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
  * NGHTTP3_ERR_NOMEM
  *   Out of memory.
+ * NGHTTP3_ERR_INVALID_ARGUMENT
+ *   |key| already exists.
  */
 int nghttp3_ksl_insert(nghttp3_ksl *ksl, nghttp3_ksl_it *it,
                        const nghttp3_ksl_key *key, void *data);
 
 /*
- * nghttp3_ksl_remove removes the |key| from |ksl|.  It assumes such
- * the key is included in |ksl|.
+ * nghttp3_ksl_remove removes the |key| from |ksl|.
  *
  * This function assigns the iterator to |*it|, which points to the
  * node which is located at the right next of the removed node if |it|
- * is not NULL.
+ * is not NULL.  If |key| is not found, no deletion takes place and
+ * the return value of nghttp3_ksl_end(ksl) is assigned to |*it|.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * NGHTTP3_ERR_INVALID_ARGUMENT
+ *   |key| does not exist.
  */
-void nghttp3_ksl_remove(nghttp3_ksl *ksl, nghttp3_ksl_it *it,
-                        const nghttp3_ksl_key *key);
+int nghttp3_ksl_remove(nghttp3_ksl *ksl, nghttp3_ksl_it *it,
+                       const nghttp3_ksl_key *key);
 
 /*
  * nghttp3_ksl_lower_bound returns the iterator which points to the

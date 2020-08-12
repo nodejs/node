@@ -180,7 +180,8 @@ int nghttp3_conn_create_stream(nghttp3_conn *conn, nghttp3_stream **pstream,
 
 int nghttp3_conn_create_push_promise(nghttp3_conn *conn,
                                      nghttp3_push_promise **ppp,
-                                     int64_t push_id, nghttp3_tnode *parent);
+                                     int64_t push_id,
+                                     nghttp3_tnode *assoc_tnode);
 
 nghttp3_ssize nghttp3_conn_read_bidi(nghttp3_conn *conn, size_t *pnproc,
                                      nghttp3_stream *stream, const uint8_t *src,
@@ -254,7 +255,7 @@ void nghttp3_conn_unschedule_stream(nghttp3_conn *conn, nghttp3_stream *stream);
 nghttp3_stream *nghttp3_conn_get_next_tx_stream(nghttp3_conn *conn);
 
 int nghttp3_push_promise_new(nghttp3_push_promise **ppp, int64_t push_id,
-                             uint64_t seq, nghttp3_tnode *parent,
+                             uint64_t seq, nghttp3_tnode *assoc_tnode,
                              const nghttp3_mem *mem);
 
 void nghttp3_push_promise_del(nghttp3_push_promise *pp, const nghttp3_mem *mem);
