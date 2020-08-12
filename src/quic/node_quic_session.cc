@@ -1422,7 +1422,7 @@ bool QuicApplication::SendPendingData() {
           continue;
         case NGTCP2_ERR_STREAM_NOT_FOUND:
           continue;
-        case NGTCP2_ERR_WRITE_STREAM_MORE:
+        case NGTCP2_ERR_WRITE_MORE:
           CHECK_GT(ndatalen, 0);
           CHECK(StreamCommit(&stream_data, ndatalen));
           pos += ndatalen;
@@ -2096,7 +2096,6 @@ bool QuicSession::Receive(
 
   if (!is_destroyed())
     UpdateIdleTimer();
-
   SendPendingData();
   Debug(this, "Successfully processed received packet");
   return true;
@@ -2239,8 +2238,11 @@ void QuicSession::RemoveStream(int64_t stream_id) {
 void QuicSession::ScheduleRetransmit() {
   uint64_t now = uv_hrtime();
   uint64_t expiry = ngtcp2_conn_get_expiry(connection());
-  uint64_t interval = (expiry - now) / 1000000UL;
-  if (expiry < now || interval == 0) interval = 1;
+  // now and expiry are in nanoseconds, interval is milliseconds
+  uint64_t interval = (expiry < now) ? 1 : (expiry - now) / 1000000UL;
+  // If interval ends up being 0, the repeating timer won't be
+  // scheduled, so set it to 1 instead.
+  if (interval == 0) interval = 1;
   Debug(this, "Scheduling the retransmit timer for %" PRIu64, interval);
   UpdateRetransmitTimer(interval);
 }
@@ -2440,7 +2442,7 @@ bool QuicSession::SendPacket(std::unique_ptr<QuicPacket> packet) {
 
   IncrementStat(&QuicSessionStats::bytes_sent, packet->length());
   RecordTimestamp(&QuicSessionStats::sent_at);
-  ScheduleRetransmit();
+//  ScheduleRetransmit();
 
   Debug(this, "Sending %" PRIu64 " bytes to %s from %s",
         packet->length(),
@@ -2471,6 +2473,7 @@ void QuicSession::SendPendingData() {
     Debug(this, "Error sending QUIC application data");
     HandleError();
   }
+  ScheduleRetransmit();
 }
 
 // When completing the TLS handshake, the TLS session information
@@ -3392,11 +3395,9 @@ int QuicSession::OnStreamReset(
 // Currently, there is only one use. In the future, we'll want to
 // explore whether we want to handle the different cases uses.
 int QuicSession::OnRand(
-    ngtcp2_conn* conn,
     uint8_t* dest,
     size_t destlen,
-    ngtcp2_rand_ctx ctx,
-    void* user_data) {
+    ngtcp2_rand_ctx ctx) {
   EntropySource(dest, destlen);
   return 0;
 }
@@ -3541,6 +3542,8 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnConnectionIDStatus,
     OnHandshakeConfirmed,
     nullptr,  // recv_new_token
+    ngtcp2_crypto_delete_crypto_aead_ctx_cb,
+    ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
   },
   // NGTCP2_CRYPTO_SIDE_SERVER
   {
@@ -3574,6 +3577,8 @@ const ngtcp2_conn_callbacks QuicSession::callbacks[2] = {
     OnConnectionIDStatus,
     nullptr,  // handshake_confirmed
     nullptr,  // recv_new_token
+    ngtcp2_crypto_delete_crypto_aead_ctx_cb,
+    ngtcp2_crypto_delete_crypto_cipher_ctx_cb,
   }
 };
 
@@ -3585,7 +3590,11 @@ BaseObjectPtr<QLogStream> QuicSession::qlog_stream() {
   return qlog_stream_;
 }
 
-void QuicSession::OnQlogWrite(void* user_data, const void* data, size_t len) {
+void QuicSession::OnQlogWrite(
+    void* user_data,
+    uint32_t flags,
+    const void* data,
+    size_t len) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
   Environment* env = session->env();
 
@@ -3888,7 +3897,6 @@ void NewQuicClientSession(const FunctionCallbackInfo<Value>& args) {
           args[ARG_IDX::QLOG]->IsTrue() ?
               QlogMode::kEnabled :
               QlogMode::kDisabled);
-
   session->SendPendingData();
   if (session->is_destroyed())
     return args.GetReturnValue().Set(ERR_FAILED_TO_CREATE_SESSION);

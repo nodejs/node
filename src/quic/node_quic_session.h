@@ -75,6 +75,7 @@ class QuicSessionConfig final : public ngtcp2_settings {
 
   QuicSessionConfig(const QuicSessionConfig& config) {
     initial_ts = uv_hrtime();
+    initial_rtt = config.initial_rtt;
     transport_params = config.transport_params;
     max_udp_payload_size = config.max_udp_payload_size;
     cc_algo = config.cc_algo;
@@ -1366,11 +1367,9 @@ class QuicSession final : public AsyncWrap,
       void* stream_user_data);
 
   static int OnRand(
-      ngtcp2_conn* conn,
       uint8_t* dest,
       size_t destlen,
-      ngtcp2_rand_ctx ctx,
-      void* user_data);
+      ngtcp2_rand_ctx ctx);
 
   static int OnGetNewConnectionID(
       ngtcp2_conn* conn,
@@ -1437,7 +1436,11 @@ class QuicSession final : public AsyncWrap,
       const uint8_t* token,
       void* user_data);
 
-  static void OnQlogWrite(void* user_data, const void* data, size_t len);
+  static void OnQlogWrite(
+      void* user_data,
+      uint32_t flags,
+      const void* data,
+      size_t len);
 
 #define V(id, _) QUICSESSION_FLAG_##id,
   enum QuicSessionFlags : uint32_t {
