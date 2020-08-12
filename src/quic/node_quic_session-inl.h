@@ -50,6 +50,8 @@ void QuicSessionConfig::set_original_connection_id(
     transport_params.original_dcid = *ocid;
     transport_params.retry_scid = *scid;
     transport_params.retry_scid_present = 1;
+  } else {
+    transport_params.original_dcid = *scid;
   }
 }
 
