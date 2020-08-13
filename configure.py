@@ -439,6 +439,11 @@ parser.add_option('--v8-options',
     dest='v8_options',
     help='v8 options to pass, see `node --v8-options` for examples.')
 
+parser.add_option('--with-ossfuzz',
+    action='store_true',
+    dest='ossfuzz',
+    help='Enables building of fuzzers. This command should be run in an OSS-Fuzz Docker image.')
+
 parser.add_option('--with-arm-float-abi',
     action='store',
     dest='arm_float_abi',
@@ -1826,6 +1831,9 @@ configure_openssl(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)
+
+# Forward OSS-Fuzz settings
+output['variables']['ossfuzz'] = b(options.ossfuzz)
 
 # variables should be a root level element,
 # move everything else to target_defaults
