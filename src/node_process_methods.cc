@@ -95,15 +95,13 @@ static void Chdir(const FunctionCallbackInfo<Value>& args) {
 // Returns those values as Float64 microseconds in the elements of the array
 // passed to the function.
 static void CPUUsage(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   uv_rusage_t rusage;
 
   // Call libuv to get the values we'll return.
   int err = uv_getrusage(&rusage);
-  if (err) {
-    // On error, return the strerror version of the error code.
-    Local<String> errmsg = OneByteString(args.GetIsolate(), uv_strerror(err));
-    return args.GetReturnValue().Set(errmsg);
-  }
+  if (err)
+    return env->ThrowUVException(err, "uv_getrusage");
 
   // Get the double array pointer from the Float64Array argument.
   CHECK(args[0]->IsFloat64Array());
