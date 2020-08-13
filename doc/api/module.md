@@ -184,11 +184,11 @@ consists of the following keys:
 * originalLine: {number}
 * originalColumn: {number}
 
-[`createRequire()`]: #modules_module_module_createrequire_filename
+[`createRequire()`]: #module_module_createrequire_filename
 [module wrapper]: modules_cjs.html#modules_cjs_the_module_wrapper
 [source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
 [`--enable-source-maps`]: cli.html#cli_enable_source_maps
 [`NODE_V8_COVERAGE=dir`]: cli.html#cli_node_v8_coverage_dir
 [`Error.prepareStackTrace(error, trace)`]: https://v8.dev/docs/stack-trace-api#customizing-stack-traces
-[`SourceMap`]: #modules_module_class_module_sourcemap
+[`SourceMap`]: #module_class_module_sourcemap
 [Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej

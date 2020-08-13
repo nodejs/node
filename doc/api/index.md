@@ -36,7 +36,7 @@
 * [Inspector](inspector.html)
 * [Internationalization](intl.html)
 * [Modules](modules.html)
-* [Modules: `module` core module](modules_module.html)
+* [Modules: `module` core module](module.html)
 * [Net](net.html)
 * [OS](os.html)
 * [Path](path.html)
