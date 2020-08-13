@@ -4549,7 +4549,7 @@ added: v10.0.0
   closing.
 
 Closes the file handle. Will wait for any pending operation on the handle
-to complete before closing the file descriptor.
+to complete before completing.
 
 ```js
 const fsPromises = require('fs').promises;
