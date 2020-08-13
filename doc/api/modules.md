@@ -953,26 +953,26 @@ in order to be used.
 
 ## The `Module` object
 
-<!-- Anchors to make sure old links find a target -->
-<a id="modules_module_builtinmodules"></a>
-<a id="modules_module_createrequire_filename"></a>
-<a id="modules_module_createrequirefrompath_filename"></a>
-<a id="modules_module_syncbuiltinesmexports"></a>
-
 This section was moved to
 [Modules: `module` core module](modules_module.html#modules_module_the_module_object).
 
-## Source map v3 support
-
 <!-- Anchors to make sure old links find a target -->
-<a id="modules_module_findsourcemap_path_error"></a>
-<a id="modules_class_module_sourcemap"></a>
-<a id="modules_new_sourcemap_payload"></a>
-<a id="modules_sourcemap_payload"></a>
-<a id="modules_sourcemap_findentry_linenumber_columnnumber"></a>
+* <a id="modules_module_builtinmodules" href="module.html#module_module_builtinmodules">`module.builtinModules`</a>
+* <a id="modules_module_createrequire_filename" href="module.html#module_module_createrequire_filename">`module.createRequire(filename)`</a>
+* <a id="modules_module_createrequirefrompath_filename" href="module.html#module_module_createrequirefrompath_filename">`module.createRequireFromPath(filename)`</a>
+* <a id="modules_module_syncbuiltinesmexports" href="module.html#module_module_syncbuiltinesmexports">`module.syncBuiltinESMExports()`</a>
+
+## Source map v3 support
 
 This section was moved to
 [Modules: `module` core module](modules_module.html#modules_module_source_map_v3_support).
+
+<!-- Anchors to make sure old links find a target -->
+* <a id="modules_module_findsourcemap_path_error" href="module.html#module_module_findsourcemap_path_error">`module.findSourceMap(path[, error])`</a>
+* <a id="modules_class_module_sourcemap" href="module.html#module_class_module_sourcemap">Class: `module.SourceMap`</a>
+  * <a id="modules_new_sourcemap_payload" href="module.html#module_new_sourcemap_payload">`new SourceMap(payload)`</a>
+  * <a id="modules_sourcemap_payload" href="module.html#module_sourcemap_payload">`sourceMap.payload`</a>
+  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#module_sourcemap_findentry_linenumber_columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
 [GLOBAL_FOLDERS]: #modules_loading_from_the_global_folders
 [`Error`]: errors.html#errors_class_error
