@@ -1176,11 +1176,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
-        'deps/uvwasi/uvwasi.gyp:uvwasi',
-        'node_dtrace_header',
-        'node_dtrace_ustack',
-        'node_dtrace_provider',
       ],
 
       'includes': [
@@ -1189,11 +1184,6 @@
 
       'include_dirs': [
         'src',
-        'tools/msvs/genfiles',
-        'deps/v8/include',
-        'deps/cares/include',
-        'deps/uv/include',
-        'deps/uvwasi/include',
       ],
 
       'defines': [
@@ -1209,15 +1199,10 @@
       ],
 
       'conditions': [
-        [ 'node_use_openssl=="true"', {
-          'defines': [
-            'HAVE_OPENSSL=1',
-          ],
-        }],
         ['OS=="linux"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
-        # Skip cctest while building shared lib node for Windows
+        # Ensure that ossfuzz flag has been set and that we are on Linux
         [ 'OS!="linux" or ossfuzz!="true"', {
           'type': 'none',
         }],
