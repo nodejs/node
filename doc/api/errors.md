@@ -729,11 +729,6 @@ when an error occurs (and is caught) during the creation of the
 context, for example, when the allocation fails or the maximum call stack
 size is reached when the context is created.
 
-<a id="ERR_CPU_USAGE"></a>
-### `ERR_CPU_USAGE`
-
-The native call from `process.cpuUsage` could not be processed.
-
 <a id="ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED"></a>
 ### `ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED`
 
@@ -2724,6 +2719,14 @@ removed: v10.0.0
 
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
+
+<a id="ERR_CPU_USAGE"></a>
+### `ERR_CPU_USAGE`
+<!-- YAML
+removed: REPLACEME
+-->
+
+The native call from `process.cpuUsage` could not be processed.
 
 [ES Module]: esm.md
 [ICU]: intl.md#intl_internationalization_support
