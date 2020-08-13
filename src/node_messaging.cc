@@ -343,6 +343,12 @@ class SerializerDelegate : public ValueSerializer::Delegate {
 
  private:
   Maybe<bool> WriteHostObject(BaseObjectPtr<BaseObject> host_object) {
+    BaseObject::TransferMode mode = host_object->GetTransferMode();
+    if (mode == BaseObject::TransferMode::kUntransferable) {
+      ThrowDataCloneError(env_->clone_unsupported_type_str());
+      return Nothing<bool>();
+    }
+
     for (uint32_t i = 0; i < host_objects_.size(); i++) {
       if (host_objects_[i] == host_object) {
         serializer->WriteUint32(i);
@@ -350,11 +356,7 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       }
     }
 
-    BaseObject::TransferMode mode = host_object->GetTransferMode();
-    if (mode == BaseObject::TransferMode::kUntransferable) {
-      ThrowDataCloneError(env_->clone_unsupported_type_str());
-      return Nothing<bool>();
-    } else if (mode == BaseObject::TransferMode::kTransferable) {
+    if (mode == BaseObject::TransferMode::kTransferable) {
       THROW_ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST(env_);
       return Nothing<bool>();
     }
