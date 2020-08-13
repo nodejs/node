@@ -70,7 +70,7 @@ const { once } = require('events');
 })().then(common.mustCall());
 
 (async function() {
-  // Check that filehandles with a read in progress cannot be transferred.
+  // Check that a FileHandle with a read in progress cannot be transferred.
   const fh = await fs.open(__filename);
 
   const { port1 } = new MessageChannel();
