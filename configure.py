@@ -441,7 +441,6 @@ parser.add_option('--v8-options',
 
 parser.add_option('--with-ossfuzz',
     action='store_true',
-    default=False,
     dest='ossfuzz',
     help='Enables building of fuzzers. This command should be run in an OSS-Fuzz Docker image.')
 
