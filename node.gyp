@@ -1173,31 +1173,25 @@
     { # fuzz_url
       'target_name': 'fuzz_url',
       'type': 'executable',
-
       'dependencies': [
         '<(node_lib_target_name)',
       ],
-
       'includes': [
         'node.gypi'
       ],
-
       'include_dirs': [
         'src',
       ],
-
       'defines': [
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
       ],
-
       'sources': [
         'src/node_snapshot_stub.cc',
         'src/node_code_cache_stub.cc',
         'test/fuzzers/fuzz_url.cc',
       ],
-
       'conditions': [
         ['OS=="linux"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
@@ -1208,8 +1202,6 @@
         }],
       ],
     }, # fuzz_url
-
-
     {
       'target_name': 'cctest',
       'type': 'executable',
