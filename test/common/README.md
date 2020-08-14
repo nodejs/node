@@ -369,12 +369,6 @@ const { spawn } = require('child_process');
 spawn(...common.pwdCommand, { stdio: ['pipe'] });
 ```
 
-### `rootDir`
-
-* [&lt;string>][]
-
-Path to the 'root' directory. either `/` or `c:\\` (windows)
-
 ### `runWithInvalidFD(func)`
 
 * `func` [&lt;Function>][]
