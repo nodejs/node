@@ -30,12 +30,14 @@ if (process.argv[2] === 'child') {
     });
 
     // We want to test that if there is an error in a constrained running
-    // environment, it will be one of `EMFILE` or `ERR_WORKER_INIT_FAILED`.
+    // environment, it will be one of `ENFILE`, `EMFILE`, or
+    // `ERR_WORKER_INIT_FAILED`.
+    const allowableCodes = ['ERR_WORKER_INIT_FAILED', 'EMFILE', 'ENFILE'];
+
     // `common.mustCall*` cannot be used here as in some environments
     // (i.e. single cpu) `ulimit` may not lead to such an error.
-
     worker.on('error', (e) => {
-      assert.ok(e.code === 'ERR_WORKER_INIT_FAILED' || e.code === 'EMFILE');
+      assert.ok(allowableCodes.includes(e.code), `${e.code} not expected`);
     });
   }
 
