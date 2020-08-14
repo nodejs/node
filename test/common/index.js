@@ -114,8 +114,6 @@ const isOSX = process.platform === 'darwin';
 
 const isDumbTerminal = process.env.TERM === 'dumb';
 
-const rootDir = isWindows ? 'c:\\' : '/';
-
 const buildType = process.config.target_defaults ?
   process.config.target_defaults.default_configuration :
   'Release';
@@ -723,7 +721,6 @@ const common = {
   platformTimeout,
   printSkipMessage,
   pwdCommand,
-  rootDir,
   runWithInvalidFD,
   skip,
   skipIf32Bits,
