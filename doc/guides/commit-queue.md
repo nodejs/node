@@ -50,7 +50,7 @@ of the commit queue:
 
 ## Implementation
 
-The [action](/.github/workflows/commit_queue.yml) will run on scheduler
+The [action](../../.github/workflows/commit-queue.yml) will run on scheduler
 events every five minutes. Five minutes is the smallest number accepted by
 the scheduler. The scheduler is not guaranteed to run every five minutes, it
 might take longer between runs.
@@ -73,7 +73,7 @@ a Jenkins token from
 `octokit/graphql-action` is used to fetch all Pull Requests with the
 `commit-queue` label. The output is a JSON payload, so `jq` is used to turn
 that into a list of PR ids we can pass as arguments to
-[`commit-queue.sh`](./tools/actions/commit-queue.sh).
+[`commit-queue.sh`](../../tools/actions/commit-queue.sh).
 
 > The personal token only needs permission for public repositories and to read
 > profiles, we can use the GITHUB_TOKEN for write operations. Jenkins token is
