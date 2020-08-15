@@ -13,6 +13,9 @@ var CLONE_DEEP_FLAG = 1;
  * `srcValue` values against any array or object value, respectively. See
  * `_.isEqual` for a list of supported value comparisons.
  *
+ * **Note:** Multiple values can be checked by combining several matchers
+ * using `_.overSome`
+ *
  * @static
  * @memberOf _
  * @since 3.2.0
@@ -29,6 +32,10 @@ var CLONE_DEEP_FLAG = 1;
  *
  * _.find(objects, _.matchesProperty('a', 4));
  * // => { 'a': 4, 'b': 5, 'c': 6 }
+ *
+ * // Checking for several possible values
+ * _.filter(objects, _.overSome([_.matchesProperty('a', 1), _.matchesProperty('a', 4)]));
+ * // => [{ 'a': 1, 'b': 2, 'c': 3 }, { 'a': 4, 'b': 5, 'c': 6 }]
  */
 function matchesProperty(path, srcValue) {
   return baseMatchesProperty(path, baseClone(srcValue, CLONE_DEEP_FLAG));

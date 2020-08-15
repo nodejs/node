@@ -169,11 +169,11 @@ function template(string, options, guard) {
 
   // Use a sourceURL for easier debugging.
   // The sourceURL gets injected into the source that's eval-ed, so be careful
-  // with lookup (in case of e.g. prototype pollution), and strip newlines if any.
-  // A newline wouldn't be a valid sourceURL anyway, and it'd enable code injection.
+  // to normalize all kinds of whitespace, so e.g. newlines (and unicode versions of it) can't sneak in
+  // and escape the comment, thus injecting code that gets evaled.
   var sourceURL = hasOwnProperty.call(options, 'sourceURL')
     ? ('//# sourceURL=' +
-       (options.sourceURL + '').replace(/[\r\n]/g, ' ') +
+       (options.sourceURL + '').replace(/\s/g, ' ') +
        '\n')
     : '';
 
@@ -206,8 +206,6 @@ function template(string, options, guard) {
 
   // If `variable` is not specified wrap a with-statement around the generated
   // code to add the data object to the top of the scope chain.
-  // Like with sourceURL, we take care to not check the option's prototype,
-  // as this configuration is a code injection vector.
   var variable = hasOwnProperty.call(options, 'variable') && options.variable;
   if (!variable) {
     source = 'with (obj) {\n' + source + '\n}\n';
