@@ -962,7 +962,7 @@ the original WPT harness, see [the WPT tests README][].
 
 ### Class: WPTRunner
 
-A driver class for running WPT with the WPT harness in a vm.
+A driver class for running WPT with the WPT harness in a worker thread.
 
 See [the WPT tests README][] for details.
 
