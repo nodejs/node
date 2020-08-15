@@ -38,11 +38,11 @@ const server = tls.createServer(options, common.mustCall((socket) => {
   socket.end('Hello');
 }, 2)).listen(0, common.mustCall(() => {
   let waiting = 2;
-  function establish(socket, calls) {
+  function establish(socket, callTracker) {
     const client = tls.connect({
       rejectUnauthorized: false,
       socket: socket
-    }, common.mustCall(() => {
+    }, callTracker(() => {
       let data = '';
       client.on('data', common.mustCall((chunk) => {
         data += chunk.toString();
@@ -52,7 +52,7 @@ const server = tls.createServer(options, common.mustCall((socket) => {
         if (--waiting === 0)
           server.close();
       }));
-    }, calls));
+    }));
     assert(client.readable);
     assert(client.writable);
 
@@ -63,23 +63,23 @@ const server = tls.createServer(options, common.mustCall((socket) => {
 
   // Immediate death socket
   const immediateDeath = net.connect(port);
-  establish(immediateDeath, 0).destroy();
+  establish(immediateDeath, common.mustNotCall).destroy();
 
   // Outliving
   const outlivingTCP = net.connect(port, common.mustCall(() => {
     outlivingTLS.destroy();
     next();
   }));
-  const outlivingTLS = establish(outlivingTCP, 0);
+  const outlivingTLS = establish(outlivingTCP, common.mustNotCall);
 
   function next() {
     // Already connected socket
     const connected = net.connect(port, common.mustCall(() => {
-      establish(connected);
+      establish(connected, common.mustCall);
     }));
 
     // Connecting socket
     const connecting = net.connect(port);
-    establish(connecting);
+    establish(connecting, common.mustCall);
   }
 }));

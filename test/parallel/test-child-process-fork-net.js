@@ -34,8 +34,7 @@ const count = 12;
 if (process.argv[2] === 'child') {
   const needEnd = [];
   const id = process.argv[3];
-
-  process.on('message', mustCall((m, socket) => {
+  process.on('message', mustCallAtLeast((m, socket) => {
     if (!socket) return;
 
     debug(`[${id}] got socket ${m}`);
@@ -65,21 +64,21 @@ if (process.argv[2] === 'child') {
     socket.on('finish', mustCall(() => {
       debug(`[${id}] socket finished ${m}`);
     }));
-  }));
+  }, 4));
 
-  process.on('message', mustCall((m) => {
+  process.on('message', mustCallAtLeast((m) => {
     if (m !== 'close') return;
     debug(`[${id}] got close message`);
     needEnd.forEach((endMe, i) => {
-      debug(`[${id}] ending ${i}/${needEnd.length}`);
+      debug(`[${id}] ending ${i + 1}/${needEnd.length}`);
       endMe.end('end');
     });
-  }));
+  }, 4));
 
   process.on('disconnect', mustCall(() => {
     debug(`[${id}] process disconnect, ending`);
     needEnd.forEach((endMe, i) => {
-      debug(`[${id}] ending ${i}/${needEnd.length}`);
+      debug(`[${id}] ending ${i + 1}/${needEnd.length}`);
       endMe.end('end');
     });
   }));
@@ -93,7 +92,7 @@ if (process.argv[2] === 'child') {
   const server = net.createServer();
 
   let connected = 0;
-  let closed = 0;
+
   server.on('connection', function(socket) {
     switch (connected % 6) {
       case 0:
@@ -110,12 +109,6 @@ if (process.argv[2] === 'child') {
         child3.send('write', socket); break;
     }
     connected += 1;
-
-    // TODO(@jasnell): This is not actually being called.
-    // It is not clear if it is needed.
-    socket.once('close', () => {
-      debug(`[m] socket closed, total ${++closed}`);
-    });
 
     if (connected === count) {
       closeServer();

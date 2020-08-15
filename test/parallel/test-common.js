@@ -52,15 +52,24 @@ const { join } = require('path');
 // common.mustCall() tests
 assert.throws(function() {
   common.mustCall(function() {}, 'foo');
-}, /^TypeError: Invalid exact value: foo$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /expected/
+});
 
 assert.throws(function() {
   common.mustCall(function() {}, /foo/);
-}, /^TypeError: Invalid exact value: \/foo\/$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /expected/
+});
 
 assert.throws(function() {
   common.mustCallAtLeast(function() {}, /foo/);
-}, /^TypeError: Invalid minimum value: \/foo\/$/);
+}, {
+  code: 'ERR_INVALID_ARG_TYPE',
+  message: /expected/
+});
 
 // assert.fail() tests
 assert.throws(
@@ -91,18 +100,20 @@ fnAtLeast2Called3();
 const failFixtures = [
   [
     fixtures.path('failmustcall1.js'),
-    'Mismatched <anonymous> function calls. Expected exactly 2, actual 1.'
+    'AssertionError [ERR_ASSERTION]: Mismatched <anonymous call tracked ' +
+      'function> function calls. Expected exactly 2, actual 1.',
   ], [
     fixtures.path('failmustcall2.js'),
-    'Mismatched <anonymous> function calls. Expected at least 2, actual 1.'
+    'AssertionError [ERR_ASSERTION]: Mismatched <anonymous call tracked ' +
+      'function> function calls. Expected at least 2, actual 1.',
   ]
 ];
 for (const p of failFixtures) {
   const [file, expected] = p;
   execFile(process.execPath, [file], common.mustCall((err, stdout, stderr) => {
     assert.ok(err);
-    assert.strictEqual(stderr, '');
-    const firstLine = stdout.split('\n').shift();
+    assert.strictEqual(stdout, '');
+    const firstLine = stderr.split('\n')[4];
     assert.strictEqual(firstLine, expected);
   }));
 }

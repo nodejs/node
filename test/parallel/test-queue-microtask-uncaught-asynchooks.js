@@ -32,5 +32,5 @@ queueMicrotask(() => { throw new Error(); });
 
 process.on('uncaughtException', common.mustCall());
 process.on('exit', () => {
-  assert.deepStrictEqual(events, ['init', 'after', 'before', 'destroy']);
+  assert.deepStrictEqual(events, ['init', 'before', 'after', 'destroy']);
 });

@@ -16,7 +16,7 @@ const MAX_DEPTH = 3;
 
 let rootWorker = null;
 
-const runTest = common.mustCall(function() {
+function runTest() {
   let reportedWorkersCount = 0;
   const session = new Session();
   session.connect();
@@ -28,7 +28,7 @@ const runTest = common.mustCall(function() {
       }
     }, MAX_DEPTH));
   session.post('NodeWorker.enable', { waitForDebuggerOnStart: false });
-});
+}
 
 function processMessage({ child }) {
   console.log(`Worker ${child} is running`);
@@ -49,7 +49,7 @@ function startWorker(depth, messageCallback) {
 }
 
 function runMainThread() {
-  rootWorker = startWorker(1, processMessage);
+  rootWorker = startWorker(1, common.mustCall(processMessage, MAX_DEPTH));
 }
 
 function runChildWorkerThread() {
