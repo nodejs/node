@@ -1084,16 +1084,17 @@ module.exports = {
             },
 
             ArrowFunctionExpression(node) {
-                const firstToken = sourceCode.getFirstToken(node);
+                const maybeOpeningParen = sourceCode.getFirstToken(node, { skip: node.async ? 1 : 0 });
 
-                if (astUtils.isOpeningParenToken(firstToken)) {
-                    const openingParen = firstToken;
+                if (astUtils.isOpeningParenToken(maybeOpeningParen)) {
+                    const openingParen = maybeOpeningParen;
                     const closingParen = sourceCode.getTokenBefore(node.body, astUtils.isClosingParenToken);
 
                     parameterParens.add(openingParen);
                     parameterParens.add(closingParen);
                     addElementListIndent(node.params, openingParen, closingParen, options.FunctionExpression.parameters);
                 }
+
                 addBlocklessNodeIndent(node.body);
             },
 
