@@ -2139,11 +2139,6 @@ import 'package-name'; // supported
 
 `import` with URL schemes other than `file` and `data` is unsupported.
 
-<a id="ERR_V8BREAKITERATOR"></a>
-### `ERR_V8BREAKITERATOR`
-
-The V8 `BreakIterator` API was used but the full ICU data set is not installed.
-
 <a id="ERR_VALID_PERFORMANCE_ENTRY_TYPE"></a>
 ### `ERR_VALID_PERFORMANCE_ENTRY_TYPE`
 
@@ -2554,6 +2549,11 @@ removed: v11.7.0
 An attempt was made to launch a Node.js process with an unknown `stdout` or
 `stderr` file type. This error is usually an indication of a bug within Node.js
 itself, although it is possible for user code to trigger it.
+
+<a id="ERR_V8BREAKITERATOR"></a>
+### `ERR_V8BREAKITERATOR`
+
+The V8 `BreakIterator` API was used but the full ICU data set is not installed.
 
 <a id="ERR_VALUE_OUT_OF_RANGE"></a>
 ### `ERR_VALUE_OUT_OF_RANGE`
