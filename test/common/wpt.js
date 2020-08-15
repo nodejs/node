@@ -6,8 +6,8 @@ const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const fsPromises = fs.promises;
 const path = require('path');
-const vm = require('vm');
 const { inspect } = require('util');
+const { Worker } = require('worker_threads');
 
 // https://github.com/w3c/testharness.js/blob/master/testharness.js
 // TODO: get rid of this half-baked harness in favor of the one
@@ -222,7 +222,6 @@ class IntlRequirement {
 
 const intlRequirements = new IntlRequirement();
 
-
 class StatusLoader {
   /**
    * @param {string} path relative path of the WPT subset
@@ -287,10 +286,9 @@ class WPTRunner {
   constructor(path) {
     this.path = path;
     this.resource = new ResourceLoader(path);
-    this.sandbox = null;
-    this.context = null;
 
-    this.globals = new Map();
+    this.flags = [];
+    this.initScript = null;
 
     this.status = new StatusLoader(path);
     this.status.load();
@@ -304,28 +302,19 @@ class WPTRunner {
   }
 
   /**
-   * Specify that certain global descriptors from the object
-   * should be defined in the vm
-   * @param {object} obj
-   * @param {string[]} names
+   * Sets the Node.js flags passed to the worker.
+   * @param {Array<string>} flags
    */
-  copyGlobalsFromObject(obj, names) {
-    for (const name of names) {
-      const desc = Object.getOwnPropertyDescriptor(obj, name);
-      if (!desc) {
-        assert.fail(`${name} does not exist on the object`);
-      }
-      this.globals.set(name, desc);
-    }
+  setFlags(flags) {
+    this.flags = flags;
   }
 
   /**
-   * Specify that certain global descriptors should be defined in the vm
-   * @param {string} name
-   * @param {object} descriptor
+   * Sets a script to be run in the worker before executing the tests.
+   * @param {string} script
    */
-  defineGlobal(name, descriptor) {
-    this.globals.set(name, descriptor);
+  setInitScript(script) {
+    this.initScript = script;
   }
 
   // TODO(joyeecheung): work with the upstream to port more tests in .html
@@ -353,8 +342,8 @@ class WPTRunner {
       const meta = spec.title = this.getMeta(content);
 
       const absolutePath = spec.getAbsolutePath();
-      const context = this.generateContext(spec);
       const relativePath = spec.getRelativePath();
+      const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
       const scriptsToRun = [];
       // Scripts specified with the `// META: script=` header
       if (meta.script) {
@@ -371,24 +360,46 @@ class WPTRunner {
         filename: absolutePath
       });
 
-      for (const { code, filename } of scriptsToRun) {
-        try {
-          vm.runInContext(code, context, { filename });
-        } catch (err) {
-          this.fail(
-            testFileName,
-            {
-              status: NODE_UNCAUGHT,
-              name: 'evaluation in WPTRunner.runJsTests()',
-              message: err.message,
-              stack: inspect(err)
-            },
-            kUncaught
-          );
-          this.inProgress.delete(filename);
-          break;
+      const workerPath = path.join(__dirname, 'wpt/worker.js');
+      const worker = new Worker(workerPath, {
+        execArgv: this.flags,
+        workerData: {
+          filename: testFileName,
+          wptRunner: __filename,
+          wptPath: this.path,
+          initScript: this.initScript,
+          harness: {
+            code: fs.readFileSync(harnessPath, 'utf8'),
+            filename: harnessPath,
+          },
+          scriptsToRun,
+        },
+      });
+
+      worker.on('message', (message) => {
+        switch (message.type) {
+          case 'result':
+            return this.resultCallback(testFileName, message.result);
+          case 'completion':
+            return this.completionCallback(testFileName, message.status);
+          default:
+            throw new Error(`Unexpected message from worker: ${message.type}`);
         }
-      }
+      });
+
+      worker.on('error', (err) => {
+        this.fail(
+          testFileName,
+          {
+            status: NODE_UNCAUGHT,
+            name: 'evaluation in WPTRunner.runJsTests()',
+            message: err.message,
+            stack: inspect(err)
+          },
+          kUncaught
+        );
+        this.inProgress.delete(testFileName);
+      });
     }
 
     process.on('exit', () => {
@@ -428,56 +439,6 @@ class WPTRunner {
           `Consider updating ${file} for these files:\n${failures.join('\n')}`);
       }
     });
-  }
-
-  mock(testfile) {
-    const resource = this.resource;
-    const result = {
-      // This is a mock, because at the moment fetch is not implemented
-      // in Node.js, but some tests and harness depend on this to pull
-      // resources.
-      fetch(file) {
-        return resource.read(testfile, file, true);
-      },
-      GLOBAL: {
-        isWindow() { return false; }
-      },
-      Object
-    };
-
-    return result;
-  }
-
-  // Note: this is how our global space for the WPT test should look like
-  getSandbox(filename) {
-    const result = this.mock(filename);
-    for (const [name, desc] of this.globals) {
-      Object.defineProperty(result, name, desc);
-    }
-    return result;
-  }
-
-  generateContext(test) {
-    const filename = test.filename;
-    const sandbox = this.sandbox = this.getSandbox(test.getRelativePath());
-    const context = this.context = vm.createContext(sandbox);
-
-    const harnessPath = fixtures.path('wpt', 'resources', 'testharness.js');
-    const harness = fs.readFileSync(harnessPath, 'utf8');
-    vm.runInContext(harness, context, {
-      filename: harnessPath
-    });
-
-    sandbox.add_result_callback(
-      this.resultCallback.bind(this, filename)
-    );
-    sandbox.add_completion_callback(
-      this.completionCallback.bind(this, filename)
-    );
-    sandbox.self = sandbox;
-    // TODO(joyeecheung): we are not a window - work with the upstream to
-    // add a new scope for us.
-    return context;
   }
 
   getTestTitle(filename) {
@@ -524,9 +485,9 @@ class WPTRunner {
    * Report the status of each WPT test (one per file)
    *
    * @param {string} filename
-   * @param {Test[]} test  The Test objects returned by WPT harness
+   * @param {object} harnessStatus - The status object returned by WPT harness.
    */
-  completionCallback(filename, tests, harnessStatus) {
+  completionCallback(filename, harnessStatus) {
     // Treat it like a test case failure
     if (harnessStatus.status === 2) {
       const title = this.getTestTitle(filename);
@@ -644,5 +605,6 @@ class WPTRunner {
 
 module.exports = {
   harness: harnessMock,
+  ResourceLoader,
   WPTRunner
 };
