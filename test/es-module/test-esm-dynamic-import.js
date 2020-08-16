@@ -8,15 +8,11 @@ const absolutePath = require.resolve('../fixtures/es-modules/test-esm-ok.mjs');
 const targetURL = new URL('file:///');
 targetURL.pathname = absolutePath;
 
-function expectErrorProperty(result, propertyKey, value) {
-  Promise.resolve(result)
-    .catch(common.mustCall((error) => {
-      assert.strictEqual(error[propertyKey], value);
-    }));
-}
-
-function expectModuleError(result, err) {
-  expectErrorProperty(result, 'code', err);
+function expectModuleError(result, code, message) {
+  Promise.resolve(result).catch(common.mustCall((error) => {
+    assert.strictEqual(error.code, code);
+    if (message) assert.strictEqual(error.message, message);
+  }));
 }
 
 function expectOkNamespace(result) {
@@ -60,4 +56,13 @@ function expectFsNamespace(result) {
                     'ERR_MODULE_NOT_FOUND');
   expectModuleError(import('http://example.com/foo.js'),
                     'ERR_UNSUPPORTED_ESM_URL_SCHEME');
+  if (common.isWindows) {
+    const msg =
+      'Only file and data URLs are supported by the default ESM loader. ' +
+      'Absolute Windows paths without prefix are not valid URLs, ' +
+      "consider using 'file://' prefix. Received protocol 'c:'";
+    expectModuleError(import('C:\\example\\foo.mjs'),
+                      'ERR_UNSUPPORTED_ESM_URL_SCHEME',
+                      msg);
+  }
 })();
