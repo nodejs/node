@@ -106,7 +106,9 @@ console.log(Certificate.verifySpkac(Buffer.from(spkac)));
 
 ### Legacy API
 
-As a still supported legacy interface, it is possible to create new instances of
+> Stability: 0 - Deprecated
+
+As a legacy interface, it is possible to create new instances of
 the `crypto.Certificate` class as illustrated in the examples below.
 
 #### `new crypto.Certificate()`
