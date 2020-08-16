@@ -2776,6 +2776,20 @@ Type: Documentation-only
 
 [`socket.bufferSize`][] is just an alias for [`writable.writableLength`][].
 
+<a id="DEP0XXX"></a>
+### DEP0XXX: `new crypto.Certificate()`
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34697
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`crypto.Certificate()` constructor][] is deprecated. Use
+[static methods of `crypto.Certificate()`][] instead.
+
 [`--pending-deprecation`]: cli.html#cli_pending_deprecation
 [`--throw-deprecation`]: cli.html#cli_throw_deprecation
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_static_method_buffer_allocunsafeslow_size
@@ -2798,6 +2812,7 @@ Type: Documentation-only
 [`clearTimeout()`]: timers.html#timers_cleartimeout_timeout
 [`console.error()`]: console.html#console_console_error_data_args
 [`console.log()`]: console.html#console_console_log_data_args
+[`crypto.Certificate()` constructor]: crypto.html#crypto_legacy_api
 [`crypto.DEFAULT_ENCODING`]: crypto.html#crypto_crypto_default_encoding
 [`crypto.createCipher()`]: crypto.html#crypto_crypto_createcipher_algorithm_password_options
 [`crypto.createCipheriv()`]: crypto.html#crypto_crypto_createcipheriv_algorithm_key_iv_options
@@ -2897,3 +2912,4 @@ Type: Documentation-only
 [from_arraybuffer]: buffer.html#buffer_static_method_buffer_from_arraybuffer_byteoffset_length
 [from_string_encoding]: buffer.html#buffer_static_method_buffer_from_string_encoding
 [legacy `urlObject`]: url.html#url_legacy_urlobject
+[static methods of `crypto.Certificate()`]: crypto.html#crypto_class_certificate
