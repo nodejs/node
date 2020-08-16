@@ -1506,7 +1506,7 @@ console.log(VERSION);
 
 With this loader, running:
 
-```console
+```bash
 node --experimental-loader ./https-loader.mjs ./main.mjs
 ```
 
