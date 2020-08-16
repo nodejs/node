@@ -7,8 +7,9 @@ const { Stream } = require('stream');
 const { inspect } = require('util');
 
 common.skipIfInspectorDisabled();
-common.skipIfDumbTerminal();
 
+// Ignore terminal settings. This is so the test can be run intact if TERM=dumb.
+process.env.TERM = '';
 const PROMPT = 'repl > ';
 
 class REPLStream extends Stream {
