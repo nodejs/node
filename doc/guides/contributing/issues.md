@@ -100,8 +100,8 @@ on the README.md of this project with: i) a request to be added as a triager,
 ii) the motivation for becoming a triager, and iii) agreement on reading,
 understanding, and adhering to the project's [Code Of Conduct](https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md).
 
-The triage role enables the ability to carry the out most common triage
-activities, such as applying labels and close/repoening/assigning issues.
+The triage role enables the ability to carry out the most common triage
+activities, such as applying labels and closing/reopening/assigning issues.
 For more information on the roles and permissions, see ["Permission levels for
 repositories owned by an organization"](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization).
 
