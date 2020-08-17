@@ -28,7 +28,7 @@ function resetPackage (options) {
     chownSync(CACHE_DIR, sudoUID, sudoGID)
   }
 
-  fs.writeFileSync(path.resolve(PKG_DIR, 'package.json'), DEFAULT_PKG)
+  fs.writeFileSync(path.resolve(PKG_DIR, 'package.json'), JSON.stringify(DEFAULT_PKG))
 }
 
 test('setup', function (t) {
