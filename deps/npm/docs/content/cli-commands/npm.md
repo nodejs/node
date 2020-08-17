@@ -60,8 +60,7 @@ requires compiling of C++ Code, npm will use
 [node-gyp](https://github.com/nodejs/node-gyp) for that task.
 For a Unix system, [node-gyp](https://github.com/nodejs/node-gyp)
 needs Python, make and a buildchain like GCC. On Windows,
-Python and Microsoft Visual Studio C++ are needed. Python 3 is
-not supported by [node-gyp](https://github.com/nodejs/node-gyp).
+Python and Microsoft Visual Studio C++ are needed.
 For more information visit
 [the node-gyp repository](https://github.com/nodejs/node-gyp) and
 the [node-gyp Wiki](https://github.com/nodejs/node-gyp/wiki).
