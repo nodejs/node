@@ -50,7 +50,9 @@ function checkFile(path) {
     const targetURL = new URL(node.url, base);
     if (targetURL.protocol === 'file:' && !fs.existsSync(targetURL)) {
       const { line, column } = node.position.start;
-      console.error(`Broken link at ${path}:${line}:${column} (${node.url})`);
+      console.error((process.env.GITHUB_ACTIONS ?
+        `::error file=${path},line=${line},col=${column}::` : '') +
+        `Broken link at ${path}:${line}:${column} (${node.url})`);
       process.exitCode = 1;
     }
   }
