@@ -126,9 +126,9 @@ void FSContinuationData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("paths", paths_);
 }
 
-FileHandleReadWrap::~FileHandleReadWrap() {}
+FileHandleReadWrap::~FileHandleReadWrap() = default;
 
-FSReqBase::~FSReqBase() {}
+FSReqBase::~FSReqBase() = default;
 
 void FSReqBase::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("continuation_data", continuation_data_);
