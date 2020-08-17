@@ -197,7 +197,7 @@ function install (where, args, cb) {
   var dryrun = !!npm.config.get('dry-run')
 
   if (npm.config.get('dev')) {
-    log.warn('install', 'Usage of the `--dev` option is deprecated. Use `--only=dev` instead.')
+    log.warn('install', 'Usage of the `--dev` option is deprecated. Use `--also=dev` instead.')
   }
 
   if (where === globalTop && !args.length) {

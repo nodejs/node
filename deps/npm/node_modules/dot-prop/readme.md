@@ -85,6 +85,8 @@ Path of the property in the object, using `.` to separate each nested key.
 
 Use `\\.` if you have a `.` in the key.
 
+The following path components are invalid and results in `undefined` being returned: `__proto__`, `prototype`, `constructor`.
+
 #### value
 
 Type: `any`

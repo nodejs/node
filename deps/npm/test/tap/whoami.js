@@ -36,7 +36,7 @@ test('npm whoami with basic auth', function (t) {
   )
 })
 
-test('npm whoami with bearer auth', { timeout: 6000 }, function (t) {
+test('npm whoami with bearer auth', { timeout: 8000 }, function (t) {
   var s = '//localhost:' + common.port +
           '/:_authToken = wombat-developers-union\n'
   fs.writeFileSync(FIXTURE_PATH, s, 'ascii')

@@ -1,4 +1,4 @@
-# meant [![Build Status](https://travis-ci.org/watilde/meant.png?branch=master)](https://travis-ci.org/watilde/meant)
+# meant ![Build status](https://github.com/watilde/meant/workflows/Node.js%20CI/badge.svg)
 
 Like the `Did you mean?` in git for npm
 

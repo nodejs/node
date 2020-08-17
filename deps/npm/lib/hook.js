@@ -10,6 +10,7 @@ const pudding = require('figgy-pudding')
 const relativeDate = require('tiny-relative-date')
 const Table = require('cli-table3')
 const validate = require('aproba')
+const npm = require('./npm')
 
 hook.usage = [
   'npm hook add <pkg> <url> <secret> [--type=<type>]',
@@ -40,6 +41,10 @@ module.exports = (args, cb) => BB.try(() => hook(args)).then(
   err => err.code === 'EUSAGE' ? cb(err.message) : cb(err)
 )
 function hook (args) {
+  if (args.length === 4) { // secret is passed in the args
+    // we have the user secret in the CLI args, we need to redact it from the referer.
+    redactUserSecret()
+  }
   return otplease(npmConfig(), opts => {
     opts = HookConfig(opts)
     switch (args[0]) {
@@ -149,4 +154,12 @@ function hookName (hook) {
   if (hook.type === 'scope') { target = '@' + target }
   if (hook.type === 'owner') { target = '~' + target }
   return target
+}
+
+function redactUserSecret () {
+  const referer = npm.referer
+  if (!referer) return
+  const splittedReferer = referer.split(' ')
+  splittedReferer[4] = '[REDACTED]'
+  npm.referer = splittedReferer.join(' ')
 }
