@@ -43,6 +43,8 @@ typedef struct {
 
 #ifdef NAPI_EXPERIMENTAL
 typedef struct napi_async_cleanup_hook_handle__* napi_async_cleanup_hook_handle;
+typedef void (*napi_async_cleanup_hook)(napi_async_cleanup_hook_handle handle,
+                                        void* data);
 #endif  // NAPI_EXPERIMENTAL
 
 #endif  // SRC_NODE_API_TYPES_H_
