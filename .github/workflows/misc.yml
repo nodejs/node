@@ -28,3 +28,5 @@ jobs:
         with:
           name: docs
           path: out/doc
+      - name: Check links
+        run: node tools/doc/checkLinks.js .
