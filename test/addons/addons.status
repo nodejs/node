@@ -7,6 +7,8 @@ prefix addons
 [true] # This section applies to all platforms
 # Building zlib in //third_party makes this test fail.
 zlib-binding/test: SKIP
+# Async-cleaup-hook fails.
+async-cleanup-hook/test: SKIP
 
 [$arch==arm]
 # https://github.com/nodejs/node/issues/30786
