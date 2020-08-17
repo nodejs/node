@@ -13,16 +13,16 @@
 /CODE_OF_CONDUCT.md @nodejs/tsc @nodejs/community-committee
 /CONTRIBUTING.md @nodejs/tsc @nodejs/community-committee
 /LICENSE @nodejs/tsc @nodejs/community-committee
-/docs/guides/contributing/code-of-conduct.md @nodejs/tsc @nodejs/community-committee
+/doc/guides/contributing/code-of-conduct.md @nodejs/tsc @nodejs/community-committee
 # TODO(mmarchini): the bot doens't have a notion of precedence, that might
 # change when move the codeowners code to an Action, at which point we can
 # uncomment the line below
-# /docs/guides/contributing/*.md @nodejs/tsc
-/docs/guides/contributing/issues.md @nodejs/tsc
-/docs/guides/contributing/pull-requests.md @nodejs/tsc
-/docs/guides/collaborator-guide.md @nodejs/tsc
-/docs/guides/offboarding.md @nodejs/tsc
-/docs/guides/onboarding-extras.md @nodejs/tsc
+# /doc/guides/contributing/*.md @nodejs/tsc
+/doc/guides/contributing/issues.md @nodejs/tsc
+/doc/guides/contributing/pull-requests.md @nodejs/tsc
+/doc/guides/collaborator-guide.md @nodejs/tsc
+/doc/guides/offboarding.md @nodejs/tsc
+/doc/guides/onboarding-extras.md @nodejs/tsc
 
 # net
 
