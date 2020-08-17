@@ -41,3 +41,14 @@ function check(addressType, cb) {
 check(4, function() {
   common.hasIPv6 && check(6);
 });
+
+// Verify that bad lookup() IPs are handled.
+{
+  net.connect({
+    host: 'localhost',
+    port: 80,
+    lookup(host, dnsopts, cb) {
+      cb(null, undefined, 4);
+    }
+  }).on('error', common.expectsError({ code: 'ERR_INVALID_IP_ADDRESS' }));
+}
