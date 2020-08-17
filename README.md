@@ -153,8 +153,6 @@ For information about the governance of the Node.js project, see
 ### TSC (Technical Steering Committee)
 
 <!--lint disable prohibited-strings-->
-* [addaleax](https://github.com/addaleax) -
-**Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [apapirovski](https://github.com/apapirovski) -
 **Anatoli Papirovski** &lt;apapirovski@mac.com&gt; (he/him)
 * [BethGriggs](https://github.com/BethGriggs) -
@@ -196,6 +194,8 @@ For information about the governance of the Node.js project, see
 
 ### TSC Emeriti
 
+* [addaleax](https://github.com/addaleax) -
+**Anna Henningsen** &lt;anna@addaleax.net&gt; (she/her)
 * [bnoordhuis](https://github.com/bnoordhuis) -
 **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
 * [chrisdickinson](https://github.com/chrisdickinson) -
