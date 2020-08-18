@@ -117,6 +117,15 @@ added: v8.3.0
 Cancel all outstanding DNS queries made by this resolver. The corresponding
 callbacks will be called with an error with code `ECANCELLED`.
 
+### `resolver.setLocalAddress(addr)`
+<!-- YAML
+added: v15.0.0
+-->
+
+* `addr` {string} A string representation of an IPv4 or IPv6 address.
+
+The resolver instance will send its requests from the specified IP address.  This allows programs to specify outbound interfaces when used on multi-homed systems.
+
 ## `dns.getServers()`
 <!-- YAML
 added: v0.11.3

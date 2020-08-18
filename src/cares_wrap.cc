@@ -2227,6 +2227,29 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  ChannelWrap* channel;
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+
+  CHECK(args[0]->IsString());
+
+  Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+
+  unsigned char addr[sizeof(struct in6_addr)];
+
+  if (uv_inet_pton(AF_INET, *ip, &addr) == 0) {
+    unsigned int ip4 = (addr[0] << 24) + (addr[1] << 16) + (addr[2] << 8) + addr[3];
+    ares_set_local_ip4(channel->cares_channel(), ip4);
+  } else if (uv_inet_pton(AF_INET6, *ip, &addr) == 0) {
+    ares_set_local_ip6(channel->cares_channel(), reinterpret_cast<const unsigned char*>(&addr));
+  } else {
+    return env->ThrowError("Invalid IP address.");
+  }
+
+}
+
 void Cancel(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
@@ -2329,6 +2352,7 @@ void Initialize(Local<Object> target,
 
   env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
+  env->SetProtoMethod(channel_wrap, "setLocalAddress", SetLocalAddress);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 
   Local<String> channelWrapString =
