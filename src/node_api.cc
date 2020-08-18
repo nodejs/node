@@ -522,12 +522,11 @@ struct napi_async_cleanup_hook_handle__ {
   napi_async_cleanup_hook_handle__(napi_env env,
                                    napi_async_cleanup_hook user_hook,
                                    void* user_data):
-      handle_(std::move(node::AddEnvironmentCleanupHook(env->isolate,
-                                                        Hook,
-                                                        this))),
       env_(env),
       user_hook_(user_hook),
       user_data_(user_data) {
+    auto handle = node::AddEnvironmentCleanupHook(env->isolate, Hook, this);
+    handle_ = std::move(handle);
     env->Ref();
   }
 
