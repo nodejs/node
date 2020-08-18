@@ -17,7 +17,7 @@ const tmpdir = require('../common/tmpdir');
 
 // Choose a socket name such that the absolute path would exceed 100 bytes.
 const socketDir = './unix-socket-dir';
-const socketName = 'A'.repeat(100 - socketDir.length - 1);
+const socketName = 'A'.repeat(101 - socketDir.length);
 
 // Make sure we're not in a weird environment.
 assert.ok(path.resolve(socketDir, socketName).length > 100,
