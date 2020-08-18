@@ -1626,11 +1626,13 @@ NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
 hook. This handle must be passed to [`napi_remove_async_cleanup_hook`][] even if
 `hook` gets called.
 
-Registers `hook` as a function to be run with the `remove_handle` and `arg`
-parameters once the current Node.js environment exits. Unlike
-[`napi_add_env_cleanup_hook`][], the hook is allowed to be asynchronous, and
-must pass `remove_handle` in a call to [`napi_remove_env_cleanup_hook`][] once
-all asynchronous activity is finished.
+Registers `hook`, which is a function of type [`napi_async_cleanup_hook`][], as
+a function to be run with the `remove_handle` and `arg` parameters once the
+current Node.js environment exits.
+
+Unlike [`napi_add_env_cleanup_hook`][], the hook
+is allowed to be asynchronous, and must pass `remove_handle` in a call to
+[`napi_remove_env_cleanup_hook`][] once all asynchronous activity is finished.
 
 Otherwise, behavior generally matches that of [`napi_add_env_cleanup_hook`][].
 
@@ -5799,6 +5801,7 @@ This API may only be called from the main thread.
 [`napi_add_async_cleanup_hook`]: #n_api_napi_add_async_cleanup_hook
 [`napi_add_env_cleanup_hook`]: #n_api_napi_add_env_cleanup_hook
 [`napi_add_finalizer`]: #n_api_napi_add_finalizer
+[`napi_async_cleanup_hook`]: #n_api_napi_async_cleanup_hook
 [`napi_async_complete_callback`]: #n_api_napi_async_complete_callback
 [`napi_async_init`]: #n_api_napi_async_init
 [`napi_callback`]: #n_api_napi_callback
