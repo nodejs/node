@@ -525,14 +525,13 @@ struct napi_async_cleanup_hook_handle__ {
       env_(env),
       user_hook_(user_hook),
       user_data_(user_data) {
-    auto handle = node::AddEnvironmentCleanupHook(env->isolate, Hook, this);
-    handle_ = std::move(handle);
+    handle_ = node::AddEnvironmentCleanupHook(env->isolate, Hook, this);
     env->Ref();
   }
 
   ~napi_async_cleanup_hook_handle__() {
     node::RemoveEnvironmentCleanupHook(std::move(handle_));
-    if (done_cb_)
+    if (done_cb_ != nullptr)
       done_cb_(done_data_);
 
     // Release the `env` handle asynchronously since it would be surprising if
