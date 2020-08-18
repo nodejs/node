@@ -29,7 +29,7 @@ function runURLSearchParamTests() {
     'use strict'
     var urlString = 'http://example.org'
     var url = bURL(urlString)
-    assert_throws(TypeError(), function() { url.searchParams = new URLSearchParams(urlString) })
+    assert_throws_js(TypeError, function() { url.searchParams = new URLSearchParams(urlString) })
   }, 'URL.searchParams setter, invalid values')
 
   test(function() {

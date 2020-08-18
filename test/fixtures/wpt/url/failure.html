@@ -20,29 +20,29 @@ function runTests(testData) {
     self.test(() => { // URL's constructor's first argument is tested by url-constructor.html
       // If a URL fails to parse with any valid base, it must also fail to parse with no base, i.e.
       // when used as a base URL itself.
-      assert_throws(new TypeError(), () => new URL("about:blank", test.input));
+      assert_throws_js(TypeError, () => new URL("about:blank", test.input));
     }, "URL's constructor's base argument: " + name)
 
     self.test(() => {
       const url = new URL("about:blank")
-      assert_throws(new TypeError, () => url.href = test.input)
+      assert_throws_js(TypeError, () => url.href = test.input)
     }, "URL's href: " + name)
 
     self.test(() => {
       const client = new XMLHttpRequest()
-      assert_throws("SyntaxError", () => client.open("GET", test.input))
+      assert_throws_dom("SyntaxError", () => client.open("GET", test.input))
     }, "XHR: " + name)
 
     self.test(() => {
-      assert_throws(new TypeError, () => self.navigator.sendBeacon(test.input))
+      assert_throws_js(TypeError, () => self.navigator.sendBeacon(test.input))
     }, "sendBeacon(): " + name)
 
     self.test(() => {
-      assert_throws(new TypeError, () => self[0].location = test.input)
+      assert_throws_js(self[0].TypeError, () => self[0].location = test.input)
     }, "Location's href: " + name)
 
     self.test(() => {
-      assert_throws("SyntaxError", () => self.open(test.input).close())
+      assert_throws_dom("SyntaxError", () => self.open(test.input).close())
     }, "window.open(): " + name)
   }
 }

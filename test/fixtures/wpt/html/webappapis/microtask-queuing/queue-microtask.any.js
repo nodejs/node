@@ -6,12 +6,12 @@ test(() => {
 }, "It exists and is a function");
 
 test(() => {
-  assert_throws(new TypeError(), () => queueMicrotask(), "no argument");
-  assert_throws(new TypeError(), () => queueMicrotask(undefined), "undefined");
-  assert_throws(new TypeError(), () => queueMicrotask(null), "null");
-  assert_throws(new TypeError(), () => queueMicrotask(0), "0");
-  assert_throws(new TypeError(), () => queueMicrotask({ handleEvent() { } }), "an event handler object");
-  assert_throws(new TypeError(), () => queueMicrotask("window.x = 5;"), "a string");
+  assert_throws_js(TypeError, () => queueMicrotask(), "no argument");
+  assert_throws_js(TypeError, () => queueMicrotask(undefined), "undefined");
+  assert_throws_js(TypeError, () => queueMicrotask(null), "null");
+  assert_throws_js(TypeError, () => queueMicrotask(0), "0");
+  assert_throws_js(TypeError, () => queueMicrotask({ handleEvent() { } }), "an event handler object");
+  assert_throws_js(TypeError, () => queueMicrotask("window.x = 5;"), "a string");
 }, "It throws when given non-functions");
 
 async_test(t => {

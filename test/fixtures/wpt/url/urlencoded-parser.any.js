@@ -28,7 +28,11 @@
   { "input": '%a=a', "output": [['%a', 'a']] },
   { "input": '%a_=a', "output": [['%a_', 'a']] },
   { "input": '%61=a', "output": [['a', 'a']] },
-  { "input": '%61+%4d%4D=', "output": [['a MM', '']] }
+  { "input": '%61+%4d%4D=', "output": [['a MM', '']] },
+  { "input": "id=0&value=%", "output": [['id', '0'], ['value', '%']] },
+  { "input": "b=%2sf%2a", "output": [['b', '%2sf*']]},
+  { "input": "b=%2%2af%2a", "output": [['b', '%2*f*']]},
+  { "input": "b=%%2a", "output": [['b', '%*']]}
 ].forEach((val) => {
   test(() => {
     let sp = new URLSearchParams(val.input),
