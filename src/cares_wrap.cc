@@ -29,6 +29,7 @@
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 #include "uv.h"
+#include "node_errors.h"
 
 #include <cerrno>
 #include <cstring>
@@ -2149,6 +2150,70 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  ChannelWrap* channel;
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsString());
+
+  Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip0(isolate, args[0]);
+
+  unsigned char addr0[sizeof(struct in6_addr)];
+  unsigned char addr1[sizeof(struct in6_addr)];
+  int type0 = 0;
+
+  // This function accepts 2 arguments.  The first may be either an IPv4
+  // address or an IPv6 address.  If present, the second argument must be the
+  // other type of address.  Otherwise, the unspecified type of IP is set
+  // to 0 (any).
+
+  if (uv_inet_pton(AF_INET, *ip0, &addr0) == 0) {
+    ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr0));
+    type0 = 4;
+  } else if (uv_inet_pton(AF_INET6, *ip0, &addr0) == 0) {
+    ares_set_local_ip6(channel->cares_channel(), addr0);
+    type0 = 6;
+  } else {
+    THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
+    return;
+  }
+
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsString());
+    node::Utf8Value ip1(isolate, args[1]);
+
+    if (uv_inet_pton(AF_INET, *ip1, &addr1) == 0) {
+      if (type0 == 4) {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv4 addresses.");
+        return;
+      } else {
+        ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr1));
+      }
+    } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
+      if (type0 == 6) {
+        THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv6 addresses.");
+        return;
+      } else {
+        ares_set_local_ip6(channel->cares_channel(), addr1);
+      }
+    } else {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Invalid IP address.");
+      return;
+    }
+  } else {
+    // No second arg specifed
+    if (type0 == 4) {
+      memset(&addr1, 0, sizeof(addr1));
+      ares_set_local_ip6(channel->cares_channel(), addr1);
+    } else {
+      ares_set_local_ip4(channel->cares_channel(), 0);
+    }
+  }
+}
+
 void Cancel(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
   ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
@@ -2250,6 +2315,7 @@ void Initialize(Local<Object> target,
 
   env->SetProtoMethodNoSideEffect(channel_wrap, "getServers", GetServers);
   env->SetProtoMethod(channel_wrap, "setServers", SetServers);
+  env->SetProtoMethod(channel_wrap, "setLocalAddress", SetLocalAddress);
   env->SetProtoMethod(channel_wrap, "cancel", Cancel);
 
   Local<String> channelWrapString =
