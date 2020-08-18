@@ -15,18 +15,30 @@ cases.forEach(function(testCase) {
             decoder.decode(bytes),
             BOM + 'abc',
             testCase.encoding + ': BOM should be present in decoded string if ignored');
+        assert_equals(
+            decoder.decode(bytes),
+            BOM + 'abc',
+            testCase.encoding + ': BOM should be present in decoded string if ignored by a reused decoder');
 
         decoder = new TextDecoder(testCase.encoding, {ignoreBOM: false});
         assert_equals(
             decoder.decode(bytes),
             'abc',
             testCase.encoding + ': BOM should be absent from decoded string if not ignored');
+        assert_equals(
+            decoder.decode(bytes),
+            'abc',
+            testCase.encoding + ': BOM should be absent from decoded string if not ignored by a reused decoder');
 
         decoder = new TextDecoder(testCase.encoding);
         assert_equals(
             decoder.decode(bytes),
             'abc',
             testCase.encoding + ': BOM should be absent from decoded string by default');
+        assert_equals(
+            decoder.decode(bytes),
+            'abc',
+            testCase.encoding + ': BOM should be absent from decoded string by default with a reused decoder');
     }, 'BOM is ignored if ignoreBOM option is specified: ' + testCase.encoding);
 });
 

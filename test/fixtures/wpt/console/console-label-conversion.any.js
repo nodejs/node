@@ -18,7 +18,7 @@ for (const method of methods) {
   }, `console.${method}()'s label gets converted to string via label.toString() when label is an object`);
 
   test(() => {
-    assert_throws({name: 'Error'}, () => {
+    assert_throws_js(Error, () => {
       console[method]({
         toString() {
           throw new Error('conversion error');

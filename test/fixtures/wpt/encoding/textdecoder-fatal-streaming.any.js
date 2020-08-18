@@ -7,7 +7,7 @@ test(function() {
         {encoding: 'utf-16be', sequence: [0x00]}
     ].forEach(function(testCase) {
 
-        assert_throws(new TypeError(), function() {
+        assert_throws_js(TypeError, function() {
             var decoder = new TextDecoder(testCase.encoding, {fatal: true});
             decoder.decode(new Uint8Array(testCase.sequence));
         }, 'Unterminated ' + testCase.encoding + ' sequence should throw if fatal flag is set');
@@ -28,12 +28,12 @@ test(function() {
     assert_equals(decoder.decode(odd, {stream: true}), '');
     assert_equals(decoder.decode(odd), '\u0000');
 
-    assert_throws(new TypeError(), function() {
+    assert_throws_js(TypeError, function() {
         decoder.decode(even, {stream: true});
         decoder.decode(odd)
     });
 
-    assert_throws(new TypeError(), function() {
+    assert_throws_js(TypeError, function() {
         decoder.decode(odd, {stream: true});
         decoder.decode(even);
     });

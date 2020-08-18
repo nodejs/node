@@ -38,7 +38,7 @@ bad.forEach(function(t) {
         assert_equals(new TextDecoder(t.encoding).decode(new Uint8Array(t.input)), t.expected);
     }, t.encoding + ' - ' + t.name);
     test(function() {
-        assert_throws(new TypeError(), function() {
+        assert_throws_js(TypeError, function() {
             new TextDecoder(t.encoding, {fatal: true}).decode(new Uint8Array(t.input))
         });
     }, t.encoding + ' - ' + t.name + ' (fatal flag set)');

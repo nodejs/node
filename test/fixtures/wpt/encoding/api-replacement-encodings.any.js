@@ -7,8 +7,9 @@ encodings_table.forEach(function(section) {
     }).forEach(function(encoding) {
         encoding.labels.forEach(function(label) {
             test(function() {
-                assert_throws(new RangeError(), function() { new TextDecoder(label); });
+                assert_throws_js(RangeError, function() { new TextDecoder(label); });
             }, 'Label for "replacement" should be rejected by API: ' + label);
         });
     });
 });
+

@@ -15,7 +15,7 @@ function runURLTests(urltests) {
 
     test(function() {
       if (expected.failure) {
-        assert_throws(new TypeError(), function() {
+        assert_throws_js(TypeError, function() {
           bURL(expected.input, expected.base)
         })
         return

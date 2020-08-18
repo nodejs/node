@@ -199,31 +199,15 @@ function runTextEncoderStreamTests() {
     const objId = await constructAndStore('TextEncoderStream');
     // Read first to relieve backpressure.
     const readPromise = readInReadRealm(objId);
-    // promise_rejects() does not permit directly inspecting the rejection, so
-    // it's necessary to write it out long-hand.
-    let writeSucceeded = false;
-    try {
-      // Write an invalid chunk.
-      await writeInWriteRealm(objId, {
-        toString() { return {}; }
-      });
-      writeSucceeded = true;
-    } catch (err) {
-      assert_equals(err.constructor, constructorRealm.TypeError,
-                    'write TypeError should come from constructor realm');
-    }
-    assert_false(writeSucceeded, 'write should fail');
 
-    let readSucceeded = false;
-    try {
-      await readPromise;
-      readSucceeded = true;
-    } catch (err) {
-      assert_equals(err.constructor, constructorRealm.TypeError,
-                    'read TypeError should come from constructor realm');
-    }
+    await promise_rejects_js(t, constructorRealm.TypeError,
+                             writeInWriteRealm(objId, {
+                               toString() { return {}; }
+                             }),
+                             'write TypeError should come from constructor realm');
 
-    assert_false(readSucceeded, 'read should fail');
+    return promise_rejects_js(t, constructorRealm.TypeError, readPromise,
+                              'read TypeError should come from constructor realm');
   }, 'TypeError for unconvertable chunk should come from constructor realm ' +
      'of TextEncoderStream');
 }
@@ -260,28 +244,16 @@ function runTextDecoderStreamTests() {
     const objId = await constructAndStore('TextDecoderStream');
     // Read first to relieve backpressure.
     const readPromise = readInReadRealm(objId);
-    // promise_rejects() does not permit directly inspecting the rejection, so
-    // it's necessary to write it out long-hand.
-    let writeSucceeded = false;
-    try {
-      // Write an invalid chunk.
-      await writeInWriteRealm(objId, {});
-      writeSucceeded = true;
-    } catch (err) {
-      assert_equals(err.constructor, constructorRealm.TypeError,
-                    'write TypeError should come from constructor realm');
-    }
-    assert_false(writeSucceeded, 'write should fail');
+    await promise_rejects_js(
+      t, constructorRealm.TypeError,
+      writeInWriteRealm(objId, {}),
+      'write TypeError should come from constructor realm'
+    );
 
-    let readSucceeded = false;
-    try {
-      await readPromise;
-      readSucceeded = true;
-    } catch (err) {
-      assert_equals(err.constructor, constructorRealm.TypeError,
-                    'read TypeError should come from constructor realm');
-    }
-    assert_false(readSucceeded, 'read should fail');
+    return promise_rejects_js(
+      t, constructorRealm.TypeError, readPromise,
+      'read TypeError should come from constructor realm'
+    );
   }, 'TypeError for chunk with the wrong type should come from constructor ' +
      'realm of TextDecoderStream');
 
@@ -290,27 +262,17 @@ function runTextDecoderStreamTests() {
           await constructAndStore(`TextDecoderStream('utf-8', {fatal: true})`);
     // Read first to relieve backpressure.
     const readPromise = readInReadRealm(objId);
-    // promise_rejects() does not permit directly inspecting the rejection, so
-    // it's necessary to write it out long-hand.
-    let writeSucceeded = false;
-    try {
-      await writeInWriteRealm(objId, new Uint8Array([0xff]));
-      writeSucceeded = true;
-    } catch (err) {
-      assert_equals(err.constructor, constructorRealm.TypeError,
-                    'write TypeError should come from constructor realm');
-    }
-    assert_false(writeSucceeded, 'write should fail');
 
-    let readSucceeded = false;
-    try {
-      await readPromise;
-      readSucceeded = true;
-    } catch (err) {
-      assert_equals(err.constructor, constructorRealm.TypeError,
-                    'read TypeError should come from constructor realm');
-    }
-    assert_false(readSucceeded, 'read should fail');
+    await promise_rejects_js(
+      t, constructorRealm.TypeError,
+      writeInWriteRealm(objId, new Uint8Array([0xff])),
+      'write TypeError should come from constructor realm'
+    );
+
+    return promise_rejects_js(
+      t, constructorRealm.TypeError, readPromise,
+      'read TypeError should come from constructor realm'
+    );
   }, 'TypeError for invalid chunk should come from constructor realm ' +
      'of TextDecoderStream');
 
@@ -322,26 +284,21 @@ function runTextDecoderStreamTests() {
     // Write an unfinished sequence of bytes.
     const incompleteBytesId = id();
     writeRealm[incompleteBytesId] = new Uint8Array([0xf0]);
-    // promise_rejects() does not permit directly inspecting the rejection, so
-    // it's necessary to write it out long-hand.
-    let closeSucceeded = false;
-    try {
+
+    return promise_rejects_js(
+      t, constructorRealm.TypeError,
       // Can't use writeInWriteRealm() here because it doesn't make it possible
       // to reuse the writer.
-      await evalInRealmAndReturn(writeRealm, `
+      evalInRealmAndReturn(writeRealm, `
 (() => {
   const writer = window.${objId}.writable.getWriter();
   parent.writeMethod.call(writer, window.${incompleteBytesId});
   return parent.methodRealm.WritableStreamDefaultWriter.prototype
     .close.call(writer);
 })();
-`);
-      closeSucceeded = true;
-    } catch (err) {
-      assert_equals(err.constructor, constructorRealm.TypeError,
-                    'close TypeError should come from constructor realm');
-    }
-    assert_false(closeSucceeded, 'close should fail');
+`),
+      'close TypeError should come from constructor realm'
+    );
   }, 'TypeError for incomplete input should come from constructor realm ' +
      'of TextDecoderStream');
 }

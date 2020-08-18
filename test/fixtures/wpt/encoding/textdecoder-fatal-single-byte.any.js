@@ -1,6 +1,15 @@
 // META: timeout=long
 // META: title=Encoding API: Fatal flag for single byte encodings
 // META: timeout=long
+// META: variant=?1-1000
+// META: variant=?1001-2000
+// META: variant=?2001-3000
+// META: variant=?3001-4000
+// META: variant=?4001-5000
+// META: variant=?5001-6000
+// META: variant=?6001-7000
+// META: variant=?7001-last
+// META: script=/common/subset-tests.js
 
 var singleByteEncodings = [
      {encoding: 'IBM866', bad: []},
@@ -36,14 +45,14 @@ var singleByteEncodings = [
 singleByteEncodings.forEach(function(t) {
     for (var i = 0; i < 256; ++i) {
         if (t.bad.indexOf(i) != -1) {
-            test(function() {
-                assert_throws(new TypeError(), function() {
+            subsetTest(test, function() {
+                assert_throws_js(TypeError, function() {
                     new TextDecoder(t.encoding, {fatal: true}).decode(new Uint8Array([i]));
                 });
             }, 'Throw due to fatal flag: ' + t.encoding + ' doesn\'t have a pointer ' + i);
         }
         else {
-            test(function() {
+            subsetTest(test, function() {
                 assert_equals(typeof new TextDecoder(t.encoding, {fatal: true}).decode(new Uint8Array([i])), "string");
             }, 'Not throw: ' + t.encoding + ' has a pointer ' + i);
         }

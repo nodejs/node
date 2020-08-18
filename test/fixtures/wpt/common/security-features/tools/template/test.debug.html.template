@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+%(generated_disclaimer)s
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="timeout" content="long">%(meta_delivery_method)s
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+    <script src="/common/security-features/resources/common.sub.js"></script>
+    <!-- The original specification JSON for validating the scenario. -->
+    <script src="%(spec_json_js)s"></script>
+    <!-- Internal checking of the tests -->
+    <script src="%(sanity_checker_js)s"></script>
+%(helper_js)s  </head>
+  <body>
+    <script>
+      TestCase(
+        [
+          %(scenarios)s
+        ],
+        new SanityChecker()
+      ).start();
+    </script>
+    <div id="log"></div>
+  </body>
+</html>

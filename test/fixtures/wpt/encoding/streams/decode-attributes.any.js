@@ -1,4 +1,4 @@
-// META: global=worker
+// META: global=window,worker
 
 'use strict';
 
@@ -46,26 +46,26 @@ for (const trueValue of [true, 1, {}, [], 'yes']) {
 }
 
 test(() => {
-  assert_throws(new RangeError(), () => new TextDecoderStream(''),
-                'the constructor should throw');
+  assert_throws_js(RangeError, () => new TextDecoderStream(''),
+                   'the constructor should throw');
 }, 'constructing with an invalid encoding should throw');
 
 test(() => {
-  assert_throws(new TypeError(), () => new TextDecoderStream({
+  assert_throws_js(TypeError, () => new TextDecoderStream({
     toString() { return {}; }
   }), 'the constructor should throw');
 }, 'constructing with a non-stringifiable encoding should throw');
 
 test(() => {
-  assert_throws(new Error(),
-                () => new TextDecoderStream('utf-8', {
-                  get fatal() { throw new Error(); }
-                }), 'the constructor should throw');
+  assert_throws_js(Error,
+                   () => new TextDecoderStream('utf-8', {
+                     get fatal() { throw new Error(); }
+                   }), 'the constructor should throw');
 }, 'a throwing fatal member should cause the constructor to throw');
 
 test(() => {
-  assert_throws(new Error(),
-                () => new TextDecoderStream('utf-8', {
-                  get ignoreBOM() { throw new Error(); }
-                }), 'the constructor should throw');
+  assert_throws_js(Error,
+                   () => new TextDecoderStream('utf-8', {
+                     get ignoreBOM() { throw new Error(); }
+                   }), 'the constructor should throw');
 }, 'a throwing ignoreBOM member should cause the constructor to throw');
