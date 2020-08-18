@@ -1,6 +1,5 @@
 'use strict';
-const common = require('../common');
-const { addresses } = require('../common/internet');
+require('../common');
 const assert = require('assert');
 
 const dns = require('dns');
@@ -16,11 +15,11 @@ const resolver = new dns.Resolver();
 {
   assert.throws(() => {
     resolver.setLocalAddress('bad');
-  });
+  }, Error);
   assert.throws(() => {
     resolver.setLocalAddress(123);
-  });
+  }, Error);
   assert.throws(() => {
     resolver.setLocalAddress();
-  });
+  }, Error);
 }

@@ -119,12 +119,14 @@ callbacks will be called with an error with code `ECANCELLED`.
 
 ### `resolver.setLocalAddress(addr)`
 <!-- YAML
-added: v15.0.0
+added: REPLACEME
 -->
 
 * `addr` {string} A string representation of an IPv4 or IPv6 address.
 
-The resolver instance will send its requests from the specified IP address.  This allows programs to specify outbound interfaces when used on multi-homed systems.
+The resolver instance will send its requests from the specified IP address.
+This allows programs to specify outbound interfaces when used on multi-homed
+systems.
 
 ## `dns.getServers()`
 <!-- YAML
