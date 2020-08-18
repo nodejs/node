@@ -1,16 +1,16 @@
-// Based on https://encoding.spec.whatwg.org/
-var utf_encodings = ['utf-8', 'utf-16le', 'utf-16be'];
-
 // Straight from https://encoding.spec.whatwg.org/encodings.json
-var encodings_table =
+const encodings_table =
 [
   {
     "encodings": [
       {
         "labels": [
           "unicode-1-1-utf-8",
+          "unicode11utf8",
+          "unicode20utf8",
           "utf-8",
-          "utf8"
+          "utf8",
+          "x-unicode20utf8"
         ],
         "name": "UTF-8"
       }
@@ -438,12 +438,18 @@ var encodings_table =
       },
       {
         "labels": [
+          "unicodefffe",
           "utf-16be"
         ],
         "name": "UTF-16BE"
       },
       {
         "labels": [
+          "csunicode",
+          "iso-10646-ucs-2",
+          "ucs-2",
+          "unicode",
+          "unicodefeff",
           "utf-16",
           "utf-16le"
         ],
