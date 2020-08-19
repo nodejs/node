@@ -242,6 +242,8 @@ class RefBase : protected Finalizer, RefTracker {
   static inline void Delete(RefBase* reference) {
     reference->Unlink();
     if ((reference->RefCount() != 0) ||
+        (reference->RefCount() == 0 &&
+            reference->_finalize_callback == nullptr) ||
         (reference->_delete_self) ||
         (reference->_finalize_ran)) {
       delete reference;

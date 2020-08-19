@@ -9,7 +9,7 @@
 int wrappedNativeData;
 napi_ref ref;
 void WrapFinalizer(napi_env env, void* data, void* hint) {
-  uint32_t count;
+  NAPI_CALL_RETURN_VOID(env, napi_reference_unref(env, ref, NULL));
   NAPI_CALL_RETURN_VOID(env, napi_delete_reference(env, ref));
 }
 
