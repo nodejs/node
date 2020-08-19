@@ -8,8 +8,8 @@
 
 <!-- source_link=lib/fs.js -->
 
-The `fs` module provides an API for interacting with the file system in a
-manner closely modeled around standard POSIX functions.
+The `fs` module enables interacting with the file system in a
+way modeled on standard POSIX functions.
 
 To use this module:
 
@@ -17,24 +17,14 @@ To use this module:
 const fs = require('fs');
 ```
 
-All file system operations have synchronous and asynchronous forms.
+All file system operations have synchronous, callback, and promise-based
+forms.
 
-The asynchronous form always takes a completion callback as its last argument.
-The arguments passed to the completion callback depend on the method, but the
-first argument is always reserved for an exception. If the operation was
-completed successfully, then the first argument will be `null` or `undefined`.
+## Synchronous example
 
-```js
-const fs = require('fs');
-
-fs.unlink('/tmp/hello', (err) => {
-  if (err) throw err;
-  console.log('successfully deleted /tmp/hello');
-});
-```
-
-Exceptions that occur using synchronous operations are thrown immediately and
-may be handled using `try…catch`, or may be allowed to bubble up.
+The synchronous form blocks the Node.js event loop and further JavaScript
+execution until the operation is complete. Exceptions are thrown immediately
+and can be handled using `try…catch`, or can be allowed to bubble up.
 
 ```js
 const fs = require('fs');
@@ -47,9 +37,47 @@ try {
 }
 ```
 
-There is no guaranteed ordering when using asynchronous methods. So the
-following is prone to error because the `fs.stat()` operation may complete
-before the `fs.rename()` operation:
+## Callback example
+
+The callback form takes a completion callback function as its last
+argument and invokes the operation asynchronously. The arguments passed to
+the completion callback depend on the method, but the first argument is always
+reserved for an exception. If the operation is completed successfully, then
+the first argument is `null` or `undefined`.
+
+```js
+const fs = require('fs');
+
+fs.unlink('/tmp/hello', (err) => {
+  if (err) throw err;
+  console.log('successfully deleted /tmp/hello');
+});
+```
+
+## Promise example
+
+Promise-based operations return a `Promise` that is resolved when the
+asynchronous operation is complete.
+
+```js
+const fs = require('fs/promises');
+
+(async function(path) {
+  try {
+    await fs.unlink(path);
+    console.log(`successfully deleted ${path}`);
+  } catch (error) {
+    console.error('there was an error:', error.message);
+  }
+})('/tmp/hello');
+```
+
+## Ordering of callback and promise-based operations
+
+There is no guaranteed ordering when using either the callback or
+promise-based methods. For example, the following is prone to error
+because the `fs.stat()` operation might complete before the `fs.rename()`
+operation:
 
 ```js
 fs.rename('/tmp/hello', '/tmp/world', (err) => {
@@ -75,28 +103,20 @@ fs.rename('/tmp/hello', '/tmp/world', (err) => {
 });
 ```
 
-In busy processes, use the asynchronous versions of these calls. The synchronous
-versions will block the entire process until they complete, halting all
-connections.
+Or, use the promise-based API:
 
-Most asynchronous `fs` functions allow the callback argument to be omitted.
-However, this usage is deprecated. When the callback is omitted, a default
-callback is used that rethrows errors. To get a trace to the original call site,
-set the `NODE_DEBUG` environment variable:
+```js
+const fs = require('fs/promises');
 
-```console
-$ cat script.js
-function bad() {
-  require('fs').readFile('/');
-}
-bad();
-
-$ env NODE_DEBUG=fs node script.js
-fs.js:88
-        throw backtrace;
-        ^
-Error: EISDIR: illegal operation on a directory, read
-    <stack trace.>
+(async function(from, to) {
+  try {
+    await fs.rename(from, to);
+    const stats = await fs.stat(to);
+    console.log(`stats: ${JSON.stringify(stats)}`);
+  } catch (error) {
+    console.error('there was an error:', error.message);
+  }
+})('/tmp/hello', '/tmp/world');
 ```
 
 ## File paths
@@ -106,7 +126,7 @@ a string, a [`Buffer`][], or a [`URL`][] object using the `file:` protocol.
 
 String form paths are interpreted as UTF-8 character sequences identifying
 the absolute or relative filename. Relative paths will be resolved relative
-to the current working directory as specified by `process.cwd()`.
+to the current working directory as determined by calling `process.cwd()`.
 
 Example using an absolute path on POSIX:
 
