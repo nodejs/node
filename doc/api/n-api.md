@@ -1607,6 +1607,10 @@ with `napi_add_env_cleanup_hook`, otherwise the process will abort.
 #### napi_add_async_cleanup_hook
 <!-- YAML
 added: v14.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34819
+    description: Changed signature of the `hook` callback.
 -->
 
 > Stability: 1 - Experimental
@@ -1644,6 +1648,10 @@ added is being torn down anyway.
 #### napi_remove_async_cleanup_hook
 <!-- YAML
 added: v14.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/34819
+    description: Removed `env` parameter.
 -->
 
 > Stability: 1 - Experimental
