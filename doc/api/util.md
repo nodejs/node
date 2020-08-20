@@ -138,7 +138,7 @@ let debuglog = util.debuglog('internals', (debug) => {
 
 ### `debuglog().enabled`
 <!-- YAML
-added: REPLACEME
+added: v14.9.0
 -->
 
 * {boolean}
@@ -166,7 +166,7 @@ hello from foo [123]
 
 ## `util.debug(section)`
 <!-- YAML
-added: REPLACEME
+added: v14.9.0
 -->
 
 Alias for `util.debuglog`. Usage allows for readability of that doesn't imply
