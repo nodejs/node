@@ -2780,7 +2780,7 @@ Type: Documentation-only
 ### DEP0146: `new crypto.Certificate()`
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v14.9.0
     pr-url: https://github.com/nodejs/node/pull/34697
     description: Documentation-only deprecation.
 -->
