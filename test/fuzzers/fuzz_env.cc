@@ -55,15 +55,13 @@ public:
 
   FuzzerFixtureHelper()
     : allocator(ArrayBufferUniquePtr(node::CreateArrayBufferAllocator(),
-                                     &node::FreeArrayBufferAllocator))
-  {
+                                     &node::FreeArrayBufferAllocator)) {
     isolate_ = NewIsolate(allocator.get(), &current_loop, platform.get());
     CHECK_NOT_NULL(isolate_);
     isolate_->Enter();
   };
 
-  void Teardown()
-  {
+  void Teardown() {
     platform->DrainTasks(isolate_);
     isolate_->Exit();
     platform->UnregisterIsolate(isolate_);
@@ -72,8 +70,7 @@ public:
   }
 };
 
-void EnvTest(v8::Isolate* isolate_, char* env_string)
-{
+void EnvTest(v8::Isolate* isolate_, char* env_string) {
   const v8::HandleScope handle_scope(isolate_);
   Argv argv;
 
@@ -100,8 +97,7 @@ void EnvTest(v8::Isolate* isolate_, char* env_string)
   context_->Exit();
 }
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data2, size_t size)
-{
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data2, size_t size) {
   FuzzerFixtureHelper ffh;
   std::string s(reinterpret_cast<const char*>(data2), size);
   EnvTest(ffh.isolate_, s.c_str());
