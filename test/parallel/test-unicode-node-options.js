@@ -12,7 +12,10 @@ if (process.argv.length === 2) {
   const result = cp.spawnSync(process.argv0,
                               ['--expose-internals', __filename, 'test'],
                               {
-                                env: { NODE_OPTIONS },
+                                env: {
+                                  ...process.env,
+                                  NODE_OPTIONS
+                                },
                                 stdio: 'inherit'
                               });
   assert.strictEqual(result.status, 0);
