@@ -27,8 +27,7 @@ static TracingAgentUniquePtr tracing_agent;
 static NodePlatformUniquePtr platform;
 static uv_loop_t current_loop;
 
-extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv)
-{
+extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   uv_os_unsetenv("NODE_OPTIONS");
   std::vector<std::string> node_argv{ "fuzz_env" };
   std::vector<std::string> exec_argv;
@@ -56,10 +55,10 @@ public:
 
   FuzzerFixtureHelper()
     : allocator(ArrayBufferUniquePtr(node::CreateArrayBufferAllocator(),
-                                         &node::FreeArrayBufferAllocator))
+                                     &node::FreeArrayBufferAllocator))
   {
-    isolate_ = NewIsolate(allocator.get(), &current_loop,
-                          platform.get());
+    isolate_ = NewIsolate(allocator.get(), &current_loop, platform.get());
+    CHECK_NOT_NULL(isolate_);
     isolate_->Enter();
   };
 
@@ -104,13 +103,8 @@ void EnvTest(v8::Isolate* isolate_, char* env_string)
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data2, size_t size)
 {
   FuzzerFixtureHelper ffh;
-
-  char* new_string = (char*)malloc(size + 1);
-  new_string[size] = '\0';
-  memcpy(new_string, data2, size);
-  EnvTest(ffh.isolate_, new_string);
-  free(new_string);
-
+  std::string s(reinterpret_cast<const char*>(data2), size);
+  EnvTest(ffh.isolate_, s.c_str());
   ffh.Teardown();
   return 0;
 }
