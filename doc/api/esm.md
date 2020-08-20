@@ -665,11 +665,10 @@ CommonJS entry point for `require`.
 ```js
 // ./node_modules/pkg/package.json
 {
-  "type": "module",
-  "main": "./index.cjs",
+  "main": "./index.js",
   "exports": {
     "import": "./wrapper.mjs",
-    "require": "./index.cjs"
+    "require": "./index.js"
   }
 }
 ```
@@ -727,10 +726,9 @@ stateless):
 ```js
 // ./node_modules/pkg/package.json
 {
-  "type": "module",
-  "main": "./index.cjs",
+  "main": "./index.js",
   "exports": {
-    ".": "./index.cjs",
+    ".": "./index.js",
     "./module": "./wrapper.mjs"
   }
 }
