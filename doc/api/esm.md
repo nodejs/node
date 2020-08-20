@@ -1895,7 +1895,7 @@ requires the full path to a module be provided to the loader. To enable the
 automatic extension resolution and importing from directories that include an
 index file use the `node` mode.
 
-```bash
+```console
 $ node index.mjs
 success!
 $ node index # Failure!
