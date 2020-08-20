@@ -100,7 +100,7 @@ void EnvTest(v8::Isolate* isolate_, char* env_string) {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data2, size_t size) {
   FuzzerFixtureHelper ffh;
   std::string s(reinterpret_cast<const char*>(data2), size);
-  EnvTest(ffh.isolate_, s.c_str());
+  EnvTest(ffh.isolate_, (char*)s.c_str());
   ffh.Teardown();
   return 0;
 }
