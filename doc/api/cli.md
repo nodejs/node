@@ -78,7 +78,7 @@ $ source node_bash_completion
 
 ### `--conditions=condition`
 <!-- YAML
-added: REPLACEME
+added: v14.9.0
 -->
 
 > Stability: 1 - Experimental

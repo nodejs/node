@@ -621,11 +621,11 @@ if (isMainThread) {
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v14.9.0
     pr-url: https://github.com/nodejs/node/pull/34584
     description: The `filename` parameter can be a WHATWG `URL` object using
                  `data:` protocol.
-  - version: REPLACEME
+  - version: v14.9.0
     pr-url: https://github.com/nodejs/node/pull/34394
     description: The `trackUnmanagedFds` option was set to `true` by default.
   - version:

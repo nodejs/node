@@ -127,7 +127,7 @@ of the Node.js application.
 
 ### `timeout[Symbol.toPrimitive]()`
 <!-- YAML
-added: REPLACEME
+added: v14.9.0
 -->
 
 * Returns: {integer} number that can be used to reference this `timeout`
