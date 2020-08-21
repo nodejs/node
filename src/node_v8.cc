@@ -25,6 +25,7 @@
 #include "memory_tracker-inl.h"
 #include "util-inl.h"
 #include "v8.h"
+#include "node_process.h"
 
 namespace node {
 
@@ -167,6 +168,29 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
 }
 
+static v8::ModifyCodeGenerationFromStringsResult CodeGenCallback(
+                                                         Local<Context> context,
+                                                         Local<Value> source) {
+  Environment* env = Environment::GetCurrent(context);
+  ProcessEmit(env, "codeGenerationFromString", source);
+  // expected signature is {bool, Local<Value>} but {bool} is also valid and
+  // fallbacks on the original argument.
+  return {true};
+}
+
+static void EmitCodeGenFromStringEvent(
+                                      const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = env->context();
+
+  // This only makes sense if code generation from string is allowed.
+  if (context->IsCodeGenerationFromStringsAllowed()) {
+    // V8 requires that this is set to false for it to call the callback
+    context->AllowCodeGenerationFromStrings(false);
+    isolate->SetModifyCodeGenerationFromStringsCallback(CodeGenCallback);
+  }
+}
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,
@@ -179,6 +203,9 @@ void Initialize(Local<Object> target,
 
   env->SetMethodNoSideEffect(target, "cachedDataVersionTag",
                              CachedDataVersionTag);
+
+  env->SetMethod(
+         target, "emitCodeGenFromStringEvent", EmitCodeGenFromStringEvent);
 
   // Export symbols used by v8.getHeapStatistics()
   env->SetMethod(
