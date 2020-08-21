@@ -3,13 +3,13 @@
 <!--introduced_in=v7.7.0-->
 <!-- type=misc -->
 
-Node.js may deprecate APIs for any of the following reasons:
+Node.js APIs might be deprecated for any of the following reasons:
 
 * Use of the API is unsafe.
 * An improved alternative API is available.
 * Breaking changes to the API are expected in a future major release.
 
-Node.js utilizes three kinds of Deprecations:
+Node.js uses three kinds of Deprecations:
 
 * Documentation-only
 * Runtime
@@ -34,7 +34,7 @@ from Node.js.
 
 ## Revoking deprecations
 
-Occasionally, the deprecation of an API may be reversed. In such situations,
+Occasionally, the deprecation of an API might be reversed. In such situations,
 this document will be updated with information relevant to the decision.
 However, the deprecation identifier will not be modified.
 
@@ -1666,7 +1666,7 @@ Type: End-of-Life
 Using a property named `inspect` on an object to specify a custom inspection
 function for [`util.inspect()`][] is deprecated. Use [`util.inspect.custom`][]
 instead. For backward compatibility with Node.js prior to version 6.4.0, both
-may be specified.
+can be specified.
 
 <a id="DEP0080"></a>
 ### DEP0080: `path._makeLong()`
@@ -1770,7 +1770,7 @@ The `v8/*` modules do not have any exports, and if not imported in a specific
 order would in fact throw errors. As such there are virtually no legitimate use
 cases for importing them through `require()`.
 
-On the other hand, `node-inspect` may be installed locally through a package
+On the other hand, `node-inspect` can be installed locally through a package
 manager, as it is published on the npm registry under the same name. No source
 code modification is necessary if that is done.
 
@@ -2071,7 +2071,7 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 
 When assigning a non-string property to [`process.env`][], the assigned value is
 implicitly converted to a string. This behavior is deprecated if the assigned
-value is not a string, boolean, or number. In the future, such assignment may
+value is not a string, boolean, or number. In the future, such assignment might
 result in a thrown error. Please convert the property to a string before
 assigning it to `process.env`.
 
@@ -2267,7 +2267,7 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 In recent versions of Node.js, there is no difference between
 [`crypto.randomBytes()`][] and `crypto.pseudoRandomBytes()`. The latter is
 deprecated along with the undocumented aliases `crypto.prng()` and
-`crypto.rng()` in favor of [`crypto.randomBytes()`][] and may be removed in a
+`crypto.rng()` in favor of [`crypto.randomBytes()`][] and might be removed in a
 future release.
 
 <a id="DEP0116"></a>
@@ -2621,7 +2621,7 @@ changes:
 Type: Runtime
 
 Allowing a [`fs.FileHandle`][] object to be closed on garbage collection is
-deprecated. In the future, doing so may result in a thrown error that will
+deprecated. In the future, doing so might result in a thrown error that will
 terminate the process.
 
 Please ensure that all `fs.FileHandle` objects are explicitly closed using
