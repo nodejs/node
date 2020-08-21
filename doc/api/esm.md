@@ -673,7 +673,7 @@ CommonJS entry point for `require`.
   }
 }
 ```
-The above example uses explicit extensions `.mjs` and `.cjs`. 
+The above example uses explicit extensions `.mjs` and `.cjs`.
 If your files use the `.js` extension, `"type": "module"` will cause such files
 to be treated as ES modules, just as `"type": "commonjs"` would cause them
 to be treated as CommonJS.
