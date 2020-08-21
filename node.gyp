@@ -51,6 +51,7 @@
       'lib/constants.js',
       'lib/crypto.js',
       'lib/cluster.js',
+      'lib/diagnostics_channel.js',
       'lib/dgram.js',
       'lib/dns.js',
       'lib/dns/promises.js',

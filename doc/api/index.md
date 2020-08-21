@@ -23,6 +23,7 @@
 * [Crypto](crypto.md)
 * [Debugger](debugger.md)
 * [Deprecated APIs](deprecations.md)
+* [Diagnostics Channel](diagnostics_channel.md)
 * [DNS](dns.md)
 * [Domain](domain.md)
 * [Errors](errors.md)
