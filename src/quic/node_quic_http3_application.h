@@ -174,7 +174,7 @@ class Http3Application final :
   void BeginHeaders(
       int64_t stream_id,
       QuicStreamHeadersKind kind = QUICSTREAM_HEADERS_KIND_NONE);
-  bool ReceiveHeader(
+  void ReceiveHeader(
       int64_t stream_id,
       int32_t token,
       nghttp3_rcbuf* name,

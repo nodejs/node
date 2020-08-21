@@ -646,7 +646,7 @@ void Http3Application::BeginHeaders(
 // by the QuicStream until stream->EndHeaders() is called, during which
 // the collected headers are converted to an array and passed off to
 // the javascript side.
-bool Http3Application::ReceiveHeader(
+void Http3Application::ReceiveHeader(
     int64_t stream_id,
     int32_t token,
     nghttp3_rcbuf* name,
@@ -671,9 +671,9 @@ bool Http3Application::ReceiveHeader(
         name,
         value,
         flags);
-    return stream->AddHeader(std::move(header));
+    // At this level, we don't care if the header is added or not.
+    USE(stream->AddHeader(std::move(header)));
   }
-  return true;
 }
 
 // Marks the completion of a headers block.
@@ -830,10 +830,8 @@ int Http3Application::OnReceiveHeader(
     void* conn_user_data,
     void* stream_user_data) {
   Http3Application* app = static_cast<Http3Application*>(conn_user_data);
-  // TODO(@jasnell): Need to determine the appropriate response code here
-  // for when the header is not going to be accepted.
-  return app->ReceiveHeader(stream_id, token, name, value, flags) ?
-      0 : NGHTTP3_ERR_CALLBACK_FAILURE;
+  app->ReceiveHeader(stream_id, token, name, value, flags);
+  return 0;
 }
 
 int Http3Application::OnEndHeaders(
@@ -868,8 +866,7 @@ int Http3Application::OnReceivePushPromise(
     void* conn_user_data,
     void* stream_user_data) {
   Http3Application* app = static_cast<Http3Application*>(conn_user_data);
-  if (!app->ReceiveHeader(stream_id, token, name, value, flags))
-    return NGHTTP3_ERR_CALLBACK_FAILURE;
+  app->ReceiveHeader(stream_id, token, name, value, flags);
   return 0;
 }
 
