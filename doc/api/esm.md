@@ -665,13 +665,15 @@ CommonJS entry point for `require`.
 ```js
 // ./node_modules/pkg/package.json
 {
-  "main": "./index.js",
+  "type": "module",
+  "main": "./index.cjs",
   "exports": {
     "import": "./wrapper.mjs",
-    "require": "./index.js"
+    "require": "./index.cjs"
   }
 }
 ```
+Note that the above example uses explicit extensions `.mjs` and `.cjs`. If your files use the `.js` extension, note that `"type": "module"` will cause such files to be treated as ES modules, just as `"type": "commonjs"` would cause them to be treated as CommonJS. See [Enabling](https://nodejs.org/api/esm.html#esm_enabling).
 
 ```js
 // ./node_modules/pkg/index.cjs
@@ -726,9 +728,10 @@ stateless):
 ```js
 // ./node_modules/pkg/package.json
 {
-  "main": "./index.js",
+  "type": "module",
+  "main": "./index.cjs",
   "exports": {
-    ".": "./index.js",
+    ".": "./index.cjs",
     "./module": "./wrapper.mjs"
   }
 }
