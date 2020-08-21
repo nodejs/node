@@ -421,7 +421,7 @@ and load it instead.
 
 ## Native abstractions for Node.js
 
-Each of the examples illustrated in this document make direct use of the
+Each of the examples illustrated in this document directly use the
 Node.js and V8 APIs for implementing addons. The V8 API can, and has, changed
 dramatically from one V8 release to the next (and one major Node.js release to
 the next). With each change, addons may need to be updated and recompiled in
@@ -495,7 +495,7 @@ The functions available and how to use them are documented in
 ## Addon examples
 
 Following are some example addons intended to help developers get started. The
-examples make use of the V8 APIs. Refer to the online [V8 reference][v8-docs]
+examples use the V8 APIs. Refer to the online [V8 reference][v8-docs]
 for help with the various V8 calls, and V8's [Embedder's Guide][] for an
 explanation of several concepts used such as handles, scopes, function
 templates, etc.

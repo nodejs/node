@@ -111,7 +111,7 @@ versions:
     ```
 
 Thus, for an addon to remain ABI-compatible across Node.js major versions, it
-must make use exclusively of N-API by restricting itself to using
+must use N-API exclusively by restricting itself to using
 
 ```c
 #include <node_api.h>
@@ -370,7 +370,7 @@ From the perspective of a native addon this means that the bindings it provides
 may be called multiple times, from multiple contexts, and even concurrently from
 multiple threads.
 
-Native addons may need to allocate global state of which they make use during
+Native addons may need to allocate global state which they use during
 their entire life cycle such that the state must be unique to each instance of
 the addon.
 
@@ -5510,7 +5510,7 @@ return status of `napi_closing` in response to a call to
 should be the last API call made in conjunction with a given
 `napi_threadsafe_function`, because after the call completes, there is no
 guarantee that the `napi_threadsafe_function` is still allocated. For the same
-reason, do not make use of a thread-safe function
+reason, do not use a thread-safe function
 after receiving a return value of `napi_closing` in response to a call to
 `napi_call_threadsafe_function`. Data associated with the
 `napi_threadsafe_function` can be freed in its `napi_finalize` callback which
@@ -5533,8 +5533,8 @@ reference count reaches zero. In particular, `napi_call_threadsafe_function()`
 will return `napi_closing`, thus informing the threads that it is no longer
 possible to make asynchronous calls to the thread-safe function. This can be
 used as a criterion for terminating the thread. **Upon receiving a return value
-of `napi_closing` from `napi_call_threadsafe_function()` a thread must make no
-further use of the thread-safe function because it is no longer guaranteed to
+of `napi_closing` from `napi_call_threadsafe_function()` a thread must not use
+the thread-safe function anymore because it is no longer guaranteed to
 be allocated.**
 
 ### Deciding whether to keep the process running
