@@ -178,12 +178,8 @@ std::string QuicSession::RemoteTransportParamsDebug::ToString() const {
       out += "  Original Connection ID: N/A \n";
     }
 
-    if (params.preferred_address_present) {
-      out += "  Preferred Address Present: Yes\n";
-      // TODO(@jasnell): Serialize the IPv4 and IPv6 address options
-    } else {
-      out += "  Preferred Address Present: No\n";
-    }
+    out += "  Preferred Address Present: " +
+           params.preferred_address_present ? "Yes" : "No";
 
     if (params.stateless_reset_token_present) {
       StatelessResetToken token(params.stateless_reset_token);
