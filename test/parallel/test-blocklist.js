@@ -56,6 +56,7 @@ const assert = require('assert');
   assert(blockList.check('8592:757c:efae:4e45:fb5d:d62a:0d00:8e17', 'ipv6'));
 
   assert(blockList.check('::ffff:1.1.1.1', 'ipv6'));
+  assert(blockList.check('::ffff:1.1.1.1', 'IPV6'));
 
   assert(blockList.check('1.1.1.2'));
 
@@ -100,7 +101,7 @@ const assert = require('assert');
   const blockList = new BlockList();
   blockList.addAddress('1.1.1.1');
   blockList.addRange('10.0.0.1', '10.0.0.10');
-  blockList.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
+  blockList.addSubnet('8592:757c:efae:4e45::', 64, 'IpV6'); // Case insensitive
 
   const rulesCheck = [
     'Subnet: IPv6 8592:757c:efae:4e45::/64',
