@@ -17,10 +17,8 @@ this guide.
 * `.editorconfig` describes the preferred formatting.
   * A [plugin][] is available for some editors to apply these rules.
 * Check changes to documentation with `make lint-md`.
-* Use American English spelling.
-  * OK: _capitalize_, _color_
-  * NOT OK: _capitalise_, _colour_
-* Use [serial commas][].
+* [Use US spelling][].
+* [Use serial commas][].
 * Avoid personal pronouns (_I_, _you_, _we_) in reference documentation.
   * Personal pronouns are acceptable in colloquial documentation such as guides.
   * Use gender-neutral pronouns and gender-neutral plural nouns.
@@ -86,11 +84,8 @@ this guide.
 * Use _Node.js_ and not _Node_, _NodeJS_, or similar variants.
   <!-- lint enable prohibited-strings remark-lint-->
   * When referring to the executable, _`node`_ is acceptable.
-* Be direct.
-  * OK: The return value is a string.
-  <!-- lint disable prohibited-strings remark-lint-->
-  * NOT OK: It is important to note that, in all cases, the return value will be
-    a string regardless.
+* [Be direct][].
+<!-- lint disable prohibited-strings remark-lint-->
 * When referring to a version of Node.js in prose, use _Node.js_ and the version
   number. Do not prefix the version number with _v_ in prose. This is to avoid
   confusion about whether _v8_ refers to Node.js 8.x or the V8 JavaScript
@@ -98,19 +93,20 @@ this guide.
   <!-- lint enable prohibited-strings remark-lint-->
   * OK: _Node.js 14.x_, _Node.js 14.3.1_
   * NOT OK: _Node.js v14_
-* For headings, use sentence case, not title case.
-  * OK: _## Everybody to the limit_
-  * NOT OK: _## Everybody To The Limit_
+* [Use sentence-style capitalization for headings][].
 
 See also API documentation structure overview in [doctools README][].
 
 For topics not covered here, refer to the [Microsoft Writing Style Guide][].
 
+[Be direct]: https://docs.microsoft.com/en-us/style-guide/word-choice/use-simple-words-concise-sentences
 [Javascript type]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Grammar_and_types#Data_structures_and_types
 [Microsoft Writing Style Guide]: https://docs.microsoft.com/en-us/style-guide/welcome/
+[Use US spelling]: https://docs.microsoft.com/en-us/style-guide/word-choice/use-us-spelling-avoid-non-english-words
+[Use sentence-style capitalization for headings]: https://docs.microsoft.com/en-us/style-guide/scannable-content/headings#formatting-headings
+[Use serial commas]: https://docs.microsoft.com/en-us/style-guide/punctuation/commas
 [`remark-preset-lint-node`]: https://github.com/nodejs/remark-preset-lint-node
 [doctools README]: ../../tools/doc/README.md
 [info string]: https://github.github.com/gfm/#info-string
 [language]: https://github.com/highlightjs/highlight.js/blob/master/SUPPORTED_LANGUAGES.md
 [plugin]: https://editorconfig.org/#download
-[serial commas]: https://en.wikipedia.org/wiki/Serial_comma
